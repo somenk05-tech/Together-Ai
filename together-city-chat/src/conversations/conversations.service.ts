@@ -14,8 +14,10 @@ export class ConversationsService {
   /** Idempotently get-or-create the DIRECT conversation between two connected users. */
   /** City directory for starting chats / groups. */
   async contacts(userId: string) {
+    // Fellow citizens only — exclude doctors/dietitians (they are Users for booking/chat,
+    // but should not appear in the citizen directory as casual contacts).
     const rows = await this.prisma.user.findMany({
-      where: { NOT: { id: userId } },
+      where: { NOT: { id: userId }, doctorProfile: { is: null }, dietitianProfile: { is: null } },
       select: { id: true, handle: true, name: true, profileImage: true },
       orderBy: { name: 'asc' }, take: 200,
     });

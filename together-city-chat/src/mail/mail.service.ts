@@ -198,7 +198,12 @@ export class MailService {
 
   /** City directory — everyone you can write to. */
   async directory(userId: string) {
-    const rows = await this.prisma.user.findMany({ where: { NOT: { id: userId } }, select: { handle: true, name: true }, orderBy: { name: 'asc' }, take: 200 });
+    // Only fellow citizens — exclude service providers (doctors/dietitians are Users
+    // so bookings can open a chat, but they are not people you email.)
+    const rows = await this.prisma.user.findMany({
+      where: { NOT: { id: userId }, doctorProfile: { is: null }, dietitianProfile: { is: null } },
+      select: { handle: true, name: true }, orderBy: { name: 'asc' }, take: 200,
+    });
     return rows.map((u) => ({ handle: u.handle, name: u.name, address: addressFor(u.handle) }));
   }
 }
