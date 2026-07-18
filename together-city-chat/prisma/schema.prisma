@@ -639,7 +639,11 @@ model MedicalRecord {
   kind       String // prescription | report | condition | allergy | vaccination | note
   title      String
   detail     String?
-  fileUrl    String?
+  fileUrl    String? // public URL of the uploaded document (R2)
+  fileKey    String? // R2 object key (for deletion)
+  mimeType   String? // application/pdf | image/jpeg | image/png
+  sizeBytes  Int      @default(0) // counts against the citizen's shared 10 GB vault
+  bloodTestId String? // if this document produced a parsed blood panel, link it
   recordedOn DateTime @default(now())
   createdAt  DateTime @default(now())
 

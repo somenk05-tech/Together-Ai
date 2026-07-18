@@ -8,7 +8,12 @@ import { ZodSchema, ZodTypeAny, z } from 'zod';
 export class ZodValidationPipe implements PipeTransform {
   constructor(private readonly schema: ZodSchema) {}
 
-  transform(value: unknown, _metadata: ArgumentMetadata): unknown {
+  transform(value: unknown, metadata: ArgumentMetadata): unknown {
+    // Only validate the request payload (body/query). When applied via @UsePipes at
+    // the method level, the pipe also runs against custom params like @CurrentUser()
+    // and @Param() — validating those against a body schema wrongly fails ("field
+    // required"). Skip anything that isn't the actual payload.
+    if (metadata.type !== 'body' && metadata.type !== 'query') return value;
     const result = this.schema.safeParse(value);
     if (!result.success) {
       throw new BadRequestException({
