@@ -1,0 +1,85 @@
+import { http as api } from '@/api/client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+export interface Skill { key: string; label: string }
+export interface JobProfile {
+  saved: boolean; headline: string; skills: Skill[]; experienceYears: number;
+  seniority: string; location: string | null; resumeName: string | null;
+}
+export interface JobMatch {
+  id: string; title: string; company: string; location: string; remote: boolean;
+  seniority: string; salaryLpa: number; blurb: string; minYears: number;
+  score: number; matchedSkills: Skill[]; missingSkills: Skill[]; reasons: string[];
+  applied: boolean; postedByYou?: boolean;
+}
+export interface MatchesResponse { hasProfile: boolean; matches: JobMatch[] }
+export interface Application { id: string; jobId: string; title: string; company: string; status: string; coverNote: string | null; appliedOn: string }
+export interface Posting { id: string; title: string; company: string; location: string; remote: boolean; salaryLpa: number; skills: Skill[]; applicantCount: number; postedOn: string }
+export interface Applicant { id: string; name: string; handle: string; headline: string; experienceYears: number; matchedSkills: string[]; coverNote: string | null; status: string; appliedOn: string }
+export interface ApplicantsResponse { job: { id: string; title: string; company: string }; applicants: Applicant[] }
+
+export const jobsApi = {
+  profile: () => api.get<JobProfile>('/jobs/profile').then((r) => r.data),
+  uploadResume: (resumeText: string, fileName?: string) =>
+    api.post<{ parsed: JobProfile; matchCount: number }>('/jobs/resume', { resumeText, fileName }).then((r) => r.data),
+  saveProfile: (input: { headline: string; skills: string[]; experienceYears: number; location?: string }) =>
+    api.put<JobProfile>('/jobs/profile', input).then((r) => r.data),
+  matches: () => api.get<MatchesResponse>('/jobs/matches').then((r) => r.data),
+  applications: () => api.get<Application[]>('/jobs/applications').then((r) => r.data),
+  apply: (jobId: string, coverNote?: string) => api.post<Application[]>('/jobs/applications', { jobId, coverNote }).then((r) => r.data),
+  postJob: (input: { title: string; company: string; location: string; remote: boolean; skills: string[]; minYears: number; salaryLpa: number; blurb?: string }) =>
+    api.post<Posting[]>('/jobs/postings', input).then((r) => r.data),
+  myPostings: () => api.get<Posting[]>('/jobs/postings').then((r) => r.data),
+  applicants: (id: string) => api.get<ApplicantsResponse>(`/jobs/postings/${id}/applicants`).then((r) => r.data),
+};
+
+export function useJobProfile() {
+  return useQuery({ queryKey: ['jobs', 'profile'], queryFn: () => jobsApi.profile() });
+}
+export function useUploadResume() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { resumeText: string; fileName?: string }) => jobsApi.uploadResume(v.resumeText, v.fileName),
+    onSuccess: (res) => { qc.setQueryData(['jobs', 'profile'], res.parsed); void qc.invalidateQueries({ queryKey: ['jobs', 'matches'] }); },
+  });
+}
+export function useSaveJobProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: jobsApi.saveProfile,
+    onSuccess: (p) => { qc.setQueryData(['jobs', 'profile'], p); void qc.invalidateQueries({ queryKey: ['jobs', 'matches'] }); },
+  });
+}
+export function useJobMatches() {
+  return useQuery({ queryKey: ['jobs', 'matches'], queryFn: () => jobsApi.matches() });
+}
+export function useApplications() {
+  return useQuery({ queryKey: ['jobs', 'applications'], queryFn: () => jobsApi.applications() });
+}
+export function useApply() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { jobId: string; coverNote?: string }) => jobsApi.apply(v.jobId, v.coverNote),
+    onSuccess: (apps) => { qc.setQueryData(['jobs', 'applications'], apps); void qc.invalidateQueries({ queryKey: ['jobs', 'matches'] }); },
+  });
+}
+export function usePostJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: jobsApi.postJob,
+    onSuccess: (list) => { qc.setQueryData(['jobs', 'postings'], list); void qc.invalidateQueries({ queryKey: ['jobs', 'matches'] }); },
+  });
+}
+export function useMyPostings() {
+  return useQuery({ queryKey: ['jobs', 'postings'], queryFn: () => jobsApi.myPostings() });
+}
+export function useApplicants(id: string, enabled: boolean) {
+  return useQuery({ queryKey: ['jobs', 'applicants', id], queryFn: () => jobsApi.applicants(id), enabled });
+}
+
+export const SAMPLE_RESUME = `Priya Sharma — Senior Frontend Engineer
+Bengaluru · 7 years experience
+
+Summary: Senior frontend engineer who led a team building large-scale SaaS web apps.
+Skills: JavaScript, TypeScript, React, GraphQL, Node.js, some AWS and Docker.
+Experience: Led the design system and core web app at a fintech; mentored 4 engineers.`;

@@ -1,0 +1,121 @@
+import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { randomBytes } from 'crypto';
+import { PrismaService } from '../shared/prisma/prisma.service';
+import { FinancialService } from '../financial/financial.service';
+import { MailService } from '../mail/mail.service';
+import { packageReceipt, flightReceipt } from '../mail/receipts';
+import { CATEGORIES, CATEGORY_META, PACKAGE_SEEDS, hero } from './travel.constants';
+import { searchFlights, findFlight, airportOptions, type SearchInput } from './travel-flights';
+import type { PackageQueryDto, BookPackageDto, FlightSearchDto, BookFlightDto } from './dto/travel.dto';
+
+type PkgRow = { id: string; title: string; destination: string; country: string; category: string; nights: number; days: number; priceFromInr: number; summary: string; heroUrl: string; highlightsJson: string; inclusionsJson: string; itineraryJson: string; tiersJson: string };
+const parse = <T>(json: string, fb: T): T => { try { return JSON.parse(json) as T; } catch { return fb; } };
+const code = () => 'TC-' + randomBytes(3).toString('hex').toUpperCase();
+
+@Injectable()
+export class TravelService implements OnModuleInit {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly financial: FinancialService, // bookings pay through the one city wallet
+    private readonly mail: MailService,            // confirmations land in the city inbox + primary email
+  ) {}
+
+  async onModuleInit(): Promise<void> { await this.ensureSeeds(); }
+
+  categories() { return CATEGORIES.map((c) => ({ key: c.key, label: c.label, icon: c.icon })); }
+
+  // ─────────────── curated packages ───────────────
+  private card(p: PkgRow) {
+    const meta = CATEGORY_META[p.category] ?? { label: p.category, icon: '🧳', hue: 0 };
+    return { id: p.id, title: p.title, destination: p.destination, country: p.country, category: p.category, categoryLabel: meta.label, icon: meta.icon, nights: p.nights, days: p.days, priceFromInr: p.priceFromInr, summary: p.summary, heroUrl: p.heroUrl };
+  }
+
+  async packages(query: PackageQueryDto) {
+    const rows = await this.prisma.travelPackage.findMany({ orderBy: { priceFromInr: 'asc' } }) as PkgRow[];
+    return rows.filter((p) => !query.category || p.category === query.category).map((p) => this.card(p));
+  }
+
+  async packageDetail(id: string) {
+    const p = await this.prisma.travelPackage.findUnique({ where: { id } }) as PkgRow | null;
+    if (!p) throw new NotFoundException('package not found');
+    return {
+      ...this.card(p),
+      highlights: parse<string[]>(p.highlightsJson, []),
+      inclusions: parse<string[]>(p.inclusionsJson, []),
+      itinerary: parse<{ day: number; title: string; detail: string }[]>(p.itineraryJson, []),
+      tiers: parse<{ name: string; priceInr: number; perks: string }[]>(p.tiersJson, []),
+    };
+  }
+
+  async bookPackage(userId: string, id: string, dto: BookPackageDto) {
+    const p = await this.prisma.travelPackage.findUnique({ where: { id } }) as PkgRow | null;
+    if (!p) throw new NotFoundException('package not found');
+    const tier = parse<{ name: string; priceInr: number }[]>(p.tiersJson, []).find((t) => t.name === dto.tier);
+    if (!tier) throw new BadRequestException('unknown tier');
+    const totalInr = tier.priceInr * dto.pax;
+    await this.financial.charge(userId, { hub: 'Travel', category: 'travel', label: `${p.title} · ${dto.tier} ×${dto.pax}`, amountInr: totalInr, method: dto.method });
+    const bookingCode = code();
+    await this.prisma.tripBooking.create({
+      data: {
+        userId, kind: 'package', title: p.title, subtitle: `${p.nights}N/${p.days}D · ${p.destination}`, tier: dto.tier, pax: dto.pax,
+        totalInr, code: bookingCode, status: 'confirmed', category: p.category,
+        detailJson: JSON.stringify({ destination: p.destination, startDate: dto.startDate ?? null, nights: p.nights }),
+      },
+    });
+    await this.mail.deliverSystem(userId, packageReceipt({ title: p.title, destination: p.destination, nights: p.nights, days: p.days, tier: dto.tier, pax: dto.pax, totalInr, code: bookingCode, startDate: dto.startDate ?? null })).catch(() => undefined);
+    return this.myTrips(userId);
+  }
+
+  // ─────────────── flights (Skyscanner-style, no API) ───────────────
+  airports() { return airportOptions(); }
+
+  flightSearch(dto: FlightSearchDto) {
+    const input: SearchInput = { from: dto.from.toUpperCase(), to: dto.to.toUpperCase(), date: dto.date, pax: dto.pax, cabin: dto.cabin };
+    const { flights, from, to } = searchFlights(input);
+    return { from, to, date: dto.date, pax: dto.pax, cabin: dto.cabin, count: flights.length, flights };
+  }
+
+  async bookFlight(userId: string, dto: BookFlightDto) {
+    const input: SearchInput = { from: dto.from.toUpperCase(), to: dto.to.toUpperCase(), date: dto.date, pax: dto.pax, cabin: dto.cabin };
+    const flight = findFlight(input, dto.flightId);
+    if (!flight) throw new BadRequestException('flight no longer available — search again');
+    const totalInr = flight.priceInr * dto.pax;
+    await this.financial.charge(userId, { hub: 'Travel', category: 'travel', label: `Flight ${flight.from}→${flight.to} · ${flight.airline} ×${dto.pax}`, amountInr: totalInr, method: dto.method });
+    const bookingCode = code();
+    await this.prisma.tripBooking.create({
+      data: {
+        userId, kind: 'flight', title: `${flight.from} → ${flight.to}`, subtitle: `${flight.airline} ${flight.flightNo} · ${dto.date}`, tier: flight.cabin, pax: dto.pax,
+        totalInr, code: bookingCode, status: 'confirmed', category: 'flight',
+        detailJson: JSON.stringify({ airline: flight.airline, flightNo: flight.flightNo, departTime: flight.departTime, arriveTime: flight.arriveTime, durationLabel: flight.durationLabel, stopLabel: flight.stopLabel, date: dto.date }),
+      },
+    });
+    await this.mail.deliverSystem(userId, flightReceipt({ from: flight.from, to: flight.to, airline: flight.airline, flightNo: flight.flightNo, departTime: flight.departTime, arriveTime: flight.arriveTime, durationLabel: flight.durationLabel, stopLabel: flight.stopLabel, cabin: flight.cabin, date: dto.date, pax: dto.pax, totalInr, code: bookingCode })).catch(() => undefined);
+    return this.myTrips(userId);
+  }
+
+  // ─────────────── my trips ───────────────
+  async myTrips(userId: string) {
+    const rows = await this.prisma.tripBooking.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+    return rows.map((t) => ({
+      id: t.id, kind: t.kind, title: t.title, subtitle: t.subtitle, tier: t.tier, pax: t.pax,
+      totalInr: t.totalInr, code: t.code, status: t.status,
+      icon: t.kind === 'flight' ? '✈️' : CATEGORY_META[t.category]?.icon ?? '🧳',
+      detail: parse<Record<string, unknown>>(t.detailJson, {}), bookedOn: t.createdAt.toISOString().slice(0, 10),
+    }));
+  }
+
+  private async ensureSeeds(): Promise<void> {
+    try { if ((await this.prisma.travelPackage.count()) > 0) return; } catch { return; }
+    for (const s of PACKAGE_SEEDS) {
+      const hue = CATEGORY_META[s.category]?.hue ?? 0;
+      await this.prisma.travelPackage.create({
+        data: {
+          id: s.id, title: s.title, destination: s.destination, country: s.country, category: s.category,
+          nights: s.nights, days: s.days, priceFromInr: s.priceFromInr, summary: s.summary, heroUrl: hero(s.title, hue),
+          highlightsJson: JSON.stringify(s.highlights), inclusionsJson: JSON.stringify(s.inclusions),
+          itineraryJson: JSON.stringify(s.itinerary), tiersJson: JSON.stringify(s.tiers),
+        },
+      }).catch(() => undefined);
+    }
+  }
+}

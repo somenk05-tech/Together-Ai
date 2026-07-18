@@ -1,0 +1,419 @@
+import { lazy, Suspense } from 'react';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { AppShell } from '@/layouts/AppShell';
+import { HubLayout } from '@/layouts/HubLayout';
+import { HUBS } from '@/config/hubs';
+import { Spinner } from '@/components/ui';
+import { Home } from '@/pages/Home';
+import { HubLanding } from '@/pages/HubLanding';
+import { HubStub } from '@/pages/HubStub';
+import { RequireAuth } from '@/features/auth/AuthGate';
+import { NotFound } from '@/pages/NotFound';
+
+// Route-level code splitting for the reference vertical.
+const WeeklyPlanner = lazy(() =>
+  import('@/features/nutrition/pages/WeeklyPlanner').then((m) => ({ default: m.WeeklyPlanner })),
+);
+const Profile = lazy(() => import('@/features/profile/pages/Profile').then((m) => ({ default: m.Profile })));
+const SocialFeed = lazy(() => import('@/features/social/pages/SocialFeed').then((m) => ({ default: m.SocialFeed })));
+const Recipes = lazy(() => import('@/features/nutrition/pages/Recipes').then((m) => ({ default: m.Recipes })));
+const RecipeDetail = lazy(() => import('@/features/nutrition/pages/RecipeDetail').then((m) => ({ default: m.RecipeDetail })));
+const Grocery = lazy(() => import('@/features/nutrition/pages/Grocery').then((m) => ({ default: m.Grocery })));
+const Orders = lazy(() => import('@/features/nutrition/pages/Orders').then((m) => ({ default: m.Orders })));
+const Daily = lazy(() => import('@/features/nutrition/pages/Daily').then((m) => ({ default: m.Daily })));
+const Preferences = lazy(() => import('@/features/nutrition/pages/Preferences').then((m) => ({ default: m.Preferences })));
+const Blood = lazy(() => import('@/features/nutrition/pages/Blood').then((m) => ({ default: m.Blood })));
+const Supplements = lazy(() => import('@/features/nutrition/pages/Supplements').then((m) => ({ default: m.Supplements })));
+const Dietitian = lazy(() => import('@/features/nutrition/pages/Dietitian').then((m) => ({ default: m.Dietitian })));
+const Connections = lazy(() => import('@/features/connections/pages/Connections').then((m) => ({ default: m.Connections })));
+const BloodAnalysis = lazy(() => import('@/features/medical/pages/BloodAnalysis').then((m) => ({ default: m.BloodAnalysis })));
+const MedSupplementPlan = lazy(() => import('@/features/medical/pages/SupplementPlan').then((m) => ({ default: m.SupplementPlan })));
+const MedRecords = lazy(() => import('@/features/medical/pages/Records').then((m) => ({ default: m.Records })));
+const MedConsults = lazy(() => import('@/features/medical/pages/Consults').then((m) => ({ default: m.Consults })));
+const MedConsent = lazy(() => import('@/features/medical/pages/Consent').then((m) => ({ default: m.Consent })));
+const BeautyProfile = lazy(() => import('@/features/beauty/pages/Profile').then((m) => ({ default: m.Profile })));
+const BeautyInsights = lazy(() => import('@/features/beauty/pages/Insights').then((m) => ({ default: m.Insights })));
+const BeautyMarket = lazy(() => import('@/features/beauty/pages/Market').then((m) => ({ default: m.Market })));
+const BeautyOrders = lazy(() => import('@/features/beauty/pages/Orders').then((m) => ({ default: m.Orders })));
+const FitnessProfile = lazy(() => import('@/features/fitness/pages/Profile').then((m) => ({ default: m.Profile })));
+const FitnessPlan = lazy(() => import('@/features/fitness/pages/Plan').then((m) => ({ default: m.Plan })));
+const FitnessBodyGoal = lazy(() => import('@/features/fitness/pages/BodyGoal').then((m) => ({ default: m.BodyGoal })));
+const FitnessTrainer = lazy(() => import('@/features/fitness/pages/Trainer').then((m) => ({ default: m.Trainer })));
+const FitnessLog = lazy(() => import('@/features/fitness/pages/Log').then((m) => ({ default: m.Log })));
+const FinWallet = lazy(() => import('@/features/financial/pages/Wallet').then((m) => ({ default: m.Wallet })));
+const FinSpending = lazy(() => import('@/features/financial/pages/Spending').then((m) => ({ default: m.Spending })));
+const FinBudgets = lazy(() => import('@/features/financial/pages/Budgets').then((m) => ({ default: m.Budgets })));
+const FinTransactions = lazy(() => import('@/features/financial/pages/Transactions').then((m) => ({ default: m.Transactions })));
+const JobsProfile = lazy(() => import('@/features/jobs/pages/Profile').then((m) => ({ default: m.Profile })));
+const JobsMatches = lazy(() => import('@/features/jobs/pages/Matches').then((m) => ({ default: m.Matches })));
+const JobsApplications = lazy(() => import('@/features/jobs/pages/Applications').then((m) => ({ default: m.Applications })));
+const JobsPost = lazy(() => import('@/features/jobs/pages/PostJob').then((m) => ({ default: m.PostJob })));
+const JobsPostings = lazy(() => import('@/features/jobs/pages/Postings').then((m) => ({ default: m.Postings })));
+const REBrowse = lazy(() => import('@/features/realestate/pages/Browse').then((m) => ({ default: m.Browse })));
+const REUnderConstruction = lazy(() => import('@/features/realestate/pages/UnderConstruction').then((m) => ({ default: m.UnderConstruction })));
+const REPost = lazy(() => import('@/features/realestate/pages/PostProperty').then((m) => ({ default: m.PostProperty })));
+const REMine = lazy(() => import('@/features/realestate/pages/MyListings').then((m) => ({ default: m.MyListings })));
+const REDetail = lazy(() => import('@/features/realestate/pages/PropertyDetail').then((m) => ({ default: m.PropertyDetail })));
+const EntDiscover = lazy(() => import('@/features/entertainment/pages/Discover').then((m) => ({ default: m.Discover })));
+const EntEvent = lazy(() => import('@/features/entertainment/pages/EventDetail').then((m) => ({ default: m.EventDetail })));
+const EntTickets = lazy(() => import('@/features/entertainment/pages/MyTickets').then((m) => ({ default: m.MyTickets })));
+const TravelExplore = lazy(() => import('@/features/travel/pages/Explore').then((m) => ({ default: m.Explore })));
+const TravelPackage = lazy(() => import('@/features/travel/pages/PackageDetail').then((m) => ({ default: m.PackageDetail })));
+const TravelFlights = lazy(() => import('@/features/travel/pages/Flights').then((m) => ({ default: m.Flights })));
+const TravelTrips = lazy(() => import('@/features/travel/pages/MyTrips').then((m) => ({ default: m.MyTrips })));
+const RestaurantsDiscover = lazy(() => import('@/features/restaurants/pages/Discover').then((m) => ({ default: m.Discover })));
+const RestaurantDetail = lazy(() => import('@/features/restaurants/pages/RestaurantDetail').then((m) => ({ default: m.RestaurantDetail })));
+const RestaurantsReservations = lazy(() => import('@/features/restaurants/pages/Reservations').then((m) => ({ default: m.Reservations })));
+const RestaurantsOrders = lazy(() => import('@/features/restaurants/pages/Orders').then((m) => ({ default: m.Orders })));
+// Travel sub-pages (ported from the static site)
+const TravelTrains = lazy(() => import('@/features/travel/pages/Trains').then((m) => ({ default: m.TravelTrains })));
+const TravelHotels = lazy(() => import('@/features/travel/pages/Hotels').then((m) => ({ default: m.TravelHotels })));
+const TravelPackages = lazy(() => import('@/features/travel/pages/Packages').then((m) => ({ default: m.TravelPackages })));
+const TravelBookings = lazy(() => import('@/features/travel/pages/Bookings').then((m) => ({ default: m.TravelBookings })));
+const TravelInsurance = lazy(() => import('@/features/travel/pages/Insurance').then((m) => ({ default: m.TravelInsurance })));
+const TravelVisa = lazy(() => import('@/features/travel/pages/Visa').then((m) => ({ default: m.TravelVisa })));
+const TravelGuide = lazy(() => import('@/features/travel/pages/Guide').then((m) => ({ default: m.TravelGuide })));
+const TravelConnect = lazy(() => import('@/features/travel/pages/Connect').then((m) => ({ default: m.TravelConnect })));
+const TravelResults = lazy(() => import('@/features/travel/pages/Results').then((m) => ({ default: m.TravelResults })));
+const TravelDetail = lazy(() => import('@/features/travel/pages/Detail').then((m) => ({ default: m.TravelDetail })));
+const TravelCheckout = lazy(() => import('@/features/travel/pages/Checkout').then((m) => ({ default: m.TravelCheckout })));
+const TravelConfirm = lazy(() => import('@/features/travel/pages/Confirm').then((m) => ({ default: m.TravelConfirm })));
+// Restaurants sub-pages
+const RestFindMeal = lazy(() => import('@/features/restaurants/pages/FindMeal').then((m) => ({ default: m.FindMeal })));
+const RestExplore = lazy(() => import('@/features/restaurants/pages/Explore').then((m) => ({ default: m.Explore })));
+const RestBook = lazy(() => import('@/features/restaurants/pages/Book').then((m) => ({ default: m.Book })));
+const RestFavourites = lazy(() => import('@/features/restaurants/pages/Favourites').then((m) => ({ default: m.Favourites })));
+const RestReviews = lazy(() => import('@/features/restaurants/pages/Reviews').then((m) => ({ default: m.Reviews })));
+const RestScanner = lazy(() => import('@/features/restaurants/pages/Scanner').then((m) => ({ default: m.Scanner })));
+const RestCheat = lazy(() => import('@/features/restaurants/pages/Cheat').then((m) => ({ default: m.Cheat })));
+const RestCheckout = lazy(() => import('@/features/restaurants/pages/Checkout').then((m) => ({ default: m.Checkout })));
+const RestConfirm = lazy(() => import('@/features/restaurants/pages/Confirm').then((m) => ({ default: m.Confirm })));
+const RestFinal = lazy(() => import('@/features/restaurants/pages/Final').then((m) => ({ default: m.Final })));
+// Entertainment sub-pages
+const EntMovies = lazy(() => import('@/features/entertainment/pages/Movies').then((m) => ({ default: m.Movies })));
+const EntOtt = lazy(() => import('@/features/entertainment/pages/Ott').then((m) => ({ default: m.Ott })));
+const EntCurated = lazy(() => import('@/features/entertainment/pages/Curated').then((m) => ({ default: m.Curated })));
+const EntEvents = lazy(() => import('@/features/entertainment/pages/Events').then((m) => ({ default: m.Events })));
+const EntComedy = lazy(() => import('@/features/entertainment/pages/Comedy').then((m) => ({ default: m.Comedy })));
+const EntSports = lazy(() => import('@/features/entertainment/pages/Sports').then((m) => ({ default: m.Sports })));
+const EntOthers = lazy(() => import('@/features/entertainment/pages/Others').then((m) => ({ default: m.Others })));
+const EntShowtime = lazy(() => import('@/features/entertainment/pages/ShowtimeDetail').then((m) => ({ default: m.ShowtimeDetail })));
+const EntSeats = lazy(() => import('@/features/entertainment/pages/SeatSelection').then((m) => ({ default: m.SeatSelection })));
+const EntCheckout = lazy(() => import('@/features/entertainment/pages/Checkout').then((m) => ({ default: m.Checkout })));
+// Beauty sub-pages
+const BeautyDermatologist = lazy(() => import('@/features/beauty/pages/Dermatologist').then((m) => ({ default: m.Dermatologist })));
+const BeautyMakeup = lazy(() => import('@/features/beauty/pages/Makeup').then((m) => ({ default: m.Makeup })));
+const BeautyRoutine = lazy(() => import('@/features/beauty/pages/Routine').then((m) => ({ default: m.Routine })));
+const BeautyCheckout = lazy(() => import('@/features/beauty/pages/Checkout').then((m) => ({ default: m.Checkout })));
+const BeautyConfirm = lazy(() => import('@/features/beauty/pages/Confirm').then((m) => ({ default: m.Confirm })));
+// Social sub-pages
+const SocFeelings = lazy(() => import('@/features/social/pages/Feelings').then((m) => ({ default: m.Feelings })));
+const SocExplore = lazy(() => import('@/features/social/pages/Feelings').then((m) => ({ default: m.Explore })));
+const SocCircle = lazy(() => import('@/features/social/pages/Circle').then((m) => ({ default: m.SocialCircle })));
+const SocCreate = lazy(() => import('@/features/social/pages/CreatePost').then((m) => ({ default: m.CreatePost })));
+const SocMap = lazy(() => import('@/features/social/pages/CityMap').then((m) => ({ default: m.CityMap })));
+const SocMessages = lazy(() => import('@/features/social/pages/Messages').then((m) => ({ default: m.Messages })));
+const SocNotifications = lazy(() => import('@/features/social/pages/Notifications').then((m) => ({ default: m.SocialNotifications })));
+const SocProfile = lazy(() => import('@/features/social/pages/Profile').then((m) => ({ default: m.SocialProfile })));
+const SocSaved = lazy(() => import('@/features/social/pages/Saved').then((m) => ({ default: m.SocialSaved })));
+// Medical sub-pages
+const MedTests = lazy(() => import('@/features/medical/pages/Tests').then((m) => ({ default: m.Tests })));
+const MedBooking = lazy(() => import('@/features/medical/pages/Booking').then((m) => ({ default: m.Booking })));
+const MedConnections = lazy(() => import('@/features/medical/pages/Connections').then((m) => ({ default: m.Connections })));
+const MedTimeline = lazy(() => import('@/features/medical/pages/Timeline').then((m) => ({ default: m.Timeline })));
+const MedFamily = lazy(() => import('@/features/medical/pages/Family').then((m) => ({ default: m.Family })));
+const MedEmergency = lazy(() => import('@/features/medical/pages/Emergency').then((m) => ({ default: m.Emergency })));
+const MedInsurance = lazy(() => import('@/features/medical/pages/Insurance').then((m) => ({ default: m.Insurance })));
+const MedFitness = lazy(() => import('@/features/medical/pages/Fitness').then((m) => ({ default: m.Fitness })));
+// Dating sub-pages
+const DatingActivity = lazy(() => import('@/features/dating/pages/DatingActivity').then((m) => ({ default: m.DatingActivity })));
+const DatingChat = lazy(() => import('@/features/dating/pages/DatingChat').then((m) => ({ default: m.DatingChat })));
+const DatingMatchDetail = lazy(() => import('@/features/dating/pages/DatingMatchDetail').then((m) => ({ default: m.DatingMatchDetail })));
+// Nutrition sub-pages
+const NutOnboarding = lazy(() => import('@/features/nutrition/pages/Onboarding').then((m) => ({ default: m.Onboarding })));
+const NutHealth = lazy(() => import('@/features/nutrition/pages/HealthProfile').then((m) => ({ default: m.HealthProfile })));
+const NutCart = lazy(() => import('@/features/nutrition/pages/Cart').then((m) => ({ default: m.Cart })));
+const NutCheckout = lazy(() => import('@/features/nutrition/pages/Checkout').then((m) => ({ default: m.Checkout })));
+const NutConfirm = lazy(() => import('@/features/nutrition/pages/Confirm').then((m) => ({ default: m.Confirm })));
+// Batch 3 sub-pages (ported from the static site)
+const REExplore = lazy(() => import('@/features/realestate/pages/Explore').then((m) => ({ default: m.Explore })));
+const RESell = lazy(() => import('@/features/realestate/pages/Sell').then((m) => ({ default: m.Sell })));
+const FitWorkout = lazy(() => import('@/features/fitness/pages/Workout').then((m) => ({ default: m.Workout })));
+const FitSupplements = lazy(() => import('@/features/fitness/pages/Supplements').then((m) => ({ default: m.Supplements })));
+const FitSleep = lazy(() => import('@/features/fitness/pages/Sleep').then((m) => ({ default: m.Sleep })));
+const FinPayments = lazy(() => import('@/features/financial/pages/Payments').then((m) => ({ default: m.Payments })));
+const FamHome = lazy(() => import('@/features/family/pages/Family').then((m) => ({ default: m.Family })));
+const FamConnect = lazy(() => import('@/features/family/pages/Connect').then((m) => ({ default: m.FamilyConnect })));
+const FamWeekly = lazy(() => import('@/features/family/pages/Weekly').then((m) => ({ default: m.FamilyWeekly })));
+const FamDaily = lazy(() => import('@/features/family/pages/Daily').then((m) => ({ default: m.FamilyDaily })));
+const FamGrocery = lazy(() => import('@/features/family/pages/Grocery').then((m) => ({ default: m.FamilyGrocery })));
+const FamCart = lazy(() => import('@/features/family/pages/Cart').then((m) => ({ default: m.FamilyCart })));
+const FamOrders = lazy(() => import('@/features/family/pages/Orders').then((m) => ({ default: m.FamilyOrders })));
+const FamSearch = lazy(() => import('@/features/family/pages/Search').then((m) => ({ default: m.FamilySearch })));
+const MailInbox = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Inbox })));
+const MailSent = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Sent })));
+const MailStarred = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Starred })));
+const MailTrash = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Trash })));
+const MailCompose = lazy(() => import('@/features/mail/pages/Compose').then((m) => ({ default: m.Compose })));
+const MailMessage = lazy(() => import('@/features/mail/pages/MessageView').then((m) => ({ default: m.MessageView })));
+const DatingMatches = lazy(() => import('@/features/dating/pages/DatingMatches').then((m) => ({ default: m.DatingMatches })));
+const DatingProfilePage = lazy(() => import('@/features/dating/pages/DatingProfile').then((m) => ({ default: m.DatingProfilePage })));
+const Chats = lazy(() => import('@/features/chat/pages/Chats').then((m) => ({ default: m.Chats })));
+const SignIn = lazy(() => import('@/features/auth/pages/SignIn').then((m) => ({ default: m.SignIn })));
+
+const wrap = (el: JSX.Element) => <Suspense fallback={<Spinner />}>{el}</Suspense>;
+
+/**
+ * Router covers every hub. Landings are data-driven (HubLanding); inner pages
+ * live under a HubLayout (sidebar). Nutrition is fully migrated as the reference;
+ * other inner routes render HubStub until migrated, following the same pattern.
+ */
+export const router = createBrowserRouter([
+  {
+    element: <AppShell />,
+    children: [
+      { path: '/', element: <Home /> },
+      // 12 hub landings, generated from config
+      { path: '/travel', element: <HubLanding hub="travel" /> },
+      { path: '/restaurants', element: <HubLanding hub="restaurants" /> },
+      { path: '/mail', element: <HubLanding hub="mail" /> },
+      { path: '/nutrition', element: <HubLanding hub="nutrition" /> },
+      { path: '/entertainment', element: <HubLanding hub="entertainment" /> },
+      { path: '/social', element: <HubLanding hub="social" /> },
+      { path: '/dating', element: <HubLanding hub="dating" /> },
+      { path: '/realestate', element: <HubLanding hub="realestate" /> },
+      { path: '/jobs', element: <HubLanding hub="jobs" /> },
+      { path: '/medical', element: <HubLanding hub="medical" /> },
+      { path: '/financial', element: <HubLanding hub="financial" /> },
+      { path: '/beauty', element: <HubLanding hub="beauty" /> },
+      { path: '/fitness', element: <HubLanding hub="fitness" /> },
+      { path: '/profile', element: <RequireAuth>{wrap(<Profile />)}</RequireAuth> },
+      { path: '/settings', element: <HubStub title="Settings" /> },
+      { path: '/chats', element: <RequireAuth>{wrap(<Chats />)}</RequireAuth> },
+      { path: '/connections', element: <RequireAuth>{wrap(<Connections />)}</RequireAuth> },
+      { path: '/dashboard', element: <HubStub title="Dashboard" /> },
+    ],
+  },
+  {
+    // Nutrition inner pages — reference vertical with sidebar.
+    element: <HubLayout hub={HUBS.nutrition} />,
+    children: [
+      { path: '/nutrition/weekly', element: wrap(<WeeklyPlanner />) },
+      { path: '/nutrition/daily', element: <RequireAuth>{wrap(<Daily />)}</RequireAuth> },
+      { path: '/nutrition/blood', element: <RequireAuth>{wrap(<Blood />)}</RequireAuth> },
+      { path: '/nutrition/preferences', element: <RequireAuth>{wrap(<Preferences />)}</RequireAuth> },
+      { path: '/nutrition/grocery', element: <RequireAuth>{wrap(<Grocery />)}</RequireAuth> },
+      { path: '/nutrition/orders', element: <RequireAuth>{wrap(<Orders />)}</RequireAuth> },
+      { path: '/nutrition/recipes', element: wrap(<Recipes />) },
+      { path: '/nutrition/recipes/:id', element: wrap(<RecipeDetail />) },
+      { path: '/nutrition/supplements', element: <RequireAuth>{wrap(<Supplements />)}</RequireAuth> },
+      { path: '/nutrition/dietitian', element: <RequireAuth>{wrap(<Dietitian />)}</RequireAuth> },
+      { path: '/nutrition/onboarding', element: wrap(<NutOnboarding />) },
+      { path: '/nutrition/health', element: <RequireAuth>{wrap(<NutHealth />)}</RequireAuth> },
+      { path: '/nutrition/cart', element: <RequireAuth>{wrap(<NutCart />)}</RequireAuth> },
+      { path: '/nutrition/checkout', element: <RequireAuth>{wrap(<NutCheckout />)}</RequireAuth> },
+      { path: '/nutrition/confirm', element: <RequireAuth>{wrap(<NutConfirm />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Social inner pages.
+    element: <HubLayout hub={HUBS.social} />,
+    children: [
+      { path: '/social/feed', element: <RequireAuth>{wrap(<SocialFeed />)}</RequireAuth> },
+      { path: '/social/explore', element: <RequireAuth>{wrap(<SocExplore />)}</RequireAuth> },
+      { path: '/social/feelings', element: <RequireAuth>{wrap(<SocFeelings />)}</RequireAuth> },
+      { path: '/social/circle', element: <RequireAuth>{wrap(<SocCircle />)}</RequireAuth> },
+      { path: '/social/create', element: <RequireAuth>{wrap(<SocCreate />)}</RequireAuth> },
+      { path: '/social/map', element: <RequireAuth>{wrap(<SocMap />)}</RequireAuth> },
+      { path: '/social/messages', element: <RequireAuth>{wrap(<SocMessages />)}</RequireAuth> },
+      { path: '/social/notifications', element: <RequireAuth>{wrap(<SocNotifications />)}</RequireAuth> },
+      { path: '/social/profile', element: <RequireAuth>{wrap(<SocProfile />)}</RequireAuth> },
+      { path: '/social/saved', element: <RequireAuth>{wrap(<SocSaved />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Dating inner pages.
+    element: <HubLayout hub={HUBS.dating} />,
+    children: [
+      { path: '/dating/profile', element: <RequireAuth>{wrap(<DatingProfilePage />)}</RequireAuth> },
+      { path: '/dating/matches', element: <RequireAuth>{wrap(<DatingMatches />)}</RequireAuth> },
+      { path: '/dating/friends', element: <RequireAuth>{wrap(<DatingMatches />)}</RequireAuth> },
+      { path: '/dating/activity', element: <RequireAuth>{wrap(<DatingActivity />)}</RequireAuth> },
+      { path: '/dating/chat', element: <RequireAuth>{wrap(<DatingChat />)}</RequireAuth> },
+      { path: '/dating/match', element: <RequireAuth>{wrap(<DatingMatchDetail />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Medical hub inner pages (source of truth for health data).
+    element: <HubLayout hub={HUBS.medical} />,
+    children: [
+      { path: '/medical/blood', element: <RequireAuth>{wrap(<BloodAnalysis />)}</RequireAuth> },
+      { path: '/medical/supplements', element: <RequireAuth>{wrap(<MedSupplementPlan />)}</RequireAuth> },
+      { path: '/medical/records', element: <RequireAuth>{wrap(<MedRecords />)}</RequireAuth> },
+      { path: '/medical/consults', element: <RequireAuth>{wrap(<MedConsults />)}</RequireAuth> },
+      { path: '/medical/consent', element: <RequireAuth>{wrap(<MedConsent />)}</RequireAuth> },
+      { path: '/medical/tests', element: <RequireAuth>{wrap(<MedTests />)}</RequireAuth> },
+      { path: '/medical/booking', element: <RequireAuth>{wrap(<MedBooking />)}</RequireAuth> },
+      { path: '/medical/connections', element: <RequireAuth>{wrap(<MedConnections />)}</RequireAuth> },
+      { path: '/medical/timeline', element: <RequireAuth>{wrap(<MedTimeline />)}</RequireAuth> },
+      { path: '/medical/family', element: <RequireAuth>{wrap(<MedFamily />)}</RequireAuth> },
+      { path: '/medical/emergency', element: <RequireAuth>{wrap(<MedEmergency />)}</RequireAuth> },
+      { path: '/medical/insurance', element: <RequireAuth>{wrap(<MedInsurance />)}</RequireAuth> },
+      { path: '/medical/fitness', element: <RequireAuth>{wrap(<MedFitness />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Beauty hub inner pages (reads Medical biomarkers via the consent gate).
+    element: <HubLayout hub={HUBS.beauty} />,
+    children: [
+      { path: '/beauty/profile', element: <RequireAuth>{wrap(<BeautyProfile />)}</RequireAuth> },
+      { path: '/beauty/insights', element: <RequireAuth>{wrap(<BeautyInsights />)}</RequireAuth> },
+      { path: '/beauty/market', element: <RequireAuth>{wrap(<BeautyMarket />)}</RequireAuth> },
+      { path: '/beauty/orders', element: <RequireAuth>{wrap(<BeautyOrders />)}</RequireAuth> },
+      { path: '/beauty/dermatologist', element: <RequireAuth>{wrap(<BeautyDermatologist />)}</RequireAuth> },
+      { path: '/beauty/makeup', element: <RequireAuth>{wrap(<BeautyMakeup />)}</RequireAuth> },
+      { path: '/beauty/routine', element: <RequireAuth>{wrap(<BeautyRoutine />)}</RequireAuth> },
+      { path: '/beauty/checkout', element: <RequireAuth>{wrap(<BeautyCheckout />)}</RequireAuth> },
+      { path: '/beauty/confirm', element: <RequireAuth>{wrap(<BeautyConfirm />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Fitness hub inner pages (reads Medical biomarkers via the consent gate).
+    element: <HubLayout hub={HUBS.fitness} />,
+    children: [
+      { path: '/fitness/profile', element: <RequireAuth>{wrap(<FitnessProfile />)}</RequireAuth> },
+      { path: '/fitness/body-goal', element: <RequireAuth>{wrap(<FitnessBodyGoal />)}</RequireAuth> },
+      { path: '/fitness/plan', element: <RequireAuth>{wrap(<FitnessPlan />)}</RequireAuth> },
+      { path: '/fitness/trainer', element: <RequireAuth>{wrap(<FitnessTrainer />)}</RequireAuth> },
+      { path: '/fitness/log', element: <RequireAuth>{wrap(<FitnessLog />)}</RequireAuth> },
+      { path: '/fitness/workout', element: <RequireAuth>{wrap(<FitWorkout />)}</RequireAuth> },
+      { path: '/fitness/supplements', element: <RequireAuth>{wrap(<FitSupplements />)}</RequireAuth> },
+      { path: '/fitness/sleep', element: <RequireAuth>{wrap(<FitSleep />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Financial hub inner pages (aggregates spend across every commerce hub).
+    element: <HubLayout hub={HUBS.financial} />,
+    children: [
+      { path: '/financial/wallet', element: <RequireAuth>{wrap(<FinWallet />)}</RequireAuth> },
+      { path: '/financial/spending', element: <RequireAuth>{wrap(<FinSpending />)}</RequireAuth> },
+      { path: '/financial/budgets', element: <RequireAuth>{wrap(<FinBudgets />)}</RequireAuth> },
+      { path: '/financial/transactions', element: <RequireAuth>{wrap(<FinTransactions />)}</RequireAuth> },
+      { path: '/financial/payments', element: <RequireAuth>{wrap(<FinPayments />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Family Nutrition hub — one plan portioned per member (reached from the Nutrition Individual/Family toggle).
+    element: <HubLayout hub={HUBS.family} />,
+    children: [
+      { path: '/family', element: <RequireAuth>{wrap(<FamHome />)}</RequireAuth> },
+      { path: '/family/connect', element: <RequireAuth>{wrap(<FamConnect />)}</RequireAuth> },
+      { path: '/family/weekly', element: <RequireAuth>{wrap(<FamWeekly />)}</RequireAuth> },
+      { path: '/family/daily', element: <RequireAuth>{wrap(<FamDaily />)}</RequireAuth> },
+      { path: '/family/grocery', element: <RequireAuth>{wrap(<FamGrocery />)}</RequireAuth> },
+      { path: '/family/cart', element: <RequireAuth>{wrap(<FamCart />)}</RequireAuth> },
+      { path: '/family/orders', element: <RequireAuth>{wrap(<FamOrders />)}</RequireAuth> },
+      { path: '/family/search', element: <RequireAuth>{wrap(<FamSearch />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Jobs hub inner pages (two-sided: candidates + employers).
+    element: <HubLayout hub={HUBS.jobs} />,
+    children: [
+      { path: '/jobs/profile', element: <RequireAuth>{wrap(<JobsProfile />)}</RequireAuth> },
+      { path: '/jobs/matches', element: <RequireAuth>{wrap(<JobsMatches />)}</RequireAuth> },
+      { path: '/jobs/applications', element: <RequireAuth>{wrap(<JobsApplications />)}</RequireAuth> },
+      { path: '/jobs/post', element: <RequireAuth>{wrap(<JobsPost />)}</RequireAuth> },
+      { path: '/jobs/postings', element: <RequireAuth>{wrap(<JobsPostings />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Real Estate hub inner pages (browse, under-construction, post, my listings, detail).
+    element: <HubLayout hub={HUBS.realestate} />,
+    children: [
+      { path: '/realestate/browse', element: <RequireAuth>{wrap(<REBrowse />)}</RequireAuth> },
+      { path: '/realestate/under-construction', element: <RequireAuth>{wrap(<REUnderConstruction />)}</RequireAuth> },
+      { path: '/realestate/post', element: <RequireAuth>{wrap(<REPost />)}</RequireAuth> },
+      { path: '/realestate/mine', element: <RequireAuth>{wrap(<REMine />)}</RequireAuth> },
+      { path: '/realestate/explore', element: <RequireAuth>{wrap(<REExplore />)}</RequireAuth> },
+      { path: '/realestate/sell', element: <RequireAuth>{wrap(<RESell />)}</RequireAuth> },
+      { path: '/realestate/property/:id', element: <RequireAuth>{wrap(<REDetail />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Entertainment hub inner pages (discover, event detail, my tickets).
+    element: <HubLayout hub={HUBS.entertainment} />,
+    children: [
+      { path: '/entertainment/discover', element: <RequireAuth>{wrap(<EntDiscover />)}</RequireAuth> },
+      { path: '/entertainment/event/:id', element: <RequireAuth>{wrap(<EntEvent />)}</RequireAuth> },
+      { path: '/entertainment/tickets', element: <RequireAuth>{wrap(<EntTickets />)}</RequireAuth> },
+      { path: '/entertainment/movies', element: <RequireAuth>{wrap(<EntMovies />)}</RequireAuth> },
+      { path: '/entertainment/ott', element: <RequireAuth>{wrap(<EntOtt />)}</RequireAuth> },
+      { path: '/entertainment/curated', element: <RequireAuth>{wrap(<EntCurated />)}</RequireAuth> },
+      { path: '/entertainment/events', element: <RequireAuth>{wrap(<EntEvents />)}</RequireAuth> },
+      { path: '/entertainment/comedy', element: <RequireAuth>{wrap(<EntComedy />)}</RequireAuth> },
+      { path: '/entertainment/sports', element: <RequireAuth>{wrap(<EntSports />)}</RequireAuth> },
+      { path: '/entertainment/others', element: <RequireAuth>{wrap(<EntOthers />)}</RequireAuth> },
+      { path: '/entertainment/showtime', element: <RequireAuth>{wrap(<EntShowtime />)}</RequireAuth> },
+      { path: '/entertainment/seats', element: <RequireAuth>{wrap(<EntSeats />)}</RequireAuth> },
+      { path: '/entertainment/checkout', element: <RequireAuth>{wrap(<EntCheckout />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Travel hub inner pages (explore, package detail, flights metasearch, my trips).
+    element: <HubLayout hub={HUBS.travel} />,
+    children: [
+      { path: '/travel/explore', element: <RequireAuth>{wrap(<TravelExplore />)}</RequireAuth> },
+      { path: '/travel/package/:id', element: <RequireAuth>{wrap(<TravelPackage />)}</RequireAuth> },
+      { path: '/travel/flights', element: <RequireAuth>{wrap(<TravelFlights />)}</RequireAuth> },
+      { path: '/travel/trips', element: <RequireAuth>{wrap(<TravelTrips />)}</RequireAuth> },
+      { path: '/travel/trains', element: <RequireAuth>{wrap(<TravelTrains />)}</RequireAuth> },
+      { path: '/travel/hotels', element: <RequireAuth>{wrap(<TravelHotels />)}</RequireAuth> },
+      { path: '/travel/packages', element: <RequireAuth>{wrap(<TravelPackages />)}</RequireAuth> },
+      { path: '/travel/bookings', element: <RequireAuth>{wrap(<TravelBookings />)}</RequireAuth> },
+      { path: '/travel/insurance', element: <RequireAuth>{wrap(<TravelInsurance />)}</RequireAuth> },
+      { path: '/travel/visa', element: <RequireAuth>{wrap(<TravelVisa />)}</RequireAuth> },
+      { path: '/travel/guide', element: <RequireAuth>{wrap(<TravelGuide />)}</RequireAuth> },
+      { path: '/travel/connect', element: <RequireAuth>{wrap(<TravelConnect />)}</RequireAuth> },
+      { path: '/travel/results', element: <RequireAuth>{wrap(<TravelResults />)}</RequireAuth> },
+      { path: '/travel/detail', element: <RequireAuth>{wrap(<TravelDetail />)}</RequireAuth> },
+      { path: '/travel/checkout', element: <RequireAuth>{wrap(<TravelCheckout />)}</RequireAuth> },
+      { path: '/travel/confirm', element: <RequireAuth>{wrap(<TravelConfirm />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Restaurants hub inner pages (discover, detail w/ menu+cart+reserve, reservations, orders).
+    element: <HubLayout hub={HUBS.restaurants} />,
+    children: [
+      { path: '/restaurants/discover', element: <RequireAuth>{wrap(<RestaurantsDiscover />)}</RequireAuth> },
+      { path: '/restaurants/reservations', element: <RequireAuth>{wrap(<RestaurantsReservations />)}</RequireAuth> },
+      { path: '/restaurants/orders', element: <RequireAuth>{wrap(<RestaurantsOrders />)}</RequireAuth> },
+      { path: '/restaurants/find-meal', element: <RequireAuth>{wrap(<RestFindMeal />)}</RequireAuth> },
+      { path: '/restaurants/explore', element: <RequireAuth>{wrap(<RestExplore />)}</RequireAuth> },
+      { path: '/restaurants/book', element: <RequireAuth>{wrap(<RestBook />)}</RequireAuth> },
+      { path: '/restaurants/favourites', element: <RequireAuth>{wrap(<RestFavourites />)}</RequireAuth> },
+      { path: '/restaurants/reviews', element: <RequireAuth>{wrap(<RestReviews />)}</RequireAuth> },
+      { path: '/restaurants/scanner', element: <RequireAuth>{wrap(<RestScanner />)}</RequireAuth> },
+      { path: '/restaurants/cheat', element: <RequireAuth>{wrap(<RestCheat />)}</RequireAuth> },
+      { path: '/restaurants/checkout', element: <RequireAuth>{wrap(<RestCheckout />)}</RequireAuth> },
+      { path: '/restaurants/confirm', element: <RequireAuth>{wrap(<RestConfirm />)}</RequireAuth> },
+      { path: '/restaurants/final', element: <RequireAuth>{wrap(<RestFinal />)}</RequireAuth> },
+      { path: '/restaurants/:id', element: <RequireAuth>{wrap(<RestaurantDetail />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Together City Mail — webmail inbox (@togethercity.tech), 10 GB per citizen.
+    element: <HubLayout hub={HUBS.mail} />,
+    children: [
+      { path: '/mail/inbox', element: <RequireAuth>{wrap(<MailInbox />)}</RequireAuth> },
+      { path: '/mail/compose', element: <RequireAuth>{wrap(<MailCompose />)}</RequireAuth> },
+      { path: '/mail/sent', element: <RequireAuth>{wrap(<MailSent />)}</RequireAuth> },
+      { path: '/mail/starred', element: <RequireAuth>{wrap(<MailStarred />)}</RequireAuth> },
+      { path: '/mail/trash', element: <RequireAuth>{wrap(<MailTrash />)}</RequireAuth> },
+      { path: '/mail/message/:id', element: <RequireAuth>{wrap(<MailMessage />)}</RequireAuth> },
+    ],
+  },
+  { path: '/sign-in', element: wrap(<SignIn />) },
+  { path: '/index.html', element: <Navigate to="/" replace /> },
+  { path: '*', element: <NotFound /> },
+]);

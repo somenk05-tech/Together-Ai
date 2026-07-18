@@ -1,0 +1,10 @@
+# Netlify config for the Together City web app (Vite SPA).
+[build]
+  command = "npm run build -- --base=/"   # base=/ overrides the Capacitor './' so deep-link refreshes load assets
+  publish = "dist"
+
+# SPA fallback: every route serves index.html so React Router can handle it.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -1,0 +1,29 @@
+/* Design tokens ported 1:1 from the vanilla site (assets/css/tc.css :root). */
+:root {
+  --ink: #141412; --ink-soft: #4a4a44; --muted: #8a8a80;
+  --paper: #faf9f6; --card: #ffffff; --line: #e8e6df;
+  --gold: #b08d3e; --gold-soft: #f3ead6; --gold-bright: #d4af5e;
+  --green: #2e5c3f; --green-soft: #eaf2ec;
+  --blue: #3a6ea5; --blue-soft: #e9f1f8;
+  --rose: #b76e79; --rose-soft: #f9eef0;
+  --purple: #5b4b8a; --purple-soft: #efecf7;
+  --navy: #16283c; --emerald: #1d5c4d;
+  --accent: var(--gold); --accent-soft: var(--gold-soft);
+  --radius: 14px; --radius-lg: 20px;
+  --shadow: 0 1px 2px rgba(20,20,18,.04), 0 8px 24px rgba(20,20,18,.06);
+  --shadow-deep: 0 2px 4px rgba(20,20,18,.06), 0 16px 40px rgba(20,20,18,.12);
+  --header-h: 72px;
+  --serif: Georgia, "Times New Roman", serif;
+  --sans: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, monospace;
+  /* iOS/Android safe areas for Capacitor */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Per-hub accent theming — the shell sets data-hub on <body>, exactly like tc.js. */
+[data-hub="nutrition"], [data-hub="family"], [data-hub="fitness"] { --accent: var(--green); --accent-soft: var(--green-soft); }
+[data-hub="medical"] { --accent: var(--blue); --accent-soft: var(--blue-soft); }
+[data-hub="dating"], [data-hub="beauty"] { --accent: var(--rose); --accent-soft: var(--rose-soft); }
+[data-hub="entertainment"], [data-hub="social"] { --accent: var(--purple); --accent-soft: var(--purple-soft); }
+[data-hub="financial"], [data-hub="realestate"], [data-hub="jobs"], [data-hub="travel"], [data-hub="restaurants"] { --accent: var(--gold); --accent-soft: var(--gold-soft); }

@@ -1,0 +1,1102 @@
+// Together City — Chat schema
+// Connection-gated messaging: a message may only exist between users who share
+// an ACCEPTED Connection. Enforced in application layer (ConnectionPermissionService)
+// and reinforced by conversation membership.
+
+generator client {
+  // Prisma 7: driver adapters and the query compiler are standard — no preview flags needed.
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7: the connection URL no longer lives here. The CLI (migrate/db push)
+  // reads it from prisma.config.ts; the app passes it via the pg driver adapter
+  // in PrismaService. Both use the DATABASE_URL environment variable.
+}
+
+// ─────────────────────────── enums ───────────────────────────
+enum ConnectionType {
+  FRIEND
+  COUPLE
+  FAMILY
+  BUSINESS_CUSTOMER
+  DOCTOR_PATIENT
+  NUTRITIONIST_CLIENT
+  LAWYER_CLIENT
+  MARKETPLACE_BUYER_SELLER
+  EVENT_PARTICIPANT
+  // Extend here — add a value + a rule in connection-permission.rules.ts
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+  REMOVED
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  VOICE
+  FILE
+  LOCATION
+  CONTACT
+  STICKER
+  GIF
+}
+
+enum DeliveryStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+// ─────────────────────────── models ──────────────────────────
+model User {
+  id           String   @id @default(uuid())
+  handle       String   @unique
+  name         String
+  email        String? // primary (external) email — from sign-up; receipts & recovery go here
+  phone        String? // primary phone
+  profileImage String?
+  passwordHash String
+  lastSeen     DateTime @default(now())
+  onlineStatus Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  connectionsInitiated Connection[]         @relation("ConnectionUserOne")
+  connectionsReceived  Connection[]         @relation("ConnectionUserTwo")
+  memberships          ConversationMember[]
+  messages             Message[]            @relation("MessageSender")
+  messageStatuses      MessageStatus[]
+  refreshTokens        RefreshToken[]
+  deviceTokens         DeviceToken[]
+
+  foodPref             FoodPref?
+  mealPlans            MealPlan[]
+  groceryCarts         GroceryCart[]
+  walletLedger         WalletLedger[]
+  nutritionOrders      NutritionOrder[]
+  bloodMarkers         BloodMarker[]
+  medicalBloodTests    MedicalBloodTest[]
+  medicalRecords       MedicalRecord[]
+  doctorProfile        Doctor?
+  consults             Consult[]
+  medicalConsents      MedicalConsent[]
+  beautyProfile        BeautyProfile?
+  beautyOrders         BeautyOrder[]
+  fitnessProfile       FitnessProfile?
+  workoutLogs          WorkoutLog[]
+  cityWallet           CityWallet?
+  walletTxns           WalletTxn[]
+  budgets              Budget[]
+  jobProfile           JobProfile?
+  jobsPosted           Job[]
+  jobApplications      JobApplication[]
+  properties           Property[]
+  ticketBookings       TicketBooking[]
+  tripBookings         TripBooking[]
+  diningOrders         DiningOrder[]
+  reservations         Reservation[]
+  mailAccount          MailAccount?
+  mailMessages         MailMessage[]
+  emailDeliveries      EmailDelivery[]
+  passwordResets       PasswordReset[]
+  dietitianProfile     Dietitian?
+  dietitianBookings    DietitianBooking[]
+
+  posts                Post[]
+  postComments         Comment[]
+  postLikes            Like[]
+  following            Follow[]             @relation("FollowFollower")
+  followers            Follow[]             @relation("FollowFollowee")
+  datingProfile        DatingProfile?
+  datingMatchesOne     DatingMatch[]        @relation("DatingUserOne")
+  datingMatchesTwo     DatingMatch[]        @relation("DatingUserTwo")
+
+  @@index([onlineStatus])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique // FCM registration token
+  platform  String // ios | android | web
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// A single, order-independent connection between two users.
+// userOneId is always the lexicographically-smaller id (enforced in service)
+// so (userOneId,userTwoId,connectionType) is a stable unique key.
+model Connection {
+  id             String           @id @default(uuid())
+  userOneId      String
+  userTwoId      String
+  connectionType ConnectionType
+  status         ConnectionStatus @default(PENDING)
+  requestedById  String // who initiated (for accept/decline UX)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  userOne User @relation("ConnectionUserOne", fields: [userOneId], references: [id], onDelete: Cascade)
+  userTwo User @relation("ConnectionUserTwo", fields: [userTwoId], references: [id], onDelete: Cascade)
+
+  @@unique([userOneId, userTwoId, connectionType])
+  @@index([userOneId, status])
+  @@index([userTwoId, status])
+  @@index([status])
+}
+
+model Conversation {
+  id        String           @id @default(uuid())
+  type      ConversationType @default(DIRECT)
+  title     String? // group only
+  // For DIRECT conversations, a deterministic key of the two member ids so we
+  // never create duplicates. Null for groups.
+  directKey String?          @unique
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  members  ConversationMember[]
+  messages Message[]
+
+  @@index([type])
+}
+
+model ConversationMember {
+  id             String     @id @default(uuid())
+  conversationId String
+  userId         String
+  role           MemberRole @default(MEMBER)
+  joinedAt       DateTime   @default(now())
+  lastReadAt     DateTime? // for unread counts
+  muted          Boolean    @default(false)
+  archived       Boolean    @default(false)
+  pinned         Boolean    @default(false)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
+}
+
+model Message {
+  id               String      @id @default(uuid())
+  conversationId   String
+  senderId         String
+  text             String?
+  messageType      MessageType @default(TEXT)
+  replyToMessageId String?
+  shareJson        String? // a shared hub item (flight/product/property/…) rendered as a rich card
+  edited           Boolean     @default(false)
+  deleted          Boolean     @default(false) // "delete for everyone"
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  conversation Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User            @relation("MessageSender", fields: [senderId], references: [id])
+  replyTo      Message?        @relation("MessageReply", fields: [replyToMessageId], references: [id])
+  replies      Message[]       @relation("MessageReply")
+  attachments  Attachment[]
+  statuses     MessageStatus[]
+
+  @@index([conversationId, createdAt]) // cursor pagination + ordering
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model MessageStatus {
+  id        String         @id @default(uuid())
+  messageId String
+  userId    String // the recipient this status is for
+  status    DeliveryStatus @default(SENT)
+  readAt    DateTime?
+  updatedAt DateTime       @updatedAt
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId, status])
+  @@index([messageId])
+}
+
+model Attachment {
+  id        String  @id @default(uuid())
+  messageId String
+  url       String
+  thumbnail String?
+  size      Int
+  mimeType  String
+  duration  Int? // seconds (voice/video)
+  width     Int?
+  height    Int?
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+// ─────────────────────────── Nutrition Hub ───────────────────────────
+// Diet + slot are stored as lowercase strings to match the frontend contract
+// (Recipe.diet: 'veg'|'nonveg'|'pesc'|'egg'|'vegan'|'jain'|'everything', Slot: b|l|s|d).
+
+model FoodPref {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  diet      String   @default("everything")
+  goal      String   @default("maintain") // lose | maintain | gain
+  heightCm  Int?
+  weightKg  Int?
+  age       Int?
+  sex       String? // male | female
+  activity  Float    @default(1.4)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Recipe {
+  id              String @id @default(uuid())
+  name            String
+  country         String
+  slot            String // b | l | s | d
+  kcal            Int
+  protein         Int
+  carbs           Int
+  fat             Int
+  fiber           Int
+  minutes         Int
+  gramsPerServing Int
+  diet            String
+
+  ingredients RecipeIngredient[]
+  meals       Meal[]
+
+  @@index([slot])
+  @@index([diet])
+}
+
+model RecipeIngredient {
+  id       String @id @default(uuid())
+  recipeId String
+  name     String
+  grams    Int
+  priceInr Int    @default(0)
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([recipeId])
+}
+
+model MealPlan {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  userId    String
+  mode      String   @default("individual") // individual | family
+  createdAt DateTime @default(now())
+
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  days MealPlanDay[]
+
+  @@index([userId, mode])
+}
+
+model MealPlanDay {
+  id       String @id @default(uuid())
+  planId   String
+  dayIndex Int // 0..6
+  dayName  String
+
+  plan  MealPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  meals Meal[]
+
+  @@unique([planId, dayIndex])
+  @@index([planId])
+}
+
+model Meal {
+  id         String  @id @default(uuid())
+  dayId      String
+  slot       String // b | l | s | d
+  recipeId   String
+  skipped    Boolean @default(false)
+  sidesRice  Int     @default(0)
+  sidesRoti  Int     @default(0)
+  sidesCurd  Int     @default(0)
+  sidesSalad Int     @default(0)
+
+  day    MealPlanDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  recipe Recipe      @relation(fields: [recipeId], references: [id])
+
+  @@index([dayId])
+  @@index([recipeId])
+}
+
+model GroceryCart {
+  id        String   @id @default(uuid())
+  userId    String
+  createdAt DateTime @default(now())
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items GroceryItem[]
+
+  @@index([userId])
+}
+
+model GroceryItem {
+  id       String @id @default(uuid())
+  cartId   String
+  name     String
+  category String // fresh | pantry
+  qty      Int    @default(1)
+  priceInr Int    @default(0)
+
+  cart GroceryCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  @@index([cartId])
+}
+
+model WalletLedger {
+  id        String   @id @default(uuid())
+  userId    String
+  amountInr Int
+  kind      String // credit | debit | refund
+  note      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─────────────────────────── Social Hub ───────────────────────────
+
+model Post {
+  id        String   @id @default(uuid())
+  authorId  String
+  text      String?
+  feeling   String?
+  lat       Float?
+  lng       Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author   User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media    PostMedia[]
+  comments Comment[]
+  likes    Like[]
+
+  @@index([createdAt])
+  @@index([authorId])
+}
+
+model PostMedia {
+  id       String  @id @default(uuid())
+  postId   String
+  url      String
+  kind     String // image | video
+  thumbUrl String?
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String
+  authorId  String
+  text      String
+  createdAt DateTime @default(now())
+
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+model Follow {
+  id         String   @id @default(uuid())
+  followerId String
+  followeeId String
+  createdAt  DateTime @default(now())
+
+  follower User @relation("FollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  followee User @relation("FollowFollowee", fields: [followeeId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followeeId])
+  @@index([followeeId])
+}
+
+// ─────────────────────────── Dating Hub ───────────────────────────
+// Astrology-first: birth details feed the compatibility engine. Matches are
+// order-independent pair rows (userOneId = smaller id), like Connection.
+
+model DatingProfile {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  gender     String // male | female | nonbinary
+  seeking    String // male | female | nonbinary | any
+  bio        String?
+  birthDate  DateTime
+  birthTime  String?
+  birthPlace String?
+  interests  String   @default("") // csv
+  visible    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DatingMatch {
+  id             String   @id @default(uuid())
+  userOneId      String
+  userTwoId      String
+  kind           String   @default("romantic") // romantic | platonic
+  status         String   @default("pending") // pending | matched | passed
+  likedByOne     Boolean  @default(false)
+  likedByTwo     Boolean  @default(false)
+  passedByOne    Boolean  @default(false)
+  passedByTwo    Boolean  @default(false)
+  conversationId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  userOne User @relation("DatingUserOne", fields: [userOneId], references: [id], onDelete: Cascade)
+  userTwo User @relation("DatingUserTwo", fields: [userTwoId], references: [id], onDelete: Cascade)
+
+  @@unique([userOneId, userTwoId, kind])
+  @@index([userOneId, status])
+  @@index([userTwoId, status])
+}
+
+// ─────────────── Nutrition Hub: orders, deliveries & wallet ───────────────
+
+model NutritionOrder {
+  id        String   @id @default(uuid())
+  userId    String
+  totalInr  Int
+  status    String   @default("placed") // placed | cancelled
+  createdAt DateTime @default(now())
+
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items      NutritionOrderItem[]
+  deliveries FreshDelivery[]
+
+  @@index([userId, createdAt])
+}
+
+model NutritionOrderItem {
+  id       String @id @default(uuid())
+  orderId  String
+  name     String
+  category String // fresh | pantry
+  qty      Int    @default(1)
+  priceInr Int    @default(0)
+
+  order NutritionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+model FreshDelivery {
+  id        String   @id @default(uuid())
+  orderId   String
+  dayIndex  Int // 0..6 within the order week
+  date      DateTime
+  status    String   @default("scheduled") // scheduled | delivered | cancelled
+  amountInr Int      @default(0)
+
+  order NutritionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+// ─────────────── Nutrition Hub: blood panel & expert care ───────────────
+
+model BloodMarker {
+  id        String   @id @default(uuid())
+  userId    String
+  key       String // hb | vitd | b12 | ferritin | hba1c | ldl
+  value     Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId])
+}
+
+model Dietitian {
+  id        String @id @default(uuid())
+  userId    String @unique // dietitians are Users, so booking opens a real chat
+  specialty String
+  languages String // csv
+  rating    Float  @default(4.8)
+  priceInr  Int
+
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings DietitianBooking[]
+}
+
+model DietitianBooking {
+  id             String   @id @default(uuid())
+  userId         String
+  dietitianId    String
+  conversationId String?
+  createdAt      DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dietitian Dietitian @relation(fields: [dietitianId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─────────────────────────── Medical Hub ───────────────────────────
+// Source of truth for health data. Dated blood-test panels give history/trends;
+// other hubs (Nutrition, Beauty, Fitness) read biomarkers by reference with consent.
+
+model MedicalBloodTest {
+  id        String   @id @default(uuid())
+  userId    String
+  takenOn   DateTime @default(now())
+  lab       String?
+  createdAt DateTime @default(now())
+
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  biomarkers MedicalBiomarker[]
+
+  @@index([userId, takenOn])
+}
+
+model MedicalBiomarker {
+  id          String @id @default(uuid())
+  bloodTestId String
+  key         String // hb | ferritin | vitd | b12 | folate | hba1c | ldl | trig | crp | ...
+  value       Float
+
+  bloodTest MedicalBloodTest @relation(fields: [bloodTestId], references: [id], onDelete: Cascade)
+
+  @@index([bloodTestId])
+}
+
+// ─────────────── Medical Hub: records, consults & consent ───────────────
+
+model MedicalRecord {
+  id         String   @id @default(uuid())
+  userId     String
+  kind       String // prescription | report | condition | allergy | vaccination | note
+  title      String
+  detail     String?
+  fileUrl    String?
+  recordedOn DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedOn])
+}
+
+model Doctor {
+  id        String @id @default(uuid())
+  userId    String @unique // doctors are Users — booking opens a real chat
+  specialty String
+  hospital  String?
+  languages String // csv
+  rating    Float  @default(4.8)
+  priceInr  Int
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  consults Consult[]
+}
+
+model Consult {
+  id             String    @id @default(uuid())
+  userId         String
+  doctorId       String
+  reason         String?
+  scheduledAt    DateTime?
+  conversationId String?
+  status         String    @default("booked") // booked | completed | cancelled
+  createdAt      DateTime  @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Consent core: which hubs may read the user's Medical biomarkers.
+model MedicalConsent {
+  id        String   @id @default(uuid())
+  userId    String
+  hub       String // nutrition | beauty | fitness
+  granted   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hub])
+  @@index([userId])
+}
+
+// ─────────────────────────── Beauty Hub ───────────────────────────
+// Beauty personalises skin/hair from the user's stated profile and — with
+// consent — from the biomarkers the Medical Hub owns (see MedicalConsent).
+model BeautyProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  skinType  String   @default("normal") // dry | oily | combination | normal | sensitive
+  hairType  String   @default("straight") // straight | wavy | curly | coily
+  concerns  String   @default("") // csv of concern keys
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BeautyOrder {
+  id        String   @id @default(uuid())
+  userId    String
+  itemsJson String // JSON array of {id,name,priceInr,qty}
+  totalInr  Int
+  status    String   @default("placed") // placed | cancelled
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// ─────────────────────────── Fitness Hub ───────────────────────────
+// Age- and condition-differentiated training. Reads biomarkers (iron, glucose,
+// inflammation) from the Medical Hub via consent, like Beauty.
+model FitnessProfile {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  age        Int      @default(35)
+  sex        String   @default("other") // female | male | other
+  level      String   @default("beginner") // basic | beginner | intermediate | advanced | athlete
+  mode       String   @default("mixed") // mixed | strength | walking | running
+  goal       String   @default("general") // general | weightLoss | strength | endurance
+  conditions String   @default("") // csv: hypertension|diabetes|pregnancy|jointPain
+  heightCm   Int?
+  weightKg   Int?
+  bodyGoal   String   @default("athletic") // buildMuscle | leanDefine | athletic | fatLoss
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WorkoutLog {
+  id        String   @id @default(uuid())
+  userId    String
+  focus     String
+  minutes   Int
+  intensity String   @default("moderate") // light | moderate | vigorous
+  note      String?
+  doneAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, doneAt])
+}
+
+// ─────────────────────────── Financial Hub ───────────────────────────
+// The unifying city wallet: aggregates spend from every commerce hub
+// (Nutrition orders, Beauty orders, Medical consults) into one view.
+model CityWallet {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  balanceInr Int      @default(0)
+  cardBrand  String?
+  cardLast4  String?
+  cardName   String?
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WalletTxn {
+  id        String   @id @default(uuid())
+  userId    String
+  kind      String // topup | payment | refund
+  amountInr Int
+  hub       String? // Nutrition | Beauty | Medical | Wallet (for payments)
+  category  String? // nutrition | beauty | medical
+  label     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model Budget {
+  id         String @id @default(uuid())
+  userId     String
+  category   String // nutrition | beauty | medical
+  monthlyInr Int
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+  @@index([userId])
+}
+
+// ─────────────────────────── Jobs Hub ───────────────────────────
+// Two-sided: candidates upload a resume → parsed profile → matched roles;
+// companies post jobs and see applicants. "Upload once. We do the rest."
+model JobProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  headline        String   @default("")
+  skills          String   @default("") // csv of skill keys
+  experienceYears Int      @default(0)
+  seniority       String   @default("junior") // junior | mid | senior | lead
+  location        String?
+  resumeText      String   @default("")
+  resumeName      String?
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Job {
+  id         String   @id @default(uuid())
+  postedById String? // null = seeded platform listing
+  title      String
+  company    String
+  location   String
+  remote     Boolean  @default(false)
+  seniority  String   @default("mid")
+  skills     String   @default("") // csv of skill keys
+  minYears   Int      @default(0)
+  salaryLpa  Int      @default(0)
+  blurb      String   @default("")
+  createdAt  DateTime @default(now())
+
+  postedBy     User?            @relation(fields: [postedById], references: [id], onDelete: Cascade)
+  applications JobApplication[]
+
+  @@index([postedById])
+}
+
+model JobApplication {
+  id        String   @id @default(uuid())
+  userId    String
+  jobId     String
+  title     String
+  company   String
+  coverNote String?
+  status    String   @default("applied") // applied | shortlisted | rejected
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, jobId])
+  @@index([jobId])
+}
+
+// ─────────────────────────── Real Estate Hub ───────────────────────────
+// Photos are mandatory to post (enforced in the DTO + service). Under-construction
+// listings carry RERA, possession, progress %, floor plans and payment milestones.
+model Property {
+  id           String   @id @default(uuid())
+  sellerId     String? // null = seeded platform listing
+  listingType  String // sale | rent
+  propertyType String // apartment | villa | plot | commercial
+  status       String   @default("ready") // ready | under_construction
+  title        String
+  city         String
+  locality     String
+  priceInr     Int
+  areaSqft     Int
+  bedrooms     Int      @default(0)
+  bathrooms    Int      @default(0)
+  furnishing   String?
+  floor        Int?
+  totalFloors  Int?
+  facing       String?
+  amenities    String   @default("") // csv
+  description  String?
+  photosJson   String   @default("[]") // JSON [{url,caption?}] — never empty for a live listing
+
+  // under-construction
+  projectName    String?
+  developer      String?
+  reraId         String?
+  possessionDate String?
+  progressPct    Int?
+  floorPlansJson String? // JSON [{label,url}]
+  milestonesJson String? // JSON [{label,pct,note?}]
+
+  createdAt DateTime @default(now())
+
+  seller User? @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([status, city])
+  @@index([sellerId])
+}
+
+// ─────────────────────────── Entertainment Hub ───────────────────────────
+// Discover events; book tickets that pay through the one city wallet (Financial).
+model Event {
+  id           String @id @default(uuid())
+  title        String
+  category     String // movies | concerts | comedy | theatre | sports | experiences
+  venue        String
+  city         String
+  date         String // YYYY-MM-DD
+  time         String
+  description  String
+  posterUrl    String
+  priceFromInr Int
+  tiersJson    String // JSON [{name,priceInr,available}]
+
+  bookings TicketBooking[]
+
+  @@index([category, city])
+}
+
+model TicketBooking {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  title     String
+  category  String
+  tier      String
+  qty       Int
+  totalInr  Int
+  code      String
+  status    String   @default("confirmed")
+  eventDate String
+  eventTime String
+  venue     String
+  city      String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// ─────────────────────────── Travel Hub ───────────────────────────
+// Curated packages + a Skyscanner-style flight metasearch (synthesised, no API).
+// Bookings (package or flight) pay through the one city wallet (Financial).
+model TravelPackage {
+  id             String @id @default(uuid())
+  title          String
+  destination    String
+  country        String
+  category       String // beach | mountains | heritage | international | weekend | wildlife
+  nights         Int
+  days           Int
+  priceFromInr   Int
+  summary        String
+  heroUrl        String
+  highlightsJson String @default("[]")
+  inclusionsJson String @default("[]")
+  itineraryJson  String @default("[]")
+  tiersJson      String @default("[]")
+
+  @@index([category])
+}
+
+model TripBooking {
+  id         String   @id @default(uuid())
+  userId     String
+  kind       String // package | flight
+  title      String
+  subtitle   String
+  category   String
+  tier       String
+  pax        Int
+  totalInr   Int
+  code       String
+  status     String   @default("confirmed")
+  detailJson String   @default("{}")
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model Restaurant {
+  id             String  @id @default(uuid())
+  name           String
+  cuisine        String // north-indian | south-indian | italian | chinese | japanese | cafe | biryani | street
+  area           String
+  city           String
+  rating         Float
+  priceForTwoInr Int
+  tagline        String
+  openHours      String
+  vegFriendly    Boolean @default(true)
+  heroUrl        String
+  menuJson       String  @default("[]")
+
+  @@index([cuisine])
+}
+
+model DiningOrder {
+  id             String   @id @default(uuid())
+  userId         String
+  restaurantId   String
+  restaurantName String
+  area           String
+  mode           String // delivery | dinein
+  itemsJson      String   @default("[]")
+  subtotalInr    Int
+  packingInr     Int      @default(0)
+  taxInr         Int      @default(0)
+  totalInr       Int
+  code           String
+  status         String   @default("confirmed")
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model Reservation {
+  id             String   @id @default(uuid())
+  userId         String
+  restaurantId   String
+  restaurantName String
+  area           String
+  date           String
+  time           String
+  partySize      Int
+  guestName      String
+  notes          String   @default("")
+  code           String
+  status         String   @default("confirmed")
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model MailAccount {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  address   String   @unique
+  quotaBytes BigInt  @default(10737418240) // 10 GB
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MailMessage {
+  id         String   @id @default(uuid())
+  ownerId    String // whose mailbox this copy lives in
+  boxUserId  String // duplicate of ownerId for indexing clarity
+  folder     String // inbox | sent | trash
+  fromAddr   String
+  fromName   String
+  toAddr     String
+  toName     String
+  subject    String
+  body       String
+  snippet    String   @default("")
+  sizeBytes  Int      @default(0)
+  read       Boolean  @default(false)
+  starred    Boolean  @default(false)
+  system     Boolean  @default(false)
+  threadId   String?
+  createdAt  DateTime @default(now())
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, folder, createdAt])
+}
+
+// Outbound delivery log — every message dispatched OUTSIDE the city (email or SMS)
+// through the pluggable messaging provider. This is the receipt/notification ledger.
+model EmailDelivery {
+  id                String   @id @default(uuid())
+  userId            String
+  channel           String   @default("email") // email | sms
+  toEmail           String? // set for channel=email
+  toPhone           String? // set for channel=sms
+  kind              String // receipt | recovery | security | welcome
+  subject           String
+  body              String
+  provider          String   @default("stub") // stub | sendgrid | ses | smtp | twilio | ...
+  providerMessageId String? // id returned by the provider (audit trail)
+  status            String   @default("sent") // queued | sent | failed
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  userId    String
+  code      String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

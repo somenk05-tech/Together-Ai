@@ -1,0 +1,93 @@
+import { useMemo, useState } from 'react';
+import { Button, Spinner } from '@/components/ui';
+import { chatApi, useChatContacts, useCreateGroup, type Contact } from '@/api';
+
+/** Toolbar above the conversation list: start a direct chat or create a group. */
+export function ChatStarter({ onOpened }: { onOpened: (conversationId: string) => void }) {
+  const [mode, setMode] = useState<null | 'direct' | 'group'>(null);
+  return (
+    <div style={{ display: 'flex', gap: 8, padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
+      <Button variant="line" size="sm" onClick={() => setMode('direct')}>✉️ New chat</Button>
+      <Button variant="accent" size="sm" onClick={() => setMode('group')}>👥 New group</Button>
+      {mode && <StarterModal mode={mode} onClose={() => setMode(null)} onOpened={onOpened} />}
+    </div>
+  );
+}
+
+function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; onClose: () => void; onOpened: (id: string) => void }) {
+  const contacts = useChatContacts();
+  const createGroup = useCreateGroup();
+  const [query, setQuery] = useState('');
+  const [title, setTitle] = useState('');
+  const [picked, setPicked] = useState<Contact[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (contacts.data ?? []).filter((c) => !q || c.name.toLowerCase().includes(q) || c.handle.toLowerCase().includes(q));
+  }, [contacts.data, query]);
+
+  const toggle = (c: Contact) => setPicked((p) => p.some((x) => x.id === c.id) ? p.filter((x) => x.id !== c.id) : [...p, c]);
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      if (mode === 'direct') {
+        if (!picked[0]) return;
+        const conv = await chatApi.startDirect(picked[0].handle);
+        onOpened(conv.id);
+      } else {
+        if (!picked.length) return;
+        const conv = await createGroup.mutateAsync({ title: title.trim() || 'New group', memberIds: picked.map((c) => c.id) });
+        onOpened(conv.id);
+      }
+      onClose();
+    } finally { setBusy(false); }
+  };
+
+  const rowStyle = (active: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 10, cursor: 'pointer', border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft, #f5efe0)' : 'transparent' });
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 100, display: 'grid', placeItems: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(440px, 96vw)', maxHeight: '88vh', overflow: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h2 style={{ fontSize: 18, margin: 0 }}>{mode === 'group' ? 'New group' : 'New chat'}</h2>
+          <button type="button" onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-soft)' }}>×</button>
+        </div>
+
+        {mode === 'group' && (
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Group name" style={{ width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', margin: '12px 0 6px' }} />
+        )}
+        {mode === 'group' && picked.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '6px 0' }}>
+            {picked.map((c) => <span key={c.id} onClick={() => toggle(c)} style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft, #f5efe0)', borderRadius: 999, padding: '3px 10px' }}>{c.name} ×</span>)}
+          </div>
+        )}
+
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people…" style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', margin: '8px 0 4px' }} />
+        {contacts.isLoading ? <Spinner /> : (
+          <div style={{ display: 'grid', gap: 2, maxHeight: 300, overflow: 'auto' }}>
+            {list.slice(0, 40).map((c) => {
+              const active = picked.some((x) => x.id === c.id);
+              return (
+                <div key={c.id} onClick={() => (mode === 'direct' ? setPicked([c]) : toggle(c))} style={rowStyle(active)}>
+                  <div className="tc-avatar" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', width: 30, height: 30, fontSize: 12 }}>{c.name.slice(0, 2).toUpperCase()}</div>
+                  <span style={{ fontWeight: 600, fontSize: 13.5 }}>{c.name}</span>
+                  <span className="muted" style={{ fontSize: 12 }}>@{c.handle}</span>
+                  {active && <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontWeight: 800 }}>✓</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+          <Button variant="accent" disabled={busy || !picked.length} onClick={submit}>
+            {busy ? 'Creating…' : mode === 'group' ? `Create group (${picked.length})` : 'Start chat'}
+          </Button>
+          <Button variant="line" onClick={onClose}>Cancel</Button>
+        </div>
+      </div>
+    </div>
+  );
+}

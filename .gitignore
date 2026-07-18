@@ -1,0 +1,12 @@
+# dependencies
+node_modules/
+# build artifacts
+dist/
+coverage/
+*.tsbuildinfo
+.vite/
+# environment secrets (templates like .env.example / .env.production stay tracked)
+.env
+.env.local
+# OS noise
+.DS_Store

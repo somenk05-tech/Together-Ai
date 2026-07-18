@@ -1,0 +1,45 @@
+# Render Blueprint — one web service + managed Postgres + managed Redis (Key Value).
+# Verify field names against current Render docs; the schema evolves.
+services:
+  - type: web
+    name: together-city-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter                     # free tier spins down; use starter+ for production
+    healthCheckPath: ""               # leave empty -> Render does a TCP port check (no /health route yet)
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4000"
+      - key: CORS_ORIGIN
+        sync: false                   # set to your frontend URL, e.g. https://togethercity.netlify.app
+      - key: DATABASE_URL
+        fromDatabase:
+          name: together-city-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: together-city-redis
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL
+        value: "900"
+      - key: JWT_REFRESH_TTL
+        value: "1209600"
+      - key: FCM_ENABLED
+        value: "false"
+
+databases:
+  - name: together-city-db
+    plan: basic-256mb                 # free plan expires after ~30 days; pick a paid plan for production
+    postgresMajorVersion: "16"
+
+  - type: keyvalue
+    name: together-city-redis
+    plan: starter
+    ipAllowList: []                   # only reachable from your Render services

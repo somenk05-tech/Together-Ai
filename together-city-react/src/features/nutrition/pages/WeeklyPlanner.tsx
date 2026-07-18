@@ -1,0 +1,85 @@
+import { useState } from 'react';
+import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
+import { DayTabs } from '../components/DayTabs';
+import { MealCard } from '../components/MealCard';
+import { DailySummary } from '../components/DailySummary';
+import { PlanGuidanceBanner } from '../components/PlanGuidanceBanner';
+import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRegenerateWeek } from '../hooks';
+import { nutritionApi } from '../api';
+import { useQueryClient } from '@tanstack/react-query';
+
+/**
+ * Weekly Meal Planner — reference vertical.
+ * Paginated single-day view + Daily Nutrition Overview, driven by TanStack Query
+ * against the NestJS meal-planner endpoints. Mirrors the vanilla UX 1:1.
+ */
+export function WeeklyPlanner() {
+  const [dayIndex, setDayIndex] = useState(0);
+  const plan = useWeeklyPlan('individual');
+  const targets = useNutritionTargets();
+  const summary = useDaySummary(plan.data?.key, dayIndex);
+  const regenerate = useRegenerateWeek('individual');
+  const qc = useQueryClient();
+
+  if (plan.isLoading) return <Spinner label="Building your week…" />;
+  if (plan.isError || !plan.data) {
+    return <EmptyState icon="🗓️" title="Couldn't load your plan" hint="Start the NestJS backend, then reload." />;
+  }
+
+  const week = plan.data;
+  const day = week.days[dayIndex];
+  const last = dayIndex === week.days.length - 1;
+
+  const mutate = async (fn: Promise<typeof week>) => {
+    const next = await fn;
+    qc.setQueryData(['nutrition', 'weekly', 'individual'], next);
+  };
+
+  return (
+    <div>
+      <Hero image="/assets/img/weekly-planner-hero.webp" eyebrow="Nutrition Hub · 03"
+        title="Weekly Meal Planner 🌿"
+        sub="Personalised meals from the Together City world database — 12,976 recipes with full macro and micronutrient data." />
+      <PlanGuidanceBanner guidance={(plan.data as unknown as { guidance?: import('../types').PlanGuidance }).guidance} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '2.3fr 1fr', gap: 28, alignItems: 'start' }} className="tc-dashgrid">
+        <div>
+          <DayTabs days={week.days.map((d) => d.day)} current={dayIndex} onSelect={setDayIndex} />
+
+          <section className="card" style={{ padding: '0 20px 20px', borderRadius: 20, marginBottom: 20 }}>
+            <div style={{ margin: '0 -20px 16px', padding: '13px 20px', background: 'var(--accent-soft)', borderRadius: '20px 20px 0 0', borderBottom: '1px solid var(--line)' }}>
+              <h3 style={{ fontSize: 19 }}>{day.day}</h3>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 14, alignItems: 'start' }}>
+              {day.meals.map((m) => (
+                <MealCard key={m.slot} meal={m}
+                  onSwap={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))}
+                  onSkip={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))} />
+              ))}
+            </div>
+          </section>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 18px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 16, boxShadow: 'var(--shadow)' }}>
+            <Button variant="line" disabled={dayIndex === 0} onClick={() => setDayIndex((i) => Math.max(0, i - 1))}>← Previous</Button>
+            <span style={{ fontFamily: 'var(--serif)', fontSize: 15 }}>{day.day} · Day {dayIndex + 1} of {week.days.length}</span>
+            {last
+              ? <Button variant="accent">🛒 Add to cart</Button>
+              : <Button variant="accent" onClick={() => setDayIndex((i) => i + 1)}>Next →</Button>}
+          </div>
+
+          <div style={{ margin: '24px 0', padding: 20, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <Button variant="line" disabled={regenerate.isPending} onClick={() => regenerate.mutate()}>
+              {regenerate.isPending ? 'Refreshing…' : 'Refresh Week'}
+            </Button>
+          </div>
+        </div>
+
+        <div style={{ position: 'sticky', top: 'calc(var(--header-h) + 24px)' }}>
+          {summary.data
+            ? <DailySummary day={day.day} summary={summary.data} targets={targets.data} />
+            : <Spinner label="Totalling the day…" />}
+        </div>
+      </div>
+    </div>
+  );
+}

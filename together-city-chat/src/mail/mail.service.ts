@@ -1,0 +1,204 @@
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { PrismaService } from '../shared/prisma/prisma.service';
+import {
+  MAIL_DOMAIN, QUOTA_BYTES, addressFor, handleFromAddress, snippetOf, sizeOf, welcomeMail,
+} from './mail.constants';
+import { createMessagingProvider, type Channel } from './messaging-provider';
+import type { FlagDto, FolderQueryDto, SendMailDto } from './dto/mail.dto';
+
+@Injectable()
+export class MailService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  /** Ensure the user has a mailbox (address + welcome mail). Idempotent. */
+  private async ensureAccount(userId: string) {
+    let acct = await this.prisma.mailAccount.findUnique({ where: { userId } });
+    if (acct) return acct;
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { handle: true, name: true } });
+    if (!user) throw new NotFoundException('user not found');
+    const address = addressFor(user.handle);
+    acct = await this.prisma.mailAccount.create({ data: { userId, address } });
+    // seed a welcome message into the inbox
+    const w = welcomeMail(user.name, address);
+    await this.prisma.mailMessage.create({
+      data: {
+        ownerId: userId, boxUserId: userId, folder: 'inbox',
+        fromAddr: w.fromAddr, fromName: w.fromName, toAddr: address, toName: user.name,
+        subject: w.subject, body: w.body, snippet: snippetOf(w.body), sizeBytes: sizeOf(w.subject, w.body),
+        read: false, system: true,
+      },
+    });
+    return acct;
+  }
+
+  private async usedBytes(userId: string): Promise<number> {
+    const rows = await this.prisma.mailMessage.findMany({ where: { ownerId: userId }, select: { sizeBytes: true } });
+    return rows.reduce((s, r) => s + r.sizeBytes, 0);
+  }
+
+  async account(userId: string) {
+    const acct = await this.ensureAccount(userId);
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, phone: true } });
+    const [inboxUnread, inbox, sent, starred, trash, used, emailed] = await Promise.all([
+      this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'inbox', read: false } }),
+      this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'inbox' } }),
+      this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'sent' } }),
+      this.prisma.mailMessage.count({ where: { ownerId: userId, starred: true, NOT: { folder: 'trash' } } }),
+      this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'trash' } }),
+      this.usedBytes(userId),
+      this.prisma.emailDelivery.count({ where: { userId } }),
+    ]);
+    return {
+      address: acct.address, primaryEmail: user?.email ?? null, phone: user?.phone ?? null,
+      quotaBytes: QUOTA_BYTES, usedBytes: used,
+      usedPct: Math.min(100, +((used / QUOTA_BYTES) * 100).toFixed(4)),
+      counts: { inbox, inboxUnread, sent, starred, trash, emailed },
+    };
+  }
+
+  /** Set/update the primary (external) email + phone — used by existing citizens to add theirs. */
+  async setPrimary(userId: string, input: { email?: string; phone?: string }) {
+    const data: { email?: string; phone?: string } = {};
+    if (input.email !== undefined) data.email = input.email.trim() || undefined;
+    if (input.phone !== undefined) data.phone = input.phone.trim() || undefined;
+    await this.prisma.user.update({ where: { id: userId }, data });
+    return this.account(userId);
+  }
+
+  private shape(m: {
+    id: string; fromAddr: string; fromName: string; toAddr: string; toName: string; subject: string;
+    snippet: string; sizeBytes: number; read: boolean; starred: boolean; system: boolean; folder: string; createdAt: Date;
+  }) {
+    return {
+      id: m.id, fromAddr: m.fromAddr, fromName: m.fromName, toAddr: m.toAddr, toName: m.toName,
+      subject: m.subject, snippet: m.snippet, sizeBytes: m.sizeBytes, read: m.read, starred: m.starred,
+      system: m.system, folder: m.folder, createdAt: m.createdAt.toISOString(),
+    };
+  }
+
+  async list(userId: string, q: FolderQueryDto) {
+    await this.ensureAccount(userId);
+    const where =
+      q.folder === 'starred' ? { ownerId: userId, starred: true, NOT: { folder: 'trash' } }
+      : q.folder === 'inbox' ? { ownerId: userId, folder: 'inbox' }
+      : q.folder === 'sent' ? { ownerId: userId, folder: 'sent' }
+      : { ownerId: userId, folder: 'trash' };
+    const rows = await this.prisma.mailMessage.findMany({ where, orderBy: { createdAt: 'desc' } });
+    return rows.map((m) => this.shape(m));
+  }
+
+  async get(userId: string, id: string) {
+    const m = await this.prisma.mailMessage.findFirst({ where: { id, ownerId: userId } });
+    if (!m) throw new NotFoundException('message not found');
+    if (!m.read) await this.prisma.mailMessage.update({ where: { id }, data: { read: true } });
+    return { ...this.shape({ ...m, read: true }), body: m.body };
+  }
+
+  /** Send a message to another citizen — writes a Sent copy for the sender and an Inbox copy for the recipient. */
+  async send(userId: string, dto: SendMailDto) {
+    const sender = await this.ensureAccount(userId);
+    const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { handle: true, name: true } });
+    if (!me) throw new NotFoundException('user not found');
+
+    const recipientHandle = handleFromAddress(dto.to);
+    if (!recipientHandle) throw new BadRequestException(`Together City Mail only delivers to @${MAIL_DOMAIN} addresses.`);
+    const recipient = await this.prisma.user.findUnique({ where: { handle: recipientHandle }, select: { id: true, handle: true, name: true } });
+    if (!recipient) throw new BadRequestException(`No such city mailbox: ${addressFor(recipientHandle)}`);
+
+    const subject = dto.subject?.trim() || '(no subject)';
+    const size = sizeOf(subject, dto.body);
+    const used = await this.usedBytes(userId);
+    if (used + size > QUOTA_BYTES) throw new BadRequestException('Your 10 GB mailbox is full. Delete some mail and try again.');
+
+    const threadId = randomUUID();
+    const toAddr = addressFor(recipient.handle);
+    const base = {
+      fromAddr: sender.address, fromName: me.name, toAddr, toName: recipient.name,
+      subject, body: dto.body, snippet: snippetOf(dto.body), sizeBytes: size, system: false, threadId,
+    };
+    // sender's Sent copy
+    await this.prisma.mailMessage.create({ data: { ...base, ownerId: userId, boxUserId: userId, folder: 'sent', read: true } });
+    // recipient's Inbox copy (only if it's a different mailbox)
+    if (recipient.id !== userId) {
+      await this.prisma.mailAccount.findUnique({ where: { userId: recipient.id } }).then((a) => a ?? this.ensureAccount(recipient.id));
+      await this.prisma.mailMessage.create({ data: { ...base, ownerId: recipient.id, boxUserId: recipient.id, folder: 'inbox', read: false } });
+    }
+    return this.list(userId, { folder: 'sent' });
+  }
+
+  async flag(userId: string, id: string, dto: FlagDto) {
+    const m = await this.prisma.mailMessage.findFirst({ where: { id, ownerId: userId } });
+    if (!m) throw new NotFoundException('message not found');
+    await this.prisma.mailMessage.update({
+      where: { id },
+      data: { ...(dto.starred !== undefined ? { starred: dto.starred } : {}), ...(dto.read !== undefined ? { read: dto.read } : {}) },
+    });
+    return { ok: true };
+  }
+
+  /** Move to trash; if already in trash, delete permanently. */
+  async remove(userId: string, id: string) {
+    const m = await this.prisma.mailMessage.findFirst({ where: { id, ownerId: userId } });
+    if (!m) throw new NotFoundException('message not found');
+    if (m.folder === 'trash') await this.prisma.mailMessage.delete({ where: { id } });
+    else await this.prisma.mailMessage.update({ where: { id }, data: { folder: 'trash', starred: false } });
+    return { ok: true };
+  }
+
+  /**
+   * Deliver a system receipt/notice into the user's city inbox AND dispatch a copy
+   * to their primary contact via the messaging provider. Channel 'email' → primary
+   * email; 'sms' → primary phone. The city inbox is the ledger; the external copy
+   * goes through the pluggable provider (stub by default).
+   */
+  async deliverSystem(
+    userId: string,
+    r: { subject: string; body: string },
+    kind: 'receipt' | 'recovery' | 'security' | 'welcome' = 'receipt',
+    channel: Channel = 'email',
+  ) {
+    const acct = await this.ensureAccount(userId);
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true, phone: true } });
+    const subject = r.subject.trim() || '(no subject)';
+    const target = channel === 'sms' ? (user?.phone ?? null) : (user?.email ?? null);
+    const footer = target
+      ? `\n\n${'─'.repeat(28)}\n${channel === 'sms' ? '📱 Also sent by SMS to' : '📧 A copy was also emailed to your primary address:'} ${target}`
+      : '';
+    const cityBody = `${r.body}${footer}`;
+    await this.prisma.mailMessage.create({
+      data: {
+        ownerId: userId, boxUserId: userId, folder: 'inbox',
+        fromAddr: `receipts@${MAIL_DOMAIN}`, fromName: 'Together City', toAddr: acct.address, toName: user?.name ?? '',
+        subject, body: cityBody, snippet: snippetOf(cityBody), sizeBytes: sizeOf(subject, cityBody), read: false, system: true,
+      },
+    });
+    // External dispatch through the messaging provider (stub by default).
+    if (target) {
+      const provider = createMessagingProvider(channel);
+      const res = await provider.send({ channel, to: target, subject, body: r.body, kind }).catch(() => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const }));
+      await this.prisma.emailDelivery.create({
+        data: {
+          userId, channel, toEmail: channel === 'email' ? target : null, toPhone: channel === 'sms' ? target : null,
+          kind, subject, body: r.body, provider: res.provider, providerMessageId: res.providerMessageId ?? undefined, status: res.status,
+        },
+      }).catch(() => undefined);
+    }
+    return { deliveredToInbox: true, dispatchedTo: target, channel };
+  }
+
+  /** The outbound-delivery log — every email/SMS dispatched through the provider. */
+  async outbox(userId: string) {
+    const rows = await this.prisma.emailDelivery.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 100 });
+    return rows.map((d) => ({
+      id: d.id, channel: d.channel, to: d.channel === 'sms' ? d.toPhone : d.toEmail, kind: d.kind, subject: d.subject,
+      provider: d.provider, providerMessageId: d.providerMessageId, status: d.status, createdAt: d.createdAt.toISOString(),
+    }));
+  }
+
+  /** City directory — everyone you can write to. */
+  async directory(userId: string) {
+    const rows = await this.prisma.user.findMany({ where: { NOT: { id: userId } }, select: { handle: true, name: true }, orderBy: { name: 'asc' }, take: 200 });
+    return rows.map((u) => ({ handle: u.handle, name: u.name, address: addressFor(u.handle) }));
+  }
+}

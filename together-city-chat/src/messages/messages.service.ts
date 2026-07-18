@@ -1,0 +1,236 @@
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { DeliveryStatus, Prisma } from '@prisma/client';
+import { PrismaService } from '../shared/prisma/prisma.service';
+import { ConnectionPermissionService } from '../connections/connection-permission.service';
+import { ChatEventBus } from '../shared/events/chat-events';
+import {
+  DeleteMessageDto,
+  EditMessageDto,
+  ListMessagesDto,
+  SearchMessagesDto,
+  SendMessageDto,
+} from './dto/messages.dto';
+
+const messageInclude = {
+  sender: { select: { id: true, name: true, handle: true, profileImage: true } },
+  attachments: true,
+  replyTo: {
+    select: { id: true, text: true, messageType: true, senderId: true, deleted: true },
+  },
+  statuses: true,
+} satisfies Prisma.MessageInclude;
+
+@Injectable()
+export class MessagesService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly permission: ConnectionPermissionService,
+    private readonly bus: ChatEventBus,
+    private readonly config: ConfigService,
+  ) {}
+
+  /** Send a message. Enforces the connection gate + membership before persisting. */
+  async send(senderId: string, dto: SendMessageDto) {
+    // 1) permission gate (403 if not connected / not a member)
+    await this.permission.assertCanPostToConversation(senderId, dto.conversationId);
+
+    const recipientIds = await this.recipientIds(dto.conversationId, senderId);
+
+    // 2) persist message + per-recipient SENT status + attachments atomically
+    const message = await this.prisma.message.create({
+      data: {
+        conversationId: dto.conversationId,
+        senderId,
+        text: dto.text,
+        messageType: dto.messageType,
+        replyToMessageId: dto.replyToMessageId,
+        shareJson: dto.share ? JSON.stringify(dto.share) : undefined,
+        attachments: dto.attachments
+          ? { create: dto.attachments.map((a) => ({ ...a })) }
+          : undefined,
+        statuses: {
+          create: recipientIds.map((userId) => ({ userId, status: DeliveryStatus.SENT })),
+        },
+      },
+      include: messageInclude,
+    });
+
+    // 3) touch conversation for ordering + emit realtime event
+    await this.prisma.conversation.update({
+      where: { id: dto.conversationId },
+      data: { updatedAt: new Date() },
+    });
+    this.bus.publish({ kind: 'message.created', conversationId: dto.conversationId, message, recipientIds });
+    return message;
+  }
+
+  /** Cursor pagination — newest first, no OFFSET. */
+  async list(userId: string, dto: ListMessagesDto) {
+    await this.assertMember(userId, dto.conversationId);
+    const take = dto.limit ?? this.config.get<number>('policy.pageSize') ?? 30;
+    const messages = await this.prisma.message.findMany({
+      where: { conversationId: dto.conversationId },
+      include: messageInclude,
+      orderBy: { createdAt: 'desc' },
+      take: take + 1,
+      ...(dto.cursor ? { cursor: { id: dto.cursor }, skip: 1 } : {}),
+    });
+    const hasMore = messages.length > take;
+    const page = hasMore ? messages.slice(0, take) : messages;
+    return {
+      messages: page.map((m) => this.redact(m)),
+      nextCursor: hasMore ? page[page.length - 1].id : null,
+    };
+  }
+
+  async edit(userId: string, messageId: string, dto: EditMessageDto) {
+    const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!msg) throw new NotFoundException('Message not found');
+    if (msg.senderId !== userId) throw new ForbiddenException('Not your message');
+    if (msg.deleted) throw new ForbiddenException('Message deleted');
+    const windowSec = this.config.get<number>('policy.editWindowSec') ?? 900;
+    if (Date.now() - msg.createdAt.getTime() > windowSec * 1000) {
+      throw new ForbiddenException('Edit window has passed');
+    }
+    const updated = await this.prisma.message.update({
+      where: { id: messageId },
+      data: { text: dto.text, edited: true },
+      include: messageInclude,
+    });
+    this.bus.publish({ kind: 'message.edited', conversationId: msg.conversationId, message: updated });
+    return updated;
+  }
+
+  async remove(userId: string, messageId: string, dto: DeleteMessageDto) {
+    const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!msg) throw new NotFoundException('Message not found');
+
+    if (dto.scope === 'EVERYONE') {
+      if (msg.senderId !== userId) throw new ForbiddenException('Not your message');
+      const windowSec = this.config.get<number>('policy.deleteEveryoneWindowSec') ?? 3600;
+      if (Date.now() - msg.createdAt.getTime() > windowSec * 1000) {
+        throw new ForbiddenException('Delete-for-everyone window has passed');
+      }
+      await this.prisma.message.update({
+        where: { id: messageId },
+        data: { deleted: true, text: null },
+      });
+      this.bus.publish({ kind: 'message.deleted', conversationId: msg.conversationId, messageId });
+      return { deleted: true, scope: 'EVERYONE' };
+    }
+
+    // "Delete for me": hide by marking this user's status row. (A per-user
+    // hidden-flag table is the production approach; MessageStatus is reused here.)
+    await this.prisma.messageStatus.updateMany({
+      where: { messageId, userId },
+      data: { status: DeliveryStatus.READ },
+    });
+    return { deleted: true, scope: 'ME' };
+  }
+
+  /** Mark messages DELIVERED for a recipient (double tick). */
+  async markDelivered(userId: string, messageIds: string[]) {
+    await this.prisma.messageStatus.updateMany({
+      where: { messageId: { in: messageIds }, userId, status: DeliveryStatus.SENT },
+      data: { status: DeliveryStatus.DELIVERED },
+    });
+    for (const messageId of messageIds) {
+      const m = await this.prisma.message.findUnique({
+        where: { id: messageId },
+        select: { conversationId: true },
+      });
+      if (m) this.bus.publish({ kind: 'message.delivered', conversationId: m.conversationId, messageId, userId });
+    }
+  }
+
+  /** Mark messages READ for a recipient (blue tick) + advance lastReadAt. */
+  async markRead(userId: string, messageIds: string[]) {
+    const now = new Date();
+    await this.prisma.messageStatus.updateMany({
+      where: { messageId: { in: messageIds }, userId, status: { not: DeliveryStatus.READ } },
+      data: { status: DeliveryStatus.READ, readAt: now },
+    });
+    const rows = await this.prisma.message.findMany({
+      where: { id: { in: messageIds } },
+      select: { id: true, conversationId: true },
+    });
+    const convoIds = Array.from(new Set(rows.map((r) => r.conversationId)));
+    for (const conversationId of convoIds) {
+      await this.prisma.conversationMember.updateMany({
+        where: { conversationId, userId },
+        data: { lastReadAt: now },
+      });
+    }
+    for (const r of rows) {
+      this.bus.publish({ kind: 'message.read', conversationId: r.conversationId, messageId: r.id, userId });
+    }
+  }
+
+  /** Unread/undelivered messages to sync when a user reconnects. */
+  async pendingForUser(userId: string) {
+    const statuses = await this.prisma.messageStatus.findMany({
+      where: { userId, status: { in: [DeliveryStatus.SENT, DeliveryStatus.DELIVERED] } },
+      include: { message: { include: messageInclude } },
+      orderBy: { message: { createdAt: 'asc' } },
+      take: 500,
+    });
+    return statuses.map((s) => this.redact(s.message));
+  }
+
+  /** Multi-criteria search (keyword / sender / type / date / conversation). */
+  async search(userId: string, dto: SearchMessagesDto) {
+    const memberships = await this.prisma.conversationMember.findMany({
+      where: { userId },
+      select: { conversationId: true },
+    });
+    const allowed = memberships.map((m) => m.conversationId);
+    const where: Prisma.MessageWhereInput = {
+      conversationId: dto.conversationId
+        ? dto.conversationId // membership re-checked below
+        : { in: allowed },
+      deleted: false,
+      ...(dto.keyword ? { text: { contains: dto.keyword, mode: 'insensitive' } } : {}),
+      ...(dto.senderId ? { senderId: dto.senderId } : {}),
+      ...(dto.attachmentType ? { messageType: dto.attachmentType } : {}),
+      ...(dto.from || dto.to
+        ? { createdAt: { ...(dto.from ? { gte: dto.from } : {}), ...(dto.to ? { lte: dto.to } : {}) } }
+        : {}),
+    };
+    if (dto.conversationId && !allowed.includes(dto.conversationId)) {
+      throw new ForbiddenException('Not a member of this conversation');
+    }
+    const messages = await this.prisma.message.findMany({
+      where,
+      include: messageInclude,
+      orderBy: { createdAt: 'desc' },
+      take: dto.limit ?? 50,
+    });
+    return messages.map((m) => this.redact(m));
+  }
+
+  // ── helpers ──────────────────────────────────────────────
+  private async recipientIds(conversationId: string, senderId: string): Promise<string[]> {
+    const members = await this.prisma.conversationMember.findMany({
+      where: { conversationId, userId: { not: senderId } },
+      select: { userId: true },
+    });
+    return members.map((m) => m.userId);
+  }
+
+  private async assertMember(userId: string, conversationId: string): Promise<void> {
+    const member = await this.prisma.conversationMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+    });
+    if (!member) throw new ForbiddenException('Not a member of this conversation');
+  }
+
+  /** Never leak text of tombstoned messages. */
+  private redact<T extends { deleted: boolean; text: string | null }>(m: T): T {
+    return m.deleted ? { ...m, text: null } : m;
+  }
+}

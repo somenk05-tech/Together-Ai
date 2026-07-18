@@ -1,0 +1,73 @@
+import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
+import { MealCard } from '../components/MealCard';
+import { DailySummary } from '../components/DailySummary';
+import { PlanGuidanceBanner } from '../components/PlanGuidanceBanner';
+import { useWeeklyPlan, useNutritionTargets, useDaySummary } from '../hooks';
+import { nutritionApi } from '../api';
+
+/** Monday-indexed weekday (Mon=0 … Sun=6) — matches the plan's day order. */
+const todayIndex = (): number => (new Date().getDay() + 6) % 7;
+
+/**
+ * Daily Meal Planner — today's plate, sliced live from the weekly plan.
+ * Same engine, zero duplication: swap/skip mutate the shared weekly plan.
+ */
+export function Daily() {
+  const dayIndex = todayIndex();
+  const plan = useWeeklyPlan('individual');
+  const targets = useNutritionTargets();
+  const summary = useDaySummary(plan.data?.key, dayIndex);
+  const qc = useQueryClient();
+
+  if (plan.isLoading) return <Spinner label="Plating today…" />;
+  if (plan.isError || !plan.data) {
+    return <EmptyState icon="🍽️" title="Couldn't load today's plate" hint="Start the backend, then reload." />;
+  }
+
+  const week = plan.data;
+  const day = week.days[dayIndex];
+
+  const mutate = async (fn: Promise<typeof week>) => {
+    const next = await fn;
+    qc.setQueryData(['nutrition', 'weekly', 'individual'], next);
+  };
+
+  return (
+    <div>
+      <Hero image="/assets/img/daily-planner-hero.webp" eyebrow="Nutrition Hub · 04"
+        title={`Today's plate — ${day.day} 🍽️`}
+        sub="Your day, sliced live from the weekly plan. Swap anything; the groceries and macros follow." />
+      <PlanGuidanceBanner guidance={(plan.data as unknown as { guidance?: import('../types').PlanGuidance }).guidance} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '2.3fr 1fr', gap: 28, alignItems: 'start' }} className="tc-dashgrid">
+        <div>
+          <section className="card" style={{ padding: '0 20px 20px', borderRadius: 20, marginBottom: 20 }}>
+            <div style={{ margin: '0 -20px 16px', padding: '13px 20px', background: 'var(--accent-soft)', borderRadius: '20px 20px 0 0', borderBottom: '1px solid var(--line)' }}>
+              <h3 style={{ fontSize: 19 }}>{day.day} · Day {dayIndex + 1} of 7</h3>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }} className="tc-mealgrid">
+              {day.meals.map((m) => (
+                <MealCard key={m.slot} meal={m}
+                  onSwap={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))}
+                  onSkip={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))} />
+              ))}
+            </div>
+          </section>
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Link to="/nutrition/weekly"><Button variant="line">Open the full week</Button></Link>
+            <Link to="/nutrition/grocery"><Button variant="accent">Groceries for this plan</Button></Link>
+          </div>
+        </div>
+
+        <div>
+          {summary.data
+            ? <DailySummary day={day.day} summary={summary.data} targets={targets.data} />
+            : <Spinner />}
+        </div>
+      </div>
+    </div>
+  );
+}
