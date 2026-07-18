@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useConversations, useMessages, useChatRealtime } from '@/api';
 import { ConversationList } from '../components/ConversationList';
 import { MessageThread } from '../components/MessageThread';
@@ -15,14 +16,21 @@ import type { Message } from '@/types';
 export function Chats() {
   const { user } = useAuth();
   const conversations = useConversations();
-  const [activeId, setActiveId] = useState<string | undefined>(undefined);
+  const [searchParams] = useSearchParams();
+  const requestedId = searchParams.get('c') ?? undefined;
+  const [activeId, setActiveId] = useState<string | undefined>(requestedId);
 
-  // Default to the first conversation once loaded.
+  // Honour a ?c=<id> deep link (e.g. "Message" from the member finder) as soon
+  // as that conversation shows up in the list; otherwise fall back to the first.
   useEffect(() => {
-    if (!activeId && conversations.data && conversations.data.length > 0) {
-      setActiveId(conversations.data[0].id);
+    const list = conversations.data;
+    if (!list || list.length === 0) return;
+    if (requestedId && list.some((c) => c.id === requestedId)) {
+      setActiveId(requestedId);
+    } else if (!activeId) {
+      setActiveId(list[0].id);
     }
-  }, [activeId, conversations.data]);
+  }, [activeId, requestedId, conversations.data]);
 
   const history = useMessages(activeId);
   const [live, setLive] = useState<Message[]>([]);

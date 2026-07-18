@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
 import { useProfileSummary } from '../hooks';
+import { MemberFinder } from '../components/MemberFinder';
 
 /** Unified profile — account identity + live cross-hub data + detail sections. */
 export function Profile() {
@@ -31,6 +32,9 @@ export function Profile() {
           <Button variant="line" size="sm" onClick={signOut}>Sign out</Button>
         </div>
       </Card>
+
+      {/* Find & connect with other citizens */}
+      <MemberFinder />
 
       {/* Your data across Together City — live from the backend */}
       <h4 style={{ margin: '10px 0 12px' }}>Your data across Together City</h4>
