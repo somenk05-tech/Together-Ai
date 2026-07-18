@@ -23,6 +23,7 @@ RUN npm run build
 ENV NODE_ENV=production
 EXPOSE 4000
 
-# On boot: if committed migrations exist, apply them (production-correct); otherwise push the
-# schema directly (first deploy, no migration history yet). Then start the API.
-CMD ["sh", "-c", "if [ -d prisma/migrations ] && [ \"$(ls -A prisma/migrations 2>/dev/null)\" ]; then npx prisma migrate deploy; else npx prisma db push --accept-data-loss; fi && node dist/main.js"]
+# Startup is handled by docker-entrypoint.sh: verify DATABASE_URL (clear error if
+# missing), wait for PostgreSQL to accept connections, apply migrations or push the
+# schema, then start the API.
+CMD ["sh", "docker-entrypoint.sh"]
