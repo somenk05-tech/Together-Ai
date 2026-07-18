@@ -286,6 +286,9 @@ export class MedicalService implements OnModuleInit {
   }
 
   private async ensureDoctors(): Promise<void> {
+    // Demo doctors are fake people (real User accounts). Off by default so the
+    // consult list is empty until real providers are added. Set SEED_DEMO=true to restore.
+    if (process.env.SEED_DEMO !== 'true') return;
     try {
       if ((await this.prisma.doctor.count()) > 0) return;
     } catch { return; }

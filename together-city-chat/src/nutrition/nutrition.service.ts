@@ -479,6 +479,9 @@ export class NutritionService implements OnModuleInit {
   }
 
   private async ensureDietitians(): Promise<void> {
+    // Demo dietitians are fake people (real User accounts). Off by default so the
+    // Expert Care list is empty until real providers are added. Set SEED_DEMO=true to restore.
+    if (process.env.SEED_DEMO !== 'true') return;
     try {
       const count = await this.prisma.dietitian.count();
       if (count > 0) return;
