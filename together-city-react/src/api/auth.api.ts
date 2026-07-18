@@ -4,7 +4,7 @@ import { AuthResultSchema, TokenPairSchema, UserSchema, type AuthResult, type To
 
 /** Request schemas (validate outbound payloads too). */
 export const RegisterInput = z.object({
-  handle: z.string().min(3), name: z.string().min(1), password: z.string().min(6),
+  handle: z.string().min(3), name: z.string().min(1), password: z.string().min(8),
   email: z.string().email().optional(), phone: z.string().optional(),
 });
 export const LoginInput = z.object({ handle: z.string().min(3), password: z.string().min(1) });

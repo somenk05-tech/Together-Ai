@@ -6,7 +6,7 @@ export const UserSchema = z.object({
   handle: z.string(),
   name: z.string(),
   profileImage: z.string().nullable().optional(),
-  lastSeen: z.string().optional(),
+  lastSeen: z.string().nullable().optional(), // null for brand-new users (never seen yet)
   onlineStatus: z.boolean().optional(),
   createdAt: z.string().optional(),
 });

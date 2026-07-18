@@ -7,6 +7,15 @@ import { Button } from '@/components/ui';
 interface LocationState { from?: string }
 type Mode = 'login' | 'register' | 'forgot' | 'reset';
 
+/** Prefer the backend's actual error message over a canned guess. */
+function serverMessage(err: unknown): string | null {
+  const data = (err as { response?: { data?: { message?: unknown } } } | null)?.response?.data;
+  const m = data?.message;
+  if (typeof m === 'string' && m.trim()) return m;
+  if (Array.isArray(m) && m.length && typeof m[0] === 'string') return m.join(' · ');
+  return null;
+}
+
 /** Sign-in / register / recovery — handle + password, with a primary email captured at sign-up. */
 export function SignIn() {
   const { login, register } = useAuth();
@@ -35,12 +44,13 @@ export function SignIn() {
       else if (mode === 'register') { await register(handle.trim(), name.trim(), password, { email: email.trim(), phone: phone.trim() }); navigate(from, { replace: true }); }
       else if (mode === 'forgot') { await authApi.forgot(identifier.trim(), channel); setNotice(channel === 'sms' ? `If an account matches, we've texted a 6-digit code to its primary phone. Enter it below.` : `If an account matches, we've emailed a 6-digit recovery code to its primary email. Enter it below.`); setMode('reset'); }
       else if (mode === 'reset') { await authApi.reset({ identifier: identifier.trim(), code: code.trim(), newPassword: password }); setNotice('Password changed. Sign in with your new password.'); setMode('login'); setPassword(''); }
-    } catch {
+    } catch (err) {
       setError(
-        mode === 'login' ? 'Invalid handle or password.'
-        : mode === 'register' ? 'That handle is taken — try another.'
+        serverMessage(err) ??
+        (mode === 'login' ? 'Invalid handle or password.'
+        : mode === 'register' ? 'Could not create your ID — try again.'
         : mode === 'reset' ? 'That code is invalid or has expired.'
-        : 'Something went wrong — try again.',
+        : 'Something went wrong — try again.'),
       );
     } finally { setBusy(false); }
   };
@@ -74,7 +84,7 @@ export function SignIn() {
                   <input type="tel" value={phone} placeholder="Phone (optional)" onChange={(e) => setPhone(e.target.value)} style={field} />
                 </>
               )}
-              <input required type="password" value={password} placeholder="Password"
+              <input required type="password" value={password} minLength={mode === 'register' ? 8 : 1} placeholder={mode === 'register' ? "Password (min 8 characters)" : "Password"}
                 onChange={(e) => setPassword(e.target.value)} style={field} />
             </>
           )}

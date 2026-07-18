@@ -12,7 +12,7 @@ export interface User {
   handle: string;            // unique — also surfaced as <handle>@togethercity.tech
   name: string;
   profileImage?: string | null;
-  lastSeen?: string;
+  lastSeen?: string | null;
   onlineStatus?: boolean;
   createdAt?: string;
 }
