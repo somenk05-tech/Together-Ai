@@ -25,6 +25,11 @@ export class UsersController {
     return this.users.onlineContacts(user.sub);
   }
 
+  @Post('avatar')
+  setAvatar(@CurrentUser() user: JwtUser, @Body() body: { image: string }) {
+    return this.users.setAvatar(user.sub, body?.image ?? '');
+  }
+
   @Post('device-token')
   registerDevice(
     @CurrentUser() user: JwtUser,

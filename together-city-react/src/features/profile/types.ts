@@ -1,9 +1,7 @@
-import type { HubKey } from '@/types';
-
 export interface HubContribution {
-  hub: HubKey;
+  hub: string;
   label: string;
-  summary: string;      // e.g. "Weekly plan saved · 12,976 recipes"
+  summary: string;      // e.g. "Diet: veg · Goal: maintain"
   href: string;
 }
 
@@ -17,4 +15,5 @@ export interface ProfileSummary {
   hubs: HubContribution[];     // "Your data across Together City"
   sections: ProfileSection[];  // profile detail rows
   memberSince: string;
+  profileImage: string | null;
 }

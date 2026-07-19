@@ -62,6 +62,14 @@ export class UsersService {
     return online;
   }
 
+  /** Set the user's profile photo (a resized data: URL — no external storage needed). */
+  async setAvatar(userId: string, image: string): Promise<{ profileImage: string }> {
+    const ok = typeof image === 'string' && image.startsWith('data:image/') && image.length <= 400_000;
+    if (!ok) throw new Error('Invalid image — use a small photo.');
+    await this.prisma.user.update({ where: { id: userId }, data: { profileImage: image } });
+    return { profileImage: image };
+  }
+
   async registerDeviceToken(userId: string, token: string, platform: string): Promise<void> {
     await this.prisma.deviceToken.upsert({
       where: { token },

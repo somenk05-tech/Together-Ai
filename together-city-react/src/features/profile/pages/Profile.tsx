@@ -1,53 +1,178 @@
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/store/auth.store';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
 import { useProfileSummary } from '../hooks';
+import { profileApi } from '../api';
 import { useWebPush } from '@/hooks/useWebPush';
+import { useConnections, useRespondConnection, useUnreadChatCount, useIncomingRequestCount } from '@/api';
+import { useMailAccount } from '@/features/mail/api';
 
-/** Opt-in card for browser / phone push notifications (offline message alerts). */
-function NotificationsCard() {
-  const { supported, permission, busy, enable } = useWebPush();
-  if (!supported) return null;
-  const on = permission === 'granted';
-  const blocked = permission === 'denied';
+type Tab = 'overview' | 'photo' | 'notifications';
+
+/** Round avatar — the uploaded photo (data URL) or the user's initials. */
+function Avatar({ src, name, size = 56 }: { src?: string | null; name: string; size?: number }) {
+  if (src) return <img src={src} alt="" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />;
   return (
-    <Card style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-      <div style={{ flex: 1, minWidth: 200 }}>
-        <h4 style={{ margin: '0 0 4px' }}>🔔 Message notifications</h4>
-        <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-          {on ? 'On — you’ll get a notification when someone messages you, even with the app closed.'
-            : blocked ? 'Blocked in your browser settings. Allow notifications for this site to turn them on.'
-            : 'Get notified when someone messages you, even when Together City is closed.'}
-        </p>
+    <div className="tc-avatar" style={{ width: size, height: size, fontSize: size / 3, flexShrink: 0 }}>
+      {(name || 'You').slice(0, 2).toUpperCase()}
+    </div>
+  );
+}
+
+/** Resize a chosen image to a small square JPEG data URL (no external storage needed). */
+function resizeToDataUrl(file: File, size = 200): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('no canvas')); return; }
+      const scale = Math.max(size / img.width, size / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+    img.src = url;
+  });
+}
+
+function PhotoTab({ current, name }: { current: string | null; name: string }) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(current);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const onFile = async (file?: File) => {
+    if (!file) return;
+    setBusy(true); setMsg(null);
+    try {
+      const dataUrl = await resizeToDataUrl(file);
+      await profileApi.setAvatar(dataUrl);
+      setPreview(dataUrl);
+      // Reflect immediately in the app-wide avatar.
+      useAuthStore.setState((s) => ({ user: s.user ? { ...s.user, profileImage: dataUrl } : s.user }));
+      void qc.invalidateQueries({ queryKey: ['profile', 'summary'] });
+      setMsg('Photo updated ✓');
+    } catch {
+      setMsg('Couldn’t set that photo — try a smaller image.');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Card>
+      <h4 style={{ margin: '0 0 4px' }}>Profile photo</h4>
+      <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>This appears across Together City — in chat, connections and your profile.</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+        <Avatar src={preview} name={name} size={96} />
+        <div>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => void onFile(e.target.files?.[0])} />
+          <Button variant="accent" size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>
+            {busy ? 'Uploading…' : preview ? 'Change photo' : 'Upload a photo'}
+          </Button>
+          {msg && <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>{msg}</p>}
+        </div>
       </div>
-      {!on && !blocked && (
-        <Button variant="accent" size="sm" disabled={busy} onClick={enable}>
-          {busy ? 'Enabling…' : 'Enable notifications'}
-        </Button>
-      )}
-      {on && <span className="tag" style={{ alignSelf: 'center' }}>Enabled</span>}
     </Card>
   );
 }
 
-/** Unified profile — account identity + live cross-hub data + detail sections. */
+function NotificationsTab() {
+  const push = useWebPush();
+  const connections = useConnections();
+  const respond = useRespondConnection();
+  const incoming = (connections.data ?? []).filter((c) => c.status === 'pending' && c.incoming);
+  const unreadChats = useUnreadChatCount();
+  const mail = useMailAccount();
+  const unreadMail = mail.data?.counts.inboxUnread ?? 0;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Push opt-in */}
+      {push.supported && (
+        <Card style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <h4 style={{ margin: '0 0 4px' }}>🔔 Message notifications</h4>
+            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+              {push.permission === 'granted' ? 'On — you’ll be notified of new messages even with the app closed.'
+                : push.permission === 'denied' ? 'Blocked in your browser settings — allow notifications for this site to enable.'
+                : 'Get notified of new messages even when Together City is closed.'}
+            </p>
+          </div>
+          {push.permission !== 'granted' && push.permission !== 'denied' && (
+            <Button variant="accent" size="sm" disabled={push.busy} onClick={push.enable}>{push.busy ? 'Enabling…' : 'Enable'}</Button>
+          )}
+          {push.permission === 'granted' && <span className="tag" style={{ alignSelf: 'center' }}>Enabled</span>}
+        </Card>
+      )}
+
+      {/* Connection requests */}
+      <Card>
+        <h4 style={{ margin: '0 0 10px' }}>Connection requests {incoming.length > 0 && <span className="tag">{incoming.length}</span>}</h4>
+        {incoming.length === 0 ? (
+          <p className="muted" style={{ fontSize: 13 }}>No pending requests.</p>
+        ) : incoming.map((c) => (
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: '1px solid var(--line)' }}>
+            <Avatar src={c.user.profileImage} name={c.user.name} size={38} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{c.user.name}</div>
+              <div className="muted" style={{ fontSize: 12 }}>@{c.user.handle} wants to connect</div>
+            </div>
+            <Button size="sm" variant="accent" disabled={respond.isPending} onClick={() => respond.mutate({ id: c.id, accept: true })}>Accept</Button>
+            <Button size="sm" variant="line" disabled={respond.isPending} onClick={() => respond.mutate({ id: c.id, accept: false })}>Decline</Button>
+          </div>
+        ))}
+      </Card>
+
+      {/* Unread */}
+      <Card>
+        <h4 style={{ margin: '0 0 10px' }}>Unread</h4>
+        <Link to="/chats" style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid var(--line)', color: 'inherit' }}>
+          <span>💬 Chat messages</span>
+          <span style={{ fontWeight: 700, color: unreadChats ? 'var(--accent)' : 'var(--muted)' }}>{unreadChats || 'None'}</span>
+        </Link>
+        <Link to="/mail/inbox" style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid var(--line)', color: 'inherit' }}>
+          <span>✉ Mail</span>
+          <span style={{ fontWeight: 700, color: unreadMail ? 'var(--accent)' : 'var(--muted)' }}>{unreadMail || 'None'}</span>
+        </Link>
+      </Card>
+    </div>
+  );
+}
+
+/** Unified profile — identity, all cross-hub data, photo and notifications. */
 export function Profile() {
   const { user, signOut } = useAuth();
   const { data, isLoading, isError } = useProfileSummary();
+  const [tab, setTab] = useState<Tab>('overview');
+  const reqCount = useIncomingRequestCount();
+
+  const name = user?.name ?? 'You';
+  const photo = data?.profileImage ?? user?.profileImage ?? null;
+  const TABS: { key: Tab; label: string; badge?: number }[] = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'photo', label: 'Photo' },
+    { key: 'notifications', label: 'Notifications', badge: reqCount },
+  ];
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '36px 24px 80px' }}>
       <div className="eyebrow">Together City</div>
       <h1 style={{ marginBottom: 18 }}>Your profile</h1>
 
-      {/* Account identity — from the auth store */}
-      <Card style={{ marginBottom: 24 }}>
+      {/* Identity */}
+      <Card style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <div className="tc-avatar" style={{ width: 56, height: 56, fontSize: 18 }}>
-            {(user?.name ?? 'You').slice(0, 2).toUpperCase()}
-          </div>
+          <Avatar src={photo} name={name} size={56} />
           <div style={{ flex: 1, minWidth: 180 }}>
-            <h3 style={{ margin: 0 }}>{user?.name ?? 'Your name'}</h3>
+            <h3 style={{ margin: 0 }}>{name}</h3>
             <p className="muted" style={{ fontSize: 13 }}>
               @{user?.handle ?? '—'}{user?.handle ? ` · ${user.handle}@togethercity.tech` : ''}
             </p>
@@ -59,38 +184,52 @@ export function Profile() {
         </div>
       </Card>
 
-      {/* Push notifications opt-in */}
-      <NotificationsCard />
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--line)' }}>
+        {TABS.map((t) => (
+          <button key={t.key} type="button" onClick={() => setTab(t.key)}
+            style={{ position: 'relative', cursor: 'pointer', background: 'none', border: 'none', padding: '10px 14px', fontFamily: 'inherit',
+              fontSize: 14, fontWeight: 600, color: tab === t.key ? 'var(--accent)' : 'var(--muted)',
+              borderBottom: `2px solid ${tab === t.key ? 'var(--accent)' : 'transparent'}`, marginBottom: -1 }}>
+            {t.label}
+            {t.badge ? <span className="tag" style={{ marginLeft: 6, background: '#e0342b', color: '#fff' }}>{t.badge}</span> : null}
+          </button>
+        ))}
+      </div>
 
-      {/* Your data across Together City — live from the backend */}
-      <h4 style={{ margin: '10px 0 12px' }}>Your data across Together City</h4>
-      {isLoading && <Spinner />}
-      {isError && <EmptyState title="Couldn't load your data" hint="Start the backend and reload." />}
-      {data && data.hubs.length === 0 && (
-        <EmptyState icon="✨" title="A fresh identity" hint="As you use each hub, what it knows about you appears here." />
-      )}
-      {data && data.hubs.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 14, marginBottom: 28 }}>
-          {data.hubs.map((h) => (
-            <Link key={h.hub} to={h.href} className="card lift" style={{ display: 'block' }}>
-              <div className="eyebrow" style={{ marginBottom: 4 }}>{h.label}</div>
-              <p style={{ fontSize: 13 }}>{h.summary}</p>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      {/* Detail sections */}
-      {data && data.sections.length > 0 && (
-        <Card>
-          {data.sections.map((s) => (
-            <div key={s.key} style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 0', borderTop: '1px solid var(--line)' }}>
-              <span className="muted" style={{ fontSize: 13 }}>{s.label}</span>
-              <span style={{ fontSize: 13.5, color: s.value ? 'var(--ink)' : 'var(--muted)' }}>{s.value ?? 'Not set'}</span>
+      {tab === 'overview' && (
+        <>
+          <h4 style={{ margin: '4px 0 12px' }}>Your data across Together City</h4>
+          {isLoading && <Spinner />}
+          {isError && <EmptyState title="Couldn't load your data" hint="Reload in a moment." />}
+          {data && data.hubs.length === 0 && (
+            <EmptyState icon="✨" title="A fresh identity" hint="As you use each hub, what it knows about you appears here." />
+          )}
+          {data && data.hubs.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 14, marginBottom: 24 }}>
+              {data.hubs.map((h) => (
+                <Link key={h.hub} to={h.href} className="card lift" style={{ display: 'block' }}>
+                  <div className="eyebrow" style={{ marginBottom: 4 }}>{h.label}</div>
+                  <p style={{ fontSize: 13 }}>{h.summary}</p>
+                </Link>
+              ))}
             </div>
-          ))}
-        </Card>
+          )}
+          {data && data.sections.length > 0 && (
+            <Card>
+              {data.sections.map((s) => (
+                <div key={s.key} style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 0', borderTop: '1px solid var(--line)' }}>
+                  <span className="muted" style={{ fontSize: 13 }}>{s.label}</span>
+                  <span style={{ fontSize: 13.5, color: s.value ? 'var(--ink)' : 'var(--muted)' }}>{s.value ?? 'Not set'}</span>
+                </div>
+              ))}
+            </Card>
+          )}
+        </>
       )}
+
+      {tab === 'photo' && <PhotoTab current={photo} name={name} />}
+      {tab === 'notifications' && <NotificationsTab />}
     </div>
   );
 }
