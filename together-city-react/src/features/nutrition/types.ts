@@ -4,6 +4,7 @@ export type Slot = 'b' | 'l' | 's' | 'd';
 
 export interface Recipe {
   id: string;
+  recipeNo?: number | null;   // stable public recipe number (1..N)
   name: string;
   country: string;
   kcal: number;

@@ -17,7 +17,7 @@ export function MealCard({ meal, onSwap, onSkip }: { meal: Meal; onSwap: () => v
       </div>
       <div style={{ padding: '14px 16px 16px' }}>
         <span className="tag" style={{ background: `${color}1a`, color }}>{r.diet === 'nonveg' ? 'NON-VEG' : r.diet.toUpperCase()}</span>
-        <p className="muted" style={{ margin: '8px 0 4px', fontSize: 12 }}>{LABEL[slot]} · {r.country} · {r.minutes} min</p>
+        <p className="muted" style={{ margin: '8px 0 4px', fontSize: 12 }}>{LABEL[slot]} · {r.country} · {r.minutes} min{r.recipeNo ? ` · No. ${r.recipeNo.toLocaleString('en-IN')}` : ''}</p>
         <span style={{ fontWeight: 700 }}>{r.kcal} kcal</span>
         <span className="muted" style={{ fontSize: 11.5 }}> · {r.gramsPerServing} g/plate</span>
         <div style={{ display: 'flex', gap: 7, marginTop: 12, flexWrap: 'wrap' }}>

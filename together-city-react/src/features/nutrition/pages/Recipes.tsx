@@ -150,7 +150,9 @@ export function Recipes() {
                   {meta.label}
                 </span>
                 <h3 style={{ fontSize: 16.5, marginBottom: 4, paddingRight: 64 }}>{r.name}</h3>
-                <div className="muted" style={{ fontSize: 12 }}>{r.country} · {r.minutes} min · {r.gramsPerServing} g/plate</div>
+                <div className="muted" style={{ fontSize: 12 }}>
+                  {r.recipeNo ? <>No.&nbsp;{r.recipeNo.toLocaleString('en-IN')} · </> : null}{r.country} · {r.minutes} min · {r.gramsPerServing} g/plate
+                </div>
                 <div style={{ display: 'flex', gap: 14, marginTop: 12, fontSize: 12.5 }}>
                   <span><strong>{r.kcal}</strong> kcal</span>
                   <span><strong>{r.protein}g</strong> protein</span>

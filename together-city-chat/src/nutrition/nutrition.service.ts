@@ -74,7 +74,7 @@ function cuisineBias<T extends { country: string }>(list: T[], mix: Record<strin
 }
 
 export interface RecipeShape {
-  id: string; name: string; country: string; kcal: number; protein: number;
+  id: string; recipeNo: number | null; name: string; country: string; kcal: number; protein: number;
   carbs: number; fat: number; fiber: number; minutes: number; gramsPerServing: number; diet: Diet;
 }
 
@@ -782,7 +782,8 @@ export class NutritionService implements OnModuleInit {
     // (it is fully plant-based) so existing diet chips/colours render correctly.
     const displayDiet = (r.diet === 'jainvegan' ? 'vegan' : r.diet) as Diet;
     return {
-      id: r.id, name: r.name, country: r.country, kcal: r.kcal, protein: r.protein,
+      id: r.id, recipeNo: (r as { recipeNo?: number | null }).recipeNo ?? null,
+      name: r.name, country: r.country, kcal: r.kcal, protein: r.protein,
       carbs: r.carbs, fat: r.fat, fiber: r.fiber, minutes: r.minutes,
       gramsPerServing: r.gramsPerServing, diet: displayDiet,
     };
@@ -965,7 +966,7 @@ export class NutritionService implements OnModuleInit {
       if (!path) { this.logger.warn('Recipe dataset file not found — skipping world-database load.'); return; }
 
       type DS = {
-        id: string; name: string; country: string; slot: string; diet: string;
+        id: string; no: number; name: string; country: string; slot: string; diet: string;
         kcal: number; protein: number; carbs: number; fat: number; fiber: number;
         minutes: number; gramsPerServing: number; steps: string[];
         ingredients: { name: string; grams: number; priceInr: number }[];
@@ -976,33 +977,49 @@ export class NutritionService implements OnModuleInit {
         (await this.prisma.recipe.findMany({ select: { id: true } })).map((r) => r.id),
       );
       const fresh = data.filter((r) => !existingIds.has(r.id));
-      if (!fresh.length) return;
 
-      this.logger.log(`Loading world recipe database: ${fresh.length} recipes → Postgres…`);
-
-      // 1) recipes (no nested writes — fastest path)
-      const RB = 500;
-      for (let i = 0; i < fresh.length; i += RB) {
-        const batch = fresh.slice(i, i + RB).map((r) => ({
-          id: r.id, name: r.name, country: r.country, slot: r.slot, diet: r.diet,
-          kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat, fiber: r.fiber,
-          minutes: r.minutes, gramsPerServing: r.gramsPerServing,
-          steps: JSON.stringify(r.steps ?? []),
-        }));
-        await this.prisma.recipe.createMany({ data: batch, skipDuplicates: true });
+      if (fresh.length) {
+        this.logger.log(`Loading world recipe database: ${fresh.length} recipes → Postgres…`);
+        // 1) recipes (no nested writes — fastest path). recipeNo cast for stale client.
+        const RB = 500;
+        for (let i = 0; i < fresh.length; i += RB) {
+          const batch = fresh.slice(i, i + RB).map((r) => ({
+            id: r.id, recipeNo: r.no, name: r.name, country: r.country, slot: r.slot, diet: r.diet,
+            kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat, fiber: r.fiber,
+            minutes: r.minutes, gramsPerServing: r.gramsPerServing,
+            steps: JSON.stringify(r.steps ?? []),
+          }));
+          await this.prisma.recipe.createMany({ data: batch as never, skipDuplicates: true });
+        }
+        // 2) ingredients
+        const ing = fresh.flatMap((r) => (r.ingredients ?? []).map((i) => ({
+          recipeId: r.id, name: i.name, grams: i.grams, priceInr: i.priceInr,
+        })));
+        const IB = 2000;
+        for (let i = 0; i < ing.length; i += IB) {
+          await this.prisma.recipeIngredient.createMany({ data: ing.slice(i, i + IB), skipDuplicates: true });
+        }
       }
 
-      // 2) ingredients
-      const ing = fresh.flatMap((r) => (r.ingredients ?? []).map((i) => ({
-        recipeId: r.id, name: i.name, grams: i.grams, priceInr: i.priceInr,
-      })));
-      const IB = 2000;
-      for (let i = 0; i < ing.length; i += IB) {
-        await this.prisma.recipeIngredient.createMany({ data: ing.slice(i, i + IB), skipDuplicates: true });
+      // 3) Back-fill: number + cleaned names for any dataset rows loaded before
+      //    this change (recipeNo still NULL). One-time; idempotent afterwards.
+      const nullRows = await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+        'SELECT id FROM "Recipe" WHERE "recipeNo" IS NULL',
+      );
+      const nullSet = new Set(nullRows.map((r) => r.id));
+      const toSync = data.filter((r) => nullSet.has(r.id));
+      if (toSync.length) {
+        this.logger.log(`Back-filling numbers + names for ${toSync.length} recipes…`);
+        const SB = 100;
+        for (let i = 0; i < toSync.length; i += SB) {
+          await Promise.allSettled(toSync.slice(i, i + SB).map((r) =>
+            this.prisma.recipe.update({ where: { id: r.id }, data: { recipeNo: r.no, name: r.name } as never }),
+          ));
+        }
       }
 
       const total = await this.prisma.recipe.count();
-      this.logger.log(`World recipe database loaded: +${fresh.length} recipes, ${ing.length} ingredients (total ${total}).`);
+      this.logger.log(`World recipe database ready: ${total} recipes in Postgres.`);
     } catch (e) {
       this.logger.warn(`World-database load failed (will retry next boot): ${(e as Error).message}`);
     }

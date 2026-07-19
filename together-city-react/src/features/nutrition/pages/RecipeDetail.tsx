@@ -42,7 +42,7 @@ export function RecipeDetail() {
         </span>
         <h1 style={{ fontSize: 28, margin: '10px 0 4px' }}>{r.name}</h1>
         <div className="muted" style={{ fontSize: 13 }}>
-          {r.country} · {r.minutes} min · {r.gramsPerServing} g per plate · ₹{cost} per serving
+          {r.recipeNo ? <>Recipe No.&nbsp;{r.recipeNo.toLocaleString('en-IN')} · </> : null}{r.country} · {r.minutes} min · {r.gramsPerServing} g per plate · ₹{cost} per serving
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, margin: '20px 0' }}>

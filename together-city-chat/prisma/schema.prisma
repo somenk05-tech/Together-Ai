@@ -298,6 +298,7 @@ model FoodPref {
 
 model Recipe {
   id              String @id @default(uuid())
+  recipeNo        Int? // stable public recipe number (1..N) for the world library
   name            String
   country         String
   slot            String // b | l | s | d
@@ -317,6 +318,7 @@ model Recipe {
 
   @@index([slot])
   @@index([diet])
+  @@index([recipeNo])
 }
 
 // A single logged food/drink item in the My Health Profile calorie tracker.
