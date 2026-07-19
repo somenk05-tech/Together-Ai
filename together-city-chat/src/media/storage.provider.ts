@@ -25,11 +25,17 @@ export class StorageProvider {
   private readonly logger = new Logger(StorageProvider.name);
   private readonly s3: S3Client | null;
   private readonly bucket: string;
+  private readonly healthBucket: string;
   private readonly publicBase: string;
   private readonly expiresInSec = 900;
+  private readonly downloadTtlSec = 300; // signed GET links for private health docs
 
   constructor(private readonly config: ConfigService) {
     this.bucket = this.config.get<string>('media.bucket') ?? '';
+    // Private vault for medical documents. Falls back to the main bucket when a
+    // dedicated private bucket isn't configured — health docs are still served
+    // ONLY via short-lived signed links (never a stored public URL) either way.
+    this.healthBucket = this.config.get<string>('media.privateBucket') || this.bucket;
     this.publicBase = this.config.get<string>('media.publicBaseUrl') ?? '';
     const endpoint = this.config.get<string>('media.endpoint') ?? '';
     const accessKeyId = this.config.get<string>('media.accessKeyId') ?? '';
@@ -80,12 +86,49 @@ export class StorageProvider {
 
   get configured(): boolean { return this.s3 !== null; }
 
+  // ─────────── private health-document vault (signed links only) ───────────
+
+  /** Presign a PUT into the private health bucket. Returns the object key — NO
+   *  public URL, because health documents must never be publicly reachable. */
+  async presignHealthUpload(userId: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    const key = `health/${userId}/${randomUUID()}.${ext}`;
+    if (!this.s3) {
+      return { uploadUrl: `${this.publicBase}/__presigned__/${key}`, key, expiresInSec: this.expiresInSec };
+    }
+    const uploadUrl = await getSignedUrl(
+      this.s3,
+      new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType }),
+      { expiresIn: this.expiresInSec },
+    );
+    return { uploadUrl, key, expiresInSec: this.expiresInSec };
+  }
+
+  /** Short-lived signed GET URL for a private health document (owner-only, handed
+   *  out by the authenticated backend). Returns null when storage isn't configured. */
+  async presignHealthDownload(key: string): Promise<string | null> {
+    if (!this.s3 || !key) return null;
+    try {
+      return await getSignedUrl(this.s3, new GetObjectCommand({ Bucket: this.healthBucket, Key: key }), { expiresIn: this.downloadTtlSec });
+    } catch (e) {
+      this.logger.warn(`presignHealthDownload failed for ${key}: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  async getHealthObjectBase64(key: string): Promise<{ base64: string; contentType: string } | null> {
+    return this.getObjectBase64(key, this.healthBucket);
+  }
+
+  async deleteHealthObject(key: string): Promise<void> {
+    return this.deleteObject(key, this.healthBucket);
+  }
+
   /** Read an object back as base64 (for AI vision on uploaded reports). Returns
    *  null when storage isn't configured or the object can't be read. */
-  async getObjectBase64(key: string): Promise<{ base64: string; contentType: string } | null> {
+  async getObjectBase64(key: string, bucket?: string): Promise<{ base64: string; contentType: string } | null> {
     if (!this.s3) return null;
     try {
-      const res = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+      const res = await this.s3.send(new GetObjectCommand({ Bucket: bucket ?? this.bucket, Key: key }));
       const bytes = await res.Body?.transformToByteArray();
       if (!bytes) return null;
       return {
@@ -99,10 +142,10 @@ export class StorageProvider {
   }
 
   /** Delete an object (frees the citizen's vault quota). No-op if unconfigured. */
-  async deleteObject(key: string): Promise<void> {
+  async deleteObject(key: string, bucket?: string): Promise<void> {
     if (!this.s3 || !key) return;
     try {
-      await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+      await this.s3.send(new DeleteObjectCommand({ Bucket: bucket ?? this.bucket, Key: key }));
     } catch (e) {
       this.logger.warn(`deleteObject failed for ${key}: ${(e as Error).message}`);
     }

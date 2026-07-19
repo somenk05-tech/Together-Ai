@@ -61,19 +61,30 @@ export class MedicalService implements OnModuleInit {
     }
   }
 
-  /** Record a health document already uploaded to R2 (its bytes count against the vault). */
+  /** Record a health document already uploaded to the PRIVATE vault. We store the
+   *  object key only — never a public URL — so it's reachable solely via a
+   *  short-lived signed link handed to the authenticated owner. */
   async addDocument(userId: string, dto: {
-    kind: string; title: string; detail?: string; fileUrl: string; fileKey?: string; mimeType?: string; sizeBytes: number;
+    kind: string; title: string; detail?: string; fileKey: string; mimeType?: string; sizeBytes: number;
   }) {
     await this.assertQuota(userId, dto.sizeBytes);
     await this.prisma.medicalRecord.create({
       data: {
         userId, kind: dto.kind, title: dto.title, detail: dto.detail ?? null,
-        fileUrl: dto.fileUrl, fileKey: dto.fileKey ?? null, mimeType: dto.mimeType ?? null,
+        fileUrl: null, fileKey: dto.fileKey, mimeType: dto.mimeType ?? null,
         sizeBytes: dto.sizeBytes, recordedOn: new Date(),
       } as never,
     });
     return this.records(userId);
+  }
+
+  /** A short-lived signed URL to view one health document (owner-checked). */
+  async recordFileUrl(userId: string, id: string): Promise<{ url: string | null; expiresInSec: number }> {
+    const rec = await this.prisma.medicalRecord.findFirst({ where: { id, userId } }) as
+      ({ fileKey: string | null; fileUrl: string | null } | null);
+    if (!rec) throw new NotFoundException('record not found');
+    if (rec.fileKey) return { url: await this.storage.presignHealthDownload(rec.fileKey), expiresInSec: 300 };
+    return { url: rec.fileUrl ?? null, expiresInSec: 0 }; // legacy public rows, if any
   }
 
   /**
@@ -83,25 +94,22 @@ export class MedicalService implements OnModuleInit {
    * the review form (empty when AI is off — the user just types them in).
    */
   async extractBloodReport(userId: string, dto: {
-    fileUrl: string; fileKey?: string; mimeType: string; sizeBytes: number; title?: string;
+    fileKey: string; mimeType: string; sizeBytes: number; title?: string;
   }) {
     await this.assertQuota(userId, dto.sizeBytes);
-    // file the document in the vault
+    // file the document in the private vault (key only, no public URL)
     await this.prisma.medicalRecord.create({
       data: {
         userId, kind: 'report', title: dto.title || 'Blood report', detail: 'Uploaded blood report',
-        fileUrl: dto.fileUrl, fileKey: dto.fileKey ?? null, mimeType: dto.mimeType, sizeBytes: dto.sizeBytes,
+        fileUrl: null, fileKey: dto.fileKey, mimeType: dto.mimeType, sizeBytes: dto.sizeBytes,
         recordedOn: new Date(),
       } as never,
     });
 
-    // read it back from R2 → AI extraction
+    // read it back from the private vault → AI extraction
     let extracted: { values: Record<string, number>; lab?: string; takenOn?: string } = { values: {} };
-    const key = dto.fileKey || this.storage.keyFromUrl(dto.fileUrl);
-    if (key) {
-      const obj = await this.storage.getObjectBase64(key);
-      if (obj) extracted = await this.ai.extractBloodMarkers(obj.base64, dto.mimeType);
-    }
+    const obj = await this.storage.getHealthObjectBase64(dto.fileKey);
+    if (obj) extracted = await this.ai.extractBloodMarkers(obj.base64, dto.mimeType);
 
     return {
       aiEnabled: this.ai.enabled,
@@ -122,8 +130,8 @@ export class MedicalService implements OnModuleInit {
     const rec = await this.prisma.medicalRecord.findFirst({ where: { id, userId } }) as
       ({ id: string; fileKey: string | null; fileUrl: string | null } | null);
     if (!rec) throw new NotFoundException('record not found');
-    const key = rec.fileKey || (rec.fileUrl ? this.storage.keyFromUrl(rec.fileUrl) : '');
-    if (key) await this.storage.deleteObject(key);
+    if (rec.fileKey) await this.storage.deleteHealthObject(rec.fileKey);
+    else if (rec.fileUrl) await this.storage.deleteObject(this.storage.keyFromUrl(rec.fileUrl));
     await this.prisma.medicalRecord.delete({ where: { id } });
     return this.records(userId);
   }
@@ -283,9 +291,12 @@ export class MedicalService implements OnModuleInit {
       where: { userId }, orderBy: { recordedOn: 'desc' },
     });
     return rows.map((r) => {
-      const rr = r as typeof r & { mimeType?: string | null; sizeBytes?: number | null };
+      const rr = r as typeof r & { fileKey?: string | null; mimeType?: string | null; sizeBytes?: number | null };
       return {
-        id: r.id, kind: r.kind, title: r.title, detail: r.detail, fileUrl: r.fileUrl,
+        id: r.id, kind: r.kind, title: r.title, detail: r.detail,
+        // Health docs are private: expose only whether a file exists, not a URL.
+        // The client fetches a short-lived signed link from /records/:id/file.
+        hasFile: Boolean(rr.fileKey || r.fileUrl),
         mimeType: rr.mimeType ?? null, sizeBytes: rr.sizeBytes ?? 0,
         recordedOn: r.recordedOn.toISOString().slice(0, 10),
       };

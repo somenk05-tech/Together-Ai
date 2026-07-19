@@ -21,6 +21,7 @@ export interface AppConfig {
   media: {
     provider: 'r2' | 's3';
     bucket: string;
+    privateBucket: string;
     publicBaseUrl: string;
     region: string;
     endpoint: string;
@@ -60,6 +61,7 @@ export default (): AppConfig => ({
   media: {
     provider: (process.env.MEDIA_PROVIDER as 'r2' | 's3') ?? 'r2',
     bucket: process.env.MEDIA_BUCKET ?? '',
+    privateBucket: process.env.MEDIA_PRIVATE_BUCKET ?? '',
     publicBaseUrl: process.env.MEDIA_PUBLIC_BASE_URL ?? '',
     region: process.env.S3_REGION ?? 'auto',
     endpoint: process.env.S3_ENDPOINT ?? '',

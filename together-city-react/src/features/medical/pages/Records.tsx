@@ -35,6 +35,16 @@ export function Records() {
 
   const reset = () => { setTitle(''); setDetail(''); setFile(null); };
 
+  // Open a private health document via a fresh short-lived signed link. The tab is
+  // opened synchronously (within the click) then redirected, to avoid popup blocks.
+  const openFile = async (id: string) => {
+    const w = window.open('', '_blank');
+    try {
+      const { url } = await medicalApi.recordFile(id);
+      if (url && w) w.location.href = url; else if (w) w.close();
+    } catch { if (w) w.close(); }
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
@@ -43,10 +53,10 @@ export function Records() {
       if (file.size > 25 * 1024 * 1024) { setErr('That file is over 25 MB.'); return; }
       setBusy(true);
       try {
-        const up = await mediaApi.uploadDoc(file);
+        const up = await mediaApi.uploadPrivate(file);
         const recs = await medicalApi.uploadDocument({
           kind, title: title.trim(), detail: detail.trim() || undefined,
-          fileUrl: up.fileUrl, fileKey: up.fileKey, mimeType: up.mimeType, sizeBytes: up.sizeBytes,
+          fileKey: up.fileKey, mimeType: up.mimeType, sizeBytes: up.sizeBytes,
         });
         qc.setQueryData(['medical', 'records'], recs);
         void qc.invalidateQueries({ queryKey: ['medical', 'storage'] });
@@ -132,10 +142,11 @@ export function Records() {
                 </div>
                 {r.detail && <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '4px 0 0' }}>{r.detail}</p>}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-                  {r.fileUrl && (
-                    <a href={r.fileUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)' }}>
+                  {r.hasFile && (
+                    <button type="button" onClick={() => void openFile(r.id)}
+                      style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontSize: 12.5, fontWeight: 600, color: 'var(--accent)', fontFamily: 'inherit' }}>
                       View file{r.sizeBytes ? ` · ${fmtBytes(r.sizeBytes)}` : ''} ↗
-                    </a>
+                    </button>
                   )}
                   <button type="button" onClick={() => del.mutate(r.id)} disabled={del.isPending}
                     style={{ marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', color: '#c62828', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit' }}>

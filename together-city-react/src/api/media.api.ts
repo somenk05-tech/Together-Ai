@@ -36,10 +36,19 @@ export const mediaApi = {
     return publicUrl;
   },
 
-  /** Upload and return full metadata (url + key + size) for a vault document. */
+  /** Upload and return full metadata (url + key + size) for a public document. */
   async uploadDoc(file: File): Promise<UploadedFile> {
     const { uploadUrl, publicUrl, key } = await this.presign(file);
     await axios.put(uploadUrl, file, { headers: { 'Content-Type': file.type } });
     return { fileUrl: publicUrl, fileKey: key, mimeType: file.type, sizeBytes: file.size };
+  },
+
+  /** Upload to the PRIVATE health vault — returns the key only (no public URL).
+   *  The file is viewable later solely via a short-lived signed link. */
+  async uploadPrivate(file: File): Promise<{ fileKey: string; mimeType: string; sizeBytes: number }> {
+    const res = await apiPost('/media/upload-private', { mimeType: file.type, sizeBytes: file.size },
+      z.object({ uploadUrl: z.string(), key: z.string(), expiresInSec: z.number().optional() }));
+    await axios.put(res.uploadUrl, file, { headers: { 'Content-Type': file.type } });
+    return { fileKey: res.key, mimeType: file.type, sizeBytes: file.size };
   },
 };

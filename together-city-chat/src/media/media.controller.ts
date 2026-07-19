@@ -25,4 +25,13 @@ export class MediaController {
   ) {
     return this.media.requestUpload(user.sub, dto.mimeType, dto.sizeBytes);
   }
+
+  // POST /api/media/upload-private → presigned PUT into the private health vault
+  @Post('upload-private')
+  requestPrivateUpload(
+    @CurrentUser() user: JwtUser,
+    @Body(new ZodValidationPipe(PresignSchema)) dto: PresignDto,
+  ) {
+    return this.media.requestPrivateUpload(user.sub, dto.mimeType, dto.sizeBytes);
+  }
 }

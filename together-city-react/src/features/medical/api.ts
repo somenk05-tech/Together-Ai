@@ -27,7 +27,7 @@ export interface SupplementPlan {
   items: SupplementItem[]; totalInr: number; safety: string;
 }
 
-export interface MedicalRecord { id: string; kind: string; title: string; detail: string | null; fileUrl: string | null; mimeType?: string | null; sizeBytes?: number; recordedOn: string }
+export interface MedicalRecord { id: string; kind: string; title: string; detail: string | null; hasFile?: boolean; mimeType?: string | null; sizeBytes?: number; recordedOn: string }
 export interface StorageUsage { quotaBytes: number; usedBytes: number; mailBytes: number; healthBytes: number; usedPct: number; remainingBytes: number }
 export interface ExtractResult { aiEnabled: boolean; extracted: Record<string, number>; markerCount: number; lab: string | null; takenOn: string | null; note: string }
 export interface DoctorCard { id: string; name: string; handle: string; specialty: string; hospital: string | null; languages: string[]; rating: number; priceInr: number }
@@ -53,10 +53,11 @@ export const medicalApi = {
   supplementPlan: () => api.get<SupplementPlan>('/medical/supplement-plan').then((r) => r.data),
   storage: () => api.get<StorageUsage>('/medical/storage').then((r) => r.data),
   deleteRecord: (id: string) => api.delete<MedicalRecord[]>(`/medical/records/${id}`).then((r) => r.data),
-  uploadDocument: (input: { kind: string; title: string; detail?: string; fileUrl: string; fileKey?: string; mimeType?: string; sizeBytes: number }) =>
+  uploadDocument: (input: { kind: string; title: string; detail?: string; fileKey: string; mimeType?: string; sizeBytes: number }) =>
     api.post<MedicalRecord[]>('/medical/documents', input).then((r) => r.data),
-  extractBlood: (input: { fileUrl: string; fileKey?: string; mimeType: string; sizeBytes: number; title?: string }) =>
+  extractBlood: (input: { fileKey: string; mimeType: string; sizeBytes: number; title?: string }) =>
     api.post<ExtractResult>('/medical/blood-tests/extract', input).then((r) => r.data),
+  recordFile: (id: string) => api.get<{ url: string | null; expiresInSec: number }>(`/medical/records/${id}/file`).then((r) => r.data),
 };
 
 export function useStorageUsage() {

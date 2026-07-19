@@ -68,6 +68,12 @@ export class MedicalController {
     return this.medical.deleteRecord(user.sub, id);
   }
 
+  // Short-lived signed link to view a private health document (owner only).
+  @Get('records/:id/file')
+  recordFile(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.medical.recordFileUrl(user.sub, id);
+  }
+
   // ── unified 10 GB vault (mail + health documents) ──
   @Get('storage')
   storage(@CurrentUser() user: JwtUser) {

@@ -54,8 +54,8 @@ export function BloodAnalysis() {
     if (file.size > 25 * 1024 * 1024) { setUploadErr('That file is over 25 MB — please upload a smaller scan.'); return; }
     setExtracting(true);
     try {
-      const up = await mediaApi.uploadDoc(file);
-      const res = await medicalApi.extractBlood({ fileUrl: up.fileUrl, fileKey: up.fileKey, mimeType: up.mimeType, sizeBytes: up.sizeBytes, title: file.name });
+      const up = await mediaApi.uploadPrivate(file);
+      const res = await medicalApi.extractBlood({ fileKey: up.fileKey, mimeType: up.mimeType, sizeBytes: up.sizeBytes, title: file.name });
       const next: Record<string, string> = { ...form };
       for (const [k, v] of Object.entries(res.extracted)) next[k] = String(v);
       setForm(next);

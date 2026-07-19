@@ -37,4 +37,13 @@ export class MediaService {
     // Virus-scan hook: enqueue key for scanning before it is served (stub).
     return this.storage.presignUpload(userId, mimeType, ext);
   }
+
+  /** Presign a PUT into the PRIVATE health vault (no public URL is returned). */
+  async requestPrivateUpload(userId: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    const max = this.config.get<number>('policy.maxUploadBytes') ?? 52428800;
+    if (sizeBytes > max) throw new BadRequestException(`File exceeds ${max} bytes`);
+    const ext = EXT[mimeType];
+    if (!ext) throw new BadRequestException(`Unsupported mime type: ${mimeType}`);
+    return this.storage.presignHealthUpload(userId, mimeType, ext);
+  }
 }
