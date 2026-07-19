@@ -33,6 +33,32 @@ export interface RecipeShape {
   carbs: number; fat: number; fiber: number; minutes: number; gramsPerServing: number; diet: Diet;
 }
 
+/** One guided cooking step: its instruction, how long it runs unattended, and
+ *  whether it needs constant attention (stir) vs. can run in the background. */
+export interface CookStep { text: string; durationSec: number; active: boolean }
+
+/** Extract a timer (seconds) from a step's wording. Ranges take the upper bound;
+ *  temperatures and quantities are ignored. */
+function secondsFromText(text: string): number {
+  const t = text.toLowerCase();
+  const U = '(hours?|hrs?|minutes?|mins?|seconds?|secs?)';
+  const toSec = (n: number, u: string) => (/hour|hr/.test(u) ? Math.round(n * 3600) : /sec/.test(u) ? Math.round(n) : Math.round(n * 60));
+  let m = t.match(new RegExp(`(\\d+)\\s*(?:–|-|to)\\s*(\\d+)\\s*${U}`));
+  if (m) return Math.min(2 * 3600, toSec(parseInt(m[2], 10), m[3]));
+  m = t.match(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${U}`));
+  if (m) return Math.min(2 * 3600, toSec(parseFloat(m[1]), m[2]));
+  return 0;
+}
+
+/** Whether a step needs you at the stove (true) or can run in the background (false). */
+function isActiveStep(text: string, durationSec: number): boolean {
+  const t = text.toLowerCase();
+  if (/\b(simmer|bake|roast|marinat|chill|refrigerat|soak|proof|prove|boil|steam|slow[- ]?cook|pressure[- ]?cook|cover and cook|set aside|cool|freeze|infuse|rest|leave)\b/.test(t)) return false;
+  if (/\b(stir|whisk|saut|fry|flip|toss|fold|beat|knead|scrambl|temper|deglaz|brown|sear|caramel|mix)\b/.test(t)) return true;
+  if (durationSec === 0) return true;
+  return durationSec < 180; // short timers keep you at the stove; long ones you can leave
+}
+
 @Injectable()
 export class NutritionService implements OnModuleInit {
   private readonly logger = new Logger(NutritionService.name);
@@ -250,50 +276,74 @@ export class NutritionService implements OnModuleInit {
   async recipe(id: string) {
     const r = await this.prisma.recipe.findUnique({ where: { id }, include: { ingredients: true } });
     if (!r) throw new NotFoundException('recipe not found');
-    const method = await this.recipeMethod(r);
+    const cookSteps = await this.recipeCookSteps(r);
     return {
       ...this.recipeShape(r),
       ingredients: r.ingredients.map((i) => ({ name: i.name, grams: i.grams, priceInr: i.priceInr })),
-      method,
+      method: cookSteps.map((s) => s.text), // back-compat plain list
+      cookSteps,                            // structured: text + timer + attention
     };
   }
 
-  /** Cooking steps for a recipe — AI-generated on first view and cached; a
-   *  structured fallback (prep → cook → finish) is used when AI is off. */
-  private async recipeMethod(r: {
+  /** Structured cook steps for a recipe — AI-generated on first view and cached.
+   *  Each step carries a duration (seconds it runs unattended, 0 = none) and an
+   *  `active` flag (needs constant attention like stirring vs. background like a
+   *  simmer). A deterministic fallback is used when AI is off. */
+  private async recipeCookSteps(r: {
     id: string; name: string; country: string; minutes: number; diet: string;
-    steps?: string | null; ingredients: Array<{ name: string; grams: number }>;
-  }): Promise<string[]> {
-    const cached = (r as { steps?: string | null }).steps;
+    cookSteps?: string | null; steps?: string | null; ingredients: Array<{ name: string; grams: number }>;
+  }): Promise<CookStep[]> {
+    const cached = (r as { cookSteps?: string | null }).cookSteps;
     if (cached) {
-      try { const s = JSON.parse(cached); if (Array.isArray(s) && s.length) return s; } catch { /* regenerate */ }
+      try {
+        const s = JSON.parse(cached);
+        if (Array.isArray(s) && s.length && typeof s[0]?.text === 'string') return s as CookStep[];
+      } catch { /* regenerate */ }
     }
+    const ingNames = r.ingredients.map((i) => i.name);
     const ingList = r.ingredients.map((i) => `${i.name} (${i.grams}g)`).join(', ');
-    const fallback = this.fallbackMethod(r.name, r.ingredients.map((i) => i.name), r.minutes);
-    const steps = await this.ai.json<string[]>(
-      'You are a professional chef writing clear, concise home-cooking steps. Return 4–8 short numbered steps (strings), each one action.',
+    const fallback = this.fallbackCookSteps(r.name, ingNames, r.minutes);
+    const ai = await this.ai.json<Array<{ text?: unknown; durationSec?: unknown; active?: unknown }>>(
+      'You are a professional chef. Return the cooking method as a JSON array of 4–8 step objects. ' +
+        'Each object: {"text": short one-action instruction, "durationSec": integer seconds the step runs unattended (0 if none), ' +
+        '"active": true if it needs constant attention (stirring, whisking, flipping, watching closely) or false if it mostly runs on its own (simmer, bake, rest, marinate, boil)}.',
       `Recipe: "${r.name}" (${r.country}, ${r.diet}, ~${r.minutes} min). Ingredients: ${ingList}.\n` +
-        `Write the cooking method as a JSON array of step strings (no numbering prefix).`,
-      fallback,
-      700,
+        `Return ONLY the JSON array.`,
+      [],
+      900,
     );
-    const clean = Array.isArray(steps) && steps.length ? steps.filter((s) => typeof s === 'string' && s.trim()).slice(0, 10) : fallback;
-    // Cache so we don't regenerate (steps column exists on Railway's fresh client).
+    const cleaned: CookStep[] = Array.isArray(ai)
+      ? ai
+          .filter((s) => s && typeof s.text === 'string' && (s.text as string).trim())
+          .slice(0, 10)
+          .map((s) => {
+            const text = (s.text as string).trim();
+            const dur = typeof s.durationSec === 'number' && s.durationSec > 0 ? Math.min(2 * 3600, Math.round(s.durationSec)) : secondsFromText(text);
+            const active = typeof s.active === 'boolean' ? s.active : isActiveStep(text, dur);
+            return { text, durationSec: dur, active };
+          })
+      : [];
+    const result = cleaned.length ? cleaned : fallback;
     await this.prisma.recipe
-      .update({ where: { id: r.id }, data: { steps: JSON.stringify(clean) } as never })
+      .update({ where: { id: r.id }, data: { cookSteps: JSON.stringify(result) } as never })
       .catch(() => undefined);
-    return clean;
+    return result;
   }
 
-  private fallbackMethod(name: string, ingredients: string[], minutes: number): string[] {
+  private fallbackCookSteps(name: string, ingredients: string[], minutes: number): CookStep[] {
     const list = ingredients.length ? ingredients.join(', ') : 'your ingredients';
-    return [
+    const simmer = Math.max(10, Math.round(minutes * 0.6));
+    const texts = [
       `Gather and prep everything: ${list}. Wash, peel and chop as needed.`,
-      `Heat a pan with a little oil over medium heat and add the aromatics (onion/garlic/spices) first.`,
-      `Add the main ingredients and cook, stirring, until softened and fragrant.`,
-      `Season to taste and simmer/cook through — about ${Math.max(10, Math.round(minutes * 0.6))} minutes.`,
+      `Heat a pan with a little oil over medium heat and add the aromatics (onion/garlic/spices) first, stirring for about 2 minutes.`,
+      `Add the main ingredients and cook, stirring, until softened and fragrant — about 5 minutes.`,
+      `Season to taste, then cover and simmer on low for about ${simmer} minutes.`,
       `Check seasoning, finish, and serve ${name} hot.`,
     ];
+    return texts.map((text) => {
+      const durationSec = secondsFromText(text);
+      return { text, durationSec, active: isActiveStep(text, durationSec) };
+    });
   }
 
   /** Real ingredient search — recipes whose ingredients match the given terms,

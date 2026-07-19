@@ -1,55 +1,26 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { RecipeIngredient } from '../api';
+import { useEffect, useRef } from 'react';
+import { useCookStore } from '../cook.store';
+
+export { stepTimerSeconds } from '../cook.store';
 
 /* ---------- helpers ---------- */
 
-const mmss = (s: number) => {
-  s = Math.max(0, Math.round(s));
-  const m = Math.floor(s / 60), ss = s % 60;
-  return `${m}:${ss < 10 ? '0' : ''}${ss}`;
-};
-
-function unitToSec(n: number, unit: string): number {
-  if (/hour|hr/.test(unit)) return Math.round(n * 3600);
-  if (/sec/.test(unit)) return Math.round(n);
-  return Math.round(n * 60); // minutes
-}
-
-/**
- * Pull a cook timer out of a method step's wording.
- * "simmer for 10–12 minutes" → 720s, "bake 25 mins" → 1500s, "rest 30 sec" → 30s.
- * Ranges take the upper bound; unmatched steps return 0 (manual, tap-to-advance).
- */
-export function stepTimerSeconds(text: string): number {
-  const t = text.toLowerCase();
-  const U = '(hours?|hrs?|minutes?|mins?|seconds?|secs?)';
-  let m = t.match(new RegExp(`(\\d+)\\s*(?:–|-|to)\\s*(\\d+)\\s*${U}`));
-  if (m) return Math.min(2 * 3600, unitToSec(parseInt(m[2], 10), m[3]));
-  m = t.match(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${U}`));
-  if (m) return Math.min(2 * 3600, unitToSec(parseFloat(m[1]), m[2]));
-  return 0;
-}
+const mmss = (s: number) => { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60), ss = s % 60; return `${m}:${ss < 10 ? '0' : ''}${ss}`; };
 
 function speak(txt: string) {
   try {
-    if ('speechSynthesis' in window) {
-      const u = new SpeechSynthesisUtterance(txt);
-      u.rate = 0.98;
-      speechSynthesis.cancel();
-      speechSynthesis.speak(u);
-    }
+    if ('speechSynthesis' in window) { const u = new SpeechSynthesisUtterance(txt); u.rate = 0.98; speechSynthesis.cancel(); speechSynthesis.speak(u); }
   } catch { /* ignore */ }
 }
 
-/** Short three-note chime when a timer finishes (WebAudio — no asset needed). */
+/** Three-note chime (WebAudio — no asset). */
 function chime() {
   try {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new Ctx();
     [880, 1108, 1318].forEach((f, i) => {
       const o = ctx.createOscillator(), g = ctx.createGain();
-      o.frequency.value = f; o.type = 'sine';
-      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = f; o.type = 'sine'; o.connect(g); g.connect(ctx.destination);
       const t0 = ctx.currentTime + i * 0.18;
       g.gain.setValueAtTime(0.0001, t0);
       g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.03);
@@ -60,149 +31,210 @@ function chime() {
   } catch { /* ignore */ }
 }
 
-/* ---------- step model ---------- */
-
-interface CookStep {
-  kind: 'prep' | 'step';
-  text: string;
-  seconds: number;       // 0 → manual step (no timer)
-  ingredients?: RecipeIngredient[];
+async function requestNotify(): Promise<void> {
+  try { if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission(); } catch { /* ignore */ }
+}
+async function notify(title: string, body: string): Promise<void> {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const reg = await navigator.serviceWorker?.getRegistration();
+    if (reg) await reg.showNotification(title, { body, icon: '/favicon.svg', badge: '/favicon.svg', tag: 'cook', renotify: true } as NotificationOptions);
+    else new Notification(title, { body });
+  } catch { /* ignore */ }
 }
 
-function buildSteps(method: string[], ingredients: RecipeIngredient[], name: string): CookStep[] {
-  const prep: CookStep = {
-    kind: 'prep',
-    text: `Mise en place — gather and prep everything for ${name} before you start cooking.`,
-    seconds: 0,
-    ingredients,
-  };
-  const steps: CookStep[] = method.map((text) => ({ kind: 'step', text, seconds: stepTimerSeconds(text) }));
-  return [prep, ...steps];
-}
+type WakeSentinel = { release: () => Promise<void> } | null;
 
-/* ---------- component ---------- */
+/* ---------- engine: interval, chime-on-ring, wake lock ---------- */
 
-export function CookMode({
-  name, method, ingredients, onClose,
-}: {
-  name: string;
-  method: string[];
-  ingredients: RecipeIngredient[];
-  onClose: () => void;
-}) {
-  const steps = useMemo(() => buildSteps(method, ingredients, name), [method, ingredients, name]);
-  const [idx, setIdx] = useState(0);
-  const [remain, setRemain] = useState(0);
-  const [ticking, setTicking] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const [done, setDone] = useState(false);        // this step's timer has rung
-  const firedRef = useRef(false);
+function useCookEngine() {
+  const open = useCookStore((s) => s.open);
+  const rung = useCookStore((s) => s.rung);
+  const idx = useCookStore((s) => s.idx);
+  const minimized = useCookStore((s) => s.minimized);
+  const stopped = useCookStore((s) => s.stopped);
 
-  const step = steps[idx];
-  const next = steps[idx + 1];
-  const total = steps.length;
-  const cookingSteps = steps.filter((s) => s.kind === 'step').length;
-
-  // Entering a step: reset timer state and read the step aloud.
+  // 1s-ish tick, drift-free (tick recomputes from an absolute end time).
   useEffect(() => {
-    setTicking(false); setPaused(false); setDone(false);
-    firedRef.current = false;
-    setRemain(step.seconds);
-    speak(step.kind === 'prep' ? 'Prep. Gather your ingredients, then tap start.' : step.text);
-  }, [idx, step.kind, step.seconds, step.text]);
+    const iv = window.setInterval(() => useCookStore.getState().tick(Date.now()), 500);
+    const onVis = () => useCookStore.getState().tick(Date.now());
+    document.addEventListener('visibilitychange', onVis);
+    return () => { window.clearInterval(iv); document.removeEventListener('visibilitychange', onVis); };
+  }, []);
 
-  // Countdown — one setTimeout per second, re-armed as remain changes.
+  // Speak each step as we arrive on it.
   useEffect(() => {
-    if (!ticking || paused) return;
-    if (remain <= 0) {
-      if (!firedRef.current) {
-        firedRef.current = true;
-        setTicking(false); setDone(true);
-        chime();
-        speak(next ? 'Timer done. Ready for the next step.' : 'Timer done. Your dish is ready.');
-      }
-      return;
+    if (!open || stopped) return;
+    const s = useCookStore.getState();
+    const step = s.steps[s.idx];
+    if (step) speak(step.kind === 'prep' ? 'Prep. Gather your ingredients, then tap start.' : step.text);
+  }, [idx, open, stopped]);
+
+  // Chime + notification on the moment a timer finishes.
+  const wasRung = useRef(false);
+  useEffect(() => {
+    if (rung && !wasRung.current) {
+      chime();
+      const s = useCookStore.getState();
+      const nxt = s.steps[s.idx + 1];
+      speak(nxt ? 'Timer done. Ready for the next step.' : 'Timer done. Your dish is ready.');
+      void notify('Together City · Kitchen', nxt ? `Ready — next: ${nxt.text.slice(0, 90)}` : `${s.name} is ready to plate!`);
     }
-    const t = window.setTimeout(() => setRemain((r) => r - 1), 1000);
-    return () => window.clearTimeout(t);
-  }, [ticking, paused, remain, next]);
+    wasRung.current = rung;
+  }, [rung]);
 
-  // Stop any speech when the overlay unmounts.
-  useEffect(() => () => { try { speechSynthesis.cancel(); } catch { /* ignore */ } }, []);
+  // Screen wake lock: hold only for hands-on (active) steps in the foreground.
+  const sentinel = useRef<WakeSentinel>(null);
+  useEffect(() => {
+    const s = useCookStore.getState();
+    const step = s.steps[s.idx];
+    const want = open && !minimized && !stopped && !!step?.active;
+    const wl = (navigator as unknown as { wakeLock?: { request: (t: 'screen') => Promise<WakeSentinel> } }).wakeLock;
+    let active = true;
+    const acquire = async () => { try { if (wl && want && !sentinel.current) sentinel.current = await wl.request('screen'); } catch { /* ignore */ } };
+    const release = async () => { try { await sentinel.current?.release(); } catch { /* ignore */ } sentinel.current = null; };
+    if (want) { void acquire(); const onVis = () => { if (document.visibilityState === 'visible' && active) void acquire(); }; document.addEventListener('visibilitychange', onVis); return () => { active = false; document.removeEventListener('visibilitychange', onVis); void release(); }; }
+    void release();
+    return () => { active = false; };
+  }, [open, minimized, stopped, idx]);
+}
 
-  const startTimer = () => { setRemain(step.seconds); firedRef.current = false; setDone(false); setPaused(false); setTicking(true); };
-  const addMinute = () => { setRemain((r) => r + 60); setDone(false); firedRef.current = false; if (!ticking) setTicking(true); };
-  const go = (i: number) => { if (i < 0) return; if (i >= total) { finish(); return; } setIdx(i); };
-  const finish = () => { try { speechSynthesis.cancel(); } catch { /* ignore */ } onClose(); };
+/* ---------- UI ---------- */
 
-  const progress = Math.round((idx / Math.max(1, total - 1)) * 100);
-  const accent = '#8fd3a6';
+const ctrl: React.CSSProperties = { borderRadius: 999, padding: '12px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: '#fff' };
+const ACCENT = '#8fd3a6';
+
+function Overlay() {
+  const s = useCookStore();
+  const step = s.steps[s.idx];
+  const next = s.steps[s.idx + 1];
+  const cookingSteps = s.steps.filter((x) => x.kind === 'step').length;
+  if (!step) return null;
+
+  // Stopped → method locked until the cook picks the step they finished.
+  if (s.stopped) {
+    return (
+      <div style={shell}>
+        <div style={topBar}><span>Paused recipe · {s.name}</span>
+          <button type="button" onClick={s.end} className="btn btn-sm" style={endBtn}>✕ Exit</button></div>
+        <div style={{ flex: 1, overflowY: 'auto', maxWidth: 620, margin: '0 auto', width: '100%', paddingTop: 8 }}>
+          <div style={{ textAlign: 'center', marginBottom: 14 }}>
+            <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: '#e0b96a', fontWeight: 700 }}>Timer stopped</div>
+            <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(20px,4vw,30px)', margin: '6px 0' }}>Which step have you finished?</h2>
+            <p style={{ fontSize: 13.5, color: 'rgba(255,255,255,.75)' }}>Tell us where you got to and we'll pick the method back up from the next step — with its timer.</p>
+          </div>
+          {s.steps.map((st, i) => (
+            <button key={i} type="button" onClick={() => s.resumeFrom(i)}
+              style={{ display: 'block', width: '100%', textAlign: 'left', margin: '0 0 8px', padding: '13px 15px', borderRadius: 12, cursor: 'pointer', color: '#fff', background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.18)', fontFamily: 'inherit', fontSize: 14 }}>
+              <span style={{ color: ACCENT, fontWeight: 700 }}>{st.kind === 'prep' ? 'Prep' : `Step ${i}`} ✓ </span>{st.text.slice(0, 110)}{st.text.length > 110 ? '…' : ''}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const timed = step.durationSec > 0;
+  const eyebrow = step.kind === 'prep' ? 'Get ready' : s.rung ? 'Timer done ✓' : s.ticking ? (step.active ? 'Cooking — stay here' : 'Running on its own') : timed ? 'Ready when you are' : 'Do this';
+  const progress = Math.round((s.idx / Math.max(1, s.steps.length - 1)) * 100);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'linear-gradient(160deg,#171207,#241a0c)', color: '#fff', display: 'flex', flexDirection: 'column', zIndex: 9999, padding: 22 }}>
-      {/* top bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'rgba(255,255,255,.7)' }}>
-        <span>{step.kind === 'prep' ? 'Prep' : `Step ${idx} of ${cookingSteps}`} · {name}</span>
-        <button type="button" onClick={finish} className="btn btn-sm" style={{ background: 'rgba(255,255,255,.14)', color: '#fff', border: '1px solid rgba(255,255,255,.3)' }}>✕ End</button>
+    <div style={shell}>
+      <div style={topBar}>
+        <span>{step.kind === 'prep' ? 'Prep' : `Step ${s.idx} of ${cookingSteps}`} · {s.name}</span>
+        <span style={{ display: 'flex', gap: 8 }}>
+          <button type="button" onClick={() => { void requestNotify(); s.minimize(true); }} className="btn btn-sm" style={endBtn}>▁ Minimise</button>
+          <button type="button" onClick={s.end} className="btn btn-sm" style={endBtn}>✕ Exit</button>
+        </span>
       </div>
 
-      {/* body */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 12, overflowY: 'auto' }}>
-        <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: '#e0b96a', fontWeight: 700 }}>
-          {step.kind === 'prep' ? 'Get ready' : done ? 'Timer done ✓' : ticking ? 'Cooking…' : step.seconds ? 'Ready when you are' : 'Do this'}
-        </div>
-
+        <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: '#e0b96a', fontWeight: 700 }}>{eyebrow}</div>
         <div style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(22px,4.4vw,38px)', lineHeight: 1.25, maxWidth: 760 }}>{step.text}</div>
 
-        {/* prep ingredient checklist */}
+        {/* attention hint */}
+        {step.kind === 'step' && (
+          <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.7)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {step.active ? '👨‍🍳 Hands-on — screen stays on' : '🕑 You can leave this running — we\'ll chime when it\'s done'}
+          </div>
+        )}
+
+        {/* prep ingredient list */}
         {step.kind === 'prep' && step.ingredients && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 620, marginTop: 4 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 620 }}>
             {step.ingredients.map((ing) => (
-              <span key={ing.name} style={{ fontSize: 13, padding: '7px 13px', borderRadius: 999, background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.18)' }}>
-                {ing.name} · {ing.grams} g
-              </span>
+              <span key={ing.name} style={{ fontSize: 13, padding: '7px 13px', borderRadius: 999, background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.18)' }}>{ing.name} · {ing.grams} g</span>
             ))}
           </div>
         )}
 
         {/* timer */}
-        {step.seconds > 0 && (
+        {timed && (
           <>
-            <div style={{ fontSize: 'clamp(48px,15vw,110px)', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.02em', color: done ? accent : '#fff' }}>
-              {mmss(remain)}
-            </div>
+            <div style={{ fontSize: 'clamp(48px,15vw,110px)', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.02em', color: s.rung ? ACCENT : '#fff' }}>{mmss(s.remain)}</div>
             <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,.15)', overflow: 'hidden', width: 260 }}>
-              <div style={{ height: '100%', background: accent, width: `${step.seconds ? Math.round((1 - remain / step.seconds) * 100) : 0}%`, transition: 'width .3s linear' }} />
+              <div style={{ height: '100%', background: ACCENT, width: `${step.durationSec ? Math.round((1 - s.remain / step.durationSec) * 100) : 0}%`, transition: 'width .4s linear' }} />
             </div>
-            {!ticking && !done && (
-              <button type="button" style={{ ...ctrl, background: accent, color: '#123', borderColor: accent, marginTop: 4 }} onClick={startTimer}>▶ Start {mmss(step.seconds)} timer</button>
+            {!s.ticking && !s.rung && (
+              <button type="button" style={{ ...ctrl, background: ACCENT, color: '#123', borderColor: ACCENT }} onClick={() => { if (!step.active) void requestNotify(); s.startTimer(); }}>▶ Start {mmss(step.durationSec)} timer</button>
+            )}
+            {s.ticking && !step.active && (
+              <button type="button" style={ctrl} onClick={() => { void requestNotify(); s.minimize(true); }}>⤵ Do other things — I'll chime you</button>
             )}
           </>
         )}
 
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,.6)', marginTop: 6 }}>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,.6)', marginTop: 4 }}>
           {next ? `Up next: ${next.kind === 'prep' ? 'Prep' : next.text.slice(0, 80)}${next.text.length > 80 ? '…' : ''}` : 'Final step — plate up!'}
         </div>
       </div>
 
-      {/* progress rail */}
       <div style={{ height: 4, borderRadius: 999, background: 'rgba(255,255,255,.12)', overflow: 'hidden', margin: '6px 0 14px' }}>
         <div style={{ height: '100%', background: '#e0b96a', width: `${progress}%`, transition: 'width .3s' }} />
       </div>
 
-      {/* controls */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <button type="button" style={ctrl} disabled={idx === 0} onClick={() => go(idx - 1)}>◀ Back</button>
-        {step.seconds > 0 && ticking && (
-          <button type="button" style={ctrl} onClick={() => setPaused((p) => !p)}>{paused ? '▶ Resume' : '⏸ Pause'}</button>
-        )}
-        {step.seconds > 0 && (ticking || done) && (
-          <button type="button" style={ctrl} onClick={addMinute}>＋1 min</button>
-        )}
-        {step.text && <button type="button" style={{ ...ctrl, background: accent, color: '#123', borderColor: accent }} onClick={() => go(idx + 1)}>{next ? 'Next step ▸' : 'Finish ✓'}</button>}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+        <button type="button" style={ctrl} disabled={s.idx === 0} onClick={s.back}>◀ Back</button>
+        {timed && s.ticking && <button type="button" style={ctrl} onClick={s.togglePause}>{s.paused ? '▶ Resume' : '⏸ Pause'}</button>}
+        {timed && (s.ticking || s.rung) && <button type="button" style={ctrl} onClick={s.addMinute}>＋1 min</button>}
+        {timed && (s.ticking || s.paused) && <button type="button" style={{ ...ctrl, borderColor: '#e58e8e', color: '#ffd9d9' }} onClick={s.stop}>⏹ Stop</button>}
+        <button type="button" style={{ ...ctrl, background: ACCENT, color: '#123', borderColor: ACCENT }} onClick={s.next}>{next ? 'Next step ▸' : 'Finish ✓'}</button>
       </div>
     </div>
   );
 }
 
-const ctrl: React.CSSProperties = { borderRadius: 999, padding: '12px 20px', fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: '#fff' };
+function Pill() {
+  const name = useCookStore((s) => s.name);
+  const idx = useCookStore((s) => s.idx);
+  const remain = useCookStore((s) => s.remain);
+  const ticking = useCookStore((s) => s.ticking);
+  const rung = useCookStore((s) => s.rung);
+  const cookingSteps = useCookStore((s) => s.steps.filter((x) => x.kind === 'step').length);
+  const active = useCookStore((s) => s.steps[s.idx]?.active);
+  const minimize = useCookStore((s) => s.minimize);
+  const label = rung ? 'Timer done — next step ready' : ticking ? `${active ? 'Cooking' : 'Timer'} · ${mmss(remain)}` : `Step ${idx} of ${cookingSteps}`;
+  return (
+    <button type="button" onClick={() => minimize(false)}
+      style={{ position: 'fixed', left: 16, bottom: 16, zIndex: 9998, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
+        background: rung ? '#2e7d4f' : 'linear-gradient(160deg,#241a0c,#171207)', color: '#fff', border: '1px solid rgba(255,255,255,.25)',
+        borderRadius: 999, padding: '11px 18px', boxShadow: '0 8px 24px rgba(0,0,0,.35)', fontFamily: 'inherit', fontWeight: 700, fontSize: 13.5 }}>
+      <span style={{ fontSize: 18 }}>🍳</span>
+      <span style={{ textAlign: 'left' }}><span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>{name}</span>{label}</span>
+      <span style={{ fontSize: 12, color: '#8fd3a6' }}>Open ▸</span>
+    </button>
+  );
+}
+
+const shell: React.CSSProperties = { position: 'fixed', inset: 0, background: 'linear-gradient(160deg,#171207,#241a0c)', color: '#fff', display: 'flex', flexDirection: 'column', zIndex: 9999, padding: 22 };
+const topBar: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'rgba(255,255,255,.7)' };
+const endBtn: React.CSSProperties = { background: 'rgba(255,255,255,.14)', color: '#fff', border: '1px solid rgba(255,255,255,.3)' };
+
+/** Mounted once at the app root: the timing engine + the overlay/pill. */
+export function CookRoot() {
+  useCookEngine();
+  const open = useCookStore((s) => s.open);
+  const minimized = useCookStore((s) => s.minimized);
+  if (!open) return null;
+  return minimized ? <Pill /> : <Overlay />;
+}

@@ -43,7 +43,8 @@ export const nutritionApi = {
 };
 
 export interface RecipeIngredient { name: string; grams: number; priceInr: number }
-export interface RecipeDetail extends Recipe { ingredients: RecipeIngredient[]; method?: string[] }
+export interface CookStep { text: string; durationSec: number; active: boolean }
+export interface RecipeDetail extends Recipe { ingredients: RecipeIngredient[]; method?: string[]; cookSteps?: CookStep[] }
 export interface GroceryItem { id: string; name: string; category: 'fresh' | 'pantry'; qty: number; priceInr: number }
 export interface GroceryCart { id: string | null; items: GroceryItem[]; createdAt?: string }
 

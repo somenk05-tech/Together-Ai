@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useRecipe, useRecipes } from '../hooks';
-import { CookMode, stepTimerSeconds } from '../components/CookMode';
+import { stepTimerSeconds } from '../components/CookMode';
+import { useCookStore } from '../cook.store';
 import { DIET_META } from './Recipes';
 import type { DietKey } from '../types';
 
@@ -16,7 +16,7 @@ export function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
   const recipe = useRecipe(id);
   const others = useRecipes('everything');
-  const [cooking, setCooking] = useState(false);
+  const startCooking = useCookStore((s) => s.start);
 
   if (recipe.isLoading) return <Spinner label="Plating up…" />;
   if (recipe.isError || !recipe.data) return <EmptyState title="Recipe not found" hint="It may have been removed." />;
@@ -78,7 +78,7 @@ export function RecipeDetail() {
           <>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', margin: '22px 0 10px' }}>
               <h2 style={{ fontSize: 17, margin: 0 }}>Method</h2>
-              <Button variant="accent" size="sm" onClick={() => setCooking(true)}>👨‍🍳 Cook along — guided</Button>
+              <Button variant="accent" size="sm" onClick={() => startCooking({ name: r.name, ingredients: r.ingredients, method: r.method, cookSteps: r.cookSteps })}>👨‍🍳 Cook along — guided</Button>
             </div>
             <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>
               Together City walks you through each step, reads it aloud, and runs a timer whenever a step needs one.
@@ -106,7 +106,7 @@ export function RecipeDetail() {
         </p>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-          {r.method && r.method.length > 0 && <Button variant="accent" size="sm" onClick={() => setCooking(true)}>👨‍🍳 Start cooking</Button>}
+          {r.method && r.method.length > 0 && <Button variant="accent" size="sm" onClick={() => startCooking({ name: r.name, ingredients: r.ingredients, method: r.method, cookSteps: r.cookSteps })}>👨‍🍳 Start cooking</Button>}
           <Link to="/nutrition/grocery"><Button variant="line" size="sm">Add ingredients to basket →</Button></Link>
           <Link to="/nutrition/dietitian"><Button variant="line" size="sm">💬 Discuss with a nutritionist</Button></Link>
           <Link to="/nutrition/weekly"><Button variant="line" size="sm">Add via Weekly Planner</Button></Link>
@@ -134,10 +134,6 @@ export function RecipeDetail() {
           </div>
         );
       })()}
-
-      {cooking && r.method && r.method.length > 0 && (
-        <CookMode name={r.name} method={r.method} ingredients={r.ingredients} onClose={() => setCooking(false)} />
-      )}
     </div>
   );
 }

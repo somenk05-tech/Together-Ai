@@ -306,6 +306,7 @@ model Recipe {
   gramsPerServing Int
   diet            String
   steps           String? // cached JSON array of cooking-method steps
+  cookSteps       String? // cached JSON of structured cook steps [{text,durationSec,active}]
 
   ingredients RecipeIngredient[]
   meals       Meal[]
