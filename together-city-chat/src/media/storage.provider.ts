@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export interface PresignedUpload {
@@ -117,6 +117,20 @@ export class StorageProvider {
 
   async getHealthObjectBase64(key: string): Promise<{ base64: string; contentType: string } | null> {
     return this.getObjectBase64(key, this.healthBucket);
+  }
+
+  /** Confirm a just-uploaded health object actually landed in the vault, so we
+   *  never file a record that points at a file the browser failed to PUT. When
+   *  storage isn't configured (dev/demo) we can't check, so we don't block. */
+  async healthObjectExists(key: string): Promise<boolean> {
+    if (!this.s3 || !key) return true;
+    try {
+      await this.s3.send(new HeadObjectCommand({ Bucket: this.healthBucket, Key: key }));
+      return true;
+    } catch (e) {
+      this.logger.warn(`healthObjectExists: ${key} not found (${(e as Error).message})`);
+      return false;
+    }
   }
 
   async deleteHealthObject(key: string): Promise<void> {

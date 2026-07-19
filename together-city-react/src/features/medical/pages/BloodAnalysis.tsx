@@ -184,10 +184,10 @@ export function BloodAnalysis() {
           Upload a photo or PDF of your blood report. The AI reads the values and fills the form below for you to check before saving — it extracts numbers only, never diagnoses.
         </p>
         <label style={{ display: 'block', border: '1.5px dashed var(--line)', borderRadius: 14, padding: '22px', textAlign: 'center', cursor: extracting ? 'default' : 'pointer', marginTop: 12 }}>
-          <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" style={{ display: 'none' }} disabled={extracting}
+          <input type="file" accept="image/*,.heic,.heif,.tiff,application/pdf" style={{ display: 'none' }} disabled={extracting}
             onChange={(e) => { void onFile(e.target.files?.[0] ?? null); e.target.value = ''; }} />
           <div style={{ fontSize: 26 }}>{extracting ? '⏳' : '📄'}</div>
-          <div style={{ fontWeight: 600, marginTop: 6 }}>{extracting ? 'Reading your report…' : 'Tap to upload a JPG, PNG or PDF'}</div>
+          <div style={{ fontWeight: 600, marginTop: 6 }}>{extracting ? 'Reading your report…' : 'Tap to upload a photo or PDF'}</div>
           <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>Stored securely in your 10 GB health vault</div>
         </label>
         {extractNote && <p style={{ fontSize: 12.5, marginTop: 10, padding: '8px 10px', background: '#e8f5e9', borderRadius: 8 }}>✓ {extractNote}</p>}

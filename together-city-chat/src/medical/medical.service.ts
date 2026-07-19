@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PDFParse } from 'pdf-parse';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -82,6 +82,11 @@ export class MedicalService implements OnModuleInit {
     kind: string; title: string; detail?: string; fileKey: string; mimeType?: string; sizeBytes: number;
   }) {
     await this.assertQuota(userId, dto.sizeBytes);
+    // Never file a record for a file that didn't actually land in the vault —
+    // otherwise the record shows but the document is "missing" when opened.
+    if (!(await this.storage.healthObjectExists(dto.fileKey))) {
+      throw new BadRequestException('Your file didn’t finish uploading — please check your connection and try again.');
+    }
     await this.prisma.medicalRecord.create({
       data: {
         userId, kind: dto.kind, title: dto.title, detail: dto.detail ?? null,
@@ -111,6 +116,9 @@ export class MedicalService implements OnModuleInit {
     fileKey: string; mimeType: string; sizeBytes: number; title?: string;
   }) {
     await this.assertQuota(userId, dto.sizeBytes);
+    if (!(await this.storage.healthObjectExists(dto.fileKey))) {
+      throw new BadRequestException('Your report didn’t finish uploading — please check your connection and try again.');
+    }
     // file the document in the private vault (key only, no public URL)
     const rec = await this.prisma.medicalRecord.create({
       data: {
@@ -125,16 +133,24 @@ export class MedicalService implements OnModuleInit {
     let extracted: { values: Record<string, number>; lab?: string; takenOn?: string } = { values: {} };
     const obj = await this.storage.getHealthObjectBase64(dto.fileKey);
     this.logger.log(`blood extract: node=${process.version} mime=${dto.mimeType} objRead=${!!obj} aiEnabled=${this.ai.enabled}`);
-    if (obj) {
-      if (dto.mimeType === 'application/pdf') {
-        const text = await this.pdfToText(Buffer.from(obj.base64, 'base64'));
-        this.logger.log(`blood extract: pdf textLen=${text.length}`);
-        extracted = text.trim()
-          ? await this.ai.extractMarkersFromText(text)
-          : await this.ai.extractBloodMarkers(obj.base64, dto.mimeType); // scanned PDF → vision
-      } else {
-        extracted = await this.ai.extractBloodMarkers(obj.base64, dto.mimeType);
+    // Extraction is best-effort: the document is already safely filed above, so
+    // a reading failure (e.g. a HEIC/format the vision model rejects) must never
+    // fail the request — the user just enters values manually.
+    try {
+      if (obj) {
+        if (dto.mimeType === 'application/pdf') {
+          const text = await this.pdfToText(Buffer.from(obj.base64, 'base64'));
+          this.logger.log(`blood extract: pdf textLen=${text.length}`);
+          extracted = text.trim()
+            ? await this.ai.extractMarkersFromText(text)
+            : await this.ai.extractBloodMarkers(obj.base64, dto.mimeType); // scanned PDF → vision
+        } else {
+          extracted = await this.ai.extractBloodMarkers(obj.base64, dto.mimeType);
+        }
       }
+    } catch (e) {
+      this.logger.warn(`blood extract failed (document still saved): ${(e as Error).message}`);
+      extracted = { values: {} };
     }
     this.logger.log(`blood extract: markersFound=${Object.keys(extracted.values).length} [${Object.keys(extracted.values).join(',')}]`);
 

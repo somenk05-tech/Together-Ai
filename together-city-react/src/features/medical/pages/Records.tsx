@@ -220,7 +220,7 @@ export function Records() {
         <textarea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="Details (optional)" rows={2}
           style={{ width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', outline: 'none', resize: 'vertical' }} />
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, fontSize: 13 }}>
-          <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          <input type="file" accept="image/*,.heic,.heif,.tiff,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             style={{ fontSize: 12.5 }} />
           {file && <span className="muted" style={{ fontSize: 12 }}>{fmtBytes(file.size)}</span>}
         </label>
