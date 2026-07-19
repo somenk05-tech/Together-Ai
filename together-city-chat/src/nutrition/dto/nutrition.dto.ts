@@ -48,6 +48,7 @@ export const AddToCartSchema = z.object({
   planKey: z.string().optional(),
   recipeIds: z.array(z.string()).max(80).optional(),
   people: z.number().int().min(1).max(30).optional(), // household headcount (family plans)
+  mode: PlanModeSchema.optional(),                     // which plan to fall back to
 });
 export type AddToCartDto = z.infer<typeof AddToCartSchema>;
 

@@ -9,7 +9,7 @@ import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import {
   CITATIONS, MARKER_RULES, criticalAlerts, evaluateMarker, supplementKit,
-  flagsFor, planGuidance, rankByModes, planningModes,
+  flagsFor, planGuidance, rankByModes, planningModes, ruleFor,
   triggeredConditions, type MarkerStatus,
 } from './clinical-engine';
 import type { BloodInputDto, Diet, FoodPrefDto, PlanMode, Slot } from './dto/nutrition.dto';
@@ -50,7 +50,47 @@ function parseExtras(extras: string | null | undefined): PrefExtras {
 function terms(s?: string): string[] {
   return (s ?? '').split(/[,;]/).map((t) => t.trim().toLowerCase()).filter(Boolean);
 }
-type RecipeWithIng = { id: string; slot: string; diet: string; name: string; country: string; minutes: number; ingredients: Array<{ name: string }> };
+type RecipeWithIng = { id: string; slot: string; diet: string; name: string; country: string; minutes: number; kcal?: number; gramsPerServing?: number; ingredients: Array<{ name: string }> };
+
+/**
+ * The world dataset has messy titles: trailing dots/ellipses, embedded
+ * "(servings: 4)", lowercase first letters and stray punctuation. Tidy them for
+ * display without touching stored data (idempotent, so it's safe at read-time).
+ */
+function cleanRecipeName(raw: string): string {
+  let s = (raw || '').trim();
+  s = s.replace(/\((?:\s*(?:servings?|serves|makes|yield|yields)\b[^)]*)\)/gi, ' '); // drop "(servings: 4)"
+  s = s.replace(/\s*\.{2,}\s*$/g, ''); // trailing ellipses
+  s = s.replace(/[\s,.;:_\-–—]+$/g, ''); // trailing punctuation/space
+  s = s.replace(/^[\s,.;:_\-–—]+/g, ''); // leading junk
+  s = s.replace(/\s{2,}/g, ' ').trim();
+  if (s) s = s.charAt(0).toUpperCase() + s.slice(1);
+  return s || (raw || '').trim();
+}
+
+/**
+ * The dataset's `minutes` field mixes cook time with pickling/marinating times
+ * (up to 9540 min = days). Clamp to a believable hands-on cook window so the UI
+ * never shows "9540 min". Missing/zero → a sane default.
+ */
+function saneMinutes(m: number | undefined | null): number {
+  const v = Math.round(m ?? 0);
+  if (!v || v < 3) return 15;
+  return Math.min(180, v);
+}
+
+/**
+ * Is this recipe substantial enough to be a planned meal for the slot? The
+ * dataset carries many <20 kcal condiments (pickles, chutneys, spice blends,
+ * relishes) that must never be chosen as a breakfast/lunch/dinner. Judged on the
+ * per-person calories (batch kcal ÷ servings) against a per-slot floor.
+ */
+const MEAL_MIN_KCAL: Record<string, number> = { b: 120, l: 180, s: 45, d: 180 };
+function isPlannableMeal(r: { slot: string; kcal?: number; gramsPerServing?: number }): boolean {
+  if (r.kcal == null) return true; // unknown → don't exclude
+  const perServing = r.kcal / recipeServings({ slot: r.slot, kcal: r.kcal, gramsPerServing: r.gramsPerServing ?? 0 });
+  return perServing >= (MEAL_MIN_KCAL[r.slot] ?? 150);
+}
 
 /** Filter recipes to a diet + the user's hard rules (allergies, avoided foods, cook time). */
 function filterByPrefs(recipes: RecipeWithIng[], diet: Diet, ex: PrefExtras): RecipeWithIng[] {
@@ -58,7 +98,8 @@ function filterByPrefs(recipes: RecipeWithIng[], diet: Diet, ex: PrefExtras): Re
   const maxCook = ex.maxCookMin ?? null;
   return recipes.filter((r) => {
     if (!dietAllows(diet, r.diet as Diet)) return false;
-    if (maxCook && r.minutes > maxCook) return false;
+    if (!isPlannableMeal(r)) return false;                 // drop condiments/non-meals
+    if (maxCook && saneMinutes(r.minutes) > maxCook) return false;
     const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
     if (allergens.some((a) => hay.includes(a))) return false;
     if (avoid.some((a) => hay.includes(a))) return false;
@@ -95,6 +136,17 @@ export function recipeServings(r: { slot?: string; kcal: number; gramsPerServing
   const byGrams = (r.gramsPerServing || 0) / gRef;
   const byKcal = (r.kcal || 0) / kRef;
   return Math.max(1, Math.min(20, Math.round(Math.max(byGrams, byKcal))));
+}
+
+export interface PlateSideItem { name: string; qty: number; unit: string; kcal: number }
+export interface PlateSides {
+  applicable: boolean; note: string; items: PlateSideItem[];
+  sideKcal: number; plateKcal: number; targetKcal: number;
+}
+export interface WhyPoint { label: string; text: string }
+export interface WhyForYou {
+  personalised: boolean; headline: string; points: WhyPoint[];
+  summary: string; cites: { id: string; label: string; ref: string }[];
 }
 
 export interface CalorieRow { id: string; userId: string; date: string; name: string; kcal: number; type: string; createdAt: Date }
@@ -295,7 +347,9 @@ export class NutritionService implements OnModuleInit {
     const out = {} as Record<Slot, RecipeWithIng[]>;
     for (const slot of SLOTS) {
       let pool = filtered.filter((r) => r.slot === slot);
-      if (!pool.length) pool = recipes.filter((r) => r.slot === slot && dietAllows(dayDiet, r.diet as Diet)); // relax exclusions
+      // Relax exclusions but still never plan a <threshold-kcal condiment.
+      if (!pool.length) pool = recipes.filter((r) => r.slot === slot && dietAllows(dayDiet, r.diet as Diet) && isPlannableMeal(r));
+      if (!pool.length) pool = recipes.filter((r) => r.slot === slot && isPlannableMeal(r));
       if (!pool.length) pool = recipes.filter((r) => r.slot === slot); // last resort
       const byMode = rankByModes(pool as unknown as RecipeShape[], modes) as unknown as RecipeWithIng[];
       out[slot] = cuisineBias(byMode, mix);
@@ -400,7 +454,8 @@ export class NutritionService implements OnModuleInit {
 
     const recipes = (await this.prisma.recipe.findMany({ where: { slot }, include: { ingredients: { select: { name: true } } } })) as unknown as RecipeWithIng[];
     let candidates = filterByPrefs(recipes, effDiet, ex);
-    if (!candidates.length) candidates = recipes.filter((r) => dietAllows(effDiet, r.diet as Diet));
+    if (!candidates.length) candidates = recipes.filter((r) => dietAllows(effDiet, r.diet as Diet) && isPlannableMeal(r));
+    if (!candidates.length) candidates = recipes.filter((r) => isPlannableMeal(r));
     if (!candidates.length) candidates = recipes;
     const others = candidates.filter((c) => c.id !== meal.recipeId);
     const pickFrom = others.length ? others : candidates;
@@ -442,15 +497,187 @@ export class NutritionService implements OnModuleInit {
     return rows.map((r) => this.recipeShape(r));
   }
 
-  async recipe(id: string) {
+  async recipe(id: string, userId?: string) {
     const r = await this.prisma.recipe.findUnique({ where: { id }, include: { ingredients: true } });
     if (!r) throw new NotFoundException('recipe not found');
     const cookSteps = await this.recipeCookSteps(r);
+    const shape = this.recipeShape(r);
+
+    // Personalise the plate for whoever is viewing: complete-the-plate sides
+    // sized to their individual calorie need, and a "why this is on your plate"
+    // note written from their own blood results.
+    let sides: PlateSides | undefined;
+    let whyForYou: WhyForYou | undefined;
+    if (userId) {
+      const [targets, values, pref] = await Promise.all([
+        this.targets(userId),
+        this.bloodValues(userId), // already consent-gated
+        this.prisma.foodPref.findUnique({ where: { userId } }),
+      ]);
+      const flags = flagsFor(values);
+      sides = this.suggestSides(shape, r.country, targets, flags);
+      whyForYou = this.whyForYou(shape, r.ingredients, values, flags, pref?.goal ?? 'maintain');
+    }
+
     return {
-      ...this.recipeShape(r),
+      ...shape,
       ingredients: r.ingredients.map((i) => ({ name: i.name, grams: i.grams, priceInr: i.priceInr })),
       method: cookSteps.map((s) => s.text), // back-compat plain list
       cookSteps,                            // structured: text + timer + attention
+      sides,
+      whyForYou,
+    };
+  }
+
+  /** Reference nutrition for a single portion of each Indian-thali side. */
+  private static readonly SIDE_UNITS = {
+    roti: { name: 'Roti (whole wheat)', unit: 'piece', kcal: 110, carb: 18 },
+    rice: { name: 'Rice', unit: 'katori (150g)', kcal: 200, carb: 44 },
+    curd: { name: 'Curd', unit: 'katori', kcal: 90, carb: 6 },
+    salad: { name: 'Fresh salad', unit: 'bowl', kcal: 40, carb: 6 },
+    fruit: { name: 'Seasonal fruit', unit: 'serving', kcal: 80, carb: 20 },
+  } as const;
+
+  /** Fraction of the daily calorie budget each meal slot should carry. */
+  private static readonly SLOT_FRACTION: Record<string, number> = { b: 0.25, l: 0.32, s: 0.13, d: 0.30 };
+
+  /**
+   * Complete-the-plate sides, sized to the individual's own calorie need. An
+   * Indian main at lunch/dinner gets roti + rice (+ salad, and curd at lunch)
+   * scaled to fill the gap between the dish and that person's per-meal target.
+   * Raised HbA1c / LDL / triglycerides shift the plate away from white rice
+   * toward roti, salad and curd (lower glycemic / heart-friendly).
+   */
+  private suggestSides(
+    recipe: { slot?: string; kcal: number }, country: string,
+    targets: { kcal: number }, flags: Record<string, MarkerStatus>,
+  ): PlateSides {
+    const U = NutritionService.SIDE_UNITS;
+    const slot = recipe.slot ?? 'l';
+    const frac = NutritionService.SLOT_FRACTION[slot] ?? 0.3;
+    const targetKcal = Math.round(targets.kcal * frac);
+    const gap = targetKcal - recipe.kcal;
+    const indian = /india/i.test(country);
+    const items: PlateSideItem[] = [];
+    const glucoseWatch = flags.hba1c === 'high';
+    const heartWatch = flags.ldl === 'high' || flags.trig === 'high';
+
+    const push = (u: { name: string; unit: string; kcal: number }, qty: number) => {
+      if (qty > 0) items.push({ name: u.name, qty, unit: u.unit, kcal: u.kcal * qty });
+    };
+
+    if ((slot === 'l' || slot === 'd') && gap > 60) {
+      if (indian) {
+        // A real Indian thali gets both roti and rice. Rice is 1 katori by
+        // default (a second only for a big gap), trimmed for raised glucose;
+        // roti fills the rest. Salad always; curd at lunch if there's room.
+        const riceK = glucoseWatch ? 1 : (gap > 560 ? 2 : 1);
+        const afterRice = gap - riceK * U.rice.kcal;
+        const rotiN = Math.max(1, Math.min(5, Math.round(afterRice / U.roti.kcal)));
+        push(U.roti, rotiN);
+        push(U.rice, riceK);
+        push(U.salad, 1);
+        const leftover = gap - rotiN * U.roti.kcal - riceK * U.rice.kcal;
+        if (glucoseWatch || (slot === 'l' && leftover > 60)) push(U.curd, 1);
+      } else {
+        // Non-Indian mains: a whole-grain side + salad, sized to the gap.
+        const grainK = Math.max(1, Math.min(2, Math.round(gap / U.rice.kcal)));
+        items.push({ name: 'Whole grain (rice / quinoa / bread)', qty: grainK, unit: 'katori (150g)', kcal: U.rice.kcal * grainK });
+        push(U.salad, 1);
+      }
+    } else if (slot === 'b' && gap > 120) {
+      // Round out a light breakfast with fruit (+ curd if there's room).
+      push(U.fruit, 1);
+      if (gap > 220) push(U.curd, 1);
+    }
+
+    const sideKcal = items.reduce((s, i) => s + i.kcal, 0);
+    let note: string;
+    if (!items.length) {
+      note = slot === 's'
+        ? 'A standalone snack — no sides needed.'
+        : `This is close to a complete ${targetKcal} kcal plate on its own.`;
+    } else if (indian && (slot === 'l' || slot === 'd')) {
+      const tuned = glucoseWatch ? ' We trimmed the rice and added salad + curd to keep the glycemic load low for your raised HbA1c.'
+        : heartWatch ? ' We leaned to roti and salad over rice — gentler on your cholesterol/triglyceride results.' : '';
+      note = `Sized to your ~${targetKcal} kcal ${slot === 'l' ? 'lunch' : 'dinner'} target.${tuned}`;
+    } else {
+      note = `Rounded out to your ~${targetKcal} kcal target.`;
+    }
+
+    return { applicable: items.length > 0, note, items, sideKcal, plateKcal: recipe.kcal + sideKcal, targetKcal };
+  }
+
+  /**
+   * "Why this is on your plate" — written from the viewer's own blood results.
+   * Deterministic and cited: it matches what the dish actually delivers (fibre,
+   * lean protein, iron, omega-3, greens, whole grains) against the markers that
+   * are out of range, and explains what it does and how it helps their numbers.
+   */
+  private whyForYou(
+    recipe: { name: string; kcal: number; protein: number; carbs: number; fat: number; fiber: number; diet: string },
+    ingredients: Array<{ name: string }>,
+    values: Record<string, number>, flags: Record<string, MarkerStatus>, goal: string,
+  ): WhyForYou {
+    const ing = ingredients.map((i) => i.name.toLowerCase()).join(', ');
+    const has = (...terms: string[]) => terms.some((t) => ing.includes(t));
+    const highFibre = recipe.fiber >= 6;
+    const highProtein = recipe.protein >= 18;
+    const fish = has('fish', 'salmon', 'sardine', 'tuna', 'mackerel', 'prawn');
+    const greens = has('spinach', 'kale', 'methi', 'greens', 'broccoli', 'palak');
+    const legumes = has('lentil', 'dal', 'bean', 'moong', 'chickpea', 'chana', 'rajma', 'tofu', 'soy');
+    const wholegrain = has('oat', 'barley', 'millet', 'quinoa', 'brown rice', 'bajra', 'jowar', 'ragi', 'besan');
+    const dairyEgg = has('curd', 'yogurt', 'paneer', 'milk', 'egg', 'cheese');
+    const cites = new Set<string>();
+    const points: WhyPoint[] = [];
+    const addRule = (key: string) => ruleFor(key)?.citations.forEach((c) => cites.add(c));
+
+    // Each out-of-range marker → a line tying the dish's real strengths to it.
+    if (flags.hba1c === 'high' && (highFibre || legumes || wholegrain)) {
+      const src = [legumes && 'legumes', wholegrain && 'whole grains', highFibre && 'fibre'].filter(Boolean).join(' and ');
+      points.push({ label: `HbA1c ${values.hba1c ?? ''}%`.trim(), text: `Its ${src} slow digestion and blunt the glucose spike your raised HbA1c is telling us to avoid.` });
+      addRule('hba1c');
+    }
+    if ((flags.ldl === 'high' || flags.trig === 'high') && (fish || legumes || wholegrain || greens || highFibre)) {
+      const src = fish ? 'omega-3 from the fish' : (wholegrain || legumes) ? 'soluble fibre from the beans/whole grains' : 'fibre and vegetables';
+      const which = flags.ldl === 'high' && flags.trig === 'high' ? 'LDL and triglycerides' : flags.ldl === 'high' ? 'LDL' : 'triglycerides';
+      points.push({ label: which.includes('and') ? 'LDL + triglycerides' : (flags.ldl === 'high' ? `LDL ${values.ldl ?? ''}`.trim() : `Triglycerides ${values.trig ?? ''}`.trim()), text: `The ${src} here supports lowering the ${which} flagged in your report.` });
+      addRule(flags.ldl === 'high' ? 'ldl' : 'trig');
+    }
+    if ((flags.hb === 'low' || flags.ferritin === 'low') && (legumes || greens || fish || has('meat', 'liver', 'chicken', 'mutton'))) {
+      points.push({ label: flags.hb === 'low' ? `Haemoglobin ${values.hb ?? ''}`.trim() : `Ferritin ${values.ferritin ?? ''}`.trim(), text: `Iron-rich ingredients help rebuild the low iron stores your ${flags.hb === 'low' ? 'haemoglobin' : 'ferritin'} showed — pair with the vitamin-C here for better absorption.` });
+      addRule(flags.hb === 'low' ? 'hb' : 'ferritin');
+    }
+    if (flags.vitd === 'low' && (fish || dairyEgg)) {
+      points.push({ label: `Vitamin D ${values.vitd ?? ''}`.trim(), text: `Contains vitamin-D foods (${fish ? 'oily fish' : 'eggs/fortified dairy'}) to help nudge up your low vitamin D.` });
+      addRule('vitd');
+    }
+    if (flags.b12 === 'low' && (fish || dairyEgg || has('meat', 'chicken', 'mutton'))) {
+      points.push({ label: `B12 ${values.b12 ?? ''}`.trim(), text: `Provides B12 from animal foods — directly relevant to the low B12 in your panel.` });
+      addRule('b12');
+    }
+
+    // What the dish is, and how it fits the goal.
+    const strengths = [highProtein && `${recipe.protein} g protein`, highFibre && `${recipe.fiber} g fibre`, fish && 'omega-3', greens && 'leafy greens'].filter(Boolean).join(', ');
+    const goalLine = goal === 'lose'
+      ? 'Its protein and fibre keep you full on fewer calories — useful for your weight-loss goal.'
+      : goal === 'gain'
+        ? 'The protein here supports your muscle-gain goal.'
+        : 'A balanced plate that fits your maintenance targets.';
+    const personalised = points.length > 0;
+    const headline = personalised ? 'Chosen for your blood results' : Object.keys(values).length ? 'How this fits your plan' : 'Why this dish';
+    const summary = personalised
+      ? `${recipe.name} brings ${strengths || 'a balanced macro split'} — ${goalLine}`
+      : Object.keys(values).length
+        ? `${recipe.name} is a balanced ${recipe.kcal} kcal plate (${strengths || 'well-rounded macros'}). ${goalLine}`
+        : `${recipe.name} — ${strengths || 'a balanced plate'}. Connect your blood test to see exactly how each meal targets your results.`;
+
+    return {
+      personalised,
+      headline,
+      points,
+      summary,
+      cites: [...cites].map((id) => CITATIONS[id]).filter(Boolean),
     };
   }
 
@@ -471,12 +698,14 @@ export class NutritionService implements OnModuleInit {
     }
     const ingNames = r.ingredients.map((i) => i.name);
     const ingList = r.ingredients.map((i) => `${i.name} (${i.grams}g)`).join(', ');
-    const fallback = this.fallbackCookSteps(r.name, ingNames, r.minutes);
+    const mins = saneMinutes(r.minutes);
+    const cleanName = cleanRecipeName(r.name);
+    const fallback = this.fallbackCookSteps(cleanName, ingNames, mins);
     const ai = await this.ai.json<Array<{ text?: unknown; durationSec?: unknown; active?: unknown }>>(
       'You are a professional chef. Return the cooking method as a JSON array of 4–8 step objects. ' +
         'Each object: {"text": short one-action instruction, "durationSec": integer seconds the step runs unattended (0 if none), ' +
         '"active": true if it needs constant attention (stirring, whisking, flipping, watching closely) or false if it mostly runs on its own (simmer, bake, rest, marinate, boil)}.',
-      `Recipe: "${r.name}" (${r.country}, ${r.diet}, ~${r.minutes} min). Ingredients: ${ingList}.\n` +
+      `Recipe: "${cleanName}" (${r.country}, ${r.diet}, ~${mins} min). Ingredients: ${ingList}.\n` +
         `Return ONLY the JSON array.`,
       [],
       900,
@@ -551,7 +780,7 @@ export class NutritionService implements OnModuleInit {
   /** Build a grocery list from a meal plan and/or a set of recipes, replacing
    *  the current list. Used by the weekly/daily/family planners and by recipe
    *  search / recipe detail ("generate grocery list"). */
-  async buildCart(userId: string, opts: { planKey?: string; recipeIds?: string[]; people?: number }) {
+  async buildCart(userId: string, opts: { planKey?: string; recipeIds?: string[]; people?: number; mode?: PlanMode }) {
     const totals = new Map<string, { grams: number; price: number }>();
     // Household headcount — 1 plate per person (individual = 1, family = N).
     const people = Math.max(1, Math.min(30, Math.round(opts.people ?? 1)));
@@ -569,10 +798,12 @@ export class NutritionService implements OnModuleInit {
       }
     };
 
-    // No source given → build from the user's most recent plan.
+    // No source given → build from the user's most recent plan for THIS mode
+    // (individual vs family), so the family basket never pulls the solo plan.
     let planKey = opts.planKey;
     if (!planKey && !opts.recipeIds?.length) {
-      const latest = await this.prisma.mealPlan.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' } });
+      const where = opts.mode ? { userId, mode: opts.mode } : { userId };
+      const latest = await this.prisma.mealPlan.findFirst({ where, orderBy: { createdAt: 'desc' } });
       planKey = latest?.key;
     }
     if (planKey) {
@@ -835,9 +1066,9 @@ export class NutritionService implements OnModuleInit {
     const per = (n: number) => Math.max(0, Math.round((n || 0) / s));
     return {
       id: r.id, recipeNo: (r as { recipeNo?: number | null }).recipeNo ?? null,
-      name: r.name, country: r.country,
+      name: cleanRecipeName(r.name), country: r.country,
       kcal: per(r.kcal), protein: per(r.protein), carbs: per(r.carbs),
-      fat: per(r.fat), fiber: per(r.fiber), minutes: r.minutes,
+      fat: per(r.fat), fiber: per(r.fiber), minutes: saneMinutes(r.minutes),
       gramsPerServing: Math.max(1, per(r.gramsPerServing)), diet: displayDiet,
       servings: s,
     };

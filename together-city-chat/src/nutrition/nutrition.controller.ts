@@ -101,8 +101,8 @@ export class NutritionController {
   }
 
   @Get('recipes/:id')
-  recipe(@Param('id') id: string) {
-    return this.nutrition.recipe(id);
+  recipe(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.nutrition.recipe(id, user.sub);
   }
 
   @Get('cart')
@@ -163,6 +163,6 @@ export class NutritionController {
   @Post('cart')
   @UsePipes(new ZodValidationPipe(AddToCartSchema))
   addToCart(@CurrentUser() user: JwtUser, @Body() dto: AddToCartDto) {
-    return this.nutrition.buildCart(user.sub, { planKey: dto.planKey, recipeIds: dto.recipeIds, people: dto.people });
+    return this.nutrition.buildCart(user.sub, { planKey: dto.planKey, recipeIds: dto.recipeIds, people: dto.people, mode: dto.mode });
   }
 }

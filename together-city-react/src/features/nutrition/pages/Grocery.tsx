@@ -61,7 +61,7 @@ export function Grocery() {
       </div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 18 }}>
-        <Button variant="accent" disabled={build.isPending} onClick={() => build.mutate(undefined)}>
+        <Button variant="accent" disabled={build.isPending} onClick={() => build.mutate({ mode: 'individual' })}>
           {build.isPending ? 'Building…' : items.length ? 'Rebuild from weekly plan' : 'Build from weekly plan'}
         </Button>
         <Link to="/nutrition/weekly"><Button variant="line">Open planner</Button></Link>

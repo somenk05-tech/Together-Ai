@@ -64,7 +64,7 @@ export function FamilyGrocery() {
       </div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', margin: '18px 0' }}>
-        <Button variant="accent" disabled={build.isPending} onClick={() => build.mutate({ people: N })}>
+        <Button variant="accent" disabled={build.isPending} onClick={() => build.mutate({ people: N, mode: 'family' })}>
           {build.isPending ? 'Building…' : items.length ? 'Rebuild from family plan' : 'Build from family plan'}
         </Button>
         <Link to="/family/weekly"><Button variant="line">Open planner</Button></Link>

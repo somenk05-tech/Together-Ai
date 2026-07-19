@@ -31,7 +31,7 @@ export const nutritionApi = {
   recipe: (id: string) =>
     api.get<RecipeDetail>(`/nutrition/recipes/${id}`).then((r) => r.data),
   cart: () => api.get<GroceryCart>('/nutrition/cart').then((r) => r.data),
-  buildCart: (opts?: { planKey?: string; recipeIds?: string[]; people?: number }) =>
+  buildCart: (opts?: { planKey?: string; recipeIds?: string[]; people?: number; mode?: 'individual' | 'family' }) =>
     api.post<GroceryCart>('/nutrition/cart', opts ?? {}).then((r) => r.data),
   blood: () => api.get<BloodPanel>('/nutrition/blood').then((r) => r.data),
   saveBlood: (input: Record<string, number>) =>
@@ -55,7 +55,20 @@ export interface CalorieEntry { id: string; date: string; name: string; kcal: nu
 
 export interface RecipeIngredient { name: string; grams: number; priceInr: number }
 export interface CookStep { text: string; durationSec: number; active: boolean }
-export interface RecipeDetail extends Recipe { ingredients: RecipeIngredient[]; method?: string[]; cookSteps?: CookStep[] }
+export interface PlateSideItem { name: string; qty: number; unit: string; kcal: number }
+export interface PlateSides {
+  applicable: boolean; note: string; items: PlateSideItem[];
+  sideKcal: number; plateKcal: number; targetKcal: number;
+}
+export interface WhyPoint { label: string; text: string }
+export interface WhyForYou {
+  personalised: boolean; headline: string; points: WhyPoint[];
+  summary: string; cites: { id: string; label: string; ref: string }[];
+}
+export interface RecipeDetail extends Recipe {
+  ingredients: RecipeIngredient[]; method?: string[]; cookSteps?: CookStep[];
+  sides?: PlateSides; whyForYou?: WhyForYou;
+}
 export interface GroceryItem { id: string; name: string; category: 'fresh' | 'pantry'; qty: number; priceInr: number }
 export interface GroceryCart { id: string | null; items: GroceryItem[]; createdAt?: string }
 
