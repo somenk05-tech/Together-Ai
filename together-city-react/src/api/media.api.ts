@@ -2,29 +2,44 @@ import { z } from 'zod';
 import axios from 'axios';
 import { apiPost } from './http';
 
-/** Presigned-upload flow (S3-style) — matches POST /media/upload. */
+/** Presigned-upload flow (S3/R2) — matches POST /media/upload. */
 export const PresignInput = z.object({
-  filename: z.string(),
-  contentType: z.string(),
-  size: z.number().int().positive(),
+  mimeType: z.string(),
+  sizeBytes: z.number().int().positive(),
 });
 export type PresignInput = z.infer<typeof PresignInput>;
 
 export const PresignResult = z.object({
   uploadUrl: z.string(),
-  fileUrl: z.string(),
-  fields: z.record(z.string()).optional(),
+  publicUrl: z.string(),
+  key: z.string(),
+  expiresInSec: z.number().optional(),
 });
 export type PresignResult = z.infer<typeof PresignResult>;
 
+/** Metadata returned after a direct-to-storage upload (for health-doc records). */
+export interface UploadedFile {
+  fileUrl: string;
+  fileKey: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
 export const mediaApi = {
-  presign: (input: PresignInput): Promise<PresignResult> =>
-    apiPost('/media/upload', PresignInput.parse(input), PresignResult),
-  /** Uploads the file bytes to the presigned URL (outside the API host). */
+  presign: (file: File): Promise<PresignResult> =>
+    apiPost('/media/upload', { mimeType: file.type, sizeBytes: file.size }, PresignResult),
+
+  /** Upload the bytes directly to R2 and return the public URL. */
   async upload(file: File): Promise<string> {
-    const { uploadUrl, fileUrl } = await this.presign({ filename: file.name, contentType: file.type, size: file.size });
-    // Direct-to-storage PUT (no auth header, not the API host) — via axios, never fetch().
+    const { uploadUrl, publicUrl } = await this.presign(file);
     await axios.put(uploadUrl, file, { headers: { 'Content-Type': file.type } });
-    return fileUrl;
+    return publicUrl;
+  },
+
+  /** Upload and return full metadata (url + key + size) for a vault document. */
+  async uploadDoc(file: File): Promise<UploadedFile> {
+    const { uploadUrl, publicUrl, key } = await this.presign(file);
+    await axios.put(uploadUrl, file, { headers: { 'Content-Type': file.type } });
+    return { fileUrl: publicUrl, fileKey: key, mimeType: file.type, sizeBytes: file.size };
   },
 };

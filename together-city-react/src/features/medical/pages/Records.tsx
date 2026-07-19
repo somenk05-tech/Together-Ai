@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useAddRecord, useRecords } from '../api';
+import { mediaApi } from '@/api/media.api';
+import { useAddRecord, useRecords, useStorageUsage, useDeleteRecord, medicalApi } from '../api';
 
 const KINDS: { key: string; label: string; icon: string }[] = [
   { key: 'condition', label: 'Condition', icon: '🩺' },
@@ -11,23 +13,55 @@ const KINDS: { key: string; label: string; icon: string }[] = [
   { key: 'note', label: 'Note', icon: '📝' },
 ];
 const iconFor = (k: string) => KINDS.find((x) => x.key === k)?.icon ?? '📁';
+const fmtBytes = (n: number) => {
+  if (!n) return '0 B';
+  const u = ['B', 'KB', 'MB', 'GB']; const i = Math.min(u.length - 1, Math.floor(Math.log(n) / Math.log(1024)));
+  return `${(n / Math.pow(1024, i)).toFixed(i ? 1 : 0)} ${u[i]}`;
+};
 
-/** Medical Records — the secure record store (source of truth for health data). */
+/** Medical Records — the secure record store + unified 10 GB document vault. */
 export function Records() {
   const records = useRecords();
+  const storage = useStorageUsage();
   const add = useAddRecord();
+  const del = useDeleteRecord();
+  const qc = useQueryClient();
   const [kind, setKind] = useState('condition');
   const [title, setTitle] = useState('');
   const [detail, setDetail] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  const submit = (e: FormEvent) => {
+  const reset = () => { setTitle(''); setDetail(''); setFile(null); };
+
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    add.mutate({ kind, title: title.trim(), detail: detail.trim() || undefined },
-      { onSuccess: () => { setTitle(''); setDetail(''); } });
+    setErr(null);
+    if (file) {
+      if (file.size > 25 * 1024 * 1024) { setErr('That file is over 25 MB.'); return; }
+      setBusy(true);
+      try {
+        const up = await mediaApi.uploadDoc(file);
+        const recs = await medicalApi.uploadDocument({
+          kind, title: title.trim(), detail: detail.trim() || undefined,
+          fileUrl: up.fileUrl, fileKey: up.fileKey, mimeType: up.mimeType, sizeBytes: up.sizeBytes,
+        });
+        qc.setQueryData(['medical', 'records'], recs);
+        void qc.invalidateQueries({ queryKey: ['medical', 'storage'] });
+        reset();
+      } catch (e2) {
+        const msg = (e2 as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        setErr(msg ?? 'Upload failed. Please try again.');
+      } finally { setBusy(false); }
+    } else {
+      add.mutate({ kind, title: title.trim(), detail: detail.trim() || undefined }, { onSuccess: reset });
+    }
   };
 
   if (records.isLoading) return <Spinner label="Opening your records…" />;
+  const s = storage.data;
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
@@ -37,6 +71,22 @@ export function Records() {
         One secure place for conditions, prescriptions, reports, allergies and vaccinations —
         your <strong>source of truth</strong>, shared with other hubs only with your consent.
       </p>
+
+      {/* Unified 10 GB vault meter (mail + health documents) */}
+      {s && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <div className="eyebrow" style={{ margin: 0 }}>Storage vault</div>
+            <span className="muted" style={{ fontSize: 12 }}>{fmtBytes(s.usedBytes)} of {fmtBytes(s.quotaBytes)} used</span>
+          </div>
+          <div style={{ height: 8, borderRadius: 999, background: 'var(--line)', marginTop: 10, overflow: 'hidden' }}>
+            <div style={{ width: `${Math.max(1, s.usedPct)}%`, height: '100%', background: s.usedPct > 90 ? '#c62828' : 'var(--accent)' }} />
+          </div>
+          <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
+            Shared with your city mailbox · Mail {fmtBytes(s.mailBytes)} · Health documents {fmtBytes(s.healthBytes)}
+          </p>
+        </div>
+      )}
 
       <form onSubmit={submit} className="card" style={{ marginTop: 18 }}>
         <div className="eyebrow">Add to your record</div>
@@ -53,8 +103,17 @@ export function Records() {
           style={{ width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', outline: 'none', marginBottom: 8 }} />
         <textarea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="Details (optional)" rows={2}
           style={{ width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', outline: 'none', resize: 'vertical' }} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, fontSize: 13 }}>
+          <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            style={{ fontSize: 12.5 }} />
+          {file && <span className="muted" style={{ fontSize: 12 }}>{fmtBytes(file.size)}</span>}
+        </label>
+        <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>Attach a report, prescription or scan (JPG, PNG, PDF) — it's stored in your vault.</p>
+        {err && <p style={{ fontSize: 12.5, color: '#c62828', marginTop: 8 }}>{err}</p>}
         <div style={{ marginTop: 12 }}>
-          <Button type="submit" variant="accent" disabled={add.isPending || !title.trim()}>{add.isPending ? 'Saving…' : 'Add record'}</Button>
+          <Button type="submit" variant="accent" disabled={busy || add.isPending || !title.trim()}>
+            {busy ? 'Uploading…' : add.isPending ? 'Saving…' : file ? 'Upload & save' : 'Add record'}
+          </Button>
         </div>
       </form>
 
@@ -72,6 +131,17 @@ export function Records() {
                   <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>{r.recordedOn}</span>
                 </div>
                 {r.detail && <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '4px 0 0' }}>{r.detail}</p>}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                  {r.fileUrl && (
+                    <a href={r.fileUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)' }}>
+                      View file{r.sizeBytes ? ` · ${fmtBytes(r.sizeBytes)}` : ''} ↗
+                    </a>
+                  )}
+                  <button type="button" onClick={() => del.mutate(r.id)} disabled={del.isPending}
+                    style={{ marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', color: '#c62828', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit' }}>
+                    Delete
+                  </button>
+                </div>
               </div>
             </article>
           ))

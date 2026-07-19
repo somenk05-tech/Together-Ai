@@ -3,6 +3,8 @@ import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
+import { AiService } from '../ai/ai.service';
+import { StorageProvider } from '../media/storage.provider';
 // The Medical Hub is the source of truth for health data, but the *interpretation*
 // logic is the shared, cited clinical engine — so Nutrition, Beauty and Fitness all
 // reason from the same evidence base.
@@ -27,7 +29,104 @@ export class MedicalService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly conversations: ConversationsService,
     private readonly financial: FinancialService,
+    private readonly ai: AiService,
+    private readonly storage: StorageProvider,
   ) {}
+
+  /** Shared 10 GB vault: total bytes = mail + health documents. */
+  private readonly quotaBytes = 10 * 1024 * 1024 * 1024;
+
+  async storageUsage(userId: string) {
+    const [mail, docs] = await Promise.all([
+      this.prisma.mailMessage.findMany({ where: { ownerId: userId }, select: { sizeBytes: true } }),
+      this.prisma.medicalRecord.findMany({ where: { userId }, select: { sizeBytes: true } as never }) as Promise<Array<{ sizeBytes: number }>>,
+    ]);
+    const mailBytes = mail.reduce((s, m) => s + (m.sizeBytes ?? 0), 0);
+    const healthBytes = docs.reduce((s, d) => s + (d.sizeBytes ?? 0), 0);
+    const usedBytes = mailBytes + healthBytes;
+    return {
+      quotaBytes: this.quotaBytes,
+      usedBytes,
+      mailBytes,
+      healthBytes,
+      usedPct: Math.min(100, +((usedBytes / this.quotaBytes) * 100).toFixed(2)),
+      remainingBytes: Math.max(0, this.quotaBytes - usedBytes),
+    };
+  }
+
+  private async assertQuota(userId: string, incomingBytes: number): Promise<void> {
+    const { remainingBytes } = await this.storageUsage(userId);
+    if (incomingBytes > remainingBytes) {
+      throw new ForbiddenException('Storage full — this file exceeds your remaining 10 GB vault space. Delete some documents and try again.');
+    }
+  }
+
+  /** Record a health document already uploaded to R2 (its bytes count against the vault). */
+  async addDocument(userId: string, dto: {
+    kind: string; title: string; detail?: string; fileUrl: string; fileKey?: string; mimeType?: string; sizeBytes: number;
+  }) {
+    await this.assertQuota(userId, dto.sizeBytes);
+    await this.prisma.medicalRecord.create({
+      data: {
+        userId, kind: dto.kind, title: dto.title, detail: dto.detail ?? null,
+        fileUrl: dto.fileUrl, fileKey: dto.fileKey ?? null, mimeType: dto.mimeType ?? null,
+        sizeBytes: dto.sizeBytes, recordedOn: new Date(),
+      } as never,
+    });
+    return this.records(userId);
+  }
+
+  /**
+   * Read an uploaded blood report (already in R2) and extract its marker values
+   * via AI vision — extraction only; the user reviews before the cited engine
+   * analyses. Also files the report in the vault. Returns the values to pre-fill
+   * the review form (empty when AI is off — the user just types them in).
+   */
+  async extractBloodReport(userId: string, dto: {
+    fileUrl: string; fileKey?: string; mimeType: string; sizeBytes: number; title?: string;
+  }) {
+    await this.assertQuota(userId, dto.sizeBytes);
+    // file the document in the vault
+    await this.prisma.medicalRecord.create({
+      data: {
+        userId, kind: 'report', title: dto.title || 'Blood report', detail: 'Uploaded blood report',
+        fileUrl: dto.fileUrl, fileKey: dto.fileKey ?? null, mimeType: dto.mimeType, sizeBytes: dto.sizeBytes,
+        recordedOn: new Date(),
+      } as never,
+    });
+
+    // read it back from R2 → AI extraction
+    let extracted: { values: Record<string, number>; lab?: string; takenOn?: string } = { values: {} };
+    const key = dto.fileKey || this.storage.keyFromUrl(dto.fileUrl);
+    if (key) {
+      const obj = await this.storage.getObjectBase64(key);
+      if (obj) extracted = await this.ai.extractBloodMarkers(obj.base64, dto.mimeType);
+    }
+
+    return {
+      aiEnabled: this.ai.enabled,
+      extracted: extracted.values,
+      markerCount: Object.keys(extracted.values).length,
+      lab: extracted.lab ?? null,
+      takenOn: extracted.takenOn ?? null,
+      note: this.ai.enabled
+        ? (Object.keys(extracted.values).length
+            ? 'Values read from your report — please review each before saving.'
+            : 'We could not read clear values from this file. Enter them manually below.')
+        : 'AI reading is off — enter the values from your report manually below.',
+    };
+  }
+
+  /** Delete a health record + its stored object, freeing vault space. */
+  async deleteRecord(userId: string, id: string) {
+    const rec = await this.prisma.medicalRecord.findFirst({ where: { id, userId } }) as
+      ({ id: string; fileKey: string | null; fileUrl: string | null } | null);
+    if (!rec) throw new NotFoundException('record not found');
+    const key = rec.fileKey || (rec.fileUrl ? this.storage.keyFromUrl(rec.fileUrl) : '');
+    if (key) await this.storage.deleteObject(key);
+    await this.prisma.medicalRecord.delete({ where: { id } });
+    return this.records(userId);
+  }
 
   async onModuleInit(): Promise<void> {
     await this.ensureDoctors();
@@ -183,10 +282,14 @@ export class MedicalService implements OnModuleInit {
     const rows = await this.prisma.medicalRecord.findMany({
       where: { userId }, orderBy: { recordedOn: 'desc' },
     });
-    return rows.map((r) => ({
-      id: r.id, kind: r.kind, title: r.title, detail: r.detail, fileUrl: r.fileUrl,
-      recordedOn: r.recordedOn.toISOString().slice(0, 10),
-    }));
+    return rows.map((r) => {
+      const rr = r as typeof r & { mimeType?: string | null; sizeBytes?: number | null };
+      return {
+        id: r.id, kind: r.kind, title: r.title, detail: r.detail, fileUrl: r.fileUrl,
+        mimeType: rr.mimeType ?? null, sizeBytes: rr.sizeBytes ?? 0,
+        recordedOn: r.recordedOn.toISOString().slice(0, 10),
+      };
+    });
   }
 
   async addRecord(userId: string, dto: {

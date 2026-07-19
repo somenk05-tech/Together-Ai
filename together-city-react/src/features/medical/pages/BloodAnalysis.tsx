@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Spinner } from '@/components/ui';
-import { useBloodHistory, useLatestPanel, useSaveBloodTest, type Citation } from '../api';
+import { mediaApi } from '@/api/media.api';
+import { useBloodHistory, useLatestPanel, useSaveBloodTest, medicalApi, type Citation } from '../api';
 
 const FIELDS: { key: string; label: string; unit: string; ph: string }[] = [
   { key: 'hb', label: 'Hemoglobin', unit: 'g/dL', ph: '14.2' },
@@ -38,8 +40,35 @@ export function BloodAnalysis() {
   const latest = useLatestPanel();
   const history = useBloodHistory();
   const save = useSaveBloodTest();
+  const qc = useQueryClient();
   const [form, setForm] = useState<Record<string, string>>({});
   const [lab, setLab] = useState('');
+  const [extracting, setExtracting] = useState(false);
+  const [extractNote, setExtractNote] = useState<string | null>(null);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+
+  const onFile = async (file: File | null) => {
+    if (!file) return;
+    setUploadErr(null); setExtractNote(null);
+    if (!/^image\/(jpeg|png|webp)$|^application\/pdf$/.test(file.type)) { setUploadErr('Upload a JPG, PNG or PDF of your report.'); return; }
+    if (file.size > 25 * 1024 * 1024) { setUploadErr('That file is over 25 MB — please upload a smaller scan.'); return; }
+    setExtracting(true);
+    try {
+      const up = await mediaApi.uploadDoc(file);
+      const res = await medicalApi.extractBlood({ fileUrl: up.fileUrl, fileKey: up.fileKey, mimeType: up.mimeType, sizeBytes: up.sizeBytes, title: file.name });
+      const next: Record<string, string> = { ...form };
+      for (const [k, v] of Object.entries(res.extracted)) next[k] = String(v);
+      setForm(next);
+      if (res.lab) setLab(res.lab);
+      setExtractNote(res.note);
+      void qc.invalidateQueries({ queryKey: ['medical', 'storage'] });
+      void qc.invalidateQueries({ queryKey: ['medical', 'records'] });
+    } catch {
+      setUploadErr('Could not upload the report. Please check your connection and try again.');
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -76,8 +105,24 @@ export function BloodAnalysis() {
         </div>
       )}
 
+      <div className="card" style={{ marginTop: 18 }}>
+        <div className="eyebrow">Upload your report — we read it for you</div>
+        <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
+          Upload a photo or PDF of your blood report. The AI reads the values and fills the form below for you to check before saving — it extracts numbers only, never diagnoses.
+        </p>
+        <label style={{ display: 'block', border: '1.5px dashed var(--line)', borderRadius: 14, padding: '22px', textAlign: 'center', cursor: extracting ? 'default' : 'pointer', marginTop: 12 }}>
+          <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" style={{ display: 'none' }} disabled={extracting}
+            onChange={(e) => { void onFile(e.target.files?.[0] ?? null); e.target.value = ''; }} />
+          <div style={{ fontSize: 26 }}>{extracting ? '⏳' : '📄'}</div>
+          <div style={{ fontWeight: 600, marginTop: 6 }}>{extracting ? 'Reading your report…' : 'Tap to upload a JPG, PNG or PDF'}</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>Stored securely in your 10 GB health vault</div>
+        </label>
+        {extractNote && <p style={{ fontSize: 12.5, marginTop: 10, padding: '8px 10px', background: '#e8f5e9', borderRadius: 8 }}>✓ {extractNote}</p>}
+        {uploadErr && <p style={{ fontSize: 12.5, marginTop: 10, color: '#c62828' }}>{uploadErr}</p>}
+      </div>
+
       <form onSubmit={submit} className="card" style={{ marginTop: 18 }}>
-        <div className="eyebrow">Add a blood test</div>
+        <div className="eyebrow">Review &amp; save</div>
         <input value={lab} onChange={(e) => setLab(e.target.value)} placeholder="Lab name (optional)"
           style={{ width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', outline: 'none', marginBottom: 4 }} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '4px 14px' }}>

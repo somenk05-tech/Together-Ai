@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -7,6 +7,8 @@ import { MedicalService } from './medical.service';
 import { SaveBloodTestSchema, type SaveBloodTestDto } from './dto/medical.dto';
 import {
   AddRecordSchema, type AddRecordDto,
+  UploadDocSchema, type UploadDocDto,
+  ExtractBloodSchema, type ExtractBloodDto,
   BookConsultSchema, type BookConsultDto,
   ConsentSchema, type ConsentDto,
 } from './dto/records.dto';
@@ -20,6 +22,13 @@ export class MedicalController {
   @UsePipes(new ZodValidationPipe(SaveBloodTestSchema))
   save(@CurrentUser() user: JwtUser, @Body() dto: SaveBloodTestDto) {
     return this.medical.saveBloodTest(user.sub, dto);
+  }
+
+  // AI reads an uploaded report → marker values for review (must precede :id).
+  @Post('blood-tests/extract')
+  @UsePipes(new ZodValidationPipe(ExtractBloodSchema))
+  extract(@CurrentUser() user: JwtUser, @Body() dto: ExtractBloodDto) {
+    return this.medical.extractBloodReport(user.sub, dto);
   }
 
   @Get('blood-tests')
@@ -52,6 +61,23 @@ export class MedicalController {
   @UsePipes(new ZodValidationPipe(AddRecordSchema))
   addRecord(@CurrentUser() user: JwtUser, @Body() dto: AddRecordDto) {
     return this.medical.addRecord(user.sub, dto);
+  }
+
+  @Delete('records/:id')
+  deleteRecord(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.medical.deleteRecord(user.sub, id);
+  }
+
+  // ── unified 10 GB vault (mail + health documents) ──
+  @Get('storage')
+  storage(@CurrentUser() user: JwtUser) {
+    return this.medical.storageUsage(user.sub);
+  }
+
+  @Post('documents')
+  @UsePipes(new ZodValidationPipe(UploadDocSchema))
+  uploadDoc(@CurrentUser() user: JwtUser, @Body() dto: UploadDocDto) {
+    return this.medical.addDocument(user.sub, dto);
   }
 
   // ── consults ──

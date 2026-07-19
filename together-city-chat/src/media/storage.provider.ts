@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export interface PresignedUpload {
@@ -76,5 +76,41 @@ export class StorageProvider {
       key,
       expiresInSec: this.expiresInSec,
     };
+  }
+
+  get configured(): boolean { return this.s3 !== null; }
+
+  /** Read an object back as base64 (for AI vision on uploaded reports). Returns
+   *  null when storage isn't configured or the object can't be read. */
+  async getObjectBase64(key: string): Promise<{ base64: string; contentType: string } | null> {
+    if (!this.s3) return null;
+    try {
+      const res = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+      const bytes = await res.Body?.transformToByteArray();
+      if (!bytes) return null;
+      return {
+        base64: Buffer.from(bytes).toString('base64'),
+        contentType: res.ContentType ?? 'application/octet-stream',
+      };
+    } catch (e) {
+      this.logger.warn(`getObject failed for ${key}: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  /** Delete an object (frees the citizen's vault quota). No-op if unconfigured. */
+  async deleteObject(key: string): Promise<void> {
+    if (!this.s3 || !key) return;
+    try {
+      await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    } catch (e) {
+      this.logger.warn(`deleteObject failed for ${key}: ${(e as Error).message}`);
+    }
+  }
+
+  /** Derive the object key from a stored public URL (for legacy rows without a key). */
+  keyFromUrl(url: string): string {
+    if (this.publicBase && url.startsWith(this.publicBase)) return url.slice(this.publicBase.length + 1);
+    return '';
   }
 }

@@ -27,7 +27,9 @@ export interface SupplementPlan {
   items: SupplementItem[]; totalInr: number; safety: string;
 }
 
-export interface MedicalRecord { id: string; kind: string; title: string; detail: string | null; fileUrl: string | null; recordedOn: string }
+export interface MedicalRecord { id: string; kind: string; title: string; detail: string | null; fileUrl: string | null; mimeType?: string | null; sizeBytes?: number; recordedOn: string }
+export interface StorageUsage { quotaBytes: number; usedBytes: number; mailBytes: number; healthBytes: number; usedPct: number; remainingBytes: number }
+export interface ExtractResult { aiEnabled: boolean; extracted: Record<string, number>; markerCount: number; lab: string | null; takenOn: string | null; note: string }
 export interface DoctorCard { id: string; name: string; handle: string; specialty: string; hospital: string | null; languages: string[]; rating: number; priceInr: number }
 export interface ConsultSummary { id: string; doctorName: string; specialty: string; reason: string | null; status: string; conversationId: string | null; scheduledAt: string | null; createdAt: string }
 export interface ConsentRow { hub: string; label: string; reads: string; granted: boolean; updatedAt: string }
@@ -49,7 +51,24 @@ export const medicalApi = {
   latest: () => api.get<BloodAnalysis>('/medical/blood-tests/latest').then((r) => r.data),
   analyze: (id: string) => api.get<BloodAnalysis>(`/medical/blood-tests/${id}`).then((r) => r.data),
   supplementPlan: () => api.get<SupplementPlan>('/medical/supplement-plan').then((r) => r.data),
+  storage: () => api.get<StorageUsage>('/medical/storage').then((r) => r.data),
+  deleteRecord: (id: string) => api.delete<MedicalRecord[]>(`/medical/records/${id}`).then((r) => r.data),
+  uploadDocument: (input: { kind: string; title: string; detail?: string; fileUrl: string; fileKey?: string; mimeType?: string; sizeBytes: number }) =>
+    api.post<MedicalRecord[]>('/medical/documents', input).then((r) => r.data),
+  extractBlood: (input: { fileUrl: string; fileKey?: string; mimeType: string; sizeBytes: number; title?: string }) =>
+    api.post<ExtractResult>('/medical/blood-tests/extract', input).then((r) => r.data),
 };
+
+export function useStorageUsage() {
+  return useQuery({ queryKey: ['medical', 'storage'], queryFn: () => medicalApi.storage() });
+}
+export function useDeleteRecord() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => medicalApi.deleteRecord(id),
+    onSuccess: (recs) => { qc.setQueryData(['medical', 'records'], recs); void qc.invalidateQueries({ queryKey: ['medical', 'storage'] }); },
+  });
+}
 
 export function useLatestPanel() {
   return useQuery({ queryKey: ['medical', 'latest'], queryFn: () => medicalApi.latest() });

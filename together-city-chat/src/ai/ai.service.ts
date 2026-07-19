@@ -12,6 +12,8 @@ export class AiService {
   private readonly logger = new Logger('AiService');
   private readonly client: Anthropic | null;
   private readonly model = process.env.ANTHROPIC_MODEL || 'claude-3-5-haiku-latest';
+  // Vision/PDF reading (blood reports) needs a multimodal model — Haiku is text-first.
+  private readonly visionModel = process.env.ANTHROPIC_VISION_MODEL || 'claude-3-5-sonnet-latest';
   readonly enabled: boolean;
 
   constructor() {
@@ -40,6 +42,57 @@ export class AiService {
     } catch (e) {
       this.logger.warn(`AI json call failed: ${(e as Error).message}`);
       return fallback;
+    }
+  }
+
+  /**
+   * Read a blood-report image or PDF and extract numeric marker values. AI does
+   * EXTRACTION ONLY — the deterministic clinical engine does the interpretation.
+   * Returns {} when the key is unset or the call fails (caller falls back to
+   * manual entry). Keys map to the engine: hb, ferritin, vitd, b12, folate,
+   * hba1c, ldl, trig, crp.
+   */
+  async extractBloodMarkers(
+    base64: string,
+    mediaType: string,
+  ): Promise<{ values: Record<string, number>; lab?: string; takenOn?: string }> {
+    if (!this.client) return { values: {} };
+    const isPdf = mediaType === 'application/pdf';
+    const system =
+      'You extract lab values from a blood-test report. Return ONLY JSON: ' +
+      '{"values":{"hb":number,"ferritin":number,"vitd":number,"b12":number,"folate":number,"hba1c":number,"ldl":number,"trig":number,"crp":number},"lab":string,"takenOn":"YYYY-MM-DD"}. ' +
+      'Include a marker ONLY if it clearly appears on the report, using the report\'s numeric value in these units: ' +
+      'hb g/dL, ferritin ng/mL, vitd (25-OH vitamin D) ng/mL, b12 pg/mL, folate ng/mL, hba1c %, ldl mg/dL, trig mg/dL, crp mg/L. ' +
+      'Convert if the report uses different units. Omit any marker not present. Never invent values.';
+    try {
+      const source = isPdf
+        ? ({ type: 'base64', media_type: 'application/pdf', data: base64 } as const)
+        : ({ type: 'base64', media_type: (mediaType || 'image/jpeg') as 'image/jpeg', data: base64 } as const);
+      const block = isPdf
+        ? ({ type: 'document', source } as unknown as Anthropic.ContentBlockParam)
+        : ({ type: 'image', source } as unknown as Anthropic.ContentBlockParam);
+      const res = await this.client.messages.create({
+        model: this.visionModel,
+        max_tokens: 1024,
+        system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
+        messages: [{ role: 'user', content: [block, { type: 'text', text: 'Extract the blood markers as JSON.' }] }],
+      });
+      const text = res.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('');
+      const parsed = this.extractJson(text) as { values?: Record<string, unknown>; lab?: string; takenOn?: string } | null;
+      if (!parsed || typeof parsed !== 'object') return { values: {} };
+      const clean: Record<string, number> = {};
+      const allow = ['hb', 'ferritin', 'vitd', 'b12', 'folate', 'hba1c', 'ldl', 'trig', 'crp'];
+      for (const k of allow) {
+        const v = parsed.values?.[k];
+        if (typeof v === 'number' && isFinite(v) && v > 0) clean[k] = v;
+      }
+      return { values: clean, lab: typeof parsed.lab === 'string' ? parsed.lab : undefined, takenOn: typeof parsed.takenOn === 'string' ? parsed.takenOn : undefined };
+    } catch (e) {
+      this.logger.warn(`Blood extraction failed: ${(e as Error).message}`);
+      return { values: {} };
     }
   }
 
