@@ -15,7 +15,7 @@ export interface OutboxEntry {
 export interface MailItem {
   id: string; fromAddr: string; fromName: string; toAddr: string; toName: string;
   subject: string; snippet: string; sizeBytes: number; read: boolean; starred: boolean;
-  system: boolean; folder: string; createdAt: string;
+  system: boolean; folder: string; threadId?: string | null; createdAt: string;
 }
 export interface MailMessage extends MailItem { body: string }
 export interface DirectoryEntry { handle: string; name: string; address: string }
@@ -25,7 +25,8 @@ export const mailApi = {
   directory: () => api.get<DirectoryEntry[]>('/mail/directory').then((r) => r.data),
   list: (folder: Folder) => api.get<MailItem[]>('/mail', { params: { folder } }).then((r) => r.data),
   get: (id: string) => api.get<MailMessage>(`/mail/${id}`).then((r) => r.data),
-  send: (input: { to: string; subject: string; body: string }) => api.post<MailItem[]>('/mail/send', input).then((r) => r.data),
+  thread: (threadId: string) => api.get<MailMessage[]>(`/mail/thread/${threadId}`).then((r) => r.data),
+  send: (input: { to: string; subject: string; body: string; threadId?: string }) => api.post<MailItem[]>('/mail/send', input).then((r) => r.data),
   flag: (id: string, input: { starred?: boolean; read?: boolean }) => api.post(`/mail/${id}/flag`, input).then((r) => r.data),
   remove: (id: string) => api.delete(`/mail/${id}`).then((r) => r.data),
   outbox: () => api.get<OutboxEntry[]>('/mail/outbox').then((r) => r.data),
@@ -54,10 +55,17 @@ export function useMailList(folder: Folder) {
 export function useMailMessage(id: string) {
   return useQuery({ queryKey: ['mail', 'msg', id], queryFn: () => mailApi.get(id), enabled: !!id });
 }
+export function useMailThread(threadId?: string | null) {
+  return useQuery({
+    queryKey: ['mail', 'thread', threadId],
+    queryFn: () => mailApi.thread(threadId as string),
+    enabled: !!threadId,
+  });
+}
 export function useSendMail() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { to: string; subject: string; body: string }) => mailApi.send(v),
+    mutationFn: (v: { to: string; subject: string; body: string; threadId?: string }) => mailApi.send(v),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['mail'] }); },
   });
 }

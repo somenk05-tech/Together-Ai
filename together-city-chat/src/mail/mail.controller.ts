@@ -37,6 +37,11 @@ export class MailController {
     return this.mail.list(user.sub, q);
   }
 
+  @Get('thread/:threadId')
+  thread(@CurrentUser() user: JwtUser, @Param('threadId') threadId: string) {
+    return this.mail.thread(user.sub, threadId);
+  }
+
   @Post('send')
   @UsePipes(new ZodValidationPipe(SendMailSchema))
   send(@CurrentUser() user: JwtUser, @Body() dto: SendMailDto) {

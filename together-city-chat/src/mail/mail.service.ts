@@ -68,13 +68,23 @@ export class MailService {
 
   private shape(m: {
     id: string; fromAddr: string; fromName: string; toAddr: string; toName: string; subject: string;
-    snippet: string; sizeBytes: number; read: boolean; starred: boolean; system: boolean; folder: string; createdAt: Date;
+    snippet: string; sizeBytes: number; read: boolean; starred: boolean; system: boolean; folder: string;
+    threadId: string | null; createdAt: Date;
   }) {
     return {
       id: m.id, fromAddr: m.fromAddr, fromName: m.fromName, toAddr: m.toAddr, toName: m.toName,
       subject: m.subject, snippet: m.snippet, sizeBytes: m.sizeBytes, read: m.read, starred: m.starred,
-      system: m.system, folder: m.folder, createdAt: m.createdAt.toISOString(),
+      system: m.system, folder: m.folder, threadId: m.threadId, createdAt: m.createdAt.toISOString(),
     };
+  }
+
+  /** The full trail for a thread in this user's mailbox (oldest → newest, with bodies). */
+  async thread(userId: string, threadId: string) {
+    const rows = await this.prisma.mailMessage.findMany({
+      where: { ownerId: userId, threadId },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((m) => ({ ...this.shape(m), body: m.body }));
   }
 
   async list(userId: string, q: FolderQueryDto) {
@@ -111,7 +121,17 @@ export class MailService {
     const used = await this.usedBytes(userId);
     if (used + size > QUOTA_BYTES) throw new BadRequestException('Your 10 GB mailbox is full. Delete some mail and try again.');
 
-    const threadId = randomUUID();
+    // Reply → reuse the parent thread (only if the sender actually owns a message
+    // in it, so threads can't be spoofed); otherwise start a new trail.
+    let threadId: string = randomUUID();
+    const requestedThread = dto.threadId;
+    if (requestedThread) {
+      const owns = await this.prisma.mailMessage.findFirst({
+        where: { ownerId: userId, threadId: requestedThread },
+        select: { id: true },
+      });
+      if (owns) threadId = requestedThread;
+    }
     const toAddr = addressFor(recipient.handle);
     const base = {
       fromAddr: sender.address, fromName: me.name, toAddr, toName: recipient.name,

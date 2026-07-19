@@ -16,6 +16,7 @@ export function Compose() {
   const [subject, setSubject] = useState(params.get('subject') ?? '');
   const [body, setBody] = useState('');
   const [showSug, setShowSug] = useState(false);
+  const threadId = params.get('threadId') ?? undefined; // set when replying → append to trail
 
   const suggestions = useMemo(() => {
     const term = to.trim().toLowerCase().replace(/@.*/, '');
@@ -65,8 +66,11 @@ export function Compose() {
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Button variant="accent" disabled={!canSend}
-            onClick={() => send.mutate({ to, subject: subject || '(no subject)', body }, { onSuccess: () => nav('/mail/sent') })}>
-            {send.isPending ? 'Sending…' : 'Send'}
+            onClick={() => send.mutate(
+              { to, subject: subject || '(no subject)', body, threadId },
+              { onSuccess: () => { if (threadId) nav(-1); else nav('/mail/sent'); } },
+            )}>
+            {send.isPending ? 'Sending…' : threadId ? 'Send reply' : 'Send'}
           </Button>
           <Button variant="line" onClick={() => nav(-1)}>Cancel</Button>
           <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>Delivers within Together City</span>
