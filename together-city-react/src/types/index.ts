@@ -57,6 +57,7 @@ export interface Message {
   senderId: string;
   body: string;
   share?: ShareCard | null;
+  status?: 'SENT' | 'DELIVERED' | 'READ';
   createdAt: string;
   media?: MediaAttachment[];
 }

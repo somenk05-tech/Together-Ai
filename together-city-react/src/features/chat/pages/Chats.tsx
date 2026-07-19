@@ -32,10 +32,20 @@ export function Chats() {
   const history = useMessages(activeId);
   const [live, setLive] = useState<Message[]>([]);
   const [peerTyping, setPeerTyping] = useState(false);
+  const [statusMap, setStatusMap] = useState<Record<string, 'DELIVERED' | 'READ'>>({});
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset the live buffer whenever the conversation changes.
-  useEffect(() => { setLive([]); setPeerTyping(false); }, [activeId]);
+  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); }, [activeId]);
+
+  // Live delivery/read receipts → advance the ticks on your sent messages.
+  useEffect(() => {
+    const offD = socketClient.on<{ messageId: string }>(WS.MESSAGE_DELIVERED, ({ messageId }) =>
+      setStatusMap((s) => (s[messageId] === 'READ' ? s : { ...s, [messageId]: 'DELIVERED' })));
+    const offR = socketClient.on<{ messageId: string }>(WS.MESSAGE_READ, ({ messageId }) =>
+      setStatusMap((s) => ({ ...s, [messageId]: 'READ' })));
+    return () => { offD(); offR(); };
+  }, []);
 
   const onMessage = useCallback((m: Message) => {
     setLive((prev) => [...prev, m]);
@@ -57,7 +67,10 @@ export function Chats() {
     if (t) typingTimer.current = setTimeout(() => setTyping(false), 2500);
   }, [setTyping]);
 
-  const messages = useMemo(() => [...(history.data?.items ?? []), ...live], [history.data, live]);
+  const messages = useMemo(
+    () => [...(history.data?.items ?? []), ...live].map((m) => (statusMap[m.id] ? { ...m, status: statusMap[m.id] } : m)),
+    [history.data, live, statusMap],
+  );
 
   // Opening a conversation marks its incoming messages read (clears the unread
   // badge + drives read receipts). Refresh the list so the badge updates.

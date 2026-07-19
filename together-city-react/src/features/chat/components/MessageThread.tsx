@@ -2,6 +2,20 @@ import { useEffect, useRef } from 'react';
 import type { Message } from '@/types';
 import { ShareCardView } from '../share';
 
+/** WhatsApp-style delivery ticks (shown on your own messages only). */
+function Ticks({ status }: { status?: Message['status'] }) {
+  if (!status) return null;
+  const read = status === 'READ';
+  const double = status === 'DELIVERED' || status === 'READ';
+  // On the accent bubble: read = bright blue, otherwise translucent white.
+  const color = read ? '#5fd0ff' : 'rgba(255,255,255,.7)';
+  return (
+    <span aria-label={status.toLowerCase()} style={{ color, marginLeft: 4, letterSpacing: -2, fontSize: 12 }}>
+      {double ? '✓✓' : '✓'}
+    </span>
+  );
+}
+
 export function MessageThread({ messages, currentUserId, typing }: {
   messages: Message[]; currentUserId?: string; typing?: boolean;
 }) {
@@ -23,6 +37,7 @@ export function MessageThread({ messages, currentUserId, typing }: {
             {m.share && <ShareCardView card={m.share} compact />}
             <div className="muted" style={{ fontSize: 10.5, marginTop: 2, textAlign: mine ? 'right' : 'left' }}>
               {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {mine && <Ticks status={m.status} />}
             </div>
           </div>
         );

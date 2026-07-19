@@ -252,7 +252,7 @@ export class MessagesService {
     updatedAt?: Date;
     attachments?: Array<{ id: string; url: string; mimeType: string; thumbnail?: string | null }>;
     sender?: unknown;
-    statuses?: unknown;
+    statuses?: Array<{ status: string }>;
   }) {
     let share: unknown = null;
     if (m.shareJson) {
@@ -264,6 +264,15 @@ export class MessagesService {
       kind: a.mimeType?.startsWith('image/') ? 'image' : a.mimeType?.startsWith('video/') ? 'video' : 'file',
       thumbUrl: a.thumbnail ?? undefined,
     }));
+    // Aggregate delivery status across recipients (least-progressed wins):
+    // all read ⇒ READ, all delivered-or-better ⇒ DELIVERED, else SENT.
+    const rank: Record<string, number> = { SENT: 0, DELIVERED: 1, READ: 2 };
+    const statuses = m.statuses ?? [];
+    let status: 'SENT' | 'DELIVERED' | 'READ' = 'SENT';
+    if (statuses.length) {
+      const min = Math.min(...statuses.map((s) => rank[s.status] ?? 0));
+      status = min >= 2 ? 'READ' : min >= 1 ? 'DELIVERED' : 'SENT';
+    }
     return {
       id: m.id,
       conversationId: m.conversationId,
@@ -272,6 +281,7 @@ export class MessagesService {
       messageType: m.messageType,
       share,
       media,
+      status,
       replyToMessageId: m.replyToMessageId ?? null,
       edited: !!m.edited,
       deleted: m.deleted,

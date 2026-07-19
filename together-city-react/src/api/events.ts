@@ -13,6 +13,7 @@ export const WS = {
   USER_ONLINE: 'user_online',
   USER_OFFLINE: 'user_offline',
   HEARTBEAT: 'heartbeat',
+  CHAT_NOTIFICATION: 'chat_notification',
   ERROR: 'error_event',
 } as const;
 

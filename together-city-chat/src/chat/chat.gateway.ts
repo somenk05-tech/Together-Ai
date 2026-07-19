@@ -186,9 +186,19 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         this.server
           .to(room.conversation(event.conversationId))
           .emit(WS.RECEIVE_MESSAGE, event.message);
-        // Also notify recipients not currently in the room (offline / other screen).
         const preview = this.previewOf(event.message);
         const sender = (event.message as { senderId: string }).senderId;
+        const messageId = (event.message as { id: string }).id;
+        // Instant per-user push: reaches recipients even when they're not viewing
+        // this conversation (drives the unread badge + a delivered receipt).
+        for (const rid of event.recipientIds) {
+          this.server.to(room.user(rid)).emit(WS.CHAT_NOTIFICATION, {
+            conversationId: event.conversationId,
+            messageId,
+            senderId: sender,
+            preview,
+          });
+        }
         await this.notifications.notifyNewMessage({
           conversationId: event.conversationId,
           senderId: sender,

@@ -69,6 +69,7 @@ export const MessageSchema = z.object({
   senderId: z.string(),
   body: z.string(),
   share: ShareCardSchema.nullable().optional(),
+  status: z.enum(['SENT', 'DELIVERED', 'READ']).optional(),
   createdAt: z.string(),
   editedAt: z.string().nullable().optional(),
   media: z.array(MediaAttachmentSchema).optional(),

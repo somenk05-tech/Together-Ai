@@ -20,6 +20,9 @@ export const WS = {
   USER_ONLINE: 'user_online',
   USER_OFFLINE: 'user_offline',
   HEARTBEAT: 'heartbeat',
+  // per-user push: a new message arrived in ANY of your conversations (even ones
+  // you're not currently viewing) — drives the instant unread badge.
+  CHAT_NOTIFICATION: 'chat_notification',
   // errors
   ERROR: 'error_event',
 } as const;
