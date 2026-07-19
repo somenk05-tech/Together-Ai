@@ -56,5 +56,6 @@ export const FoodPrefSchema = z.object({
   age: z.number().int().min(10).max(120).optional(),
   sex: z.enum(['male', 'female']).optional(),
   activity: z.number().min(1.2).max(2.2).optional(),
+  extras: z.string().max(6000).optional(), // JSON blob of extended preferences
 });
 export type FoodPrefDto = z.infer<typeof FoodPrefSchema>;

@@ -68,11 +68,14 @@ export class NutritionService implements OnModuleInit {
   }
 
   async upsertFoodPref(userId: string, dto: FoodPrefDto) {
+    // `extras` exists on Railway's freshly-generated client; cast for the local
+    // (offline) client which can't be regenerated here.
+    const data = dto as Record<string, unknown>;
     return this.prisma.foodPref.upsert({
       where: { userId },
-      update: { ...dto },
-      create: { userId, ...dto },
-    });
+      update: data,
+      create: { userId, ...data },
+    } as Parameters<typeof this.prisma.foodPref.upsert>[0]);
   }
 
   /** Current preferences (defaults if never saved) — powers the Preferences form. */
@@ -86,6 +89,7 @@ export class NutritionService implements OnModuleInit {
       age: pref?.age ?? null,
       sex: pref?.sex ?? null,
       activity: pref?.activity ?? 1.4,
+      extras: (pref as { extras?: string | null } | null)?.extras ?? null,
     };
   }
 

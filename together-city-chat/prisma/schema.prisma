@@ -285,6 +285,7 @@ model FoodPref {
   age       Int?
   sex       String? // male | female
   activity  Float    @default(1.4)
+  extras    String? // JSON: cuisines, protein sources, meats, allergies, excluded foods, nutrition pattern, max cook time, conditions, budget, delivery, weekly plan
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

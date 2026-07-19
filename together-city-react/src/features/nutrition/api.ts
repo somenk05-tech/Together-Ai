@@ -74,6 +74,7 @@ export interface FoodPref {
   age: number | null;
   sex: 'male' | 'female' | null;
   activity: number;
+  extras?: string | null; // JSON blob of extended preferences
 }
 
 export interface WalletTransaction { id: string; amountInr: number; kind: 'credit' | 'debit' | 'refund'; note: string | null; createdAt: string }
