@@ -58,12 +58,72 @@ export function Blood() {
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
-      <div className="eyebrow">Nutrition Hub · Blood Test</div>
-      <h1 style={{ fontSize: 26 }}>Connect with your blood test</h1>
+      <div className="eyebrow">Nutrition Hub · 01</div>
+      <h1 style={{ fontSize: 26 }}>Connect with Blood Test</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0' }}>
-        Enter the key markers from your latest report — guidance is grounded in established clinical-nutrition science.
-        Add CRP and we’ll flag markers that inflammation can distort. The <strong>Medical Hub</strong> stays the source of truth for your records.
+        Personalise every plan by your real biology — not guesses. Synced automatically with your <strong>Medical Hub</strong>.
       </p>
+
+      <div className="card" style={{ marginTop: 14 }}>
+        <p style={{ fontSize: 13.5, margin: 0, lineHeight: 1.6 }}>
+          All medical records live in your <strong>Medical Hub</strong> — the single source of truth. Nutrition links a
+          report <strong>by reference</strong> (never a duplicate) and reads your biomarkers to personalise every plan.
+        </p>
+      </div>
+
+      {/* Three ways to bring a blood test in — all handled by the Medical Hub */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 14 }}>
+        {[
+          { icon: '🔗', title: 'Connect existing blood test', desc: 'Pick a report already stored in your Medical Hub — we link it, no re-upload.', cta: 'Connect existing →', to: '/medical/records' },
+          { icon: '⬆️', title: 'Upload new blood test', desc: 'Uploads happen in the Medical Hub. We’ll bring you straight back here.', cta: 'Upload in Medical Hub →', to: '/medical/records' },
+          { icon: '🧪', title: 'Book a blood test', desc: 'Booking, payment, scheduling & results all live in the Medical Hub.', cta: 'Book in Medical Hub →', to: '/medical/booking' },
+        ].map((c) => (
+          <div key={c.title} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 22 }}>{c.icon}</div>
+            <strong style={{ fontSize: 14.5 }}>{c.title}</strong>
+            <p className="muted" style={{ fontSize: 12.5, margin: 0, flex: 1, lineHeight: 1.5 }}>{c.desc}</p>
+            <Link to={c.to} style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13 }}>{c.cta}</Link>
+          </div>
+        ))}
+      </div>
+
+      {/* Getting ready — Do's & Don'ts */}
+      <div className="card" style={{ marginTop: 14 }}>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>Getting ready — Do’s &amp; Don’ts</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#2e7d32', marginBottom: 6 }}>✓ Do</div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.7 }}>
+              <li>Fast 10–12 hours before collection</li>
+              <li>Drink plenty of water</li>
+              <li>Avoid heavy exercise the day before</li>
+            </ul>
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#c62828', marginBottom: 6 }}>✕ Don’t</div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.7 }}>
+              <li>No smoking on collection morning</li>
+              <li>No alcohol for 24 hours prior</li>
+              <li>No unsupervised supplements before the draw</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Supported labs */}
+      <div className="card" style={{ marginTop: 14 }}>
+        <div className="eyebrow" style={{ marginBottom: 4 }}>Supported labs — home collection network</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '10px 0' }}>
+          {['Dr Lal PathLabs', 'Metropolis', 'Thyrocare', 'SRL Diagnostics'].map((lab) => (
+            <span key={lab} style={{ fontSize: 13, fontWeight: 600, border: '1.5px solid var(--line)', borderRadius: 999, padding: '5px 14px' }}>{lab}</span>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+          {['NABL Accredited', 'Home Collection', '24–48h Results', 'Synced with Medical Hub'].map((b) => (
+            <span key={b} className="muted" style={{ fontSize: 12 }}>◈ {b}</span>
+          ))}
+        </div>
+      </div>
 
       {/* Critical "seek medical care" alerts */}
       {data && data.alerts.length > 0 && (
