@@ -1,7 +1,11 @@
 import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/store/auth.store';
 
-const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+// Prefer the configured API URL; fall back to the live backend (never localhost
+// in a production bundle) so a missing env var can't silently break the app.
+const API_URL: string =
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.DEV ? 'http://localhost:3000/api' : 'https://together-ai-production.up.railway.app/api');
 
 /** Shared axios instance — the ONLY place HTTP is issued. Components never call fetch(). */
 export const http: AxiosInstance = axios.create({

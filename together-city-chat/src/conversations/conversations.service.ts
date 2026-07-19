@@ -41,18 +41,16 @@ export class ConversationsService {
     await this.permission.assertCanCommunicate(userId, targetUserId);
     const directKey = directKeyOf(userId, targetUserId);
     const existing = await this.prisma.conversation.findUnique({ where: { directKey } });
-    if (existing) return existing;
-
-    return this.prisma.conversation.create({
-      data: {
-        type: 'DIRECT',
-        directKey,
-        members: {
-          create: [{ userId }, { userId: targetUserId }],
+    const conv =
+      existing ??
+      (await this.prisma.conversation.create({
+        data: {
+          type: 'DIRECT',
+          directKey,
+          members: { create: [{ userId }, { userId: targetUserId }] },
         },
-      },
-      include: { members: true },
-    });
+      }));
+    return this.toDto(conv.id, userId);
   }
 
   /** Create a GROUP. Every invitee must be connected to the creator. */
@@ -64,22 +62,19 @@ export class ConversationsService {
       }
     }
     const memberIds = Array.from(new Set([userId, ...dto.memberIds]));
-    return this.prisma.conversation.create({
+    const created = await this.prisma.conversation.create({
       data: {
         type: 'GROUP',
         title: dto.title,
         members: {
-          create: memberIds.map((id) => ({
-            userId: id,
-            role: id === userId ? 'OWNER' : 'MEMBER',
-          })),
+          create: memberIds.map((id) => ({ userId: id, role: id === userId ? 'OWNER' : 'MEMBER' })),
         },
       },
-      include: { members: true },
     });
+    return this.toDto(created.id, userId);
   }
 
-  /** Conversation list with last message + unread count (cache candidate). */
+  /** Conversation list — newest first, each as the flat DTO the frontend consumes. */
   async listForUser(userId: string) {
     const memberships = await this.prisma.conversationMember.findMany({
       where: { userId, archived: false },
@@ -94,7 +89,7 @@ export class ConversationsService {
       orderBy: { conversation: { updatedAt: 'desc' } },
     });
 
-    const result = [];
+    const out = [];
     for (const m of memberships) {
       const unread = await this.prisma.message.count({
         where: {
@@ -104,15 +99,60 @@ export class ConversationsService {
           ...(m.lastReadAt ? { createdAt: { gt: m.lastReadAt } } : {}),
         },
       });
-      result.push({
-        conversation: m.conversation,
-        unread,
-        pinned: m.pinned,
-        muted: m.muted,
-        lastMessage: m.conversation.messages[0] ?? null,
-      });
+      out.push(this.shape(m.conversation, userId, unread));
     }
-    return result;
+    return out;
+  }
+
+  /** Load one conversation (with members + last message + unread) as the flat DTO. */
+  private async toDto(conversationId: string, userId: string) {
+    const c = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        members: { include: { user: { select: { id: true, name: true, handle: true, profileImage: true } } } },
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+    });
+    if (!c) throw new ForbiddenException('Conversation not found');
+    const me = c.members.find((m) => m.userId === userId);
+    const unread = await this.prisma.message.count({
+      where: {
+        conversationId,
+        deleted: false,
+        senderId: { not: userId },
+        ...(me?.lastReadAt ? { createdAt: { gt: me.lastReadAt } } : {}),
+      },
+    });
+    return this.shape(c, userId, unread);
+  }
+
+  /** Flat conversation DTO: { id, title, isGroup, participantIds, lastMessageAt, unread }. */
+  private shape(
+    c: {
+      id: string;
+      type: string;
+      title: string | null;
+      updatedAt: Date;
+      members: Array<{ userId: string; user?: { name: string } | null }>;
+      messages?: Array<{ createdAt: Date }>;
+    },
+    userId: string,
+    unread: number,
+  ) {
+    const isGroup = c.type === 'GROUP';
+    const others = c.members.filter((m) => m.userId !== userId);
+    const title = isGroup
+      ? c.title ?? 'Group'
+      : others[0]?.user?.name ?? 'Conversation';
+    const lastAt = c.messages?.[0]?.createdAt ?? c.updatedAt;
+    return {
+      id: c.id,
+      title,
+      isGroup,
+      participantIds: c.members.map((m) => m.userId),
+      lastMessageAt: lastAt.toISOString(),
+      unread,
+    };
   }
 
   async assertMember(userId: string, conversationId: string): Promise<void> {

@@ -21,6 +21,7 @@ function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; o
   const [title, setTitle] = useState('');
   const [picked, setPicked] = useState<Contact[]>([]);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -30,7 +31,7 @@ function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; o
   const toggle = (c: Contact) => setPicked((p) => p.some((x) => x.id === c.id) ? p.filter((x) => x.id !== c.id) : [...p, c]);
 
   const submit = async () => {
-    setBusy(true);
+    setBusy(true); setError(null);
     try {
       if (mode === 'direct') {
         if (!picked[0]) return;
@@ -42,6 +43,12 @@ function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; o
         onOpened(conv.id);
       }
       onClose();
+    } catch (err) {
+      const data = (err as { response?: { data?: { message?: unknown } } } | null)?.response?.data;
+      const msg = typeof data?.message === 'string' ? data.message
+        : Array.isArray(data?.message) ? data.message.join(' · ')
+        : 'Could not start the chat — please try again.';
+      setError(msg);
     } finally { setBusy(false); }
   };
 
@@ -80,6 +87,8 @@ function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; o
             })}
           </div>
         )}
+
+        {error && <p style={{ color: '#c0392b', fontSize: 12.5, marginTop: 10 }}>{error}</p>}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
           <Button variant="accent" disabled={busy || !picked.length} onClick={submit}>
