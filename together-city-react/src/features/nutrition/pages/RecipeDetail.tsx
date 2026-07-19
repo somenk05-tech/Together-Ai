@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useRecipe } from '../hooks';
+import { useRecipe, useRecipes } from '../hooks';
 import { DIET_META } from './Recipes';
 import type { DietKey } from '../types';
 
@@ -8,6 +8,7 @@ import type { DietKey } from '../types';
 export function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
   const recipe = useRecipe(id);
+  const others = useRecipes('everything');
 
   if (recipe.isLoading) return <Spinner label="Plating up…" />;
   if (recipe.isError || !recipe.data) return <EmptyState title="Recipe not found" hint="It may have been removed." />;
@@ -65,11 +66,38 @@ export function RecipeDetail() {
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-          <Link to="/nutrition/weekly"><Button variant="accent" size="sm">Add via Weekly Planner</Button></Link>
-          <Link to="/nutrition/grocery"><Button variant="line" size="sm">Grocery Store</Button></Link>
+        <p className="muted" style={{ fontSize: 12.5, marginTop: 16 }}>
+          ₹{cost} estimated grocery cost per serving.
+        </p>
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+          <Link to="/nutrition/grocery"><Button variant="accent" size="sm">Add ingredients to basket →</Button></Link>
+          <Link to="/nutrition/dietitian"><Button variant="line" size="sm">💬 Discuss with a nutritionist</Button></Link>
+          <Link to="/nutrition/weekly"><Button variant="line" size="sm">Add via Weekly Planner</Button></Link>
         </div>
       </div>
+
+      {/* You might also like */}
+      {(() => {
+        const recs = (others.data ?? []).filter((x) => x.id !== r.id).slice(0, 3);
+        if (!recs.length) return null;
+        return (
+          <div style={{ marginTop: 22 }}>
+            <h2 style={{ fontSize: 17, marginBottom: 10 }}>You might also like</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
+              {recs.map((x) => {
+                const m = DIET_META[x.diet as Exclude<DietKey, 'everything'>] ?? DIET_META.veg;
+                return (
+                  <Link key={x.id} to={`/nutrition/recipes/${x.id}`} className="card" style={{ display: 'block', borderTop: `4px solid ${m.color}` }}>
+                    <h3 style={{ fontSize: 15, marginBottom: 4 }}>{x.name}</h3>
+                    <div className="muted" style={{ fontSize: 12 }}>{x.country} · {x.kcal} kcal · {x.minutes} min</div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

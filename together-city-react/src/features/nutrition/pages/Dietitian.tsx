@@ -14,11 +14,25 @@ export function Dietitian() {
 
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
-      <div className="eyebrow">Nutrition Hub · Expert Care</div>
-      <h1 style={{ fontSize: 26 }}>Talk to a dietitian</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
-        Booking connects you instantly — your consultation continues as a private chat,
-        where they can see the plan and blood panel you choose to share.
+      <div className="eyebrow">Nutrition Hub · 09</div>
+      <h1 style={{ fontSize: 26 }}>Expert Care for Better Health</h1>
+      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 12px' }}>
+        Consult a registered dietitian for severe conditions, abnormal blood results, or simply expert guidance you can trust.
+      </p>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+          <strong style={{ fontSize: 14 }}>📹 Online Video Consultation</strong>
+          <span className="muted" style={{ fontSize: 12.5 }}>45–60 min · personalised plan + 7-day follow-up included</span>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+          {['CKD / Kidney', 'Diabetes', 'High Cholesterol', 'Heart Health', 'Cancer Support', 'Thyroid', 'PCOS', 'Fatty Liver', 'More'].map((c) => (
+            <span key={c} style={{ fontSize: 11.5, fontWeight: 600, border: '1px solid var(--line)', borderRadius: 999, padding: '3px 11px' }}>{c}</span>
+          ))}
+        </div>
+      </div>
+      <p className="muted" style={{ fontSize: 12.5, margin: '0 0 16px' }}>
+        Booking connects you instantly — your consultation continues as a private chat, where they can see the plan and blood panel you choose to share.
       </p>
 
       {dietitians.data?.map((d) => (

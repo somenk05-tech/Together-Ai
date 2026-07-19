@@ -25,20 +25,47 @@ const TABS: { key: DietKey; label: string }[] = [
   { key: 'jain', label: 'Jain' },
 ];
 
+const INGREDIENT_CHIPS = ['Paneer', 'Spinach', 'Chicken', 'Oats', 'Chickpeas', 'Rice', 'Yogurt', 'Mushroom'];
+
 /** Recipes — the world database, diet-colour-coded like the vanilla planners. */
 export function Recipes() {
   const [diet, setDiet] = useState<DietKey>('everything');
+  const [query, setQuery] = useState('');
   const recipes = useRecipes(diet);
+
+  const q = query.trim().toLowerCase();
+  const shown = (recipes.data ?? []).filter((r) => !q || r.name.toLowerCase().includes(q) || r.country.toLowerCase().includes(q));
 
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
-      <div className="eyebrow">Nutrition Hub · Recipes</div>
-      <h1 style={{ fontSize: 26 }}>The world recipe database</h1>
+      <div className="eyebrow">Nutrition Hub · 10</div>
+      <h1 style={{ fontSize: 26 }}>Recipes 🍲</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
-        Every recipe carries a diet colour identity, full macros and per-plate portions.
+        Search by the ingredients you have, or browse the entire Together City world database —
+        <strong> 12,976 recipes across 42 countries</strong>. Every recipe carries ingredients, steps and full nutrition.
       </p>
 
       <AiSuggestions kind="recipes" />
+
+      {/* Search by ingredient / name */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="eyebrow" style={{ marginBottom: 8 }}>By ingredients</div>
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by ingredient, dish or cuisine…"
+          style={{ width: '100%', boxSizing: 'border-box', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', marginBottom: 10 }} />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {INGREDIENT_CHIPS.map((ing) => (
+            <button key={ing} type="button" onClick={() => setQuery(ing)}
+              style={{ cursor: 'pointer', borderRadius: 999, padding: '5px 13px', fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
+                border: `1.5px solid ${query === ing ? 'var(--accent)' : 'var(--line)'}`, background: query === ing ? 'var(--accent)' : 'transparent', color: query === ing ? '#fff' : 'var(--ink-soft)' }}>
+              {ing}
+            </button>
+          ))}
+          {query && <button type="button" onClick={() => setQuery('')} style={{ cursor: 'pointer', border: 'none', background: 'none', color: 'var(--accent)', fontWeight: 600, fontSize: 12 }}>Clear</button>}
+        </div>
+        <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
+          Tip: the more you list, the more precisely we can rank close matches — partial matches still show, just lower down.
+        </p>
+      </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
         {TABS.map((t) => {
@@ -67,7 +94,7 @@ export function Recipes() {
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
-        {recipes.data?.map((r) => {
+        {shown.map((r) => {
           const meta = DIET_META[r.diet as Exclude<DietKey, 'everything'>] ?? DIET_META.veg;
           return (
             <Link key={r.id} to={`/nutrition/recipes/${r.id}`} style={{ display: 'block' }}>
@@ -96,6 +123,13 @@ export function Recipes() {
           );
         })}
       </div>
+
+      <div style={{ textAlign: 'center', marginTop: 22 }}>
+        <Link to="/nutrition/daily" style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 14 }}>Go to Today’s Meal Plan →</Link>
+      </div>
+      <p className="muted" style={{ fontSize: 11.5, marginTop: 14, textAlign: 'center' }}>
+        Personalised for you · Expert guidance · Quality you can trust · Better every day
+      </p>
     </div>
   );
 }

@@ -1,10 +1,7 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useBuildCart, useGroceryCart, usePlaceOrder } from '../hooks';
+import { useBuildCart, useGroceryCart } from '../hooks';
 import type { GroceryItem } from '../api';
-import { payError, type PayMethod } from '@/features/financial/api';
-import { PaymentSheet } from '@/features/financial/PaymentSheet';
 
 function Section({ icon, title, note, items }: { icon: string; title: string; note: string; items: GroceryItem[] }) {
   if (items.length === 0) return null;
@@ -38,9 +35,6 @@ function Section({ icon, title, note, items }: { icon: string; title: string; no
 export function Grocery() {
   const cart = useGroceryCart();
   const build = useBuildCart();
-  const placeOrder = usePlaceOrder();
-  const navigate = useNavigate();
-  const [payOpen, setPayOpen] = useState(false);
 
   if (cart.isLoading) return <Spinner label="Checking your basket…" />;
 
@@ -51,11 +45,20 @@ export function Grocery() {
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
-      <div className="eyebrow">Nutrition Hub · Grocery Store</div>
-      <h1 style={{ fontSize: 26 }}>Your grocery basket</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
-        Built from your weekly plan. Fresh items arrive daily at your delivery time; pantry ships once.
+      <div className="eyebrow">Nutrition Hub · 05</div>
+      <h1 style={{ fontSize: 26 }}>Your grocery list 🛒</h1>
+      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 12px' }}>
+        Built from your saved meal plan · estimated retail prices. Split into fresh and pantry so you know what to buy.
       </p>
+
+      {/* Store & delivery — not live yet */}
+      <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, background: 'var(--paper)' }}>
+        <span style={{ fontSize: 18 }}>🏪</span>
+        <div>
+          <strong style={{ fontSize: 13.5 }}>Grocery store &amp; 11-min delivery — coming soon</strong>
+          <p className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>For now you get the shopping list from your plan; in-app ordering &amp; delivery arrive soon.</p>
+        </div>
+      </div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 18 }}>
         <Button variant="accent" disabled={build.isPending} onClick={() => build.mutate(undefined)}>
@@ -68,18 +71,11 @@ export function Grocery() {
           </span>
         )}
         {items.length > 0 && (
-          <Button variant="gold" onClick={() => setPayOpen(true)}>Checkout · ₹{total}</Button>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--muted)', border: '1.5px solid var(--line)', borderRadius: 999, padding: '8px 14px' }}>
+            Checkout — coming soon
+          </span>
         )}
       </div>
-      <PaymentSheet
-        open={payOpen}
-        amountInr={total}
-        label={`Grocery order · ${items.length} items`}
-        pending={placeOrder.isPending}
-        error={placeOrder.isError ? payError(placeOrder.error) : null}
-        onCancel={() => setPayOpen(false)}
-        onPay={(method: PayMethod) => placeOrder.mutate(method, { onSuccess: () => { setPayOpen(false); navigate('/nutrition/orders'); } })}
-      />
 
       {build.isError && (
         <p style={{ color: '#c0392b', fontSize: 13, marginBottom: 14 }}>
