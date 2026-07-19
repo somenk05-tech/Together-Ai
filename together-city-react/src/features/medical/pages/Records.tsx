@@ -47,7 +47,7 @@ export function Records() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim()) { setErr('Add a title for this record first.'); return; }
     setErr(null);
     if (file) {
       if (file.size > 25 * 1024 * 1024) { setErr('That file is over 25 MB.'); return; }
@@ -121,7 +121,7 @@ export function Records() {
         <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>Attach a report, prescription or scan (JPG, PNG, PDF) — it's stored in your vault.</p>
         {err && <p style={{ fontSize: 12.5, color: '#c62828', marginTop: 8 }}>{err}</p>}
         <div style={{ marginTop: 12 }}>
-          <Button type="submit" variant="accent" disabled={busy || add.isPending || !title.trim()}>
+          <Button type="submit" variant="accent" disabled={busy || add.isPending}>
             {busy ? 'Uploading…' : add.isPending ? 'Saving…' : file ? 'Upload & save' : 'Add record'}
           </Button>
         </div>

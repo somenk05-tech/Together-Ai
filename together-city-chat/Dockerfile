@@ -1,5 +1,7 @@
 # Together City API (NestJS + Prisma). Works on Railway, Render, Fly.io, or any Docker host.
-FROM node:20-slim
+# Node 22: required by the PDF text extractor (pdf-parse/pdfjs use Promise.withResolvers)
+# and by firebase-admin 14 / Prisma stream adapter.
+FROM node:22-slim
 WORKDIR /app
 
 # OpenSSL is required by Prisma's engines.

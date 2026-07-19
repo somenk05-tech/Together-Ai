@@ -47,7 +47,6 @@ export function BloodAnalysis() {
   const [extractNote, setExtractNote] = useState<string | null>(null);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
   const [savedFile, setSavedFile] = useState<{ id: string; name: string } | null>(null);
-  const [removing, setRemoving] = useState(false);
 
   const onFile = async (file: File | null) => {
     if (!file) return;
@@ -70,22 +69,6 @@ export function BloodAnalysis() {
       setUploadErr('Could not upload the report. Please check your connection and try again.');
     } finally {
       setExtracting(false);
-    }
-  };
-
-  const removeFile = async () => {
-    if (!savedFile) return;
-    setRemoving(true);
-    try {
-      await medicalApi.deleteRecord(savedFile.id);
-      setSavedFile(null);
-      setExtractNote('File removed from your vault. The values you entered are still here — save when ready.');
-      void qc.invalidateQueries({ queryKey: ['medical', 'storage'] });
-      void qc.invalidateQueries({ queryKey: ['medical', 'records'] });
-    } catch {
-      setUploadErr('Could not remove the file. Try again from Medical → Records.');
-    } finally {
-      setRemoving(false);
     }
   };
 
@@ -139,17 +122,9 @@ export function BloodAnalysis() {
         {extractNote && <p style={{ fontSize: 12.5, marginTop: 10, padding: '8px 10px', background: '#e8f5e9', borderRadius: 8 }}>✓ {extractNote}</p>}
         {uploadErr && <p style={{ fontSize: 12.5, marginTop: 10, color: '#c62828' }}>{uploadErr}</p>}
         {savedFile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10 }}>
-            <span style={{ fontSize: 16 }}>📎</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{savedFile.name}</div>
-              <div className="muted" style={{ fontSize: 11.5 }}>Saved in your private health vault</div>
-            </div>
-            <button type="button" onClick={() => void removeFile()} disabled={removing}
-              style={{ cursor: 'pointer', background: 'none', border: '1px solid var(--line)', borderRadius: 8, padding: '5px 12px', fontSize: 12.5, fontWeight: 600, color: '#c62828', fontFamily: 'inherit' }}>
-              {removing ? 'Removing…' : 'Delete file'}
-            </button>
-          </div>
+          <p style={{ fontSize: 12.5, marginTop: 10, padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10 }}>
+            📎 <b>{savedFile.name}</b> is saved in your <Link to="/medical/records" style={{ color: 'var(--accent)', fontWeight: 600 }}>Health Records</Link> — you can delete it there anytime.
+          </p>
         )}
       </div>
 
