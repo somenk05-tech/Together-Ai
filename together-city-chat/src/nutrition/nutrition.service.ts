@@ -76,6 +76,25 @@ function cuisineBias<T extends { country: string }>(list: T[], mix: Record<strin
 export interface RecipeShape {
   id: string; recipeNo: number | null; name: string; country: string; kcal: number; protein: number;
   carbs: number; fat: number; fiber: number; minutes: number; gramsPerServing: number; diet: Diet;
+  servings: number; // how many one-person plates the raw recipe yields
+}
+
+/**
+ * The world recipe database stores whole-recipe (batch) totals in `kcal` and
+ * `gramsPerServing`, so a single dish can read 5,000 kcal / 2,000 g — that's the
+ * pot, not a plate. We estimate how many one-person plates a batch yields from
+ * both its weight and its energy (whichever implies more servings), using
+ * per-slot reference plate sizes, so every surface can show a real single
+ * portion. Family plans then multiply a plate by the household headcount.
+ */
+const PLATE_GRAMS: Record<string, number> = { b: 350, l: 500, s: 200, d: 500 };
+const PLATE_KCAL: Record<string, number> = { b: 500, l: 700, s: 350, d: 700 };
+export function recipeServings(r: { slot?: string; kcal: number; gramsPerServing: number }): number {
+  const gRef = PLATE_GRAMS[r.slot ?? ''] ?? 450;
+  const kRef = PLATE_KCAL[r.slot ?? ''] ?? 650;
+  const byGrams = (r.gramsPerServing || 0) / gRef;
+  const byKcal = (r.kcal || 0) / kRef;
+  return Math.max(1, Math.min(20, Math.round(Math.max(byGrams, byKcal))));
 }
 
 export interface CalorieRow { id: string; userId: string; date: string; name: string; kcal: number; type: string; createdAt: Date }
@@ -237,7 +256,23 @@ export class NutritionService implements OnModuleInit {
   }
 
   /** Load the user's stored marker values, as a {key: value} map. */
+  /**
+   * Biomarkers that drive the plan — read from the Medical Hub (source of truth),
+   * scoped to the LATEST panel so multiple blood tests always use the most recent.
+   * Gated by the user's Nutrition consent (the "Connect to Medical Hub" toggle):
+   * off ⇒ no biomarkers ⇒ a generic plan. Consent defaults to granted.
+   */
   private async bloodValues(userId: string): Promise<Record<string, number>> {
+    const consent = await this.prisma.medicalConsent.findFirst({ where: { userId, hub: 'nutrition' } });
+    if (consent && !consent.granted) return {}; // user turned the connection off
+
+    const test = await this.prisma.medicalBloodTest.findFirst({
+      where: { userId }, orderBy: { takenOn: 'desc' }, include: { biomarkers: true },
+    });
+    if (test && test.biomarkers.length) {
+      return Object.fromEntries(test.biomarkers.map((b) => [b.key, b.value]));
+    }
+    // Fallback: legacy nutrition-local markers (pre-Medical-Hub).
     const rows = await this.prisma.bloodMarker.findMany({ where: { userId } });
     return Object.fromEntries(rows.map((r) => [r.key, r.value]));
   }
@@ -333,11 +368,16 @@ export class NutritionService implements OnModuleInit {
     let kcal = 0, protein = 0, carbs = 0, fat = 0, fiber = 0, cost = 0;
     for (const m of day.meals) {
       if (m.skipped) continue;
-      kcal += m.recipe.kcal; protein += m.recipe.protein; carbs += m.recipe.carbs;
-      fat += m.recipe.fat; fiber += m.recipe.fiber;
+      // Per-person plate values — the stored recipe holds whole-batch totals.
+      const s = recipeServings(m.recipe);
+      const per = (n: number) => (n || 0) / s;
+      kcal += per(m.recipe.kcal); protein += per(m.recipe.protein); carbs += per(m.recipe.carbs);
+      fat += per(m.recipe.fat); fiber += per(m.recipe.fiber);
       const ing = m.recipe.ingredients.reduce((sum, i) => sum + i.priceInr, 0);
-      cost += ing > 0 ? ing : Math.round(m.recipe.kcal * 0.11);
+      cost += ing > 0 ? Math.round(ing / s) : Math.round(per(m.recipe.kcal) * 0.11);
     }
+    kcal = Math.round(kcal); protein = Math.round(protein); carbs = Math.round(carbs);
+    fat = Math.round(fat); fiber = Math.round(fiber); cost = Math.round(cost);
     const cov = (p: number) => Math.max(15, Math.min(140, Math.round(p)));
     return {
       kcal, protein, carbs, fat, fiber, cost,
@@ -511,12 +551,21 @@ export class NutritionService implements OnModuleInit {
   /** Build a grocery list from a meal plan and/or a set of recipes, replacing
    *  the current list. Used by the weekly/daily/family planners and by recipe
    *  search / recipe detail ("generate grocery list"). */
-  async buildCart(userId: string, opts: { planKey?: string; recipeIds?: string[] }) {
+  async buildCart(userId: string, opts: { planKey?: string; recipeIds?: string[]; people?: number }) {
     const totals = new Map<string, { grams: number; price: number }>();
-    const addIngredients = (ings: Array<{ name: string; grams: number; priceInr: number }>) => {
-      for (const ing of ings) {
+    // Household headcount — 1 plate per person (individual = 1, family = N).
+    const people = Math.max(1, Math.min(30, Math.round(opts.people ?? 1)));
+    // Stored ingredients are whole-batch, so divide by the recipe's servings to
+    // get one plate, then multiply by headcount. A plate can't be zero-grams, so
+    // round up per ingredient after scaling.
+    const addRecipe = (recipe: { slot?: string; kcal: number; gramsPerServing: number; ingredients: Array<{ name: string; grams: number; priceInr: number }> }) => {
+      const s = recipeServings(recipe);
+      const factor = people / s;
+      for (const ing of recipe.ingredients) {
         const cur = totals.get(ing.name) ?? { grams: 0, price: 0 };
-        cur.grams += ing.grams; cur.price += ing.priceInr; totals.set(ing.name, cur);
+        cur.grams += Math.max(1, Math.round(ing.grams * factor));
+        cur.price += Math.round(ing.priceInr * factor);
+        totals.set(ing.name, cur);
       }
     };
 
@@ -531,11 +580,11 @@ export class NutritionService implements OnModuleInit {
         where: { key: planKey },
         include: { days: { include: { meals: { include: { recipe: { include: { ingredients: true } } } } } } },
       });
-      if (plan) for (const day of plan.days) for (const m of day.meals) { if (!m.skipped) addIngredients(m.recipe.ingredients); }
+      if (plan) for (const day of plan.days) for (const m of day.meals) { if (!m.skipped) addRecipe(m.recipe); }
     }
     if (opts.recipeIds?.length) {
       const recipes = await this.prisma.recipe.findMany({ where: { id: { in: opts.recipeIds.slice(0, 80) } }, include: { ingredients: true } });
-      for (const r of recipes) addIngredients(r.ingredients);
+      for (const r of recipes) addRecipe(r);
     }
     if (!totals.size) return this.getCart(userId);
 
@@ -776,16 +825,21 @@ export class NutritionService implements OnModuleInit {
   // ─────────────── shaping ───────────────
   private recipeShape(r: {
     id: string; name: string; country: string; kcal: number; protein: number; carbs: number;
-    fat: number; fiber: number; minutes: number; gramsPerServing: number; diet: string;
+    fat: number; fiber: number; minutes: number; gramsPerServing: number; diet: string; slot?: string;
   }): RecipeShape {
     // 'jainvegan' is an internal filtering tag — surface it to the UI as 'vegan'
     // (it is fully plant-based) so existing diet chips/colours render correctly.
     const displayDiet = (r.diet === 'jainvegan' ? 'vegan' : r.diet) as Diet;
+    // Normalise batch totals → one real single-person plate.
+    const s = recipeServings(r);
+    const per = (n: number) => Math.max(0, Math.round((n || 0) / s));
     return {
       id: r.id, recipeNo: (r as { recipeNo?: number | null }).recipeNo ?? null,
-      name: r.name, country: r.country, kcal: r.kcal, protein: r.protein,
-      carbs: r.carbs, fat: r.fat, fiber: r.fiber, minutes: r.minutes,
-      gramsPerServing: r.gramsPerServing, diet: displayDiet,
+      name: r.name, country: r.country,
+      kcal: per(r.kcal), protein: per(r.protein), carbs: per(r.carbs),
+      fat: per(r.fat), fiber: per(r.fiber), minutes: r.minutes,
+      gramsPerServing: Math.max(1, per(r.gramsPerServing)), diet: displayDiet,
+      servings: s,
     };
   }
 

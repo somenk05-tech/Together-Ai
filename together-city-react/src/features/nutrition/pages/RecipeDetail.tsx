@@ -42,7 +42,7 @@ export function RecipeDetail() {
         </span>
         <h1 style={{ fontSize: 28, margin: '10px 0 4px' }}>{r.name}</h1>
         <div className="muted" style={{ fontSize: 13 }}>
-          {r.recipeNo ? <>Recipe No.&nbsp;{r.recipeNo.toLocaleString('en-IN')} · </> : null}{r.country} · {r.minutes} min · {r.gramsPerServing} g per plate · ₹{cost} per serving
+          {r.recipeNo ? <>Recipe No.&nbsp;{r.recipeNo.toLocaleString('en-IN')} · </> : null}{r.country} · {r.minutes} min · {r.gramsPerServing} g per plate · ₹{Math.round(cost / Math.max(1, r.servings ?? 1))} per plate
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, margin: '20px 0' }}>
@@ -60,7 +60,12 @@ export function RecipeDetail() {
           ))}
         </div>
 
-        <h2 style={{ fontSize: 17, marginBottom: 10 }}>Ingredients</h2>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
+          <h2 style={{ fontSize: 17, margin: 0 }}>Ingredients</h2>
+          {(r.servings ?? 1) > 1 && (
+            <span className="muted" style={{ fontSize: 12 }}>Makes {r.servings} plates · nutrition shown per plate</span>
+          )}
+        </div>
         <div style={{ border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
           {r.ingredients.map((ing, i) => (
             <div

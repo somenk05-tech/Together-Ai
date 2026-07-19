@@ -3,7 +3,22 @@ import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Spinner } from '@/components/ui';
 import { mediaApi } from '@/api/media.api';
-import { useBloodHistory, useLatestPanel, useSaveBloodTest, medicalApi, type Citation } from '../api';
+import { useBloodHistory, useLatestPanel, useSaveBloodTest, useHealthSummary, medicalApi, type Citation } from '../api';
+
+/** Deterministic 0–100 wellness score ring. */
+function ScoreRing({ score, band }: { score: number; band: string }) {
+  const hue = score >= 85 ? 145 : score >= 70 ? 90 : score >= 55 ? 45 : 8;
+  return (
+    <div style={{ width: 82, height: 82, borderRadius: '50%', flex: '0 0 auto', background: `conic-gradient(hsl(${hue} 60% 45%) ${score * 3.6}deg, var(--line) 0)`, display: 'grid', placeItems: 'center' }}>
+      <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--card, #fff)', display: 'grid', placeItems: 'center', textAlign: 'center' }}>
+        <div>
+          <b style={{ fontSize: 21, lineHeight: 1 }}>{score}</b>
+          <div className="muted" style={{ fontSize: 9, letterSpacing: '.02em' }}>{band}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const FIELDS: { key: string; label: string; unit: string; ph: string }[] = [
   { key: 'hb', label: 'Hemoglobin', unit: 'g/dL', ph: '14.2' },
@@ -39,6 +54,7 @@ function Cites({ citations }: { citations: Citation[] }) {
 export function BloodAnalysis() {
   const latest = useLatestPanel();
   const history = useBloodHistory();
+  const summary = useHealthSummary();
   const save = useSaveBloodTest();
   const qc = useQueryClient();
   const [form, setForm] = useState<Record<string, string>>({});
@@ -110,6 +126,55 @@ export function BloodAnalysis() {
           ))}
         </div>
       )}
+
+      {summary.data?.hasPanel && (() => {
+        const sum = summary.data;
+        return (
+          <div className="card" style={{ marginTop: 18 }}>
+            <div className="eyebrow">Your health summary</div>
+            {sum.greeting && <p style={{ fontSize: 15.5, fontWeight: 600, margin: '6px 0 0' }}>{sum.greeting}</p>}
+            <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+              {sum.score != null && sum.band && <ScoreRing score={sum.score} band={sum.band} />}
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em' }}>Priority areas</div>
+                {sum.priorities.length ? (
+                  <ol style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 13.5, lineHeight: 1.6 }}>
+                    {sum.priorities.map((p, i) => <li key={i}>{p}</li>)}
+                  </ol>
+                ) : <p style={{ fontSize: 13, color: '#2e7d32', marginTop: 6 }}>No priority flags — every measured marker is in range.</p>}
+              </div>
+            </div>
+
+            {sum.interpretation.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>What your results may mean</div>
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13.5, lineHeight: 1.6 }}>{sum.interpretation.map((t, i) => <li key={i} style={{ marginBottom: 4 }}>{t}</li>)}</ul>
+              </div>
+            )}
+            {sum.relationships.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>How they connect</div>
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13.5, lineHeight: 1.6 }}>{sum.relationships.map((t, i) => <li key={i} style={{ marginBottom: 4 }}>{t}</li>)}</ul>
+              </div>
+            )}
+            {sum.discuss.length > 0 && (
+              <p style={{ marginTop: 12, padding: '10px 12px', background: '#fff8e1', borderLeft: '3px solid #f9a825', borderRadius: 6, fontSize: 13 }}>
+                <b>Worth discussing with your doctor:</b> {sum.discuss.join('; ')}.
+              </p>
+            )}
+            {sum.encouragement && (
+              <p style={{ marginTop: 14, padding: '12px 14px', background: 'var(--accent-soft)', borderRadius: 12, fontSize: 13.5, lineHeight: 1.6 }}>💛 {sum.encouragement}</p>
+            )}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+              <Link to="/nutrition/weekly"><Button variant="accent" size="sm">Nutrition plan →</Button></Link>
+              <Link to="/fitness"><Button variant="line" size="sm">Fitness plan →</Button></Link>
+              <Link to="/beauty"><Button variant="line" size="sm">Skin plan →</Button></Link>
+              <Link to="/medical/supplements"><Button variant="line" size="sm">Supplements →</Button></Link>
+            </div>
+            <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>{sum.disclaimer}{!sum.aiEnabled ? ' · AI interpretation off — showing rule-based guidance.' : ''}</p>
+          </div>
+        );
+      })()}
 
       {showForm ? (
       <>

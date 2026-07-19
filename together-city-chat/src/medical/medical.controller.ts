@@ -51,6 +51,11 @@ export class MedicalController {
     return this.medical.supplementPlan(user.sub);
   }
 
+  @Get('summary')
+  summary(@CurrentUser() user: JwtUser) {
+    return this.medical.healthSummary(user.sub);
+  }
+
   // ── records ──
   @Get('records')
   records(@CurrentUser() user: JwtUser) {

@@ -64,7 +64,7 @@ export function FamilyDaily() {
         {mains.map((m) => (
           <div key={m.slot}>
             <span style={chipStyle}>Family · cook together</span>
-            <MealCard meal={m}
+            <MealCard meal={m} people={N}
               onSwap={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))}
               onSkip={() => void mutate(nutritionApi.skipMeal(week.key, dayIndex, m.slot, !m.skipped))} />
           </div>
@@ -87,7 +87,7 @@ export function FamilyDaily() {
           <Link to="/family/weekly"><Button variant="line" style={{ width: '100%', justifyContent: 'center' }}>Open the full week</Button></Link>
           <Button variant="gold" disabled={buildCart.isPending} style={{ width: '100%', justifyContent: 'center' }}
             onClick={() => buildCart.mutate(
-              { recipeIds: day.meals.filter((m) => !m.skipped).map((m) => m.recipe.id) },
+              { recipeIds: day.meals.filter((m) => !m.skipped).map((m) => m.recipe.id), people: N },
               { onSuccess: () => navigate('/family/grocery') },
             )}>
             {buildCart.isPending ? 'Building…' : '🛒 Generate grocery list →'}

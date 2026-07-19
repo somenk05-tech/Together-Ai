@@ -114,7 +114,7 @@ export class MedicalService implements OnModuleInit {
     // file the document in the private vault (key only, no public URL)
     const rec = await this.prisma.medicalRecord.create({
       data: {
-        userId, kind: 'report', title: dto.title || 'Blood report', detail: 'Uploaded blood report',
+        userId, kind: 'blood-test', title: dto.title || 'Blood report', detail: 'Uploaded blood report',
         fileUrl: null, fileKey: dto.fileKey, mimeType: dto.mimeType, sizeBytes: dto.sizeBytes,
         recordedOn: new Date(),
       } as never,
@@ -252,6 +252,84 @@ export class MedicalService implements OnModuleInit {
     });
     if (!test) return { markers: [], alerts: [], conditions: [], takenOn: null };
     return this.analyze(userId, test.id);
+  }
+
+  // ─────────────── AI Health Summary (deterministic score + AI narrative) ───────────────
+  /**
+   * A personal health report from the latest panel: a deterministic 0–100 score
+   * and priority ranking (from the cited engine, so they're stable), plus a warm,
+   * AI-written interpretation addressed to the person by name. Educational only.
+   */
+  async healthSummary(userId: string) {
+    const disclaimer = 'An educational summary grounded in established clinical-nutrition guidance — not a diagnosis. Please review any flagged findings with your doctor.';
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+    const name = user?.name ?? 'there';
+    const first = name.split(' ')[0];
+    const test = await this.prisma.medicalBloodTest.findFirst({ where: { userId }, orderBy: { takenOn: 'desc' }, include: { biomarkers: true } });
+    if (!test) {
+      return { hasPanel: false, name: first, score: null, band: null, priorities: [], greeting: `Dear ${first},`, interpretation: [], relationships: [], discuss: [], encouragement: '', aiEnabled: this.ai.enabled, takenOn: null, lab: null, disclaimer };
+    }
+
+    const values = Object.fromEntries(test.biomarkers.map((b) => [b.key, b.value]));
+    const crp = values.crp;
+    const flags = flagsFor(values);
+    const markers = MARKER_RULES.filter((r) => r.key in values).map((rule) => {
+      const ev = evaluateMarker(rule, values[rule.key], crp);
+      return { key: rule.key, label: rule.label, unit: rule.unit, value: values[rule.key], range: `${rule.min}–${rule.max}`, status: ev.status, advice: ev.advice };
+    });
+    const abnormal = markers.filter((m) => m.status !== 'normal');
+    const alerts = criticalAlerts(values);
+    const conditions = triggeredConditions(flags);
+
+    // Deterministic score (from flags + alerts — stable, not AI).
+    let score = 100 - abnormal.length * 8;
+    for (const a of alerts) score -= a.urgent ? 18 : 12;
+    score = Math.max(5, Math.min(100, Math.round(score)));
+    const band = score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 55 ? 'Fair' : 'Needs attention';
+
+    // Deterministic priority ranking.
+    const PRI: Record<string, { label: string; w: number }> = {
+      hb: { label: 'Address low hemoglobin', w: 9 },
+      hba1c: { label: 'Optimise blood sugar control', w: 9 },
+      trig: { label: 'Lower triglycerides', w: 8 },
+      ldl: { label: 'Lower LDL cholesterol', w: 7 },
+      crp: { label: 'Reduce inflammation', w: 7 },
+      ferritin: { label: 'Rebuild iron stores', w: 6 },
+      b12: { label: 'Correct low B12', w: 5 },
+      folate: { label: 'Increase folate', w: 5 },
+      vitd: { label: 'Improve vitamin D status', w: 4 },
+    };
+    const priorities = abnormal
+      .map((m) => ({ label: PRI[m.key]?.label ?? `Review ${m.label}`, w: (PRI[m.key]?.w ?? 3) + (m.status === 'high' ? 1 : 0) }))
+      .sort((a, b) => b.w - a.w)
+      .slice(0, 5)
+      .map((p) => p.label);
+
+    // AI narrative (Opus). Deterministic fallbacks when AI is off / returns empty.
+    const payload = `Person: ${first}.\nMarkers:\n`
+      + markers.map((m) => `- ${m.label}: ${m.value} ${m.unit} (ref ${m.range}) → ${m.status.toUpperCase()}`).join('\n')
+      + (alerts.length ? `\nCritical alerts: ${alerts.map((a) => `${a.label} ${a.value}`).join('; ')}` : '')
+      + (conditions.length ? `\nCondition patterns detected: ${conditions.map((c) => c.name).join(', ')}` : '')
+      + `\nComputed overall score: ${score}/100 (${band}).`;
+    const ai = await this.ai.clinicalInterpretation(payload, name);
+
+    const interpretation = ai.interpretation.length
+      ? ai.interpretation
+      : abnormal.length
+        ? abnormal.map((m) => `${m.label} is ${m.status} at ${m.value} ${m.unit} (reference ${m.range}). ${m.advice}`)
+        : ['All measured markers are within their reference ranges — a great baseline to maintain.'];
+    const encouragement = ai.encouragement || (abnormal.length
+      ? `These are all things you can move in the right direction, ${first}. Small, steady changes add up — and you've already taken the most important step by looking closely.`
+      : `Lovely results, ${first} — everything's in range. Keep doing what you're doing.`);
+
+    return {
+      hasPanel: true, name: first, score, band, priorities,
+      greeting: ai.greeting, interpretation, relationships: ai.relationships,
+      discuss: ai.discuss.length ? ai.discuss : (alerts.length ? alerts.map((a) => `${a.label} (${a.value})`) : []),
+      encouragement,
+      aiEnabled: this.ai.enabled,
+      takenOn: test.takenOn.toISOString().slice(0, 10), lab: test.lab, disclaimer,
+    };
   }
 
   // ─────────────── per-user supplementation (transparent reasoning) ───────────────

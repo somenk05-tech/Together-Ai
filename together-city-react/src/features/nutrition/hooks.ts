@@ -55,7 +55,7 @@ export function useGroceryCart() {
 export function useBuildCart() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (opts?: { planKey?: string; recipeIds?: string[] }) => nutritionApi.buildCart(opts),
+    mutationFn: (opts?: { planKey?: string; recipeIds?: string[]; people?: number }) => nutritionApi.buildCart(opts),
     onSuccess: (cart) => qc.setQueryData(['nutrition', 'cart'], cart),
   });
 }

@@ -12,13 +12,27 @@ const MSTATUS: Record<string, { color: string; bg: string; label: string }> = {
 };
 
 const KINDS: { key: string; label: string; icon: string }[] = [
-  { key: 'condition', label: 'Condition', icon: '🩺' },
-  { key: 'prescription', label: 'Prescription', icon: '💊' },
-  { key: 'report', label: 'Report', icon: '📄' },
-  { key: 'allergy', label: 'Allergy', icon: '⚠️' },
-  { key: 'vaccination', label: 'Vaccination', icon: '💉' },
-  { key: 'note', label: 'Note', icon: '📝' },
+  { key: 'blood-test', label: 'Blood Tests', icon: '🩸' },
+  { key: 'urine-test', label: 'Urine Tests', icon: '🧫' },
+  { key: 'stool-test', label: 'Stool Tests', icon: '🔬' },
+  { key: 'imaging', label: 'Scans & Imaging', icon: '🩻' },
+  { key: 'heart-test', label: 'Heart Tests', icon: '❤️' },
+  { key: 'lung-test', label: 'Lung Tests', icon: '🫁' },
+  { key: 'brain-test', label: 'Brain Tests', icon: '🧠' },
+  { key: 'eye-test', label: 'Eye Tests', icon: '👁️' },
+  { key: 'bone-joint', label: 'Bone & Joint Tests', icon: '🦴' },
+  { key: 'genetic', label: 'Genetic Tests', icon: '🧬' },
+  { key: 'womens-health', label: "Women's Health", icon: '♀️' },
+  { key: 'mens-health', label: "Men's Health", icon: '♂️' },
+  { key: 'prescription', label: 'Prescriptions', icon: '💊' },
+  { key: 'report', label: 'Medical Reports', icon: '📄' },
+  { key: 'condition', label: 'Medical Conditions', icon: '🩺' },
+  { key: 'allergy', label: 'Allergies', icon: '⚠️' },
+  { key: 'vaccination', label: 'Vaccinations', icon: '💉' },
+  { key: 'hospital', label: 'Hospital Records', icon: '🏥' },
+  { key: 'note', label: 'Doctor Notes', icon: '📝' },
 ];
+const labelFor = (k: string) => KINDS.find((x) => x.key === k)?.label ?? k;
 const iconFor = (k: string) => KINDS.find((x) => x.key === k)?.icon ?? '📁';
 const fmtBytes = (n: number) => {
   if (!n) return '0 B';
@@ -35,7 +49,7 @@ export function Records() {
   const add = useAddRecord();
   const del = useDeleteRecord();
   const qc = useQueryClient();
-  const [kind, setKind] = useState('condition');
+  const [kind, setKind] = useState('blood-test');
   const [title, setTitle] = useState('');
   const [detail, setDetail] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -92,6 +106,17 @@ export function Records() {
       <div className="muted" style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</div>
     </div>
   );
+  // Group stored records under their category heads.
+  const known = new Set(KINDS.map((k) => k.key));
+  const groups = [
+    ...KINDS.map((k) => ({ key: k.key, label: k.label, icon: k.icon, items: (records.data ?? []).filter((r) => r.kind === k.key) })),
+    { key: '__other', label: 'Other', icon: '📁', items: (records.data ?? []).filter((r) => !known.has(r.kind)) },
+  ].filter((g) => g.items.length);
+  // Health timeline — blood panels + records merged chronologically (newest first).
+  const timeline = [
+    ...(history.data ?? []).map((t) => ({ date: t.takenOn, icon: '🩸', title: `Blood panel${t.lab ? ` · ${t.lab}` : ''}`, sub: `${t.markerCount} markers${t.flagged.length ? ` · ${t.flagged.length} flagged` : ''}` })),
+    ...(records.data ?? []).map((r) => ({ date: r.recordedOn, icon: iconFor(r.kind), title: r.title, sub: labelFor(r.kind) })),
+  ].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 25);
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
@@ -208,37 +233,68 @@ export function Records() {
         </div>
       </form>
 
-      <div style={{ marginTop: 18 }}>
-        {(records.data ?? []).length === 0 ? (
-          <EmptyState icon="🗂️" title="No records yet" hint="Add your first condition, prescription or report above." />
-        ) : (
-          records.data?.map((r) => (
-            <article key={r.id} className="card" style={{ marginBottom: 12, display: 'flex', gap: 12 }}>
-              <span style={{ fontSize: 22 }}>{iconFor(r.kind)}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <strong style={{ fontSize: 14.5 }}>{r.title}</strong>
-                  <span className="pill" style={{ border: '1px solid var(--line)', borderRadius: 999, padding: '1px 9px', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)' }}>{r.kind}</span>
-                  <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>{r.recordedOn}</span>
+      {groups.length === 0 ? (
+        <div style={{ marginTop: 18 }}>
+          <EmptyState icon="🗂️" title="No records yet" hint="Pick a category above, add a title, attach a file — it's filed under that heading." />
+        </div>
+      ) : (
+        <div style={{ marginTop: 18 }}>
+          {groups.map((g) => (
+            <div key={g.key} style={{ marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 2px 8px' }}>
+                <span style={{ fontSize: 16 }}>{g.icon}</span>
+                <h3 style={{ fontSize: 14.5, margin: 0 }}>{g.label}</h3>
+                <span className="muted" style={{ fontSize: 12 }}>({g.items.length})</span>
+              </div>
+              {g.items.map((r) => (
+                <article key={r.id} className="card" style={{ marginBottom: 10, display: 'flex', gap: 12 }}>
+                  <span style={{ fontSize: 20 }}>{iconFor(r.kind)}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                      <strong style={{ fontSize: 14 }}>{r.title}</strong>
+                      <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>{r.recordedOn}</span>
+                    </div>
+                    {r.detail && <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '4px 0 0' }}>{r.detail}</p>}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                      {r.hasFile && (
+                        <button type="button" onClick={() => void openFile(r.id)}
+                          style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontSize: 12.5, fontWeight: 600, color: 'var(--accent)', fontFamily: 'inherit' }}>
+                          View file{r.sizeBytes ? ` · ${fmtBytes(r.sizeBytes)}` : ''} ↗
+                        </button>
+                      )}
+                      <button type="button" onClick={() => del.mutate(r.id)} disabled={del.isPending}
+                        style={{ marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', color: '#c62828', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit' }}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Health Timeline — panels + records, most recent first */}
+      {timeline.length > 0 && (
+        <div className="card" style={{ marginTop: 18 }}>
+          <div className="eyebrow">Health timeline</div>
+          <div style={{ marginTop: 12 }}>
+            {timeline.map((t, i) => (
+              <div key={i} style={{ display: 'flex', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span style={{ fontSize: 15 }}>{t.icon}</span>
+                  {i < timeline.length - 1 && <span style={{ flex: 1, width: 2, background: 'var(--line)', margin: '4px 0' }} />}
                 </div>
-                {r.detail && <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '4px 0 0' }}>{r.detail}</p>}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-                  {r.hasFile && (
-                    <button type="button" onClick={() => void openFile(r.id)}
-                      style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontSize: 12.5, fontWeight: 600, color: 'var(--accent)', fontFamily: 'inherit' }}>
-                      View file{r.sizeBytes ? ` · ${fmtBytes(r.sizeBytes)}` : ''} ↗
-                    </button>
-                  )}
-                  <button type="button" onClick={() => del.mutate(r.id)} disabled={del.isPending}
-                    style={{ marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', color: '#c62828', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit' }}>
-                    Delete
-                  </button>
+                <div style={{ flex: 1, minWidth: 0, paddingBottom: i < timeline.length - 1 ? 14 : 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600 }}>{t.title}</div>
+                  <div className="muted" style={{ fontSize: 12 }}>{t.date}{t.sub ? ` · ${t.sub}` : ''}</div>
                 </div>
               </div>
-            </article>
-          ))
-        )}
-      </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

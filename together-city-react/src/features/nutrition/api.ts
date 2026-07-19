@@ -31,7 +31,7 @@ export const nutritionApi = {
   recipe: (id: string) =>
     api.get<RecipeDetail>(`/nutrition/recipes/${id}`).then((r) => r.data),
   cart: () => api.get<GroceryCart>('/nutrition/cart').then((r) => r.data),
-  buildCart: (opts?: { planKey?: string; recipeIds?: string[] }) =>
+  buildCart: (opts?: { planKey?: string; recipeIds?: string[]; people?: number }) =>
     api.post<GroceryCart>('/nutrition/cart', opts ?? {}).then((r) => r.data),
   blood: () => api.get<BloodPanel>('/nutrition/blood').then((r) => r.data),
   saveBlood: (input: Record<string, number>) =>

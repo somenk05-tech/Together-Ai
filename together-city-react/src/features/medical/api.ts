@@ -27,6 +27,12 @@ export interface SupplementPlan {
   items: SupplementItem[]; totalInr: number; safety: string;
 }
 
+export interface HealthSummary {
+  hasPanel: boolean; name: string; score: number | null; band: string | null;
+  priorities: string[]; greeting: string; interpretation: string[]; relationships: string[];
+  discuss: string[]; encouragement: string; aiEnabled: boolean;
+  takenOn: string | null; lab: string | null; disclaimer: string;
+}
 export interface MedicalRecord { id: string; kind: string; title: string; detail: string | null; hasFile?: boolean; mimeType?: string | null; sizeBytes?: number; recordedOn: string }
 export interface StorageUsage { quotaBytes: number; usedBytes: number; mailBytes: number; healthBytes: number; usedPct: number; remainingBytes: number }
 export interface ExtractResult { recordId: string; aiEnabled: boolean; extracted: Record<string, number>; markerCount: number; lab: string | null; takenOn: string | null; note: string }
@@ -51,6 +57,7 @@ export const medicalApi = {
   latest: () => api.get<BloodAnalysis>('/medical/blood-tests/latest').then((r) => r.data),
   analyze: (id: string) => api.get<BloodAnalysis>(`/medical/blood-tests/${id}`).then((r) => r.data),
   supplementPlan: () => api.get<SupplementPlan>('/medical/supplement-plan').then((r) => r.data),
+  summary: () => api.get<HealthSummary>('/medical/summary').then((r) => r.data),
   storage: () => api.get<StorageUsage>('/medical/storage').then((r) => r.data),
   deleteRecord: (id: string) => api.delete<MedicalRecord[]>(`/medical/records/${id}`).then((r) => r.data),
   uploadDocument: (input: { kind: string; title: string; detail?: string; fileKey: string; mimeType?: string; sizeBytes: number }) =>
@@ -85,11 +92,15 @@ export function useSaveBloodTest() {
       qc.setQueryData(['medical', 'latest'], analysis);
       void qc.invalidateQueries({ queryKey: ['medical', 'history'] });
       void qc.invalidateQueries({ queryKey: ['medical', 'supplements'] });
+      void qc.invalidateQueries({ queryKey: ['medical', 'summary'] });
     },
   });
 }
 export function useMedicalSupplementPlan() {
   return useQuery({ queryKey: ['medical', 'supplements'], queryFn: () => medicalApi.supplementPlan() });
+}
+export function useHealthSummary() {
+  return useQuery({ queryKey: ['medical', 'summary'], queryFn: () => medicalApi.summary() });
 }
 export function useRecords() {
   return useQuery({ queryKey: ['medical', 'records'], queryFn: () => medicalApi.records() });

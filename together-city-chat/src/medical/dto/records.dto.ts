@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
+// kind is a category slug the frontend controls (blood-test, imaging, prescription, …).
 export const AddRecordSchema = z.object({
-  kind: z.enum(['prescription', 'report', 'condition', 'allergy', 'vaccination', 'note']),
+  kind: z.string().min(1).max(40),
   title: z.string().min(1).max(160),
   detail: z.string().max(2000).optional(),
   fileUrl: z.string().url().optional(),
@@ -12,7 +13,7 @@ export type AddRecordDto = z.infer<typeof AddRecordSchema>;
 /** Record a health document already uploaded to the PRIVATE vault (bytes hit the
  *  shared 10 GB). We store the object key only — never a public URL. */
 export const UploadDocSchema = z.object({
-  kind: z.enum(['prescription', 'report', 'condition', 'allergy', 'vaccination', 'note']),
+  kind: z.string().min(1).max(40),
   title: z.string().min(1).max(160),
   detail: z.string().max(2000).optional(),
   fileKey: z.string().min(1).max(300),

@@ -64,10 +64,13 @@ export function FamilyGrocery() {
       </div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', margin: '18px 0' }}>
-        <Button variant="accent" disabled={build.isPending} onClick={() => build.mutate(undefined)}>
+        <Button variant="accent" disabled={build.isPending} onClick={() => build.mutate({ people: N })}>
           {build.isPending ? 'Building…' : items.length ? 'Rebuild from family plan' : 'Build from family plan'}
         </Button>
         <Link to="/family/weekly"><Button variant="line">Open planner</Button></Link>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--muted)', border: '1.5px solid var(--line)', borderRadius: 999, padding: '8px 14px' }}>
+          Portioned for {N} {N === 1 ? 'person' : 'people'}
+        </span>
         {items.length > 0 && (
           <span style={{ marginLeft: 'auto', fontFamily: 'var(--serif)', fontSize: 19, fontWeight: 600 }}>Total ₹{total}</span>
         )}

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
 import { useFoodPref, useNutritionTargets, useUpdateFoodPref } from '../hooks';
@@ -50,6 +50,16 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DELIVERY = ['Morning (6–9am)', 'Midday (12–2pm)', 'Evening (5–8pm)'];
 const CONDITIONS = ['Diabetes', 'Hypertension', 'PCOS', 'Kidney Disease', 'Fatty Liver'];
 const WELLNESS_GOALS = ['Lose Fat', 'Gain Muscle', 'Improve Gut Health', 'Improve Skin', 'Better Hair', 'Lower Cholesterol', 'Better Sleep', 'Higher Energy', 'Diabetes Control', 'Heart Health'];
+// Auto-detected from a flagged blood marker → pre-selected concern/goal.
+const COND_FROM_MARKER: Record<string, string> = { hba1c: 'Diabetes' };
+const GOALS_FROM_MARKER: Record<string, string[]> = {
+  hba1c: ['Diabetes Control'],
+  ldl: ['Lower Cholesterol', 'Heart Health'],
+  trig: ['Lower Cholesterol', 'Heart Health'],
+  hb: ['Higher Energy'],
+  ferritin: ['Higher Energy'],
+};
+const uniq = (a: string[]) => [...new Set(a)];
 
 interface Extras {
   cuisines?: string[];               // legacy multi-select (migrated to cuisineMix)
@@ -125,6 +135,8 @@ export function Preferences() {
   const [saved, setSaved] = useState(false);
   const [dietChosen, setDietChosen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [exLoaded, setExLoaded] = useState(false);
+  const detectedMerged = useRef(false);
 
   useEffect(() => {
     if (existing.data && !form) {
@@ -134,8 +146,28 @@ export function Preferences() {
       setEx(parsed);
       // Returning users who've already configured proteins/meats see the full form.
       setDietChosen(Boolean(parsed.proteins?.length || parsed.meats?.length));
+      setExLoaded(true);
     }
   }, [existing.data, form]);
+
+  // Pre-select health conditions + goals from the latest blood panel (once, after
+  // the saved profile has loaded) — "if there's blood data, feed it in; else the
+  // user picks." Blood-derived picks are merged on top of anything already saved.
+  useEffect(() => {
+    if (detectedMerged.current || !exLoaded) return;
+    const t = (bloodHistory.data ?? []).slice().sort((a, b) => (a.takenOn < b.takenOn ? 1 : -1));
+    if (!t.length) return; // wait for panels to load
+    detectedMerged.current = true;
+    const fl = t[0].flagged ?? [];
+    const dc = uniq(fl.map((f) => COND_FROM_MARKER[f.key]).filter((x): x is string => !!x));
+    const dg = uniq(fl.flatMap((f) => GOALS_FROM_MARKER[f.key] ?? []));
+    if (!dc.length && !dg.length) return;
+    setEx((prev) => ({
+      ...prev,
+      healthConditions: uniq([...(prev.healthConditions ?? []), ...dc]),
+      healthGoals: uniq([...(prev.healthGoals ?? []), ...dg]),
+    }));
+  }, [exLoaded, bloodHistory.data]);
 
   if (existing.isLoading || !form) return <Spinner label="Loading your preferences…" />;
 
@@ -158,11 +190,13 @@ export function Preferences() {
   // Blood test status (from the Medical hub).
   const tests = (bloodHistory.data ?? []).slice().sort((a, b) => (a.takenOn < b.takenOn ? 1 : -1));
   const bloodConnected = tests.length > 0;
-  const bloodLastUpdated = bloodConnected ? new Date(tests[0].takenOn).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+  const flagged = tests[0]?.flagged ?? [];
+  const detectedConditions = uniq(flagged.map((f) => COND_FROM_MARKER[f.key]).filter((x): x is string => !!x));
+  const detectedGoals = uniq(flagged.flatMap((f) => GOALS_FROM_MARKER[f.key] ?? []));
 
-  const chipGroup = (key: 'healthConditions' | 'equipment' | 'healthGoals', items: string[]) => (
+  const chipGroup = (key: 'healthConditions' | 'equipment' | 'healthGoals', items: string[], detected: string[] = []) => (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-      {items.map((v) => <Chip key={v} on={(ex[key] ?? []).includes(v)} onClick={() => setMulti(key, v)}>{v}</Chip>)}
+      {items.map((v) => <Chip key={v} on={(ex[key] ?? []).includes(v)} onClick={() => setMulti(key, v)}>{v}{detected.includes(v) ? ' 🩸' : ''}</Chip>)}
       <Chip on={(ex[key] ?? []).length === 0} onClick={() => setEx({ ...ex, [key]: [] })}>None</Chip>
     </div>
   );
@@ -223,7 +257,7 @@ export function Preferences() {
     ['Goal', goalLabel],
     ['Health goals', (ex.healthGoals ?? []).join(', ') || '—'],
     ['Conditions', (ex.healthConditions ?? []).join(', ') || 'None'],
-    ['Blood test', bloodConnected ? `Connected · ${bloodLastUpdated}` : 'Not connected'],
+    ['Blood test', bloodConnected ? 'Connected' : 'Not connected'],
     ['Cuisine mix', cuisineSummary],
     ['Protein sources', (ex.proteins ?? []).join(', ') || '—'],
     ['Meats', isVegDiet ? 'None (vegetarian)' : (ex.meats ?? []).join(', ') || '—'],
@@ -295,15 +329,12 @@ export function Preferences() {
           <div style={{ flex: 1, minWidth: 200 }}>
             <div className="eyebrow">Health profile</div>
             {bloodConnected ? (
-              <p style={{ fontSize: 14, margin: '4px 0 0', fontWeight: 600, color: '#2e7d32' }}>
-                ✓ Blood test connected
-                <span className="muted" style={{ display: 'block', fontSize: 12, fontWeight: 400 }}>Last updated {bloodLastUpdated}</span>
-              </p>
+              <p style={{ fontSize: 14, margin: '4px 0 0', fontWeight: 600, color: '#2e7d32' }}>✓ Blood test connected</p>
             ) : (
               <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>Connect a blood test so your plans adapt to your biomarkers.</p>
             )}
           </div>
-          <Link to="/medical/blood"><Button type="button" variant={bloodConnected ? 'line' : 'accent'} size="sm">{bloodConnected ? 'View / update →' : 'Connect blood test →'}</Button></Link>
+          {!bloodConnected && <Link to="/medical/blood"><Button type="button" variant="accent" size="sm">Connect blood test →</Button></Link>}
         </div>
 
         {/* 1 · Cuisine mix */}
@@ -437,15 +468,23 @@ export function Preferences() {
         {/* 4b · Health conditions */}
         <div className="card" style={{ marginTop: 16 }}>
           <div className="eyebrow">Health conditions</div>
-          <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 10px' }}>We use these to safely filter recipes and adjust your plan. Private to you.</p>
-          {chipGroup('healthConditions', CONDITIONS)}
+          <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 10px' }}>
+            {bloodConnected
+              ? '🩸 marks concerns we detected from your blood test — pre-selected for you. Add any others you know of. We use these to safely filter recipes and adjust your plan. Private to you.'
+              : 'We use these to safely filter recipes and adjust your plan. Private to you.'}
+          </p>
+          {chipGroup('healthConditions', CONDITIONS, detectedConditions)}
         </div>
 
         {/* 4d · Health goals (multi-select wellness goals) */}
         <div className="card" style={{ marginTop: 16 }}>
           <div className="eyebrow">Health goals</div>
-          <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 10px' }}>Pick everything you’re working towards — plans and recipes lean this way.</p>
-          {chipGroup('healthGoals', WELLNESS_GOALS)}
+          <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 10px' }}>
+            {bloodConnected
+              ? '🩸 marks goals your blood test points to — pre-selected. Add anything else you’re working towards; plans and recipes lean this way.'
+              : 'Pick everything you’re working towards — plans and recipes lean this way.'}
+          </p>
+          {chipGroup('healthGoals', WELLNESS_GOALS, detectedGoals)}
         </div>
 
         {/* 5 · Health & goals */}

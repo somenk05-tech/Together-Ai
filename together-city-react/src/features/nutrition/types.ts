@@ -13,7 +13,8 @@ export interface Recipe {
   fat: number;
   fiber: number;
   minutes: number;
-  gramsPerServing: number;   // r.g — grams one person eats
+  gramsPerServing: number;   // grams one person eats (per plate)
+  servings?: number;         // one-person plates the raw batch recipe yields
   diet: DietKey;
 }
 

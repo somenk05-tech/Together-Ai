@@ -136,6 +136,53 @@ export class AiService {
     }
   }
 
+  /**
+   * AI clinical interpretation of a blood panel — narrative only. The numeric
+   * score + priority ranking are computed deterministically by the caller from
+   * the cited engine; this adds the plain-language "what it may mean / how markers
+   * relate / what to discuss" layer. Educational, never a diagnosis. Uses the
+   * blood (Opus) model. Empty arrays on fallback.
+   */
+  async clinicalInterpretation(payload: string, name: string): Promise<{ greeting: string; interpretation: string[]; relationships: string[]; discuss: string[]; encouragement: string }> {
+    const first = (name || 'there').split(' ')[0];
+    const fallback = { greeting: `Dear ${first},`, interpretation: [] as string[], relationships: [] as string[], discuss: [] as string[], encouragement: '' };
+    if (!this.client) return fallback;
+    const system =
+      `You are a warm, encouraging clinical-nutrition educator writing a personal report for ${first}. ` +
+      'Given their blood markers (value, status vs reference range) and profile, return ONLY JSON: ' +
+      '{"greeting": string, "interpretation": string[], "relationships": string[], "discuss": string[], "encouragement": string}. ' +
+      `greeting: a warm personal opening addressing them by name, e.g. "Dear ${first},". ` +
+      'interpretation: 3–6 short plain-language bullets on what each abnormal result may indicate. ' +
+      'relationships: 1–3 bullets on how the abnormal markers relate to one another (e.g. glucose + triglycerides). ' +
+      'discuss: the findings worth raising with a healthcare professional. ' +
+      'encouragement: 2–3 warm, human sentences — supportive and motivating, acknowledging that these findings are actionable and that small consistent steps help, without minimising anything real or being falsely reassuring. ' +
+      'Rules: educational ONLY, never a diagnosis, no medication names, no dosages, no treatment prescriptions. ' +
+      'Be specific to the actual values. If all markers are normal, celebrate that warmly and keep the clinical arrays empty.';
+    try {
+      const res = await this.client.messages.create({
+        model: this.bloodModel,
+        max_tokens: 1400,
+        system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
+        messages: [{ role: 'user', content: payload }],
+      });
+      const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('');
+      const p = this.extractJson(text) as { greeting?: unknown; interpretation?: unknown; relationships?: unknown; discuss?: unknown; encouragement?: unknown } | null;
+      if (!p) return fallback;
+      const arr = (x: unknown): string[] => (Array.isArray(x) ? x.filter((s): s is string => typeof s === 'string').slice(0, 8) : []);
+      const str = (x: unknown, d: string): string => (typeof x === 'string' && x.trim() ? x : d);
+      return {
+        greeting: str(p.greeting, `Dear ${first},`),
+        interpretation: arr(p.interpretation),
+        relationships: arr(p.relationships),
+        discuss: arr(p.discuss),
+        encouragement: str(p.encouragement, ''),
+      };
+    } catch (e) {
+      this.logger.warn(`Clinical interpretation failed: ${(e as Error).message}`);
+      return fallback;
+    }
+  }
+
   private extractJson(text: string): unknown {
     const trimmed = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
     try {
