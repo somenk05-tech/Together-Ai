@@ -28,6 +28,7 @@ import { EntertainmentModule } from './entertainment/entertainment.module';
 import { TravelModule } from './travel/travel.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { MailModule } from './mail/mail.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { MailModule } from './mail/mail.module';
     PrismaModule,
     RedisModule,
     EventsModule,
+    AiModule,
     AuthModule,
     UsersModule,
     ConnectionsModule,

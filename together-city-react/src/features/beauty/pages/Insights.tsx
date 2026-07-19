@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
+import { AiSuggestions } from '@/components/AiSuggestions';
 import { useBeautyInsights, isConsentBlocked, type BeautyInsight } from '../api';
 
 const statusColor = (s: string) => (s === 'low' ? '#c62828' : s === 'high' ? '#e65100' : 'var(--muted)');
@@ -53,6 +54,8 @@ export function Insights() {
       <div className="eyebrow">Beauty Market · Insights</div>
       <h1 style={{ fontSize: 26 }}>What your labs say for skin & hair</h1>
       <p className="muted" style={{ fontSize: 13, margin: '6px 0 4px' }}>{q.data.source}</p>
+
+      <AiSuggestions kind="beauty" />
 
       {!hasPanel ? (
         <div className="card" style={{ marginTop: 14 }}>

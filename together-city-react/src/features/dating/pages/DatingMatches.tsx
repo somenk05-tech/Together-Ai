@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
+import { AiSuggestions } from '@/components/AiSuggestions';
 import {
   useDatingProfile, useLikeMatch, useUnlockChat, useMatches, usePassMatch, type CuratedMatch, type MatchKind,
 } from '../api';
@@ -131,6 +132,8 @@ export function DatingMatches() {
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
         Curated, not endless — the city only shows real matches of 75% or higher.
       </p>
+
+      <AiSuggestions kind="astrology" />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
         {(['romantic', 'platonic'] as MatchKind[]).map((k) => (

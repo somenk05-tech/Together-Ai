@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, Spinner } from '@/components/ui';
+import { AiSuggestions } from '@/components/AiSuggestions';
 import { useRecipes } from '../hooks';
 import type { DietKey } from '../types';
 
@@ -36,6 +37,8 @@ export function Recipes() {
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
         Every recipe carries a diet colour identity, full macros and per-plate portions.
       </p>
+
+      <AiSuggestions kind="recipes" />
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
         {TABS.map((t) => {

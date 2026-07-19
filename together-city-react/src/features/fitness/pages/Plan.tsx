@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
+import { AiSuggestions } from '@/components/AiSuggestions';
 import { useFitnessPlan, type Session, type ConditionAdjustment, type Citation } from '../api';
 import { say, stopSpeaking, speechSupported } from '../voice';
 
@@ -82,6 +83,8 @@ export function Plan() {
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px' }}>
         {p.band.label} · {p.level} · {p.mode} · goal: {p.goal}. {p.band.summary}
       </p>
+
+      <AiSuggestions kind="fitness" />
 
       {!p.consentGranted && (
         <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid #e65100' }}>
