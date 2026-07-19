@@ -75,7 +75,7 @@ export function FamilySearch() {
           <Button variant="accent" size="sm" onClick={() => { if (draft.trim()) { addIng(draft); setDraft(''); } }}>Search →</Button>
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-soft)', marginTop: 16 }}>
-          <input type="checkbox" checked={safe} onChange={(e) => setSafe(e.target.checked)} /> Family-safe results only — excludes non-vegetarian dishes so Papa can cook along
+          <input type="checkbox" checked={safe} onChange={(e) => setSafe(e.target.checked)} /> Family-safe results only — excludes non-vegetarian dishes for vegetarian members
         </label>
       </div>
 
@@ -124,7 +124,7 @@ export function FamilySearch() {
           <div className="card">
             <h4>Long-Term Memory</h4>
             <p className="meta" style={{ display: 'block', marginTop: 10 }}>
-              Papa is vegetarian and pre-diabetic — non-veg and high-sugar dishes are auto-excluded whenever he's cooking. Ananya's meals under 350 kcal are flagged <span className="tag green">Kid-Friendly</span>.
+              Dietary needs and conditions you set for each family member are remembered — non-veg and high-sugar dishes are auto-excluded for those who need it, and lighter meals are flagged <span className="tag green">Kid-Friendly</span>.
             </p>
           </div>
         </div>

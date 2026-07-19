@@ -68,6 +68,10 @@ export function Daily() {
             : <Spinner />}
         </div>
       </div>
+
+      <p className="muted" style={{ fontSize: 11.5, marginTop: 20, textAlign: 'center' }}>
+        Personalised for you · Expert guidance · Quality you can trust · Better every day
+      </p>
     </div>
   );
 }

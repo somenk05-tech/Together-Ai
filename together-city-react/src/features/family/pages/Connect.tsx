@@ -1,14 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Hero, Button } from '@/components/ui';
-import { MEMBERS, useFamily, connectedMembers, activeMembers, headcount, type MemberId } from '../members';
-
-interface MemberMeta { id: MemberId; tag: string; detail: string }
-const META: MemberMeta[] = [
-  { id: 'ananya', tag: 'Daughter · 9', detail: 'Goal: Healthy growth · Diet: Balanced · No known conditions' },
-  { id: 'papa', tag: 'Father', detail: 'Goal: Weight management · Diet: Vegetarian · Pre-Diabetic — plans exclude added sugar' },
-  { id: 'maa', tag: 'Mother', detail: 'Goal: Maintain energy · Diet: Balanced · Iron levels monitored' },
-];
+import { useAuth } from '@/hooks/useAuth';
+import { useFamily, connectedMembers, activeMembers, headcount, MEMBERS } from '../members';
 
 const pillInput: React.CSSProperties = {
   flex: 1, minWidth: 200, border: '1px solid var(--line)', borderRadius: 999,
@@ -18,10 +11,12 @@ const pillInput: React.CSSProperties = {
 
 /** Connect Family Members (family-connect.html) — consent-gated linking, guests, roles. */
 export function FamilyConnect() {
-  const { state, setDisabled, removeMember, addGuest, removeGuest } = useFamily();
+  const { user } = useAuth();
+  const { state, addGuest, removeGuest } = useFamily();
   const [guestName, setGuestName] = useState('');
 
-  const connectedCount = connectedMembers(state).length - 1; // exclude admin
+  const youName = user?.name ?? 'You';
+  const connectedCount = connectedMembers(state).length - 1; // exclude admin (you)
   const N = headcount(state);
   const active = activeMembers(state).map((m) => m.id);
 
@@ -59,28 +54,16 @@ export function FamilyConnect() {
           </p>
 
           <div className="card">
-            {META.map((meta) => {
-              const m = MEMBERS.find((x) => x.id === meta.id)!;
-              if (state.removed.indexOf(meta.id) >= 0) return null;
-              const off = state.disabled.indexOf(meta.id) >= 0;
-              return (
-                <div key={meta.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 4px', borderBottom: '1px solid var(--line)', opacity: off ? 0.55 : 1 }}>
-                  <div className="av">{m.initial}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600 }}>{m.name} <span className="tag green" style={{ marginLeft: 6 }}>{meta.tag}</span></div>
-                    <div style={{ color: 'var(--muted)', fontSize: 12.5, marginTop: 2 }}>{meta.detail}</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: '0 0 auto' }}>
-                    <span style={{ fontSize: 11, whiteSpace: 'nowrap', color: off ? '#b0503e' : 'var(--muted)' }}>{off ? 'Paused · away' : 'Active in meals'}</span>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }} title="Include in family meals">
-                      <input type="checkbox" checked={!off} onChange={(e) => setDisabled(meta.id, !e.target.checked)} />
-                    </label>
-                    <Button variant="line" size="sm" style={{ color: '#b0503e' }} onClick={() => removeMember(meta.id)}>Remove</Button>
-                    <Link to="/social/messages" className="btn btn-line btn-sm">Chat</Link>
-                  </div>
-                </div>
-              );
-            })}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 4px', borderBottom: '1px solid var(--line)' }}>
+              <div className="av">{(youName[0] || 'Y').toUpperCase()}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600 }}>{youName} <span className="tag green" style={{ marginLeft: 6 }}>You · Admin</span></div>
+                <div style={{ color: 'var(--muted)', fontSize: 12.5, marginTop: 2 }}>You manage the family group and always count in the headcount.</div>
+              </div>
+            </div>
+            <p className="muted" style={{ fontSize: 12.5, padding: '14px 4px 4px' }}>
+              No other family members yet — add someone by their Together City ID above, and once they accept they’ll appear here.
+            </p>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 32, marginBottom: 8 }}>
@@ -90,7 +73,7 @@ export function FamilyConnect() {
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
               <input value={guestName} onChange={(e) => setGuestName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitGuest(); } }}
-                placeholder="Guest name — e.g. Uncle Raj"
+                placeholder="Guest name"
                 style={{ flex: 1, minWidth: 200, border: '1px solid var(--line)', borderRadius: 10, padding: '11px 14px', fontFamily: 'inherit', fontSize: 14, background: 'var(--card)', color: 'var(--ink)' }} />
               <Button variant="accent" size="sm" onClick={submitGuest}>+ Add guest</Button>
             </div>
@@ -109,16 +92,9 @@ export function FamilyConnect() {
             )}
           </div>
 
-          <div style={{ marginTop: 32, marginBottom: 8 }}><h2>Pending Invites (1)</h2></div>
+          <div style={{ marginTop: 32, marginBottom: 8 }}><h2>Pending Invites</h2></div>
           <div className="card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 4px' }}>
-              <div className="av sm" style={{ opacity: 0.5 }}>R</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600 }}>Rhea <span className="tag amber" style={{ marginLeft: 6 }}>Invited · Cousin</span></div>
-                <div style={{ color: 'var(--muted)', fontSize: 12.5, marginTop: 2 }}>Request sent 2 days ago via Together City ID — waiting to accept</div>
-              </div>
-              <Button variant="line" size="sm">Resend</Button>
-            </div>
+            <p className="muted" style={{ fontSize: 12.5, padding: '4px' }}>No pending invites. Requests you send appear here until they’re accepted.</p>
           </div>
         </div>
 
@@ -132,20 +108,20 @@ export function FamilyConnect() {
           </div>
           <div className="card">
             <h4>Privacy &amp; Permissions</h4>
-            <p className="meta" style={{ display: 'block', marginTop: 10 }}>Connected members share meal plans, grocery lists and health insights within this family group. As Admin, Somen manages who can view or edit each profile — nothing is shared outside the family without explicit consent.</p>
+            <p className="meta" style={{ display: 'block', marginTop: 10 }}>Connected members share meal plans, grocery lists and health insights within this family group. As Admin, you manage who can view or edit each profile — nothing is shared outside the family without explicit consent.</p>
           </div>
           <div className="card">
             <h4>Roles</h4>
             <div className="rows" style={{ marginTop: 12 }}>
               <div className="row" style={{ boxShadow: 'none', padding: '10px 12px' }}>
-                <div style={{ flex: 1 }}><div style={{ fontSize: 13 }}>Somen</div><div className="muted" style={{ fontSize: 12 }}>Admin — full access</div></div>
+                <div style={{ flex: 1 }}><div style={{ fontSize: 13 }}>{youName}</div><div className="muted" style={{ fontSize: 12 }}>Admin — full access</div></div>
               </div>
               <div className="row" style={{ boxShadow: 'none', padding: '10px 12px' }}>
-                <div style={{ flex: 1 }}><div style={{ fontSize: 13 }}>Ananya, Papa, Maa</div><div className="muted" style={{ fontSize: 12 }}>Members — view &amp; edit own profile</div></div>
+                <div style={{ flex: 1 }}><div style={{ fontSize: 13 }} className="muted">Family members you add</div><div className="muted" style={{ fontSize: 12 }}>Members — view &amp; edit own profile</div></div>
               </div>
             </div>
           </div>
-          <div className="muted" style={{ fontSize: 11.5 }}>Active in meals right now: {active.length} of {MEMBERS.length} members.</div>
+          <div className="muted" style={{ fontSize: 11.5 }}>Active in meals right now: {active.length} of {MEMBERS.length} {MEMBERS.length === 1 ? 'member' : 'members'}.</div>
         </div>
       </div>
     </div>

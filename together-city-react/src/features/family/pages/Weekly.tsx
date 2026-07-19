@@ -56,7 +56,7 @@ export function FamilyWeekly() {
         objectPosition="center 60%" />
 
       <p className="note">
-        This is your <b>family meal plan</b> — the same for everyone. <b>Mains are cooked together for the whole family ({N} {N === 1 ? 'person' : 'people'})</b> and recipe quantities scale to {N}. <b>Snacks are personalised</b> per member's health need — Somen protein, Ananya calcium, Papa high-fibre &amp; vegetarian, Maa iron.
+        This is your <b>family meal plan</b> — the same for everyone. <b>Mains are cooked together for the whole family ({N} {N === 1 ? 'person' : 'people'})</b> and recipe quantities scale to {N}. <b>Snacks are personalised</b> per member’s health need once you add family members.
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2.3fr 1fr', gap: 28, alignItems: 'start', marginTop: 22 }} className="tc-dashgrid">

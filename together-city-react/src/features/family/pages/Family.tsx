@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import { MEMBERS, useFamily, headcount } from '../members';
 
 interface FeatureCard { n: string; title: string; blurb: string; cta: string; to: string }
@@ -18,8 +19,11 @@ const featureCardStyle: React.CSSProperties = {
 
 /** Family Nutrition hub — gateway dashboard (family.html). One plan, portioned per member. */
 export function Family() {
+  const { user } = useAuth();
   const { state } = useFamily();
   const N = headcount(state);
+  const youName = user?.name ?? 'You';
+  const firstName = youName.split(' ')[0];
 
   return (
     <div>
@@ -28,7 +32,7 @@ export function Family() {
         <div className="inner">
           <div className="eyebrow">Hub 03b · Family Nutrition</div>
           <h1 style={{ fontSize: 'clamp(28px,3.4vw,46px)' }}>Healthy choices for a happier family 🌿</h1>
-          <p className="sub">One plan, portioned per member — one shared grocery list. Together City personalises meals for every person in the house, from Somen down to Ananya.</p>
+          <p className="sub">One plan, portioned per member — one shared grocery list. Together City personalises meals for every person in the house.</p>
           <div style={{ marginTop: 24, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
             <Link to="/family/weekly" className="btn btn-gold">Explore now</Link>
           </div>
@@ -36,14 +40,14 @@ export function Family() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-        <h2>Welcome back, Somen's family 👪</h2>
+        <h2>Welcome back, {firstName} 👪</h2>
         <div style={{ display: 'inline-flex', gap: 4, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 999, padding: 4 }}>
           <Link to="/nutrition" style={{ padding: '9px 22px', borderRadius: 999, fontSize: 12, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)' }}>Individual</Link>
           <Link to="/family" style={{ padding: '9px 22px', borderRadius: 999, fontSize: 12, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', background: 'var(--accent)', color: '#fff' }}>Family</Link>
         </div>
       </div>
       <p className="lede" style={{ marginBottom: 34 }}>
-        Four members, four plans, one kitchen — portion sizes are personalised for each person, extras are added to individual profiles. Currently cooking for {N} {N === 1 ? 'person' : 'people'}.
+        One kitchen, personalised portions per member — add your family by Together City ID and every plan re-portions automatically. Currently cooking for {N} {N === 1 ? 'person' : 'people'}.
       </p>
 
       <section style={{ marginBottom: 40 }}>
@@ -54,8 +58,8 @@ export function Family() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }} className="tc-membergrid">
           {MEMBERS.map((m) => (
             <Link key={m.id} to="/family/daily" className="card lift" style={{ textAlign: 'center' }}>
-              <div className="av" style={{ width: 56, height: 56, fontSize: 18, margin: '0 auto 10px' }}>{m.initial}</div>
-              <h4>{m.name}</h4>
+              <div className="av" style={{ width: 56, height: 56, fontSize: 18, margin: '0 auto 10px' }}>{(youName[0] || 'Y').toUpperCase()}</div>
+              <h4>{youName}</h4>
               <p className="meta">{m.role}</p>
               <div className="stat" style={{ marginTop: 10 }}>
                 <div className="lab">Daily Target</div>

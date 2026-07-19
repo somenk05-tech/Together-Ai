@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
  * family page derives its headcount (N) from these same keys, so plans and
  * grocery baskets re-portion automatically. No backend endpoint exists for this.
  */
-export type MemberId = 'somen' | 'ananya' | 'papa' | 'maa';
+export type MemberId = string;
 export type Need = 'protein' | 'calcium' | 'fibre' | 'iron';
 
 export interface Member {
@@ -20,12 +20,14 @@ export interface Member {
   online: boolean;
 }
 
+/**
+ * The household starts as just you. Real family members are added via the
+ * Connect page (by Together City ID) — no fake demo people.
+ */
 export const MEMBERS: Member[] = [
-  { id: 'somen', name: 'Somen', role: 'You · Admin', initial: 'S', targetKcal: 2000, need: 'protein', veg: false, online: true },
-  { id: 'ananya', name: 'Ananya', role: 'Daughter · 9', initial: 'A', targetKcal: 1650, need: 'calcium', veg: false, online: true },
-  { id: 'papa', name: 'Papa', role: 'Father · Vegetarian', initial: 'P', targetKcal: 1900, need: 'fibre', veg: true, online: false },
-  { id: 'maa', name: 'Maa', role: 'Mother', initial: 'M', targetKcal: 1750, need: 'iron', veg: false, online: true },
+  { id: 'you', name: 'You', role: 'You · Admin', initial: 'Y', targetKcal: 2000, need: 'protein', veg: false, online: true },
 ];
+const ADMIN_ID = 'you';
 
 export const NEED_LABEL: Record<Need, string> = { protein: 'protein', calcium: 'calcium', fibre: 'high-fibre', iron: 'iron' };
 
@@ -65,12 +67,12 @@ export function readFamily(): FamilyState {
 
 /** Connected (not removed) members. */
 export function connectedMembers(f: FamilyState): Member[] {
-  return MEMBERS.filter((m) => m.id === 'somen' || f.removed.indexOf(m.id) < 0);
+  return MEMBERS.filter((m) => m.id === ADMIN_ID || f.removed.indexOf(m.id) < 0);
 }
 
 /** Members actively included in meals (admin always counts). */
 export function activeMembers(f: FamilyState): Member[] {
-  return MEMBERS.filter((m) => m.id === 'somen' || (f.removed.indexOf(m.id) < 0 && f.disabled.indexOf(m.id) < 0));
+  return MEMBERS.filter((m) => m.id === ADMIN_ID || (f.removed.indexOf(m.id) < 0 && f.disabled.indexOf(m.id) < 0));
 }
 
 /** People we cook for: you + active connected members + guests. */
