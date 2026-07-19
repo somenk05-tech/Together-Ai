@@ -47,6 +47,7 @@ export function BloodAnalysis() {
   const [extractNote, setExtractNote] = useState<string | null>(null);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
   const [savedFile, setSavedFile] = useState<{ id: string; name: string } | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   const onFile = async (file: File | null) => {
     if (!file) return;
@@ -76,12 +77,15 @@ export function BloodAnalysis() {
     e.preventDefault();
     const values: Record<string, number> = {};
     for (const [k, v] of Object.entries(form)) { const n = parseFloat(v); if (!Number.isNaN(n) && n >= 0) values[k] = n; }
-    if (Object.keys(values).length) save.mutate({ lab: lab || undefined, values });
+    if (Object.keys(values).length) save.mutate({ lab: lab || undefined, values }, {
+      onSuccess: () => { setForm({}); setLab(''); setSavedFile(null); setExtractNote(null); setExpanded(false); },
+    });
   };
 
   if (latest.isLoading) return <Spinner label="Opening your records…" />;
   const data = latest.data;
   const hasPanel = Boolean(data && data.markers.length);
+  const showForm = !hasPanel || expanded; // collapse the upload + form once a panel is saved
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 16px' }}>
@@ -107,6 +111,8 @@ export function BloodAnalysis() {
         </div>
       )}
 
+      {showForm ? (
+      <>
       <div className="card" style={{ marginTop: 18 }}>
         <div className="eyebrow">Upload your report — we read it for you</div>
         <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
@@ -145,6 +151,18 @@ export function BloodAnalysis() {
           <Button type="submit" variant="accent" disabled={save.isPending}>{save.isPending ? 'Saving to your records…' : 'Save & analyse'}</Button>
         </div>
       </form>
+      </>
+      ) : (
+        <div className="card" style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="eyebrow" style={{ margin: 0 }}>Panel saved &amp; analysed</div>
+            <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
+              Your latest panel is saved{data?.takenOn ? ` · ${data.takenOn}` : ''}. Your analysis is below — upload a new report anytime.
+            </p>
+          </div>
+          <Button variant="line" size="sm" onClick={() => setExpanded(true)}>Upload a new report</Button>
+        </div>
+      )}
 
       {hasPanel && (
         <div className="card" style={{ marginTop: 18 }}>

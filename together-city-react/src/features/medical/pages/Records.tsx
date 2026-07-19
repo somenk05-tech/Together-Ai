@@ -1,8 +1,15 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { mediaApi } from '@/api/media.api';
-import { useAddRecord, useRecords, useStorageUsage, useDeleteRecord, medicalApi } from '../api';
+import { useAddRecord, useRecords, useStorageUsage, useDeleteRecord, useLatestPanel, useBloodHistory, medicalApi } from '../api';
+
+const MSTATUS: Record<string, { color: string; bg: string; label: string }> = {
+  low: { color: '#c62828', bg: '#ffebee', label: 'LOW' },
+  high: { color: '#e65100', bg: '#fff3e0', label: 'HIGH' },
+  normal: { color: '#2e7d32', bg: '#e8f5e9', label: 'OK' },
+};
 
 const KINDS: { key: string; label: string; icon: string }[] = [
   { key: 'condition', label: 'Condition', icon: '🩺' },
@@ -23,6 +30,8 @@ const fmtBytes = (n: number) => {
 export function Records() {
   const records = useRecords();
   const storage = useStorageUsage();
+  const latest = useLatestPanel();
+  const history = useBloodHistory();
   const add = useAddRecord();
   const del = useDeleteRecord();
   const qc = useQueryClient();
@@ -72,6 +81,17 @@ export function Records() {
 
   if (records.isLoading) return <Spinner label="Opening your records…" />;
   const s = storage.data;
+  const panel = latest.data;
+  const hasPanel = Boolean(panel && panel.markers.length);
+  const flagged = (panel?.markers ?? []).filter((m) => m.status !== 'normal');
+  const reportDocs = (records.data ?? []).filter((r) => r.kind === 'report').length;
+  const panelCount = history.data?.length ?? (hasPanel ? 1 : 0);
+  const tile = (value: string | number, label: string, alert = false) => (
+    <div style={{ textAlign: 'center', padding: '10px 6px', border: '1px solid var(--line)', borderRadius: 12 }}>
+      <div style={{ fontSize: 20, fontWeight: 700, color: alert ? '#c0392b' : 'var(--ink)' }}>{value}</div>
+      <div className="muted" style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</div>
+    </div>
+  );
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
@@ -81,6 +101,67 @@ export function Records() {
         One secure place for conditions, prescriptions, reports, allergies and vaccinations —
         your <strong>source of truth</strong>, shared with other hubs only with your consent.
       </p>
+
+      {/* Health highlights — analysis across your reports/panels */}
+      <div className="card" style={{ marginTop: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <div className="eyebrow" style={{ margin: 0 }}>Health highlights</div>
+          {hasPanel && <Link to="/medical/blood" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)' }}>Full analysis →</Link>}
+        </div>
+
+        {hasPanel && panel ? (
+          <>
+            <p className="muted" style={{ fontSize: 12, margin: '4px 0 12px' }}>
+              Latest panel · {panel.takenOn}{panel.lab ? ` · ${panel.lab}` : ''}
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+              {tile(panel.markers.length, 'Markers')}
+              {tile(flagged.length, 'Out of range', flagged.length > 0)}
+              {tile(panel.alerts.length, 'Alerts', panel.alerts.length > 0)}
+              {tile(panelCount, panelCount === 1 ? 'Panel' : 'Panels')}
+            </div>
+
+            {panel.alerts.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                {panel.alerts.map((a) => (
+                  <div key={a.key + a.value} style={{ display: 'flex', gap: 10, padding: '10px 12px', borderRadius: 12, marginBottom: 8, background: a.urgent ? '#fdecea' : '#fff3e0', border: `1.5px solid ${a.urgent ? '#c62828' : '#e65100'}` }}>
+                    <span style={{ fontSize: 17 }}>{a.urgent ? '🚑' : '⚠️'}</span>
+                    <div style={{ fontSize: 12.5 }}><b style={{ color: a.urgent ? '#c62828' : '#e65100' }}>{a.label} {a.value}</b> — {a.message}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {flagged.length > 0 ? (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+                {flagged.map((m) => {
+                  const st = MSTATUS[m.status] ?? MSTATUS.normal;
+                  return (
+                    <span key={m.key} title={m.advice} style={{ fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: '4px 11px', background: st.bg, color: st.color }}>
+                      {m.label} {m.value}{m.unit} · {st.label}{m.trend && m.trend !== 'flat' ? (m.trend === 'up' ? ' ▲' : ' ▼') : ''}
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <p style={{ fontSize: 12.5, marginTop: 12, color: '#2e7d32' }}>✓ All measured markers are within range.</p>
+            )}
+
+            {panel.conditions.length > 0 && (
+              <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>
+                Guidance from this panel: {panel.conditions.map((c) => c.name).join(', ')}.
+              </p>
+            )}
+            <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>
+              {reportDocs} report{reportDocs === 1 ? '' : 's'} on file · Educational, not a diagnosis.
+            </p>
+          </>
+        ) : (
+          <p className="muted" style={{ fontSize: 13, margin: '6px 0 0' }}>
+            No blood panels analysed yet. Upload a report on <Link to="/medical/blood" style={{ color: 'var(--accent)', fontWeight: 600 }}>Blood Test Analysis</Link> and save it — your key markers, flags and trends will appear here.
+          </p>
+        )}
+      </div>
 
       {/* Unified 10 GB vault meter (mail + health documents) */}
       {s && (

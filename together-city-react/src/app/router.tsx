@@ -116,7 +116,6 @@ const SocProfile = lazy(() => import('@/features/social/pages/Profile').then((m)
 const SocSaved = lazy(() => import('@/features/social/pages/Saved').then((m) => ({ default: m.SocialSaved })));
 // Medical sub-pages
 const MedTests = lazy(() => import('@/features/medical/pages/Tests').then((m) => ({ default: m.Tests })));
-const MedBooking = lazy(() => import('@/features/medical/pages/Booking').then((m) => ({ default: m.Booking })));
 const MedConnections = lazy(() => import('@/features/medical/pages/Connections').then((m) => ({ default: m.Connections })));
 const MedTimeline = lazy(() => import('@/features/medical/pages/Timeline').then((m) => ({ default: m.Timeline })));
 const MedFamily = lazy(() => import('@/features/medical/pages/Family').then((m) => ({ default: m.Family })));
@@ -255,7 +254,7 @@ export const router = createBrowserRouter([
       { path: '/medical/consults', element: <RequireAuth>{wrap(<MedConsults />)}</RequireAuth> },
       { path: '/medical/consent', element: <RequireAuth>{wrap(<MedConsent />)}</RequireAuth> },
       { path: '/medical/tests', element: <RequireAuth>{wrap(<MedTests />)}</RequireAuth> },
-      { path: '/medical/booking', element: <RequireAuth>{wrap(<MedBooking />)}</RequireAuth> },
+      { path: '/medical/booking', element: <Navigate to="/medical/consults" replace /> },
       { path: '/medical/connections', element: <RequireAuth>{wrap(<MedConnections />)}</RequireAuth> },
       { path: '/medical/timeline', element: <RequireAuth>{wrap(<MedTimeline />)}</RequireAuth> },
       { path: '/medical/family', element: <RequireAuth>{wrap(<MedFamily />)}</RequireAuth> },

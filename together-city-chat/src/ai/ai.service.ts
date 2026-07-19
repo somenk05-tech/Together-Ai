@@ -11,10 +11,13 @@ import Anthropic from '@anthropic-ai/sdk';
 export class AiService {
   private readonly logger = new Logger('AiService');
   private readonly client: Anthropic | null;
-  // Current models (older 3.5 IDs are retired → 404). Haiku 4.5 is the cheapest
-  // and supports vision, so it serves both text and image/PDF-vision extraction.
+  // Split by task (all env-overridable):
+  //  • model      — cheap, high-volume: recipe steps, moderation, beauty/fitness tips.
+  //  • bloodModel — blood-report reading, where accuracy matters → Opus 4.8.
+  //  • visionModel— blood-report images/PDF vision → Opus 4.8.
   private readonly model = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';
-  private readonly visionModel = process.env.ANTHROPIC_VISION_MODEL || 'claude-haiku-4-5';
+  private readonly bloodModel = process.env.ANTHROPIC_BLOOD_MODEL || 'claude-opus-4-8';
+  private readonly visionModel = process.env.ANTHROPIC_VISION_MODEL || 'claude-opus-4-8';
   readonly enabled: boolean;
 
   constructor() {
@@ -76,7 +79,7 @@ export class AiService {
     if (!this.client || !text.trim()) return { values: {} };
     try {
       const res = await this.client.messages.create({
-        model: this.model,
+        model: this.bloodModel,
         max_tokens: 1024,
         system: `${AiService.MARKER_SYSTEM}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
         messages: [{ role: 'user', content: `Blood report text:\n\n${text.slice(0, 40000)}` }],

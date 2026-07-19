@@ -5,12 +5,18 @@ import { useBookConsult, useConsults, useDoctors, type DoctorCard } from '../api
 import { payError, type PayMethod } from '@/features/financial/api';
 import { PaymentSheet } from '@/features/financial/PaymentSheet';
 
+const SLOTS = ['9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '4:00 PM', '4:30 PM', '5:00 PM'];
+const MODES = ['Video call', 'Clinic visit'] as const;
+
 function DoctorRow({ doc }: { doc: DoctorCard }) {
   const book = useBookConsult();
   const [reason, setReason] = useState('');
+  const [slot, setSlot] = useState('10:00 AM');
+  const [mode, setMode] = useState<string>('Video call');
   const [open, setOpen] = useState(false);
   const [booked, setBooked] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
+  const bookingReason = `[${mode} · ${slot}]${reason ? ` ${reason}` : ''}`;
 
   return (
     <article className="card" style={{ marginBottom: 14 }}>
@@ -35,6 +41,18 @@ function DoctorRow({ doc }: { doc: DoctorCard }) {
         </div>
       ) : open ? (
         <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Consult mode</div>
+          <div className="pill-row" style={{ marginBottom: 10 }}>
+            {MODES.map((m) => (
+              <span key={m} className={`pill${mode === m ? ' on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setMode(m)}>{m}</span>
+            ))}
+          </div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Preferred time</div>
+          <div className="pill-row" style={{ marginBottom: 10 }}>
+            {SLOTS.map((s) => (
+              <span key={s} className={`pill${slot === s ? ' on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setSlot(s)}>{s}</span>
+            ))}
+          </div>
           <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for consult (optional)"
             style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 13.5, fontFamily: 'inherit', outline: 'none', marginBottom: 8 }} />
           <div style={{ display: 'flex', gap: 8 }}>
@@ -46,16 +64,16 @@ function DoctorRow({ doc }: { doc: DoctorCard }) {
           <PaymentSheet
             open={payOpen}
             amountInr={doc.priceInr}
-            label={`Consult with ${doc.name}`}
+            label={`${mode} with ${doc.name} · ${slot}`}
             pending={book.isPending}
             error={book.isError ? payError(book.error) : null}
             onCancel={() => setPayOpen(false)}
-            onPay={(method: PayMethod) => book.mutate({ doctorId: doc.id, reason: reason || undefined, method }, { onSuccess: () => { setBooked(true); setPayOpen(false); } })}
+            onPay={(method: PayMethod) => book.mutate({ doctorId: doc.id, reason: bookingReason, method }, { onSuccess: () => { setBooked(true); setPayOpen(false); } })}
           />
         </div>
       ) : (
         <div style={{ marginTop: 12 }}>
-          <Button variant="line" size="sm" onClick={() => setOpen(true)}>Book consult</Button>
+          <Button variant="line" size="sm" onClick={() => setOpen(true)}>Book appointment</Button>
         </div>
       )}
     </article>
@@ -75,7 +93,8 @@ export function Consults() {
       <div className="eyebrow">Medical Hub · Consults</div>
       <h1 style={{ fontSize: 26 }}>Talk to a doctor</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
-        Booking opens a private, connection-gated chat — share the reports and blood panel you choose to.
+        Pick a doctor, choose your mode and preferred time, and book — it opens a private,
+        connection-gated chat where you share the reports and blood panel you choose to.
       </p>
 
       {(consults.data ?? []).length > 0 && (
