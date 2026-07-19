@@ -4,10 +4,11 @@ import { FinancialModule } from '../financial/financial.module';
 import { MailModule } from '../mail/mail.module';
 import { RestaurantsController } from './restaurants.controller';
 import { RestaurantsService } from './restaurants.service';
+import { PlacesService } from './places.service';
 
 @Module({
   imports: [PrismaModule, FinancialModule, MailModule],
   controllers: [RestaurantsController],
-  providers: [RestaurantsService],
+  providers: [RestaurantsService, PlacesService],
 })
 export class RestaurantsModule {}

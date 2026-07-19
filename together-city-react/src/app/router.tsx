@@ -176,7 +176,7 @@ export const router = createBrowserRouter([
       { path: '/', element: <Home /> },
       // 12 hub landings, generated from config
       { path: '/travel', element: <HubLanding hub="travel" /> },
-      { path: '/restaurants', element: <HubLanding hub="restaurants" /> },
+      { path: '/restaurants', element: <RequireAuth>{wrap(<RestExplore />)}</RequireAuth> },
       { path: '/mail', element: <HubLanding hub="mail" /> },
       { path: '/nutrition', element: <HubLanding hub="nutrition" /> },
       { path: '/entertainment', element: <HubLanding hub="entertainment" /> },
@@ -383,14 +383,16 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    // Restaurants hub inner pages (discover, detail w/ menu+cart+reserve, reservations, orders).
-    element: <HubLayout hub={HUBS.restaurants} />,
+    // Restaurants hub — single full-width Explore experience, NO left sidebar.
+    // All inner pages render under AppShell (full width); flows are reached from
+    // Explore cards and in-page links, not a persistent hub nav.
+    element: <AppShell />,
     children: [
+      { path: '/restaurants/explore', element: <RequireAuth>{wrap(<RestExplore />)}</RequireAuth> },
       { path: '/restaurants/discover', element: <RequireAuth>{wrap(<RestaurantsDiscover />)}</RequireAuth> },
       { path: '/restaurants/reservations', element: <RequireAuth>{wrap(<RestaurantsReservations />)}</RequireAuth> },
       { path: '/restaurants/orders', element: <RequireAuth>{wrap(<RestaurantsOrders />)}</RequireAuth> },
       { path: '/restaurants/find-meal', element: <RequireAuth>{wrap(<RestFindMeal />)}</RequireAuth> },
-      { path: '/restaurants/explore', element: <RequireAuth>{wrap(<RestExplore />)}</RequireAuth> },
       { path: '/restaurants/book', element: <RequireAuth>{wrap(<RestBook />)}</RequireAuth> },
       { path: '/restaurants/favourites', element: <RequireAuth>{wrap(<RestFavourites />)}</RequireAuth> },
       { path: '/restaurants/reviews', element: <RequireAuth>{wrap(<RestReviews />)}</RequireAuth> },

@@ -5,7 +5,11 @@ export const PlanModeSchema = z.enum(['individual', 'family']);
 export type PlanMode = z.infer<typeof PlanModeSchema>;
 
 /** Diet identity — mirrors the vanilla site's colour-coded diet tabs. */
-export const DietSchema = z.enum(['everything', 'veg', 'nonveg', 'pesc', 'egg', 'vegan', 'jain']);
+// 'jainvegan' is an internal recipe tag only (a dish that is BOTH vegan and
+// Jain-safe) — users never pick it, but it lets vegan AND Jain diners each see
+// the plant-based, root-free dishes without leaking dairy to vegans or onion/
+// garlic to Jains.
+export const DietSchema = z.enum(['everything', 'veg', 'nonveg', 'pesc', 'egg', 'vegan', 'jain', 'jainvegan']);
 export type Diet = z.infer<typeof DietSchema>;
 
 /** Meal slot — breakfast / lunch / snack / dinner. */

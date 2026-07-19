@@ -8,6 +8,7 @@ import {
   PlaceOrderSchema, type PlaceOrderDto,
   ReserveTableSchema, type ReserveTableDto,
   RestaurantQuerySchema, type RestaurantQueryDto,
+  DiscoverSchema, type DiscoverDto,
 } from './dto/restaurants.dto';
 
 @Controller('restaurants')
@@ -34,6 +35,12 @@ export class RestaurantsController {
   @Get('reservations')
   reservations(@CurrentUser() user: JwtUser) {
     return this.restaurants.myReservations(user.sub);
+  }
+
+  @Get('discover')
+  @UsePipes(new ZodValidationPipe(DiscoverSchema))
+  discover(@CurrentUser() user: JwtUser, @Query() query: DiscoverDto) {
+    return this.restaurants.discover(user.sub, query);
   }
 
   @Get(':id')

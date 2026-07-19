@@ -49,7 +49,6 @@ const PATTERNS = ['Balanced', 'High protein', 'Low carb', 'Keto', 'Mediterranean
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DELIVERY = ['Morning (6–9am)', 'Midday (12–2pm)', 'Evening (5–8pm)'];
 const CONDITIONS = ['Diabetes', 'Hypertension', 'PCOS', 'Kidney Disease', 'Fatty Liver'];
-const EQUIPMENT = ['Microwave', 'Air Fryer', 'Pressure Cooker', 'Oven', 'Mixer'];
 const WELLNESS_GOALS = ['Lose Fat', 'Gain Muscle', 'Improve Gut Health', 'Improve Skin', 'Better Hair', 'Lower Cholesterol', 'Better Sleep', 'Higher Energy', 'Diabetes Control', 'Heart Health'];
 
 interface Extras {
@@ -224,7 +223,6 @@ export function Preferences() {
     ['Goal', goalLabel],
     ['Health goals', (ex.healthGoals ?? []).join(', ') || '—'],
     ['Conditions', (ex.healthConditions ?? []).join(', ') || 'None'],
-    ['Kitchen equipment', (ex.equipment ?? []).join(', ') || 'None'],
     ['Blood test', bloodConnected ? `Connected · ${bloodLastUpdated}` : 'Not connected'],
     ['Cuisine mix', cuisineSummary],
     ['Protein sources', (ex.proteins ?? []).join(', ') || '—'],
@@ -441,13 +439,6 @@ export function Preferences() {
           <div className="eyebrow">Health conditions</div>
           <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 10px' }}>We use these to safely filter recipes and adjust your plan. Private to you.</p>
           {chipGroup('healthConditions', CONDITIONS)}
-        </div>
-
-        {/* 4c · Kitchen equipment */}
-        <div className="card" style={{ marginTop: 16 }}>
-          <div className="eyebrow">Kitchen equipment</div>
-          <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 10px' }}>We won’t suggest recipes needing equipment you don’t have.</p>
-          {chipGroup('equipment', EQUIPMENT)}
         </div>
 
         {/* 4d · Health goals (multi-select wellness goals) */}
