@@ -33,6 +33,8 @@ export const socialApi = {
   feed: (cursor?: string) =>
     api.get<FeedPage>('/social/feed', { params: { cursor, limit: 20 } }).then((r) => r.data),
   map: () => api.get<Post[]>('/social/map').then((r) => r.data),
+  followers: () => api.get<PostAuthor[]>('/social/followers').then((r) => r.data),
+  following: () => api.get<PostAuthor[]>('/social/following').then((r) => r.data),
   create: (input: CreatePostInput) =>
     api.post<Post>('/social/posts', input).then((r) => r.data),
   remove: (postId: string) => api.delete<{ ok: boolean }>(`/social/posts/${postId}`).then((r) => r.data),
@@ -51,6 +53,12 @@ export function useFeed() {
 }
 export function useMap() {
   return useQuery({ queryKey: ['social', 'map'], queryFn: () => socialApi.map() });
+}
+export function useFollowers() {
+  return useQuery({ queryKey: ['social', 'followers'], queryFn: () => socialApi.followers() });
+}
+export function useFollowing() {
+  return useQuery({ queryKey: ['social', 'following'], queryFn: () => socialApi.following() });
 }
 export function useCreatePost() {
   const qc = useQueryClient();

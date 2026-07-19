@@ -22,8 +22,18 @@ export class SocialController {
   }
 
   @Get('map')
-  map() {
-    return this.social.map();
+  map(@CurrentUser() user: JwtUser) {
+    return this.social.map(user.sub);
+  }
+
+  @Get('followers')
+  followers(@CurrentUser() user: JwtUser) {
+    return this.social.followers(user.sub);
+  }
+
+  @Get('following')
+  following(@CurrentUser() user: JwtUser) {
+    return this.social.following(user.sub);
   }
 
   @Post('posts')

@@ -78,6 +78,16 @@ export class ConnectionsService {
       where: { id: conn.id },
       data: { status },
     });
+    // Accepting a connection makes the two people follow each other (Social hub).
+    if (status === ConnectionStatus.ACCEPTED) {
+      await this.prisma.follow.createMany({
+        data: [
+          { followerId: updated.userOneId, followeeId: updated.userTwoId },
+          { followerId: updated.userTwoId, followeeId: updated.userOneId },
+        ],
+        skipDuplicates: true,
+      });
+    }
     const otherId = updated.userOneId === userId ? updated.userTwoId : updated.userOneId;
     const other = await this.prisma.user.findUnique({ where: { id: otherId } });
     return this.shape(updated, userId, other);

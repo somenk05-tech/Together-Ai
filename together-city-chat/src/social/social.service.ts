@@ -12,6 +12,53 @@ export class SocialService {
     private readonly gateway: SocialGateway,
   ) {}
 
+  /**
+   * The people whose posts you see = yourself + everyone you follow + everyone
+   * you're connected to (accepted connections auto-follow, so this is mostly the
+   * follow graph; connections are unioned in as a safety net). Keeps the feed to
+   * your circle — strangers' posts don't appear.
+   */
+  private async networkIds(userId: string): Promise<string[]> {
+    const [follows, conns] = await Promise.all([
+      this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } }),
+      this.prisma.connection.findMany({
+        where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
+        select: { userOneId: true, userTwoId: true },
+      }),
+    ]);
+    const ids = new Set<string>([userId]);
+    for (const f of follows) ids.add(f.followeeId);
+    for (const c of conns) ids.add(c.userOneId === userId ? c.userTwoId : c.userOneId);
+    return [...ids];
+  }
+
+  /** Followers = people who follow you OR are connected to you. */
+  async followers(userId: string) {
+    const [rows, conns] = await Promise.all([
+      this.prisma.follow.findMany({ where: { followeeId: userId }, select: { follower: { select: AUTHOR_SELECT } } }),
+      this.prisma.connection.findMany({
+        where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
+        include: { userOne: { select: AUTHOR_SELECT }, userTwo: { select: AUTHOR_SELECT } },
+      }),
+    ]);
+    const byId = new Map<string, { id: string; handle: string; name: string; profileImage: string | null }>();
+    for (const r of rows) byId.set(r.follower.id, r.follower);
+    for (const c of conns) {
+      const u = c.userOneId === userId ? c.userTwo : c.userOne;
+      byId.set(u.id, u);
+    }
+    return [...byId.values()];
+  }
+
+  /** Following = people you follow OR are connected to (mutual with connections). */
+  async following(userId: string) {
+    const network = await this.networkIds(userId);
+    const others = network.filter((id) => id !== userId);
+    if (!others.length) return [];
+    const users = await this.prisma.user.findMany({ where: { id: { in: others } }, select: AUTHOR_SELECT });
+    return users;
+  }
+
   // ─────────────── posts ───────────────
   async createPost(userId: string, dto: CreatePostDto) {
     const post = await this.prisma.post.create({
@@ -44,7 +91,9 @@ export class SocialService {
   /** Cursor-paginated feed, newest first. Cursor = last post id of the previous page. */
   async feed(userId: string, query: FeedQueryDto) {
     const { cursor, limit } = query;
+    const network = await this.networkIds(userId);
     const posts = await this.prisma.post.findMany({
+      where: { authorId: { in: network } },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -63,10 +112,11 @@ export class SocialService {
     };
   }
 
-  /** Posts that carry geo coordinates — powers the Social map. */
-  async map() {
+  /** Posts that carry geo coordinates — powers the Social map (your network). */
+  async map(userId: string) {
+    const network = await this.networkIds(userId);
     const posts = await this.prisma.post.findMany({
-      where: { lat: { not: null }, lng: { not: null } },
+      where: { lat: { not: null }, lng: { not: null }, authorId: { in: network } },
       orderBy: { createdAt: 'desc' },
       take: 200,
       include: { author: { select: AUTHOR_SELECT }, media: true, _count: { select: { likes: true, comments: true } } },

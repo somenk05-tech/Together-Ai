@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useFollowers, useFollowing } from '../api';
 import { initials } from '../shared';
 
 interface MyPost {
@@ -167,8 +168,8 @@ export function SocialProfile() {
   const mail = useMemo(() => `${handle.replace(/^@/, '').toLowerCase().replace(/[^a-z0-9._-]/g, '')}@togethercity.tech`, [handle]);
 
   const posts = MY_POSTS.length;
-  const likes = MY_POSTS.reduce((a, p) => a + p.likes, 0);
-  const onMap = MY_POSTS.filter((p) => p.outdoor).length;
+  const followers = useFollowers().data?.length ?? 0;
+  const following = useFollowing().data?.length ?? 0;
 
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
@@ -185,7 +186,7 @@ export function SocialProfile() {
           <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>{handle} · Together City member</p>
           <p className="muted" style={{ fontSize: 12.5, marginTop: 1 }}>✉ <a href={`mailto:${mail}`} style={{ color: 'inherit' }}>{mail}</a></p>
           <div style={{ display: 'flex', gap: 28, margin: '10px 0' }}>
-            {[[posts, 'posts'], [likes, 'likes'], [onMap, 'on the map']].map(([n, l]) => (
+            {[[posts, 'posts'], [followers, 'followers'], [following, 'following']].map(([n, l]) => (
               <div key={l} style={{ textAlign: 'center' }}>
                 <b style={{ fontSize: 18, display: 'block' }}>{n}</b>
                 <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{l}</span>
