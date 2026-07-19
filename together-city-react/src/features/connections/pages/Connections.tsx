@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useConnections, useRequestConnection, useRespondConnection } from '@/api';
+import { useConnections, useRequestConnection, useRespondConnection, chatApi } from '@/api';
 import type { Connection } from '@/api/schemas';
 
 function Avatar({ name }: { name: string }) {
@@ -35,8 +36,20 @@ export function Connections() {
   const all = useConnections();
   const request = useRequestConnection();
   const respond = useRespondConnection();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
   const [handle, setHandle] = useState('');
   const [requested, setRequested] = useState<string | null>(null);
+  const [opening, setOpening] = useState<string | null>(null);
+
+  const openChat = async (h: string) => {
+    setOpening(h);
+    try {
+      const conv = await chatApi.startDirect(h);
+      await qc.invalidateQueries({ queryKey: ['chat', 'conversations'] });
+      navigate(`/chats?c=${conv.id}`);
+    } finally { setOpening(null); }
+  };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -114,7 +127,12 @@ export function Connections() {
           <EmptyState icon="🤝" title="No connections yet" hint="Send a request by handle above." />
         ) : (
           accepted.map((c) => (
-            <Row key={c.id} c={c} actions={<Link to="/chats"><Button size="sm" variant="line">Message</Button></Link>} />
+            <Row key={c.id} c={c} actions={
+              <Button size="sm" variant="accent" disabled={opening === c.user.handle}
+                onClick={() => openChat(c.user.handle)}>
+                {opening === c.user.handle ? '…' : 'Message'}
+              </Button>
+            } />
           ))
         )}
       </div>

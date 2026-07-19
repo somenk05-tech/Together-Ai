@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, Button, Spinner } from '@/components/ui';
 import { usersApi, chatApi, useConnections, type LookupResult } from '@/api';
 import { useRequestConnection, useRespondConnection } from '@/api/connections.api';
@@ -11,6 +12,7 @@ import { useRequestConnection, useRespondConnection } from '@/api/connections.ap
  */
 export function MemberFinder() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const connections = useConnections();
   const requestConn = useRequestConnection();
   const respondConn = useRespondConnection();
@@ -58,6 +60,7 @@ export function MemberFinder() {
     setOpening(true);
     try {
       const conv = await chatApi.startDirect(result.handle);
+      await qc.invalidateQueries({ queryKey: ['chat', 'conversations'] });
       navigate(`/chats?c=${conv.id}`);
     } catch {
       setError('You can message them once you’re connected.');

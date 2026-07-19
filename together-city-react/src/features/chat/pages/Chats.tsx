@@ -20,17 +20,12 @@ export function Chats() {
   const requestedId = searchParams.get('c') ?? undefined;
   const [activeId, setActiveId] = useState<string | undefined>(requestedId);
 
-  // Honour a ?c=<id> deep link (e.g. "Message" from the member finder) as soon
-  // as that conversation shows up in the list; otherwise fall back to the first.
+  // activeId already initialises to the ?c=<id> deep link. Otherwise, once the
+  // list loads, fall back to the first conversation.
   useEffect(() => {
     const list = conversations.data;
-    if (!list || list.length === 0) return;
-    if (requestedId && list.some((c) => c.id === requestedId)) {
-      setActiveId(requestedId);
-    } else if (!activeId) {
-      setActiveId(list[0].id);
-    }
-  }, [activeId, requestedId, conversations.data]);
+    if (!activeId && list && list.length > 0) setActiveId(list[0].id);
+  }, [activeId, conversations.data]);
 
   const history = useMessages(activeId);
   const [live, setLive] = useState<Message[]>([]);
@@ -58,23 +53,33 @@ export function Chats() {
 
   if (conversations.isLoading) return <Spinner label="Loading your chats…" />;
   if (conversations.isError) return <EmptyState title="Couldn't load chats" hint="Start the backend and reload." />;
-  if (!conversations.data || conversations.data.length === 0) {
-    return <EmptyState icon="💬" title="No conversations yet" hint="Connect with people across the city to start chatting." />;
-  }
 
+  const list = conversations.data ?? [];
   const onOpened = (id: string) => { setActiveId(id); void conversations.refetch(); };
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', height: 'calc(100vh - var(--header-h))' }}>
       <div style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--line)', minHeight: 0 }}>
         <ChatStarter onOpened={onOpened} />
-        <ConversationList items={conversations.data} activeId={activeId} onSelect={setActiveId} />
+        {list.length === 0
+          ? <p className="muted" style={{ fontSize: 13, padding: '16px 16px' }}>
+              No conversations yet. Start one above, or open a member’s profile and tap Message.
+            </p>
+          : <ConversationList items={list} activeId={activeId} onSelect={setActiveId} />}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {history.isLoading
-          ? <Spinner />
-          : <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping} />}
-        <Composer onSend={send} onTyping={emitTyping} />
+        {activeId ? (
+          <>
+            {history.isLoading
+              ? <Spinner />
+              : <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping} />}
+            <Composer onSend={send} onTyping={emitTyping} />
+          </>
+        ) : (
+          <div style={{ display: 'grid', placeItems: 'center', height: '100%' }}>
+            <EmptyState icon="💬" title="No conversation selected" hint="Start a chat, or message someone from their profile." />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -83,9 +83,10 @@ export class MessagesService {
       ...(dto.cursor ? { cursor: { id: dto.cursor }, skip: 1 } : {}),
     });
     const hasMore = messages.length > take;
-    const page = hasMore ? messages.slice(0, take) : messages;
+    const page = hasMore ? messages.slice(0, take) : messages; // newest-first
     return {
-      messages: page.map((m) => this.serialize(m)),
+      // Frontend expects `items` in chronological order (oldest→newest) for display.
+      items: page.map((m) => this.serialize(m)).reverse(),
       nextCursor: hasMore ? page[page.length - 1].id : null,
     };
   }
