@@ -1,14 +1,22 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useRecipe, useRecipes } from '../hooks';
+import { CookMode, stepTimerSeconds } from '../components/CookMode';
 import { DIET_META } from './Recipes';
 import type { DietKey } from '../types';
+
+const mmssShort = (s: number) => {
+  const m = Math.round(s / 60);
+  return m >= 1 ? `${m} min` : `${s} sec`;
+};
 
 /** Recipe detail — macros, ingredients and plate economics. */
 export function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
   const recipe = useRecipe(id);
   const others = useRecipes('everything');
+  const [cooking, setCooking] = useState(false);
 
   if (recipe.isLoading) return <Spinner label="Plating up…" />;
   if (recipe.isError || !recipe.data) return <EmptyState title="Recipe not found" hint="It may have been removed." />;
@@ -68,9 +76,27 @@ export function RecipeDetail() {
 
         {r.method && r.method.length > 0 && (
           <>
-            <h2 style={{ fontSize: 17, margin: '22px 0 10px' }}>Method</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', margin: '22px 0 10px' }}>
+              <h2 style={{ fontSize: 17, margin: 0 }}>Method</h2>
+              <Button variant="accent" size="sm" onClick={() => setCooking(true)}>👨‍🍳 Cook along — guided</Button>
+            </div>
+            <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>
+              Together City walks you through each step, reads it aloud, and runs a timer whenever a step needs one.
+            </p>
             <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.7 }}>
-              {r.method.map((step, i) => <li key={i} style={{ marginBottom: 6 }}>{step}</li>)}
+              {r.method.map((step, i) => {
+                const secs = stepTimerSeconds(step);
+                return (
+                  <li key={i} style={{ marginBottom: 6 }}>
+                    {step}
+                    {secs > 0 && (
+                      <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 700, color: meta.color, background: meta.soft, borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap' }}>
+                        ⏱ {mmssShort(secs)}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
             </ol>
           </>
         )}
@@ -80,7 +106,8 @@ export function RecipeDetail() {
         </p>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-          <Link to="/nutrition/grocery"><Button variant="accent" size="sm">Add ingredients to basket →</Button></Link>
+          {r.method && r.method.length > 0 && <Button variant="accent" size="sm" onClick={() => setCooking(true)}>👨‍🍳 Start cooking</Button>}
+          <Link to="/nutrition/grocery"><Button variant="line" size="sm">Add ingredients to basket →</Button></Link>
           <Link to="/nutrition/dietitian"><Button variant="line" size="sm">💬 Discuss with a nutritionist</Button></Link>
           <Link to="/nutrition/weekly"><Button variant="line" size="sm">Add via Weekly Planner</Button></Link>
         </div>
@@ -107,6 +134,10 @@ export function RecipeDetail() {
           </div>
         );
       })()}
+
+      {cooking && r.method && r.method.length > 0 && (
+        <CookMode name={r.name} method={r.method} ingredients={r.ingredients} onClose={() => setCooking(false)} />
+      )}
     </div>
   );
 }
