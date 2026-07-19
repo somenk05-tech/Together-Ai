@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -19,6 +20,18 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<TokenPair & { userId: string }> {
+    // Private-beta gate: while INVITE_CODE is set, only people with a matching
+    // code can create an account. Supports a comma-separated list so codes can
+    // be handed out and revoked individually. Unset ⇒ open registration.
+    const raw = process.env.INVITE_CODE?.trim();
+    if (raw) {
+      const allowed = raw.split(',').map((c) => c.trim().toLowerCase()).filter(Boolean);
+      const supplied = dto.inviteCode?.trim().toLowerCase() ?? '';
+      if (!allowed.includes(supplied)) {
+        throw new ForbiddenException('This is a private beta — a valid invite code is required to join.');
+      }
+    }
+
     const existing = await this.prisma.user.findUnique({ where: { handle: dto.handle } });
     if (existing) throw new ConflictException('Handle already taken');
     const user = await this.prisma.user.create({

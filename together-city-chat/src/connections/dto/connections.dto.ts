@@ -1,25 +1,18 @@
 import { z } from 'zod';
 
-export const ConnectionTypeEnum = z.enum([
-  'FRIEND',
-  'COUPLE',
-  'FAMILY',
-  'BUSINESS_CUSTOMER',
-  'DOCTOR_PATIENT',
-  'NUTRITIONIST_CLIENT',
-  'LAWYER_CLIENT',
-  'MARKETPLACE_BUYER_SELLER',
-  'EVENT_PARTICIPANT',
-]);
-
+/**
+ * Public connections API — a simple handle-based friend model.
+ * (The DB keeps a richer typed model; these endpoints speak the friend graph
+ * the app's UI uses. Domain-specific links — doctor/patient etc. — are created
+ * by their own modules, not here.)
+ */
 export const RequestConnectionSchema = z.object({
-  targetUserId: z.string().uuid(),
-  connectionType: ConnectionTypeEnum,
+  handle: z.string().min(1).max(40),
 });
 export type RequestConnectionDto = z.infer<typeof RequestConnectionSchema>;
 
 export const RespondConnectionSchema = z.object({
-  connectionId: z.string().uuid(),
-  action: z.enum(['ACCEPT', 'DECLINE', 'BLOCK', 'REMOVE']),
+  connectionId: z.string().min(1),
+  status: z.enum(['accepted', 'blocked']),
 });
 export type RespondConnectionDto = z.infer<typeof RespondConnectionSchema>;

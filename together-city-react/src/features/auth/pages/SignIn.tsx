@@ -29,6 +29,7 @@ export function SignIn() {
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [identifier, setIdentifier] = useState('');
   const [channel, setChannel] = useState<'email' | 'sms'>('email');
   const [code, setCode] = useState('');
@@ -41,7 +42,7 @@ export function SignIn() {
     setBusy(true); setError(null); setNotice(null);
     try {
       if (mode === 'login') { await login(handle.trim(), password); navigate(from, { replace: true }); }
-      else if (mode === 'register') { await register(handle.trim(), name.trim(), password, { email: email.trim(), phone: phone.trim() }); navigate(from, { replace: true }); }
+      else if (mode === 'register') { await register(handle.trim(), name.trim(), password, { email: email.trim(), phone: phone.trim(), inviteCode: inviteCode.trim() }); navigate(from, { replace: true }); }
       else if (mode === 'forgot') { await authApi.forgot(identifier.trim(), channel); setNotice(channel === 'sms' ? `If an account matches, we've texted a 6-digit code to its primary phone. Enter it below.` : `If an account matches, we've emailed a 6-digit recovery code to its primary email. Enter it below.`); setMode('reset'); }
       else if (mode === 'reset') { await authApi.reset({ identifier: identifier.trim(), code: code.trim(), newPassword: password }); setNotice('Password changed. Sign in with your new password.'); setMode('login'); setPassword(''); }
     } catch (err) {
@@ -65,7 +66,9 @@ export function SignIn() {
         <div className="eyebrow" style={{ textAlign: 'center' }}>Together City</div>
         <h1 style={{ fontSize: 28, marginBottom: 6, textAlign: 'center' }}>{title}</h1>
         <p className="muted" style={{ fontSize: 13.5, marginBottom: 20, textAlign: 'center' }}>
-          {mode === 'forgot' || mode === 'reset' ? 'Recovery goes to your primary email or phone.' : 'One identity across every part of life.'}
+          {mode === 'forgot' || mode === 'reset' ? 'Recovery goes to your primary email or phone.'
+            : mode === 'register' ? 'Private beta — you’ll need an invite code to join.'
+            : 'One identity across every part of life.'}
         </p>
 
         <form onSubmit={submit}>
@@ -82,6 +85,8 @@ export function SignIn() {
                   <input required value={name} placeholder="Your name" onChange={(e) => setName(e.target.value)} style={field} />
                   <input required type="email" value={email} placeholder="Your existing email (primary)" onChange={(e) => setEmail(e.target.value)} style={field} />
                   <input type="tel" value={phone} placeholder="Phone (optional)" onChange={(e) => setPhone(e.target.value)} style={field} />
+                  <input required value={inviteCode} placeholder="Invite code" autoCapitalize="off" autoCorrect="off" spellCheck={false}
+                    onChange={(e) => setInviteCode(e.target.value)} style={field} />
                 </>
               )}
               <input required type="password" value={password} minLength={mode === 'register' ? 8 : 1} placeholder={mode === 'register' ? "Password (min 8 characters)" : "Password"}

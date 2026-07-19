@@ -20,7 +20,7 @@ export class ConversationsController {
   @Post('start')
   @UsePipes(new ZodValidationPipe(StartDirectSchema))
   start(@CurrentUser() user: JwtUser, @Body() dto: StartDirectDto) {
-    return this.conversations.startDirect(user.sub, dto.targetUserId);
+    return this.conversations.startDirect(user.sub, dto.handle);
   }
 
   @Post('group')

@@ -7,6 +7,7 @@ export const RegisterSchema = z.object({
   email: z.string().email().max(160).optional(), // existing/primary email
   phone: z.string().max(24).optional(),          // primary phone
   profileImage: z.string().url().optional(),
+  inviteCode: z.string().max(120).optional(),    // private-beta gate (see INVITE_CODE env)
 });
 export type RegisterDto = z.infer<typeof RegisterSchema>;
 

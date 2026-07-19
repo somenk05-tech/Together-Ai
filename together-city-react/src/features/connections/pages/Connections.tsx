@@ -48,7 +48,8 @@ export function Connections() {
   if (all.isLoading) return <Spinner label="Loading your connections…" />;
   if (all.isError) return <EmptyState title="Couldn't load connections" hint="Start the backend and reload." />;
 
-  const pending = (all.data ?? []).filter((c) => c.status === 'pending');
+  const incoming = (all.data ?? []).filter((c) => c.status === 'pending' && c.incoming);
+  const outgoing = (all.data ?? []).filter((c) => c.status === 'pending' && !c.incoming);
   const accepted = (all.data ?? []).filter((c) => c.status === 'accepted');
 
   return (
@@ -78,10 +79,10 @@ export function Connections() {
         {requested && <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>Request sent to @{requested} ✓</p>}
       </form>
 
-      {pending.length > 0 && (
+      {incoming.length > 0 && (
         <div className="card" style={{ marginBottom: 18 }}>
-          <div className="eyebrow">Requests · {pending.length}</div>
-          {pending.map((c) => (
+          <div className="eyebrow">Requests for you · {incoming.length}</div>
+          {incoming.map((c) => (
             <Row
               key={c.id}
               c={c}
@@ -94,6 +95,15 @@ export function Connections() {
                 </div>
               }
             />
+          ))}
+        </div>
+      )}
+
+      {outgoing.length > 0 && (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <div className="eyebrow">Sent · {outgoing.length}</div>
+          {outgoing.map((c) => (
+            <Row key={c.id} c={c} actions={<span className="muted" style={{ fontSize: 12.5 }}>Pending…</span>} />
           ))}
         </div>
       )}

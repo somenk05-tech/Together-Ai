@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { orderPair } from '../connections/connection.util';
 import { PresenceService } from './presence.service';
+
+export type Relationship = 'none' | 'pending_out' | 'pending_in' | 'accepted' | 'blocked';
 
 @Injectable()
 export class UsersService {
@@ -14,6 +17,34 @@ export class UsersService {
       where: { id: userId },
       select: { id: true, handle: true, name: true, profileImage: true, lastSeen: true },
     });
+  }
+
+  /**
+   * Find ONE citizen by their EXACT handle. Discovery is deliberately private:
+   * there is no directory — you can only reach someone whose handle you already
+   * know. Returns null for no match or for yourself, and includes the current
+   * relationship so the UI can show the right action.
+   */
+  async lookupByHandle(userId: string, handleRaw: string) {
+    const handle = (handleRaw ?? '').trim().replace(/^@/, '').toLowerCase();
+    if (!handle) return null;
+    const target = await this.prisma.user.findUnique({
+      where: { handle },
+      select: { id: true, handle: true, name: true, profileImage: true },
+    });
+    if (!target || target.id === userId) return null;
+
+    const { userOneId, userTwoId } = orderPair(userId, target.id);
+    const conn = await this.prisma.connection.findFirst({
+      where: { userOneId, userTwoId, connectionType: 'FRIEND' },
+      select: { status: true, requestedById: true },
+    });
+    let relationship: Relationship = 'none';
+    if (conn?.status === 'ACCEPTED') relationship = 'accepted';
+    else if (conn?.status === 'BLOCKED') relationship = 'blocked';
+    else if (conn?.status === 'PENDING') relationship = conn.requestedById === userId ? 'pending_out' : 'pending_in';
+
+    return { ...target, relationship };
   }
 
   /** Online users among a caller's accepted connections. */

@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
-import { ConnectionStatus } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -30,7 +29,7 @@ export class ConnectionsController {
   }
 
   @Get()
-  list(@CurrentUser() user: JwtUser, @Query('status') status?: ConnectionStatus) {
+  list(@CurrentUser() user: JwtUser, @Query('status') status?: string) {
     return this.connections.listForUser(user.sub, status);
   }
 }

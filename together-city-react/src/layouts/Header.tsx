@@ -2,11 +2,25 @@ import { NavLink, Link } from 'react-router-dom';
 import { NAV } from '@/config/hubs';
 import { useUiStore } from '@/store/ui.store';
 import { useAuth } from '@/hooks/useAuth';
+import { useIncomingRequestCount } from '@/api';
 
-/** Global header — 12 hub tabs + Mail/Chat/Profile actions, ported from tc.js buildHeader(). */
+/** Small red count bubble for pending connection requests. */
+function Badge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span aria-label={`${count} pending requests`} style={{
+      position: 'absolute', top: -6, right: -8, minWidth: 16, height: 16, padding: '0 4px',
+      borderRadius: 999, background: '#e0342b', color: '#fff', fontSize: 10, fontWeight: 700,
+      display: 'grid', placeItems: 'center', lineHeight: 1,
+    }}>{count > 9 ? '9+' : count}</span>
+  );
+}
+
+/** Global header — 12 hub tabs + Requests/Mail/Chat/Profile actions, ported from tc.js buildHeader(). */
 export function Header() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const { user } = useAuth();
+  const requests = useIncomingRequestCount();
   const firstName = (user?.name ?? '').trim().split(' ')[0] || 'Profile';
   const tabs = NAV.filter((n) => n.key !== 'mail'); // Mail lives in the actions, not the tab row
   return (
@@ -24,6 +38,10 @@ export function Header() {
         ))}
       </nav>
       <div className="tc-actions">
+        <Link to="/connections" aria-label="Requests" style={{ position: 'relative' }}>
+          <span aria-hidden>🤝</span> <span className="lab">PEOPLE</span>
+          <Badge count={requests} />
+        </Link>
         <Link to="/mail/inbox" aria-label="Mail"><span aria-hidden>✉</span> <span className="lab">MAIL</span></Link>
         <Link to="/chats" aria-label="Chat"><span aria-hidden>💬</span> <span className="lab">CHAT</span></Link>
         <Link to="/profile" aria-label="Profile"><span aria-hidden>👤</span> <span className="lab">{firstName}</span></Link>

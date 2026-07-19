@@ -27,6 +27,7 @@ export type ConnectionStatus = z.infer<typeof ConnectionStatusSchema>;
 export const ConnectionSchema = z.object({
   id: z.string(),
   status: ConnectionStatusSchema,
+  incoming: z.boolean(), // true ⇒ the other person requested; you can accept
   user: UserSchema.pick({ id: true, handle: true, name: true, profileImage: true }),
 });
 export type Connection = z.infer<typeof ConnectionSchema>;

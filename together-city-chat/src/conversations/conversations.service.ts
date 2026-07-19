@@ -11,20 +11,33 @@ export class ConversationsService {
     private readonly permission: ConnectionPermissionService,
   ) {}
 
-  /** Idempotently get-or-create the DIRECT conversation between two connected users. */
-  /** City directory for starting chats / groups. */
+  /**
+   * People you can start a chat / group with = your ACCEPTED connections only.
+   * There is no global city directory — discovery happens by exact handle
+   * (see GET /users/lookup), and messaging is gated on an accepted connection.
+   */
   async contacts(userId: string) {
-    // Fellow citizens only — exclude doctors/dietitians (they are Users for booking/chat,
-    // but should not appear in the citizen directory as casual contacts).
-    const rows = await this.prisma.user.findMany({
-      where: { NOT: { id: userId }, doctorProfile: { is: null }, dietitianProfile: { is: null } },
-      select: { id: true, handle: true, name: true, profileImage: true },
-      orderBy: { name: 'asc' }, take: 200,
+    const conns = await this.prisma.connection.findMany({
+      where: {
+        status: 'ACCEPTED',
+        connectionType: 'FRIEND',
+        OR: [{ userOneId: userId }, { userTwoId: userId }],
+      },
+      include: { userOne: true, userTwo: true },
+      orderBy: { updatedAt: 'desc' },
     });
-    return rows;
+    return conns.map((c) => {
+      const u = c.userOneId === userId ? c.userTwo : c.userOne;
+      return { id: u.id, handle: u.handle, name: u.name, profileImage: u.profileImage };
+    });
   }
 
-  async startDirect(userId: string, targetUserId: string) {
+  /** Idempotently get-or-create the DIRECT conversation with a member by handle. */
+  async startDirect(userId: string, handleRaw: string) {
+    const handle = handleRaw.trim().replace(/^@/, '').toLowerCase();
+    const target = await this.prisma.user.findUnique({ where: { handle }, select: { id: true } });
+    if (!target) throw new ForbiddenException('No citizen with that handle.');
+    const targetUserId = target.id;
     await this.permission.assertCanCommunicate(userId, targetUserId);
     const directKey = directKeyOf(userId, targetUserId);
     const existing = await this.prisma.conversation.findUnique({ where: { directKey } });

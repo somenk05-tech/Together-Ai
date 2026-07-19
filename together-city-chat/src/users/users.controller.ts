@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -12,6 +12,12 @@ export class UsersController {
   @Get('me')
   me(@CurrentUser() user: JwtUser) {
     return this.users.me(user.sub);
+  }
+
+  /** Private discovery: find a single citizen by their exact @handle. */
+  @Get('lookup')
+  lookup(@CurrentUser() user: JwtUser, @Query('handle') handle: string) {
+    return this.users.lookupByHandle(user.sub, handle ?? '');
   }
 
   @Get('online')

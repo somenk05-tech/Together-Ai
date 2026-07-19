@@ -16,7 +16,16 @@ export function useConnections(status?: ConnectionStatus) {
   return useQuery({
     queryKey: ['connections', status ?? 'all'],
     queryFn: () => connectionsApi.list(status),
+    // Poll so incoming requests / acceptances surface without a manual reload.
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
   });
+}
+
+/** Count of incoming connection requests awaiting your response (for the nav badge). */
+export function useIncomingRequestCount(): number {
+  const { data } = useConnections();
+  return (data ?? []).filter((c) => c.status === 'pending' && c.incoming).length;
 }
 export function useRequestConnection() {
   const qc = useQueryClient();
