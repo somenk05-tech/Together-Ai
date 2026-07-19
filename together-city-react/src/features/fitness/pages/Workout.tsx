@@ -1,30 +1,29 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button, Hero } from '@/components/ui';
 import { useAddWorkout } from '../api';
+import { useFoodPref } from '@/features/nutrition/hooks';
 
-/* ---------- nutrition-linked targets (local body profile; Nutrition would override) ---------- */
-const HEALTH = { age: 30, gender: 'female' as 'male' | 'female', heightCm: 165, weightKg: 65, activity: 'moderate', goal: 'maintain' as 'lose' | 'maintain' | 'gain' };
-const ACT: Record<string, number> = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, athlete: 1.9 };
-const WEIGHT = HEALTH.weightKg;
+/* ---------- shared body profile (from the Nutrition food-preference profile) ---------- */
+type Gender = 'male' | 'female';
+type Goal = 'lose' | 'maintain' | 'gain';
+interface Health { age: number; gender: Gender; heightCm: number; weightKg: number; activityMult: number; goal: Goal }
+const DEFAULT_HEALTH: Health = { age: 30, gender: 'female', heightCm: 165, weightKg: 65, activityMult: 1.55, goal: 'maintain' };
+
 const WORKOUT_MIN = 60, WALK_MIN = 20, STEPS_PER_MIN = 130;
 const WALK_STEPS = WALK_MIN * STEPS_PER_MIN;
 const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
-const kcalWorkout = (min: number) => Math.round(6.0 * WEIGHT * (min / 60));
-const kcalWalk = (min: number) => Math.round(4.3 * WEIGHT * (min / 60));
-const burnWorkout = kcalWorkout(WORKOUT_MIN), burnWalk = kcalWalk(WALK_MIN), burnTotal = burnWorkout + burnWalk;
+const kcalWorkout = (min: number, weight: number) => Math.round(6.0 * weight * (min / 60));
+const kcalWalk = (min: number, weight: number) => Math.round(4.3 * weight * (min / 60));
 
-function calorieTarget() {
-  const sx = HEALTH.gender === 'male' ? 5 : -161;
-  const bmr = 10 * HEALTH.weightKg + 6.25 * HEALTH.heightCm - 5 * HEALTH.age + sx;
-  const tdee = bmr * (ACT[HEALTH.activity] || 1.55);
-  const adj = HEALTH.goal === 'lose' ? -0.15 : HEALTH.goal === 'gain' ? 0.12 : 0;
+function calorieTarget(h: Health) {
+  const sx = h.gender === 'male' ? 5 : -161;
+  const bmr = 10 * h.weightKg + 6.25 * h.heightCm - 5 * h.age + sx;
+  const tdee = bmr * (h.activityMult || 1.55);
+  const adj = h.goal === 'lose' ? -0.15 : h.goal === 'gain' ? 0.12 : 0;
   return Math.max(1200, Math.round(tdee * (1 + adj)));
 }
-const KCAL = calorieTarget();
-const goalKey = HEALTH.goal;
-const goalTag = { gain: 'Hypertrophy', lose: 'Fat loss', maintain: 'Strength' }[goalKey];
-const genderTag = HEALTH.gender === 'male' ? 'Men' : 'Women';
-const genderEmph = HEALTH.gender === 'male' ? 'upper-body strength & push' : 'glutes, lower-body & core';
+const goalTagOf = (g: Goal) => ({ gain: 'Hypertrophy', lose: 'Fat loss', maintain: 'Strength' }[g]);
 
 /* ---------- routine data ---------- */
 type Item = { n: string; t?: number; reps?: number; rest?: boolean };
@@ -88,7 +87,7 @@ const levelCfg = (level: Level) => ({
 }[level]);
 const durFactor = (dur: number) => ({ 45: 0.82, 60: 1.18, 90: 1.85 } as Record<number, number>)[dur] ?? 1.18;
 
-function repScheme(level: Level) {
+function repScheme(level: Level, goalKey: Goal) {
   const base = goalKey === 'gain' ? { sets: 4, reps: '8–10', restSec: 75, repN: 9 }
     : goalKey === 'lose' ? { sets: 3, reps: '12–15', restSec: 45, repN: 13 }
     : { sets: 3, reps: '10–12', restSec: 60, repN: 11 };
@@ -100,9 +99,9 @@ const defaultFocus = () => FOCUSES[[5, 0, 1, 2, 3, 4, 5][new Date().getDay()]];
 interface Step { name: string; block: string; round?: string; dur: number; reps: number | null; rest: boolean; walk?: boolean; note?: string }
 const walkStep = (): Step => ({ name: 'Brisk walk', block: 'Walk', dur: WALK_MIN * 60, reps: null, rest: false, walk: true, note: `~${WALK_STEPS.toLocaleString('en-IN')} steps` });
 
-function currentHomePlan(level: Level): Block[] {
+function currentHomePlan(level: Level, gender: Gender): Block[] {
   const plan = HOME_PLANS[level].slice();
-  const gb = GENDER_HOME[HEALTH.gender];
+  const gb = GENDER_HOME[gender];
   let ci = plan.findIndex((b) => /Cool-down/.test(b.block));
   if (ci < 0) ci = plan.length - 1;
   plan.splice(ci, 0, gb);
@@ -110,22 +109,22 @@ function currentHomePlan(level: Level): Block[] {
 }
 const homeRounds = (dur: number, baseRounds: number) => baseRounds <= 1 ? 1 : Math.max(2, Math.min(8, Math.round(baseRounds * durFactor(dur))));
 
-function focusBase(focus: string): { n: string; t?: number; gender?: boolean }[] {
+function focusBase(focus: string, gender: Gender): { n: string; t?: number; gender?: boolean }[] {
   const base: { n: string; t?: number; gender?: boolean }[] = (GYM[focus] || GYM['Full Body']).map((e) => ({ ...e }));
-  const extra = (GENDER_GYM[HEALTH.gender] || {})[focus] || [];
+  const extra = (GENDER_GYM[gender] || {})[focus] || [];
   extra.forEach((nm) => base.splice(Math.min(3, base.length), 0, { n: nm, gender: true }));
   return base;
 }
 const gymExCount = (dur: number) => dur === 45 ? 5 : dur === 90 ? 7 : 6;
-function gymExercises(focus: string, dur: number) {
-  const base = focusBase(focus);
+function gymExercises(focus: string, dur: number, gender: Gender) {
+  const base = focusBase(focus, gender);
   const num = Math.min(base.length, gymExCount(dur));
   return base.slice(0, num);
 }
 
-function buildHomeSeq(level: Level, dur: number): Step[] {
+function buildHomeSeq(level: Level, dur: number, gender: Gender): Step[] {
   const seq: Step[] = []; const lc = levelCfg(level);
-  currentHomePlan(level).forEach((b) => {
+  currentHomePlan(level, gender).forEach((b) => {
     const rounds = homeRounds(dur, b.rounds);
     for (let r = 1; r <= rounds; r++) b.items.forEach((it) => {
       const d = it.rest ? Math.max(20, (it.t ?? 40) + lc.restAdd) : (it.t ?? Math.max(20, Math.round((it.reps ?? 10) * 3)));
@@ -134,9 +133,9 @@ function buildHomeSeq(level: Level, dur: number): Step[] {
   });
   return seq;
 }
-function buildGymSeq(focus: string, level: Level, dur: number): Step[] {
-  const sc = repScheme(level); const seq: Step[] = [];
-  gymExercises(focus, dur).forEach((e) => {
+function buildGymSeq(focus: string, level: Level, dur: number, gender: Gender, goalKey: Goal): Step[] {
+  const sc = repScheme(level, goalKey); const seq: Step[] = [];
+  gymExercises(focus, dur, gender).forEach((e) => {
     const sets = e.t ? 3 : sc.sets;
     for (let i = 1; i <= sets; i++) {
       if (e.t) seq.push({ name: e.n, block: focus, round: `${i}/${sets}`, dur: e.t, reps: null, rest: false });
@@ -147,10 +146,23 @@ function buildGymSeq(focus: string, level: Level, dur: number): Step[] {
   });
   return seq;
 }
-const buildSeq = (loc: Loc, focus: string, level: Level, dur: number, includeWalk: boolean): Step[] => {
-  const seq = loc === 'gym' ? buildGymSeq(focus, level, dur) : buildHomeSeq(level, dur);
+const buildSeq = (loc: Loc, focus: string, level: Level, dur: number, includeWalk: boolean, gender: Gender, goalKey: Goal): Step[] => {
+  const seq = loc === 'gym' ? buildGymSeq(focus, level, dur, gender, goalKey) : buildHomeSeq(level, dur, gender);
   return includeWalk ? [...seq, walkStep()] : seq;
 };
+
+/** Map the Nutrition food-preference profile onto the fitness body profile. */
+function healthFromPref(p: { age: number | null; sex: 'male' | 'female' | null; heightCm: number | null; weightKg: number | null; activity: number; goal: Goal } | undefined): Health {
+  if (!p) return DEFAULT_HEALTH;
+  return {
+    age: p.age ?? DEFAULT_HEALTH.age,
+    gender: p.sex ?? DEFAULT_HEALTH.gender,
+    heightCm: p.heightCm ?? DEFAULT_HEALTH.heightCm,
+    weightKg: p.weightKg ?? DEFAULT_HEALTH.weightKg,
+    activityMult: p.activity || DEFAULT_HEALTH.activityMult,
+    goal: p.goal ?? DEFAULT_HEALTH.goal,
+  };
+}
 
 /* ---------- component ---------- */
 type Status = 'complete' | 'workout' | 'walk' | 'light' | 'none' | 'rest';
@@ -168,13 +180,24 @@ function speak(txt: string) { try { if ('speechSynthesis' in window) { const u =
 
 export function Workout() {
   const addWorkout = useAddWorkout();
+  const foodPref = useFoodPref();
   const [level, setLevel] = useState<Level>('intermediate');
   const [dur, setDur] = useState(60);
   const [loc, setLoc] = useState<Loc>('home');
   const [focus, setFocus] = useState(defaultFocus());
   const [log, setLog] = useState<Record<string, DayLog>>({});
 
-  const workoutSeconds = useMemo(() => buildSeq(loc, focus, level, dur, false).reduce((a, s) => a + s.dur, 0), [loc, focus, level, dur]);
+  // Body profile is shared with the Nutrition food-preference profile — no re-typing.
+  const health = useMemo(() => healthFromPref(foodPref.data), [foodPref.data]);
+  const hasProfile = Boolean(foodPref.data?.weightKg || foodPref.data?.heightCm || foodPref.data?.age);
+  const gender = health.gender, goalKey = health.goal, WEIGHT = health.weightKg;
+  const KCAL = calorieTarget(health);
+  const goalTag = goalTagOf(goalKey);
+  const genderTag = gender === 'male' ? 'Men' : 'Women';
+  const genderEmph = gender === 'male' ? 'upper-body strength & push' : 'glutes, lower-body & core';
+  const burnWorkout = kcalWorkout(WORKOUT_MIN, WEIGHT), burnWalk = kcalWalk(WALK_MIN, WEIGHT), burnTotal = burnWorkout + burnWalk;
+
+  const workoutSeconds = useMemo(() => buildSeq(loc, focus, level, dur, false, gender, goalKey).reduce((a, s) => a + s.dur, 0), [loc, focus, level, dur, gender, goalKey]);
 
   /* live timer runtime kept in a ref to avoid stale closures */
   const rt = useRef({ seq: [] as Step[], idx: 0, remain: 0, paused: false, running: false, workoutSec: 0, walkSec: 0, mode: 'full' as 'full' | 'walk' });
@@ -209,7 +232,7 @@ export function Workout() {
   const advance = () => goStep(rt.current.idx + 1);
 
   const start = (mode: 'full' | 'walk') => {
-    const seq = mode === 'walk' ? [walkStep()] : buildSeq(loc, focus, level, dur, true);
+    const seq = mode === 'walk' ? [walkStep()] : buildSeq(loc, focus, level, dur, true, gender, goalKey);
     rt.current = { seq, idx: 0, remain: seq[0]?.dur ?? 0, paused: false, running: true, workoutSec: 0, walkSec: 0, mode };
     force();
     speak(seq[0] ? seq[0].name : 'Start');
@@ -219,7 +242,7 @@ export function Workout() {
     try { speechSynthesis.cancel(); } catch { /* ignore */ }
     const wMin = t.workoutSec / 60, kMin = t.walkSec / 60;
     const status: Status = (wMin >= 30 && kMin >= 15) ? 'complete' : wMin >= 15 ? 'workout' : kMin >= 10 ? 'walk' : (wMin > 0 || kMin > 0) ? 'light' : 'none';
-    const kcal = kcalWorkout(wMin) + kcalWalk(kMin);
+    const kcal = kcalWorkout(wMin, WEIGHT) + kcalWalk(kMin, WEIGHT);
     setLog((l) => ({ ...l, [dayKey()]: { status, kcal } }));
     if (status !== 'none') {
       addWorkout.mutate({ focus: loc === 'gym' ? `${focus} (${goalTag})` : 'Home workout + walk', minutes: Math.round(wMin + kMin), intensity: 'moderate' });
@@ -234,7 +257,7 @@ export function Workout() {
   const running = rt.current.running; const s = rt.current.seq[rt.current.idx];
   const next = rt.current.seq[rt.current.idx + 1];
 
-  const sc = repScheme(level);
+  const sc = repScheme(level, goalKey);
   const weekCells = useMemo(() => {
     const out: { day: string; status: string; kcal: string }[] = [];
     for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const e = log[dayKey(d)]; out.push({ day: DAYNAMES[d.getDay()], status: e ? e.status : '', kcal: e ? inr(e.kcal) : '—' }); }
@@ -258,10 +281,24 @@ export function Workout() {
       <Hero image="/assets/img/fitness-family-hero.webp" objectPosition="center 32%" eyebrow="Together City · Hub 012" title="Your Workout"
         sub="Your personalised home & gym plan for today — level & goal matched, with a live guided timer." />
 
-      <div style={{ marginBottom: 22 }}>
+      <div style={{ marginBottom: 14 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 13, padding: '6px 14px', borderRadius: 999, background: STATUS_STYLE[tStatus].bg, color: STATUS_STYLE[tStatus].c }}>
           {tStatus === 'rest' ? '○' : tStatus === 'none' ? '✕' : '✓'} {STATUS_LABEL[tStatus]}{today && today.kcal ? ` · ${inr(today.kcal)} kcal` : ''}
         </span>
+      </div>
+
+      {/* shared body profile from Nutrition */}
+      <div className="card" style={{ marginBottom: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: 'var(--accent-soft)', border: 'none' }}>
+        <div style={{ fontSize: 12.5 }}>
+          {hasProfile ? (
+            <>🔗 Personalised from your Nutrition profile — <b>{health.weightKg}kg · {health.heightCm}cm · {genderTag} · {goalTag}</b></>
+          ) : (
+            <>🔗 Using default body stats. Set yours once to personalise every workout.</>
+          )}
+        </div>
+        <Link to="/nutrition/preferences" style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
+          {hasProfile ? 'Edit profile →' : 'Set up profile →'}
+        </Link>
       </div>
 
       {/* activity goal */}
@@ -317,7 +354,7 @@ export function Workout() {
           {loc === 'home' ? (
             <div>
               {blkHead(`${levelCfg(level).tag} · ${genderTag} · emphasis on ${genderEmph}`)}
-              {currentHomePlan(level).map((b) => {
+              {currentHomePlan(level, gender).map((b) => {
                 const rounds = homeRounds(dur, b.rounds);
                 return (
                   <div key={b.block}>
@@ -332,7 +369,7 @@ export function Workout() {
           ) : (
             <div>
               {blkHead(`${focus} · ${levelCfg(level).tag} · ${genderTag} · ${goalTag} · ${sc.sets} sets · ${sc.restSec}s rest`)}
-              {gymExercises(focus, dur).map((e, i) => exRow(i + 1, e.n, e.t ? 'hold each set' : `rest ${sc.restSec}s between sets`, e.t ? `3 × ${mmss(e.t)}` : `${sc.sets} × ${sc.reps}`))}
+              {gymExercises(focus, dur, gender).map((e, i) => exRow(i + 1, e.n, e.t ? 'hold each set' : `rest ${sc.restSec}s between sets`, e.t ? `3 × ${mmss(e.t)}` : `${sc.sets} × ${sc.reps}`))}
               {blkHead('Finish · Walk')}
               {exRow(1, 'Brisk walk', `outdoors or treadmill · ~${WALK_STEPS.toLocaleString('en-IN')} steps`, `${WALK_MIN}:00`)}
             </div>

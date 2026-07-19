@@ -55,8 +55,32 @@ export function useGroceryCart() {
 export function useBuildCart() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (planKey?: string) => nutritionApi.buildCart(planKey),
+    mutationFn: (opts?: { planKey?: string; recipeIds?: string[] }) => nutritionApi.buildCart(opts),
     onSuccess: (cart) => qc.setQueryData(['nutrition', 'cart'], cart),
+  });
+}
+
+export function useHealthLog(dates: string[]) {
+  return useQuery({
+    queryKey: ['nutrition', 'health', dates.join(',')],
+    queryFn: () => nutritionApi.healthLog(dates),
+    enabled: dates.length > 0,
+  });
+}
+
+export function useAddCalorie() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (e: { date: string; name: string; kcal: number; type: 'Meal Plan' | 'Extra' | 'Alcohol' }) => nutritionApi.addCalorie(e),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['nutrition', 'health'] }),
+  });
+}
+
+export function useRemoveCalorie() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => nutritionApi.removeCalorie(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['nutrition', 'health'] }),
   });
 }
 

@@ -157,11 +157,9 @@ export const HUBS: Record<HubKey, HubConfig> = {
     key: 'realestate', name: 'Real Estate', tag: 'Find where life happens next', backPath: '/realestate',
     items: [
       { path: '/realestate/explore', index: '01', label: 'Explore', sub: 'Discover & book a viewing' },
-      { path: '/realestate/browse', index: '02', label: 'Buy & Rent', sub: 'Ready-to-move homes' },
-      { path: '/realestate/under-construction', index: '03', label: 'Under Construction', sub: 'Plans, RERA & progress' },
-      { path: '/realestate/sell', index: '04', label: 'List a Property', sub: 'Multi-property, live photos' },
-      { path: '/realestate/post', index: '05', label: 'Post a Property', sub: 'Camera photos required' },
-      { path: '/realestate/mine', index: '06', label: 'My Listings', sub: 'Your posted properties' },
+      { path: '/realestate/under-construction', index: '02', label: 'Under Construction', sub: 'Plans, RERA & progress' },
+      { path: '/realestate/sell', index: '03', label: 'List a Property', sub: 'Multi-property, live photos' },
+      { path: '/realestate/mine', index: '04', label: 'My Listings', sub: 'Your posted properties' },
     ],
   },
   jobs: {

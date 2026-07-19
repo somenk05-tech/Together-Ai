@@ -121,13 +121,23 @@ export function Sell() {
 
   const publishAll = async () => {
     if (!list.length) { setWarn('Add a property first'); return; }
-    const n = list.length;
     try {
-      for (const l of list) await post.mutateAsync(toInput(l));
+      const results = [];
+      for (const l of list) { try { results.push(await post.mutateAsync(toInput(l))); } catch { results.push(null); } }
+      const approved = results.filter((r) => r?.moderation === 'approved').length;
+      const review = results.filter((r) => r?.moderation === 'review').length;
+      const rejected = results.filter((r) => r?.moderation === 'rejected');
       setList([]);
-      setNote(`✓ ${n} ${n === 1 ? 'property is' : 'properties are'} live. New buyers usually reach out within 48 hours.`);
+      const parts: string[] = [];
+      if (approved) parts.push(`${approved} live in Explore now`);
+      if (review) parts.push(`${review} in manual review`);
+      if (rejected.length) parts.push(`${rejected.length} not published`);
+      const rej = rejected.length
+        ? ` Rejected: ${rejected.map((r) => r?.moderationResult?.reasons?.join(' ')).filter(Boolean).join(' | ')} — edit & resubmit from My Listings.`
+        : '';
+      setNote(`Submitted for review — ${parts.join(' · ')}.${rej} Every listing passes an automated safety & quality check before going live. Track status in My Listings.`);
     } catch {
-      setNote('Couldn’t publish — start the backend and try again.');
+      setNote('Couldn’t submit — start the backend and try again.');
     }
   };
 

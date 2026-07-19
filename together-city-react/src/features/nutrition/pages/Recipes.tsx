@@ -1,8 +1,8 @@
 import { useState, type KeyboardEvent } from 'react';
-import { Link } from 'react-router-dom';
-import { EmptyState, Spinner } from '@/components/ui';
+import { Link, useNavigate } from 'react-router-dom';
+import { Button, EmptyState, Spinner } from '@/components/ui';
 import { AiSuggestions } from '@/components/AiSuggestions';
-import { useRecipes, useSearchRecipes } from '../hooks';
+import { useRecipes, useSearchRecipes, useBuildCart } from '../hooks';
 import type { DietKey } from '../types';
 
 /** Diet colour identity — ported from the vanilla site (TCPLAN.dietOf). */
@@ -34,6 +34,8 @@ export function Recipes() {
   const [typed, setTyped] = useState('');
   const recipes = useRecipes(diet);
   const search = useSearchRecipes(ingredients, diet);
+  const buildCart = useBuildCart();
+  const navigate = useNavigate();
 
   const searching = ingredients.length > 0;
   const shown = searching ? (search.data ?? []) : (recipes.data ?? []);
@@ -117,6 +119,17 @@ export function Recipes() {
       )}
       {searching && shown.length > 0 && (
         <p className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>{shown.length} recipes use your ingredients — best matches first.</p>
+      )}
+      {shown.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+          <Button variant="accent" size="sm" disabled={buildCart.isPending}
+            onClick={() => buildCart.mutate(
+              { recipeIds: shown.slice(0, 40).map((r) => r.id) },
+              { onSuccess: () => navigate('/nutrition/grocery') },
+            )}>
+            {buildCart.isPending ? 'Building…' : `🛒 Generate grocery list (${Math.min(shown.length, 40)})`}
+          </Button>
+        </div>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>

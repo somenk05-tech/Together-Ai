@@ -18,6 +18,17 @@ export type RegenerateDto = z.infer<typeof RegenerateSchema>;
 export const SwapSchema = z.object({ slot: SlotSchema });
 export type SwapDto = z.infer<typeof SwapSchema>;
 
+export const SkipSchema = z.object({ slot: SlotSchema, skipped: z.boolean() });
+export type SkipDto = z.infer<typeof SkipSchema>;
+
+export const CalorieSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  name: z.string().min(1).max(80),
+  kcal: z.number().int().min(1).max(9000),
+  type: z.enum(['Meal Plan', 'Extra', 'Alcohol']),
+});
+export type CalorieDto = z.infer<typeof CalorieSchema>;
+
 export const SidesSchema = z.object({
   slot: SlotSchema,
   sides: z.object({
@@ -29,7 +40,10 @@ export const SidesSchema = z.object({
 });
 export type SidesDto = z.infer<typeof SidesSchema>;
 
-export const AddToCartSchema = z.object({ planKey: z.string().optional() });
+export const AddToCartSchema = z.object({
+  planKey: z.string().optional(),
+  recipeIds: z.array(z.string()).max(80).optional(),
+});
 export type AddToCartDto = z.infer<typeof AddToCartSchema>;
 
 /** Blood panel input — key markers Nutrition personalises against.

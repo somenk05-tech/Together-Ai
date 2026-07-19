@@ -1,51 +1,19 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Hero, Button } from '@/components/ui';
-
-/** Weekly calorie chips. */
-const DAYSTRIP: { d: string; k: string; tag: string; cls: string; on?: boolean }[] = [
-  { d: 'Mon', k: '1,650', tag: 'Good', cls: 'green' },
-  { d: 'Tue', k: '1,890', tag: 'Good', cls: 'green' },
-  { d: 'Wed', k: '2,010', tag: 'Good', cls: 'green' },
-  { d: 'Thu', k: '2,450', tag: 'Over · E', cls: 'red', on: true },
-  { d: 'Fri', k: '1,780', tag: 'Good', cls: 'green' },
-  { d: 'Sat', k: '2,120', tag: 'Close', cls: 'amber' },
-  { d: 'Sun', k: '3,420', tag: 'Over · E', cls: 'red' },
-];
+import { Hero, Button, EmptyState } from '@/components/ui';
+import { useNutritionTargets, useFoodPref, useHealthLog, useAddCalorie, useRemoveCalorie } from '../hooks';
 
 type LogType = 'Meal Plan' | 'Extra' | 'Alcohol';
-interface LogRow { id: number; name: string; kcal: number; type: LogType; tag: 'green' | 'amber' | 'red' }
-const INITIAL_LOG: LogRow[] = [
-  { id: 1, name: 'Oats Upma with Vegetables', kcal: 300, type: 'Meal Plan', tag: 'green' },
-  { id: 2, name: 'Grilled Chicken Quinoa Bowl', kcal: 560, type: 'Meal Plan', tag: 'green' },
-  { id: 3, name: 'Roasted Makhana with Green Tea', kcal: 150, type: 'Meal Plan', tag: 'green' },
-  { id: 4, name: 'Palak Paneer with Phulka', kcal: 470, type: 'Meal Plan', tag: 'green' },
-  { id: 5, name: 'Chicken Sandwich', kcal: 520, type: 'Extra', tag: 'amber' },
-  { id: 6, name: 'Masala Chai', kcal: 120, type: 'Extra', tag: 'amber' },
-  { id: 7, name: 'Red Wine (1 glass)', kcal: 180, type: 'Alcohol', tag: 'red' },
-  { id: 8, name: 'Dark Chocolate (2 squares)', kcal: 120, type: 'Extra', tag: 'amber' },
-];
+const TYPE_TAG: Record<LogType, 'green' | 'amber' | 'red'> = { 'Meal Plan': 'green', Extra: 'amber', Alcohol: 'red' };
+const LOG_TYPES: LogType[] = ['Meal Plan', 'Extra', 'Alcohol'];
 
-const MACROS: { lbl: string; pct: number; over?: boolean; val: string }[] = [
-  { lbl: 'Protein', pct: 93, val: '102/110g' },
-  { lbl: 'Carbs', pct: 90, val: '248/275g' },
-  { lbl: 'Fats', pct: 100, over: true, val: '78/73g' },
-  { lbl: 'Fibre', pct: 87, val: '26/30g' },
-];
-const KCAL_SRC: { lbl: string; pct: number; color?: string }[] = [
-  { lbl: 'From Plan', pct: 78 },
-  { lbl: 'Extra Items', pct: 10, color: '#9a7b2e' },
-  { lbl: 'Alcohol', pct: 12, color: '#b0503e' },
-];
-
-// Nutrition-linked activity targets (default profile: 65 kg maintain).
-const TARGET_KCAL = 2124;
-const BURN_WORKOUT = 390;   // MET 6 · 60 min
-const BURN_WALK = 93;       // MET 4.3 · 20 min
-const BURN_TOTAL = BURN_WORKOUT + BURN_WALK;
-const WALK_STEPS = 2600;    // 20 min @ 130 spm
-const WALK_ONLY_MIN = 104;
-const WALK_ONLY_STEPS = 13520;
+const WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const pad = (n: number) => String(n).padStart(2, '0');
+const isoOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function weekDatesOf(base: Date): string[] {
+  const monday = new Date(base); monday.setDate(base.getDate() - ((base.getDay() + 6) % 7));
+  return Array.from({ length: 7 }, (_, i) => { const d = new Date(monday); d.setDate(monday.getDate() + i); return isoOf(d); });
+}
 
 const DEVICES: [string, string][] = [
   ['apple', '⌚ Apple Watch / Apple Health'],
@@ -56,16 +24,16 @@ const DEVICES: [string, string][] = [
 
 const HUBS: { to: string; title: string; body: string; label: string }[] = [
   { to: '/medical', title: '◈ Medical Hub', body: 'Your blood tests, vitals and Health Score come from here. New reports update your analysis automatically.', label: 'Open Medical Hub →' },
-  { to: '/nutrition', title: '◈ Nutrition Hub', body: "Your calorie targets, meal plan and macros flow from your Nutrition profile and set today's activity goal.", label: 'Open Nutrition Hub →' },
+  { to: '/nutrition/preferences', title: '◈ Nutrition Hub', body: "Your calorie targets, meal plan and macros flow from your Nutrition profile and set today's activity goal.", label: 'Open Nutrition profile →' },
   { to: '/nutrition/daily', title: '◈ Daily Plan', body: "Today's plate and macros drive the intake side of your calorie balance.", label: 'Open Daily Planner →' },
 ];
 
-function Bar({ lbl, pct, val, over, color }: { lbl: string; pct: number; val: string; over?: boolean; color?: string }) {
+function Bar({ lbl, pct, val, color }: { lbl: string; pct: number; val: string; color?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0', fontSize: 13 }}>
       <span style={{ width: 100, flexShrink: 0, color: 'var(--ink-soft)' }}>{lbl}</span>
       <div style={{ flex: 1, height: 7, background: 'var(--line)', borderRadius: 4, overflow: 'hidden' }}>
-        <span style={{ display: 'block', height: '100%', width: `${pct}%`, borderRadius: 4, background: over ? '#b0503e' : color ?? 'var(--accent)' }} />
+        <span style={{ display: 'block', height: '100%', width: `${pct}%`, borderRadius: 4, background: color ?? 'var(--accent)' }} />
       </div>
       <span style={{ width: 64, textAlign: 'right', fontWeight: 600, flexShrink: 0 }}>{val}</span>
     </div>
@@ -82,12 +50,71 @@ function Stat({ lab, val, delta, color }: { lab: string; val: string; delta?: st
   );
 }
 
-/** My Health Profile — calorie tracker, macros, food journal and activity, linked across hubs. */
+/** My Health Profile — your own calorie tracker + activity goal. Starts empty:
+ *  targets come from your Nutrition profile, entries are yours to log. */
 export function HealthProfile() {
-  const [log, setLog] = useState(INITIAL_LOG);
+  const targets = useNutritionTargets();
+  const foodPref = useFoodPref();
+  const now = useMemo(() => new Date(), []);
+  const todayStr = isoOf(now);
+  const weekDates = useMemo(() => weekDatesOf(now), [now]);
+  const health = useHealthLog(weekDates);
+  const addCal = useAddCalorie();
+  const delCal = useRemoveCalorie();
   const [device, setDevice] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState<{ name: string; kcal: string; type: LogType }>({ name: '', kcal: '', type: 'Extra' });
 
-  const remove = (id: number) => setLog((prev) => prev.filter((r) => r.id !== id));
+  const entries = health.data?.entries ?? [];
+  const log = entries.filter((e) => e.date === todayStr);
+  const dayTotal = (dateStr: string) => entries.filter((e) => e.date === dateStr).reduce((a, e) => a + e.kcal, 0);
+
+  const goal = targets.data?.kcal ?? 0;
+  const intake = log.reduce((a, r) => a + r.kcal, 0);
+  const remaining = goal ? goal - intake : 0;
+  const extrasCount = log.filter((r) => r.type === 'Extra').length;
+  const status = !log.length ? { t: 'No log yet', c: 'var(--muted)' as string, cls: 'amber' }
+    : remaining < 0 ? { t: 'Over goal', c: '#b0503e', cls: 'red' }
+    : remaining <= goal * 0.1 ? { t: 'Close', c: '#9a7b2e', cls: 'amber' }
+    : { t: 'On track', c: 'var(--accent)', cls: 'green' };
+
+  // Real weekly stats from the persisted log.
+  const loggedDates = weekDates.filter((d) => dayTotal(d) > 0);
+  const avgDay = loggedDates.length ? Math.round(loggedDates.reduce((a, d) => a + dayTotal(d), 0) / loggedDates.length) : 0;
+  let streak = 0;
+  for (let i = weekDates.indexOf(todayStr); i >= 0; i--) { if (dayTotal(weekDates[i]) > 0) streak++; else break; }
+  const withinGoal = goal ? loggedDates.filter((d) => dayTotal(d) <= goal).length : 0;
+  const overGoal = goal ? loggedDates.filter((d) => dayTotal(d) > goal).length : 0;
+
+  const addEntry = () => {
+    const k = parseInt(draft.kcal, 10);
+    if (!draft.name.trim() || !k || k <= 0) return;
+    if (draft.type === 'Extra' && extrasCount >= 5) return;
+    addCal.mutate({ date: todayStr, name: draft.name.trim(), kcal: k, type: draft.type });
+    setDraft({ name: '', kcal: '', type: 'Extra' });
+    setAdding(false);
+  };
+  const remove = (id: string) => delCal.mutate(id);
+
+  // Kcal split by source — real, from the log.
+  const srcTotals: Record<LogType, number> = { 'Meal Plan': 0, Extra: 0, Alcohol: 0 };
+  log.forEach((r) => { srcTotals[r.type] += r.kcal; });
+  const srcPct = (v: number) => (intake ? Math.round((v / intake) * 100) : 0);
+
+  // Activity goal — weight comes from your shared Nutrition profile.
+  const weight = foodPref.data?.weightKg ?? 65;
+  const BURN_WORKOUT = Math.round(6 * weight);
+  const BURN_WALK = Math.round((4.3 * weight) / 3);
+  const BURN_TOTAL = BURN_WORKOUT + BURN_WALK;
+  const WALK_STEPS = 2600;
+  const WALK_ONLY_MIN = Math.round(BURN_TOTAL / ((4.3 * weight) / 60));
+  const WALK_ONLY_STEPS = WALK_ONLY_MIN * 130;
+
+  const macroTargets = targets.data
+    ? ([['Protein', targets.data.protein], ['Carbs', targets.data.carb], ['Fat', targets.data.fat], ['Fibre', targets.data.fiber]] as [string, number][])
+    : [];
+
+  const fld: React.CSSProperties = { padding: '9px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)' };
 
   return (
     <div style={{ maxWidth: 1040, margin: '0 auto', padding: '20px 16px' }}>
@@ -101,97 +128,131 @@ export function HealthProfile() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.2fr) minmax(0,1fr)', gap: 28, alignItems: 'start' }}>
         <div>
+          {/* week strip — today reflects your log; history builds as you use it */}
           <div style={{ display: 'flex', gap: 10, overflowX: 'auto', marginBottom: 20 }}>
-            {DAYSTRIP.map((c) => (
-              <div key={c.d} className={`card center${c.on ? '' : ''}`} style={{ minWidth: 84, padding: '12px 8px', border: c.on ? '2px solid var(--accent)' : '1px solid var(--line)' }}>
-                <div className="muted" style={{ fontSize: 12 }}>{c.d}</div>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>{c.k}</div>
-                <span className={`tag ${c.cls}`} style={{ marginTop: 6, display: 'inline-block' }}>{c.tag}</span>
-              </div>
-            ))}
+            {WEEK.map((d, i) => {
+              const dateStr = weekDates[i];
+              const isToday = dateStr === todayStr;
+              const kcal = dayTotal(dateStr);
+              return (
+                <div key={d} className="card center" style={{ minWidth: 84, padding: '12px 8px', border: isToday ? '2px solid var(--accent)' : '1px solid var(--line)' }}>
+                  <div className="muted" style={{ fontSize: 12 }}>{d}</div>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{kcal ? kcal.toLocaleString('en-IN') : '—'}</div>
+                  {isToday && kcal > 0 && <span className={`tag ${status.cls}`} style={{ marginTop: 6, display: 'inline-block' }}>{status.t}</span>}
+                </div>
+              );
+            })}
           </div>
 
           <div className="grid4" style={{ marginBottom: 30 }}>
-            <Stat lab="Intake" val="2,450" />
-            <Stat lab="Goal" val="2,200" />
-            <Stat lab="Remaining" val="−250" color="#b0503e" />
-            <Stat lab="Status" val="Over Goal" color="#b0503e" />
+            <Stat lab="Intake" val={intake ? intake.toLocaleString('en-IN') : '0'} />
+            <Stat lab="Goal" val={goal ? goal.toLocaleString('en-IN') : '—'} />
+            <Stat lab="Remaining" val={goal ? (remaining < 0 ? '−' : '') + Math.abs(remaining).toLocaleString('en-IN') : '—'} color={remaining < 0 ? '#b0503e' : undefined} />
+            <Stat lab="Status" val={status.t} color={status.c} />
           </div>
 
           <div className="tabrow" style={{ marginBottom: 14 }}>
             <a className="on" href="#log">All ({log.length})</a>
             <a href="#log">Meals from Plan ({log.filter((r) => r.type === 'Meal Plan').length})</a>
-            <a href="#log">Extra Items ({log.filter((r) => r.type === 'Extra').length})</a>
+            <a href="#log">Extra Items ({extrasCount})</a>
             <a href="#log">Alcohol ({log.filter((r) => r.type === 'Alcohol').length})</a>
           </div>
 
-          <table className="tc" id="log">
-            <tbody>
-              <tr><th>Item</th><th>kcal</th><th>Type</th><th /></tr>
-              {log.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.type === 'Meal Plan' ? <b>{r.name}</b> : r.name}</td>
-                  <td>{r.kcal}</td>
-                  <td><span className={`tag ${r.tag}`}>{r.type}</span></td>
-                  <td className="muted">
-                    <button type="button" onClick={() => remove(r.id)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>🗑</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <Button variant="line" size="sm" style={{ marginTop: 16 }}>+ Add Another Entry (5 extra items/day max)</Button>
+          {log.length === 0 ? (
+            <div className="card" id="log">
+              <EmptyState icon="🍽" title="Nothing logged yet" hint="Add what you eat and drink through the day to track it against your calorie goal." />
+            </div>
+          ) : (
+            <table className="tc" id="log">
+              <tbody>
+                <tr><th>Item</th><th>kcal</th><th>Type</th><th /></tr>
+                {log.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.type === 'Meal Plan' ? <b>{r.name}</b> : r.name}</td>
+                    <td>{r.kcal}</td>
+                    <td><span className={`tag ${TYPE_TAG[r.type]}`}>{r.type}</span></td>
+                    <td className="muted">
+                      <button type="button" onClick={() => remove(r.id)} aria-label="Remove"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>🗑</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
-          <div className="blk-head" style={{ marginTop: 40 }}><h2>Macronutrients</h2></div>
-          <div className="card">{MACROS.map((m) => <Bar key={m.lbl} {...m} />)}</div>
+          {adding ? (
+            <div className="card" style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '2fr 1fr 1.2fr auto', gap: 8, alignItems: 'center' }}>
+              <input autoFocus placeholder="What did you have?" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} style={fld} />
+              <input type="number" min={1} placeholder="kcal" value={draft.kcal} onChange={(e) => setDraft({ ...draft, kcal: e.target.value })} style={fld} />
+              <select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value as LogType })} style={fld}>
+                {LOG_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <Button size="sm" variant="accent" onClick={addEntry}>Add</Button>
+                <Button size="sm" variant="line" onClick={() => setAdding(false)}>Cancel</Button>
+              </div>
+            </div>
+          ) : (
+            <Button variant="line" size="sm" style={{ marginTop: 16 }} onClick={() => setAdding(true)}>+ Add an entry (max 5 extra items/day)</Button>
+          )}
 
-          <div className="blk-head" style={{ marginTop: 40 }}><h2>Kcal Sources</h2></div>
-          <div className="card">{KCAL_SRC.map((s) => <Bar key={s.lbl} lbl={s.lbl} pct={s.pct} val={`${s.pct}%`} color={s.color} />)}</div>
+          <div className="blk-head" style={{ marginTop: 40 }}><h2>Daily macro targets</h2></div>
+          <div className="card">
+            {macroTargets.length ? (
+              <div className="grid4">
+                {macroTargets.map(([lbl, g]) => (
+                  <div key={lbl} className="stat"><div className="lab">{lbl}</div><div className="val" style={{ fontSize: 20 }}>{g}g</div></div>
+                ))}
+              </div>
+            ) : (
+              <p className="muted" style={{ fontSize: 13 }}>Set your <Link to="/nutrition/preferences" style={{ color: 'var(--accent)' }}>Nutrition profile</Link> to see your daily macro targets.</p>
+            )}
+          </div>
+
+          <div className="blk-head" style={{ marginTop: 40 }}><h2>Kcal sources</h2></div>
+          <div className="card">
+            {intake ? (
+              LOG_TYPES.map((t) => <Bar key={t} lbl={t} pct={srcPct(srcTotals[t])} val={`${srcPct(srcTotals[t])}%`} color={t === 'Alcohol' ? '#b0503e' : t === 'Extra' ? '#9a7b2e' : undefined} />)
+            ) : (
+              <p className="muted" style={{ fontSize: 13 }}>Log meals to see where your calories come from.</p>
+            )}
+          </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20, position: 'sticky', top: 96 }}>
           <div className="card center">
-            <div style={{ fontFamily: 'var(--serif)', fontSize: 40, fontWeight: 600 }}>758</div>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 40, fontWeight: 600 }}>—</div>
             <div className="muted" style={{ fontSize: 12 }}>Health Score · of 1000</div>
-            <p style={{ marginTop: 12, fontWeight: 600 }}>Great Progress! 🎉</p>
-            <Link to="/nutrition/daily"><Button variant="line" size="sm" style={{ marginTop: 10 }}>Today's plan →</Button></Link>
+            <p className="muted" style={{ marginTop: 12, fontSize: 12.5 }}>Your Health Score is generated from your Medical hub once you add a blood report.</p>
+            <Link to="/medical/records"><Button variant="line" size="sm" style={{ marginTop: 10 }}>Open Medical Hub →</Button></Link>
           </div>
           <div className="card">
-            <h4 style={{ marginBottom: 10 }}>Monthly Snapshot</h4>
+            <h4 style={{ marginBottom: 10 }}>This week</h4>
             <div className="grid2">
-              <Stat lab="Avg / day" val="1,835" />
-              <Stat lab="Streak" val="6 days" />
-              <Stat lab="Within goal" val="18 days" />
-              <Stat lab="Over goal" val="9 days" />
+              <Stat lab="Avg / day" val={avgDay ? avgDay.toLocaleString('en-IN') : '—'} />
+              <Stat lab="Streak" val={streak ? `${streak} day${streak > 1 ? 's' : ''}` : '—'} />
+              <Stat lab="Within goal" val={loggedDates.length ? String(withinGoal) : '—'} />
+              <Stat lab="Over goal" val={loggedDates.length ? String(overGoal) : '—'} />
             </div>
+            <p className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>Builds as you log each day.</p>
           </div>
-          <div className="note">Watch weekends — Saturday and Sunday average 640 kcal higher than weekdays.</div>
-          <div className="note">Limit alcohol — 3 of your last 7 over-goal days included a drink.</div>
         </div>
       </div>
 
       <div className="blk-head" style={{ marginTop: 44 }}><h2>Fitness &amp; activity</h2></div>
       <div className="grid2" style={{ marginBottom: 26 }}>
-        {device ? (
-          <>
-            <Stat lab="Steps Today" val="6,400" delta="goal 10,000" />
-            <Stat lab="Active Minutes" val="80 min" delta={`goal ${60 + 20} min`} />
-          </>
-        ) : (
-          <>
-            <Stat lab="Steps Today" val="—" delta="connect a device" />
-            <Stat lab="Active Minutes" val="80 min" delta="from logged activity" />
-          </>
-        )}
+        <Stat lab="Steps Today" val="—" delta={device ? 'awaiting sync' : 'connect a device'} />
+        <Stat lab="Active Minutes" val="—" delta={device ? 'awaiting sync' : 'connect a device'} />
       </div>
 
       <section style={{ marginBottom: 26 }}>
         <div className="blk-head"><h2>Today's activity goal</h2><Link className="muted" to="/nutrition/daily" style={{ fontSize: 12 }}>From your Nutrition plan →</Link></div>
         <div className="card">
           <p className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
-            To maintain your <b style={{ color: 'var(--ink)' }}>{TARGET_KCAL.toLocaleString('en-IN')} kcal</b> Nutrition plan,
-            aim to burn about <b style={{ color: 'var(--ink)' }}>{BURN_TOTAL} kcal</b> today through activity:
+            {goal
+              ? <>To maintain your <b style={{ color: 'var(--ink)' }}>{goal.toLocaleString('en-IN')} kcal</b> Nutrition plan, aim to burn about <b style={{ color: 'var(--ink)' }}>{BURN_TOTAL} kcal</b> today through activity:</>
+              : <>Set your <Link to="/nutrition/preferences" style={{ color: 'var(--accent)' }}>Nutrition profile</Link> to personalise today's activity goal.</>}
           </p>
           <div className="grid3">
             <div className="stat"><div className="lab">Work out</div><div className="val" style={{ fontSize: 20 }}>60 min</div><div className="delta">circuit &amp; strength · ≈ {BURN_WORKOUT} kcal</div></div>
@@ -199,8 +260,7 @@ export function HealthProfile() {
             <div className="stat"><div className="lab">Total burn</div><div className="val" style={{ fontSize: 20 }}>{BURN_TOTAL}</div><div className="delta">kcal today</div></div>
           </div>
           <p className="muted" style={{ fontSize: 11.5, marginTop: 12 }}>
-            Prefer to only walk? Walk about <b>{WALK_ONLY_MIN} min</b> (≈ {WALK_ONLY_STEPS.toLocaleString('en-IN')} steps)
-            to burn the same {BURN_TOTAL} kcal.
+            Prefer to only walk? Walk about <b>{WALK_ONLY_MIN} min</b> (≈ {WALK_ONLY_STEPS.toLocaleString('en-IN')} steps) to burn the same {BURN_TOTAL} kcal.
           </p>
         </div>
       </section>
@@ -213,7 +273,7 @@ export function HealthProfile() {
               <div className="av" style={{ width: 48, height: 48, fontSize: 20 }}>⌚</div>
               <div style={{ flex: 1, minWidth: 180 }}>
                 <h4>{(DEVICES.find((d) => d[0] === device) ?? ['', 'Health app'])[1].replace(/^\S+ /, '')}</h4>
-                <p className="muted" style={{ fontSize: 12, marginTop: 2 }}>Synced just now · steps &amp; heart-rate active</p>
+                <p className="muted" style={{ fontSize: 12, marginTop: 2 }}>Connected · live sync coming soon</p>
               </div>
               <span className="tag green">Connected</span>
               <Button variant="line" size="sm" onClick={() => setDevice(null)}>Disconnect</Button>

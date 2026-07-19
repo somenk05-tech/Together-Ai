@@ -17,7 +17,18 @@ export interface PropertyCard {
   coverPhoto: string | null; photoCount: number; pricePerSqft: number; verified: Verified;
   projectName: string | null; developer: string | null; possessionDate: string | null; progressPct: number | null;
   postedByYou: boolean; createdOn: string;
+  moderation: 'approved' | 'pending' | 'rejected' | 'review';
+  moderationReasons: string[];
 }
+
+export interface ModerationCheck { name: string; pass: boolean; severity: 'hard' | 'soft'; detail: string }
+export interface ModerationResult { decision: 'approved' | 'rejected' | 'review'; confidence: number; score: number; checks: ModerationCheck[]; reasons: string[]; decidedAt: string }
+export interface PostPropertyResult extends PropertyDetail {
+  moderation: 'approved' | 'pending' | 'rejected' | 'review';
+  moderationResult: ModerationResult;
+  notice: string;
+}
+export interface QueueItem extends PropertyCard { result: ModerationResult | null }
 export interface PropertyDetail extends PropertyCard {
   photos: Photo[]; floor: number | null; totalFloors: number | null; description: string | null;
   amenities: Amenity[]; reraId: string | null; floorPlans: FloorPlan[]; milestones: Milestone[];
@@ -40,7 +51,10 @@ export const realestateApi = {
   underConstruction: () => api.get<PropertyDetail[]>('/realestate/under-construction').then((r) => r.data),
   myListings: () => api.get<PropertyCard[]>('/realestate/my-listings').then((r) => r.data),
   property: (id: string) => api.get<PropertyDetail>(`/realestate/properties/${id}`).then((r) => r.data),
-  post: (input: PostPropertyInput) => api.post<PropertyDetail>('/realestate/properties', input).then((r) => r.data),
+  post: (input: PostPropertyInput) => api.post<PostPropertyResult>('/realestate/properties', input).then((r) => r.data),
+  moderationQueue: () => api.get<QueueItem[]>('/realestate/moderation/queue').then((r) => r.data),
+  moderationDecide: (id: string, decision: 'approved' | 'rejected', reason?: string) =>
+    api.post<{ id: string; moderation: string }>(`/realestate/moderation/${id}/decision`, { decision, reason }).then((r) => r.data),
 };
 
 export function useListings(q: ListingQuery) {

@@ -144,7 +144,7 @@ export function PropertyDetail() {
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '20px 16px' }}>
-      <Link to={uc ? '/realestate/under-construction' : '/realestate/browse'} style={{ fontSize: 12.5, color: 'var(--accent)', fontWeight: 600 }}>← Back</Link>
+      <Link to={uc ? '/realestate/under-construction' : '/realestate/explore'} style={{ fontSize: 12.5, color: 'var(--accent)', fontWeight: 600 }}>← Back</Link>
 
       {/* Gallery */}
       <div style={{ marginTop: 12, borderRadius: 16, overflow: 'hidden', background: '#111', aspectRatio: '16 / 9', position: 'relative' }}>

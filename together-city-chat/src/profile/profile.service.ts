@@ -56,6 +56,7 @@ export class ProfileService {
       { key: 'email', label: 'City email', value: user ? `${user.handle}@togethercity.tech` : null },
       { key: 'primaryEmail', label: 'Primary email', value: user?.email ?? null },
       { key: 'phone', label: 'Phone', value: user?.phone ?? null },
+      ...this.nutritionSections(foodPref),
     ];
     return {
       hubs,
@@ -63,6 +64,44 @@ export class ProfileService {
       memberSince: (user?.createdAt ?? new Date()).toISOString(),
       profileImage: user?.profileImage ?? null,
     };
+  }
+
+  /** Flatten the full food-preference profile into profile rows so everything
+   *  set on the Nutrition preferences page is visible on the profile. */
+  private nutritionSections(foodPref: unknown): ProfileSection[] {
+    const p = foodPref as {
+      diet?: string; goal?: string; activity?: number; heightCm?: number | null; weightKg?: number | null;
+      age?: number | null; sex?: string | null; extras?: string | null;
+    } | null;
+    if (!p) return [];
+    let ex: {
+      cuisineMix?: Record<string, number>; cuisines?: string[]; proteins?: string[]; meats?: string[];
+      pattern?: string; allergies?: string; excluded?: string; budgetInr?: number | null; maxCookMin?: number | null; conditions?: string;
+    } = {};
+    try { ex = p.extras ? JSON.parse(p.extras) : {}; } catch { ex = {}; }
+
+    const actLabel = (a?: number) => a == null ? null
+      : a <= 1.3 ? 'Sedentary' : a <= 1.5 ? 'Lightly active' : a <= 1.7 ? 'Moderately active' : a <= 1.9 ? 'Very active' : 'Athlete';
+    const goalLabel = ({ lose: 'Weight loss', maintain: 'Maintain', gain: 'Muscle gain' } as Record<string, string>)[p.goal ?? ''] ?? p.goal ?? null;
+    const cuisines = ex.cuisineMix && Object.keys(ex.cuisineMix).length
+      ? Object.entries(ex.cuisineMix).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}%`).join(' · ')
+      : (ex.cuisines ?? []).join(', ');
+    const body = [p.age && `${p.age}y`, p.sex, p.heightCm && `${p.heightCm}cm`, p.weightKg && `${p.weightKg}kg`].filter(Boolean).join(' · ');
+
+    const rows: ProfileSection[] = [
+      { key: 'n_diet', label: 'Diet', value: p.diet ?? null },
+      { key: 'n_goal', label: 'Nutrition goal', value: goalLabel },
+      { key: 'n_activity', label: 'Activity level', value: actLabel(p.activity) },
+      { key: 'n_body', label: 'Body stats', value: body || null },
+      { key: 'n_cuisines', label: 'Cuisine mix', value: cuisines || null },
+      { key: 'n_proteins', label: 'Protein sources', value: (ex.proteins ?? []).join(', ') || null },
+      { key: 'n_meats', label: 'Meats', value: (ex.meats ?? []).join(', ') || null },
+      { key: 'n_pattern', label: 'Nutrition pattern', value: ex.pattern ?? null },
+      { key: 'n_allergies', label: 'Allergies', value: ex.allergies || null },
+      { key: 'n_avoids', label: 'Foods avoided', value: ex.excluded || null },
+      { key: 'n_budget', label: 'Grocery budget', value: ex.budgetInr ? `₹${ex.budgetInr}/day` : null },
+    ];
+    return rows.filter((r) => r.value);
   }
 
   async updateSection(userId: string, key: string, value: string): Promise<ProfileSummary> {

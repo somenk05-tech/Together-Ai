@@ -12,6 +12,14 @@ export const nutritionApi = {
   targets: () => api.get<NutritionTargets>('/nutrition/targets').then((r) => r.data),
   swapMeal: (planKey: string, dayIndex: number, slot: string) =>
     api.post<WeekPlan>(`/nutrition/plan/${planKey}/day/${dayIndex}/swap`, { slot }).then((r) => r.data),
+  skipMeal: (planKey: string, dayIndex: number, slot: string, skipped: boolean) =>
+    api.post<WeekPlan>(`/nutrition/plan/${planKey}/day/${dayIndex}/skip`, { slot, skipped }).then((r) => r.data),
+  healthLog: (dates: string[]) =>
+    api.get<{ entries: CalorieEntry[] }>('/nutrition/health/log', { params: { dates: dates.join(',') } }).then((r) => r.data),
+  addCalorie: (e: { date: string; name: string; kcal: number; type: CalorieType }) =>
+    api.post<{ entries: CalorieEntry[] }>('/nutrition/health/log', e).then((r) => r.data),
+  removeCalorie: (id: string) =>
+    api.delete<{ ok: boolean }>(`/nutrition/health/log/${id}`).then((r) => r.data),
   setSides: (planKey: string, dayIndex: number, slot: string, sides: Sides) =>
     api.patch<WeekPlan>(`/nutrition/plan/${planKey}/day/${dayIndex}/sides`, { slot, sides }).then((r) => r.data),
   recipes: (diet?: string) =>
@@ -23,8 +31,8 @@ export const nutritionApi = {
   recipe: (id: string) =>
     api.get<RecipeDetail>(`/nutrition/recipes/${id}`).then((r) => r.data),
   cart: () => api.get<GroceryCart>('/nutrition/cart').then((r) => r.data),
-  buildCart: (planKey?: string) =>
-    api.post<GroceryCart>('/nutrition/cart', { planKey }).then((r) => r.data),
+  buildCart: (opts?: { planKey?: string; recipeIds?: string[] }) =>
+    api.post<GroceryCart>('/nutrition/cart', opts ?? {}).then((r) => r.data),
   blood: () => api.get<BloodPanel>('/nutrition/blood').then((r) => r.data),
   saveBlood: (input: Record<string, number>) =>
     api.post<BloodPanel>('/nutrition/blood', input).then((r) => r.data),
@@ -41,6 +49,9 @@ export const nutritionApi = {
   cancelDelivery: (orderId: string, deliveryId: string) =>
     api.post<NutritionOrder[]>(`/nutrition/orders/${orderId}/deliveries/${deliveryId}/cancel`, {}).then((r) => r.data),
 };
+
+export type CalorieType = 'Meal Plan' | 'Extra' | 'Alcohol';
+export interface CalorieEntry { id: string; date: string; name: string; kcal: number; type: CalorieType }
 
 export interface RecipeIngredient { name: string; grams: number; priceInr: number }
 export interface CookStep { text: string; durationSec: number; active: boolean }

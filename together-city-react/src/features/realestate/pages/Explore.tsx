@@ -121,7 +121,7 @@ export function Explore() {
         {confirmed && (
           <div className="note" style={{ marginTop: 20 }}>
             ✓ Viewing confirmed for <b>{date}, {slot}</b> with Riya Mehta.
-            {' '}<Link to="/realestate/browse" style={{ color: 'inherit', fontWeight: 700, textDecoration: 'underline' }}>Back to listings →</Link>
+            {' '}<Link to="/realestate/under-construction" style={{ color: 'inherit', fontWeight: 700, textDecoration: 'underline' }}>Under-construction projects →</Link>
           </div>
         )}
       </section>

@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards, UsePipes,
+  Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards, UsePipes,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -12,6 +12,7 @@ import {
   type Diet, FoodPrefSchema, type FoodPrefDto,
   type PlanMode, RegenerateSchema, type RegenerateDto,
   SidesSchema, type SidesDto, type Slot, SwapSchema, type SwapDto,
+  SkipSchema, type SkipDto, CalorieSchema, type CalorieDto,
 } from './dto/nutrition.dto';
 
 @Controller('nutrition')
@@ -58,10 +59,33 @@ export class NutritionController {
     return this.nutrition.swap(key, idx, dto.slot as Slot);
   }
 
+  @Post('plan/:key/day/:idx/skip')
+  @UsePipes(new ZodValidationPipe(SkipSchema))
+  skip(@Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SkipDto) {
+    return this.nutrition.setSkip(key, idx, dto.slot as Slot, dto.skipped);
+  }
+
   @Patch('plan/:key/day/:idx/sides')
   @UsePipes(new ZodValidationPipe(SidesSchema))
   sides(@Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SidesDto) {
     return this.nutrition.setSides(key, idx, dto.slot as Slot, dto.sides);
+  }
+
+  // ─── My Health Profile calorie log (persists per day) ───
+  @Get('health/log')
+  healthLog(@CurrentUser() user: JwtUser, @Query('dates') dates?: string) {
+    return this.nutrition.healthLog(user.sub, (dates ?? '').split(',').map((s) => s.trim()).filter(Boolean));
+  }
+
+  @Post('health/log')
+  @UsePipes(new ZodValidationPipe(CalorieSchema))
+  addCalorie(@CurrentUser() user: JwtUser, @Body() dto: CalorieDto) {
+    return this.nutrition.addCalorie(user.sub, dto);
+  }
+
+  @Delete('health/log/:id')
+  removeCalorie(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.nutrition.removeCalorie(user.sub, id);
   }
 
   @Get('recipes')
@@ -71,9 +95,9 @@ export class NutritionController {
 
   // GET /api/nutrition/recipes/search?ingredients=paneer,spinach&diet=veg
   @Get('recipes/search')
-  searchRecipes(@Query('ingredients') ingredients?: string, @Query('diet') diet?: Diet) {
+  searchRecipes(@CurrentUser() user: JwtUser, @Query('ingredients') ingredients?: string, @Query('diet') diet?: Diet) {
     const terms = (ingredients ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-    return this.nutrition.searchByIngredients(terms, diet);
+    return this.nutrition.searchByIngredients(user.sub, terms, diet);
   }
 
   @Get('recipes/:id')
@@ -139,6 +163,6 @@ export class NutritionController {
   @Post('cart')
   @UsePipes(new ZodValidationPipe(AddToCartSchema))
   addToCart(@CurrentUser() user: JwtUser, @Body() dto: AddToCartDto) {
-    return this.nutrition.addPlanToCart(user.sub, dto.planKey ?? '');
+    return this.nutrition.buildCart(user.sub, { planKey: dto.planKey, recipeIds: dto.recipeIds });
   }
 }

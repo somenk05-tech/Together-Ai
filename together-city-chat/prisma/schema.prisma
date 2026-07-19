@@ -89,6 +89,7 @@ model User {
 
   foodPref             FoodPref?
   mealPlans            MealPlan[]
+  calorieEntries       CalorieEntry[]
   groceryCarts         GroceryCart[]
   walletLedger         WalletLedger[]
   nutritionOrders      NutritionOrder[]
@@ -313,6 +314,22 @@ model Recipe {
 
   @@index([slot])
   @@index([diet])
+}
+
+// A single logged food/drink item in the My Health Profile calorie tracker.
+// Persisted per user per local day so the week strip builds over time.
+model CalorieEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  date      String // YYYY-MM-DD (the user's local day)
+  name      String
+  kcal      Int
+  type      String // Meal Plan | Extra | Alcohol
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
 }
 
 model RecipeIngredient {
@@ -859,12 +876,27 @@ model JobApplication {
 // ─────────────────────────── Real Estate Hub ───────────────────────────
 // Photos are mandatory to post (enforced in the DTO + service). Under-construction
 // listings carry RERA, possession, progress %, floor plans and payment milestones.
+// Audit trail for every moderation decision (automated + manual).
+model ModerationLog {
+  id        String   @id @default(uuid())
+  listingId String
+  actor     String // "system" or a moderator handle
+  decision  String // approved | rejected | review | removed
+  reason    String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([listingId])
+  @@index([createdAt])
+}
+
 model Property {
   id           String   @id @default(uuid())
   sellerId     String? // null = seeded platform listing
   listingType  String // sale | rent
   propertyType String // apartment | villa | plot | commercial
   status       String   @default("ready") // ready | under_construction
+  moderation   String   @default("approved") // approved | pending | rejected | review
+  moderationJson String? // JSON: { decision, confidence, score, checks[], reasons[], decidedAt }
   title        String
   city         String
   locality     String

@@ -49,9 +49,7 @@ const JobsMatches = lazy(() => import('@/features/jobs/pages/Matches').then((m) 
 const JobsApplications = lazy(() => import('@/features/jobs/pages/Applications').then((m) => ({ default: m.Applications })));
 const JobsPost = lazy(() => import('@/features/jobs/pages/PostJob').then((m) => ({ default: m.PostJob })));
 const JobsPostings = lazy(() => import('@/features/jobs/pages/Postings').then((m) => ({ default: m.Postings })));
-const REBrowse = lazy(() => import('@/features/realestate/pages/Browse').then((m) => ({ default: m.Browse })));
 const REUnderConstruction = lazy(() => import('@/features/realestate/pages/UnderConstruction').then((m) => ({ default: m.UnderConstruction })));
-const REPost = lazy(() => import('@/features/realestate/pages/PostProperty').then((m) => ({ default: m.PostProperty })));
 const REMine = lazy(() => import('@/features/realestate/pages/MyListings').then((m) => ({ default: m.MyListings })));
 const REDetail = lazy(() => import('@/features/realestate/pages/PropertyDetail').then((m) => ({ default: m.PropertyDetail })));
 const EntDiscover = lazy(() => import('@/features/entertainment/pages/Discover').then((m) => ({ default: m.Discover })));
@@ -137,6 +135,7 @@ const NutCheckout = lazy(() => import('@/features/nutrition/pages/Checkout').the
 const NutConfirm = lazy(() => import('@/features/nutrition/pages/Confirm').then((m) => ({ default: m.Confirm })));
 // Batch 3 sub-pages (ported from the static site)
 const REExplore = lazy(() => import('@/features/realestate/pages/Explore').then((m) => ({ default: m.Explore })));
+const REModeration = lazy(() => import('@/features/realestate/pages/Moderation').then((m) => ({ default: m.Moderation })));
 const RESell = lazy(() => import('@/features/realestate/pages/Sell').then((m) => ({ default: m.Sell })));
 const FitWorkout = lazy(() => import('@/features/fitness/pages/Workout').then((m) => ({ default: m.Workout })));
 const FitSupplements = lazy(() => import('@/features/fitness/pages/Supplements').then((m) => ({ default: m.Supplements })));
@@ -331,13 +330,12 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    // Real Estate hub inner pages (browse, under-construction, post, my listings, detail).
+    // Real Estate hub inner pages (under-construction, list/sell, my listings, detail).
     element: <HubLayout hub={HUBS.realestate} />,
     children: [
-      { path: '/realestate/browse', element: <RequireAuth>{wrap(<REBrowse />)}</RequireAuth> },
       { path: '/realestate/under-construction', element: <RequireAuth>{wrap(<REUnderConstruction />)}</RequireAuth> },
-      { path: '/realestate/post', element: <RequireAuth>{wrap(<REPost />)}</RequireAuth> },
       { path: '/realestate/mine', element: <RequireAuth>{wrap(<REMine />)}</RequireAuth> },
+      { path: '/realestate/admin', element: <RequireAuth>{wrap(<REModeration />)}</RequireAuth> },
       { path: '/realestate/explore', element: <RequireAuth>{wrap(<REExplore />)}</RequireAuth> },
       { path: '/realestate/sell', element: <RequireAuth>{wrap(<RESell />)}</RequireAuth> },
       { path: '/realestate/property/:id', element: <RequireAuth>{wrap(<REDetail />)}</RequireAuth> },

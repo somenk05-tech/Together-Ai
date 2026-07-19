@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConversationsService } from '../conversations/conversations.service';
@@ -28,9 +28,57 @@ function dietAllows(pref: Diet, recipe: Diet): boolean {
   return map[pref].includes(recipe);
 }
 
+const SHORT_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const CUISINE_BY_COUNTRY: Record<string, string> = {
+  India: 'Indian', China: 'Chinese', Italy: 'Italian', Mexico: 'Mexican', Thailand: 'Thai',
+  Japan: 'Japanese', USA: 'American', 'United States': 'American', America: 'American',
+  Lebanon: 'Middle Eastern', Turkey: 'Middle Eastern', 'Middle East': 'Middle Eastern',
+  Greece: 'Mediterranean', France: 'Continental', UK: 'Continental', England: 'Continental',
+};
+
+interface PrefExtras {
+  cuisineMix?: Record<string, number>; cuisines?: string[]; proteins?: string[]; meats?: string[];
+  allergies?: string; excluded?: string; maxCookMin?: number | null; weekly?: Record<string, 'veg' | 'nonveg'>;
+}
+function parseExtras(extras: string | null | undefined): PrefExtras {
+  try { return extras ? (JSON.parse(extras) as PrefExtras) : {}; } catch { return {}; }
+}
+function terms(s?: string): string[] {
+  return (s ?? '').split(/[,;]/).map((t) => t.trim().toLowerCase()).filter(Boolean);
+}
+type RecipeWithIng = { id: string; slot: string; diet: string; name: string; country: string; minutes: number; ingredients: Array<{ name: string }> };
+
+/** Filter recipes to a diet + the user's hard rules (allergies, avoided foods, cook time). */
+function filterByPrefs(recipes: RecipeWithIng[], diet: Diet, ex: PrefExtras): RecipeWithIng[] {
+  const allergens = terms(ex.allergies), avoid = terms(ex.excluded);
+  const maxCook = ex.maxCookMin ?? null;
+  return recipes.filter((r) => {
+    if (!dietAllows(diet, r.diet as Diet)) return false;
+    if (maxCook && r.minutes > maxCook) return false;
+    const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
+    if (allergens.some((a) => hay.includes(a))) return false;
+    if (avoid.some((a) => hay.includes(a))) return false;
+    return true;
+  });
+}
+/** Front-load recipes whose cuisine the user weighted highest (soft bias). */
+function cuisineBias<T extends { country: string }>(list: T[], mix: Record<string, number>): T[] {
+  const total = Object.values(mix).reduce((a, b) => a + b, 0);
+  if (!total) return list;
+  const w = (r: T) => mix[CUISINE_BY_COUNTRY[r.country] ?? r.country] ?? 0;
+  return [...list].sort((a, b) => w(b) - w(a));
+}
+
 export interface RecipeShape {
   id: string; name: string; country: string; kcal: number; protein: number;
   carbs: number; fat: number; fiber: number; minutes: number; gramsPerServing: number; diet: Diet;
+}
+
+export interface CalorieRow { id: string; userId: string; date: string; name: string; kcal: number; type: string; createdAt: Date }
+interface CalorieDelegate {
+  findMany(a: unknown): Promise<CalorieRow[]>;
+  create(a: unknown): Promise<CalorieRow>;
+  deleteMany(a: unknown): Promise<{ count: number }>;
 }
 
 /** One guided cooking step: its instruction, how long it runs unattended, and
@@ -121,13 +169,45 @@ export class NutritionService implements OnModuleInit {
     };
   }
 
+  // ─────────────── health profile · calorie log ───────────────
+  /** Typed accessor for the CalorieEntry model (the local, offline Prisma client
+   *  may predate this model; Railway regenerates it at build). */
+  private get calorie(): CalorieDelegate {
+    return (this.prisma as unknown as { calorieEntry: CalorieDelegate }).calorieEntry;
+  }
+
+  async healthLog(userId: string, dates: string[]) {
+    const clean = dates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 31);
+    if (!clean.length) return { entries: [] as CalorieRow[] };
+    const entries = await this.calorie.findMany({ where: { userId, date: { in: clean } }, orderBy: { createdAt: 'asc' } });
+    return { entries };
+  }
+
+  async addCalorie(userId: string, dto: { date: string; name: string; kcal: number; type: string }) {
+    if (dto.type === 'Extra') {
+      const existing = await this.calorie.findMany({ where: { userId, date: dto.date, type: 'Extra' } });
+      if (existing.length >= 5) throw new BadRequestException('Maximum 5 extra items per day.');
+    }
+    await this.calorie.create({ data: { userId, date: dto.date, name: dto.name, kcal: dto.kcal, type: dto.type } });
+    return this.healthLog(userId, [dto.date]);
+  }
+
+  async removeCalorie(userId: string, id: string) {
+    await this.calorie.deleteMany({ where: { id, userId } });
+    return { ok: true };
+  }
+
   // ─────────────── weekly plan ───────────────
   async weeklyPlan(userId: string, mode: PlanMode = 'individual') {
     const existing = await this.prisma.mealPlan.findFirst({
       where: { userId, mode },
       orderBy: { createdAt: 'desc' },
     });
-    const plan = existing ? await this.shapePlan(existing.key) : await this.generatePlan(userId, mode);
+    // Rebuild when the saved profile is newer than the plan, so the plan always
+    // reflects the user's current preferences.
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const stale = Boolean(existing && pref && existing.createdAt < pref.updatedAt);
+    const plan = existing && !stale ? await this.shapePlan(existing.key) : await this.generatePlan(userId, mode);
     return { ...plan, guidance: await this.userPlanGuidance(userId) };
   }
 
@@ -149,31 +229,42 @@ export class NutritionService implements OnModuleInit {
     return planGuidance(flags, pref?.goal ?? 'maintain');
   }
 
+  /** Build a slot→recipes map honouring the user's diet, allergies, avoided
+   *  foods, cook-time cap and cuisine-mix bias. `dayDiet` lets a single day be
+   *  forced vegetarian (weekly veg/non-veg rule) on top of the base diet. */
+  private rankedPools(
+    recipes: RecipeWithIng[], dayDiet: Diet, ex: PrefExtras, modes: ReturnType<typeof planningModes>,
+  ): Record<Slot, RecipeWithIng[]> {
+    const mix = ex.cuisineMix ?? (ex.cuisines?.length ? Object.fromEntries(ex.cuisines.map((c) => [c, 1])) : {});
+    const filtered = filterByPrefs(recipes, dayDiet, ex);
+    const out = {} as Record<Slot, RecipeWithIng[]>;
+    for (const slot of SLOTS) {
+      let pool = filtered.filter((r) => r.slot === slot);
+      if (!pool.length) pool = recipes.filter((r) => r.slot === slot && dietAllows(dayDiet, r.diet as Diet)); // relax exclusions
+      if (!pool.length) pool = recipes.filter((r) => r.slot === slot); // last resort
+      const byMode = rankByModes(pool as unknown as RecipeShape[], modes) as unknown as RecipeWithIng[];
+      out[slot] = cuisineBias(byMode, mix);
+    }
+    return out;
+  }
+
   private async generatePlan(userId: string, mode: PlanMode) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const diet = (pref?.diet ?? 'everything') as Diet;
-    const recipes = await this.prisma.recipe.findMany();
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const recipes = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true } } } })) as unknown as RecipeWithIng[];
 
-    const pool: Record<Slot, RecipeShape[]> = { b: [], l: [], s: [], d: [] };
-    for (const r of recipes) {
-      const rd = r.diet as Diet;
-      if (dietAllows(diet, rd)) pool[r.slot as Slot].push(r as unknown as RecipeShape);
-    }
-    // Fallback: if a slot has no diet-matching recipe, allow anything for that slot.
-    for (const slot of SLOTS) {
-      if (pool[slot].length === 0) pool[slot] = recipes.filter((r) => r.slot === slot) as unknown as RecipeShape[];
-    }
-
-    // Condition-aware selection: blood flags + goal switch on planning modes that
-    // re-rank each slot's candidates toward what the guidelines recommend.
+    // Condition-aware selection: blood flags + goal switch on planning modes.
     const modes = planningModes(flagsFor(await this.bloodValues(userId)), pref?.goal ?? 'maintain');
-    const ranked: Record<Slot, RecipeShape[]> = {
-      b: rankByModes(pool.b, modes), l: rankByModes(pool.l, modes),
-      s: rankByModes(pool.s, modes), d: rankByModes(pool.d, modes),
-    };
+    const baseRanked = this.rankedPools(recipes, diet, ex, modes);
+    // Some days can be forced vegetarian by the weekly rule — precompute a veg pool.
+    const vegRanked = this.rankedPools(recipes, 'veg', ex, modes);
 
     const offset = Math.floor(Math.random() * 6);
     const key = 'wk_' + this.rand(8);
+
+    // One plan per user+mode — clear old ones so the profile stays the source of truth.
+    await this.prisma.mealPlan.deleteMany({ where: { userId, mode } });
 
     await this.prisma.mealPlan.create({
       data: {
@@ -186,8 +277,9 @@ export class NutritionService implements OnModuleInit {
             dayName,
             meals: {
               create: SLOTS.map((slot) => {
-                // When modes are active, rotate among the top candidates (keeps variety
-                // across 7 days while honouring the clinical bias); else the full pool.
+                // Honour a per-day veg override (weekly rule) on top of the base diet.
+                const dayVeg = ex.weekly?.[SHORT_DAYS[dayIndex]] === 'veg';
+                const ranked = dayVeg ? vegRanked : baseRanked;
                 const full = ranked[slot];
                 const list = modes.length ? full.slice(0, Math.max(3, Math.ceil(full.length / 2))) : full;
                 const recipe = list[(dayIndex + offset) % Math.max(1, list.length)];
@@ -240,12 +332,29 @@ export class NutritionService implements OnModuleInit {
   // ─────────────── swap + sides ───────────────
   async swap(planKey: string, dayIndex: number, slot: Slot) {
     const meal = await this.findMeal(planKey, dayIndex, slot);
-    const candidates = await this.prisma.recipe.findMany({ where: { slot } });
-    if (candidates.length > 0) {
-      const next = candidates.filter((c) => c.id !== meal.recipeId);
-      const pick = (next.length ? next : candidates)[Math.floor(Math.random() * (next.length || candidates.length))];
-      await this.prisma.meal.update({ where: { id: meal.id }, data: { recipeId: pick.id } });
+    const plan = await this.prisma.mealPlan.findUnique({ where: { key: planKey }, select: { userId: true } });
+    const pref = plan ? await this.prisma.foodPref.findUnique({ where: { userId: plan.userId } }) : null;
+    const diet = (pref?.diet ?? 'everything') as Diet;
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const effDiet: Diet = ex.weekly?.[SHORT_DAYS[dayIndex]] === 'veg' ? 'veg' : diet;
+
+    const recipes = (await this.prisma.recipe.findMany({ where: { slot }, include: { ingredients: { select: { name: true } } } })) as unknown as RecipeWithIng[];
+    let candidates = filterByPrefs(recipes, effDiet, ex);
+    if (!candidates.length) candidates = recipes.filter((r) => dietAllows(effDiet, r.diet as Diet));
+    if (!candidates.length) candidates = recipes;
+    const others = candidates.filter((c) => c.id !== meal.recipeId);
+    const pickFrom = others.length ? others : candidates;
+    if (pickFrom.length) {
+      const pick = pickFrom[Math.floor(Math.random() * pickFrom.length)];
+      await this.prisma.meal.update({ where: { id: meal.id }, data: { recipeId: pick.id, skipped: false } });
     }
+    return this.shapePlan(planKey);
+  }
+
+  /** Skip / un-skip a meal for the day. */
+  async setSkip(planKey: string, dayIndex: number, slot: Slot, skipped: boolean) {
+    const meal = await this.findMeal(planKey, dayIndex, slot);
+    await this.prisma.meal.update({ where: { id: meal.id }, data: { skipped } });
     return this.shapePlan(planKey);
   }
 
@@ -347,27 +456,27 @@ export class NutritionService implements OnModuleInit {
   }
 
   /** Real ingredient search — recipes whose ingredients match the given terms,
-   *  ranked by how many of your ingredients they use. */
-  async searchByIngredients(terms: string[], diet?: Diet) {
-    const clean = terms.map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 12);
-    if (!clean.length) return this.recipes(diet);
-    const rows = await this.prisma.recipe.findMany({
-      where: {
-        ...(diet && diet !== 'everything' ? { diet } : {}),
-        ingredients: { some: { OR: clean.map((t) => ({ name: { contains: t, mode: 'insensitive' as const } })) } },
-      },
-      include: { ingredients: { select: { name: true } } },
-      take: 120,
+   *  filtered by the user's saved profile (diet, allergies, avoided foods, cook
+   *  time) and ranked by how many of your ingredients they use. */
+  async searchByIngredients(userId: string, searchTerms: string[], diet?: Diet) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const effDiet = ((diet && diet !== 'everything') ? diet : (pref?.diet ?? 'everything')) as Diet;
+    const clean = searchTerms.map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 12);
+
+    const rows = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true } } }, take: 300 })) as unknown as Array<RecipeWithIng & Record<string, unknown>>;
+    let pool = filterByPrefs(rows, effDiet, ex);
+    if (!pool.length) pool = rows.filter((r) => dietAllows(effDiet, r.diet as Diet));
+
+    const scored = pool.map((r) => {
+      const names = r.ingredients.map((i) => i.name.toLowerCase());
+      const matches = clean.length ? clean.filter((t) => names.some((n) => n.includes(t))).length : 0;
+      return { r, matches };
     });
-    const ranked = rows
-      .map((r) => {
-        const names = r.ingredients.map((i) => i.name.toLowerCase());
-        const matches = clean.filter((t) => names.some((n) => n.includes(t))).length;
-        return { r, matches };
-      })
+    const chosen = (clean.length ? scored.filter((s) => s.matches > 0) : scored)
       .sort((a, b) => b.matches - a.matches || a.r.name.localeCompare(b.r.name))
       .slice(0, 60);
-    return ranked.map(({ r, matches }) => ({ ...this.recipeShape(r), matches }));
+    return chosen.map(({ r, matches }) => ({ ...this.recipeShape(r as unknown as Parameters<NutritionService['recipeShape']>[0]), matches }));
   }
 
   // ─────────────── grocery cart ───────────────
@@ -379,25 +488,41 @@ export class NutritionService implements OnModuleInit {
   }
 
   /** Build a grocery cart from a plan's ingredients, split fresh vs pantry. */
-  async addPlanToCart(userId: string, planKey: string) {
-    const plan = await this.prisma.mealPlan.findUnique({
-      where: { key: planKey },
-      include: { days: { include: { meals: { include: { recipe: { include: { ingredients: true } } } } } } },
-    });
-    if (!plan) throw new NotFoundException('plan not found');
-
+  /** Build a grocery list from a meal plan and/or a set of recipes, replacing
+   *  the current list. Used by the weekly/daily/family planners and by recipe
+   *  search / recipe detail ("generate grocery list"). */
+  async buildCart(userId: string, opts: { planKey?: string; recipeIds?: string[] }) {
     const totals = new Map<string, { grams: number; price: number }>();
-    for (const day of plan.days) {
-      for (const m of day.meals) {
-        if (m.skipped) continue;
-        for (const ing of m.recipe.ingredients) {
-          const cur = totals.get(ing.name) ?? { grams: 0, price: 0 };
-          cur.grams += ing.grams; cur.price += ing.priceInr; totals.set(ing.name, cur);
-        }
+    const addIngredients = (ings: Array<{ name: string; grams: number; priceInr: number }>) => {
+      for (const ing of ings) {
+        const cur = totals.get(ing.name) ?? { grams: 0, price: 0 };
+        cur.grams += ing.grams; cur.price += ing.priceInr; totals.set(ing.name, cur);
       }
+    };
+
+    // No source given → build from the user's most recent plan.
+    let planKey = opts.planKey;
+    if (!planKey && !opts.recipeIds?.length) {
+      const latest = await this.prisma.mealPlan.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' } });
+      planKey = latest?.key;
     }
+    if (planKey) {
+      const plan = await this.prisma.mealPlan.findUnique({
+        where: { key: planKey },
+        include: { days: { include: { meals: { include: { recipe: { include: { ingredients: true } } } } } } },
+      });
+      if (plan) for (const day of plan.days) for (const m of day.meals) { if (!m.skipped) addIngredients(m.recipe.ingredients); }
+    }
+    if (opts.recipeIds?.length) {
+      const recipes = await this.prisma.recipe.findMany({ where: { id: { in: opts.recipeIds.slice(0, 80) } }, include: { ingredients: true } });
+      for (const r of recipes) addIngredients(r.ingredients);
+    }
+    if (!totals.size) return this.getCart(userId);
+
     const fresh = ['tomato', 'onion', 'spinach', 'paneer', 'chicken', 'fish', 'salmon', 'curd', 'milk', 'egg', 'vegetable', 'fruit', 'avocado'];
-    const cart = await this.prisma.groceryCart.create({
+    // One active list per user — replace the previous one.
+    await this.prisma.groceryCart.deleteMany({ where: { userId } });
+    return this.prisma.groceryCart.create({
       data: {
         userId,
         items: {
@@ -411,7 +536,6 @@ export class NutritionService implements OnModuleInit {
       },
       include: { items: true },
     });
-    return cart;
   }
 
   // ─────────────── wallet ───────────────

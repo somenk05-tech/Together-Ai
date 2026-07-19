@@ -1,10 +1,10 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
 import { MealCard } from '../components/MealCard';
 import { DailySummary } from '../components/DailySummary';
 import { PlanGuidanceBanner } from '../components/PlanGuidanceBanner';
-import { useWeeklyPlan, useNutritionTargets, useDaySummary } from '../hooks';
+import { useWeeklyPlan, useNutritionTargets, useDaySummary, useBuildCart } from '../hooks';
 import { nutritionApi } from '../api';
 
 /** Monday-indexed weekday (Mon=0 … Sun=6) — matches the plan's day order. */
@@ -19,6 +19,8 @@ export function Daily() {
   const plan = useWeeklyPlan('individual');
   const targets = useNutritionTargets();
   const summary = useDaySummary(plan.data?.key, dayIndex);
+  const buildCart = useBuildCart();
+  const navigate = useNavigate();
   const qc = useQueryClient();
 
   if (plan.isLoading) return <Spinner label="Plating today…" />;
@@ -51,14 +53,20 @@ export function Daily() {
               {day.meals.map((m) => (
                 <MealCard key={m.slot} meal={m}
                   onSwap={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))}
-                  onSkip={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))} />
+                  onSkip={() => void mutate(nutritionApi.skipMeal(week.key, dayIndex, m.slot, !m.skipped))} />
               ))}
             </div>
           </section>
 
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <Link to="/nutrition/weekly"><Button variant="line">Open the full week</Button></Link>
-            <Link to="/nutrition/grocery"><Button variant="accent">Groceries for this plan</Button></Link>
+            <Button variant="accent" disabled={buildCart.isPending}
+              onClick={() => buildCart.mutate(
+                { recipeIds: day.meals.filter((m) => !m.skipped).map((m) => m.recipe.id) },
+                { onSuccess: () => navigate('/nutrition/grocery') },
+              )}>
+              {buildCart.isPending ? 'Building…' : "🛒 Grocery list for today"}
+            </Button>
           </div>
         </div>
 

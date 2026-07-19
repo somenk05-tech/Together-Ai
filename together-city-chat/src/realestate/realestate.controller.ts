@@ -37,4 +37,15 @@ export class RealEstateController {
   post(@CurrentUser() user: JwtUser, @Body() dto: PostPropertyDto) {
     return this.realestate.post(user.sub, dto);
   }
+
+  // ─── moderation (admin only; gated by MODERATION_ADMINS handles) ───
+  @Get('moderation/queue')
+  moderationQueue(@CurrentUser() user: JwtUser) {
+    return this.realestate.moderationQueue(user.handle);
+  }
+
+  @Post('moderation/:id/decision')
+  moderationDecide(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: { decision: 'approved' | 'rejected'; reason?: string }) {
+    return this.realestate.moderationDecide(user.handle, id, body.decision === 'rejected' ? 'rejected' : 'approved', (body.reason ?? '').slice(0, 500));
+  }
 }

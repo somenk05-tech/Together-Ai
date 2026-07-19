@@ -1,9 +1,9 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
 import { MealCard } from '@/features/nutrition/components/MealCard';
 import { DailySummary } from '@/features/nutrition/components/DailySummary';
-import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRecipes } from '@/features/nutrition/hooks';
+import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRecipes, useBuildCart } from '@/features/nutrition/hooks';
 import { nutritionApi } from '@/features/nutrition/api';
 import type { WeekPlan } from '@/features/nutrition/types';
 import { useFamily, headcount } from '../members';
@@ -28,6 +28,8 @@ export function FamilyDaily() {
   const targets = useNutritionTargets();
   const summary = useDaySummary(plan.data?.key, dayIndex);
   const recipes = useRecipes();
+  const buildCart = useBuildCart();
+  const navigate = useNavigate();
   const { state } = useFamily();
   const qc = useQueryClient();
   const N = headcount(state);
@@ -64,7 +66,7 @@ export function FamilyDaily() {
             <span style={chipStyle}>Family · cook together</span>
             <MealCard meal={m}
               onSwap={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))}
-              onSkip={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))} />
+              onSkip={() => void mutate(nutritionApi.skipMeal(week.key, dayIndex, m.slot, !m.skipped))} />
           </div>
         ))}
         <FamilySnacks recipes={recipes.data ?? []} family={state} dayIndex={dayIndex} />
@@ -83,7 +85,13 @@ export function FamilyDaily() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="stat"><div className="lab">Today · shared mains</div><div className="val">{day.day}</div><div className="delta">Day {dayIndex + 1} of 7</div></div>
           <Link to="/family/weekly"><Button variant="line" style={{ width: '100%', justifyContent: 'center' }}>Open the full week</Button></Link>
-          <Link to="/family/grocery"><Button variant="gold" style={{ width: '100%', justifyContent: 'center' }}>Buy Grocery (Est.) →</Button></Link>
+          <Button variant="gold" disabled={buildCart.isPending} style={{ width: '100%', justifyContent: 'center' }}
+            onClick={() => buildCart.mutate(
+              { recipeIds: day.meals.filter((m) => !m.skipped).map((m) => m.recipe.id) },
+              { onSuccess: () => navigate('/family/grocery') },
+            )}>
+            {buildCart.isPending ? 'Building…' : '🛒 Generate grocery list →'}
+          </Button>
         </div>
       </div>
     </div>

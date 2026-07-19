@@ -1,7 +1,35 @@
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useMyListings } from '../api';
+import { useMyListings, type PropertyCard } from '../api';
 import { PropertyCardView } from '../components/PropertyCardView';
+
+const MOD: Record<string, { label: string; bg: string; c: string }> = {
+  approved: { label: '● Live in Explore', bg: '#e8f5e9', c: '#2e7d32' },
+  pending: { label: '◌ Pending review', bg: '#fff8e1', c: '#9a7b2e' },
+  review: { label: '⏳ In manual review', bg: '#fff8e1', c: '#9a7b2e' },
+  rejected: { label: '✕ Not published', bg: '#ffebee', c: '#c62828' },
+};
+
+/** A listing card with its moderation status + reasons. */
+function ListingWithStatus({ p }: { p: PropertyCard }) {
+  const m = MOD[p.moderation] ?? MOD.approved;
+  return (
+    <div>
+      <PropertyCardView p={p} />
+      <div style={{ marginTop: 6, background: m.bg, color: m.c, borderRadius: 10, padding: '8px 12px', fontSize: 12 }}>
+        <strong style={{ fontSize: 12 }}>{m.label}</strong>
+        {p.moderation !== 'approved' && p.moderationReasons.length > 0 && (
+          <ul style={{ margin: '6px 0 0', paddingLeft: 16 }}>
+            {p.moderationReasons.slice(0, 4).map((r, i) => <li key={i} style={{ marginBottom: 2 }}>{r}</li>)}
+          </ul>
+        )}
+        {p.moderation === 'rejected' && (
+          <Link to="/realestate/sell" style={{ display: 'inline-block', marginTop: 6, color: m.c, fontWeight: 700 }}>Edit &amp; resubmit →</Link>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /** My Listings — properties you've posted (ready + under-construction). */
 export function MyListings() {
@@ -13,7 +41,7 @@ export function MyListings() {
           <div className="eyebrow">Real Estate · My Listings</div>
           <h1 style={{ fontSize: 26, margin: 0 }}>Your properties</h1>
         </div>
-        <Link to="/realestate/post" style={{ marginLeft: 'auto' }}><Button variant="accent" size="sm">＋ Post a property</Button></Link>
+        <Link to="/realestate/sell" style={{ marginLeft: 'auto' }}><Button variant="accent" size="sm">＋ List a property</Button></Link>
       </div>
 
       {q.isLoading ? <Spinner label="Loading your listings…" />
@@ -21,7 +49,7 @@ export function MyListings() {
         : (q.data ?? []).length === 0 ? <EmptyState icon="🏡" title="You haven't posted anything yet" hint="Post a property — photos are required." />
         : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16, marginTop: 16 }}>
-            {q.data?.map((p) => <PropertyCardView key={p.id} p={p} />)}
+            {q.data?.map((p) => <ListingWithStatus key={p.id} p={p} />)}
           </div>
         )}
     </div>

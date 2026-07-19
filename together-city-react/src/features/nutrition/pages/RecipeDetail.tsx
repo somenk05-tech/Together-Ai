@@ -1,6 +1,6 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useRecipe, useRecipes } from '../hooks';
+import { useRecipe, useRecipes, useBuildCart } from '../hooks';
 import { stepTimerSeconds } from '../components/CookMode';
 import { useCookStore } from '../cook.store';
 import { DIET_META } from './Recipes';
@@ -17,6 +17,8 @@ export function RecipeDetail() {
   const recipe = useRecipe(id);
   const others = useRecipes('everything');
   const startCooking = useCookStore((s) => s.start);
+  const buildCart = useBuildCart();
+  const navigate = useNavigate();
 
   if (recipe.isLoading) return <Spinner label="Plating up…" />;
   if (recipe.isError || !recipe.data) return <EmptyState title="Recipe not found" hint="It may have been removed." />;
@@ -107,7 +109,10 @@ export function RecipeDetail() {
 
         <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
           {r.method && r.method.length > 0 && <Button variant="accent" size="sm" onClick={() => startCooking({ name: r.name, ingredients: r.ingredients, method: r.method, cookSteps: r.cookSteps })}>👨‍🍳 Start cooking</Button>}
-          <Link to="/nutrition/grocery"><Button variant="line" size="sm">Add ingredients to basket →</Button></Link>
+          <Button variant="line" size="sm" disabled={buildCart.isPending}
+            onClick={() => buildCart.mutate({ recipeIds: [r.id] }, { onSuccess: () => navigate('/nutrition/grocery') })}>
+            {buildCart.isPending ? 'Adding…' : '🛒 Generate grocery list →'}
+          </Button>
           <Link to="/nutrition/dietitian"><Button variant="line" size="sm">💬 Discuss with a nutritionist</Button></Link>
           <Link to="/nutrition/weekly"><Button variant="line" size="sm">Add via Weekly Planner</Button></Link>
         </div>

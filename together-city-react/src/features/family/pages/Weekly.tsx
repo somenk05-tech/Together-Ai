@@ -5,7 +5,8 @@ import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
 import { DayTabs } from '@/features/nutrition/components/DayTabs';
 import { MealCard } from '@/features/nutrition/components/MealCard';
 import { DailySummary } from '@/features/nutrition/components/DailySummary';
-import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRegenerateWeek, useRecipes } from '@/features/nutrition/hooks';
+import { useNavigate } from 'react-router-dom';
+import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRegenerateWeek, useRecipes, useBuildCart } from '@/features/nutrition/hooks';
 import { nutritionApi } from '@/features/nutrition/api';
 import type { WeekPlan } from '@/features/nutrition/types';
 import { useFamily, headcount, MEMBERS } from '../members';
@@ -28,6 +29,8 @@ export function FamilyWeekly() {
   const targets = useNutritionTargets();
   const summary = useDaySummary(plan.data?.key, dayIndex);
   const regenerate = useRegenerateWeek('family');
+  const buildCart = useBuildCart();
+  const navigate = useNavigate();
   const recipes = useRecipes();
   const { state } = useFamily();
   const qc = useQueryClient();
@@ -73,7 +76,7 @@ export function FamilyWeekly() {
                   <span style={chipStyle}>Family · cook together</span>
                   <MealCard meal={m}
                     onSwap={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))}
-                    onSkip={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))} />
+                    onSkip={() => void mutate(nutritionApi.skipMeal(week.key, dayIndex, m.slot, !m.skipped))} />
                 </div>
               ))}
               <FamilySnacks recipes={recipes.data ?? []} family={state} dayIndex={dayIndex} />
@@ -89,7 +92,10 @@ export function FamilyWeekly() {
           </div>
 
           <div style={{ margin: '24px 0', padding: 20, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <Link to="/family/grocery"><Button variant="accent">🛒 Weekly grocery</Button></Link>
+            <Button variant="accent" disabled={buildCart.isPending}
+              onClick={() => buildCart.mutate({ planKey: week.key }, { onSuccess: () => navigate('/family/grocery') })}>
+              {buildCart.isPending ? 'Building…' : '🛒 Generate grocery list'}
+            </Button>
             <Button variant="line" disabled={regenerate.isPending} onClick={() => regenerate.mutate()}>
               {regenerate.isPending ? 'Refreshing…' : 'Refresh Whole Week'}
             </Button>

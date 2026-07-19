@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
 import { DayTabs } from '../components/DayTabs';
 import { MealCard } from '../components/MealCard';
 import { DailySummary } from '../components/DailySummary';
 import { PlanGuidanceBanner } from '../components/PlanGuidanceBanner';
-import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRegenerateWeek } from '../hooks';
+import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRegenerateWeek, useBuildCart } from '../hooks';
 import { nutritionApi } from '../api';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -19,6 +20,8 @@ export function WeeklyPlanner() {
   const targets = useNutritionTargets();
   const summary = useDaySummary(plan.data?.key, dayIndex);
   const regenerate = useRegenerateWeek('individual');
+  const buildCart = useBuildCart();
+  const navigate = useNavigate();
   const qc = useQueryClient();
 
   if (plan.isLoading) return <Spinner label="Building your week…" />;
@@ -31,8 +34,11 @@ export function WeeklyPlanner() {
   const last = dayIndex === week.days.length - 1;
 
   const mutate = async (fn: Promise<typeof week>) => {
-    const next = await fn;
-    qc.setQueryData(['nutrition', 'weekly', 'individual'], next);
+    try {
+      const next = await fn;
+      qc.setQueryData(['nutrition', 'weekly', 'individual'], (prev: typeof week | undefined) => ({ ...(prev ?? {} as typeof week), ...next }));
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'summary'] });
+    } catch { /* surfaced by the query error boundary; keep the UI responsive */ }
   };
 
   return (
@@ -54,7 +60,7 @@ export function WeeklyPlanner() {
               {day.meals.map((m) => (
                 <MealCard key={m.slot} meal={m}
                   onSwap={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))}
-                  onSkip={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))} />
+                  onSkip={() => void mutate(nutritionApi.skipMeal(week.key, dayIndex, m.slot, !m.skipped))} />
               ))}
             </div>
           </section>
@@ -70,6 +76,10 @@ export function WeeklyPlanner() {
           <div style={{ margin: '24px 0', padding: 20, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <Button variant="line" disabled={regenerate.isPending} onClick={() => regenerate.mutate()}>
               {regenerate.isPending ? 'Refreshing…' : 'Refresh Week'}
+            </Button>
+            <Button variant="accent" disabled={buildCart.isPending}
+              onClick={() => buildCart.mutate({ planKey: week.key }, { onSuccess: () => navigate('/nutrition/grocery') })}>
+              {buildCart.isPending ? 'Building…' : '🛒 Generate grocery list'}
             </Button>
           </div>
         </div>
