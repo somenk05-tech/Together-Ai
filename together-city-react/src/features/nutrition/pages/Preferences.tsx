@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
 import { useFoodPref, useNutritionTargets, useUpdateFoodPref } from '../hooks';
+import { useBloodHistory } from '@/features/medical/api';
 import type { FoodPref } from '../api';
 import { DIET_META } from './Recipes';
 
@@ -47,10 +48,16 @@ const MEATS_BY_DIET: Record<string, string[]> = {
 const PATTERNS = ['Balanced', 'High protein', 'Low carb', 'Keto', 'Mediterranean', 'Diabetic-friendly', 'Heart-healthy', 'Low sodium', 'Gluten-free', 'Lactose-free'];
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DELIVERY = ['Morning (6–9am)', 'Midday (12–2pm)', 'Evening (5–8pm)'];
+const CONDITIONS = ['Diabetes', 'Hypertension', 'PCOS', 'Kidney Disease', 'Fatty Liver'];
+const EQUIPMENT = ['Microwave', 'Air Fryer', 'Pressure Cooker', 'Oven', 'Mixer'];
+const WELLNESS_GOALS = ['Lose Fat', 'Gain Muscle', 'Improve Gut Health', 'Improve Skin', 'Better Hair', 'Lower Cholesterol', 'Better Sleep', 'Higher Energy', 'Diabetes Control', 'Heart Health'];
 
 interface Extras {
   cuisines?: string[];               // legacy multi-select (migrated to cuisineMix)
   cuisineMix?: Record<string, number>; // cuisine → % share of the plan
+  healthConditions?: string[];       // Diabetes, Hypertension, … (or none)
+  equipment?: string[];              // kitchen equipment the user owns
+  healthGoals?: string[];            // wellness goals (multi-select)
   proteins?: string[];
   meats?: string[];
   allergies?: string;
@@ -113,6 +120,7 @@ function TargetsCard() {
 export function Preferences() {
   const existing = useFoodPref();
   const update = useUpdateFoodPref();
+  const bloodHistory = useBloodHistory();
   const [form, setForm] = useState<FoodPref | null>(null);
   const [ex, setEx] = useState<Extras>({});
   const [saved, setSaved] = useState(false);
@@ -139,6 +147,26 @@ export function Preferences() {
   };
   const setWeekly = (day: string, val: 'veg' | 'nonveg') =>
     setEx({ ...ex, weekly: { ...(ex.weekly ?? {}), [day]: val } });
+
+  // Multi-select with an exclusive "None" (empty list = none).
+  const toggleMulti = (list: string[] | undefined, v: string): string[] => {
+    const arr = list ?? [];
+    return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
+  };
+  const setMulti = (key: 'healthConditions' | 'equipment' | 'healthGoals', v: string) =>
+    setEx({ ...ex, [key]: toggleMulti(ex[key], v) });
+
+  // Blood test status (from the Medical hub).
+  const tests = (bloodHistory.data ?? []).slice().sort((a, b) => (a.takenOn < b.takenOn ? 1 : -1));
+  const bloodConnected = tests.length > 0;
+  const bloodLastUpdated = bloodConnected ? new Date(tests[0].takenOn).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+
+  const chipGroup = (key: 'healthConditions' | 'equipment' | 'healthGoals', items: string[]) => (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {items.map((v) => <Chip key={v} on={(ex[key] ?? []).includes(v)} onClick={() => setMulti(key, v)}>{v}</Chip>)}
+      <Chip on={(ex[key] ?? []).length === 0} onClick={() => setEx({ ...ex, [key]: [] })}>None</Chip>
+    </div>
+  );
 
   // Diet drives everything below it. Veg-type diets never see meat/fish, and
   // their weekly days are all vegetarian.
@@ -168,7 +196,12 @@ export function Preferences() {
     const cleaned = Object.fromEntries(Object.entries(nextMix).filter(([, v]) => v > 0));
     setEx({ ...ex, cuisineMix: cleaned, cuisines: Object.keys(cleaned) });
   };
-  const setPct = (c: string, v: number) => setMix({ ...mix, [c]: v });
+  const setPct = (c: string, v: number) => {
+    // Total can never exceed 100% — cap this slider at whatever's left.
+    const others = mixTotal - (mix[c] ?? 0);
+    const capped = Math.max(0, Math.min(v, 100 - others));
+    setMix({ ...mix, [c]: capped });
+  };
   const balanceMix = () => {
     const active = CUISINES.filter((c) => (mix[c] ?? 0) > 0);
     const list = active.length ? active : CUISINES;
@@ -189,6 +222,10 @@ export function Preferences() {
   const summaryRows: [string, string][] = [
     ['Diet', dietLabel],
     ['Goal', goalLabel],
+    ['Health goals', (ex.healthGoals ?? []).join(', ') || '—'],
+    ['Conditions', (ex.healthConditions ?? []).join(', ') || 'None'],
+    ['Kitchen equipment', (ex.equipment ?? []).join(', ') || 'None'],
+    ['Blood test', bloodConnected ? `Connected · ${bloodLastUpdated}` : 'Not connected'],
     ['Cuisine mix', cuisineSummary],
     ['Protein sources', (ex.proteins ?? []).join(', ') || '—'],
     ['Meats', isVegDiet ? 'None (vegetarian)' : (ex.meats ?? []).join(', ') || '—'],
@@ -205,9 +242,13 @@ export function Preferences() {
     e.preventDefault();
     setSaved(false);
     // Persist a diet-consistent profile: veg diets store all-veg weekly days.
-    const exToSave: Extras = isVegDiet
-      ? { ...ex, weekly: Object.fromEntries(DAYS.map((d) => [d, 'veg' as const])) }
-      : ex;
+    // Mirror the condition chips into the legacy `conditions` string so the
+    // planner / AI / profile keep reading a single field.
+    const exToSave: Extras = {
+      ...ex,
+      conditions: (ex.healthConditions ?? []).join(', '),
+      ...(isVegDiet ? { weekly: Object.fromEntries(DAYS.map((d) => [d, 'veg' as const])) } : {}),
+    };
     const payload: Partial<FoodPref> = {
       diet: form.diet, goal: form.goal, activity: form.activity,
       ...(form.heightCm ? { heightCm: form.heightCm } : {}),
@@ -251,6 +292,22 @@ export function Preferences() {
       )}
 
       <form onSubmit={submit} style={{ display: collapsed ? 'none' : 'block' }}>
+        {/* 0 · Blood test status (from Medical hub) */}
+        <div className="card" style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div className="eyebrow">Health profile</div>
+            {bloodConnected ? (
+              <p style={{ fontSize: 14, margin: '4px 0 0', fontWeight: 600, color: '#2e7d32' }}>
+                ✓ Blood test connected
+                <span className="muted" style={{ display: 'block', fontSize: 12, fontWeight: 400 }}>Last updated {bloodLastUpdated}</span>
+              </p>
+            ) : (
+              <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>Connect a blood test so your plans adapt to your biomarkers.</p>
+            )}
+          </div>
+          <Link to="/medical/blood"><Button type="button" variant={bloodConnected ? 'line' : 'accent'} size="sm">{bloodConnected ? 'View / update →' : 'Connect blood test →'}</Button></Link>
+        </div>
+
         {/* 1 · Cuisine mix */}
         <div className="card" style={{ marginTop: 16 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
@@ -287,7 +344,7 @@ export function Preferences() {
             <span className="muted" style={{ fontSize: 11.5 }}>
               {mixTotal === 0 ? 'No preference — plans use a broad mix.'
                 : mixTotal === 100 ? 'Perfectly balanced.'
-                : 'Shares are relative — they don’t have to add to 100%.'}
+                : `${100 - mixTotal}% left to assign.`}
             </span>
           </div>
         </div>
@@ -379,9 +436,30 @@ export function Preferences() {
           <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>Recipes containing these will never be shown to you.</p>
         </div>
 
+        {/* 4b · Health conditions */}
+        <div className="card" style={{ marginTop: 16 }}>
+          <div className="eyebrow">Health conditions</div>
+          <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 10px' }}>We use these to safely filter recipes and adjust your plan. Private to you.</p>
+          {chipGroup('healthConditions', CONDITIONS)}
+        </div>
+
+        {/* 4c · Kitchen equipment */}
+        <div className="card" style={{ marginTop: 16 }}>
+          <div className="eyebrow">Kitchen equipment</div>
+          <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 10px' }}>We won’t suggest recipes needing equipment you don’t have.</p>
+          {chipGroup('equipment', EQUIPMENT)}
+        </div>
+
+        {/* 4d · Health goals (multi-select wellness goals) */}
+        <div className="card" style={{ marginTop: 16 }}>
+          <div className="eyebrow">Health goals</div>
+          <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 10px' }}>Pick everything you’re working towards — plans and recipes lean this way.</p>
+          {chipGroup('healthGoals', WELLNESS_GOALS)}
+        </div>
+
         {/* 5 · Health & goals */}
         <div className="card" style={{ marginTop: 16 }}>
-          <div className="eyebrow">Health &amp; goals</div>
+          <div className="eyebrow">Body &amp; targets</div>
           <p className="muted" style={{ fontSize: 11.5, margin: '4px 0 0' }}>
             🔗 Shared with your <Link to="/fitness/workout" style={{ color: 'var(--accent)', fontWeight: 600 }}>Fitness hub</Link> — set your body stats once here and workouts use them automatically.
           </p>
@@ -433,17 +511,11 @@ export function Preferences() {
             {PATTERNS.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
-            <div>
-              <span style={label}>Max cook time (min)</span>
-              <input type="number" min={5} max={240} value={ex.maxCookMin ?? ''} placeholder="45"
-                onChange={(e) => setEx({ ...ex, maxCookMin: num(e.target.value) })} style={field} />
-            </div>
-            <div>
-              <span style={label}>Medical conditions</span>
-              <input value={ex.conditions ?? ''} placeholder="e.g. diabetes, PCOS"
-                onChange={(e) => setEx({ ...ex, conditions: e.target.value })} style={field} />
-            </div>
+          <div>
+            <span style={label}>Max cook time (min)</span>
+            <input type="number" min={5} max={240} value={ex.maxCookMin ?? ''} placeholder="45"
+              onChange={(e) => setEx({ ...ex, maxCookMin: num(e.target.value) })} style={field} />
+            <p className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>Health conditions moved to their own section above.</p>
           </div>
         </div>
 

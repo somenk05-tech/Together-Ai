@@ -57,6 +57,7 @@ export class ProfileService {
       { key: 'primaryEmail', label: 'Primary email', value: user?.email ?? null },
       { key: 'phone', label: 'Phone', value: user?.phone ?? null },
       ...this.nutritionSections(foodPref),
+      ...this.datingSections(dating),
     ];
     return {
       hubs,
@@ -77,6 +78,7 @@ export class ProfileService {
     let ex: {
       cuisineMix?: Record<string, number>; cuisines?: string[]; proteins?: string[]; meats?: string[];
       pattern?: string; allergies?: string; excluded?: string; budgetInr?: number | null; maxCookMin?: number | null; conditions?: string;
+      healthConditions?: string[]; equipment?: string[]; healthGoals?: string[];
     } = {};
     try { ex = p.extras ? JSON.parse(p.extras) : {}; } catch { ex = {}; }
 
@@ -91,6 +93,9 @@ export class ProfileService {
     const rows: ProfileSection[] = [
       { key: 'n_diet', label: 'Diet', value: p.diet ?? null },
       { key: 'n_goal', label: 'Nutrition goal', value: goalLabel },
+      { key: 'n_hgoals', label: 'Health goals', value: (ex.healthGoals ?? []).join(', ') || null },
+      { key: 'n_conditions', label: 'Health conditions', value: (ex.healthConditions ?? []).join(', ') || null },
+      { key: 'n_equipment', label: 'Kitchen equipment', value: (ex.equipment ?? []).join(', ') || null },
       { key: 'n_activity', label: 'Activity level', value: actLabel(p.activity) },
       { key: 'n_body', label: 'Body stats', value: body || null },
       { key: 'n_cuisines', label: 'Cuisine mix', value: cuisines || null },
@@ -100,6 +105,27 @@ export class ProfileService {
       { key: 'n_allergies', label: 'Allergies', value: ex.allergies || null },
       { key: 'n_avoids', label: 'Foods avoided', value: ex.excluded || null },
       { key: 'n_budget', label: 'Grocery budget', value: ex.budgetInr ? `₹${ex.budgetInr}/day` : null },
+    ];
+    return rows.filter((r) => r.value);
+  }
+
+  /** Key dating-profile fields, for the unified profile view. */
+  private datingSections(dating: unknown): ProfileSection[] {
+    const d = dating as { gender?: string; seeking?: string; extras?: string | null } | null;
+    if (!d) return [];
+    let ex: {
+      relationshipGoal?: string; city?: string; state?: string; profession?: string; education?: string;
+      personalityTraits?: string[]; values?: string[]; heightCm?: number | null;
+    } = {};
+    try { ex = d.extras ? JSON.parse(d.extras) : {}; } catch { ex = {}; }
+    const seek = ({ any: 'Anyone', male: 'Men', female: 'Women', nonbinary: 'Non-binary' } as Record<string, string>)[d.seeking ?? ''] ?? null;
+    const rows: ProfileSection[] = [
+      { key: 'd_goal', label: 'Relationship goal', value: ex.relationshipGoal ?? null },
+      { key: 'd_seeking', label: 'Dating · seeking', value: seek },
+      { key: 'd_loc', label: 'Dating · location', value: [ex.city, ex.state].filter(Boolean).join(', ') || null },
+      { key: 'd_work', label: 'Dating · profession', value: ex.profession ?? null },
+      { key: 'd_traits', label: 'Personality', value: (ex.personalityTraits ?? []).join(', ') || null },
+      { key: 'd_values', label: 'Values', value: (ex.values ?? []).join(', ') || null },
     ];
     return rows.filter((r) => r.value);
   }

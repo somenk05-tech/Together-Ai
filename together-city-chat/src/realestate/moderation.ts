@@ -142,3 +142,10 @@ export function decide(checks: Check[], risk: number, ai?: { flagged: boolean; c
 
 export const normalizeDesc = norm;
 export const MIN_PHOTOS_REQUIRED = MIN_PHOTOS;
+
+/** Generic text scan reused by dating bio / listing moderation. */
+export function scanText(text: string): { contacts: string[]; banned: boolean; scam: boolean; emojis: number } {
+  const hits: string[] = [];
+  for (const [label, re] of CONTACT_PATTERNS) if (re.test(text)) hits.push(label);
+  return { contacts: hits, banned: BANNED.test(text), scam: SCAM.test(text), emojis: emojiCount(text) };
+}

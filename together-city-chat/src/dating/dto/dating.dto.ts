@@ -12,6 +12,7 @@ export const UpsertDatingProfileSchema = z.object({
   birthTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   birthPlace: z.string().max(120).optional(),
   interests: z.array(z.string().min(1).max(40)).max(20).optional(),
+  extras: z.string().max(2_000_000).optional(), // JSON blob (incl. photos as data URLs)
   visible: z.boolean().optional(),
 });
 export type UpsertDatingProfileDto = z.infer<typeof UpsertDatingProfileSchema>;

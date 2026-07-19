@@ -48,6 +48,27 @@ function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
 
       {match.bio && <p style={{ fontSize: 14, lineHeight: 1.5, margin: '12px 0 0', color: 'var(--ink-soft)' }}>{match.bio}</p>}
 
+      {match.breakdown && (
+        <div style={{ marginTop: 12, background: 'var(--paper)', borderRadius: 12, padding: '12px 14px' }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>{match.score}% compatibility</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: '6px 14px' }}>
+            {([['Astrology', match.breakdown.astrology], ['Personality', match.breakdown.personality], ['Goals', match.breakdown.relationshipGoals], ['Values', match.breakdown.values], ['Lifestyle', match.breakdown.lifestyle], ['Interests', match.breakdown.interests], ['Location', match.breakdown.location]] as [string, number][]).map(([k, v]) => (
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                <span className="muted">{k}</span><span style={{ fontWeight: 600 }}>{v}%</span>
+              </div>
+            ))}
+          </div>
+          {match.reasons && match.reasons.length > 0 && (
+            <>
+              <div style={{ fontWeight: 600, fontSize: 12.5, margin: '10px 0 4px' }}>Why this match?</div>
+              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12.5, color: 'var(--ink-soft)' }}>
+                {match.reasons.map((r, i) => <li key={i} style={{ marginBottom: 2 }}>{r}</li>)}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+
       {match.interests.length > 0 && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
           {match.interests.map((i) => (
@@ -130,7 +151,7 @@ export function DatingMatches() {
       <div className="eyebrow">Dating Hub</div>
       <h1 style={{ fontSize: 26 }}>{kind === 'romantic' ? 'Curated Matches' : 'New Friends'}</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
-        Curated, not endless — the city only shows real matches of 75% or higher.
+        Curated, not endless — the AI shows only your top 3 matches (75%+). Pass or match, and the next best appears.
       </p>
 
       <AiSuggestions kind="astrology" />

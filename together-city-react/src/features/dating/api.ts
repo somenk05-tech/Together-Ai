@@ -15,8 +15,16 @@ export interface DatingProfile {
   interests: string[];
   sign: string;
   visible: boolean;
+  extras: string | null;
+  moderation: 'approved' | 'pending' | 'rejected' | 'review';
+  moderationReasons: string[];
+  notice?: string;
 }
 
+export interface FactorBreakdown {
+  astrology: number; personality: number; relationshipGoals: number;
+  values: number; lifestyle: number; interests: number; location: number;
+}
 export interface CuratedMatch {
   matchId: string | null;
   user: { id: string; handle: string; name: string; profileImage: string | null };
@@ -25,6 +33,8 @@ export interface CuratedMatch {
   yourSign: string;
   theirSign: string;
   score: number;
+  breakdown?: FactorBreakdown;
+  reasons?: string[];
   likedByMe: boolean;
   matched: boolean;
   chatLocked?: boolean;
@@ -39,6 +49,7 @@ export interface UpsertProfileInput {
   birthTime?: string;
   birthPlace?: string;
   interests?: string[];
+  extras?: string;
 }
 
 export const datingApi = {

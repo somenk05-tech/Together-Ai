@@ -501,6 +501,25 @@ model Follow {
 // Astrology-first: birth details feed the compatibility engine. Matches are
 // order-independent pair rows (userOneId = smaller id), like Connection.
 
+// Precomputed pair compatibility — refreshed whenever matches are generated.
+model CompatibilityScore {
+  id               String   @id @default(uuid())
+  userA            String
+  userB            String
+  astrology        Int
+  personality      Int
+  relationshipGoal Int
+  values           Int
+  lifestyle        Int
+  interest         Int
+  distance         Int
+  overall          Int
+  lastCalculated   DateTime @updatedAt
+
+  @@unique([userA, userB])
+  @@index([userA, overall])
+}
+
 model DatingProfile {
   id         String   @id @default(uuid())
   userId     String   @unique
@@ -511,6 +530,9 @@ model DatingProfile {
   birthTime  String?
   birthPlace String?
   interests  String   @default("") // csv
+  extras     String? // JSON: extended profile (lifestyle, personality, match prefs, photos…)
+  moderation String   @default("approved") // approved | pending | rejected | review
+  moderationJson String? // JSON: { decision, confidence, checks[], reasons[] }
   visible    Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

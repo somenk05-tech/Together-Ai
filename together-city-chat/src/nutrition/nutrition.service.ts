@@ -132,15 +132,28 @@ export class NutritionService implements OnModuleInit {
     const activity = pref?.activity ?? 1.4;
     const goal = pref?.goal ?? 'maintain';
 
-    const bmr = 10 * weight + 6.25 * height - 5 * age + (sex === 'male' ? 5 : -161);
-    let kcal = Math.round(bmr * activity);
-    if (goal === 'lose') kcal -= 400;
-    if (goal === 'gain') kcal += 300;
+    const h = height / 100;
+    const bmi = h > 0 ? weight / (h * h) : 22;
+    const overweight = bmi >= 27;
 
-    const protein = Math.round(1.6 * weight);
-    const fat = Math.round((kcal * 0.28) / 9);
+    // Mifflin-St Jeor → TDEE, then a percentage goal adjustment. For muscle gain
+    // on an already-overweight frame, a surplus just adds fat, so target body
+    // recomposition (maintenance calories + high protein) instead of a surplus.
+    const bmr = 10 * weight + 6.25 * height - 5 * age + (sex === 'male' ? 5 : -161);
+    const tdee = bmr * activity;
+    const adj = goal === 'lose' ? -0.18 : goal === 'gain' ? (overweight ? 0 : 0.10) : 0;
+    const kcal = Math.max(1400, Math.round(tdee * (1 + adj)));
+
+    // Protein per kg by goal; for high BMI, scale off a lean reference weight
+    // (BMI 25) so it stays realistic rather than tracking excess body fat.
+    const refWeight = bmi >= 27 ? Math.round(25 * h * h) : weight;
+    const proteinPerKg = goal === 'gain' ? 2.0 : goal === 'lose' ? 1.8 : 1.6;
+    const protein = Math.round(proteinPerKg * refWeight);
+
+    const fat = Math.round((kcal * 0.27) / 9);
     const carb = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
-    return { kcal, protein, carb, fat, fiber: 32, waterMl: Math.round(weight * 35) };
+    const fiber = Math.max(25, Math.min(50, Math.round((kcal / 1000) * 14)));
+    return { kcal, protein, carb, fat, fiber, waterMl: Math.round(weight * 35) };
   }
 
   async upsertFoodPref(userId: string, dto: FoodPrefDto) {
