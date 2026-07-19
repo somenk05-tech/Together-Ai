@@ -3,6 +3,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { RedisService } from '../shared/redis/redis.service';
 import { PresenceService } from '../users/presence.service';
 import { FcmProvider } from './fcm.provider';
+import { WebPushProvider } from './web-push.provider';
 
 /**
  * Decides whether a push should be sent for a new message and dispatches it.
@@ -16,6 +17,7 @@ export class NotificationsService {
     private readonly presence: PresenceService,
     private readonly redis: RedisService,
     private readonly fcm: FcmProvider,
+    private readonly webpush: WebPushProvider,
   ) {}
 
   async notifyNewMessage(params: {
@@ -43,18 +45,26 @@ export class NotificationsService {
 
       const devices = await this.prisma.deviceToken.findMany({
         where: { userId: recipientId },
-        select: { token: true },
+        select: { token: true, platform: true },
       });
-      await this.fcm.send(
-        devices.map((d) => d.token),
-        {
-          title: sender.name,
-          body: params.preview,
-          imageUrl: sender.profileImage ?? undefined,
-          deepLink: `togethercity://chat/${params.conversationId}`,
-          data: { conversationId: params.conversationId },
-        },
-      );
+      const fcmTokens = devices.filter((d) => d.platform !== 'webpush').map((d) => d.token);
+      const webTokens = devices.filter((d) => d.platform === 'webpush').map((d) => d.token);
+
+      await this.fcm.send(fcmTokens, {
+        title: sender.name,
+        body: params.preview,
+        imageUrl: sender.profileImage ?? undefined,
+        deepLink: `togethercity://chat/${params.conversationId}`,
+        data: { conversationId: params.conversationId },
+      });
+
+      // Browser / PWA push — reaches the recipient even with the app fully closed.
+      await this.webpush.send(webTokens, {
+        title: sender.name,
+        body: params.preview,
+        conversationId: params.conversationId,
+        icon: sender.profileImage ?? undefined,
+      });
     }
   }
 }

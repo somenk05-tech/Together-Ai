@@ -2,6 +2,33 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
 import { useProfileSummary } from '../hooks';
+import { useWebPush } from '@/hooks/useWebPush';
+
+/** Opt-in card for browser / phone push notifications (offline message alerts). */
+function NotificationsCard() {
+  const { supported, permission, busy, enable } = useWebPush();
+  if (!supported) return null;
+  const on = permission === 'granted';
+  const blocked = permission === 'denied';
+  return (
+    <Card style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <h4 style={{ margin: '0 0 4px' }}>🔔 Message notifications</h4>
+        <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+          {on ? 'On — you’ll get a notification when someone messages you, even with the app closed.'
+            : blocked ? 'Blocked in your browser settings. Allow notifications for this site to turn them on.'
+            : 'Get notified when someone messages you, even when Together City is closed.'}
+        </p>
+      </div>
+      {!on && !blocked && (
+        <Button variant="accent" size="sm" disabled={busy} onClick={enable}>
+          {busy ? 'Enabling…' : 'Enable notifications'}
+        </Button>
+      )}
+      {on && <span className="tag" style={{ alignSelf: 'center' }}>Enabled</span>}
+    </Card>
+  );
+}
 
 /** Unified profile — account identity + live cross-hub data + detail sections. */
 export function Profile() {
@@ -31,6 +58,9 @@ export function Profile() {
           <Button variant="line" size="sm" onClick={signOut}>Sign out</Button>
         </div>
       </Card>
+
+      {/* Push notifications opt-in */}
+      <NotificationsCard />
 
       {/* Your data across Together City — live from the backend */}
       <h4 style={{ margin: '10px 0 12px' }}>Your data across Together City</h4>
