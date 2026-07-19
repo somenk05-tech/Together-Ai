@@ -1,5 +1,6 @@
-import { ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { randomBytes } from 'crypto';
+import { PDFParse } from 'pdf-parse';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
@@ -32,6 +33,19 @@ export class MedicalService implements OnModuleInit {
     private readonly ai: AiService,
     private readonly storage: StorageProvider,
   ) {}
+
+  private readonly logger = new Logger(MedicalService.name);
+
+  /** Extract plain text from a (text-based) PDF report. */
+  private async pdfToText(buf: Buffer): Promise<string> {
+    try {
+      const res = await new PDFParse({ data: new Uint8Array(buf) }).getText();
+      return res.text ?? '';
+    } catch (e) {
+      this.logger.warn(`PDF text extraction failed: ${(e as Error).message}`);
+      return '';
+    }
+  }
 
   /** Shared 10 GB vault: total bytes = mail + health documents. */
   private readonly quotaBytes = 10 * 1024 * 1024 * 1024;
@@ -106,10 +120,20 @@ export class MedicalService implements OnModuleInit {
       } as never,
     });
 
-    // read it back from the private vault → AI extraction
+    // read it back from the private vault → AI extraction. Text-based PDFs are
+    // read via extracted text (cheaper + more reliable); images use vision.
     let extracted: { values: Record<string, number>; lab?: string; takenOn?: string } = { values: {} };
     const obj = await this.storage.getHealthObjectBase64(dto.fileKey);
-    if (obj) extracted = await this.ai.extractBloodMarkers(obj.base64, dto.mimeType);
+    if (obj) {
+      if (dto.mimeType === 'application/pdf') {
+        const text = await this.pdfToText(Buffer.from(obj.base64, 'base64'));
+        extracted = text.trim()
+          ? await this.ai.extractMarkersFromText(text)
+          : await this.ai.extractBloodMarkers(obj.base64, dto.mimeType); // scanned PDF → vision
+      } else {
+        extracted = await this.ai.extractBloodMarkers(obj.base64, dto.mimeType);
+      }
+    }
 
     return {
       aiEnabled: this.ai.enabled,

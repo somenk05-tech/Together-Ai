@@ -52,6 +52,42 @@ export class AiService {
    * manual entry). Keys map to the engine: hb, ferritin, vitd, b12, folate,
    * hba1c, ldl, trig, crp.
    */
+  private static readonly MARKER_SYSTEM =
+    'You extract lab values from a blood-test report. Return ONLY JSON: ' +
+    '{"values":{"hb":number,"ferritin":number,"vitd":number,"b12":number,"folate":number,"hba1c":number,"ldl":number,"trig":number,"crp":number},"lab":string,"takenOn":"YYYY-MM-DD"}. ' +
+    'Include a marker ONLY if it clearly appears on the report, using the report\'s numeric value in these units: ' +
+    'hb (hemoglobin) g/dL, ferritin ng/mL, vitd (25-OH vitamin D) ng/mL, b12 pg/mL, folate ng/mL, hba1c %, ldl (LDL cholesterol, use the DIRECT value if given) mg/dL, trig (triglycerides) mg/dL, crp mg/L. ' +
+    'Convert if the report uses different units. Omit any marker not present. Report text from a PDF may have columns out of order — match each value to the correct test name carefully, and never confuse a value with its reference range. Never invent values.';
+
+  private cleanMarkers(parsed: { values?: Record<string, unknown>; lab?: string; takenOn?: string } | null): { values: Record<string, number>; lab?: string; takenOn?: string } {
+    if (!parsed || typeof parsed !== 'object') return { values: {} };
+    const clean: Record<string, number> = {};
+    for (const k of ['hb', 'ferritin', 'vitd', 'b12', 'folate', 'hba1c', 'ldl', 'trig', 'crp']) {
+      const v = parsed.values?.[k];
+      if (typeof v === 'number' && isFinite(v) && v > 0) clean[k] = v;
+    }
+    return { values: clean, lab: typeof parsed.lab === 'string' ? parsed.lab : undefined, takenOn: typeof parsed.takenOn === 'string' ? parsed.takenOn : undefined };
+  }
+
+  /** Extract markers from the plain text of a report (e.g. a text-based PDF).
+   *  Uses the text model — cheaper and more reliable than PDF vision. */
+  async extractMarkersFromText(text: string): Promise<{ values: Record<string, number>; lab?: string; takenOn?: string }> {
+    if (!this.client || !text.trim()) return { values: {} };
+    try {
+      const res = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 1024,
+        system: `${AiService.MARKER_SYSTEM}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
+        messages: [{ role: 'user', content: `Blood report text:\n\n${text.slice(0, 40000)}` }],
+      });
+      const out = res.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('');
+      return this.cleanMarkers(this.extractJson(out) as { values?: Record<string, unknown>; lab?: string; takenOn?: string } | null);
+    } catch (e) {
+      this.logger.warn(`Text marker extraction failed: ${(e as Error).message}`);
+      return { values: {} };
+    }
+  }
+
   async extractBloodMarkers(
     base64: string,
     mediaType: string,
