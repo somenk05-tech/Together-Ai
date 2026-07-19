@@ -69,8 +69,8 @@ export function Home() {
       <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '88px 32px 24px' }}>
         {/* ============ WELCOME ============ */}
         <div className="center rise" style={{ textAlign: 'center' }}>
-          <div className="eyebrow">Welcome to Together City</div>
-          <h1 style={{ maxWidth: '22ch', margin: '0 auto' }}>The world&apos;s largest digital city. Everything. Personalized.</h1>
+          <div className="eyebrow" style={{ fontSize: 'clamp(13px, 1.4vw, 17px)', letterSpacing: '0.22em' }}>Welcome to Together City</div>
+          <h1 style={{ maxWidth: '22ch', margin: '0 auto', fontSize: 'clamp(34px, 5.2vw, 64px)', lineHeight: 1.1 }}>The world&apos;s largest digital city. Everything. Personalized.</h1>
           <p className="lede" style={{ margin: '20px auto 0' }}>
             Every hub belongs to the same city but carries its own atmosphere. Walk the waterfront, step into a pavilion, and everything — travel, dining, health, home, work, love — is personalised around one identity: yours.
           </p>
