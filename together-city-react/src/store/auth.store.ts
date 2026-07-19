@@ -52,12 +52,18 @@ export const useAuthStore = create<AuthState>()(
       signOut: () => { void authApi.logout().catch(() => undefined); set({ user: null, tokens: null }); },
 
       hydrate: async () => {
-        if (get().tokens?.accessToken) {
-          try { set({ user: await authApi.me() }); } catch { /* interceptor handles refresh */ }
-        }
+        // Render immediately from the persisted session — never block the app on a
+        // cold/slow backend. Refresh the profile in the background.
         set({ ready: true });
+        if (get().tokens?.accessToken) {
+          authApi.me()
+            .then((user) => set({ user }))
+            .catch(() => undefined); // 401 → interceptor refreshes; hard-fail → stay on cached user
+        }
       },
     }),
-    { name: 'tc:auth', partialize: (s) => ({ tokens: s.tokens }) },
+    // Persist the user too, so a reload shows the app instantly instead of
+    // waiting on /users/me (which is slow right after a deploy).
+    { name: 'tc:auth', partialize: (s) => ({ tokens: s.tokens, user: s.user }) },
   ),
 );

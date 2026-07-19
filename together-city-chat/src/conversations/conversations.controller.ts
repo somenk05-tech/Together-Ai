@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -33,6 +33,12 @@ export class ConversationsController {
   @Get('conversations')
   list(@CurrentUser() user: JwtUser) {
     return this.conversations.listForUser(user.sub);
+  }
+
+  // POST /api/chat/:id/read  → clear unread for this conversation
+  @Post(':id/read')
+  markRead(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.conversations.markRead(user.sub, id);
   }
 
   // GET /api/chat/contacts — city directory for starting chats / groups

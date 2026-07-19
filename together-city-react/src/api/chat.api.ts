@@ -27,6 +27,8 @@ export const chatApi = {
     apiGet('/chat/contacts', z.array(ContactSchema)),
   createGroup: (title: string, memberIds: string[]): Promise<Conversation> =>
     apiPost('/chat/group', { title, memberIds }, ConversationSchema),
+  markRead: (conversationId: string): Promise<{ ok: boolean }> =>
+    apiPost(`/chat/${conversationId}/read`, {}, z.object({ ok: z.boolean() })),
 };
 
 /* ---------------- React Query hooks ---------------- */

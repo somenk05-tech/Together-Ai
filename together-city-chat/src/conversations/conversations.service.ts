@@ -161,4 +161,14 @@ export class ConversationsService {
     });
     if (!member) throw new ForbiddenException('Not a member of this conversation');
   }
+
+  /** Mark a whole conversation read for this user (advances lastReadAt → unread = 0). */
+  async markRead(userId: string, conversationId: string): Promise<{ ok: true }> {
+    await this.assertMember(userId, conversationId);
+    await this.prisma.conversationMember.updateMany({
+      where: { conversationId, userId },
+      data: { lastReadAt: new Date() },
+    });
+    return { ok: true };
+  }
 }

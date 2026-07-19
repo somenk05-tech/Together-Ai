@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { useConversations, useMessages, useChatRealtime, socketClient, WS } from '@/api';
+import { useConversations, useMessages, useChatRealtime, chatApi, socketClient, WS } from '@/api';
 import { ConversationList } from '../components/ConversationList';
 import { MessageThread } from '../components/MessageThread';
 import { Composer } from '../components/Composer';
@@ -72,8 +72,8 @@ export function Chats() {
     [history.data, live, statusMap],
   );
 
-  // Opening a conversation marks its incoming messages read (clears the unread
-  // badge + drives read receipts). Refresh the list so the badge updates.
+  // Opening a conversation marks it read. REST reliably clears the unread badge
+  // (independent of the socket); the socket read drives blue read-receipt ticks.
   useEffect(() => {
     if (!activeId || !history.data) return;
     const unreadIds = (history.data.items ?? [])
@@ -82,8 +82,9 @@ export function Chats() {
     if (unreadIds.length) {
       socketClient.emit(WS.MESSAGE_READ, { conversationId: activeId, messageIds: unreadIds });
     }
-    const t = setTimeout(() => void qc.invalidateQueries({ queryKey: ['chat', 'conversations'] }), 800);
-    return () => clearTimeout(t);
+    void chatApi.markRead(activeId)
+      .then(() => qc.invalidateQueries({ queryKey: ['chat', 'conversations'] }))
+      .catch(() => undefined);
   }, [activeId, history.data, user?.id, qc]);
 
   if (conversations.isLoading) return <Spinner label="Loading your chats…" />;

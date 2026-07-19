@@ -7,10 +7,11 @@ function Ticks({ status }: { status?: Message['status'] }) {
   if (!status) return null;
   const read = status === 'READ';
   const double = status === 'DELIVERED' || status === 'READ';
-  // On the accent bubble: read = bright blue, otherwise translucent white.
-  const color = read ? '#5fd0ff' : 'rgba(255,255,255,.7)';
+  // Ticks sit in the timestamp row on the light page background:
+  // read = blue, sent/delivered = grey.
+  const color = read ? '#2f9fe0' : 'var(--muted, #8a8a8a)';
   return (
-    <span aria-label={status.toLowerCase()} style={{ color, marginLeft: 4, letterSpacing: -2, fontSize: 12 }}>
+    <span aria-label={status.toLowerCase()} style={{ color, marginLeft: 4, letterSpacing: -2, fontSize: 12, fontWeight: 700 }}>
       {double ? '✓✓' : '✓'}
     </span>
   );
