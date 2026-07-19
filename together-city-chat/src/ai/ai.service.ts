@@ -11,9 +11,10 @@ import Anthropic from '@anthropic-ai/sdk';
 export class AiService {
   private readonly logger = new Logger('AiService');
   private readonly client: Anthropic | null;
-  private readonly model = process.env.ANTHROPIC_MODEL || 'claude-3-5-haiku-latest';
-  // Vision/PDF reading (blood reports) needs a multimodal model — Haiku is text-first.
-  private readonly visionModel = process.env.ANTHROPIC_VISION_MODEL || 'claude-3-5-sonnet-latest';
+  // Current models (older 3.5 IDs are retired → 404). Haiku 4.5 is the cheapest
+  // and supports vision, so it serves both text and image/PDF-vision extraction.
+  private readonly model = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';
+  private readonly visionModel = process.env.ANTHROPIC_VISION_MODEL || 'claude-haiku-4-5';
   readonly enabled: boolean;
 
   constructor() {
