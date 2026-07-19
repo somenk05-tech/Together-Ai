@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useConversations, useMessages, useChatRealtime } from '@/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { useConversations, useMessages, useChatRealtime, socketClient, WS } from '@/api';
 import { ConversationList } from '../components/ConversationList';
 import { MessageThread } from '../components/MessageThread';
 import { Composer } from '../components/Composer';
@@ -15,6 +16,7 @@ import type { Message } from '@/types';
  */
 export function Chats() {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const conversations = useConversations();
   const [searchParams] = useSearchParams();
   const requestedId = searchParams.get('c') ?? undefined;
@@ -35,7 +37,13 @@ export function Chats() {
   // Reset the live buffer whenever the conversation changes.
   useEffect(() => { setLive([]); setPeerTyping(false); }, [activeId]);
 
-  const onMessage = useCallback((m: Message) => setLive((prev) => [...prev, m]), []);
+  const onMessage = useCallback((m: Message) => {
+    setLive((prev) => [...prev, m]);
+    // A message arriving in the open conversation is read immediately.
+    if (activeId && m.senderId !== user?.id) {
+      socketClient.emit(WS.MESSAGE_READ, { conversationId: activeId, messageIds: [m.id] });
+    }
+  }, [activeId, user?.id]);
   const onTyping = useCallback((userId: string, isTyping: boolean) => {
     if (userId === user?.id) return;
     setPeerTyping(isTyping);
@@ -50,6 +58,20 @@ export function Chats() {
   }, [setTyping]);
 
   const messages = useMemo(() => [...(history.data?.items ?? []), ...live], [history.data, live]);
+
+  // Opening a conversation marks its incoming messages read (clears the unread
+  // badge + drives read receipts). Refresh the list so the badge updates.
+  useEffect(() => {
+    if (!activeId || !history.data) return;
+    const unreadIds = (history.data.items ?? [])
+      .filter((m) => m.senderId !== user?.id)
+      .map((m) => m.id);
+    if (unreadIds.length) {
+      socketClient.emit(WS.MESSAGE_READ, { conversationId: activeId, messageIds: unreadIds });
+    }
+    const t = setTimeout(() => void qc.invalidateQueries({ queryKey: ['chat', 'conversations'] }), 800);
+    return () => clearTimeout(t);
+  }, [activeId, history.data, user?.id, qc]);
 
   if (conversations.isLoading) return <Spinner label="Loading your chats…" />;
   if (conversations.isError) return <EmptyState title="Couldn't load chats" hint="Start the backend and reload." />;

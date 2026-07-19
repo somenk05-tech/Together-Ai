@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useConnections, useRequestConnection, useRespondConnection, chatApi } from '@/api';
+import { useConnections, useRespondConnection, chatApi } from '@/api';
 import type { Connection } from '@/api/schemas';
+import { MemberFinder } from '../components/MemberFinder';
 
 function Avatar({ name }: { name: string }) {
   return (
@@ -31,15 +32,12 @@ function Row({ c, actions }: { c: Connection; actions?: React.ReactNode }) {
   );
 }
 
-/** Connections — the trust graph that gates chat and sharing across the city. */
+/** Social connections — find people, respond to requests, and see everyone you're connected to. */
 export function Connections() {
   const all = useConnections();
-  const request = useRequestConnection();
   const respond = useRespondConnection();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [handle, setHandle] = useState('');
-  const [requested, setRequested] = useState<string | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
 
   const openChat = async (h: string) => {
@@ -49,13 +47,6 @@ export function Connections() {
       await qc.invalidateQueries({ queryKey: ['chat', 'conversations'] });
       navigate(`/chats?c=${conv.id}`);
     } finally { setOpening(null); }
-  };
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    const h = handle.trim().replace(/^@/, '');
-    if (!h) return;
-    request.mutate(h, { onSuccess: () => { setRequested(h); setHandle(''); } });
   };
 
   if (all.isLoading) return <Spinner label="Loading your connections…" />;
@@ -68,29 +59,12 @@ export function Connections() {
   return (
     <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
       <div className="eyebrow">Together City</div>
-      <h1 style={{ fontSize: 26 }}>Connections</h1>
+      <h1 style={{ fontSize: 26 }}>Social connections</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
-        Chat and sharing across the city are gated by your connections — your trust graph.
+        Everyone you’re connected to across the city. Chat and sharing are gated by your connections.
       </p>
 
-      <form onSubmit={submit} className="card" style={{ marginBottom: 18 }}>
-        <div className="eyebrow">Add a connection</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', border: '1.5px solid var(--line)', borderRadius: 999, padding: '0 14px' }}>
-            <span className="muted">@</span>
-            <input
-              value={handle}
-              onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
-              placeholder="their handle"
-              style={{ flex: 1, border: 'none', outline: 'none', padding: '11px 8px', fontSize: 14, fontFamily: 'inherit', background: 'transparent' }}
-            />
-          </div>
-          <Button type="submit" variant="accent" size="sm" disabled={request.isPending || !handle.trim()}>
-            {request.isPending ? 'Sending…' : 'Send request'}
-          </Button>
-        </div>
-        {requested && <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>Request sent to @{requested} ✓</p>}
-      </form>
+      <MemberFinder />
 
       {incoming.length > 0 && (
         <div className="card" style={{ marginBottom: 18 }}>

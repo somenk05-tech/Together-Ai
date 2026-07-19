@@ -31,7 +31,19 @@ export const chatApi = {
 
 /* ---------------- React Query hooks ---------------- */
 export function useConversations() {
-  return useQuery({ queryKey: ['chat', 'conversations'], queryFn: () => chatApi.conversations() });
+  return useQuery({
+    queryKey: ['chat', 'conversations'],
+    queryFn: () => chatApi.conversations(),
+    // Poll so new messages / unread counts surface as a badge without a reload.
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+/** Total unread messages across all conversations — for the header Chat badge. */
+export function useUnreadChatCount(): number {
+  const { data } = useConversations();
+  return (data ?? []).reduce((sum, c) => sum + (c.unread ?? 0), 0);
 }
 export function useMessages(conversationId: string | undefined) {
   return useQuery({

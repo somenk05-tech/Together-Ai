@@ -2,7 +2,7 @@ import { NavLink, Link } from 'react-router-dom';
 import { NAV } from '@/config/hubs';
 import { useUiStore } from '@/store/ui.store';
 import { useAuth } from '@/hooks/useAuth';
-import { useIncomingRequestCount } from '@/api';
+import { useIncomingRequestCount, useUnreadChatCount } from '@/api';
 
 /** Small red count bubble for pending connection requests. */
 function Badge({ count }: { count: number }) {
@@ -21,6 +21,7 @@ export function Header() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const { user } = useAuth();
   const requests = useIncomingRequestCount();
+  const unreadChats = useUnreadChatCount();
   const firstName = (user?.name ?? '').trim().split(' ')[0] || 'Profile';
   const tabs = NAV.filter((n) => n.key !== 'mail'); // Mail lives in the actions, not the tab row
   return (
@@ -43,7 +44,10 @@ export function Header() {
           <Badge count={requests} />
         </Link>
         <Link to="/mail/inbox" aria-label="Mail"><span aria-hidden>✉</span> <span className="lab">MAIL</span></Link>
-        <Link to="/chats" aria-label="Chat"><span aria-hidden>💬</span> <span className="lab">CHAT</span></Link>
+        <Link to="/chats" aria-label="Chat" style={{ position: 'relative' }}>
+          <span aria-hidden>💬</span> <span className="lab">CHAT</span>
+          <Badge count={unreadChats} />
+        </Link>
         <Link to="/profile" aria-label="Profile"><span aria-hidden>👤</span> <span className="lab">{firstName}</span></Link>
       </div>
     </header>
