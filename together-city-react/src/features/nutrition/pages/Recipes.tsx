@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, Spinner } from '@/components/ui';
 import { AiSuggestions } from '@/components/AiSuggestions';
-import { useRecipes } from '../hooks';
+import { useRecipes, useSearchRecipes } from '../hooks';
 import type { DietKey } from '../types';
 
 /** Diet colour identity — ported from the vanilla site (TCPLAN.dietOf). */
@@ -27,14 +27,27 @@ const TABS: { key: DietKey; label: string }[] = [
 
 const INGREDIENT_CHIPS = ['Paneer', 'Spinach', 'Chicken', 'Oats', 'Chickpeas', 'Rice', 'Yogurt', 'Mushroom'];
 
-/** Recipes — the world database, diet-colour-coded like the vanilla planners. */
+/** Recipes — the world database, with real ingredient search + diet filters. */
 export function Recipes() {
   const [diet, setDiet] = useState<DietKey>('everything');
-  const [query, setQuery] = useState('');
+  const [ingredients, setIngredients] = useState<string[]>([]);
+  const [typed, setTyped] = useState('');
   const recipes = useRecipes(diet);
+  const search = useSearchRecipes(ingredients, diet);
 
-  const q = query.trim().toLowerCase();
-  const shown = (recipes.data ?? []).filter((r) => !q || r.name.toLowerCase().includes(q) || r.country.toLowerCase().includes(q));
+  const searching = ingredients.length > 0;
+  const shown = searching ? (search.data ?? []) : (recipes.data ?? []);
+  const busy = searching ? search.isLoading : recipes.isLoading;
+
+  const addIngredient = (raw: string) => {
+    const v = raw.trim().toLowerCase();
+    if (v && !ingredients.includes(v)) setIngredients([...ingredients, v]);
+    setTyped('');
+  };
+  const removeIngredient = (v: string) => setIngredients(ingredients.filter((x) => x !== v));
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') { e.preventDefault(); addIngredient(typed); }
+  };
 
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
@@ -47,23 +60,33 @@ export function Recipes() {
 
       <AiSuggestions kind="recipes" />
 
-      {/* Search by ingredient / name */}
+      {/* Real ingredient search — matches recipes by the ingredients they contain */}
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="eyebrow" style={{ marginBottom: 8 }}>By ingredients</div>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by ingredient, dish or cuisine…"
+        <input value={typed} onChange={(e) => setTyped(e.target.value)} onKeyDown={onKey} placeholder="Type an ingredient and press Enter (e.g. paneer)"
           style={{ width: '100%', boxSizing: 'border-box', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', marginBottom: 10 }} />
+        {ingredients.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+            {ingredients.map((ing) => (
+              <span key={ing} onClick={() => removeIngredient(ing)} style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#fff', background: 'var(--accent)', borderRadius: 999, padding: '4px 12px' }}>{ing} ×</span>
+            ))}
+            <button type="button" onClick={() => setIngredients([])} style={{ cursor: 'pointer', border: 'none', background: 'none', color: 'var(--accent)', fontWeight: 600, fontSize: 12 }}>Clear all</button>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {INGREDIENT_CHIPS.map((ing) => (
-            <button key={ing} type="button" onClick={() => setQuery(ing)}
-              style={{ cursor: 'pointer', borderRadius: 999, padding: '5px 13px', fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
-                border: `1.5px solid ${query === ing ? 'var(--accent)' : 'var(--line)'}`, background: query === ing ? 'var(--accent)' : 'transparent', color: query === ing ? '#fff' : 'var(--ink-soft)' }}>
-              {ing}
-            </button>
-          ))}
-          {query && <button type="button" onClick={() => setQuery('')} style={{ cursor: 'pointer', border: 'none', background: 'none', color: 'var(--accent)', fontWeight: 600, fontSize: 12 }}>Clear</button>}
+          {INGREDIENT_CHIPS.map((ing) => {
+            const on = ingredients.includes(ing.toLowerCase());
+            return (
+              <button key={ing} type="button" onClick={() => (on ? removeIngredient(ing.toLowerCase()) : addIngredient(ing))}
+                style={{ cursor: 'pointer', borderRadius: 999, padding: '5px 13px', fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
+                  border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? '#fff' : 'var(--ink-soft)' }}>
+                {ing}
+              </button>
+            );
+          })}
         </div>
         <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
-          Tip: the more you list, the more precisely we can rank close matches — partial matches still show, just lower down.
+          Tip: the more you list, the more precisely we rank close matches — recipes using more of your ingredients come first.
         </p>
       </div>
 
@@ -87,10 +110,13 @@ export function Recipes() {
         })}
       </div>
 
-      {recipes.isLoading && <Spinner label="Opening the cookbook…" />}
-      {recipes.isError && <EmptyState title="Couldn't load recipes" hint="Start the backend and reload." />}
-      {recipes.data && recipes.data.length === 0 && (
-        <EmptyState icon="🍽️" title="No recipes for this diet yet" />
+      {busy && <Spinner label={searching ? 'Matching your ingredients…' : 'Opening the cookbook…'} />}
+      {!busy && shown.length === 0 && (
+        <EmptyState icon="🍽️" title={searching ? 'No recipes use those ingredients' : 'No recipes for this diet yet'}
+          hint={searching ? 'Try fewer or different ingredients.' : undefined} />
+      )}
+      {searching && shown.length > 0 && (
+        <p className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>{shown.length} recipes use your ingredients — best matches first.</p>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>

@@ -69,6 +69,13 @@ export class NutritionController {
     return this.nutrition.recipes(diet);
   }
 
+  // GET /api/nutrition/recipes/search?ingredients=paneer,spinach&diet=veg
+  @Get('recipes/search')
+  searchRecipes(@Query('ingredients') ingredients?: string, @Query('diet') diet?: Diet) {
+    const terms = (ingredients ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    return this.nutrition.searchByIngredients(terms, diet);
+  }
+
   @Get('recipes/:id')
   recipe(@Param('id') id: string) {
     return this.nutrition.recipe(id);

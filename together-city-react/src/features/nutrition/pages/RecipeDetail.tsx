@@ -66,6 +66,15 @@ export function RecipeDetail() {
           ))}
         </div>
 
+        {r.method && r.method.length > 0 && (
+          <>
+            <h2 style={{ fontSize: 17, margin: '22px 0 10px' }}>Method</h2>
+            <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.7 }}>
+              {r.method.map((step, i) => <li key={i} style={{ marginBottom: 6 }}>{step}</li>)}
+            </ol>
+          </>
+        )}
+
         <p className="muted" style={{ fontSize: 12.5, marginTop: 16 }}>
           ₹{cost} estimated grocery cost per serving.
         </p>

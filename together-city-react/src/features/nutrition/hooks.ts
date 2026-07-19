@@ -32,6 +32,14 @@ export function useRecipes(diet?: string) {
   return useQuery({ queryKey: ['nutrition', 'recipes', diet ?? 'everything'], queryFn: () => nutritionApi.recipes(diet) });
 }
 
+export function useSearchRecipes(ingredients: string[], diet?: string) {
+  return useQuery({
+    queryKey: ['nutrition', 'recipes-search', diet ?? 'everything', ingredients.join(',')],
+    queryFn: () => nutritionApi.searchRecipes(ingredients, diet),
+    enabled: ingredients.length > 0,
+  });
+}
+
 export function useRecipe(id: string | undefined) {
   return useQuery({
     queryKey: ['nutrition', 'recipe', id],

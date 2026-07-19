@@ -16,6 +16,10 @@ export const nutritionApi = {
     api.patch<WeekPlan>(`/nutrition/plan/${planKey}/day/${dayIndex}/sides`, { slot, sides }).then((r) => r.data),
   recipes: (diet?: string) =>
     api.get<Recipe[]>('/nutrition/recipes', { params: diet && diet !== 'everything' ? { diet } : undefined }).then((r) => r.data),
+  searchRecipes: (ingredients: string[], diet?: string) =>
+    api.get<Recipe[]>('/nutrition/recipes/search', {
+      params: { ingredients: ingredients.join(','), ...(diet && diet !== 'everything' ? { diet } : {}) },
+    }).then((r) => r.data),
   recipe: (id: string) =>
     api.get<RecipeDetail>(`/nutrition/recipes/${id}`).then((r) => r.data),
   cart: () => api.get<GroceryCart>('/nutrition/cart').then((r) => r.data),
@@ -39,7 +43,7 @@ export const nutritionApi = {
 };
 
 export interface RecipeIngredient { name: string; grams: number; priceInr: number }
-export interface RecipeDetail extends Recipe { ingredients: RecipeIngredient[] }
+export interface RecipeDetail extends Recipe { ingredients: RecipeIngredient[]; method?: string[] }
 export interface GroceryItem { id: string; name: string; category: 'fresh' | 'pantry'; qty: number; priceInr: number }
 export interface GroceryCart { id: string | null; items: GroceryItem[]; createdAt?: string }
 

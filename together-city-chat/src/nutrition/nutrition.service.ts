@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
+import { AiService } from '../ai/ai.service';
 import {
   CITATIONS, MARKER_RULES, criticalAlerts, evaluateMarker, supplementKit,
   flagsFor, planGuidance, rankByModes, planningModes,
@@ -39,6 +40,7 @@ export class NutritionService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly conversations: ConversationsService,
     private readonly financial: FinancialService,
+    private readonly ai: AiService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -248,7 +250,74 @@ export class NutritionService implements OnModuleInit {
   async recipe(id: string) {
     const r = await this.prisma.recipe.findUnique({ where: { id }, include: { ingredients: true } });
     if (!r) throw new NotFoundException('recipe not found');
-    return { ...this.recipeShape(r), ingredients: r.ingredients.map((i) => ({ name: i.name, grams: i.grams, priceInr: i.priceInr })) };
+    const method = await this.recipeMethod(r);
+    return {
+      ...this.recipeShape(r),
+      ingredients: r.ingredients.map((i) => ({ name: i.name, grams: i.grams, priceInr: i.priceInr })),
+      method,
+    };
+  }
+
+  /** Cooking steps for a recipe — AI-generated on first view and cached; a
+   *  structured fallback (prep → cook → finish) is used when AI is off. */
+  private async recipeMethod(r: {
+    id: string; name: string; country: string; minutes: number; diet: string;
+    steps?: string | null; ingredients: Array<{ name: string; grams: number }>;
+  }): Promise<string[]> {
+    const cached = (r as { steps?: string | null }).steps;
+    if (cached) {
+      try { const s = JSON.parse(cached); if (Array.isArray(s) && s.length) return s; } catch { /* regenerate */ }
+    }
+    const ingList = r.ingredients.map((i) => `${i.name} (${i.grams}g)`).join(', ');
+    const fallback = this.fallbackMethod(r.name, r.ingredients.map((i) => i.name), r.minutes);
+    const steps = await this.ai.json<string[]>(
+      'You are a professional chef writing clear, concise home-cooking steps. Return 4–8 short numbered steps (strings), each one action.',
+      `Recipe: "${r.name}" (${r.country}, ${r.diet}, ~${r.minutes} min). Ingredients: ${ingList}.\n` +
+        `Write the cooking method as a JSON array of step strings (no numbering prefix).`,
+      fallback,
+      700,
+    );
+    const clean = Array.isArray(steps) && steps.length ? steps.filter((s) => typeof s === 'string' && s.trim()).slice(0, 10) : fallback;
+    // Cache so we don't regenerate (steps column exists on Railway's fresh client).
+    await this.prisma.recipe
+      .update({ where: { id: r.id }, data: { steps: JSON.stringify(clean) } as never })
+      .catch(() => undefined);
+    return clean;
+  }
+
+  private fallbackMethod(name: string, ingredients: string[], minutes: number): string[] {
+    const list = ingredients.length ? ingredients.join(', ') : 'your ingredients';
+    return [
+      `Gather and prep everything: ${list}. Wash, peel and chop as needed.`,
+      `Heat a pan with a little oil over medium heat and add the aromatics (onion/garlic/spices) first.`,
+      `Add the main ingredients and cook, stirring, until softened and fragrant.`,
+      `Season to taste and simmer/cook through — about ${Math.max(10, Math.round(minutes * 0.6))} minutes.`,
+      `Check seasoning, finish, and serve ${name} hot.`,
+    ];
+  }
+
+  /** Real ingredient search — recipes whose ingredients match the given terms,
+   *  ranked by how many of your ingredients they use. */
+  async searchByIngredients(terms: string[], diet?: Diet) {
+    const clean = terms.map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 12);
+    if (!clean.length) return this.recipes(diet);
+    const rows = await this.prisma.recipe.findMany({
+      where: {
+        ...(diet && diet !== 'everything' ? { diet } : {}),
+        ingredients: { some: { OR: clean.map((t) => ({ name: { contains: t, mode: 'insensitive' as const } })) } },
+      },
+      include: { ingredients: { select: { name: true } } },
+      take: 120,
+    });
+    const ranked = rows
+      .map((r) => {
+        const names = r.ingredients.map((i) => i.name.toLowerCase());
+        const matches = clean.filter((t) => names.some((n) => n.includes(t))).length;
+        return { r, matches };
+      })
+      .sort((a, b) => b.matches - a.matches || a.r.name.localeCompare(b.r.name))
+      .slice(0, 60);
+    return ranked.map(({ r, matches }) => ({ ...this.recipeShape(r), matches }));
   }
 
   // ─────────────── grocery cart ───────────────
