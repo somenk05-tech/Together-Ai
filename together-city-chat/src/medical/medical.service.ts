@@ -112,7 +112,7 @@ export class MedicalService implements OnModuleInit {
   }) {
     await this.assertQuota(userId, dto.sizeBytes);
     // file the document in the private vault (key only, no public URL)
-    await this.prisma.medicalRecord.create({
+    const rec = await this.prisma.medicalRecord.create({
       data: {
         userId, kind: 'report', title: dto.title || 'Blood report', detail: 'Uploaded blood report',
         fileUrl: null, fileKey: dto.fileKey, mimeType: dto.mimeType, sizeBytes: dto.sizeBytes,
@@ -136,6 +136,7 @@ export class MedicalService implements OnModuleInit {
     }
 
     return {
+      recordId: rec.id,
       aiEnabled: this.ai.enabled,
       extracted: extracted.values,
       markerCount: Object.keys(extracted.values).length,
