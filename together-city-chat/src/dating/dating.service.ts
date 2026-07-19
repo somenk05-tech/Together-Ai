@@ -6,16 +6,10 @@ import { AiService } from '../ai/ai.service';
 import { compatibilityScore, zodiacSign } from './astrology';
 import { factorScores, overallScore, hardFilterReason, explain, sharedItems, type DXProfile, type FactorBreakdown } from './matching';
 import { decide, scanText, type Check, type ModerationResult } from '../realestate/moderation';
+import { nickname } from '../shared/nickname';
 import type { MatchKind, UpsertDatingProfileDto } from './dto/dating.dto';
 
 const MATCH_THRESHOLD = 75; // only curated matches ≥75% are ever shown (spec)
-
-const NICK_ADJ = ['Cosmic', 'Wandering', 'Curious', 'Easy', 'Golden', 'Northern', 'Quiet', 'Bright', 'Wildflower', 'Midnight', 'Sunlit', 'Coastal'];
-const NICK_NOUN = ['Voyager', 'Stargazer', 'Explorer', 'Dreamer', 'Nomad', 'Spark', 'Compass', 'Comet', 'Willow', 'Harbor', 'Ember', 'Meadow'];
-function nickname(id: string): string {
-  let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return `${NICK_ADJ[h % NICK_ADJ.length]} ${NICK_NOUN[(h >> 4) % NICK_NOUN.length]}`;
-}
 
 type ActivityRow = { id: string; hostId: string; text: string; category: string; date: string; time: string | null; groupSize: string; description: string | null; createdAt: Date };
 type InviteRow = { id: string; activityId: string; invitedUserId: string; compatibility: number; status: string; trustLevel: number; invitedReveal: boolean; hostReveal: boolean; invitedFriends: boolean; hostFriends: boolean; conversationId: string | null; createdAt: Date };
@@ -361,7 +355,7 @@ export class DatingService {
       const invs = await this.invites.findMany({ where: { activityId: a.id } });
       const connected = invs.filter((i) => i.status === 'connected');
       const connections = await Promise.all(connected.map(async (i) => ({
-        inviteId: i.id, compatibility: i.compatibility, trustLevel: i.trustLevel,
+        inviteId: i.id, compatibility: i.compatibility, trustLevel: i.trustLevel, conversationId: i.conversationId,
         myReveal: i.hostReveal, otherReveal: i.invitedReveal, myFriends: i.hostFriends, otherFriends: i.invitedFriends,
         party: await this.anonParty(i.invitedUserId, i.trustLevel),
       })));
@@ -377,7 +371,7 @@ export class DatingService {
       const activity = await this.activities.findUnique({ where: { id: inv.activityId } });
       if (!activity) continue;
       out.push({
-        id: inv.id, status: inv.status, trustLevel: inv.trustLevel, compatibility: inv.compatibility,
+        id: inv.id, status: inv.status, trustLevel: inv.trustLevel, compatibility: inv.compatibility, conversationId: inv.conversationId,
         activity: this.shapeActivity(activity),
         host: await this.anonParty(activity.hostId, inv.trustLevel),
         myReveal: inv.invitedReveal, otherReveal: inv.hostReveal, myFriends: inv.invitedFriends, otherFriends: inv.hostFriends,
@@ -389,9 +383,18 @@ export class DatingService {
   async respondInvite(userId: string, inviteId: string, action: 'connect' | 'pass') {
     const inv = await this.invites.findUnique({ where: { id: inviteId } });
     if (!inv || inv.invitedUserId !== userId) throw new NotFoundException('invite not found');
-    const status = action === 'connect' ? 'connected' : 'passed';
-    await this.invites.update({ where: { id: inviteId }, data: { status } });
-    return { status };
+    if (action === 'pass') {
+      await this.invites.update({ where: { id: inviteId }, data: { status: 'passed' } });
+      return { status: 'passed', conversationId: null };
+    }
+    // Connect → open an anonymous chat between host and invitee (trust level 1).
+    const activity = await this.activities.findUnique({ where: { id: inv.activityId } });
+    let conversationId = inv.conversationId;
+    if (activity && !conversationId) {
+      conversationId = await this.conversations.getOrCreateDirectByIds(activity.hostId, userId, 1);
+    }
+    await this.invites.update({ where: { id: inviteId }, data: { status: 'connected', conversationId } });
+    return { status: 'connected', conversationId };
   }
 
   async advanceTrust(userId: string, inviteId: string, step: 'reveal' | 'friends') {
@@ -406,12 +409,17 @@ export class DatingService {
 
     if (step === 'reveal') {
       const u = await this.invites.update({ where: { id: inviteId }, data: isHost ? { hostReveal: true } : { invitedReveal: true } });
-      if (u.hostReveal && u.invitedReveal && u.trustLevel < 2) { await this.invites.update({ where: { id: inviteId }, data: { trustLevel: 2 } }); return { trustLevel: 2 }; }
+      if (u.hostReveal && u.invitedReveal && u.trustLevel < 2) {
+        await this.invites.update({ where: { id: inviteId }, data: { trustLevel: 2 } });
+        if (inv.conversationId) await this.conversations.setAnonymousTrust(inv.conversationId, 2); // reveal names in chat
+        return { trustLevel: 2 };
+      }
       return { trustLevel: u.trustLevel };
     }
     const u = await this.invites.update({ where: { id: inviteId }, data: isHost ? { hostFriends: true } : { invitedFriends: true } });
     if (u.hostFriends && u.invitedFriends && u.trustLevel < 3) {
       await this.invites.update({ where: { id: inviteId }, data: { trustLevel: 3 } });
+      if (inv.conversationId) await this.conversations.setAnonymousTrust(inv.conversationId, null); // fully normal chat
       const [userOneId, userTwoId] = [activity.hostId, inv.invitedUserId].sort();
       await this.prisma.connection.upsert({
         where: { userOneId_userTwoId_connectionType: { userOneId, userTwoId, connectionType: 'FRIEND' } },

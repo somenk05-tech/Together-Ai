@@ -13,11 +13,11 @@ export function ConversationList({ items, activeId, onSelect }: {
             background: c.id === activeId ? 'var(--accent-soft)' : 'transparent',
           }}>
           <div className="tc-avatar" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
-            {(c.title ?? 'C').slice(0, 2).toUpperCase()}
+            {c.anonymous ? '🎭' : (c.title ?? 'C').slice(0, 2).toUpperCase()}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {c.title ?? 'Conversation'}
+              {c.title ?? 'Conversation'}{c.anonymous && <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}> · anonymous match</span>}
             </div>
             <div className="muted" style={{ fontSize: 11.5 }}>{new Date(c.lastMessageAt).toLocaleString()}</div>
           </div>

@@ -36,6 +36,7 @@ export const ConversationSchema = z.object({
   id: z.string(),
   title: z.string().nullable().optional(),
   isGroup: z.boolean().optional(),
+  anonymous: z.boolean().optional(),
   participantIds: z.array(z.string()),
   lastMessageAt: z.string(),
   unread: z.number(),

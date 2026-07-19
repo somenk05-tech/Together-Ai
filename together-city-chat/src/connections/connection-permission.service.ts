@@ -57,6 +57,9 @@ export class ConnectionPermissionService {
       throw new ForbiddenException('You are not a member of this conversation.');
     }
     if (convo.type === 'DIRECT') {
+      // Dating-match chats (anonymousTrust set) are authorised by the match
+      // itself — the two people aren't a connection until they become friends.
+      if ((convo as { anonymousTrust?: number | null }).anonymousTrust != null) return;
       const other = memberIds.find((id) => id !== userId);
       if (!other) throw new ForbiddenException('Invalid direct conversation.');
       await this.assertCanCommunicate(userId, other);

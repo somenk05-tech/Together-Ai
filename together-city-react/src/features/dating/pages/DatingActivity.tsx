@@ -21,8 +21,8 @@ function Avatar({ p }: { p: AnonParty }) {
 }
 
 /** Anonymised connected party with trust-level controls. */
-function ConnectedParty({ party, compatibility, trustLevel, myReveal, myFriends, otherReveal, otherFriends, onTrust, busy }: {
-  party: AnonParty; compatibility: number; trustLevel: number; myReveal: boolean; myFriends: boolean; otherReveal: boolean; otherFriends: boolean;
+function ConnectedParty({ party, compatibility, trustLevel, conversationId, myReveal, myFriends, otherReveal, otherFriends, onTrust, busy }: {
+  party: AnonParty; compatibility: number; trustLevel: number; conversationId: string | null; myReveal: boolean; myFriends: boolean; otherReveal: boolean; otherFriends: boolean;
   onTrust: (step: 'reveal' | 'friends') => void; busy: boolean;
 }) {
   const displayName = trustLevel >= 2 && party.name ? party.name : party.nickname;
@@ -39,7 +39,8 @@ function ConnectedParty({ party, compatibility, trustLevel, myReveal, myFriends,
       {trustLevel >= 2 && party.interests.length > 0 && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>{party.interests.slice(0, 8).map((i) => <span key={i} className="pill" style={{ border: '1px solid var(--line)', borderRadius: 999, padding: '3px 10px', fontSize: 11.5 }}>{i}</span>)}</div>
       )}
-      <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        {conversationId && <Link to={`/chats?c=${conversationId}`} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent)' }}>💬 {trustLevel < 2 ? 'Anonymous chat' : 'Open chat'} →</Link>}
         {trustLevel < 2 && <Button size="sm" variant={myReveal ? 'line' : 'accent'} disabled={busy || myReveal} onClick={() => onTrust('reveal')}>{myReveal ? (otherReveal ? 'Revealing…' : 'Waiting for them…') : 'Reveal identities'}</Button>}
         {trustLevel === 2 && <Button size="sm" variant={myFriends ? 'line' : 'accent'} disabled={busy || myFriends} onClick={() => onTrust('friends')}>{myFriends ? (otherFriends ? '…' : 'Waiting for them…') : 'Become friends'}</Button>}
         {trustLevel >= 3 && <span className="tag" style={{ background: '#e8f5e9', color: '#2e7d32' }}>✓ Friends — full profile unlocked</span>}
@@ -79,7 +80,7 @@ function InviteCard({ inv }: { inv: ReceivedInvite }) {
           <Button size="sm" variant="line" disabled={respond.isPending} onClick={() => respond.mutate({ id: inv.id, action: 'pass' })}>Pass</Button>
         </div>
       ) : (
-        <ConnectedParty party={inv.host} compatibility={inv.compatibility} trustLevel={inv.trustLevel} myReveal={inv.myReveal} myFriends={inv.myFriends} otherReveal={inv.otherReveal} otherFriends={inv.otherFriends}
+        <ConnectedParty party={inv.host} compatibility={inv.compatibility} trustLevel={inv.trustLevel} conversationId={inv.conversationId} myReveal={inv.myReveal} myFriends={inv.myFriends} otherReveal={inv.otherReveal} otherFriends={inv.otherFriends}
           busy={trust.isPending} onTrust={(step) => trust.mutate({ id: inv.id, step })} />
       )}
     </div>
@@ -182,7 +183,7 @@ export function DatingActivity() {
               </div>
               <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{a.invited} invited · {a.connectedCount} connected</div>
               {a.connections.map((c: ActivityConnection) => (
-                <ConnectedParty key={c.inviteId} party={c.party} compatibility={c.compatibility} trustLevel={c.trustLevel}
+                <ConnectedParty key={c.inviteId} party={c.party} compatibility={c.compatibility} trustLevel={c.trustLevel} conversationId={c.conversationId}
                   myReveal={c.myReveal} myFriends={c.myFriends} otherReveal={c.otherReveal} otherFriends={c.otherFriends}
                   busy={trust.isPending} onTrust={(step) => trust.mutate({ id: c.inviteId, step })} />
               ))}

@@ -67,8 +67,8 @@ export const datingApi = {
 // ─── Activity Dating ───
 export interface ActivityShape { id: string; text: string; category: string; date: string; time: string | null; groupSize: string; description: string | null; createdOn: string }
 export interface AnonParty { nickname: string; age: number | null; sign: string | null; verified: boolean; name: string | null; photo: string | null; interests: string[] }
-export interface ReceivedInvite { id: string; status: string; trustLevel: number; compatibility: number; activity: ActivityShape; host: AnonParty; myReveal: boolean; otherReveal: boolean; myFriends: boolean; otherFriends: boolean }
-export interface ActivityConnection { inviteId: string; compatibility: number; trustLevel: number; myReveal: boolean; otherReveal: boolean; myFriends: boolean; otherFriends: boolean; party: AnonParty }
+export interface ReceivedInvite { id: string; status: string; trustLevel: number; compatibility: number; conversationId: string | null; activity: ActivityShape; host: AnonParty; myReveal: boolean; otherReveal: boolean; myFriends: boolean; otherFriends: boolean }
+export interface ActivityConnection { inviteId: string; compatibility: number; trustLevel: number; conversationId: string | null; myReveal: boolean; otherReveal: boolean; myFriends: boolean; otherFriends: boolean; party: AnonParty }
 export interface MyActivity extends ActivityShape { invited: number; connectedCount: number; connections: ActivityConnection[] }
 export interface CreateActivityInput { text: string; category: string; date: string; time?: string; groupSize: string; description?: string }
 

@@ -187,6 +187,9 @@ model Conversation {
   // For DIRECT conversations, a deterministic key of the two member ids so we
   // never create duplicates. Null for groups.
   directKey String?          @unique
+  // Dating-match anonymity: null = normal chat. 1 = anonymous (show pseudonym),
+  // 2 = identities revealed, 3 = friends. Only set on dating-originated chats.
+  anonymousTrust Int?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 

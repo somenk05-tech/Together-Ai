@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
 import { directKeyOf } from './conversation.util';
+import { nickname } from '../shared/nickname';
 import { CreateGroupDto } from './dto/conversations.dto';
 
 @Injectable()
@@ -133,6 +134,7 @@ export class ConversationsService {
       type: string;
       title: string | null;
       updatedAt: Date;
+      anonymousTrust?: number | null;
       members: Array<{ userId: string; user?: { name: string } | null }>;
       messages?: Array<{ createdAt: Date }>;
     },
@@ -141,18 +143,47 @@ export class ConversationsService {
   ) {
     const isGroup = c.type === 'GROUP';
     const others = c.members.filter((m) => m.userId !== userId);
+    // Dating-match anonymity: at trust level 1 the other person is a pseudonym.
+    // Their real name (the DTO title, which the client also uses for the avatar)
+    // is only revealed once both agree (trust ≥ 2). Only dating chats set this.
+    const anonymous = !isGroup && c.anonymousTrust != null && c.anonymousTrust < 2;
     const title = isGroup
       ? c.title ?? 'Group'
-      : others[0]?.user?.name ?? 'Conversation';
+      : anonymous
+        ? (others[0] ? nickname(others[0].userId) : 'Anonymous')
+        : others[0]?.user?.name ?? 'Conversation';
     const lastAt = c.messages?.[0]?.createdAt ?? c.updatedAt;
     return {
       id: c.id,
       title,
       isGroup,
+      anonymous,
       participantIds: c.members.map((m) => m.userId),
       lastMessageAt: lastAt.toISOString(),
       unread,
     };
+  }
+
+  /** Get-or-create a DIRECT conversation between two ids (used by dating matches,
+   *  which authorise the chat without a prior connection). */
+  async getOrCreateDirectByIds(aId: string, bId: string, anonymousTrust?: number): Promise<string> {
+    const directKey = directKeyOf(aId, bId);
+    const existing = await this.prisma.conversation.findUnique({ where: { directKey } });
+    if (existing) {
+      if (anonymousTrust != null && (existing as { anonymousTrust?: number | null }).anonymousTrust == null) {
+        await this.prisma.conversation.update({ where: { id: existing.id }, data: { anonymousTrust } as never });
+      }
+      return existing.id;
+    }
+    const conv = await this.prisma.conversation.create({
+      data: { type: 'DIRECT', directKey, anonymousTrust: anonymousTrust ?? null, members: { create: [{ userId: aId }, { userId: bId }] } } as never,
+    });
+    return conv.id;
+  }
+
+  /** Advance/clear a dating conversation's anonymity (reveal at ≥2). */
+  async setAnonymousTrust(conversationId: string, trust: number | null): Promise<void> {
+    await this.prisma.conversation.update({ where: { id: conversationId }, data: { anonymousTrust: trust } as never }).catch(() => undefined);
   }
 
   async assertMember(userId: string, conversationId: string): Promise<void> {

@@ -36,6 +36,7 @@ export interface Conversation {
   participantIds: string[];
   title?: string | null;
   isGroup?: boolean;
+  anonymous?: boolean;
   lastMessageAt: string;
   unread: number;
 }
