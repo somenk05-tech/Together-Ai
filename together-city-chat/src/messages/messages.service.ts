@@ -42,11 +42,12 @@ export class MessagesService {
     const recipientIds = await this.recipientIds(dto.conversationId, senderId);
 
     // 2) persist message + per-recipient SENT status + attachments atomically
+    const text = dto.text ?? dto.body; // frontend sends `body`; DB column is `text`
     const message = await this.prisma.message.create({
       data: {
         conversationId: dto.conversationId,
         senderId,
-        text: dto.text,
+        text,
         messageType: dto.messageType,
         replyToMessageId: dto.replyToMessageId,
         shareJson: dto.share ? JSON.stringify(dto.share) : undefined,
@@ -65,8 +66,9 @@ export class MessagesService {
       where: { id: dto.conversationId },
       data: { updatedAt: new Date() },
     });
-    this.bus.publish({ kind: 'message.created', conversationId: dto.conversationId, message, recipientIds });
-    return message;
+    const dtoOut = this.serialize(message);
+    this.bus.publish({ kind: 'message.created', conversationId: dto.conversationId, message: dtoOut, recipientIds });
+    return dtoOut;
   }
 
   /** Cursor pagination — newest first, no OFFSET. */
@@ -83,7 +85,7 @@ export class MessagesService {
     const hasMore = messages.length > take;
     const page = hasMore ? messages.slice(0, take) : messages;
     return {
-      messages: page.map((m) => this.redact(m)),
+      messages: page.map((m) => this.serialize(m)),
       nextCursor: hasMore ? page[page.length - 1].id : null,
     };
   }
@@ -102,8 +104,9 @@ export class MessagesService {
       data: { text: dto.text, edited: true },
       include: messageInclude,
     });
-    this.bus.publish({ kind: 'message.edited', conversationId: msg.conversationId, message: updated });
-    return updated;
+    const dtoOut = this.serialize(updated);
+    this.bus.publish({ kind: 'message.edited', conversationId: msg.conversationId, message: dtoOut });
+    return dtoOut;
   }
 
   async remove(userId: string, messageId: string, dto: DeleteMessageDto) {
@@ -179,7 +182,7 @@ export class MessagesService {
       orderBy: { message: { createdAt: 'asc' } },
       take: 500,
     });
-    return statuses.map((s) => this.redact(s.message));
+    return statuses.map((s) => this.serialize(s.message));
   }
 
   /** Multi-criteria search (keyword / sender / type / date / conversation). */
@@ -210,7 +213,7 @@ export class MessagesService {
       orderBy: { createdAt: 'desc' },
       take: dto.limit ?? 50,
     });
-    return messages.map((m) => this.redact(m));
+    return messages.map((m) => this.serialize(m));
   }
 
   // ── helpers ──────────────────────────────────────────────
@@ -229,8 +232,51 @@ export class MessagesService {
     if (!member) throw new ForbiddenException('Not a member of this conversation');
   }
 
-  /** Never leak text of tombstoned messages. */
-  private redact<T extends { deleted: boolean; text: string | null }>(m: T): T {
-    return m.deleted ? { ...m, text: null } : m;
+  /**
+   * Map a persisted message to the shape the frontend consumes:
+   * `text`→`body`, `shareJson`→`share`, `attachments`→`media`. Also tombstones
+   * the body of deleted messages so their content never leaks.
+   */
+  private serialize(m: {
+    id: string;
+    conversationId: string;
+    senderId: string;
+    text: string | null;
+    messageType: string;
+    shareJson?: string | null;
+    replyToMessageId?: string | null;
+    edited?: boolean;
+    deleted: boolean;
+    createdAt: Date;
+    updatedAt?: Date;
+    attachments?: Array<{ id: string; url: string; mimeType: string; thumbnail?: string | null }>;
+    sender?: unknown;
+    statuses?: unknown;
+  }) {
+    let share: unknown = null;
+    if (m.shareJson) {
+      try { share = JSON.parse(m.shareJson); } catch { share = null; }
+    }
+    const media = (m.attachments ?? []).map((a) => ({
+      id: a.id,
+      url: a.url,
+      kind: a.mimeType?.startsWith('image/') ? 'image' : a.mimeType?.startsWith('video/') ? 'video' : 'file',
+      thumbUrl: a.thumbnail ?? undefined,
+    }));
+    return {
+      id: m.id,
+      conversationId: m.conversationId,
+      senderId: m.senderId,
+      body: m.deleted ? '' : (m.text ?? ''),
+      messageType: m.messageType,
+      share,
+      media,
+      replyToMessageId: m.replyToMessageId ?? null,
+      edited: !!m.edited,
+      deleted: m.deleted,
+      editedAt: m.edited ? (m.updatedAt ?? m.createdAt) : null,
+      createdAt: m.createdAt,
+      sender: m.sender,
+    };
   }
 }

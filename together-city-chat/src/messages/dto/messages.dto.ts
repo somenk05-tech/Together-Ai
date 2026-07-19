@@ -38,6 +38,7 @@ export const SendMessageSchema = z
   .object({
     conversationId: z.string().uuid(),
     text: z.string().max(8192).optional(),
+    body: z.string().max(8192).optional(), // client alias for `text` (frontend sends `body`)
     messageType: MessageTypeEnum.default('TEXT'),
     replyToMessageId: z.string().uuid().optional(),
     attachments: z.array(AttachmentSchema).max(10).optional(),
@@ -45,9 +46,14 @@ export const SendMessageSchema = z
     // client-generated id for optimistic UI / idempotency
     clientId: z.string().max(64).optional(),
   })
-  .refine((v) => (v.text && v.text.trim().length > 0) || (v.attachments && v.attachments.length > 0) || !!v.share, {
-    message: 'A message must have text, an attachment, or a shared item',
-  });
+  .refine(
+    (v) =>
+      (v.text && v.text.trim().length > 0) ||
+      (v.body && v.body.trim().length > 0) ||
+      (v.attachments && v.attachments.length > 0) ||
+      !!v.share,
+    { message: 'A message must have text, an attachment, or a shared item' },
+  );
 export type SendMessageDto = z.infer<typeof SendMessageSchema>;
 
 export const EditMessageSchema = z.object({ text: z.string().min(1).max(8192) });

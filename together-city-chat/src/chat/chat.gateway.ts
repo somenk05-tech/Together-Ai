@@ -224,8 +224,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   private previewOf(message: unknown): string {
-    const m = message as { text?: string | null; messageType?: string };
-    if (m.text && m.text.trim()) return m.text.slice(0, 120);
+    const m = message as { text?: string | null; body?: string | null; messageType?: string };
+    const t = m.body ?? m.text;
+    if (t && t.trim()) return t.slice(0, 120);
     const map: Record<string, string> = {
       IMAGE: '📷 Photo',
       VIDEO: '🎥 Video',
