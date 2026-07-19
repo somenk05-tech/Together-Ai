@@ -159,6 +159,8 @@ const MailMessage = lazy(() => import('@/features/mail/pages/MessageView').then(
 const DatingMatches = lazy(() => import('@/features/dating/pages/DatingMatches').then((m) => ({ default: m.DatingMatches })));
 const DatingProfilePage = lazy(() => import('@/features/dating/pages/DatingProfile').then((m) => ({ default: m.DatingProfilePage })));
 const Chats = lazy(() => import('@/features/chat/pages/Chats').then((m) => ({ default: m.Chats })));
+const Settings = lazy(() => import('@/features/settings/pages/Settings').then((m) => ({ default: m.Settings })));
+const Calendar = lazy(() => import('@/features/calendar/pages/Calendar').then((m) => ({ default: m.Calendar })));
 const SignIn = lazy(() => import('@/features/auth/pages/SignIn').then((m) => ({ default: m.SignIn })));
 
 const wrap = (el: JSX.Element) => <Suspense fallback={<Spinner />}>{el}</Suspense>;
@@ -188,7 +190,8 @@ export const router = createBrowserRouter([
       { path: '/beauty', element: <HubLanding hub="beauty" /> },
       { path: '/fitness', element: <HubLanding hub="fitness" /> },
       { path: '/profile', element: <RequireAuth>{wrap(<Profile />)}</RequireAuth> },
-      { path: '/settings', element: <HubStub title="Settings" /> },
+      { path: '/settings', element: <RequireAuth>{wrap(<Settings />)}</RequireAuth> },
+      { path: '/calendar', element: <RequireAuth>{wrap(<Calendar />)}</RequireAuth> },
       { path: '/chats', element: <RequireAuth>{wrap(<Chats />)}</RequireAuth> },
       { path: '/connections', element: <RequireAuth>{wrap(<Connections />)}</RequireAuth> },
       { path: '/dashboard', element: <HubStub title="Dashboard" /> },

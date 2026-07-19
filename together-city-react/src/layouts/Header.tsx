@@ -43,6 +43,7 @@ export function Header() {
           <span aria-hidden>🤝</span> <span className="lab">PEOPLE</span>
           <Badge count={requests} />
         </Link>
+        <Link to="/calendar" aria-label="Calendar"><span aria-hidden>🗓</span> <span className="lab">CALENDAR</span></Link>
         <Link to="/mail/inbox" aria-label="Mail"><span aria-hidden>✉</span> <span className="lab">MAIL</span></Link>
         <Link to="/chats" aria-label="Chat" style={{ position: 'relative' }}>
           <span aria-hidden>💬</span> <span className="lab">CHAT</span>
