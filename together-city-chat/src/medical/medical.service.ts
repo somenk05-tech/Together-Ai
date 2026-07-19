@@ -124,9 +124,11 @@ export class MedicalService implements OnModuleInit {
     // read via extracted text (cheaper + more reliable); images use vision.
     let extracted: { values: Record<string, number>; lab?: string; takenOn?: string } = { values: {} };
     const obj = await this.storage.getHealthObjectBase64(dto.fileKey);
+    this.logger.log(`blood extract: node=${process.version} mime=${dto.mimeType} objRead=${!!obj} aiEnabled=${this.ai.enabled}`);
     if (obj) {
       if (dto.mimeType === 'application/pdf') {
         const text = await this.pdfToText(Buffer.from(obj.base64, 'base64'));
+        this.logger.log(`blood extract: pdf textLen=${text.length}`);
         extracted = text.trim()
           ? await this.ai.extractMarkersFromText(text)
           : await this.ai.extractBloodMarkers(obj.base64, dto.mimeType); // scanned PDF → vision
@@ -134,6 +136,7 @@ export class MedicalService implements OnModuleInit {
         extracted = await this.ai.extractBloodMarkers(obj.base64, dto.mimeType);
       }
     }
+    this.logger.log(`blood extract: markersFound=${Object.keys(extracted.values).length} [${Object.keys(extracted.values).join(',')}]`);
 
     return {
       recordId: rec.id,
