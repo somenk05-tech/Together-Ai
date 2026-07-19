@@ -21,3 +21,16 @@ export const MatchesQuerySchema = z.object({
   kind: MatchKindSchema.default('romantic'),
 });
 export type MatchesQueryDto = z.infer<typeof MatchesQuerySchema>;
+
+export const CreateActivitySchema = z.object({
+  text: z.string().min(3).max(200),
+  category: z.enum(['restaurant', 'theatre', 'cafe', 'park', 'city', 'any']),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  groupSize: z.enum(['1', '2-4', 'group']).default('1'),
+  description: z.string().max(500).optional(),
+});
+export type CreateActivityDto = z.infer<typeof CreateActivitySchema>;
+
+export const RespondInviteSchema = z.object({ action: z.enum(['connect', 'pass']) });
+export const TrustSchema = z.object({ step: z.enum(['reveal', 'friends']) });

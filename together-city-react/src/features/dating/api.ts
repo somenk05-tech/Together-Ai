@@ -64,6 +64,41 @@ export const datingApi = {
     api.post<{ ok: boolean }>(`/dating/matches/${targetUserId}/pass`, { kind }).then((r) => r.data),
 };
 
+// ─── Activity Dating ───
+export interface ActivityShape { id: string; text: string; category: string; date: string; time: string | null; groupSize: string; description: string | null; createdOn: string }
+export interface AnonParty { nickname: string; age: number | null; sign: string | null; verified: boolean; name: string | null; photo: string | null; interests: string[] }
+export interface ReceivedInvite { id: string; status: string; trustLevel: number; compatibility: number; activity: ActivityShape; host: AnonParty; myReveal: boolean; otherReveal: boolean; myFriends: boolean; otherFriends: boolean }
+export interface ActivityConnection { inviteId: string; compatibility: number; trustLevel: number; myReveal: boolean; otherReveal: boolean; myFriends: boolean; otherFriends: boolean; party: AnonParty }
+export interface MyActivity extends ActivityShape { invited: number; connectedCount: number; connections: ActivityConnection[] }
+export interface CreateActivityInput { text: string; category: string; date: string; time?: string; groupSize: string; description?: string }
+
+export const activityApi = {
+  create: (input: CreateActivityInput) => api.post<{ activity: ActivityShape; invited: number }>('/dating/activities', input).then((r) => r.data),
+  mine: () => api.get<MyActivity[]>('/dating/activities/mine').then((r) => r.data),
+  invites: () => api.get<ReceivedInvite[]>('/dating/activities/invites').then((r) => r.data),
+  respond: (id: string, action: 'connect' | 'pass') => api.post<{ status: string }>(`/dating/activities/invites/${id}/respond`, { action }).then((r) => r.data),
+  trust: (id: string, step: 'reveal' | 'friends') => api.post<{ trustLevel: number }>(`/dating/activities/invites/${id}/trust`, { step }).then((r) => r.data),
+};
+
+export function useMyActivities() {
+  return useQuery({ queryKey: ['dating', 'activities', 'mine'], queryFn: () => activityApi.mine() });
+}
+export function useActivityInvites() {
+  return useQuery({ queryKey: ['dating', 'activities', 'invites'], queryFn: () => activityApi.invites() });
+}
+export function useCreateActivity() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (i: CreateActivityInput) => activityApi.create(i), onSuccess: () => void qc.invalidateQueries({ queryKey: ['dating', 'activities'] }) });
+}
+export function useRespondInvite() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (v: { id: string; action: 'connect' | 'pass' }) => activityApi.respond(v.id, v.action), onSuccess: () => void qc.invalidateQueries({ queryKey: ['dating', 'activities'] }) });
+}
+export function useActivityTrust() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (v: { id: string; step: 'reveal' | 'friends' }) => activityApi.trust(v.id, v.step), onSuccess: () => void qc.invalidateQueries({ queryKey: ['dating', 'activities'] }) });
+}
+
 export function useDatingProfile() {
   return useQuery({ queryKey: ['dating', 'profile'], queryFn: () => datingApi.profile() });
 }

@@ -10,6 +10,18 @@ import type { MatchKind, UpsertDatingProfileDto } from './dto/dating.dto';
 
 const MATCH_THRESHOLD = 75; // only curated matches ≥75% are ever shown (spec)
 
+const NICK_ADJ = ['Cosmic', 'Wandering', 'Curious', 'Easy', 'Golden', 'Northern', 'Quiet', 'Bright', 'Wildflower', 'Midnight', 'Sunlit', 'Coastal'];
+const NICK_NOUN = ['Voyager', 'Stargazer', 'Explorer', 'Dreamer', 'Nomad', 'Spark', 'Compass', 'Comet', 'Willow', 'Harbor', 'Ember', 'Meadow'];
+function nickname(id: string): string {
+  let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return `${NICK_ADJ[h % NICK_ADJ.length]} ${NICK_NOUN[(h >> 4) % NICK_NOUN.length]}`;
+}
+
+type ActivityRow = { id: string; hostId: string; text: string; category: string; date: string; time: string | null; groupSize: string; description: string | null; createdAt: Date };
+type InviteRow = { id: string; activityId: string; invitedUserId: string; compatibility: number; status: string; trustLevel: number; invitedReveal: boolean; hostReveal: boolean; invitedFriends: boolean; hostFriends: boolean; conversationId: string | null; createdAt: Date };
+interface ActivityDelegate { create(a: unknown): Promise<ActivityRow>; findMany(a: unknown): Promise<ActivityRow[]>; findUnique(a: unknown): Promise<ActivityRow | null>; }
+interface InviteDelegate { createMany(a: unknown): Promise<{ count: number }>; findMany(a: unknown): Promise<InviteRow[]>; findUnique(a: unknown): Promise<InviteRow | null>; update(a: unknown): Promise<InviteRow>; }
+
 @Injectable()
 export class DatingService {
   constructor(
@@ -285,6 +297,130 @@ export class DatingService {
 
   private splitInterests(csv: string): string[] {
     return csv ? csv.split(',').filter(Boolean) : [];
+  }
+
+  // ─────────────── activity dating ───────────────
+  private get activities(): ActivityDelegate { return (this.prisma as unknown as { datingActivity: ActivityDelegate }).datingActivity; }
+  private get invites(): InviteDelegate { return (this.prisma as unknown as { activityInvite: InviteDelegate }).activityInvite; }
+
+  private shapeActivity(a: ActivityRow) {
+    return { id: a.id, text: a.text, category: a.category, date: a.date, time: a.time, groupSize: a.groupSize, description: a.description, createdOn: a.createdAt.toISOString().slice(0, 10) };
+  }
+  private ageOf(birthDate: Date): number { return Math.floor((Date.now() - new Date(birthDate).getTime()) / (365.25 * 86_400_000)); }
+
+  /** Anonymised view of a party; identity revealed only at trust level ≥2. */
+  private async anonParty(userId: string, trustLevel: number) {
+    const prof = await this.prisma.datingProfile.findUnique({ where: { userId } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true, profileImage: true } });
+    const revealed = trustLevel >= 2;
+    return {
+      nickname: nickname(userId),
+      age: prof ? this.ageOf(prof.birthDate) : null,
+      sign: prof ? zodiacSign(prof.birthDate).name : null,
+      verified: (prof as { moderation?: string } | null)?.moderation === 'approved',
+      name: revealed ? user?.name ?? null : null,
+      photo: revealed ? user?.profileImage ?? null : null,
+      interests: revealed && prof ? this.splitInterests(prof.interests) : [],
+    };
+  }
+
+  async createActivity(hostId: string, dto: { text: string; category: string; date: string; time?: string; groupSize: string; description?: string }) {
+    const host = await this.prisma.datingProfile.findUnique({ where: { userId: hostId } });
+    if (!host) throw new NotFoundException('create your dating profile first');
+    const activity = await this.activities.create({
+      data: { hostId, text: dto.text, category: dto.category, date: dto.date, time: dto.time ?? null, groupSize: dto.groupSize, description: dto.description ?? null },
+    });
+
+    // AI invites the most compatible people (weighted score, mutual seeking).
+    const cands = await this.prisma.datingProfile.findMany({ where: { userId: { not: hostId }, visible: true, moderation: 'approved' } as never });
+    const hostD = this.parseDX((host as { extras?: string | null }).extras);
+    const hostInterests = this.splitInterests(host.interests);
+    const scored: { userId: string; overall: number }[] = [];
+    for (const c of cands) {
+      const iWant = host.seeking === 'any' || host.seeking === c.gender;
+      const theyWant = c.seeking === 'any' || c.seeking === host.gender;
+      if (!iWant || !theyWant) continue;
+      const { score: astro } = compatibilityScore(
+        { userId: hostId, birthDate: host.birthDate, interests: hostInterests },
+        { userId: c.userId, birthDate: c.birthDate, interests: this.splitInterests(c.interests) },
+      );
+      const f = factorScores(astro, hostInterests, this.splitInterests(c.interests), hostD, this.parseDX((c as { extras?: string | null }).extras));
+      scored.push({ userId: c.userId, overall: overallScore(f) });
+    }
+    const top = scored.sort((a, b) => b.overall - a.overall).filter((s) => s.overall >= 60).slice(0, 6);
+    if (top.length) {
+      await this.invites.createMany({ data: top.map((t) => ({ activityId: activity.id, invitedUserId: t.userId, compatibility: t.overall })) });
+    }
+    return { activity: this.shapeActivity(activity), invited: top.length };
+  }
+
+  async myActivities(hostId: string) {
+    const acts = await this.activities.findMany({ where: { hostId }, orderBy: { createdAt: 'desc' } });
+    const out = [];
+    for (const a of acts) {
+      const invs = await this.invites.findMany({ where: { activityId: a.id } });
+      const connected = invs.filter((i) => i.status === 'connected');
+      const connections = await Promise.all(connected.map(async (i) => ({
+        inviteId: i.id, compatibility: i.compatibility, trustLevel: i.trustLevel,
+        myReveal: i.hostReveal, otherReveal: i.invitedReveal, myFriends: i.hostFriends, otherFriends: i.invitedFriends,
+        party: await this.anonParty(i.invitedUserId, i.trustLevel),
+      })));
+      out.push({ ...this.shapeActivity(a), invited: invs.length, connectedCount: connected.length, connections });
+    }
+    return out;
+  }
+
+  async receivedInvites(userId: string) {
+    const invs = await this.invites.findMany({ where: { invitedUserId: userId, status: { in: ['pending', 'connected'] } }, orderBy: { createdAt: 'desc' } });
+    const out = [];
+    for (const inv of invs) {
+      const activity = await this.activities.findUnique({ where: { id: inv.activityId } });
+      if (!activity) continue;
+      out.push({
+        id: inv.id, status: inv.status, trustLevel: inv.trustLevel, compatibility: inv.compatibility,
+        activity: this.shapeActivity(activity),
+        host: await this.anonParty(activity.hostId, inv.trustLevel),
+        myReveal: inv.invitedReveal, otherReveal: inv.hostReveal, myFriends: inv.invitedFriends, otherFriends: inv.hostFriends,
+      });
+    }
+    return out;
+  }
+
+  async respondInvite(userId: string, inviteId: string, action: 'connect' | 'pass') {
+    const inv = await this.invites.findUnique({ where: { id: inviteId } });
+    if (!inv || inv.invitedUserId !== userId) throw new NotFoundException('invite not found');
+    const status = action === 'connect' ? 'connected' : 'passed';
+    await this.invites.update({ where: { id: inviteId }, data: { status } });
+    return { status };
+  }
+
+  async advanceTrust(userId: string, inviteId: string, step: 'reveal' | 'friends') {
+    const inv = await this.invites.findUnique({ where: { id: inviteId } });
+    if (!inv) throw new NotFoundException('invite not found');
+    const activity = await this.activities.findUnique({ where: { id: inv.activityId } });
+    if (!activity) throw new NotFoundException('activity not found');
+    const isHost = activity.hostId === userId;
+    const isInvited = inv.invitedUserId === userId;
+    if (!isHost && !isInvited) throw new NotFoundException('not your invite');
+    if (inv.status !== 'connected') return { trustLevel: inv.trustLevel };
+
+    if (step === 'reveal') {
+      const u = await this.invites.update({ where: { id: inviteId }, data: isHost ? { hostReveal: true } : { invitedReveal: true } });
+      if (u.hostReveal && u.invitedReveal && u.trustLevel < 2) { await this.invites.update({ where: { id: inviteId }, data: { trustLevel: 2 } }); return { trustLevel: 2 }; }
+      return { trustLevel: u.trustLevel };
+    }
+    const u = await this.invites.update({ where: { id: inviteId }, data: isHost ? { hostFriends: true } : { invitedFriends: true } });
+    if (u.hostFriends && u.invitedFriends && u.trustLevel < 3) {
+      await this.invites.update({ where: { id: inviteId }, data: { trustLevel: 3 } });
+      const [userOneId, userTwoId] = [activity.hostId, inv.invitedUserId].sort();
+      await this.prisma.connection.upsert({
+        where: { userOneId_userTwoId_connectionType: { userOneId, userTwoId, connectionType: 'FRIEND' } },
+        update: { status: 'ACCEPTED' },
+        create: { userOneId, userTwoId, connectionType: 'FRIEND', status: 'ACCEPTED', requestedById: userId },
+      });
+      return { trustLevel: 3 };
+    }
+    return { trustLevel: u.trustLevel };
   }
 
   private shapeProfile(p: {

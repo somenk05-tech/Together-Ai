@@ -8,6 +8,7 @@ import {
   MatchesQuerySchema,
   MatchKindSchema,
   UpsertDatingProfileSchema, type UpsertDatingProfileDto,
+  CreateActivitySchema, type CreateActivityDto, RespondInviteSchema, TrustSchema,
 } from './dto/dating.dto';
 
 @Controller('dating')
@@ -61,5 +62,34 @@ export class DatingController {
   ) {
     const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
     return this.dating.pass(user.sub, targetUserId, kind);
+  }
+
+  // ─── Activity Dating ───
+  @Post('activities')
+  @UsePipes(new ZodValidationPipe(CreateActivitySchema))
+  createActivity(@CurrentUser() user: JwtUser, @Body() dto: CreateActivityDto) {
+    return this.dating.createActivity(user.sub, dto);
+  }
+
+  @Get('activities/mine')
+  myActivities(@CurrentUser() user: JwtUser) {
+    return this.dating.myActivities(user.sub);
+  }
+
+  @Get('activities/invites')
+  activityInvites(@CurrentUser() user: JwtUser) {
+    return this.dating.receivedInvites(user.sub);
+  }
+
+  @Post('activities/invites/:id/respond')
+  respondInvite(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
+    const { action } = parseOrThrow(RespondInviteSchema, body);
+    return this.dating.respondInvite(user.sub, id, action);
+  }
+
+  @Post('activities/invites/:id/trust')
+  trust(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
+    const { step } = parseOrThrow(TrustSchema, body);
+    return this.dating.advanceTrust(user.sub, id, step);
   }
 }
