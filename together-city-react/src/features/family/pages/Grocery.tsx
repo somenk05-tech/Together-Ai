@@ -1,10 +1,7 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Hero, Button, EmptyState, Spinner } from '@/components/ui';
-import { useBuildCart, useGroceryCart, usePlaceOrder } from '@/features/nutrition/hooks';
+import { useBuildCart, useGroceryCart } from '@/features/nutrition/hooks';
 import type { GroceryItem } from '@/features/nutrition/api';
-import { payError, type PayMethod } from '@/features/financial/api';
-import { PaymentSheet } from '@/features/financial/PaymentSheet';
 import { useFamily, headcount } from '../members';
 
 function Section({ icon, title, note, items }: { icon: string; title: string; note: string; items: GroceryItem[] }) {
@@ -37,11 +34,8 @@ function Section({ icon, title, note, items }: { icon: string; title: string; no
 export function FamilyGrocery() {
   const cart = useGroceryCart();
   const build = useBuildCart();
-  const placeOrder = usePlaceOrder();
-  const navigate = useNavigate();
   const { state } = useFamily();
   const N = headcount(state);
-  const [payOpen, setPayOpen] = useState(false);
 
   if (cart.isLoading) return <Spinner label="Checking your family basket…" />;
 
@@ -53,16 +47,20 @@ export function FamilyGrocery() {
   return (
     <div>
       <Hero image="/assets/img/grocery-store-hero.webp" eyebrow="Family Nutrition · 04"
-        title="Grocery Store 🛒"
-        sub="One combined basket, portioned for the whole family — no duplicates, no waste."
+        title="Your family grocery list 🛒"
+        sub="One combined list, portioned for the whole family — no duplicates, no waste."
         objectPosition="center 52%" />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, background: 'var(--accent-soft)', color: 'var(--ink)', padding: '6px 12px', borderRadius: 999 }}>
-          ⚡ Delivery in <b style={{ color: 'var(--accent)' }}>11 min</b>
-        </span>
-        <span className="muted" style={{ fontSize: 12.5 }}>Cart pre-filled from your family meal plan · portioned for {N} {N === 1 ? 'person' : 'people'} · estimated retail prices</span>
-        <Link to="/family/cart" style={{ marginLeft: 'auto' }}><Button variant="accent" size="sm">🛍️ See cart</Button></Link>
+        <span className="muted" style={{ fontSize: 12.5 }}>List built from your family meal plan · portioned for {N} {N === 1 ? 'person' : 'people'} · estimated retail prices</span>
+      </div>
+
+      <div className="card" style={{ margin: '12px 0 8px', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--paper)' }}>
+        <span style={{ fontSize: 18 }}>🏪</span>
+        <div>
+          <strong style={{ fontSize: 13.5 }}>Grocery store &amp; 11-min delivery — coming soon</strong>
+          <p className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>For now you get the shopping list from your family plan; in-app ordering &amp; delivery arrive soon.</p>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', margin: '18px 0' }}>
@@ -73,18 +71,10 @@ export function FamilyGrocery() {
         {items.length > 0 && (
           <span style={{ marginLeft: 'auto', fontFamily: 'var(--serif)', fontSize: 19, fontWeight: 600 }}>Total ₹{total}</span>
         )}
-        {items.length > 0 && <Button variant="gold" onClick={() => setPayOpen(true)}>Checkout · ₹{total}</Button>}
+        {items.length > 0 && (
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--muted)', border: '1.5px solid var(--line)', borderRadius: 999, padding: '8px 14px' }}>Checkout — coming soon</span>
+        )}
       </div>
-
-      <PaymentSheet
-        open={payOpen}
-        amountInr={total}
-        label={`Family grocery order · ${items.length} items`}
-        pending={placeOrder.isPending}
-        error={placeOrder.isError ? payError(placeOrder.error) : null}
-        onCancel={() => setPayOpen(false)}
-        onPay={(method: PayMethod) => placeOrder.mutate(method, { onSuccess: () => { setPayOpen(false); navigate('/family/orders'); } })}
-      />
 
       {build.isError && (
         <p style={{ color: '#c0392b', fontSize: 13, marginBottom: 14 }}>Generate a family weekly plan first — then the basket fills itself.</p>
@@ -100,7 +90,7 @@ export function FamilyGrocery() {
       )}
 
       <div className="trust">
-        <span>◈ 11-min Delivery</span><span>◈ Fresh Perishables Daily</span><span>◈ Spices Every 2 Months</span><span>◈ Quality Checked</span>
+        <span>◈ Portioned for your family</span><span>◈ No duplicates, no waste</span><span>◈ Fresh vs pantry split</span><span>◈ Ordering coming soon</span>
       </div>
     </div>
   );
