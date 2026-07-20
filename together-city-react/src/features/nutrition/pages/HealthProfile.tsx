@@ -15,12 +15,6 @@ function weekDatesOf(base: Date): string[] {
   return Array.from({ length: 7 }, (_, i) => { const d = new Date(monday); d.setDate(monday.getDate() + i); return isoOf(d); });
 }
 
-const DEVICES: [string, string][] = [
-  ['apple', '⌚ Apple Watch / Apple Health'],
-  ['googlefit', '🤖 Google Fit'],
-  ['fitbit', '⌚ Fitbit'],
-  ['samsung', '⌚ Samsung Health'],
-];
 
 const HUBS: { to: string; title: string; body: string; label: string }[] = [
   { to: '/medical', title: '◈ Medical Hub', body: 'Your blood tests, vitals and Health Score come from here. New reports update your analysis automatically.', label: 'Open Medical Hub →' },
@@ -61,7 +55,6 @@ export function HealthProfile() {
   const health = useHealthLog(weekDates);
   const addCal = useAddCalorie();
   const delCal = useRemoveCalorie();
-  const [device, setDevice] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState<{ name: string; kcal: string; type: LogType }>({ name: '', kcal: '', type: 'Extra' });
 
@@ -242,8 +235,8 @@ export function HealthProfile() {
 
       <div className="blk-head" style={{ marginTop: 44 }}><h2>Fitness &amp; activity</h2></div>
       <div className="grid2" style={{ marginBottom: 26 }}>
-        <Stat lab="Steps Today" val="—" delta={device ? 'awaiting sync' : 'connect a device'} />
-        <Stat lab="Active Minutes" val="—" delta={device ? 'awaiting sync' : 'connect a device'} />
+        <Stat lab="Steps Today" val="—" delta="sync coming soon" />
+        <Stat lab="Active Minutes" val="—" delta="sync coming soon" />
       </div>
 
       <section style={{ marginBottom: 26 }}>
@@ -264,39 +257,6 @@ export function HealthProfile() {
           </p>
         </div>
       </section>
-
-      <section style={{ marginBottom: 26 }}>
-        <div className="blk-head"><h2>Health app &amp; smartwatch</h2></div>
-        <div className="card">
-          {device ? (
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-              <div className="av" style={{ width: 48, height: 48, fontSize: 20 }}>⌚</div>
-              <div style={{ flex: 1, minWidth: 180 }}>
-                <h4>{(DEVICES.find((d) => d[0] === device) ?? ['', 'Health app'])[1].replace(/^\S+ /, '')}</h4>
-                <p className="muted" style={{ fontSize: 12, marginTop: 2 }}>Connected · live sync coming soon</p>
-              </div>
-              <span className="tag green">Connected</span>
-              <Button variant="line" size="sm" onClick={() => setDevice(null)}>Disconnect</Button>
-            </div>
-          ) : (
-            <>
-              <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
-                Connect your health app or smartwatch to sync <b>steps, heart rate, sleep &amp; calories</b> automatically.
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 10 }}>
-                {DEVICES.map(([key, label]) => (
-                  <button key={key} type="button" onClick={() => setDevice(key)}
-                    style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px', background: 'var(--card)', color: 'var(--ink)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, textAlign: 'left' }}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </section>
-
-      <div className="note">◈ Your activity and Health Score sync automatically with your calorie targets, meal plans and supplement dosage — they adapt to how much you move.</div>
 
       <section style={{ marginTop: 26 }}>
         <div className="blk-head"><h2>Connected across Together City</h2></div>
