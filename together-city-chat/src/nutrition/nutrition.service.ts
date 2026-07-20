@@ -662,23 +662,54 @@ export class NutritionService implements OnModuleInit {
   }
 
   // ─────────────── day summary ───────────────
+  /** Diet/goal/diabetes context for the thali plate builder — shared by shapePlan
+   *  (card display) and daySummary (dashboard) so the two can NEVER disagree. */
+  private async plateOptsFor(userId: string): Promise<PlateOpts> {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const flags = flagsFor(await this.bloodValues(userId));
+    const diabetes = flags.hba1c === 'high' || (ex.healthConditions ?? []).some((c) => /diab/i.test(c));
+    const lactoseFree = /lactose|dairy-free|milk/i.test(ex.allergies ?? '');
+    return {
+      diet: pref?.diet ?? 'everything',
+      goal: (pref?.goal ?? 'maintain') as PlateOpts['goal'],
+      diabetes, dairy: pref?.diet !== 'vegan' && !lactoseFree, jain: pref?.diet === 'jain',
+    };
+  }
+
+  private static readonly SLOT_ORDER: Record<string, number> = { b: 0, l: 1, s: 2, d: 3 };
+
+  /** The nutrition a single meal contributes — the assembled thali total for an
+   *  Indian lunch/dinner (identical to the card), else the dish's per-serving
+   *  values. ONE calculation, used for both the card and the dashboard. */
+  private mealMacros(recipeRow: RecipeWithIng & { kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number }, slot: string, dayIndex: number, opts: PlateOpts, targetKcal?: number) {
+    const shape = this.recipeShape(recipeRow);
+    const indian = /india/i.test(recipeRow.country);
+    if ((slot === 'l' || slot === 'd') && indian) {
+      const plate = assemblePlate(shape, slot as 'l' | 'd', opts, dayIndex * 4 + NutritionService.SLOT_ORDER[slot], targetKcal);
+      return { kcal: plate.totals.kcal, protein: plate.totals.protein, carbs: plate.totals.carbs, fat: plate.totals.fat, fiber: plate.totals.fiber };
+    }
+    return { kcal: shape.kcal, protein: shape.protein, carbs: shape.carbs, fat: shape.fat, fiber: shape.fiber };
+  }
+
   async daySummary(planKey: string, dayIndex: number) {
     const day = await this.prisma.mealPlanDay.findFirst({
       where: { dayIndex, plan: { key: planKey } },
-      include: { meals: { include: { recipe: { include: { ingredients: true } } } } },
+      include: { plan: { select: { userId: true } }, meals: { include: { recipe: { include: { ingredients: true } } } } },
     });
     if (!day) throw new NotFoundException('plan day not found');
+    const opts = await this.plateOptsFor(day.plan.userId);
+    const tg = await this.targets(day.plan.userId);
 
     let kcal = 0, protein = 0, carbs = 0, fat = 0, fiber = 0, cost = 0;
     for (const m of day.meals) {
       if (m.skipped) continue;
-      // Per-person plate values — the stored recipe holds whole-batch totals.
+      // Aggregate the SAME plate/dish the card shows — the single source of truth.
+      const n = this.mealMacros(m.recipe as unknown as RecipeWithIng & { kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number }, m.slot, dayIndex, opts, tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal);
+      kcal += n.kcal; protein += n.protein; carbs += n.carbs; fat += n.fat; fiber += n.fiber;
       const s = recipeServings(m.recipe);
-      const per = (n: number) => (n || 0) / s;
-      kcal += per(m.recipe.kcal); protein += per(m.recipe.protein); carbs += per(m.recipe.carbs);
-      fat += per(m.recipe.fat); fiber += per(m.recipe.fiber);
       const ing = m.recipe.ingredients.reduce((sum, i) => sum + i.priceInr, 0);
-      cost += ing > 0 ? Math.round(ing / s) : Math.round(per(m.recipe.kcal) * 0.11);
+      cost += ing > 0 ? Math.round(ing / s) : Math.round((m.recipe.kcal / s) * 0.11);
     }
     kcal = Math.round(kcal); protein = Math.round(protein); carbs = Math.round(carbs);
     fat = Math.round(fat); fiber = Math.round(fiber); cost = Math.round(cost);
@@ -1338,21 +1369,11 @@ export class NutritionService implements OnModuleInit {
       },
     });
     if (!plan) throw new NotFoundException('plan not found');
-    const slotOrder: Record<string, number> = { b: 0, l: 1, s: 2, d: 3 };
+    const slotOrder = NutritionService.SLOT_ORDER;
 
-    // Plate context — lunch/dinner are assembled as full Indian thalis.
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId: plan.userId } });
-    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-    const flags = flagsFor(await this.bloodValues(plan.userId));
-    const diabetes = flags.hba1c === 'high' || (ex.healthConditions ?? []).some((c) => /diab/i.test(c));
-    const lactoseFree = /lactose|dairy-free|milk/i.test(ex.allergies ?? '');
-    const plateOpts: PlateOpts = {
-      diet: pref?.diet ?? 'everything',
-      goal: (pref?.goal ?? 'maintain') as PlateOpts['goal'],
-      diabetes,
-      dairy: pref?.diet !== 'vegan' && !lactoseFree,
-      jain: pref?.diet === 'jain',
-    };
+    // Plate context + per-meal calorie budgets — SAME source the dashboard sums.
+    const plateOpts = await this.plateOptsFor(plan.userId);
+    const tg = await this.targets(plan.userId);
 
     return {
       key: plan.key,
@@ -1366,7 +1387,7 @@ export class NutritionService implements OnModuleInit {
             // a single plated dish, not a roti+rice+dal+curd thali.
             const indian = /india/i.test(m.recipe.country);
             const plate = indian && (m.slot === 'l' || m.slot === 'd')
-              ? assemblePlate(recipe, m.slot, plateOpts, d.dayIndex * 4 + slotOrder[m.slot])
+              ? assemblePlate(recipe, m.slot as 'l' | 'd', plateOpts, d.dayIndex * 4 + slotOrder[m.slot], tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal)
               : undefined;
             return {
               slot: m.slot,

@@ -63,48 +63,73 @@ function scale(it: Item, portion: number): Macro {
 function pick<T>(arr: T[], seed: number): T { return arr[Math.abs(seed) % arr.length]; }
 function allowsDairy(o: PlateOpts, it: Item): boolean { return it.vegan || (it.veg && o.diet !== 'vegan' && o.dairy); }
 
-/** Assemble a complete lunch/dinner plate around a chosen main dish. */
+const RICE_MAIN = /biryani|pulao|pilaf|fried rice|\bpongal\b|khichdi|\bfried-rice\b|\brice\b/i;
+
+/**
+ * Assemble a complete lunch/dinner plate around a chosen main dish, sized to the
+ * meal's calorie budget so the plate total never overshoots the target. The main,
+ * dal, vegetable, curd and salad are fixed; the CARB flexes to fill the gap to the
+ * target (and is dropped entirely when the main is already a rice dish).
+ */
 export function assemblePlate(
   main: { name: string; kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number; diet: string },
   slot: 'l' | 'd',
   o: PlateOpts,
   seed: number,
+  targetKcal = slot === 'l' ? 780 : 720,
 ): Plate {
   const mainIcon = /chicken|mutton|fish|prawn|egg|beef|pork|salmon/i.test(main.name) ? '🍗' : '🍲';
   const components: Comp[] = [
     { role: 'main', icon: mainIcon, name: main.name, portion: `${main.gramsPerServing} g`, kcal: main.kcal, protein: main.protein, carbs: main.carbs, fat: main.fat, fiber: main.fiber },
   ];
+  const riceMain = RICE_MAIN.test(main.name);
+  const trimRice = o.diabetes || o.goal === 'lose'; // diabetes / weight-loss → favour roti
 
-  // Secondary dal/protein — vegan diets skip paneer/curd items.
-  const dalPool = DALS.filter((d) => (o.diet === 'vegan' ? d.vegan : true));
-  const dal = pick(dalPool, seed + 1);
-  const dalPortion = o.goal === 'gain' ? Math.round(dal.ref * 1.25) : o.goal === 'lose' ? Math.round(dal.ref * 0.85) : dal.ref;
-  components.push({ role: 'secondary', icon: '🥣', name: dal.name, portion: `${dalPortion} g`, ...scale(dal, dalPortion) });
+  if (riceMain) {
+    // A biryani/pulao is already rice + protein — serve it the traditional way:
+    // just raita (curd) + salad. No dal, no extra roti/rice piled on top.
+    if (allowsDairy(o, DAIRY)) components.push({ role: 'dairy', icon: '🥛', name: 'Raita (Curd)', portion: '100 g', ...scale(DAIRY, 100) });
+    const salad = pick(o.jain ? SALAD_JAIN : SALADS, seed + 5);
+    components.push({ role: 'salad', icon: '🥗', name: salad, portion: 'unlimited', kcal: 20, protein: 1, carbs: 4, fat: 0, fiber: 2 });
+  } else {
+    // Full thali: dal + vegetable + curd + salad, then a carb sized to the target.
+    const dalPool = DALS.filter((d) => (o.diet === 'vegan' ? d.vegan : true));
+    const dal = pick(dalPool, seed + 1);
+    const dalPortion = o.goal === 'gain' ? Math.round(dal.ref * 1.2) : o.goal === 'lose' ? Math.round(dal.ref * 0.85) : dal.ref;
+    components.push({ role: 'secondary', icon: '🥣', name: dal.name, portion: `${dalPortion} g`, ...scale(dal, dalPortion) });
 
-  // Carbohydrate — roti always; rice added unless a big cut is needed. Diabetes
-  // and weight-loss trim rice; muscle-gain adds more.
-  const roti = pick(ROTIS, seed + 2);
-  const rotiN = o.goal === 'gain' ? 3 : 2;
-  components.push({ role: 'carb', icon: '🍞', name: roti.name, portion: `${rotiN} pcs`, ...scale(roti, rotiN) });
-  const riceKatori = o.diabetes ? (slot === 'l' ? 1 : 0) : o.goal === 'gain' ? 2 : o.goal === 'lose' ? 0 : 1;
-  if (riceKatori > 0) {
-    const rice = o.diabetes ? RICES[0] /* brown rice */ : pick(RICES, seed + 3);
-    components.push({ role: 'carb', icon: '🍚', name: rice.name, portion: `${riceKatori} katori`, ...scale(rice, riceKatori) });
+    const veg = pick(VEGS, seed + 4);
+    components.push({ role: 'vegetable', icon: '🥬', name: veg.name, portion: `${veg.ref} g`, ...scale(veg, veg.ref) });
+
+    if (allowsDairy(o, DAIRY)) {
+      const curdG = o.goal === 'gain' ? 150 : 100;
+      components.push({ role: 'dairy', icon: '🥛', name: DAIRY.name, portion: `${curdG} g`, ...scale(DAIRY, curdG) });
+    }
+    const salad = pick(o.jain ? SALAD_JAIN : SALADS, seed + 5);
+    components.push({ role: 'salad', icon: '🥗', name: salad, portion: 'unlimited', kcal: 20, protein: 1, carbs: 4, fat: 0, fiber: 2 });
+
+    // Carbohydrate — fill the gap to the meal target the way a dietitian plates it:
+    // LUNCH is rice-centric (rice the main carb, roti only for a big remainder);
+    // DINNER is lighter — roti only, no rice (lower refined carb at night).
+    const gap = targetKcal - components.reduce((s, c) => s + c.kcal, 0);
+    if (gap > 40) {
+      if (slot === 'l' && !trimRice) {
+        const rice = pick(RICES, seed + 3);
+        const katori = Math.max(1, Math.min(2, Math.round(gap / rice.m.kcal)));
+        components.push({ role: 'carb', icon: '🍚', name: rice.name, portion: `${katori} katori`, ...scale(rice, katori) });
+        const remaining = gap - rice.m.kcal * katori;
+        if (remaining > 90) {
+          const roti = pick(ROTIS, seed + 2);
+          const rotiN = Math.min(2, Math.round(remaining / roti.m.kcal));
+          if (rotiN > 0) components.push({ role: 'carb', icon: '🍞', name: roti.name, portion: `${rotiN} pcs`, ...scale(roti, rotiN) });
+        }
+      } else {
+        const roti = pick(ROTIS, seed + 2);
+        const rotiN = Math.max(1, Math.min(4, Math.round(gap / roti.m.kcal)));
+        components.push({ role: 'carb', icon: '🍞', name: roti.name, portion: `${rotiN} pcs`, ...scale(roti, rotiN) });
+      }
+    }
   }
-
-  // Vegetable — always (dinner especially).
-  const veg = pick(VEGS, seed + 4);
-  components.push({ role: 'vegetable', icon: '🥬', name: veg.name, portion: `${veg.ref} g`, ...scale(veg, veg.ref) });
-
-  // Dairy — curd unless vegan / lactose-free.
-  if (allowsDairy(o, DAIRY)) {
-    const curdG = o.goal === 'gain' ? 150 : 100;
-    components.push({ role: 'dairy', icon: '🥛', name: DAIRY.name, portion: `${curdG} g`, ...scale(DAIRY, curdG) });
-  }
-
-  // Salad — always, effectively unlimited.
-  const salad = pick(o.jain ? SALAD_JAIN : SALADS, seed + 5);
-  components.push({ role: 'salad', icon: '🥗', name: salad, portion: 'unlimited', kcal: 20, protein: 1, carbs: 4, fat: 0, fiber: 2 });
 
   const totals = components.reduce<Macro>((t, c) => ({
     kcal: t.kcal + c.kcal, protein: t.protein + c.protein, carbs: t.carbs + c.carbs, fat: t.fat + c.fat, fiber: t.fiber + c.fiber,
