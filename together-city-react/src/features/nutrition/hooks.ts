@@ -20,6 +20,9 @@ const FAM_KEY = ['nutrition', 'family', 'members'] as const;
 export function useFamilyMembers() {
   return useQuery({ queryKey: FAM_KEY, queryFn: () => nutritionApi.familyMembers() });
 }
+export function useFamilyPortions(dayIndex: number) {
+  return useQuery({ queryKey: ['nutrition', 'family', 'portions', dayIndex], queryFn: () => nutritionApi.familyPortions(dayIndex) });
+}
 export function useFamilyMemberMutations() {
   const qc = useQueryClient();
   const set = (data: import('./api').FamilyMemberProfile[]) => qc.setQueryData(FAM_KEY, data);

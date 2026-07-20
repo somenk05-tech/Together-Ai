@@ -13,6 +13,7 @@ export const nutritionApi = {
   addFamilyMember: (dto: FamilyMemberInput) => api.post<FamilyMemberProfile[]>('/nutrition/family/members', dto).then((r) => r.data),
   updateFamilyMember: (id: string, dto: FamilyMemberInput) => api.patch<FamilyMemberProfile[]>(`/nutrition/family/members/${id}`, dto).then((r) => r.data),
   removeFamilyMember: (id: string) => api.delete<FamilyMemberProfile[]>(`/nutrition/family/members/${id}`).then((r) => r.data),
+  familyPortions: (dayIndex: number) => api.get<FamilyPortions>(`/nutrition/family/portions/${dayIndex}`).then((r) => r.data),
   regenerate: (mode: 'individual' | 'family' = 'individual') =>
     api.post<WeekPlan>('/nutrition/plan/weekly/regenerate', { mode }).then((r) => r.data),
   daySummary: (planKey: string, dayIndex: number) =>
@@ -68,6 +69,12 @@ export interface FamilyMemberProfile {
 export interface FamilyMemberInput {
   name: string; role: string; sex: string; age: number; heightCm: number; weightKg: number;
   activity: number; goal: string; diet: string; healthConditions: string[]; allergies?: string;
+}
+export interface MemberPortion { memberId: string; name: string; role: string; factor: number; grams: number; kcal: number; protein: number }
+export interface FamilyMealPortions { slot: string; slotName: string; name: string; refKcal: number; perMember: MemberPortion[] }
+export interface FamilyPortions {
+  members: { id: string; name: string; role: string; dayKcal: number }[];
+  meals: FamilyMealPortions[];
 }
 
 export interface CalorieEntry { id: string; date: string; name: string; kcal: number; type: CalorieType }

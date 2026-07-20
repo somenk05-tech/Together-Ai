@@ -11,6 +11,7 @@ import { nutritionApi } from '@/features/nutrition/api';
 import type { WeekPlan } from '@/features/nutrition/types';
 import { useFamily, headcount, MEMBERS } from '../members';
 import { FamilySnacks } from '../components/FamilySnacks';
+import { FamilyPortions } from '../components/FamilyPortions';
 
 const chipStyle: React.CSSProperties = {
   fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase',
@@ -103,6 +104,7 @@ export function FamilyWeekly() {
         </div>
 
         <div style={{ position: 'sticky', top: 'calc(var(--header-h) + 24px)', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <FamilyPortions dayIndex={dayIndex} />
           <div className="card">
             <h4>Family</h4>
             <div className="av-strip" style={{ marginTop: 12 }}>

@@ -76,6 +76,12 @@ export class NutritionController {
     return this.nutrition.removeFamilyMember(user.sub, id);
   }
 
+  // Per-member portions for a day of the shared family plan (Family Stage 2).
+  @Get('family/portions/:idx')
+  familyPortions(@CurrentUser() user: JwtUser, @Param('idx', ParseIntPipe) idx: number) {
+    return this.nutrition.familyPortions(user.sub, idx);
+  }
+
   @Get('history/:id')
   historyDetail(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.nutrition.nutritionHistoryDetail(user.sub, id);

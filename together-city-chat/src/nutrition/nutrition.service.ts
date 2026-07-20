@@ -762,6 +762,61 @@ export class NutritionService implements OnModuleInit {
     return this.familyMembers(ownerId);
   }
 
+  /**
+   * Per-member portions for a day of the FAMILY plan (Family Stage 2). One shared
+   * dish per meal, scaled to each member's own calorie target for that slot — so
+   * the family cooks once and each person's plate hits their personal target.
+   * Portions scale by (member's slot kcal ÷ the shared dish's kcal), clamped to a
+   * sensible range. Protein scales with the portion, so a kidney member's lowered
+   * protein target already gives them a smaller share.
+   */
+  async familyPortions(userId: string, dayIndex: number) {
+    await this.familyMembers(userId); // ensure the self profile is seeded
+    const rows = await this.members.findMany({ where: { ownerId: userId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => [] as FamilyMemberRow[]);
+    const members = rows.map((m) => {
+      const ex = parseExtras(m.extras);
+      const t = computeTargets({ weightKg: m.weightKg, heightCm: m.heightCm, age: m.age, sex: m.sex, activity: m.activity, goal: m.goal, conditions: ex.healthConditions ?? [] });
+      return { id: m.id, name: m.name, role: m.role, diet: m.diet, isSelf: m.isSelf, dayKcal: t.kcal, perMeal: t.perMeal };
+    });
+
+    const latest = await this.prisma.mealPlan.findFirst({ where: { userId, mode: 'family' }, orderBy: { createdAt: 'desc' } });
+    if (!latest) return { members: members.map((m) => ({ id: m.id, name: m.name, role: m.role, dayKcal: m.dayKcal })), meals: [] };
+
+    const day = await this.prisma.mealPlanDay.findFirst({
+      where: { dayIndex, plan: { key: latest.key } },
+      include: { meals: { include: { recipe: { include: { ingredients: true } } } } },
+    });
+    if (!day) return { members: members.map((m) => ({ id: m.id, name: m.name, role: m.role, dayKcal: m.dayKcal })), meals: [] };
+
+    const opts = await this.plateOptsFor(userId);
+    const tg = await this.targets(userId);
+    const dyn = perMealTargets(this.dayMealInputs(day.meals), tg.kcal);
+    const SLOT_NAME: Record<string, string> = { b: 'Breakfast', l: 'Lunch', s: 'Snack', d: 'Dinner' };
+
+    const meals = [...day.meals]
+      .filter((m) => !m.skipped)
+      .sort((a, b) => NutritionService.SLOT_ORDER[a.slot] - NutritionService.SLOT_ORDER[b.slot])
+      .map((meal) => {
+        const slot = meal.slot as 'b' | 'l' | 's' | 'd';
+        const mealTarget = dyn[slot as 'l' | 'd'] ?? tg.perMeal[slot]?.kcal;
+        const n = this.mealMacros(meal.recipe as unknown as RecipeWithIng & { kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number }, slot, dayIndex, opts, mealTarget);
+        const shape = this.recipeShape(meal.recipe);
+        const refKcal = Math.max(1, n.kcal);
+        const baseGrams = Math.max(1, shape.gramsPerServing);
+        const perMember = members.map((mem) => {
+          const memSlotKcal = mem.perMeal[slot]?.kcal ?? refKcal;
+          const factor = Math.min(1.8, Math.max(0.45, memSlotKcal / refKcal));
+          return {
+            memberId: mem.id, name: mem.name, role: mem.role, factor: Math.round(factor * 100) / 100,
+            grams: Math.round(baseGrams * factor), kcal: Math.round(n.kcal * factor), protein: Math.round(n.protein * factor),
+          };
+        });
+        return { slot, slotName: SLOT_NAME[slot] ?? slot, name: shape.name, refKcal: Math.round(n.kcal), perMember };
+      });
+
+    return { members: members.map((m) => ({ id: m.id, name: m.name, role: m.role, dayKcal: m.dayKcal })), meals };
+  }
+
   async healthLog(userId: string, dates: string[]) {
     const clean = dates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 31);
     if (!clean.length) return { entries: [] as CalorieRow[] };
