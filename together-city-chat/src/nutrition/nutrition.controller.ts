@@ -121,6 +121,43 @@ export class NutritionController {
     return this.nutrition.familyProfile(user.sub, 0);
   }
 
+  // Privacy — what I share with households I belong to (medical private by default).
+  @Get('family/sharing')
+  getSharing(@CurrentUser() user: JwtUser) {
+    return this.nutrition.getHouseholdSharing(user.sub);
+  }
+
+  @Patch('family/sharing')
+  setSharing(@CurrentUser() user: JwtUser, @Body() dto: Record<string, boolean>) {
+    return this.nutrition.setHouseholdSharing(user.sub, dto);
+  }
+
+  // Shared pantry (one per household) — grouped by aisle.
+  @Get('family/pantry')
+  pantry(@CurrentUser() user: JwtUser) {
+    return this.nutrition.pantryList(user.sub);
+  }
+
+  @Post('family/pantry')
+  addPantry(@CurrentUser() user: JwtUser, @Body() dto: { name?: string; grams?: number }) {
+    return this.nutrition.addPantryItem(user.sub, dto?.name ?? '', dto?.grams);
+  }
+
+  @Post('family/pantry/stock')
+  stockPantry(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode) {
+    return this.nutrition.stockPantryFromGrocery(user.sub, mode ?? 'family');
+  }
+
+  @Patch('family/pantry/:id')
+  updatePantry(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: { grams?: number }) {
+    return this.nutrition.updatePantryItem(user.sub, id, Number(dto?.grams ?? 0));
+  }
+
+  @Delete('family/pantry/:id')
+  removePantry(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.nutrition.removePantryItem(user.sub, id);
+  }
+
   // Supermarket-style grocery list (Grocery Planner redesign). mode: individual|family.
   @Get('grocery/plan')
   groceryPlan(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode) {

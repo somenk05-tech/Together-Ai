@@ -447,6 +447,22 @@ model FamilyMember {
   @@index([memberUserId])
 }
 
+// One shared pantry per household (owned by ownerId). Updated when groceries are
+// ordered (stocked) or meals are cooked (drawn down). Private to Nutrition Hub.
+model PantryItem {
+  id        String   @id @default(uuid())
+  ownerId   String // household owner (User.id)
+  name      String // canonical shopping item, e.g. "Tomatoes"
+  aisle     String   @default("pantry") // supermarket aisle key
+  grams     Int      @default(0) // on-hand quantity in grams / ml
+  unit      String   @default("g") // display unit class: g | kg | ml | l | pc | bunch
+  qtyLabel  String   @default("") // human-readable amount, e.g. "1.8 kg"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
 // A Household Connection between two real Together City users — PRIVATE to the
 // Nutrition Hub. This is DELIBERATELY separate from the social `Connection`
 // model: accepting a household invite never creates a friend/follow/social tie,

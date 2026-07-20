@@ -85,7 +85,8 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/family/grocery', index: '04', label: 'Grocery Store', sub: 'One combined basket' },
       { path: '/family/cart', index: '05', label: 'Cart', sub: 'Review & checkout' },
       { path: '/family/orders', index: '06', label: 'My Orders', sub: 'Family-wide deliveries' },
-      { path: '/family/search', index: '07', label: 'Search by Ingredients', sub: "Cook from what's in" },
+      { path: '/family/pantry', index: '07', label: 'Shared Pantry', sub: 'One household pantry' },
+      { path: '/family/search', index: '08', label: 'Search by Ingredients', sub: "Cook from what's in" },
     ],
   },
   social: {

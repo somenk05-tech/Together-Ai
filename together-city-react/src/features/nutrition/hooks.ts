@@ -37,6 +37,31 @@ export function useFamilyMemberMutations() {
   return { update, remove };
 }
 
+/** Privacy — what I share with households I belong to. */
+export function useHouseholdSharing() {
+  const qc = useQueryClient();
+  const query = useQuery({ queryKey: ['nutrition', 'family', 'sharing'], queryFn: () => nutritionApi.householdSharing() });
+  const update = useMutation({
+    mutationFn: (patch: Partial<import('./api').HouseholdSharing>) => nutritionApi.setHouseholdSharing(patch),
+    onSuccess: (s) => { qc.setQueryData(['nutrition', 'family', 'sharing'], s); qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); },
+  });
+  return { query, update };
+}
+
+/** Shared household pantry. */
+export function usePantry() {
+  return useQuery({ queryKey: ['nutrition', 'family', 'pantry'], queryFn: () => nutritionApi.pantry() });
+}
+export function usePantryMutations() {
+  const qc = useQueryClient();
+  const set = (v: import('./api').PantryView) => qc.setQueryData(['nutrition', 'family', 'pantry'], v);
+  const add = useMutation({ mutationFn: (v: { name: string; grams?: number }) => nutritionApi.addPantryItem(v.name, v.grams), onSuccess: set });
+  const stock = useMutation({ mutationFn: () => nutritionApi.stockPantry(), onSuccess: set });
+  const update = useMutation({ mutationFn: (v: { id: string; grams: number }) => nutritionApi.updatePantryItem(v.id, v.grams), onSuccess: set });
+  const remove = useMutation({ mutationFn: (id: string) => nutritionApi.removePantryItem(id), onSuccess: set });
+  return { add, stock, update, remove };
+}
+
 /** Household invite flow (Nutrition Hub only — separate from social graph). */
 export function useHouseholdInvites() {
   return useQuery({ queryKey: ['nutrition', 'family', 'invites'], queryFn: () => nutritionApi.householdInvites() });

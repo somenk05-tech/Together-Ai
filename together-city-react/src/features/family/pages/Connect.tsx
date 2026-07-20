@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Hero, Button, Spinner } from '@/components/ui';
 import {
   useFamilyMembers, useFamilyMemberMutations, useFamilyProfile,
-  useHouseholdInvites, useInviteHousehold, useRespondHouseholdInvite,
+  useHouseholdInvites, useInviteHousehold, useRespondHouseholdInvite, useHouseholdSharing,
 } from '@/features/nutrition/hooks';
+import type { HouseholdSharing } from '@/features/nutrition/api';
 import { nutritionApi } from '@/features/nutrition/api';
 import type { FamilyMemberProfile, FamilyMemberInput, HouseholdRole, HouseholdSearchResult } from '@/features/nutrition/api';
 
@@ -213,6 +214,48 @@ function FamilyProfileCard() {
   );
 }
 
+/* ─────────────────────────── Privacy / sharing controls ─────────────────────────── */
+const SHARE_ROWS: { key: keyof HouseholdSharing; label: string; hint: string }[] = [
+  { key: 'targets', label: 'Nutrition targets', hint: 'Daily calories, protein & fibre' },
+  { key: 'conditions', label: 'Health conditions', hint: 'Diabetes, kidney disease, etc.' },
+  { key: 'weight', label: 'Weight & height', hint: 'Your body metrics' },
+  { key: 'bloodTests', label: 'Blood tests', hint: 'Shared blood-panel results' },
+];
+function PrivacyCard() {
+  const { query, update } = useHouseholdSharing();
+  const s = query.data;
+  if (!s) return null;
+  return (
+    <div className="card" style={{ marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <h3 style={{ margin: 0, fontSize: 16 }}>🔒 Your privacy</h3>
+        <span className="muted" style={{ fontSize: 12 }}>what your household can see about you</span>
+      </div>
+      <p className="muted" style={{ fontSize: 12, margin: '6px 0 12px' }}>
+        Your medical data stays private by default. The meal planner still uses it to keep your plate safe — these toggles only control what other members can <em>see</em>.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {SHARE_ROWS.map((r) => {
+          const on = s[r.key];
+          return (
+            <div key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 12px', border: '1px solid var(--line)', borderRadius: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600 }}>{r.label}</div>
+                <div className="muted" style={{ fontSize: 11.5 }}>{r.hint}</div>
+              </div>
+              <button role="switch" aria-checked={on} disabled={update.isPending}
+                onClick={() => update.mutate({ [r.key]: !on })}
+                style={{ flex: 'none', width: 44, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .15s', background: on ? 'var(--accent)' : 'var(--line)' }}>
+                <span style={{ position: 'absolute', top: 3, left: on ? 21 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────────── Edit self profile form ─────────────────────────── */
 function EditSelfForm({ initial, onSave, onCancel, saving }: { initial: FamilyMemberInput; onSave: (d: FamilyMemberInput) => void; onCancel: () => void; saving: boolean }) {
   const [f, setF] = useState<FamilyMemberInput>(initial);
@@ -271,21 +314,30 @@ function MemberCard({ m, onEdit, onRemove }: { m: FamilyMemberProfile; onEdit: (
             {m.name}
             {m.isSelf && <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>· You</span>}
           </h4>
-          <p className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>{dietLabel} · {m.age}y{m.weightKg ? ` · ${m.weightKg}kg` : ''}</p>
+          <p className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>{dietLabel} · {m.age}y{!m.privacy.weight && m.weightKg ? ` · ${m.weightKg}kg` : ''}</p>
         </div>
         <span style={{ flex: 'none', fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: role.color, background: role.soft, borderRadius: 999, padding: '3px 10px' }}>{role.label}</span>
       </div>
 
-      <div style={{ display: 'flex', gap: 18, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)', fontSize: 13 }}>
-        <span><b>{m.targets.kcal.toLocaleString('en-IN')}</b> <span className="muted">kcal</span></span>
-        <span><b>{m.targets.protein}</b> <span className="muted">g protein</span></span>
-        <span><b>{m.targets.fiber}</b> <span className="muted">g fibre</span></span>
-      </div>
+      {m.privacy.targets ? (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)', fontSize: 12.5, color: 'var(--muted)' }}>
+          🔒 Nutrition targets are private — the plan still portions their plate safely.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 18, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)', fontSize: 13 }}>
+          <span><b>{m.targets.kcal.toLocaleString('en-IN')}</b> <span className="muted">kcal</span></span>
+          <span><b>{m.targets.protein}</b> <span className="muted">g protein</span></span>
+          <span><b>{m.targets.fiber}</b> <span className="muted">g fibre</span></span>
+        </div>
+      )}
 
       {m.healthConditions.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
           {m.healthConditions.map((c) => <span key={c} style={{ fontSize: 11, background: '#f7efe1', color: '#b0803a', borderRadius: 999, padding: '3px 9px', fontWeight: 600 }}>{c}</span>)}
         </div>
+      )}
+      {m.privacy.conditions && !m.isSelf && (
+        <p className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>🔒 Health conditions private</p>
       )}
 
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
@@ -319,6 +371,7 @@ export function FamilyConnect() {
       <div style={{ maxWidth: 820, margin: '0 auto' }}>
         <InvitesInbox />
         <FamilyProfileCard />
+        <PrivacyCard />
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 16px' }}>
           <h3 style={{ fontSize: 18, margin: 0 }}>Household</h3>

@@ -151,6 +151,7 @@ const FamGrocery = lazy(() => import('@/features/family/pages/Grocery').then((m)
 const FamCart = lazy(() => import('@/features/family/pages/Cart').then((m) => ({ default: m.FamilyCart })));
 const FamOrders = lazy(() => import('@/features/family/pages/Orders').then((m) => ({ default: m.FamilyOrders })));
 const FamSearch = lazy(() => import('@/features/family/pages/Search').then((m) => ({ default: m.FamilySearch })));
+const FamPantry = lazy(() => import('@/features/family/pages/Pantry').then((m) => ({ default: m.FamilyPantry })));
 const MailInbox = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Inbox })));
 const MailSent = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Sent })));
 const MailStarred = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Starred })));
@@ -321,6 +322,7 @@ export const router = createBrowserRouter([
       { path: '/family/cart', element: <RequireAuth>{wrap(<FamCart />)}</RequireAuth> },
       { path: '/family/orders', element: <RequireAuth>{wrap(<FamOrders />)}</RequireAuth> },
       { path: '/family/search', element: <RequireAuth>{wrap(<FamSearch />)}</RequireAuth> },
+      { path: '/family/pantry', element: <RequireAuth>{wrap(<FamPantry />)}</RequireAuth> },
     ],
   },
   {

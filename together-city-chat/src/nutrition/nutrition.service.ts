@@ -230,6 +230,7 @@ interface PrefExtras {
   cuisineMix?: Record<string, number>; cuisines?: string[]; proteins?: string[]; meats?: string[];
   allergies?: string; excluded?: string; maxCookMin?: number | null; weekly?: Record<string, 'veg' | 'nonveg'>;
   healthConditions?: string[]; budgetInr?: number | null;
+  householdSharing?: Partial<HouseholdSharing>;
 }
 /** Parse a JSON string column, returning a fallback on null/invalid. */
 function safeJson<T>(s: string | null | undefined, fallback: T): T {
@@ -583,6 +584,34 @@ interface HouseholdDelegate {
   delete(a: unknown): Promise<HouseholdMemberRow>;
 }
 
+/** Shared-pantry row (one pantry per household). */
+export interface PantryItemRow {
+  id: string; ownerId: string; name: string; aisle: string; grams: number;
+  unit: string; qtyLabel: string; createdAt: Date; updatedAt: Date;
+}
+interface PantryDelegate {
+  create(a: unknown): Promise<PantryItemRow>;
+  findMany(a: unknown): Promise<PantryItemRow[]>;
+  findFirst(a: unknown): Promise<PantryItemRow | null>;
+  update(a: unknown): Promise<PantryItemRow>;
+  delete(a: unknown): Promise<PantryItemRow>;
+}
+
+/** Household sharing permissions — what a member reveals to their household.
+ *  Medical data is private by DEFAULT; the planner still uses it for safe
+ *  portioning, but other members only see what's shared. */
+export interface HouseholdSharing { targets: boolean; conditions: boolean; weight: boolean; bloodTests: boolean }
+export const DEFAULT_SHARING: HouseholdSharing = { targets: true, conditions: false, weight: false, bloodTests: false };
+export function parseSharing(raw: unknown): HouseholdSharing {
+  const s = (raw ?? {}) as Partial<HouseholdSharing>;
+  return {
+    targets: s.targets ?? DEFAULT_SHARING.targets,
+    conditions: s.conditions ?? DEFAULT_SHARING.conditions,
+    weight: s.weight ?? DEFAULT_SHARING.weight,
+    bloodTests: s.bloodTests ?? DEFAULT_SHARING.bloodTests,
+  };
+}
+
 /** Valid household roles + what each may do (spec: Permissions). */
 export const HOUSEHOLD_ROLES = ['owner', 'adult', 'child', 'guest'] as const;
 export type HouseholdRole = (typeof HOUSEHOLD_ROLES)[number];
@@ -824,26 +853,38 @@ export class NutritionService implements OnModuleInit {
   private get household(): HouseholdDelegate {
     return (this.prisma as unknown as { householdMember: HouseholdDelegate }).householdMember;
   }
+  private get pantry(): PantryDelegate {
+    return (this.prisma as unknown as { pantryItem: PantryDelegate }).pantryItem;
+  }
 
   // ─────────────── family members (admin-managed sub-profiles) ───────────────
-  /** Shape a stored member for the client, with its computed daily targets. */
-  private shapeMember(m: FamilyMemberRowExt, image?: string | null) {
+  /** Shape a stored member for the client, with its computed daily targets. The
+   *  owner always sees their own (self) row in full; for other members, fields
+   *  are redacted per that member's own sharing permissions (medical is private
+   *  by default). The planner still uses the real data server-side for safe
+   *  portioning — redaction only affects what the household VIEW exposes. */
+  private shapeMember(m: FamilyMemberRowExt, image?: string | null, sharing?: HouseholdSharing) {
     const ex = parseExtras(m.extras);
     const targets = computeTargets({
       weightKg: m.weightKg, heightCm: m.heightCm, age: m.age, sex: m.sex,
       activity: m.activity, goal: m.goal, conditions: ex.healthConditions ?? [],
     });
     const householdRole = m.isSelf ? 'owner' : (HOUSEHOLD_ROLES as readonly string[]).includes(m.role) ? m.role : 'adult';
+    const s = m.isSelf ? { targets: true, conditions: true, weight: true, bloodTests: true } : (sharing ?? DEFAULT_SHARING);
+    const zeroTargets = { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0, adjustments: [] as string[] };
     return {
-      id: m.id, name: m.name, role: m.role, sex: m.sex, age: m.age, heightCm: m.heightCm,
-      weightKg: m.weightKg, activity: m.activity, goal: m.goal, diet: m.diet, isSelf: m.isSelf,
+      id: m.id, name: m.name, role: m.role, sex: m.sex, age: m.age, heightCm: s.weight ? m.heightCm : 0,
+      weightKg: s.weight ? m.weightKg : 0, activity: m.activity, goal: m.goal, diet: m.diet, isSelf: m.isSelf,
       userId: m.memberUserId ?? null,          // real Together City user (null for the owner self-row)
       image: image ?? null,                    // profile photo
       householdRole,                           // owner | adult | child | guest
       capabilities: HOUSEHOLD_CAPS[householdRole as HouseholdRole] ?? HOUSEHOLD_CAPS.adult,
+      privacy: { targets: !s.targets, conditions: !s.conditions, weight: !s.weight, bloodTests: !s.bloodTests },
       proteins: ex.proteins ?? [], cuisines: ex.cuisines ?? [], allergies: ex.allergies ?? '',
-      healthConditions: ex.healthConditions ?? [],
-      targets: { kcal: targets.kcal, protein: targets.protein, carb: targets.carb, fat: targets.fat, fiber: targets.fiber, adjustments: targets.adjustments },
+      healthConditions: s.conditions ? (ex.healthConditions ?? []) : [],
+      targets: s.targets
+        ? { kcal: targets.kcal, protein: targets.protein, carb: targets.carb, fat: targets.fat, fiber: targets.fiber, adjustments: targets.adjustments }
+        : zeroTargets,
     };
   }
 
@@ -851,17 +892,29 @@ export class NutritionService implements OnModuleInit {
    *  household members). Lazily seeds a "self" profile from the account holder's
    *  saved preferences, and keeps the real invited members mirrored from their
    *  own Nutrition profile so the planner/grocery/dashboard read live data. */
-  async familyMembers(ownerId: string) {
+  /** Raw household rows + each member's profile photo and sharing permissions.
+   *  Used both for the redacted member cards and for (unattributed) aggregates. */
+  private async householdRaw(ownerId: string) {
     await this.ensureSelfMember(ownerId);
     await this.syncHouseholdMirrors(ownerId);
     const rows = await this.members.findMany({ where: { ownerId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => [] as FamilyMemberRowExt[]);
-    // Attach profile photos for real-user members.
     const userIds = rows.map((r) => r.memberUserId).filter((x): x is string => Boolean(x));
-    const users = userIds.length
-      ? await this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, profileImage: true } }).catch(() => [])
-      : [];
+    const [users, prefs] = await Promise.all([
+      userIds.length ? this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, profileImage: true } }).catch(() => []) : Promise.resolve([]),
+      userIds.length ? this.prisma.foodPref.findMany({ where: { userId: { in: userIds } } }).catch(() => []) : Promise.resolve([]),
+    ]);
     const imageOf = new Map(users.map((u) => [u.id, u.profileImage]));
-    return rows.map((m) => this.shapeMember(m, m.memberUserId ? imageOf.get(m.memberUserId) : null));
+    const sharingOf = new Map((prefs as { userId: string; extras?: string | null }[]).map((p) => [p.userId, parseSharing(parseExtras(p.extras).householdSharing)]));
+    return rows.map((m) => ({
+      row: m,
+      image: m.memberUserId ? imageOf.get(m.memberUserId) ?? null : null,
+      sharing: m.memberUserId ? sharingOf.get(m.memberUserId) ?? DEFAULT_SHARING : DEFAULT_SHARING,
+    }));
+  }
+
+  async familyMembers(ownerId: string) {
+    const raw = await this.householdRaw(ownerId);
+    return raw.map((r) => this.shapeMember(r.row, r.image, r.sharing));
   }
 
   /** Seed the owner's own "self" member row from their saved preferences. */
@@ -1058,6 +1111,90 @@ export class NutritionService implements OnModuleInit {
     if (link) await this.household.update({ where: { id: link.id }, data: { status: 'removed' } as never }).catch(() => undefined);
     await this.members.deleteMany({ where: { ownerId, memberUserId } }).catch(() => undefined);
     return this.familyMembers(ownerId);
+  }
+
+  // ─────────────── privacy: household sharing permissions ───────────────
+  /** What the current user shares with households they belong to. Medical data is
+   *  private by default; the planner still uses it server-side for safe portioning. */
+  async getHouseholdSharing(userId: string): Promise<HouseholdSharing> {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null);
+    return parseSharing(parseExtras((pref as { extras?: string | null } | null)?.extras).householdSharing);
+  }
+
+  /** Update the current user's sharing permissions (applies wherever they're a member). */
+  async setHouseholdSharing(userId: string, patch: Partial<HouseholdSharing>): Promise<HouseholdSharing> {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null);
+    if (!pref) throw new NotFoundException('Set up your Nutrition profile first.');
+    const extras = parseExtras((pref as { extras?: string | null }).extras);
+    const next = parseSharing({ ...(extras.householdSharing ?? {}), ...patch });
+    extras.householdSharing = next;
+    await this.prisma.foodPref.update({ where: { userId }, data: { extras: JSON.stringify(extras) } as never });
+    return next;
+  }
+
+  // ─────────────── shared pantry (one per household) ───────────────
+  /** The household pantry, grouped into supermarket aisles with on-hand amounts. */
+  async pantryList(ownerId: string) {
+    const rows = await this.pantry.findMany({ where: { ownerId }, orderBy: { name: 'asc' } }).catch(() => [] as PantryItemRow[]);
+    const grouped = new Map<string, PantryItemRow[]>();
+    for (const r of rows) { const arr = grouped.get(r.aisle) ?? []; arr.push(r); grouped.set(r.aisle, arr); }
+    const aisles = GROCERY_AISLES
+      .filter((a) => (grouped.get(a.key) ?? []).length)
+      .map((a) => ({
+        key: a.key, icon: a.icon, title: a.title,
+        items: (grouped.get(a.key) ?? []).map((r) => ({ id: r.id, name: r.name, grams: r.grams, qtyLabel: r.qtyLabel || standardQty(r.name, r.grams, r.aisle).label, unit: r.unit, updatedAt: r.updatedAt })),
+      }));
+    return { aisles, itemCount: rows.length };
+  }
+
+  /** Add (or top up) a pantry item — canonicalises the name + picks its aisle/unit. */
+  async addPantryItem(ownerId: string, nameRaw: string, gramsRaw?: number) {
+    const name = canonicalIngredient(nameRaw);
+    if (!name || skipGroceryIngredient(nameRaw)) throw new BadRequestException('Enter a real grocery item.');
+    const aisle = groceryAisle(name);
+    const grams = Math.max(0, Math.round(Number(gramsRaw) || 0));
+    const existing = await this.pantry.findFirst({ where: { ownerId, name } }).catch(() => null);
+    if (existing) {
+      const total = existing.grams + grams;
+      await this.pantry.update({ where: { id: existing.id }, data: { grams: total, qtyLabel: standardQty(name, total, aisle).label, unit: standardQty(name, total, aisle).unit } as never });
+    } else {
+      const q = standardQty(name, grams || 1, aisle);
+      await this.pantry.create({ data: { ownerId, name, aisle, grams, unit: q.unit, qtyLabel: q.label } as never });
+    }
+    return this.pantryList(ownerId);
+  }
+
+  /** Set an item's on-hand quantity (grams). Zero or less removes it. */
+  async updatePantryItem(ownerId: string, id: string, grams: number) {
+    const existing = await this.pantry.findFirst({ where: { id, ownerId } }).catch(() => null);
+    if (!existing) throw new NotFoundException('pantry item not found');
+    const g = Math.max(0, Math.round(Number(grams) || 0));
+    if (g <= 0) await this.pantry.delete({ where: { id } });
+    else await this.pantry.update({ where: { id }, data: { grams: g, qtyLabel: standardQty(existing.name, g, existing.aisle).label } as never });
+    return this.pantryList(ownerId);
+  }
+
+  async removePantryItem(ownerId: string, id: string) {
+    const existing = await this.pantry.findFirst({ where: { id, ownerId } }).catch(() => null);
+    if (!existing) throw new NotFoundException('pantry item not found');
+    await this.pantry.delete({ where: { id } });
+    return this.pantryList(ownerId);
+  }
+
+  /** Stock the pantry from the current grocery list (the "groceries ordered" event). */
+  async stockPantryFromGrocery(ownerId: string, mode: PlanMode = 'family') {
+    const plan = await this.groceryPlan(ownerId, mode);
+    for (const aisle of plan.aisles) {
+      for (const it of aisle.items) {
+        await this.addPantryItem(ownerId, String(it.name), Number((it as { grams?: number }).grams) || 0).catch(() => undefined);
+      }
+    }
+    return this.pantryList(ownerId);
+  }
+
+  /** Best-effort: fold ordered grocery items into the pantry when an order is placed. */
+  private async stockPantryFromItems(ownerId: string, items: { name: string; grams?: number }[]) {
+    for (const it of items) await this.addPantryItem(ownerId, it.name, it.grams ?? 0).catch(() => undefined);
   }
 
   /**
@@ -1259,7 +1396,16 @@ export class NutritionService implements OnModuleInit {
    * data stays on each member; this is the household-level view.
    */
   async familyProfile(userId: string, dayIndex = 0) {
-    const members = await this.familyMembers(userId);
+    // Aggregates use REAL member data (unattributed), so privacy redaction never
+    // corrupts household planning numbers. Condition/allergy chips still respect
+    // each member's sharing choice.
+    const raw = await this.householdRaw(userId);
+    const real = raw.map(({ row, sharing }) => {
+      const ex = parseExtras(row.extras);
+      const t = computeTargets({ weightKg: row.weightKg, heightCm: row.heightCm, age: row.age, sex: row.sex, activity: row.activity, goal: row.goal, conditions: ex.healthConditions ?? [] });
+      return { age: row.age, diet: row.diet, goal: row.goal, isSelf: row.isSelf, sharesConditions: row.isSelf || sharing.conditions,
+        conditions: ex.healthConditions ?? [], allergies: ex.allergies ?? '', cuisines: ex.cuisines ?? [], targets: t };
+    });
     const dash = await this.familyDashboard(userId, dayIndex);
     const [owner, ownerPref] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(() => null),
@@ -1268,23 +1414,24 @@ export class NutritionService implements OnModuleInit {
     const ownerExtras = parseExtras((ownerPref as { extras?: string | null } | null)?.extras);
 
     const uniq = (xs: string[]) => [...new Set(xs.map((x) => x.trim()).filter(Boolean))];
-    const seniors = members.filter((m) => m.age >= 60).length;
-    const children = members.filter((m) => m.age < 18).length;
-    const adults = members.length - seniors - children;
+    const seniors = real.filter((m) => m.age >= 60).length;
+    const children = real.filter((m) => m.age < 18).length;
+    const adults = real.length - seniors - children;
 
     const dietLabel: Record<string, string> = { everything: 'Non-veg', nonveg: 'Non-veg', veg: 'Veg', vegan: 'Vegan', egg: 'Egg', pesc: 'Pescatarian', jain: 'Jain' };
-    const dietTypes = uniq(members.map((m) => dietLabel[m.diet] ?? m.diet));
-    const conditions = uniq(members.flatMap((m) => m.healthConditions ?? []));
-    const allergies = uniq(members.flatMap((m) => (m.allergies ? m.allergies.split(',') : [])));
-    const cuisines = uniq(members.flatMap((m) => m.cuisines ?? []));
+    const dietTypes = uniq(real.map((m) => dietLabel[m.diet] ?? m.diet));
+    // Only surface conditions/allergies for members who share them (+ the owner).
+    const conditions = uniq(real.filter((m) => m.sharesConditions).flatMap((m) => m.conditions));
+    const allergies = uniq(real.filter((m) => m.sharesConditions).flatMap((m) => (m.allergies ? m.allergies.split(',') : [])));
+    const cuisines = uniq(real.flatMap((m) => m.cuisines ?? []));
     const goalLabel: Record<string, string> = { lose: 'Weight loss', maintain: 'Maintain', gain: 'Build / gain' };
-    const goals = uniq(members.map((m) => goalLabel[m.goal] ?? m.goal));
+    const goals = uniq(real.map((m) => goalLabel[m.goal] ?? m.goal));
 
-    const n = Math.max(1, members.length);
-    const avgKcal = Math.round(members.reduce((s, m) => s + m.targets.kcal, 0) / n);
-    const avgProtein = Math.round(members.reduce((s, m) => s + m.targets.protein, 0) / n);
-    const avgFiber = Math.round(members.reduce((s, m) => s + m.targets.fiber, 0) / n);
-    const totalKcal = members.reduce((s, m) => s + m.targets.kcal, 0);
+    const n = Math.max(1, real.length);
+    const avgKcal = Math.round(real.reduce((s, m) => s + m.targets.kcal, 0) / n);
+    const avgProtein = Math.round(real.reduce((s, m) => s + m.targets.protein, 0) / n);
+    const avgFiber = Math.round(real.reduce((s, m) => s + m.targets.fiber, 0) / n);
+    const totalKcal = real.reduce((s, m) => s + m.targets.kcal, 0);
 
     const medicalAlerts = dash.members.flatMap((m) => m.flags.map((flag) => ({ member: m.name, flag })));
     const nutritionScore = dash.hasPlan ? Math.round((dash.members.filter((m) => m.medicalOk).length / n) * 100) : null;
@@ -1293,18 +1440,18 @@ export class NutritionService implements OnModuleInit {
     const cart = await this.prisma.groceryCart.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' }, include: { items: true } }).catch(() => null);
     const weeklyGroceryCost = cart?.items?.reduce((s, it) => s + ((it as { priceInr?: number }).priceInr ?? 0), 0) ?? 0;
 
-    const compatibility = this.familyCompatibility(members);
+    const compatibility = this.familyCompatibility(real.map((m) => ({ diet: m.diet, goal: m.goal, healthConditions: m.conditions, allergies: m.allergies })));
 
     return {
       name: owner?.name ? `${owner.name.split(' ')[0]}'s Household` : 'Your Household',
-      counts: { total: members.length, adults, children, seniors },
+      counts: { total: real.length, adults, children, seniors },
       dietTypes, conditions, allergies, cuisines, goals,
       compatibility,
       weeklyBudgetInr: ownerExtras.budgetInr ?? null,
       cookingFrequency: dash.hasPlan ? `${dash.mealsPerDay} meals/day` : 'Not set',
       groceryFrequency: 'Weekly',
       summary: {
-        members: members.length,
+        members: real.length,
         avgCalories: avgKcal, avgProtein, avgFiber, totalCalories: totalKcal,
         goals, medicalAlerts,
         weeklyGroceryCostInr: weeklyGroceryCost,
@@ -2537,6 +2684,8 @@ export class NutritionService implements OnModuleInit {
       },
       include: { items: true, deliveries: { orderBy: { dayIndex: 'asc' } } },
     });
+    // Ordered groceries flow into the shared household pantry.
+    await this.stockPantryFromItems(userId, cart.items.map((i) => ({ name: i.name, grams: (i as { grams?: number }).grams ?? 0 }))).catch(() => undefined);
     return this.shapeOrder(order);
   }
 

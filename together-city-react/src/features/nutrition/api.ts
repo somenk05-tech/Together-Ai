@@ -17,6 +17,13 @@ export const nutritionApi = {
   respondHouseholdInvite: (id: string, accept: boolean) =>
     api.post<{ ok: boolean; status: string; invites: HouseholdInvite[] }>(`/nutrition/family/invites/${id}/respond`, { accept }).then((r) => r.data),
   familyProfile: () => api.get<FamilyProfile>('/nutrition/family/profile').then((r) => r.data),
+  householdSharing: () => api.get<HouseholdSharing>('/nutrition/family/sharing').then((r) => r.data),
+  setHouseholdSharing: (patch: Partial<HouseholdSharing>) => api.patch<HouseholdSharing>('/nutrition/family/sharing', patch).then((r) => r.data),
+  pantry: () => api.get<PantryView>('/nutrition/family/pantry').then((r) => r.data),
+  addPantryItem: (name: string, grams?: number) => api.post<PantryView>('/nutrition/family/pantry', { name, grams }).then((r) => r.data),
+  stockPantry: () => api.post<PantryView>('/nutrition/family/pantry/stock', {}).then((r) => r.data),
+  updatePantryItem: (id: string, grams: number) => api.patch<PantryView>(`/nutrition/family/pantry/${id}`, { grams }).then((r) => r.data),
+  removePantryItem: (id: string) => api.delete<PantryView>(`/nutrition/family/pantry/${id}`).then((r) => r.data),
   updateFamilyMember: (id: string, dto: FamilyMemberInput) => api.patch<FamilyMemberProfile[]>(`/nutrition/family/members/${id}`, dto).then((r) => r.data),
   removeFamilyMember: (id: string) => api.delete<FamilyMemberProfile[]>(`/nutrition/family/members/${id}`).then((r) => r.data),
   familyPortions: (dayIndex: number) => api.get<FamilyPortions>(`/nutrition/family/portions/${dayIndex}`).then((r) => r.data),
@@ -78,9 +85,14 @@ export interface FamilyMemberProfile {
   image: string | null;              // profile photo
   householdRole: HouseholdRole;      // owner | adult | child | guest
   capabilities: string[];            // what this role may do
+  privacy: { targets: boolean; conditions: boolean; weight: boolean; bloodTests: boolean }; // true = hidden by that member
   proteins: string[]; cuisines: string[]; allergies: string; healthConditions: string[];
   targets: { kcal: number; protein: number; carb: number; fat: number; fiber: number; adjustments: string[] };
 }
+export interface HouseholdSharing { targets: boolean; conditions: boolean; weight: boolean; bloodTests: boolean }
+export interface PantryItemView { id: string; name: string; grams: number; qtyLabel: string; unit: string; updatedAt: string }
+export interface PantryAisle { key: string; icon: string; title: string; items: PantryItemView[] }
+export interface PantryView { aisles: PantryAisle[]; itemCount: number }
 export interface FamilyMemberInput {
   name: string; role: string; sex: string; age: number; heightCm: number; weightKg: number;
   activity: number; goal: string; diet: string; healthConditions: string[]; allergies?: string;
