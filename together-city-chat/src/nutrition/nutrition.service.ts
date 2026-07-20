@@ -118,6 +118,107 @@ export function formatGroceryQty(name: string, grams: number): { qtyLabel: strin
   if (g >= 1000) { const kg = g / 1000; return { qtyLabel: `${Number.isInteger(kg) ? kg : kg.toFixed(1)} kg`, unit: 'kg', qty: Math.round(kg) }; }
   return { qtyLabel: `${g} g`, unit: 'g', qty: g };
 }
+
+// ─────────── supermarket grocery: filter, normalise, aisle, units (redesign) ───────────
+// Cooking-only / non-purchased items never shown on the shopping list.
+const GROCERY_SKIP = /\b(water|ice|salt|cooking spray|non[- ]?stick spray|as needed|as required)\b|to taste|for greasing|for garnish|to garnish|\bgarnish\b|\boptional\b|pinch of/i;
+export function skipGroceryIngredient(name: string): boolean {
+  const n = (name || '').toLowerCase();
+  if (!n.trim()) return true;
+  // keep "salted butter" etc. — only skip when salt/water is the item itself
+  if (/\bsalt\b/.test(n) && !/\b(salted|salt[- ]?free)\b/.test(n) && /^\s*(sea\s+|rock\s+|table\s+|black\s+|pink\s+|kosher\s+)?salt\b/.test(n)) return true;
+  return GROCERY_SKIP.test(n) && !/\bsalted\b/.test(n);
+}
+
+// Prep descriptors stripped when deriving the canonical shopping item (identity
+// qualifiers like "kidney", "olive", "greek", colours on chillies are KEPT).
+const PREP_WORDS = /\b(chopped|diced|minced|sliced|finely|roughly|grated|shredded|crushed|peeled|halved|cubed|julienned|fresh|frozen|cooked|raw|ripe|large|small|medium|boneless|skinless|whole|organic|washed|trimmed|cleaned|deveined|beaten|softened|melted|warm|cold|hot|room temperature)\b/gi;
+const INGREDIENT_SYNONYM: Record<string, string> = {
+  matoes: 'Tomatoes', tomato: 'Tomatoes', tomatoes: 'Tomatoes', cilantro: 'Coriander',
+  'chicken breast': 'Chicken', 'chicken fillet': 'Chicken', 'chicken thigh': 'Chicken', 'chicken thighs': 'Chicken', chicken: 'Chicken',
+  curd: 'Yogurt', dahi: 'Yogurt', 'natural yogurt': 'Yogurt', 'greek yogurt': 'Yogurt', yoghurt: 'Yogurt', yogurt: 'Yogurt',
+  'bell pepper': 'Capsicum', capsicum: 'Capsicum', 'spring onion': 'Spring Onion', scallion: 'Spring Onion',
+  brinjal: 'Eggplant', aubergine: 'Eggplant', eggplant: 'Eggplant', shrimp: 'Prawns', prawn: 'Prawns', prawns: 'Prawns',
+  scallions: 'Spring Onion', coriander: 'Coriander',
+};
+export function canonicalIngredient(name: string): string {
+  let s = (name || '').toLowerCase().replace(/\(.*?\)/g, ' ').replace(/,.*$/, ' ').trim(); // drop parens + trailing ", chopped"
+  s = s.replace(/^matoes\b/, 'tomatoes');
+  s = s.replace(PREP_WORDS, ' ').replace(/\s{2,}/g, ' ').trim();
+  if (!s) return '';
+  if (INGREDIENT_SYNONYM[s]) return INGREDIENT_SYNONYM[s];
+  // synonym on first meaningful token phrase
+  for (const [k, v] of Object.entries(INGREDIENT_SYNONYM)) if (s === k) return v;
+  return s.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// Supermarket aisles (in shopping order).
+const GROCERY_AISLES: Array<{ key: string; icon: string; title: string; note: string }> = [
+  { key: 'produce', icon: '🥬', title: 'Fresh Produce', note: 'vegetables & fresh herbs' },
+  { key: 'fruit', icon: '🍎', title: 'Fruits', note: 'fresh fruit' },
+  { key: 'meat', icon: '🥩', title: 'Meat & Seafood', note: 'buy fresh, keep cold' },
+  { key: 'dairy', icon: '🥚', title: 'Dairy & Eggs', note: 'chilled' },
+  { key: 'spices', icon: '🌶', title: 'Herbs & Spices', note: 'store cupboard' },
+  { key: 'oils', icon: '🫒', title: 'Oils & Condiments', note: 'pantry' },
+  { key: 'nuts', icon: '🥜', title: 'Nuts & Seeds', note: 'airtight' },
+  { key: 'pantry', icon: '🌾', title: 'Pantry & Grains', note: 'long shelf life' },
+];
+const SHELF_INFO: Record<string, { life: string; tip: string }> = {
+  produce: { life: '3–5 days', tip: 'Fridge crisper; keep herbs in a glass of water' },
+  fruit: { life: '3–7 days', tip: 'Counter to ripen, then fridge' },
+  meat: { life: '1–2 days', tip: 'Coldest shelf or freeze on the day' },
+  dairy: { life: '1–2 weeks', tip: 'Fridge, back shelf (coldest)' },
+  spices: { life: '1–2 years', tip: 'Airtight jar, away from heat' },
+  oils: { life: 'Months', tip: 'Cool dark cupboard' },
+  nuts: { life: 'Months', tip: 'Airtight; fridge for longer' },
+  pantry: { life: 'Months', tip: 'Cool dry shelf' },
+};
+const AISLE_KW: Array<[string, RegExp]> = [
+  ['meat', /\b(chicken|mutton|lamb|goat|beef|steak|pork|bacon|ham|sausage|fish|salmon|tuna|prawn|shrimp|crab|squid|seafood|mince|keema)\b/],
+  ['dairy', /\b(milk|curd|yogurt|yoghurt|paneer|cheese|cheddar|mozzarella|butter|cream|ghee|egg|khoya|buttermilk|lassi)\b/],
+  ['spices', /\b(turmeric|chilli powder|chili powder|red chilli|cumin|coriander powder|garam masala|masala|pepper|cinnamon|cardamom|clove|bay leaf|nutmeg|paprika|oregano|thyme|basil dried|asafoetida|hing|fenugreek seed|mustard seed|spice|seasoning)\b/],
+  ['oils', /\b(oil|vinegar|soy sauce|sauce|ketchup|mayonnaise|peanut butter|honey|syrup|paste|stock|broth)\b/],
+  ['nuts', /\b(almond|walnut|cashew|pistachio|peanut|hazelnut|pecan|chia|flax|sesame|pumpkin seed|sunflower seed|seeds?)\b/],
+  ['fruit', /\b(banana|apple|orange|grape|berry|strawberr|blueberr|mango|avocado|pineapple|papaya|watermelon|pomegranate|kiwi|pear|peach|plum|lemon|lime)\b/],
+  ['produce', /\b(tomato|onion|potato|carrot|spinach|garlic|ginger|chilli|chili|capsicum|cabbage|cauliflower|beans|peas|cucumber|lettuce|broccoli|mushroom|coriander|mint|curry leaf|parsley|celery|beet|radish|pumpkin|gourd|okra|brinjal|eggplant|spring onion|leek|zucchini|kale|greens?|herb)\b/],
+  ['pantry', /\b(rice|atta|flour|maida|besan|rava|semolina|oat|dal|daal|lentil|rajma|kidney bean|chickpea|chana|pasta|noodle|macaroni|sugar|jaggery|poha|quinoa|millet|bread|canned|tofu|tempeh|cornflour|baking)\b/],
+];
+export function groceryAisle(name: string): string {
+  const n = name.toLowerCase();
+  // Match against the name and a de-pluralised form so canonical plurals
+  // ("tomatoes", "prawns", "almonds") land in the right aisle.
+  const singular = n.replace(/\bies\b/g, 'y').replace(/([a-z]{3,})es\b/g, '$1').replace(/([a-z]{3,})s\b/g, '$1');
+  const forms = singular === n ? [n] : [n, singular];
+  const hit = (re: RegExp) => forms.some((f) => re.test(f));
+  // Coriander/mint powder → spices; fresh → produce (handled by 'powder' check).
+  if (hit(/\bpowder\b|\bseeds?\b/) && hit(/\b(coriander|cumin|chilli|chili|pepper|fennel|mustard)\b/)) return 'spices';
+  for (const [aisle, re] of AISLE_KW) if (hit(re)) return aisle;
+  return 'pantry';
+}
+// Standardised shopping unit per canonical item / aisle.
+const PIECE_ITEMS: Array<[RegExp, number, string]> = [
+  [/\begg\b/, 50, ''], [/\bbanana\b/, 120, ''], [/\bapple\b/, 150, ''], [/\borange\b/, 130, ''],
+  [/\blemon\b/, 60, ''], [/\blime\b/, 50, ''], [/\bavocado\b/, 170, ''], [/\bcucumber\b/, 200, ''],
+  [/\bmango\b/, 200, ''], [/\bbread\b|\bloaf\b/, 400, 'loaf'],
+];
+const BULB_ITEMS = /\bgarlic\b/;
+const BUNCH_ITEMS = /\b(coriander|cilantro|mint|curry leaf|parsley|dill|fenugreek|spring onion|microgreen)\b/;
+const VOLUME_ITEMS = /\b(milk|oil|ghee|vinegar|soy sauce|juice|stock|broth|cream|buttermilk|water)\b/;
+export function standardQty(name: string, grams: number, aisle: string): { label: string; unit: string } {
+  const n = name.toLowerCase(); const g = Math.max(1, Math.round(grams));
+  if (aisle !== 'oils' && aisle !== 'pantry') {
+    const pc = PIECE_ITEMS.find(([re]) => re.test(n));
+    if (pc) { const c = Math.max(1, Math.round(g / pc[1])); return { label: pc[2] ? `${c} ${pc[2]}${c > 1 ? 's' : ''}` : `${c}`, unit: 'pc' }; }
+    if (BULB_ITEMS.test(n)) { const c = Math.max(1, Math.round(g / 50)); return { label: `${c} bulb${c > 1 ? 's' : ''}`, unit: 'bulb' }; }
+    if (BUNCH_ITEMS.test(n)) { const c = Math.max(1, Math.round(g / 100)); return { label: `${c} bunch${c > 1 ? 'es' : ''}`, unit: 'bunch' }; }
+  }
+  if (VOLUME_ITEMS.test(n)) {
+    if (g >= 1000) { const l = g / 1000; return { label: `${Number.isInteger(l) ? l : l.toFixed(1)} litre${l > 1 ? 's' : ''}`, unit: 'l' }; }
+    return { label: `${g} ml`, unit: 'ml' };
+  }
+  if (g >= 1000) { const kg = g / 1000; return { label: `${Number.isInteger(kg) ? kg : kg.toFixed(1)} kg`, unit: 'kg' }; }
+  return { label: `${g} g`, unit: 'g' };
+}
 const CUISINE_BY_COUNTRY: Record<string, string> = {
   India: 'Indian', China: 'Chinese', Italy: 'Italian', Mexico: 'Mexican', Thailand: 'Thai',
   Japan: 'Japanese', USA: 'American', 'United States': 'American', America: 'American',
@@ -1860,6 +1961,79 @@ export class NutritionService implements OnModuleInit {
   /** Title-case an ingredient for display ("brown rice" → "Brown Rice"). */
   private static prettyIngredient(name: string): string {
     return name.trim().replace(/\s+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  /**
+   * Supermarket-style grocery list (Grocery Planner redesign). Computed from the
+   * active plan: cooking-only items removed, names normalised to canonical
+   * shopping items, quantities merged in real units, grouped into supermarket
+   * aisles, with a per-recipe "used in" breakdown and a recipe view. Not stored.
+   */
+  async groceryPlan(userId: string, mode: PlanMode = 'individual') {
+    const latest = await this.prisma.mealPlan.findFirst({ where: { userId, mode }, orderBy: { createdAt: 'desc' } });
+    if (!latest) return { aisles: [], recipes: [], itemCount: 0 };
+    const plan = await this.prisma.mealPlan.findUnique({
+      where: { key: latest.key },
+      include: { days: { include: { meals: { include: { recipe: { include: { ingredients: true } } } } } } },
+    });
+    if (!plan) return { aisles: [], recipes: [], itemCount: 0 };
+
+    // Family multiplier = sum of member portion factors; individual = 1.
+    let people = 1;
+    if (mode === 'family') {
+      await this.familyMembers(userId);
+      const rows = await this.members.findMany({ where: { ownerId: userId } }).catch(() => [] as FamilyMemberRow[]);
+      people = Math.max(1, rows.length);
+    }
+
+    type Acc = { name: string; grams: number; usedIn: Map<string, number> };
+    const items = new Map<string, Acc>();               // canonicalKey → merged item
+    const recipeView = new Map<string, Map<string, number>>(); // recipeName → canonical → grams
+    for (const day of plan.days) {
+      for (const meal of day.meals) {
+        if (meal.skipped) continue;
+        const s = recipeServings(meal.recipe);
+        const rname = cleanRecipeName(meal.recipe.name);
+        for (const ing of meal.recipe.ingredients) {
+          if (skipGroceryIngredient(ing.name)) continue;      // drop water/salt/to-taste/garnish…
+          const canon = canonicalIngredient(ing.name);
+          if (!canon) continue;
+          const grams = Math.max(0, Math.round((ing.grams / s) * people));
+          if (grams <= 0) continue;
+          const key = canon.toLowerCase();
+          const cur = items.get(key) ?? { name: canon, grams: 0, usedIn: new Map() };
+          cur.grams += grams; cur.usedIn.set(rname, (cur.usedIn.get(rname) ?? 0) + grams);
+          items.set(key, cur);
+          const rv = recipeView.get(rname) ?? new Map();
+          rv.set(canon, (rv.get(canon) ?? 0) + grams); recipeView.set(rname, rv);
+        }
+      }
+    }
+
+    // Group into supermarket aisles with standardised units + shelf info.
+    const AISLES = GROCERY_AISLES;
+    const grouped = new Map<string, Array<Record<string, unknown>>>();
+    for (const it of items.values()) {
+      const cat = groceryAisle(it.name);
+      const q = standardQty(it.name, it.grams, cat);
+      const shelf = SHELF_INFO[cat] ?? { life: '', tip: '' };
+      const entry = {
+        name: it.name, aisle: cat, qtyLabel: q.label, unit: q.unit, grams: it.grams,
+        shelfLife: shelf.life, storageTip: shelf.tip,
+        usedIn: [...it.usedIn.entries()].sort((a, b) => b[1] - a[1]).map(([recipe, g]) => ({ recipe, qtyLabel: standardQty(it.name, g, cat).label })),
+      };
+      const arr = grouped.get(cat) ?? []; arr.push(entry); grouped.set(cat, arr);
+    }
+    const aisles = AISLES
+      .filter((a) => (grouped.get(a.key) ?? []).length)
+      .map((a) => ({ key: a.key, icon: a.icon, title: a.title, note: a.note, items: (grouped.get(a.key) ?? []).sort((x, y) => String(x.name).localeCompare(String(y.name))) }));
+
+    const recipes = [...recipeView.entries()].map(([recipe, ings]) => ({
+      recipe,
+      items: [...ings.entries()].map(([name, g]) => ({ name, qtyLabel: standardQty(name, g, groceryAisle(name)).label })).sort((a, b) => a.name.localeCompare(b.name)),
+    }));
+
+    return { aisles, recipes, itemCount: items.size };
   }
 
   async getCart(userId: string) {

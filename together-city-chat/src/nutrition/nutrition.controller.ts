@@ -94,6 +94,12 @@ export class NutritionController {
     return this.nutrition.familyDashboard(user.sub, 0);
   }
 
+  // Supermarket-style grocery list (Grocery Planner redesign). mode: individual|family.
+  @Get('grocery/plan')
+  groceryPlan(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode) {
+    return this.nutrition.groceryPlan(user.sub, mode ?? 'individual');
+  }
+
   @Get('history/:id')
   historyDetail(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.nutrition.nutritionHistoryDetail(user.sub, id);

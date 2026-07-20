@@ -41,6 +41,8 @@ export const nutritionApi = {
     }).then((r) => r.data),
   recipe: (id: string) =>
     api.get<RecipeDetail>(`/nutrition/recipes/${id}`).then((r) => r.data),
+  groceryPlan: (mode: 'individual' | 'family' = 'individual') =>
+    api.get<GroceryPlan>('/nutrition/grocery/plan', { params: { mode } }).then((r) => r.data),
   cart: () => api.get<GroceryCart>('/nutrition/cart').then((r) => r.data),
   buildCart: (opts?: { planKey?: string; recipeIds?: string[]; people?: number; mode?: 'individual' | 'family' }) =>
     api.post<GroceryCart>('/nutrition/cart', opts ?? {}).then((r) => r.data),
@@ -122,6 +124,18 @@ export interface GroceryItem {
   grams?: number; unit?: string; qtyLabel?: string;
 }
 export interface GroceryCart { id: string | null; items: GroceryItem[]; createdAt?: string }
+
+/** Supermarket-style grocery plan (Grocery Planner redesign). */
+export interface GroceryUsedIn { recipe: string; qtyLabel: string }
+export interface GroceryPlanItem {
+  name: string; aisle: string; qtyLabel: string; unit: string; grams: number;
+  shelfLife: string; storageTip: string; usedIn: GroceryUsedIn[];
+}
+export interface GroceryAisle {
+  key: string; icon: string; title: string; note: string; items: GroceryPlanItem[];
+}
+export interface GroceryRecipeView { recipe: string; items: { name: string; qtyLabel: string }[] }
+export interface GroceryPlan { aisles: GroceryAisle[]; recipes: GroceryRecipeView[]; itemCount: number }
 
 export interface Citation { id: string; label: string; ref: string }
 export interface BloodMarkerResult {

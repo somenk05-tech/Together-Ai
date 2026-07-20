@@ -44,3 +44,38 @@ describe('grocery human-readable units (never "×9")', () => {
       expect(formatGroceryQty(n, 500).qtyLabel).not.toContain('×');
   });
 });
+
+import { skipGroceryIngredient, canonicalIngredient, groceryAisle, standardQty } from './nutrition.service';
+
+describe('supermarket grocery planner (redesign)', () => {
+  it('never shows water / plain salt / to-taste / garnish', () => {
+    for (const n of ['Water', 'Salt', 'Sea Salt', 'Salt to taste', 'Coriander for garnish', 'Oil for greasing', 'Pinch of hing'])
+      expect(skipGroceryIngredient(n)).toBe(true);
+  });
+  it('keeps real ingredients (incl. salted butter)', () => {
+    for (const n of ['Salted Butter', 'Chicken', 'Tomatoes', 'Rock Salmon'])
+      expect(skipGroceryIngredient(n)).toBe(false);
+  });
+  it('normalises prep words + synonyms to a canonical shopping item', () => {
+    expect(canonicalIngredient('finely chopped tomatoes')).toBe('Tomatoes');
+    expect(canonicalIngredient('boneless chicken breast')).toBe('Chicken');
+    expect(canonicalIngredient('fresh curd')).toBe('Yogurt');
+    expect(canonicalIngredient('matoes')).toBe('Tomatoes');
+    expect(canonicalIngredient('cilantro, chopped')).toBe('Coriander');
+  });
+  it('routes items to the right supermarket aisle', () => {
+    expect(groceryAisle('Chicken')).toBe('meat');
+    expect(groceryAisle('Milk')).toBe('dairy');
+    expect(groceryAisle('Tomatoes')).toBe('produce');
+    expect(groceryAisle('Cumin Powder')).toBe('spices');
+    expect(groceryAisle('Basmati Rice')).toBe('pantry');
+    expect(groceryAisle('Almonds')).toBe('nuts');
+    expect(groceryAisle('Banana')).toBe('fruit');
+  });
+  it('standardises quantity into real shopping units', () => {
+    expect(standardQty('Egg', 300, 'dairy').label).toBe('6');
+    expect(standardQty('Chicken', 1800, 'meat').label).toBe('1.8 kg');
+    expect(standardQty('Milk', 2000, 'dairy').label).toBe('2 litres');
+    expect(standardQty('Garlic', 100, 'produce').label).toBe('2 bulbs');
+  });
+});

@@ -75,6 +75,14 @@ export function useGroceryCart() {
   return useQuery({ queryKey: ['nutrition', 'cart'], queryFn: () => nutritionApi.cart() });
 }
 
+/** Supermarket-style grocery plan (Grocery Planner redesign) — aisles + recipe view. */
+export function useGroceryPlan(mode: 'individual' | 'family' = 'individual') {
+  return useQuery({
+    queryKey: ['nutrition', 'grocery-plan', mode],
+    queryFn: () => nutritionApi.groceryPlan(mode),
+  });
+}
+
 export function useBuildCart() {
   const qc = useQueryClient();
   return useMutation({
