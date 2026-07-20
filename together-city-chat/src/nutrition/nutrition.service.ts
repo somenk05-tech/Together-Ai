@@ -1747,6 +1747,27 @@ export class NutritionService implements OnModuleInit {
         if (Array.isArray(s) && s.length && typeof s[0]?.text === 'string') return s as CookStep[];
       } catch { /* regenerate */ }
     }
+    // The v2 dataset ships pre-written cooking steps — build the structured cook
+    // steps from them deterministically (timers + attention inferred by rule), so
+    // there is NO AI cost. Cache the result the first time it's viewed.
+    const pre = (r as { steps?: string | null }).steps;
+    if (pre) {
+      try {
+        const arr = JSON.parse(pre) as Array<string | { text?: string; instruction?: string }>;
+        const texts = Array.isArray(arr)
+          ? arr.map((s) => (typeof s === 'string' ? s : (s?.instruction ?? s?.text ?? ''))).filter((t) => typeof t === 'string' && t.trim())
+          : [];
+        if (texts.length) {
+          const result: CookStep[] = texts.slice(0, 14).map((raw) => {
+            const text = raw.trim();
+            const durationSec = secondsFromText(text);
+            return { text, durationSec, active: isActiveStep(text, durationSec) };
+          });
+          await this.prisma.recipe.update({ where: { id: r.id }, data: { cookSteps: JSON.stringify(result) } as never }).catch(() => undefined);
+          return result;
+        }
+      } catch { /* fall through to AI/fallback */ }
+    }
     const ingNames = r.ingredients.map((i) => i.name);
     const ingList = r.ingredients.map((i) => `${i.name} (${i.grams}g)`).join(', ');
     const mins = saneMinutes(r.minutes);
