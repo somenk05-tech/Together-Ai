@@ -199,6 +199,9 @@ export class MedicalService implements OnModuleInit {
       },
       include: { biomarkers: true },
     });
+    // Pre-warm the AI health summary in the background so it's already cached by
+    // the time the user opens Blood Test Analysis (loads instantly there).
+    void this.healthSummary(userId).catch(() => undefined);
     return this.analyze(userId, test.id);
   }
 
@@ -321,13 +324,29 @@ export class MedicalService implements OnModuleInit {
       .slice(0, 5)
       .map((p) => p.label);
 
-    // AI narrative (Opus). Deterministic fallbacks when AI is off / returns empty.
-    const payload = `Person: ${first}.\nMarkers:\n`
-      + markers.map((m) => `- ${m.label}: ${m.value} ${m.unit} (ref ${m.range}) → ${m.status.toUpperCase()}`).join('\n')
-      + (alerts.length ? `\nCritical alerts: ${alerts.map((a) => `${a.label} ${a.value}`).join('; ')}` : '')
-      + (conditions.length ? `\nCondition patterns detected: ${conditions.map((c) => c.name).join(', ')}` : '')
-      + `\nComputed overall score: ${score}/100 (${band}).`;
-    const ai = await this.ai.clinicalInterpretation(payload, name);
+    // AI narrative (Opus) — cached on the panel so the summary loads instantly on
+    // every later visit. Generated once per panel; regenerated only if absent.
+    type AiNarrative = Awaited<ReturnType<AiService['clinicalInterpretation']>>;
+    const cached = (test as { aiSummary?: string | null }).aiSummary;
+    let ai: AiNarrative | null = null;
+    if (cached) {
+      try { ai = JSON.parse(cached) as AiNarrative; } catch { ai = null; }
+    }
+    if (!ai) {
+      const payload = `Person: ${first}.\nMarkers:\n`
+        + markers.map((m) => `- ${m.label}: ${m.value} ${m.unit} (ref ${m.range}) → ${m.status.toUpperCase()}`).join('\n')
+        + (alerts.length ? `\nCritical alerts: ${alerts.map((a) => `${a.label} ${a.value}`).join('; ')}` : '')
+        + (conditions.length ? `\nCondition patterns detected: ${conditions.map((c) => c.name).join(', ')}` : '')
+        + `\nComputed overall score: ${score}/100 (${band}).`;
+      ai = await this.ai.clinicalInterpretation(payload, name);
+      // Cache only a real AI narrative (not an empty fallback), so a transient AI
+      // outage doesn't get frozen in.
+      if (ai.interpretation.length || ai.greeting) {
+        await this.prisma.medicalBloodTest
+          .update({ where: { id: test.id }, data: { aiSummary: JSON.stringify(ai) } as never })
+          .catch(() => undefined);
+      }
+    }
 
     const interpretation = ai.interpretation.length
       ? ai.interpretation

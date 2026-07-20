@@ -694,6 +694,7 @@ model MedicalBloodTest {
   userId    String
   takenOn   DateTime @default(now())
   lab       String?
+  aiSummary String? // cached AI narrative (greeting/interpretation/…) so the health summary loads instantly
   createdAt DateTime @default(now())
 
   user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)

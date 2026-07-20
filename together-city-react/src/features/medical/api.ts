@@ -100,7 +100,14 @@ export function useMedicalSupplementPlan() {
   return useQuery({ queryKey: ['medical', 'supplements'], queryFn: () => medicalApi.supplementPlan() });
 }
 export function useHealthSummary() {
-  return useQuery({ queryKey: ['medical', 'summary'], queryFn: () => medicalApi.summary() });
+  // The narrative is cached server-side; keep it fresh in the client cache too so
+  // returning to Blood Test Analysis shows it instantly instead of refetching.
+  return useQuery({
+    queryKey: ['medical', 'summary'],
+    queryFn: () => medicalApi.summary(),
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
 }
 export function useRecords() {
   return useQuery({ queryKey: ['medical', 'records'], queryFn: () => medicalApi.records() });
