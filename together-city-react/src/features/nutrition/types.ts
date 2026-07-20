@@ -50,6 +50,25 @@ export interface PlanGuidance {
   citations: { id: string; label: string; ref: string }[];
 }
 
+/** Evidence-based medical recommendation shown as advice — never overrides the
+ *  saved food preference (spec §21). Level 1 Informational · 2 Recommended · 3 Safety. */
+export interface MedicalAdvisory {
+  key: string;
+  condition: string;
+  level: 1 | 2 | 3;
+  title: string;
+  message: string;
+  actionable: boolean;            // show Update/Keep actions (a preference change is suggested)
+  recommendedPreference?: string; // e.g. 'veg' | 'pesc'
+}
+
+export interface HealthScore {
+  preferenceMatch: number;        // % — always 100 (preferences are honoured)
+  medicalOptimisation: number;    // % — how well choices align with conditions
+  overall: number;                // % — blended
+  note: string;
+}
+
 export interface WeekPlan {
   key: string;
   weekNumber?: number;        // ISO week number (spec §20)
@@ -58,6 +77,8 @@ export interface WeekPlan {
   weekLabel?: string;         // "20–26 Jul 2026"
   days: DayPlan[];
   guidance?: PlanGuidance | null;
+  advisories?: MedicalAdvisory[];   // §21 medical advisory cards
+  healthScore?: HealthScore;        // §21 preference-vs-medical score
   incomplete?: boolean;                          // profile missing required fields
   missing?: { key: string; label: string }[];    // what to complete before planning
 }

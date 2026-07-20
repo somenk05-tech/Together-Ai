@@ -343,7 +343,7 @@ function mealAppropriate(r: RecipeWithIng): boolean {
 function passesHard(r: RecipeWithIng, diet: Diet, ex: PrefExtras, allowed: Set<string>): boolean {
   if (!dietAllows(diet, r.diet as Diet)) return false;                 // 1 · diet pattern
   if (!isPlannableMeal(r)) return false;                               // 2 · real meal (no condiments)
-  if (!passesProtein(r, allowed, !isProteinRestricted(ex))) return false; // 3 · preferred proteins (meat not forced when protein-restricted)
+  if (!passesProtein(r, allowed)) return false;                       // 3 · preferred proteins/meats (the user's preference is honoured, even with a kidney condition — we advise, we don't override)
   if (!passesMedical(r, ex.healthConditions ?? [])) return false;     // 4 · medical conditions
   const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
   if (terms(ex.allergies).some((a) => hay.includes(a))) return false; // 5 · allergies
@@ -607,7 +607,7 @@ export class NutritionService implements OnModuleInit {
     }
     if (kidney) {
       proteinPerKg = Math.min(proteinPerKg, 0.8); sodiumMaxMg = Math.min(sodiumMaxMg, 2000); potassiumMinMg = 2000;
-      adjustments.push('Kidney disease: protein moderated, sodium & potassium limited — confirm targets with your nephrologist');
+      adjustments.push('Kidney condition noted: protein target moderated to protect kidney function, with sodium & potassium limited — confirm targets with your nephrologist');
     }
 
     const protein = Math.round(proteinPerKg * refWeight);
@@ -728,7 +728,8 @@ export class NutritionService implements OnModuleInit {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const stale = Boolean(existing && pref && existing.createdAt < pref.updatedAt);
     const plan = existing && !stale ? await this.shapePlan(existing.key) : await this.generatePlan(userId, mode);
-    return { ...plan, guidance: await this.userPlanGuidance(userId) };
+    const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
+    return { ...plan, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
   }
 
   async regenerate(userId: string, mode: PlanMode = 'individual') {
@@ -737,7 +738,8 @@ export class NutritionService implements OnModuleInit {
       return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
     }
     const plan = await this.generatePlan(userId, mode);
-    return { ...plan, guidance: await this.userPlanGuidance(userId) };
+    const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
+    return { ...plan, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
   }
 
   /** Load the user's stored marker values, as a {key: value} map. */
@@ -769,6 +771,76 @@ export class NutritionService implements OnModuleInit {
     return planGuidance(flags, pref?.goal ?? 'maintain');
   }
 
+  /**
+   * Medical advisory system (spec §21). Evidence-based recommendations derived
+   * from the user's declared conditions + blood flags, shown as ADVICE — never
+   * used to override the saved Food Preference Profile. The meal plan always
+   * follows the user's own choices; these cards suggest optional improvements
+   * with an "Update Food Preferences" / "Keep Current" decision left to the user.
+   * Levels: 1 Informational · 2 Recommended · 3 Safety alert (safety-only).
+   */
+  private async advisoriesFor(userId: string) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const flags = flagsFor(await this.bloodValues(userId));
+    const conds = new Set((ex.healthConditions ?? []).map((c) => c.toLowerCase()));
+    const has = (...k: string[]) => k.some((x) => [...conds].some((c) => c.includes(x)));
+    const diet = pref?.diet ?? 'everything';
+    const DIET_LABEL: Record<string, string> = {
+      everything: 'Non-Vegetarian', nonveg: 'Non-Vegetarian', pesc: 'Pescatarian',
+      egg: 'Eggetarian', veg: 'Vegetarian', vegan: 'Vegan', jain: 'Jain',
+    };
+    const dietName = DIET_LABEL[diet] ?? 'your current diet';
+    const eatsAnimal = ['everything', 'nonveg', 'pesc', 'egg'].includes(diet) || eatsAnimalProtein(allowedProteins(ex));
+
+    type Advisory = { key: string; condition: string; level: 1 | 2 | 3; title: string; message: string; actionable: boolean; recommendedPreference?: string };
+    const A: Advisory[] = [];
+    const kidney = has('kidney', 'renal', 'ckd');
+    const fatty = has('fatty liver', 'nafld');
+    const highChol = has('cholesterol') || flags.ldl === 'high' || flags.trig === 'high';
+    const diabetes = has('diabetes') || flags.hba1c === 'high';
+    const htn = has('hypertension', 'blood pressure');
+    const pcos = has('pcos');
+
+    if (kidney) A.push({ key: 'kidney', condition: 'Kidney health', level: 2,
+      title: 'A more plant-forward diet may support your kidneys',
+      message: `Based on your health profile, a predominantly vegetarian diet may be more beneficial for your kidney health. Your current meal plan has been generated according to your saved food preferences (${dietName}). To optimise kidney function, consider replacing some animal protein with paneer, tofu or legumes — or update your Food Preference Profile to Vegetarian / plant-forward. This may help reduce kidney workload while still meeting your protein requirements. Please confirm targets with your nephrologist.`,
+      actionable: eatsAnimal, recommendedPreference: 'veg' });
+    if (fatty) A.push({ key: 'fattyLiver', condition: 'Liver health', level: 2,
+      title: 'Leaner, plant-forward meals may help your liver',
+      message: `Reducing saturated fat and processed meat while increasing vegetables, legumes, whole grains and fibre may improve fatty-liver health. Your plan follows your saved preference (${dietName}); a more plant-forward pattern is worth considering.`,
+      actionable: eatsAnimal, recommendedPreference: 'veg' });
+    if (highChol) A.push({ key: 'highChol', condition: 'Cholesterol', level: 2,
+      title: 'Swap some red meat for fish or plant proteins',
+      message: `Consider replacing some red meat with fish, legumes, tofu or plant-based proteins and increasing soluble fibre. Your plan follows your saved preference (${dietName}); these swaps can help lower LDL over time.`,
+      actionable: eatsAnimal, recommendedPreference: 'pesc' });
+    if (diabetes) A.push({ key: 'diabetes', condition: 'Blood sugar', level: 1,
+      title: 'Favour high-fibre, lower-glycaemic carbohydrates',
+      message: 'Prioritise high-fibre, lower-glycaemic carbohydrates and lean protein sources while limiting added sugars and refined carbohydrates. Your plan already leans this way — no preference change needed.',
+      actionable: false });
+    if (htn) A.push({ key: 'hypertension', condition: 'Blood pressure', level: 1,
+      title: 'Lower sodium, raise potassium',
+      message: 'Reducing sodium and increasing potassium-rich foods may help support healthy blood pressure. Your plan already limits high-salt items automatically.',
+      actionable: false });
+    if (pcos) A.push({ key: 'pcos', condition: 'PCOS', level: 1,
+      title: 'Higher-protein, high-fibre, lower-GI meals',
+      message: 'A higher-protein, high-fibre diet with lower-glycaemic carbohydrates may improve insulin sensitivity and hormone balance.',
+      actionable: false });
+
+    // Health-score impact (§21): preferences are always honoured (100%); medical
+    // optimisation reflects how well those choices align with the conditions.
+    const preferenceMatch = 100;
+    let medicalOptimisation = 100;
+    for (const a of A) medicalOptimisation -= a.actionable ? (a.level === 2 ? 16 : 8) : (a.level === 2 ? 6 : 3);
+    medicalOptimisation = Math.max(50, medicalOptimisation);
+    const overall = Math.round(preferenceMatch * 0.45 + medicalOptimisation * 0.55);
+    const misaligned = A.filter((a) => a.actionable);
+    const note = misaligned.length
+      ? `Your meal plan fully matches your food preferences. However, based on your ${misaligned.map((a) => a.condition.toLowerCase()).join(' & ')}, a more plant-forward diet may further improve long-term outcomes.`
+      : 'Your meal plan matches both your food preferences and your medical profile.';
+    return { advisories: A, healthScore: { preferenceMatch, medicalOptimisation, overall, note } };
+  }
+
   /** Build a slot→recipes map honouring the user's diet, allergies, avoided
    *  foods, cook-time cap and cuisine-mix bias. `dayDiet` lets a single day be
    *  forced vegetarian (weekly veg/non-veg rule) on top of the base diet. */
@@ -793,17 +865,12 @@ export class NutritionService implements OnModuleInit {
       if (!pool.length) pool = inSlot;
       const byMode = rankByModes(pool as unknown as RecipeShape[], modes) as unknown as RecipeWithIng[];
       let ordered = cuisineBias(byMode, mix);
-      const restricted = isProteinRestricted(ex);
-      if (restricted) {
-        // Protein-restricted (kidney/CKD): lean lighter — plant-forward dishes
-        // first in EVERY slot, so animal protein appears less across the week.
-        const plant = ordered.filter((r) => isPlantForward(r));
-        const rest = ordered.filter((r) => !isPlantForward(r));
-        ordered = [...plant, ...rest];
-      } else if ((slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)) {
-        // Breakfast & snack: PREFER the user's selected animal proteins (egg/
-        // chicken/fish first) without excluding veg options — a stable partition
-        // keeps the clinical + cuisine order intact within each group.
+      // Breakfast & snack: PREFER the user's selected animal proteins (egg/
+      // chicken/fish first) without excluding veg options — a stable partition
+      // keeps the clinical + cuisine order intact within each group. We honour
+      // the user's food preference even with a medical condition (§21): the plan
+      // follows their choice; medical guidance is shown as advice, not enforced.
+      if ((slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)) {
         const withP = ordered.filter((r) => hasSelectedAnimalProtein(r, allowed));
         const without = ordered.filter((r) => !hasSelectedAnimalProtein(r, allowed));
         ordered = [...withP, ...without];
@@ -879,15 +946,11 @@ export class NutritionService implements OnModuleInit {
         const full = ranked[slot];
         const list = modes.length ? full.slice(0, Math.max(6, Math.ceil(full.length / 2))) : full;
         // Non-veg breakfast/snack: prefer a selected animal protein (egg/chicken/
-        // fish), falling back to a veg option only if none fits (spec §7). A
-        // protein-restricted user (kidney/CKD) instead prefers plant-forward
-        // dishes in every slot, to keep total protein near the lowered target.
-        const restricted = isProteinRestricted(ex);
-        const prefer = restricted
-          ? (r: RecipeWithIng) => isPlantForward(r)
-          : ((slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)
-            ? (r: RecipeWithIng) => hasSelectedAnimalProtein(r, allowed)
-            : undefined);
+        // fish), falling back to a veg option only if none fits (spec §7). The
+        // user's preference is honoured regardless of medical conditions (§21).
+        const prefer = (slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)
+          ? (r: RecipeWithIng) => hasSelectedAnimalProtein(r, allowed)
+          : undefined;
         const r = pick(list, d, prefer);
         if (r) picks[d][slot] = r;
       }
@@ -1186,23 +1249,15 @@ export class NutritionService implements OnModuleInit {
       // rank replacements by per-serving protein and pick from the top third —
       // a swap keeps the day's protein high instead of dropping to a random dish.
       const protein = (c: RecipeWithIng) => (c as unknown as { protein?: number }).protein ?? 0;
-      const restricted = isProteinRestricted(ex);
       let rankPool = [...pickFrom];
-      if (restricted) {
-        // Protein-restricted (kidney/CKD): refresh toward a plant-forward, lighter
-        // dish rather than a heavier protein one.
-        const plant = rankPool.filter((r) => isPlantForward(r));
-        if (plant.length) rankPool = plant;
-      } else if ((slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)) {
+      if ((slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)) {
         // Breakfast/snack refresh: keep the user's selected animal proteins first
         // (spec §7 & §16) so a refresh never drops a non-veg user to a vegan dish
         // when an egg/chicken option exists.
         const withP = rankPool.filter((r) => hasSelectedAnimalProtein(r, allowed));
         if (withP.length) rankPool = withP;
       }
-      // Rank by protein: highest-first normally (keep the day protein-rich), but
-      // lowest-first when protein-restricted (respect the lowered target).
-      const ranked = rankPool.sort((a, b) => restricted ? protein(a) - protein(b) : protein(b) - protein(a));
+      const ranked = rankPool.sort((a, b) => protein(b) - protein(a));
       const top = ranked.slice(0, Math.max(1, Math.ceil(ranked.length / 3)));
       const pick = top[Math.floor(Math.random() * top.length)];
       await this.prisma.meal.update({ where: { id: meal.id }, data: { recipeId: pick.id, skipped: false } });

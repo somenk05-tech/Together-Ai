@@ -5,6 +5,7 @@ import { DayTabs } from '../components/DayTabs';
 import { MealCard } from '../components/MealCard';
 import { DailySummary } from '../components/DailySummary';
 import { PlanGuidanceBanner } from '../components/PlanGuidanceBanner';
+import { MedicalAdvisories } from '../components/MedicalAdvisories';
 import { ProfileIncomplete } from '../components/ProfileIncomplete';
 import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRegenerateWeek, useBuildCart } from '../hooks';
 import { nutritionApi } from '../api';
@@ -49,6 +50,7 @@ export function WeeklyPlanner() {
         title="Weekly Meal Planner 🌿"
         sub={week.weekLabel ? `Week ${week.weekNumber} · ${week.weekLabel} — saved to your Health Profile` : 'Personalised meals from the Together City world database — 11,254 curated recipes with full macro and micronutrient data.'} />
       <PlanGuidanceBanner guidance={(plan.data as unknown as { guidance?: import('../types').PlanGuidance }).guidance} />
+      <MedicalAdvisories advisories={week.advisories} healthScore={week.healthScore} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '2.3fr 1fr', gap: 28, alignItems: 'start' }} className="tc-dashgrid">
         <div>
