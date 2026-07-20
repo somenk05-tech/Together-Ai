@@ -623,6 +623,15 @@ export class NutritionService implements OnModuleInit {
     const diet = (pref?.diet ?? 'everything') as Diet;
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     const allowed = allowedProteins(ex);
+    // Cross-week variety (spec §18): remember the recipes in the plan we're about
+    // to replace so the new week de-prioritises them — Week 2 shouldn't repeat
+    // Week 1. Read BEFORE the deleteMany below. Down-ranked, never excluded, so a
+    // narrow pool can still fill every slot.
+    const prior = await this.prisma.mealPlan.findFirst({
+      where: { userId, mode },
+      include: { days: { include: { meals: { select: { recipeId: true } } } } },
+    });
+    const recentIds = new Set<string>((prior?.days ?? []).flatMap((d) => d.meals.map((m) => m.recipeId)));
     // Load prices too, so the budget filter can work.
     const recipes = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true, priceInr: true } } } })) as unknown as RecipeWithIng[];
 
@@ -647,13 +656,15 @@ export class NutritionService implements OnModuleInit {
     const pick = (pool: RecipeWithIng[], dayIndex: number, prefer?: (r: RecipeWithIng) => boolean): RecipeWithIng | undefined => {
       if (!pool.length) return undefined;
       const rot = pool.map((_, i) => pool[(i + dayIndex + offset) % pool.length]);
-      const fresh = (r: RecipeWithIng) => count(usedRecipe, r.id) < 1;
+      const fresh = (r: RecipeWithIng) => count(usedRecipe, r.id) < 1;                 // not used yet THIS week
       const varied = (r: RecipeWithIng) => fresh(r) && count(usedProtein, proteinSig(r)) < 2;
-      // Preference order: (1) fresh + varied + preferred, (2) fresh + varied,
-      // (3) fresh + preferred, (4) fresh, (5) anything. Breakfast/snack pass a
-      // `prefer` predicate so a non-veg user gets egg/chicken first, but a veg
-      // breakfast is still chosen rather than leaving the slot empty.
+      const newWeek = (r: RecipeWithIng) => !recentIds.has(r.id);                        // not in LAST week's plan
+      // Preference order, best → fallback. `newWeek` (cross-week variety, §18) and
+      // `prefer` (breakfast/snack protein, §7) stack on top of the in-week rules,
+      // but every layer degrades gracefully so a slot is never left empty.
       const chosen =
+        (prefer ? rot.find((r) => varied(r) && newWeek(r) && prefer(r)) : undefined) ??
+        rot.find((r) => varied(r) && newWeek(r)) ??
         (prefer ? rot.find((r) => varied(r) && prefer(r)) : undefined) ??
         rot.find(varied) ??
         (prefer ? rot.find((r) => fresh(r) && prefer(r)) : undefined) ??
