@@ -393,6 +393,7 @@ export interface RecipeShape {
   id: string; recipeNo: number | null; name: string; country: string; kcal: number; protein: number;
   carbs: number; fat: number; fiber: number; minutes: number; gramsPerServing: number; diet: Diet;
   servings: number; // how many one-person plates the raw recipe yields
+  healthGrade?: string | null; healthPercent?: number; // v2 dataset health score
 }
 
 /**
@@ -2212,6 +2213,7 @@ export class NutritionService implements OnModuleInit {
   private recipeShape(r: {
     id: string; name: string; country: string; kcal: number; protein: number; carbs: number;
     fat: number; fiber: number; minutes: number; gramsPerServing: number; diet: string; slot?: string; servings?: number;
+    healthGrade?: string | null; healthPercent?: number;
   }): RecipeShape {
     // 'jainvegan' is an internal filtering tag — surface it to the UI as 'vegan'
     // (it is fully plant-based) so existing diet chips/colours render correctly.
@@ -2228,7 +2230,7 @@ export class NutritionService implements OnModuleInit {
       kcal, protein: macro.protein, carbs: macro.carbs,
       fat: macro.fat, fiber: macro.fiber, minutes: saneMinutes(r.minutes),
       gramsPerServing: Math.max(1, per(r.gramsPerServing)), diet: displayDiet,
-      servings: s,
+      servings: s, healthGrade: r.healthGrade ?? null, healthPercent: r.healthPercent ?? 0,
     };
   }
 

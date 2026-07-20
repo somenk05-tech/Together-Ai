@@ -16,6 +16,9 @@ export interface Recipe {
   gramsPerServing: number;   // grams one person eats (per plate)
   servings?: number;         // one-person plates the raw batch recipe yields
   diet: DietKey;
+  imageUrl?: string;         // dish photo (when available), keyed by recipeNo
+  healthGrade?: string | null; // A–E health grade
+  healthPercent?: number;    // 0–100 health score
 }
 
 export interface Sides { rice: number; roti: number; curd: number; salad: number; }
