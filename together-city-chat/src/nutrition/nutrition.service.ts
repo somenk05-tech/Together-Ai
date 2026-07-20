@@ -76,15 +76,22 @@ const PROTEIN_LABEL: Record<string, string> = {
   legumes: 'legumes', legume: 'legumes', lentils: 'legumes', beans: 'legumes',
 };
 
-function detectProteins(r: RecipeWithIng): Set<string> {
+// Word-boundary matchers (allow a trailing plural "s"), precompiled once. Naive
+// substring matching mis-fires — "eggplant" contains "egg", "graham" contains
+// "ham" — which would tag a vegan dish as containing an animal protein and break
+// the §9 hard filter. Boundaries fix that: \begg s?\b matches egg/eggs, not eggplant.
+const PROTEIN_PATTERNS: Record<string, RegExp[]> = Object.fromEntries(
+  Object.entries(PROTEIN_TOKENS).map(([token, kws]) => [token, kws.map((k) => new RegExp(`\\b${k}s?\\b`, 'i'))]),
+);
+export function detectProteins(r: RecipeWithIng): Set<string> {
   const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
   const found = new Set<string>();
-  for (const [token, kws] of Object.entries(PROTEIN_TOKENS)) {
-    if (kws.some((k) => hay.includes(k))) found.add(token);
+  for (const [token, pats] of Object.entries(PROTEIN_PATTERNS)) {
+    if (pats.some((p) => p.test(hay))) found.add(token);
   }
   return found;
 }
-function allowedProteins(ex: PrefExtras): Set<string> {
+export function allowedProteins(ex: PrefExtras): Set<string> {
   const out = new Set<string>();
   for (const p of [...(ex.proteins ?? []), ...(ex.meats ?? [])]) {
     const t = PROTEIN_LABEL[p.trim().toLowerCase()];
@@ -99,7 +106,7 @@ function allowedProteins(ex: PrefExtras): Set<string> {
  * the user eats meat, main meals (lunch/dinner) must actually feature one of
  * their selected animal proteins — never a stray veg/paneer/tofu dish.
  */
-function passesProtein(r: RecipeWithIng, allowed: Set<string>): boolean {
+export function passesProtein(r: RecipeWithIng, allowed: Set<string>): boolean {
   if (allowed.size === 0) return true;
   const found = detectProteins(r);
   const animalFound = [...found].filter((t) => ANIMAL_PROTEINS.has(t));
@@ -109,6 +116,20 @@ function passesProtein(r: RecipeWithIng, allowed: Set<string>): boolean {
     if (!animalFound.some((t) => allowed.has(t))) return false;   // meat main must have their meat
   }
   return true;
+}
+
+/** Does this recipe actually feature one of the user's SELECTED animal proteins?
+ *  Used as a SOFT preference for breakfast & snack — a non-veg user should see
+ *  their egg/chicken/fish first, while a light veg breakfast (poha, upma) stays a
+ *  valid fallback. Lunch/dinner enforce the same thing as a HARD rule above. */
+export function hasSelectedAnimalProtein(r: RecipeWithIng, allowed: Set<string>): boolean {
+  if (allowed.size === 0) return false;
+  return [...detectProteins(r)].some((t) => ANIMAL_PROTEINS.has(t) && allowed.has(t));
+}
+/** True when the user eats meat (selected ≥1 animal protein) — so breakfast/snack
+ *  should bias toward those proteins. */
+function eatsAnimalProtein(allowed: Set<string>): boolean {
+  return [...allowed].some((t) => ANIMAL_PROTEINS.has(t));
 }
 
 // ─────────── medical conditions as HARD exclusions ───────────
@@ -583,7 +604,16 @@ export class NutritionService implements OnModuleInit {
       if (!pool.length) pool = inSlot.filter((r) => dietAllows(dayDiet, r.diet as Diet) && isPlannableMeal(r));
       if (!pool.length) pool = inSlot;
       const byMode = rankByModes(pool as unknown as RecipeShape[], modes) as unknown as RecipeWithIng[];
-      out[slot] = cuisineBias(byMode, mix);
+      let ordered = cuisineBias(byMode, mix);
+      // Breakfast & snack: PREFER the user's selected animal proteins (egg/chicken/
+      // fish first) without excluding veg options — a stable partition keeps the
+      // clinical + cuisine order intact within each group.
+      if ((slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)) {
+        const withP = ordered.filter((r) => hasSelectedAnimalProtein(r, allowed));
+        const without = ordered.filter((r) => !hasSelectedAnimalProtein(r, allowed));
+        ordered = [...withP, ...without];
+      }
+      out[slot] = ordered;
     }
     return out;
   }
@@ -592,6 +622,7 @@ export class NutritionService implements OnModuleInit {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const diet = (pref?.diet ?? 'everything') as Diet;
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const allowed = allowedProteins(ex);
     // Load prices too, so the budget filter can work.
     const recipes = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true, priceInr: true } } } })) as unknown as RecipeWithIng[];
 
@@ -613,12 +644,20 @@ export class NutritionService implements OnModuleInit {
     const count = (m: Map<string, number>, k: string) => m.get(k) ?? 0;
     const bump = (m: Map<string, number>, k: string) => m.set(k, count(m, k) + 1);
     const proteinSig = (r: RecipeWithIng) => [...detectProteins(r)].sort().join(',') || r.diet;
-    const pick = (pool: RecipeWithIng[], dayIndex: number): RecipeWithIng | undefined => {
+    const pick = (pool: RecipeWithIng[], dayIndex: number, prefer?: (r: RecipeWithIng) => boolean): RecipeWithIng | undefined => {
       if (!pool.length) return undefined;
       const rot = pool.map((_, i) => pool[(i + dayIndex + offset) % pool.length]);
+      const fresh = (r: RecipeWithIng) => count(usedRecipe, r.id) < 1;
+      const varied = (r: RecipeWithIng) => fresh(r) && count(usedProtein, proteinSig(r)) < 2;
+      // Preference order: (1) fresh + varied + preferred, (2) fresh + varied,
+      // (3) fresh + preferred, (4) fresh, (5) anything. Breakfast/snack pass a
+      // `prefer` predicate so a non-veg user gets egg/chicken first, but a veg
+      // breakfast is still chosen rather than leaving the slot empty.
       const chosen =
-        rot.find((r) => count(usedRecipe, r.id) < 1 && count(usedProtein, proteinSig(r)) < 2) ??
-        rot.find((r) => count(usedRecipe, r.id) < 1) ??
+        (prefer ? rot.find((r) => varied(r) && prefer(r)) : undefined) ??
+        rot.find(varied) ??
+        (prefer ? rot.find((r) => fresh(r) && prefer(r)) : undefined) ??
+        rot.find(fresh) ??
         rot[0];
       bump(usedRecipe, chosen.id);
       bump(usedProtein, proteinSig(chosen));
@@ -633,7 +672,12 @@ export class NutritionService implements OnModuleInit {
       for (const slot of SLOTS) {
         const full = ranked[slot];
         const list = modes.length ? full.slice(0, Math.max(6, Math.ceil(full.length / 2))) : full;
-        const r = pick(list, d);
+        // Non-veg breakfast/snack: prefer a selected animal protein (egg/chicken/
+        // fish), falling back to a veg option only if none fits (spec §7).
+        const prefer = (slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)
+          ? (r: RecipeWithIng) => hasSelectedAnimalProtein(r, allowed)
+          : undefined;
+        const r = pick(list, d, prefer);
         if (r) picks[d][slot] = r;
       }
     }
@@ -779,7 +823,15 @@ export class NutritionService implements OnModuleInit {
       // rank replacements by per-serving protein and pick from the top third —
       // a swap keeps the day's protein high instead of dropping to a random dish.
       const protein = (c: RecipeWithIng) => (c as unknown as { protein?: number }).protein ?? 0;
-      const ranked = [...pickFrom].sort((a, b) => protein(b) - protein(a));
+      let rankPool = [...pickFrom];
+      // Breakfast/snack refresh: keep the user's selected animal proteins first
+      // (spec §7 & §16) so a refresh never drops a non-veg user to a vegan dish
+      // when an egg/chicken option exists.
+      if ((slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)) {
+        const withP = rankPool.filter((r) => hasSelectedAnimalProtein(r, allowed));
+        if (withP.length) rankPool = withP;
+      }
+      const ranked = rankPool.sort((a, b) => protein(b) - protein(a));
       const top = ranked.slice(0, Math.max(1, Math.ceil(ranked.length / 3)));
       const pick = top[Math.floor(Math.random() * top.length)];
       await this.prisma.meal.update({ where: { id: meal.id }, data: { recipeId: pick.id, skipped: false } });
