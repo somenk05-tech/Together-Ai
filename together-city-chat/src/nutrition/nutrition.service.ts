@@ -291,12 +291,14 @@ function saneMinutes(m: number | undefined | null): number {
 }
 
 /**
- * Is this recipe substantial enough to be a planned meal for the slot? The
- * dataset carries many <20 kcal condiments (pickles, chutneys, spice blends,
- * relishes) that must never be chosen as a breakfast/lunch/dinner. Judged on the
- * per-person calories (batch kcal ÷ servings) against a per-slot floor.
+ * Is this recipe substantial enough to be a planned meal for the slot? Judged on
+ * per-person calories (batch kcal ÷ servings) against a per-slot floor. The
+ * dataset is now cleaned of condiments, so this floor only needs to exclude
+ * genuinely-trivial / batch-estimate-corrupt rows (per-serving in the single/low
+ * double digits) — real light dishes (a small idli, a dhokla, a light dal) are
+ * KEPT, since the thali builder flexes them up to the meal's calorie target.
  */
-const MEAL_MIN_KCAL: Record<string, number> = { b: 120, l: 180, s: 45, d: 180 };
+const MEAL_MIN_KCAL: Record<string, number> = { b: 50, l: 60, s: 35, d: 60 };
 function isPlannableMeal(r: { slot: string; kcal?: number; gramsPerServing?: number }): boolean {
   if (r.kcal == null) return true; // unknown → don't exclude
   const perServing = r.kcal / recipeServings({ slot: r.slot, kcal: r.kcal, gramsPerServing: r.gramsPerServing ?? 0 });
@@ -304,12 +306,13 @@ function isPlannableMeal(r: { slot: string; kcal?: number; gramsPerServing?: num
 }
 
 // ─────────── meal-type appropriateness (think like a dietitian) ───────────
-// A realistic per-person calorie window for each slot — a snack is ~100-300 kcal,
-// lunch the largest, dinner moderate. This rejects recipes that don't fit the
-// slot's ROLE even when the dataset mis-tagged the slot (e.g. a 500-kcal, 120-min
-// rice dish tagged as a "snack").
+// A realistic per-person calorie window for each slot. The LOW ends are kept
+// deliberately generous so real but light dishes stay eligible (Indian mains
+// flex up to target in the thali builder); the HIGH ends still keep a snack from
+// being a heavy main and reject batch-estimate outliers. Anything below the low
+// end is a trivial / corrupt row, handled together with MEAL_MIN_KCAL.
 const SLOT_KCAL: Record<string, [number, number]> = {
-  b: [250, 700], l: [350, 950], s: [90, 300], d: [300, 850],
+  b: [70, 700], l: [80, 950], s: [40, 300], d: [80, 850],
 };
 // Condiments / seasonings — never a meal in any slot.
 const CONDIMENT_NAME = /(pickle|relish|chutney|marmalade|preserve|\bjam\b|\bjelly\b|seasoning|\bsyrup\b|condiment|ketchup|\bglaze\b|marinade)/i;
