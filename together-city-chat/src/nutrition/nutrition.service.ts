@@ -13,6 +13,7 @@ import {
   triggeredConditions, type MarkerStatus,
 } from './clinical-engine';
 import type { BloodInputDto, Diet, FoodPrefDto, PlanMode, Slot } from './dto/nutrition.dto';
+import { assemblePlate, type PlateOpts } from './plate';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOTS: Slot[] = ['b', 'l', 's', 'd'];
@@ -1287,18 +1288,43 @@ export class NutritionService implements OnModuleInit {
     });
     if (!plan) throw new NotFoundException('plan not found');
     const slotOrder: Record<string, number> = { b: 0, l: 1, s: 2, d: 3 };
+
+    // Plate context — lunch/dinner are assembled as full Indian thalis.
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId: plan.userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const flags = flagsFor(await this.bloodValues(plan.userId));
+    const diabetes = flags.hba1c === 'high' || (ex.healthConditions ?? []).some((c) => /diab/i.test(c));
+    const lactoseFree = /lactose|dairy-free|milk/i.test(ex.allergies ?? '');
+    const plateOpts: PlateOpts = {
+      diet: pref?.diet ?? 'everything',
+      goal: (pref?.goal ?? 'maintain') as PlateOpts['goal'],
+      diabetes,
+      dairy: pref?.diet !== 'vegan' && !lactoseFree,
+      jain: pref?.diet === 'jain',
+    };
+
     return {
       key: plan.key,
       days: plan.days.map((d) => ({
         day: d.dayName,
         meals: [...d.meals]
           .sort((a, b) => slotOrder[a.slot] - slotOrder[b.slot])
-          .map((m) => ({
-            slot: m.slot,
-            recipe: this.recipeShape(m.recipe),
-            skipped: m.skipped,
-            sides: { rice: m.sidesRice, roti: m.sidesRoti, curd: m.sidesCurd, salad: m.sidesSalad },
-          })),
+          .map((m) => {
+            const recipe = this.recipeShape(m.recipe);
+            // Thali assembly is for INDIAN mains only — Western/other cuisines stay
+            // a single plated dish, not a roti+rice+dal+curd thali.
+            const indian = /india/i.test(m.recipe.country);
+            const plate = indian && (m.slot === 'l' || m.slot === 'd')
+              ? assemblePlate(recipe, m.slot, plateOpts, d.dayIndex * 4 + slotOrder[m.slot])
+              : undefined;
+            return {
+              slot: m.slot,
+              recipe,
+              skipped: m.skipped,
+              sides: { rice: m.sidesRice, roti: m.sidesRoti, curd: m.sidesCurd, salad: m.sidesSalad },
+              plate,
+            };
+          }),
       })),
     };
   }

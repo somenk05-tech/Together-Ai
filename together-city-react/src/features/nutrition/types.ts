@@ -20,11 +20,20 @@ export interface Recipe {
 
 export interface Sides { rice: number; roti: number; curd: number; salad: number; }
 
+export interface PlateComponent {
+  role: 'main' | 'secondary' | 'carb' | 'vegetable' | 'dairy' | 'salad';
+  icon: string; name: string; portion: string;
+  kcal: number; protein: number; carbs: number; fat: number; fiber: number;
+}
+export interface PlateMacro { kcal: number; protein: number; carbs: number; fat: number; fiber: number }
+export interface Plate { components: PlateComponent[]; totals: PlateMacro }
+
 export interface Meal {
   slot: Slot;
   recipe: Recipe;
   skipped: boolean;
   sides?: Sides;
+  plate?: Plate;   // assembled Indian thali (lunch/dinner Indian mains only)
 }
 
 export interface DayPlan {
