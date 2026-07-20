@@ -140,7 +140,7 @@ function parseExtras(extras: string | null | undefined): PrefExtras {
 function terms(s?: string): string[] {
   return (s ?? '').split(/[,;]/).map((t) => t.trim().toLowerCase()).filter(Boolean);
 }
-type RecipeWithIng = { id: string; slot: string; diet: string; name: string; country: string; minutes: number; kcal?: number; gramsPerServing?: number; ingredients: Array<{ name: string; priceInr?: number }> };
+type RecipeWithIng = { id: string; slot: string; diet: string; name: string; country: string; minutes: number; kcal?: number; gramsPerServing?: number; servings?: number; ingredients: Array<{ name: string; priceInr?: number }> };
 
 // ─────────── protein preferences as HARD constraints ───────────
 // Protein sources the planner can detect in a recipe from its name + ingredients.
@@ -265,7 +265,7 @@ function passesMedical(r: RecipeWithIng, conditions: string[]): boolean {
 function perPlateCost(r: RecipeWithIng): number {
   const total = r.ingredients.reduce((s, i) => s + (i.priceInr ?? 0), 0);
   if (!total) return 0; // unknown → don't exclude on price
-  return Math.round(total / recipeServings({ slot: r.slot, kcal: r.kcal ?? 0, gramsPerServing: r.gramsPerServing ?? 0 }));
+  return Math.round(total / recipeServings({ slot: r.slot, kcal: r.kcal ?? 0, gramsPerServing: r.gramsPerServing ?? 0, servings: r.servings }));
 }
 
 /**
@@ -306,7 +306,7 @@ function saneMinutes(m: number | undefined | null): number {
 const MEAL_MIN_KCAL: Record<string, number> = { b: 50, l: 60, s: 35, d: 60 };
 function isPlannableMeal(r: { slot: string; kcal?: number; gramsPerServing?: number }): boolean {
   if (r.kcal == null) return true; // unknown → don't exclude
-  const perServing = r.kcal / recipeServings({ slot: r.slot, kcal: r.kcal, gramsPerServing: r.gramsPerServing ?? 0 });
+  const perServing = r.kcal / recipeServings({ slot: r.slot, kcal: r.kcal, gramsPerServing: r.gramsPerServing ?? 0, servings: (r as { servings?: number }).servings });
   return perServing >= (MEAL_MIN_KCAL[r.slot] ?? 150);
 }
 
@@ -332,7 +332,7 @@ const SNACK_UNFIT_NAME = /biryani|pulao|pilaf|fried rice|\brice\b|pasta|lasagn|n
  */
 function mealAppropriate(r: RecipeWithIng): boolean {
   const slot = r.slot;
-  const per = (r.kcal ?? 0) / recipeServings({ slot, kcal: r.kcal ?? 0, gramsPerServing: r.gramsPerServing ?? 0 });
+  const per = (r.kcal ?? 0) / recipeServings({ slot, kcal: r.kcal ?? 0, gramsPerServing: r.gramsPerServing ?? 0, servings: r.servings });
   const [lo, hi] = SLOT_KCAL[slot] ?? [200, 900];
   if (r.kcal != null && (per < lo || per > hi)) return false;
   if (CONDIMENT_NAME.test(r.name)) return false;
@@ -405,7 +405,10 @@ export interface RecipeShape {
  */
 const PLATE_GRAMS: Record<string, number> = { b: 350, l: 500, s: 200, d: 500 };
 const PLATE_KCAL: Record<string, number> = { b: 500, l: 700, s: 350, d: 700 };
-export function recipeServings(r: { slot?: string; kcal: number; gramsPerServing: number }): number {
+export function recipeServings(r: { slot?: string; kcal: number; gramsPerServing: number; servings?: number }): number {
+  // v2 dataset stores authoritative per-serving nutrition (servings ≥ 1) — trust
+  // it and skip the batch-size estimate below.
+  if (r.servings && r.servings > 0) return r.servings;
   const gRef = PLATE_GRAMS[r.slot ?? ''] ?? 450;
   const kRef = PLATE_KCAL[r.slot ?? ''] ?? 650;
   const byGrams = (r.gramsPerServing || 0) / gRef;
@@ -589,10 +592,12 @@ export class NutritionService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     await this.ensureRecipes();
     await this.ensureDietitians();
-    // Load the world recipe database into Postgres (once), then purge the
-    // non-meal / duplicate rows the cleaning pass identified. Background so it
-    // never blocks boot / health checks; both are idempotent and persist.
-    void this.ensureRecipeLibrary().then(() => this.purgeDroppedRecipes()).catch(() => undefined);
+    // Recipe data: adopt the v2 dataset (per-serving, cleaned) on an existing DB,
+    // else load it fresh. Background so it never blocks boot; both are idempotent.
+    // The old dropped-rows purge is skipped once v2 is in (v2 is already clean).
+    void this.ensureRecipeLibrary()
+      .then(() => this.adoptDatasetV2())
+      .catch(() => undefined);
   }
 
   /**
@@ -2185,7 +2190,7 @@ export class NutritionService implements OnModuleInit {
   // ─────────────── shaping ───────────────
   private recipeShape(r: {
     id: string; name: string; country: string; kcal: number; protein: number; carbs: number;
-    fat: number; fiber: number; minutes: number; gramsPerServing: number; diet: string; slot?: string;
+    fat: number; fiber: number; minutes: number; gramsPerServing: number; diet: string; slot?: string; servings?: number;
   }): RecipeShape {
     // 'jainvegan' is an internal filtering tag — surface it to the UI as 'vegan'
     // (it is fully plant-based) so existing diet chips/colours render correctly.
@@ -2417,6 +2422,7 @@ export class NutritionService implements OnModuleInit {
         id: string; no: number; name: string; country: string; slot: string; diet: string;
         kcal: number; protein: number; carbs: number; fat: number; fiber: number;
         minutes: number; gramsPerServing: number; steps: string[];
+        servings?: number; healthGrade?: string | null; healthPercent?: number;
         ingredients: { name: string; grams: number; priceInr: number }[];
       };
       const data = JSON.parse(gunzipSync(readFileSync(path)).toString('utf8')) as DS[];
@@ -2435,6 +2441,7 @@ export class NutritionService implements OnModuleInit {
             id: r.id, recipeNo: r.no, name: r.name, country: r.country, slot: r.slot, diet: r.diet,
             kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat, fiber: r.fiber,
             minutes: r.minutes, gramsPerServing: r.gramsPerServing,
+            servings: r.servings ?? 0, healthGrade: r.healthGrade ?? null, healthPercent: r.healthPercent ?? 0,
             steps: JSON.stringify(r.steps ?? []),
           }));
           await this.prisma.recipe.createMany({ data: batch as never, skipDuplicates: true });
@@ -2470,6 +2477,59 @@ export class NutritionService implements OnModuleInit {
       this.logger.log(`World recipe database ready: ${total} recipes in Postgres.`);
     } catch (e) {
       this.logger.warn(`World-database load failed (will retry next boot): ${(e as Error).message}`);
+    }
+  }
+
+  /**
+   * One-time migration to the v2 recipe dataset (per-serving nutrition, pre-written
+   * steps, health grades). The v2 file is already the shipped dataset; this replaces
+   * the older batch-total rows in an existing database with it. Gated on the
+   * `servings` column (v2 rows carry servings=1), so it runs once then no-ops.
+   * Best-effort; never throws.
+   */
+  private async adoptDatasetV2(): Promise<void> {
+    try {
+      const migrated = await this.prisma.recipe.count({ where: { servings: { gt: 0 } } as never }).catch(() => -1);
+      if (migrated < 0) return; // `servings` column not created yet (db push pending) — next boot
+      const total = await this.prisma.recipe.count();
+      if (total > 0 && migrated >= total * 0.9) return; // already on v2
+
+      const candidates = [
+        join(__dirname, 'data', 'recipes.dataset.json.gz'),
+        join(process.cwd(), 'dist', 'nutrition', 'data', 'recipes.dataset.json.gz'),
+        join(process.cwd(), 'src', 'nutrition', 'data', 'recipes.dataset.json.gz'),
+      ];
+      const path = candidates.find((p) => existsSync(p));
+      if (!path) return;
+      const data = JSON.parse(gunzipSync(readFileSync(path)).toString('utf8')) as Array<Record<string, unknown>>;
+      if (!Array.isArray(data) || !data.length || data[0].servings == null) return; // not a v2 file
+
+      this.logger.log(`Adopting v2 recipe dataset (${data.length} per-serving recipes) — replacing existing rows…`);
+      // Meal plans reference recipes; drop them (they regenerate) so the FK clears.
+      await this.prisma.mealPlan.deleteMany({});
+      await this.prisma.recipe.deleteMany({});
+
+      const RB = 500;
+      for (let i = 0; i < data.length; i += RB) {
+        const batch = data.slice(i, i + RB).map((r) => ({
+          id: r.id, recipeNo: r.no, name: r.name, country: r.country, slot: r.slot, diet: r.diet,
+          kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat, fiber: r.fiber,
+          minutes: r.minutes, gramsPerServing: r.gramsPerServing,
+          servings: r.servings ?? 1, healthGrade: r.healthGrade ?? null, healthPercent: r.healthPercent ?? 0,
+          steps: JSON.stringify(r.steps ?? []),
+        }));
+        await this.prisma.recipe.createMany({ data: batch as never, skipDuplicates: true });
+      }
+      const ing = data.flatMap((r) => ((r.ingredients as Array<{ name: string; grams: number; priceInr?: number }>) ?? []).map((i) => ({
+        recipeId: r.id as string, name: i.name, grams: i.grams, priceInr: i.priceInr ?? 0,
+      })));
+      const IB = 2000;
+      for (let i = 0; i < ing.length; i += IB) {
+        await this.prisma.recipeIngredient.createMany({ data: ing.slice(i, i + IB), skipDuplicates: true });
+      }
+      this.logger.log(`v2 dataset adopted: ${await this.prisma.recipe.count()} recipes in Postgres.`);
+    } catch (e) {
+      this.logger.warn(`v2 dataset adoption skipped: ${(e as Error).message}`);
     }
   }
 }
