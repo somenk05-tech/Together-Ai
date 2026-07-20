@@ -8,13 +8,11 @@ const amount = (it: GroceryItem) => it.qtyLabel && it.qtyLabel.trim() ? it.qtyLa
 
 function Section({ icon, title, note, items }: { icon: string; title: string; note: string; items: GroceryItem[] }) {
   if (items.length === 0) return null;
-  const total = items.reduce((s, i) => s + i.priceInr, 0);
   return (
     <div className="card" style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <h2 style={{ fontSize: 17 }}>{icon} {title}</h2>
         <span className="muted" style={{ fontSize: 12 }}>{note}</span>
-        <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 14 }}>₹{total}</span>
       </div>
       <div style={{ border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden', marginTop: 12 }}>
         {items.map((it, i) => (
@@ -26,7 +24,7 @@ function Section({ icon, title, note, items }: { icon: string; title: string; no
             }}
           >
             <span>{it.name}</span>
-            <span className="muted" style={{ whiteSpace: 'nowrap' }}><b style={{ color: 'var(--ink)', fontWeight: 600 }}>{amount(it)}</b> · ₹{it.priceInr}</span>
+            <span style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{amount(it)}</span>
           </div>
         ))}
       </div>
@@ -47,7 +45,6 @@ export function Grocery() {
   const pantry = items.filter((i) => i.category === 'pantry');
   const weekly = items.filter((i) => i.category === 'weekly' || i.category === 'fresh');
   const daily = items.filter((i) => i.category === 'daily');
-  const total = items.reduce((s, i) => s + i.priceInr, 0);
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
@@ -72,12 +69,7 @@ export function Grocery() {
         </Button>
         <Link to="/nutrition/weekly"><Button variant="line">Open planner</Button></Link>
         {items.length > 0 && (
-          <span style={{ marginLeft: 'auto', fontFamily: 'var(--serif)', fontSize: 19, fontWeight: 600 }}>
-            Total ₹{total}
-          </span>
-        )}
-        {items.length > 0 && (
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--muted)', border: '1.5px solid var(--line)', borderRadius: 999, padding: '8px 14px' }}>
+          <span style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 600, color: 'var(--muted)', border: '1.5px solid var(--line)', borderRadius: 999, padding: '8px 14px' }}>
             Checkout — coming soon
           </span>
         )}

@@ -8,19 +8,17 @@ const amount = (it: GroceryItem) => it.qtyLabel && it.qtyLabel.trim() ? it.qtyLa
 
 function Section({ icon, title, note, items }: { icon: string; title: string; note: string; items: GroceryItem[] }) {
   if (items.length === 0) return null;
-  const total = items.reduce((s, i) => s + i.priceInr, 0);
   return (
     <div className="card" style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <h2 style={{ fontSize: 17 }}>{icon} {title}</h2>
         <span className="muted" style={{ fontSize: 12 }}>{note}</span>
-        <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 14 }}>₹{total}</span>
       </div>
       <div style={{ border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden', marginTop: 12 }}>
         {items.map((it, i) => (
           <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '9px 14px', fontSize: 13.5, borderTop: i === 0 ? 'none' : '1px solid var(--line)', background: i % 2 ? 'var(--paper)' : 'transparent' }}>
             <span style={{ textTransform: 'capitalize' }}>{it.name}</span>
-            <span className="muted" style={{ whiteSpace: 'nowrap' }}><b style={{ color: 'var(--ink)', fontWeight: 600 }}>{amount(it)}</b> · ₹{it.priceInr}</span>
+            <span style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{amount(it)}</span>
           </div>
         ))}
       </div>
@@ -45,7 +43,6 @@ export function FamilyGrocery() {
   const pantry = items.filter((i) => i.category === 'pantry');
   const weekly = items.filter((i) => i.category === 'weekly' || i.category === 'fresh');
   const daily = items.filter((i) => i.category === 'daily');
-  const total = items.reduce((s, i) => s + i.priceInr, 0);
 
   return (
     <div>
@@ -55,7 +52,7 @@ export function FamilyGrocery() {
         objectPosition="center 52%" />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
-        <span className="muted" style={{ fontSize: 12.5 }}>List built from your family meal plan · portioned for {N} {N === 1 ? 'person' : 'people'} · estimated retail prices</span>
+        <span className="muted" style={{ fontSize: 12.5 }}>List built from your family meal plan · portioned for {N} {N === 1 ? 'person' : 'people'} · exact quantities in real units</span>
       </div>
 
       <div className="card" style={{ margin: '12px 0 8px', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--paper)' }}>
@@ -75,10 +72,7 @@ export function FamilyGrocery() {
           Portioned for {N} {N === 1 ? 'person' : 'people'}
         </span>
         {items.length > 0 && (
-          <span style={{ marginLeft: 'auto', fontFamily: 'var(--serif)', fontSize: 19, fontWeight: 600 }}>Total ₹{total}</span>
-        )}
-        {items.length > 0 && (
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--muted)', border: '1.5px solid var(--line)', borderRadius: 999, padding: '8px 14px' }}>Checkout — coming soon</span>
+          <span style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 600, color: 'var(--muted)', border: '1.5px solid var(--line)', borderRadius: 999, padding: '8px 14px' }}>Checkout — coming soon</span>
         )}
       </div>
 
