@@ -437,6 +437,32 @@ function secondsFromText(text: string): number {
   return 0;
 }
 
+/**
+ * Keep a meal's macros physiologically consistent with its calorie figure.
+ * The 12,976-recipe world dataset carries noisy protein/carb/fat/fibre values
+ * (some per-100 g, some per-batch, some simply wrong) that the per-serving
+ * divisor can't fix — which is how a 548-kcal biryani ends up "reporting" 34 g
+ * fibre and the daily dashboard shows 102 g fibre / 143 g protein. Calories are
+ * the trusted figure (used for portioning), so we clamp each macro to a
+ * plausible share of that energy: protein & fat ≤45% of kcal each, carbs to the
+ * remaining energy, and fibre to a realistic ceiling (≤~16 g per 1000 kcal, and
+ * never more than the carbohydrate it's part of).
+ */
+export function saneMacros(kcal: number, protein: number, carbs: number, fat: number, fiber: number) {
+  const k = Math.max(0, Math.round(kcal || 0));
+  // Generous energy-share ceilings — only trim values that are physically
+  // impossible for the calorie count, so legitimately high-protein or high-fat
+  // dishes are left alone. Fibre is the strict clamp (its dataset values are the
+  // worst offenders and it can't realistically exceed ~16 g per 1000 kcal).
+  const p = Math.min(Math.max(0, Math.round(protein || 0)), Math.round((k * 0.6) / 4));
+  const f = Math.min(Math.max(0, Math.round(fat || 0)), Math.round((k * 0.6) / 9));
+  const carbRoom = Math.max(0, Math.round((k * 1.1 - p * 4 - f * 9) / 4));
+  const c = Math.min(Math.max(0, Math.round(carbs || 0)), carbRoom || Math.round(carbs || 0));
+  const fibreCeil = Math.round((k / 1000) * 16) + 3; // ~16 g/1000 kcal + small allowance
+  const fib = Math.min(Math.max(0, Math.round(fiber || 0)), Math.max(c, 1), fibreCeil);
+  return { protein: p, carbs: c, fat: f, fiber: fib };
+}
+
 /** Whether a step needs you at the stove (true) or can run in the background (false). */
 function isActiveStep(text: string, durationSec: number): boolean {
   const t = text.toLowerCase();
@@ -1720,11 +1746,14 @@ export class NutritionService implements OnModuleInit {
     // Normalise batch totals → one real single-person plate.
     const s = recipeServings(r);
     const per = (n: number) => Math.max(0, Math.round((n || 0) / s));
+    const kcal = per(r.kcal);
+    // Clamp noisy dataset macros to be consistent with the (trusted) calories.
+    const macro = saneMacros(kcal, per(r.protein), per(r.carbs), per(r.fat), per(r.fiber));
     return {
       id: r.id, recipeNo: (r as { recipeNo?: number | null }).recipeNo ?? null,
       name: cleanRecipeName(r.name), country: r.country,
-      kcal: per(r.kcal), protein: per(r.protein), carbs: per(r.carbs),
-      fat: per(r.fat), fiber: per(r.fiber), minutes: saneMinutes(r.minutes),
+      kcal, protein: macro.protein, carbs: macro.carbs,
+      fat: macro.fat, fiber: macro.fiber, minutes: saneMinutes(r.minutes),
       gramsPerServing: Math.max(1, per(r.gramsPerServing)), diet: displayDiet,
       servings: s,
     };
