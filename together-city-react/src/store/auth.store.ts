@@ -3,6 +3,20 @@ import { persist } from 'zustand/middleware';
 import type { AuthTokens, User } from '@/types';
 import { authApi } from '@/api';
 
+/** Read a JWT's `exp` (no verification) to tell if it's already expired, so the
+ *  app can refresh or log out cleanly BEFORE firing a burst of doomed requests. */
+export function isTokenExpired(token?: string | null): boolean {
+  if (!token) return true;
+  try {
+    const payload = token.split('.')[1];
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    if (typeof json.exp !== 'number') return false; // no exp claim → treat as valid
+    return Date.now() >= json.exp * 1000 - 5000;     // 5s early margin
+  } catch {
+    return true; // unparseable → treat as expired
+  }
+}
+
 interface AuthState {
   user: User | null;
   tokens: AuthTokens | null;
@@ -38,7 +52,9 @@ export const useAuthStore = create<AuthState>()(
 
       refresh: async () => {
         const rt = get().tokens?.refreshToken;
-        if (!rt) return null;
+        // No usable refresh token → the session is unrecoverable; clear it so the
+        // app drops cleanly to the login screen instead of looping on 401s.
+        if (!rt) { set({ user: null, tokens: null }); return null; }
         try {
           const tokens = await authApi.refresh(rt);
           set({ tokens });
@@ -49,17 +65,30 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      signOut: () => { void authApi.logout().catch(() => undefined); set({ user: null, tokens: null }); },
+      // Only hit /auth/logout when we actually hold a live token — otherwise just
+      // clear local state (avoids a storm of 401 "missing header" logout calls).
+      signOut: () => {
+        const t = get().tokens;
+        if (t?.accessToken && !isTokenExpired(t.accessToken)) void authApi.logout().catch(() => undefined);
+        set({ user: null, tokens: null });
+      },
 
       hydrate: async () => {
-        // Render immediately from the persisted session — never block the app on a
-        // cold/slow backend. Refresh the profile in the background.
-        set({ ready: true });
-        if (get().tokens?.accessToken) {
-          authApi.me()
-            .then((user) => set({ user }))
-            .catch(() => undefined); // 401 → interceptor refreshes; hard-fail → stay on cached user
+        const t = get().tokens;
+        // Fresh visitor / no session → just show the app (login screen).
+        if (!t?.accessToken) { set({ ready: true }); return; }
+        // Stored access token already expired: refresh ONCE before rendering as
+        // authenticated, so we never fire a burst of doomed protected requests.
+        // If refresh fails, the session is cleared → clean login screen.
+        if (isTokenExpired(t.accessToken)) {
+          const fresh = await get().refresh();
+          set({ ready: true });
+          if (!fresh) return;
+        } else {
+          set({ ready: true });
         }
+        // Session is live → refresh the profile in the background.
+        authApi.me().then((user) => set({ user })).catch(() => undefined);
       },
     }),
     // Persist the user too, so a reload shows the app instantly instead of
