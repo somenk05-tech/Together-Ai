@@ -446,6 +446,7 @@ interface NutritionHistoryDelegate {
   create(a: unknown): Promise<NutritionHistoryRow>;
   findMany(a: unknown): Promise<NutritionHistoryRow[]>;
   findUnique(a: unknown): Promise<NutritionHistoryRow | null>;
+  deleteMany(a: unknown): Promise<{ count: number }>;
   count(a: unknown): Promise<number>;
 }
 // Family member sub-profiles (Family §). Hand-typed delegate (offline client).
@@ -1410,12 +1411,16 @@ export class NutritionService implements OnModuleInit {
       const proteinVariety = Object.keys(proteinDist).length;
 
       const weekNumber = isoWeekNumber(mon);
+      const weekLabel = weekRangeLabel(mon, sun);
+      // One record per calendar week: replace any existing snapshot for this same
+      // week (regenerating a week updates its entry, it doesn't pile up). Earlier
+      // weeks are preserved — that's the historical record.
+      await this.history.deleteMany({ where: { userId, mode, weekLabel } }).catch(() => undefined);
       const sequence = (await this.history.count({ where: { userId, mode } }).catch(() => 0)) + 1;
 
       await this.history.create({
         data: {
-          userId, mode, planKey: key, weekNumber,
-          weekLabel: weekRangeLabel(mon, sun),
+          userId, mode, planKey: key, weekNumber, weekLabel,
           startDate: mon, endDate: sun,
           targets: JSON.stringify(tg),
           context: JSON.stringify({
@@ -1445,13 +1450,23 @@ export class NutritionService implements OnModuleInit {
     }
   }
 
-  /** List a user's stored weekly plans (newest first) — compact summaries. */
+  /** List a user's stored weekly plans (newest first) — compact summaries. One
+   *  entry per calendar week: collapse any legacy same-week duplicates to the
+   *  newest and delete the rest (self-healing cleanup of pre-dedup history). */
   async nutritionHistory(userId: string, mode?: PlanMode) {
-    const rows = await this.history.findMany({
+    const all = await this.history.findMany({
       where: mode ? { userId, mode } : { userId },
       orderBy: { createdAt: 'desc' },
-      take: 104,
+      take: 400,
     }).catch(() => [] as NutritionHistoryRow[]);
+    const kept = new Map<string, NutritionHistoryRow>();
+    const stale: string[] = [];
+    for (const r of all) {
+      const k = `${r.mode}|${r.weekLabel}`;
+      if (kept.has(k)) stale.push(r.id); else kept.set(k, r); // newest wins (desc order)
+    }
+    if (stale.length) await this.history.deleteMany({ where: { id: { in: stale } } }).catch(() => undefined);
+    const rows = [...kept.values()].slice(0, 104);
     return rows.map((r) => {
       const weekly = safeJson<{ totals?: Record<string, number>; variety?: Record<string, number> }>(r.weekly, {});
       const context = safeJson<Record<string, unknown>>(r.context, {});
