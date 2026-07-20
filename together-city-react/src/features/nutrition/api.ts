@@ -70,8 +70,12 @@ export interface FamilyMemberInput {
   name: string; role: string; sex: string; age: number; heightCm: number; weightKg: number;
   activity: number; goal: string; diet: string; healthConditions: string[]; allergies?: string;
 }
-export interface MemberPortion { memberId: string; name: string; role: string; factor: number; grams: number; kcal: number; protein: number }
-export interface FamilyMealPortions { slot: string; slotName: string; name: string; refKcal: number; perMember: MemberPortion[] }
+export interface MemberPortion {
+  memberId: string; name: string; role: string; factor: number; grams: number; kcal: number; protein: number;
+  swap?: { from: string; to: string } | null;   // same gravy, protein swapped for this member's diet
+  note?: string | null;                          // medical variation (e.g. "low sodium")
+}
+export interface FamilyMealPortions { slot: string; slotName: string; name: string; sharedBase?: boolean; refKcal: number; perMember: MemberPortion[] }
 export interface FamilyPortions {
   members: { id: string; name: string; role: string; dayKcal: number }[];
   meals: FamilyMealPortions[];

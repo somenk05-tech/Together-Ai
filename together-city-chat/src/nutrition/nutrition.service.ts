@@ -157,6 +157,11 @@ const PROTEIN_TOKENS: Record<string, string[]> = {
   legumes: ['lentil', 'dal', 'daal', 'bean', 'chickpea', 'chana', 'rajma', 'moong', 'legume', 'chole', 'edamame', 'soybean'],
 };
 const ANIMAL_PROTEINS = new Set(['chicken', 'mutton', 'fish', 'prawns', 'beef', 'pork', 'egg']);
+// Protein token → human display name (for family substitution labels).
+const PROTEIN_LABEL_DISPLAY: Record<string, string> = {
+  chicken: 'Chicken', mutton: 'Mutton', fish: 'Fish', prawns: 'Prawns', beef: 'Beef',
+  pork: 'Pork', egg: 'Egg', paneer: 'Paneer', tofu: 'Tofu', legumes: 'Dal',
+};
 // Preference chip labels → protein tokens.
 const PROTEIN_LABEL: Record<string, string> = {
   chicken: 'chicken', mutton: 'mutton', fish: 'fish', prawns: 'prawns', prawn: 'prawns',
@@ -775,8 +780,9 @@ export class NutritionService implements OnModuleInit {
     const rows = await this.members.findMany({ where: { ownerId: userId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => [] as FamilyMemberRow[]);
     const members = rows.map((m) => {
       const ex = parseExtras(m.extras);
-      const t = computeTargets({ weightKg: m.weightKg, heightCm: m.heightCm, age: m.age, sex: m.sex, activity: m.activity, goal: m.goal, conditions: ex.healthConditions ?? [] });
-      return { id: m.id, name: m.name, role: m.role, diet: m.diet, isSelf: m.isSelf, dayKcal: t.kcal, perMeal: t.perMeal };
+      const conditions = ex.healthConditions ?? [];
+      const t = computeTargets({ weightKg: m.weightKg, heightCm: m.heightCm, age: m.age, sex: m.sex, activity: m.activity, goal: m.goal, conditions });
+      return { id: m.id, name: m.name, role: m.role, diet: m.diet as Diet, isSelf: m.isSelf, dayKcal: t.kcal, perMeal: t.perMeal, conditions };
     });
 
     const latest = await this.prisma.mealPlan.findFirst({ where: { userId, mode: 'family' }, orderBy: { createdAt: 'desc' } });
@@ -803,15 +809,33 @@ export class NutritionService implements OnModuleInit {
         const shape = this.recipeShape(meal.recipe);
         const refKcal = Math.max(1, n.kcal);
         const baseGrams = Math.max(1, shape.gramsPerServing);
+        // Stage 3: shared base, protein split per member's diet. Find the dish's
+        // swappable protein (the animal protein, or paneer for a vegan swap).
+        const dishProteins = detectProteins(meal.recipe as unknown as RecipeWithIng);
+        const dishAnimal = [...dishProteins].find((t) => ANIMAL_PROTEINS.has(t));
+        const dishSwap = dishAnimal ?? (dishProteins.has('paneer') ? 'paneer' : null);
+        const plantFor = (diet: Diet): string => (diet === 'vegan' || diet === 'jainvegan') ? 'Tofu' : diet === 'pesc' ? 'Fish' : 'Paneer';
+
         const perMember = members.map((mem) => {
           const memSlotKcal = mem.perMeal[slot]?.kcal ?? refKcal;
           const factor = Math.min(1.8, Math.max(0.45, memSlotKcal / refKcal));
+          // Diet substitution: same gravy, swap the protein when the member's diet
+          // can't eat the shared dish (veg member in a non-veg family, etc.).
+          const canEat = dietAllows(mem.diet, shape.diet as Diet);
+          const swap = (!canEat && dishSwap) ? { from: PROTEIN_LABEL_DISPLAY[dishSwap] ?? dishSwap, to: plantFor(mem.diet) } : null;
+          // Medical variation of the SAME meal (not a different dish).
+          const c = mem.conditions.map((x) => x.toLowerCase());
+          const hasC = (...k: string[]) => k.some((x) => c.some((v) => v.includes(x)));
+          const note = hasC('kidney', 'renal', 'ckd') ? 'low sodium · lighter protein'
+            : hasC('hypertension', 'blood pressure') ? 'low sodium'
+              : hasC('diabetes') ? 'less rice, more veg' : null;
           return {
             memberId: mem.id, name: mem.name, role: mem.role, factor: Math.round(factor * 100) / 100,
             grams: Math.round(baseGrams * factor), kcal: Math.round(n.kcal * factor), protein: Math.round(n.protein * factor),
+            swap, note,
           };
         });
-        return { slot, slotName: SLOT_NAME[slot] ?? slot, name: shape.name, refKcal: Math.round(n.kcal), perMember };
+        return { slot, slotName: SLOT_NAME[slot] ?? slot, name: shape.name, sharedBase: perMember.some((p) => p.swap), refKcal: Math.round(n.kcal), perMember };
       });
 
     return { members: members.map((m) => ({ id: m.id, name: m.name, role: m.role, dayKcal: m.dayKcal })), meals };
