@@ -13,7 +13,7 @@ import {
   triggeredConditions, type MarkerStatus,
 } from './clinical-engine';
 import type { BloodInputDto, Diet, FoodPrefDto, PlanMode, Slot } from './dto/nutrition.dto';
-import { assemblePlate, type PlateOpts } from './plate';
+import { assemblePlate, perMealTargets, type PlateOpts, type DayMealInput } from './plate';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOTS: Slot[] = ['b', 'l', 's', 'd'];
@@ -679,6 +679,21 @@ export class NutritionService implements OnModuleInit {
 
   private static readonly SLOT_ORDER: Record<string, number> = { b: 0, l: 1, s: 2, d: 3 };
 
+  /** Describe a day's meals for the dynamic budget split — which flex (Indian
+   *  lunch/dinner plates) and the fixed calories of the rest. */
+  private dayMealInputs(meals: Array<{ slot: string; skipped: boolean; recipe: { country: string } }>): DayMealInput[] {
+    return meals.map((m) => {
+      const indian = /india/i.test(m.recipe.country);
+      const isPlate = (m.slot === 'l' || m.slot === 'd') && indian;
+      return {
+        slot: m.slot as DayMealInput['slot'],
+        skipped: m.skipped,
+        isPlate,
+        fixedKcal: isPlate ? 0 : this.recipeShape(m.recipe as unknown as Parameters<NutritionService['recipeShape']>[0]).kcal,
+      };
+    });
+  }
+
   /** The nutrition a single meal contributes — the assembled thali total for an
    *  Indian lunch/dinner (identical to the card), else the dish's per-serving
    *  values. ONE calculation, used for both the card and the dashboard. */
@@ -700,12 +715,15 @@ export class NutritionService implements OnModuleInit {
     if (!day) throw new NotFoundException('plan day not found');
     const opts = await this.plateOptsFor(day.plan.userId);
     const tg = await this.targets(day.plan.userId);
+    // Dynamic budgets: skipped meals redistribute to the remaining plates.
+    const dyn = perMealTargets(this.dayMealInputs(day.meals), tg.kcal);
 
     let kcal = 0, protein = 0, carbs = 0, fat = 0, fiber = 0, cost = 0;
     for (const m of day.meals) {
       if (m.skipped) continue;
       // Aggregate the SAME plate/dish the card shows — the single source of truth.
-      const n = this.mealMacros(m.recipe as unknown as RecipeWithIng & { kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number }, m.slot, dayIndex, opts, tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal);
+      const mealTarget = dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal;
+      const n = this.mealMacros(m.recipe as unknown as RecipeWithIng & { kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number }, m.slot, dayIndex, opts, mealTarget);
       kcal += n.kcal; protein += n.protein; carbs += n.carbs; fat += n.fat; fiber += n.fiber;
       const s = recipeServings(m.recipe);
       const ing = m.recipe.ingredients.reduce((sum, i) => sum + i.priceInr, 0);
@@ -744,7 +762,13 @@ export class NutritionService implements OnModuleInit {
     const others = candidates.filter((c) => c.id !== meal.recipeId);
     const pickFrom = others.length ? others : candidates;
     if (pickFrom.length) {
-      const pick = pickFrom[Math.floor(Math.random() * pickFrom.length)];
+      // Smart refresh: the plate flexes to hit the calorie target either way, so
+      // rank replacements by per-serving protein and pick from the top third —
+      // a swap keeps the day's protein high instead of dropping to a random dish.
+      const protein = (c: RecipeWithIng) => (c as unknown as { protein?: number }).protein ?? 0;
+      const ranked = [...pickFrom].sort((a, b) => protein(b) - protein(a));
+      const top = ranked.slice(0, Math.max(1, Math.ceil(ranked.length / 3)));
+      const pick = top[Math.floor(Math.random() * top.length)];
       await this.prisma.meal.update({ where: { id: meal.id }, data: { recipeId: pick.id, skipped: false } });
     }
     return this.shapePlan(planKey);
@@ -1377,7 +1401,10 @@ export class NutritionService implements OnModuleInit {
 
     return {
       key: plan.key,
-      days: plan.days.map((d) => ({
+      days: plan.days.map((d) => {
+        // Same dynamic budgets the dashboard uses — skipped meals grow the rest.
+        const dyn = perMealTargets(this.dayMealInputs(d.meals), tg.kcal);
+        return {
         day: d.dayName,
         meals: [...d.meals]
           .sort((a, b) => slotOrder[a.slot] - slotOrder[b.slot])
@@ -1387,7 +1414,7 @@ export class NutritionService implements OnModuleInit {
             // a single plated dish, not a roti+rice+dal+curd thali.
             const indian = /india/i.test(m.recipe.country);
             const plate = indian && (m.slot === 'l' || m.slot === 'd')
-              ? assemblePlate(recipe, m.slot as 'l' | 'd', plateOpts, d.dayIndex * 4 + slotOrder[m.slot], tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal)
+              ? assemblePlate(recipe, m.slot as 'l' | 'd', plateOpts, d.dayIndex * 4 + slotOrder[m.slot], dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal)
               : undefined;
             return {
               slot: m.slot,
@@ -1397,7 +1424,8 @@ export class NutritionService implements OnModuleInit {
               plate,
             };
           }),
-      })),
+        };
+      }),
     };
   }
 

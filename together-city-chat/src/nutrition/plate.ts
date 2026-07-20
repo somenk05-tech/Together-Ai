@@ -65,6 +65,29 @@ function allowsDairy(o: PlateOpts, it: Item): boolean { return it.vegan || (it.v
 
 const RICE_MAIN = /biryani|pulao|pilaf|fried rice|\bpongal\b|khichdi|\bfried-rice\b|\brice\b/i;
 
+// Relative share of the day's calories per slot (lunch is the largest meal).
+export const SLOT_WEIGHT: Record<string, number> = { b: 0.25, l: 0.32, s: 0.13, d: 0.30 };
+
+export interface DayMealInput { slot: 'b' | 'l' | 's' | 'd'; skipped: boolean; isPlate: boolean; fixedKcal: number }
+
+/**
+ * Dynamic per-meal calorie budgets so the day always meets its target even when
+ * meals are skipped. Non-plate meals (breakfast/snack/non-Indian) contribute a
+ * fixed dish; the day's remaining budget is split across the flexible plate meals
+ * (Indian lunch/dinner) by slot weight. Skip lunch → dinner's budget grows; skip
+ * breakfast → the plates grow to absorb it. Returns targetKcal per plate slot.
+ */
+export function perMealTargets(meals: DayMealInput[], dayTargetKcal: number): Partial<Record<'l' | 'd', number>> {
+  const active = meals.filter((m) => !m.skipped);
+  const fixedTotal = active.filter((m) => !m.isPlate).reduce((s, m) => s + m.fixedKcal, 0);
+  const plateMeals = active.filter((m) => m.isPlate) as (DayMealInput & { slot: 'l' | 'd' })[];
+  const remaining = Math.max(0, dayTargetKcal - fixedTotal);
+  const weightSum = plateMeals.reduce((s, m) => s + (SLOT_WEIGHT[m.slot] ?? 0.3), 0) || 1;
+  const out: Partial<Record<'l' | 'd', number>> = {};
+  for (const m of plateMeals) out[m.slot] = Math.round((remaining * (SLOT_WEIGHT[m.slot] ?? 0.3)) / weightSum);
+  return out;
+}
+
 /**
  * Assemble a complete lunch/dinner plate around a chosen main dish, sized to the
  * meal's calorie budget so the plate total never overshoots the target. The main,
