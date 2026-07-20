@@ -38,6 +38,29 @@ echo "PostgreSQL is reachable."
 if [ -d prisma/migrations ] && [ -n "$(ls -A prisma/migrations 2>/dev/null)" ]; then
   # Preferred path once migrations are committed: versioned, reviewable, and it
   # NEVER drops data (a destructive migration must be written explicitly).
+  #
+  # Auto-baseline: this database already has its tables (built earlier by
+  # db push) but no Prisma migration history. Applying the initial migration
+  # would try to CREATE existing tables and fail, so if we detect app tables but
+  # no _prisma_migrations table, mark the first migration as already applied
+  # (records history only — never runs its SQL, never touches data).
+  FIRST_MIGRATION="$(ls prisma/migrations | grep -v migration_lock.toml | sort | head -n1)"
+  NEEDS_BASELINE="$(node -e "
+    const { Client } = require('pg');
+    const c = new Client({ connectionString: process.env.DATABASE_URL });
+    c.connect()
+      .then(async () => {
+        const hist = await c.query(\"SELECT to_regclass('public._prisma_migrations') IS NOT NULL AS has\");
+        const app  = await c.query(\"SELECT to_regclass('public.\\\"User\\\"') IS NOT NULL AS has\");
+        process.stdout.write(!hist.rows[0].has && app.rows[0].has ? 'yes' : 'no');
+        await c.end();
+      })
+      .catch(() => process.stdout.write('no'));
+  ")"
+  if [ "$NEEDS_BASELINE" = "yes" ] && [ -n "$FIRST_MIGRATION" ]; then
+    echo "Existing database without migration history — baselining ${FIRST_MIGRATION} as already applied..."
+    npx prisma migrate resolve --applied "$FIRST_MIGRATION"
+  fi
   echo "Applying committed migrations (prisma migrate deploy)..."
   npx prisma migrate deploy
 else
