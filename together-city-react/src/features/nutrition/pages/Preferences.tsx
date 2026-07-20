@@ -25,11 +25,12 @@ const ACTIVITY: { value: number; label: string }[] = [
 ];
 
 const CUISINES = ['Indian', 'Chinese', 'Italian', 'Mexican', 'Thai', 'Continental', 'Japanese', 'Mediterranean', 'American', 'Middle Eastern'];
-const PROTEINS = ['Chicken', 'Fish', 'Egg', 'Paneer', 'Tofu', 'Legumes', 'Mutton', 'Prawns'];
-const MEATS = ['Chicken', 'Mutton', 'Fish', 'Prawns', 'Beef', 'Pork'];
+// One unified protein list (meats + eggs + plant proteins) — the single source of
+// truth for what a user eats. No separate "Meats you eat" box to contradict it.
+const PROTEINS = ['Chicken', 'Mutton', 'Fish', 'Prawns', 'Beef', 'Pork', 'Egg', 'Paneer', 'Tofu', 'Legumes'];
 
-// Which protein sources / meats each diet may pick from. Veg, vegan and jain
-// never see meat or fish; egg adds eggs; fish (pescatarian) adds seafood only.
+// Which proteins each diet may pick from. Veg/vegan/jain never see meat or fish;
+// egg adds eggs; fish (pescatarian) adds seafood only.
 const PROTEINS_BY_DIET: Record<string, string[]> = {
   everything: PROTEINS,
   nonveg: PROTEINS,
@@ -38,12 +39,6 @@ const PROTEINS_BY_DIET: Record<string, string[]> = {
   veg: ['Paneer', 'Tofu', 'Legumes'],
   vegan: ['Tofu', 'Legumes'],
   jain: ['Paneer', 'Tofu', 'Legumes'],
-};
-const MEATS_BY_DIET: Record<string, string[]> = {
-  everything: MEATS,
-  nonveg: MEATS,
-  pesc: ['Fish', 'Prawns'],
-  egg: [], veg: [], vegan: [], jain: [],
 };
 const PATTERNS = ['Balanced', 'High protein', 'Low carb', 'Keto', 'Mediterranean', 'Diabetic-friendly', 'Heart-healthy', 'Low sodium', 'Gluten-free', 'Lactose-free'];
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -143,9 +138,15 @@ export function Preferences() {
       setForm(existing.data);
       let parsed: Extras = {};
       try { parsed = existing.data.extras ? JSON.parse(existing.data.extras) : {}; } catch { parsed = {}; }
+      // Migration: the old separate "Meats you eat" list is folded into the single
+      // Protein sources list, so prior meat picks aren't lost and any hidden ones
+      // (e.g. Fish) become visible for the user to keep or remove.
+      if (parsed.meats?.length) {
+        parsed = { ...parsed, proteins: [...new Set([...(parsed.proteins ?? []), ...parsed.meats])], meats: [] };
+      }
       setEx(parsed);
-      // Returning users who've already configured proteins/meats see the full form.
-      setDietChosen(Boolean(parsed.proteins?.length || parsed.meats?.length));
+      // Returning users who've already configured proteins see the full form.
+      setDietChosen(Boolean(parsed.proteins?.length));
       setExLoaded(true);
     }
   }, [existing.data, form]);
@@ -206,16 +207,15 @@ export function Preferences() {
   const VEG_DIETS = ['veg', 'vegan', 'jain', 'egg'];
   const isVegDiet = VEG_DIETS.includes(form.diet);
   const shownProteins = PROTEINS.filter((p) => (PROTEINS_BY_DIET[form.diet] ?? PROTEINS).includes(p));
-  const shownMeats = MEATS.filter((m) => (MEATS_BY_DIET[form.diet] ?? MEATS).includes(m));
   const weeklyDefault: 'veg' | 'nonveg' = isVegDiet ? 'veg' : 'nonveg';
   const weeklyValue = (day: string): 'veg' | 'nonveg' => (isVegDiet ? 'veg' : ex.weekly?.[day] ?? weeklyDefault);
 
   // Picking a diet reveals the rest and prunes now-disallowed choices.
   const chooseDiet = (key: string) => {
     const pa = PROTEINS_BY_DIET[key] ?? PROTEINS;
-    const ma = MEATS_BY_DIET[key] ?? MEATS;
     setForm({ ...form, diet: key });
-    setEx({ ...ex, proteins: (ex.proteins ?? []).filter((p) => pa.includes(p)), meats: (ex.meats ?? []).filter((m) => ma.includes(m)) });
+    // Prune now-disallowed proteins; meats are folded into proteins (no separate list).
+    setEx({ ...ex, proteins: (ex.proteins ?? []).filter((p) => pa.includes(p)), meats: [] });
     setDietChosen(true);
   };
 
@@ -260,7 +260,6 @@ export function Preferences() {
     ['Blood test', bloodConnected ? 'Connected' : 'Not connected'],
     ['Cuisine mix', cuisineSummary],
     ['Protein sources', (ex.proteins ?? []).join(', ') || '—'],
-    ['Meats', isVegDiet ? 'None (vegetarian)' : (ex.meats ?? []).join(', ') || '—'],
     ['Weekly', weeklySummary],
     ['Nutrition pattern', ex.pattern ?? 'Balanced'],
     ['Activity', actLabel],
@@ -278,6 +277,7 @@ export function Preferences() {
     // planner / AI / profile keep reading a single field.
     const exToSave: Extras = {
       ...ex,
+      meats: [], // merged into `proteins` — single source of truth, never a second list
       conditions: (ex.healthConditions ?? []).join(', '),
       ...(isVegDiet ? { weekly: Object.fromEntries(DAYS.map((d) => [d, 'veg' as const])) } : {}),
     };
@@ -409,18 +409,8 @@ export function Preferences() {
                   <Chip key={p} on={(ex.proteins ?? []).includes(p)} onClick={() => setEx({ ...ex, proteins: toggle(ex.proteins, p) })}>{p}</Chip>
                 ))}
               </div>
-              {shownMeats.length > 0 && (
-                <>
-                  <span style={label}>Meats you eat</span>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {shownMeats.map((m) => (
-                      <Chip key={m} on={(ex.meats ?? []).includes(m)} onClick={() => setEx({ ...ex, meats: toggle(ex.meats, m) })}>{m}</Chip>
-                    ))}
-                  </div>
-                </>
-              )}
               <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
-                {isVegDiet ? 'Your plan is fully vegetarian — only these will appear.' : 'Only these will appear in your plans.'}
+                {isVegDiet ? 'Your plan is fully vegetarian — only these will appear.' : 'Only the proteins you pick here will appear in your plans.'}
               </p>
             </>
           )}
