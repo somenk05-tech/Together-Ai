@@ -176,6 +176,38 @@ function isPlannableMeal(r: { slot: string; kcal?: number; gramsPerServing?: num
   return perServing >= (MEAL_MIN_KCAL[r.slot] ?? 150);
 }
 
+// ─────────── meal-type appropriateness (think like a dietitian) ───────────
+// A realistic per-person calorie window for each slot — a snack is ~100-300 kcal,
+// lunch the largest, dinner moderate. This rejects recipes that don't fit the
+// slot's ROLE even when the dataset mis-tagged the slot (e.g. a 500-kcal, 120-min
+// rice dish tagged as a "snack").
+const SLOT_KCAL: Record<string, [number, number]> = {
+  b: [250, 700], l: [350, 950], s: [90, 300], d: [300, 850],
+};
+// Condiments / seasonings — never a meal in any slot.
+const CONDIMENT_NAME = /(pickle|relish|chutney|marmalade|preserve|\bjam\b|\bjelly\b|seasoning|\bsyrup\b|condiment|ketchup|\bglaze\b|marinade)/i;
+// A full main course / heavy dish — never an appropriate snack.
+const SNACK_UNFIT_NAME = /biryani|pulao|pilaf|fried rice|\brice\b|pasta|lasagn|noodle|thali|casserole|risotto|paella|khichdi|pongal|platter|\bstew\b|\bcurry\b|\bgravy\b|dressing|\bdip\b|\bsauce\b|\bpaste\b/i;
+
+/**
+ * Mandatory meal-type validation. Is this recipe realistic for the slot?
+ *  • every slot has a sensible per-person calorie window;
+ *  • condiments are never a meal;
+ *  • a snack must be light AND quick (≤30 min) and never a rice/curry/pasta main.
+ */
+function mealAppropriate(r: RecipeWithIng): boolean {
+  const slot = r.slot;
+  const per = (r.kcal ?? 0) / recipeServings({ slot, kcal: r.kcal ?? 0, gramsPerServing: r.gramsPerServing ?? 0 });
+  const [lo, hi] = SLOT_KCAL[slot] ?? [200, 900];
+  if (r.kcal != null && (per < lo || per > hi)) return false;
+  if (CONDIMENT_NAME.test(r.name)) return false;
+  if (slot === 's') {
+    if (saneMinutes(r.minutes) > 30) return false;
+    if (SNACK_UNFIT_NAME.test(r.name)) return false;
+  }
+  return true;
+}
+
 /**
  * HARD constraints — a recipe that fails ANY of these is never eligible, and
  * these are never relaxed. Order mirrors the recommendation pipeline:
@@ -479,10 +511,11 @@ export class NutritionService implements OnModuleInit {
     const out = {} as Record<Slot, RecipeWithIng[]>;
     for (const slot of SLOTS) {
       const inSlot = recipes.filter((r) => r.slot === slot);
-      // Primary: hard + soft. Fallback drops only SOFT rules (cook time, budget)
-      // so diet, proteins, allergies and medical stay enforced. Last resort keeps
-      // diet + real-meal so we never surface a disallowed or junk item.
-      let pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed) && passesSoft(r, ex));
+      // Primary: hard + meal-type-appropriate + soft. Fallbacks drop soft rules,
+      // then meal-fit, but always keep diet/protein/allergy/medical enforced so we
+      // never surface a disallowed item (a rice dish can never become a snack here).
+      let pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed) && mealAppropriate(r) && passesSoft(r, ex));
+      if (!pool.length) pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed) && mealAppropriate(r));
       if (!pool.length) pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed));
       if (!pool.length) pool = inSlot.filter((r) => dietAllows(dayDiet, r.diet as Diet) && isPlannableMeal(r));
       if (!pool.length) pool = inSlot;
@@ -619,8 +652,9 @@ export class NutritionService implements OnModuleInit {
 
     const recipes = (await this.prisma.recipe.findMany({ where: { slot }, include: { ingredients: { select: { name: true, priceInr: true } } } })) as unknown as RecipeWithIng[];
     const allowed = allowedProteins(ex);
-    // Same hard constraints as the planner; relax only soft rules, never diet/protein/medical/allergy.
-    let candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed) && passesSoft(r, ex));
+    // Same hard + meal-type constraints as the planner; relax only soft rules.
+    let candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed) && mealAppropriate(r) && passesSoft(r, ex));
+    if (!candidates.length) candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed) && mealAppropriate(r));
     if (!candidates.length) candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed));
     if (!candidates.length) candidates = recipes.filter((r) => dietAllows(effDiet, r.diet as Diet) && isPlannableMeal(r));
     if (!candidates.length) candidates = recipes;
