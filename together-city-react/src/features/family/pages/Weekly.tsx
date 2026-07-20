@@ -6,7 +6,7 @@ import { DayTabs } from '@/features/nutrition/components/DayTabs';
 import { MealCard } from '@/features/nutrition/components/MealCard';
 import { ProfileIncomplete } from '@/features/nutrition/components/ProfileIncomplete';
 import { useNavigate } from 'react-router-dom';
-import { useWeeklyPlan, useRegenerateWeek, useRecipes, useBuildCart } from '@/features/nutrition/hooks';
+import { useWeeklyPlan, useRegenerateWeek, useRecipes, useBuildFamilyCart } from '@/features/nutrition/hooks';
 import { nutritionApi } from '@/features/nutrition/api';
 import type { WeekPlan } from '@/features/nutrition/types';
 import { useFamily, headcount, MEMBERS } from '../members';
@@ -28,7 +28,7 @@ export function FamilyWeekly() {
   const [dayIndex, setDayIndex] = useState(0);
   const plan = useWeeklyPlan('family');
   const regenerate = useRegenerateWeek('family');
-  const buildCart = useBuildCart();
+  const buildCart = useBuildFamilyCart();
   const navigate = useNavigate();
   const recipes = useRecipes();
   const { state } = useFamily();
@@ -93,7 +93,7 @@ export function FamilyWeekly() {
 
           <div style={{ margin: '24px 0', padding: 20, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <Button variant="accent" disabled={buildCart.isPending}
-              onClick={() => buildCart.mutate({ planKey: week.key, people: N }, { onSuccess: () => navigate('/family/grocery') })}>
+              onClick={() => buildCart.mutate(undefined, { onSuccess: () => navigate("/family/grocery") })}>
               {buildCart.isPending ? 'Building…' : '🛒 Generate grocery list'}
             </Button>
             <Button variant="line" disabled={regenerate.isPending} onClick={() => regenerate.mutate()}>

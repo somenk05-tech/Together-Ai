@@ -1799,30 +1799,98 @@ export class NutritionService implements OnModuleInit {
       for (const r of recipes) addRecipe(r);
     }
     if (!totals.size) return this.getCart(userId);
+    return this.writeCart(userId, totals);
+  }
 
-    // One active list per user — replace the previous one.
+  /** Replace the user's grocery list from a merged {name → grams+price} map:
+   *  classify each line by shelf life and format a human-readable amount. Shared
+   *  by the individual and family grocery builders. */
+  private async writeCart(userId: string, totals: Map<string, { name: string; grams: number; price: number }>) {
     await this.prisma.groceryCart.deleteMany({ where: { userId } });
     // grams/unit/qtyLabel are new columns the sandbox client type doesn't know
     // yet (offline generate) — cast the create input; runtime client has them.
     const itemsCreate = [...totals.values()].map((v) => {
-      const q = formatGroceryQty(v.name, v.grams);
+      const q = formatGroceryQty(v.name, Math.round(v.grams));
       return {
         name: v.name,
         category: classifyShelf(v.name), // pantry | weekly | daily (shelf life)
-        qty: q.qty,
-        grams: v.grams,
-        unit: q.unit,
-        qtyLabel: q.qtyLabel,
-        priceInr: v.price,
+        qty: q.qty, grams: Math.round(v.grams), unit: q.unit, qtyLabel: q.qtyLabel,
+        priceInr: Math.round(v.price),
       };
     });
     return this.prisma.groceryCart.create({
-      data: {
-        userId,
-        items: { create: itemsCreate as never },
-      },
+      data: { userId, items: { create: itemsCreate as never } },
       include: { items: true },
     });
+  }
+
+  /**
+   * Combined family grocery list (Family Stage 4). Instead of headcount × one
+   * plate, this sums each MEMBER's actual portion of every shared meal — and
+   * respects the Stage 3 protein swaps, so a vegetarian member's share of a
+   * chicken dish buys paneer (not chicken) on the same gravy. One merged list.
+   */
+  async buildFamilyCart(userId: string) {
+    await this.familyMembers(userId); // ensure self is seeded
+    const rows = await this.members.findMany({ where: { ownerId: userId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => [] as FamilyMemberRow[]);
+    const members = rows.map((m) => {
+      const ex = parseExtras(m.extras);
+      const t = computeTargets({ weightKg: m.weightKg, heightCm: m.heightCm, age: m.age, sex: m.sex, activity: m.activity, goal: m.goal, conditions: ex.healthConditions ?? [] });
+      return { diet: m.diet as Diet, perMeal: t.perMeal };
+    });
+    if (!members.length) return this.buildCart(userId, { mode: 'family' });
+
+    const latest = await this.prisma.mealPlan.findFirst({ where: { userId, mode: 'family' }, orderBy: { createdAt: 'desc' } });
+    if (!latest) return this.buildCart(userId, { mode: 'family' });
+    const plan = await this.prisma.mealPlan.findUnique({
+      where: { key: latest.key },
+      include: { days: { include: { meals: { include: { recipe: { include: { ingredients: true } } } } } } },
+    });
+    if (!plan) return this.buildCart(userId, { mode: 'family' });
+    const opts = await this.plateOptsFor(userId);
+    const tg = await this.targets(userId);
+
+    const totals = new Map<string, { name: string; grams: number; price: number }>();
+    const add = (name: string, grams: number, price: number) => {
+      const norm = name.trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!norm || grams <= 0) return;
+      const cur = totals.get(norm) ?? { name: NutritionService.prettyIngredient(name), grams: 0, price: 0 };
+      cur.grams += grams; cur.price += price;
+      totals.set(norm, cur);
+    };
+    const plantFor = (diet: Diet): string => (diet === 'vegan' || diet === 'jainvegan') ? 'Tofu' : diet === 'pesc' ? 'Fish' : 'Paneer';
+    const matchesToken = (ingName: string, token: string): boolean =>
+      (PROTEIN_TOKENS[token] ?? [token]).some((k) => new RegExp(`\\b${k}s?\\b`, 'i').test(ingName));
+
+    for (const day of plan.days) {
+      const dyn = perMealTargets(this.dayMealInputs(day.meals), tg.kcal);
+      for (const meal of day.meals) {
+        if (meal.skipped) continue;
+        const slot = meal.slot as 'b' | 'l' | 's' | 'd';
+        const mealTarget = dyn[slot as 'l' | 'd'] ?? tg.perMeal[slot]?.kcal;
+        const n = this.mealMacros(meal.recipe as unknown as RecipeWithIng & { kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number }, slot, day.dayIndex, opts, mealTarget);
+        const refKcal = Math.max(1, n.kcal);
+        const s = recipeServings(meal.recipe);
+        const dishProteins = detectProteins(meal.recipe as unknown as RecipeWithIng);
+        const dishAnimal = [...dishProteins].find((t) => ANIMAL_PROTEINS.has(t));
+        const dishSwap = dishAnimal ?? (dishProteins.has('paneer') ? 'paneer' : null);
+        for (const mem of members) {
+          const factor = Math.min(1.8, Math.max(0.45, (mem.perMeal[slot]?.kcal ?? refKcal) / refKcal));
+          const needsSwap = dishSwap != null && !dietAllows(mem.diet, this.recipeShape(meal.recipe).diet as Diet);
+          for (const ing of meal.recipe.ingredients) {
+            const g = (ing.grams / s) * factor;
+            const p = (ing.priceInr / s) * factor;
+            if (needsSwap && dishSwap && matchesToken(ing.name, dishSwap)) {
+              add(plantFor(mem.diet), g, p); // same portion of the swapped-in protein
+            } else {
+              add(ing.name, g, p);
+            }
+          }
+        }
+      }
+    }
+    if (!totals.size) return this.buildCart(userId, { mode: 'family' });
+    return this.writeCart(userId, totals);
   }
 
   // ─────────────── wallet ───────────────

@@ -80,6 +80,15 @@ export function useBuildCart() {
   });
 }
 
+/** Combined family grocery — merges every member's portions + protein swaps. */
+export function useBuildFamilyCart() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => nutritionApi.buildFamilyCart(),
+    onSuccess: (cart) => qc.setQueryData(['nutrition', 'cart'], cart),
+  });
+}
+
 export function useHealthLog(dates: string[]) {
   return useQuery({
     queryKey: ['nutrition', 'health', dates.join(',')],

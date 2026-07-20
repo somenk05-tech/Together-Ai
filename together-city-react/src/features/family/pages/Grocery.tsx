@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import { Hero, Button, EmptyState, Spinner } from '@/components/ui';
-import { useBuildCart, useGroceryCart } from '@/features/nutrition/hooks';
+import { useBuildFamilyCart, useGroceryCart } from '@/features/nutrition/hooks';
 import type { GroceryItem } from '@/features/nutrition/api';
 import { useFamily, headcount } from '../members';
+
+const amount = (it: GroceryItem) => it.qtyLabel && it.qtyLabel.trim() ? it.qtyLabel : `×${it.qty}`;
 
 function Section({ icon, title, note, items }: { icon: string; title: string; note: string; items: GroceryItem[] }) {
   if (items.length === 0) return null;
@@ -18,7 +20,7 @@ function Section({ icon, title, note, items }: { icon: string; title: string; no
         {items.map((it, i) => (
           <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '9px 14px', fontSize: 13.5, borderTop: i === 0 ? 'none' : '1px solid var(--line)', background: i % 2 ? 'var(--paper)' : 'transparent' }}>
             <span style={{ textTransform: 'capitalize' }}>{it.name}</span>
-            <span className="muted" style={{ whiteSpace: 'nowrap' }}>×{it.qty} · ₹{it.priceInr}</span>
+            <span className="muted" style={{ whiteSpace: 'nowrap' }}><b style={{ color: 'var(--ink)', fontWeight: 600 }}>{amount(it)}</b> · ₹{it.priceInr}</span>
           </div>
         ))}
       </div>
@@ -33,15 +35,16 @@ function Section({ icon, title, note, items }: { icon: string; title: string; no
  */
 export function FamilyGrocery() {
   const cart = useGroceryCart();
-  const build = useBuildCart();
+  const build = useBuildFamilyCart();
   const { state } = useFamily();
   const N = headcount(state);
 
   if (cart.isLoading) return <Spinner label="Checking your family basket…" />;
 
   const items = cart.data?.items ?? [];
-  const fresh = items.filter((i) => i.category === 'fresh');
   const pantry = items.filter((i) => i.category === 'pantry');
+  const weekly = items.filter((i) => i.category === 'weekly' || i.category === 'fresh');
+  const daily = items.filter((i) => i.category === 'daily');
   const total = items.reduce((s, i) => s + i.priceInr, 0);
 
   return (
@@ -64,7 +67,7 @@ export function FamilyGrocery() {
       </div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', margin: '18px 0' }}>
-        <Button variant="accent" disabled={build.isPending} onClick={() => build.mutate({ people: N, mode: 'family' })}>
+        <Button variant="accent" disabled={build.isPending} onClick={() => build.mutate()}>
           {build.isPending ? 'Building…' : items.length ? 'Rebuild from family plan' : 'Build from family plan'}
         </Button>
         <Link to="/family/weekly"><Button variant="line">Open planner</Button></Link>
@@ -87,8 +90,9 @@ export function FamilyGrocery() {
         <EmptyState icon="🧺" title="Basket is empty" hint="Build it from your family meal plan in one tap." />
       ) : (
         <>
-          <Section icon="🥬" title="Fresh & perishable" note="a fresh box daily" items={fresh} />
-          <Section icon="🫙" title="Pantry & non-perishable" note="ships once" items={pantry} />
+          <Section icon="🫙" title="Pantry & non-perishables" note="buy monthly" items={pantry} />
+          <Section icon="🥬" title="Weekly fresh groceries" note="one weekly shop" items={weekly} />
+          <Section icon="🌿" title="Daily fresh orders" note="buy same / next day" items={daily} />
         </>
       )}
 

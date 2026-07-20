@@ -82,6 +82,12 @@ export class NutritionController {
     return this.nutrition.familyPortions(user.sub, idx);
   }
 
+  // Combined family grocery list — merges every member's portions + swaps (Stage 4).
+  @Post('family/cart')
+  buildFamilyCart(@CurrentUser() user: JwtUser) {
+    return this.nutrition.buildFamilyCart(user.sub);
+  }
+
   @Get('history/:id')
   historyDetail(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.nutrition.nutritionHistoryDetail(user.sub, id);
