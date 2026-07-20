@@ -426,23 +426,45 @@ model NutritionHistory {
 /// per-member targets and portions. JSON extras (proteins/cuisines/allergies/
 /// healthConditions) stored as String, mirroring FoodPref.extras.
 model FamilyMember {
-  id        String   @id @default(uuid())
-  ownerId   String // the User who manages this member
-  name      String
-  role      String   @default("member") // father | mother | child | grandparent | self | member
-  sex       String   @default("male")
-  age       Int      @default(30)
-  heightCm  Int      @default(170)
-  weightKg  Float    @default(65)
-  activity  Float    @default(1.4)
-  goal      String   @default("maintain") // lose | maintain | gain
-  diet      String   @default("everything")
-  extras    String? // JSON: proteins[], cuisines[], allergies, healthConditions[]
-  isSelf    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  ownerId      String // the User who manages this member (household owner)
+  memberUserId String? // set when this row mirrors a real invited Together City user (Household Connection)
+  name         String
+  role         String   @default("member") // household role: owner | adult | child | guest (legacy: father|mother|child|self|member)
+  sex          String   @default("male")
+  age          Int      @default(30)
+  heightCm     Int      @default(170)
+  weightKg     Float    @default(65)
+  activity     Float    @default(1.4)
+  goal         String   @default("maintain") // lose | maintain | gain
+  diet         String   @default("everything")
+  extras       String? // JSON: proteins[], cuisines[], allergies, healthConditions[]
+  isSelf       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([ownerId])
+  @@index([memberUserId])
+}
+
+// A Household Connection between two real Together City users — PRIVATE to the
+// Nutrition Hub. This is DELIBERATELY separate from the social `Connection`
+// model: accepting a household invite never creates a friend/follow/social tie,
+// and a social connection never creates a household one. The owner (ownerId) is
+// the account whose family plan/grocery/dashboard the member joins.
+model HouseholdMember {
+  id            String   @id @default(uuid())
+  ownerId       String // household owner (User.id)
+  memberUserId  String // invited citizen (User.id)
+  role          String   @default("adult") // owner | adult | child | guest
+  status        String   @default("pending") // pending | accepted | declined | removed
+  requestedById String // who sent the invite (always the owner)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([ownerId, memberUserId])
+  @@index([ownerId, status])
+  @@index([memberUserId, status])
 }
 
 model GroceryCart {

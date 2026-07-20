@@ -55,22 +55,43 @@ export class NutritionController {
     return this.nutrition.nutritionHistory(user.sub, mode);
   }
 
-  // Family member sub-profiles (admin-managed) — each carries its own targets.
+  // Household members (Nutrition Hub only) — real invited users + the owner.
   @Get('family/members')
   familyMembers(@CurrentUser() user: JwtUser) {
     return this.nutrition.familyMembers(user.sub);
   }
 
-  @Post('family/members')
-  addFamilyMember(@CurrentUser() user: JwtUser, @Body() dto: Record<string, unknown>) {
-    return this.nutrition.addFamilyMember(user.sub, dto);
+  // Find a citizen to invite, by Together City user ID or @username.
+  @Get('family/search')
+  searchHouseholdUser(@CurrentUser() user: JwtUser, @Query('q') q: string) {
+    return this.nutrition.searchHouseholdUser(user.sub, q ?? '');
   }
 
+  // Send a Household invite (owner only) — private to Nutrition Hub.
+  @Post('family/invite')
+  inviteHousehold(@CurrentUser() user: JwtUser, @Body() dto: { userRef?: string; role?: string }) {
+    return this.nutrition.inviteHousehold(user.sub, dto?.userRef ?? '', dto?.role);
+  }
+
+  // Invitations awaiting THIS user's response (in-app notifications).
+  @Get('family/invites')
+  householdInvites(@CurrentUser() user: JwtUser) {
+    return this.nutrition.householdInvites(user.sub);
+  }
+
+  // Accept / decline a household invitation (invitee only).
+  @Post('family/invites/:id/respond')
+  respondHouseholdInvite(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: { accept?: boolean }) {
+    return this.nutrition.respondHouseholdInvite(user.sub, id, Boolean(dto?.accept));
+  }
+
+  // Edit a member profile (the owner's own; real members edit their own).
   @Patch('family/members/:id')
   updateFamilyMember(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: Record<string, unknown>) {
     return this.nutrition.updateFamilyMember(user.sub, id, dto);
   }
 
+  // Remove a member — ends the Household Connection (never a social one).
   @Delete('family/members/:id')
   removeFamilyMember(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.nutrition.removeFamilyMember(user.sub, id);
@@ -92,6 +113,12 @@ export class NutritionController {
   @Get('family/dashboard')
   familyDashboard(@CurrentUser() user: JwtUser) {
     return this.nutrition.familyDashboard(user.sub, 0);
+  }
+
+  // Family Profile — household aggregate (counts, diets, conditions, summary).
+  @Get('family/profile')
+  familyProfile(@CurrentUser() user: JwtUser) {
+    return this.nutrition.familyProfile(user.sub, 0);
   }
 
   // Supermarket-style grocery list (Grocery Planner redesign). mode: individual|family.

@@ -26,13 +26,34 @@ export function useFamilyPortions(dayIndex: number) {
 export function useFamilyDashboard() {
   return useQuery({ queryKey: ['nutrition', 'family', 'dashboard'], queryFn: () => nutritionApi.familyDashboard() });
 }
+export function useFamilyProfile() {
+  return useQuery({ queryKey: ['nutrition', 'family', 'profile'], queryFn: () => nutritionApi.familyProfile() });
+}
 export function useFamilyMemberMutations() {
   const qc = useQueryClient();
-  const set = (data: import('./api').FamilyMemberProfile[]) => qc.setQueryData(FAM_KEY, data);
-  const add = useMutation({ mutationFn: (dto: import('./api').FamilyMemberInput) => nutritionApi.addFamilyMember(dto), onSuccess: set });
+  const set = (data: import('./api').FamilyMemberProfile[]) => { qc.setQueryData(FAM_KEY, data); qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); };
   const update = useMutation({ mutationFn: (v: { id: string; dto: import('./api').FamilyMemberInput }) => nutritionApi.updateFamilyMember(v.id, v.dto), onSuccess: set });
   const remove = useMutation({ mutationFn: (id: string) => nutritionApi.removeFamilyMember(id), onSuccess: set });
-  return { add, update, remove };
+  return { update, remove };
+}
+
+/** Household invite flow (Nutrition Hub only — separate from social graph). */
+export function useHouseholdInvites() {
+  return useQuery({ queryKey: ['nutrition', 'family', 'invites'], queryFn: () => nutritionApi.householdInvites() });
+}
+export function useInviteHousehold() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { userRef: string; role: import('./api').HouseholdRole }) => nutritionApi.inviteHousehold(v.userRef, v.role),
+    onSuccess: (r) => { qc.setQueryData(FAM_KEY, r.household); qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); },
+  });
+}
+export function useRespondHouseholdInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; accept: boolean }) => nutritionApi.respondHouseholdInvite(v.id, v.accept),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }),
+  });
 }
 
 export function useDaySummary(planKey: string | undefined, dayIndex: number) {

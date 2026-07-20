@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { gunzipSync } from 'zlib';
@@ -556,13 +556,42 @@ export interface FamilyMemberRow {
   heightCm: number; weightKg: number; activity: number; goal: string; diet: string;
   extras: string | null; isSelf: boolean; createdAt: Date; updatedAt: Date;
 }
+interface FamilyMemberRowExt extends FamilyMemberRow { memberUserId: string | null }
 interface FamilyMemberDelegate {
   create(a: unknown): Promise<FamilyMemberRow>;
-  findMany(a: unknown): Promise<FamilyMemberRow[]>;
-  findFirst(a: unknown): Promise<FamilyMemberRow | null>;
+  createMany(a: unknown): Promise<{ count: number }>;
+  findMany(a: unknown): Promise<FamilyMemberRowExt[]>;
+  findFirst(a: unknown): Promise<FamilyMemberRowExt | null>;
   update(a: unknown): Promise<FamilyMemberRow>;
   delete(a: unknown): Promise<FamilyMemberRow>;
+  deleteMany(a: unknown): Promise<{ count: number }>;
 }
+
+/** Household Connection row — a real invited Together City user, PRIVATE to the
+ *  Nutrition Hub and independent of the social graph (spec: separate models). */
+export interface HouseholdMemberRow {
+  id: string; ownerId: string; memberUserId: string; role: string; status: string;
+  requestedById: string; createdAt: Date; updatedAt: Date;
+}
+interface HouseholdDelegate {
+  create(a: unknown): Promise<HouseholdMemberRow>;
+  findMany(a: unknown): Promise<HouseholdMemberRow[]>;
+  findFirst(a: unknown): Promise<HouseholdMemberRow | null>;
+  findUnique(a: unknown): Promise<HouseholdMemberRow | null>;
+  update(a: unknown): Promise<HouseholdMemberRow>;
+  upsert(a: unknown): Promise<HouseholdMemberRow>;
+  delete(a: unknown): Promise<HouseholdMemberRow>;
+}
+
+/** Valid household roles + what each may do (spec: Permissions). */
+export const HOUSEHOLD_ROLES = ['owner', 'adult', 'child', 'guest'] as const;
+export type HouseholdRole = (typeof HOUSEHOLD_ROLES)[number];
+export const HOUSEHOLD_CAPS: Record<HouseholdRole, string[]> = {
+  owner: ['invite', 'remove', 'editSettings', 'generatePlan', 'placeOrder', 'editOwnProfile', 'viewPlan', 'viewGrocery', 'addPantry'],
+  adult: ['editOwnProfile', 'acceptPlan', 'viewPlan', 'viewGrocery', 'addPantry'],
+  child: ['viewPlan'],
+  guest: ['viewPlan'],
+};
 
 /** One guided cooking step: its instruction, how long it runs unattended, and
  *  whether it needs constant attention (stir) vs. can run in the background. */
@@ -792,45 +821,108 @@ export class NutritionService implements OnModuleInit {
   private get members(): FamilyMemberDelegate {
     return (this.prisma as unknown as { familyMember: FamilyMemberDelegate }).familyMember;
   }
+  private get household(): HouseholdDelegate {
+    return (this.prisma as unknown as { householdMember: HouseholdDelegate }).householdMember;
+  }
 
   // ─────────────── family members (admin-managed sub-profiles) ───────────────
   /** Shape a stored member for the client, with its computed daily targets. */
-  private shapeMember(m: FamilyMemberRow) {
+  private shapeMember(m: FamilyMemberRowExt, image?: string | null) {
     const ex = parseExtras(m.extras);
     const targets = computeTargets({
       weightKg: m.weightKg, heightCm: m.heightCm, age: m.age, sex: m.sex,
       activity: m.activity, goal: m.goal, conditions: ex.healthConditions ?? [],
     });
+    const householdRole = m.isSelf ? 'owner' : (HOUSEHOLD_ROLES as readonly string[]).includes(m.role) ? m.role : 'adult';
     return {
       id: m.id, name: m.name, role: m.role, sex: m.sex, age: m.age, heightCm: m.heightCm,
       weightKg: m.weightKg, activity: m.activity, goal: m.goal, diet: m.diet, isSelf: m.isSelf,
+      userId: m.memberUserId ?? null,          // real Together City user (null for the owner self-row)
+      image: image ?? null,                    // profile photo
+      householdRole,                           // owner | adult | child | guest
+      capabilities: HOUSEHOLD_CAPS[householdRole as HouseholdRole] ?? HOUSEHOLD_CAPS.adult,
       proteins: ex.proteins ?? [], cuisines: ex.cuisines ?? [], allergies: ex.allergies ?? '',
       healthConditions: ex.healthConditions ?? [],
       targets: { kcal: targets.kcal, protein: targets.protein, carb: targets.carb, fat: targets.fat, fiber: targets.fiber, adjustments: targets.adjustments },
     };
   }
 
-  /** Every family member the account holder manages (self first, then by creation).
-   *  Lazily seeds a "self" profile from the account holder's saved preferences so
-   *  the household always includes them. */
+  /** Every family member the account holder manages (self first, then accepted
+   *  household members). Lazily seeds a "self" profile from the account holder's
+   *  saved preferences, and keeps the real invited members mirrored from their
+   *  own Nutrition profile so the planner/grocery/dashboard read live data. */
   async familyMembers(ownerId: string) {
-    let rows = await this.members.findMany({ where: { ownerId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => [] as FamilyMemberRow[]);
-    if (!rows.some((m) => m.isSelf)) {
-      const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(() => null);
-      const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-      const user = await this.prisma.user.findUnique({ where: { id: ownerId }, select: { name: true } }).catch(() => null);
-      await this.members.create({
-        data: {
-          ownerId, isSelf: true, name: user?.name ?? 'You', role: 'self',
-          sex: pref?.sex ?? 'male', age: pref?.age ?? 30, heightCm: pref?.heightCm ?? 172,
-          weightKg: pref?.weightKg ?? 70, activity: pref?.activity ?? 1.4, goal: pref?.goal ?? 'maintain',
-          diet: pref?.diet ?? 'everything',
-          extras: JSON.stringify({ proteins: ex.proteins ?? [], cuisines: ex.cuisines ?? [], allergies: ex.allergies ?? '', healthConditions: ex.healthConditions ?? [] }),
-        } as never,
-      }).catch(() => undefined);
-      rows = await this.members.findMany({ where: { ownerId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => rows);
-    }
-    return rows.map((m) => this.shapeMember(m));
+    await this.ensureSelfMember(ownerId);
+    await this.syncHouseholdMirrors(ownerId);
+    const rows = await this.members.findMany({ where: { ownerId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => [] as FamilyMemberRowExt[]);
+    // Attach profile photos for real-user members.
+    const userIds = rows.map((r) => r.memberUserId).filter((x): x is string => Boolean(x));
+    const users = userIds.length
+      ? await this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, profileImage: true } }).catch(() => [])
+      : [];
+    const imageOf = new Map(users.map((u) => [u.id, u.profileImage]));
+    return rows.map((m) => this.shapeMember(m, m.memberUserId ? imageOf.get(m.memberUserId) : null));
+  }
+
+  /** Seed the owner's own "self" member row from their saved preferences. */
+  private async ensureSelfMember(ownerId: string) {
+    const rows = await this.members.findMany({ where: { ownerId, isSelf: true } }).catch(() => [] as FamilyMemberRowExt[]);
+    if (rows.length) return;
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(() => null);
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const user = await this.prisma.user.findUnique({ where: { id: ownerId }, select: { name: true } }).catch(() => null);
+    await this.members.create({
+      data: {
+        ownerId, memberUserId: ownerId, isSelf: true, name: user?.name ?? 'You', role: 'owner',
+        sex: pref?.sex ?? 'male', age: pref?.age ?? 30, heightCm: pref?.heightCm ?? 172,
+        weightKg: pref?.weightKg ?? 70, activity: pref?.activity ?? 1.4, goal: pref?.goal ?? 'maintain',
+        diet: pref?.diet ?? 'everything',
+        extras: JSON.stringify({ proteins: ex.proteins ?? [], cuisines: ex.cuisines ?? [], allergies: ex.allergies ?? '', healthConditions: ex.healthConditions ?? [] }),
+      } as never,
+    }).catch(() => undefined);
+  }
+
+  /** Build the member-row nutrition fields from a real user's own Nutrition profile. */
+  private mirrorDataFromPref(name: string, role: string, pref: { sex?: string; age?: number; heightCm?: number; weightKg?: number; activity?: number; goal?: string; diet?: string; extras?: string | null } | null) {
+    const ex = parseExtras(pref?.extras);
+    return {
+      name: name.slice(0, 60), role,
+      sex: pref?.sex === 'female' ? 'female' : 'male',
+      age: pref?.age ?? 30, heightCm: pref?.heightCm ?? 170, weightKg: pref?.weightKg ?? 65,
+      activity: pref?.activity ?? 1.4, goal: pref?.goal ?? 'maintain', diet: pref?.diet ?? 'everything',
+      extras: JSON.stringify({ proteins: ex.proteins ?? [], cuisines: ex.cuisines ?? [], allergies: ex.allergies ?? '', healthConditions: ex.healthConditions ?? [] }),
+    };
+  }
+
+  /** Keep the FamilyMember mirror in step with accepted Household Connections:
+   *  upsert one mirror per accepted member (from their live profile), and drop
+   *  mirrors for anyone no longer accepted. Best-effort; never throws. */
+  private async syncHouseholdMirrors(ownerId: string) {
+    try {
+      const links = await this.household.findMany({ where: { ownerId } }).catch(() => [] as HouseholdMemberRow[]);
+      const accepted = links.filter((l) => l.status === 'accepted');
+      const acceptedIds = new Set(accepted.map((l) => l.memberUserId));
+
+      // Remove mirrors whose link is gone / no longer accepted (never the self row).
+      const mirrors = await this.members.findMany({ where: { ownerId, isSelf: false } }).catch(() => [] as FamilyMemberRowExt[]);
+      for (const mir of mirrors) {
+        if (mir.memberUserId && !acceptedIds.has(mir.memberUserId)) {
+          await this.members.delete({ where: { id: mir.id } }).catch(() => undefined);
+        }
+      }
+      // Upsert a mirror for each accepted member from their live profile.
+      for (const link of accepted) {
+        if (link.memberUserId === ownerId) continue; // owner is the self row
+        const [user, pref] = await Promise.all([
+          this.prisma.user.findUnique({ where: { id: link.memberUserId }, select: { name: true } }).catch(() => null),
+          this.prisma.foodPref.findUnique({ where: { userId: link.memberUserId } }).catch(() => null),
+        ]);
+        const data = this.mirrorDataFromPref(user?.name ?? 'Member', link.role, pref as never);
+        const existing = await this.members.findFirst({ where: { ownerId, memberUserId: link.memberUserId } }).catch(() => null);
+        if (existing) await this.members.update({ where: { id: existing.id }, data: data as never }).catch(() => undefined);
+        else await this.members.create({ data: { ownerId, memberUserId: link.memberUserId, isSelf: false, ...data } as never }).catch(() => undefined);
+      }
+    } catch { /* mirror sync is best-effort */ }
   }
 
   private memberData(dto: Record<string, unknown>) {
@@ -855,23 +947,116 @@ export class NutritionService implements OnModuleInit {
     };
   }
 
-  async addFamilyMember(ownerId: string, dto: Record<string, unknown>) {
-    await this.members.create({ data: { ownerId, isSelf: false, ...this.memberData(dto) } as never });
-    return this.familyMembers(ownerId);
-  }
-
+  /** Edit a member profile. Members are real users who own their own profile, so
+   *  only the self (owner) row is editable here; real members edit their own. */
   async updateFamilyMember(ownerId: string, id: string, dto: Record<string, unknown>) {
     const existing = await this.members.findFirst({ where: { id, ownerId } }).catch(() => null);
     if (!existing) throw new NotFoundException('family member not found');
+    if (existing.memberUserId && !existing.isSelf) throw new ForbiddenException('This member manages their own profile in their Nutrition Hub.');
     await this.members.update({ where: { id }, data: this.memberData(dto) as never });
     return this.familyMembers(ownerId);
   }
 
+  /** Remove a member from the household. For a real invited user this ends the
+   *  Household Connection (their social relationship, if any, is untouched). */
   async removeFamilyMember(ownerId: string, id: string) {
     const existing = await this.members.findFirst({ where: { id, ownerId } }).catch(() => null);
     if (!existing) throw new NotFoundException('family member not found');
     if (existing.isSelf) throw new BadRequestException('cannot remove your own profile');
+    if (existing.memberUserId) return this.removeHouseholdMember(ownerId, existing.memberUserId);
     await this.members.delete({ where: { id } });
+    return this.familyMembers(ownerId);
+  }
+
+  // ─────────────── Household Connections (Nutrition Hub only) ───────────────
+  // A Household Connection is PRIVATE to the Nutrition Hub and never touches the
+  // social graph. Members are real Together City users who accept an invite.
+
+  /** Find a citizen to invite — by exact Together City user ID or @username.
+   *  Deliberately private (no directory / fuzzy browsing), matching the platform. */
+  async searchHouseholdUser(ownerId: string, queryRaw: string) {
+    const q = (queryRaw ?? '').trim();
+    if (!q) return { found: false as const };
+    const handle = q.replace(/^@/, '').toLowerCase();
+    const user = await this.prisma.user.findFirst({
+      where: { OR: [{ id: q }, { handle }] },
+      select: { id: true, handle: true, name: true, profileImage: true },
+    }).catch(() => null);
+    if (!user) return { found: false as const };
+
+    let relationship: 'self' | 'member' | 'pending' | 'none' = 'none';
+    if (user.id === ownerId) relationship = 'self';
+    else {
+      const link = await this.household.findUnique({ where: { ownerId_memberUserId: { ownerId, memberUserId: user.id } } as never }).catch(() => null);
+      if (link?.status === 'accepted') relationship = 'member';
+      else if (link?.status === 'pending') relationship = 'pending';
+    }
+    return { found: true as const, user, relationship };
+  }
+
+  /** Invite a real user to the household (owner only). Creates a pending Household
+   *  Connection + surfaces an in-app invitation the invitee can accept/decline. */
+  async inviteHousehold(ownerId: string, ref: string, roleRaw?: string) {
+    const res = await this.searchHouseholdUser(ownerId, ref);
+    if (!res.found) throw new NotFoundException('No Together City user with that ID or username.');
+    if (res.relationship === 'self') throw new BadRequestException("You're already the head of your household.");
+    const role = (HOUSEHOLD_ROLES as readonly string[]).includes(String(roleRaw)) && roleRaw !== 'owner' ? String(roleRaw) : 'adult';
+    const memberUserId = res.user.id;
+
+    await this.household.upsert({
+      where: { ownerId_memberUserId: { ownerId, memberUserId } } as never,
+      create: { ownerId, memberUserId, role, status: 'pending', requestedById: ownerId } as never,
+      update: { role, status: 'pending', requestedById: ownerId } as never,
+    }).catch(async (e) => {
+      // Fallback if upsert composite where isn't available on the offline client.
+      const existing = await this.household.findFirst({ where: { ownerId, memberUserId } }).catch(() => null);
+      if (existing) return this.household.update({ where: { id: existing.id }, data: { role, status: 'pending', requestedById: ownerId } as never });
+      return this.household.create({ data: { ownerId, memberUserId, role, status: 'pending', requestedById: ownerId } as never }).catch(() => { throw e; });
+    });
+
+    const owner = await this.prisma.user.findUnique({ where: { id: ownerId }, select: { name: true } }).catch(() => null);
+    return {
+      invited: { id: res.user.id, handle: res.user.handle, name: res.user.name, image: res.user.profileImage, role },
+      message: `${owner?.name ?? 'Someone'} has invited you to join their Household in Nutrition Hub.`,
+      household: await this.familyMembers(ownerId),
+    };
+  }
+
+  /** Invitations awaiting THIS user's response (the in-app notification list). */
+  async householdInvites(userId: string) {
+    const links = await this.household.findMany({ where: { memberUserId: userId, status: 'pending' } }).catch(() => [] as HouseholdMemberRow[]);
+    if (!links.length) return [] as unknown[];
+    const owners = await this.prisma.user.findMany({
+      where: { id: { in: links.map((l) => l.ownerId) } }, select: { id: true, name: true, handle: true, profileImage: true },
+    }).catch(() => []);
+    const by = new Map(owners.map((o) => [o.id, o]));
+    return links.map((l) => {
+      const o = by.get(l.ownerId);
+      return {
+        id: l.id, ownerId: l.ownerId, role: l.role, createdAt: l.createdAt,
+        from: { name: o?.name ?? 'A citizen', handle: o?.handle ?? '', image: o?.profileImage ?? null },
+        message: `${o?.name ?? 'Someone'} has invited you to join their Household in Nutrition Hub.`,
+      };
+    });
+  }
+
+  /** Accept or decline a household invitation (only the invitee may respond). */
+  async respondHouseholdInvite(userId: string, inviteId: string, accept: boolean) {
+    const link = await this.household.findUnique({ where: { id: inviteId } }).catch(() => null);
+    if (!link) throw new NotFoundException('Invitation not found.');
+    if (link.memberUserId !== userId) throw new ForbiddenException('This invitation is not addressed to you.');
+    if (link.status !== 'pending') throw new BadRequestException('This invitation has already been answered.');
+    await this.household.update({ where: { id: inviteId }, data: { status: accept ? 'accepted' : 'declined' } as never });
+    if (accept) await this.syncHouseholdMirrors(link.ownerId);   // bring their profile into the owner's household
+    return { ok: true, status: accept ? 'accepted' : 'declined', invites: await this.householdInvites(userId) };
+  }
+
+  /** End a Household Connection (owner only). The mirror is removed; any social
+   *  relationship between the two users is left completely untouched. */
+  async removeHouseholdMember(ownerId: string, memberUserId: string) {
+    const link = await this.household.findFirst({ where: { ownerId, memberUserId } }).catch(() => null);
+    if (link) await this.household.update({ where: { id: link.id }, data: { status: 'removed' } as never }).catch(() => undefined);
+    await this.members.deleteMany({ where: { ownerId, memberUserId } }).catch(() => undefined);
     return this.familyMembers(ownerId);
   }
 
@@ -1020,6 +1205,114 @@ export class NutritionService implements OnModuleInit {
       hasPlan, mealsPerDay, memberCount: members.length,
       familyStatus: !hasPlan ? 'none' : okCount === summary.length ? 'all-on-track' : 'needs-attention',
       members: summary,
+    };
+  }
+
+  /**
+   * Family Compatibility Score (0–100) — how easily the household can share one
+   * cooked meal. Deterministic (no AI): starts at 100 and deducts for the things
+   * that force divergence — multiple protein swaps, vegan-vs-dairy splits, strict
+   * medical restrictions (kidney needs low-sodium/low-potassium), spread of goals
+   * and allergies. It also recommends the SMALLEST number of extra dishes needed
+   * so the family still eats together instead of five separate plans.
+   */
+  private familyCompatibility(members: { diet: string; goal: string; healthConditions: string[]; allergies?: string }[]) {
+    if (members.length <= 1) {
+      return { score: 100, level: 'high' as const, extraDishesRecommended: 0, reasons: [] as string[], recommendation: 'Just you for now — every meal fits.' };
+    }
+    const proteinFor = (d: string) => d === 'vegan' ? 'tofu' : (d === 'veg' || d === 'jain') ? 'paneer' : d === 'egg' ? 'egg' : d === 'pesc' ? 'fish' : 'meat';
+    const proteins = new Set(members.map((m) => proteinFor(m.diet)));
+    const hasVegan = members.some((m) => m.diet === 'vegan');
+    const hasDairyEater = members.some((m) => m.diet !== 'vegan');
+    const conds = members.flatMap((m) => (m.healthConditions ?? []).map((c) => c.toLowerCase()));
+    const renalMembers = members.filter((m) => (m.healthConditions ?? []).some((c) => /kidney|renal|ckd/i.test(c))).length;
+    const otherConds = [...new Set(conds.filter((c) => /diabet|hypertens|blood pressure|cholesterol|fatty liver|pcos|thyroid/.test(c)))];
+    const allergens = [...new Set(members.flatMap((m) => (m.allergies ? m.allergies.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean) : [])))];
+    const goals = new Set(members.map((m) => m.goal));
+
+    const reasons: string[] = [];
+    let score = 100;
+    if (proteins.size > 1) { score -= (proteins.size - 1) * 6; reasons.push(`${proteins.size} different proteins to plate (${[...proteins].join(', ')}) — handled by swapping the protein on a shared base.`); }
+    if (hasVegan && hasDairyEater) { score -= 6; reasons.push('A vegan member needs a dairy-free protein (tofu) while others have paneer — a simple protein swap, not a separate dish.'); }
+    if (renalMembers > 0) { score -= 10 * renalMembers; reasons.push(`${renalMembers} member${renalMembers > 1 ? 's need' : ' needs'} kidney-safe cooking (low sodium, lower protein, low-potassium veg) — best served as one lightly-adapted portion.`); }
+    if (otherConds.length) { score -= otherConds.length * 3; reasons.push(`Medical tweaks for ${otherConds.join(', ')} — mostly seasoning and side adjustments on the same meal.`); }
+    if (allergens.length) { score -= allergens.length * 4; reasons.push(`Allergen${allergens.length > 1 ? 's' : ''} to avoid (${allergens.join(', ')}) across the shared base.`); }
+    if (goals.has('lose') && goals.has('gain')) { score -= 4; reasons.push('Goals span weight-loss and gain — same dish, different portion sizes.'); }
+    score = Math.max(30, Math.min(100, Math.round(score)));
+
+    // Smallest number of extra dishes: only genuinely base-incompatible needs
+    // (advanced kidney/renal) warrant a separate prep; everything else is a
+    // portion/protein/seasoning tweak on the one shared base.
+    const extraDishesRecommended = renalMembers > 0 ? 1 : 0;
+    const level = score >= 80 ? 'high' as const : score >= 60 ? 'moderate' as const : 'low' as const;
+    const recommendation = extraDishesRecommended === 0
+      ? 'One shared base works for the whole family — just swap proteins and adjust portions per person.'
+      : `Cook the shared base plus ${extraDishesRecommended} adapted dish (a low-sodium, low-potassium option for kidney-safe eating) so everyone still eats together — no need for separate meal plans.`;
+    return { score, level, extraDishesRecommended, reasons, recommendation };
+  }
+
+  /**
+   * Family Profile — the household's central planning object. It AGGREGATES every
+   * member (never merges or overwrites their private profiles): head-count by life
+   * stage, the union of diets / conditions / allergies / cuisines, household goals,
+   * budget & cadence, and a shared health-dashboard roll-up. Individual medical
+   * data stays on each member; this is the household-level view.
+   */
+  async familyProfile(userId: string, dayIndex = 0) {
+    const members = await this.familyMembers(userId);
+    const dash = await this.familyDashboard(userId, dayIndex);
+    const [owner, ownerPref] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(() => null),
+      this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null),
+    ]);
+    const ownerExtras = parseExtras((ownerPref as { extras?: string | null } | null)?.extras);
+
+    const uniq = (xs: string[]) => [...new Set(xs.map((x) => x.trim()).filter(Boolean))];
+    const seniors = members.filter((m) => m.age >= 60).length;
+    const children = members.filter((m) => m.age < 18).length;
+    const adults = members.length - seniors - children;
+
+    const dietLabel: Record<string, string> = { everything: 'Non-veg', nonveg: 'Non-veg', veg: 'Veg', vegan: 'Vegan', egg: 'Egg', pesc: 'Pescatarian', jain: 'Jain' };
+    const dietTypes = uniq(members.map((m) => dietLabel[m.diet] ?? m.diet));
+    const conditions = uniq(members.flatMap((m) => m.healthConditions ?? []));
+    const allergies = uniq(members.flatMap((m) => (m.allergies ? m.allergies.split(',') : [])));
+    const cuisines = uniq(members.flatMap((m) => m.cuisines ?? []));
+    const goalLabel: Record<string, string> = { lose: 'Weight loss', maintain: 'Maintain', gain: 'Build / gain' };
+    const goals = uniq(members.map((m) => goalLabel[m.goal] ?? m.goal));
+
+    const n = Math.max(1, members.length);
+    const avgKcal = Math.round(members.reduce((s, m) => s + m.targets.kcal, 0) / n);
+    const avgProtein = Math.round(members.reduce((s, m) => s + m.targets.protein, 0) / n);
+    const avgFiber = Math.round(members.reduce((s, m) => s + m.targets.fiber, 0) / n);
+    const totalKcal = members.reduce((s, m) => s + m.targets.kcal, 0);
+
+    const medicalAlerts = dash.members.flatMap((m) => m.flags.map((flag) => ({ member: m.name, flag })));
+    const nutritionScore = dash.hasPlan ? Math.round((dash.members.filter((m) => m.medicalOk).length / n) * 100) : null;
+
+    // Latest household grocery cost, if a family cart exists.
+    const cart = await this.prisma.groceryCart.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' }, include: { items: true } }).catch(() => null);
+    const weeklyGroceryCost = cart?.items?.reduce((s, it) => s + ((it as { priceInr?: number }).priceInr ?? 0), 0) ?? 0;
+
+    const compatibility = this.familyCompatibility(members);
+
+    return {
+      name: owner?.name ? `${owner.name.split(' ')[0]}'s Household` : 'Your Household',
+      counts: { total: members.length, adults, children, seniors },
+      dietTypes, conditions, allergies, cuisines, goals,
+      compatibility,
+      weeklyBudgetInr: ownerExtras.budgetInr ?? null,
+      cookingFrequency: dash.hasPlan ? `${dash.mealsPerDay} meals/day` : 'Not set',
+      groceryFrequency: 'Weekly',
+      summary: {
+        members: members.length,
+        avgCalories: avgKcal, avgProtein, avgFiber, totalCalories: totalKcal,
+        goals, medicalAlerts,
+        weeklyGroceryCostInr: weeklyGroceryCost,
+        nutritionScore,
+        adherenceScore: dash.hasPlan ? Math.max(0, Math.min(100, nutritionScore ?? 0)) : null,
+        mealCompletion: dash.hasPlan ? 100 : 0,
+        status: dash.familyStatus,
+      },
     };
   }
 

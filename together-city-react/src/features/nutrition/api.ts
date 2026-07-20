@@ -10,7 +10,13 @@ export const nutritionApi = {
   historyDetail: (id: string) =>
     api.get<Record<string, unknown>>(`/nutrition/history/${id}`).then((r) => r.data),
   familyMembers: () => api.get<FamilyMemberProfile[]>('/nutrition/family/members').then((r) => r.data),
-  addFamilyMember: (dto: FamilyMemberInput) => api.post<FamilyMemberProfile[]>('/nutrition/family/members', dto).then((r) => r.data),
+  searchHouseholdUser: (q: string) => api.get<HouseholdSearchResult>('/nutrition/family/search', { params: { q } }).then((r) => r.data),
+  inviteHousehold: (userRef: string, role: HouseholdRole) =>
+    api.post<{ invited: HouseholdUserCard & { role: HouseholdRole }; message: string; household: FamilyMemberProfile[] }>('/nutrition/family/invite', { userRef, role }).then((r) => r.data),
+  householdInvites: () => api.get<HouseholdInvite[]>('/nutrition/family/invites').then((r) => r.data),
+  respondHouseholdInvite: (id: string, accept: boolean) =>
+    api.post<{ ok: boolean; status: string; invites: HouseholdInvite[] }>(`/nutrition/family/invites/${id}/respond`, { accept }).then((r) => r.data),
+  familyProfile: () => api.get<FamilyProfile>('/nutrition/family/profile').then((r) => r.data),
   updateFamilyMember: (id: string, dto: FamilyMemberInput) => api.patch<FamilyMemberProfile[]>(`/nutrition/family/members/${id}`, dto).then((r) => r.data),
   removeFamilyMember: (id: string) => api.delete<FamilyMemberProfile[]>(`/nutrition/family/members/${id}`).then((r) => r.data),
   familyPortions: (dayIndex: number) => api.get<FamilyPortions>(`/nutrition/family/portions/${dayIndex}`).then((r) => r.data),
@@ -64,15 +70,50 @@ export const nutritionApi = {
 };
 
 export type CalorieType = 'Meal Plan' | 'Extra' | 'Alcohol';
+export type HouseholdRole = 'owner' | 'adult' | 'child' | 'guest';
 export interface FamilyMemberProfile {
   id: string; name: string; role: string; sex: string; age: number; heightCm: number;
   weightKg: number; activity: number; goal: string; diet: string; isSelf: boolean;
+  userId: string | null;              // real Together City user (null for the owner self-row)
+  image: string | null;              // profile photo
+  householdRole: HouseholdRole;      // owner | adult | child | guest
+  capabilities: string[];            // what this role may do
   proteins: string[]; cuisines: string[]; allergies: string; healthConditions: string[];
   targets: { kcal: number; protein: number; carb: number; fat: number; fiber: number; adjustments: string[] };
 }
 export interface FamilyMemberInput {
   name: string; role: string; sex: string; age: number; heightCm: number; weightKg: number;
   activity: number; goal: string; diet: string; healthConditions: string[]; allergies?: string;
+}
+
+/** Household Connection invite/search (Nutrition Hub only — never social). */
+export interface HouseholdUserCard { id: string; handle: string; name: string; profileImage: string | null }
+export interface HouseholdSearchResult {
+  found: boolean;
+  user?: HouseholdUserCard;
+  relationship?: 'self' | 'member' | 'pending' | 'none';
+}
+export interface HouseholdInvite {
+  id: string; ownerId: string; role: HouseholdRole; createdAt: string;
+  from: { name: string; handle: string; image: string | null };
+  message: string;
+}
+export interface FamilyCompatibility {
+  score: number; level: 'high' | 'moderate' | 'low';
+  extraDishesRecommended: number; reasons: string[]; recommendation: string;
+}
+export interface FamilyProfile {
+  name: string;
+  counts: { total: number; adults: number; children: number; seniors: number };
+  dietTypes: string[]; conditions: string[]; allergies: string[]; cuisines: string[]; goals: string[];
+  compatibility: FamilyCompatibility;
+  weeklyBudgetInr: number | null; cookingFrequency: string; groceryFrequency: string;
+  summary: {
+    members: number; avgCalories: number; avgProtein: number; avgFiber: number; totalCalories: number;
+    goals: string[]; medicalAlerts: { member: string; flag: string }[];
+    weeklyGroceryCostInr: number; nutritionScore: number | null; adherenceScore: number | null;
+    mealCompletion: number; status: 'none' | 'all-on-track' | 'needs-attention';
+  };
 }
 export interface MemberPortion {
   memberId: string; name: string; role: string; factor: number; grams: number; kcal: number; protein: number;
