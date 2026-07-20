@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { PDFParse } from 'pdf-parse';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConversationsService } from '../conversations/conversations.service';
@@ -16,6 +16,27 @@ import {
 import type { SaveBloodTestDto } from './dto/medical.dto';
 
 const cite = (ids: string[]) => ids.map((id) => CITATIONS[id]).filter(Boolean);
+
+/** The complete, stored analysis of one blood test at one version — the single
+ *  source of truth every hub reads (no hub re-runs the AI). */
+interface StoredAnalysis {
+  analysisVersion: string;
+  model: string;
+  reportHash: string;
+  analyzedAt: string;
+  healthScore: number;
+  band: string;
+  confidence: string;
+  priorities: string[];
+  markers: { key: string; label: string; unit: string; value: number; range: string; status: string; advice: string }[];
+  conditions: { key: string; name: string }[];
+  mealRestrictions: string[];
+  greeting: string;
+  interpretation: string[];
+  relationships: string[];
+  discuss: string[];
+  encouragement: string;
+}
 
 /** Hubs that may read Medical biomarkers, and what each uses them for. */
 export const CONSENT_HUBS = [
@@ -282,14 +303,79 @@ export class MedicalService implements OnModuleInit {
   async healthSummary(userId: string) {
     const disclaimer = 'An educational summary grounded in established clinical-nutrition guidance — not a diagnosis. Please review any flagged findings with your doctor.';
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
-    const name = user?.name ?? 'there';
-    const first = name.split(' ')[0];
+    const first = (user?.name ?? 'there').split(' ')[0];
     const test = await this.prisma.medicalBloodTest.findFirst({ where: { userId }, orderBy: { takenOn: 'desc' }, include: { biomarkers: true } });
     if (!test) {
       return { hasPanel: false, name: first, score: null, band: null, priorities: [], greeting: `Dear ${first},`, interpretation: [], relationships: [], discuss: [], encouragement: '', aiEnabled: this.ai.enabled, takenOn: null, lab: null, disclaimer };
     }
+    // Read the ONE stored analysis for this test at the current version (runs the
+    // AI only if it doesn't exist yet — never on a plain page load).
+    const a = await this.getOrCreateAnalysis(userId, test, user?.name ?? 'there');
+    return {
+      hasPanel: true, name: first, score: a.healthScore, band: a.band, priorities: a.priorities,
+      greeting: a.greeting, interpretation: a.interpretation, relationships: a.relationships,
+      discuss: a.discuss, encouragement: a.encouragement,
+      aiEnabled: this.ai.enabled, analysisVersion: a.analysisVersion,
+      takenOn: test.takenOn.toISOString().slice(0, 10), lab: test.lab, disclaimer,
+    };
+  }
+
+  /** Bump when the medical prompt or model changes → forces one re-analysis and
+   *  a new stored version, keeping older versions for history. */
+  private static readonly ANALYSIS_VERSION = 'v1';
+
+  /** SHA-256 of the biomarker values — identical reports produce the same hash,
+   *  so a re-upload of the same data reuses an existing analysis. */
+  private reportHash(values: Record<string, number>): string {
+    const canonical = Object.keys(values).sort().map((k) => `${k}:${values[k]}`).join('|');
+    return createHash('sha256').update(canonical).digest('hex');
+  }
+
+  /**
+   * The event-driven core: return the single stored analysis for this blood test
+   * at the current version. The AI runs at most ONCE per (test, version):
+   *   1. exact record for this test+version exists      → return it (no AI);
+   *   2. an identical report (same hash+version) exists  → clone it (no AI);
+   *   3. otherwise                                       → analyse once, store, return.
+   */
+  private async getOrCreateAnalysis(userId: string, test: { id: string; biomarkers: { key: string; value: number }[] }, fullName: string): Promise<StoredAnalysis> {
+    const V = MedicalService.ANALYSIS_VERSION;
+    const bloodAnalysis = (this.prisma as unknown as { bloodAnalysis: { findFirst: (a: unknown) => Promise<{ payload: string } | null>; create: (a: unknown) => Promise<unknown> } }).bloodAnalysis;
+
+    const exact = await bloodAnalysis.findFirst({ where: { bloodTestId: test.id, analysisVersion: V } }).catch(() => null);
+    if (exact?.payload) { try { return JSON.parse(exact.payload) as StoredAnalysis; } catch { /* regenerate */ } }
 
     const values = Object.fromEntries(test.biomarkers.map((b) => [b.key, b.value]));
+    const hash = this.reportHash(values);
+
+    const twin = await bloodAnalysis.findFirst({ where: { userId, reportHash: hash, analysisVersion: V } }).catch(() => null);
+    if (twin?.payload) {
+      try {
+        const payload = JSON.parse(twin.payload) as StoredAnalysis;
+        await this.storeAnalysis(userId, test.id, hash, payload).catch(() => undefined);
+        return payload;
+      } catch { /* regenerate */ }
+    }
+
+    const payload = await this.computeAnalysis(values, fullName, hash);
+    await this.storeAnalysis(userId, test.id, hash, payload).catch(() => undefined);
+    return payload;
+  }
+
+  private async storeAnalysis(userId: string, bloodTestId: string, reportHash: string, payload: StoredAnalysis): Promise<void> {
+    const bloodAnalysis = (this.prisma as unknown as { bloodAnalysis: { create: (a: unknown) => Promise<unknown> } }).bloodAnalysis;
+    await bloodAnalysis.create({
+      data: {
+        bloodTestId, userId, analysisVersion: payload.analysisVersion, model: payload.model,
+        reportHash, healthScore: payload.healthScore, band: payload.band, payload: JSON.stringify(payload),
+      },
+    });
+  }
+
+  /** The single, complete analysis of one panel: deterministic score/priorities/
+   *  markers/conditions/restrictions + the AI narrative. Runs the AI exactly once. */
+  private async computeAnalysis(values: Record<string, number>, fullName: string, hash: string): Promise<StoredAnalysis> {
+    const first = fullName.split(' ')[0];
     const crp = values.crp;
     const flags = flagsFor(values);
     const markers = MARKER_RULES.filter((r) => r.key in values).map((rule) => {
@@ -298,55 +384,39 @@ export class MedicalService implements OnModuleInit {
     });
     const abnormal = markers.filter((m) => m.status !== 'normal');
     const alerts = criticalAlerts(values);
-    const conditions = triggeredConditions(flags);
+    const conditions = triggeredConditions(flags).map((c) => ({ key: c.key, name: c.name }));
 
-    // Deterministic score (from flags + alerts — stable, not AI).
     let score = 100 - abnormal.length * 8;
-    for (const a of alerts) score -= a.urgent ? 18 : 12;
+    for (const al of alerts) score -= al.urgent ? 18 : 12;
     score = Math.max(5, Math.min(100, Math.round(score)));
     const band = score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 55 ? 'Fair' : 'Needs attention';
 
-    // Deterministic priority ranking.
     const PRI: Record<string, { label: string; w: number }> = {
-      hb: { label: 'Address low hemoglobin', w: 9 },
-      hba1c: { label: 'Optimise blood sugar control', w: 9 },
-      trig: { label: 'Lower triglycerides', w: 8 },
-      ldl: { label: 'Lower LDL cholesterol', w: 7 },
-      crp: { label: 'Reduce inflammation', w: 7 },
-      ferritin: { label: 'Rebuild iron stores', w: 6 },
-      b12: { label: 'Correct low B12', w: 5 },
-      folate: { label: 'Increase folate', w: 5 },
-      vitd: { label: 'Improve vitamin D status', w: 4 },
+      hb: { label: 'Address low hemoglobin', w: 9 }, hba1c: { label: 'Optimise blood sugar control', w: 9 },
+      trig: { label: 'Lower triglycerides', w: 8 }, ldl: { label: 'Lower LDL cholesterol', w: 7 },
+      crp: { label: 'Reduce inflammation', w: 7 }, ferritin: { label: 'Rebuild iron stores', w: 6 },
+      b12: { label: 'Correct low B12', w: 5 }, folate: { label: 'Increase folate', w: 5 }, vitd: { label: 'Improve vitamin D status', w: 4 },
     };
     const priorities = abnormal
       .map((m) => ({ label: PRI[m.key]?.label ?? `Review ${m.label}`, w: (PRI[m.key]?.w ?? 3) + (m.status === 'high' ? 1 : 0) }))
-      .sort((a, b) => b.w - a.w)
-      .slice(0, 5)
-      .map((p) => p.label);
+      .sort((a, b) => b.w - a.w).slice(0, 5).map((p) => p.label);
 
-    // AI narrative (Opus) — cached on the panel so the summary loads instantly on
-    // every later visit. Generated once per panel; regenerated only if absent.
-    type AiNarrative = Awaited<ReturnType<AiService['clinicalInterpretation']>>;
-    const cached = (test as { aiSummary?: string | null }).aiSummary;
-    let ai: AiNarrative | null = null;
-    if (cached) {
-      try { ai = JSON.parse(cached) as AiNarrative; } catch { ai = null; }
-    }
-    if (!ai) {
-      const payload = `Person: ${first}.\nMarkers:\n`
-        + markers.map((m) => `- ${m.label}: ${m.value} ${m.unit} (ref ${m.range}) → ${m.status.toUpperCase()}`).join('\n')
-        + (alerts.length ? `\nCritical alerts: ${alerts.map((a) => `${a.label} ${a.value}`).join('; ')}` : '')
-        + (conditions.length ? `\nCondition patterns detected: ${conditions.map((c) => c.name).join(', ')}` : '')
-        + `\nComputed overall score: ${score}/100 (${band}).`;
-      ai = await this.ai.clinicalInterpretation(payload, name);
-      // Cache only a real AI narrative (not an empty fallback), so a transient AI
-      // outage doesn't get frozen in.
-      if (ai.interpretation.length || ai.greeting) {
-        await this.prisma.medicalBloodTest
-          .update({ where: { id: test.id }, data: { aiSummary: JSON.stringify(ai) } as never })
-          .catch(() => undefined);
-      }
-    }
+    // Meal restrictions for the recipe engine to consume (derived from flags).
+    const REST: Record<string, string[]> = {
+      hba1c: ['limit added sugar', 'fewer refined carbs', 'lower glycemic load'],
+      ldl: ['limit saturated fat', 'more soluble fibre'],
+      trig: ['limit added sugar & alcohol', 'more omega-3'],
+      crp: ['anti-inflammatory pattern', 'less ultra-processed food'],
+    };
+    const mealRestrictions = [...new Set(abnormal.flatMap((m) => REST[m.key] ?? []))];
+
+    // The one AI call — with deterministic fallbacks if AI is off / returns empty.
+    const prompt = `Person: ${first}.\nMarkers:\n`
+      + markers.map((m) => `- ${m.label}: ${m.value} ${m.unit} (ref ${m.range}) → ${m.status.toUpperCase()}`).join('\n')
+      + (alerts.length ? `\nCritical alerts: ${alerts.map((al) => `${al.label} ${al.value}`).join('; ')}` : '')
+      + (conditions.length ? `\nCondition patterns detected: ${conditions.map((c) => c.name).join(', ')}` : '')
+      + `\nComputed overall score: ${score}/100 (${band}).`;
+    const ai = await this.ai.clinicalInterpretation(prompt, fullName);
 
     const interpretation = ai.interpretation.length
       ? ai.interpretation
@@ -358,12 +428,16 @@ export class MedicalService implements OnModuleInit {
       : `Lovely results, ${first} — everything's in range. Keep doing what you're doing.`);
 
     return {
-      hasPanel: true, name: first, score, band, priorities,
-      greeting: ai.greeting, interpretation, relationships: ai.relationships,
-      discuss: ai.discuss.length ? ai.discuss : (alerts.length ? alerts.map((a) => `${a.label} (${a.value})`) : []),
+      analysisVersion: MedicalService.ANALYSIS_VERSION,
+      model: this.ai.enabled ? this.ai.bloodModelId : 'deterministic',
+      reportHash: hash,
+      analyzedAt: new Date().toISOString(),
+      healthScore: score, band, confidence: alerts.length ? 'Review with a doctor' : abnormal.length ? 'High' : 'High',
+      priorities, markers, conditions, mealRestrictions,
+      greeting: ai.greeting || `Dear ${first},`,
+      interpretation, relationships: ai.relationships,
+      discuss: ai.discuss.length ? ai.discuss : (alerts.length ? alerts.map((al) => `${al.label} (${al.value})`) : []),
       encouragement,
-      aiEnabled: this.ai.enabled,
-      takenOn: test.takenOn.toISOString().slice(0, 10), lab: test.lab, disclaimer,
     };
   }
 

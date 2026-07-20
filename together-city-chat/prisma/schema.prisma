@@ -694,13 +694,40 @@ model MedicalBloodTest {
   userId    String
   takenOn   DateTime @default(now())
   lab       String?
-  aiSummary String? // cached AI narrative (greeting/interpretation/…) so the health summary loads instantly
+  aiSummary String? // legacy inline cache (superseded by BloodAnalysis); kept to avoid a destructive drop
   createdAt DateTime @default(now())
 
   user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   biomarkers MedicalBiomarker[]
+  analyses   BloodAnalysis[]
 
   @@index([userId, takenOn])
+}
+
+/**
+ * The single, stored result of analysing one blood test at one analysis version.
+ * The AI runs ONCE when a test is uploaded/changed (or the version bumps); every
+ * consumer (Medical Hub, Nutrition, dashboard, meal planner) reads this record
+ * instead of re-calling the AI. `reportHash` lets an identical re-upload reuse an
+ * existing analysis. Old versions are kept so improvements don't lose history.
+ */
+model BloodAnalysis {
+  id              String   @id @default(uuid())
+  bloodTestId     String
+  userId          String
+  analysisVersion String // e.g. "v1" — bump when the prompt/model changes
+  model           String // model id that produced the narrative
+  reportHash      String // SHA-256 of the biomarker values (dedup identical reports)
+  healthScore     Int
+  band            String
+  payload         String // full analysis JSON (markers, conditions, narrative, restrictions, supplements)
+  analyzedAt      DateTime @default(now())
+
+  bloodTest MedicalBloodTest @relation(fields: [bloodTestId], references: [id], onDelete: Cascade)
+
+  @@unique([bloodTestId, analysisVersion])
+  @@index([userId, analyzedAt])
+  @@index([reportHash, analysisVersion])
 }
 
 model MedicalBiomarker {

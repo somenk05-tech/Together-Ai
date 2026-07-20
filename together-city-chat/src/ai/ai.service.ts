@@ -20,6 +20,9 @@ export class AiService {
   private readonly visionModel = process.env.ANTHROPIC_VISION_MODEL || 'claude-opus-4-8';
   readonly enabled: boolean;
 
+  /** The model id used for blood-report interpretation (recorded on stored analyses). */
+  get bloodModelId(): string { return this.bloodModel; }
+
   constructor() {
     const key = process.env.ANTHROPIC_API_KEY;
     this.client = key ? new Anthropic({ apiKey: key }) : null;
