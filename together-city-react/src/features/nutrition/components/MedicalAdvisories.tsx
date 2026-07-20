@@ -12,8 +12,10 @@ const LEVEL: Record<number, { label: string; color: string; soft: string }> = {
  *  user's saved preference; these cards suggest optional improvements and leave
  *  the decision (Update vs Keep) entirely to the user. */
 export function MedicalAdvisories({ advisories, healthScore }: { advisories?: MedicalAdvisory[]; healthScore?: HealthScore }) {
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const shown = (advisories ?? []).filter((a) => !dismissed.has(a.key));
+  // Record the user's choice per advisory WITHOUT collapsing the card — the
+  // recommendation stays visible so they can revisit or change it any time.
+  const [kept, setKept] = useState<Set<string>>(new Set());
+  const shown = advisories ?? [];
   if (!shown.length && !healthScore) return null;
 
   return (
@@ -40,16 +42,28 @@ export function MedicalAdvisories({ advisories, healthScore }: { advisories?: Me
             <h4 style={{ fontSize: 14.5, margin: '2px 0 5px' }}>{a.title}</h4>
             <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.55 }}>{a.message}</p>
             {a.actionable && (
-              <div style={{ display: 'flex', gap: 8, marginTop: 11, flexWrap: 'wrap' }}>
-                <Link to="/nutrition/preferences"
-                  style={{ fontSize: 12.5, fontWeight: 700, textDecoration: 'none', color: '#fff', background: 'var(--accent)', borderRadius: 999, padding: '7px 14px' }}>
-                  Update food preferences
-                </Link>
-                <button type="button" onClick={() => setDismissed((s) => new Set(s).add(a.key))}
-                  style={{ fontSize: 12.5, fontWeight: 600, cursor: 'pointer', color: 'var(--ink)', background: 'transparent', border: '1.5px solid var(--line)', borderRadius: 999, padding: '7px 14px', fontFamily: 'inherit' }}>
-                  Keep current preferences
-                </button>
-              </div>
+              kept.has(a.key) ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 11, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: lv.color, background: lv.soft, borderRadius: 999, padding: '7px 14px' }}>
+                    ✓ Keeping your current preferences
+                  </span>
+                  <button type="button" onClick={() => setKept((s) => { const n = new Set(s); n.delete(a.key); return n; })}
+                    style={{ fontSize: 12.5, fontWeight: 600, cursor: 'pointer', color: 'var(--muted)', background: 'transparent', border: 'none', textDecoration: 'underline', padding: '7px 4px', fontFamily: 'inherit' }}>
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, marginTop: 11, flexWrap: 'wrap' }}>
+                  <Link to="/nutrition/preferences"
+                    style={{ fontSize: 12.5, fontWeight: 700, textDecoration: 'none', color: '#fff', background: 'var(--accent)', borderRadius: 999, padding: '7px 14px' }}>
+                    Update food preferences
+                  </Link>
+                  <button type="button" onClick={() => setKept((s) => new Set(s).add(a.key))}
+                    style={{ fontSize: 12.5, fontWeight: 600, cursor: 'pointer', color: 'var(--ink)', background: 'transparent', border: '1.5px solid var(--line)', borderRadius: 999, padding: '7px 14px', fontFamily: 'inherit' }}>
+                    Keep current preferences
+                  </button>
+                </div>
+              )
             )}
           </div>
         );
