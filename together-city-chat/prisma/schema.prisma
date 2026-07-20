@@ -393,6 +393,30 @@ model Meal {
   @@index([recipeId])
 }
 
+/// Permanent, versioned snapshot of a generated weekly meal plan — nutrition
+/// history (spec §19). One immutable row per generation; NEVER overwritten, so a
+/// user's nutrition journey can be tracked over months/years. JSON stored as
+/// String (same convention as BloodAnalysis.payload / FoodPref.extras).
+model NutritionHistory {
+  id         String   @id @default(uuid())
+  userId     String
+  mode       String   @default("individual") // individual | family
+  planKey    String // the live plan this snapshot was taken from
+  weekNumber Int // 1..N for this user+mode
+  weekLabel  String // e.g. "Week of 2026-07-20"
+  startDate  DateTime
+  endDate    DateTime
+  targets    String // JSON: personalised nutrition targets used
+  context    String // JSON: blood version, medical conditions, cuisine mix, weekly schedule, diet/goal, profile version
+  days       String // JSON: per-day meals (per-meal macros/cost/time) + daily totals + coverage
+  weekly     String // JSON: weekly totals, variety scores, cuisine/protein distribution
+  cost       Int      @default(0) // estimated weekly food cost (₹)
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, mode, createdAt])
+}
+
 model GroceryCart {
   id        String   @id @default(uuid())
   userId    String

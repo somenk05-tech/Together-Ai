@@ -38,6 +38,8 @@ export interface Meal {
 
 export interface DayPlan {
   day: string;                // Monday…Sunday
+  date?: string;              // real calendar date, ISO yyyy-mm-dd (spec §20)
+  dateLabel?: string;         // "Monday, 20 July 2026"
   meals: Meal[];
 }
 
@@ -50,10 +52,30 @@ export interface PlanGuidance {
 
 export interface WeekPlan {
   key: string;
+  weekNumber?: number;        // ISO week number (spec §20)
+  weekStart?: string;         // ISO yyyy-mm-dd (Monday)
+  weekEnd?: string;           // ISO yyyy-mm-dd (Sunday)
+  weekLabel?: string;         // "20–26 Jul 2026"
   days: DayPlan[];
   guidance?: PlanGuidance | null;
   incomplete?: boolean;                          // profile missing required fields
   missing?: { key: string; label: string }[];    // what to complete before planning
+}
+
+/** Stored nutrition-history week summary (spec §19/§20). */
+export interface NutritionHistoryWeek {
+  id: string;
+  mode: string;
+  weekNumber: number;
+  weekLabel: string;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+  cost: number;
+  totals: { kcal?: number; protein?: number; carbs?: number; fat?: number; fiber?: number; cost?: number };
+  variety: { recipeVarietyPct?: number; distinctRecipes?: number; mealsServed?: number; cuisineVariety?: number; proteinVariety?: number };
+  diet?: string | null;
+  cuisineMix?: Record<string, number>;
 }
 
 export interface NutritionTargets {

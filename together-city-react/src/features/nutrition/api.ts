@@ -1,10 +1,14 @@
 import { http as api } from '@/api/client';
-import type { WeekPlan, DaySummary, NutritionTargets, Sides, Recipe } from './types';
+import type { WeekPlan, DaySummary, NutritionTargets, Sides, Recipe, NutritionHistoryWeek } from './types';
 
 /** Nutrition endpoints on the NestJS backend (no engine logic duplicated client-side). */
 export const nutritionApi = {
   weeklyPlan: (mode: 'individual' | 'family' = 'individual') =>
     api.get<WeekPlan>('/nutrition/plan/weekly', { params: { mode } }).then((r) => r.data),
+  history: (mode?: 'individual' | 'family') =>
+    api.get<NutritionHistoryWeek[]>('/nutrition/history', { params: mode ? { mode } : undefined }).then((r) => r.data),
+  historyDetail: (id: string) =>
+    api.get<Record<string, unknown>>(`/nutrition/history/${id}`).then((r) => r.data),
   regenerate: (mode: 'individual' | 'family' = 'individual') =>
     api.post<WeekPlan>('/nutrition/plan/weekly/regenerate', { mode }).then((r) => r.data),
   daySummary: (planKey: string, dayIndex: number) =>

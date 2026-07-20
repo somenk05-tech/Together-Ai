@@ -48,6 +48,18 @@ export class NutritionController {
     return this.nutrition.regenerate(user.sub, dto.mode ?? 'individual');
   }
 
+  // Nutrition history (spec §19) — permanent, versioned weekly plan record.
+  // Specific 'history' path declared before the parameterised 'plan/:key' routes.
+  @Get('history')
+  history(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode) {
+    return this.nutrition.nutritionHistory(user.sub, mode);
+  }
+
+  @Get('history/:id')
+  historyDetail(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.nutrition.nutritionHistoryDetail(user.sub, id);
+  }
+
   @Get('plan/:key/day/:idx/summary')
   daySummary(@Param('key') key: string, @Param('idx', ParseIntPipe) idx: number) {
     return this.nutrition.daySummary(key, idx);

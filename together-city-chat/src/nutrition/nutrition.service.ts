@@ -34,6 +34,40 @@ function dietAllows(pref: Diet, recipe: Diet): boolean {
 }
 
 const SHORT_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+// ─────────── real calendar dates (spec §20) ───────────
+/** The Monday (local) of the week containing `anchor`. Meal plans run Mon→Sun. */
+function weekMonday(anchor: Date): Date {
+  const d = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+  const dow = (d.getDay() + 6) % 7; // 0 = Monday
+  d.setDate(d.getDate() - dow);
+  return d;
+}
+function addDays(d: Date, n: number): Date {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+const isoDate = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** ISO-8601 week number (1..53) — matches "Week 30" style labels. */
+function isoWeekNumber(d: Date): number {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = (t.getUTCDay() + 6) % 7;
+  t.setUTCDate(t.getUTCDate() - day + 3); // nearest Thursday
+  const firstThu = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+  const firstDay = (firstThu.getUTCDay() + 6) % 7;
+  firstThu.setUTCDate(firstThu.getUTCDate() - firstDay + 3);
+  return 1 + Math.round((t.getTime() - firstThu.getTime()) / (7 * 24 * 3600 * 1000));
+}
+/** "20–26 Jul 2026" (or across months/years) for a week's Mon→Sun span. */
+function weekRangeLabel(mon: Date, sun: Date): string {
+  const sameMonth = mon.getMonth() === sun.getMonth() && mon.getFullYear() === sun.getFullYear();
+  if (sameMonth) return `${mon.getDate()}–${sun.getDate()} ${MONTHS[mon.getMonth()]} ${mon.getFullYear()}`;
+  const sameYear = mon.getFullYear() === sun.getFullYear();
+  const left = `${mon.getDate()} ${MONTHS[mon.getMonth()]}${sameYear ? '' : ' ' + mon.getFullYear()}`;
+  return `${left} – ${sun.getDate()} ${MONTHS[sun.getMonth()]} ${sun.getFullYear()}`;
+}
 const CUISINE_BY_COUNTRY: Record<string, string> = {
   India: 'Indian', China: 'Chinese', Italy: 'Italian', Mexico: 'Mexican', Thailand: 'Thai',
   Japan: 'Japanese', USA: 'American', 'United States': 'American', America: 'American',
@@ -45,6 +79,10 @@ interface PrefExtras {
   cuisineMix?: Record<string, number>; cuisines?: string[]; proteins?: string[]; meats?: string[];
   allergies?: string; excluded?: string; maxCookMin?: number | null; weekly?: Record<string, 'veg' | 'nonveg'>;
   healthConditions?: string[]; budgetInr?: number | null;
+}
+/** Parse a JSON string column, returning a fallback on null/invalid. */
+function safeJson<T>(s: string | null | undefined, fallback: T): T {
+  try { return s ? (JSON.parse(s) as T) : fallback; } catch { return fallback; }
 }
 function parseExtras(extras: string | null | undefined): PrefExtras {
   try { return extras ? (JSON.parse(extras) as PrefExtras) : {}; } catch { return {}; }
@@ -317,6 +355,20 @@ interface CalorieDelegate {
   create(a: unknown): Promise<CalorieRow>;
   deleteMany(a: unknown): Promise<{ count: number }>;
 }
+// Nutrition history (spec §19). The sandbox Prisma client can't be regenerated
+// offline, so we type the delegate by hand; the deployed client (regenerated at
+// image build) resolves `nutritionHistory` for real.
+export interface NutritionHistoryRow {
+  id: string; userId: string; mode: string; planKey: string; weekNumber: number;
+  weekLabel: string; startDate: Date; endDate: Date; targets: string; context: string;
+  days: string; weekly: string; cost: number; createdAt: Date;
+}
+interface NutritionHistoryDelegate {
+  create(a: unknown): Promise<NutritionHistoryRow>;
+  findMany(a: unknown): Promise<NutritionHistoryRow[]>;
+  findUnique(a: unknown): Promise<NutritionHistoryRow | null>;
+  count(a: unknown): Promise<number>;
+}
 
 /** One guided cooking step: its instruction, how long it runs unattended, and
  *  whether it needs constant attention (stir) vs. can run in the background. */
@@ -478,6 +530,9 @@ export class NutritionService implements OnModuleInit {
    *  may predate this model; Railway regenerates it at build). */
   private get calorie(): CalorieDelegate {
     return (this.prisma as unknown as { calorieEntry: CalorieDelegate }).calorieEntry;
+  }
+  private get history(): NutritionHistoryDelegate {
+    return (this.prisma as unknown as { nutritionHistory: NutritionHistoryDelegate }).nutritionHistory;
   }
 
   async healthLog(userId: string, dates: string[]) {
@@ -724,6 +779,9 @@ export class NutritionService implements OnModuleInit {
         },
       },
     });
+    // Permanently record this week in the user's nutrition history (spec §19) —
+    // best-effort, never blocks serving the plan.
+    await this.snapshotWeek(userId, mode, key);
     return this.shapePlan(key);
   }
 
@@ -805,6 +863,155 @@ export class NutritionService implements OnModuleInit {
         fe: cov(protein * 0.9 + 20), ca: cov(60 + dayIndex * 3), mg: cov(75),
         zn: cov(58), b12: cov(88), va: cov(72), vc: cov(115), vd: cov(45),
       },
+    };
+  }
+
+  // ─────────────── nutrition history (spec §19) ───────────────
+  /** Snapshot the just-generated week into permanent, versioned nutrition
+   *  history. Immutable — never overwrites prior weeks. Wrapped so a snapshot
+   *  failure can never break serving the plan (history is secondary). */
+  private async snapshotWeek(userId: string, mode: PlanMode, key: string): Promise<void> {
+    try {
+      const plan = await this.prisma.mealPlan.findUnique({
+        where: { key },
+        include: {
+          days: {
+            orderBy: { dayIndex: 'asc' },
+            include: { meals: { orderBy: { slot: 'asc' }, include: { recipe: { include: { ingredients: true } } } } },
+          },
+        },
+      });
+      if (!plan) return;
+      const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+      const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+      const opts = await this.plateOptsFor(userId);
+      const tg = await this.targets(userId);
+      const latestBlood = await (this.prisma as unknown as {
+        bloodAnalysis: { findFirst(a: unknown): Promise<{ analysisVersion: string; analyzedAt: Date } | null> };
+      }).bloodAnalysis.findFirst({ where: { userId }, orderBy: { analyzedAt: 'desc' }, select: { analysisVersion: true, analyzedAt: true } }).catch(() => null);
+
+      const slotOrder = NutritionService.SLOT_ORDER;
+      const recipeIds = new Set<string>();
+      const proteinDist: Record<string, number> = {};
+      const cuisineDist: Record<string, number> = {};
+      let mealCount = 0;
+
+      // Real calendar dates (spec §20) — Mon→Sun anchored to the plan's week.
+      const mon = weekMonday(plan.createdAt);
+      const sun = addDays(mon, 6);
+
+      const days = plan.days.map((d) => {
+        const dyn = perMealTargets(this.dayMealInputs(d.meals), tg.kcal);
+        const dayDate = addDays(mon, d.dayIndex);
+        let dk = 0, dp = 0, dc = 0, df = 0, dfi = 0, dcost = 0;
+        const meals = [...d.meals].sort((a, b) => slotOrder[a.slot] - slotOrder[b.slot]).map((m) => {
+          const shape = this.recipeShape(m.recipe);
+          const mealTarget = dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal;
+          const n = this.mealMacros(m.recipe as unknown as RecipeWithIng & { kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number }, m.slot, d.dayIndex, opts, mealTarget);
+          const s = recipeServings(m.recipe);
+          const ing = m.recipe.ingredients.reduce((sum, i) => sum + i.priceInr, 0);
+          const cost = ing > 0 ? Math.round(ing / s) : Math.round((m.recipe.kcal / s) * 0.11);
+          if (!m.skipped) {
+            dk += n.kcal; dp += n.protein; dc += n.carbs; df += n.fat; dfi += n.fiber; dcost += cost;
+            mealCount++;
+            recipeIds.add(m.recipeId);
+            const psig = [...detectProteins(m.recipe as unknown as RecipeWithIng)].sort().join('+') || m.recipe.diet;
+            proteinDist[psig] = (proteinDist[psig] ?? 0) + 1;
+            const cuisine = /india/i.test(m.recipe.country) ? 'Indian' : (m.recipe.country || 'Other');
+            cuisineDist[cuisine] = (cuisineDist[cuisine] ?? 0) + 1;
+          }
+          return {
+            slot: m.slot, recipeId: m.recipeId, recipeName: shape.name, cuisine: m.recipe.country,
+            diet: m.recipe.diet, minutes: shape.minutes, cost, skipped: m.skipped,
+            kcal: Math.round(n.kcal), protein: Math.round(n.protein), carbs: Math.round(n.carbs),
+            fat: Math.round(n.fat), fiber: Math.round(n.fiber),
+            interactions: { generated: true, viewed: false, cooked: false, skipped: m.skipped, refreshed: false, rated: null, liked: false, disliked: false, favourite: false, notes: '' },
+          };
+        });
+        return {
+          day: d.dayName, dayIndex: d.dayIndex,
+          date: isoDate(dayDate),
+          dateLabel: `${d.dayName}, ${dayDate.getDate()} ${MONTHS[dayDate.getMonth()]} ${dayDate.getFullYear()}`,
+          totals: { kcal: Math.round(dk), protein: Math.round(dp), carbs: Math.round(dc), fat: Math.round(df), fiber: Math.round(dfi), cost: Math.round(dcost) },
+          target: { kcal: tg.kcal, protein: tg.protein, carbs: tg.carb, fat: tg.fat, fiber: tg.fiber },
+          meals,
+        };
+      });
+
+      const weeklyTotals = days.reduce((a, d) => ({
+        kcal: a.kcal + d.totals.kcal, protein: a.protein + d.totals.protein, carbs: a.carbs + d.totals.carbs,
+        fat: a.fat + d.totals.fat, fiber: a.fiber + d.totals.fiber, cost: a.cost + d.totals.cost,
+      }), { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, cost: 0 });
+
+      // Variety score: distinct recipes / meals served (0..100).
+      const recipeVariety = mealCount ? Math.round((recipeIds.size / mealCount) * 100) : 0;
+      const cuisineVariety = Object.keys(cuisineDist).length;
+      const proteinVariety = Object.keys(proteinDist).length;
+
+      const weekNumber = isoWeekNumber(mon);
+      const sequence = (await this.history.count({ where: { userId, mode } }).catch(() => 0)) + 1;
+
+      await this.history.create({
+        data: {
+          userId, mode, planKey: key, weekNumber,
+          weekLabel: weekRangeLabel(mon, sun),
+          startDate: mon, endDate: sun,
+          targets: JSON.stringify(tg),
+          context: JSON.stringify({
+            diet: pref?.diet ?? 'everything', goal: pref?.goal ?? 'maintain',
+            medicalConditions: ex.healthConditions ?? [],
+            cuisineMix: ex.cuisineMix ?? (ex.cuisines?.length ? Object.fromEntries(ex.cuisines.map((c) => [c, 1])) : {}),
+            weeklySchedule: ex.weekly ?? {},
+            bloodVersion: latestBlood?.analysisVersion ?? null,
+            bloodAnalyzedAt: latestBlood?.analyzedAt ?? null,
+            profileVersion: pref?.updatedAt ?? null,
+            adjustments: tg.adjustments ?? [],
+            sequence, // the user's Nth generated week (ordering aid)
+          }),
+          days: JSON.stringify(days),
+          weekly: JSON.stringify({
+            totals: weeklyTotals,
+            averages: { kcal: Math.round(weeklyTotals.kcal / 7), protein: Math.round(weeklyTotals.protein / 7) },
+            variety: { recipeVarietyPct: recipeVariety, cuisineVariety, proteinVariety, distinctRecipes: recipeIds.size, mealsServed: mealCount },
+            cuisineDistribution: cuisineDist,
+            proteinDistribution: proteinDist,
+          }),
+          cost: weeklyTotals.cost,
+        },
+      });
+    } catch {
+      /* history is best-effort — never block plan generation */
+    }
+  }
+
+  /** List a user's stored weekly plans (newest first) — compact summaries. */
+  async nutritionHistory(userId: string, mode?: PlanMode) {
+    const rows = await this.history.findMany({
+      where: mode ? { userId, mode } : { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 104,
+    }).catch(() => [] as NutritionHistoryRow[]);
+    return rows.map((r) => {
+      const weekly = safeJson<{ totals?: Record<string, number>; variety?: Record<string, number> }>(r.weekly, {});
+      const context = safeJson<Record<string, unknown>>(r.context, {});
+      return {
+        id: r.id, mode: r.mode, weekNumber: r.weekNumber, weekLabel: r.weekLabel,
+        startDate: r.startDate, endDate: r.endDate, createdAt: r.createdAt, cost: r.cost,
+        totals: weekly.totals ?? {}, variety: weekly.variety ?? {},
+        diet: context.diet ?? null, cuisineMix: context.cuisineMix ?? {},
+      };
+    });
+  }
+
+  /** Full stored week — every day, meal, macro and the context it was built in. */
+  async nutritionHistoryDetail(userId: string, id: string) {
+    const r = await this.history.findUnique({ where: { id } }).catch(() => null);
+    if (!r || r.userId !== userId) throw new NotFoundException('history entry not found');
+    return {
+      id: r.id, mode: r.mode, weekNumber: r.weekNumber, weekLabel: r.weekLabel,
+      startDate: r.startDate, endDate: r.endDate, createdAt: r.createdAt, cost: r.cost,
+      targets: safeJson(r.targets, {}), context: safeJson(r.context, {}),
+      days: safeJson(r.days, []), weekly: safeJson(r.weekly, {}),
     };
   }
 
@@ -1475,13 +1682,25 @@ export class NutritionService implements OnModuleInit {
     const plateOpts = await this.plateOptsFor(plan.userId);
     const tg = await this.targets(plan.userId);
 
+    // Real calendar dates (spec §20): anchor the Mon→Sun week to the plan's
+    // creation date so every day carries an actual date, not just a weekday name.
+    const mon = weekMonday(plan.createdAt);
+    const sun = addDays(mon, 6);
+
     return {
       key: plan.key,
+      weekNumber: isoWeekNumber(mon),
+      weekStart: isoDate(mon),
+      weekEnd: isoDate(sun),
+      weekLabel: weekRangeLabel(mon, sun),
       days: plan.days.map((d) => {
         // Same dynamic budgets the dashboard uses — skipped meals grow the rest.
         const dyn = perMealTargets(this.dayMealInputs(d.meals), tg.kcal);
+        const date = addDays(mon, d.dayIndex);
         return {
         day: d.dayName,
+        date: isoDate(date),
+        dateLabel: `${d.dayName}, ${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`,
         meals: [...d.meals]
           .sort((a, b) => slotOrder[a.slot] - slotOrder[b.slot])
           .map((m) => {

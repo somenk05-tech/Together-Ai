@@ -12,6 +12,10 @@ export function useNutritionTargets() {
   return useQuery({ queryKey: ['nutrition', 'targets'], queryFn: () => nutritionApi.targets() });
 }
 
+export function useNutritionHistory(mode: 'individual' | 'family' = 'individual') {
+  return useQuery({ queryKey: ['nutrition', 'history', mode], queryFn: () => nutritionApi.history(mode) });
+}
+
 export function useDaySummary(planKey: string | undefined, dayIndex: number) {
   return useQuery({
     queryKey: ['nutrition', 'summary', planKey, dayIndex],

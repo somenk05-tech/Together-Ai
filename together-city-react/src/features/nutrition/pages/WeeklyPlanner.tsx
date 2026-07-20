@@ -47,7 +47,7 @@ export function WeeklyPlanner() {
     <div>
       <Hero image="/assets/img/weekly-planner-hero.webp" eyebrow="Nutrition Hub · 03"
         title="Weekly Meal Planner 🌿"
-        sub="Personalised meals from the Together City world database — 12,976 recipes with full macro and micronutrient data." />
+        sub={week.weekLabel ? `Week ${week.weekNumber} · ${week.weekLabel} — saved to your Health Profile` : 'Personalised meals from the Together City world database — 12,976 recipes with full macro and micronutrient data.'} />
       <PlanGuidanceBanner guidance={(plan.data as unknown as { guidance?: import('../types').PlanGuidance }).guidance} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '2.3fr 1fr', gap: 28, alignItems: 'start' }} className="tc-dashgrid">
@@ -56,7 +56,7 @@ export function WeeklyPlanner() {
 
           <section className="card" style={{ padding: '0 20px 20px', borderRadius: 20, marginBottom: 20 }}>
             <div style={{ margin: '0 -20px 16px', padding: '13px 20px', background: 'var(--accent-soft)', borderRadius: '20px 20px 0 0', borderBottom: '1px solid var(--line)' }}>
-              <h3 style={{ fontSize: 19 }}>{day.day}</h3>
+              <h3 style={{ fontSize: 19 }}>{day.dateLabel ?? day.day}</h3>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 14, alignItems: 'start' }}>
               {day.meals.map((m) => (
@@ -69,7 +69,7 @@ export function WeeklyPlanner() {
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 18px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 16, boxShadow: 'var(--shadow)' }}>
             <Button variant="line" disabled={dayIndex === 0} onClick={() => setDayIndex((i) => Math.max(0, i - 1))}>← Previous</Button>
-            <span style={{ fontFamily: 'var(--serif)', fontSize: 15 }}>{day.day} · Day {dayIndex + 1} of {week.days.length}</span>
+            <span style={{ fontFamily: 'var(--serif)', fontSize: 15 }}>{day.dateLabel ?? day.day} · Day {dayIndex + 1} of {week.days.length}</span>
             {last
               ? <Button variant="accent">🛒 Add to cart</Button>
               : <Button variant="accent" onClick={() => setDayIndex((i) => i + 1)}>Next →</Button>}
@@ -88,7 +88,7 @@ export function WeeklyPlanner() {
 
         <div style={{ position: 'sticky', top: 'calc(var(--header-h) + 24px)' }}>
           {summary.data
-            ? <DailySummary day={day.day} summary={summary.data} targets={targets.data} />
+            ? <DailySummary day={day.dateLabel ?? day.day} summary={summary.data} targets={targets.data} />
             : <Spinner label="Totalling the day…" />}
         </div>
       </div>
