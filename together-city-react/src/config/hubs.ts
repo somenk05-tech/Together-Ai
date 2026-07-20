@@ -79,14 +79,13 @@ export const HUBS: Record<HubKey, HubConfig> = {
   family: {
     key: 'family', name: 'Family Nutrition', tag: 'One table, every plate personal', backPath: '/family',
     items: [
-      { path: '/family', index: '01', label: 'Family Home', sub: 'Everyone, one dashboard' },
-      { path: '/family/connect', index: '02', label: 'Connect Members', sub: 'Roles & permissions' },
-      { path: '/family/weekly', index: '03', label: 'Weekly Planner', sub: 'Portioned per member' },
-      { path: '/family/daily', index: '04', label: 'Daily Planner', sub: "Today's plate for all" },
-      { path: '/family/grocery', index: '05', label: 'Grocery Store', sub: 'One combined basket' },
-      { path: '/family/cart', index: '06', label: 'Cart', sub: 'Review & checkout' },
-      { path: '/family/orders', index: '07', label: 'My Orders', sub: 'Family-wide deliveries' },
-      { path: '/family/search', index: '08', label: 'Search by Ingredients', sub: "Cook from what's in" },
+      { path: '/family/connect', index: '01', label: 'Connect Members', sub: 'Roles & permissions' },
+      { path: '/family/weekly', index: '02', label: 'Weekly Planner', sub: 'Portioned per member' },
+      { path: '/family/daily', index: '03', label: 'Daily Planner', sub: "Today's plate for all" },
+      { path: '/family/grocery', index: '04', label: 'Grocery Store', sub: 'One combined basket' },
+      { path: '/family/cart', index: '05', label: 'Cart', sub: 'Review & checkout' },
+      { path: '/family/orders', index: '06', label: 'My Orders', sub: 'Family-wide deliveries' },
+      { path: '/family/search', index: '07', label: 'Search by Ingredients', sub: "Cook from what's in" },
     ],
   },
   social: {
