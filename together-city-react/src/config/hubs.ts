@@ -71,7 +71,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/nutrition/grocery', index: '05', label: 'Grocery Store', sub: 'Pre-filled from your plan' },
       { path: '/nutrition/health', index: '06', label: 'My Health Profile', sub: 'Tracker, macros & journal' },
       { path: '/nutrition/orders', index: '07', label: 'My Orders', sub: 'Deliveries & wallet' },
-      { path: '/nutrition/recipes', index: '07', label: 'Recipes', sub: '12,976-recipe world DB' },
+      { path: '/nutrition/recipes', index: '07', label: 'Recipes', sub: '11,254-recipe world DB' },
       { path: '/nutrition/supplements', index: '08', label: 'Supplements', sub: 'Goal-matched kit' },
       { path: '/nutrition/dietitian', index: '09', label: 'Expert Care', sub: 'Talk to a dietitian' },
     ],

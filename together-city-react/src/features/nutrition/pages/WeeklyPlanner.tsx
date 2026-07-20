@@ -47,7 +47,7 @@ export function WeeklyPlanner() {
     <div>
       <Hero image="/assets/img/weekly-planner-hero.webp" eyebrow="Nutrition Hub · 03"
         title="Weekly Meal Planner 🌿"
-        sub={week.weekLabel ? `Week ${week.weekNumber} · ${week.weekLabel} — saved to your Health Profile` : 'Personalised meals from the Together City world database — 12,976 recipes with full macro and micronutrient data.'} />
+        sub={week.weekLabel ? `Week ${week.weekNumber} · ${week.weekLabel} — saved to your Health Profile` : 'Personalised meals from the Together City world database — 11,254 curated recipes with full macro and micronutrient data.'} />
       <PlanGuidanceBanner guidance={(plan.data as unknown as { guidance?: import('../types').PlanGuidance }).guidance} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '2.3fr 1fr', gap: 28, alignItems: 'start' }} className="tc-dashgrid">

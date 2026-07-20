@@ -502,9 +502,49 @@ export class NutritionService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     await this.ensureRecipes();
     await this.ensureDietitians();
-    // Load the full 12,976-recipe world database into Postgres (once). Runs in
-    // the background so it never blocks boot / health checks; persists forever.
-    void this.ensureRecipeLibrary();
+    // Load the world recipe database into Postgres (once), then purge the
+    // non-meal / duplicate rows the cleaning pass identified. Background so it
+    // never blocks boot / health checks; both are idempotent and persist.
+    void this.ensureRecipeLibrary().then(() => this.purgeDroppedRecipes()).catch(() => undefined);
+  }
+
+  /**
+   * Remove the rows the dataset-cleaning pass dropped (condiments/seasonings,
+   * corrupt names, no-ingredient rows, and exact duplicates) from an already-
+   * loaded database. Fresh databases load the cleaned dataset directly, so this
+   * only does work once on existing prod data. Idempotent + best-effort: reads a
+   * shipped drop-list of recipe ids, deletes any meals referencing them (they
+   * live in disposable meal plans that regenerate), then the recipes themselves
+   * (ingredients cascade). Never throws — recipe cleanup must not break boot.
+   */
+  private async purgeDroppedRecipes(): Promise<void> {
+    try {
+      const candidates = [
+        join(__dirname, 'data', 'recipes.dropped.json.gz'),
+        join(process.cwd(), 'dist', 'nutrition', 'data', 'recipes.dropped.json.gz'),
+        join(process.cwd(), 'src', 'nutrition', 'data', 'recipes.dropped.json.gz'),
+      ];
+      const path = candidates.find((p) => existsSync(p));
+      if (!path) return;
+      const ids = JSON.parse(gunzipSync(readFileSync(path)).toString('utf8')) as string[];
+      if (!Array.isArray(ids) || !ids.length) return;
+
+      // Quick exit once the DB is already clean (idempotent no-op on later boots).
+      const stillThere = await this.prisma.recipe.count({ where: { id: { in: ids.slice(0, 1000) } } }).catch(() => 0);
+      if (stillThere === 0) return;
+
+      let removed = 0;
+      const B = 500;
+      for (let i = 0; i < ids.length; i += B) {
+        const batch = ids.slice(i, i + B);
+        await this.prisma.meal.deleteMany({ where: { recipeId: { in: batch } } }).catch(() => undefined);
+        const res = await this.prisma.recipe.deleteMany({ where: { id: { in: batch } } }).catch(() => ({ count: 0 }));
+        removed += res.count;
+      }
+      if (removed) this.logger.log(`Recipe cleanup: removed ${removed} non-meal/duplicate rows (dataset cleaning).`);
+    } catch (e) {
+      this.logger.warn(`Recipe cleanup skipped: ${(e as Error).message}`);
+    }
   }
 
   // ─────────────── targets (Mifflin-St Jeor) ───────────────

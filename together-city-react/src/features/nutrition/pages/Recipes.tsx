@@ -57,7 +57,7 @@ export function Recipes() {
       <h1 style={{ fontSize: 26 }}>Recipes 🍲</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
         Search by the ingredients you have, or browse the entire Together City world database —
-        <strong> 12,976 recipes across 42 countries</strong>. Every recipe carries ingredients, steps and full nutrition.
+        <strong> 11,254 curated recipes across 40+ cuisines</strong>. Every recipe carries ingredients, steps and full nutrition.
       </p>
 
       <AiSuggestions kind="recipes" />
