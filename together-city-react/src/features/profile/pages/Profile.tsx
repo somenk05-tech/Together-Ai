@@ -184,6 +184,16 @@ export function Profile() {
         </div>
       </Card>
 
+      {/* Quick access — Calendar lives here now (moved out of the top bar) */}
+      <Link to="/calendar" className="card lift" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, textDecoration: 'none', color: 'inherit' }}>
+        <span style={{ fontSize: 22 }}>🗓</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 15 }}>Calendar</div>
+          <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>Your appointments, bookings and reminders across the city.</p>
+        </div>
+        <span style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
+      </Link>
+
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--line)' }}>
         {TABS.map((t) => (
