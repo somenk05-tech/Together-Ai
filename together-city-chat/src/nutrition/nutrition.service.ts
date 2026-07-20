@@ -246,6 +246,14 @@ function cuisineBias<T extends { country: string }>(list: T[], mix: Record<strin
   const w = (r: T) => mix[CUISINE_BY_COUNTRY[r.country] ?? r.country] ?? 0;
   return [...list].sort((a, b) => w(b) - w(a));
 }
+/** Is this recipe's cuisine one the user selected? With a set Cuisine Mix, only
+ *  the chosen kitchens are used (Indian 100% ⇒ only Indian); an empty mix means
+ *  no preference, so everything is allowed. */
+function cuisineAllowed(country: string, mix: Record<string, number>): boolean {
+  const chosen = Object.keys(mix).filter((k) => (mix[k] ?? 0) > 0);
+  if (!chosen.length) return true;
+  return chosen.includes(CUISINE_BY_COUNTRY[country] ?? country);
+}
 
 export interface RecipeShape {
   id: string; recipeNo: number | null; name: string; country: string; kcal: number; protein: number;
@@ -566,7 +574,10 @@ export class NutritionService implements OnModuleInit {
       // Primary: hard + meal-type-appropriate + soft. Fallbacks drop soft rules,
       // then meal-fit, but always keep diet/protein/allergy/medical enforced so we
       // never surface a disallowed item (a rice dish can never become a snack here).
-      let pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed) && mealAppropriate(r) && passesSoft(r, ex));
+      // Cuisine Mix is enforced (only chosen kitchens), then relaxed only if a
+      // slot would otherwise be empty.
+      let pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed) && cuisineAllowed(r.country, mix) && mealAppropriate(r) && passesSoft(r, ex));
+      if (!pool.length) pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed) && cuisineAllowed(r.country, mix) && mealAppropriate(r));
       if (!pool.length) pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed) && mealAppropriate(r));
       if (!pool.length) pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed));
       if (!pool.length) pool = inSlot.filter((r) => dietAllows(dayDiet, r.diet as Diet) && isPlannableMeal(r));
@@ -753,8 +764,10 @@ export class NutritionService implements OnModuleInit {
 
     const recipes = (await this.prisma.recipe.findMany({ where: { slot }, include: { ingredients: { select: { name: true, priceInr: true } } } })) as unknown as RecipeWithIng[];
     const allowed = allowedProteins(ex);
-    // Same hard + meal-type constraints as the planner; relax only soft rules.
-    let candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed) && mealAppropriate(r) && passesSoft(r, ex));
+    const mix = ex.cuisineMix ?? (ex.cuisines?.length ? Object.fromEntries(ex.cuisines.map((c) => [c, 1])) : {});
+    // Same hard + meal-type + cuisine constraints as the planner; relax only soft rules.
+    let candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed) && cuisineAllowed(r.country, mix) && mealAppropriate(r) && passesSoft(r, ex));
+    if (!candidates.length) candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed) && cuisineAllowed(r.country, mix) && mealAppropriate(r));
     if (!candidates.length) candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed) && mealAppropriate(r));
     if (!candidates.length) candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed));
     if (!candidates.length) candidates = recipes.filter((r) => dietAllows(effDiet, r.diet as Diet) && isPlannableMeal(r));
