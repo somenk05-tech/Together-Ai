@@ -193,17 +193,34 @@ export function allowedProteins(ex: PrefExtras): Set<string> {
  * user didn't select (a chicken-only user never sees fish/egg/pork), and (2) if
  * the user eats meat, main meals (lunch/dinner) must actually feature one of
  * their selected animal proteins — never a stray veg/paneer/tofu dish.
+ *
+ * Rule (2) is dropped when `requireAnimalMain` is false — used for a protein-
+ * restricted user (e.g. kidney disease), where forcing meat at every lunch and
+ * dinner fights the medically-lowered protein target. Rule (1) still holds, so
+ * a disallowed animal protein is never surfaced.
  */
-export function passesProtein(r: RecipeWithIng, allowed: Set<string>): boolean {
+export function passesProtein(r: RecipeWithIng, allowed: Set<string>, requireAnimalMain = true): boolean {
   if (allowed.size === 0) return true;
   const found = detectProteins(r);
   const animalFound = [...found].filter((t) => ANIMAL_PROTEINS.has(t));
   for (const t of animalFound) if (!allowed.has(t)) return false; // disallowed animal protein
   const allowedAnimal = [...allowed].filter((t) => ANIMAL_PROTEINS.has(t));
-  if (allowedAnimal.length && (r.slot === 'l' || r.slot === 'd')) {
+  if (requireAnimalMain && allowedAnimal.length && (r.slot === 'l' || r.slot === 'd')) {
     if (!animalFound.some((t) => allowed.has(t))) return false;   // meat main must have their meat
   }
   return true;
+}
+
+/** Is this recipe free of any animal protein (plant-forward / lighter-protein)?
+ *  Used to bias a protein-restricted plan toward lower-protein plates. */
+export function isPlantForward(r: RecipeWithIng): boolean {
+  return ![...detectProteins(r)].some((t) => ANIMAL_PROTEINS.has(t));
+}
+
+/** Protein-restricted diet — kidney disease / CKD lowers the protein target, so
+ *  the planner must stop forcing animal protein and lean lighter. */
+export function isProteinRestricted(ex: PrefExtras): boolean {
+  return (ex.healthConditions ?? []).some((c) => /kidney|renal|\bckd\b|nephro/i.test(c));
 }
 
 /** Does this recipe actually feature one of the user's SELECTED animal proteins?
@@ -326,7 +343,7 @@ function mealAppropriate(r: RecipeWithIng): boolean {
 function passesHard(r: RecipeWithIng, diet: Diet, ex: PrefExtras, allowed: Set<string>): boolean {
   if (!dietAllows(diet, r.diet as Diet)) return false;                 // 1 · diet pattern
   if (!isPlannableMeal(r)) return false;                               // 2 · real meal (no condiments)
-  if (!passesProtein(r, allowed)) return false;                       // 3 · preferred proteins/meats
+  if (!passesProtein(r, allowed, !isProteinRestricted(ex))) return false; // 3 · preferred proteins (meat not forced when protein-restricted)
   if (!passesMedical(r, ex.healthConditions ?? [])) return false;     // 4 · medical conditions
   const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
   if (terms(ex.allergies).some((a) => hay.includes(a))) return false; // 5 · allergies
@@ -736,10 +753,17 @@ export class NutritionService implements OnModuleInit {
       if (!pool.length) pool = inSlot;
       const byMode = rankByModes(pool as unknown as RecipeShape[], modes) as unknown as RecipeWithIng[];
       let ordered = cuisineBias(byMode, mix);
-      // Breakfast & snack: PREFER the user's selected animal proteins (egg/chicken/
-      // fish first) without excluding veg options — a stable partition keeps the
-      // clinical + cuisine order intact within each group.
-      if ((slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)) {
+      const restricted = isProteinRestricted(ex);
+      if (restricted) {
+        // Protein-restricted (kidney/CKD): lean lighter — plant-forward dishes
+        // first in EVERY slot, so animal protein appears less across the week.
+        const plant = ordered.filter((r) => isPlantForward(r));
+        const rest = ordered.filter((r) => !isPlantForward(r));
+        ordered = [...plant, ...rest];
+      } else if ((slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)) {
+        // Breakfast & snack: PREFER the user's selected animal proteins (egg/
+        // chicken/fish first) without excluding veg options — a stable partition
+        // keeps the clinical + cuisine order intact within each group.
         const withP = ordered.filter((r) => hasSelectedAnimalProtein(r, allowed));
         const without = ordered.filter((r) => !hasSelectedAnimalProtein(r, allowed));
         ordered = [...withP, ...without];
@@ -815,10 +839,15 @@ export class NutritionService implements OnModuleInit {
         const full = ranked[slot];
         const list = modes.length ? full.slice(0, Math.max(6, Math.ceil(full.length / 2))) : full;
         // Non-veg breakfast/snack: prefer a selected animal protein (egg/chicken/
-        // fish), falling back to a veg option only if none fits (spec §7).
-        const prefer = (slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)
-          ? (r: RecipeWithIng) => hasSelectedAnimalProtein(r, allowed)
-          : undefined;
+        // fish), falling back to a veg option only if none fits (spec §7). A
+        // protein-restricted user (kidney/CKD) instead prefers plant-forward
+        // dishes in every slot, to keep total protein near the lowered target.
+        const restricted = isProteinRestricted(ex);
+        const prefer = restricted
+          ? (r: RecipeWithIng) => isPlantForward(r)
+          : ((slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)
+            ? (r: RecipeWithIng) => hasSelectedAnimalProtein(r, allowed)
+            : undefined);
         const r = pick(list, d, prefer);
         if (r) picks[d][slot] = r;
       }
@@ -1117,15 +1146,23 @@ export class NutritionService implements OnModuleInit {
       // rank replacements by per-serving protein and pick from the top third —
       // a swap keeps the day's protein high instead of dropping to a random dish.
       const protein = (c: RecipeWithIng) => (c as unknown as { protein?: number }).protein ?? 0;
+      const restricted = isProteinRestricted(ex);
       let rankPool = [...pickFrom];
-      // Breakfast/snack refresh: keep the user's selected animal proteins first
-      // (spec §7 & §16) so a refresh never drops a non-veg user to a vegan dish
-      // when an egg/chicken option exists.
-      if ((slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)) {
+      if (restricted) {
+        // Protein-restricted (kidney/CKD): refresh toward a plant-forward, lighter
+        // dish rather than a heavier protein one.
+        const plant = rankPool.filter((r) => isPlantForward(r));
+        if (plant.length) rankPool = plant;
+      } else if ((slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)) {
+        // Breakfast/snack refresh: keep the user's selected animal proteins first
+        // (spec §7 & §16) so a refresh never drops a non-veg user to a vegan dish
+        // when an egg/chicken option exists.
         const withP = rankPool.filter((r) => hasSelectedAnimalProtein(r, allowed));
         if (withP.length) rankPool = withP;
       }
-      const ranked = rankPool.sort((a, b) => protein(b) - protein(a));
+      // Rank by protein: highest-first normally (keep the day protein-rich), but
+      // lowest-first when protein-restricted (respect the lowered target).
+      const ranked = rankPool.sort((a, b) => restricted ? protein(a) - protein(b) : protein(b) - protein(a));
       const top = ranked.slice(0, Math.max(1, Math.ceil(ranked.length / 3)));
       const pick = top[Math.floor(Math.random() * top.length)];
       await this.prisma.meal.update({ where: { id: meal.id }, data: { recipeId: pick.id, skipped: false } });
