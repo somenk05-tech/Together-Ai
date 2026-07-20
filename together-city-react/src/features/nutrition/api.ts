@@ -73,7 +73,12 @@ export interface RecipeDetail extends Recipe {
   ingredients: RecipeIngredient[]; method?: string[]; cookSteps?: CookStep[];
   sides?: PlateSides; whyForYou?: WhyForYou;
 }
-export interface GroceryItem { id: string; name: string; category: 'fresh' | 'pantry'; qty: number; priceInr: number }
+export interface GroceryItem {
+  id: string; name: string;
+  category: 'pantry' | 'weekly' | 'daily' | 'fresh'; // 'fresh' kept for older carts
+  qty: number; priceInr: number;
+  grams?: number; unit?: string; qtyLabel?: string;
+}
 export interface GroceryCart { id: string | null; items: GroceryItem[]; createdAt?: string }
 
 export interface Citation { id: string; label: string; ref: string }

@@ -68,6 +68,56 @@ function weekRangeLabel(mon: Date, sun: Date): string {
   const left = `${mon.getDate()} ${MONTHS[mon.getMonth()]}${sameYear ? '' : ' ' + mon.getFullYear()}`;
   return `${left} – ${sun.getDate()} ${MONTHS[sun.getMonth()]} ${sun.getFullYear()}`;
 }
+
+// ─────────── smart grocery: shelf-life buckets + human units (Grocery spec) ───────────
+type ShelfBucket = 'pantry' | 'weekly' | 'daily';
+// Strong pantry signals first (an "oil"/"powder"/"sauce" is pantry even if its
+// base word — coconut, fish — reads perishable). Then highly-perishable (buy
+// same/next day). Everything else fresh is the weekly bucket.
+const PANTRY_KW = ['rice', 'atta', 'flour', 'maida', 'besan', 'rava', 'semolina', 'suji', 'poha', 'oat', 'dal', 'daal', 'lentil', 'rajma', 'chickpea', 'chana', 'chole', 'lobia', 'kidney bean', 'pasta', 'noodle', 'macaroni', 'vermicelli', 'oil', 'ghee', 'salt', 'sugar', 'jaggery', 'honey', 'turmeric', 'masala', 'powder', 'cumin', 'jeera', 'coriander powder', 'garam', 'cinnamon', 'cardamom', 'clove', 'bay leaf', 'peppercorn', 'black pepper', 'mustard seed', 'fenugreek seed', 'asafoetida', 'hing', 'tea', 'coffee', 'cocoa', 'almond', 'cashew', 'walnut', 'pistachio', 'raisin', 'dry fruit', 'seed', 'canned', 'tinned', 'protein powder', 'peanut butter', 'sauce', 'ketchup', 'vinegar', 'soy', 'stock cube', 'baking', 'cornflour', 'cornstarch', 'starch', 'papad', 'pickle', 'sabudana', 'jam', 'syrup', 'coconut milk', 'coconut powder', 'dried', 'wheat'];
+const DAILY_KW = ['coriander', 'cilantro', 'mint', 'curry leaf', 'curry leaves', 'mushroom', 'prawn', 'shrimp', 'seafood', 'fish', 'salmon', 'pomfret', 'mackerel', 'sardine', 'crab', 'squid', 'berry', 'strawberr', 'raspberr', 'blueberr', 'microgreen', 'sprout', 'avocado', 'fresh bread', 'fresh coconut', 'grated coconut', 'basil', 'lettuce', 'arugula', 'rocket', 'spring onion', 'scallion'];
+export function classifyShelf(name: string): ShelfBucket {
+  const n = name.toLowerCase();
+  if (PANTRY_KW.some((k) => n.includes(k))) return 'pantry';
+  if (DAILY_KW.some((k) => n.includes(k))) return 'daily';
+  return 'weekly';
+}
+
+// Ingredients counted as whole pieces, with an approx grams-per-piece so exact
+// gram totals convert to a shopper-friendly count.
+const PIECE_G: Array<[string, number, string]> = [
+  ['egg', 50, ''], ['onion', 100, 'medium'], ['tomato', 80, 'medium'], ['potato', 120, 'medium'],
+  ['lemon', 60, ''], ['lime', 50, ''], ['banana', 120, ''], ['apple', 150, ''], ['orange', 130, ''],
+  ['cucumber', 200, ''], ['capsicum', 120, ''], ['bell pepper', 120, ''], ['green chilli', 5, ''], ['green chili', 5, ''],
+  ['chilli', 5, ''], ['chili', 5, ''], ['coconut', 400, ''], ['avocado', 170, ''], ['bread', 400, 'loaf'], ['mango', 200, ''],
+];
+const BUNCH_KW = ['coriander', 'cilantro', 'mint', 'curry leaf', 'curry leaves', 'spinach', 'fenugreek', 'methi', 'dill', 'spring onion', 'microgreen', 'lettuce'];
+const VOLUME_KW = ['milk', 'oil', 'ghee', 'water', 'vinegar', 'soy sauce', 'cream', 'juice', 'stock', 'buttermilk'];
+
+/** Turn an exact gram total into a human-readable amount + unit class. */
+export function formatGroceryQty(name: string, grams: number): { qtyLabel: string; unit: string; qty: number } {
+  const n = name.toLowerCase();
+  const g = Math.max(1, Math.round(grams));
+  // Pieces (count) — but "onion powder"/"tomato sauce" etc. are pantry weights, not pieces.
+  if (!PANTRY_KW.some((k) => n.includes(k))) {
+    const piece = PIECE_G.find(([kw]) => n.includes(kw));
+    if (piece) {
+      const [, per, desc] = piece;
+      const count = Math.max(1, Math.round(g / per));
+      return { qtyLabel: desc ? `${count} ${desc}` : `${count}`, unit: 'pc', qty: count };
+    }
+    if (BUNCH_KW.some((k) => n.includes(k))) {
+      const count = Math.max(1, Math.round(g / 100));
+      return { qtyLabel: `${count} bunch${count > 1 ? 'es' : ''}`, unit: 'bunch', qty: count };
+    }
+  }
+  if (VOLUME_KW.some((k) => n.includes(k))) {
+    if (g >= 1000) { const l = g / 1000; return { qtyLabel: `${Number.isInteger(l) ? l : l.toFixed(1)} L`, unit: 'l', qty: Math.round(l) }; }
+    return { qtyLabel: `${g} ml`, unit: 'ml', qty: g };
+  }
+  if (g >= 1000) { const kg = g / 1000; return { qtyLabel: `${Number.isInteger(kg) ? kg : kg.toFixed(1)} kg`, unit: 'kg', qty: Math.round(kg) }; }
+  return { qtyLabel: `${g} g`, unit: 'g', qty: g };
+}
 const CUISINE_BY_COUNTRY: Record<string, string> = {
   India: 'Indian', China: 'Chinese', Italy: 'Italian', Mexico: 'Mexican', Thailand: 'Thai',
   Japan: 'Japanese', USA: 'American', 'United States': 'American', America: 'American',
@@ -1360,6 +1410,11 @@ export class NutritionService implements OnModuleInit {
   }
 
   // ─────────────── grocery cart ───────────────
+  /** Title-case an ingredient for display ("brown rice" → "Brown Rice"). */
+  private static prettyIngredient(name: string): string {
+    return name.trim().replace(/\s+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
   async getCart(userId: string) {
     const cart = await this.prisma.groceryCart.findFirst({
       where: { userId }, orderBy: { createdAt: 'desc' }, include: { items: true },
@@ -1372,7 +1427,9 @@ export class NutritionService implements OnModuleInit {
    *  the current list. Used by the weekly/daily/family planners and by recipe
    *  search / recipe detail ("generate grocery list"). */
   async buildCart(userId: string, opts: { planKey?: string; recipeIds?: string[]; people?: number; mode?: PlanMode }) {
-    const totals = new Map<string, { grams: number; price: number }>();
+    // Keyed by NORMALISED name so "Tomato" and "tomato" merge into one line
+    // (spec: duplicate ingredients must always be merged into a single total).
+    const totals = new Map<string, { name: string; grams: number; price: number }>();
     // Household headcount — 1 plate per person (individual = 1, family = N).
     const people = Math.max(1, Math.min(30, Math.round(opts.people ?? 1)));
     // Stored ingredients are whole-batch, so divide by the recipe's servings to
@@ -1382,10 +1439,12 @@ export class NutritionService implements OnModuleInit {
       const s = recipeServings(recipe);
       const factor = people / s;
       for (const ing of recipe.ingredients) {
-        const cur = totals.get(ing.name) ?? { grams: 0, price: 0 };
+        const norm = ing.name.trim().toLowerCase().replace(/\s+/g, ' ');
+        if (!norm) continue;
+        const cur = totals.get(norm) ?? { name: NutritionService.prettyIngredient(ing.name), grams: 0, price: 0 };
         cur.grams += Math.max(1, Math.round(ing.grams * factor));
         cur.price += Math.round(ing.priceInr * factor);
-        totals.set(ing.name, cur);
+        totals.set(norm, cur);
       }
     };
 
@@ -1410,20 +1469,26 @@ export class NutritionService implements OnModuleInit {
     }
     if (!totals.size) return this.getCart(userId);
 
-    const fresh = ['tomato', 'onion', 'spinach', 'paneer', 'chicken', 'fish', 'salmon', 'curd', 'milk', 'egg', 'vegetable', 'fruit', 'avocado'];
     // One active list per user — replace the previous one.
     await this.prisma.groceryCart.deleteMany({ where: { userId } });
+    // grams/unit/qtyLabel are new columns the sandbox client type doesn't know
+    // yet (offline generate) — cast the create input; runtime client has them.
+    const itemsCreate = [...totals.values()].map((v) => {
+      const q = formatGroceryQty(v.name, v.grams);
+      return {
+        name: v.name,
+        category: classifyShelf(v.name), // pantry | weekly | daily (shelf life)
+        qty: q.qty,
+        grams: v.grams,
+        unit: q.unit,
+        qtyLabel: q.qtyLabel,
+        priceInr: v.price,
+      };
+    });
     return this.prisma.groceryCart.create({
       data: {
         userId,
-        items: {
-          create: [...totals.entries()].map(([name, v]) => ({
-            name,
-            category: fresh.some((f) => name.toLowerCase().includes(f)) ? 'fresh' : 'pantry',
-            qty: Math.max(1, Math.round(v.grams / 200)),
-            priceInr: v.price,
-          })),
-        },
+        items: { create: itemsCreate as never },
       },
       include: { items: true },
     });

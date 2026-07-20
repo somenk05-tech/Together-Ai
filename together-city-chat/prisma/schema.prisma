@@ -432,8 +432,11 @@ model GroceryItem {
   id       String @id @default(uuid())
   cartId   String
   name     String
-  category String // fresh | pantry
-  qty      Int    @default(1)
+  category String // shelf-life bucket: pantry | weekly | daily  (spec: Smart Grocery Planner)
+  qty      Int    @default(1) // legacy numeric qty (pieces or coarse units) — display uses qtyLabel
+  grams    Int    @default(0) // exact total grams/ml derived from the meal plan
+  unit     String @default("") // display unit class: g | kg | ml | l | pc | bunch
+  qtyLabel String @default("") // human-readable amount, e.g. "1.8 kg", "18", "2 bunches"
   priceInr Int    @default(0)
 
   cart GroceryCart @relation(fields: [cartId], references: [id], onDelete: Cascade)

@@ -3,6 +3,9 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useBuildCart, useGroceryCart } from '../hooks';
 import type { GroceryItem } from '../api';
 
+/** A shopper-friendly amount — proper units (1.8 kg / 18 / 2 bunches), never "×9". */
+const amount = (it: GroceryItem) => it.qtyLabel && it.qtyLabel.trim() ? it.qtyLabel : `×${it.qty}`;
+
 function Section({ icon, title, note, items }: { icon: string; title: string; note: string; items: GroceryItem[] }) {
   if (items.length === 0) return null;
   const total = items.reduce((s, i) => s + i.priceInr, 0);
@@ -23,7 +26,7 @@ function Section({ icon, title, note, items }: { icon: string; title: string; no
             }}
           >
             <span>{it.name}</span>
-            <span className="muted" style={{ whiteSpace: 'nowrap' }}>×{it.qty} · ₹{it.priceInr}</span>
+            <span className="muted" style={{ whiteSpace: 'nowrap' }}><b style={{ color: 'var(--ink)', fontWeight: 600 }}>{amount(it)}</b> · ₹{it.priceInr}</span>
           </div>
         ))}
       </div>
@@ -39,8 +42,11 @@ export function Grocery() {
   if (cart.isLoading) return <Spinner label="Checking your basket…" />;
 
   const items = cart.data?.items ?? [];
-  const fresh = items.filter((i) => i.category === 'fresh');
+  // Three shelf-life lists (Smart Grocery Planner). Older carts only had
+  // 'fresh'/'pantry' — fold any legacy 'fresh' into the weekly list.
   const pantry = items.filter((i) => i.category === 'pantry');
+  const weekly = items.filter((i) => i.category === 'weekly' || i.category === 'fresh');
+  const daily = items.filter((i) => i.category === 'daily');
   const total = items.reduce((s, i) => s + i.priceInr, 0);
 
   return (
@@ -48,7 +54,7 @@ export function Grocery() {
       <div className="eyebrow">Nutrition Hub · 05</div>
       <h1 style={{ fontSize: 26 }}>Your grocery list 🛒</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 12px' }}>
-        Built from your saved meal plan · estimated retail prices. Split into fresh and pantry so you know what to buy.
+        Built from your saved meal plan · exact quantities in real units. Split by shelf life into a monthly pantry run, a weekly fresh shop, and same-day perishables.
       </p>
 
       {/* Store & delivery — not live yet */}
@@ -87,8 +93,9 @@ export function Grocery() {
         <EmptyState icon="🧺" title="Basket is empty" hint="Build it from your weekly meal plan in one tap." />
       ) : (
         <>
-          <Section icon="🥬" title="Fresh & perishable" note="delivered daily" items={fresh} />
-          <Section icon="🫙" title="Pantry & non-perishable" note="ships once" items={pantry} />
+          <Section icon="🫙" title="Pantry & non-perishables" note="buy monthly · long shelf life" items={pantry} />
+          <Section icon="🥬" title="Weekly fresh groceries" note="one weekly shop" items={weekly} />
+          <Section icon="🌿" title="Daily fresh orders" note="buy same / next day" items={daily} />
         </>
       )}
     </div>
