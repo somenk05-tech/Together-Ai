@@ -1,15 +1,17 @@
-import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useSupplements } from '../hooks';
+import { useSupplements, useBloodPanel } from '../hooks';
 
 /** Supplements — goal-matched kit, upgraded by blood-panel flags. */
 export function Supplements() {
   const plan = useSupplements();
+  const blood = useBloodPanel();
 
   if (plan.isLoading) return <Spinner label="Matching your kit…" />;
   if (plan.isError || !plan.data) return <EmptyState title="Couldn't load supplements" hint="Start the backend and reload." />;
 
   const goalLabel = plan.data.goal === 'lose' ? 'lose weight' : plan.data.goal === 'gain' ? 'gain muscle' : 'maintain';
+  const markerCount = blood.data?.markers.length ?? 0;
+  const bloodAvailable = markerCount > 0;
 
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
@@ -19,12 +21,36 @@ export function Supplements() {
         AI gap analysis, built from your nutrient audit and blood work — matched to your <strong>{goalLabel}</strong> goal.
       </p>
 
-      <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <strong style={{ fontSize: 14 }}>🩸 Personalise with your blood test</strong>
-          <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>Connect an existing blood report to tailor dosage to your actual markers.</p>
+      <div
+        className="card"
+        style={{
+          marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12,
+          borderLeft: `3px solid ${bloodAvailable ? '#2e7d4f' : 'var(--line)'}`,
+        }}
+      >
+        <span style={{ fontSize: 18 }}>{blood.isLoading ? '🩸' : bloodAvailable ? '✅' : '🩸'}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {blood.isLoading ? (
+            <>
+              <strong style={{ fontSize: 14 }}>Checking your blood test…</strong>
+              <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>Reading your latest report from the Medical Hub.</p>
+            </>
+          ) : bloodAvailable ? (
+            <>
+              <strong style={{ fontSize: 14 }}>Blood test available</strong>
+              <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>
+                {markerCount} marker{markerCount === 1 ? '' : 's'} on file — supplement suggestions are personalised to your actual results.
+              </p>
+            </>
+          ) : (
+            <>
+              <strong style={{ fontSize: 14 }}>No blood test available</strong>
+              <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>
+                Suggestions are based on your {goalLabel} goal. Add a blood report in the Medical Hub to personalise dosages to your markers.
+              </p>
+            </>
+          )}
         </div>
-        <Link to="/nutrition/blood"><Button variant="line" size="sm">Connect blood report →</Button></Link>
       </div>
 
       {plan.data.kit.map((s) => (
