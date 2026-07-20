@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Hero, Button, Spinner } from '@/components/ui';
+import { PageHeader, Button, Spinner } from '@/components/ui';
 import {
   useFamilyMembers, useFamilyMemberMutations, useFamilyProfile,
   useHouseholdInvites, useInviteHousehold, useRespondHouseholdInvite, useHouseholdSharing,
@@ -364,7 +364,7 @@ export function FamilyConnect() {
 
   return (
     <div>
-      <Hero image="/assets/img/nutrition-hub--main-pages--family--connect-family.webp" eyebrow="Family Nutrition · 01"
+      <PageHeader eyebrow="Family Nutrition · 01"
         title="Household Members"
         sub="Invite the people you cook for by their Together City ID — they accept, and their own diet, goals and health conditions shape the shared family plan. Private to the Nutrition Hub; never a social connection." />
 

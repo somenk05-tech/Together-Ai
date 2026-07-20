@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Hero, Button } from '@/components/ui';
+import { PageHeader, Button } from '@/components/ui';
 import { GroceryPlanner } from '@/features/nutrition/components/GroceryPlanner';
 import { useFamily, headcount } from '../members';
 
@@ -14,10 +14,9 @@ export function FamilyGrocery() {
 
   return (
     <div>
-      <Hero image="/assets/img/grocery-store-hero.webp" eyebrow="Family Nutrition · 04"
+      <PageHeader eyebrow="Family Nutrition · 04"
         title="Your family grocery list 🛒"
-        sub="One combined list, portioned for the whole family — no duplicates, no waste."
-        objectPosition="center 52%" />
+        sub="One combined list, portioned for the whole family — no duplicates, no waste." />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '4px 0 14px' }}>
         <span className="muted" style={{ fontSize: 12.5 }}>

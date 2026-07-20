@@ -79,3 +79,19 @@ describe('supermarket grocery planner (redesign)', () => {
     expect(standardQty('Garlic', 100, 'produce').label).toBe('2 bulbs');
   });
 });
+
+import { recommendedPack } from './nutrition.service';
+
+describe('shopping pack optimisation (family grocery engine)', () => {
+  it('rounds up to practical retail packs', () => {
+    expect(recommendedPack('Chicken', 2850, 'meat').label).toBe('3 kg');
+    expect(recommendedPack('Greek Yogurt', 920, 'dairy').label).toBe('1 kg tub');
+    expect(recommendedPack('Milk', 1800, 'dairy').label).toBe('2 × 1 L');
+    expect(recommendedPack('Paneer', 650, 'dairy').label).toBe('2 × 400 g packs');
+    expect(recommendedPack('Onions', 680, 'produce').label).toBe('700 g');
+  });
+  it('leaves whole/discrete items unrounded', () => {
+    expect(recommendedPack('Egg', 600, 'dairy').label).toBe('12');       // 600/50 = 12 pcs
+    expect(recommendedPack('Lemon', 300, 'produce').label).toBe('5');    // 300/60 = 5 pcs
+  });
+});

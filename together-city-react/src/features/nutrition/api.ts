@@ -17,6 +17,7 @@ export const nutritionApi = {
   respondHouseholdInvite: (id: string, accept: boolean) =>
     api.post<{ ok: boolean; status: string; invites: HouseholdInvite[] }>(`/nutrition/family/invites/${id}/respond`, { accept }).then((r) => r.data),
   familyProfile: () => api.get<FamilyProfile>('/nutrition/family/profile').then((r) => r.data),
+  familyHealth: () => api.get<FamilyHealth>('/nutrition/family/health').then((r) => r.data),
   householdSharing: () => api.get<HouseholdSharing>('/nutrition/family/sharing').then((r) => r.data),
   setHouseholdSharing: (patch: Partial<HouseholdSharing>) => api.patch<HouseholdSharing>('/nutrition/family/sharing', patch).then((r) => r.data),
   pantry: () => api.get<PantryView>('/nutrition/family/pantry').then((r) => r.data),
@@ -90,6 +91,27 @@ export interface FamilyMemberProfile {
   targets: { kcal: number; protein: number; carb: number; fat: number; fiber: number; adjustments: string[] };
 }
 export interface HouseholdSharing { targets: boolean; conditions: boolean; weight: boolean; bloodTests: boolean }
+
+/** Family Health command centre (Medical Hub → Family Profiles). */
+export type HealthStatus = 'excellent' | 'good' | 'attention' | 'follow-up';
+export type AlertLevel = 'green' | 'yellow' | 'orange' | 'red';
+export interface FamilyHealthMember {
+  id: string; userId: string | null; name: string; image: string | null; age: number; sex: string;
+  relationship: string; isSelf: boolean; canUpload: boolean; medicalHubPath: string | null;
+  privacy: { bloodTests: boolean; reports: boolean; diagnoses: boolean; summary: boolean; nutrition: boolean };
+  lastBloodTest: string | null; lastReport: string | null; lastVisit: string | null;
+  reportCount: number; bloodTestDue: boolean;
+  healthScore: number | null; nutritionScore: number | null; status: HealthStatus;
+  snapshot: string[]; alerts: { label: string; level: AlertLevel }[];
+  latestDiagnosis: string | null; nextTest: string | null; reminder: string | null;
+}
+export interface FamilyHealth {
+  summary: {
+    members: number; chronicConditions: number; bloodTestsDue: number; reportsUploaded: number;
+    avgHealthScore: number | null; nutritionScore: number | null; reminders: string[];
+  };
+  members: FamilyHealthMember[];
+}
 export interface PantryItemView { id: string; name: string; grams: number; qtyLabel: string; unit: string; updatedAt: string }
 export interface PantryAisle { key: string; icon: string; title: string; items: PantryItemView[] }
 export interface PantryView { aisles: PantryAisle[]; itemCount: number }
@@ -182,13 +204,22 @@ export interface GroceryCart { id: string | null; items: GroceryItem[]; createdA
 export interface GroceryUsedIn { recipe: string; qtyLabel: string }
 export interface GroceryPlanItem {
   name: string; aisle: string; qtyLabel: string; unit: string; grams: number;
+  pack: string;                    // recommended retail pack to buy
   shelfLife: string; storageTip: string; usedIn: GroceryUsedIn[];
 }
 export interface GroceryAisle {
   key: string; icon: string; title: string; note: string; items: GroceryPlanItem[];
 }
 export interface GroceryRecipeView { recipe: string; items: { name: string; qtyLabel: string }[] }
-export interface GroceryPlan { aisles: GroceryAisle[]; recipes: GroceryRecipeView[]; itemCount: number }
+export interface GroceryScaleMember { name: string; dailyKcal: number; multiplier: number }
+export interface GrocerySummary {
+  householdSize: number; days: number;
+  meals: { breakfast: number; lunch: number; dinner: number; snacks: number };
+  estimatedCostInr: number; wastePct: number; scale: number; members: GroceryScaleMember[];
+}
+export interface GroceryPlan {
+  aisles: GroceryAisle[]; recipes: GroceryRecipeView[]; itemCount: number; summary?: GrocerySummary;
+}
 
 export interface Citation { id: string; label: string; ref: string }
 export interface BloodMarkerResult {

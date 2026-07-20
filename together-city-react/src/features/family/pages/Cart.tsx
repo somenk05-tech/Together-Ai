@@ -1,10 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useBuildCart, useGroceryCart, usePlaceOrder } from '@/features/nutrition/hooks';
+import { useBuildCart, useGroceryCart } from '@/features/nutrition/hooks';
 import type { GroceryItem } from '@/features/nutrition/api';
-import { payError, type PayMethod } from '@/features/financial/api';
-import { PaymentSheet } from '@/features/financial/PaymentSheet';
 import { useFamily, headcount } from '../members';
 
 function Stepper({ qty, onChange }: { qty: number; onChange: (q: number) => void }) {
@@ -49,19 +47,17 @@ function Section({ icon, title, note, items, qtyOf, setQty }: {
 }
 
 /**
- * Your Cart — Family (family-cart.html).
- * The family's combined grocery cart, portioned for everyone, split fresh vs
- * pantry. Editable quantities; places a real order via the nutrition endpoints.
+ * Your Cart — Family. The family's combined grocery cart, portioned for everyone,
+ * split fresh vs pantry. Mirrors the individual Nutrition cart: adjust quantities,
+ * then proceed to the shared checkout (review → delivery → payment).
  */
 export function FamilyCart() {
   const cart = useGroceryCart();
   const build = useBuildCart();
-  const placeOrder = usePlaceOrder();
   const navigate = useNavigate();
   const { state } = useFamily();
   const N = headcount(state);
   const [overrides, setOverrides] = useState<Record<string, number>>({});
-  const [payOpen, setPayOpen] = useState(false);
 
   const items = useMemo(() => cart.data?.items ?? [], [cart.data]);
   const qtyOf = (it: GroceryItem) => overrides[it.id] ?? it.qty;
@@ -74,6 +70,11 @@ export function FamilyCart() {
   const pantry = live.filter((it) => it.category === 'pantry');
   const total = live.reduce((a, it) => a + it.priceInr * qtyOf(it), 0);
   const count = live.reduce((a, it) => a + qtyOf(it), 0);
+
+  const proceed = () => {
+    const lines = live.map((it) => ({ name: it.name, qty: qtyOf(it), price: it.priceInr }));
+    navigate('/nutrition/checkout', { state: { items: lines, subtotal: total } });
+  };
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '28px 16px' }}>
@@ -90,7 +91,7 @@ export function FamilyCart() {
             🛍️ My Cart
             <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: 'var(--accent)', borderRadius: 999, padding: '1px 9px' }}>{count}</span>
           </h4>
-          <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0', lineHeight: 1.4 }}>Adjust quantities or reset to your meal plan, then place your order.</p>
+          <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0', lineHeight: 1.4 }}>Adjust quantities or rebuild from your family plan, then place your order.</p>
         </div>
 
         <div style={{ padding: '4px 18px' }}>
@@ -113,7 +114,9 @@ export function FamilyCart() {
             <b style={{ fontSize: 20 }}>₹{total.toLocaleString('en-IN')}</b>
           </div>
           <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', marginBottom: 12 }}>🥬 Fresh box daily · 🫙 pantry ships now.</div>
-          <Button variant="accent" style={{ width: '100%', justifyContent: 'center' }} disabled={live.length === 0} onClick={() => setPayOpen(true)}>Place order</Button>
+          <Button variant="accent" style={{ width: '100%', justifyContent: 'center' }} disabled={live.length === 0} onClick={proceed}>
+            Place order
+          </Button>
           <button type="button" onClick={() => { setOverrides({}); build.mutate(undefined); }}
             style={{ background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 11.5, cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit', margin: '10px auto 0', display: 'block' }}>
             ↺ Reset cart to my meal plan
@@ -124,17 +127,7 @@ export function FamilyCart() {
         </div>
       </div>
 
-      <PaymentSheet
-        open={payOpen}
-        amountInr={total}
-        label={`Family grocery order · ${count} items`}
-        pending={placeOrder.isPending}
-        error={placeOrder.isError ? payError(placeOrder.error) : null}
-        onCancel={() => setPayOpen(false)}
-        onPay={(method: PayMethod) => placeOrder.mutate(method, { onSuccess: () => { setPayOpen(false); navigate('/family/orders'); } })}
-      />
-
-      {items.length === 0 && (
+      {items.length === 0 && !cart.isLoading && (
         <div style={{ marginTop: 18 }}>
           <EmptyState icon="🧺" title="Nothing here yet" hint="Build a basket from your family meal plan first." />
           <div style={{ textAlign: 'center', marginTop: 12 }}>

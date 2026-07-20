@@ -4,5 +4,6 @@ export { Tag } from './Tag';
 export { Pill } from './Pill';
 export { StatCard } from './StatCard';
 export { Hero } from './Hero';
+export { PageHeader } from './PageHeader';
 export { EmptyState } from './EmptyState';
 export { Spinner } from './Spinner';

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Hero, Spinner, EmptyState } from '@/components/ui';
+import { PageHeader, Spinner, EmptyState } from '@/components/ui';
 import { useNutritionHistory } from '../hooks';
 import { nutritionApi } from '../api';
 import type { NutritionHistoryWeek } from '../types';
@@ -83,7 +83,7 @@ export function NutritionHistory() {
 
   return (
     <div>
-      <Hero image="/assets/img/weekly-planner-hero.webp" eyebrow="Nutrition Hub · Health Profile"
+      <PageHeader eyebrow="Nutrition Hub · Health Profile"
         title="Nutrition History 📅"
         sub="Every weekly plan you generate is saved to your Health Profile with real calendar dates — a chronological record you and your care team can review over time." />
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Hero, Button, EmptyState } from '@/components/ui';
+import { PageHeader, Button, EmptyState } from '@/components/ui';
 import { useFamily, headcount } from '../members';
 
 /**
@@ -56,10 +56,9 @@ export function FamilySearch() {
 
   return (
     <div>
-      <Hero image="/assets/img/recipes-hero.webp" eyebrow="Family Nutrition · 06"
+      <PageHeader eyebrow="Family Nutrition · 06"
         title="Search by Ingredients"
-        sub="Tell us what's in the kitchen — results respect every member's exclusions, flag kid-friendly recipes, and portion ingredients for the whole family."
-        objectPosition="center 50%" />
+        sub="Tell us what's in the kitchen — results respect every member's exclusions, flag kid-friendly recipes, and portion ingredients for the whole family." />
 
       <div className="card" style={{ marginBottom: 26 }}>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Hero, Button, EmptyState } from '@/components/ui';
+import { PageHeader, Button, EmptyState } from '@/components/ui';
 import { useNutritionTargets, useFoodPref, useHealthLog, useAddCalorie, useRemoveCalorie } from '../hooks';
 
 type LogType = 'Meal Plan' | 'Extra' | 'Alcohol';
@@ -105,12 +105,10 @@ export function HealthProfile() {
 
   return (
     <div style={{ maxWidth: 1040, margin: '0 auto', padding: '20px 16px' }}>
-      <Hero
-        image="/assets/img/health-profile-hero.webp"
+      <PageHeader
         eyebrow="Fitness · 01"
         title="My Health Profile"
         sub="Your complete health picture — calorie tracker, macros and food journal alongside your activity goal, workout and smartwatch data. Connected to your Medical and Nutrition hubs."
-        objectPosition="center 26%"
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.2fr) minmax(0,1fr)', gap: 28, alignItems: 'start' }}>

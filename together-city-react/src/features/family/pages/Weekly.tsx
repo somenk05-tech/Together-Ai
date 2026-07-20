@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
+import { PageHeader, Button, Spinner, EmptyState } from '@/components/ui';
 import { DayTabs } from '@/features/nutrition/components/DayTabs';
 import { MealCard } from '@/features/nutrition/components/MealCard';
 import { ProfileIncomplete } from '@/features/nutrition/components/ProfileIncomplete';
@@ -53,10 +53,9 @@ export function FamilyWeekly() {
 
   return (
     <div>
-      <Hero image="/assets/img/weekly-planner-hero.webp" eyebrow="Family Nutrition · 02"
+      <PageHeader eyebrow="Family Nutrition · 02"
         title="Weekly Meal Planner"
-        sub="Seven days, generated from our recipe database and portioned for each member of the family — refresh or skip any meal."
-        objectPosition="center 60%" />
+        sub="Seven days, generated from our recipe database and portioned for each member of the family — refresh or skip any meal." />
 
       <p className="note">
         This is your <b>family meal plan</b> — the same for everyone. <b>Mains are cooked together for the whole family ({N} {N === 1 ? 'person' : 'people'})</b> and recipe quantities scale to {N}. <b>Snacks are personalised</b> per member’s health need once you add family members.

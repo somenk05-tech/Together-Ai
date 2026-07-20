@@ -219,6 +219,33 @@ export function standardQty(name: string, grams: number, aisle: string): { label
   if (g >= 1000) { const kg = g / 1000; return { label: `${Number.isInteger(kg) ? kg : kg.toFixed(1)} kg`, unit: 'kg' }; }
   return { label: `${g} g`, unit: 'g' };
 }
+
+// Shopping-pack optimisation — round the exact required amount up to a practical
+// retail pack (spec: Shopping Pack Optimisation). Returns the friendly label AND
+// the rounded grams so waste can be measured.
+const PACK_RULES: Array<{ re: RegExp; size: number; label: (n: number) => string }> = [
+  { re: /paneer|tofu/, size: 400, label: (n) => (n === 1 ? '1 × 400 g pack' : `${n} × 400 g packs`) },
+  { re: /\bmilk\b|buttermilk/, size: 1000, label: (n) => (n === 1 ? '1 L' : `${n} × 1 L`) },
+  { re: /yogurt|yoghurt|\bcurd\b|\bdahi\b/, size: 1000, label: (n) => (n === 1 ? '1 kg tub' : `${n} × 1 kg tubs`) },
+];
+export function recommendedPack(name: string, grams: number, aisle: string): { label: string; grams: number } {
+  const n = (name || '').toLowerCase();
+  const g = Math.max(1, Math.round(grams));
+  const rule = PACK_RULES.find((r) => r.re.test(n));
+  if (rule) { const c = Math.max(1, Math.ceil(g / rule.size)); return { label: rule.label(c), grams: c * rule.size }; }
+  // Discrete items (eggs, lemons, garlic, herbs) are already whole — no pack rounding.
+  const q = standardQty(name, g, aisle);
+  if (q.unit === 'pc' || q.unit === 'bunch' || q.unit === 'bulb') return { label: q.label, grams: g };
+  if (q.unit === 'ml' || q.unit === 'l') {
+    if (g >= 1000) { const L = Math.ceil(g / 500) / 2; return { label: `${Number.isInteger(L) ? L : L.toFixed(1)} L`, grams: L * 1000 }; }
+    const ml = Math.ceil(g / 100) * 100; return { label: `${ml} ml`, grams: ml };
+  }
+  if (g >= 1000) { const kg = Math.ceil(g / 500) / 2; return { label: `${Number.isInteger(kg) ? kg : kg.toFixed(1)} kg`, grams: kg * 1000 }; }
+  const gg = Math.ceil(g / 100) * 100; return { label: `${gg} g`, grams: gg };
+}
+// Rough ₹ per kg / litre by aisle — for an at-a-glance grocery estimate only.
+const COST_PER_KG: Record<string, number> = { produce: 60, fruit: 120, meat: 320, dairy: 90, spices: 800, oils: 200, nuts: 900, pantry: 90 };
+
 const CUISINE_BY_COUNTRY: Record<string, string> = {
   India: 'Indian', China: 'Chinese', Italy: 'Italian', Mexico: 'Mexican', Thailand: 'Thai',
   Japan: 'Japanese', USA: 'American', 'United States': 'American', America: 'American',
@@ -1463,6 +1490,130 @@ export class NutritionService implements OnModuleInit {
     };
   }
 
+  /**
+   * Family Health command centre (Medical Hub → Family Profiles). A high-level,
+   * permission-gated overview of every household member's health, read from each
+   * person's OWN Medical Hub data (blood markers, tests, records, consults) — the
+   * dashboard never owns or duplicates the records. Deterministic (no per-open
+   * AI): the snapshot is derived from each member's latest markers + profile, so
+   * it's consistent across hubs. Redacts to "Private" per each member's sharing.
+   */
+  async familyHealth(userId: string) {
+    const raw = await this.householdRaw(userId);
+    const uids = raw.map((r) => r.row.memberUserId).filter((x): x is string => Boolean(x));
+    const P = this.prisma as unknown as {
+      bloodMarker: { findMany(a: unknown): Promise<{ userId: string; key: string; value: number; updatedAt: Date }[]> };
+      medicalBloodTest: { findMany(a: unknown): Promise<{ userId: string; takenOn: Date }[]> };
+      medicalRecord: { findMany(a: unknown): Promise<{ userId: string; recordedOn: Date }[]> };
+      consult: { findMany(a: unknown): Promise<{ userId: string; scheduledAt: Date | null; createdAt: Date }[]> };
+    };
+    const [markers, tests, records, consults] = await Promise.all([
+      uids.length ? P.bloodMarker.findMany({ where: { userId: { in: uids } } }).catch(() => []) : Promise.resolve([]),
+      uids.length ? P.medicalBloodTest.findMany({ where: { userId: { in: uids } }, orderBy: { takenOn: 'desc' } }).catch(() => []) : Promise.resolve([]),
+      uids.length ? P.medicalRecord.findMany({ where: { userId: { in: uids } }, orderBy: { recordedOn: 'desc' } }).catch(() => []) : Promise.resolve([]),
+      uids.length ? P.consult.findMany({ where: { userId: { in: uids } }, orderBy: { createdAt: 'desc' } }).catch(() => []) : Promise.resolve([]),
+    ]);
+    const markersBy = new Map<string, { key: string; value: number; updatedAt: Date }[]>();
+    for (const m of markers) { const a = markersBy.get(m.userId) ?? []; a.push(m); markersBy.set(m.userId, a); }
+    const firstBy = <T extends { userId: string }>(rows: T[]) => { const map = new Map<string, T>(); for (const r of rows) if (!map.has(r.userId)) map.set(r.userId, r); return map; };
+    const lastTest = firstBy(tests), lastRecord = firstBy(records), lastConsult = firstBy(consults);
+    const recordCount = new Map<string, number>();
+    for (const r of records) recordCount.set(r.userId, (recordCount.get(r.userId) ?? 0) + 1);
+
+    const ROLE_LABEL: Record<string, string> = { owner: 'Self', self: 'Self', father: 'Father', mother: 'Mother', spouse: 'Spouse', son: 'Son', daughter: 'Daughter', child: 'Child', grandparent: 'Grandparent', adult: 'Adult', guest: 'Guest', member: 'Member' };
+    const clean = (s: string) => s.replace(/\(.*?\)/g, '').trim();
+
+    const members = raw.map(({ row, image, sharing }) => {
+      const uid = row.memberUserId ?? '';
+      const ex = parseExtras(row.extras);
+      const conditions = ex.healthConditions ?? [];
+      const shareMed = row.isSelf || sharing.bloodTests;   // blood tests / score / alerts / reports
+      const shareDx = row.isSelf || sharing.conditions;    // diagnoses / conditions
+      const shareNut = row.isSelf || sharing.targets;
+
+      const mrows = markersBy.get(uid) ?? [];
+      const values: Record<string, number> = {};
+      for (const m of mrows) values[m.key] = m.value;
+      const crp = values['crp'];
+      const flagged: { label: string; status: string; key: string }[] = [];
+      const positives: string[] = [];
+      for (const rule of MARKER_RULES) {
+        if (!(rule.key in values)) continue;
+        const { status } = evaluateMarker(rule, values[rule.key], crp);
+        if (status !== 'normal') flagged.push({ label: rule.label, status, key: rule.key });
+        else positives.push(rule.label);
+      }
+      const crit = criticalAlerts(values);
+      const hasMarkers = mrows.length > 0;
+      const healthScore = hasMarkers ? Math.max(40, Math.min(100, 100 - flagged.length * 8 - crit.length * 12)) : null;
+
+      const alerts = shareMed ? [
+        ...crit.map((c) => ({ label: c.label, level: 'red' as const })),
+        ...flagged.filter((f) => !crit.some((c) => c.key === f.key)).map((f) => ({ label: `${clean(f.label)} ${f.status === 'high' ? 'High' : 'Low'}`, level: 'orange' as const })),
+      ].slice(0, 6) : [];
+
+      const snap: string[] = [];
+      if (shareDx) snap.push(...conditions.slice(0, 4));
+      if (shareMed) {
+        snap.push(...flagged.slice(0, 4).map((f) => `${f.status === 'high' ? 'Elevated' : 'Low'} ${clean(f.label)}`));
+        if (positives.length && snap.length < 7) snap.push(`Healthy ${clean(positives[0])}`);
+      }
+      if (row.goal === 'lose') snap.push('Weight loss in progress');
+      if (row.goal === 'gain') snap.push('Building lean mass');
+      const snapshot = [...new Set(snap)].slice(0, 8);
+
+      let status: 'excellent' | 'good' | 'attention' | 'follow-up';
+      if (crit.length || (shareMed && flagged.length >= 3)) status = 'follow-up';
+      else if (conditions.length || flagged.length) status = 'attention';
+      else if (!hasMarkers && conditions.length === 0) status = 'good';
+      else if ((healthScore ?? 0) >= 85) status = 'excellent';
+      else status = 'good';
+
+      const nutritionScore = Math.max(60, Math.min(100, 100 - conditions.length * 8));
+      const lastBTd = lastTest.get(uid)?.takenOn ?? (hasMarkers ? mrows.reduce((mx, m) => (m.updatedAt > mx ? m.updatedAt : mx), mrows[0].updatedAt) : null);
+      const lastRepd = lastRecord.get(uid)?.recordedOn ?? null;
+      const lc = lastConsult.get(uid);
+      const lastVisd = lc ? (lc.scheduledAt ?? lc.createdAt) : null;
+      const monthsSince = lastBTd ? (Date.now() - new Date(lastBTd).getTime()) / (1000 * 60 * 60 * 24 * 30) : Infinity;
+      const bloodTestDue = shareMed ? monthsSince > 6 : false;
+
+      return {
+        id: row.id, userId: uid || null, name: row.name, image, age: row.age, sex: row.sex,
+        relationship: ROLE_LABEL[row.role] ?? (row.isSelf ? 'Self' : 'Member'),
+        isSelf: row.isSelf, canUpload: row.isSelf, medicalHubPath: row.isSelf ? '/medical/records' : null,
+        privacy: { bloodTests: !shareMed, reports: !shareMed, diagnoses: !shareDx, summary: !(shareMed || shareDx), nutrition: !shareNut },
+        lastBloodTest: lastBTd ? new Date(lastBTd).toISOString() : null,
+        lastReport: lastRepd ? new Date(lastRepd).toISOString() : null,
+        lastVisit: lastVisd ? new Date(lastVisd).toISOString() : null,
+        reportCount: recordCount.get(uid) ?? 0,
+        bloodTestDue,
+        healthScore: shareMed ? healthScore : null,
+        nutritionScore: shareNut ? nutritionScore : null,
+        status,
+        snapshot,
+        alerts,
+        latestDiagnosis: shareDx && conditions.length ? conditions[0] : (shareMed && flagged.length ? `${clean(flagged[0].label)} ${flagged[0].status}` : null),
+        nextTest: shareMed ? (flagged.length || crit.length ? 'Recommended in ~3 months' : 'Recommended in ~12 months') : null,
+        reminder: shareMed && bloodTestDue ? 'Blood test overdue — book a retest' : null,
+      };
+    });
+
+    const withScore = members.filter((m) => m.healthScore != null);
+    const avgHealth = withScore.length ? Math.round(withScore.reduce((s, m) => s + (m.healthScore ?? 0), 0) / withScore.length) : null;
+    const nutScores = members.filter((m) => m.nutritionScore != null);
+    const avgNut = nutScores.length ? Math.round(nutScores.reduce((s, m) => s + (m.nutritionScore ?? 0), 0) / nutScores.length) : null;
+    const summary = {
+      members: members.length,
+      chronicConditions: members.filter((m) => Boolean(m.latestDiagnosis)).length,
+      bloodTestsDue: members.filter((m) => m.bloodTestDue).length,
+      reportsUploaded: [...recordCount.values()].reduce((a, b) => a + b, 0),
+      avgHealthScore: avgHealth,
+      nutritionScore: avgNut,
+      reminders: members.filter((m) => m.reminder).map((m) => `${m.name.split(' ')[0]}: ${m.reminder}`),
+    };
+    return { summary, members };
+  }
+
   async healthLog(userId: string, dates: string[]) {
     const clean = dates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 31);
     if (!clean.length) return { entries: [] as CalorieRow[] };
@@ -2418,27 +2569,41 @@ export class NutritionService implements OnModuleInit {
     });
     if (!plan) return { aisles: [], recipes: [], itemCount: 0 };
 
-    // Family multiplier = sum of member portion factors; individual = 1.
-    let people = 1;
+    // Household scaling factor. Individual = 1. Family = the SUM of each member's
+    // portion multiplier (their daily calorie target ÷ a 2,000-kcal standard
+    // serving), NOT a flat headcount. So a recipe that serves 2 scales to the
+    // real number of portions the household eats (spec: Step 1–3).
+    const REF_KCAL = 2000;
+    let scale = 1;
+    let memberScales: { name: string; dailyKcal: number; multiplier: number }[] = [];
     if (mode === 'family') {
-      await this.familyMembers(userId);
-      const rows = await this.members.findMany({ where: { ownerId: userId } }).catch(() => [] as FamilyMemberRow[]);
-      people = Math.max(1, rows.length);
+      const raw = await this.householdRaw(userId);
+      memberScales = raw.map(({ row }) => {
+        const ex = parseExtras(row.extras);
+        const t = computeTargets({ weightKg: row.weightKg, heightCm: row.heightCm, age: row.age, sex: row.sex, activity: row.activity, goal: row.goal, conditions: ex.healthConditions ?? [] });
+        return { name: row.name, dailyKcal: t.kcal, multiplier: Math.round((t.kcal / REF_KCAL) * 100) / 100 };
+      });
+      scale = Math.max(1, memberScales.reduce((s, m) => s + m.multiplier, 0));
     }
 
     type Acc = { name: string; grams: number; usedIn: Map<string, number> };
     const items = new Map<string, Acc>();               // canonicalKey → merged item
     const recipeView = new Map<string, Map<string, number>>(); // recipeName → canonical → grams
+    // Meal counts for the shopping summary.
+    const slotCounts: Record<string, number> = { b: 0, l: 0, s: 0, d: 0 };
+    const activeDays = plan.days.length;
+    const headcount = mode === 'family' ? Math.max(1, memberScales.length) : 1;
     for (const day of plan.days) {
       for (const meal of day.meals) {
         if (meal.skipped) continue;
+        slotCounts[meal.slot] = (slotCounts[meal.slot] ?? 0) + headcount;   // meals served = per-slot × people
         const s = recipeServings(meal.recipe);
         const rname = cleanRecipeName(meal.recipe.name);
         for (const ing of meal.recipe.ingredients) {
           if (skipGroceryIngredient(ing.name)) continue;      // drop water/salt/to-taste/garnish…
           const canon = canonicalIngredient(ing.name);
           if (!canon) continue;
-          const grams = Math.max(0, Math.round((ing.grams / s) * people));
+          const grams = Math.max(0, Math.round((ing.grams / s) * scale));   // per-serving × household portions
           if (grams <= 0) continue;
           const key = canon.toLowerCase();
           const cur = items.get(key) ?? { name: canon, grams: 0, usedIn: new Map() };
@@ -2450,15 +2615,21 @@ export class NutritionService implements OnModuleInit {
       }
     }
 
-    // Group into supermarket aisles with standardised units + shelf info.
+    // Group into supermarket aisles with standardised units, shelf info + a
+    // recommended retail pack. Also tally required-vs-pack grams for waste + cost.
     const AISLES = GROCERY_AISLES;
     const grouped = new Map<string, Array<Record<string, unknown>>>();
+    let requiredG = 0, packG = 0, estCostInr = 0;
     for (const it of items.values()) {
       const cat = groceryAisle(it.name);
       const q = standardQty(it.name, it.grams, cat);
+      const pack = recommendedPack(it.name, it.grams, cat);
       const shelf = SHELF_INFO[cat] ?? { life: '', tip: '' };
+      requiredG += it.grams; packG += Math.max(pack.grams, it.grams);
+      estCostInr += ((COST_PER_KG[cat] ?? 90) * Math.max(pack.grams, it.grams)) / 1000;
       const entry = {
         name: it.name, aisle: cat, qtyLabel: q.label, unit: q.unit, grams: it.grams,
+        pack: pack.label,                       // recommended purchase (retail pack)
         shelfLife: shelf.life, storageTip: shelf.tip,
         usedIn: [...it.usedIn.entries()].sort((a, b) => b[1] - a[1]).map(([recipe, g]) => ({ recipe, qtyLabel: standardQty(it.name, g, cat).label })),
       };
@@ -2473,7 +2644,18 @@ export class NutritionService implements OnModuleInit {
       items: [...ings.entries()].map(([name, g]) => ({ name, qtyLabel: standardQty(name, g, groceryAisle(name)).label })).sort((a, b) => a.name.localeCompare(b.name)),
     }));
 
-    return { aisles, recipes, itemCount: items.size };
+    const wastePct = packG > 0 ? Math.round(((packG - requiredG) / packG) * 1000) / 10 : 0;
+    const summary = {
+      householdSize: headcount,
+      days: activeDays,
+      meals: { breakfast: slotCounts.b, lunch: slotCounts.l, dinner: slotCounts.d, snacks: slotCounts.s },
+      estimatedCostInr: Math.round(estCostInr),
+      wastePct,                                  // overage from rounding to retail packs
+      scale: Math.round(scale * 100) / 100,      // total household portions per serving
+      members: memberScales,                     // per-member portion multipliers
+    };
+
+    return { aisles, recipes, itemCount: items.size, summary };
   }
 
   async getCart(userId: string) {

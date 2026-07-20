@@ -55,7 +55,6 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
           </NavLink>
         ))}
       </nav>
-      <div className="helpcard"><b>Need help?</b>Talk to our concierge, any hour of the city.<br /><a href="/chats">Contact support →</a></div>
     </aside>
   );
 }

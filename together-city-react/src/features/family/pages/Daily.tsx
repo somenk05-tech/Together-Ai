@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
+import { PageHeader, Button, Spinner, EmptyState } from '@/components/ui';
 import { MealCard } from '@/features/nutrition/components/MealCard';
 import { ProfileIncomplete } from '@/features/nutrition/components/ProfileIncomplete';
 import { DailySummary } from '@/features/nutrition/components/DailySummary';
@@ -52,10 +52,9 @@ export function FamilyDaily() {
 
   return (
     <div>
-      <Hero image="/assets/img/daily-planner-hero.webp" eyebrow="Family Nutrition · 03"
+      <PageHeader eyebrow="Family Nutrition · 03"
         title="Daily Meal Planner"
-        sub="Today's plate, dish by dish, personalised per member."
-        objectPosition="center 55%" />
+        sub="Today's plate, dish by dish, personalised per member." />
 
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
         <h2>Today's Family Plan</h2>

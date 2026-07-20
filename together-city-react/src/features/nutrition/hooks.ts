@@ -29,9 +29,12 @@ export function useFamilyDashboard() {
 export function useFamilyProfile() {
   return useQuery({ queryKey: ['nutrition', 'family', 'profile'], queryFn: () => nutritionApi.familyProfile() });
 }
+export function useFamilyHealth() {
+  return useQuery({ queryKey: ['nutrition', 'family', 'health'], queryFn: () => nutritionApi.familyHealth() });
+}
 export function useFamilyMemberMutations() {
   const qc = useQueryClient();
-  const set = (data: import('./api').FamilyMemberProfile[]) => { qc.setQueryData(FAM_KEY, data); qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); };
+  const set = (data: import('./api').FamilyMemberProfile[]) => { qc.setQueryData(FAM_KEY, data); qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); };
   const update = useMutation({ mutationFn: (v: { id: string; dto: import('./api').FamilyMemberInput }) => nutritionApi.updateFamilyMember(v.id, v.dto), onSuccess: set });
   const remove = useMutation({ mutationFn: (id: string) => nutritionApi.removeFamilyMember(id), onSuccess: set });
   return { update, remove };
@@ -70,14 +73,14 @@ export function useInviteHousehold() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { userRef: string; role: import('./api').HouseholdRole }) => nutritionApi.inviteHousehold(v.userRef, v.role),
-    onSuccess: (r) => { qc.setQueryData(FAM_KEY, r.household); qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); },
+    onSuccess: (r) => { qc.setQueryData(FAM_KEY, r.household); qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); },
   });
 }
 export function useRespondHouseholdInvite() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { id: string; accept: boolean }) => nutritionApi.respondHouseholdInvite(v.id, v.accept),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); },
   });
 }
 
@@ -93,7 +96,7 @@ export function useRegenerateWeek(mode: 'individual' | 'family' = 'individual') 
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => nutritionApi.regenerate(mode),
-    onSuccess: (plan: WeekPlan) => qc.setQueryData(KEY(mode), plan),
+    onSuccess: (plan: WeekPlan) => { qc.setQueryData(KEY(mode), plan); qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); },
   });
 }
 

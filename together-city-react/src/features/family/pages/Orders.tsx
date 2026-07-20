@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Hero, Button, EmptyState } from '@/components/ui';
+import { PageHeader, Button, EmptyState } from '@/components/ui';
 
 /**
  * My Orders — Family (family-orders.html). Every grocery and meal order across
@@ -9,10 +9,9 @@ import { Hero, Button, EmptyState } from '@/components/ui';
 export function FamilyOrders() {
   return (
     <div>
-      <Hero image="/assets/img/nutrition-hub--main-pages--individual--6.-my-orders.webp" eyebrow="Family Nutrition · 05"
+      <PageHeader eyebrow="Family Nutrition · 05"
         title="My Orders"
-        sub="Every grocery and meal order across the family, in one place."
-        objectPosition="center 42%" />
+        sub="Every grocery and meal order across the family, in one place." />
 
       <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, background: 'var(--paper)' }}>
         <span style={{ fontSize: 18 }}>🏪</span>

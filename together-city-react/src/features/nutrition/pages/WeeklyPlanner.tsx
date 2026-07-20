@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
+import { PageHeader, Button, Spinner, EmptyState } from '@/components/ui';
 import { DayTabs } from '../components/DayTabs';
 import { MealCard } from '../components/MealCard';
 import { DailySummary } from '../components/DailySummary';
@@ -46,7 +46,7 @@ export function WeeklyPlanner() {
 
   return (
     <div>
-      <Hero image="/assets/img/weekly-planner-hero.webp" eyebrow="Nutrition Hub · 03"
+      <PageHeader eyebrow="Nutrition Hub · 03"
         title="Weekly Meal Planner 🌿"
         sub={week.weekLabel ? `Week ${week.weekNumber} · ${week.weekLabel} — saved to your Health Profile` : 'Personalised meals from the Together City world database — 11,254 curated recipes with full macro and micronutrient data.'} />
       <PlanGuidanceBanner guidance={(plan.data as unknown as { guidance?: import('../types').PlanGuidance }).guidance} />

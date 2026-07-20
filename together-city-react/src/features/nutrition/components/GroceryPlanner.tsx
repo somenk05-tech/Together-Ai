@@ -44,8 +44,11 @@ function ItemRow({ item, checked, onToggle }: { item: GroceryPlanItem; checked: 
           )}
         </button>
 
-        <span style={{ flex: 'none', whiteSpace: 'nowrap', fontWeight: 700, fontSize: 13.5, color: checked ? 'var(--muted)' : 'var(--ink)' }}>
-          {item.qtyLabel}
+        <span style={{ flex: 'none', textAlign: 'right', whiteSpace: 'nowrap', color: checked ? 'var(--muted)' : 'var(--ink)' }}>
+          <span style={{ fontWeight: 700, fontSize: 13.5 }}>{item.qtyLabel}</span>
+          {item.pack && item.pack !== item.qtyLabel && (
+            <span className="muted" style={{ display: 'block', fontSize: 10.5, fontWeight: 600 }}>buy {item.pack}</span>
+          )}
         </span>
       </div>
 
@@ -107,6 +110,7 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
   const aisles = plan.data?.aisles ?? [];
   const recipes = plan.data?.recipes ?? [];
   const itemCount = plan.data?.itemCount ?? 0;
+  const summary = plan.data?.summary;
   const checkedCount = useMemo(() => {
     let c = 0; for (const a of aisles) for (const i of a.items) if (checked.has(i.name)) c++; return c;
   }, [aisles, checked]);
@@ -125,6 +129,33 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
 
   return (
     <div>
+      {/* Shopping summary — household scaling + estimated cost & waste (family) */}
+      {mode === 'family' && summary && summary.householdSize > 1 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Shopping summary</h3>
+            <span className="muted" style={{ fontSize: 12 }}>scaled to each member's portion, not headcount</span>
+          </div>
+          <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginTop: 12 }}>
+            {([
+              [`${summary.householdSize}`, 'members'],
+              [`${summary.days} days`, 'planned'],
+              [`${summary.meals.breakfast + summary.meals.lunch + summary.meals.dinner}`, 'main meals'],
+              [`${summary.meals.snacks}`, 'snacks'],
+              [`₹${summary.estimatedCostInr.toLocaleString('en-IN')}`, 'est. cost'],
+              [`<${Math.max(3, Math.ceil(summary.wastePct))}%`, 'est. waste'],
+            ] as [string, string][]).map(([n, l]) => (
+              <div key={l}><div style={{ fontSize: 18, fontWeight: 800 }}>{n}</div><div className="muted" style={{ fontSize: 11 }}>{l}</div></div>
+            ))}
+          </div>
+          {summary.members.length > 0 && (
+            <p className="muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.5 }}>
+              Portion multipliers: {summary.members.map((m) => `${m.name.split(' ')[0]} ×${m.multiplier}`).join(' · ')} — a recipe that serves 2 is scaled to {summary.scale} household portions.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* progress + view toggle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div style={{ flex: 1, minWidth: 180 }}>

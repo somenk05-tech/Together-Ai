@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
+import { PageHeader, Button, Spinner, EmptyState } from '@/components/ui';
 import { usePantry, usePantryMutations } from '@/features/nutrition/hooks';
 import type { PantryItemView } from '@/features/nutrition/api';
 
@@ -42,7 +42,7 @@ export function FamilyPantry() {
 
   return (
     <div>
-      <Hero image="/assets/img/nutrition-hub--main-pages--family--connect-family.webp" eyebrow="Family Nutrition · 07"
+      <PageHeader eyebrow="Family Nutrition · 07"
         title="Shared Pantry"
         sub="One pantry for the whole household — staples everyone shares. It stocks up when you order groceries; draw items down as you cook." />
 

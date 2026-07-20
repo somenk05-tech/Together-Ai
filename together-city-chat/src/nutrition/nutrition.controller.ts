@@ -121,6 +121,12 @@ export class NutritionController {
     return this.nutrition.familyProfile(user.sub, 0);
   }
 
+  // Family Health command centre (Medical Hub → Family Profiles) — permission-gated.
+  @Get('family/health')
+  familyHealth(@CurrentUser() user: JwtUser) {
+    return this.nutrition.familyHealth(user.sub);
+  }
+
   // Privacy — what I share with households I belong to (medical private by default).
   @Get('family/sharing')
   getSharing(@CurrentUser() user: JwtUser) {

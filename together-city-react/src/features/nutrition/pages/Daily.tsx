@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
+import { PageHeader, Button, Spinner, EmptyState } from '@/components/ui';
 import { MealCard } from '../components/MealCard';
 import { DailySummary } from '../components/DailySummary';
 import { PlanGuidanceBanner } from '../components/PlanGuidanceBanner';
@@ -40,7 +40,7 @@ export function Daily() {
 
   return (
     <div>
-      <Hero image="/assets/img/daily-planner-hero.webp" eyebrow="Nutrition Hub · 04"
+      <PageHeader eyebrow="Nutrition Hub · 04"
         title={`Today's plate — ${day.day} 🍽️`}
         sub="Your day, sliced live from the weekly plan. Swap anything; the groceries and macros follow." />
       <PlanGuidanceBanner guidance={(plan.data as unknown as { guidance?: import('../types').PlanGuidance }).guidance} />
