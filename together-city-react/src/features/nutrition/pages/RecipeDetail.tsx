@@ -134,16 +134,16 @@ export function RecipeDetail() {
 
         {r.method && r.method.length > 0 && (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', margin: '22px 0 10px' }}>
-              <h2 style={{ fontSize: 17, margin: 0 }}>Method</h2>
-              <Button variant="accent" size="sm" onClick={() => startCooking({ name: r.name, ingredients: r.ingredients, method: r.method, cookSteps: r.cookSteps })}>👨‍🍳 Cook along — guided</Button>
-            </div>
+            <h2 style={{ fontSize: 17, margin: '22px 0 10px' }}>Method</h2>
             <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>
-              Together City walks you through each step, reads it aloud, and runs a timer whenever a step needs one.
+              Tap “Start cooking” below and Together City walks you through each step, reads it aloud, and runs a timer whenever a step needs one.
             </p>
             <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.7 }}>
               {r.method.map((step, i) => {
-                const secs = stepTimerSeconds(step);
+                // Show the SAME duration the guided session will time (backend
+                // cookSteps), falling back to parsing the text only when absent —
+                // so the badge here and the in-session timer can never disagree.
+                const secs = r.cookSteps?.[i]?.durationSec ?? stepTimerSeconds(step);
                 return (
                   <li key={i} style={{ marginBottom: 6 }}>
                     {step}
