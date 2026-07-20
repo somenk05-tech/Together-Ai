@@ -23,6 +23,9 @@ export function useFamilyMembers() {
 export function useFamilyPortions(dayIndex: number) {
   return useQuery({ queryKey: ['nutrition', 'family', 'portions', dayIndex], queryFn: () => nutritionApi.familyPortions(dayIndex) });
 }
+export function useFamilyDashboard() {
+  return useQuery({ queryKey: ['nutrition', 'family', 'dashboard'], queryFn: () => nutritionApi.familyDashboard() });
+}
 export function useFamilyMemberMutations() {
   const qc = useQueryClient();
   const set = (data: import('./api').FamilyMemberProfile[]) => qc.setQueryData(FAM_KEY, data);

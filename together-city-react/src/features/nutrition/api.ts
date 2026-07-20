@@ -15,6 +15,7 @@ export const nutritionApi = {
   removeFamilyMember: (id: string) => api.delete<FamilyMemberProfile[]>(`/nutrition/family/members/${id}`).then((r) => r.data),
   familyPortions: (dayIndex: number) => api.get<FamilyPortions>(`/nutrition/family/portions/${dayIndex}`).then((r) => r.data),
   buildFamilyCart: () => api.post<GroceryCart>('/nutrition/family/cart', {}).then((r) => r.data),
+  familyDashboard: () => api.get<FamilyDashboard>('/nutrition/family/dashboard').then((r) => r.data),
   regenerate: (mode: 'individual' | 'family' = 'individual') =>
     api.post<WeekPlan>('/nutrition/plan/weekly/regenerate', { mode }).then((r) => r.data),
   daySummary: (planKey: string, dayIndex: number) =>
@@ -80,6 +81,20 @@ export interface FamilyMealPortions { slot: string; slotName: string; name: stri
 export interface FamilyPortions {
   members: { id: string; name: string; role: string; dayKcal: number }[];
   meals: FamilyMealPortions[];
+}
+export interface FamilyMemberStatus {
+  id: string; name: string; role: string; diet: string; isSelf: boolean;
+  target: { kcal: number; protein: number; fiber: number };
+  consumed: { kcal: number; protein: number; fiber: number };
+  kcalPct: number; proteinPct: number;
+  calorieStatus: 'none' | 'under' | 'on' | 'over';
+  proteinStatus: 'none' | 'low' | 'met' | 'over';
+  medicalOk: boolean; flags: string[]; adjustments: string[];
+}
+export interface FamilyDashboard {
+  hasPlan: boolean; mealsPerDay: number; memberCount: number;
+  familyStatus: 'none' | 'all-on-track' | 'needs-attention';
+  members: FamilyMemberStatus[];
 }
 
 export interface CalorieEntry { id: string; date: string; name: string; kcal: number; type: CalorieType }

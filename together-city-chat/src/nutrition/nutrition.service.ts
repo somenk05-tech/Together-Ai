@@ -841,6 +841,80 @@ export class NutritionService implements OnModuleInit {
     return { members: members.map((m) => ({ id: m.id, name: m.name, role: m.role, dayKcal: m.dayKcal })), meals };
   }
 
+  /**
+   * Family dashboard (Family Stage 5). Even though the household shares meals,
+   * each member is validated INDEPENDENTLY: their projected daily intake (summed
+   * from their own portions of the shared meals) is checked against their own
+   * targets — calories, protein, and medical limits (e.g. protein above a
+   * kidney-safe target is flagged). Returns a per-member summary + a family roll-up.
+   */
+  async familyDashboard(userId: string, dayIndex = 0) {
+    await this.familyMembers(userId);
+    const rows = await this.members.findMany({ where: { ownerId: userId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => [] as FamilyMemberRow[]);
+    const members = rows.map((m) => {
+      const ex = parseExtras(m.extras);
+      const conditions = (ex.healthConditions ?? []).map((c) => c.toLowerCase());
+      const t = computeTargets({ weightKg: m.weightKg, heightCm: m.heightCm, age: m.age, sex: m.sex, activity: m.activity, goal: m.goal, conditions: ex.healthConditions ?? [] });
+      return { id: m.id, name: m.name, role: m.role, diet: m.diet, isSelf: m.isSelf, conditions, target: t, consumed: { kcal: 0, protein: 0, fiber: 0 } };
+    });
+
+    const latest = await this.prisma.mealPlan.findFirst({ where: { userId, mode: 'family' }, orderBy: { createdAt: 'desc' } });
+    let hasPlan = false, mealsPerDay = 0;
+    if (latest) {
+      const day = await this.prisma.mealPlanDay.findFirst({
+        where: { dayIndex, plan: { key: latest.key } },
+        include: { meals: { include: { recipe: { include: { ingredients: true } } } } },
+      });
+      if (day) {
+        hasPlan = true;
+        const active = day.meals.filter((m) => !m.skipped);
+        mealsPerDay = active.length;
+        const opts = await this.plateOptsFor(userId);
+        const tg = await this.targets(userId);
+        const dyn = perMealTargets(this.dayMealInputs(day.meals), tg.kcal);
+        for (const meal of active) {
+          const slot = meal.slot as 'b' | 'l' | 's' | 'd';
+          const mealTarget = dyn[slot as 'l' | 'd'] ?? tg.perMeal[slot]?.kcal;
+          const n = this.mealMacros(meal.recipe as unknown as RecipeWithIng & { kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number }, slot, dayIndex, opts, mealTarget);
+          const refKcal = Math.max(1, n.kcal);
+          for (const mem of members) {
+            const factor = Math.min(1.8, Math.max(0.45, (mem.target.perMeal[slot]?.kcal ?? refKcal) / refKcal));
+            mem.consumed.kcal += n.kcal * factor;
+            mem.consumed.protein += n.protein * factor;
+            mem.consumed.fiber += n.fiber * factor;
+          }
+        }
+      }
+    }
+
+    const summary = members.map((m) => {
+      const kc = Math.round(m.consumed.kcal), pr = Math.round(m.consumed.protein), fb = Math.round(m.consumed.fiber);
+      const kcalPct = m.target.kcal ? Math.round((kc / m.target.kcal) * 100) : 0;
+      const proteinPct = m.target.protein ? Math.round((pr / m.target.protein) * 100) : 0;
+      const calorieStatus = !hasPlan ? 'none' : kcalPct > 112 ? 'over' : kcalPct < 88 ? 'under' : 'on';
+      const proteinStatus = !hasPlan ? 'none' : proteinPct > 120 ? 'over' : proteinPct < 80 ? 'low' : 'met';
+      const flags: string[] = [];
+      const kidney = m.conditions.some((c) => /kidney|renal|ckd/.test(c));
+      if (hasPlan && kidney && proteinPct > 110) flags.push('Protein above the kidney-safe target — give a smaller protein portion');
+      if (hasPlan && calorieStatus === 'over') flags.push('Projected calories above target');
+      if (hasPlan && proteinStatus === 'low') flags.push('Protein below target');
+      return {
+        id: m.id, name: m.name, role: m.role, diet: m.diet, isSelf: m.isSelf,
+        target: { kcal: m.target.kcal, protein: m.target.protein, fiber: m.target.fiber },
+        consumed: { kcal: kc, protein: pr, fiber: fb },
+        kcalPct, proteinPct, calorieStatus, proteinStatus,
+        medicalOk: flags.length === 0, flags, adjustments: m.target.adjustments,
+      };
+    });
+
+    const okCount = summary.filter((s) => s.medicalOk).length;
+    return {
+      hasPlan, mealsPerDay, memberCount: members.length,
+      familyStatus: !hasPlan ? 'none' : okCount === summary.length ? 'all-on-track' : 'needs-attention',
+      members: summary,
+    };
+  }
+
   async healthLog(userId: string, dates: string[]) {
     const clean = dates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 31);
     if (!clean.length) return { entries: [] as CalorieRow[] };

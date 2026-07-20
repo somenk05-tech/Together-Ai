@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { MEMBERS, useFamily, headcount } from '../members';
+import { useFamily, headcount } from '../members';
+import { FamilyDashboard } from '../components/FamilyDashboard';
 
 interface FeatureCard { n: string; title: string; blurb: string; cta: string; to: string }
 const FEATURES: FeatureCard[] = [
@@ -55,19 +56,7 @@ export function Family() {
           <h2>Your Family</h2>
           <Link to="/family/connect" style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 13.5 }}>Manage members →</Link>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }} className="tc-membergrid">
-          {MEMBERS.map((m) => (
-            <Link key={m.id} to="/family/daily" className="card lift" style={{ textAlign: 'center' }}>
-              <div className="av" style={{ width: 56, height: 56, fontSize: 18, margin: '0 auto 10px' }}>{(youName[0] || 'Y').toUpperCase()}</div>
-              <h4>{youName}</h4>
-              <p className="meta">{m.role}</p>
-              <div className="stat" style={{ marginTop: 10 }}>
-                <div className="lab">Daily Target</div>
-                <div className="val" style={{ fontSize: 18 }}>{m.targetKcal.toLocaleString('en-IN')} kcal</div>
-              </div>
-            </Link>
-          ))}
-        </div>
+        <FamilyDashboard />
       </section>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr', gap: 28, alignItems: 'start' }} className="tc-dashgrid">

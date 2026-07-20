@@ -88,6 +88,12 @@ export class NutritionController {
     return this.nutrition.buildFamilyCart(user.sub);
   }
 
+  // Family dashboard — per-member nutrition validation + roll-up (Stage 5).
+  @Get('family/dashboard')
+  familyDashboard(@CurrentUser() user: JwtUser) {
+    return this.nutrition.familyDashboard(user.sub, 0);
+  }
+
   @Get('history/:id')
   historyDetail(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.nutrition.nutritionHistoryDetail(user.sub, id);
