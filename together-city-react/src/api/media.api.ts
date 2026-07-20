@@ -25,6 +25,28 @@ export interface UploadedFile {
   sizeBytes: number;
 }
 
+/**
+ * Turn an upload failure into a message that says WHICH step broke, so a stuck
+ * upload is self-diagnosing:
+ *  - the browser's direct PUT to R2 blocked (no HTTP response / network / CORS)
+ *    → the bucket needs a CORS rule allowing PUT from this site;
+ *  - our presign API returned an error status → backend / auth;
+ *  - otherwise a generic connection hint.
+ */
+export function uploadErrorMessage(err: unknown): string {
+  const e = err as { response?: { status?: number }; message?: string; config?: { url?: string } };
+  const url = e?.config?.url ?? '';
+  const status = e?.response?.status;
+  const toStorage = /r2\.cloudflarestorage|amazonaws|__presigned__/i.test(url);
+  if (toStorage && !status) {
+    return 'The file reached the upload step but your storage bucket rejected it — this is the bucket’s CORS setting blocking uploads from this site. Add the CORS rule to the R2 bucket, then try again.';
+  }
+  if (status === 401 || status === 403) return 'Your session may have expired — please sign in again and retry.';
+  if (status && status >= 500) return `The server had a problem (${status}). Please try again in a moment.`;
+  if (status) return `Upload failed (${status}). Please try again.`;
+  return 'Could not reach the server — check your connection and try again.';
+}
+
 export const mediaApi = {
   presign: (file: File): Promise<PresignResult> =>
     apiPost('/media/upload', { mimeType: file.type, sizeBytes: file.size }, PresignResult),

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Spinner } from '@/components/ui';
-import { mediaApi } from '@/api/media.api';
+import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useBloodHistory, useLatestPanel, useSaveBloodTest, useHealthSummary, medicalApi, type Citation } from '../api';
 
 /** Deterministic 0–100 wellness score ring. */
@@ -68,11 +68,23 @@ export function BloodAnalysis() {
   const onFile = async (file: File | null) => {
     if (!file) return;
     setUploadErr(null); setExtractNote(null);
-    if (!/^image\/(jpeg|png|webp)$|^application\/pdf$/.test(file.type)) { setUploadErr('Upload a JPG, PNG or PDF of your report.'); return; }
+    const okType = file.type.startsWith('image/') || file.type === 'application/pdf' || !file.type
+      || /\.(jpe?g|png|webp|heic|heif|tiff?|pdf)$/i.test(file.name);
+    if (!okType) { setUploadErr('Upload a photo (JPG, PNG, HEIC) or a PDF of your report.'); return; }
     if (file.size > 25 * 1024 * 1024) { setUploadErr('That file is over 25 MB — please upload a smaller scan.'); return; }
     setExtracting(true);
+    // Step 1: send the file to the private vault (presign on our API → PUT to R2).
+    let up: Awaited<ReturnType<typeof mediaApi.uploadPrivate>>;
     try {
-      const up = await mediaApi.uploadPrivate(file);
+      up = await mediaApi.uploadPrivate(file);
+    } catch (e) {
+      setUploadErr(uploadErrorMessage(e));
+      setExtracting(false);
+      return;
+    }
+    // Step 2: read it. The file is already saved, so a read failure isn't fatal —
+    // the user can type the values in manually.
+    try {
       const res = await medicalApi.extractBlood({ fileKey: up.fileKey, mimeType: up.mimeType, sizeBytes: up.sizeBytes, title: file.name });
       const next: Record<string, string> = { ...form };
       for (const [k, v] of Object.entries(res.extracted)) next[k] = String(v);
@@ -83,7 +95,7 @@ export function BloodAnalysis() {
       void qc.invalidateQueries({ queryKey: ['medical', 'storage'] });
       void qc.invalidateQueries({ queryKey: ['medical', 'records'] });
     } catch {
-      setUploadErr('Could not upload the report. Please check your connection and try again.');
+      setExtractNote('Saved to your vault, but we couldn’t read the values automatically — please enter them from your report below.');
     } finally {
       setExtracting(false);
     }

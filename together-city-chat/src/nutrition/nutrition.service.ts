@@ -43,6 +43,7 @@ const CUISINE_BY_COUNTRY: Record<string, string> = {
 interface PrefExtras {
   cuisineMix?: Record<string, number>; cuisines?: string[]; proteins?: string[]; meats?: string[];
   allergies?: string; excluded?: string; maxCookMin?: number | null; weekly?: Record<string, 'veg' | 'nonveg'>;
+  healthConditions?: string[]; budgetInr?: number | null;
 }
 function parseExtras(extras: string | null | undefined): PrefExtras {
   try { return extras ? (JSON.parse(extras) as PrefExtras) : {}; } catch { return {}; }
@@ -50,7 +51,90 @@ function parseExtras(extras: string | null | undefined): PrefExtras {
 function terms(s?: string): string[] {
   return (s ?? '').split(/[,;]/).map((t) => t.trim().toLowerCase()).filter(Boolean);
 }
-type RecipeWithIng = { id: string; slot: string; diet: string; name: string; country: string; minutes: number; kcal?: number; gramsPerServing?: number; ingredients: Array<{ name: string }> };
+type RecipeWithIng = { id: string; slot: string; diet: string; name: string; country: string; minutes: number; kcal?: number; gramsPerServing?: number; ingredients: Array<{ name: string; priceInr?: number }> };
+
+// ─────────── protein preferences as HARD constraints ───────────
+// Protein sources the planner can detect in a recipe from its name + ingredients.
+const PROTEIN_TOKENS: Record<string, string[]> = {
+  chicken: ['chicken'],
+  mutton: ['mutton', 'lamb', 'goat'],
+  fish: ['fish', 'salmon', 'tuna', 'sardine', 'mackerel', 'cod', 'tilapia', 'anchovy', 'pomfret', 'basa', 'trout', 'herring'],
+  prawns: ['prawn', 'shrimp', 'crab', 'lobster', 'squid', 'calamari', 'scallop', 'oyster', 'mussel'],
+  beef: ['beef', 'steak'],
+  pork: ['pork', 'bacon', 'ham', 'sausage', 'chorizo'],
+  egg: ['egg', 'omelet', 'omelette'],
+  paneer: ['paneer', 'cottage cheese'],
+  tofu: ['tofu', 'tempeh'],
+  legumes: ['lentil', 'dal', 'daal', 'bean', 'chickpea', 'chana', 'rajma', 'moong', 'legume', 'chole', 'edamame', 'soybean'],
+};
+const ANIMAL_PROTEINS = new Set(['chicken', 'mutton', 'fish', 'prawns', 'beef', 'pork', 'egg']);
+// Preference chip labels → protein tokens.
+const PROTEIN_LABEL: Record<string, string> = {
+  chicken: 'chicken', mutton: 'mutton', fish: 'fish', prawns: 'prawns', prawn: 'prawns',
+  beef: 'beef', pork: 'pork', egg: 'egg', eggs: 'egg', paneer: 'paneer', tofu: 'tofu',
+  legumes: 'legumes', legume: 'legumes', lentils: 'legumes', beans: 'legumes',
+};
+
+function detectProteins(r: RecipeWithIng): Set<string> {
+  const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
+  const found = new Set<string>();
+  for (const [token, kws] of Object.entries(PROTEIN_TOKENS)) {
+    if (kws.some((k) => hay.includes(k))) found.add(token);
+  }
+  return found;
+}
+function allowedProteins(ex: PrefExtras): Set<string> {
+  const out = new Set<string>();
+  for (const p of [...(ex.proteins ?? []), ...(ex.meats ?? [])]) {
+    const t = PROTEIN_LABEL[p.trim().toLowerCase()];
+    if (t) out.add(t);
+  }
+  return out;
+}
+/**
+ * HARD protein rule. With no selection, the diet filter alone governs. Once the
+ * user picks proteins/meats: (1) a recipe may NOT contain an animal protein the
+ * user didn't select (a chicken-only user never sees fish/egg/pork), and (2) if
+ * the user eats meat, main meals (lunch/dinner) must actually feature one of
+ * their selected animal proteins — never a stray veg/paneer/tofu dish.
+ */
+function passesProtein(r: RecipeWithIng, allowed: Set<string>): boolean {
+  if (allowed.size === 0) return true;
+  const found = detectProteins(r);
+  const animalFound = [...found].filter((t) => ANIMAL_PROTEINS.has(t));
+  for (const t of animalFound) if (!allowed.has(t)) return false; // disallowed animal protein
+  const allowedAnimal = [...allowed].filter((t) => ANIMAL_PROTEINS.has(t));
+  if (allowedAnimal.length && (r.slot === 'l' || r.slot === 'd')) {
+    if (!animalFound.some((t) => allowed.has(t))) return false;   // meat main must have their meat
+  }
+  return true;
+}
+
+// ─────────── medical conditions as HARD exclusions ───────────
+// Keyword exclusions per condition (the recipe DB carries no micronutrient
+// columns, so we exclude clear ingredient/name violators — the deterministic
+// clinical engine still biases ranking on top of this).
+const MEDICAL_EXCLUDE: Record<string, string[]> = {
+  diabetes: ['sugar', 'syrup', 'honey', 'jaggery', 'condensed milk', 'sweetened', 'caramel', 'gulab jamun', 'jalebi', 'dessert', 'candy', 'soda'],
+  hypertension: ['pickle', 'papad', 'salted', 'brine', 'bacon', 'sausage', 'ham', 'processed', 'instant noodle'],
+  'kidney disease': ['pickle', 'papad', 'processed', 'organ meat', 'sardine', 'anchovy'],
+  'fatty liver': ['alcohol', 'wine', 'beer', 'deep fried', 'deep-fried', 'lard', 'fructose syrup'],
+  pcos: ['sugar', 'syrup', 'maida', 'refined flour', 'white bread', 'soda', 'candy'],
+};
+function passesMedical(r: RecipeWithIng, conditions: string[]): boolean {
+  if (!conditions.length) return true;
+  const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
+  for (const c of conditions) {
+    const kws = MEDICAL_EXCLUDE[c.trim().toLowerCase()];
+    if (kws && kws.some((k) => hay.includes(k))) return false;
+  }
+  return true;
+}
+function perPlateCost(r: RecipeWithIng): number {
+  const total = r.ingredients.reduce((s, i) => s + (i.priceInr ?? 0), 0);
+  if (!total) return 0; // unknown → don't exclude on price
+  return Math.round(total / recipeServings({ slot: r.slot, kcal: r.kcal ?? 0, gramsPerServing: r.gramsPerServing ?? 0 }));
+}
 
 /**
  * The world dataset has messy titles: trailing dots/ellipses, embedded
@@ -92,19 +176,35 @@ function isPlannableMeal(r: { slot: string; kcal?: number; gramsPerServing?: num
   return perServing >= (MEAL_MIN_KCAL[r.slot] ?? 150);
 }
 
-/** Filter recipes to a diet + the user's hard rules (allergies, avoided foods, cook time). */
-function filterByPrefs(recipes: RecipeWithIng[], diet: Diet, ex: PrefExtras): RecipeWithIng[] {
-  const allergens = terms(ex.allergies), avoid = terms(ex.excluded);
+/**
+ * HARD constraints — a recipe that fails ANY of these is never eligible, and
+ * these are never relaxed. Order mirrors the recommendation pipeline:
+ * diet pattern → real meal → allowed proteins → medical → allergies → avoided.
+ */
+function passesHard(r: RecipeWithIng, diet: Diet, ex: PrefExtras, allowed: Set<string>): boolean {
+  if (!dietAllows(diet, r.diet as Diet)) return false;                 // 1 · diet pattern
+  if (!isPlannableMeal(r)) return false;                               // 2 · real meal (no condiments)
+  if (!passesProtein(r, allowed)) return false;                       // 3 · preferred proteins/meats
+  if (!passesMedical(r, ex.healthConditions ?? [])) return false;     // 4 · medical conditions
+  const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
+  if (terms(ex.allergies).some((a) => hay.includes(a))) return false; // 5 · allergies
+  if (terms(ex.excluded).some((a) => hay.includes(a))) return false;  // 6 · foods user won't eat
+  return true;
+}
+
+/** SOFT constraints — preferred, but relaxed if a slot would otherwise be empty. */
+function passesSoft(r: RecipeWithIng, ex: PrefExtras): boolean {
   const maxCook = ex.maxCookMin ?? null;
-  return recipes.filter((r) => {
-    if (!dietAllows(diet, r.diet as Diet)) return false;
-    if (!isPlannableMeal(r)) return false;                 // drop condiments/non-meals
-    if (maxCook && saneMinutes(r.minutes) > maxCook) return false;
-    const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
-    if (allergens.some((a) => hay.includes(a))) return false;
-    if (avoid.some((a) => hay.includes(a))) return false;
-    return true;
-  });
+  if (maxCook && saneMinutes(r.minutes) > maxCook) return false;      // 7 · cooking time
+  const budget = ex.budgetInr ?? null;                               // 8 · budget
+  if (budget) { const c = perPlateCost(r); if (c > 0 && c > budget) return false; }
+  return true;
+}
+
+/** Filter recipes to a diet + the user's rules (hard + soft), in pipeline order. */
+function filterByPrefs(recipes: RecipeWithIng[], diet: Diet, ex: PrefExtras): RecipeWithIng[] {
+  const allowed = allowedProteins(ex);
+  return recipes.filter((r) => passesHard(r, diet, ex, allowed) && passesSoft(r, ex));
 }
 /** Front-load recipes whose cuisine the user weighted highest (soft bias). */
 function cuisineBias<T extends { country: string }>(list: T[], mix: Record<string, number>): T[] {
@@ -343,14 +443,17 @@ export class NutritionService implements OnModuleInit {
     recipes: RecipeWithIng[], dayDiet: Diet, ex: PrefExtras, modes: ReturnType<typeof planningModes>,
   ): Record<Slot, RecipeWithIng[]> {
     const mix = ex.cuisineMix ?? (ex.cuisines?.length ? Object.fromEntries(ex.cuisines.map((c) => [c, 1])) : {});
-    const filtered = filterByPrefs(recipes, dayDiet, ex);
+    const allowed = allowedProteins(ex);
     const out = {} as Record<Slot, RecipeWithIng[]>;
     for (const slot of SLOTS) {
-      let pool = filtered.filter((r) => r.slot === slot);
-      // Relax exclusions but still never plan a <threshold-kcal condiment.
-      if (!pool.length) pool = recipes.filter((r) => r.slot === slot && dietAllows(dayDiet, r.diet as Diet) && isPlannableMeal(r));
-      if (!pool.length) pool = recipes.filter((r) => r.slot === slot && isPlannableMeal(r));
-      if (!pool.length) pool = recipes.filter((r) => r.slot === slot); // last resort
+      const inSlot = recipes.filter((r) => r.slot === slot);
+      // Primary: hard + soft. Fallback drops only SOFT rules (cook time, budget)
+      // so diet, proteins, allergies and medical stay enforced. Last resort keeps
+      // diet + real-meal so we never surface a disallowed or junk item.
+      let pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed) && passesSoft(r, ex));
+      if (!pool.length) pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed));
+      if (!pool.length) pool = inSlot.filter((r) => dietAllows(dayDiet, r.diet as Diet) && isPlannableMeal(r));
+      if (!pool.length) pool = inSlot;
       const byMode = rankByModes(pool as unknown as RecipeShape[], modes) as unknown as RecipeWithIng[];
       out[slot] = cuisineBias(byMode, mix);
     }
@@ -361,7 +464,8 @@ export class NutritionService implements OnModuleInit {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const diet = (pref?.diet ?? 'everything') as Diet;
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-    const recipes = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true } } } })) as unknown as RecipeWithIng[];
+    // Load prices too, so the budget filter can work.
+    const recipes = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true, priceInr: true } } } })) as unknown as RecipeWithIng[];
 
     // Condition-aware selection: blood flags + goal switch on planning modes.
     const modes = planningModes(flagsFor(await this.bloodValues(userId)), pref?.goal ?? 'maintain');
@@ -371,6 +475,40 @@ export class NutritionService implements OnModuleInit {
 
     const offset = Math.floor(Math.random() * 6);
     const key = 'wk_' + this.rand(8);
+
+    // Variety engine: across the week, never repeat the same recipe, and no single
+    // protein signature more than twice. Cuisine is left to the % preference bias
+    // (capping cuisine would fight an "Indian 70%" preference), and each day's pick
+    // rotates its start through the ranked pool.
+    const usedRecipe = new Map<string, number>();
+    const usedProtein = new Map<string, number>();
+    const count = (m: Map<string, number>, k: string) => m.get(k) ?? 0;
+    const bump = (m: Map<string, number>, k: string) => m.set(k, count(m, k) + 1);
+    const proteinSig = (r: RecipeWithIng) => [...detectProteins(r)].sort().join(',') || r.diet;
+    const pick = (pool: RecipeWithIng[], dayIndex: number): RecipeWithIng | undefined => {
+      if (!pool.length) return undefined;
+      const rot = pool.map((_, i) => pool[(i + dayIndex + offset) % pool.length]);
+      const chosen =
+        rot.find((r) => count(usedRecipe, r.id) < 1 && count(usedProtein, proteinSig(r)) < 2) ??
+        rot.find((r) => count(usedRecipe, r.id) < 1) ??
+        rot[0];
+      bump(usedRecipe, chosen.id);
+      bump(usedProtein, proteinSig(chosen));
+      return chosen;
+    };
+
+    const picks: Record<number, Partial<Record<Slot, RecipeWithIng>>> = {};
+    for (let d = 0; d < DAYS.length; d++) {
+      picks[d] = {};
+      const dayVeg = ex.weekly?.[SHORT_DAYS[d]] === 'veg';
+      const ranked = dayVeg ? vegRanked : baseRanked;
+      for (const slot of SLOTS) {
+        const full = ranked[slot];
+        const list = modes.length ? full.slice(0, Math.max(6, Math.ceil(full.length / 2))) : full;
+        const r = pick(list, d);
+        if (r) picks[d][slot] = r;
+      }
+    }
 
     // One plan per user+mode — clear old ones so the profile stays the source of truth.
     await this.prisma.mealPlan.deleteMany({ where: { userId, mode } });
@@ -385,13 +523,8 @@ export class NutritionService implements OnModuleInit {
             dayIndex,
             dayName,
             meals: {
-              create: SLOTS.map((slot) => {
-                // Honour a per-day veg override (weekly rule) on top of the base diet.
-                const dayVeg = ex.weekly?.[SHORT_DAYS[dayIndex]] === 'veg';
-                const ranked = dayVeg ? vegRanked : baseRanked;
-                const full = ranked[slot];
-                const list = modes.length ? full.slice(0, Math.max(3, Math.ceil(full.length / 2))) : full;
-                const recipe = list[(dayIndex + offset) % Math.max(1, list.length)];
+              create: SLOTS.filter((slot) => picks[dayIndex][slot]).map((slot) => {
+                const recipe = picks[dayIndex][slot] as RecipeWithIng;
                 const withSides = slot === 'l' || slot === 'd';
                 return {
                   slot,
@@ -452,10 +585,12 @@ export class NutritionService implements OnModuleInit {
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     const effDiet: Diet = ex.weekly?.[SHORT_DAYS[dayIndex]] === 'veg' ? 'veg' : diet;
 
-    const recipes = (await this.prisma.recipe.findMany({ where: { slot }, include: { ingredients: { select: { name: true } } } })) as unknown as RecipeWithIng[];
-    let candidates = filterByPrefs(recipes, effDiet, ex);
+    const recipes = (await this.prisma.recipe.findMany({ where: { slot }, include: { ingredients: { select: { name: true, priceInr: true } } } })) as unknown as RecipeWithIng[];
+    const allowed = allowedProteins(ex);
+    // Same hard constraints as the planner; relax only soft rules, never diet/protein/medical/allergy.
+    let candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed) && passesSoft(r, ex));
+    if (!candidates.length) candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed));
     if (!candidates.length) candidates = recipes.filter((r) => dietAllows(effDiet, r.diet as Diet) && isPlannableMeal(r));
-    if (!candidates.length) candidates = recipes.filter((r) => isPlannableMeal(r));
     if (!candidates.length) candidates = recipes;
     const others = candidates.filter((c) => c.id !== meal.recipeId);
     const pickFrom = others.length ? others : candidates;

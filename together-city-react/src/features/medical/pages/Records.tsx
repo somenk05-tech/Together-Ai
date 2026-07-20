@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { mediaApi } from '@/api/media.api';
+import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useAddRecord, useRecords, useStorageUsage, useDeleteRecord, useLatestPanel, useBloodHistory, medicalApi } from '../api';
 
 const MSTATUS: Record<string, { color: string; bg: string; label: string }> = {
@@ -86,7 +86,7 @@ export function Records() {
         reset();
       } catch (e2) {
         const msg = (e2 as { response?: { data?: { message?: string } } })?.response?.data?.message;
-        setErr(msg ?? 'Upload failed. Please try again.');
+        setErr(msg ?? uploadErrorMessage(e2));
       } finally { setBusy(false); }
     } else {
       add.mutate({ kind, title: title.trim(), detail: detail.trim() || undefined }, { onSuccess: reset });
