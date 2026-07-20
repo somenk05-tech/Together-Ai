@@ -36,11 +36,17 @@ done
 echo "PostgreSQL is reachable."
 
 if [ -d prisma/migrations ] && [ -n "$(ls -A prisma/migrations 2>/dev/null)" ]; then
+  # Preferred path once migrations are committed: versioned, reviewable, and it
+  # NEVER drops data (a destructive migration must be written explicitly).
   echo "Applying committed migrations (prisma migrate deploy)..."
   npx prisma migrate deploy
 else
-  echo "No migration history yet — pushing schema (prisma db push)..."
-  npx prisma db push --accept-data-loss
+  # No migrations yet: sync the schema WITHOUT --accept-data-loss. Additive
+  # changes apply automatically; any change Prisma judges destructive aborts the
+  # deploy (non-zero exit, data left intact) instead of silently dropping data.
+  # `set -e` then stops startup so Railway keeps the previous, working release.
+  echo "No migration history yet — syncing schema (prisma db push, non-destructive)..."
+  npx prisma db push
 fi
 
 echo "Starting Together City API..."
