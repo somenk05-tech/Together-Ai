@@ -57,7 +57,7 @@ img { max-width: 100%; }
   .pill:hover, .pill.on { border-color: var(--accent); color: var(--accent); }
   .pill.on { background: var(--accent); color: #fff; }
 
-  .hero { position: relative; border-radius: var(--radius-lg); overflow: hidden; color: #fff; min-height: 260px; display: flex; align-items: flex-end; }
+  .hero { position: relative; border-radius: var(--radius-lg); overflow: hidden; color: #fff; min-height: clamp(320px, 30vw, 420px); display: flex; align-items: flex-end; }
   .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(8,9,8,.78), rgba(8,9,8,.12) 60%); }
   .hero .inner { position: relative; z-index: 2; padding: 36px 40px; }
   .hero h1 { color: #fff; text-shadow: 0 2px 20px rgba(0,0,0,.4); }
