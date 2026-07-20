@@ -5,9 +5,8 @@ import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
 import { DayTabs } from '@/features/nutrition/components/DayTabs';
 import { MealCard } from '@/features/nutrition/components/MealCard';
 import { ProfileIncomplete } from '@/features/nutrition/components/ProfileIncomplete';
-import { DailySummary } from '@/features/nutrition/components/DailySummary';
 import { useNavigate } from 'react-router-dom';
-import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRegenerateWeek, useRecipes, useBuildCart } from '@/features/nutrition/hooks';
+import { useWeeklyPlan, useRegenerateWeek, useRecipes, useBuildCart } from '@/features/nutrition/hooks';
 import { nutritionApi } from '@/features/nutrition/api';
 import type { WeekPlan } from '@/features/nutrition/types';
 import { useFamily, headcount, MEMBERS } from '../members';
@@ -27,8 +26,6 @@ const chipStyle: React.CSSProperties = {
 export function FamilyWeekly() {
   const [dayIndex, setDayIndex] = useState(0);
   const plan = useWeeklyPlan('family');
-  const targets = useNutritionTargets();
-  const summary = useDaySummary(plan.data?.key, dayIndex);
   const regenerate = useRegenerateWeek('family');
   const buildCart = useBuildCart();
   const navigate = useNavigate();
@@ -106,15 +103,15 @@ export function FamilyWeekly() {
         </div>
 
         <div style={{ position: 'sticky', top: 'calc(var(--header-h) + 24px)', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {summary.data
-            ? <DailySummary day={day.day} summary={summary.data} targets={targets.data} />
-            : <Spinner label="Totalling the day…" />}
           <div className="card">
             <h4>Family</h4>
             <div className="av-strip" style={{ marginTop: 12 }}>
               {MEMBERS.map((m) => <div key={m.id} className="av">{m.initial}</div>)}
             </div>
             <p className="meta" style={{ display: 'block', marginTop: 10 }}>Cooking for {N} · shared mains + personal snacks</p>
+            <p className="muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
+              Per-member nutrition targets and daily summaries live on each member's individual plan — the family plan is the shared cooking view.
+            </p>
           </div>
         </div>
       </div>
