@@ -1,9 +1,9 @@
-import { lazy, Suspense } from 'react';
+import { lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppShell } from '@/layouts/AppShell';
 import { HubLayout } from '@/layouts/HubLayout';
 import { HUBS } from '@/config/hubs';
-import { Spinner } from '@/components/ui';
+import { ChunkBoundary } from './ChunkBoundary';
 import { Home } from '@/pages/Home';
 import { HubLanding } from '@/pages/HubLanding';
 import { HubStub } from '@/pages/HubStub';
@@ -161,7 +161,9 @@ const Settings = lazy(() => import('@/features/settings/pages/Settings').then((m
 const Calendar = lazy(() => import('@/features/calendar/pages/Calendar').then((m) => ({ default: m.Calendar })));
 const SignIn = lazy(() => import('@/features/auth/pages/SignIn').then((m) => ({ default: m.SignIn })));
 
-const wrap = (el: JSX.Element) => <Suspense fallback={<Spinner />}>{el}</Suspense>;
+// Every lazy page is wrapped so a stale code-split chunk (after a new deploy)
+// auto-recovers instead of leaving a blank page.
+const wrap = (el: JSX.Element) => <ChunkBoundary>{el}</ChunkBoundary>;
 
 /**
  * Router covers every hub. Landings are data-driven (HubLanding); inner pages
