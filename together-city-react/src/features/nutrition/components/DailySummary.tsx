@@ -1,4 +1,3 @@
-import { StatCard } from '@/components/ui';
 import type { DaySummary, NutritionTargets } from '../types';
 
 const MICRO: Array<[string, string]> = [
@@ -6,27 +5,59 @@ const MICRO: Array<[string, string]> = [
   ['vc', 'Vit C'], ['vd', 'Vit D'], ['ve', 'Vit E'], ['b12', 'B12'], ['fiber', 'Fibre'],
 ];
 
-/** Daily Nutrition Overview — consuming vs optimal, red when over. Ported design. */
+/** One nutrient row — Consumed vs Target vs Remaining, with a progress bar. */
+function NutrientRow({ label, consumed, target, unit }: { label: string; consumed: number; target: number; unit: string }) {
+  const pct = target > 0 ? Math.round((consumed / target) * 100) : 0;
+  const remaining = Math.round(target - consumed);
+  const over = consumed > target;
+  const col = over ? '#c0392b' : pct >= 80 ? 'var(--accent)' : '#b08d3e';
+  return (
+    <div style={{ margin: '10px 0' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12.5 }}>
+        <span style={{ fontWeight: 600 }}>{label}</span>
+        <span className="muted">
+          <b style={{ color: 'var(--ink)' }}>{consumed.toLocaleString('en-IN')}</b> / {target.toLocaleString('en-IN')} {unit}
+          <span style={{ color: over ? '#c0392b' : 'var(--muted)', marginLeft: 8 }}>
+            {over ? `over ${Math.abs(remaining).toLocaleString('en-IN')}` : `${remaining.toLocaleString('en-IN')} left`}
+          </span>
+        </span>
+      </div>
+      <span style={{ display: 'block', height: 6, background: 'var(--line)', borderRadius: 4, overflow: 'hidden', marginTop: 5 }}>
+        <span style={{ display: 'block', height: '100%', width: `${Math.min(100, pct)}%`, background: col }} />
+      </span>
+    </div>
+  );
+}
+
+/** Daily Nutrition Overview — Target vs Consumed vs Remaining for every macro. */
 export function DailySummary({ day, summary, targets }: { day: string; summary: DaySummary; targets?: NutritionTargets }) {
-  const over = targets ? summary.kcal > targets.kcal : false;
-  const calColor = over ? '#c0392b' : '#2e7d4f';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div className="card">
-        <h4 style={{ marginBottom: 12 }}>Daily Nutrition Overview — {day}</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div className="stat" style={{ gridColumn: '1 / -1' }}>
-            <div className="lab">Calories · consuming vs optimal</div>
-            <div className="val" style={{ fontSize: 22, color: calColor }}>{summary.kcal.toLocaleString('en-IN')} kcal</div>
-            {targets && <div className="delta" style={{ color: over ? '#c0392b' : 'var(--muted)' }}>optimal ~{targets.kcal.toLocaleString('en-IN')} kcal · {over ? `over by ${(summary.kcal - targets.kcal).toLocaleString('en-IN')}` : 'on track ✓'}</div>}
-          </div>
-          <StatCard label="Protein" value={`${summary.protein}g`} />
-          <StatCard label="Carbs" value={`${summary.carbs}g`} />
-          <StatCard label="Fats" value={`${summary.fat}g`} />
-          <StatCard label="Fibre" value={`${summary.fiber}g`} />
-          <StatCard label="Food cost" value={`₹${summary.cost}`} />
-          {targets && <StatCard label="Daily protein target" value={`${targets.protein}g`} />}
-        </div>
+        <h4 style={{ marginBottom: 4 }}>Daily Nutrition Overview — {day}</h4>
+        <p className="muted" style={{ fontSize: 11.5, margin: '0 0 8px' }}>Consumed vs your personalised target</p>
+        {targets ? (
+          <>
+            <NutrientRow label="Calories" consumed={summary.kcal} target={targets.kcal} unit="kcal" />
+            <NutrientRow label="Protein" consumed={summary.protein} target={targets.protein} unit="g" />
+            <NutrientRow label="Carbs" consumed={summary.carbs} target={targets.carb} unit="g" />
+            <NutrientRow label="Fat" consumed={summary.fat} target={targets.fat} unit="g" />
+            <NutrientRow label="Fibre" consumed={summary.fiber} target={targets.fiber} unit="g" />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
+              <span className="muted">Food cost</span><span style={{ fontWeight: 600 }}>₹{summary.cost}</span>
+            </div>
+            {targets.adjustments && targets.adjustments.length > 0 && (
+              <div style={{ marginTop: 10, padding: '8px 10px', background: 'var(--paper)', borderRadius: 10 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Targets adjusted for you</div>
+                {targets.adjustments.map((a, i) => (
+                  <p key={i} className="muted" style={{ fontSize: 11.5, margin: '2px 0', lineHeight: 1.45 }}>• {a}</p>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="muted" style={{ fontSize: 12.5 }}>{summary.kcal.toLocaleString('en-IN')} kcal · P {summary.protein}g · C {summary.carbs}g · F {summary.fat}g</p>
+        )}
       </div>
       <div className="card">
         <h4 style={{ marginBottom: 10 }}>Micronutrient Coverage</h4>

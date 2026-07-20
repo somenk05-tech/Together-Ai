@@ -58,6 +58,9 @@ export interface WeekPlan {
 
 export interface NutritionTargets {
   kcal: number; protein: number; carb: number; fat: number; fiber: number; waterMl: number;
+  sugarMaxG?: number; satFatMaxG?: number; sodiumMaxMg?: number; potassiumMinMg?: number;
+  perMeal?: Record<'b' | 'l' | 's' | 'd', { kcal: number; protein: number; carb: number; fat: number }>;
+  adjustments?: string[]; // medical target adjustments applied
 }
 
 export interface DaySummary {

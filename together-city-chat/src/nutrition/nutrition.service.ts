@@ -334,8 +334,9 @@ export class NutritionService implements OnModuleInit {
   }
 
   // ─────────────── targets (Mifflin-St Jeor) ───────────────
-  async targets(userId: string): Promise<{ kcal: number; protein: number; carb: number; fat: number; fiber: number; waterMl: number }> {
+  async targets(userId: string) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     const weight = pref?.weightKg ?? 70;
     const height = pref?.heightCm ?? 172;
     const age = pref?.age ?? 30;
@@ -347,24 +348,74 @@ export class NutritionService implements OnModuleInit {
     const bmi = h > 0 ? weight / (h * h) : 22;
     const overweight = bmi >= 27;
 
-    // Mifflin-St Jeor → TDEE, then a percentage goal adjustment. For muscle gain
-    // on an already-overweight frame, a surplus just adds fat, so target body
-    // recomposition (maintenance calories + high protein) instead of a surplus.
+    // Mifflin-St Jeor → TDEE, then a percentage goal adjustment.
     const bmr = 10 * weight + 6.25 * height - 5 * age + (sex === 'male' ? 5 : -161);
     const tdee = bmr * activity;
     const adj = goal === 'lose' ? -0.18 : goal === 'gain' ? (overweight ? 0 : 0.10) : 0;
-    const kcal = Math.max(1400, Math.round(tdee * (1 + adj)));
+    let kcal = Math.max(1400, Math.round(tdee * (1 + adj)));
 
-    // Protein per kg by goal; for high BMI, scale off a lean reference weight
-    // (BMI 25) so it stays realistic rather than tracking excess body fat.
     const refWeight = bmi >= 27 ? Math.round(25 * h * h) : weight;
-    const proteinPerKg = goal === 'gain' ? 2.0 : goal === 'lose' ? 1.8 : 1.6;
-    const protein = Math.round(proteinPerKg * refWeight);
+    let proteinPerKg = goal === 'gain' ? 2.0 : goal === 'lose' ? 1.8 : 1.6;
+    let fatPct = 0.27;                 // % of kcal from fat
+    let fiber = Math.max(25, Math.min(50, Math.round((kcal / 1000) * 14)));
 
-    const fat = Math.round((kcal * 0.27) / 9);
+    // ── Step 3: medical target adjustments (blood flags + declared conditions) ──
+    const flags = flagsFor(await this.bloodValues(userId));
+    const conds = new Set((ex.healthConditions ?? []).map((c) => c.toLowerCase()));
+    const has = (...k: string[]) => k.some((x) => conds.has(x));
+    const diabetes = flags.hba1c === 'high' || has('diabetes');
+    const highChol = flags.ldl === 'high' || flags.trig === 'high' || has('high cholesterol');
+    const fattyLiver = has('fatty liver');
+    const hypertension = has('hypertension');
+    const kidney = has('kidney disease');
+    const adjustments: string[] = [];
+
+    let sugarMaxG = Math.round((kcal * 0.10) / 4);   // ≤10% kcal from added sugar (WHO)
+    let satFatMaxG = Math.round((kcal * 0.10) / 9);  // ≤10% kcal from saturated fat
+    let sodiumMaxMg = 2300;
+    let potassiumMinMg = 3500;
+
+    if (diabetes) {
+      proteinPerKg = Math.max(proteinPerKg, 1.8); fiber = Math.max(fiber, 35); sugarMaxG = 20;
+      adjustments.push('Diabetes: higher protein & fibre, lower-glycaemic carbs, added sugar ≤20 g');
+    }
+    if (highChol) {
+      satFatMaxG = Math.round((kcal * 0.06) / 9); fiber = Math.max(fiber, 35);
+      adjustments.push('Raised cholesterol/triglycerides: saturated fat ≤6% kcal, more soluble fibre');
+    }
+    if (fattyLiver) {
+      proteinPerKg = Math.max(proteinPerKg, 1.8); sugarMaxG = Math.min(sugarMaxG, 20); satFatMaxG = Math.min(satFatMaxG, Math.round((kcal * 0.07) / 9));
+      adjustments.push('Fatty liver: lean protein up, added sugar & saturated fat down');
+    }
+    if (hypertension) {
+      sodiumMaxMg = 1500; potassiumMinMg = 4700;
+      adjustments.push('Hypertension: sodium ≤1500 mg, higher potassium (DASH)');
+    }
+    if (kidney) {
+      proteinPerKg = Math.min(proteinPerKg, 0.8); sodiumMaxMg = Math.min(sodiumMaxMg, 2000); potassiumMinMg = 2000;
+      adjustments.push('Kidney disease: protein moderated, sodium & potassium limited — confirm targets with your nephrologist');
+    }
+
+    const protein = Math.round(proteinPerKg * refWeight);
+    const fat = Math.round((kcal * fatPct) / 9);
     const carb = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
-    const fiber = Math.max(25, Math.min(50, Math.round((kcal / 1000) * 14)));
-    return { kcal, protein, carb, fat, fiber, waterMl: Math.round(weight * 35) };
+
+    // ── Step 4: distribute the day's targets across meals ──
+    const split: Record<'b' | 'l' | 's' | 'd', number> = { b: 0.25, l: 0.32, s: 0.13, d: 0.30 };
+    const perMeal = Object.fromEntries(
+      (['b', 'l', 's', 'd'] as const).map((slot) => [slot, {
+        kcal: Math.round(kcal * split[slot]),
+        protein: Math.round(protein * split[slot]),
+        carb: Math.round(carb * split[slot]),
+        fat: Math.round(fat * split[slot]),
+      }]),
+    );
+
+    return {
+      kcal, protein, carb, fat, fiber, waterMl: Math.round(weight * 35),
+      sugarMaxG, satFatMaxG, sodiumMaxMg, potassiumMinMg,
+      perMeal, adjustments,
+    };
   }
 
   async upsertFoodPref(userId: string, dto: FoodPrefDto) {
