@@ -417,6 +417,31 @@ model NutritionHistory {
   @@index([userId, mode, createdAt])
 }
 
+/// Admin-managed family member sub-profile (Family Meal Planner §). The account
+/// holder creates one per person (no separate login); each carries their own
+/// biometrics, diet, goal and medical conditions so the family plan can compute
+/// per-member targets and portions. JSON extras (proteins/cuisines/allergies/
+/// healthConditions) stored as String, mirroring FoodPref.extras.
+model FamilyMember {
+  id        String   @id @default(uuid())
+  ownerId   String // the User who manages this member
+  name      String
+  role      String   @default("member") // father | mother | child | grandparent | self | member
+  sex       String   @default("male")
+  age       Int      @default(30)
+  heightCm  Int      @default(170)
+  weightKg  Float    @default(65)
+  activity  Float    @default(1.4)
+  goal      String   @default("maintain") // lose | maintain | gain
+  diet      String   @default("everything")
+  extras    String? // JSON: proteins[], cuisines[], allergies, healthConditions[]
+  isSelf    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
 model GroceryCart {
   id        String   @id @default(uuid())
   userId    String

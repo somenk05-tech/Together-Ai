@@ -16,6 +16,19 @@ export function useNutritionHistory(mode: 'individual' | 'family' = 'individual'
   return useQuery({ queryKey: ['nutrition', 'history', mode], queryFn: () => nutritionApi.history(mode) });
 }
 
+const FAM_KEY = ['nutrition', 'family', 'members'] as const;
+export function useFamilyMembers() {
+  return useQuery({ queryKey: FAM_KEY, queryFn: () => nutritionApi.familyMembers() });
+}
+export function useFamilyMemberMutations() {
+  const qc = useQueryClient();
+  const set = (data: import('./api').FamilyMemberProfile[]) => qc.setQueryData(FAM_KEY, data);
+  const add = useMutation({ mutationFn: (dto: import('./api').FamilyMemberInput) => nutritionApi.addFamilyMember(dto), onSuccess: set });
+  const update = useMutation({ mutationFn: (v: { id: string; dto: import('./api').FamilyMemberInput }) => nutritionApi.updateFamilyMember(v.id, v.dto), onSuccess: set });
+  const remove = useMutation({ mutationFn: (id: string) => nutritionApi.removeFamilyMember(id), onSuccess: set });
+  return { add, update, remove };
+}
+
 export function useDaySummary(planKey: string | undefined, dayIndex: number) {
   return useQuery({
     queryKey: ['nutrition', 'summary', planKey, dayIndex],

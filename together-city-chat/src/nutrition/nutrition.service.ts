@@ -439,6 +439,19 @@ interface NutritionHistoryDelegate {
   findUnique(a: unknown): Promise<NutritionHistoryRow | null>;
   count(a: unknown): Promise<number>;
 }
+// Family member sub-profiles (Family §). Hand-typed delegate (offline client).
+export interface FamilyMemberRow {
+  id: string; ownerId: string; name: string; role: string; sex: string; age: number;
+  heightCm: number; weightKg: number; activity: number; goal: string; diet: string;
+  extras: string | null; isSelf: boolean; createdAt: Date; updatedAt: Date;
+}
+interface FamilyMemberDelegate {
+  create(a: unknown): Promise<FamilyMemberRow>;
+  findMany(a: unknown): Promise<FamilyMemberRow[]>;
+  findFirst(a: unknown): Promise<FamilyMemberRow | null>;
+  update(a: unknown): Promise<FamilyMemberRow>;
+  delete(a: unknown): Promise<FamilyMemberRow>;
+}
 
 /** One guided cooking step: its instruction, how long it runs unattended, and
  *  whether it needs constant attention (stir) vs. can run in the background. */
@@ -455,6 +468,72 @@ function secondsFromText(text: string): number {
   m = t.match(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${U}`));
   if (m) return Math.min(2 * 3600, toSec(parseFloat(m[1]), m[2]));
   return 0;
+}
+
+/** Inputs for a personalised daily-target calculation. */
+export interface TargetInput {
+  weightKg?: number; heightCm?: number; age?: number; sex?: string;
+  activity?: number; goal?: string; conditions?: string[];
+  flags?: Record<string, string>; // blood-marker flags (low|normal|high)
+}
+/**
+ * Personalised daily nutrition targets — Mifflin-St Jeor BMR → TDEE → goal
+ * adjustment, protein per kg of reference weight, medical adjustments from
+ * declared conditions + blood flags, then a per-meal split. Pure, so it serves
+ * both the account holder and every admin-managed family member (Family §).
+ */
+export function computeTargets(inp: TargetInput) {
+  const weight = inp.weightKg || 70;
+  const height = inp.heightCm || 172;
+  const age = inp.age || 30;
+  const sex = inp.sex || 'male';
+  const activity = inp.activity || 1.4;
+  const goal = inp.goal || 'maintain';
+  const flags = inp.flags ?? {};
+
+  const h = height / 100;
+  const bmi = h > 0 ? weight / (h * h) : 22;
+  const overweight = bmi >= 27;
+  const bmr = 10 * weight + 6.25 * height - 5 * age + (sex === 'male' ? 5 : -161);
+  const tdee = bmr * activity;
+  const adj = goal === 'lose' ? -0.18 : goal === 'gain' ? (overweight ? 0 : 0.10) : 0;
+  const kcal = Math.max(1400, Math.round(tdee * (1 + adj)));
+
+  const refWeight = bmi >= 27 ? Math.round(25 * h * h) : weight;
+  let proteinPerKg = goal === 'gain' ? 2.0 : goal === 'lose' ? 1.8 : 1.6;
+  const fatPct = 0.27;
+  let fiber = Math.max(25, Math.min(50, Math.round((kcal / 1000) * 14)));
+
+  const conds = new Set((inp.conditions ?? []).map((c) => c.toLowerCase()));
+  const has = (...k: string[]) => k.some((x) => [...conds].some((c) => c.includes(x)));
+  const diabetes = flags.hba1c === 'high' || has('diabetes');
+  const highChol = flags.ldl === 'high' || flags.trig === 'high' || has('cholesterol');
+  const fattyLiver = has('fatty liver');
+  const hypertension = has('hypertension', 'blood pressure');
+  const kidney = has('kidney', 'renal', 'ckd');
+  const adjustments: string[] = [];
+  let sugarMaxG = Math.round((kcal * 0.10) / 4);
+  let satFatMaxG = Math.round((kcal * 0.10) / 9);
+  let sodiumMaxMg = 2300;
+  let potassiumMinMg = 3500;
+
+  if (diabetes) { proteinPerKg = Math.max(proteinPerKg, 1.8); fiber = Math.max(fiber, 35); sugarMaxG = 20; adjustments.push('Diabetes: higher protein & fibre, lower-glycaemic carbs, added sugar ≤20 g'); }
+  if (highChol) { satFatMaxG = Math.round((kcal * 0.06) / 9); fiber = Math.max(fiber, 35); adjustments.push('Raised cholesterol/triglycerides: saturated fat ≤6% kcal, more soluble fibre'); }
+  if (fattyLiver) { proteinPerKg = Math.max(proteinPerKg, 1.8); sugarMaxG = Math.min(sugarMaxG, 20); satFatMaxG = Math.min(satFatMaxG, Math.round((kcal * 0.07) / 9)); adjustments.push('Fatty liver: lean protein up, added sugar & saturated fat down'); }
+  if (hypertension) { sodiumMaxMg = 1500; potassiumMinMg = 4700; adjustments.push('Hypertension: sodium ≤1500 mg, higher potassium (DASH)'); }
+  if (kidney) { proteinPerKg = Math.min(proteinPerKg, 0.8); sodiumMaxMg = Math.min(sodiumMaxMg, 2000); potassiumMinMg = 2000; adjustments.push('Kidney condition noted: protein target moderated to protect kidney function, with sodium & potassium limited — confirm targets with your nephrologist'); }
+
+  const protein = Math.round(proteinPerKg * refWeight);
+  const fat = Math.round((kcal * fatPct) / 9);
+  const carb = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
+  const split: Record<'b' | 'l' | 's' | 'd', number> = { b: 0.25, l: 0.32, s: 0.13, d: 0.30 };
+  const perMeal = Object.fromEntries(
+    (['b', 'l', 's', 'd'] as const).map((slot) => [slot, {
+      kcal: Math.round(kcal * split[slot]), protein: Math.round(protein * split[slot]),
+      carb: Math.round(carb * split[slot]), fat: Math.round(fat * split[slot]),
+    }]),
+  );
+  return { kcal, protein, carb, fat, fiber, waterMl: Math.round(weight * 35), sugarMaxG, satFatMaxG, sodiumMaxMg, potassiumMinMg, perMeal, adjustments };
 }
 
 /**
@@ -554,85 +633,12 @@ export class NutritionService implements OnModuleInit {
   async targets(userId: string) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-    const weight = pref?.weightKg ?? 70;
-    const height = pref?.heightCm ?? 172;
-    const age = pref?.age ?? 30;
-    const sex = pref?.sex ?? 'male';
-    const activity = pref?.activity ?? 1.4;
-    const goal = pref?.goal ?? 'maintain';
-
-    const h = height / 100;
-    const bmi = h > 0 ? weight / (h * h) : 22;
-    const overweight = bmi >= 27;
-
-    // Mifflin-St Jeor → TDEE, then a percentage goal adjustment.
-    const bmr = 10 * weight + 6.25 * height - 5 * age + (sex === 'male' ? 5 : -161);
-    const tdee = bmr * activity;
-    const adj = goal === 'lose' ? -0.18 : goal === 'gain' ? (overweight ? 0 : 0.10) : 0;
-    let kcal = Math.max(1400, Math.round(tdee * (1 + adj)));
-
-    const refWeight = bmi >= 27 ? Math.round(25 * h * h) : weight;
-    let proteinPerKg = goal === 'gain' ? 2.0 : goal === 'lose' ? 1.8 : 1.6;
-    let fatPct = 0.27;                 // % of kcal from fat
-    let fiber = Math.max(25, Math.min(50, Math.round((kcal / 1000) * 14)));
-
-    // ── Step 3: medical target adjustments (blood flags + declared conditions) ──
     const flags = flagsFor(await this.bloodValues(userId));
-    const conds = new Set((ex.healthConditions ?? []).map((c) => c.toLowerCase()));
-    const has = (...k: string[]) => k.some((x) => conds.has(x));
-    const diabetes = flags.hba1c === 'high' || has('diabetes');
-    const highChol = flags.ldl === 'high' || flags.trig === 'high' || has('high cholesterol');
-    const fattyLiver = has('fatty liver');
-    const hypertension = has('hypertension');
-    const kidney = has('kidney disease');
-    const adjustments: string[] = [];
-
-    let sugarMaxG = Math.round((kcal * 0.10) / 4);   // ≤10% kcal from added sugar (WHO)
-    let satFatMaxG = Math.round((kcal * 0.10) / 9);  // ≤10% kcal from saturated fat
-    let sodiumMaxMg = 2300;
-    let potassiumMinMg = 3500;
-
-    if (diabetes) {
-      proteinPerKg = Math.max(proteinPerKg, 1.8); fiber = Math.max(fiber, 35); sugarMaxG = 20;
-      adjustments.push('Diabetes: higher protein & fibre, lower-glycaemic carbs, added sugar ≤20 g');
-    }
-    if (highChol) {
-      satFatMaxG = Math.round((kcal * 0.06) / 9); fiber = Math.max(fiber, 35);
-      adjustments.push('Raised cholesterol/triglycerides: saturated fat ≤6% kcal, more soluble fibre');
-    }
-    if (fattyLiver) {
-      proteinPerKg = Math.max(proteinPerKg, 1.8); sugarMaxG = Math.min(sugarMaxG, 20); satFatMaxG = Math.min(satFatMaxG, Math.round((kcal * 0.07) / 9));
-      adjustments.push('Fatty liver: lean protein up, added sugar & saturated fat down');
-    }
-    if (hypertension) {
-      sodiumMaxMg = 1500; potassiumMinMg = 4700;
-      adjustments.push('Hypertension: sodium ≤1500 mg, higher potassium (DASH)');
-    }
-    if (kidney) {
-      proteinPerKg = Math.min(proteinPerKg, 0.8); sodiumMaxMg = Math.min(sodiumMaxMg, 2000); potassiumMinMg = 2000;
-      adjustments.push('Kidney condition noted: protein target moderated to protect kidney function, with sodium & potassium limited — confirm targets with your nephrologist');
-    }
-
-    const protein = Math.round(proteinPerKg * refWeight);
-    const fat = Math.round((kcal * fatPct) / 9);
-    const carb = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
-
-    // ── Step 4: distribute the day's targets across meals ──
-    const split: Record<'b' | 'l' | 's' | 'd', number> = { b: 0.25, l: 0.32, s: 0.13, d: 0.30 };
-    const perMeal = Object.fromEntries(
-      (['b', 'l', 's', 'd'] as const).map((slot) => [slot, {
-        kcal: Math.round(kcal * split[slot]),
-        protein: Math.round(protein * split[slot]),
-        carb: Math.round(carb * split[slot]),
-        fat: Math.round(fat * split[slot]),
-      }]),
-    );
-
-    return {
-      kcal, protein, carb, fat, fiber, waterMl: Math.round(weight * 35),
-      sugarMaxG, satFatMaxG, sodiumMaxMg, potassiumMinMg,
-      perMeal, adjustments,
-    };
+    return computeTargets({
+      weightKg: pref?.weightKg ?? 70, heightCm: pref?.heightCm ?? 172, age: pref?.age ?? 30,
+      sex: pref?.sex ?? 'male', activity: pref?.activity ?? 1.4, goal: pref?.goal ?? 'maintain',
+      conditions: ex.healthConditions ?? [], flags,
+    });
   }
 
   async upsertFoodPref(userId: string, dto: FoodPrefDto) {
@@ -669,6 +675,91 @@ export class NutritionService implements OnModuleInit {
   }
   private get history(): NutritionHistoryDelegate {
     return (this.prisma as unknown as { nutritionHistory: NutritionHistoryDelegate }).nutritionHistory;
+  }
+  private get members(): FamilyMemberDelegate {
+    return (this.prisma as unknown as { familyMember: FamilyMemberDelegate }).familyMember;
+  }
+
+  // ─────────────── family members (admin-managed sub-profiles) ───────────────
+  /** Shape a stored member for the client, with its computed daily targets. */
+  private shapeMember(m: FamilyMemberRow) {
+    const ex = parseExtras(m.extras);
+    const targets = computeTargets({
+      weightKg: m.weightKg, heightCm: m.heightCm, age: m.age, sex: m.sex,
+      activity: m.activity, goal: m.goal, conditions: ex.healthConditions ?? [],
+    });
+    return {
+      id: m.id, name: m.name, role: m.role, sex: m.sex, age: m.age, heightCm: m.heightCm,
+      weightKg: m.weightKg, activity: m.activity, goal: m.goal, diet: m.diet, isSelf: m.isSelf,
+      proteins: ex.proteins ?? [], cuisines: ex.cuisines ?? [], allergies: ex.allergies ?? '',
+      healthConditions: ex.healthConditions ?? [],
+      targets: { kcal: targets.kcal, protein: targets.protein, carb: targets.carb, fat: targets.fat, fiber: targets.fiber, adjustments: targets.adjustments },
+    };
+  }
+
+  /** Every family member the account holder manages (self first, then by creation).
+   *  Lazily seeds a "self" profile from the account holder's saved preferences so
+   *  the household always includes them. */
+  async familyMembers(ownerId: string) {
+    let rows = await this.members.findMany({ where: { ownerId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => [] as FamilyMemberRow[]);
+    if (!rows.some((m) => m.isSelf)) {
+      const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(() => null);
+      const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+      const user = await this.prisma.user.findUnique({ where: { id: ownerId }, select: { name: true } }).catch(() => null);
+      await this.members.create({
+        data: {
+          ownerId, isSelf: true, name: user?.name ?? 'You', role: 'self',
+          sex: pref?.sex ?? 'male', age: pref?.age ?? 30, heightCm: pref?.heightCm ?? 172,
+          weightKg: pref?.weightKg ?? 70, activity: pref?.activity ?? 1.4, goal: pref?.goal ?? 'maintain',
+          diet: pref?.diet ?? 'everything',
+          extras: JSON.stringify({ proteins: ex.proteins ?? [], cuisines: ex.cuisines ?? [], allergies: ex.allergies ?? '', healthConditions: ex.healthConditions ?? [] }),
+        } as never,
+      }).catch(() => undefined);
+      rows = await this.members.findMany({ where: { ownerId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => rows);
+    }
+    return rows.map((m) => this.shapeMember(m));
+  }
+
+  private memberData(dto: Record<string, unknown>) {
+    const clamp = (v: unknown, lo: number, hi: number, d: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+    const extras = JSON.stringify({
+      proteins: Array.isArray(dto.proteins) ? dto.proteins : [],
+      cuisines: Array.isArray(dto.cuisines) ? dto.cuisines : [],
+      allergies: typeof dto.allergies === 'string' ? dto.allergies : '',
+      healthConditions: Array.isArray(dto.healthConditions) ? dto.healthConditions : [],
+    });
+    return {
+      name: String(dto.name ?? 'Member').slice(0, 60),
+      role: String(dto.role ?? 'member').toLowerCase().slice(0, 20),
+      sex: dto.sex === 'female' ? 'female' : 'male',
+      age: Math.round(clamp(dto.age, 1, 110, 30)),
+      heightCm: Math.round(clamp(dto.heightCm, 60, 230, 170)),
+      weightKg: clamp(dto.weightKg, 8, 250, 65),
+      activity: clamp(dto.activity, 1.2, 1.9, 1.4),
+      goal: ['lose', 'maintain', 'gain'].includes(String(dto.goal)) ? String(dto.goal) : 'maintain',
+      diet: String(dto.diet ?? 'everything'),
+      extras,
+    };
+  }
+
+  async addFamilyMember(ownerId: string, dto: Record<string, unknown>) {
+    await this.members.create({ data: { ownerId, isSelf: false, ...this.memberData(dto) } as never });
+    return this.familyMembers(ownerId);
+  }
+
+  async updateFamilyMember(ownerId: string, id: string, dto: Record<string, unknown>) {
+    const existing = await this.members.findFirst({ where: { id, ownerId } }).catch(() => null);
+    if (!existing) throw new NotFoundException('family member not found');
+    await this.members.update({ where: { id }, data: this.memberData(dto) as never });
+    return this.familyMembers(ownerId);
+  }
+
+  async removeFamilyMember(ownerId: string, id: string) {
+    const existing = await this.members.findFirst({ where: { id, ownerId } }).catch(() => null);
+    if (!existing) throw new NotFoundException('family member not found');
+    if (existing.isSelf) throw new BadRequestException('cannot remove your own profile');
+    await this.members.delete({ where: { id } });
+    return this.familyMembers(ownerId);
   }
 
   async healthLog(userId: string, dates: string[]) {

@@ -55,6 +55,27 @@ export class NutritionController {
     return this.nutrition.nutritionHistory(user.sub, mode);
   }
 
+  // Family member sub-profiles (admin-managed) — each carries its own targets.
+  @Get('family/members')
+  familyMembers(@CurrentUser() user: JwtUser) {
+    return this.nutrition.familyMembers(user.sub);
+  }
+
+  @Post('family/members')
+  addFamilyMember(@CurrentUser() user: JwtUser, @Body() dto: Record<string, unknown>) {
+    return this.nutrition.addFamilyMember(user.sub, dto);
+  }
+
+  @Patch('family/members/:id')
+  updateFamilyMember(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: Record<string, unknown>) {
+    return this.nutrition.updateFamilyMember(user.sub, id, dto);
+  }
+
+  @Delete('family/members/:id')
+  removeFamilyMember(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.nutrition.removeFamilyMember(user.sub, id);
+  }
+
   @Get('history/:id')
   historyDetail(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.nutrition.nutritionHistoryDetail(user.sub, id);

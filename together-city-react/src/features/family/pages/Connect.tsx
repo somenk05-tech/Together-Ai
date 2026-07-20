@@ -1,128 +1,149 @@
 import { useState } from 'react';
-import { Hero, Button } from '@/components/ui';
-import { useAuth } from '@/hooks/useAuth';
-import { useFamily, connectedMembers, activeMembers, headcount, MEMBERS } from '../members';
+import { Hero, Button, Spinner } from '@/components/ui';
+import { useFamilyMembers, useFamilyMemberMutations } from '@/features/nutrition/hooks';
+import type { FamilyMemberProfile, FamilyMemberInput } from '@/features/nutrition/api';
 
-const pillInput: React.CSSProperties = {
-  flex: 1, minWidth: 200, border: '1px solid var(--line)', borderRadius: 999,
-  padding: '12px 18px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)',
-  outline: 'none', fontFamily: 'inherit',
-};
+const ROLES = ['self', 'father', 'mother', 'spouse', 'son', 'daughter', 'child', 'grandparent', 'other'];
+const DIETS: [string, string][] = [
+  ['everything', 'Non-vegetarian'], ['veg', 'Vegetarian'], ['vegan', 'Vegan'],
+  ['egg', 'Eggetarian'], ['pesc', 'Pescatarian'], ['jain', 'Jain'],
+];
+const GOALS: [string, string][] = [['lose', 'Lose weight'], ['maintain', 'Maintain'], ['gain', 'Gain / build']];
+const ACTIVITY: [number, string][] = [[1.2, 'Sedentary'], [1.375, 'Lightly active'], [1.55, 'Moderately active'], [1.725, 'Very active'], [1.9, 'Athlete']];
+const CONDITIONS = ['Diabetes', 'High cholesterol', 'Hypertension', 'Fatty liver', 'Kidney disease', 'PCOS', 'Thyroid'];
 
-/** Connect Family Members (family-connect.html) — consent-gated linking, guests, roles. */
+const blank = (): FamilyMemberInput => ({
+  name: '', role: 'member', sex: 'male', age: 30, heightCm: 170, weightKg: 65,
+  activity: 1.4, goal: 'maintain', diet: 'everything', healthConditions: [], allergies: '',
+});
+const toInput = (m: FamilyMemberProfile): FamilyMemberInput => ({
+  name: m.name, role: m.role, sex: m.sex, age: m.age, heightCm: m.heightCm, weightKg: m.weightKg,
+  activity: m.activity, goal: m.goal, diet: m.diet, healthConditions: m.healthConditions, allergies: m.allergies,
+});
+
+const fld: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 10, padding: '9px 12px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'inherit', width: '100%' };
+const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--muted)', display: 'block', marginBottom: 4 };
+
+function MemberForm({ initial, isSelf, onSave, onCancel, saving }: { initial: FamilyMemberInput; isSelf?: boolean; onSave: (d: FamilyMemberInput) => void; onCancel: () => void; saving: boolean }) {
+  const [f, setF] = useState<FamilyMemberInput>(initial);
+  const set = (k: keyof FamilyMemberInput, v: unknown) => setF((s) => ({ ...s, [k]: v }));
+  const toggleCond = (c: string) => set('healthConditions', f.healthConditions.includes(c) ? f.healthConditions.filter((x) => x !== c) : [...f.healthConditions, c]);
+  const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (<div><span style={lbl}>{label}</span>{children}</div>);
+  return (
+    <div className="card" style={{ padding: 18, marginBottom: 16, border: '1px solid var(--accent)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 12 }}>
+        <Field label="Name"><input style={fld} value={f.name} placeholder="e.g. Priya" onChange={(e) => set('name', e.target.value)} /></Field>
+        <Field label="Relationship"><select style={fld} value={f.role} disabled={isSelf} onChange={(e) => set('role', e.target.value)}>{ROLES.map((r) => <option key={r} value={r}>{r[0].toUpperCase() + r.slice(1)}</option>)}</select></Field>
+        <Field label="Sex"><select style={fld} value={f.sex} onChange={(e) => set('sex', e.target.value)}><option value="male">Male</option><option value="female">Female</option></select></Field>
+        <Field label="Age"><input style={fld} type="number" value={f.age} onChange={(e) => set('age', +e.target.value)} /></Field>
+        <Field label="Height (cm)"><input style={fld} type="number" value={f.heightCm} onChange={(e) => set('heightCm', +e.target.value)} /></Field>
+        <Field label="Weight (kg)"><input style={fld} type="number" value={f.weightKg} onChange={(e) => set('weightKg', +e.target.value)} /></Field>
+        <Field label="Activity"><select style={fld} value={f.activity} onChange={(e) => set('activity', +e.target.value)}>{ACTIVITY.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
+        <Field label="Goal"><select style={fld} value={f.goal} onChange={(e) => set('goal', e.target.value)}>{GOALS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
+        <Field label="Diet"><select style={fld} value={f.diet} onChange={(e) => set('diet', e.target.value)}>{DIETS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <span style={lbl}>Medical conditions</span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {CONDITIONS.map((c) => {
+            const on = f.healthConditions.includes(c);
+            return (
+              <button key={c} type="button" onClick={() => toggleCond(c)}
+                style={{ fontSize: 12.5, cursor: 'pointer', borderRadius: 999, padding: '6px 12px', fontFamily: 'inherit', fontWeight: 600, border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent-soft)' : 'transparent', color: on ? 'var(--accent)' : 'var(--ink)' }}>
+                {on ? '✓ ' : ''}{c}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <span style={lbl}>Allergies (comma-separated)</span>
+        <input style={fld} value={f.allergies ?? ''} placeholder="e.g. peanuts, shellfish" onChange={(e) => set('allergies', e.target.value)} />
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+        <Button variant="accent" disabled={saving || !f.name.trim()} onClick={() => onSave(f)}>{saving ? 'Saving…' : 'Save member'}</Button>
+        <Button variant="line" onClick={onCancel}>Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
+function MemberCard({ m, onEdit, onRemove }: { m: FamilyMemberProfile; onEdit: () => void; onRemove: () => void }) {
+  const dietLabel = DIETS.find(([v]) => v === m.diet)?.[1] ?? m.diet;
+  return (
+    <div className="card" style={{ padding: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="av" style={{ width: 44, height: 44, fontSize: 17 }}>{(m.name[0] ?? '?').toUpperCase()}</div>
+        <div style={{ flex: 1 }}>
+          <h4 style={{ margin: 0 }}>{m.name}{m.isSelf && <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}> · You</span>}</h4>
+          <p className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>{m.role[0].toUpperCase() + m.role.slice(1)} · {dietLabel} · {m.age}y · {m.weightKg}kg</p>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 18, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)', fontSize: 13 }}>
+        <span><b>{m.targets.kcal.toLocaleString('en-IN')}</b> <span className="muted">kcal</span></span>
+        <span><b>{m.targets.protein}</b> <span className="muted">g protein</span></span>
+        <span><b>{m.targets.fiber}</b> <span className="muted">g fibre</span></span>
+      </div>
+      {m.healthConditions.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+          {m.healthConditions.map((c) => <span key={c} style={{ fontSize: 11, background: '#f7efe1', color: '#b0803a', borderRadius: 999, padding: '3px 9px', fontWeight: 600 }}>{c}</span>)}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <Button variant="line" size="sm" onClick={onEdit}>Edit</Button>
+        {!m.isSelf && <Button variant="line" size="sm" onClick={onRemove}>Remove</Button>}
+      </div>
+    </div>
+  );
+}
+
+/** Connect Family Members — admin-managed sub-profiles (Family Meal Planner §).
+ *  Each member has their own biometrics, diet, goal and conditions, so the family
+ *  plan can compute per-member targets and portions. */
 export function FamilyConnect() {
-  const { user } = useAuth();
-  const { state, addGuest, removeGuest } = useFamily();
-  const [guestName, setGuestName] = useState('');
-
-  const youName = user?.name ?? 'You';
-  const connectedCount = connectedMembers(state).length - 1; // exclude admin (you)
-  const N = headcount(state);
-  const active = activeMembers(state).map((m) => m.id);
-
-  const submitGuest = () => {
-    const nm = guestName.trim();
-    if (!nm) return;
-    addGuest(nm);
-    setGuestName('');
-  };
+  const members = useFamilyMembers();
+  const { add, update, remove } = useFamilyMemberMutations();
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
 
   return (
     <div>
       <Hero image="/assets/img/nutrition-hub--main-pages--family--connect-family.webp" eyebrow="Family Nutrition · 01"
-        title="Connect Family Members"
-        sub="Link Together IDs so meal plans, grocery lists and health insights can be shared with consent." />
+        title="Family Members"
+        sub="Add each person in your household — their diet, goal and health conditions set their own nutrition targets, and the family plan cooks shared meals with personalised portions." />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 28, alignItems: 'start' }} className="tc-dashgrid">
-        <div>
-          <div className="card" style={{ marginBottom: 20 }}>
-            <h4 style={{ marginBottom: 12 }}>Add with Together City ID</h4>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <input placeholder="Enter Together City ID, e.g. TC-00031452" style={pillInput} />
-              <Button variant="accent" size="sm">Send Request →</Button>
-            </div>
-            <p className="meta" style={{ display: 'block', marginTop: 10 }}>Send Request → they Accept → you're Connected. Or invite by phone number instead.</p>
-            <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-              <input placeholder="+91 phone number" style={pillInput} />
-              <Button variant="line" size="sm">Invite via SMS</Button>
-            </div>
-          </div>
+      <div style={{ maxWidth: 820, margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 16px' }}>
+          <h3 style={{ fontSize: 18, margin: 0 }}>Household</h3>
+          {!adding && editing === null && <Button variant="accent" onClick={() => setAdding(true)}>+ Add member</Button>}
+        </div>
 
-          <div style={{ marginBottom: 4 }}><h2>Connected Members ({connectedCount})</h2></div>
-          <p className="note" style={{ margin: '0 0 16px', fontSize: 12.5 }}>
-            🍳 Family meals are currently cooked for <b>{N} {N === 1 ? 'person' : 'people'}</b> (you + active members + guests). Pause anyone travelling or add a guest — plans re-portion automatically.
-          </p>
+        {adding && (
+          <MemberForm initial={blank()} saving={add.isPending}
+            onSave={(d) => add.mutate(d, { onSuccess: () => setAdding(false) })}
+            onCancel={() => setAdding(false)} />
+        )}
 
-          <div className="card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 4px', borderBottom: '1px solid var(--line)' }}>
-              <div className="av">{(youName[0] || 'Y').toUpperCase()}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600 }}>{youName} <span className="tag green" style={{ marginLeft: 6 }}>You · Admin</span></div>
-                <div style={{ color: 'var(--muted)', fontSize: 12.5, marginTop: 2 }}>You manage the family group and always count in the headcount.</div>
+        {members.isLoading && <Spinner label="Loading your household…" />}
+        {members.data && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
+            {members.data.map((m) => editing === m.id ? (
+              <div key={m.id} style={{ gridColumn: '1 / -1' }}>
+                <MemberForm initial={toInput(m)} isSelf={m.isSelf} saving={update.isPending}
+                  onSave={(d) => update.mutate({ id: m.id, dto: d }, { onSuccess: () => setEditing(null) })}
+                  onCancel={() => setEditing(null)} />
               </div>
-            </div>
-            <p className="muted" style={{ fontSize: 12.5, padding: '14px 4px 4px' }}>
-              No other family members yet — add someone by their Together City ID above, and once they accept they’ll appear here.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 32, marginBottom: 8 }}>
-            <h2>Guests</h2><span className="meta">Added to the headcount · removed anytime</span>
-          </div>
-          <div className="card">
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
-              <input value={guestName} onChange={(e) => setGuestName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitGuest(); } }}
-                placeholder="Guest name"
-                style={{ flex: 1, minWidth: 200, border: '1px solid var(--line)', borderRadius: 10, padding: '11px 14px', fontFamily: 'inherit', fontSize: 14, background: 'var(--card)', color: 'var(--ink)' }} />
-              <Button variant="accent" size="sm" onClick={submitGuest}>+ Add guest</Button>
-            </div>
-            {state.guests.map((g) => (
-              <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 4px' }}>
-                <div className="av" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>{(g.name[0] || 'G').toUpperCase()}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600 }}>{g.name} <span className="tag amber" style={{ marginLeft: 6 }}>Guest</span></div>
-                  <div style={{ color: 'var(--muted)', fontSize: 12.5 }}>Counted in the family headcount</div>
-                </div>
-                <Button variant="line" size="sm" style={{ color: '#b0503e' }} onClick={() => removeGuest(g.id)}>Remove</Button>
-              </div>
+            ) : (
+              <MemberCard key={m.id} m={m}
+                onEdit={() => { setAdding(false); setEditing(m.id); }}
+                onRemove={() => { if (confirm(`Remove ${m.name} from your family?`)) remove.mutate(m.id); }} />
             ))}
-            {state.guests.length === 0 && (
-              <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>No guests right now — add one and every family plan cooks for them too.</p>
-            )}
           </div>
+        )}
 
-          <div style={{ marginTop: 32, marginBottom: 8 }}><h2>Pending Invites</h2></div>
-          <div className="card">
-            <p className="muted" style={{ fontSize: 12.5, padding: '4px' }}>No pending invites. Requests you send appear here until they’re accepted.</p>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, background: 'var(--accent-soft)', borderRadius: 'var(--radius)', padding: '16px 20px' }}>
-            <div>
-              <p className="meta" style={{ display: 'block', marginBottom: 2 }}>Your Together City ID</p>
-              <b style={{ fontSize: 15 }}>TC-00024891</b>
-            </div>
-            <Button variant="line" size="sm">Share</Button>
-          </div>
-          <div className="card">
-            <h4>Privacy &amp; Permissions</h4>
-            <p className="meta" style={{ display: 'block', marginTop: 10 }}>Connected members share meal plans, grocery lists and health insights within this family group. As Admin, you manage who can view or edit each profile — nothing is shared outside the family without explicit consent.</p>
-          </div>
-          <div className="card">
-            <h4>Roles</h4>
-            <div className="rows" style={{ marginTop: 12 }}>
-              <div className="row" style={{ boxShadow: 'none', padding: '10px 12px' }}>
-                <div style={{ flex: 1 }}><div style={{ fontSize: 13 }}>{youName}</div><div className="muted" style={{ fontSize: 12 }}>Admin — full access</div></div>
-              </div>
-              <div className="row" style={{ boxShadow: 'none', padding: '10px 12px' }}>
-                <div style={{ flex: 1 }}><div style={{ fontSize: 13 }} className="muted">Family members you add</div><div className="muted" style={{ fontSize: 12 }}>Members — view &amp; edit own profile</div></div>
-              </div>
-            </div>
-          </div>
-          <div className="muted" style={{ fontSize: 11.5 }}>Active in meals right now: {active.length} of {MEMBERS.length} {MEMBERS.length === 1 ? 'member' : 'members'}.</div>
-        </div>
+        <p className="muted" style={{ fontSize: 12, marginTop: 18, lineHeight: 1.5 }}>
+          Each member's targets are calculated from their age, sex, height, weight, activity and goal, then adjusted for any medical conditions. The Family Weekly Planner cooks one shared meal and portions it per member.
+        </p>
       </div>
     </div>
   );

@@ -9,6 +9,10 @@ export const nutritionApi = {
     api.get<NutritionHistoryWeek[]>('/nutrition/history', { params: mode ? { mode } : undefined }).then((r) => r.data),
   historyDetail: (id: string) =>
     api.get<Record<string, unknown>>(`/nutrition/history/${id}`).then((r) => r.data),
+  familyMembers: () => api.get<FamilyMemberProfile[]>('/nutrition/family/members').then((r) => r.data),
+  addFamilyMember: (dto: FamilyMemberInput) => api.post<FamilyMemberProfile[]>('/nutrition/family/members', dto).then((r) => r.data),
+  updateFamilyMember: (id: string, dto: FamilyMemberInput) => api.patch<FamilyMemberProfile[]>(`/nutrition/family/members/${id}`, dto).then((r) => r.data),
+  removeFamilyMember: (id: string) => api.delete<FamilyMemberProfile[]>(`/nutrition/family/members/${id}`).then((r) => r.data),
   regenerate: (mode: 'individual' | 'family' = 'individual') =>
     api.post<WeekPlan>('/nutrition/plan/weekly/regenerate', { mode }).then((r) => r.data),
   daySummary: (planKey: string, dayIndex: number) =>
@@ -55,6 +59,17 @@ export const nutritionApi = {
 };
 
 export type CalorieType = 'Meal Plan' | 'Extra' | 'Alcohol';
+export interface FamilyMemberProfile {
+  id: string; name: string; role: string; sex: string; age: number; heightCm: number;
+  weightKg: number; activity: number; goal: string; diet: string; isSelf: boolean;
+  proteins: string[]; cuisines: string[]; allergies: string; healthConditions: string[];
+  targets: { kcal: number; protein: number; carb: number; fat: number; fiber: number; adjustments: string[] };
+}
+export interface FamilyMemberInput {
+  name: string; role: string; sex: string; age: number; heightCm: number; weightKg: number;
+  activity: number; goal: string; diet: string; healthConditions: string[]; allergies?: string;
+}
+
 export interface CalorieEntry { id: string; date: string; name: string; kcal: number; type: CalorieType }
 
 export interface RecipeIngredient { name: string; grams: number; priceInr: number }
