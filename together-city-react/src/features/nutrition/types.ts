@@ -43,6 +43,8 @@ export interface WeekPlan {
   key: string;
   days: DayPlan[];
   guidance?: PlanGuidance | null;
+  incomplete?: boolean;                          // profile missing required fields
+  missing?: { key: string; label: string }[];    // what to complete before planning
 }
 
 export interface NutritionTargets {

@@ -5,6 +5,7 @@ import { DayTabs } from '../components/DayTabs';
 import { MealCard } from '../components/MealCard';
 import { DailySummary } from '../components/DailySummary';
 import { PlanGuidanceBanner } from '../components/PlanGuidanceBanner';
+import { ProfileIncomplete } from '../components/ProfileIncomplete';
 import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRegenerateWeek, useBuildCart } from '../hooks';
 import { nutritionApi } from '../api';
 import { useQueryClient } from '@tanstack/react-query';
@@ -28,6 +29,7 @@ export function WeeklyPlanner() {
   if (plan.isError || !plan.data) {
     return <EmptyState icon="🗓️" title="Couldn't load your plan" hint="Start the NestJS backend, then reload." />;
   }
+  if (plan.data.incomplete) return <ProfileIncomplete missing={plan.data.missing} />;
 
   const week = plan.data;
   const day = week.days[dayIndex];

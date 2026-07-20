@@ -4,6 +4,7 @@ import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
 import { MealCard } from '../components/MealCard';
 import { DailySummary } from '../components/DailySummary';
 import { PlanGuidanceBanner } from '../components/PlanGuidanceBanner';
+import { ProfileIncomplete } from '../components/ProfileIncomplete';
 import { useWeeklyPlan, useNutritionTargets, useDaySummary, useBuildCart } from '../hooks';
 import { nutritionApi } from '../api';
 
@@ -27,6 +28,7 @@ export function Daily() {
   if (plan.isError || !plan.data) {
     return <EmptyState icon="🍽️" title="Couldn't load today's plate" hint="Start the backend, then reload." />;
   }
+  if (plan.data.incomplete) return <ProfileIncomplete missing={plan.data.missing} />;
 
   const week = plan.data;
   const day = week.days[dayIndex];

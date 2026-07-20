@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
 import { DayTabs } from '@/features/nutrition/components/DayTabs';
 import { MealCard } from '@/features/nutrition/components/MealCard';
+import { ProfileIncomplete } from '@/features/nutrition/components/ProfileIncomplete';
 import { DailySummary } from '@/features/nutrition/components/DailySummary';
 import { useNavigate } from 'react-router-dom';
 import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRegenerateWeek, useRecipes, useBuildCart } from '@/features/nutrition/hooks';
@@ -40,6 +41,7 @@ export function FamilyWeekly() {
   if (plan.isError || !plan.data) {
     return <EmptyState icon="🗓️" title="Couldn't load your plan" hint="Start the NestJS backend, then reload." />;
   }
+  if (plan.data.incomplete) return <ProfileIncomplete missing={plan.data.missing} />;
 
   const week = plan.data;
   const day = week.days[dayIndex];

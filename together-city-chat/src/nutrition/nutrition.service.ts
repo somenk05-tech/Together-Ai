@@ -389,7 +389,35 @@ export class NutritionService implements OnModuleInit {
   }
 
   // ─────────────── weekly plan ───────────────
+  /**
+   * Required-preference gate. The planner is the user's source of truth, so it
+   * must never guess: if a required field is missing, we return what's missing
+   * instead of generating a plan on assumptions.
+   */
+  async profileStatus(userId: string): Promise<{ complete: boolean; missing: { key: string; label: string }[] }> {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    if (!pref) {
+      return { complete: false, missing: [
+        { key: 'diet', label: 'Diet pattern' },
+        { key: 'proteins', label: 'Protein sources' },
+        { key: 'body', label: 'Age, sex, height & weight' },
+      ] };
+    }
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const missing: { key: string; label: string }[] = [];
+    if (!pref.age) missing.push({ key: 'age', label: 'Age' });
+    if (!pref.sex) missing.push({ key: 'sex', label: 'Sex' });
+    if (!pref.heightCm) missing.push({ key: 'height', label: 'Height' });
+    if (!pref.weightKg) missing.push({ key: 'weight', label: 'Weight' });
+    if (!(ex.proteins && ex.proteins.length)) missing.push({ key: 'proteins', label: 'Protein sources' });
+    return { complete: missing.length === 0, missing };
+  }
+
   async weeklyPlan(userId: string, mode: PlanMode = 'individual') {
+    const status = await this.profileStatus(userId);
+    if (!status.complete) {
+      return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
+    }
     const existing = await this.prisma.mealPlan.findFirst({
       where: { userId, mode },
       orderBy: { createdAt: 'desc' },
@@ -403,6 +431,10 @@ export class NutritionService implements OnModuleInit {
   }
 
   async regenerate(userId: string, mode: PlanMode = 'individual') {
+    const status = await this.profileStatus(userId);
+    if (!status.complete) {
+      return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
+    }
     const plan = await this.generatePlan(userId, mode);
     return { ...plan, guidance: await this.userPlanGuidance(userId) };
   }

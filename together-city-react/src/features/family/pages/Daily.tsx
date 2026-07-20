@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Hero, Button, Spinner, EmptyState } from '@/components/ui';
 import { MealCard } from '@/features/nutrition/components/MealCard';
+import { ProfileIncomplete } from '@/features/nutrition/components/ProfileIncomplete';
 import { DailySummary } from '@/features/nutrition/components/DailySummary';
 import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRecipes, useBuildCart } from '@/features/nutrition/hooks';
 import { nutritionApi } from '@/features/nutrition/api';
@@ -38,6 +39,7 @@ export function FamilyDaily() {
   if (plan.isError || !plan.data) {
     return <EmptyState icon="🍽️" title="Couldn't load today's plate" hint="Start the backend, then reload." />;
   }
+  if (plan.data.incomplete) return <ProfileIncomplete missing={plan.data.missing} />;
 
   const week = plan.data;
   const day = week.days[dayIndex];
