@@ -16,12 +16,6 @@ function weekDatesOf(base: Date): string[] {
 }
 
 
-const HUBS: { to: string; title: string; body: string; label: string }[] = [
-  { to: '/medical', title: '◈ Medical Hub', body: 'Your blood tests, vitals and Health Score come from here. New reports update your analysis automatically.', label: 'Open Medical Hub →' },
-  { to: '/nutrition/preferences', title: '◈ Nutrition Hub', body: "Your calorie targets, meal plan and macros flow from your Nutrition profile and set today's activity goal.", label: 'Open Nutrition profile →' },
-  { to: '/nutrition/daily', title: '◈ Daily Plan', body: "Today's plate and macros drive the intake side of your calorie balance.", label: 'Open Daily Planner →' },
-];
-
 function Bar({ lbl, pct, val, color }: { lbl: string; pct: number; val: string; color?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0', fontSize: 13 }}>
@@ -255,19 +249,6 @@ export function HealthProfile() {
           <p className="muted" style={{ fontSize: 11.5, marginTop: 12 }}>
             Prefer to only walk? Walk about <b>{WALK_ONLY_MIN} min</b> (≈ {WALK_ONLY_STEPS.toLocaleString('en-IN')} steps) to burn the same {BURN_TOTAL} kcal.
           </p>
-        </div>
-      </section>
-
-      <section style={{ marginTop: 26 }}>
-        <div className="blk-head"><h2>Connected across Together City</h2></div>
-        <div className="grid3">
-          {HUBS.map((h) => (
-            <Link key={h.to} to={h.to} className="card" style={{ textDecoration: 'none', color: 'inherit' }}>
-              <b style={{ fontSize: 14 }}>{h.title}</b>
-              <p className="muted" style={{ fontSize: 12.5, margin: '5px 0' }}>{h.body}</p>
-              <span style={{ fontSize: 11.5, color: 'var(--accent)', fontWeight: 600 }}>{h.label}</span>
-            </Link>
-          ))}
         </div>
       </section>
 
