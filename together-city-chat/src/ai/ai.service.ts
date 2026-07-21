@@ -145,17 +145,32 @@ export class AiService {
    * AI-generated, so the analysis is only run on authentic, usable photos.
    * Returns detected-attribute tags the caller folds into its assessment.
    */
-  async reviewSkinPhotos(images: { base64: string; mediaType: string }[]): Promise<{ quality: 'ok' | 'unclear' | 'suspect'; findings: string[]; note: string }> {
-    if (!this.client) return { quality: 'ok', findings: [], note: '' };
-    if (!images.length) return { quality: 'unclear', findings: [], note: 'No photo provided.' };
+  async reviewSkinPhotos(images: { base64: string; mediaType: string }[]): Promise<{ quality: 'ok' | 'unclear' | 'suspect'; findings: string[]; note: string; face: Record<string, string> | null }> {
+    if (!this.client) return { quality: 'ok', findings: [], note: '', face: null };
+    if (!images.length) return { quality: 'unclear', findings: [], note: 'No photo provided.', face: null };
     const ALLOWED = ['acne', 'pigmentation', 'wrinkle', 'texture', 'pore', 'redness', 'dehydration', 'dark-circles', 'density', 'thickness', 'hairline', 'scalp', 'dandruff'];
+    const FACE_ENUMS: Record<string, string[]> = {
+      faceShape: ['oval', 'round', 'square', 'heart', 'oblong', 'diamond'],
+      eyeShape: ['almond', 'round', 'hooded', 'monolid', 'downturned', 'upturned'],
+      eyeSize: ['small', 'medium', 'large'],
+      browShape: ['straight', 'soft-arch', 'high-arch', 'curved', 'thin', 'thick'],
+      lipShape: ['full', 'thin', 'wide', 'heart', 'balanced'],
+      cheekbones: ['high', 'mid', 'soft'],
+      jawline: ['sharp', 'soft', 'rounded'],
+      maturity: ['youthful', 'balanced', 'mature'],
+      undertoneGuess: ['warm', 'cool', 'neutral'],
+      depthGuess: ['fair', 'light', 'medium', 'tan', 'deep'],
+    };
     const system =
       'You review real skin/scalp/hair photos for a wellness assessment (not a diagnosis). ' +
       'STEP 1 — judge authenticity & clarity: if a photo is blurry, too dark, heavily cropped, or clearly beauty-filtered / smoothed / AI-generated / heavily edited, do NOT analyse it. ' +
       'STEP 2 — only for a clear, authentic, unfiltered photo, list the visible attribute tags. ' +
-      'Return ONLY JSON {"quality":"ok"|"unclear"|"suspect","findings":string[],"note":string}. ' +
+      'STEP 3 — from the clear face photos, read the facial features for makeup guidance. ' +
+      'Return ONLY JSON {"quality":"ok"|"unclear"|"suspect","findings":string[],"note":string,"face":object|null}. ' +
       'quality="unclear" for blurry/dark/unusable; quality="suspect" if it looks filtered or AI-generated; quality="ok" only for a clear authentic photo. ' +
-      'findings use ONLY these tags where genuinely visible: ' + ALLOWED.join(', ') + '. Never invent findings; empty findings unless quality="ok".';
+      'findings use ONLY these tags where genuinely visible: ' + ALLOWED.join(', ') + '. Never invent findings; empty findings unless quality="ok". ' +
+      'face: only when quality="ok" and a face is clearly visible — keys ' + Object.keys(FACE_ENUMS).join(', ') + ', each value strictly one of its allowed set: ' +
+      Object.entries(FACE_ENUMS).map(([k, v]) => `${k}: ${v.join('|')}`).join('; ') + '. Omit any key you cannot judge; face=null if no clear face.';
     try {
       const blocks = images.slice(0, 6).map((im) => ({
         type: 'image',
@@ -172,10 +187,21 @@ export class AiService {
       const quality = parsed?.quality === 'suspect' ? 'suspect' : parsed?.quality === 'unclear' ? 'unclear' : 'ok';
       const raw = Array.isArray(parsed?.findings) ? parsed!.findings : [];
       const findings = quality === 'ok' ? raw.filter((x): x is string => typeof x === 'string' && ALLOWED.includes(x)) : [];
-      return { quality, findings, note: typeof parsed?.note === 'string' ? parsed.note : '' };
+      // Validate face attributes strictly against the enums.
+      let face: Record<string, string> | null = null;
+      const rawFace = (parsed as { face?: unknown } | null)?.face;
+      if (quality === 'ok' && rawFace && typeof rawFace === 'object') {
+        face = {};
+        for (const [k, allowed] of Object.entries(FACE_ENUMS)) {
+          const v = (rawFace as Record<string, unknown>)[k];
+          if (typeof v === 'string' && allowed.includes(v)) face[k] = v;
+        }
+        if (Object.keys(face).length === 0) face = null;
+      }
+      return { quality, findings, note: typeof parsed?.note === 'string' ? parsed.note : '', face };
     } catch (e) {
       this.logger.warn(`Skin photo review failed: ${(e as Error).message}`);
-      return { quality: 'ok', findings: [], note: '' };
+      return { quality: 'ok', findings: [], note: '', face: null };
     }
   }
 

@@ -8,6 +8,7 @@ import {
   type BeautyInsight,
 } from './beauty-engine';
 import { assessBeauty, type BeautyProfileInput, type BeautyAssessment } from './beauty-analysis';
+import { buildMakeupLook, type FaceAttrs } from './makeup-engine';
 import type { PlaceBeautyOrderDto } from './dto/beauty.dto';
 
 const DEFAULT_PROFILE = { skinType: 'normal', hairType: 'straight', concerns: [] as string[] };
@@ -17,6 +18,7 @@ interface BeautyRow {
   skinType: string; hairType: string; concerns: string;
   extras: string | null; photosJson: string; progressJson: string; analysisJson: string | null; analyzedAt: Date | null;
   analysisLogJson?: string | null; // rolling-week analysis log (new column; offline client can't type it)
+  faceJson?: string | null;        // AI face-feature read (new column; offline client can't type it)
 }
 /** A permanent, dated skin & hair assessment in the timeline. Each entry keeps a
  *  per-attribute snapshot so any past assessment can be revisited and compared —
@@ -199,7 +201,7 @@ export class BeautyService {
     const profile = safeJson<BeautyProfileInput>(existing?.extras, {});
     const images = photos.filter((p) => p.base64).map((p) => ({ base64: p.base64, mediaType: p.mediaType || 'image/jpeg' }));
 
-    const review = images.length ? await this.ai.reviewSkinPhotos(images) : { quality: 'ok' as const, findings: [] as string[], note: '' };
+    const review = images.length ? await this.ai.reviewSkinPhotos(images) : { quality: 'ok' as const, findings: [] as string[], note: '', face: null as Record<string, string> | null };
     const rejected = review.quality === 'suspect' || review.quality === 'unclear';
     const warning = review.quality === 'suspect'
       ? 'These photos look filtered or AI-generated — please upload clear, unedited photos of yourself for an accurate analysis.'
@@ -249,7 +251,8 @@ export class BeautyService {
     const update = rejected
       ? { photosJson: JSON.stringify(photoRows), analysisLogJson: newLog }
       : { photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: now, analysisLogJson: newLog,
-          ...(estKeys.length ? { extras: JSON.stringify(profileForAssess) } : {}) };
+          ...(estKeys.length ? { extras: JSON.stringify(profileForAssess) } : {}),
+          ...(review.face ? { faceJson: JSON.stringify(review.face) } : {}) };
     await this.beauty.upsert({
       where: { userId },
       update: update as never,
@@ -347,6 +350,23 @@ export class BeautyService {
       create: { userId, skinType: 'normal', hairType: 'straight', concerns: '', photosJson: '[]', progressJson: '[]' } as never,
     });
     return this.getProfile(userId);
+  }
+
+  // ─────────────── Makeup Studio (face-first, biomarker-free) ───────────────
+  async makeupLook(userId: string, occasion?: string) {
+    const row = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
+    const face = safeJson<FaceAttrs | null>(row?.faceJson, null);
+    const analysis = safeJson<{ skin?: { readings?: { key: string; label: string; level: string }[] } } | null>(row?.analysisJson, null);
+    const extras = safeJson<{ skinTone?: string; undertone?: string; budget?: string }>(row?.extras, {});
+    return {
+      ...buildMakeupLook({
+        face,
+        readings: analysis?.skin?.readings ?? [],
+        skinTone: extras.skinTone, undertone: extras.undertone,
+        occasion,
+      }),
+      budget: extras.budget ?? null,
+    };
   }
 
   // ─────────────── orders (the commerce loop) ───────────────

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Hero } from '@/components/ui';
+import { useMakeupLook } from '../api';
 
 type Section = 'base' | 'eyes' | 'lips' | 'cheek' | 'tools';
 type TierKey = 'budget' | 'ai' | 'premium';
@@ -108,6 +109,8 @@ export function Makeup() {
     return Object.fromEntries(Object.keys(plan).map((k) => [k, true]));
   });
   const [tab, setTab] = useState<'complete' | Section>('complete');
+  const [occasion, setOccasion] = useState('Everyday Natural');
+  const look = useMakeupLook(occasion);
   const [openCmp, setOpenCmp] = useState<Record<string, boolean>>({});
   const [note, setNote] = useState('');
 
@@ -147,11 +150,72 @@ export function Makeup() {
     <div style={{ maxWidth: 1080, margin: '0 auto', padding: '28px 16px' }}>
       <Hero
         image="/assets/img/makeup-studio-hero.webp"
-        eyebrow="Beauty Market · 05"
+        eyebrow="Beauty Market · 04"
         title="Makeup Studio"
-        sub="One recommended product per need, matched to your skin type & finish — with a budget, lower-cost and premium option for each. Your budget builds a complete everyday look."
+        sub="Your personal AI makeup artist — looks built from your face analysis, skin, colouring and the occasion. Blood biomarkers play no part here."
         objectPosition="center top"
       />
+
+      {/* ── occasion picker ── */}
+      <div className="card" style={{ marginBottom: 18, padding: '16px 20px' }}>
+        <b style={{ fontSize: 14 }}>What's the occasion?</b>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+          {(look.data?.occasions ?? ['Everyday Natural']).map((o) => (
+            <button key={o} type="button" onClick={() => setOccasion(o)}
+              style={{ fontSize: 12, fontWeight: 600, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', font: 'inherit',
+                border: `1.5px solid ${occasion === o ? 'var(--accent)' : 'var(--line)'}`,
+                background: occasion === o ? 'var(--accent)' : 'transparent', color: occasion === o ? '#fff' : 'var(--ink-soft)' }}>
+              {o}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── your AI look ── */}
+      {look.data && (
+        <div className="card" style={{ marginBottom: 18, padding: '16px 20px', borderLeft: '4px solid var(--accent)' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+            <b style={{ fontSize: 15 }}>💄 Your {look.data.occasion} look</b>
+            <span className="muted" style={{ fontSize: 12 }}>{look.data.season} · {look.data.finish} finish</span>
+            {!look.data.inputs.face && (
+              <Link to="/beauty/profile" style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 700, color: 'var(--accent)' }}>
+                Add photos for face-shape precision →
+              </Link>
+            )}
+          </div>
+          <p style={{ fontSize: 13, lineHeight: 1.6, margin: '8px 0 12px', color: 'var(--ink-soft)' }}>{look.data.explanation}</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+            <div>
+              <div className="muted" style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Your colour palette</div>
+              <div style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+                <div><b>Foundation:</b> {look.data.palette.foundation}</div>
+                <div><b>Concealer:</b> {look.data.palette.concealer}</div>
+                <div><b>Blush:</b> {look.data.palette.blush}</div>
+                <div><b>Lips:</b> {look.data.palette.lips.join(' · ')}</div>
+                <div><b>Eyes:</b> {look.data.palette.eyes.join(' · ')}</div>
+                <div><b>Highlighter:</b> {look.data.palette.highlighter}</div>
+              </div>
+            </div>
+            <div>
+              <div className="muted" style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Technique, for your features</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {look.data.techniques.map((t) => (
+                  <div key={t.area} style={{ fontSize: 12.5, lineHeight: 1.5 }}><b>{t.area}:</b> {t.tip}</div>
+                ))}
+              </div>
+              {look.data.baseNotes.length > 0 && (
+                <>
+                  <div className="muted" style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', margin: '10px 0 6px' }}>Base, for your skin</div>
+                  <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12.5, lineHeight: 1.6 }}>
+                    {look.data.baseNotes.map((n, i) => <li key={i}>{n}</li>)}
+                  </ul>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 18, padding: '16px 20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
@@ -185,8 +249,7 @@ export function Makeup() {
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.2fr) minmax(240px, 1fr)', gap: 28, alignItems: 'start' }}>
         <div>
           <div style={{ fontSize: 12.5, color: 'var(--ink-soft)', background: 'var(--accent-soft)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
-            ◈ Matched to your <b>natural finish</b> everyday look — we favour breathable, natural formulas. Each pick has a lower-cost and premium option.{' '}
-            <Link to="/beauty/profile" style={{ fontWeight: 600 }}>Add your complexion &amp; tone</Link> for shade-level matching.
+            ◈ Products below are matched to your <b>{(look.data?.finish ?? 'natural').toLowerCase()} finish</b> {occasion} look — shades from your {look.data?.season ?? 'colour'} palette above. Each pick has a lower-cost and premium option.
           </div>
 
           {SECTION_TITLES.map(([sec, title]) => {
@@ -300,7 +363,7 @@ export function Makeup() {
       </div>
 
       <div className="trust">
-        <span>◈ Skin-type matched</span><span>◈ Budget · AI · Premium</span><span>◈ Non-comedogenic where it counts</span><span>◈ Curated, not upsold</span>
+        <span>◈ Built from your face analysis</span><span>◈ Occasion-adapted</span><span>◈ Budget · AI · Premium</span><span>◈ No biomarkers in makeup</span>
       </div>
     </div>
   );

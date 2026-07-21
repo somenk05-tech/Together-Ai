@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Put, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -43,6 +43,12 @@ export class BeautyController {
   @Get('insights')
   insights(@CurrentUser() user: JwtUser) {
     return this.beauty.insights(user.sub);
+  }
+
+  // Makeup Studio — face-first personal makeup artist (no biomarkers).
+  @Get('makeup')
+  makeup(@CurrentUser() user: JwtUser, @Query('occasion') occasion?: string) {
+    return this.beauty.makeupLook(user.sub, occasion);
   }
 
   @Get('products')

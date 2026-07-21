@@ -74,6 +74,16 @@ export function isConsentBlocked(err: unknown): boolean {
   return err instanceof AxiosError && err.response?.status === 403;
 }
 
+/** Makeup Studio — face-first AI look (no biomarkers). */
+export interface MakeupTechnique { area: string; tip: string }
+export interface MakeupPalette { foundation: string; concealer: string; lips: string[]; blush: string; eyes: string[]; highlighter: string }
+export interface MakeupLook {
+  occasion: string; occasions: string[]; finish: string; season: string;
+  palette: MakeupPalette; techniques: MakeupTechnique[]; baseNotes: string[];
+  explanation: string; inputs: { face: boolean; skin: boolean; colour: boolean };
+  budget: string | null;
+}
+
 export const beautyApi = {
   profile: () => api.get<BeautyProfile>('/beauty/profile').then((r) => r.data),
   saveProfile: (input: Record<string, unknown>) =>
@@ -82,6 +92,7 @@ export const beautyApi = {
     api.post<BeautyProfile & { photoFindings: string[]; aiUsed: boolean; quality: 'ok' | 'unclear' | 'suspect'; warning: string }>('/beauty/photos/analyze', { photos, thumb }).then((r) => r.data),
   history: () => api.get<BeautyHistory>('/beauty/history').then((r) => r.data),
   deleteLatestAssessment: () => api.delete<BeautyProfile>('/beauty/assessments/latest').then((r) => r.data),
+  makeupLook: (occasion?: string) => api.get<MakeupLook>('/beauty/makeup', { params: { occasion } }).then((r) => r.data),
   conditionSuggestions: () => api.get<ConditionSuggestions>('/medical/conditions/suggested').then((r) => r.data),
   insights: () => api.get<InsightsResponse>('/beauty/insights').then((r) => r.data),
   products: () => api.get<ProductsResponse>('/beauty/products').then((r) => r.data),
@@ -145,4 +156,8 @@ export function usePlaceBeautyOrder() {
     mutationFn: (v: { items: { id: string; name: string; priceInr: number; qty: number }[]; method: 'wallet' | 'card' }) => beautyApi.placeOrder(v.items, v.method),
     onSuccess: (res) => { qc.setQueryData(['beauty', 'orders'], res.orders); void qc.invalidateQueries({ queryKey: ['financial'] }); },
   });
+}
+
+export function useMakeupLook(occasion?: string) {
+  return useQuery({ queryKey: ['beauty', 'makeup', occasion ?? ''], queryFn: () => beautyApi.makeupLook(occasion), retry: false, staleTime: 10 * 60_000 });
 }
