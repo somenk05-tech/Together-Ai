@@ -22,7 +22,7 @@ export function Movies() {
   const [genre, setGenre] = useState('');
   const search = useTitleSearch(q);
   const filtering = !!(lang || genre);
-  const discover = useDiscover(genre || undefined, lang || undefined, undefined, filtering);
+  const discover = useDiscover(genre || undefined, lang || undefined, undefined, 'movie', filtering);
   const isLive = live.data?.live === true;
   const d = live.data;
   const searching = q.trim().length >= 2;
@@ -38,7 +38,7 @@ export function Movies() {
   return (
     <EntPage className="ent-movies">
       <style>{CSS}</style>
-      <PosterLead eyebrow="Entertainment · 01" title="Movies Now" sub="In theatres across India — live listings, trailers and details." />
+      <PosterLead eyebrow="Entertainment · 01" title="Movies Now" sub="Decide what to watch in one place — theatres and OTT together, instead of scrolling a hundred different apps." />
 
       <div className="searchbar rise d1">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Search any movie or series…" />

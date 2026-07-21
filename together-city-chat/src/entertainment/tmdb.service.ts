@@ -237,20 +237,21 @@ export class TmdbService {
     }
   }
 
-  /** Discover movies with working filters — genre, language, sort. */
-  async discover(genre?: string, lang?: string, sort?: string) {
+  /** Discover movies OR series with working filters — genre, language, sort. */
+  async discover(genre?: string, lang?: string, sort?: string, type: 'movie' | 'tv' = 'movie') {
     if (!this.enabled) return { live: false as const, results: [] };
     try {
       const genreId = Object.entries(GENRES).find(([, name]) => name.toLowerCase() === (genre ?? '').toLowerCase())?.[0];
       const langCode = Object.entries(LANGS).find(([, name]) => name.toLowerCase() === (lang ?? '').toLowerCase())?.[0];
       const params: Record<string, string> = {
-        region: REGION, include_adult: 'false', 'vote_count.gte': '25',
+        include_adult: 'false', 'vote_count.gte': '25',
         sort_by: sort === 'rating' ? 'vote_average.desc' : 'popularity.desc',
       };
+      if (type === 'movie') params.region = REGION;
       if (genreId) params.with_genres = genreId;
       if (langCode) params.with_original_language = langCode;
-      const d = await this.get<TmdbList>('/discover/movie', params);
-      return { live: true as const, results: d.results.filter((m) => m.poster_path).slice(0, 16).map((m) => ({ ...this.shape(m), type: 'movie' as const })) };
+      const d = await this.get<TmdbList>(type === 'tv' ? '/discover/tv' : '/discover/movie', params);
+      return { live: true as const, results: d.results.filter((m) => m.poster_path).slice(0, 16).map((m) => ({ ...this.shape(m), type })) };
     } catch (e) {
       this.log.warn(`discover failed: ${(e as Error).message}`);
       return { live: false as const, results: [] };

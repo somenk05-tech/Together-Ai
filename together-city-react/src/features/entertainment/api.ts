@@ -37,7 +37,7 @@ export const entApi = {
   title: (type: 'movie' | 'tv', id: number) => api.get<TitleFull>(`/entertainment/${type === 'tv' ? 'tv' : 'movies'}/${id}`).then((r) => r.data),
   ott: () => api.get<OttLive>('/entertainment/ott').then((r) => r.data),
   search: (q: string) => api.get<SearchLive>('/entertainment/search', { params: { q } }).then((r) => r.data),
-  discover: (genre?: string, lang?: string, sort?: string) => api.get<DiscoverLive>('/entertainment/discover', { params: { genre, lang, sort } }).then((r) => r.data),
+  discover: (genre?: string, lang?: string, sort?: string, type?: 'movie' | 'tv') => api.get<DiscoverLive>('/entertainment/discover', { params: { genre, lang, sort, type } }).then((r) => r.data),
   curatedMovies: () => api.get<CuratedLive>('/entertainment/curated-movies').then((r) => r.data),
   person: (id: number) => api.get<PersonFull>(`/entertainment/person/${id}`).then((r) => r.data),
 };
@@ -54,8 +54,8 @@ export function useLiveOtt() {
 export function useTitleSearch(q: string) {
   return useQuery({ queryKey: ['ent', 'search', q], queryFn: () => entApi.search(q), enabled: q.trim().length >= 2, retry: false, staleTime: 5 * 60_000 });
 }
-export function useDiscover(genre?: string, lang?: string, sort?: string, enabled = true) {
-  return useQuery({ queryKey: ['ent', 'discover', genre ?? '', lang ?? '', sort ?? ''], queryFn: () => entApi.discover(genre, lang, sort), enabled, retry: false, staleTime: 10 * 60_000 });
+export function useDiscover(genre?: string, lang?: string, sort?: string, type: 'movie' | 'tv' = 'movie', enabled = true) {
+  return useQuery({ queryKey: ['ent', 'discover', type, genre ?? '', lang ?? '', sort ?? ''], queryFn: () => entApi.discover(genre, lang, sort, type), enabled, retry: false, staleTime: 10 * 60_000 });
 }
 export function useCuratedMovies() {
   return useQuery({ queryKey: ['ent', 'curated'], queryFn: () => entApi.curatedMovies(), retry: false, staleTime: 30 * 60_000 });

@@ -47,8 +47,8 @@ export class EntertainmentController {
   }
 
   @Get('discover')
-  discover(@Query('genre') genre?: string, @Query('lang') lang?: string, @Query('sort') sort?: string) {
-    return this.tmdb.discover(genre, lang, sort);
+  discover(@Query('genre') genre?: string, @Query('lang') lang?: string, @Query('sort') sort?: string, @Query('type') type?: string) {
+    return this.tmdb.discover(genre, lang, sort, type === 'tv' ? 'tv' : 'movie');
   }
 
   @Get('curated-movies')
