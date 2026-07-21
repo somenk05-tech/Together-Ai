@@ -17,6 +17,34 @@ export function useDailyPlan(mode: 'individual' | 'family' = 'individual') {
   return useQuery({ queryKey: DAILY_KEY(mode), queryFn: () => nutritionApi.weeklyPlan(mode, true) });
 }
 
+/** Every saved week — the calendar/timeline. */
+export function useWeeks(mode: 'individual' | 'family' = 'individual') {
+  return useQuery({ queryKey: ['nutrition', 'weeks', mode], queryFn: () => nutritionApi.weeks(mode) });
+}
+
+/** Load one saved week by key (revisit a past week from the timeline). */
+export function useWeekByKey(key: string | null) {
+  return useQuery({ queryKey: ['nutrition', 'week', key], queryFn: () => nutritionApi.weekByKey(key as string), enabled: Boolean(key) });
+}
+
+/** Generate a brand-new week (never overwrites existing weeks). */
+export function useNewWeek(mode: 'individual' | 'family' = 'individual') {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => nutritionApi.newWeek(mode),
+    onSuccess: (plan) => { syncPlanCaches(qc, mode, plan); void qc.invalidateQueries({ queryKey: ['nutrition', 'weeks', mode] }); },
+  });
+}
+
+/** Duplicate a saved week's meals into a new (empty) week. */
+export function useDuplicateWeek(mode: 'individual' | 'family' = 'individual') {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sourceKey: string) => nutritionApi.duplicateWeek(sourceKey, mode),
+    onSuccess: (plan) => { syncPlanCaches(qc, mode, plan); void qc.invalidateQueries({ queryKey: ['nutrition', 'weeks', mode] }); },
+  });
+}
+
 /**
  * Push an edited/returned week into BOTH the weekly and daily caches so the two
  * views are ALWAYS the same single plan (edit in one → appears instantly in the
@@ -31,6 +59,7 @@ export function syncPlanCaches(qc: QueryClient, mode: string, plan: WeekPlan) {
   void qc.invalidateQueries({ queryKey: ['nutrition', 'summary'] });
   void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] });
   void qc.invalidateQueries({ queryKey: ['nutrition', 'history', mode] });
+  void qc.invalidateQueries({ queryKey: ['nutrition', 'weeks', mode] });
 }
 
 export function useNutritionTargets() {

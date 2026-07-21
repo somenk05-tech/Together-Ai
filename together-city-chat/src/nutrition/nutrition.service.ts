@@ -1716,32 +1716,132 @@ export class NutritionService implements OnModuleInit {
     if (!status.complete) {
       return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
     }
-    const existing = await this.prisma.mealPlan.findFirst({
-      where: { userId, mode },
-      orderBy: { createdAt: 'desc' },
-    });
+    const currentMon = weekMonday(new Date());
+    const plans = await this.prisma.mealPlan.findMany({ where: { userId, mode }, orderBy: { createdAt: 'desc' } }) as unknown as Array<{ key: string; weekStart?: Date | null; createdAt: Date }>;
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-    const stale = Boolean(existing && pref && existing.createdAt < pref.updatedAt);
-    if (!existing) {
-      // Daily never generates — send the user to the Weekly planner.
-      if (readOnly) return { needsPlan: true, key: '', days: [], stale: false, guidance: null, advisories: [] };
-      const plan = await this.generatePlan(userId, mode);
+    const current = plans.find((p) => this.planWeek(p).getTime() === currentMon.getTime());
+
+    // No plan for the current week.
+    if (!current) {
+      // Daily never generates — but if a past week is saved, show that (most
+      // recent) so today's plate isn't empty; otherwise point to the Weekly planner.
+      if (readOnly) {
+        const latest = plans[0];
+        if (!latest) return { needsPlan: true, key: '', days: [], stale: false, isCurrentWeek: false, guidance: null, advisories: [] };
+        const plan = await this.shapePlan(latest.key);
+        const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
+        return { ...plan, stale: false, isCurrentWeek: false, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
+      }
+      // Weekly planner: a new calendar week with no plan → generate it (a NEW
+      // week; every other saved week is preserved).
+      const plan = await this.generatePlan(userId, mode, currentMon);
       const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-      return { ...plan, stale, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
+      return { ...plan, stale: false, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
     }
-    const plan = await this.shapePlan(existing.key);
+
+    // The current week is a saved DOCUMENT: load it as-is, never auto-regenerate.
+    const stale = Boolean(pref && current.createdAt < pref.updatedAt);
+    const plan = await this.shapePlan(current.key);
     const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-    return { ...plan, stale, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
+    return { ...plan, stale, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
   }
 
+  /** Explicit regeneration — replaces the CURRENT week only (Regenerate / Start Fresh). */
   async regenerate(userId: string, mode: PlanMode = 'individual') {
     const status = await this.profileStatus(userId);
     if (!status.complete) {
       return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
     }
-    const plan = await this.generatePlan(userId, mode);
+    const plan = await this.generatePlan(userId, mode, weekMonday(new Date()));
     const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-    return { ...plan, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
+    return { ...plan, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
+  }
+
+  /** Every saved week for the user — the calendar/timeline (newest week first). */
+  async weeks(userId: string, mode: PlanMode = 'individual') {
+    const currentMon = weekMonday(new Date());
+    const plans = await this.prisma.mealPlan.findMany({
+      where: { userId, mode }, orderBy: { createdAt: 'desc' },
+      include: { days: { select: { _count: { select: { meals: true } } } } },
+    }) as unknown as Array<{ key: string; weekStart?: Date | null; createdAt: Date; days: Array<{ _count: { meals: number } }> }>;
+    // One entry per calendar week (keep the newest plan if a week somehow dupes).
+    const byWeek = new Map<number, { key: string; weekStart: string; weekEnd: string; weekLabel: string; weekNumber: number; isCurrent: boolean; meals: number; createdAt: string }>();
+    for (const p of plans) {
+      const mon = this.planWeek(p); const t = mon.getTime();
+      if (byWeek.has(t)) continue;
+      const sun = addDays(mon, 6);
+      byWeek.set(t, {
+        key: p.key, weekStart: isoDate(mon), weekEnd: isoDate(sun),
+        weekLabel: weekRangeLabel(mon, sun), weekNumber: isoWeekNumber(mon),
+        isCurrent: t === currentMon.getTime(),
+        meals: p.days.reduce((s, d) => s + d._count.meals, 0),
+        createdAt: p.createdAt.toISOString(),
+      });
+    }
+    return [...byWeek.values()].sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1));
+  }
+
+  /** Load ONE saved week by its key (owner-checked) — for the timeline/revisit view. */
+  async weekByKey(userId: string, key: string) {
+    await this.assertOwnsPlan(key, userId);
+    const plan = await this.shapePlan(key);
+    const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
+    const currentMon = weekMonday(new Date());
+    const isCurrentWeek = plan.weekStart === isoDate(currentMon);
+    return { ...plan, isCurrentWeek, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
+  }
+
+  /** Generate a brand-new week WITHOUT touching existing weeks. Defaults to the
+   *  current calendar week if it has no plan, otherwise the week after the most
+   *  recent saved week. */
+  async newWeek(userId: string, mode: PlanMode = 'individual', weekStart?: string) {
+    const status = await this.profileStatus(userId);
+    if (!status.complete) return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
+    const plans = await this.prisma.mealPlan.findMany({ where: { userId, mode }, orderBy: { createdAt: 'desc' } }) as unknown as Array<{ weekStart?: Date | null; createdAt: Date }>;
+    const currentMon = weekMonday(new Date());
+    const weeks = new Set(plans.map((p) => this.planWeek(p).getTime()));
+    let target: Date;
+    if (weekStart) target = weekMonday(new Date(weekStart));
+    else if (!weeks.has(currentMon.getTime())) target = currentMon;
+    else {
+      const latest = plans.length ? this.planWeek(plans[0]) : currentMon;
+      target = addDays(latest.getTime() >= currentMon.getTime() ? latest : currentMon, 7);
+    }
+    const plan = await this.generatePlan(userId, mode, target);
+    const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
+    return { ...plan, isCurrentWeek: this.planWeek({ weekStart: target, createdAt: target }).getTime() === currentMon.getTime(), guidance, advisories: adv.advisories, healthScore: adv.healthScore };
+  }
+
+  /** Copy a saved week's meals into a NEW week (default: the next empty week). */
+  async duplicateWeek(userId: string, mode: PlanMode, sourceKey: string, weekStart?: string) {
+    await this.assertOwnsPlan(sourceKey, userId);
+    const src = await this.prisma.mealPlan.findUnique({
+      where: { key: sourceKey },
+      include: { days: { include: { meals: true } } },
+    });
+    if (!src) throw new NotFoundException('week not found');
+    const plans = await this.prisma.mealPlan.findMany({ where: { userId, mode }, orderBy: { createdAt: 'desc' } }) as unknown as Array<{ weekStart?: Date | null; createdAt: Date }>;
+    const currentMon = weekMonday(new Date());
+    const weeks = new Set(plans.map((p) => this.planWeek(p).getTime()));
+    let target = weekStart ? weekMonday(new Date(weekStart)) : (weeks.has(currentMon.getTime()) ? addDays(this.planWeek(plans[0]), 7) : currentMon);
+    while (weeks.has(target.getTime())) target = addDays(target, 7); // never clobber an existing week
+    const key = 'wk_' + this.rand(8);
+    await this.prisma.mealPlan.create({
+      data: {
+        key, userId, mode,
+        days: {
+          create: src.days.map((d) => ({
+            dayIndex: d.dayIndex, dayName: d.dayName,
+            meals: { create: d.meals.map((m) => ({ slot: m.slot, recipeId: m.recipeId, skipped: m.skipped, sidesRice: m.sidesRice, sidesRoti: m.sidesRoti, sidesCurd: m.sidesCurd, sidesSalad: m.sidesSalad })) },
+          })),
+        },
+      },
+    });
+    await this.prisma.mealPlan.update({ where: { key }, data: { weekStart: target } as never }).catch(() => undefined);
+    await this.snapshotWeek(userId, mode, key);
+    const plan = await this.shapePlan(key);
+    const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
+    return { ...plan, isCurrentWeek: target.getTime() === currentMon.getTime(), guidance, advisories: adv.advisories, healthScore: adv.healthScore };
   }
 
   /** Load the user's stored marker values, as a {key: value} map. */
@@ -1882,7 +1982,19 @@ export class NutritionService implements OnModuleInit {
     return out;
   }
 
-  private async generatePlan(userId: string, mode: PlanMode) {
+  /** Effective calendar week (Monday) a stored plan is FOR. */
+  private planWeek(p: { weekStart?: Date | null; createdAt: Date }): Date {
+    return weekMonday(p.weekStart ?? p.createdAt);
+  }
+
+  /**
+   * Generate the plan for ONE calendar week. `weekStart` defaults to the current
+   * week's Monday. Only the plan for THAT SAME week is replaced — every other
+   * saved week is preserved as a permanent, editable record (spec: persistent
+   * per-week plans, no overwriting other weeks).
+   */
+  private async generatePlan(userId: string, mode: PlanMode, weekStart?: Date) {
+    const ws = weekMonday(weekStart ?? new Date());
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const diet = (pref?.diet ?? 'everything') as Diet;
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
@@ -1978,7 +2090,10 @@ export class NutritionService implements OnModuleInit {
     }
 
     // One plan per user+mode — clear old ones so the profile stays the source of truth.
-    await this.prisma.mealPlan.deleteMany({ where: { userId, mode } });
+    // Replace ONLY the plan for this same calendar week (preserve other weeks).
+    const owned = await this.prisma.mealPlan.findMany({ where: { userId, mode } }) as unknown as Array<{ id: string; weekStart?: Date | null; createdAt: Date }>;
+    const sameWeekIds = owned.filter((p) => this.planWeek(p).getTime() === ws.getTime()).map((p) => p.id);
+    if (sameWeekIds.length) await this.prisma.mealPlan.deleteMany({ where: { id: { in: sameWeekIds } } });
 
     await this.prisma.mealPlan.create({
       data: {
@@ -2008,6 +2123,9 @@ export class NutritionService implements OnModuleInit {
         },
       },
     });
+    // Tag the plan with the calendar week it's for (the offline Prisma client
+    // doesn't know the new column, hence the cast).
+    await this.prisma.mealPlan.update({ where: { key }, data: { weekStart: ws } as never }).catch(() => undefined);
     // Permanently record this week in the user's nutrition history (spec §19) —
     // best-effort, never blocks serving the plan.
     await this.snapshotWeek(userId, mode, key);
@@ -2134,7 +2252,7 @@ export class NutritionService implements OnModuleInit {
       let mealCount = 0;
 
       // Real calendar dates (spec §20) — Mon→Sun anchored to the plan's week.
-      const mon = weekMonday(plan.createdAt);
+      const mon = weekMonday((plan as { weekStart?: Date | null }).weekStart ?? plan.createdAt);
       const sun = addDays(mon, 6);
 
       const days = plan.days.map((d) => {
@@ -3183,8 +3301,9 @@ export class NutritionService implements OnModuleInit {
     const tg = await this.targets(plan.userId);
 
     // Real calendar dates (spec §20): anchor the Mon→Sun week to the plan's
-    // creation date so every day carries an actual date, not just a weekday name.
-    const mon = weekMonday(plan.createdAt);
+    // saved weekStart (the calendar week it's FOR), falling back to its creation
+    // date for legacy plans — so every day carries an actual date.
+    const mon = weekMonday((plan as { weekStart?: Date | null }).weekStart ?? plan.createdAt);
     const sun = addDays(mon, 6);
 
     return {

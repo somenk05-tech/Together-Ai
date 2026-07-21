@@ -86,6 +86,13 @@ export interface WeekPlan {
   missing?: { key: string; label: string }[];    // what to complete before planning
   needsPlan?: boolean;                           // read-only view (Daily) with no saved plan yet
   stale?: boolean;                               // preferences changed since the plan was saved
+  isCurrentWeek?: boolean;                       // whether the loaded plan is this calendar week
+}
+
+/** One saved week in the calendar/timeline. */
+export interface WeekSummary {
+  key: string; weekStart: string; weekEnd: string; weekLabel: string;
+  weekNumber: number; isCurrent: boolean; meals: number; createdAt: string;
 }
 
 /** Stored nutrition-history week summary (spec §19/§20). */

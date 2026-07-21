@@ -361,16 +361,18 @@ model RecipeIngredient {
 }
 
 model MealPlan {
-  id        String   @id @default(uuid())
-  key       String   @unique
+  id        String    @id @default(uuid())
+  key       String    @unique
   userId    String
-  mode      String   @default("individual") // individual | family
-  createdAt DateTime @default(now())
+  mode      String    @default("individual") // individual | family
+  weekStart DateTime? // Monday of the calendar week this plan is FOR (null = legacy → derive from createdAt)
+  createdAt DateTime  @default(now())
 
   user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   days MealPlanDay[]
 
   @@index([userId, mode])
+  @@index([userId, mode, weekStart])
 }
 
 model MealPlanDay {

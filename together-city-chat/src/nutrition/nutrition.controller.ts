@@ -49,6 +49,31 @@ export class NutritionController {
     return this.nutrition.regenerate(user.sub, dto.mode ?? 'individual');
   }
 
+  // Every saved week (the calendar/timeline).
+  @Get('plan/weeks')
+  weeks(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode) {
+    return this.nutrition.weeks(user.sub, mode ?? 'individual');
+  }
+
+  // Generate a brand-new week without touching existing weeks.
+  @Post('plan/weekly/new')
+  newWeek(@CurrentUser() user: JwtUser, @Body() dto: { mode?: PlanMode; weekStart?: string }) {
+    return this.nutrition.newWeek(user.sub, dto?.mode ?? 'individual', dto?.weekStart);
+  }
+
+  // Duplicate a saved week's meals into a new (empty) week.
+  @Post('plan/weekly/duplicate')
+  duplicateWeek(@CurrentUser() user: JwtUser, @Body() dto: { mode?: PlanMode; sourceKey: string; weekStart?: string }) {
+    return this.nutrition.duplicateWeek(user.sub, dto?.mode ?? 'individual', dto?.sourceKey, dto?.weekStart);
+  }
+
+  // Load one saved week by key (revisit/edit from the timeline). Must come after
+  // the specific plan/weekly/* routes and before the parameterised plan/:key/*.
+  @Get('plan/week/:key')
+  weekByKey(@CurrentUser() user: JwtUser, @Param('key') key: string) {
+    return this.nutrition.weekByKey(user.sub, key);
+  }
+
   // Nutrition history (spec §19) — permanent, versioned weekly plan record.
   // Specific 'history' path declared before the parameterised 'plan/:key' routes.
   @Get('history')

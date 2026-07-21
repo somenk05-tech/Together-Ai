@@ -269,10 +269,6 @@ export function BloodAnalysis() {
               </div>
             );
           })}
-          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-            <Link to="/medical/supplements"><Button variant="accent" size="sm">My supplement plan</Button></Link>
-            <Link to="/nutrition/weekly"><Button variant="line" size="sm">Personalise my meals</Button></Link>
-          </div>
           {data?.sharesWith && <p className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>🔒 {data.sharesWith}</p>}
         </div>
       )}
