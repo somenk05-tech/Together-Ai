@@ -41,6 +41,15 @@ export const CollectionsSchema = z.object({
 });
 export type CollectionsDto = z.infer<typeof CollectionsSchema>;
 
+// Meal-plan dish matching (decision engine → "Follow my meal plan").
+export const MealMatchSchema = z.object({
+  lat: z.coerce.number().optional(),
+  lng: z.coerce.number().optional(),
+  slot: z.enum(['b', 'l', 's', 'd']).optional(),
+  limit: z.coerce.number().min(1).max(30).optional(),
+});
+export type MealMatchDto = z.infer<typeof MealMatchSchema>;
+
 export const OrderItemSchema = z.object({
   dishId: z.string().min(1),
   qty: z.number().int().min(1).max(20),

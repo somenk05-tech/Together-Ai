@@ -6,6 +6,9 @@ import { AiService } from '../ai/ai.service';
 import { MailService } from '../mail/mail.service';
 import { orderReceipt, tableReceipt } from '../mail/receipts';
 import { CUISINES, CUISINE_META, DIET_ALLOW, DIET_LABEL, RESTAURANT_SEEDS, hero, type Dish } from './restaurants.constants';
+import { recipeServings } from '../nutrition/nutrition.service';
+
+const SLOT_LABEL: Record<string, string> = { b: 'Breakfast', l: 'Lunch', s: 'Snack', d: 'Dinner' };
 import type { PlaceOrderDto, ReserveTableDto, RestaurantQueryDto, DiscoverDto } from './dto/restaurants.dto';
 import { PlacesService, haversineKm } from './places.service';
 
@@ -435,6 +438,105 @@ export class RestaurantsService implements OnModuleInit {
     const user = `Venue: ${r.name}\nCategory/Cuisine: ${this.category(r)} · ${meta?.label ?? r.cuisine}\nArea: ${r.area}, ${r.city}\nRating: ${r.rating}/5\nPrice for two: ₹${r.priceForTwoInr}\nTagline: ${r.tagline}\nMenu: ${menu.slice(0, 12).map((x) => x.name).join(', ') || '(no online menu)'}\nBestsellers: ${bestsellers.join(', ') || '—'}\n\nReturn JSON: {"highlights":[3-4 short phrases],"tryThese":[3-5 dish names from the menu above],"bestFor":"one short occasion phrase","note":"one factual sentence"}`;
     const out = await this.ai.json(sys, user, fallback);
     return { aiPowered: true, highlights: out.highlights ?? fallback.highlights, tryThese: out.tryThese ?? fallback.tryThese, bestFor: out.bestFor ?? fallback.bestFor, note: out.note ?? fallback.note };
+  }
+
+  // ─────────────── Intelligent eating decision engine (meal-plan dish matching) ───────────────
+
+  private currentSlot(): string {
+    const h = new Date().getHours();
+    return h < 11 ? 'b' : h < 16 ? 'l' : h < 19 ? 's' : 'd';
+  }
+
+  /** Estimate a dish's macros from its name/section/diet — labelled `estimated`,
+   *  since menus don't carry nutrition. Deterministic (no per-request AI cost). */
+  private estimateDishMacros(d: Dish): { kcal: number; protein: number; carbs: number; fat: number; estimated: true } {
+    const n = `${d.name} ${d.desc}`.toLowerCase();
+    const sec = d.section.toLowerCase();
+    const both = `${sec} ${n}`;
+    const nonveg = d.diet === 'nonveg' || d.diet === 'pesc' || /chicken|mutton|lamb|fish|prawn|egg|meat|kebab|keema|tikka/.test(n);
+    let protein = nonveg ? 26 : /paneer|dal|chana|rajma|tofu|soya|lentil|sprout|egg|chickpea/.test(n) ? 15 : /rice|biryani|pulao/.test(n) ? 10 : 8;
+    if (/thali|combo|bowl|platter|meal/.test(n)) protein += 6;
+    let fat = /fried|butter|cream|cheese|makhani|malai|ghee|pizza|burger|mayo/.test(n) ? 24 : nonveg ? 18 : 12;
+    if (/dessert|cake|gulab|halwa|ice.?cream|sweet/.test(both)) fat = 16;
+    let kcal = /dessert|sweet|cake|halwa|gulab|ice.?cream|chocolat/.test(both) ? 380
+      : /rice|biryani|pulao/.test(both) ? 560
+      : /bread|naan|roti|paratha|kulcha/.test(both) ? 220
+      : /starter|snack|tikki|chaat|roll|momo/.test(both) ? 300
+      : /beverage|drink|lassi|juice|coffee|tea|shake|smoothie/.test(both) ? 160
+      : /main|curry|thali|bowl|combo|platter/.test(both) ? 480
+      : 360;
+    kcal = Math.round(kcal * (0.85 + Math.min(0.5, d.priceInr / 800)));
+    let carbs = Math.max(6, Math.round((kcal - protein * 4 - fat * 9) / 4));
+    kcal = protein * 4 + carbs * 4 + fat * 9; // keep internally consistent
+    return { kcal, protein, carbs, fat, estimated: true };
+  }
+
+  /**
+   * Decision engine — "Follow my meal plan". Reads today's planned meal target
+   * (per serving) and ranks individual DISHES from nearby menus by nutritional
+   * similarity, so the recommendation is the best MEAL, not just a restaurant.
+   */
+  async mealMatch(userId: string, q: { lat?: number; lng?: number; slot?: string; limit?: number }) {
+    const slot = ['b', 'l', 's', 'd'].includes(q.slot ?? '') ? q.slot! : this.currentSlot();
+    const plan = await this.prisma.mealPlan.findFirst({ where: { userId, mode: 'individual' }, orderBy: { createdAt: 'desc' } });
+    if (!plan) return { hasPlan: false, slot, slotLabel: SLOT_LABEL[slot], target: null, matches: [] as unknown[] };
+
+    const dayIndex = (new Date().getDay() + 6) % 7;
+    const where = (s?: string) => ({ skipped: false, ...(s ? { slot: s } : {}), day: { dayIndex, plan: { id: plan.id } } });
+    let meal = await this.prisma.meal.findFirst({ where: where(slot), include: { recipe: true } });
+    if (!meal) meal = await this.prisma.meal.findFirst({ where: where(), include: { recipe: true } });
+    if (!meal) return { hasPlan: true, slot, slotLabel: SLOT_LABEL[slot], target: null, matches: [] };
+
+    const rc = meal.recipe;
+    const srv = Math.max(1, recipeServings({ slot: rc.slot, kcal: rc.kcal, gramsPerServing: rc.gramsPerServing, servings: (rc as unknown as { servings?: number }).servings ?? 0 }));
+    const target = {
+      slot, slotLabel: SLOT_LABEL[slot],
+      kcal: Math.round(rc.kcal / srv), protein: Math.round(rc.protein / srv),
+      carbs: Math.round(rc.carbs / srv), fat: Math.round(rc.fat / srv),
+      cuisine: rc.country, diet: rc.diet, recipeName: rc.name,
+    };
+
+    const diet = await this.userDiet(userId);
+    const allow = diet ? DIET_ALLOW[diet] ?? null : null;
+    const vegDiet = diet ? ['veg', 'vegan', 'jain'].includes(diet) : false;
+    const rows = await this.prisma.restaurant.findMany() as RestaurantRow[]; // catalogue = the menus we can read
+
+    type Match = { matchScore: number } & Record<string, unknown>;
+    const matches: Match[] = [];
+    for (const r of rows) {
+      if (vegDiet && !r.vegFriendly) continue;
+      const d = this.derive(r);
+      for (const dish of parseMenu(r.menuJson)) {
+        if (vegDiet && dish.diet === 'nonveg') continue;
+        const m = this.estimateDishMacros(dish);
+        const calPct = Math.abs(m.kcal - target.kcal) / Math.max(target.kcal, 1);
+        const calScore = Math.max(0, 100 - calPct * 160);
+        const proteinScore = Math.min(100, (m.protein / Math.max(target.protein, 1)) * 100);
+        const dietFit = !allow ? 70 : allow.includes(dish.diet) ? 100 : 45;
+        const value = this.valueScore(dish.priceInr * 2);
+        const distScore = Math.max(0, 100 - (d.distanceKm / 8) * 100);
+        const matchScore = Math.min(100, Math.round(calScore * 0.42 + proteinScore * 0.30 + dietFit * 0.16 + value * 0.07 + distScore * 0.05));
+
+        const why: string[] = [];
+        if (calPct <= 0.05) why.push('Calories within 5% of your target');
+        else if (calPct <= 0.12) why.push('Calories close to your target');
+        if (m.protein >= target.protein * 0.9) why.push('Hits your protein target');
+        if (m.fat <= 14) why.push('Lower in fat');
+        if (allow && allow.includes(dish.diet) && diet) why.push(`Matches your ${DIET_LABEL[diet] ?? diet} preference`);
+        why.push(`${d.distanceKm} km away`);
+
+        matches.push({
+          dishId: dish.id, dishName: dish.name, desc: dish.desc, priceInr: dish.priceInr,
+          diet: dish.diet, dietLabel: DIET_LABEL[dish.diet] ?? dish.diet, bestseller: !!dish.bestseller,
+          ...m, matchScore, why: why.slice(0, 4),
+          restaurantId: r.id, restaurantName: r.name, area: r.area, heroUrl: r.heroUrl,
+          icon: CUISINE_META[r.cuisine]?.icon ?? '🍽', cuisineLabel: CUISINE_META[r.cuisine]?.label ?? r.cuisine,
+          distanceKm: d.distanceKm, etaMins: d.etaMins,
+        });
+      }
+    }
+    matches.sort((a, b) => b.matchScore - a.matchScore);
+    return { hasPlan: true, slot, slotLabel: SLOT_LABEL[slot], target, matches: matches.slice(0, q.limit ?? 12) };
   }
 
   async browse(userId: string, query: RestaurantQueryDto) {

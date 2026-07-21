@@ -11,6 +11,7 @@ import {
   DiscoverSchema, type DiscoverDto,
   TopSchema, type TopDto,
   CollectionsSchema, type CollectionsDto,
+  MealMatchSchema, type MealMatchDto,
 } from './dto/restaurants.dto';
 
 @Controller('restaurants')
@@ -63,6 +64,13 @@ export class RestaurantsController {
   @Get('search')
   search(@CurrentUser() user: JwtUser, @Query('q') q: string) {
     return this.restaurants.search(user.sub, q ?? '');
+  }
+
+  // Decision engine — rank nearby DISHES against today's planned meal target.
+  @Get('meal-match')
+  @UsePipes(new ZodValidationPipe(MealMatchSchema))
+  mealMatch(@CurrentUser() user: JwtUser, @Query() query: MealMatchDto) {
+    return this.restaurants.mealMatch(user.sub, query);
   }
 
   @Get(':id')

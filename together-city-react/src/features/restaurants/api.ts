@@ -36,6 +36,15 @@ export interface CollectionsResult { live: boolean; source: string; collections:
 export interface SearchResult { query: string; results: CuratedCard[] }
 export interface RestaurantOverview { aiPowered: boolean; highlights: string[]; tryThese: string[]; bestFor: string; note: string }
 
+/** Decision engine — today's meal target + dish matches. */
+export interface MealTarget { slot: string; slotLabel: string; kcal: number; protein: number; carbs: number; fat: number; cuisine: string; diet: string; recipeName: string }
+export interface DishMatch {
+  dishId: string; dishName: string; desc: string; priceInr: number; diet: string; dietLabel: string; bestseller: boolean;
+  kcal: number; protein: number; carbs: number; fat: number; estimated: boolean; matchScore: number; why: string[];
+  restaurantId: string; restaurantName: string; area: string; heroUrl: string; icon: string; cuisineLabel: string; distanceKm: number; etaMins: number;
+}
+export interface MealMatchResult { hasPlan: boolean; slot: string; slotLabel: string; target: MealTarget | null; matches: DishMatch[] }
+
 export interface OrderLine { dishId: string; name: string; qty: number; priceInr: number; lineInr: number }
 export interface DiningOrder {
   id: string; restaurantId: string; restaurantName: string; area: string; mode: string;
@@ -81,6 +90,7 @@ export const restApi = {
   collections: (q: { lat?: number; lng?: number; city?: string; radiusKm?: number }) => api.get<CollectionsResult>('/restaurants/collections', { params: q }).then((r) => r.data),
   search: (q: string) => api.get<SearchResult>('/restaurants/search', { params: { q } }).then((r) => r.data),
   overview: (id: string) => api.get<RestaurantOverview>(`/restaurants/${id}/overview`).then((r) => r.data),
+  mealMatch: (q: { lat?: number; lng?: number; slot?: string; limit?: number }) => api.get<MealMatchResult>('/restaurants/meal-match', { params: q }).then((r) => r.data),
 };
 
 export function useCuisines() {
@@ -117,6 +127,9 @@ export function useRestaurantSearch(term: string) {
 }
 export function useRestaurantOverview(id: string) {
   return useQuery({ queryKey: ['rest', 'overview', id], queryFn: () => restApi.overview(id), enabled: !!id, staleTime: 30 * 60 * 1000 });
+}
+export function useMealMatch(q: { lat?: number; lng?: number; slot?: string }, enabled: boolean) {
+  return useQuery({ queryKey: ['rest', 'meal-match', q], queryFn: () => restApi.mealMatch(q), enabled, staleTime: 5 * 60 * 1000 });
 }
 export function useMyOrders() {
   return useQuery({ queryKey: ['rest', 'orders'], queryFn: () => restApi.orders() });
