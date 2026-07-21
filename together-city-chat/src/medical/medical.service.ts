@@ -447,13 +447,68 @@ export class MedicalService implements OnModuleInit {
     };
   }
 
-  /** Latest panel analysed (or empty). */
+  /**
+   * The Latest Panel — a UNIFIED view of the user's most-recent clinical data.
+   * Rather than only the newest report's markers, it aggregates across every
+   * uploaded panel: for each unique biomarker ever recorded it shows the most
+   * recent value, when it was last tested, its range/status, the same AI
+   * explanation, and the current-vs-previous trend. So a Vitamin D from January
+   * still appears even if July's report didn't include it. Same row shape as
+   * analyze() (+ lastTested / previousDate). Per-report history is unchanged.
+   */
   async latest(userId: string) {
-    const test = await this.prisma.medicalBloodTest.findFirst({
-      where: { userId }, orderBy: { takenOn: 'desc' },
+    const tests = await this.prisma.medicalBloodTest.findMany({
+      where: { userId }, orderBy: { takenOn: 'asc' }, include: { biomarkers: true },
     });
-    if (!test) return { markers: [], alerts: [], conditions: [], takenOn: null };
-    return this.analyze(userId, test.id);
+    if (!tests.length) return { markers: [], alerts: [], conditions: [], takenOn: null, aggregated: true };
+
+    // Each biomarker's chronological (value, date) series across ALL panels.
+    const series = new Map<string, { value: number; date: Date }[]>();
+    for (const t of tests) {
+      for (const b of t.biomarkers) {
+        const arr = series.get(b.key) ?? [];
+        arr.push({ value: b.value, date: t.takenOn });
+        series.set(b.key, arr);
+      }
+    }
+    // Most-recent value per biomarker → drives flags, alerts and conditions.
+    const aggValues: Record<string, number> = {};
+    for (const [k, arr] of series) aggValues[k] = arr[arr.length - 1].value;
+    const crp = aggValues.crp;
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+    const markers = [...series.entries()].map(([key, arr]) => {
+      const last = arr[arr.length - 1];
+      const prev = arr.length > 1 ? arr[arr.length - 2] : null;
+      const trend = prev ? (last.value > prev.value ? 'up' : last.value < prev.value ? 'down' : 'flat') : null;
+      const common = {
+        key, value: last.value, trend, previous: prev?.value ?? null,
+        lastTested: iso(last.date), previousDate: prev ? iso(prev.date) : null,
+      };
+      const rule = ruleFor(key);
+      if (rule) {
+        const ev = evaluateMarker(rule, last.value, crp);
+        return { ...common, label: rule.label, unit: rule.unit, range: `${rule.min}–${rule.max}`, status: ev.status, advice: ev.advice, caveat: ev.caveat, citations: ev.citations };
+      }
+      const def = biomarkerDef(key);
+      if (!def) return null;
+      const status = last.value < def.min ? 'low' : last.value > def.max ? 'high' : 'normal';
+      return { ...common, label: def.label, unit: def.unit, range: `${def.min}–${def.max}`, status, advice: '', caveat: null, citations: [] as { id: string; label: string; ref: string }[] };
+    }).filter((m): m is NonNullable<typeof m> => m != null);
+    // Abnormal first, then alphabetical — the design (rows) is unchanged.
+    markers.sort((a, b) => Number(a.status === 'normal') - Number(b.status === 'normal') || a.label.localeCompare(b.label));
+
+    const flags = flagsFor(aggValues);
+    const latestTest = tests[tests.length - 1];
+    return {
+      testId: latestTest.id, takenOn: iso(latestTest.takenOn), lab: latestTest.lab,
+      aggregated: true,
+      markers,
+      alerts: criticalAlerts(aggValues),
+      conditions: triggeredConditions(flags).map((c) => ({ key: c.key, name: c.name, principles: c.principles, citations: cite(c.citations) })),
+      disclaimer: 'Medical Hub is the source of truth for your records. This unified panel shows your most recent value for each biomarker across all reports. Educational, not a diagnosis — confirm with your doctor.',
+      sharesWith: 'With your consent, Nutrition, Beauty and Fitness read these biomarkers to personalise your plans.',
+    };
   }
 
   /** The manual-entry biomarker catalog — sections, ranges, units, hub tags. */

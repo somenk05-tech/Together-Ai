@@ -6,6 +6,7 @@ export interface MedMarker {
   key: string; label: string; unit: string; value: number; range: string;
   status: 'low' | 'normal' | 'high'; advice: string; caveat: string | null;
   citations: Citation[]; trend: 'up' | 'down' | 'flat' | null; previous: number | null;
+  lastTested?: string; previousDate?: string | null;
 }
 export interface MedAlert { key: string; label: string; value: number; urgent: boolean; message: string }
 export interface MedCondition { key: string; name: string; principles: string[]; citations: Citation[] }

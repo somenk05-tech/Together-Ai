@@ -417,12 +417,13 @@ export function BloodAnalysis() {
                   <strong style={{ fontSize: 14 }}>{m.label}</strong>
                   <span className="muted" style={{ fontSize: 12 }}>{m.value} {m.unit} · ref {m.range}</span>
                   {m.trend && m.previous != null && (
-                    <span title={`was ${m.previous}`} style={{ fontSize: 11, color: m.trend === 'flat' ? 'var(--muted)' : (m.status === 'normal' ? '#2e7d32' : 'var(--accent)') }}>
-                      {TREND[m.trend]} from {m.previous}
+                    <span title={m.previousDate ? `was ${m.previous} on ${m.previousDate}` : `was ${m.previous}`} style={{ fontSize: 11, color: m.trend === 'flat' ? 'var(--muted)' : (m.status === 'normal' ? '#2e7d32' : 'var(--accent)') }}>
+                      {TREND[m.trend]} from {m.previous}{m.previousDate ? ` (${m.previousDate})` : ''}
                     </span>
                   )}
                   <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', borderRadius: 999, padding: '3px 12px', background: s.bg, color: s.color }}>{s.label}</span>
                 </div>
+                {m.lastTested && <div className="muted" style={{ fontSize: 11, marginTop: 3 }}>Last tested {m.lastTested}</div>}
                 {m.advice && <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '6px 0 0' }}>{m.advice}</p>}
                 {m.caveat && <p style={{ fontSize: 12.5, margin: '6px 0 0', padding: '8px 10px', background: '#fff8e1', borderLeft: '3px solid #f9a825', borderRadius: 6 }}>ⓘ {m.caveat}</p>}
                 <Cites citations={m.citations} />
