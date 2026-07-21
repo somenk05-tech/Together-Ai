@@ -13,7 +13,28 @@ export interface Dish {
   section: string; bestseller?: boolean; spicy?: boolean; fitsYourDiet: boolean | null;
 }
 export interface MenuSection { section: string; items: Dish[] }
-export interface RestaurantDetail extends RestaurantCard { dietProfile: string | null; sections: MenuSection[] }
+export interface PopularDish { name: string; priceInr: number; diet: string; dietLabel: string; desc: string; bestseller: boolean }
+export interface QualityBreakdown { tcScore: number; food: number; hygiene: number; value: number; googleRating: number }
+export interface RestaurantDetail extends RestaurantCard {
+  dietProfile: string | null; sections: MenuSection[];
+  category?: string; priceCategory?: string; openNow?: boolean; distanceKm?: number; etaMins?: number;
+  menuAvailable?: boolean; breakdown?: QualityBreakdown; amenities?: string[]; popularDishes?: PopularDish[];
+}
+
+/** A curated card (Top 25 / collections / search) — carries the TC Score + signals. */
+export interface CuratedCard extends RestaurantCard {
+  category: string; tcScore: number; qualityScore: number; hygiene: number; valueScore: number;
+  distanceKm: number; etaMins: number; priceCategory: string; openNow: boolean;
+  menuAvailable: boolean; ordersOnline: boolean; reservations: boolean;
+  pureVeg: boolean; vegan: boolean; jain: boolean; outdoor: boolean; petFriendly: boolean; familyFriendly: boolean;
+  tcChecked: boolean; ratingsCount: number | null; placeId: string | null; source: 'places' | 'seed';
+  reasons: string[]; rank?: number;
+}
+export interface TopResult { live: boolean; source: string; locality: string | null; count: number; restaurants: CuratedCard[] }
+export interface Collection { key: string; title: string; subtitle: string; items: CuratedCard[] }
+export interface CollectionsResult { live: boolean; source: string; collections: Collection[] }
+export interface SearchResult { query: string; results: CuratedCard[] }
+export interface RestaurantOverview { aiPowered: boolean; highlights: string[]; tryThese: string[]; bestFor: string; note: string }
 
 export interface OrderLine { dishId: string; name: string; qty: number; priceInr: number; lineInr: number }
 export interface DiningOrder {
@@ -56,6 +77,10 @@ export const restApi = {
   orders: () => api.get<DiningOrder[]>('/restaurants/orders').then((r) => r.data),
   reservations: () => api.get<Reservation[]>('/restaurants/reservations').then((r) => r.data),
   discover: (q: DiscoverQuery) => api.get<DiscoverResult>('/restaurants/discover', { params: q }).then((r) => r.data),
+  top: (q: DiscoverQuery & { area?: string; limit?: number }) => api.get<TopResult>('/restaurants/top', { params: q }).then((r) => r.data),
+  collections: (q: { lat?: number; lng?: number; city?: string; radiusKm?: number }) => api.get<CollectionsResult>('/restaurants/collections', { params: q }).then((r) => r.data),
+  search: (q: string) => api.get<SearchResult>('/restaurants/search', { params: { q } }).then((r) => r.data),
+  overview: (id: string) => api.get<RestaurantOverview>(`/restaurants/${id}/overview`).then((r) => r.data),
 };
 
 export function useCuisines() {
@@ -80,6 +105,18 @@ export function useDiscover(q: DiscoverQuery, enabled: boolean) {
     enabled,
     staleTime: 5 * 60 * 1000,
   });
+}
+export function useTopByLocality(q: DiscoverQuery & { area?: string; limit?: number }, enabled: boolean) {
+  return useQuery({ queryKey: ['rest', 'top', q], queryFn: () => restApi.top(q), enabled, staleTime: 5 * 60 * 1000 });
+}
+export function useCollections(q: { lat?: number; lng?: number; city?: string; radiusKm?: number }, enabled: boolean) {
+  return useQuery({ queryKey: ['rest', 'collections', q], queryFn: () => restApi.collections(q), enabled, staleTime: 5 * 60 * 1000 });
+}
+export function useRestaurantSearch(term: string) {
+  return useQuery({ queryKey: ['rest', 'search', term.trim().toLowerCase()], queryFn: () => restApi.search(term), enabled: term.trim().length >= 2, staleTime: 60 * 1000 });
+}
+export function useRestaurantOverview(id: string) {
+  return useQuery({ queryKey: ['rest', 'overview', id], queryFn: () => restApi.overview(id), enabled: !!id, staleTime: 30 * 60 * 1000 });
 }
 export function useMyOrders() {
   return useQuery({ queryKey: ['rest', 'orders'], queryFn: () => restApi.orders() });

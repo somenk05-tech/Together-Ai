@@ -2,10 +2,11 @@ import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { FinancialService } from '../financial/financial.service';
+import { AiService } from '../ai/ai.service';
 import { MailService } from '../mail/mail.service';
 import { orderReceipt, tableReceipt } from '../mail/receipts';
 import { CUISINES, CUISINE_META, DIET_ALLOW, DIET_LABEL, RESTAURANT_SEEDS, hero, type Dish } from './restaurants.constants';
-import type { PlaceOrderDto, ReserveTableDto, RestaurantQueryDto } from './dto/restaurants.dto';
+import type { PlaceOrderDto, ReserveTableDto, RestaurantQueryDto, DiscoverDto } from './dto/restaurants.dto';
 import { PlacesService, haversineKm } from './places.service';
 
 type RestaurantRow = {
@@ -13,6 +14,9 @@ type RestaurantRow = {
   rating: number; priceForTwoInr: number; tagline: string; openHours: string;
   vegFriendly: boolean; heroUrl: string; menuJson: string;
 };
+
+/** A ranking candidate — a live Places result (with real distance) or a seed row. */
+type RCand = { row: RestaurantRow; realDist?: number; openNow?: boolean | null; pureVeg?: boolean; source: 'places' | 'seed'; placeId?: string; ratingsCount?: number };
 
 const parseMenu = (json: string): Dish[] => { try { return JSON.parse(json) as Dish[]; } catch { return []; } };
 const code = () => 'TC-' + randomBytes(3).toString('hex').toUpperCase();
@@ -24,6 +28,7 @@ export class RestaurantsService implements OnModuleInit {
     private readonly financial: FinancialService, // food orders flow through the one city wallet
     private readonly mail: MailService,            // confirmations land in the city inbox + primary email
     private readonly places: PlacesService,        // live Google Places discovery (cached)
+    private readonly ai: AiService,                // AI editorial overviews (with deterministic fallback)
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -213,6 +218,225 @@ export class RestaurantsService implements OnModuleInit {
     };
   }
 
+  // ─────────────── Curated food discovery (Top 25 + collections + search) ───────────────
+
+  /** Candidate assembly shared by the curated surfaces: live Google Places (real
+   *  distance) when a key + GPS are present, otherwise the seeded catalogue. */
+  private async assembleCandidates(q: { lat?: number; lng?: number; radiusKm?: number }): Promise<{ cands: RCand[]; live: boolean }> {
+    let cands: RCand[] = [];
+    let live = false;
+    if (this.places.enabled && q.lat != null && q.lng != null) {
+      const near = await this.places.nearby(q.lat, q.lng, Math.round((q.radiusKm ?? 5) * 1000));
+      if (near.length) {
+        live = true;
+        cands = near.map((p) => ({
+          row: { id: p.id, name: p.name, cuisine: p.cuisine, area: p.area, city: p.city, rating: p.rating, priceForTwoInr: p.priceForTwoInr, tagline: p.tagline, openHours: p.openHours, vegFriendly: p.vegFriendly, heroUrl: p.heroUrl, menuJson: '[]' },
+          realDist: haversineKm(q.lat!, q.lng!, p.lat, p.lng), openNow: p.openNow, pureVeg: p.pureVeg, source: 'places', placeId: p.placeId, ratingsCount: p.ratingsCount,
+        }));
+      }
+    }
+    if (!cands.length) {
+      const rows = await this.prisma.restaurant.findMany() as RestaurantRow[];
+      cands = rows.map((row) => ({ row, source: 'seed' as const }));
+    }
+    return { cands, live };
+  }
+
+  /** Food & beverage category shown on cards (spec: Restaurant / Café / Bakery / Dessert). */
+  private category(r: RestaurantRow): string {
+    const t = `${r.cuisine} ${r.name} ${r.tagline}`.toLowerCase();
+    if (/bakery|patisserie|boulanger/.test(t)) return 'Bakery';
+    if (/dessert|ice cream|gelato|sweet|chocolat/.test(t)) return 'Dessert';
+    if (r.cuisine === 'cafe' || /caf[eé]|coffee|brew|tea room/.test(t)) return 'Café';
+    if (r.cuisine === 'street' || /street|chaat|tikki/.test(t)) return 'Street Food';
+    return 'Restaurant';
+  }
+
+  private valueScore(price: number): number {
+    return price < 600 ? 95 : price < 1000 ? 88 : price < 1500 ? 78 : price < 2500 ? 66 : 52;
+  }
+  private menuCompleteness(menu: Dish[]): number {
+    if (!menu.length) return 40; // no online menu → lower weight (spec: online-menu priority)
+    const breadth = Math.min(60, menu.length * 6);
+    const bestsellers = menu.some((d) => d.bestseller) ? 20 : 0;
+    const sections = new Set(menu.map((d) => d.section)).size >= 3 ? 20 : 10;
+    return Math.min(100, breadth + bestsellers + sections);
+  }
+  /** The Together City Score — a blended, quality-first ranking (food quality,
+   *  rating, hygiene, value, online-menu completeness, veg options). */
+  private tcScore(r: RestaurantRow, d: { foodQuality: number; hygiene: number }, menu: Dish[]): number {
+    const foodQ = (d.foodQuality / 5) * 100;
+    const rating = (r.rating / 5) * 100;
+    const hygiene = (d.hygiene / 5) * 100;
+    const value = this.valueScore(r.priceForTwoInr);
+    const menuC = this.menuCompleteness(menu);
+    const veg = r.vegFriendly ? 100 : 60;
+    return Math.round(foodQ * 0.32 + rating * 0.26 + hygiene * 0.14 + value * 0.10 + menuC * 0.13 + veg * 0.05);
+  }
+
+  private reasonsFor(r: RestaurantRow, d: ReturnType<RestaurantsService['derive']>, menu: Dish[], area: string | null, tcChecked: boolean): string[] {
+    const meta = CUISINE_META[r.cuisine];
+    const reasons: string[] = [];
+    reasons.push(area ? `One of the Top 25 in ${area}.` : 'One of the top food spots near you.');
+    if (tcChecked) reasons.push('TC Checked — quality, hygiene & value verified.');
+    if (r.rating >= 4.5) reasons.push(`Exceptional ${meta?.label ?? r.cuisine} — loved by diners.`);
+    else if (r.rating >= 4.2) reasons.push(`Strong ${meta?.label ?? r.cuisine} reputation.`);
+    if (d.hygiene >= 4.5) reasons.push('Excellent hygiene score.');
+    if (d.familyFriendly) reasons.push('Loved by families.');
+    if (menu.length) reasons.push('Full menu available online.');
+    if (this.valueScore(r.priceForTwoInr) >= 85) reasons.push('Strong value for money.');
+    return reasons.slice(0, 5);
+  }
+
+  /** Shape a candidate into a curated card with the TC score, category and signals. */
+  private curatedCard(c: RCand) {
+    const r = c.row;
+    const d = this.derive(r, c.realDist);
+    const menu = parseMenu(r.menuJson);
+    const isOpen = c.source === 'places' ? (c.openNow ?? true) : this.openNow(r.openHours);
+    const tcChecked = d.foodQuality >= 4.2 && d.hygiene >= 4.2 && this.valueScore(r.priceForTwoInr) >= 55;
+    return {
+      card: {
+        ...this.shapeCard(r),
+        category: this.category(r),
+        tcScore: this.tcScore(r, d, menu),
+        qualityScore: Math.round(d.foodQuality * 10) / 10,
+        hygiene: Math.round(d.hygiene * 10) / 10,
+        valueScore: this.valueScore(r.priceForTwoInr),
+        distanceKm: d.distanceKm, etaMins: d.etaMins,
+        priceCategory: this.priceCategory(r.priceForTwoInr),
+        openNow: isOpen, menuAvailable: menu.length > 0, ordersOnline: true, reservations: true,
+        pureVeg: c.pureVeg ?? d.pureVeg, vegan: d.vegan, jain: d.jain,
+        outdoor: d.outdoor, petFriendly: d.petFriendly, familyFriendly: d.familyFriendly,
+        tcChecked, ratingsCount: c.ratingsCount ?? null, placeId: c.placeId ?? null, source: c.source,
+        reasons: this.reasonsFor(r, d, menu, null, tcChecked),
+      },
+      r, d, menu, isOpen,
+    };
+  }
+
+  private passesFilters(x: { r: RestaurantRow; d: ReturnType<RestaurantsService['derive']>; isOpen: boolean; card: { pureVeg: boolean } }, q: DiscoverDto & { maxPriceForTwo?: number }): boolean {
+    const { r, d, isOpen } = x;
+    if (q.cuisine && r.cuisine !== q.cuisine) return false;
+    if (q.maxPriceForTwo && r.priceForTwoInr > q.maxPriceForTwo) return false;
+    if (q.minRating && r.rating < q.minRating) return false;
+    if (q.openNow && !isOpen) return false;
+    if (q.pureVeg && !x.card.pureVeg) return false;
+    if (q.vegan && !d.vegan) return false;
+    if (q.jain && !d.jain) return false;
+    if (q.outdoor && !d.outdoor) return false;
+    if (q.pet && !d.petFriendly) return false;
+    if (q.family && !d.familyFriendly) return false;
+    return true;
+  }
+
+  /** Top 25 food & café destinations for a locality, ranked by the TC Score. */
+  async topByLocality(userId: string, q: DiscoverDto & { area?: string; limit?: number }) {
+    const { cands, live } = await this.assembleCandidates(q);
+    const diet = await this.userDiet(userId);
+    const vegDiet = diet ? ['veg', 'vegan', 'jain'].includes(diet) : false;
+    const radius = q.radiusKm ?? 5;
+    const built = cands
+      .filter((c) => !(vegDiet && !c.row.vegFriendly))
+      .filter((c) => !(c.source === 'seed' && q.city && c.row.city.toLowerCase() !== q.city.toLowerCase()))
+      .filter((c) => !(q.area && c.source === 'seed' && c.row.area.toLowerCase() !== q.area!.toLowerCase()))
+      .map((c) => this.curatedCard(c))
+      .filter((x) => x.d.distanceKm <= radius)
+      .filter((x) => this.passesFilters(x, q));
+    built.sort((a, b) => b.card.tcScore - a.card.tcScore);
+    const top = built.slice(0, q.limit ?? 25).map((x, i) => ({ ...x.card, rank: i + 1, reasons: this.reasonsFor(x.r, x.d, x.menu, q.area ?? x.r.area, x.card.tcChecked) }));
+    return { live, source: live ? 'places' : 'seed', locality: q.area ?? null, count: top.length, restaurants: top };
+  }
+
+  /** Curated discovery collections (Top 25, Cafés, Best Coffee, Under ₹500, Date Night, …). */
+  async collections(userId: string, q: DiscoverDto) {
+    const { cands, live } = await this.assembleCandidates(q);
+    const diet = await this.userDiet(userId);
+    const vegDiet = diet ? ['veg', 'vegan', 'jain'].includes(diet) : false;
+    const radius = q.radiusKm ?? 8;
+    const all = cands
+      .filter((c) => !(vegDiet && !c.row.vegFriendly))
+      .map((c) => this.curatedCard(c))
+      .filter((x) => x.d.distanceKm <= radius);
+    all.sort((a, b) => b.card.tcScore - a.card.tcScore);
+
+    // Trending: real signal from the last 30 days of orders + reservations.
+    const since = new Date(Date.now() - 30 * 864e5);
+    const [ord, res] = await Promise.all([
+      this.prisma.diningOrder.groupBy({ by: ['restaurantId'], where: { createdAt: { gt: since } }, _count: { restaurantId: true } }).catch(() => [] as { restaurantId: string; _count: { restaurantId: number } }[]),
+      this.prisma.reservation.groupBy({ by: ['restaurantId'], where: { createdAt: { gt: since } }, _count: { restaurantId: true } }).catch(() => [] as { restaurantId: string; _count: { restaurantId: number } }[]),
+    ]);
+    const trend = new Map<string, number>();
+    for (const o of ord) trend.set(o.restaurantId, (trend.get(o.restaurantId) ?? 0) + o._count.restaurantId);
+    for (const v of res) trend.set(v.restaurantId, (trend.get(v.restaurantId) ?? 0) + v._count.restaurantId);
+
+    const pick = (pred: (x: typeof all[number]) => boolean, n = 10) => all.filter(pred).slice(0, n).map((x) => x.card);
+    const isCafe = (x: typeof all[number]) => x.card.category === 'Café';
+    const isDessert = (x: typeof all[number]) => x.card.category === 'Dessert' || x.card.category === 'Bakery';
+
+    const defs = [
+      { key: 'top25', title: 'Top 25 Near You', subtitle: 'The best food destinations around you', items: all.slice(0, 25).map((x) => x.card) },
+      { key: 'cafes', title: 'Top 25 Cafés', subtitle: 'Coffee, brunch & all-day cafés', items: all.filter(isCafe).slice(0, 25).map((x) => x.card) },
+      { key: 'trending', title: 'Trending This Week', subtitle: 'Most ordered & reserved lately', items: all.filter((x) => trend.has(x.r.id)).sort((a, b) => (trend.get(b.r.id)! - trend.get(a.r.id)!)).slice(0, 10).map((x) => x.card) },
+      { key: 'coffee', title: 'Best Coffee', subtitle: '', items: pick((x) => isCafe(x) && x.r.rating >= 4.2) },
+      { key: 'desserts', title: 'Best Desserts & Bakeries', subtitle: '', items: pick(isDessert) },
+      { key: 'northindian', title: 'Best North Indian', subtitle: '', items: pick((x) => x.r.cuisine === 'north-indian') },
+      { key: 'southindian', title: 'Best South Indian', subtitle: '', items: pick((x) => x.r.cuisine === 'south-indian') },
+      { key: 'chinese', title: 'Best Chinese', subtitle: '', items: pick((x) => x.r.cuisine === 'chinese') },
+      { key: 'street', title: 'Best Street Food', subtitle: '', items: pick((x) => x.card.category === 'Street Food') },
+      { key: 'under500', title: 'Best Under ₹500', subtitle: "Great food that won't break the bank", items: pick((x) => x.r.priceForTwoInr <= 500) },
+      { key: 'finedining', title: 'Best Fine Dining', subtitle: 'Premium dining experiences', items: pick((x) => x.r.priceForTwoInr >= 2000) },
+      { key: 'datenight', title: 'Best for Date Night', subtitle: '', items: pick((x) => x.d.outdoor && x.r.rating >= 4.3) },
+      { key: 'family', title: 'Best Family Restaurants', subtitle: '', items: pick((x) => x.d.familyFriendly) },
+      { key: 'veg', title: 'Best Vegetarian', subtitle: '', items: pick((x) => x.r.vegFriendly && x.r.rating >= 4.2) },
+      { key: 'latenight', title: 'Late Night Eats', subtitle: 'Open late', items: pick((x) => /(2[2-3]|0[0-3]):\d\d\s*$/.test(x.r.openHours) || /late|24|midnight/i.test(x.r.openHours)) },
+      { key: 'hiddengems', title: 'Hidden Gems', subtitle: 'Lesser-known spots worth the trip', items: pick((x) => x.r.rating >= 4.4 && x.r.priceForTwoInr < 1200) },
+    ];
+    return { live, source: live ? 'places' : 'seed', collections: defs.filter((d) => d.items.length) };
+  }
+
+  /** Search the FULL catalogue (browse shows only curated Top 25; search reaches everything). */
+  async search(userId: string, term: string) {
+    const q = (term ?? '').trim().toLowerCase();
+    if (q.length < 2) return { query: term ?? '', results: [] as unknown[] };
+    const rows = await this.prisma.restaurant.findMany() as RestaurantRow[];
+    const hits = rows.filter((r) =>
+      r.name.toLowerCase().includes(q) || r.cuisine.toLowerCase().includes(q) ||
+      r.area.toLowerCase().includes(q) || r.city.toLowerCase().includes(q) ||
+      (CUISINE_META[r.cuisine]?.label ?? '').toLowerCase().includes(q));
+    const results = hits
+      .map((row) => this.curatedCard({ row, source: 'seed' }).card)
+      .sort((a, b) => b.tcScore - a.tcScore)
+      .slice(0, 40);
+    return { query: term ?? '', results };
+  }
+
+  /** AI editorial "what to expect" overview — from real signals + menu, never fabricated reviews. */
+  async overview(userId: string, id: string) {
+    const r = await this.prisma.restaurant.findUnique({ where: { id } }) as RestaurantRow | null;
+    if (!r) throw new NotFoundException('restaurant not found');
+    const menu = parseMenu(r.menuJson);
+    const d = this.derive(r);
+    const bestsellers = menu.filter((x) => x.bestseller).map((x) => x.name);
+    const meta = CUISINE_META[r.cuisine];
+    const fallback = {
+      highlights: [
+        `${meta?.label ?? r.cuisine} done well`,
+        r.rating >= 4.4 ? 'Consistently high ratings' : 'Reliable quality',
+        d.hygiene >= 4.4 ? 'Strong hygiene standards' : 'Clean & well-run',
+        this.valueScore(r.priceForTwoInr) >= 85 ? 'Great value for money' : 'Fair pricing',
+      ],
+      tryThese: (bestsellers.length ? bestsellers : menu.map((x) => x.name)).slice(0, 5),
+      bestFor: r.priceForTwoInr >= 2000 ? 'Special occasions & date nights' : d.familyFriendly ? 'Family meals & casual dining' : 'Everyday dining & quick bites',
+      note: `A Together City editorial overview based on ${r.name}'s quality signals and menu — not diner reviews.`,
+    };
+    if (!this.ai.enabled) return { aiPowered: false, ...fallback };
+    const sys = 'You write concise, factual overviews for a curated food-discovery guide. Use ONLY the provided facts (cuisine, price, rating, hygiene, menu). NEVER invent diner quotes, review counts, or star breakdowns. Return strict JSON.';
+    const user = `Venue: ${r.name}\nCategory/Cuisine: ${this.category(r)} · ${meta?.label ?? r.cuisine}\nArea: ${r.area}, ${r.city}\nRating: ${r.rating}/5\nPrice for two: ₹${r.priceForTwoInr}\nTagline: ${r.tagline}\nMenu: ${menu.slice(0, 12).map((x) => x.name).join(', ') || '(no online menu)'}\nBestsellers: ${bestsellers.join(', ') || '—'}\n\nReturn JSON: {"highlights":[3-4 short phrases],"tryThese":[3-5 dish names from the menu above],"bestFor":"one short occasion phrase","note":"one factual sentence"}`;
+    const out = await this.ai.json(sys, user, fallback);
+    return { aiPowered: true, highlights: out.highlights ?? fallback.highlights, tryThese: out.tryThese ?? fallback.tryThese, bestFor: out.bestFor ?? fallback.bestFor, note: out.note ?? fallback.note };
+  }
+
   async browse(userId: string, query: RestaurantQueryDto) {
     const rows = await this.prisma.restaurant.findMany() as RestaurantRow[];
     const diet = await this.userDiet(userId);
@@ -250,9 +474,39 @@ export class RestaurantsService implements OnModuleInit {
       if (!s) { s = { section: d.section, items: [] }; sections.push(s); }
       s.items.push(d);
     }
+    const d = this.derive(r);
+    const rawMenu = parseMenu(r.menuJson);
+    const bestsellers = rawMenu.filter((x) => x.bestseller);
+    const popularDishes = (bestsellers.length ? bestsellers : rawMenu).slice(0, 8).map((x) => ({
+      name: x.name, priceInr: x.priceInr, diet: x.diet, dietLabel: DIET_LABEL[x.diet] ?? x.diet, desc: x.desc, bestseller: !!x.bestseller,
+    }));
+    const amenities = [
+      ...(d.outdoor ? ['Outdoor seating'] : []),
+      ...(d.familyFriendly ? ['Family friendly'] : []),
+      ...(d.petFriendly ? ['Pet friendly'] : []),
+      ...(r.vegFriendly ? ['Vegetarian options'] : []),
+      ...(d.pureVeg ? ['Pure veg'] : []),
+      ...(d.vegan ? ['Vegan options'] : []),
+      ...(d.jain ? ['Jain options'] : []),
+      'Dine-in', 'Delivery', 'Reservations',
+    ];
     return {
       ...this.shapeCard(r),
+      category: this.category(r),
       dietProfile: diet ? (DIET_LABEL[diet] ?? diet) : null,
+      priceCategory: this.priceCategory(r.priceForTwoInr),
+      openNow: this.openNow(r.openHours),
+      distanceKm: d.distanceKm, etaMins: d.etaMins,
+      menuAvailable: rawMenu.length > 0,
+      breakdown: {
+        tcScore: this.tcScore(r, d, rawMenu),
+        food: Math.round(d.foodQuality * 10) / 10,
+        hygiene: Math.round(d.hygiene * 10) / 10,
+        value: this.valueScore(r.priceForTwoInr),
+        googleRating: r.rating,
+      },
+      amenities,
+      popularDishes,
       sections,
     };
   }

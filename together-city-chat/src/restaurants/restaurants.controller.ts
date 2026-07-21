@@ -9,6 +9,8 @@ import {
   ReserveTableSchema, type ReserveTableDto,
   RestaurantQuerySchema, type RestaurantQueryDto,
   DiscoverSchema, type DiscoverDto,
+  TopSchema, type TopDto,
+  CollectionsSchema, type CollectionsDto,
 } from './dto/restaurants.dto';
 
 @Controller('restaurants')
@@ -43,9 +45,35 @@ export class RestaurantsController {
     return this.restaurants.discover(user.sub, query);
   }
 
+  // Top 25 food & café destinations for a locality, ranked by the TC Score.
+  @Get('top')
+  @UsePipes(new ZodValidationPipe(TopSchema))
+  top(@CurrentUser() user: JwtUser, @Query() query: TopDto) {
+    return this.restaurants.topByLocality(user.sub, query);
+  }
+
+  // Curated discovery collections (Top 25, Cafés, Best Coffee, Trending, …).
+  @Get('collections')
+  @UsePipes(new ZodValidationPipe(CollectionsSchema))
+  collections(@CurrentUser() user: JwtUser, @Query() query: CollectionsDto) {
+    return this.restaurants.collections(user.sub, query);
+  }
+
+  // Search the full catalogue (browse only shows the curated Top 25).
+  @Get('search')
+  search(@CurrentUser() user: JwtUser, @Query('q') q: string) {
+    return this.restaurants.search(user.sub, q ?? '');
+  }
+
   @Get(':id')
   detail(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.restaurants.detail(user.sub, id);
+  }
+
+  // AI editorial "what to expect" overview (loaded lazily by the profile page).
+  @Get(':id/overview')
+  overview(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.restaurants.overview(user.sub, id);
   }
 
   @Post(':id/order')

@@ -25,6 +25,22 @@ export const DiscoverSchema = z.object({
 });
 export type DiscoverDto = z.infer<typeof DiscoverSchema>;
 
+// Top 25 for a locality (all Discover filters + an optional area + limit).
+export const TopSchema = DiscoverSchema.extend({
+  area: z.string().optional(),
+  limit: z.coerce.number().min(1).max(50).optional(),
+});
+export type TopDto = z.infer<typeof TopSchema>;
+
+// Curated collections (uses the geo/diet context from Discover filters).
+export const CollectionsSchema = z.object({
+  lat: z.coerce.number().optional(),
+  lng: z.coerce.number().optional(),
+  city: z.string().optional(),
+  radiusKm: z.coerce.number().min(1).max(50).optional(),
+});
+export type CollectionsDto = z.infer<typeof CollectionsSchema>;
+
 export const OrderItemSchema = z.object({
   dishId: z.string().min(1),
   qty: z.number().int().min(1).max(20),

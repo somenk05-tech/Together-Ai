@@ -82,6 +82,8 @@ const TravelConfirm = lazy(() => import('@/features/travel/pages/Confirm').then(
 // Restaurants sub-pages
 const RestFindMeal = lazy(() => import('@/features/restaurants/pages/FindMeal').then((m) => ({ default: m.FindMeal })));
 const RestExplore = lazy(() => import('@/features/restaurants/pages/Explore').then((m) => ({ default: m.Explore })));
+const RestHome = lazy(() => import('@/features/restaurants/pages/RestaurantsHome').then((m) => ({ default: m.RestaurantsHome })));
+const RestDecide = lazy(() => import('@/features/restaurants/pages/Decide').then((m) => ({ default: m.Decide })));
 const RestBook = lazy(() => import('@/features/restaurants/pages/Book').then((m) => ({ default: m.Book })));
 const RestFavourites = lazy(() => import('@/features/restaurants/pages/Favourites').then((m) => ({ default: m.Favourites })));
 const RestReviews = lazy(() => import('@/features/restaurants/pages/Reviews').then((m) => ({ default: m.Reviews })));
@@ -181,7 +183,7 @@ export const router = createBrowserRouter([
       { path: '/', element: <Home /> },
       // 12 hub landings, generated from config
       { path: '/travel', element: <HubLanding hub="travel" /> },
-      { path: '/restaurants', element: <RequireAuth>{wrap(<RestExplore />)}</RequireAuth> },
+      { path: '/restaurants', element: <RequireAuth>{wrap(<RestHome />)}</RequireAuth> },
       { path: '/mail', element: <HubLanding hub="mail" /> },
       { path: '/nutrition', element: <HubLanding hub="nutrition" /> },
       { path: '/entertainment', element: <HubLanding hub="entertainment" /> },
@@ -395,6 +397,7 @@ export const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { path: '/restaurants/explore', element: <RequireAuth>{wrap(<RestExplore />)}</RequireAuth> },
+      { path: '/restaurants/decide', element: <RequireAuth>{wrap(<RestDecide />)}</RequireAuth> },
       { path: '/restaurants/discover', element: <RequireAuth>{wrap(<RestaurantsDiscover />)}</RequireAuth> },
       { path: '/restaurants/reservations', element: <RequireAuth>{wrap(<RestaurantsReservations />)}</RequireAuth> },
       { path: '/restaurants/orders', element: <RequireAuth>{wrap(<RestaurantsOrders />)}</RequireAuth> },
