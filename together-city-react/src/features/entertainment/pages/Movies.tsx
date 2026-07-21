@@ -107,7 +107,7 @@ export function Movies() {
 
       {isLive && <p className="muted rise" style={{ fontSize: 11, marginTop: 18 }}>Movie data & images: TMDB · This product uses the TMDB API but is not endorsed or certified by TMDB.</p>}
 
-      <TrustBar items={['Best prices', 'Instant booking', 'Secure payments', '24/7 support']} />
+      <TrustBar items={['Live theatre listings', 'Trailers & full details', 'Where to watch in India', 'Updated all day']} />
       {sel && <TitleSheet sel={sel} onClose={() => setSel(null)} onOpen={setSel} />}
     </EntPage>
   );

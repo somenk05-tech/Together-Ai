@@ -5,7 +5,7 @@ const MEMBERS = ['PR', 'RH', 'NS', 'RM', 'GS'];
 
 const PINNED = [
   {
-    to: '/entertainment/events', img: `${IMG}entertainment--3.-events.webp`,
+    to: '/entertainment/discover', img: `${IMG}entertainment--3.-events.webp`,
     title: 'City Food Festival', meta: 'Pinned event · 2.5K joined',
     alt: 'City Food Festival — pinned event',
   },

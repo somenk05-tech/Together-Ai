@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { useLiveTitle, usePerson, type LiveMovie, type TitleRef } from '../api';
 
 /**
@@ -220,7 +219,6 @@ export function TitleSheet({ sel, onClose, onOpen }: { sel: TitleSel; onClose: (
                   </>
                 )}
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  {m.type === 'movie' && <Link className="btn btn-gold btn-sm" to="/entertainment/showtime">🎟 Book tickets</Link>}
                   <button type="button" className="btn btn-line btn-sm" onClick={onClose}>Close</button>
                 </div>
                 <p className="muted" style={{ fontSize: 10.5, marginTop: 14 }}>{m.attribution} · This product uses the TMDB API but is not endorsed or certified by TMDB.</p>

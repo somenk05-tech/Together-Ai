@@ -96,13 +96,6 @@ const RestFinal = lazy(() => import('@/features/restaurants/pages/Final').then((
 const EntMovies = lazy(() => import('@/features/entertainment/pages/Movies').then((m) => ({ default: m.Movies })));
 const EntOtt = lazy(() => import('@/features/entertainment/pages/Ott').then((m) => ({ default: m.Ott })));
 const EntCurated = lazy(() => import('@/features/entertainment/pages/Curated').then((m) => ({ default: m.Curated })));
-const EntEvents = lazy(() => import('@/features/entertainment/pages/Events').then((m) => ({ default: m.Events })));
-const EntComedy = lazy(() => import('@/features/entertainment/pages/Comedy').then((m) => ({ default: m.Comedy })));
-const EntSports = lazy(() => import('@/features/entertainment/pages/Sports').then((m) => ({ default: m.Sports })));
-const EntOthers = lazy(() => import('@/features/entertainment/pages/Others').then((m) => ({ default: m.Others })));
-const EntShowtime = lazy(() => import('@/features/entertainment/pages/ShowtimeDetail').then((m) => ({ default: m.ShowtimeDetail })));
-const EntSeats = lazy(() => import('@/features/entertainment/pages/SeatSelection').then((m) => ({ default: m.SeatSelection })));
-const EntCheckout = lazy(() => import('@/features/entertainment/pages/Checkout').then((m) => ({ default: m.Checkout })));
 // Beauty sub-pages
 const BeautyDermatologist = lazy(() => import('@/features/beauty/pages/Dermatologist').then((m) => ({ default: m.Dermatologist })));
 const BeautyMakeup = lazy(() => import('@/features/beauty/pages/Makeup').then((m) => ({ default: m.Makeup })));
@@ -359,13 +352,6 @@ export const router = createBrowserRouter([
       { path: '/entertainment/movies', element: <RequireAuth>{wrap(<EntMovies />)}</RequireAuth> },
       { path: '/entertainment/ott', element: <RequireAuth>{wrap(<EntOtt />)}</RequireAuth> },
       { path: '/entertainment/curated', element: <RequireAuth>{wrap(<EntCurated />)}</RequireAuth> },
-      { path: '/entertainment/events', element: <RequireAuth>{wrap(<EntEvents />)}</RequireAuth> },
-      { path: '/entertainment/comedy', element: <RequireAuth>{wrap(<EntComedy />)}</RequireAuth> },
-      { path: '/entertainment/sports', element: <RequireAuth>{wrap(<EntSports />)}</RequireAuth> },
-      { path: '/entertainment/others', element: <RequireAuth>{wrap(<EntOthers />)}</RequireAuth> },
-      { path: '/entertainment/showtime', element: <RequireAuth>{wrap(<EntShowtime />)}</RequireAuth> },
-      { path: '/entertainment/seats', element: <RequireAuth>{wrap(<EntSeats />)}</RequireAuth> },
-      { path: '/entertainment/checkout', element: <RequireAuth>{wrap(<EntCheckout />)}</RequireAuth> },
     ],
   },
   {
