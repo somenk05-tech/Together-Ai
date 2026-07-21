@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLiveTitle, usePerson, useWatchlist, useToggleWatch, type LiveMovie, type TitleRef } from '../api';
+import { useLiveTitle, usePerson, useWatchlist, useToggleWatch, useStreamSources, type LiveMovie, type TitleRef } from '../api';
 
 /**
  * Shared TMDB UI kit for the Entertainment hub — poster cards, the full
@@ -202,6 +202,7 @@ function PersonSheet({ id, onClose, onOpenTitle }: { id: number; onClose: () => 
 /** Full title sheet — movie or series. Trailer, cast, seasons, providers, recommendations. */
 export function TitleSheet({ sel, onClose, onOpen, autoplay = false }: { sel: TitleSel; onClose: () => void; onOpen: (sel: TitleSel) => void; autoplay?: boolean }) {
   const q = useLiveTitle(sel);
+  const srcs = useStreamSources(sel);
   const [playing, setPlaying] = useState(autoplay);
   const [personId, setPersonId] = useState<number | null>(null);
   useEffect(() => { setPlaying(autoplay); }, [sel.id, sel.type, autoplay]);
@@ -275,7 +276,24 @@ export function TitleSheet({ sel, onClose, onOpen, autoplay = false }: { sel: Ti
                     </div>
                   </>
                 )}
-                {(m.watch.stream.length > 0 || m.watch.rent.length > 0 || m.watch.buy.length > 0) && (
+                {srcs.data?.live && srcs.data.sources.length > 0 && (
+                  <div style={{ border: '1.5px solid var(--accent)', borderRadius: 12, padding: '12px 14px', marginBottom: 16, background: 'var(--accent-soft)' }}>
+                    <h4 style={{ margin: '0 0 4px' }}>📡 Watch at Together City</h4>
+                    <p className="muted" style={{ fontSize: 11.5, margin: '0 0 10px' }}>Every platform carrying this title in India — tap to jump straight in.</p>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {srcs.data.sources.map((so) => (
+                        <a key={`${so.name}${so.kind}`} href={so.url} target="_blank" rel="noopener noreferrer"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 7, textDecoration: 'none', border: '1.5px solid var(--line)', background: 'var(--card,#fff)', borderRadius: 999, padding: '8px 14px', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>
+                          ▶ {so.name}
+                          <span className="muted" style={{ fontWeight: 500 }}>
+                            {so.kind === 'rent' || so.kind === 'buy' ? `${so.kindLabel}${so.price != null ? ` ₹${so.price}` : ''}` : so.kindLabel}{so.format ? ` · ${so.format}` : ''}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {!(srcs.data?.live && srcs.data.sources.length > 0) && (m.watch.stream.length > 0 || m.watch.rent.length > 0 || m.watch.buy.length > 0) && (
                   <div style={{ border: '1px solid var(--line)', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
                     <h4 style={{ margin: '0 0 8px' }}>Where to watch 🇮🇳</h4>
                     {m.watch.stream.length > 0 && <p style={{ fontSize: 13, margin: '0 0 4px' }}><strong>Stream:</strong> {m.watch.stream.join(' · ')}</p>}

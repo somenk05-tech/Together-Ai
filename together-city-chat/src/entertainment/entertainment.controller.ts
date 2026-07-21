@@ -5,6 +5,7 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { EntertainmentService } from './entertainment.service';
 import { TmdbService } from './tmdb.service';
+import { WatchmodeService } from './watchmode.service';
 import { BookTicketSchema, type BookTicketDto, EventQuerySchema, type EventQueryDto, SaveWatchSchema, type SaveWatchDto } from './dto/entertainment.dto';
 import { Delete } from '@nestjs/common';
 
@@ -14,6 +15,7 @@ export class EntertainmentController {
   constructor(
     private readonly entertainment: EntertainmentService,
     private readonly tmdb: TmdbService,
+    private readonly watchmode: WatchmodeService,
   ) {}
 
   @Get('categories')
@@ -55,6 +57,12 @@ export class EntertainmentController {
   @Get('curated-movies')
   curatedMovies() {
     return this.tmdb.curated();
+  }
+
+  // "Watch at Together City" — every Indian streaming source with deep links.
+  @Get('sources/:type/:id')
+  streamSources(@Param('type') type: string, @Param('id') id: string) {
+    return this.watchmode.sources(type === 'tv' ? 'tv' : 'movie', id);
   }
 
   // Full-catalogue paging — 100 titles per page until the database ends.

@@ -42,6 +42,10 @@ export interface WatchlistRes { items: WatchItem[] }
 export interface RecommendedRes { live: boolean; results: TitleRef[]; basis: { genres: string[]; languages: string[]; fromTitles: number } | null }
 export interface BrowseRes { live: boolean; page: number; totalPages: number; totalResults: number; results: TitleRef[] }
 
+/** One streaming source from the Watch at Together City aggregator (deep link included). */
+export interface StreamSource { name: string; kind: string; kindLabel: string; price: number | null; format: string | null; url: string }
+export interface SourcesRes { live: boolean; sources: StreamSource[] }
+
 export const entApi = {
   movies: () => api.get<MoviesLive>('/entertainment/movies').then((r) => r.data),
   title: (type: 'movie' | 'tv', id: number) => api.get<TitleFull>(`/entertainment/${type === 'tv' ? 'tv' : 'movies'}/${id}`).then((r) => r.data),
@@ -56,6 +60,7 @@ export const entApi = {
   watchAdd: (item: Omit<WatchItem, 'savedAt'>) => api.post<WatchlistRes>('/entertainment/watchlist', item).then((r) => r.data),
   watchRemove: (type: 'movie' | 'tv', id: number) => api.delete<WatchlistRes>(`/entertainment/watchlist/${type}/${id}`).then((r) => r.data),
   recommended: () => api.get<RecommendedRes>('/entertainment/recommended').then((r) => r.data),
+  streamSources: (type: 'movie' | 'tv', id: number) => api.get<SourcesRes>(`/entertainment/sources/${type}/${id}`).then((r) => r.data),
 };
 
 export function useLiveMovies() {
@@ -113,4 +118,12 @@ export function useToggleWatch() {
 }
 export function useRecommended(enabled = true) {
   return useQuery({ queryKey: ['ent', 'recommended'], queryFn: () => entApi.recommended(), enabled, retry: false, staleTime: 10 * 60_000 });
+}
+
+export function useStreamSources(sel: { type: 'movie' | 'tv'; id: number } | null) {
+  return useQuery({
+    queryKey: ['ent', 'sources', sel?.type, sel?.id],
+    queryFn: () => entApi.streamSources(sel!.type, sel!.id),
+    enabled: sel != null, retry: false, staleTime: 24 * 60 * 60_000,
+  });
 }

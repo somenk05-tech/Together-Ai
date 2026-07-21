@@ -115,6 +115,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/entertainment/ott', index: '02', label: 'OTT Watch', sub: 'Stream tonight' },
       { path: '/entertainment/curated', index: '03', label: 'Curated Movies', sub: "Critics' picks & hidden gems" },
       { path: '/entertainment/watchlist', index: '04', label: 'Watchlist', sub: 'Your saved movies & shows' },
+      { path: '/entertainment/watch', index: '05', label: 'Watch at Together City', sub: 'Every platform, one search' },
     ],
   },
   beauty: {
