@@ -6,13 +6,14 @@ import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
 import { VerificationService } from './verification.service';
 import { RecoveryService } from './recovery.service';
+import { OAuthService } from './oauth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [PassportModule, JwtModule.register({}), MailModule],
   controllers: [AuthController],
-  providers: [AuthService, TokenService, VerificationService, RecoveryService, JwtStrategy],
+  providers: [AuthService, TokenService, VerificationService, RecoveryService, OAuthService, JwtStrategy],
   exports: [TokenService, JwtModule],
 })
 export class AuthModule {}

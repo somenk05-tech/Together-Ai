@@ -25,6 +25,7 @@ interface AuthState {
   login: (handle: string, password: string) => Promise<void>;
   register: (handle: string, name: string, password: string, contact: { email: string; phone?: string }) => Promise<void>;
   verifyEmail: (token: string) => Promise<void>;
+  adoptSession: (accessToken: string, refreshToken: string) => Promise<void>;
   refresh: () => Promise<string | null>;
   signOut: () => void;
   hydrate: () => Promise<void>;
@@ -53,6 +54,11 @@ export const useAuthStore = create<AuthState>()(
 
       verifyEmail: async (token: string) => {
         const { accessToken, refreshToken } = await authApi.verifyEmail(token);
+        set({ tokens: { accessToken, refreshToken } });
+        set({ user: await authApi.me() });
+      },
+
+      adoptSession: async (accessToken: string, refreshToken: string) => {
         set({ tokens: { accessToken, refreshToken } });
         set({ user: await authApi.me() });
       },

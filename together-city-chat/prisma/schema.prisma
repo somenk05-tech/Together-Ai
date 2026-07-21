@@ -1330,6 +1330,22 @@ model PasswordReset {
   @@index([userId])
 }
 
+// A linked social provider on a native Together City account. The account is the
+// source of truth; a provider only authenticates into it. Multiple providers can
+// link to one account. We never store provider access/refresh tokens.
+model OAuthAccount {
+  id             String   @id @default(uuid())
+  userId         String
+  provider       String // google | apple | microsoft
+  providerUserId String // the provider's stable subject id
+  providerEmail  String?
+  providerAvatar String?
+  createdAt      DateTime @default(now())
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+}
+
 // Email-verification (and future purpose-scoped) tokens. The raw token is sent
 // in the link; only its sha256 is stored so it's lookup-able but not reversible.
 model VerificationToken {

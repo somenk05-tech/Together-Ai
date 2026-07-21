@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/api/auth.api';
 import { Button } from '@/components/ui';
+import { SocialButtons } from './SocialButtons';
 
 /** Prefer the backend's actual error message over a canned guess. */
 function serverMessage(err: unknown): string | null {
@@ -97,13 +98,6 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
     );
   }
 
-  const oauth = (label: string, icon: string) => (
-    <button type="button" disabled title="Social sign-in is coming soon"
-      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '11px 14px', border: '1.5px solid var(--line)', borderRadius: 12, background: 'var(--card)', fontSize: 13.5, fontWeight: 600, fontFamily: 'inherit', color: 'var(--muted)', cursor: 'not-allowed', opacity: 0.75 }}>
-      <span style={{ fontSize: 15 }}>{icon}</span> {label} <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', border: '1px dashed var(--line)', borderRadius: 999, padding: '1px 7px' }}>soon</span>
-    </button>
-  );
-
   return (
     <>
       <div className="eyebrow" style={{ textAlign: 'center' }}>Together City</div>
@@ -187,17 +181,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
         </Button>
       </form>
 
-      {/* OAuth */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '18px 0 14px' }}>
-        <span style={{ flex: 1, height: 1, background: 'var(--line)' }} />
-        <span className="muted" style={{ fontSize: 11, letterSpacing: '.1em' }}>OR</span>
-        <span style={{ flex: 1, height: 1, background: 'var(--line)' }} />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {oauth('Continue with Google', '🔵')}
-        {oauth('Continue with Apple', '')}
-        {oauth('Continue with Microsoft', '🪟')}
-      </div>
+      <SocialButtons />
 
       <p className="muted" style={{ fontSize: 12.5, marginTop: 16, textAlign: 'center' }}>
         Already have an account?{' '}
