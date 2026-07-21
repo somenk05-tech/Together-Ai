@@ -1327,3 +1327,28 @@ model PasswordReset {
 
   @@index([userId])
 }
+
+// Account-recovery OTP (production forgot-password flow). The OTP is stored
+// HASHED (argon2), carried by an opaque recoveryToken (never the identifier),
+// with attempt/resend limits, a lockout window, and IP/device for the audit log.
+model RecoveryCode {
+  id          String    @id @default(uuid())
+  userId      String
+  otpHash     String // argon2 hash of the 6-digit code — never the code itself
+  token       String    @unique // opaque handle returned to the client (request stage)
+  resetToken  String?   @unique // issued after successful OTP verification (reset stage)
+  purpose     String    @default("password_recovery")
+  channel     String    @default("email") // email | sms
+  expiresAt   DateTime
+  attempts    Int       @default(0)
+  resends     Int       @default(0)
+  lockedUntil DateTime?
+  verifiedAt  DateTime?
+  usedAt      DateTime?
+  ipAddress   String?
+  device      String? // user-agent fingerprint
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}

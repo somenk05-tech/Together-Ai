@@ -3,11 +3,10 @@ import { z } from 'zod';
 export const RegisterSchema = z.object({
   handle: z.string().min(3).max(30).regex(/^[a-z0-9_.]+$/i),
   name: z.string().min(1).max(80),
-  password: z.string().min(8).max(128),
-  email: z.string().email().max(160).optional(), // existing/primary email
-  phone: z.string().max(24).optional(),          // primary phone
+  password: z.string().min(12).max(128),         // policy enforced in the service
+  email: z.string().email().max(160),            // required — verification + receipts
+  phone: z.string().max(24).optional(),          // optional primary phone
   profileImage: z.string().url().optional(),
-  inviteCode: z.string().max(120).optional(),    // private-beta gate (see INVITE_CODE env)
 });
 export type RegisterDto = z.infer<typeof RegisterSchema>;
 

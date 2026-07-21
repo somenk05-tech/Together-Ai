@@ -228,3 +228,15 @@ table.tc td b { color: var(--ink); }
 :where(a, button, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 :focus:not(:focus-visible) { outline: none; }
 @media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+
+/* ── Auth / sign-up micro-animations ── */
+@keyframes tc-shake { 10%,90%{transform:translateX(-1px)} 20%,80%{transform:translateX(2px)} 30%,50%,70%{transform:translateX(-4px)} 40%,60%{transform:translateX(4px)} }
+@keyframes tc-spin { to { transform: rotate(360deg) } }
+@keyframes tc-pop { 0%{transform:scale(.4);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+@keyframes tc-rise { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+.tc-shake { animation: tc-shake .4s both; }
+.tc-spin { display:inline-block; width:15px; height:15px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation: tc-spin .6s linear infinite; vertical-align:middle; }
+.tc-pop { animation: tc-pop .28s ease-out both; }
+.tc-field { transition: border-color .16s ease, box-shadow .16s ease, background .16s ease; }
+.tc-field:focus-within, .tc-field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.tc-riser > * { animation: tc-rise .28s ease-out both; }

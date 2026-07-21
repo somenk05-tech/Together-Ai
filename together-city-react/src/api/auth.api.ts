@@ -4,10 +4,13 @@ import { AuthResultSchema, TokenPairSchema, UserSchema, type AuthResult, type To
 
 /** Request schemas (validate outbound payloads too). */
 export const RegisterInput = z.object({
-  handle: z.string().min(3), name: z.string().min(1), password: z.string().min(8),
-  email: z.string().email().optional(), phone: z.string().optional(),
-  inviteCode: z.string().optional(),
+  handle: z.string().min(3), name: z.string().min(1), password: z.string().min(12),
+  email: z.string().email(), phone: z.string().optional(),
 });
+const HandleAvailability = z.object({
+  handle: z.string(), valid: z.boolean(), available: z.boolean(), suggestions: z.array(z.string()),
+});
+export type HandleAvailability = z.infer<typeof HandleAvailability>;
 export const LoginInput = z.object({ handle: z.string().min(3), password: z.string().min(1) });
 export type RegisterInput = z.infer<typeof RegisterInput>;
 export type LoginInput = z.infer<typeof LoginInput>;
@@ -20,6 +23,10 @@ export const authApi = {
     apiPost('/auth/register', RegisterInput.parse(input), AuthResultSchema),
   login: (input: LoginInput): Promise<AuthResult> =>
     apiPost('/auth/login', LoginInput.parse(input), AuthResultSchema),
+  handleAvailable: (handle: string): Promise<HandleAvailability> =>
+    apiGet(`/auth/handle-available?handle=${encodeURIComponent(handle)}`, HandleAvailability),
+  emailAvailable: (email: string): Promise<{ email: string; valid: boolean; available: boolean }> =>
+    apiGet(`/auth/email-available?email=${encodeURIComponent(email)}`, z.object({ email: z.string(), valid: z.boolean(), available: z.boolean() })),
   refresh: (refreshToken: string): Promise<TokenPair> =>
     apiPost('/auth/refresh', { refreshToken }, TokenPairSchema),
   logout: (): Promise<{ ok: boolean }> =>

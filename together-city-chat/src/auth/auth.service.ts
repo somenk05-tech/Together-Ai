@@ -1,6 +1,5 @@
 import {
   ConflictException,
-  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -10,6 +9,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { ForgotDto, LoginDto, RegisterDto, ResetDto } from './dto/auth.dto';
 import { TokenService, TokenPair } from './token.service';
+import { assertStrongPassword } from './recovery.service';
 
 @Injectable()
 export class AuthService {
@@ -20,25 +20,19 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<TokenPair & { userId: string }> {
-    // Private-beta gate: while INVITE_CODE is set, only people with a matching
-    // code can create an account. Supports a comma-separated list so codes can
-    // be handed out and revoked individually. Unset ⇒ open registration.
-    const raw = process.env.INVITE_CODE?.trim();
-    if (raw) {
-      const allowed = raw.split(',').map((c) => c.trim().toLowerCase()).filter(Boolean);
-      const supplied = dto.inviteCode?.trim().toLowerCase() ?? '';
-      if (!allowed.includes(supplied)) {
-        throw new ForbiddenException('This is a private beta — a valid invite code is required to join.');
-      }
+    // Open registration — Together City is no longer invite-only.
+    assertStrongPassword(dto.password);
+    const existing = await this.prisma.user.findUnique({ where: { handle: dto.handle.toLowerCase() } });
+    if (existing) throw new ConflictException('That handle is already taken.');
+    if (dto.email) {
+      const emailTaken = await this.prisma.user.findFirst({ where: { email: dto.email.toLowerCase() } });
+      if (emailTaken) throw new ConflictException('That email is already registered.');
     }
-
-    const existing = await this.prisma.user.findUnique({ where: { handle: dto.handle } });
-    if (existing) throw new ConflictException('Handle already taken');
     const user = await this.prisma.user.create({
       data: {
-        handle: dto.handle,
-        name: dto.name,
-        email: dto.email,
+        handle: dto.handle.toLowerCase(),
+        name: dto.name.trim(),
+        email: dto.email?.toLowerCase(),
         phone: dto.phone,
         profileImage: dto.profileImage,
         passwordHash: await argon2.hash(dto.password),
@@ -46,6 +40,32 @@ export class AuthService {
     });
     const pair = await this.tokens.issuePair({ sub: user.id, handle: user.handle });
     return { ...pair, userId: user.id };
+  }
+
+  /** Live handle availability + alternative suggestions (for the sign-up form). */
+  async handleAvailable(raw: string): Promise<{ handle: string; valid: boolean; available: boolean; suggestions: string[] }> {
+    const handle = (raw ?? '').trim().toLowerCase();
+    if (!/^[a-z0-9_.]{3,30}$/.test(handle)) return { handle, valid: false, available: false, suggestions: [] };
+    const taken = await this.prisma.user.findUnique({ where: { handle } }).catch(() => null);
+    if (!taken) return { handle, valid: true, available: true, suggestions: [] };
+    const base = handle.replace(/[._]+$/, '') || handle;
+    const candidates = [`${base}_${randomInt(10, 99)}`, `${base}.city`, `${base}_official`, `the.${base}`, `${base}${randomInt(1, 9)}`, `${base}_${randomInt(100, 999)}`];
+    const suggestions: string[] = [];
+    for (const c of candidates) {
+      if (suggestions.length >= 4) break;
+      if (!/^[a-z0-9_.]{3,30}$/.test(c) || suggestions.includes(c)) continue;
+      if (!(await this.prisma.user.findUnique({ where: { handle: c } }).catch(() => null))) suggestions.push(c);
+    }
+    return { handle, valid: true, available: false, suggestions };
+  }
+
+  /** Live email availability + format check (for the sign-up form). */
+  async emailAvailable(raw: string): Promise<{ email: string; valid: boolean; available: boolean }> {
+    const email = (raw ?? '').trim().toLowerCase();
+    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 160;
+    if (!valid) return { email, valid: false, available: false };
+    const taken = await this.prisma.user.findFirst({ where: { email } }).catch(() => null);
+    return { email, valid: true, available: !taken };
   }
 
   /** Forgot password — send a recovery OTP to the citizen's primary email or phone (and their city inbox). */

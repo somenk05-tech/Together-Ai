@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -31,6 +31,28 @@ export class AuthController {
   @UsePipes(new ZodValidationPipe(LoginSchema))
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto);
+  }
+
+  // Live handle availability + suggestions for the sign-up form.
+  @Get('handle-available')
+  handleAvailable(@Query('handle') handle: string) {
+    return this.auth.handleAvailable(handle ?? '');
+  }
+
+  // Spec aliases: check-handle / check-email (also accept POST body).
+  @Post('check-handle')
+  checkHandle(@Body() dto: { handle?: string }) {
+    return this.auth.handleAvailable(dto?.handle ?? '');
+  }
+
+  @Post('check-email')
+  checkEmail(@Body() dto: { email?: string }) {
+    return this.auth.emailAvailable(dto?.email ?? '');
+  }
+
+  @Get('email-available')
+  emailAvailable(@Query('email') email: string) {
+    return this.auth.emailAvailable(email ?? '');
   }
 
   @Post('refresh')
