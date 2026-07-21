@@ -187,8 +187,3 @@ export function Feelings() {
     </div>
   );
 }
-
-/** Social Life · Explore — alias of Feelings ("Say anything"), matching the static site's Explore card. */
-export function Explore() {
-  return <Feelings />;
-}

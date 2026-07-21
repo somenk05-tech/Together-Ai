@@ -93,12 +93,11 @@ export const HUBS: Record<HubKey, HubConfig> = {
     key: 'social', name: 'Social Life', tag: 'Discover everything around you', backPath: '/social', dark: false,
     items: [
       { path: '/social/feed', index: '01', label: 'City Feed', sub: 'Moments from around you' },
-      { path: '/social/explore', index: '02', label: 'Explore', sub: 'Nearby activities & communities' },
-      { path: '/social/create', index: '03', label: 'Create Post', sub: 'Share a photo, video or plan' },
-      { path: '/social/map', index: '04', label: 'City Map', sub: 'Outdoor posts pinned nearby' },
-      { path: '/social/notifications', index: '05', label: 'Notifications', sub: 'Likes, comments & mentions' },
-      { path: '/social/profile', index: '06', label: 'My Profile', sub: 'Story, stats & Post & Earn' },
-      { path: '/social/saved', index: '07', label: 'Saved', sub: 'Bookmarked posts & places' },
+      { path: '/social/create', index: '02', label: 'Create Post', sub: 'Share a photo, video or plan' },
+      { path: '/social/map', index: '03', label: 'City Map', sub: 'Outdoor posts pinned nearby' },
+      { path: '/social/notifications', index: '04', label: 'Notifications', sub: 'Likes, comments & mentions' },
+      { path: '/social/profile', index: '05', label: 'My Profile', sub: 'Story, stats & Post & Earn' },
+      { path: '/social/saved', index: '06', label: 'Saved', sub: 'Bookmarked posts & places' },
     ],
   },
   dating: {

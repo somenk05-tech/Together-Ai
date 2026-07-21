@@ -75,6 +75,9 @@ model User {
   emailVerifiedAt DateTime?
   phone        String? // primary phone
   profileImage String?
+  bio          String? // short public profile bio
+  city         String? // public home city shown on the social profile
+  website      String? // optional public link
   passwordHash String
   lastSeen     DateTime @default(now())
   onlineStatus Boolean  @default(false)

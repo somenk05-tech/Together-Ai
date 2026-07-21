@@ -1,9 +1,34 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { orderPair } from '../connections/connection.util';
 
 export interface HubContribution { hub: string; label: string; summary: string; href: string; }
 export interface ProfileSection { key: string; label: string; value: string | null; }
 export interface ProfileSummary { hubs: HubContribution[]; sections: ProfileSection[]; memberSince: string; profileImage: string | null; }
+
+export type Relationship = 'none' | 'pending_out' | 'pending_in' | 'accepted' | 'blocked';
+
+/** Derived, activity-based reputation & city points — no stored/dummy values. */
+export interface ProfileStats { posts: number; reputation: number; cityPoints: number; connections: number; }
+
+/** The signed-in citizen's own social profile (My Profile page). */
+export interface MyProfile {
+  id: string; handle: string; name: string; profileImage: string | null;
+  bio: string | null; city: string | null; website: string | null;
+  email: string | null; verified: boolean; memberSince: string; stats: ProfileStats;
+}
+
+/** Another citizen's public profile (People tab → View Profile). Never exposes email. */
+export interface PublicProfile {
+  id: string; handle: string; name: string; profileImage: string | null;
+  bio: string | null; city: string | null; website: string | null;
+  verified: boolean; memberSince: string; stats: ProfileStats; relationship: Relationship;
+}
+
+interface UserRow {
+  id: string; handle: string; name: string; email: string | null; profileImage: string | null;
+  emailVerified: boolean; createdAt: Date; bio: string | null; city: string | null; website: string | null;
+}
 
 /**
  * Aggregates the signed-in user's identity + any cross-hub contributions.
@@ -135,5 +160,174 @@ export class ProfileService {
       await this.prisma.user.update({ where: { id: userId }, data: { name: value } });
     }
     return this.summary(userId);
+  }
+
+  // ─────────────────────────── Social profile ───────────────────────────
+
+  private readonly userSelect = {
+    id: true, handle: true, name: true, email: true, profileImage: true,
+    emailVerified: true, createdAt: true, bio: true, city: true, website: true,
+  } as never;
+
+  /** Reputation & city points derived from real activity — 0 for a brand-new
+   *  account, growing as the citizen posts and connects. Never seeded. */
+  async statsFor(userId: string): Promise<ProfileStats> {
+    const [posts, likesReceived, commentsReceived, connections] = await Promise.all([
+      this.prisma.post.count({ where: { authorId: userId } }),
+      this.prisma.like.count({ where: { post: { authorId: userId } } }),
+      this.prisma.comment.count({ where: { post: { authorId: userId } } }),
+      this.prisma.connection.count({ where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] } }),
+    ]);
+    // Reputation rewards engagement your posts earn plus real connections;
+    // city points reward contribution volume. Simple, transparent, real.
+    const reputation = likesReceived + commentsReceived * 2 + connections * 3;
+    const cityPoints = posts * 10 + likesReceived + commentsReceived;
+    return { posts, reputation, cityPoints, connections };
+  }
+
+  /** The signed-in citizen's own profile. */
+  async me(userId: string): Promise<MyProfile> {
+    const u = (await this.prisma.user.findUnique({ where: { id: userId }, select: this.userSelect })) as unknown as UserRow | null;
+    if (!u) throw new NotFoundException('Account not found');
+    const stats = await this.statsFor(userId);
+    return {
+      id: u.id, handle: u.handle, name: u.name, profileImage: u.profileImage,
+      bio: u.bio, city: u.city, website: u.website, email: u.email,
+      verified: u.emailVerified, memberSince: u.createdAt.toISOString(), stats,
+    };
+  }
+
+  /** Update editable profile fields. Handle changes are validated for uniqueness. */
+  async updateProfile(
+    userId: string,
+    dto: { name?: string; handle?: string; bio?: string; city?: string; website?: string },
+  ): Promise<MyProfile> {
+    const data: Record<string, string | null> = {};
+    if (dto.name !== undefined) {
+      const name = dto.name.trim();
+      if (name.length < 1 || name.length > 80) throw new BadRequestException('Name must be 1–80 characters.');
+      data.name = name;
+    }
+    if (dto.handle !== undefined) {
+      const handle = dto.handle.trim().replace(/^@/, '').toLowerCase();
+      if (!/^[a-z0-9_.]{3,30}$/.test(handle)) throw new BadRequestException('Handle must be 3–30 chars: letters, numbers, _ or .');
+      const clash = await this.prisma.user.findUnique({ where: { handle } });
+      if (clash && clash.id !== userId) throw new ConflictException('That handle is already taken.');
+      data.handle = handle;
+    }
+    if (dto.bio !== undefined) {
+      const bio = dto.bio.trim();
+      if (bio.length > 280) throw new BadRequestException('Bio must be 280 characters or fewer.');
+      data.bio = bio || null;
+    }
+    if (dto.city !== undefined) data.city = dto.city.trim().slice(0, 80) || null;
+    if (dto.website !== undefined) {
+      const site = dto.website.trim();
+      if (site && !/^https?:\/\/[^\s.]+\.[^\s]+$/i.test(site)) throw new BadRequestException('Enter a valid URL (https://…).');
+      data.website = site || null;
+    }
+    if (Object.keys(data).length) {
+      await this.prisma.user.update({ where: { id: userId }, data: data as never });
+    }
+    return this.me(userId);
+  }
+
+  /** The citizen's own posts, newest-first, cursor-paginated for the profile grid. */
+  async myPosts(userId: string, cursor?: string, limit = 18) {
+    const take = Math.min(Math.max(limit, 1), 50);
+    const rows = await this.prisma.post.findMany({
+      where: { authorId: userId },
+      orderBy: { createdAt: 'desc' },
+      take: take + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      include: { media: true, _count: { select: { likes: true, comments: true } } },
+    });
+    const hasMore = rows.length > take;
+    const page = hasMore ? rows.slice(0, take) : rows;
+    return {
+      items: page.map((p) => ({
+        id: p.id,
+        text: p.text ?? null,
+        feeling: p.feeling ?? null,
+        createdAt: p.createdAt.toISOString(),
+        outdoor: p.lat != null && p.lng != null,
+        media: (p.media ?? []).map((m) => ({ url: m.url, kind: m.kind, thumbUrl: m.thumbUrl ?? null })),
+        likeCount: (p as unknown as { _count: { likes: number } })._count.likes,
+        commentCount: (p as unknown as { _count: { comments: number } })._count.comments,
+      })),
+      nextCursor: hasMore ? page[page.length - 1].id : null,
+    };
+  }
+
+  private relationshipOf(status: string | undefined, requestedById: string | undefined, viewerId: string): Relationship {
+    if (status === 'ACCEPTED') return 'accepted';
+    if (status === 'BLOCKED') return 'blocked';
+    if (status === 'PENDING') return requestedById === viewerId ? 'pending_out' : 'pending_in';
+    return 'none';
+  }
+
+  /** View another citizen's public profile by handle (never exposes email). */
+  async publicProfile(viewerId: string, handleRaw: string): Promise<PublicProfile> {
+    const handle = (handleRaw ?? '').trim().replace(/^@/, '').toLowerCase();
+    const u = (await this.prisma.user.findUnique({ where: { handle }, select: this.userSelect })) as unknown as UserRow | null;
+    if (!u) throw new NotFoundException('No citizen with that handle.');
+    const stats = await this.statsFor(u.id);
+    let relationship: Relationship = 'none';
+    if (u.id !== viewerId) {
+      const { userOneId, userTwoId } = orderPair(viewerId, u.id);
+      const conn = await this.prisma.connection.findFirst({ where: { userOneId, userTwoId, connectionType: 'FRIEND' }, select: { status: true, requestedById: true } });
+      relationship = this.relationshipOf(conn?.status, conn?.requestedById, viewerId);
+    }
+    return {
+      id: u.id, handle: u.handle, name: u.name, profileImage: u.profileImage,
+      bio: u.bio, city: u.city, website: u.website,
+      verified: u.emailVerified, memberSince: u.createdAt.toISOString(), stats, relationship,
+    };
+  }
+
+  /**
+   * People search — match by handle (prefix) or name (contains). This is a
+   * typed lookup, not a browsable directory: an empty/very short query returns
+   * nothing, so members aren't enumerable. Excludes the searcher.
+   */
+  async searchPeople(viewerId: string, qRaw: string) {
+    const q = (qRaw ?? '').trim().replace(/^@/, '');
+    if (q.length < 2) return { items: [] as unknown[] };
+    const handleQ = q.toLowerCase();
+    const rows = (await this.prisma.user.findMany({
+      where: {
+        id: { not: viewerId },
+        OR: [
+          { handle: { startsWith: handleQ } },
+          { name: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, handle: true, name: true, profileImage: true, city: true, emailVerified: true } as never,
+      take: 12,
+    })) as unknown as Array<{ id: string; handle: string; name: string; profileImage: string | null; city: string | null; emailVerified: boolean }>;
+
+    // One query for the viewer's connections, mapped to each result.
+    const ids = rows.map((r) => r.id);
+    const conns = ids.length
+      ? await this.prisma.connection.findMany({
+          where: { connectionType: 'FRIEND', OR: [
+            { userOneId: viewerId, userTwoId: { in: ids } },
+            { userTwoId: viewerId, userOneId: { in: ids } },
+          ] },
+          select: { userOneId: true, userTwoId: true, status: true, requestedById: true },
+        })
+      : [];
+    const byOther = new Map(conns.map((c) => [c.userOneId === viewerId ? c.userTwoId : c.userOneId, c]));
+
+    return {
+      items: rows.map((r) => {
+        const c = byOther.get(r.id);
+        return {
+          id: r.id, handle: r.handle, name: r.name, profileImage: r.profileImage,
+          city: r.city, verified: r.emailVerified,
+          relationship: this.relationshipOf(c?.status, c?.requestedById, viewerId),
+        };
+      }),
+    };
   }
 }

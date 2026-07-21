@@ -109,7 +109,6 @@ const BeautyCheckout = lazy(() => import('@/features/beauty/pages/Checkout').the
 const BeautyConfirm = lazy(() => import('@/features/beauty/pages/Confirm').then((m) => ({ default: m.Confirm })));
 // Social sub-pages
 const SocFeelings = lazy(() => import('@/features/social/pages/Feelings').then((m) => ({ default: m.Feelings })));
-const SocExplore = lazy(() => import('@/features/social/pages/Feelings').then((m) => ({ default: m.Explore })));
 const SocCircle = lazy(() => import('@/features/social/pages/Circle').then((m) => ({ default: m.SocialCircle })));
 const SocCreate = lazy(() => import('@/features/social/pages/CreatePost').then((m) => ({ default: m.CreatePost })));
 const SocMap = lazy(() => import('@/features/social/pages/CityMap').then((m) => ({ default: m.CityMap })));
@@ -229,7 +228,6 @@ export const router = createBrowserRouter([
     element: <HubLayout hub={HUBS.social} />,
     children: [
       { path: '/social/feed', element: <RequireAuth>{wrap(<SocialFeed />)}</RequireAuth> },
-      { path: '/social/explore', element: <RequireAuth>{wrap(<SocExplore />)}</RequireAuth> },
       { path: '/social/feelings', element: <RequireAuth>{wrap(<SocFeelings />)}</RequireAuth> },
       { path: '/social/circle', element: <RequireAuth>{wrap(<SocCircle />)}</RequireAuth> },
       { path: '/social/create', element: <RequireAuth>{wrap(<SocCreate />)}</RequireAuth> },
