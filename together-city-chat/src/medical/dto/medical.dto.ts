@@ -4,6 +4,9 @@ import { z } from 'zod';
 export const SaveBloodTestSchema = z.object({
   takenOn: z.string().datetime().optional(),
   lab: z.string().max(120).optional(),
+  // When the panel comes from (or corrects) an uploaded report, link it to that
+  // stored document so there's one record shared by both Medical Hub pages.
+  recordId: z.string().uuid().optional(),
   values: z.object({
     hb: z.number().positive().max(25).optional(),
     ferritin: z.number().positive().max(2000).optional(),

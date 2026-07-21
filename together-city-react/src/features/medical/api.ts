@@ -33,9 +33,15 @@ export interface HealthSummary {
   discuss: string[]; encouragement: string; aiEnabled: boolean;
   takenOn: string | null; lab: string | null; disclaimer: string;
 }
-export interface MedicalRecord { id: string; kind: string; title: string; detail: string | null; hasFile?: boolean; mimeType?: string | null; sizeBytes?: number; recordedOn: string }
+export interface MedicalRecord { id: string; kind: string; title: string; detail: string | null; hasFile?: boolean; mimeType?: string | null; sizeBytes?: number; bloodTestId?: string | null; analyzed?: boolean; recordedOn: string }
 export interface StorageUsage { quotaBytes: number; usedBytes: number; mailBytes: number; healthBytes: number; usedPct: number; remainingBytes: number }
 export interface ExtractResult { recordId: string; aiEnabled: boolean; extracted: Record<string, number>; markerCount: number; lab: string | null; takenOn: string | null; note: string }
+/** Upload → auto-analyse result: the report is filed AND (when readable) analysed in one call. */
+export interface IngestResult {
+  recordId: string; bloodTestId: string | null; aiEnabled: boolean;
+  extracted: Record<string, number>; markerCount: number; lab: string | null; takenOn: string | null;
+  analysis: BloodAnalysis | null; summary: HealthSummary | null; note: string;
+}
 export interface DoctorCard { id: string; name: string; handle: string; specialty: string; hospital: string | null; languages: string[]; rating: number; priceInr: number }
 export interface ConsultSummary { id: string; doctorName: string; specialty: string; reason: string | null; status: string; conversationId: string | null; scheduledAt: string | null; createdAt: string }
 export interface ConsentRow { hub: string; label: string; reads: string; granted: boolean; updatedAt: string }
@@ -51,8 +57,10 @@ export const medicalApi = {
   consents: () => api.get<ConsentRow[]>('/medical/consents').then((r) => r.data),
   setConsent: (hub: string, granted: boolean) =>
     api.patch<ConsentRow[]>('/medical/consents', { hub, granted }).then((r) => r.data),
-  saveBloodTest: (input: { lab?: string; takenOn?: string; values: Record<string, number> }) =>
+  saveBloodTest: (input: { lab?: string; takenOn?: string; values: Record<string, number>; recordId?: string }) =>
     api.post<BloodAnalysis>('/medical/blood-tests', input).then((r) => r.data),
+  ingestBlood: (input: { fileKey: string; mimeType: string; sizeBytes: number; title?: string; detail?: string }) =>
+    api.post<IngestResult>('/medical/blood-tests/ingest', input).then((r) => r.data),
   history: () => api.get<BloodTestSummary[]>('/medical/blood-tests').then((r) => r.data),
   latest: () => api.get<BloodAnalysis>('/medical/blood-tests/latest').then((r) => r.data),
   analyze: (id: string) => api.get<BloodAnalysis>(`/medical/blood-tests/${id}`).then((r) => r.data),
@@ -84,15 +92,36 @@ export function useLatestPanel() {
 export function useBloodHistory() {
   return useQuery({ queryKey: ['medical', 'history'], queryFn: () => medicalApi.history() });
 }
+/** After any panel change, refresh every surface that reads the panel so Blood
+ *  Test Analysis and Health Records stay in lockstep (shared query cache). */
+function syncPanelQueries(qc: ReturnType<typeof useQueryClient>) {
+  for (const key of ['latest', 'history', 'summary', 'supplements', 'records', 'storage']) {
+    void qc.invalidateQueries({ queryKey: ['medical', key] });
+  }
+}
+
 export function useSaveBloodTest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { lab?: string; values: Record<string, number> }) => medicalApi.saveBloodTest(input),
+    mutationFn: (input: { lab?: string; values: Record<string, number>; recordId?: string }) => medicalApi.saveBloodTest(input),
     onSuccess: (analysis) => {
       qc.setQueryData(['medical', 'latest'], analysis);
-      void qc.invalidateQueries({ queryKey: ['medical', 'history'] });
-      void qc.invalidateQueries({ queryKey: ['medical', 'supplements'] });
-      void qc.invalidateQueries({ queryKey: ['medical', 'summary'] });
+      syncPanelQueries(qc);
+    },
+  });
+}
+
+/** Upload a blood report and auto-analyse in one step. On success both pages
+ *  reflect the same record instantly: we seed latest/summary from the response
+ *  and invalidate the rest. */
+export function useIngestBlood() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { fileKey: string; mimeType: string; sizeBytes: number; title?: string; detail?: string }) => medicalApi.ingestBlood(input),
+    onSuccess: (res) => {
+      if (res.analysis) qc.setQueryData(['medical', 'latest'], res.analysis);
+      if (res.summary) qc.setQueryData(['medical', 'summary'], res.summary);
+      syncPanelQueries(qc);
     },
   });
 }

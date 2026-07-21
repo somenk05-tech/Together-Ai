@@ -1,9 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { Button, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
-import { useBloodHistory, useLatestPanel, useSaveBloodTest, useHealthSummary, medicalApi, type Citation } from '../api';
+import { useBloodHistory, useLatestPanel, useSaveBloodTest, useIngestBlood, useHealthSummary, type Citation } from '../api';
 
 /** Deterministic 0–100 wellness score ring. */
 function ScoreRing({ score, band }: { score: number; band: string }) {
@@ -56,7 +55,7 @@ export function BloodAnalysis() {
   const history = useBloodHistory();
   const summary = useHealthSummary();
   const save = useSaveBloodTest();
-  const qc = useQueryClient();
+  const ingest = useIngestBlood();
   const [form, setForm] = useState<Record<string, string>>({});
   const [lab, setLab] = useState('');
   const [extracting, setExtracting] = useState(false);
@@ -82,18 +81,19 @@ export function BloodAnalysis() {
       setExtracting(false);
       return;
     }
-    // Step 2: read it. The file is already saved, so a read failure isn't fatal —
-    // the user can type the values in manually.
+    // Step 2: upload → auto-analyse in one call. The file is already safely filed,
+    // so a read failure isn't fatal — the user just types the values in manually
+    // (and the manual panel links back to this same record via recordId).
     try {
-      const res = await medicalApi.extractBlood({ fileKey: up.fileKey, mimeType: up.mimeType, sizeBytes: up.sizeBytes, title: file.name });
+      const res = await ingest.mutateAsync({ fileKey: up.fileKey, mimeType: up.mimeType, sizeBytes: up.sizeBytes, title: file.name });
       const next: Record<string, string> = { ...form };
       for (const [k, v] of Object.entries(res.extracted)) next[k] = String(v);
       setForm(next);
       if (res.lab) setLab(res.lab);
       setExtractNote(res.note);
       setSavedFile({ id: res.recordId, name: file.name });
-      void qc.invalidateQueries({ queryKey: ['medical', 'storage'] });
-      void qc.invalidateQueries({ queryKey: ['medical', 'records'] });
+      // If it analysed automatically, collapse the manual form — the analysis is now shown above.
+      if (res.bloodTestId) setExpanded(false);
     } catch {
       setExtractNote('Saved to your vault, but we couldn’t read the values automatically — please enter them from your report below.');
     } finally {
@@ -105,7 +105,9 @@ export function BloodAnalysis() {
     e.preventDefault();
     const values: Record<string, number> = {};
     for (const [k, v] of Object.entries(form)) { const n = parseFloat(v); if (!Number.isNaN(n) && n >= 0) values[k] = n; }
-    if (Object.keys(values).length) save.mutate({ lab: lab || undefined, values }, {
+    // Pass recordId so a manual entry / correction updates the SAME uploaded
+    // report's panel instead of creating a duplicate.
+    if (Object.keys(values).length) save.mutate({ lab: lab || undefined, values, recordId: savedFile?.id }, {
       onSuccess: () => { setForm({}); setLab(''); setSavedFile(null); setExtractNote(null); setExpanded(false); },
     });
   };
@@ -191,15 +193,15 @@ export function BloodAnalysis() {
       {showForm ? (
       <>
       <div className="card" style={{ marginTop: 18 }}>
-        <div className="eyebrow">Upload your report — we read it for you</div>
+        <div className="eyebrow">Upload your report — we read &amp; analyse it for you</div>
         <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
-          Upload a photo or PDF of your blood report. The AI reads the values and fills the form below for you to check before saving — it extracts numbers only, never diagnoses.
+          Upload a photo or PDF of your blood report. We read the values and analyse it automatically — no extra steps. The same report also appears in your <Link to="/medical/records" style={{ color: 'var(--accent)', fontWeight: 600 }}>Health Records</Link>. It extracts numbers only, never diagnoses; you can edit any reading below and re-analyse.
         </p>
         <label style={{ display: 'block', border: '1.5px dashed var(--line)', borderRadius: 14, padding: '22px', textAlign: 'center', cursor: extracting ? 'default' : 'pointer', marginTop: 12 }}>
           <input type="file" accept="image/*,.heic,.heif,.tiff,application/pdf" style={{ display: 'none' }} disabled={extracting}
             onChange={(e) => { void onFile(e.target.files?.[0] ?? null); e.target.value = ''; }} />
           <div style={{ fontSize: 26 }}>{extracting ? '⏳' : '📄'}</div>
-          <div style={{ fontWeight: 600, marginTop: 6 }}>{extracting ? 'Reading your report…' : 'Tap to upload a photo or PDF'}</div>
+          <div style={{ fontWeight: 600, marginTop: 6 }}>{extracting ? 'Reading &amp; analysing your report…' : 'Tap to upload a photo or PDF'}</div>
           <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>Stored securely in your 10 GB health vault</div>
         </label>
         {extractNote && <p style={{ fontSize: 12.5, marginTop: 10, padding: '8px 10px', background: '#e8f5e9', borderRadius: 8 }}>✓ {extractNote}</p>}

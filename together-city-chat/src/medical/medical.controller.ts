@@ -9,6 +9,7 @@ import {
   AddRecordSchema, type AddRecordDto,
   UploadDocSchema, type UploadDocDto,
   ExtractBloodSchema, type ExtractBloodDto,
+  IngestBloodSchema, type IngestBloodDto,
   BookConsultSchema, type BookConsultDto,
   ConsentSchema, type ConsentDto,
 } from './dto/records.dto';
@@ -29,6 +30,15 @@ export class MedicalController {
   @UsePipes(new ZodValidationPipe(ExtractBloodSchema))
   extract(@CurrentUser() user: JwtUser, @Body() dto: ExtractBloodDto) {
     return this.medical.extractBloodReport(user.sub, dto);
+  }
+
+  // Upload → auto-analyse: file once, read markers, create the linked panel and
+  // run the analysis in one step (must precede :id). Shared by Health Records +
+  // Blood Test Analysis so a report uploaded on either surfaces on both.
+  @Post('blood-tests/ingest')
+  @UsePipes(new ZodValidationPipe(IngestBloodSchema))
+  ingest(@CurrentUser() user: JwtUser, @Body() dto: IngestBloodDto) {
+    return this.medical.ingestBloodReport(user.sub, dto);
   }
 
   @Get('blood-tests')

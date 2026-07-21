@@ -206,24 +206,151 @@ export class MedicalService implements OnModuleInit {
   }
 
   // ─────────────── blood tests (dated panels, with history) ───────────────
-  async saveBloodTest(userId: string, dto: SaveBloodTestDto) {
+  /**
+   * The SINGLE path every panel (uploaded or hand-typed) funnels through, so
+   * Blood Test Analysis and Health Records always show the same record. Given a
+   * set of marker values and (optionally) the source document, it either creates
+   * a new dated panel or — when that document already produced one — replaces
+   * that panel's markers IN PLACE and drops the stale analysis so it re-runs.
+   * There is never more than one panel per uploaded report. Returns the panel id.
+   */
+  private async upsertPanelAndAnalyze(
+    userId: string,
+    input: { values: Record<string, number>; lab?: string | null; takenOn?: Date; recordId?: string | null },
+  ): Promise<string> {
+    const biomarkers = Object.entries(input.values)
+      .filter(([, v]) => typeof v === 'number' && !Number.isNaN(v))
+      .map(([key, value]) => ({ key, value: value as number }));
+
+    // Does the source document already have a panel? If so, update that one.
+    let existingTestId: string | null = null;
+    if (input.recordId) {
+      const rec = await this.prisma.medicalRecord.findFirst({ where: { id: input.recordId, userId } }) as
+        ({ id: string; bloodTestId: string | null } | null);
+      if (rec?.bloodTestId) {
+        const owned = await this.prisma.medicalBloodTest.findFirst({ where: { id: rec.bloodTestId, userId } });
+        if (owned) existingTestId = owned.id;
+      }
+    }
+
+    if (existingTestId) {
+      // Replace markers atomically + clear cached analyses so the next read
+      // re-analyses against the corrected values (same id → both pages stay in sync).
+      await this.prisma.medicalBloodTest.update({
+        where: { id: existingTestId },
+        data: {
+          lab: input.lab ?? undefined,
+          takenOn: input.takenOn ?? undefined,
+          biomarkers: { deleteMany: {}, create: biomarkers },
+        },
+      });
+      await (this.prisma as unknown as { bloodAnalysis: { deleteMany: (a: unknown) => Promise<unknown> } })
+        .bloodAnalysis.deleteMany({ where: { bloodTestId: existingTestId } }).catch(() => undefined);
+      void this.healthSummary(userId).catch(() => undefined);
+      return existingTestId;
+    }
+
     const test = await this.prisma.medicalBloodTest.create({
       data: {
         userId,
-        takenOn: dto.takenOn ? new Date(dto.takenOn) : new Date(),
-        lab: dto.lab ?? null,
-        biomarkers: {
-          create: Object.entries(dto.values)
-            .filter(([, v]) => typeof v === 'number')
-            .map(([key, value]) => ({ key, value: value as number })),
-        },
+        takenOn: input.takenOn ?? new Date(),
+        lab: input.lab ?? null,
+        biomarkers: { create: biomarkers },
       },
-      include: { biomarkers: true },
     });
-    // Pre-warm the AI health summary in the background so it's already cached by
-    // the time the user opens Blood Test Analysis (loads instantly there).
+    // Link the source document to this panel so both surfaces reference one record.
+    if (input.recordId) {
+      await this.prisma.medicalRecord.update({ where: { id: input.recordId }, data: { bloodTestId: test.id } as never }).catch(() => undefined);
+    }
+    // Pre-warm the AI health summary so Blood Test Analysis opens instantly.
     void this.healthSummary(userId).catch(() => undefined);
-    return this.analyze(userId, test.id);
+    return test.id;
+  }
+
+  async saveBloodTest(userId: string, dto: SaveBloodTestDto & { recordId?: string }) {
+    const values = Object.fromEntries(
+      Object.entries(dto.values).filter(([, v]) => typeof v === 'number'),
+    ) as Record<string, number>;
+    const testId = await this.upsertPanelAndAnalyze(userId, {
+      values, lab: dto.lab ?? null,
+      takenOn: dto.takenOn ? new Date(dto.takenOn) : undefined,
+      recordId: dto.recordId ?? null,
+    });
+    return this.analyze(userId, testId);
+  }
+
+  /**
+   * Upload → analyse in ONE step. Files the report once in the private vault,
+   * reads its markers (text PDF or vision), and — if any were read — auto-creates
+   * the linked panel and runs the analysis immediately. The same stored record is
+   * referenced by both Health Records and Blood Test Analysis; the user never
+   * uploads twice or triggers the analysis separately. If nothing readable is
+   * found the document is still saved and the caller can collect values manually
+   * (passing recordId back so the manual panel links to this same file).
+   */
+  async ingestBloodReport(userId: string, dto: {
+    fileKey: string; mimeType: string; sizeBytes: number; title?: string; detail?: string;
+  }) {
+    await this.assertQuota(userId, dto.sizeBytes);
+    if (!(await this.storage.healthObjectExists(dto.fileKey))) {
+      throw new BadRequestException('Your report didn’t finish uploading — please check your connection and try again.');
+    }
+    const rec = await this.prisma.medicalRecord.create({
+      data: {
+        userId, kind: 'blood-test', title: dto.title || 'Blood report', detail: dto.detail || 'Uploaded blood report',
+        fileUrl: null, fileKey: dto.fileKey, mimeType: dto.mimeType, sizeBytes: dto.sizeBytes, recordedOn: new Date(),
+      } as never,
+    });
+
+    let extracted: { values: Record<string, number>; lab?: string; takenOn?: string } = { values: {} };
+    try {
+      const obj = await this.storage.getHealthObjectBase64(dto.fileKey);
+      if (obj) {
+        if (dto.mimeType === 'application/pdf') {
+          const text = await this.pdfToText(Buffer.from(obj.base64, 'base64'));
+          extracted = text.trim()
+            ? await this.ai.extractMarkersFromText(text)
+            : await this.ai.extractBloodMarkers(obj.base64, dto.mimeType);
+        } else {
+          extracted = await this.ai.extractBloodMarkers(obj.base64, dto.mimeType);
+        }
+      }
+    } catch (e) {
+      this.logger.warn(`ingest extract failed (document still saved): ${(e as Error).message}`);
+      extracted = { values: {} };
+    }
+
+    const values = Object.fromEntries(
+      Object.entries(extracted.values).filter(([, v]) => typeof v === 'number' && !Number.isNaN(v as number)),
+    ) as Record<string, number>;
+    const markerCount = Object.keys(values).length;
+
+    if (markerCount === 0) {
+      return {
+        recordId: rec.id, bloodTestId: null as string | null, aiEnabled: this.ai.enabled,
+        extracted: {} as Record<string, number>, markerCount: 0,
+        lab: extracted.lab ?? null, takenOn: extracted.takenOn ?? null,
+        analysis: null as Awaited<ReturnType<MedicalService['analyze']>> | null,
+        summary: null as Awaited<ReturnType<MedicalService['healthSummary']>> | null,
+        note: this.ai.enabled
+          ? 'Saved to your records, but we couldn’t read clear values from this file — enter them below to analyse.'
+          : 'AI reading is off — enter the values from your report below to analyse.',
+      };
+    }
+
+    const takenOnDate = extracted.takenOn ? new Date(extracted.takenOn) : new Date();
+    const testId = await this.upsertPanelAndAnalyze(userId, {
+      values, lab: extracted.lab ?? null,
+      takenOn: Number.isNaN(takenOnDate.getTime()) ? new Date() : takenOnDate,
+      recordId: rec.id,
+    });
+    const [analysis, summary] = await Promise.all([this.analyze(userId, testId), this.healthSummary(userId)]);
+    return {
+      recordId: rec.id, bloodTestId: testId, aiEnabled: this.ai.enabled,
+      extracted: values, markerCount, lab: extracted.lab ?? null, takenOn: extracted.takenOn ?? null,
+      analysis, summary,
+      note: `Read ${markerCount} marker${markerCount === 1 ? '' : 's'} from your report and analysed it automatically.`,
+    };
   }
 
   /** History of panels (newest first) with a compact summary of each. */
@@ -506,13 +633,17 @@ export class MedicalService implements OnModuleInit {
       where: { userId }, orderBy: { recordedOn: 'desc' },
     });
     return rows.map((r) => {
-      const rr = r as typeof r & { fileKey?: string | null; mimeType?: string | null; sizeBytes?: number | null };
+      const rr = r as typeof r & { fileKey?: string | null; mimeType?: string | null; sizeBytes?: number | null; bloodTestId?: string | null };
       return {
         id: r.id, kind: r.kind, title: r.title, detail: r.detail,
         // Health docs are private: expose only whether a file exists, not a URL.
         // The client fetches a short-lived signed link from /records/:id/file.
         hasFile: Boolean(rr.fileKey || r.fileUrl),
         mimeType: rr.mimeType ?? null, sizeBytes: rr.sizeBytes ?? 0,
+        // If this document produced an analysed blood panel, surface the link so
+        // Health Records can jump straight to the same analysis shown on Blood Test Analysis.
+        bloodTestId: rr.bloodTestId ?? null,
+        analyzed: Boolean(rr.bloodTestId),
         recordedOn: r.recordedOn.toISOString().slice(0, 10),
       };
     });

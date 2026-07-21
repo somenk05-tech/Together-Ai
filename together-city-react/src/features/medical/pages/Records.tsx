@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
-import { useAddRecord, useRecords, useStorageUsage, useDeleteRecord, useLatestPanel, useBloodHistory, medicalApi } from '../api';
+import { useAddRecord, useRecords, useStorageUsage, useDeleteRecord, useLatestPanel, useBloodHistory, useIngestBlood, useHealthSummary, medicalApi } from '../api';
 
 const MSTATUS: Record<string, { color: string; bg: string; label: string }> = {
   low: { color: '#c62828', bg: '#ffebee', label: 'LOW' },
@@ -46,8 +46,10 @@ export function Records() {
   const storage = useStorageUsage();
   const latest = useLatestPanel();
   const history = useBloodHistory();
+  const summary = useHealthSummary();
   const add = useAddRecord();
   const del = useDeleteRecord();
+  const ingest = useIngestBlood();
   const qc = useQueryClient();
   const [kind, setKind] = useState('blood-test');
   const [title, setTitle] = useState('');
@@ -55,6 +57,7 @@ export function Records() {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [ingestNote, setIngestNote] = useState<string | null>(null);
 
   const reset = () => { setTitle(''); setDetail(''); setFile(null); };
 
@@ -70,26 +73,40 @@ export function Records() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) { setErr('Add a title for this record first.'); return; }
-    setErr(null);
+    setErr(null); setIngestNote(null);
+    // A blood report uploaded here auto-analyses and is shared with Blood Test Analysis.
+    const isBloodReport = kind === 'blood-test' && !!file;
+    const effectiveTitle = title.trim() || (file ? file.name.replace(/\.[^.]+$/, '') : '');
+    if (!effectiveTitle) { setErr('Add a title for this record first.'); return; }
     if (file) {
       if (file.size > 25 * 1024 * 1024) { setErr('That file is over 25 MB.'); return; }
       setBusy(true);
       try {
         const up = await mediaApi.uploadPrivate(file);
-        const recs = await medicalApi.uploadDocument({
-          kind, title: title.trim(), detail: detail.trim() || undefined,
-          fileKey: up.fileKey, mimeType: up.mimeType, sizeBytes: up.sizeBytes,
-        });
-        qc.setQueryData(['medical', 'records'], recs);
-        void qc.invalidateQueries({ queryKey: ['medical', 'storage'] });
+        if (isBloodReport) {
+          // One upload → filed once AND analysed; both Medical Hub pages reference it.
+          const res = await ingest.mutateAsync({
+            fileKey: up.fileKey, mimeType: up.mimeType, sizeBytes: up.sizeBytes,
+            title: effectiveTitle, detail: detail.trim() || undefined,
+          });
+          setIngestNote(res.bloodTestId
+            ? `${res.note} It now appears on your Blood Test Analysis page too — no need to upload it again.`
+            : res.note);
+        } else {
+          const recs = await medicalApi.uploadDocument({
+            kind, title: effectiveTitle, detail: detail.trim() || undefined,
+            fileKey: up.fileKey, mimeType: up.mimeType, sizeBytes: up.sizeBytes,
+          });
+          qc.setQueryData(['medical', 'records'], recs);
+          void qc.invalidateQueries({ queryKey: ['medical', 'storage'] });
+        }
         reset();
       } catch (e2) {
         const msg = (e2 as { response?: { data?: { message?: string } } })?.response?.data?.message;
         setErr(msg ?? uploadErrorMessage(e2));
       } finally { setBusy(false); }
     } else {
-      add.mutate({ kind, title: title.trim(), detail: detail.trim() || undefined }, { onSuccess: reset });
+      add.mutate({ kind, title: effectiveTitle, detail: detail.trim() || undefined }, { onSuccess: reset });
     }
   };
 
@@ -177,13 +194,35 @@ export function Records() {
                 Guidance from this panel: {panel.conditions.map((c) => c.name).join(', ')}.
               </p>
             )}
+
+            {/* The SAME AI summary shown on Blood Test Analysis — one analysis, both pages. */}
+            {summary.data?.hasPanel && (
+              <div style={{ marginTop: 14, padding: '12px 14px', background: 'var(--accent-soft)', borderRadius: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  {summary.data.score != null && (
+                    <span style={{ fontSize: 20, fontWeight: 800 }}>{summary.data.score}<span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>/100 · {summary.data.band}</span></span>
+                  )}
+                  <span className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em' }}>AI health summary</span>
+                </div>
+                {summary.data.priorities.length > 0 && (
+                  <ol style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 13, lineHeight: 1.55 }}>
+                    {summary.data.priorities.slice(0, 3).map((p, i) => <li key={i}>{p}</li>)}
+                  </ol>
+                )}
+                {summary.data.interpretation[0] && (
+                  <p style={{ fontSize: 12.5, margin: '8px 0 0', color: 'var(--ink-soft)' }}>{summary.data.interpretation[0]}</p>
+                )}
+                <Link to="/medical/blood" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)', display: 'inline-block', marginTop: 8 }}>Read the full analysis →</Link>
+              </div>
+            )}
+
             <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>
               {reportDocs} report{reportDocs === 1 ? '' : 's'} on file · Educational, not a diagnosis.
             </p>
           </>
         ) : (
           <p className="muted" style={{ fontSize: 13, margin: '6px 0 0' }}>
-            No blood panels analysed yet. Upload a report on <Link to="/medical/blood" style={{ color: 'var(--accent)', fontWeight: 600 }}>Blood Test Analysis</Link> and save it — your key markers, flags and trends will appear here.
+            No blood panels analysed yet. Upload a <strong>Blood Tests</strong> report below (or on <Link to="/medical/blood" style={{ color: 'var(--accent)', fontWeight: 600 }}>Blood Test Analysis</Link>) — it's read and analysed automatically, and your key markers, flags and trends appear here.
           </p>
         )}
       </div>
@@ -224,11 +263,15 @@ export function Records() {
             style={{ fontSize: 12.5 }} />
           {file && <span className="muted" style={{ fontSize: 12 }}>{fmtBytes(file.size)}</span>}
         </label>
-        <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>Attach a report, prescription or scan (JPG, PNG, PDF) — it's stored in your vault.</p>
+        <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>
+          Attach a report, prescription or scan (JPG, PNG, PDF) — it's stored in your vault.
+          {kind === 'blood-test' && <> A <strong>Blood Tests</strong> report is read and analysed automatically, and shared with Blood Test Analysis.</>}
+        </p>
         {err && <p style={{ fontSize: 12.5, color: '#c62828', marginTop: 8 }}>{err}</p>}
+        {ingestNote && <p style={{ fontSize: 12.5, marginTop: 8, padding: '8px 10px', background: '#e8f5e9', borderRadius: 8 }}>✓ {ingestNote}</p>}
         <div style={{ marginTop: 12 }}>
           <Button type="submit" variant="accent" disabled={busy || add.isPending}>
-            {busy ? 'Uploading…' : add.isPending ? 'Saving…' : file ? 'Upload & save' : 'Add record'}
+            {busy ? (kind === 'blood-test' && file ? 'Reading & analysing…' : 'Uploading…') : add.isPending ? 'Saving…' : file ? (kind === 'blood-test' ? 'Upload & analyse' : 'Upload & save') : 'Add record'}
           </Button>
         </div>
       </form>
@@ -261,6 +304,11 @@ export function Records() {
                           style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontSize: 12.5, fontWeight: 600, color: 'var(--accent)', fontFamily: 'inherit' }}>
                           View file{r.sizeBytes ? ` · ${fmtBytes(r.sizeBytes)}` : ''} ↗
                         </button>
+                      )}
+                      {r.analyzed && (
+                        <Link to="/medical/blood" style={{ fontSize: 12.5, fontWeight: 600, color: '#2e7d32' }}>
+                          Analysis ready →
+                        </Link>
                       )}
                       <button type="button" onClick={() => del.mutate(r.id)} disabled={del.isPending}
                         style={{ marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', color: '#c62828', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit' }}>

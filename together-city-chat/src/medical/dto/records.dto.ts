@@ -31,6 +31,17 @@ export const ExtractBloodSchema = z.object({
 });
 export type ExtractBloodDto = z.infer<typeof ExtractBloodSchema>;
 
+/** Upload → auto-analyse in one step: file the report once, read its markers, and
+ *  (when readable) create the linked panel + run the analysis automatically. */
+export const IngestBloodSchema = z.object({
+  fileKey: z.string().min(1).max(300),
+  mimeType: z.string().min(3).max(120),
+  sizeBytes: z.number().int().nonnegative().max(52428800),
+  title: z.string().max(160).optional(),
+  detail: z.string().max(2000).optional(),
+});
+export type IngestBloodDto = z.infer<typeof IngestBloodSchema>;
+
 export const BookConsultSchema = z.object({
   doctorId: z.string().uuid(),
   reason: z.string().max(500).optional(),
