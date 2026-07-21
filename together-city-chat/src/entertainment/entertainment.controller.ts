@@ -5,7 +5,8 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { EntertainmentService } from './entertainment.service';
 import { TmdbService } from './tmdb.service';
-import { BookTicketSchema, type BookTicketDto, EventQuerySchema, type EventQueryDto } from './dto/entertainment.dto';
+import { BookTicketSchema, type BookTicketDto, EventQuerySchema, type EventQueryDto, SaveWatchSchema, type SaveWatchDto } from './dto/entertainment.dto';
+import { Delete } from '@nestjs/common';
 
 @Controller('entertainment')
 @UseGuards(JwtAuthGuard)
@@ -54,6 +55,36 @@ export class EntertainmentController {
   @Get('curated-movies')
   curatedMovies() {
     return this.tmdb.curated();
+  }
+
+  // Full-catalogue paging — 100 titles per page until the database ends.
+  @Get('browse')
+  browse(@Query('type') type?: string, @Query('page') page?: string, @Query('genre') genre?: string, @Query('lang') lang?: string) {
+    return this.tmdb.browse(type === 'tv' ? 'tv' : 'movie', Number(page) || 1, genre, lang);
+  }
+
+  // ── personal Watchlist (saved movies & series, synced across devices) ──
+  @Get('watchlist')
+  watchlist(@CurrentUser() user: JwtUser) {
+    return this.entertainment.watchlist(user.sub);
+  }
+
+  @Post('watchlist')
+  @UsePipes(new ZodValidationPipe(SaveWatchSchema))
+  saveWatch(@CurrentUser() user: JwtUser, @Body() dto: SaveWatchDto) {
+    return this.entertainment.addToWatchlist(user.sub, dto);
+  }
+
+  @Delete('watchlist/:type/:id')
+  removeWatch(@CurrentUser() user: JwtUser, @Param('type') type: string, @Param('id') id: string) {
+    return this.entertainment.removeFromWatchlist(user.sub, type, id);
+  }
+
+  // AI picks learned from the Watchlist (genres, languages, saved titles).
+  @Get('recommended')
+  async recommended(@CurrentUser() user: JwtUser) {
+    const { items } = await this.entertainment.watchlist(user.sub);
+    return this.tmdb.recommendedFor(items);
   }
 
   @Get('person/:id')

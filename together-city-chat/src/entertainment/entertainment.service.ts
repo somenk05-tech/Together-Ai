@@ -5,10 +5,17 @@ import { FinancialService } from '../financial/financial.service';
 import { MailService } from '../mail/mail.service';
 import { ticketReceipt } from '../mail/receipts';
 import { CATEGORY_META, CATEGORIES } from './entertainment.constants';
-import type { BookTicketDto, EventQueryDto } from './dto/entertainment.dto';
+import type { BookTicketDto, EventQueryDto, SaveWatchDto } from './dto/entertainment.dto';
 
 type Tier = { name: string; priceInr: number; available: number };
 type EventRow = { id: string; title: string; category: string; venue: string; city: string; date: string; time: string; description: string; posterUrl: string; priceFromInr: number; tiersJson: string };
+
+/** One saved Watchlist title (stored as JSON on the user). */
+export interface WatchItem {
+  id: number; type: 'movie' | 'tv'; title: string;
+  posterUrl: string | null; rating: number | null; releaseDate: string | null;
+  language: string; genres: string[]; platform: string | null; savedAt: string;
+}
 
 const parseTiers = (json: string): Tier[] => { try { return JSON.parse(json) as Tier[]; } catch { return []; } };
 
@@ -74,4 +81,37 @@ export class EntertainmentService {
     }));
   }
 
+  // ─────────────── personal Watchlist (saved movies & series) ───────────────
+
+  private async readWatchlist(userId: string): Promise<WatchItem[]> {
+    const u = await this.prisma.user.findUnique({ where: { id: userId } }) as ({ watchlistJson?: string | null } | null);
+    if (!u?.watchlistJson) return [];
+    try { return JSON.parse(u.watchlistJson) as WatchItem[]; } catch { return []; }
+  }
+
+  private async writeWatchlist(userId: string, items: WatchItem[]): Promise<void> {
+    await this.prisma.user.update({ where: { id: userId }, data: { watchlistJson: JSON.stringify(items) } as never });
+  }
+
+  async watchlist(userId: string) {
+    return { items: await this.readWatchlist(userId) };
+  }
+
+  /** Save a title — newest first, de-duplicated, capped at 300. */
+  async addToWatchlist(userId: string, dto: SaveWatchDto) {
+    const items = await this.readWatchlist(userId);
+    const rest = items.filter((i) => !(i.id === dto.id && i.type === dto.type));
+    const next: WatchItem[] = [{ ...dto, savedAt: new Date().toISOString() }, ...rest].slice(0, 300);
+    await this.writeWatchlist(userId, next);
+    return { items: next };
+  }
+
+  async removeFromWatchlist(userId: string, type: string, id: string) {
+    const numId = Number(id);
+    if (!Number.isInteger(numId) || (type !== 'movie' && type !== 'tv')) throw new BadRequestException('bad watchlist ref');
+    const items = await this.readWatchlist(userId);
+    const next = items.filter((i) => !(i.id === numId && i.type === type));
+    await this.writeWatchlist(userId, next);
+    return { items: next };
+  }
 }

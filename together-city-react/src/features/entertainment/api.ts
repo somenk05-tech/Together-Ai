@@ -1,5 +1,5 @@
 import { http as api } from '@/api/client';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 /** Live movie & OTT data (TMDB proxy — backend holds the key). */
 export interface LiveMovie {
@@ -32,6 +32,16 @@ export interface PersonFull {
   biography: string | null; knownFor: TitleRef[]; attribution: string;
 }
 
+/** One saved Watchlist title. */
+export interface WatchItem {
+  id: number; type: 'movie' | 'tv'; title: string;
+  posterUrl: string | null; rating: number | null; releaseDate: string | null;
+  language: string; genres: string[]; platform: string | null; savedAt: string;
+}
+export interface WatchlistRes { items: WatchItem[] }
+export interface RecommendedRes { live: boolean; results: TitleRef[]; basis: { genres: string[]; languages: string[]; fromTitles: number } | null }
+export interface BrowseRes { live: boolean; page: number; totalPages: number; totalResults: number; results: TitleRef[] }
+
 export const entApi = {
   movies: () => api.get<MoviesLive>('/entertainment/movies').then((r) => r.data),
   title: (type: 'movie' | 'tv', id: number) => api.get<TitleFull>(`/entertainment/${type === 'tv' ? 'tv' : 'movies'}/${id}`).then((r) => r.data),
@@ -40,6 +50,12 @@ export const entApi = {
   discover: (genre?: string, lang?: string, sort?: string, type?: 'movie' | 'tv') => api.get<DiscoverLive>('/entertainment/discover', { params: { genre, lang, sort, type } }).then((r) => r.data),
   curatedMovies: () => api.get<CuratedLive>('/entertainment/curated-movies').then((r) => r.data),
   person: (id: number) => api.get<PersonFull>(`/entertainment/person/${id}`).then((r) => r.data),
+  browse: (type: 'movie' | 'tv', page: number, genre?: string, lang?: string) =>
+    api.get<BrowseRes>('/entertainment/browse', { params: { type, page, genre, lang } }).then((r) => r.data),
+  watchlist: () => api.get<WatchlistRes>('/entertainment/watchlist').then((r) => r.data),
+  watchAdd: (item: Omit<WatchItem, 'savedAt'>) => api.post<WatchlistRes>('/entertainment/watchlist', item).then((r) => r.data),
+  watchRemove: (type: 'movie' | 'tv', id: number) => api.delete<WatchlistRes>(`/entertainment/watchlist/${type}/${id}`).then((r) => r.data),
+  recommended: () => api.get<RecommendedRes>('/entertainment/recommended').then((r) => r.data),
 };
 
 export function useLiveMovies() {
@@ -62,4 +78,39 @@ export function useCuratedMovies() {
 }
 export function usePerson(id: number | null) {
   return useQuery({ queryKey: ['ent', 'person', id], queryFn: () => entApi.person(id as number), enabled: id != null, retry: false, staleTime: 30 * 60_000 });
+}
+
+export function useBrowse(type: 'movie' | 'tv', page: number, genre?: string, lang?: string, enabled = true) {
+  return useQuery({
+    queryKey: ['ent', 'browse', type, page, genre ?? '', lang ?? ''],
+    queryFn: () => entApi.browse(type, page, genre, lang),
+    enabled, retry: false, staleTime: 10 * 60_000,
+    placeholderData: (prev) => prev, // keep the old page on screen while the next loads
+  });
+}
+export function useWatchlist() {
+  return useQuery({ queryKey: ['ent', 'watchlist'], queryFn: () => entApi.watchlist(), retry: false, staleTime: 60_000 });
+}
+/** Save/remove with an optimistic cache update so every bookmark flips instantly. */
+export function useToggleWatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { action: 'add' | 'remove'; item: Omit<WatchItem, 'savedAt'> }) =>
+      v.action === 'add' ? entApi.watchAdd(v.item) : entApi.watchRemove(v.item.type, v.item.id),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: ['ent', 'watchlist'] });
+      const prev = qc.getQueryData<WatchlistRes>(['ent', 'watchlist']);
+      qc.setQueryData<WatchlistRes>(['ent', 'watchlist'], (old) => {
+        const items = old?.items ?? [];
+        if (v.action === 'remove') return { items: items.filter((i) => !(i.id === v.item.id && i.type === v.item.type)) };
+        return { items: [{ ...v.item, savedAt: new Date().toISOString() }, ...items.filter((i) => !(i.id === v.item.id && i.type === v.item.type))] };
+      });
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(['ent', 'watchlist'], ctx.prev); },
+    onSuccess: (res) => { qc.setQueryData(['ent', 'watchlist'], res); void qc.invalidateQueries({ queryKey: ['ent', 'recommended'] }); },
+  });
+}
+export function useRecommended(enabled = true) {
+  return useQuery({ queryKey: ['ent', 'recommended'], queryFn: () => entApi.recommended(), enabled, retry: false, staleTime: 10 * 60_000 });
 }

@@ -36,7 +36,7 @@ interface TmdbItem {
   release_date?: string; first_air_date?: string;
   original_language: string; genre_ids?: number[]; media_type?: string;
 }
-interface TmdbList { results: TmdbItem[] }
+interface TmdbList { results: TmdbItem[]; total_pages?: number; total_results?: number }
 interface TmdbProviders { results?: Record<string, { flatrate?: { provider_name: string }[]; rent?: { provider_name: string }[]; buy?: { provider_name: string }[] }> }
 interface TmdbVideo { key: string; site: string; type: string; official: boolean; name: string }
 interface TmdbDetail extends TmdbItem {
@@ -333,6 +333,102 @@ export class TmdbService {
     } catch (e) {
       this.log.warn(`ott() fell back: ${(e as Error).message}`);
       return { live: false as const, streaming: [], popular: [] };
+    }
+  }
+
+  /**
+   * Browse the ENTIRE catalogue page-wise — 100 titles per app page, stitched
+   * from five TMDB pages (20 each). TMDB serves up to 500 pages per query
+   * (10,000 titles), so an app exposes 100 pages of 100 before the well runs
+   * dry. Optional genre/language filters narrow the walk.
+   */
+  async browse(type: 'movie' | 'tv', page: number, genre?: string, lang?: string) {
+    if (!this.enabled) return { live: false as const, page: 1, totalPages: 0, totalResults: 0, results: [] };
+    const PER = 5; // TMDB pages stitched per app page (5 × 20 = 100 titles)
+    const appPage = Math.max(1, Math.min(100, Math.floor(page) || 1));
+    const first = (appPage - 1) * PER + 1;
+    try {
+      const genreId = Object.entries(GENRES).find(([, name]) => name.toLowerCase() === (genre ?? '').toLowerCase())?.[0];
+      const langCode = Object.entries(LANGS).find(([, name]) => name.toLowerCase() === (lang ?? '').toLowerCase())?.[0];
+      const params: Record<string, string> = { include_adult: 'false', sort_by: 'popularity.desc', 'vote_count.gte': '10' };
+      if (genreId) params.with_genres = genreId;
+      if (langCode) params.with_original_language = langCode;
+      const path = type === 'tv' ? '/discover/tv' : '/discover/movie';
+
+      const firstList = await this.get<TmdbList>(path, { ...params, page: String(first) });
+      const tmdbTotal = Math.min(firstList.total_pages ?? 1, 500);
+      const totalPages = Math.max(1, Math.ceil(tmdbTotal / PER));
+      const restPages: number[] = [];
+      for (let p = first + 1; p <= Math.min(first + PER - 1, tmdbTotal); p++) restPages.push(p);
+      const rest = await Promise.all(restPages.map((p) => this.get<TmdbList>(path, { ...params, page: String(p) }).catch(() => ({ results: [] as TmdbItem[] }))));
+
+      const seen = new Set<number>();
+      const results = [firstList, ...rest]
+        .flatMap((l) => l.results)
+        .filter((m) => m.poster_path && !seen.has(m.id) && seen.add(m.id))
+        .map((m) => ({ ...this.shape(m), type }));
+      return {
+        live: true as const,
+        page: appPage,
+        totalPages,
+        totalResults: Math.min(firstList.total_results ?? results.length, tmdbTotal * 20),
+        results,
+      };
+    } catch (e) {
+      this.log.warn(`browse(${type} p${page}) fell back: ${(e as Error).message}`);
+      return { live: false as const, page: appPage, totalPages: 0, totalResults: 0, results: [] };
+    }
+  }
+
+  /**
+   * Personalised picks learned from the Watchlist: TMDB's own recommendations
+   * for the most recently saved titles, blended with discover queries built
+   * from the collection's dominant genres and languages. Saved titles are
+   * excluded, so the row always suggests something new.
+   */
+  async recommendedFor(saved: { id: number; type: 'movie' | 'tv'; language?: string; genres?: string[] }[]) {
+    if (!this.enabled) return { live: false as const, results: [], basis: null };
+    if (!saved.length) return { live: true as const, results: [], basis: null };
+    try {
+      const top = (xs: string[]) => {
+        const n = new Map<string, number>();
+        xs.forEach((x) => x && n.set(x, (n.get(x) ?? 0) + 1));
+        return [...n.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+      };
+      const topGenres = top(saved.flatMap((s) => s.genres ?? []));
+      const topLangs = top(saved.map((s) => s.language ?? ''));
+      const seeds = saved.slice(0, 4);
+
+      const [recLists, byGenreMovie, byGenreTv] = await Promise.all([
+        Promise.all(seeds.map((s) =>
+          this.get<TmdbList>(`/${s.type === 'tv' ? 'tv' : 'movie'}/${s.id}/recommendations`)
+            .then((r) => r.results.map((m) => ({ ...this.shape(m), type: s.type })))
+            .catch(() => [] as (MovieCard & { type: 'movie' | 'tv' })[]),
+        )),
+        topGenres[0] ? this.discover(topGenres[0], topLangs[0], undefined, 'movie').then((r) => r.results).catch(() => []) : Promise.resolve([]),
+        topGenres[0] ? this.discover(topGenres[0], undefined, undefined, 'tv').then((r) => r.results).catch(() => []) : Promise.resolve([]),
+      ]);
+
+      const savedKeys = new Set(saved.map((s) => `${s.type}${s.id}`));
+      const seen = new Set<string>();
+      const merged = [...recLists.flat(), ...byGenreMovie, ...byGenreTv].filter((m) => {
+        const key = `${m.type}${m.id}`;
+        if (savedKeys.has(key) || seen.has(key) || !m.posterUrl) return false;
+        seen.add(key);
+        return true;
+      });
+      // Favour titles matching the user's dominant genres, then rating.
+      const genreSet = new Set(topGenres.slice(0, 3));
+      const score = (m: MovieCard) => (m.genres.some((g) => genreSet.has(g)) ? 2 : 0) + (m.rating ?? 0) / 10;
+      merged.sort((a, b) => score(b) - score(a));
+      return {
+        live: true as const,
+        results: merged.slice(0, 12),
+        basis: { genres: topGenres.slice(0, 3), languages: topLangs.filter(Boolean).slice(0, 2), fromTitles: seeds.length },
+      };
+    } catch (e) {
+      this.log.warn(`recommendedFor fell back: ${(e as Error).message}`);
+      return { live: false as const, results: [], basis: null };
     }
   }
 }

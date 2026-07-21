@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { EntPage, PosterLead, TrustBar } from './parts';
 import { Spinner, EmptyState } from '@/components/ui';
-import { useLiveMovies, useTitleSearch, useDiscover } from '../api';
-import { KIT_CSS, TitleCard, TitleSheet, prettyDate, type TitleSel } from './movieKit';
+import { useEffect, useState } from 'react';
+import { useLiveMovies, useTitleSearch, useBrowse } from '../api';
+import { KIT_CSS, TitleCard, TitleSheet, Pager, prettyDate, type TitleSel } from './movieKit';
 
 const LANG_FILTERS = ['Hindi', 'English', 'Tamil', 'Telugu', 'Malayalam', 'Korean'];
 const GENRE_FILTERS = ['Action', 'Drama', 'Comedy', 'Thriller', 'Romance', 'Sci-Fi', 'Horror', 'Animation'];
@@ -22,7 +22,9 @@ export function Movies() {
   const [genre, setGenre] = useState('');
   const search = useTitleSearch(q);
   const filtering = !!(lang || genre);
-  const discover = useDiscover(genre || undefined, lang || undefined, undefined, 'movie', filtering);
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [lang, genre]);
+  const browse = useBrowse('movie', page, genre || undefined, lang || undefined, !((q.trim().length >= 2)));
   const isLive = live.data?.live === true;
   const d = live.data;
   const searching = q.trim().length >= 2;
@@ -71,17 +73,6 @@ export function Movies() {
         </>
       )}
 
-      {!searching && filtering && (
-        <>
-          <div className="blk-head rise"><h2>🎯 {[lang, genre].filter(Boolean).join(' · ')} picks</h2></div>
-          {discover.isLoading ? <Spinner label="Finding movies…" /> : (
-            (discover.data?.results ?? []).length === 0
-              ? <EmptyState icon="🎞" title="Nothing matched those filters" hint="Try a different combination." />
-              : <div className="grid4 rise" style={{ marginBottom: 44 }}>{discover.data!.results.map((m, i) => <TitleCard key={m.id} m={m} i={i} onOpen={setSel} />)}</div>
-          )}
-        </>
-      )}
-
       {!searching && !filtering && isLive && (
         <>
           <div className="blk-head rise d2" id="now"><h2>🎬 Now Playing</h2><span className="muted" style={{ fontSize: 12 }}>Live in Indian theatres · tap for trailer & details</span></div>
@@ -104,6 +95,22 @@ export function Movies() {
           </div>
         </>
       )}
+
+      {!searching && browse.data?.live && (
+        <>
+          <div className="blk-head rise" style={{ marginTop: filtering ? 0 : 30 }}>
+            <h2>🎞 {filtering ? [lang, genre].filter(Boolean).join(' · ') + ' — all matches' : 'Browse All Movies'}</h2>
+            <span className="muted" style={{ fontSize: 12 }}>
+              {browse.data.totalResults.toLocaleString('en-IN')} titles · 100 per page{browse.isFetching ? ' · loading…' : ''}
+            </span>
+          </div>
+          <div className="grid4 rise" style={{ opacity: browse.isFetching ? 0.55 : 1, transition: 'opacity .2s' }}>
+            {browse.data.results.map((m, i) => <TitleCard key={m.id} m={m} i={i} onOpen={setSel} />)}
+          </div>
+          <Pager page={browse.data.page} totalPages={browse.data.totalPages} onPage={setPage} />
+        </>
+      )}
+      {!searching && browse.isLoading && <Spinner label="Loading the catalogue…" />}
 
       {isLive && <p className="muted rise" style={{ fontSize: 11, marginTop: 18 }}>Movie data & images: TMDB · This product uses the TMDB API but is not endorsed or certified by TMDB.</p>}
 

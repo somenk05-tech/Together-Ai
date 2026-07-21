@@ -93,6 +93,7 @@ const RestFinal = lazy(() => import('@/features/restaurants/pages/Final').then((
 const EntMovies = lazy(() => import('@/features/entertainment/pages/Movies').then((m) => ({ default: m.Movies })));
 const EntOtt = lazy(() => import('@/features/entertainment/pages/Ott').then((m) => ({ default: m.Ott })));
 const EntCurated = lazy(() => import('@/features/entertainment/pages/Curated').then((m) => ({ default: m.Curated })));
+const EntWatchlist = lazy(() => import('@/features/entertainment/pages/Watchlist').then((m) => ({ default: m.Watchlist })));
 // Beauty sub-pages
 const BeautyDermatologist = lazy(() => import('@/features/beauty/pages/Dermatologist').then((m) => ({ default: m.Dermatologist })));
 const BeautyMakeup = lazy(() => import('@/features/beauty/pages/Makeup').then((m) => ({ default: m.Makeup })));
@@ -346,6 +347,7 @@ export const router = createBrowserRouter([
       { path: '/entertainment/movies', element: <RequireAuth>{wrap(<EntMovies />)}</RequireAuth> },
       { path: '/entertainment/ott', element: <RequireAuth>{wrap(<EntOtt />)}</RequireAuth> },
       { path: '/entertainment/curated', element: <RequireAuth>{wrap(<EntCurated />)}</RequireAuth> },
+      { path: '/entertainment/watchlist', element: <RequireAuth>{wrap(<EntWatchlist />)}</RequireAuth> },
     ],
   },
   {

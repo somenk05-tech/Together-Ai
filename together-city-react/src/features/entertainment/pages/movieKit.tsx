@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLiveTitle, usePerson, type LiveMovie, type TitleRef } from '../api';
+import { useLiveTitle, usePerson, useWatchlist, useToggleWatch, type LiveMovie, type TitleRef } from '../api';
 
 /**
  * Shared TMDB UI kit for the Entertainment hub — poster cards, the full
@@ -49,15 +49,94 @@ export const KIT_CSS = `
 .mvk-recrow .r img{width:108px;aspect-ratio:2/3;object-fit:cover;border-radius:10px;display:block;margin-bottom:6px}
 .mvk-seasons{display:flex;flex-direction:column;gap:6px}
 .mvk-seasons .s{display:flex;justify-content:space-between;gap:10px;font-size:13px;border:1px solid var(--line,#eee);border-radius:10px;padding:9px 12px}
+.mvk-bm{position:absolute;top:10px;right:10px;z-index:3;width:34px;height:34px;border-radius:999px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);transition:transform .18s ease,background .18s ease}
+.mvk-bm:hover{transform:scale(1.12);background:rgba(0,0,0,.65)}
+.mvk-bm:active{transform:scale(1.28)}
+.mvk-bm svg{width:16px;height:16px;transition:all .18s ease}
+.tc-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(16px);z-index:10000;background:#241a3d;color:#fff;font-size:13.5px;font-weight:600;padding:11px 22px;border-radius:999px;box-shadow:0 10px 32px rgba(0,0,0,.35);opacity:0;transition:opacity .25s ease,transform .25s ease;pointer-events:none;font-family:inherit}
+.tc-toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.mvk-pager{display:flex;align-items:center;justify-content:center;gap:14px;margin:22px 0 8px;flex-wrap:wrap}
+.mvk-pager .pg{font-size:13px;font-weight:600;color:var(--ink-soft)}
 `;
+
+/** Tiny global toast — appended to <body>, styled by KIT_CSS on the page. */
+let toastTimer: number | undefined;
+export function toast(msg: string) {
+  document.querySelectorAll('.tc-toast').forEach((n) => n.remove());
+  const el = document.createElement('div');
+  el.className = 'tc-toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('on'));
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => { el.classList.remove('on'); window.setTimeout(() => el.remove(), 300); }, 1800);
+}
+
+const BOOKMARK_PURPLE = '#6d5bd0';
+function BookmarkIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" fill={filled ? BOOKMARK_PURPLE : 'none'} stroke={filled ? BOOKMARK_PURPLE : '#fff'} strokeWidth="2.2" strokeLinejoin="round">
+      <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z" />
+    </svg>
+  );
+}
+
+/** Save-to-Watchlist bookmark shown on every poster card in the hub. */
+export function BookmarkBtn({ m, platform }: { m: LiveMovie & { type?: 'movie' | 'tv' }; platform?: string | null }) {
+  const wl = useWatchlist();
+  const tg = useToggleWatch();
+  const type = m.type ?? 'movie';
+  const saved = (wl.data?.items ?? []).some((i) => i.id === m.id && i.type === type);
+  const item = {
+    id: m.id, type, title: m.title, posterUrl: m.posterUrl, rating: m.rating,
+    releaseDate: m.releaseDate, language: m.language, genres: m.genres.slice(0, 6),
+    platform: platform ?? (m as { platform?: string | null }).platform ?? null,
+  };
+  return (
+    <button
+      type="button"
+      className="mvk-bm"
+      title={saved ? 'Saved' : 'Save to Watchlist'}
+      aria-label={saved ? 'Saved — tap to remove from Watchlist' : 'Save to Watchlist'}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (saved) {
+          if (!window.confirm(`Remove “${m.title}” from your Watchlist?`)) return;
+          tg.mutate({ action: 'remove', item });
+          toast('Removed from Watchlist');
+        } else {
+          tg.mutate({ action: 'add', item });
+          toast('Added to Watchlist');
+        }
+      }}
+    >
+      <BookmarkIcon filled={saved} />
+    </button>
+  );
+}
+
+/** Compact page switcher for the full-catalogue browse grids. */
+export function Pager({ page, totalPages, onPage }: { page: number; totalPages: number; onPage: (p: number) => void }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="mvk-pager">
+      <button type="button" className="btn btn-line btn-sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>&#8249; Prev</button>
+      <span className="pg">Page {page} of {totalPages}</span>
+      <button type="button" className="btn btn-line btn-sm" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>Next &#8250;</button>
+    </div>
+  );
+}
 
 export function TitleCard({ m, i, badge, sub, onOpen }: { m: TitleRef | (LiveMovie & { type?: 'movie' | 'tv' }); i: number; badge?: string; sub?: string; onOpen: (sel: TitleSel) => void }) {
   return (
-    <button type="button" className="mvk-card" onClick={() => onOpen({ type: m.type ?? 'movie', id: m.id })}>
+    <div role="button" tabIndex={0} className="mvk-card"
+      onClick={() => onOpen({ type: m.type ?? 'movie', id: m.id })}
+      onKeyDown={(e) => { if (e.key === 'Enter') onOpen({ type: m.type ?? 'movie', id: m.id }); }}>
       <div className={`mvk-poster ${TINTS[i % 4]}`}>
         {m.posterUrl && <img src={m.posterUrl} alt={m.title} loading="lazy" />}
         <span className="scrim" />
         {badge && <span className="badge">{badge}</span>}
+        <BookmarkBtn m={{ ...m, type: m.type ?? 'movie' }} />
         <h5>{m.title}</h5>
       </div>
       <div className="mvk-mb">
@@ -68,7 +147,7 @@ export function TitleCard({ m, i, badge, sub, onOpen }: { m: TitleRef | (LiveMov
           {m.genres.slice(0, 2).map((g) => <span key={g}>{g}</span>)}
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -121,11 +200,11 @@ function PersonSheet({ id, onClose, onOpenTitle }: { id: number; onClose: () => 
 }
 
 /** Full title sheet — movie or series. Trailer, cast, seasons, providers, recommendations. */
-export function TitleSheet({ sel, onClose, onOpen }: { sel: TitleSel; onClose: () => void; onOpen: (sel: TitleSel) => void }) {
+export function TitleSheet({ sel, onClose, onOpen, autoplay = false }: { sel: TitleSel; onClose: () => void; onOpen: (sel: TitleSel) => void; autoplay?: boolean }) {
   const q = useLiveTitle(sel);
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlaying] = useState(autoplay);
   const [personId, setPersonId] = useState<number | null>(null);
-  useEffect(() => { setPlaying(false); }, [sel.id, sel.type]);
+  useEffect(() => { setPlaying(autoplay); }, [sel.id, sel.type, autoplay]);
   const m = q.data;
   return (
     <>

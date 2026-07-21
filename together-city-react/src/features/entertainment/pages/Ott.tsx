@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { EntPage, PosterLead, TrustBar } from './parts';
 import { Spinner, EmptyState } from '@/components/ui';
-import { useLiveOtt, useTitleSearch, useDiscover, type OttTitle } from '../api';
-import { KIT_CSS, TitleCard, TitleSheet, type TitleSel } from './movieKit';
+import { useEffect } from 'react';
+import { useLiveOtt, useTitleSearch, useBrowse, type OttTitle } from '../api';
+import { KIT_CSS, TitleCard, TitleSheet, Pager, type TitleSel } from './movieKit';
 
 const CSS = KIT_CSS + `
 .ent-ott .searchbar{display:flex;gap:10px;margin:4px 0 18px}
@@ -31,7 +32,9 @@ export function Ott() {
   const [genre, setGenre] = useState('');
   const search = useTitleSearch(q);
   const searching = q.trim().length >= 2;
-  const genreShows = useDiscover(genre || undefined, undefined, undefined, 'tv', !!genre && !searching);
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [genre]);
+  const browse = useBrowse('tv', page, genre || undefined, undefined, !searching);
   const isLive = live.data?.live === true;
   const d = live.data;
 
@@ -92,16 +95,6 @@ export function Ott() {
         </>
       )}
 
-      {!searching && genre && (
-        <>
-          <div className="blk-head rise"><h2>📺 {genre} series</h2><span className="muted" style={{ fontSize: 12 }}>Most popular right now · tap for seasons & where to watch</span></div>
-          {genreShows.isLoading ? <Spinner label={`Finding ${genre.toLowerCase()} series…`} /> : (
-            (genreShows.data?.results ?? []).length === 0
-              ? <EmptyState icon="📺" title="Nothing found in that genre" hint="Try another genre." />
-              : <div className="grid4 rise" style={{ marginBottom: 30 }}>{genreShows.data!.results.map((m, i) => <TitleCard key={m.id} m={m} i={i} onOpen={setSel} />)}</div>
-          )}
-        </>
-      )}
 
       {!searching && !genre && live.isLoading && <Spinner label="Loading what's trending…" />}
       {!searching && !genre && !live.isLoading && !isLive && (
@@ -142,9 +135,26 @@ export function Ott() {
                 {popular.map((t, i) => <TitleCard key={`mv${t.id}`} m={t} i={i} badge={t.platform ?? undefined} onOpen={setSel} />)}
               </div>
             )}
-          <p className="muted rise" style={{ fontSize: 11, marginTop: 18 }}>Data & images: TMDB · streaming availability via JustWatch. Not endorsed or certified by TMDB.</p>
         </>
       )}
+
+      {!searching && browse.data?.live && (
+        <>
+          <div className="blk-head rise" style={{ marginTop: genre ? 0 : 30 }}>
+            <h2>📺 {genre ? `All ${genre} series` : 'Browse All Series'}</h2>
+            <span className="muted" style={{ fontSize: 12 }}>
+              {browse.data.totalResults.toLocaleString('en-IN')} titles · 100 per page{browse.isFetching ? ' · loading…' : ''}
+            </span>
+          </div>
+          <div className="grid4 rise" style={{ opacity: browse.isFetching ? 0.55 : 1, transition: 'opacity .2s' }}>
+            {browse.data.results.map((m, i) => <TitleCard key={m.id} m={m} i={i} onOpen={setSel} />)}
+          </div>
+          <Pager page={browse.data.page} totalPages={browse.data.totalPages} onPage={setPage} />
+        </>
+      )}
+      {!searching && browse.isLoading && <Spinner label="Loading the catalogue…" />}
+
+      <p className="muted rise" style={{ fontSize: 11, marginTop: 18 }}>Data & images: TMDB · streaming availability via JustWatch. Not endorsed or certified by TMDB.</p>
 
       <TrustBar items={['All platforms, one place', 'Live trending data', 'Series & film details', 'Trailers included']} />
       {sel && <TitleSheet sel={sel} onClose={() => setSel(null)} onOpen={setSel} />}

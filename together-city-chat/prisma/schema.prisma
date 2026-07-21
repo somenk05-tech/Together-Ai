@@ -79,6 +79,7 @@ model User {
   city         String? // public home city shown on the social profile
   website      String? // optional public link
   passwordHash String
+  watchlistJson String? // Entertainment Watchlist — JSON array of saved movies/series
   lastSeen     DateTime @default(now())
   onlineStatus Boolean  @default(false)
   createdAt    DateTime @default(now())
