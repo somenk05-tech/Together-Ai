@@ -2299,9 +2299,31 @@ export class NutritionService implements OnModuleInit {
       whyForYou = this.whyForYou(shape, r.ingredients, values, flags, pref?.goal ?? 'maintain');
     }
 
+    // Ingredient quantities in the DB are BATCH totals (the whole recipe yield).
+    // Scale them down to ONE plate so the list matches the plate weight/macros the
+    // rest of the app shows — otherwise a 284 g plate lists 1,134 g of an
+    // ingredient. Scale by plateWeight / totalRecipeWeight so the scaled list sums
+    // to ~the plate weight (spec); fall back to ÷ servings if the batch weight is
+    // unknown. Grocery already scales the same way (ing.grams / servings), so the
+    // two surfaces agree.
+    const totalRecipeWeight = r.ingredients.reduce((sum, i) => sum + Math.max(0, i.grams || 0), 0);
+    const plateWeight = shape.gramsPerServing;
+    const factor = totalRecipeWeight > 0
+      ? plateWeight / totalRecipeWeight
+      : 1 / Math.max(1, shape.servings);
+    const round1 = (n: number) => Math.round(n * 10) / 10;
+    const perPlateIngredients = r.ingredients.map((i) => ({
+      name: i.name,
+      grams: round1(Math.max(0, i.grams || 0) * factor),
+      priceInr: Math.round(Math.max(0, i.priceInr || 0) * factor),
+    }));
+
     return {
       ...shape,
-      ingredients: r.ingredients.map((i) => ({ name: i.name, grams: i.grams, priceInr: i.priceInr })),
+      // Per-ONE-plate ingredient quantities (the UI multiplies by the chosen serving count).
+      ingredients: perPlateIngredients,
+      plateWeight,               // grams on a single plate (== gramsPerServing)
+      totalRecipeWeight,         // full-batch weight the scaling was derived from
       method: cookSteps.map((s) => s.text), // back-compat plain list
       cookSteps,                            // structured: text + timer + attention
       sides,

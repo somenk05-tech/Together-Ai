@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useRecipe, useRecipes, useBuildCart } from '../hooks';
@@ -12,6 +13,17 @@ const mmssShort = (s: number) => {
   return m >= 1 ? `${m} min` : `${s} sec`;
 };
 
+/** Serving-size presets — the backend returns ONE-plate quantities; we multiply. */
+const SERVING_OPTIONS = [
+  { count: 1, label: '1 plate' },
+  { count: 2, label: '2 plates' },
+  { count: 3, label: '3 plates' },
+  { count: 4, label: 'Family of 4' },
+  { count: 5, label: 'Meal prep · 5 days' },
+] as const;
+const round1 = (n: number) => Math.round(n * 10) / 10;
+const gramLabel = (g: number) => (g > 0 && g < 1 ? '<1' : `${g % 1 === 0 ? g : g.toFixed(1)}`);
+
 /** Recipe detail — macros, ingredients and plate economics. */
 export function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -20,14 +32,26 @@ export function RecipeDetail() {
   const startCooking = useCookStore((s) => s.start);
   const buildCart = useBuildCart();
   const navigate = useNavigate();
+  const [plates, setPlates] = useState(1);
 
   if (recipe.isLoading) return <Spinner label="Plating up…" />;
   if (recipe.isError || !recipe.data) return <EmptyState title="Recipe not found" hint="It may have been removed." />;
 
   const r = recipe.data;
   const meta = DIET_META[r.diet as Exclude<DietKey, 'everything'>] ?? DIET_META.veg;
-  const cost = r.ingredients.reduce((sum, i) => sum + i.priceInr, 0);
   const heroSrc = (r as { imageUrl?: string }).imageUrl ?? recipeImageUrl(r.recipeNo);
+
+  // The backend already scales ingredients to ONE plate; multiply by the chosen
+  // serving count. Nutrition, cost and total weight scale the same way, so the
+  // list always matches the plate size shown (never full-batch quantities).
+  const costPerPlate = r.ingredients.reduce((sum, i) => sum + i.priceInr, 0);
+  const scaledIngredients = r.ingredients.map((i) => ({ name: i.name, grams: round1(i.grams * plates), priceInr: Math.round(i.priceInr * plates) }));
+  const scaledWeight = round1((r.gramsPerServing ?? 0) * plates);
+  const macros = {
+    kcal: Math.round(r.kcal * plates), protein: Math.round(r.protein * plates),
+    carbs: Math.round(r.carbs * plates), fat: Math.round(r.fat * plates), fiber: Math.round(r.fiber * plates),
+  };
+  const perPlateLabel = plates === 1 ? 'per plate' : `for ${plates} plate${plates > 1 ? 's' : ''}`;
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
@@ -50,16 +74,27 @@ export function RecipeDetail() {
         </span>
         <h1 style={{ fontSize: 28, margin: '10px 0 4px' }}>{r.name}</h1>
         <div className="muted" style={{ fontSize: 13 }}>
-          {r.recipeNo ? <>Recipe No.&nbsp;{r.recipeNo.toLocaleString('en-IN')} · </> : null}{r.country} · {r.minutes} min · {r.gramsPerServing} g per plate · ₹{Math.round(cost / Math.max(1, r.servings ?? 1))} per plate
+          {r.recipeNo ? <>Recipe No.&nbsp;{r.recipeNo.toLocaleString('en-IN')} · </> : null}{r.country} · {r.minutes} min · {r.gramsPerServing} g per plate · ₹{costPerPlate} per plate
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, margin: '20px 0' }}>
+        {/* Serving-size selector — rescales ingredients, nutrition, weight and cost. */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
+          {SERVING_OPTIONS.map((o) => (
+            <button key={o.count} type="button" onClick={() => setPlates(o.count)}
+              style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 13px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
+                border: `1.5px solid ${plates === o.count ? 'var(--accent)' : 'var(--line)'}`, background: plates === o.count ? 'var(--accent)' : 'transparent', color: plates === o.count ? '#fff' : 'var(--ink-soft)' }}>
+              {o.label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, margin: '14px 0 6px' }}>
           {([
-            ['Calories', `${r.kcal}`, 'kcal'],
-            ['Protein', `${r.protein}`, 'g'],
-            ['Carbs', `${r.carbs}`, 'g'],
-            ['Fat', `${r.fat}`, 'g'],
-            ['Fibre', `${r.fiber}`, 'g'],
+            ['Calories', `${macros.kcal}`, 'kcal'],
+            ['Protein', `${macros.protein}`, 'g'],
+            ['Carbs', `${macros.carbs}`, 'g'],
+            ['Fat', `${macros.fat}`, 'g'],
+            ['Fibre', `${macros.fiber}`, 'g'],
           ] as const).map(([label, value, unit]) => (
             <div key={label} style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12, padding: '12px 8px', textAlign: 'center' }}>
               <div style={{ fontFamily: 'var(--serif)', fontSize: 20, fontWeight: 600 }}>{value}<span style={{ fontSize: 11 }}> {unit}</span></div>
@@ -67,6 +102,7 @@ export function RecipeDetail() {
             </div>
           ))}
         </div>
+        <p className="muted" style={{ fontSize: 11.5, margin: '0 0 18px' }}>Nutrition {perPlateLabel}{plates > 1 ? ` · ${r.gramsPerServing} g each` : ''}.</p>
 
         {/* Why this is on your plate — written from the user's own blood results */}
         {r.whyForYou && (
@@ -121,12 +157,10 @@ export function RecipeDetail() {
 
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
           <h2 style={{ fontSize: 17, margin: 0 }}>Ingredients</h2>
-          {(r.servings ?? 1) > 1 && (
-            <span className="muted" style={{ fontSize: 12 }}>Makes {r.servings} plates · nutrition shown per plate</span>
-          )}
+          <span className="muted" style={{ fontSize: 12 }}>{perPlateLabel} · ≈ {scaledWeight} g total</span>
         </div>
         <div style={{ border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
-          {r.ingredients.map((ing, i) => (
+          {scaledIngredients.map((ing, i) => (
             <div
               key={ing.name}
               style={{
@@ -135,7 +169,7 @@ export function RecipeDetail() {
               }}
             >
               <span>{ing.name}</span>
-              <span className="muted">{ing.grams} g · ₹{ing.priceInr}</span>
+              <span className="muted">{gramLabel(ing.grams)} g{ing.priceInr > 0 ? ` · ₹${ing.priceInr}` : ''}</span>
             </div>
           ))}
         </div>
@@ -168,11 +202,11 @@ export function RecipeDetail() {
         )}
 
         <p className="muted" style={{ fontSize: 12.5, marginTop: 16 }}>
-          ₹{Math.round(cost / Math.max(1, r.servings ?? 1))} estimated grocery cost per plate{(r.servings ?? 1) > 1 ? ` · ₹${cost} for the full ${r.servings}-plate batch` : ''}.
+          ₹{costPerPlate} estimated grocery cost per plate{plates > 1 ? ` · ₹${costPerPlate * plates} for ${plates} plates` : ''}.
         </p>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-          {r.method && r.method.length > 0 && <Button variant="accent" size="sm" onClick={() => startCooking({ name: r.name, ingredients: r.ingredients, method: r.method, cookSteps: r.cookSteps })}>👨‍🍳 Start cooking</Button>}
+          {r.method && r.method.length > 0 && <Button variant="accent" size="sm" onClick={() => startCooking({ name: r.name, ingredients: scaledIngredients, method: r.method, cookSteps: r.cookSteps })}>👨‍🍳 Start cooking</Button>}
           <Button variant="line" size="sm" disabled={buildCart.isPending}
             onClick={() => buildCart.mutate({ recipeIds: [r.id] }, { onSuccess: () => navigate('/nutrition/grocery') })}>
             {buildCart.isPending ? 'Adding…' : '🛒 Generate grocery list →'}
