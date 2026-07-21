@@ -111,11 +111,9 @@ export const HUBS: Record<HubKey, HubConfig> = {
   entertainment: {
     key: 'entertainment', name: 'Entertainment', tag: 'Always something worth experiencing', backPath: '/entertainment', dark: true,
     items: [
-      { path: '/entertainment/discover', index: '01', label: 'Discover', sub: "What's on in your city" },
-      { path: '/entertainment/movies', index: '02', label: 'Movies Now', sub: 'In theatres this week' },
-      { path: '/entertainment/ott', index: '03', label: 'OTT Watch', sub: 'Stream tonight' },
-      { path: '/entertainment/curated', index: '04', label: 'Curated Movies', sub: "Critics' picks & hidden gems" },
-      { path: '/entertainment/tickets', index: '05', label: 'My Tickets', sub: 'Your booked passes' },
+      { path: '/entertainment/movies', index: '01', label: 'Movies Now', sub: 'In theatres this week' },
+      { path: '/entertainment/ott', index: '02', label: 'OTT Watch', sub: 'Stream tonight' },
+      { path: '/entertainment/curated', index: '03', label: 'Curated Movies', sub: "Critics' picks & hidden gems" },
     ],
   },
   beauty: {

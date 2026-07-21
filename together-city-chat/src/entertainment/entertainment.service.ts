@@ -1,10 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { FinancialService } from '../financial/financial.service';
 import { MailService } from '../mail/mail.service';
 import { ticketReceipt } from '../mail/receipts';
-import { CATEGORY_META, CATEGORIES, EVENT_SEEDS, poster } from './entertainment.constants';
+import { CATEGORY_META, CATEGORIES } from './entertainment.constants';
 import type { BookTicketDto, EventQueryDto } from './dto/entertainment.dto';
 
 type Tier = { name: string; priceInr: number; available: number };
@@ -13,16 +13,12 @@ type EventRow = { id: string; title: string; category: string; venue: string; ci
 const parseTiers = (json: string): Tier[] => { try { return JSON.parse(json) as Tier[]; } catch { return []; } };
 
 @Injectable()
-export class EntertainmentService implements OnModuleInit {
+export class EntertainmentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly financial: FinancialService, // ticket payments flow through the one city wallet
     private readonly mail: MailService,            // confirmations land in the city inbox + primary email
   ) {}
-
-  async onModuleInit(): Promise<void> {
-    await this.ensureSeeds();
-  }
 
   categories() {
     return CATEGORIES.map((c) => ({ key: c.key, label: c.label, icon: c.icon }));
@@ -78,15 +74,4 @@ export class EntertainmentService implements OnModuleInit {
     }));
   }
 
-  private async ensureSeeds(): Promise<void> {
-    try {
-      if ((await this.prisma.event.count()) > 0) return;
-    } catch { return; }
-    for (const s of EVENT_SEEDS) {
-      const hue = CATEGORY_META[s.category]?.hue ?? 0;
-      await this.prisma.event.create({
-        data: { id: s.id, title: s.title, category: s.category, venue: s.venue, city: s.city, date: s.date, time: s.time, description: s.description, posterUrl: poster(s.title, hue), priceFromInr: s.priceFromInr, tiersJson: JSON.stringify(s.tiers) },
-      }).catch(() => undefined);
-    }
-  }
 }

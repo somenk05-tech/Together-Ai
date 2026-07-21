@@ -55,9 +55,6 @@ const JobsPostings = lazy(() => import('@/features/jobs/pages/Postings').then((m
 const REUnderConstruction = lazy(() => import('@/features/realestate/pages/UnderConstruction').then((m) => ({ default: m.UnderConstruction })));
 const REMine = lazy(() => import('@/features/realestate/pages/MyListings').then((m) => ({ default: m.MyListings })));
 const REDetail = lazy(() => import('@/features/realestate/pages/PropertyDetail').then((m) => ({ default: m.PropertyDetail })));
-const EntDiscover = lazy(() => import('@/features/entertainment/pages/Discover').then((m) => ({ default: m.Discover })));
-const EntEvent = lazy(() => import('@/features/entertainment/pages/EventDetail').then((m) => ({ default: m.EventDetail })));
-const EntTickets = lazy(() => import('@/features/entertainment/pages/MyTickets').then((m) => ({ default: m.MyTickets })));
 const TravelExplore = lazy(() => import('@/features/travel/pages/Explore').then((m) => ({ default: m.Explore })));
 const TravelPackage = lazy(() => import('@/features/travel/pages/PackageDetail').then((m) => ({ default: m.PackageDetail })));
 const TravelFlights = lazy(() => import('@/features/travel/pages/Flights').then((m) => ({ default: m.Flights })));
@@ -346,9 +343,6 @@ export const router = createBrowserRouter([
     // Entertainment hub inner pages (discover, event detail, my tickets).
     element: <HubLayout hub={HUBS.entertainment} />,
     children: [
-      { path: '/entertainment/discover', element: <RequireAuth>{wrap(<EntDiscover />)}</RequireAuth> },
-      { path: '/entertainment/event/:id', element: <RequireAuth>{wrap(<EntEvent />)}</RequireAuth> },
-      { path: '/entertainment/tickets', element: <RequireAuth>{wrap(<EntTickets />)}</RequireAuth> },
       { path: '/entertainment/movies', element: <RequireAuth>{wrap(<EntMovies />)}</RequireAuth> },
       { path: '/entertainment/ott', element: <RequireAuth>{wrap(<EntOtt />)}</RequireAuth> },
       { path: '/entertainment/curated', element: <RequireAuth>{wrap(<EntCurated />)}</RequireAuth> },
