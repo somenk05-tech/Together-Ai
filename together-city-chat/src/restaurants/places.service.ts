@@ -30,6 +30,30 @@ type CacheEntry = { at: number; items: PlaceRestaurant[] };
 /** price_level 0–4 → a rough "for two" INR figure (Indian metro pricing). */
 const PRICE_FOR_TWO = [300, 500, 1200, 2500, 4000];
 
+// A place is included only if it is PRIMARILY a food business. We judge by
+// Google's `types`, never by name — in India many real restaurants are named
+// "Hotel …" (e.g. "Hotel Saravana Bhavan"), so a name-based hotel filter would
+// wrongly drop legitimate eateries. Google tags actual accommodation as
+// `lodging`, so a hotel that merely contains a restaurant carries BOTH
+// `lodging` and `restaurant` → excluded; an independently-listed restaurant
+// carries `restaurant` without `lodging` → kept.
+const NON_FOOD_TYPES = new Set([
+  'lodging', 'hotel', 'resort', 'hostel', 'motel', 'guest_house', 'campground', 'rv_park',
+  'gym', 'spa', 'hospital', 'doctor', 'pharmacy', 'school', 'university', 'shopping_mall',
+  'department_store', 'tourist_attraction', 'lodging', 'real_estate_agency', 'car_rental',
+  'bank', 'atm', 'gas_station', 'parking', 'church', 'mosque', 'hindu_temple',
+]);
+const FOOD_TYPES = new Set([
+  'restaurant', 'cafe', 'bakery', 'meal_takeaway', 'meal_delivery', 'food',
+]);
+
+/** Food & beverage only — exclude accommodation and non-food businesses. */
+function isFoodPlace(types: string[] | undefined): boolean {
+  const t = types ?? [];
+  if (t.some((x) => NON_FOOD_TYPES.has(x))) return false; // hotels, gyms, malls, … out
+  return t.some((x) => FOOD_TYPES.has(x));                // must be a real food business
+}
+
 const CUISINE_KEYWORDS: Array<[RegExp, string]> = [
   [/pizza|italian|pasta|trattoria|napoli/i, 'italian'],
   [/chinese|szechuan|sichuan|wok|dragon|hakka|noodle/i, 'chinese'],
@@ -108,7 +132,7 @@ export class PlacesService {
         this.log.warn(`Places status ${data.status}`);
         return this.stale(ck);
       }
-      const items: PlaceRestaurant[] = (data.results ?? []).map((p) => {
+      const items: PlaceRestaurant[] = (data.results ?? []).filter((p) => isFoodPlace(p.types)).map((p) => {
         const types = p.types ?? [];
         const nameLc = p.name || 'Restaurant';
         const pureVeg = /pure veg|vegetarian|shakahari|udupi|sattvik/i.test(nameLc);
