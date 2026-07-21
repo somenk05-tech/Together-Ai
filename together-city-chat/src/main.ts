@@ -2,14 +2,20 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
 import { RedisIoAdapter } from './shared/redis/redis-io.adapter';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: false });
+  // bodyParser off so we can raise the JSON limit — photo/report uploads
+  // (beauty analysis, blood-test ingest) send base64 images well past the
+  // 100 kb Express default.
+  const app = await NestFactory.create(AppModule, { bufferLogs: false, bodyParser: false });
   const config = app.get(ConfigService);
 
+  app.use(json({ limit: '30mb' }));
+  app.use(urlencoded({ limit: '30mb', extended: true }));
   app.use(helmet());
   // CORS. Auth is Bearer-token + localStorage (no ambient session cookie), so a
   // cross-origin site can't ride a logged-in user's credentials — which lets us

@@ -402,14 +402,35 @@ export function Profile() {
   const multi = (k: keyof Form, v: string) => set(k, ((f[k] as string[]) ?? []).includes(v) ? (f[k] as string[]).filter((x) => x !== v) : [...((f[k] as string[]) ?? []), v]);
   const isOn = (k: keyof Form, v: string) => (Array.isArray(f[k]) ? (f[k] as string[]).includes(v) : f[k] === v);
 
+  // Downscale in the browser before upload: phone photos are 3–8 MB each and
+  // six of them would blow past any sane request size. ~1280 px JPEG keeps all
+  // the detail the analysis needs at a fraction of the payload.
   const onPic = (slot: string, e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       const url = String(reader.result || '');
-      const base64 = url.split(',')[1] ?? '';
-      setPics((p) => ({ ...p, [slot]: { preview: url, base64, mediaType: file.type || 'image/jpeg' } }));
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1280;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * scale));
+        c.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = c.getContext('2d');
+        if (!ctx) { // canvas unavailable — fall back to the original
+          setPics((p) => ({ ...p, [slot]: { preview: url, base64: url.split(',')[1] ?? '', mediaType: file.type || 'image/jpeg' } }));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        const jpeg = c.toDataURL('image/jpeg', 0.85);
+        setPics((p) => ({ ...p, [slot]: { preview: jpeg, base64: jpeg.split(',')[1] ?? '', mediaType: 'image/jpeg' } }));
+      };
+      img.onerror = () => {
+        setPics((p) => ({ ...p, [slot]: { preview: url, base64: url.split(',')[1] ?? '', mediaType: file.type || 'image/jpeg' } }));
+      };
+      img.src = url;
     };
     reader.readAsDataURL(file);
   };
@@ -490,6 +511,11 @@ export function Profile() {
             <Button variant="accent" style={{ marginTop: 12 }} disabled={analyze.isPending || Object.keys(pics).length === 0} onClick={runAnalysis}>
               {analyze.isPending ? 'Analysing…' : `Analyse & save${progress.length ? ' this week' : ''}`}
             </Button>
+            {analyze.isError && (
+              <p style={{ fontSize: 12.5, color: '#b0503e', fontWeight: 600, margin: '10px 0 0' }}>
+                ⚠️ The analysis didn't go through — please check your connection and tap Analyse again. If it keeps failing, try re-adding the photos.
+              </p>
+            )}
           </div>
 
           {progress.length > 0 && <ProgressView entries={progress} />}
