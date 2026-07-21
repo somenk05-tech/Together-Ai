@@ -401,8 +401,29 @@ export function Profile() {
     });
   }, [conditions.data, profile.data]);
 
+  // ── hooks that MUST run on every render (before any early return) ──
+  const picsCountH = Object.keys(pics).length;
+  const photosCompleteH = picsCountH >= PHOTO_SLOTS.length;
+  const answeredH = [
+    ...REQUIRED_SINGLE.map((k) => Boolean(f[k] && String(f[k]).trim())),
+    ...REQUIRED_MULTI.map((k) => ((f[k] as string[]) ?? []).length > 0),
+  ].filter(Boolean).length;
+  const profileCompleteH = answeredH >= REQUIRED_SINGLE.length + REQUIRED_MULTI.length;
+  // Auto-advance: the moment the 6th photo lands, glide to the Profile tab.
+  const [photoBanner, setPhotoBanner] = useState(false);
+  const autoSwitched = useRef(false);
+  useEffect(() => {
+    if (photosCompleteH && !autoSwitched.current && !profileCompleteH) {
+      autoSwitched.current = true;
+      setPhotoBanner(true);
+      setTab('profile');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    if (!photosCompleteH) autoSwitched.current = false;
+  }, [photosCompleteH, profileCompleteH]);
+
   if (profile.isLoading) return <Spinner label="Loading your beauty profile…" />;
-  if (profile.isError) return <EmptyState title="Couldn't load your profile" hint="Start the backend and reload." />;
+  if (profile.isError) return <EmptyState title="Couldn't load your profile" hint="Please check your connection and try again." />;
 
   const analysis = profile.data?.analysis ?? null;
   const analyzedAt = profile.data?.analyzedAt ?? null;
@@ -434,19 +455,6 @@ export function Profile() {
     ...REQUIRED_SINGLE.filter((k) => !(f[k] && String(f[k]).trim())),
     ...REQUIRED_MULTI.filter((k) => (((f[k] as string[]) ?? []).length === 0)),
   ].map((k) => REQUIRED_LABEL[k] ?? String(k));
-
-  // Auto-advance: the moment the 6th photo lands, glide to the Profile tab.
-  const [photoBanner, setPhotoBanner] = useState(false);
-  const autoSwitched = useRef(false);
-  useEffect(() => {
-    if (photosComplete && !autoSwitched.current && !profileComplete) {
-      autoSwitched.current = true;
-      setPhotoBanner(true);
-      setTab('profile');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-    if (!photosComplete) autoSwitched.current = false;
-  }, [photosComplete, profileComplete]);
 
   /** Step indicator shown on both tabs while onboarding is incomplete. */
   const OnboardingProgress = () => {
