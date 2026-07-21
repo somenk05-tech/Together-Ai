@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/api/auth.api';
+import { isServerUnreachable, SERVER_UNREACHABLE_MSG } from '@/api/client';
 import { Button } from '@/components/ui';
 import { RegisterForm } from './RegisterForm';
 
@@ -58,6 +59,7 @@ export function SignIn() {
       else if (mode === 'reset') { await authApi.reset({ identifier: identifier.trim(), code: code.trim(), newPassword: password }); setNotice('Password changed. Sign in with your new password.'); setMode('login'); setPassword(''); }
     } catch (err) {
       setError(
+        isServerUnreachable(err) ? SERVER_UNREACHABLE_MSG :
         serverMessage(err) ??
         (mode === 'login' ? 'Invalid handle or password.'
         : mode === 'reset' ? 'That code is invalid or has expired.'

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/api/auth.api';
+import { isServerUnreachable, SERVER_UNREACHABLE_MSG } from '@/api/client';
 import { Button } from '@/components/ui';
 
 /** Prefer the backend's actual error message over a canned guess. */
@@ -80,7 +81,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
       await register(handle.trim().toLowerCase(), name.trim(), password, { email: email.trim().toLowerCase(), phone: showPhone ? phone.trim() : undefined });
       setDone(true);   // auto-logged-in on success
     } catch (err) {
-      setError(serverMessage(err) ?? 'Could not create your account — try again.');
+      setError(isServerUnreachable(err) ? SERVER_UNREACHABLE_MSG : (serverMessage(err) ?? 'Could not create your account — try again.'));
     } finally { setBusy(false); }
   };
 

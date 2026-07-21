@@ -23,6 +23,19 @@ export const http: AxiosInstance = axios.create({
   // cookie is needed. Keep this off unless the API is same-origin.
 });
 
+/**
+ * True when a request never got an HTTP response at all — DNS failure
+ * (ERR_NAME_NOT_RESOLVED), the backend being unreachable, a CORS block, or a
+ * timeout. In every one of those cases axios leaves `response` undefined. UI
+ * should show a "can't reach server" message here, NOT a domain error like
+ * "invalid password" (which wrongly blames the user for an infra outage).
+ */
+export function isServerUnreachable(err: unknown): boolean {
+  return !!err && typeof err === 'object' && (err as { response?: unknown }).response == null;
+}
+export const SERVER_UNREACHABLE_MSG =
+  "Can't reach the Together City server right now — please check your connection and try again in a moment.";
+
 http.interceptors.request.use((cfg: InternalAxiosRequestConfig) => {
   const token = useAuthStore.getState().tokens?.accessToken;
   if (token) cfg.headers.Authorization = `Bearer ${token}`;
