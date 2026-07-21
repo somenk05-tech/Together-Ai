@@ -30,6 +30,9 @@ export interface BeautyTimelineEntry {
 export interface BeautyAttrCompare { key: string; label: string; from: string | null; to: string; direction: string; delta: number }
 export interface BeautyComparison { skin: BeautyAttrCompare[]; hair: BeautyAttrCompare[]; skinDelta: number; hairDelta: number; summary: string }
 export interface BeautyHistory { hasHistory: boolean; entries: BeautyTimelineEntry[]; comparison: BeautyComparison | null; followUpDue: boolean; daysSinceLast: number | null }
+/** Evidence-based medical-condition suggestions from blood tests (shared across hubs). */
+export interface ConditionSuggestion { key: string; label: string; chip: string | null; reason: string; source: string }
+export interface ConditionSuggestions { hasPanel: boolean; suggestions: ConditionSuggestion[]; autoSelectChips: string[]; alopeciaHint: string | null; note: string }
 export interface BeautyProfile {
   skinType: string; hairType: string; concerns: string[]; saved: boolean;
   profile?: Record<string, unknown>;
@@ -74,6 +77,7 @@ export const beautyApi = {
   analyzePhotos: (photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string) =>
     api.post<BeautyProfile & { photoFindings: string[]; aiUsed: boolean; quality: 'ok' | 'unclear' | 'suspect'; warning: string }>('/beauty/photos/analyze', { photos, thumb }).then((r) => r.data),
   history: () => api.get<BeautyHistory>('/beauty/history').then((r) => r.data),
+  conditionSuggestions: () => api.get<ConditionSuggestions>('/medical/conditions/suggested').then((r) => r.data),
   insights: () => api.get<InsightsResponse>('/beauty/insights').then((r) => r.data),
   products: () => api.get<ProductsResponse>('/beauty/products').then((r) => r.data),
   orders: () => api.get<BeautyOrder[]>('/beauty/orders').then((r) => r.data),
@@ -104,6 +108,9 @@ export function useAnalyzeBeautyPhotos() {
 }
 export function useBeautyHistory() {
   return useQuery({ queryKey: ['beauty', 'history'], queryFn: () => beautyApi.history() });
+}
+export function useConditionSuggestions() {
+  return useQuery({ queryKey: ['medical', 'condition-suggestions'], queryFn: () => beautyApi.conditionSuggestions(), retry: false });
 }
 export function useBeautyInsights() {
   return useQuery({

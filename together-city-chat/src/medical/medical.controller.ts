@@ -68,6 +68,12 @@ export class MedicalController {
     return this.medical.biomarkerCatalog();
   }
 
+  // Evidence-based medical-condition suggestions from blood tests (shared across hubs).
+  @Get('conditions/suggested')
+  suggestedConditions(@CurrentUser() user: JwtUser) {
+    return this.medical.medicalConditionSuggestions(user.sub);
+  }
+
   @Get('supplement-plan')
   supplementPlan(@CurrentUser() user: JwtUser) {
     return this.medical.supplementPlan(user.sub);

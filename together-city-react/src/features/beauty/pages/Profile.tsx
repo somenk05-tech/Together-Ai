@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
-import { useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights, useBeautyHistory } from '../api';
+import { useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights, useBeautyHistory, useConditionSuggestions } from '../api';
 import type { BeautyAssessment, BeautyReading, AssessLevel, BeautyProgressEntry } from '../api';
 
 /** Assessment-level display meta for the timeline. */
@@ -369,6 +369,25 @@ export function Profile() {
     }
   }, [profile.data]);
 
+  // Auto-select lab-supported medical conditions (Diabetes, Thyroid) once the
+  // profile + suggestions have loaded. Applied a single time so the user can
+  // freely deselect afterwards; confirmed manual selections are never removed.
+  const conditions = useConditionSuggestions();
+  const appliedConditions = useRef(false);
+  useEffect(() => {
+    if (appliedConditions.current) return;
+    if (!profile.data) return;
+    const chips = conditions.data?.autoSelectChips;
+    if (!chips || !chips.length) return;
+    appliedConditions.current = true;
+    setF((prev) => {
+      const cur = new Set(prev.medicalConditions ?? []);
+      let changed = false;
+      for (const c of chips) if (!cur.has(c)) { cur.add(c); changed = true; }
+      return changed ? { ...prev, medicalConditions: [...cur] } : prev;
+    });
+  }, [conditions.data, profile.data]);
+
   if (profile.isLoading) return <Spinner label="Loading your beauty profile…" />;
   if (profile.isError) return <EmptyState title="Couldn't load your profile" hint="Start the backend and reload." />;
 
@@ -519,7 +538,49 @@ export function Profile() {
           <Section title="Scalp type">{SCALP_TYPES.map((x) => <Chip key={x} on={isOn('scalpType', x)} label={x} onClick={() => single('scalpType', x)} />)}</Section>
           <Section title="Current routine" note="what you use now">{ROUTINE.map((x) => <Chip key={x} on={isOn('routine', x)} label={x} onClick={() => multi('routine', x)} />)}</Section>
           <Section title="Allergies & sensitivities" note="we'll avoid these">{ALLERGIES.map((x) => <Chip key={x} on={isOn('allergies', x)} label={x} onClick={() => multi('allergies', x)} />)}</Section>
-          <Section title="Medical conditions" note="pick any">{CONDITIONS.map((x) => <Chip key={x} on={isOn('medicalConditions', x)} label={x} onClick={() => multi('medicalConditions', x)} />)}</Section>
+          {(() => {
+            const sug = conditions.data;
+            const chipReason = new Map<string, string>();
+            for (const s of sug?.suggestions ?? []) if (s.chip) chipReason.set(s.chip, s.reason);
+            const labNotes = (sug?.suggestions ?? []).filter((s) => !s.chip);
+            const preSelected = [...chipReason.keys()];
+            return (
+              <div className="card" style={{ marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                  <div className="eyebrow" style={{ margin: 0 }}>Medical conditions</div>
+                  <span className="muted" style={{ fontSize: 11.5 }}>pick any{chipReason.size > 0 ? ' — 🩸 marks ones your labs support' : ''}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {CONDITIONS.map((x) => {
+                    const on = isOn('medicalConditions', x);
+                    const reason = chipReason.get(x);
+                    return (
+                      <button key={x} type="button" onClick={() => multi('medicalConditions', x)} title={reason || undefined}
+                        style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 13px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
+                          border: `1.5px solid ${on ? 'var(--accent)' : reason ? '#c026d3' : 'var(--line)'}`,
+                          background: on ? 'var(--accent)' : 'transparent', color: on ? '#fff' : reason ? '#a21caf' : 'var(--ink-soft)' }}>
+                        {on ? '✓ ' : ''}{x}{reason ? ' 🩸' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+                {(labNotes.length > 0 || preSelected.length > 0 || sug?.alopeciaHint) && (
+                  <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(192,38,211,0.06)', border: '1px solid rgba(192,38,211,0.2)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#a21caf', marginBottom: 6 }}>🩸 From your labs</div>
+                    {preSelected.length > 0 && (
+                      <div className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, marginBottom: (labNotes.length || sug?.alopeciaHint) ? 6 : 0 }}>
+                        We pre-selected {preSelected.join(', ')} based on your blood tests. Every pick is editable — uncheck any that don't apply.
+                      </div>
+                    )}
+                    {labNotes.map((s) => (
+                      <div key={s.key} className="muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>• {s.reason}</div>
+                    ))}
+                    {sug?.alopeciaHint && <div className="muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>• {sug.alopeciaHint}</div>}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           <Section title="Monthly beauty budget">{BUDGET.map((x) => <Chip key={x} on={isOn('budget', x)} label={x} onClick={() => single('budget', x)} />)}</Section>
 
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '4px 0 22px' }}>

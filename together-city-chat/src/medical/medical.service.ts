@@ -516,6 +516,74 @@ export class MedicalService implements OnModuleInit {
     return { sections: BIOMARKER_SECTIONS };
   }
 
+  /**
+   * Evidence-based medical-condition suggestions from the user's blood tests —
+   * the SHARED source of truth every hub (Beauty, Nutrition, Fitness) reads, so
+   * conditions stay consistent across the platform. Only conditions that lab data
+   * can reliably support are suggested (diabetes, prediabetes, thyroid, iron &
+   * vitamin deficiencies). Conditions that CANNOT be inferred from blood alone —
+   * eczema, psoriasis, rosacea, seborrheic dermatitis, pregnancy/breastfeeding,
+   * PCOS, alopecia — are never auto-selected here (they stay manual / photo-AI).
+   * Every suggestion carries a plain reason. Re-evaluates automatically each time
+   * it's read, so a normalised value drops its (unconfirmed) suggestion.
+   */
+  async medicalConditionSuggestions(userId: string) {
+    const tests = await this.prisma.medicalBloodTest.findMany({
+      where: { userId }, orderBy: { takenOn: 'asc' }, include: { biomarkers: true },
+    });
+    // Most-recent value per biomarker across all panels + when it was measured.
+    const values: Record<string, number> = {};
+    const dateByKey: Record<string, string> = {};
+    for (const t of tests) for (const b of t.biomarkers) { values[b.key] = b.value; dateByKey[b.key] = t.takenOn.toISOString().slice(0, 10); }
+
+    const statusOf = (key: string): 'low' | 'normal' | 'high' | null => {
+      const def = biomarkerDef(key);
+      if (!def || values[key] == null) return null;
+      const v = values[key];
+      return v < def.min ? 'low' : v > def.max ? 'high' : 'normal';
+    };
+    const isLow = (k: string) => statusOf(k) === 'low';
+    const isAbn = (k: string) => { const s = statusOf(k); return s != null && s !== 'normal'; };
+    const lbl = (k: string) => biomarkerDef(k)?.label ?? k;
+
+    type Suggestion = { key: string; label: string; chip: string | null; reason: string; source: 'labs' };
+    const out: Suggestion[] = [];
+    const add = (key: string, label: string, chip: string | null, reason: string) => out.push({ key, label, chip, reason, source: 'labs' });
+
+    // Diabetes / Prediabetes (HbA1c thresholds).
+    if (values.hba1c != null) {
+      if (values.hba1c >= 6.5) add('diabetes', 'Diabetes', 'Diabetes', `HbA1c is ${values.hba1c}% (≥ 6.5% is the diabetes threshold), measured ${dateByKey.hba1c}.`);
+      else if (values.hba1c >= 5.7) add('prediabetes', 'Prediabetes', null, `HbA1c is ${values.hba1c}% (5.7–6.4% is the pre-diabetes range), measured ${dateByKey.hba1c}.`);
+    }
+    // Thyroid — any abnormal TSH / Free T3 / Free T4.
+    const thyroid = ['tsh', 'ft3', 'ft4'].filter(isAbn);
+    if (thyroid.length) add('thyroid', 'Thyroid Disorders', 'Thyroid Disorders', `Abnormal ${thyroid.map(lbl).join(', ')} — thyroid function looks off; confirm with your doctor.`);
+    // Iron deficiency — low iron-status markers.
+    const iron = ['ferritin', 'serumIron', 'hb', 'transferrinSat'].filter(isLow);
+    if (iron.length) add('iron-deficiency', 'Iron Deficiency', null, `Low ${iron.map(lbl).join(', ')} — consistent with low iron stores.`);
+    // Vitamin / mineral deficiencies.
+    if (isLow('vitd')) add('vitd-deficiency', 'Vitamin D Deficiency', null, `Vitamin D is low (${values.vitd} ng/mL).`);
+    if (isLow('b12')) add('b12-deficiency', 'Vitamin B12 Deficiency', null, `Vitamin B12 is low (${values.b12} pg/mL).`);
+    if (isLow('folate')) add('folate-deficiency', 'Folate Deficiency', null, `Folate is low (${values.folate} ng/mL).`);
+    if (isLow('zinc')) add('zinc-deficiency', 'Zinc Deficiency', null, `Zinc is low (${values.zinc} µg/dL).`);
+
+    // Alopecia is NOT auto-selected from labs — but note when several hair-relevant
+    // markers align, so the user (and photo AI) can consider it.
+    const hairSignals = [isLow('ferritin'), isLow('vitd'), isLow('zinc'), thyroid.length > 0].filter(Boolean).length;
+    const alopeciaHint = hairSignals >= 2
+      ? `Several hair-relevant markers are off (${['ferritin', 'vitd', 'zinc'].filter(isLow).map(lbl).concat(thyroid.length ? ['thyroid'] : []).join(', ')}). Combined with hair-photo analysis this can point to hair-loss risk — not confirmed from blood alone.`
+      : null;
+
+    return {
+      hasPanel: tests.length > 0,
+      suggestions: out,
+      // Conditions that map to a shared chip and should be PRE-SELECTED (editable).
+      autoSelectChips: [...new Set(out.filter((s) => s.chip).map((s) => s.chip as string))],
+      alopeciaHint,
+      note: 'Suggested from your blood tests and re-evaluated on each new report. Review and edit anytime — conditions that can’t be judged from blood (skin conditions, pregnancy, PCOS, alopecia) stay manual.',
+    };
+  }
+
   // ─────────────── longitudinal trends (auto-runs at 2+ panels) ───────────────
   /**
    * Cross-report trend analysis, generated automatically whenever the user has
