@@ -80,24 +80,23 @@ export class BeautyService {
   }
 
   /**
-   * One-time photo assessment. Runs vision ONCE (AI when configured, else the
-   * profile-based assessment stands), stores the findings, and refreshes the
-   * saved analysis. No re-analysis happens on later page opens.
+   * Save a progress check-in. The photo is stored ONLY as a plain thumbnail for
+   * a visual before/after — no AI runs on the image and no filters are applied.
+   * The assessment is derived purely from the saved profile (deterministic).
    */
   async analyzePhotos(userId: string, photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string) {
     const existing = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
     const profile = safeJson<BeautyProfileInput>(existing?.extras, {});
-    const images = photos.filter((p) => p.base64).map((p) => ({ base64: p.base64, mediaType: p.mediaType || 'image/jpeg' }));
-    const findings = await this.ai.skinPhotoFindings(images);
-    const photoRows = photos.map((p) => ({ slot: p.slot, analyzedAt: new Date().toISOString(), findings }));
-    const analysis = assessBeauty(profile, findings);
+    const analysis = assessBeauty(profile);                       // profile-driven only — no photo AI
+    const issues = [...analysis.skin.issues, ...analysis.hair.issues];
+    const photoRows = photos.map((p) => ({ slot: p.slot, analyzedAt: new Date().toISOString(), findings: [] as string[] }));
     const now = new Date();
 
-    // Append a dated progress point (with a small thumbnail) for the timeline.
-    const score = Math.max(40, Math.min(100, 100 - findings.length * 8));
+    // Dated progress point: current profile-based score + a plain thumbnail.
+    const score = Math.max(40, Math.min(100, 100 - issues.length * 8));
     const entry: ProgressEntry = {
       id: (globalThis.crypto?.randomUUID?.() ?? `${now.getTime()}-${Math.round(Math.random() * 1e6)}`),
-      date: now.toISOString(), findings, score,
+      date: now.toISOString(), findings: issues, score,
       thumb: typeof thumb === 'string' && thumb.startsWith('data:') && thumb.length < 200_000 ? thumb : null,
     };
     const progress = safeJson<ProgressEntry[]>(existing?.progressJson, []);
@@ -109,7 +108,7 @@ export class BeautyService {
       update: { photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(trimmed), analysisJson: JSON.stringify(analysis), analyzedAt: now } as never,
       create: { userId, skinType: String(profile.skinType ?? 'normal'), hairType: String(profile.hairType ?? 'straight'), concerns: (profile.skinConcerns ?? []).join(','), extras: JSON.stringify(profile), photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(trimmed), analysisJson: JSON.stringify(analysis), analyzedAt: now } as never,
     });
-    return { ...(await this.getProfile(userId)), photoFindings: findings, aiUsed: this.ai.enabled && images.length > 0 };
+    return { ...(await this.getProfile(userId)), photoFindings: issues, aiUsed: false };
   }
 
   // ─────────────── biomarker insights (consent-gated) ───────────────
