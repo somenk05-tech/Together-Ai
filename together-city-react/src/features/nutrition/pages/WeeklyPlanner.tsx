@@ -13,13 +13,17 @@ import { useMealSwapHistory } from '../mealHistory';
 import type { WeekPlan } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
 
+/** Monday-indexed weekday (Mon=0 … Sun=6) — matches the plan's day order. */
+const todayIndex = (): number => (new Date().getDay() + 6) % 7;
+
 /**
  * Weekly Meal Planner — reference vertical.
  * Paginated single-day view + Daily Nutrition Overview, driven by TanStack Query
  * against the NestJS meal-planner endpoints. Mirrors the vanilla UX 1:1.
  */
 export function WeeklyPlanner() {
-  const [dayIndex, setDayIndex] = useState(0);
+  // Open on TODAY (like a calendar), not the first day of the week.
+  const [dayIndex, setDayIndex] = useState(todayIndex);
   const plan = useWeeklyPlan('individual');
   const targets = useNutritionTargets();
   const summary = useDaySummary(plan.data?.key, dayIndex);
