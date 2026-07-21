@@ -7,9 +7,48 @@ export { stepTimerSeconds } from '../cook.store';
 
 const mmss = (s: number) => { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60), ss = s % 60; return `${m}:${ss < 10 ? '0' : ''}${ss}`; };
 
+/**
+ * Pick the best voice the device offers, once, and reuse it. Preference:
+ * Indian English (natural/neural build first), then any premium/natural
+ * English voice (Google/Microsoft "Natural", Apple "Enhanced"), then any
+ * English. Voices load asynchronously, so re-rank when the list arrives.
+ */
+let chosenVoice: SpeechSynthesisVoice | null = null;
+function rankVoice(v: SpeechSynthesisVoice): number {
+  const name = v.name.toLowerCase();
+  const lang = v.lang.toLowerCase().replace('_', '-');
+  const premium = /natural|neural|premium|enhanced|google/.test(name);
+  if (lang === 'en-in' && premium) return 6;
+  if (lang === 'en-in') return 5;
+  if (lang.startsWith('en') && premium) return 4;
+  if (lang === 'en-gb') return 3;
+  if (lang.startsWith('en')) return 2;
+  return 0;
+}
+function pickVoice(): void {
+  try {
+    const voices = speechSynthesis.getVoices();
+    if (!voices.length) return;
+    chosenVoice = [...voices].sort((a, b) => rankVoice(b) - rankVoice(a))[0] ?? null;
+    if (chosenVoice && rankVoice(chosenVoice) === 0) chosenVoice = null; // nothing English — let the OS decide
+  } catch { /* ignore */ }
+}
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  pickVoice();
+  try { speechSynthesis.addEventListener('voiceschanged', pickVoice); } catch { /* ignore */ }
+}
+
 function speak(txt: string) {
   try {
-    if ('speechSynthesis' in window) { const u = new SpeechSynthesisUtterance(txt); u.rate = 0.98; speechSynthesis.cancel(); speechSynthesis.speak(u); }
+    if ('speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance(txt);
+      u.rate = 0.96; // a touch slower — clearer over kitchen noise
+      u.pitch = 1;
+      if (!chosenVoice) pickVoice();
+      if (chosenVoice) { u.voice = chosenVoice; u.lang = chosenVoice.lang; }
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    }
   } catch { /* ignore */ }
 }
 
