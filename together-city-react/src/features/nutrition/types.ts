@@ -84,6 +84,8 @@ export interface WeekPlan {
   healthScore?: HealthScore;        // §21 preference-vs-medical score
   incomplete?: boolean;                          // profile missing required fields
   missing?: { key: string; label: string }[];    // what to complete before planning
+  needsPlan?: boolean;                           // read-only view (Daily) with no saved plan yet
+  stale?: boolean;                               // preferences changed since the plan was saved
 }
 
 /** Stored nutrition-history week summary (spec §19/§20). */

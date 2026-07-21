@@ -5,7 +5,7 @@ import { MealCard } from '../components/MealCard';
 import { DailySummary } from '../components/DailySummary';
 import { PlanGuidanceBanner } from '../components/PlanGuidanceBanner';
 import { ProfileIncomplete } from '../components/ProfileIncomplete';
-import { useWeeklyPlan, useNutritionTargets, useDaySummary, useBuildCart } from '../hooks';
+import { useDailyPlan, useNutritionTargets, useDaySummary, useBuildCart, syncPlanCaches } from '../hooks';
 import { nutritionApi } from '../api';
 import { useMealSwapHistory } from '../mealHistory';
 import type { WeekPlan } from '../types';
@@ -19,15 +19,18 @@ const todayIndex = (): number => (new Date().getDay() + 6) % 7;
  */
 export function Daily() {
   const dayIndex = todayIndex();
-  const plan = useWeeklyPlan('individual');
+  const plan = useDailyPlan('individual');
   const targets = useNutritionTargets();
   const summary = useDaySummary(plan.data?.key, dayIndex);
   const buildCart = useBuildCart();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  // An edit here writes to the DB (via the mutating call) AND updates BOTH the
+  // daily and weekly caches, so the Weekly planner reflects it immediately —
+  // one plan, never two versions.
   const mutate = async (fn: Promise<WeekPlan>) => {
     const next = await fn;
-    qc.setQueryData(['nutrition', 'weekly', 'individual'], next);
+    syncPlanCaches(qc, 'individual', next);
   };
   const swaps = useMealSwapHistory(plan.data?.key ?? '', dayIndex, mutate);
 
@@ -36,6 +39,20 @@ export function Daily() {
     return <EmptyState icon="🍽️" title="Couldn't load today's plate" hint="Start the backend, then reload." />;
   }
   if (plan.data.incomplete) return <ProfileIncomplete missing={plan.data.missing} />;
+  // Daily never generates — if no week is saved yet, point to the Weekly planner.
+  if (plan.data.needsPlan || !plan.data.days?.length) {
+    return (
+      <div style={{ maxWidth: 520, margin: '40px auto', textAlign: 'center', padding: '0 16px' }}>
+        <div style={{ fontSize: 40 }}>🗓️</div>
+        <h2 style={{ fontSize: 22, margin: '10px 0 6px' }}>No weekly plan yet</h2>
+        <p className="muted" style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
+          The Daily planner shows one day from your saved weekly plan — it never makes its own.
+          Generate your week first, then today's plate appears here automatically.
+        </p>
+        <Link to="/nutrition/weekly"><Button variant="accent">Go to Weekly Meal Planner →</Button></Link>
+      </div>
+    );
+  }
 
   const week = plan.data;
   const day = week.days[dayIndex];

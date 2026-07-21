@@ -1,11 +1,36 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { nutritionApi } from './api';
 import type { WeekPlan } from './types';
 
 const KEY = (mode: string) => ['nutrition', 'weekly', mode] as const;
+const DAILY_KEY = (mode: string) => ['nutrition', 'daily', mode] as const;
 
+/** The Weekly planner — the master. Bootstraps a first plan when none exists;
+ *  never auto-regenerates a saved plan. */
 export function useWeeklyPlan(mode: 'individual' | 'family' = 'individual') {
   return useQuery({ queryKey: KEY(mode), queryFn: () => nutritionApi.weeklyPlan(mode) });
+}
+
+/** The Daily planner — a strictly read-only view of the SAME saved plan. Never
+ *  generates (backend readOnly); returns needsPlan when no week is saved yet. */
+export function useDailyPlan(mode: 'individual' | 'family' = 'individual') {
+  return useQuery({ queryKey: DAILY_KEY(mode), queryFn: () => nutritionApi.weeklyPlan(mode, true) });
+}
+
+/**
+ * Push an edited/returned week into BOTH the weekly and daily caches so the two
+ * views are ALWAYS the same single plan (edit in one → appears instantly in the
+ * other), then refresh the dependents (day summary, grocery list, history).
+ * The DB is already updated by the mutating call; this just keeps the client in
+ * lockstep without a refetch round-trip.
+ */
+export function syncPlanCaches(qc: QueryClient, mode: string, plan: WeekPlan) {
+  const merge = (prev: WeekPlan | undefined) => ({ ...((prev ?? {}) as WeekPlan), ...plan });
+  qc.setQueryData(KEY(mode), merge);
+  qc.setQueryData(DAILY_KEY(mode), merge);
+  void qc.invalidateQueries({ queryKey: ['nutrition', 'summary'] });
+  void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] });
+  void qc.invalidateQueries({ queryKey: ['nutrition', 'history', mode] });
 }
 
 export function useNutritionTargets() {
@@ -96,7 +121,7 @@ export function useRegenerateWeek(mode: 'individual' | 'family' = 'individual') 
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => nutritionApi.regenerate(mode),
-    onSuccess: (plan: WeekPlan) => { qc.setQueryData(KEY(mode), plan); qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); },
+    onSuccess: (plan: WeekPlan) => syncPlanCaches(qc, mode, plan),
   });
 }
 

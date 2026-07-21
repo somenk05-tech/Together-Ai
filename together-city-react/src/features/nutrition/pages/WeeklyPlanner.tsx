@@ -7,7 +7,7 @@ import { DailySummary } from '../components/DailySummary';
 import { PlanGuidanceBanner } from '../components/PlanGuidanceBanner';
 import { MedicalAdvisories } from '../components/MedicalAdvisories';
 import { ProfileIncomplete } from '../components/ProfileIncomplete';
-import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRegenerateWeek, useBuildCart } from '../hooks';
+import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRegenerateWeek, useBuildCart, syncPlanCaches } from '../hooks';
 import { nutritionApi } from '../api';
 import { useMealSwapHistory } from '../mealHistory';
 import type { WeekPlan } from '../types';
@@ -30,8 +30,8 @@ export function WeeklyPlanner() {
   const mutate = async (fn: Promise<WeekPlan>) => {
     try {
       const next = await fn;
-      qc.setQueryData(['nutrition', 'weekly', 'individual'], (prev: WeekPlan | undefined) => ({ ...((prev ?? {}) as WeekPlan), ...next }));
-      void qc.invalidateQueries({ queryKey: ['nutrition', 'summary'] });
+      // Keep the Daily view in lockstep too — one saved plan, edited in place.
+      syncPlanCaches(qc, 'individual', next);
     } catch { /* surfaced by the query error boundary; keep the UI responsive */ }
   };
   const swaps = useMealSwapHistory(plan.data?.key ?? '', dayIndex, mutate);
@@ -53,6 +53,18 @@ export function WeeklyPlanner() {
         sub={week.weekLabel ? `Week ${week.weekNumber} · ${week.weekLabel} — saved to your Health Profile` : 'Personalised meals from the Together City world database — 11,254 curated recipes with full macro and micronutrient data.'} />
       <PlanGuidanceBanner guidance={(plan.data as unknown as { guidance?: import('../types').PlanGuidance }).guidance} />
       <MedicalAdvisories advisories={week.advisories} healthScore={week.healthScore} />
+
+      {/* Saved plans never regenerate on their own — offer an explicit refresh when
+          preferences have changed since this week was generated. */}
+      {week.stale && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', margin: '0 0 16px', background: '#fff8e1', border: '1px solid #f0d68a', borderRadius: 12 }}>
+          <span style={{ fontSize: 18 }}>✳️</span>
+          <span style={{ fontSize: 13, flex: 1, minWidth: 200 }}>Your food preferences changed since this week was generated. Your saved plan is unchanged — refresh it to apply your new preferences.</span>
+          <Button variant="accent" size="sm" disabled={regenerate.isPending} onClick={() => regenerate.mutate()}>
+            {regenerate.isPending ? 'Refreshing…' : 'Regenerate to apply'}
+          </Button>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '2.3fr 1fr', gap: 28, alignItems: 'start' }} className="tc-dashgrid">
         <div>

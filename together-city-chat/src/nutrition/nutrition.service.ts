@@ -1660,7 +1660,20 @@ export class NutritionService implements OnModuleInit {
     return { complete: missing.length === 0, missing };
   }
 
-  async weeklyPlan(userId: string, mode: PlanMode = 'individual') {
+  /**
+   * Load the weekly plan. A saved plan is a DOCUMENT, not a live regeneration:
+   * once it exists we always return it exactly as saved (with the user's edits)
+   * and NEVER auto-regenerate — not even when preferences change. The user
+   * regenerates explicitly (Regenerate / Start Fresh). `stale` merely flags that
+   * preferences changed since the plan was made so the UI can offer a
+   * "Regenerate to apply" prompt.
+   *
+   * `readOnly` is set by the Daily Meal Planner, which must NEVER create a plan —
+   * it's only a view of the saved week. When no plan exists it returns
+   * `needsPlan` and the Daily view directs the user to the Weekly planner. The
+   * Weekly planner (readOnly=false) bootstraps a first plan when none exists.
+   */
+  async weeklyPlan(userId: string, mode: PlanMode = 'individual', readOnly = false) {
     const status = await this.profileStatus(userId);
     if (!status.complete) {
       return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
@@ -1669,13 +1682,18 @@ export class NutritionService implements OnModuleInit {
       where: { userId, mode },
       orderBy: { createdAt: 'desc' },
     });
-    // Rebuild when the saved profile is newer than the plan, so the plan always
-    // reflects the user's current preferences.
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const stale = Boolean(existing && pref && existing.createdAt < pref.updatedAt);
-    const plan = existing && !stale ? await this.shapePlan(existing.key) : await this.generatePlan(userId, mode);
+    if (!existing) {
+      // Daily never generates — send the user to the Weekly planner.
+      if (readOnly) return { needsPlan: true, key: '', days: [], stale: false, guidance: null, advisories: [] };
+      const plan = await this.generatePlan(userId, mode);
+      const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
+      return { ...plan, stale, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
+    }
+    const plan = await this.shapePlan(existing.key);
     const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-    return { ...plan, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
+    return { ...plan, stale, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
   }
 
   async regenerate(userId: string, mode: PlanMode = 'individual') {

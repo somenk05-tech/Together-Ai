@@ -3,8 +3,8 @@ import type { WeekPlan, DaySummary, NutritionTargets, Sides, Recipe, NutritionHi
 
 /** Nutrition endpoints on the NestJS backend (no engine logic duplicated client-side). */
 export const nutritionApi = {
-  weeklyPlan: (mode: 'individual' | 'family' = 'individual') =>
-    api.get<WeekPlan>('/nutrition/plan/weekly', { params: { mode } }).then((r) => r.data),
+  weeklyPlan: (mode: 'individual' | 'family' = 'individual', readOnly = false) =>
+    api.get<WeekPlan>('/nutrition/plan/weekly', { params: { mode, ...(readOnly ? { readOnly: 1 } : {}) } }).then((r) => r.data),
   history: (mode?: 'individual' | 'family') =>
     api.get<NutritionHistoryWeek[]>('/nutrition/history', { params: mode ? { mode } : undefined }).then((r) => r.data),
   historyDetail: (id: string) =>

@@ -38,8 +38,9 @@ export class NutritionController {
 
   // Specific plan routes first, then parameterised ones.
   @Get('plan/weekly')
-  weekly(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode) {
-    return this.nutrition.weeklyPlan(user.sub, mode ?? 'individual');
+  weekly(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode, @Query('readOnly') readOnly?: string) {
+    // readOnly=1 → Daily Meal Planner view: return the saved plan, never generate.
+    return this.nutrition.weeklyPlan(user.sub, mode ?? 'individual', readOnly === '1' || readOnly === 'true');
   }
 
   @Post('plan/weekly/regenerate')
