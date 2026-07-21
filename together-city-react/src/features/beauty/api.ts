@@ -4,8 +4,30 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export interface Citation { id: string; label: string; ref: string }
 
+export type AssessLevel = 'good' | 'monitor' | 'attention' | 'priority';
+export interface BeautyReading { key: string; label: string; level: AssessLevel; note: string }
+export interface RoutineStep { step: string; ingredient?: string }
+export interface IngredientRec { name: string; why: string }
+export interface MakeupRec { item: string; note: string }
+export interface BeautyAssessment {
+  summary: string;
+  skin: { readings: BeautyReading[]; issues: string[]; recommendations: string[] };
+  hair: { readings: BeautyReading[]; issues: string[]; recommendations: string[] };
+  ingredients: IngredientRec[];
+  routine: { am: RoutineStep[]; pm: RoutineStep[]; weekly: RoutineStep[]; seasonal: string };
+  makeup: MakeupRec[];
+  cautions: string[];
+}
+export interface BeautyPhotoRow { slot: string; analyzedAt: string; findings: string[] }
+export interface BeautyProgressEntry { id: string; date: string; findings: string[]; score: number; thumb: string | null }
 export interface BeautyProfile {
   skinType: string; hairType: string; concerns: string[]; saved: boolean;
+  profile?: Record<string, unknown>;
+  analysis?: BeautyAssessment | null;
+  photos?: BeautyPhotoRow[];
+  progress?: BeautyProgressEntry[];
+  analyzedAt?: string | null;
+  aiEnabled?: boolean;
   concernOptions?: { key: string; label: string }[];
 }
 export interface BeautyInsight {
@@ -37,8 +59,10 @@ export function isConsentBlocked(err: unknown): boolean {
 
 export const beautyApi = {
   profile: () => api.get<BeautyProfile>('/beauty/profile').then((r) => r.data),
-  saveProfile: (input: { skinType: string; hairType: string; concerns: string[] }) =>
+  saveProfile: (input: Record<string, unknown>) =>
     api.put<BeautyProfile>('/beauty/profile', input).then((r) => r.data),
+  analyzePhotos: (photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string) =>
+    api.post<BeautyProfile & { photoFindings: string[]; aiUsed: boolean }>('/beauty/photos/analyze', { photos, thumb }).then((r) => r.data),
   insights: () => api.get<InsightsResponse>('/beauty/insights').then((r) => r.data),
   products: () => api.get<ProductsResponse>('/beauty/products').then((r) => r.data),
   orders: () => api.get<BeautyOrder[]>('/beauty/orders').then((r) => r.data),
@@ -57,6 +81,13 @@ export function useSaveBeautyProfile() {
       qc.setQueryData(['beauty', 'profile'], p);
       void qc.invalidateQueries({ queryKey: ['beauty', 'products'] });
     },
+  });
+}
+export function useAnalyzeBeautyPhotos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { photos: { slot: string; base64: string; mediaType?: string }[]; thumb?: string }) => beautyApi.analyzePhotos(v.photos, v.thumb),
+    onSuccess: (p) => { qc.setQueryData(['beauty', 'profile'], p); void qc.invalidateQueries({ queryKey: ['beauty', 'products'] }); },
   });
 }
 export function useBeautyInsights() {

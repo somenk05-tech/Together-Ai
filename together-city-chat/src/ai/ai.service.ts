@@ -140,6 +140,39 @@ export class AiService {
   }
 
   /**
+   * One-time skin/hair photo review. Returns a small set of detected-attribute
+   * tags (e.g. "acne", "pigmentation", "redness", "scalp") the caller folds into
+   * its deterministic assessment. Vision runs ONCE at upload; empty on fallback.
+   */
+  async skinPhotoFindings(images: { base64: string; mediaType: string }[]): Promise<string[]> {
+    if (!this.client || !images.length) return [];
+    const ALLOWED = ['acne', 'pigmentation', 'wrinkle', 'texture', 'pore', 'redness', 'dehydration', 'dark-circles', 'density', 'thickness', 'hairline', 'scalp', 'dandruff'];
+    const system =
+      'You are a dermatology-aware image reviewer. Look at the skin/scalp/hair photos and return ONLY JSON ' +
+      '{"findings":string[]} using ONLY these tags where clearly visible: ' + ALLOWED.join(', ') + '. ' +
+      'Report a tag only if visibly present. This is a wellness assessment, not a diagnosis. Never invent findings.';
+    try {
+      const blocks = images.slice(0, 6).map((im) => ({
+        type: 'image',
+        source: { type: 'base64', media_type: (im.mediaType || 'image/jpeg') as 'image/jpeg', data: im.base64 },
+      } as unknown as Anthropic.ContentBlockParam));
+      const res = await this.client.messages.create({
+        model: this.visionModel,
+        max_tokens: 512,
+        system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
+        messages: [{ role: 'user', content: [...blocks, { type: 'text', text: 'Review these photos and return the findings JSON.' }] }],
+      });
+      const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('');
+      const parsed = this.extractJson(text) as { findings?: unknown } | null;
+      const out = Array.isArray(parsed?.findings) ? parsed!.findings : [];
+      return out.filter((x): x is string => typeof x === 'string' && ALLOWED.includes(x));
+    } catch (e) {
+      this.logger.warn(`Skin photo review failed: ${(e as Error).message}`);
+      return [];
+    }
+  }
+
+  /**
    * AI clinical interpretation of a blood panel — narrative only. The numeric
    * score + priority ranking are computed deterministically by the caller from
    * the cited engine; this adds the plain-language "what it may mean / how markers

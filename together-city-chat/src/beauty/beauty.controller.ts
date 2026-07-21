@@ -4,10 +4,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { BeautyService } from './beauty.service';
-import {
-  SaveBeautyProfileSchema, type SaveBeautyProfileDto,
-  PlaceBeautyOrderSchema, type PlaceBeautyOrderDto,
-} from './dto/beauty.dto';
+import { PlaceBeautyOrderSchema, type PlaceBeautyOrderDto } from './dto/beauty.dto';
 
 @Controller('beauty')
 @UseGuards(JwtAuthGuard)
@@ -19,10 +16,16 @@ export class BeautyController {
     return this.beauty.getProfile(user.sub);
   }
 
+  // Full skin & hair profile (rich payload); saving generates the one-time assessment.
   @Put('profile')
-  @UsePipes(new ZodValidationPipe(SaveBeautyProfileSchema))
-  saveProfile(@CurrentUser() user: JwtUser, @Body() dto: SaveBeautyProfileDto) {
+  saveProfile(@CurrentUser() user: JwtUser, @Body() dto: Record<string, unknown>) {
     return this.beauty.saveProfile(user.sub, dto);
+  }
+
+  // One-time photo assessment (vision when configured; profile-based otherwise).
+  @Post('photos/analyze')
+  analyzePhotos(@CurrentUser() user: JwtUser, @Body() dto: { photos?: { slot: string; base64: string; mediaType?: string }[]; thumb?: string }) {
+    return this.beauty.analyzePhotos(user.sub, dto?.photos ?? [], dto?.thumb);
   }
 
   @Get('insights')

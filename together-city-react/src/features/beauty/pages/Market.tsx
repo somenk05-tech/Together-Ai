@@ -54,6 +54,7 @@ export function Market() {
   const [bag, setBag] = useState<Record<string, number>>({});
   const [placed, setPlaced] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
+  const [seg, setSeg] = useState<'skin' | 'hair'>('skin');
 
   const items = useMemo(() => {
     const list = products.data?.products ?? [];
@@ -72,21 +73,40 @@ export function Market() {
   const add = (id: string) => { setBag((b) => ({ ...b, [id]: (b[id] ?? 0) + 1 })); setPlaced(false); };
   const remove = (id: string) => setBag((b) => ({ ...b, [id]: Math.max(0, (b[id] ?? 0) - 1) }));
 
+  const HAIR_CATS = ['Haircare', 'Hair', 'Scalp'];
+  const segOf = (cat: string) => (HAIR_CATS.some((h) => cat.toLowerCase().includes(h.toLowerCase())) ? 'hair' : 'skin');
+  const shown = products.data.products.filter((p) => segOf(p.category) === seg);
+
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '28px 16px' }}>
       <div className="eyebrow">Beauty Market · Shop</div>
       <h1 style={{ fontSize: 26 }}>Curated for you</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 4px' }}>
+      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 12px' }}>
         {products.data.matchedCount > 0
           ? `${products.data.matchedCount} products matched to ${products.data.personalisedBy.labs ? 'your labs and concerns' : 'your concerns'}.`
           : 'Set your profile or add a blood panel to personalise the shelf.'}
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14, marginTop: 16 }}>
-        {products.data.products.map((p) => (
-          <ProductCard key={p.id} p={p} qty={bag[p.id] ?? 0} onAdd={() => add(p.id)} onRemove={() => remove(p.id)} />
+      {/* segments */}
+      <div style={{ display: 'inline-flex', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 999, padding: 3, marginBottom: 16 }}>
+        {([['skin', '🧴 Skin'], ['hair', '💇 Hair']] as const).map(([k, label]) => (
+          <button key={k} onClick={() => setSeg(k)}
+            style={{ border: 'none', cursor: 'pointer', borderRadius: 999, padding: '7px 16px', fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit',
+              background: seg === k ? 'var(--card)' : 'transparent', color: seg === k ? 'var(--ink)' : 'var(--muted)', boxShadow: seg === k ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+            {label}
+          </button>
         ))}
       </div>
+
+      {shown.length === 0 ? (
+        <EmptyState icon="🧴" title={`No ${seg} products yet`} hint="Set your profile to personalise this shelf." />
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
+          {shown.map((p) => (
+            <ProductCard key={p.id} p={p} qty={bag[p.id] ?? 0} onAdd={() => add(p.id)} onRemove={() => remove(p.id)} />
+          ))}
+        </div>
+      )}
 
       {items.length > 0 && (
         <div className="card" style={{ position: 'sticky', bottom: 16, marginTop: 20, display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 8px 30px rgba(0,0,0,.12)' }}>

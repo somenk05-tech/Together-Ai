@@ -902,12 +902,17 @@ model MedicalConsent {
 // Beauty personalises skin/hair from the user's stated profile and — with
 // consent — from the biomarkers the Medical Hub owns (see MedicalConsent).
 model BeautyProfile {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  skinType  String   @default("normal") // dry | oily | combination | normal | sensitive
-  hairType  String   @default("straight") // straight | wavy | curly | coily
-  concerns  String   @default("") // csv of concern keys
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  skinType     String   @default("normal") // dry | oily | combination | normal | sensitive
+  hairType     String   @default("straight") // straight | wavy | curly | coily
+  concerns     String   @default("") // csv of concern keys (legacy quick concerns)
+  extras       String? // JSON: full skin & hair profile (goals, tone, routine, allergies, conditions, budget…)
+  photosJson   String   @default("[]") // JSON [{slot, analyzedAt, findings[]}] — latest photo assessment
+  progressJson String   @default("[]") // JSON [{id, date, findings[], score, thumb}] — weekly progress timeline
+  analysisJson String? // JSON: saved one-time assessment (skin + hair attribute readings, issues, recommendations)
+  analyzedAt   DateTime? // when the saved assessment was generated (no re-analysis until re-saved)
+  updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

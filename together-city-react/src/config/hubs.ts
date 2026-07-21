@@ -126,7 +126,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
   beauty: {
     key: 'beauty', name: 'Beauty Market', tag: 'Science-led, personally curated', backPath: '/beauty',
     items: [
-      { path: '/beauty/profile', index: '01', label: 'Skin & Hair Profile', sub: 'Your type, goals & concerns' },
+      { path: '/beauty/profile', index: '01', label: 'Skin & Hair Profile', sub: 'Photos, AI assessment & goals' },
       { path: '/beauty/insights', index: '02', label: 'Biomarker Insights', sub: 'What your labs say for skin & hair' },
       { path: '/beauty/market', index: '03', label: 'Beauty Market', sub: 'Curated, matched to you' },
       { path: '/beauty/dermatologist', index: '04', label: 'Consult a Dermatologist', sub: 'Certified derms · video or clinic' },
