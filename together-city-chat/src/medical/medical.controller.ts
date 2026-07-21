@@ -51,6 +51,12 @@ export class MedicalController {
     return this.medical.latest(user.sub);
   }
 
+  // Longitudinal trend analysis across all panels (auto-runs at 2+; must precede :id).
+  @Get('blood-tests/trends')
+  trends(@CurrentUser() user: JwtUser) {
+    return this.medical.bloodTrends(user.sub);
+  }
+
   @Get('blood-tests/:id')
   analyze(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.medical.analyze(user.sub, id);

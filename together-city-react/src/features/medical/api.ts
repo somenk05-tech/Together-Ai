@@ -33,6 +33,25 @@ export interface HealthSummary {
   discuss: string[]; encouragement: string; aiEnabled: boolean;
   takenOn: string | null; lab: string | null; disclaimer: string;
 }
+/** Longitudinal trends across ≥2 blood panels. */
+export type TrendKind = 'improving' | 'worsening' | 'stable' | 'newly-abnormal' | 'returned-normal';
+export interface TrendPoint { date: string; value: number; status: 'low' | 'normal' | 'high' }
+export interface MarkerTrend {
+  key: string; label: string; unit: string; range: string; points: TrendPoint[];
+  first: number; latest: number; deltaAbs: number; deltaLabel: string;
+  direction: 'up' | 'down' | 'flat'; trend: TrendKind; trendLabel: string;
+  latestStatus: 'low' | 'normal' | 'high'; severityChange: number;
+}
+export interface TrendTimelinePoint { id: string; takenOn: string; lab: string | null; markerCount: number; isLatest: boolean }
+export interface TrendPick { key: string; label: string; trendLabel: string; deltaLabel: string; latestStatus: string }
+export interface BloodTrends {
+  hasTrends: boolean; testCount: number; timeline: TrendTimelinePoint[]; markers: MarkerTrend[];
+  summary: null | {
+    narrative: string; improvements: TrendPick[]; declines: TrendPick[];
+    stable: TrendPick[]; newlyAbnormal: TrendPick[]; returnedToNormal: TrendPick[];
+  };
+  disclaimer: string;
+}
 export interface MedicalRecord { id: string; kind: string; title: string; detail: string | null; hasFile?: boolean; mimeType?: string | null; sizeBytes?: number; bloodTestId?: string | null; analyzed?: boolean; recordedOn: string }
 export interface StorageUsage { quotaBytes: number; usedBytes: number; mailBytes: number; healthBytes: number; usedPct: number; remainingBytes: number }
 export interface ExtractResult { recordId: string; aiEnabled: boolean; extracted: Record<string, number>; markerCount: number; lab: string | null; takenOn: string | null; note: string }
@@ -63,6 +82,7 @@ export const medicalApi = {
     api.post<IngestResult>('/medical/blood-tests/ingest', input).then((r) => r.data),
   history: () => api.get<BloodTestSummary[]>('/medical/blood-tests').then((r) => r.data),
   latest: () => api.get<BloodAnalysis>('/medical/blood-tests/latest').then((r) => r.data),
+  trends: () => api.get<BloodTrends>('/medical/blood-tests/trends').then((r) => r.data),
   analyze: (id: string) => api.get<BloodAnalysis>(`/medical/blood-tests/${id}`).then((r) => r.data),
   supplementPlan: () => api.get<SupplementPlan>('/medical/supplement-plan').then((r) => r.data),
   summary: () => api.get<HealthSummary>('/medical/summary').then((r) => r.data),
@@ -89,13 +109,17 @@ export function useDeleteRecord() {
 export function useLatestPanel() {
   return useQuery({ queryKey: ['medical', 'latest'], queryFn: () => medicalApi.latest() });
 }
+/** Longitudinal trends — auto-fetched; the backend returns hasTrends=false until 2+ panels. */
+export function useBloodTrends() {
+  return useQuery({ queryKey: ['medical', 'trends'], queryFn: () => medicalApi.trends(), staleTime: 5 * 60 * 1000 });
+}
 export function useBloodHistory() {
   return useQuery({ queryKey: ['medical', 'history'], queryFn: () => medicalApi.history() });
 }
 /** After any panel change, refresh every surface that reads the panel so Blood
  *  Test Analysis and Health Records stay in lockstep (shared query cache). */
 function syncPanelQueries(qc: ReturnType<typeof useQueryClient>) {
-  for (const key of ['latest', 'history', 'summary', 'supplements', 'records', 'storage']) {
+  for (const key of ['latest', 'history', 'summary', 'supplements', 'records', 'storage', 'trends']) {
     void qc.invalidateQueries({ queryKey: ['medical', key] });
   }
 }

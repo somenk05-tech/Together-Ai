@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
-import { useBloodHistory, useLatestPanel, useSaveBloodTest, useIngestBlood, useHealthSummary, type Citation } from '../api';
+import { useBloodHistory, useLatestPanel, useSaveBloodTest, useIngestBlood, useHealthSummary, useBloodTrends, type Citation, type TrendKind, type TrendPick } from '../api';
 
 /** Deterministic 0–100 wellness score ring. */
 function ScoreRing({ score, band }: { score: number; band: string }) {
@@ -45,6 +45,80 @@ function Cites({ citations }: { citations: Citation[] }) {
       {citations.map((c) => (
         <span key={c.id} title={c.ref} style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 9px' }}>{c.label}</span>
       ))}
+    </div>
+  );
+}
+
+const trendColor = (k: TrendKind) =>
+  k === 'improving' || k === 'returned-normal' ? '#1b7a3a'
+  : k === 'worsening' || k === 'newly-abnormal' ? '#c0392b' : 'var(--muted)';
+const pointColor = (s: string) => (s === 'high' ? '#e65100' : s === 'low' ? '#c62828' : '#2e7d32');
+
+/** Longitudinal trends — auto-shown once the user has 2+ saved panels. */
+function TrendsSection() {
+  const trends = useBloodTrends();
+  const d = trends.data;
+  if (!d || !d.hasTrends || !d.summary) return null;
+  const s = d.summary;
+  const chipRow = (title: string, items: TrendPick[], color: string) => items.length > 0 && (
+    <div style={{ marginTop: 10 }}>
+      <div className="muted" style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em' }}>{title}</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 5 }}>
+        {items.map((m) => (
+          <span key={m.key} style={{ fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: '3px 10px', color, background: `${color}14` }}>
+            {m.label} · {m.deltaLabel}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+  return (
+    <div className="card" style={{ marginTop: 18 }}>
+      <div className="eyebrow">Your health over time · {d.testCount} panels</div>
+
+      {/* Timeline of dated panels */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', margin: '10px 0 2px' }}>
+        {d.timeline.map((t, i) => (
+          <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: t.isLatest ? 700 : 500, padding: '4px 10px', borderRadius: 999, background: t.isLatest ? 'var(--accent-soft)' : 'var(--paper)', border: '1px solid var(--line)' }}>
+              {t.takenOn}{t.isLatest ? ' · Latest' : ''}
+            </span>
+            {i < d.timeline.length - 1 && <span className="muted">→</span>}
+          </span>
+        ))}
+      </div>
+
+      {/* Executive summary */}
+      <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '14px 0 0' }}>{s.narrative}</p>
+      {chipRow('Biggest improvements', s.improvements, '#1b7a3a')}
+      {chipRow('Needs focus', s.declines, '#c0392b')}
+      {chipRow('Returned to normal', s.returnedToNormal, '#1b7a3a')}
+      {chipRow('Newly out of range', s.newlyAbnormal, '#e65100')}
+      {chipRow('Holding steady', s.stable, '#6b6b6b')}
+
+      {/* Per-biomarker trend rows */}
+      <div style={{ marginTop: 16 }}>
+        <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em' }}>Biomarker trends</div>
+        {d.markers.map((m) => (
+          <div key={m.key} style={{ padding: '11px 0', borderTop: '1px solid var(--line)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <strong style={{ fontSize: 13.5 }}>{m.label}</strong>
+              <span className="muted" style={{ fontSize: 11.5 }}>ref {m.range} {m.unit}</span>
+              <span style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 700, color: trendColor(m.trend) }}>
+                {m.direction === 'up' ? '▲' : m.direction === 'down' ? '▼' : '▬'} {m.trendLabel} · {m.deltaLabel}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6, fontSize: 12 }}>
+              {m.points.map((p, i) => (
+                <span key={i}>
+                  <span className="muted">{p.date.slice(5)}</span> <b style={{ color: pointColor(p.status) }}>{p.value}</b>{i < m.points.length - 1 ? <span className="muted"> →</span> : null}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="muted" style={{ fontSize: 11, marginTop: 12 }}>{d.disclaimer}</p>
     </div>
   );
 }
@@ -189,6 +263,9 @@ export function BloodAnalysis() {
           </div>
         );
       })()}
+
+      {/* Longitudinal trends — automatic once 2+ panels exist */}
+      <TrendsSection />
 
       {showForm ? (
       <>

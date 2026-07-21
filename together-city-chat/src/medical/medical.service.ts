@@ -38,6 +38,40 @@ interface StoredAnalysis {
   encouragement: string;
 }
 
+/** Longitudinal biomarker trend across ≥2 dated panels. */
+export type Trend = 'improving' | 'worsening' | 'stable' | 'newly-abnormal' | 'returned-normal';
+export interface MarkerTrend {
+  key: string; label: string; unit: string; range: string;
+  points: { date: string; value: number; status: string }[];
+  first: number; latest: number; deltaAbs: number; deltaLabel: string;
+  direction: 'up' | 'down' | 'flat'; trend: Trend; trendLabel: string;
+  latestStatus: string; severityChange: number;
+}
+
+/**
+ * Classify a biomarker's trend across its chronological points by how far the
+ * value sits OUTSIDE its healthy range (0 when in range). A falling "severity"
+ * means the value moved toward healthy — whichever direction is the bad one — so
+ * this reads correctly for "high is bad" markers (LDL, HbA1c) and "low is bad"
+ * ones (vitamin D, B12) alike. A crossing into/out of range is called explicitly.
+ */
+export function classifyTrend(
+  rule: { min: number; max: number },
+  points: { value: number; status: string }[],
+): { trend: Trend; severityChange: number } {
+  const severity = (v: number) => (v < rule.min ? rule.min - v : v > rule.max ? v - rule.max : 0);
+  const first = points[0], last = points[points.length - 1];
+  const dSev = severity(last.value) - severity(first.value);
+  const eps = 0.03 * Math.max(1, rule.max - rule.min);
+  let trend: Trend;
+  if (first.status !== 'normal' && last.status === 'normal') trend = 'returned-normal';
+  else if (first.status === 'normal' && last.status !== 'normal') trend = 'newly-abnormal';
+  else if (dSev < -eps) trend = 'improving';
+  else if (dSev > eps) trend = 'worsening';
+  else trend = 'stable';
+  return { trend, severityChange: Math.round(dSev * 100) / 100 };
+}
+
 /** Hubs that may read Medical biomarkers, and what each uses them for. */
 export const CONSENT_HUBS = [
   { hub: 'nutrition', label: 'Nutrition', reads: 'Personalises meal plans, targets and supplements from your markers.' },
@@ -419,6 +453,101 @@ export class MedicalService implements OnModuleInit {
     });
     if (!test) return { markers: [], alerts: [], conditions: [], takenOn: null };
     return this.analyze(userId, test.id);
+  }
+
+  // ─────────────── longitudinal trends (auto-runs at 2+ panels) ───────────────
+  /**
+   * Cross-report trend analysis, generated automatically whenever the user has
+   * ≥2 saved blood panels (no button). For every biomarker present in ≥2 dated
+   * panels it builds a chronological series and classifies the trend by how the
+   * value's DISTANCE FROM its healthy range changed over time — so it reads
+   * correctly for both "high is bad" markers (LDL, HbA1c, triglycerides) and
+   * "low is bad" ones (vitamin D, B12, ferritin). Produces the timeline,
+   * per-marker trends, and an executive summary (biggest improvements, biggest
+   * declines, stable, newly abnormal, and markers that returned to normal).
+   * Deterministic + explainable — the same inputs always give the same read.
+   */
+  async bloodTrends(userId: string) {
+    const tests = await this.prisma.medicalBloodTest.findMany({
+      where: { userId }, orderBy: { takenOn: 'asc' }, include: { biomarkers: true },
+    });
+    if (tests.length < 2) {
+      return {
+        hasTrends: false, testCount: tests.length, timeline: [], markers: [], summary: null,
+        disclaimer: 'Longitudinal trends appear once you have two or more saved blood panels.',
+      };
+    }
+
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const timeline = tests.map((t, i) => ({
+      id: t.id, takenOn: iso(t.takenOn), lab: t.lab, markerCount: t.biomarkers.length,
+      isLatest: i === tests.length - 1,
+    }));
+
+    // Each marker's chronological value series.
+    const series = new Map<string, { date: string; value: number }[]>();
+    for (const t of tests) {
+      for (const b of t.biomarkers) {
+        const arr = series.get(b.key) ?? [];
+        arr.push({ date: iso(t.takenOn), value: b.value });
+        series.set(b.key, arr);
+      }
+    }
+
+    const markers: MarkerTrend[] = [];
+
+    for (const [key, pts] of series) {
+      if (pts.length < 2) continue;
+      const rule = ruleFor(key);
+      if (!rule) continue;
+      const points = pts.map((p) => ({ date: p.date, value: p.value, status: evaluateMarker(rule, p.value).status }));
+      const first = points[0], last = points[points.length - 1];
+      const { trend, severityChange } = classifyTrend(rule, points);
+
+      const deltaAbs = Math.round((last.value - first.value) * 10) / 10;
+      const trendLabel = trend === 'improving' ? 'Improving'
+        : trend === 'worsening' ? 'Worsening'
+        : trend === 'returned-normal' ? 'Returned to normal range'
+        : trend === 'newly-abnormal' ? 'Newly out of range'
+        : 'Stable';
+      markers.push({
+        key, label: rule.label, unit: rule.unit, range: `${rule.min}–${rule.max}`,
+        points, first: first.value, latest: last.value, deltaAbs,
+        deltaLabel: `${deltaAbs > 0 ? '+' : ''}${deltaAbs} ${rule.unit}`,
+        direction: deltaAbs > 0 ? 'up' : deltaAbs < 0 ? 'down' : 'flat',
+        trend, trendLabel, latestStatus: last.status, severityChange,
+      });
+    }
+    markers.sort((a, b) => a.label.localeCompare(b.label));
+
+    const improved = markers.filter((m) => m.trend === 'improving' || m.trend === 'returned-normal')
+      .sort((a, b) => a.severityChange - b.severityChange);          // biggest improvement first
+    const declined = markers.filter((m) => m.trend === 'worsening' || m.trend === 'newly-abnormal')
+      .sort((a, b) => b.severityChange - a.severityChange);          // biggest decline first
+    const stable = markers.filter((m) => m.trend === 'stable');
+    const newlyAbnormal = markers.filter((m) => m.trend === 'newly-abnormal');
+    const returnedNormal = markers.filter((m) => m.trend === 'returned-normal');
+
+    const labels = (arr: MarkerTrend[]) => arr.map((m) => m.label);
+    const list = (arr: string[]) => arr.length <= 1 ? (arr[0] ?? '') : `${arr.slice(0, -1).join(', ')} and ${arr[arr.length - 1]}`;
+
+    const parts: string[] = [];
+    if (improved.length) parts.push(`Compared with your earlier blood tests, ${list(labels(improved))} ${improved.length > 1 ? 'have' : 'has'} improved${returnedNormal.length ? ` (${list(labels(returnedNormal))} returned to the normal range)` : ''}.`);
+    else parts.push('Comparing your blood tests over time:');
+    if (declined.length) parts.push(`However, ${list(labels(declined))} ${declined.length > 1 ? 'have' : 'has'} worsened${newlyAbnormal.length ? ` — ${list(labels(newlyAbnormal))} newly moved out of range` : ''}, and should be your primary focus over the coming months.`);
+    if (stable.length) parts.push(`${list(labels(stable))} ${stable.length > 1 ? 'have' : 'has'} held steady.`);
+    const narrative = parts.join(' ');
+
+    const pick = (m: MarkerTrend) => ({ key: m.key, label: m.label, trendLabel: m.trendLabel, deltaLabel: m.deltaLabel, latestStatus: m.latestStatus });
+    return {
+      hasTrends: true, testCount: tests.length, timeline, markers,
+      summary: {
+        narrative,
+        improvements: improved.map(pick), declines: declined.map(pick), stable: stable.map(pick),
+        newlyAbnormal: newlyAbnormal.map(pick), returnedToNormal: returnedNormal.map(pick),
+      },
+      disclaimer: 'Trends are educational and grounded in established reference ranges — not a diagnosis. Confirm changes with your doctor.',
+    };
   }
 
   // ─────────────── AI Health Summary (deterministic score + AI narrative) ───────────────
