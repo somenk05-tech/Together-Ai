@@ -233,7 +233,9 @@ export function Profile() {
 
   const analysis = profile.data?.analysis ?? null;
   const analyzedAt = profile.data?.analyzedAt ?? null;
+  const aiEnabled = profile.data?.aiEnabled ?? false;
   const progress = profile.data?.progress ?? [];
+  const warning = analyze.data?.warning;
 
   const set = (k: keyof Form, v: unknown) => setF((s) => ({ ...s, [k]: v }));
   const single = (k: keyof Form, v: string) => set(k, f[k] === v ? undefined : v);
@@ -299,7 +301,7 @@ export function Profile() {
       {tab === 'photos' && (
         <div>
           <div className="card" style={{ marginBottom: 14 }}>
-            <div className="eyebrow" style={{ marginBottom: 8 }}>Upload photos <span className="muted" style={{ fontWeight: 400 }}>· saved for before/after</span></div>
+            <div className="eyebrow" style={{ marginBottom: 8 }}>Upload photos <span className="muted" style={{ fontWeight: 400 }}>· analysed once</span></div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 12 }}>
               {PHOTO_SLOTS.map((s) => {
                 const pic = pics[s.key];
@@ -313,9 +315,15 @@ export function Profile() {
                 );
               })}
             </div>
-            <p className="muted" style={{ fontSize: 11.5, margin: '12px 0 0', lineHeight: 1.5 }}>
-              Your photos are your own before/after reference — no filters and no AI are applied to them. Full images aren't stored; only a small unedited thumbnail is kept for the timeline. Your assessment comes from the profile you fill in. Re-upload weekly to track progress.
-            </p>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 12, padding: '10px 12px', background: 'var(--paper)', borderRadius: 10 }}>
+              <span style={{ fontSize: 15 }}>📷</span>
+              <p className="muted" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5 }}>
+                Upload clear, well-lit photos of yourself with a bare face/scalp. <strong>No beauty filters and no AI-generated images</strong> — they distort the analysis and will be rejected. {aiEnabled ? 'AI reviews clear photos once to spot visible issues (acne, pigmentation, texture, pores, redness, hydration, hair density & scalp).' : 'Photos build your before/after alongside your profile assessment.'} Full images aren't stored — only a small unedited thumbnail for your timeline.
+              </p>
+            </div>
+            {warning && (
+              <p style={{ fontSize: 12.5, color: '#b0503e', fontWeight: 600, margin: '10px 0 0' }}>⚠️ {warning}</p>
+            )}
             <Button variant="accent" style={{ marginTop: 12 }} disabled={analyze.isPending || Object.keys(pics).length === 0} onClick={runAnalysis}>
               {analyze.isPending ? 'Analysing…' : `Analyse & save${progress.length ? ' this week' : ''}`}
             </Button>

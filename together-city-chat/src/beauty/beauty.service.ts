@@ -80,35 +80,52 @@ export class BeautyService {
   }
 
   /**
-   * Save a progress check-in. The photo is stored ONLY as a plain thumbnail for
-   * a visual before/after — no AI runs on the image and no filters are applied.
-   * The assessment is derived purely from the saved profile (deterministic).
+   * One-time photo analysis. AI reviews the uploaded photos to identify visible
+   * issues (acne, pigmentation, texture, pores, redness, hydration, hair density,
+   * scalp…) — but ONLY if the photo is clear and authentic. Beauty-filtered,
+   * edited or AI-generated photos are rejected with a prompt to re-upload. The
+   * detected issues are folded into the deterministic assessment. Runs once.
    */
   async analyzePhotos(userId: string, photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string) {
     const existing = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
     const profile = safeJson<BeautyProfileInput>(existing?.extras, {});
-    const analysis = assessBeauty(profile);                       // profile-driven only — no photo AI
+    const images = photos.filter((p) => p.base64).map((p) => ({ base64: p.base64, mediaType: p.mediaType || 'image/jpeg' }));
+
+    const review = images.length ? await this.ai.reviewSkinPhotos(images) : { quality: 'ok' as const, findings: [] as string[], note: '' };
+    const rejected = review.quality === 'suspect' || review.quality === 'unclear';
+    const warning = review.quality === 'suspect'
+      ? 'These photos look filtered or AI-generated — please upload clear, unedited photos of yourself for an accurate analysis.'
+      : review.quality === 'unclear'
+        ? 'These photos are too unclear to analyse — try again in good, even lighting without cropping.'
+        : '';
+    const findings = review.findings;
+    const analysis = assessBeauty(profile, findings);
     const issues = [...analysis.skin.issues, ...analysis.hair.issues];
-    const photoRows = photos.map((p) => ({ slot: p.slot, analyzedAt: new Date().toISOString(), findings: [] as string[] }));
+    const photoRows = photos.map((p) => ({ slot: p.slot, analyzedAt: new Date().toISOString(), findings }));
     const now = new Date();
 
-    // Dated progress point: current profile-based score + a plain thumbnail.
-    const score = Math.max(40, Math.min(100, 100 - issues.length * 8));
-    const entry: ProgressEntry = {
-      id: (globalThis.crypto?.randomUUID?.() ?? `${now.getTime()}-${Math.round(Math.random() * 1e6)}`),
-      date: now.toISOString(), findings: issues, score,
-      thumb: typeof thumb === 'string' && thumb.startsWith('data:') && thumb.length < 200_000 ? thumb : null,
-    };
+    // Save a dated progress check-in only when we could actually analyse the photo.
     const progress = safeJson<ProgressEntry[]>(existing?.progressJson, []);
-    progress.push(entry);
+    if (!rejected) {
+      const score = Math.max(40, Math.min(100, 100 - issues.length * 8));
+      progress.push({
+        id: (globalThis.crypto?.randomUUID?.() ?? `${now.getTime()}-${Math.round(Math.random() * 1e6)}`),
+        date: now.toISOString(), findings: issues, score,
+        thumb: typeof thumb === 'string' && thumb.startsWith('data:') && thumb.length < 200_000 ? thumb : null,
+      });
+    }
     const trimmed = progress.slice(-12); // keep the last 12 check-ins
 
+    // On a rejected photo, keep the prior assessment rather than overwriting it.
+    const update = rejected
+      ? { photosJson: JSON.stringify(photoRows) }
+      : { photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(trimmed), analysisJson: JSON.stringify(analysis), analyzedAt: now };
     await this.beauty.upsert({
       where: { userId },
-      update: { photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(trimmed), analysisJson: JSON.stringify(analysis), analyzedAt: now } as never,
-      create: { userId, skinType: String(profile.skinType ?? 'normal'), hairType: String(profile.hairType ?? 'straight'), concerns: (profile.skinConcerns ?? []).join(','), extras: JSON.stringify(profile), photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(trimmed), analysisJson: JSON.stringify(analysis), analyzedAt: now } as never,
+      update: update as never,
+      create: { userId, skinType: String(profile.skinType ?? 'normal'), hairType: String(profile.hairType ?? 'straight'), concerns: (profile.skinConcerns ?? []).join(','), extras: JSON.stringify(profile), photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(rejected ? [] : trimmed), analysisJson: JSON.stringify(analysis), analyzedAt: now } as never,
     });
-    return { ...(await this.getProfile(userId)), photoFindings: issues, aiUsed: false };
+    return { ...(await this.getProfile(userId)), photoFindings: findings, aiUsed: this.ai.enabled && images.length > 0, quality: review.quality, warning };
   }
 
   // ─────────────── biomarker insights (consent-gated) ───────────────

@@ -140,6 +140,46 @@ export class AiService {
   }
 
   /**
+   * AI review of skin/scalp/hair photos. First judges the image: rejects photos
+   * that are unclear (blurry/dark/cropped) or that look beauty-filtered or
+   * AI-generated, so the analysis is only run on authentic, usable photos.
+   * Returns detected-attribute tags the caller folds into its assessment.
+   */
+  async reviewSkinPhotos(images: { base64: string; mediaType: string }[]): Promise<{ quality: 'ok' | 'unclear' | 'suspect'; findings: string[]; note: string }> {
+    if (!this.client) return { quality: 'ok', findings: [], note: '' };
+    if (!images.length) return { quality: 'unclear', findings: [], note: 'No photo provided.' };
+    const ALLOWED = ['acne', 'pigmentation', 'wrinkle', 'texture', 'pore', 'redness', 'dehydration', 'dark-circles', 'density', 'thickness', 'hairline', 'scalp', 'dandruff'];
+    const system =
+      'You review real skin/scalp/hair photos for a wellness assessment (not a diagnosis). ' +
+      'STEP 1 — judge authenticity & clarity: if a photo is blurry, too dark, heavily cropped, or clearly beauty-filtered / smoothed / AI-generated / heavily edited, do NOT analyse it. ' +
+      'STEP 2 — only for a clear, authentic, unfiltered photo, list the visible attribute tags. ' +
+      'Return ONLY JSON {"quality":"ok"|"unclear"|"suspect","findings":string[],"note":string}. ' +
+      'quality="unclear" for blurry/dark/unusable; quality="suspect" if it looks filtered or AI-generated; quality="ok" only for a clear authentic photo. ' +
+      'findings use ONLY these tags where genuinely visible: ' + ALLOWED.join(', ') + '. Never invent findings; empty findings unless quality="ok".';
+    try {
+      const blocks = images.slice(0, 6).map((im) => ({
+        type: 'image',
+        source: { type: 'base64', media_type: (im.mediaType || 'image/jpeg') as 'image/jpeg', data: im.base64 },
+      } as unknown as Anthropic.ContentBlockParam));
+      const res = await this.client.messages.create({
+        model: this.visionModel,
+        max_tokens: 512,
+        system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
+        messages: [{ role: 'user', content: [...blocks, { type: 'text', text: 'Review these photos and return the JSON.' }] }],
+      });
+      const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('');
+      const parsed = this.extractJson(text) as { quality?: string; findings?: unknown; note?: string } | null;
+      const quality = parsed?.quality === 'suspect' ? 'suspect' : parsed?.quality === 'unclear' ? 'unclear' : 'ok';
+      const raw = Array.isArray(parsed?.findings) ? parsed!.findings : [];
+      const findings = quality === 'ok' ? raw.filter((x): x is string => typeof x === 'string' && ALLOWED.includes(x)) : [];
+      return { quality, findings, note: typeof parsed?.note === 'string' ? parsed.note : '' };
+    } catch (e) {
+      this.logger.warn(`Skin photo review failed: ${(e as Error).message}`);
+      return { quality: 'ok', findings: [], note: '' };
+    }
+  }
+
+  /**
    * AI clinical interpretation of a blood panel — narrative only. The numeric
    * score + priority ranking are computed deterministically by the caller from
    * the cited engine; this adds the plain-language "what it may mean / how markers

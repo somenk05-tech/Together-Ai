@@ -62,7 +62,7 @@ export const beautyApi = {
   saveProfile: (input: Record<string, unknown>) =>
     api.put<BeautyProfile>('/beauty/profile', input).then((r) => r.data),
   analyzePhotos: (photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string) =>
-    api.post<BeautyProfile & { photoFindings: string[]; aiUsed: boolean }>('/beauty/photos/analyze', { photos, thumb }).then((r) => r.data),
+    api.post<BeautyProfile & { photoFindings: string[]; aiUsed: boolean; quality: 'ok' | 'unclear' | 'suspect'; warning: string }>('/beauty/photos/analyze', { photos, thumb }).then((r) => r.data),
   insights: () => api.get<InsightsResponse>('/beauty/insights').then((r) => r.data),
   products: () => api.get<ProductsResponse>('/beauty/products').then((r) => r.data),
   orders: () => api.get<BeautyOrder[]>('/beauty/orders').then((r) => r.data),
