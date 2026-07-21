@@ -5,14 +5,6 @@ import { useLiveOtt, useTitleSearch, useDiscover, type OttTitle } from '../api';
 import { KIT_CSS, TitleCard, TitleSheet, type TitleSel } from './movieKit';
 
 const CSS = KIT_CSS + `
-.ent-ott .showrow{display:flex;align-items:center;gap:16px;background:var(--card,#fff);border:1px solid var(--line,#eee);border-radius:14px;padding:14px 18px;margin-bottom:10px;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s;cursor:pointer;width:100%;text-align:left;font-family:inherit}
-.ent-ott .showrow:hover{transform:translateY(-2px);box-shadow:var(--shadow-deep)}
-.ent-ott .showrow .tile{width:52px;height:52px;border-radius:10px;flex-shrink:0;background:linear-gradient(150deg,#241a3d,#5b4b8a);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--serif,Georgia);font-size:16px;overflow:hidden}
-.ent-ott .showrow .tile img{width:100%;height:100%;object-fit:cover}
-.ent-ott .showrow .grow{flex:1;min-width:0}
-.ent-ott .showrow .plat{font-size:11px;color:var(--muted)}
-.ent-ott .split{display:grid;grid-template-columns:2fr 1fr;gap:28px}
-@media(max-width:860px){.ent-ott .split{grid-template-columns:1fr}}
 .ent-ott .searchbar{display:flex;gap:10px;margin:4px 0 18px}
 .ent-ott .searchbar input{flex:1;border:1.5px solid var(--line,#eee);border-radius:999px;padding:12px 20px;font-size:14px;font-family:inherit;background:var(--card,#fff);color:var(--ink);outline:none}
 .ent-ott .searchbar input:focus{border-color:var(--accent)}
@@ -28,17 +20,6 @@ const MOODS: Record<string, string[]> = {
   'Weekend Binge': ['Drama', 'Sci-Fi', 'Sci-Fi & Fantasy', 'Fantasy', 'War & Politics'],
   'Something Light': ['Comedy', 'Reality', 'Talk', 'Documentary', 'Kids'],
 };
-
-function Row({ t, primary, onOpen }: { t: OttTitle; primary?: boolean; onOpen: (sel: TitleSel) => void }) {
-  const sub = [t.platform ?? 'In theatres / on demand', t.genres[0], t.rating != null ? `★ ${t.rating.toFixed(1)}` : null].filter(Boolean).join(' · ');
-  return (
-    <button type="button" className="showrow" onClick={() => onOpen({ type: t.type, id: t.id })}>
-      <div className="tile">{t.posterUrl ? <img src={t.posterUrl} alt={t.title} loading="lazy" /> : t.title[0]}</div>
-      <div className="grow"><div style={{ fontWeight: 600 }}>{t.title}</div><div className="plat">{sub}</div></div>
-      <span className={`btn btn-sm ${primary ? 'btn-gold' : 'btn-line'}`}>Details</span>
-    </button>
-  );
-}
 
 /** OTT Watch — this week's trending series & films with real platform availability. */
 export function Ott() {
@@ -61,7 +42,6 @@ export function Ott() {
     (!mood || t.genres.some((g) => MOODS[mood]?.includes(g)));
   const streaming = isLive ? d!.streaming.filter(match) : [];
   const popular = isLive ? d!.popular.filter(match) : [];
-  const topPick = streaming.find((t) => t.platform) ?? streaming[0] ?? popular[0];
 
   const pill = (on: boolean, label: string, onClick: () => void) => (
     <button key={label} type="button" onClick={onClick}
@@ -145,37 +125,24 @@ export function Ott() {
             </>
           )}
 
-          <div className="split rise d2">
-            <div>
-              <div className="blk-head"><h2>Trending Series</h2><span className="muted" style={{ fontSize: 12 }}>This week · live</span></div>
-              <div className="rows" style={{ marginBottom: 32 }}>
-                {streaming.length === 0
-                  ? <p className="muted" style={{ fontSize: 13 }}>Nothing matches those filters this week.</p>
-                  : streaming.map((t) => <Row key={`tv${t.id}`} t={t} primary onOpen={setSel} />)}
+          <div className="blk-head rise d2"><h2>📺 Trending Series</h2><span className="muted" style={{ fontSize: 12 }}>This week · live · tap for seasons & where to watch</span></div>
+          {streaming.length === 0
+            ? <p className="muted rise d2" style={{ fontSize: 13, marginBottom: 44 }}>Nothing matches those filters this week.</p>
+            : (
+              <div className="grid4 rise d2" style={{ marginBottom: 44 }}>
+                {streaming.map((t, i) => <TitleCard key={`tv${t.id}`} m={t} i={i} badge={t.platform ?? undefined} onOpen={setSel} />)}
               </div>
-              <div className="blk-head"><h2>Trending Movies on OTT</h2></div>
-              <div className="rows">
-                {popular.length === 0
-                  ? <p className="muted" style={{ fontSize: 13 }}>Nothing matches those filters this week.</p>
-                  : popular.map((t) => <Row key={`mv${t.id}`} t={t} onOpen={setSel} />)}
+            )}
+
+          <div className="blk-head rise d3"><h2>🎬 Trending Movies on OTT</h2></div>
+          {popular.length === 0
+            ? <p className="muted rise d3" style={{ fontSize: 13 }}>Nothing matches those filters this week.</p>
+            : (
+              <div className="grid4 rise d3">
+                {popular.map((t, i) => <TitleCard key={`mv${t.id}`} m={t} i={i} badge={t.platform ?? undefined} onOpen={setSel} />)}
               </div>
-              <p className="muted" style={{ fontSize: 11, marginTop: 14 }}>Data & images: TMDB · streaming availability via JustWatch. Not endorsed or certified by TMDB.</p>
-            </div>
-            <div>
-              {topPick && (
-                <div className="card" style={{ marginBottom: 16 }}>
-                  <h4>Today's Top Pick</h4>
-                  {topPick.posterUrl && <img src={topPick.posterUrl} alt={topPick.title} style={{ width: '100%', borderRadius: 12, margin: '10px 0' }} loading="lazy" />}
-                  <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 10px' }}>{topPick.title}{topPick.platform ? ` — ${topPick.platform}` : ''}{topPick.rating != null ? ` · ★ ${topPick.rating.toFixed(1)}` : ''}</p>
-                  <button type="button" className="btn btn-gold btn-sm" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setSel({ type: topPick.type, id: topPick.id })}>View details</button>
-                </div>
-              )}
-              <div className="card">
-                <h4>How this works</h4>
-                <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>Trending is refreshed from live viewing data every few hours. The platform tag shows where each title streams in India right now.</p>
-              </div>
-            </div>
-          </div>
+            )}
+          <p className="muted rise" style={{ fontSize: 11, marginTop: 18 }}>Data & images: TMDB · streaming availability via JustWatch. Not endorsed or certified by TMDB.</p>
         </>
       )}
 
