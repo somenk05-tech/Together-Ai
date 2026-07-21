@@ -1,12 +1,21 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useRestaurant, usePlaceOrder, useReserve, inr, dietDot, type Dish } from '../api';
+import { useRestaurant, usePlaceOrder, useReserve, useRestaurantOverview, inr, dietDot, type Dish } from '../api';
 import { PaymentSheet } from '@/features/financial/PaymentSheet';
 import { payError, type PayMethod } from '@/features/financial/api';
 import { ShareToChat } from '@/features/chat/share';
 
 type Cart = Record<string, number>; // dishId -> qty
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ textAlign: 'center', minWidth: 56 }}>
+      <div style={{ fontSize: 14, fontWeight: 700 }}>{value}</div>
+      <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</div>
+    </div>
+  );
+}
 
 function DietTag({ d }: { d: Dish }) {
   return <span title={d.dietLabel} style={{ width: 13, height: 13, borderRadius: 3, border: `1.5px solid ${dietDot(d.diet)}`, display: 'inline-grid', placeItems: 'center', flexShrink: 0 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: dietDot(d.diet) }} /></span>;
@@ -47,6 +56,7 @@ function DishRow({ d, qty, onAdd, onSub }: { d: Dish; qty: number; onAdd: () => 
 export function RestaurantDetail() {
   const { id = '' } = useParams();
   const q = useRestaurant(id);
+  const overview = useRestaurantOverview(id);
   const place = usePlaceOrder();
   const reserve = useReserve();
 
@@ -78,7 +88,7 @@ export function RestaurantDetail() {
 
   return (
     <div style={{ maxWidth: 820, margin: '0 auto', padding: '24px 16px 120px' }}>
-      <Link to="/restaurants" style={{ textDecoration: 'none' }}><span className="eyebrow" style={{ cursor: 'pointer' }}>← Discover</span></Link>
+      <Link to="/restaurants/explore" style={{ textDecoration: 'none' }}><span className="eyebrow" style={{ cursor: 'pointer' }}>← Explore</span></Link>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden', marginTop: 8 }}>
         <div style={{ position: 'relative', aspectRatio: '20 / 7', background: 'var(--line)' }}>
@@ -105,6 +115,73 @@ export function RestaurantDetail() {
       {r.dietProfile && (
         <div style={{ marginTop: 12, fontSize: 12.5, color: '#1b7a3a', background: '#e8f5e9', borderRadius: 10, padding: '9px 13px' }}>
           🥗 Personalised for your <strong>{r.dietProfile}</strong> plan from the Nutrition hub — dishes that don’t fit are dimmed and tagged.
+        </div>
+      )}
+
+      {/* Together City assessment */}
+      {r.breakdown && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', flex: '0 0 auto', background: `conic-gradient(#1b7a3a ${r.breakdown.tcScore * 3.6}deg, var(--line) 0)`, display: 'grid', placeItems: 'center' }}>
+              <div style={{ width: 50, height: 50, borderRadius: '50%', background: 'var(--card,#fff)', display: 'grid', placeItems: 'center', textAlign: 'center', lineHeight: 1 }}>
+                <div><b style={{ fontSize: 17 }}>{r.breakdown.tcScore}</b><div style={{ fontSize: 7.5, color: 'var(--muted)', letterSpacing: '.04em' }}>TC SCORE</div></div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', flex: 1 }}>
+              {r.category && <Fact label="Category" value={r.category} />}
+              <Fact label="Google" value={`★ ${r.breakdown.googleRating.toFixed(1)}`} />
+              <Fact label="Food" value={`${r.breakdown.food}/5`} />
+              <Fact label="Hygiene" value={`${r.breakdown.hygiene}/5`} />
+              <Fact label="Value" value={`${r.breakdown.value}`} />
+              {r.distanceKm != null && <Fact label="Distance" value={`${r.distanceKm} km`} />}
+            </div>
+          </div>
+          <p className="muted" style={{ fontSize: 11, marginTop: 10, marginBottom: 0 }}>Together City assessment — a blended quality signal (food quality, rating, hygiene, value & menu), not a single source.</p>
+        </div>
+      )}
+
+      {/* AI editorial overview */}
+      {overview.data && (
+        <div className="card" style={{ marginTop: 12, background: 'var(--accent-soft, #f5f1ff)' }}>
+          <div className="eyebrow" style={{ marginTop: 0 }}>✨ What to expect{overview.data.aiPowered ? ' · AI overview' : ''}</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '6px 0 10px' }}>
+            {overview.data.highlights.map((h, i) => <span key={i} className="tag">{h}</span>)}
+          </div>
+          {overview.data.tryThese.length > 0 && <p style={{ fontSize: 13.5, margin: '0 0 6px' }}><strong>Try:</strong> {overview.data.tryThese.join(' · ')}</p>}
+          <p style={{ fontSize: 13.5, margin: '0 0 6px' }}><strong>Best for:</strong> {overview.data.bestFor}</p>
+          <p className="muted" style={{ fontSize: 11, margin: 0 }}>{overview.data.note}</p>
+        </div>
+      )}
+
+      {/* Amenities */}
+      {r.amenities && r.amenities.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div className="eyebrow" style={{ marginTop: 0 }}>Amenities</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {r.amenities.map((a) => <span key={a} className="tag">{a}</span>)}
+          </div>
+        </div>
+      )}
+
+      {/* Popular dishes */}
+      {r.popularDishes && r.popularDishes.length > 0 && (
+        <div style={{ marginTop: 18 }}>
+          <h2 style={{ fontSize: 18, margin: '0 0 10px' }}>Popular dishes</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px,1fr))', gap: 12 }}>
+            {r.popularDishes.map((d, i) => (
+              <div key={i} className="card" style={{ padding: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <strong style={{ fontSize: 14 }}>{d.name}</strong>
+                  <span style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' }}>{inr(d.priceInr)}</span>
+                </div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>{d.desc}</div>
+                <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
+                  {d.bestseller && <span style={{ fontSize: 10, fontWeight: 700, color: '#8a6d00', background: '#fff3cf', borderRadius: 6, padding: '1px 6px' }}>★ Bestseller</span>}
+                  <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>{d.dietLabel}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
