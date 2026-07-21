@@ -922,6 +922,7 @@ model BeautyProfile {
   photosJson   String   @default("[]") // JSON [{slot, analyzedAt, findings[]}] — latest photo assessment
   progressJson String   @default("[]") // JSON [{id, date, findings[], score, thumb}] — weekly progress timeline
   analysisJson String? // JSON: saved one-time assessment (skin + hair attribute readings, issues, recommendations)
+  analysisLogJson String? // JSON [iso timestamps] — every photo analysis run (rate-limits re-uploads; survives deletes)
   analyzedAt   DateTime? // when the saved assessment was generated (no re-analysis until re-saved)
   updatedAt    DateTime @updatedAt
 

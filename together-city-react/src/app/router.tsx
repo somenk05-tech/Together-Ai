@@ -35,7 +35,6 @@ const MedRecords = lazy(() => import('@/features/medical/pages/Records').then((m
 const MedConsults = lazy(() => import('@/features/medical/pages/Consults').then((m) => ({ default: m.Consults })));
 const MedConsent = lazy(() => import('@/features/medical/pages/Consent').then((m) => ({ default: m.Consent })));
 const BeautyProfile = lazy(() => import('@/features/beauty/pages/Profile').then((m) => ({ default: m.Profile })));
-const BeautyInsights = lazy(() => import('@/features/beauty/pages/Insights').then((m) => ({ default: m.Insights })));
 const BeautyMarket = lazy(() => import('@/features/beauty/pages/Market').then((m) => ({ default: m.Market })));
 const BeautyOrders = lazy(() => import('@/features/beauty/pages/Orders').then((m) => ({ default: m.Orders })));
 const FitnessProfile = lazy(() => import('@/features/fitness/pages/Profile').then((m) => ({ default: m.Profile })));
@@ -267,7 +266,6 @@ export const router = createBrowserRouter([
     element: <HubLayout hub={HUBS.beauty} />,
     children: [
       { path: '/beauty/profile', element: <RequireAuth>{wrap(<BeautyProfile />)}</RequireAuth> },
-      { path: '/beauty/insights', element: <RequireAuth>{wrap(<BeautyInsights />)}</RequireAuth> },
       { path: '/beauty/market', element: <RequireAuth>{wrap(<BeautyMarket />)}</RequireAuth> },
       { path: '/beauty/orders', element: <RequireAuth>{wrap(<BeautyOrders />)}</RequireAuth> },
       { path: '/beauty/dermatologist', element: <RequireAuth>{wrap(<BeautyDermatologist />)}</RequireAuth> },

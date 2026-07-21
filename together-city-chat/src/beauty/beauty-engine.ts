@@ -131,74 +131,149 @@ export function beautyInsights(values: Record<string, number>): BeautyInsight[] 
 export interface BeautyProduct {
   id: string;
   name: string;
+  brand: string;
   category: string;         // display category
   priceInr: number;
-  tags: BeautyTag[];        // needs it addresses
+  tags: BeautyTag[];        // biomarker-insight needs it addresses (secondary signal)
+  profileKeys: string[];    // assessment reading keys it addresses (PRIMARY signal)
+  suitableSkin: string[];   // skin types it suits ('all' | dry/oily/combination/normal/sensitive)
+  actives: string[];        // key active ingredients
+  usage: string;            // Morning | Night | Morning & Night | Weekly
   blurb: string;
   keyIngredient: string;
 }
 
-/** Curated, science-led shelf. Tags connect each product to insights & concerns. */
+/** Curated, science-led shelf. profileKeys drive matching; tags refine via labs. */
 export const BEAUTY_PRODUCTS: BeautyProduct[] = [
-  { id: 'bp_barrier', name: 'Ceramide Barrier Cream', category: 'Moisturiser', priceInr: 1290, tags: ['barrier', 'hydration'], keyIngredient: 'Ceramides + cholesterol', blurb: 'Rebuilds a stressed skin barrier; the anchor for dry, reactive skin.' },
-  { id: 'bp_hydra', name: 'Hyaluronic Hydra Serum', category: 'Serum', priceInr: 990, tags: ['hydration'], keyIngredient: 'Multi-weight hyaluronic acid', blurb: 'Layered water-binding hydration under moisturiser.' },
-  { id: 'bp_vitc', name: 'Vitamin C 15% Serum', category: 'Serum', priceInr: 1490, tags: ['antioxidant', 'brightening'], keyIngredient: 'L-ascorbic acid 15%', blurb: 'Daytime antioxidant that brightens tone and supports collagen.' },
-  { id: 'bp_niac', name: 'Niacinamide 10% + Zinc', category: 'Serum', priceInr: 850, tags: ['brightening', 'soothing', 'barrier'], keyIngredient: 'Niacinamide 10%', blurb: 'Evens tone, calms redness and reinforces the barrier.' },
-  { id: 'bp_spf', name: 'Mineral SPF 50 Fluid', category: 'Sunscreen', priceInr: 1150, tags: ['spf'], keyIngredient: 'Zinc oxide', blurb: 'Daily broad-spectrum defence; stops pigment deepening.' },
-  { id: 'bp_retinal', name: 'Retinal 0.05% Night', category: 'Treatment', priceInr: 1690, tags: ['collagen', 'antioxidant'], keyIngredient: 'Retinaldehyde', blurb: 'Nightly collagen-support retinoid for firmness and renewal.' },
-  { id: 'bp_peptide', name: 'Peptide Collagen Boost', category: 'Serum', priceInr: 1590, tags: ['collagen'], keyIngredient: 'Signal peptides', blurb: 'Peptide complex to support firmness where glycation is a concern.' },
-  { id: 'bp_scalp', name: 'Scalp Density Serum', category: 'Haircare', priceInr: 1390, tags: ['scalp', 'hair-density'], keyIngredient: 'Caffeine + copper peptides', blurb: 'Supports the hair you have while iron stores recover.' },
-  { id: 'bp_centella', name: 'Centella Soothing Gel', category: 'Treatment', priceInr: 950, tags: ['soothing', 'barrier'], keyIngredient: 'Centella asiatica', blurb: 'Calms reactive, inflammation-prone skin.' },
-  { id: 'bp_cleanser', name: 'Gentle Amino Cleanser', category: 'Cleanser', priceInr: 690, tags: ['barrier'], keyIngredient: 'Amino-acid surfactants', blurb: 'A low-strip daily cleanser that respects the barrier.' },
+  { id: 'bp_barrier', name: 'Ceramide Barrier Cream', brand: 'Together Beauty Labs', category: 'Moisturiser', priceInr: 1290, tags: ['barrier', 'hydration'], profileKeys: ['hydration', 'redness'], suitableSkin: ['dry', 'sensitive', 'normal', 'combination'], actives: ['Ceramides', 'Cholesterol', 'Fatty acids'], usage: 'Morning & Night', keyIngredient: 'Ceramides + cholesterol', blurb: 'Rebuilds a stressed skin barrier; the anchor for dry, reactive skin.' },
+  { id: 'bp_hydra', name: 'Hyaluronic Hydra Serum', brand: 'Together Beauty Labs', category: 'Serum', priceInr: 990, tags: ['hydration'], profileKeys: ['hydration'], suitableSkin: ['all'], actives: ['Multi-weight hyaluronic acid', 'Panthenol'], usage: 'Morning & Night', keyIngredient: 'Multi-weight hyaluronic acid', blurb: 'Layered water-binding hydration under moisturiser.' },
+  { id: 'bp_vitc', name: 'Vitamin C 15% Serum', brand: 'Together Beauty Labs', category: 'Serum', priceInr: 1490, tags: ['antioxidant', 'brightening'], profileKeys: ['pigmentation', 'wrinkles'], suitableSkin: ['normal', 'combination', 'oily', 'dry'], actives: ['L-ascorbic acid 15%', 'Vitamin E', 'Ferulic acid'], usage: 'Morning', keyIngredient: 'L-ascorbic acid 15%', blurb: 'Daytime antioxidant that brightens tone and supports collagen.' },
+  { id: 'bp_niac', name: 'Niacinamide 10% + Zinc', brand: 'Together Beauty Labs', category: 'Serum', priceInr: 850, tags: ['brightening', 'soothing', 'barrier'], profileKeys: ['acne', 'oil', 'redness', 'pigmentation'], suitableSkin: ['oily', 'combination', 'sensitive', 'normal'], actives: ['Niacinamide 10%', 'Zinc PCA'], usage: 'Morning & Night', keyIngredient: 'Niacinamide 10%', blurb: 'Evens tone, calms redness, controls oil and reinforces the barrier.' },
+  { id: 'bp_spf', name: 'Mineral SPF 50 Fluid', brand: 'Together Beauty Labs', category: 'Sunscreen', priceInr: 1150, tags: ['spf'], profileKeys: ['pigmentation', 'wrinkles', 'redness'], suitableSkin: ['all'], actives: ['Zinc oxide 22%'], usage: 'Morning', keyIngredient: 'Zinc oxide', blurb: 'Daily broad-spectrum defence; stops pigment deepening.' },
+  { id: 'bp_retinal', name: 'Retinal 0.05% Night', brand: 'Together Beauty Labs', category: 'Treatment', priceInr: 1690, tags: ['collagen', 'antioxidant'], profileKeys: ['wrinkles', 'texture', 'acne'], suitableSkin: ['normal', 'combination', 'oily', 'dry'], actives: ['Retinaldehyde 0.05%', 'Squalane'], usage: 'Night', keyIngredient: 'Retinaldehyde', blurb: 'Nightly collagen-support retinoid for firmness and renewal.' },
+  { id: 'bp_peptide', name: 'Peptide Collagen Boost', brand: 'Together Beauty Labs', category: 'Serum', priceInr: 1590, tags: ['collagen'], profileKeys: ['wrinkles'], suitableSkin: ['all'], actives: ['Matrixyl 3000', 'Copper peptides'], usage: 'Morning & Night', keyIngredient: 'Signal peptides', blurb: 'Peptide complex to support firmness where glycation is a concern.' },
+  { id: 'bp_centella', name: 'Centella Soothing Gel', brand: 'Together Beauty Labs', category: 'Treatment', priceInr: 950, tags: ['soothing', 'barrier'], profileKeys: ['redness', 'acne'], suitableSkin: ['sensitive', 'oily', 'combination', 'normal'], actives: ['Centella asiatica', 'Madecassoside'], usage: 'Morning & Night', keyIngredient: 'Centella asiatica', blurb: 'Calms reactive, inflammation-prone skin.' },
+  { id: 'bp_cleanser', name: 'Gentle Amino Cleanser', brand: 'Together Beauty Labs', category: 'Cleanser', priceInr: 690, tags: ['barrier'], profileKeys: ['hydration', 'redness', 'oil'], suitableSkin: ['all'], actives: ['Amino-acid surfactants', 'Glycerin'], usage: 'Morning & Night', keyIngredient: 'Amino-acid surfactants', blurb: 'A low-strip daily cleanser that respects the barrier.' },
+  { id: 'bp_scalp', name: 'Scalp Density Serum', brand: 'Together Beauty Labs', category: 'Haircare', priceInr: 1390, tags: ['scalp', 'hair-density'], profileKeys: ['density', 'hairline'], suitableSkin: ['all'], actives: ['Caffeine', 'Copper peptides', 'Redensyl'], usage: 'Night', keyIngredient: 'Caffeine + copper peptides', blurb: 'Supports density and the hairline — daily leave-in scalp serum.' },
+  { id: 'bp_bond', name: 'Bond Repair Mask', brand: 'Together Beauty Labs', category: 'Haircare', priceInr: 1190, tags: ['scalp'], profileKeys: ['damage', 'thickness'], suitableSkin: ['all'], actives: ['Bond-building complex', 'Hydrolysed keratin'], usage: 'Weekly', keyIngredient: 'Bond-building complex', blurb: 'Rebuilds broken bonds in frizzy, damaged or colour-treated hair.' },
+  { id: 'bp_scalptonic', name: 'Balancing Scalp Tonic', brand: 'Together Beauty Labs', category: 'Haircare', priceInr: 890, tags: ['scalp'], profileKeys: ['scalp'], suitableSkin: ['all'], actives: ['Piroctone olamine', 'Salicylic acid', 'Niacinamide'], usage: 'Morning & Night', keyIngredient: 'Piroctone olamine', blurb: 'Settles flaking, itch and oil at the root of scalp trouble.' },
+  { id: 'bp_protein', name: 'Volumising Protein Shampoo', brand: 'Together Beauty Labs', category: 'Haircare', priceInr: 790, tags: ['scalp', 'hair-density'], profileKeys: ['thickness', 'density'], suitableSkin: ['all'], actives: ['Hydrolysed rice protein', 'Biotin'], usage: 'Morning', keyIngredient: 'Hydrolysed rice protein', blurb: 'Body and strength for fine or thinning strands.' },
 ];
 
-/** Concern keys the user can set in their Beauty profile → the tags they map to. */
-export const CONCERN_TAGS: Record<string, { label: string; tags: BeautyTag[] }> = {
-  dryness: { label: 'Dryness', tags: ['barrier', 'hydration'] },
-  dullness: { label: 'Dullness', tags: ['brightening', 'antioxidant'] },
-  acne: { label: 'Breakouts', tags: ['soothing'] },
-  aging: { label: 'Fine lines', tags: ['collagen', 'antioxidant'] },
-  pigmentation: { label: 'Dark spots', tags: ['brightening', 'spf'] },
-  sensitivity: { label: 'Sensitivity', tags: ['soothing', 'barrier'] },
-  hairLoss: { label: 'Hair thinning', tags: ['scalp', 'hair-density'] },
+/** Legacy quick-concern keys → the assessment reading keys they imply. */
+export const CONCERN_TAGS: Record<string, { label: string; tags: BeautyTag[]; keys: string[] }> = {
+  dryness: { label: 'Dryness', tags: ['barrier', 'hydration'], keys: ['hydration'] },
+  dullness: { label: 'Dullness', tags: ['brightening', 'antioxidant'], keys: ['pigmentation', 'texture'] },
+  acne: { label: 'Breakouts', tags: ['soothing'], keys: ['acne'] },
+  aging: { label: 'Fine lines', tags: ['collagen', 'antioxidant'], keys: ['wrinkles'] },
+  pigmentation: { label: 'Dark spots', tags: ['brightening', 'spf'], keys: ['pigmentation'] },
+  sensitivity: { label: 'Sensitivity', tags: ['soothing', 'barrier'], keys: ['redness'] },
+  hairLoss: { label: 'Hair thinning', tags: ['scalp', 'hair-density'], keys: ['density'] },
+};
+
+/** Friendly biomarker labels for the secondary-optimisation chips. */
+const MARKER_CHIP: Record<string, string> = {
+  ferritin: 'Low ferritin', hb: 'Low hemoglobin', vitd: 'Low vitamin D', b12: 'Low vitamin B12',
+  folate: 'Low folate', hba1c: 'Elevated HbA1c', crp: 'Elevated CRP',
 };
 
 export interface RecommendedProduct extends BeautyProduct {
   matched: boolean;
-  reasons: string[];        // why it's recommended (insight concern / profile concern)
+  matchScore: number;            // 0–100 AI match score
+  primaryReasons: string[];      // from the skin & hair assessment (PRIMARY)
+  biomarkerReasons: string[];    // secondary optimisation chips ("Elevated HbA1c (glycation)")
+  explanation: string;           // the "Why was this recommended?" text
+  reasons: string[];             // legacy combined list (kept for older clients)
 }
 
-/**
- * Rank the shelf for a user: a product is "matched" when its tags overlap the
- * tags demanded by their biomarker insights and/or their stated concerns.
- * Matched products come first, most-relevant first, each with human reasons.
- */
-export function recommendProducts(
-  insights: BeautyInsight[],
-  concerns: string[],
-): RecommendedProduct[] {
-  const insightTag = new Map<BeautyTag, string>();          // tag → concern label (from labs)
-  for (const ins of insights) for (const t of ins.tags) if (!insightTag.has(t)) insightTag.set(t, ins.concern);
+export interface ReadingLite { key: string; label: string; level: string }
+const SEV: Record<string, number> = { priority: 1, attention: 0.85, monitor: 0.6, good: 0 };
 
-  const concernTag = new Map<BeautyTag, string>();          // tag → concern label (from profile)
-  for (const c of concerns) {
-    const def = CONCERN_TAGS[c];
-    if (def) for (const t of def.tags) if (!concernTag.has(t)) concernTag.set(t, def.label);
+/**
+ * Profile-first ranking. Weighting: ~85% the skin & hair assessment (AI photo
+ * analysis + onboarding profile), ~10% biomarker optimisation, ~5% preferences
+ * (budget, allergies). A product is NEVER recommended on biomarkers alone — if
+ * nothing in the user's skin/hair assessment calls for it, lab signals add zero.
+ */
+export function recommendProducts(opts: {
+  readings: ReadingLite[];
+  concerns: string[];
+  profile: { skinType?: string; budget?: string; allergies?: string[] };
+  insights: BeautyInsight[];
+}): RecommendedProduct[] {
+  const { readings, concerns, profile, insights } = opts;
+  const skinType = (profile.skinType ?? 'normal').toLowerCase();
+  const allergies = (profile.allergies ?? []).map((a) => a.toLowerCase()).filter(Boolean);
+
+  // Primary signal: assessment readings with an active (non-good) level.
+  const need = new Map<string, ReadingLite>();
+  for (const r of readings) if ((SEV[r.level] ?? 0) > 0) need.set(r.key, r);
+  // Fallback for users without an assessment yet: derive needs from quick concerns.
+  if (need.size === 0) {
+    for (const c of concerns) {
+      const def = CONCERN_TAGS[c];
+      if (def) for (const k of def.keys) if (!need.has(k)) need.set(k, { key: k, label: def.label, level: 'attention' });
+    }
   }
 
-  const scored = BEAUTY_PRODUCTS.map((p) => {
-    const reasons: string[] = [];
-    let score = 0;
-    for (const t of p.tags) {
-      if (insightTag.has(t)) { score += 3; reasons.push(`From your labs: ${insightTag.get(t)}`); }
-      else if (concernTag.has(t)) { score += 1; reasons.push(`Your concern: ${concernTag.get(t)}`); }
-    }
-    // de-duplicate reasons, keep order
-    const seen = new Set<string>();
-    const uniqueReasons = reasons.filter((r) => (seen.has(r) ? false : seen.add(r)));
-    return { ...p, matched: score > 0, reasons: uniqueReasons, _score: score };
-  });
+  // Secondary signal: biomarker insights, indexed by the product tags they demand.
+  const bioByTag = new Map<BeautyTag, BeautyInsight>();
+  for (const ins of insights) for (const t of ins.tags) if (!bioByTag.has(t)) bioByTag.set(t, ins);
 
-  scored.sort((a, b) => b._score - a._score);
-  return scored.map(({ _score, ...p }) => p);
+  // Budget band from the profile ("₹1000–2500", "Under ₹500", "₹5000+").
+  const budgetMax = (() => {
+    const b = profile.budget ?? '';
+    const nums = (b.match(/\d+/g) ?? []).map(Number);
+    if (!nums.length) return null;
+    return b.includes('+') ? Infinity : Math.max(...nums);
+  })();
+
+  const scored = BEAUTY_PRODUCTS
+    // Hard filter: never surface something the user is allergic/sensitive to.
+    .filter((p) => !allergies.some((a) => p.actives.some((ing) => ing.toLowerCase().includes(a)) || p.keyIngredient.toLowerCase().includes(a)))
+    .map((p) => {
+      const matchedAttrs = p.profileKeys.map((k) => need.get(k)).filter(Boolean) as ReadingLite[];
+      const suitable = p.suitableSkin.includes('all') || p.suitableSkin.includes(skinType);
+
+      // 85% — skin & hair profile
+      let profilePart = 0;
+      if (matchedAttrs.length > 0 && suitable) {
+        const best = Math.max(...matchedAttrs.map((r) => SEV[r.level] ?? 0.6));
+        const breadth = Math.min(2, matchedAttrs.length - 1) * 0.08;
+        profilePart = 0.85 * Math.min(1, best + breadth + 0.05);
+      }
+
+      // 10% — biomarker optimisation (only ever ON TOP of a profile match)
+      const bioHits = profilePart > 0 ? [...new Set(p.tags.map((t) => bioByTag.get(t)).filter(Boolean))] as BeautyInsight[] : [];
+      const bioPart = 0.10 * Math.min(1, bioHits.length * 0.6);
+
+      // 5% — preferences
+      let prefPart = 0.02; // baseline for having a profile at all
+      if (budgetMax != null) prefPart += p.priceInr <= budgetMax ? 0.03 : -0.01;
+      prefPart = Math.max(0, Math.min(0.05, prefPart));
+
+      const matched = profilePart > 0;
+      const matchScore = Math.round(100 * Math.min(1, profilePart + bioPart + (matched ? prefPart : 0)));
+
+      const primaryReasons = [
+        ...matchedAttrs.map((r) => r.label),
+        ...(matched && !p.suitableSkin.includes('all') ? [`Suits ${skinType} skin`] : []),
+      ];
+      const biomarkerReasons = bioHits.map((i) => `${MARKER_CHIP[i.marker] ?? i.marker} (${i.concern.toLowerCase()})`);
+
+      const explanation = matched
+        ? `We recommended ${p.name} primarily because your skin & hair assessment shows ${matchedAttrs.map((r) => r.label.toLowerCase()).join(', ') || 'a matching need'}.`
+          + (bioHits.length ? ` Your blood panel adds a supporting signal — ${bioHits.map((i) => `${MARKER_CHIP[i.marker] ?? i.marker} is associated with ${i.concern.toLowerCase()}`).join('; ')} — so this pick was prioritised.` : '')
+          + ` It contains ${p.actives.slice(0, 3).join(', ')} to address exactly this. Use: ${p.usage.toLowerCase()}.`
+        : `${p.name} is general care — nothing in your current assessment specifically calls for it.`;
+
+      return {
+        ...p, matched, matchScore,
+        primaryReasons, biomarkerReasons, explanation,
+        reasons: [...primaryReasons.map((r) => `Your skin & hair: ${r}`), ...biomarkerReasons.map((r) => `Labs: ${r}`)],
+      };
+    });
+
+  scored.sort((a, b) => b.matchScore - a.matchScore || a.priceInr - b.priceInr);
+  return scored;
 }

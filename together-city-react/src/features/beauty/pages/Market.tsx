@@ -6,25 +6,57 @@ import { PaymentSheet } from '@/features/financial/PaymentSheet';
 import { ShareToChat } from '@/features/chat/share';
 
 function ProductCard({ p, qty, onAdd, onRemove }: { p: RecommendedProduct; qty: number; onAdd: () => void; onRemove: () => void }) {
+  const [why, setWhy] = useState(false);
+  const scoreColor = p.matchScore >= 80 ? '#2e7d32' : p.matchScore >= 55 ? 'var(--accent)' : 'var(--muted)';
   return (
     <article className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8, borderColor: p.matched ? 'var(--accent)' : 'var(--line)' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <strong style={{ fontSize: 15 }}>{p.name}</strong>
-        {p.matched && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: '#fff', background: 'var(--accent)', borderRadius: 999, padding: '2px 8px' }}>Matched</span>}
+        {p.matched && (
+          <span style={{ fontSize: 10.5, fontWeight: 800, color: '#fff', background: scoreColor, borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap' }}>
+            {p.matchScore}% match
+          </span>
+        )}
         <span className="muted" style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>₹{p.priceInr}</span>
       </div>
-      <div className="muted" style={{ fontSize: 11.5 }}>{p.category} · {p.keyIngredient}</div>
+      <div className="muted" style={{ fontSize: 11.5 }}>{p.brand} · {p.category}</div>
       <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: 0 }}>{p.blurb}</p>
-      {p.reasons.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {p.reasons.map((r) => (
-            <span key={r} style={{ fontSize: 10.5, fontWeight: 600, color: r.startsWith('From your labs') ? 'var(--accent)' : 'var(--muted)',
-              background: r.startsWith('From your labs') ? 'var(--accent-soft)' : 'transparent', border: r.startsWith('From your labs') ? 'none' : '1px solid var(--line)', borderRadius: 999, padding: '2px 9px' }}>
-              {r}
-            </span>
-          ))}
+
+      {/* PRIMARY — matched to the skin & hair assessment */}
+      {p.primaryReasons.length > 0 && (
+        <div>
+          <div className="muted" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Matched because</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {p.primaryReasons.map((r) => (
+              <span key={r} style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 10px' }}>{r}</span>
+            ))}
+          </div>
         </div>
       )}
+
+      {/* SECONDARY — biomarker optimisation (never the headline) */}
+      {p.biomarkerReasons.length > 0 && (
+        <div>
+          <div className="muted" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>🩸 Optimised using your biomarkers</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {p.biomarkerReasons.map((r) => (
+              <span key={r} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '2px 9px' }}>{r}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="muted" style={{ fontSize: 11.5 }}>
+        <strong style={{ color: 'var(--ink-soft)' }}>{p.actives.slice(0, 3).join(' · ')}</strong>
+        {' '}· {p.usage}{!p.suitableSkin.includes('all') ? ` · for ${p.suitableSkin.join('/')} skin` : ''}
+      </div>
+
+      <button type="button" onClick={() => setWhy(!why)}
+        style={{ alignSelf: 'flex-start', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, color: 'var(--accent)', padding: 0 }}>
+        {why ? '▾ Hide explanation' : '✨ Why was this recommended?'}
+      </button>
+      {why && <p style={{ fontSize: 12, lineHeight: 1.55, margin: 0, padding: '8px 10px', background: 'var(--paper)', borderRadius: 10, color: 'var(--ink-soft)' }}>{p.explanation}</p>}
+
       <div style={{ marginTop: 'auto', paddingTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
         {qty > 0 ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -39,7 +71,7 @@ function ProductCard({ p, qty, onAdd, onRemove }: { p: RecommendedProduct; qty: 
         <span style={{ marginLeft: 'auto' }}>
           <ShareToChat label="" item={{
             kind: 'product', hub: 'Beauty', title: p.name, subtitle: `${p.category} · ${p.keyIngredient}`,
-            priceInr: p.priceInr, deepLink: '/beauty/market', meta: p.matched ? ['Matched to you'] : [],
+            priceInr: p.priceInr, deepLink: '/beauty/market', meta: p.matched ? [`${p.matchScore}% match`] : [],
           }} />
         </span>
       </div>
@@ -68,7 +100,7 @@ export function Market() {
   const total = items.reduce((s, i) => s + i.priceInr * i.qty, 0);
 
   if (products.isLoading) return <Spinner label="Curating your shelf…" />;
-  if (products.isError || !products.data) return <EmptyState title="Couldn't load the market" hint="Start the backend and reload." />;
+  if (products.isError || !products.data) return <EmptyState title="Couldn't load the market" hint="Please check your connection and try again." />;
 
   const add = (id: string) => { setBag((b) => ({ ...b, [id]: (b[id] ?? 0) + 1 })); setPlaced(false); };
   const remove = (id: string) => setBag((b) => ({ ...b, [id]: Math.max(0, (b[id] ?? 0) - 1) }));
@@ -83,8 +115,8 @@ export function Market() {
       <h1 style={{ fontSize: 26 }}>Curated for you</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 12px' }}>
         {products.data.matchedCount > 0
-          ? `${products.data.matchedCount} products matched to ${products.data.personalisedBy.labs ? 'your labs and concerns' : 'your concerns'}.`
-          : 'Set your profile or add a blood panel to personalise the shelf.'}
+          ? `${products.data.matchedCount} products matched to your skin & hair ${products.data.personalisedBy.assessment ? 'assessment' : 'profile'}${products.data.personalisedBy.labs ? ', fine-tuned by your biomarkers' : ''}.`
+          : 'Complete your Skin & Hair Profile to personalise the shelf.'}
       </p>
 
       {/* segments */}

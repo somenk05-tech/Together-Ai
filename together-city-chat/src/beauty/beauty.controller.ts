@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -29,6 +29,12 @@ export class BeautyController {
   }
 
   // Permanent skin & hair timeline: every dated assessment + latest-vs-previous comparison.
+  // Delete the latest photo check-in so a fresh set can be uploaded.
+  @Delete('assessments/latest')
+  deleteLatest(@CurrentUser() user: JwtUser) {
+    return this.beauty.deleteLatestAssessment(user.sub);
+  }
+
   @Get('history')
   history(@CurrentUser() user: JwtUser) {
     return this.beauty.beautyHistory(user.sub);

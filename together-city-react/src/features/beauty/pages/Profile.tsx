@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
-import { useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights, useBeautyHistory, useConditionSuggestions } from '../api';
+import { useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights, useBeautyHistory, useConditionSuggestions, useDeleteLatestAssessment } from '../api';
 import type { BeautyAssessment, BeautyReading, AssessLevel, BeautyProgressEntry } from '../api';
 
 /** Assessment-level display meta for the timeline. */
@@ -358,6 +358,7 @@ export function Profile() {
   const profile = useBeautyProfile();
   const save = useSaveBeautyProfile();
   const analyze = useAnalyzeBeautyPhotos();
+  const del = useDeleteLatestAssessment();
   const [tab, setTab] = useState<'photos' | 'profile'>('photos');
   const [f, setF] = useState<Form>(EMPTY);
   const [pics, setPics] = useState<Record<string, { preview: string; base64: string; mediaType: string }>>({});
@@ -508,9 +509,23 @@ export function Profile() {
             {warning && (
               <p style={{ fontSize: 12.5, color: '#b0503e', fontWeight: 600, margin: '10px 0 0' }}>⚠️ {warning}</p>
             )}
-            <Button variant="accent" style={{ marginTop: 12 }} disabled={analyze.isPending || Object.keys(pics).length === 0} onClick={runAnalysis}>
-              {analyze.isPending ? 'Analysing…' : `Analyse & save${progress.length ? ' this week' : ''}`}
-            </Button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
+              <Button variant="accent" disabled={analyze.isPending || Object.keys(pics).length === 0 || (profile.data?.uploads?.remaining === 0)} onClick={runAnalysis}>
+                {analyze.isPending ? 'Analysing…' : `Analyse & save${progress.length ? ' this week' : ''}`}
+              </Button>
+              {profile.data?.uploads && (
+                <span className="muted" style={{ fontSize: 11.5 }}>
+                  {profile.data.uploads.remaining} of {profile.data.uploads.limit} analyses left this week
+                </span>
+              )}
+              {progress.length > 0 && (
+                <button type="button" disabled={del.isPending}
+                  onClick={() => { if (window.confirm('Delete your latest photo check-in? Your earlier timeline entries stay. This does not refund a weekly analysis.')) del.mutate(); }}
+                  style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: '#b0503e', padding: 0 }}>
+                  {del.isPending ? 'Deleting…' : '🗑 Delete latest & re-upload'}
+                </button>
+              )}
+            </div>
             {analyze.isError && (
               <p style={{ fontSize: 12.5, color: '#b0503e', fontWeight: 600, margin: '10px 0 0' }}>
                 ⚠️ The analysis didn't go through — please check your connection and tap Analyse again. If it keeps failing, try re-adding the photos.

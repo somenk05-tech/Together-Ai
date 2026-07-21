@@ -41,6 +41,7 @@ export interface BeautyProfile {
   progress?: BeautyProgressEntry[];
   analyzedAt?: string | null;
   aiEnabled?: boolean;
+  uploads?: { limit: number; used: number; remaining: number };
   concernOptions?: { key: string; label: string }[];
 }
 export interface BeautyInsight {
@@ -52,12 +53,15 @@ export interface InsightsResponse {
   insights: BeautyInsight[]; source: string; disclaimer: string;
 }
 export interface RecommendedProduct {
-  id: string; name: string; category: string; priceInr: number; tags: string[];
-  blurb: string; keyIngredient: string; matched: boolean; reasons: string[];
+  id: string; name: string; brand: string; category: string; priceInr: number; tags: string[];
+  blurb: string; keyIngredient: string; actives: string[]; usage: string; suitableSkin: string[];
+  matched: boolean; matchScore: number;
+  primaryReasons: string[]; biomarkerReasons: string[]; explanation: string;
+  reasons: string[];
 }
 export interface ProductsResponse {
   products: RecommendedProduct[];
-  personalisedBy: { concerns: string[]; labs: boolean };
+  personalisedBy: { concerns: string[]; labs: boolean; assessment: boolean };
   matchedCount: number;
 }
 export interface BeautyOrder {
@@ -77,6 +81,7 @@ export const beautyApi = {
   analyzePhotos: (photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string) =>
     api.post<BeautyProfile & { photoFindings: string[]; aiUsed: boolean; quality: 'ok' | 'unclear' | 'suspect'; warning: string }>('/beauty/photos/analyze', { photos, thumb }).then((r) => r.data),
   history: () => api.get<BeautyHistory>('/beauty/history').then((r) => r.data),
+  deleteLatestAssessment: () => api.delete<BeautyProfile>('/beauty/assessments/latest').then((r) => r.data),
   conditionSuggestions: () => api.get<ConditionSuggestions>('/medical/conditions/suggested').then((r) => r.data),
   insights: () => api.get<InsightsResponse>('/beauty/insights').then((r) => r.data),
   products: () => api.get<ProductsResponse>('/beauty/products').then((r) => r.data),
@@ -104,6 +109,17 @@ export function useAnalyzeBeautyPhotos() {
   return useMutation({
     mutationFn: (v: { photos: { slot: string; base64: string; mediaType?: string }[]; thumb?: string }) => beautyApi.analyzePhotos(v.photos, v.thumb),
     onSuccess: (p) => { qc.setQueryData(['beauty', 'profile'], p); void qc.invalidateQueries({ queryKey: ['beauty', 'products'] }); void qc.invalidateQueries({ queryKey: ['beauty', 'history'] }); },
+  });
+}
+export function useDeleteLatestAssessment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => beautyApi.deleteLatestAssessment(),
+    onSuccess: (p) => {
+      qc.setQueryData(['beauty', 'profile'], p);
+      void qc.invalidateQueries({ queryKey: ['beauty', 'history'] });
+      void qc.invalidateQueries({ queryKey: ['beauty', 'products'] });
+    },
   });
 }
 export function useBeautyHistory() {

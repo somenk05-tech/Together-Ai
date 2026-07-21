@@ -16,6 +16,7 @@ const DEFAULT_PROFILE = { skinType: 'normal', hairType: 'straight', concerns: []
 interface BeautyRow {
   skinType: string; hairType: string; concerns: string;
   extras: string | null; photosJson: string; progressJson: string; analysisJson: string | null; analyzedAt: Date | null;
+  analysisLogJson?: string | null; // rolling-week analysis log (new column; offline client can't type it)
 }
 /** A permanent, dated skin & hair assessment in the timeline. Each entry keeps a
  *  per-attribute snapshot so any past assessment can be revisited and compared —
@@ -140,6 +141,7 @@ export class BeautyService {
       progress: safeJson<ProgressEntry[]>(row.progressJson, []),
       analyzedAt: row.analyzedAt ? row.analyzedAt.toISOString() : null,
       aiEnabled: this.ai.enabled,
+      uploads: { limit: 5, used: this.analysisLog(row).length, remaining: Math.max(0, 5 - this.analysisLog(row).length) },
       concernOptions: Object.entries(CONCERN_TAGS).map(([key, v]) => ({ key, label: v.label })),
     };
   }
@@ -180,6 +182,20 @@ export class BeautyService {
    */
   async analyzePhotos(userId: string, photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string) {
     const existing = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
+
+    // Rolling-week rate limit: at most 5 photo analyses per 7 days (deleting a
+    // check-in does not refund one — the log survives deletes).
+    const recentLog = this.analysisLog(existing);
+    if (recentLog.length >= 5) {
+      const oldest = new Date(Math.min(...recentLog.map((t) => new Date(t).getTime())));
+      const nextAt = new Date(oldest.getTime() + 7 * 86_400_000);
+      return {
+        ...(await this.getProfile(userId)), photoFindings: [] as string[], aiUsed: false,
+        quality: 'limit' as const,
+        warning: `You've used all 5 photo analyses for this week. You can analyse again after ${nextAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}.`,
+      };
+    }
+
     const profile = safeJson<BeautyProfileInput>(existing?.extras, {});
     const images = photos.filter((p) => p.base64).map((p) => ({ base64: p.base64, mediaType: p.mediaType || 'image/jpeg' }));
 
@@ -202,14 +218,16 @@ export class BeautyService {
     const nextProgress = rejected ? progress : this.appendAssessment(progress, analysis, { thumb });
     void issues; // (issues are captured inside the appended assessment)
 
-    // On a rejected photo, keep the prior assessment rather than overwriting it.
+    // Record this analysis run in the rolling-week log (counts even if rejected —
+    // each run costs an AI review). On a rejected photo, keep the prior assessment.
+    const newLog = JSON.stringify([...recentLog, now.toISOString()]);
     const update = rejected
-      ? { photosJson: JSON.stringify(photoRows) }
-      : { photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: now };
+      ? { photosJson: JSON.stringify(photoRows), analysisLogJson: newLog }
+      : { photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: now, analysisLogJson: newLog };
     await this.beauty.upsert({
       where: { userId },
       update: update as never,
-      create: { userId, skinType: String(profile.skinType ?? 'normal'), hairType: String(profile.hairType ?? 'straight'), concerns: (profile.skinConcerns ?? []).join(','), extras: JSON.stringify(profile), photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(rejected ? [] : nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: now } as never,
+      create: { userId, skinType: String(profile.skinType ?? 'normal'), hairType: String(profile.hairType ?? 'straight'), concerns: (profile.skinConcerns ?? []).join(','), extras: JSON.stringify(profile), photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(rejected ? [] : nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: now, analysisLogJson: newLog } as never,
     });
     return { ...(await this.getProfile(userId)), photoFindings: findings, aiUsed: this.ai.enabled && images.length > 0, quality: review.quality, warning };
   }
@@ -252,14 +270,57 @@ export class BeautyService {
       usedLabs = insights.length > 0;
     } catch (e) {
       if (!(e instanceof ForbiddenException)) throw e;
-      // consent revoked → catalog still personalises by stated concerns only
+      // consent revoked → recommendations run purely on the skin & hair profile
     }
-    const products = recommendProducts(insights, profile.concerns);
+    // PRIMARY signal: the saved assessment's per-attribute readings.
+    const analysis = profile.analysis as { skin?: { readings?: { key: string; label: string; level: string }[] }; hair?: { readings?: { key: string; label: string; level: string }[] } } | null;
+    const readings = [...(analysis?.skin?.readings ?? []), ...(analysis?.hair?.readings ?? [])];
+    const extras = profile.profile as { skinType?: string; budget?: string; allergies?: string[] };
+    const products = recommendProducts({
+      readings,
+      concerns: profile.concerns,
+      profile: { skinType: String(extras.skinType ?? profile.skinType), budget: extras.budget, allergies: extras.allergies },
+      insights,
+    });
     return {
       products,
-      personalisedBy: { concerns: profile.concerns, labs: usedLabs },
+      personalisedBy: { concerns: profile.concerns, labs: usedLabs, assessment: readings.length > 0 },
       matchedCount: products.filter((p) => p.matched).length,
     };
+  }
+
+  // ─────────────── photo re-upload management (5 analyses / rolling week) ───────────────
+
+  private analysisLog(row: BeautyRow | null): string[] {
+    const log = safeJson<string[]>(row?.analysisLogJson, []);
+    const weekAgo = Date.now() - 7 * 86_400_000;
+    return log.filter((t) => new Date(t).getTime() > weekAgo);
+  }
+
+  /** How many photo analyses remain this rolling week (max 5). */
+  async uploadAllowance(userId: string) {
+    const row = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
+    const used = this.analysisLog(row).length;
+    return { limit: 5, used, remaining: Math.max(0, 5 - used) };
+  }
+
+  /** Delete the latest photo check-in so the user can re-upload. The assessment
+   *  is regenerated from the profile alone (photo findings removed); the weekly
+   *  analysis counter is NOT reset — deleting doesn't refund an upload. */
+  async deleteLatestAssessment(userId: string) {
+    const existing = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
+    if (!existing) return this.getProfile(userId);
+    const progress = safeJson<ProgressEntry[]>(existing.progressJson, []);
+    if (progress.length === 0) return this.getProfile(userId);
+    const nextProgress = progress.slice(0, -1);
+    const profile = safeJson<BeautyProfileInput>(existing.extras, {});
+    const analysis = assessBeauty(profile, []); // regenerate without the deleted photos' findings
+    await this.beauty.upsert({
+      where: { userId },
+      update: { photosJson: '[]', progressJson: JSON.stringify(nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: new Date() } as never,
+      create: { userId, skinType: 'normal', hairType: 'straight', concerns: '', photosJson: '[]', progressJson: '[]' } as never,
+    });
+    return this.getProfile(userId);
   }
 
   // ─────────────── orders (the commerce loop) ───────────────
