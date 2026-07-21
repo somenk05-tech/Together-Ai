@@ -207,7 +207,32 @@ export class BeautyService {
         ? 'These photos are too unclear to analyse — try again in good, even lighting without cropping.'
         : '';
     const findings = review.findings;
-    const analysis = assessBeauty(profile, findings);
+
+    // "Don't know" answers → estimate from what the photos show, and mark the
+    // fields as AI-estimated (the user can edit them anytime).
+    const fset = findings.join(' ').toLowerCase();
+    const unknown = (v?: string) => !v || /don'?t know/i.test(String(v));
+    const est: Record<string, string> = {};
+    if (!rejected) {
+      if (unknown(profile.skinType)) {
+        if (/oily|sebum|shine/.test(fset)) est.skinType = 'Oily';
+        else if (/dehydrat|dry skin|flak/.test(fset)) est.skinType = 'Dry';
+        else if (/redness|sensitiv/.test(fset)) est.skinType = 'Sensitive';
+        else if (fset) est.skinType = 'Normal';
+      }
+      if (unknown(profile.scalpType)) {
+        if (/dandruff|dry scalp|flaky scalp/.test(fset)) est.scalpType = 'Dry';
+        else if (/oily scalp/.test(fset)) est.scalpType = 'Oily';
+      }
+      if (unknown(profile.hairDensity) && /low density|thinning|hair loss|sparse/.test(fset)) est.hairDensity = 'Low';
+      if (unknown(profile.hairTexture) && /frizz|damage|breakage/.test(fset)) est.hairTexture = 'Frizzy';
+    }
+    const estKeys = Object.keys(est);
+    const profileForAssess: BeautyProfileInput = estKeys.length
+      ? { ...profile, ...est, aiEstimated: { ...((profile as { aiEstimated?: Record<string, boolean> }).aiEstimated ?? {}), ...Object.fromEntries(estKeys.map((k) => [k, true])) } } as BeautyProfileInput
+      : profile;
+
+    const analysis = assessBeauty(profileForAssess, findings);
     const issues = [...analysis.skin.issues, ...analysis.hair.issues];
     const photoRows = photos.map((p) => ({ slot: p.slot, analyzedAt: new Date().toISOString(), findings }));
     const now = new Date();
@@ -223,7 +248,8 @@ export class BeautyService {
     const newLog = JSON.stringify([...recentLog, now.toISOString()]);
     const update = rejected
       ? { photosJson: JSON.stringify(photoRows), analysisLogJson: newLog }
-      : { photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: now, analysisLogJson: newLog };
+      : { photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: now, analysisLogJson: newLog,
+          ...(estKeys.length ? { extras: JSON.stringify(profileForAssess) } : {}) };
     await this.beauty.upsert({
       where: { userId },
       update: update as never,

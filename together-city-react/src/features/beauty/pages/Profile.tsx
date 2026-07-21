@@ -145,23 +145,23 @@ function BiomarkerCorrelation() {
 }
 
 /* ── option catalogs (spec) ── */
-const LIFESTYLE = ['Mostly Indoors', 'Mixed', 'Mostly Outdoors'];
-const SKIN_TYPES = ['Normal', 'Dry', 'Oily', 'Combination', 'Sensitive'];
-const SKIN_TONES = ['Very Fair', 'Fair', 'Medium', 'Wheatish', 'Brown', 'Deep'];
+const LIFESTYLE = ['Mostly Indoors', 'Mixed', 'Mostly Outdoors', "Don't know"];
+const SKIN_TYPES = ['Normal', 'Dry', 'Oily', 'Combination', 'Sensitive', "Don't know"];
+const SKIN_TONES = ['Very Fair', 'Fair', 'Medium', 'Wheatish', 'Brown', 'Deep', "Don't know"];
 const UNDERTONES = ['Warm', 'Cool', 'Neutral', "Don't Know"];
 const SKIN_GOALS = ['Clear Acne', 'Reduce Acne Scars', 'Brighten Skin', 'Even Skin Tone', 'Reduce Pigmentation', 'Reduce Dark Spots', 'Reduce Tanning', 'Hydration', 'Anti Ageing', 'Fine Lines', 'Wrinkles', 'Firmness', 'Reduce Pores', 'Glass Skin', 'Oil Control', 'Calm Sensitive Skin', 'Reduce Redness', 'Glow', 'Skin Barrier Repair'];
 const SKIN_CONCERNS = ['Acne', 'Pimples', 'Whiteheads', 'Blackheads', 'Dark Spots', 'Hyperpigmentation', 'Melasma', 'Rosacea', 'Eczema', 'Dryness', 'Flaky Skin', 'Oily Skin', 'Dull Skin', 'Large Pores', 'Fine Lines', 'Wrinkles', 'Uneven Texture', 'Sun Damage', 'Dark Circles', 'Puffy Eyes', 'Chapped Lips'];
-const HAIR_TYPES = ['Straight', 'Wavy', 'Curly', 'Coily'];
-const HAIR_THICK = ['Fine', 'Medium', 'Thick'];
-const HAIR_DENSITY = ['Low', 'Medium', 'High'];
-const HAIR_TEXTURE = ['Smooth', 'Normal', 'Frizzy', 'Dry', 'Damaged'];
+const HAIR_TYPES = ['Straight', 'Wavy', 'Curly', 'Coily', "Don't know"];
+const HAIR_THICK = ['Fine', 'Medium', 'Thick', "Don't know"];
+const HAIR_DENSITY = ['Low', 'Medium', 'High', "Don't know"];
+const HAIR_TEXTURE = ['Smooth', 'Normal', 'Frizzy', 'Dry', 'Damaged', "Don't know"];
 const HAIR_GOALS = ['Hair Growth', 'Reduce Hair Fall', 'Increase Volume', 'Repair Damage', 'Smooth Hair', 'Reduce Frizz', 'Dandruff Control', 'Healthy Scalp', 'Shine', 'Curl Definition', 'Colour Protection', 'Stronger Hair'];
 const HAIR_CONCERNS = ['Hair Fall', 'Thinning', 'Balding', 'Receding Hairline', 'Dandruff', 'Oily Scalp', 'Dry Scalp', 'Itchy Scalp', 'Split Ends', 'Breakage', 'Frizz', 'Grey Hair', 'Colour Damage'];
-const SCALP_TYPES = ['Dry', 'Oily', 'Normal', 'Sensitive'];
+const SCALP_TYPES = ['Dry', 'Oily', 'Normal', 'Sensitive', "Don't know"];
 const ROUTINE = ['Face Cleanser', 'Moisturizer', 'Sunscreen', 'Serum', 'Toner', 'Exfoliator', 'Face Mask', 'Hair Shampoo', 'Conditioner', 'Hair Oil', 'Hair Serum', 'Hair Mask'];
 const ALLERGIES = ['Fragrance', 'Essential Oils', 'Retinol', 'Niacinamide', 'Vitamin C', 'Salicylic Acid', 'Benzoyl Peroxide', 'AHA', 'BHA', 'Sulphates', 'Silicones', 'Parabens', 'Alcohol', 'Coconut Oil', 'Nuts'];
 const CONDITIONS = ['PCOS', 'Thyroid Disorders', 'Diabetes', 'Autoimmune Disorders', 'Pregnancy', 'Breastfeeding', 'Eczema', 'Psoriasis', 'Rosacea', 'Alopecia', 'Hormonal Acne', 'Seborrheic Dermatitis'];
-const BUDGET = ['Under ₹500', '₹500–1000', '₹1000–2500', '₹2500–5000', '₹5000+'];
+const BUDGET = ['Under ₹500', '₹500–1000', '₹1000–2500', '₹2500–5000', '₹5000+', "Don't know"];
 const PHOTO_SLOTS = [
   { key: 'face', label: 'Face (front)' }, { key: 'left', label: 'Left side' }, { key: 'right', label: 'Right side' },
   { key: 'hairline', label: 'Hairline' }, { key: 'top', label: 'Top of head' }, { key: 'scalp', label: 'Scalp close-up' },
@@ -181,6 +181,18 @@ interface Form {
   routine: string[]; allergies: string[]; medicalConditions: string[]; budget?: string;
 }
 const EMPTY: Form = { skinGoals: [], skinConcerns: [], hairGoals: [], hairConcerns: [], routine: [], allergies: [], medicalConditions: [] };
+
+/** Onboarding completion: every one of these 18 must be answered ("Don't know" /
+ *  "None of these" count as answers) before the AI analysis unlocks. */
+const NONE = 'None of these';
+const REQUIRED_SINGLE: (keyof Form)[] = ['gender', 'lifestyle', 'skinType', 'skinTone', 'undertone', 'hairType', 'hairThickness', 'hairDensity', 'hairTexture', 'scalpType', 'budget'];
+const REQUIRED_MULTI: (keyof Form)[] = ['skinGoals', 'skinConcerns', 'hairGoals', 'hairConcerns', 'routine', 'allergies', 'medicalConditions'];
+const REQUIRED_LABEL: Partial<Record<keyof Form, string>> = {
+  gender: 'Gender', lifestyle: 'Lifestyle', skinType: 'Skin type', skinTone: 'Skin tone', undertone: 'Undertone',
+  hairType: 'Hair type', hairThickness: 'Hair thickness', hairDensity: 'Hair density', hairTexture: 'Hair texture',
+  scalpType: 'Scalp type', budget: 'Budget', skinGoals: 'Skin goals', skinConcerns: 'Skin concerns',
+  hairGoals: 'Hair goals', hairConcerns: 'Hair concerns', routine: 'Current routine', allergies: 'Allergies', medicalConditions: 'Medical conditions',
+};
 
 const fld: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 10, padding: '9px 12px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
 
@@ -400,8 +412,69 @@ export function Profile() {
 
   const set = (k: keyof Form, v: unknown) => setF((s) => ({ ...s, [k]: v }));
   const single = (k: keyof Form, v: string) => set(k, f[k] === v ? undefined : v);
-  const multi = (k: keyof Form, v: string) => set(k, ((f[k] as string[]) ?? []).includes(v) ? (f[k] as string[]).filter((x) => x !== v) : [...((f[k] as string[]) ?? []), v]);
+  const multi = (k: keyof Form, v: string) => {
+    const cur = (f[k] as string[]) ?? [];
+    if (v === NONE) { set(k, cur.includes(NONE) ? [] : [NONE]); return; } // exclusive
+    const base = cur.filter((x) => x !== NONE);
+    set(k, base.includes(v) ? base.filter((x) => x !== v) : [...base, v]);
+  };
   const isOn = (k: keyof Form, v: string) => (Array.isArray(f[k]) ? (f[k] as string[]).includes(v) : f[k] === v);
+
+  // ── onboarding completion (photos 6/6 + profile 18/18 unlock the analysis) ──
+  const picsCount = Object.keys(pics).length;
+  const photosComplete = picsCount >= PHOTO_SLOTS.length;
+  const answered = [
+    ...REQUIRED_SINGLE.map((k) => Boolean(f[k] && String(f[k]).trim())),
+    ...REQUIRED_MULTI.map((k) => ((f[k] as string[]) ?? []).length > 0),
+  ].filter(Boolean).length;
+  const profileTotal = REQUIRED_SINGLE.length + REQUIRED_MULTI.length;
+  const profileComplete = answered >= profileTotal;
+  const overallPct = Math.round(((Math.min(picsCount, 6) / 6) * 0.5 + (answered / profileTotal) * 0.5) * 100);
+  const missing = [
+    ...REQUIRED_SINGLE.filter((k) => !(f[k] && String(f[k]).trim())),
+    ...REQUIRED_MULTI.filter((k) => (((f[k] as string[]) ?? []).length === 0)),
+  ].map((k) => REQUIRED_LABEL[k] ?? String(k));
+
+  // Auto-advance: the moment the 6th photo lands, glide to the Profile tab.
+  const [photoBanner, setPhotoBanner] = useState(false);
+  const autoSwitched = useRef(false);
+  useEffect(() => {
+    if (photosComplete && !autoSwitched.current && !profileComplete) {
+      autoSwitched.current = true;
+      setPhotoBanner(true);
+      setTab('profile');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    if (!photosComplete) autoSwitched.current = false;
+  }, [photosComplete, profileComplete]);
+
+  /** Step indicator shown on both tabs while onboarding is incomplete. */
+  const OnboardingProgress = () => {
+    if (photosComplete && profileComplete) return null;
+    if (analysis && picsCount === 0) return null; // returning user, nothing staged
+    return (
+      <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <strong style={{ fontSize: 13.5 }}>Unlock your AI Skin & Hair Assessment</strong>
+          <span style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 800, color: 'var(--accent)' }}>{overallPct}%</span>
+        </div>
+        <div style={{ height: 7, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', margin: '8px 0 10px' }}>
+          <div style={{ height: '100%', width: `${overallPct}%`, background: 'var(--accent)', transition: 'width .3s ease' }} />
+        </div>
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 12.5 }}>
+          <span style={{ fontWeight: 600, color: photosComplete ? '#2e7d32' : 'var(--ink-soft)' }}>
+            {photosComplete ? '✅' : '1️⃣'} Photos: {Math.min(picsCount, 6)} / 6
+          </span>
+          <span style={{ fontWeight: 600, color: profileComplete ? '#2e7d32' : 'var(--ink-soft)' }}>
+            {profileComplete ? '✅' : '2️⃣'} Profile: {answered} / {profileTotal}
+          </span>
+        </div>
+        {!profileComplete && missing.length > 0 && tab === 'profile' && (
+          <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>Still to answer: {missing.slice(0, 6).join(', ')}{missing.length > 6 ? ` +${missing.length - 6} more` : ''} — "Don't know" and "None of these" count.</p>
+        )}
+      </div>
+    );
+  };
 
   // Downscale in the browser before upload: phone photos are 3–8 MB each and
   // six of them would blow past any sane request size. ~1280 px JPEG keeps all
@@ -455,7 +528,7 @@ export function Profile() {
   const runAnalysis = async () => {
     const entries = Object.entries(pics);
     const photos = entries.map(([slot, v]) => ({ slot, base64: v.base64, mediaType: v.mediaType }));
-    if (!photos.length) return;
+    if (photos.length < PHOTO_SLOTS.length || !profileComplete) return; // locked until 6/6 photos + full profile
     const facePic = pics.face ?? entries[0]?.[1];
     const thumb = facePic ? await makeThumb(facePic.preview) : undefined;
     analyze.mutate({ photos, thumb: thumb || undefined }, { onSuccess: () => setPics({}) });
@@ -485,8 +558,9 @@ export function Profile() {
 
       {tab === 'photos' && (
         <div>
+          <OnboardingProgress />
           <div className="card" style={{ marginBottom: 14 }}>
-            <div className="eyebrow" style={{ marginBottom: 8 }}>Upload photos <span className="muted" style={{ fontWeight: 400 }}>· analysed once</span></div>
+            <div className="eyebrow" style={{ marginBottom: 8 }}>Upload photos <span className="muted" style={{ fontWeight: 400 }}>· all six required · {Math.min(picsCount, 6)} / 6</span></div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 12 }}>
               {PHOTO_SLOTS.map((s) => {
                 const pic = pics[s.key];
@@ -510,9 +584,15 @@ export function Profile() {
               <p style={{ fontSize: 12.5, color: '#b0503e', fontWeight: 600, margin: '10px 0 0' }}>⚠️ {warning}</p>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
-              <Button variant="accent" disabled={analyze.isPending || Object.keys(pics).length === 0 || (profile.data?.uploads?.remaining === 0)} onClick={runAnalysis}>
+              <Button variant="accent" disabled={analyze.isPending || !photosComplete || !profileComplete || (profile.data?.uploads?.remaining === 0)} onClick={runAnalysis}>
                 {analyze.isPending ? 'Analysing…' : `Analyse & save${progress.length ? ' this week' : ''}`}
               </Button>
+              {!photosComplete && picsCount > 0 && <span className="muted" style={{ fontSize: 11.5 }}>Add {6 - picsCount} more photo{6 - picsCount > 1 ? 's' : ''} to continue</span>}
+              {photosComplete && !profileComplete && (
+                <button type="button" onClick={() => setTab('profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, color: 'var(--accent)', padding: 0 }}>
+                  Complete your profile to unlock your assessment →
+                </button>
+              )}
               {profile.data?.uploads && (
                 <span className="muted" style={{ fontSize: 11.5 }}>
                   {profile.data.uploads.remaining} of {profile.data.uploads.limit} analyses left this week
@@ -549,6 +629,25 @@ export function Profile() {
 
       {tab === 'profile' && (
         <div>
+          {photoBanner && (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 14, padding: '12px 14px', background: '#e8f5e9', border: '1px solid #c8e6c9', borderRadius: 12, fontSize: 13 }}>
+              <span>✅</span>
+              <span>Photos uploaded successfully. Now complete your Skin &amp; Hair Profile to generate your personalised AI assessment.</span>
+              <button type="button" onClick={() => setPhotoBanner(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#2e7d32' }}>✕</button>
+            </div>
+          )}
+          <OnboardingProgress />
+          {(() => {
+            const estimated = (profile.data?.profile as { aiEstimated?: Record<string, boolean> } | undefined)?.aiEstimated ?? {};
+            const keys = Object.keys(estimated).filter((k) => estimated[k]);
+            if (!keys.length) return null;
+            const label: Record<string, string> = { skinType: 'Skin type', scalpType: 'Scalp type', hairDensity: 'Hair density', hairTexture: 'Hair texture' };
+            return (
+              <p className="muted" style={{ fontSize: 12, margin: '0 0 14px', padding: '9px 12px', background: 'var(--accent-soft)', borderRadius: 10 }}>
+                ✨ <strong>AI-estimated from your photos:</strong> {keys.map((k) => label[k] ?? k).join(', ')} — review and edit anytime.
+              </p>
+            );
+          })()}
           {/* 1 Basic */}
           <div className="card" style={{ marginBottom: 14 }}>
             <div className="eyebrow" style={{ marginBottom: 10 }}>Basic profile</div>
@@ -568,17 +667,17 @@ export function Profile() {
           <Section title="Skin type">{SKIN_TYPES.map((x) => <Chip key={x} on={isOn('skinType', x)} label={x} onClick={() => single('skinType', x)} />)}</Section>
           <Section title="Skin tone">{SKIN_TONES.map((x) => <Chip key={x} on={isOn('skinTone', x)} label={x} onClick={() => single('skinTone', x)} />)}</Section>
           <Section title="Undertone">{UNDERTONES.map((x) => <Chip key={x} on={isOn('undertone', x)} label={x} onClick={() => single('undertone', x)} />)}</Section>
-          <Section title="Skin goals" note="pick any">{SKIN_GOALS.map((x) => <Chip key={x} on={isOn('skinGoals', x)} label={x} onClick={() => multi('skinGoals', x)} />)}</Section>
-          <Section title="Current skin concerns" note="pick any">{SKIN_CONCERNS.map((x) => <Chip key={x} on={isOn('skinConcerns', x)} label={x} onClick={() => multi('skinConcerns', x)} />)}</Section>
+          <Section title="Skin goals" note="pick any">{SKIN_GOALS.map((x) => <Chip key={x} on={isOn('skinGoals', x)} label={x} onClick={() => multi('skinGoals', x)} />)}<Chip on={isOn('skinGoals', NONE)} label={NONE} onClick={() => multi('skinGoals', NONE)} /></Section>
+          <Section title="Current skin concerns" note="pick any">{SKIN_CONCERNS.map((x) => <Chip key={x} on={isOn('skinConcerns', x)} label={x} onClick={() => multi('skinConcerns', x)} />)}<Chip on={isOn('skinConcerns', NONE)} label={NONE} onClick={() => multi('skinConcerns', NONE)} /></Section>
           <Section title="Hair type">{HAIR_TYPES.map((x) => <Chip key={x} on={isOn('hairType', x)} label={x} onClick={() => single('hairType', x)} />)}</Section>
           <Section title="Hair thickness">{HAIR_THICK.map((x) => <Chip key={x} on={isOn('hairThickness', x)} label={x} onClick={() => single('hairThickness', x)} />)}</Section>
           <Section title="Hair density">{HAIR_DENSITY.map((x) => <Chip key={x} on={isOn('hairDensity', x)} label={x} onClick={() => single('hairDensity', x)} />)}</Section>
           <Section title="Hair texture">{HAIR_TEXTURE.map((x) => <Chip key={x} on={isOn('hairTexture', x)} label={x} onClick={() => single('hairTexture', x)} />)}</Section>
-          <Section title="Hair goals" note="pick any">{HAIR_GOALS.map((x) => <Chip key={x} on={isOn('hairGoals', x)} label={x} onClick={() => multi('hairGoals', x)} />)}</Section>
-          <Section title="Hair concerns" note="pick any">{HAIR_CONCERNS.map((x) => <Chip key={x} on={isOn('hairConcerns', x)} label={x} onClick={() => multi('hairConcerns', x)} />)}</Section>
+          <Section title="Hair goals" note="pick any">{HAIR_GOALS.map((x) => <Chip key={x} on={isOn('hairGoals', x)} label={x} onClick={() => multi('hairGoals', x)} />)}<Chip on={isOn('hairGoals', NONE)} label={NONE} onClick={() => multi('hairGoals', NONE)} /></Section>
+          <Section title="Hair concerns" note="pick any">{HAIR_CONCERNS.map((x) => <Chip key={x} on={isOn('hairConcerns', x)} label={x} onClick={() => multi('hairConcerns', x)} />)}<Chip on={isOn('hairConcerns', NONE)} label={NONE} onClick={() => multi('hairConcerns', NONE)} /></Section>
           <Section title="Scalp type">{SCALP_TYPES.map((x) => <Chip key={x} on={isOn('scalpType', x)} label={x} onClick={() => single('scalpType', x)} />)}</Section>
-          <Section title="Current routine" note="what you use now">{ROUTINE.map((x) => <Chip key={x} on={isOn('routine', x)} label={x} onClick={() => multi('routine', x)} />)}</Section>
-          <Section title="Allergies & sensitivities" note="we'll avoid these">{ALLERGIES.map((x) => <Chip key={x} on={isOn('allergies', x)} label={x} onClick={() => multi('allergies', x)} />)}</Section>
+          <Section title="Current routine" note="what you use now">{ROUTINE.map((x) => <Chip key={x} on={isOn('routine', x)} label={x} onClick={() => multi('routine', x)} />)}<Chip on={isOn('routine', NONE)} label={NONE} onClick={() => multi('routine', NONE)} /></Section>
+          <Section title="Allergies & sensitivities" note="we'll avoid these">{ALLERGIES.map((x) => <Chip key={x} on={isOn('allergies', x)} label={x} onClick={() => multi('allergies', x)} />)}<Chip on={isOn('allergies', NONE)} label={NONE} onClick={() => multi('allergies', NONE)} /></Section>
           {(() => {
             const sug = conditions.data;
             const chipReason = new Map<string, string>();
@@ -604,6 +703,7 @@ export function Profile() {
                       </button>
                     );
                   })}
+                  <Chip on={isOn('medicalConditions', NONE)} label={NONE} onClick={() => multi('medicalConditions', NONE)} />
                 </div>
                 {(labNotes.length > 0 || preSelected.length > 0 || sug?.alopeciaHint) && (
                   <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(192,38,211,0.06)', border: '1px solid rgba(192,38,211,0.2)' }}>
@@ -624,11 +724,19 @@ export function Profile() {
           })()}
           <Section title="Monthly beauty budget">{BUDGET.map((x) => <Chip key={x} on={isOn('budget', x)} label={x} onClick={() => single('budget', x)} />)}</Section>
 
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '4px 0 22px' }}>
-            <Button variant="accent" disabled={save.isPending} onClick={() => save.mutate(f as unknown as Record<string, unknown>, { onSuccess: () => setTab('photos') })}>
-              {save.isPending ? 'Saving…' : 'Save profile & get assessment'}
-            </Button>
-            {save.isSuccess && <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>✓ Saved — assessment updated</span>}
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '4px 0 22px', flexWrap: 'wrap' }}>
+            {photosComplete && profileComplete && picsCount > 0 ? (
+              <Button variant="accent" disabled={save.isPending || analyze.isPending}
+                onClick={() => save.mutate(f as unknown as Record<string, unknown>, { onSuccess: () => { void runAnalysis(); setTab('photos'); window.scrollTo({ top: 0, behavior: 'smooth' }); } })}>
+                {save.isPending || analyze.isPending ? 'Generating your assessment…' : '✨ Generate my AI assessment'}
+              </Button>
+            ) : (
+              <Button variant="accent" disabled={save.isPending || !profileComplete} onClick={() => save.mutate(f as unknown as Record<string, unknown>)}>
+                {save.isPending ? 'Saving…' : 'Save profile'}
+              </Button>
+            )}
+            {!profileComplete && <span className="muted" style={{ fontSize: 12 }}>{profileTotal - answered} question{profileTotal - answered === 1 ? '' : 's'} left — "Don't know" counts as an answer.</span>}
+            {save.isSuccess && profileComplete && <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>✓ Saved</span>}
           </div>
 
           {analysis && <AssessmentView a={analysis} analyzedAt={analyzedAt} />}
