@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { AiSuggestions } from '@/components/AiSuggestions';
 import { useRecipes, useSearchRecipes, useBuildCart } from '../hooks';
+import { recipeImageUrl } from '../recipeImages';
 import type { DietKey, Recipe } from '../types';
 
 /** Diet colour identity — ported from the vanilla site (TCPLAN.dietOf). */
@@ -23,7 +24,8 @@ const GRADE_COLOR: Record<string, string> = { A: '#2e7d4f', B: '#5a9e3f', C: '#b
 function RecipeCard({ r }: { r: Recipe }) {
   const [imgOk, setImgOk] = useState(true);
   const meta = DIET_META[r.diet as Exclude<DietKey, 'everything'>] ?? DIET_META.veg;
-  const hasImg = Boolean(r.imageUrl) && imgOk;
+  const imgSrc = r.imageUrl ?? recipeImageUrl(r.recipeNo);
+  const hasImg = Boolean(imgSrc) && imgOk;
   const grade = r.healthGrade ? r.healthGrade.toUpperCase() : null;
 
   return (
@@ -32,7 +34,7 @@ function RecipeCard({ r }: { r: Recipe }) {
         {/* 16:9 photo banner / placeholder */}
         <div style={{ position: 'relative', aspectRatio: '16 / 9', overflow: 'hidden', background: `linear-gradient(140deg, ${meta.color}18, ${meta.color}38)` }}>
           {hasImg ? (
-            <img src={r.imageUrl} alt={r.name} loading="lazy" onError={() => setImgOk(false)}
+            <img src={imgSrc} alt={r.name} loading="lazy" onError={() => setImgOk(false)}
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>

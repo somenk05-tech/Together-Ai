@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Meal } from '../types';
+import { recipeImageUrl } from '../recipeImages';
 import { Button } from '@/components/ui';
 
 const LABEL: Record<string, string> = { b: 'Breakfast', l: 'Lunch', s: 'Snack', d: 'Dinner' };
@@ -17,7 +18,8 @@ export function MealCard({ meal, onSwap, onSkip, people = 1 }: { meal: Meal; onS
   const grams = r.gramsPerServing * n;
   const portionLabel = n > 1 ? `${grams} g · serves ${n}` : `${grams} g/plate`;
   const mealKcal = (plate ? plate.totals.kcal : r.kcal) * n;
-  const hasImg = Boolean(r.imageUrl) && imgOk;
+  const imgSrc = r.imageUrl ?? recipeImageUrl(r.recipeNo);
+  const hasImg = Boolean(imgSrc) && imgOk;
   const grade = r.healthGrade ? r.healthGrade.toUpperCase() : null;
 
   return (
@@ -25,7 +27,7 @@ export function MealCard({ meal, onSwap, onSkip, people = 1 }: { meal: Meal; onS
       {/* 16:9 photo banner */}
       <div style={{ position: 'relative', aspectRatio: '16 / 9', overflow: 'hidden', background: `linear-gradient(140deg,${color}22,${color}44)` }}>
         {hasImg && (
-          <img src={r.imageUrl} alt={r.name} loading="lazy" onError={() => setImgOk(false)}
+          <img src={imgSrc} alt={r.name} loading="lazy" onError={() => setImgOk(false)}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         )}
         {/* legibility scrim (stronger over a photo) */}

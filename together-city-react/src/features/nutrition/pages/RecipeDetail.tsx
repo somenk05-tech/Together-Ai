@@ -4,6 +4,7 @@ import { useRecipe, useRecipes, useBuildCart } from '../hooks';
 import { stepTimerSeconds } from '../components/CookMode';
 import { useCookStore } from '../cook.store';
 import { DIET_META } from './Recipes';
+import { recipeImageUrl } from '../recipeImages';
 import type { DietKey } from '../types';
 
 const mmssShort = (s: number) => {
@@ -26,10 +27,17 @@ export function RecipeDetail() {
   const r = recipe.data;
   const meta = DIET_META[r.diet as Exclude<DietKey, 'everything'>] ?? DIET_META.veg;
   const cost = r.ingredients.reduce((sum, i) => sum + i.priceInr, 0);
+  const heroSrc = (r as { imageUrl?: string }).imageUrl ?? recipeImageUrl(r.recipeNo);
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
       <Link to="/nutrition/recipes" className="muted" style={{ fontSize: 13 }}>← All recipes</Link>
+
+      {heroSrc && (
+        <div style={{ marginTop: 14, aspectRatio: '16 / 9', overflow: 'hidden', borderRadius: 16, background: `linear-gradient(140deg, ${meta.color}18, ${meta.color}38)` }}>
+          <img src={heroSrc} alt={r.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
+      )}
 
       <div className="card" style={{ marginTop: 14, borderTop: `4px solid ${meta.color}` }}>
         <span
