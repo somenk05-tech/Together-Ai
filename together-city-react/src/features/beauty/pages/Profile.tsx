@@ -1,8 +1,98 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
-import { useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights } from '../api';
+import { useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights, useBeautyHistory } from '../api';
 import type { BeautyAssessment, BeautyReading, AssessLevel, BeautyProgressEntry } from '../api';
+
+/** Assessment-level display meta for the timeline. */
+const LEVEL_META: Record<string, { c: string; label: string }> = {
+  good: { c: '#2e7d32', label: 'Good' }, monitor: { c: '#8a6d00', label: 'Monitor' },
+  attention: { c: '#e65100', label: 'Attention' }, priority: { c: '#c62828', label: 'Priority' },
+};
+const dirMeta = (d: string) =>
+  d === 'improved' ? { icon: '▲', c: '#1b7a3a' }
+  : d === 'worse' ? { icon: '▼', c: '#c0392b' }
+  : d === 'new' ? { icon: '＋', c: 'var(--muted)' } : { icon: '▬', c: 'var(--muted)' };
+
+/** Permanent skin & hair timeline — baseline + every follow-up, with progress
+ *  comparison and a monthly follow-up prompt. Nothing is ever overwritten. */
+function SkinHairTimeline() {
+  const q = useBeautyHistory();
+  const [openId, setOpenId] = useState<string | null>(null);
+  const d = q.data;
+  if (!d || !d.hasHistory) return null;
+  const entries = [...d.entries].reverse(); // newest first
+  const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  return (
+    <div className="card" style={{ marginTop: 14 }}>
+      <div className="eyebrow">🗓️ Skin &amp; hair timeline</div>
+
+      {d.followUpDue && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 8, padding: '11px 14px', background: '#fff8e1', border: '1px solid #f0d68a', borderRadius: 12, fontSize: 12.5 }}>
+          <span style={{ fontSize: 16 }}>📸</span>
+          <span>It's been {d.daysSinceLast} days since your last assessment — upload a new set of photos to measure your progress. Optional, whenever you're ready.</span>
+        </div>
+      )}
+
+      {d.comparison && (
+        <div style={{ marginTop: 10, padding: '12px 14px', background: 'var(--accent-soft)', borderRadius: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
+            <div className="eyebrow" style={{ margin: 0 }}>Progress vs last assessment</div>
+            <span style={{ fontSize: 12, fontWeight: 700, color: d.comparison.skinDelta >= 0 ? '#1b7a3a' : '#c0392b' }}>Skin {d.comparison.skinDelta >= 0 ? '+' : ''}{d.comparison.skinDelta}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: d.comparison.hairDelta >= 0 ? '#1b7a3a' : '#c0392b' }}>Hair {d.comparison.hairDelta >= 0 ? '+' : ''}{d.comparison.hairDelta}</span>
+          </div>
+          <p style={{ fontSize: 13, lineHeight: 1.55, margin: '8px 0 0' }}>{d.comparison.summary}</p>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+            {[...d.comparison.skin, ...d.comparison.hair].filter((a) => a.direction === 'improved' || a.direction === 'worse').map((a) => {
+              const m = dirMeta(a.direction);
+              return <span key={a.key} style={{ fontSize: 11, fontWeight: 600, color: m.c, background: `${m.c}14`, borderRadius: 999, padding: '2px 9px' }}>{a.label} {m.icon}</span>;
+            })}
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginTop: 12 }}>
+        {entries.map((e) => {
+          const isOpen = openId === e.id;
+          return (
+            <div key={e.id} style={{ borderTop: '1px solid var(--line)' }}>
+              <button type="button" onClick={() => setOpenId(isOpen ? null : e.id)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, minWidth: 92 }}>{fmt(e.date)}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: e.baseline ? '#8a4b00' : 'var(--accent)', background: e.baseline ? '#fff3e0' : 'var(--accent-soft)', borderRadius: 999, padding: '1px 9px' }}>{e.baseline ? 'Baseline · Month 0' : e.label}</span>
+                <span className="muted" style={{ fontSize: 11.5, marginLeft: 'auto' }}>Skin {e.skinScore} · Hair {e.hairScore} {isOpen ? '▾' : '▸'}</span>
+              </button>
+              {isOpen && (
+                <div style={{ padding: '0 0 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  {(['skin', 'hair'] as const).map((part) => (
+                    <div key={part}>
+                      <div className="muted" style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>{part}</div>
+                      {(e[part] ?? []).map((r) => {
+                        const m = LEVEL_META[r.level] ?? LEVEL_META.monitor;
+                        return <div key={r.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12, padding: '3px 0' }}><span>{r.label}</span><span style={{ color: m.c, fontWeight: 600 }}>{m.label}</span></div>;
+                      })}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>Every assessment is saved permanently — nothing is overwritten.</p>
+    </div>
+  );
+}
+
+/** Gender-aware Beauty avatar — VISUAL ONLY. Products, content and
+ *  recommendations are never gated by gender; only the icon adapts. Male →
+ *  masculine, female → feminine, unspecified → neutral (never a lipstick). */
+function beautyAvatar(gender?: string): string {
+  const g = (gender ?? '').trim().toLowerCase();
+  if (g === 'male') return '👨';
+  if (g === 'female') return '👩';
+  return '🧑';
+}
 
 /** Biomarker labels for the correlation panel (Medical Hub → skin/hair). */
 const MARKER_LABEL: Record<string, string> = {
@@ -333,7 +423,10 @@ export function Profile() {
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
       <div className="eyebrow">Beauty Market · Skin &amp; Hair</div>
-      <h1 style={{ fontSize: 26 }}>Your skin &amp; hair</h1>
+      <h1 style={{ fontSize: 26, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span aria-hidden style={{ fontSize: 24 }}>{beautyAvatar(f.gender)}</span>
+        Your skin &amp; hair
+      </h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
         Add photos for a one-time analysis, and fill in your profile — we generate a personalised skin &amp; hair assessment and tune the market to you.
       </p>
@@ -385,6 +478,9 @@ export function Profile() {
           {analysis ? <AssessmentView a={analysis} analyzedAt={analyzedAt} /> : (
             <EmptyState icon="✨" title="No assessment yet" hint="Add photos and analyse, or fill in your profile and save — your assessment appears here." />
           )}
+
+          {/* Permanent, dated assessment history + progress comparison. */}
+          <SkinHairTimeline />
 
           {/* Medical Hub biomarkers → skin & hair, right here on the profile tab. */}
           <BiomarkerCorrelation />

@@ -5,7 +5,7 @@ import { useAiSuggestions, type AiKind } from '@/api/ai.api';
 const META: Record<AiKind, { icon: string; title: string; cta: string }> = {
   recipes: { icon: '🍲', title: 'AI meal ideas', cta: 'Suggest meals' },
   astrology: { icon: '✨', title: 'Cosmic compatibility', cta: 'Read the stars' },
-  beauty: { icon: '💄', title: 'Your beauty routine', cta: 'Suggest a routine' },
+  beauty: { icon: '🧴', title: 'Your beauty routine', cta: 'Suggest a routine' },
   fitness: { icon: '💪', title: 'Your training plan', cta: 'Suggest a plan' },
 };
 

@@ -20,6 +20,16 @@ export interface BeautyAssessment {
 }
 export interface BeautyPhotoRow { slot: string; analyzedAt: string; findings: string[] }
 export interface BeautyProgressEntry { id: string; date: string; findings: string[]; score: number; thumb: string | null }
+/** Permanent skin & hair timeline (baseline + follow-ups, never overwritten). */
+export interface BeautyAttrSnapshot { key: string; label: string; level: string }
+export interface BeautyTimelineEntry {
+  id: string; date: string; index: number; label: string; baseline: boolean;
+  score: number; skinScore?: number; hairScore?: number;
+  skin?: BeautyAttrSnapshot[]; hair?: BeautyAttrSnapshot[]; thumb: string | null; findings: string[];
+}
+export interface BeautyAttrCompare { key: string; label: string; from: string | null; to: string; direction: string; delta: number }
+export interface BeautyComparison { skin: BeautyAttrCompare[]; hair: BeautyAttrCompare[]; skinDelta: number; hairDelta: number; summary: string }
+export interface BeautyHistory { hasHistory: boolean; entries: BeautyTimelineEntry[]; comparison: BeautyComparison | null; followUpDue: boolean; daysSinceLast: number | null }
 export interface BeautyProfile {
   skinType: string; hairType: string; concerns: string[]; saved: boolean;
   profile?: Record<string, unknown>;
@@ -63,6 +73,7 @@ export const beautyApi = {
     api.put<BeautyProfile>('/beauty/profile', input).then((r) => r.data),
   analyzePhotos: (photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string) =>
     api.post<BeautyProfile & { photoFindings: string[]; aiUsed: boolean; quality: 'ok' | 'unclear' | 'suspect'; warning: string }>('/beauty/photos/analyze', { photos, thumb }).then((r) => r.data),
+  history: () => api.get<BeautyHistory>('/beauty/history').then((r) => r.data),
   insights: () => api.get<InsightsResponse>('/beauty/insights').then((r) => r.data),
   products: () => api.get<ProductsResponse>('/beauty/products').then((r) => r.data),
   orders: () => api.get<BeautyOrder[]>('/beauty/orders').then((r) => r.data),
@@ -80,6 +91,7 @@ export function useSaveBeautyProfile() {
     onSuccess: (p) => {
       qc.setQueryData(['beauty', 'profile'], p);
       void qc.invalidateQueries({ queryKey: ['beauty', 'products'] });
+      void qc.invalidateQueries({ queryKey: ['beauty', 'history'] });
     },
   });
 }
@@ -87,8 +99,11 @@ export function useAnalyzeBeautyPhotos() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { photos: { slot: string; base64: string; mediaType?: string }[]; thumb?: string }) => beautyApi.analyzePhotos(v.photos, v.thumb),
-    onSuccess: (p) => { qc.setQueryData(['beauty', 'profile'], p); void qc.invalidateQueries({ queryKey: ['beauty', 'products'] }); },
+    onSuccess: (p) => { qc.setQueryData(['beauty', 'profile'], p); void qc.invalidateQueries({ queryKey: ['beauty', 'products'] }); void qc.invalidateQueries({ queryKey: ['beauty', 'history'] }); },
   });
+}
+export function useBeautyHistory() {
+  return useQuery({ queryKey: ['beauty', 'history'], queryFn: () => beautyApi.history() });
 }
 export function useBeautyInsights() {
   return useQuery({

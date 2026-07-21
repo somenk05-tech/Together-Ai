@@ -28,6 +28,12 @@ export class BeautyController {
     return this.beauty.analyzePhotos(user.sub, dto?.photos ?? [], dto?.thumb);
   }
 
+  // Permanent skin & hair timeline: every dated assessment + latest-vs-previous comparison.
+  @Get('history')
+  history(@CurrentUser() user: JwtUser) {
+    return this.beauty.beautyHistory(user.sub);
+  }
+
   @Get('insights')
   insights(@CurrentUser() user: JwtUser) {
     return this.beauty.insights(user.sub);

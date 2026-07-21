@@ -7,7 +7,7 @@ import {
   beautyInsights, recommendProducts, BEAUTY_PRODUCTS, CONCERN_TAGS,
   type BeautyInsight,
 } from './beauty-engine';
-import { assessBeauty, type BeautyProfileInput } from './beauty-analysis';
+import { assessBeauty, type BeautyProfileInput, type BeautyAssessment } from './beauty-analysis';
 import type { PlaceBeautyOrderDto } from './dto/beauty.dto';
 
 const DEFAULT_PROFILE = { skinType: 'normal', hairType: 'straight', concerns: [] as string[] };
@@ -17,8 +17,24 @@ interface BeautyRow {
   skinType: string; hairType: string; concerns: string;
   extras: string | null; photosJson: string; progressJson: string; analysisJson: string | null; analyzedAt: Date | null;
 }
-export interface ProgressEntry { id: string; date: string; findings: string[]; score: number; thumb: string | null }
+/** A permanent, dated skin & hair assessment in the timeline. Each entry keeps a
+ *  per-attribute snapshot so any past assessment can be revisited and compared —
+ *  none is ever overwritten (the first is the baseline / Month 0). */
+export interface AttrSnapshot { key: string; label: string; level: string }
+export interface ProgressEntry {
+  id: string; date: string; findings: string[]; score: number; thumb: string | null;
+  skinScore?: number; hairScore?: number;
+  skin?: AttrSnapshot[]; hair?: AttrSnapshot[]; baseline?: boolean;
+}
 const safeJson = <T>(s: string | null | undefined, fb: T): T => { try { return s ? (JSON.parse(s) as T) : fb; } catch { return fb; } };
+
+/** Assessment level → 0–100 score (higher is healthier), for progress comparison. */
+const LEVEL_SCORE: Record<string, number> = { good: 100, monitor: 70, attention: 45, priority: 20 };
+const levelScore = (lvl: string) => LEVEL_SCORE[lvl] ?? 60;
+const avgScore = (readings: { level: string }[]) =>
+  readings.length ? Math.round(readings.reduce((s, r) => s + levelScore(r.level), 0) / readings.length) : 0;
+const snapshot = (readings: { key: string; label: string; level: string }[]): AttrSnapshot[] =>
+  readings.map((r) => ({ key: r.key, label: r.label, level: r.level }));
 
 @Injectable()
 export class BeautyService {
@@ -37,6 +53,77 @@ export class BeautyService {
         upsert(a: unknown): Promise<BeautyRow>;
       };
     }).beautyProfile;
+  }
+
+  /** Append a permanent, dated assessment to the timeline. The FIRST entry is the
+   *  baseline (Month 0); nothing is ever overwritten. Capped generously (baseline
+   *  + most recent 59) to bound the JSON column while always keeping the baseline. */
+  private appendAssessment(progress: ProgressEntry[], assessment: BeautyAssessment, opts: { thumb?: string | null }): ProgressEntry[] {
+    const now = new Date();
+    const skinScore = avgScore(assessment.skin.readings);
+    const hairScore = avgScore(assessment.hair.readings);
+    const entry: ProgressEntry = {
+      id: (globalThis.crypto?.randomUUID?.() ?? `${now.getTime()}-${Math.round(Math.random() * 1e6)}`),
+      date: now.toISOString(),
+      findings: [...assessment.skin.issues, ...assessment.hair.issues],
+      score: Math.round((skinScore + hairScore) / 2),
+      skinScore, hairScore,
+      skin: snapshot(assessment.skin.readings), hair: snapshot(assessment.hair.readings),
+      thumb: typeof opts.thumb === 'string' && opts.thumb.startsWith('data:') && opts.thumb.length < 200_000 ? opts.thumb : null,
+      baseline: progress.length === 0,
+    };
+    const next = [...progress, entry];
+    return next.length > 60 ? [next[0], ...next.slice(-59)] : next;
+  }
+
+  /** Per-attribute comparison of two assessments + a plain-language summary. */
+  private compareAssessments(prev: ProgressEntry, curr: ProgressEntry) {
+    const cmp = (prevR?: AttrSnapshot[], currR?: AttrSnapshot[]) => {
+      const pm = new Map((prevR ?? []).map((r) => [r.key, r]));
+      return (currR ?? []).map((r) => {
+        const p = pm.get(r.key);
+        const ps = p ? levelScore(p.level) : null;
+        const cs = levelScore(r.level);
+        const direction = ps == null ? 'new' : cs > ps ? 'improved' : cs < ps ? 'worse' : 'stable';
+        return { key: r.key, label: r.label, from: p?.level ?? null, to: r.level, direction, delta: ps == null ? 0 : cs - ps };
+      });
+    };
+    const skin = cmp(prev.skin, curr.skin);
+    const hair = cmp(prev.hair, curr.hair);
+    const skinDelta = (curr.skinScore ?? 0) - (prev.skinScore ?? 0);
+    const hairDelta = (curr.hairScore ?? 0) - (prev.hairScore ?? 0);
+    const improved = [...skin, ...hair].filter((a) => a.direction === 'improved').map((a) => a.label);
+    const worse = [...skin, ...hair].filter((a) => a.direction === 'worse').map((a) => a.label);
+    const list = (arr: string[]) => (arr.length <= 1 ? (arr[0] ?? '') : `${arr.slice(0, -1).join(', ')} and ${arr[arr.length - 1]}`);
+    const parts: string[] = [];
+    parts.push(improved.length ? `Compared with your previous assessment, ${list(improved)} ${improved.length > 1 ? 'have' : 'has'} improved.` : 'Compared with your previous assessment:');
+    if (worse.length) parts.push(`${list(worse)} ${worse.length > 1 ? 'need' : 'needs'} a little more attention.`);
+    parts.push(skinDelta >= 0 && hairDelta >= 0
+      ? 'Keep up your current skincare routine and nutrition plan.'
+      : 'Stay consistent — small changes compound over the coming weeks.');
+    return { skin, hair, skinDelta, hairDelta, summary: parts.join(' ') };
+  }
+
+  /** The permanent skin & hair timeline: every dated assessment, the latest-vs-
+   *  previous comparison, and whether a monthly follow-up is due. */
+  async beautyHistory(userId: string) {
+    const row = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
+    const progress = safeJson<ProgressEntry[]>(row?.progressJson, []);
+    if (!progress.length) return { hasHistory: false, entries: [], comparison: null, followUpDue: false, daysSinceLast: null };
+    const entries = progress.map((e, i) => ({
+      ...e, baseline: e.baseline ?? i === 0, index: i,
+      label: i === 0 ? 'Baseline' : `Month ${i}`,
+    }));
+    const last = entries[entries.length - 1];
+    const prev = entries.length > 1 ? entries[entries.length - 2] : null;
+    const daysSinceLast = Math.floor((Date.now() - new Date(last.date).getTime()) / 86_400_000);
+    return {
+      hasHistory: true,
+      entries,
+      comparison: prev ? this.compareAssessments(prev, last) : null,
+      followUpDue: daysSinceLast >= 30,
+      daysSinceLast,
+    };
   }
 
   // ─────────────── skin & hair profile ───────────────
@@ -71,10 +158,15 @@ export class BeautyService {
 
     const analysis = assessBeauty(p, photoFindings);
     const now = new Date();
+    // Completing the profile the FIRST time creates the baseline assessment in the
+    // timeline. Later profile edits refresh the current assessment but don't add a
+    // new timeline entry (follow-ups come from dated photo assessments).
+    const progress = safeJson<ProgressEntry[]>(existing?.progressJson, []);
+    const nextProgress = progress.length === 0 ? this.appendAssessment(progress, analysis, { thumb: null }) : progress;
     await this.beauty.upsert({
       where: { userId },
-      update: { skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto), analysisJson: JSON.stringify(analysis), analyzedAt: now } as never,
-      create: { userId, skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto), photosJson: '[]', analysisJson: JSON.stringify(analysis), analyzedAt: now } as never,
+      update: { skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto), analysisJson: JSON.stringify(analysis), progressJson: JSON.stringify(nextProgress), analyzedAt: now } as never,
+      create: { userId, skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto), photosJson: '[]', analysisJson: JSON.stringify(analysis), progressJson: JSON.stringify(nextProgress), analyzedAt: now } as never,
     });
     return this.getProfile(userId);
   }
@@ -104,26 +196,20 @@ export class BeautyService {
     const photoRows = photos.map((p) => ({ slot: p.slot, analyzedAt: new Date().toISOString(), findings }));
     const now = new Date();
 
-    // Save a dated progress check-in only when we could actually analyse the photo.
+    // Append a PERMANENT, dated assessment to the timeline (only on a real
+    // analysis) — the baseline and every follow-up are kept, never overwritten.
     const progress = safeJson<ProgressEntry[]>(existing?.progressJson, []);
-    if (!rejected) {
-      const score = Math.max(40, Math.min(100, 100 - issues.length * 8));
-      progress.push({
-        id: (globalThis.crypto?.randomUUID?.() ?? `${now.getTime()}-${Math.round(Math.random() * 1e6)}`),
-        date: now.toISOString(), findings: issues, score,
-        thumb: typeof thumb === 'string' && thumb.startsWith('data:') && thumb.length < 200_000 ? thumb : null,
-      });
-    }
-    const trimmed = progress.slice(-12); // keep the last 12 check-ins
+    const nextProgress = rejected ? progress : this.appendAssessment(progress, analysis, { thumb });
+    void issues; // (issues are captured inside the appended assessment)
 
     // On a rejected photo, keep the prior assessment rather than overwriting it.
     const update = rejected
       ? { photosJson: JSON.stringify(photoRows) }
-      : { photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(trimmed), analysisJson: JSON.stringify(analysis), analyzedAt: now };
+      : { photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: now };
     await this.beauty.upsert({
       where: { userId },
       update: update as never,
-      create: { userId, skinType: String(profile.skinType ?? 'normal'), hairType: String(profile.hairType ?? 'straight'), concerns: (profile.skinConcerns ?? []).join(','), extras: JSON.stringify(profile), photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(rejected ? [] : trimmed), analysisJson: JSON.stringify(analysis), analyzedAt: now } as never,
+      create: { userId, skinType: String(profile.skinType ?? 'normal'), hairType: String(profile.hairType ?? 'straight'), concerns: (profile.skinConcerns ?? []).join(','), extras: JSON.stringify(profile), photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(rejected ? [] : nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: now } as never,
     });
     return { ...(await this.getProfile(userId)), photoFindings: findings, aiUsed: this.ai.enabled && images.length > 0, quality: review.quality, warning };
   }
