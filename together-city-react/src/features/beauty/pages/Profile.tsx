@@ -1,7 +1,58 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
-import { useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos } from '../api';
+import { useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights } from '../api';
 import type { BeautyAssessment, BeautyReading, AssessLevel, BeautyProgressEntry } from '../api';
+
+/** Biomarker labels for the correlation panel (Medical Hub → skin/hair). */
+const MARKER_LABEL: Record<string, string> = {
+  ferritin: 'Ferritin', hb: 'Hemoglobin', vitd: 'Vitamin D', b12: 'Vitamin B12',
+  folate: 'Folate', hba1c: 'HbA1c', crp: 'CRP', zinc: 'Zinc',
+};
+
+/** Connect Medical Hub biomarkers to visible skin & hair changes, right on the
+ *  Skin & Hair tab (e.g. low ferritin → shedding, high HbA1c → glycation). */
+function BiomarkerCorrelation() {
+  const q = useBeautyInsights();
+  if (q.isError || !q.data) return null; // 403 (consent off) or no data → hide quietly
+  const d = q.data;
+  if (!d.hasPanel) {
+    return (
+      <div className="card" style={{ marginTop: 14 }}>
+        <div className="eyebrow">🩸 Biomarker correlation</div>
+        <p className="muted" style={{ fontSize: 13, margin: '6px 0 0', lineHeight: 1.55 }}>
+          Add a blood test in the <Link to="/medical/blood" style={{ color: 'var(--accent)', fontWeight: 600 }}>Medical Hub</Link> and we'll link markers like ferritin, vitamin D, HbA1c and CRP to your skin & hair here — for example, low ferritin → increased shedding, or raised HbA1c → glycation and loss of firmness.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="card" style={{ marginTop: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+        <div className="eyebrow" style={{ margin: 0 }}>🩸 Biomarker correlation</div>
+        {d.takenOn && <span className="muted" style={{ fontSize: 11.5 }}>from your panel · {d.takenOn}</span>}
+      </div>
+      {d.insights.length === 0 ? (
+        <p style={{ fontSize: 13, marginTop: 8, color: '#2e7d32' }}>✓ No biomarker flags are affecting your skin or hair right now — a good foundation.</p>
+      ) : (
+        <div style={{ marginTop: 8 }}>
+          {d.insights.map((i) => (
+            <div key={i.marker} style={{ padding: '11px 0', borderTop: '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <strong style={{ fontSize: 13.5 }}>{MARKER_LABEL[i.marker] ?? i.marker} {i.status === 'high' ? '↑' : '↓'}</strong>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#8a4b00', background: '#fff3e0', borderRadius: 999, padding: '1px 8px' }}>{i.concern}</span>
+                {typeof i.value === 'number' && <span className="muted" style={{ fontSize: 11.5 }}>{i.value}</span>}
+              </div>
+              <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', margin: '6px 0 0', lineHeight: 1.5 }}>{i.mechanism}</p>
+              {i.advice && <p style={{ fontSize: 12.5, margin: '6px 0 0', lineHeight: 1.5 }}>💡 {i.advice}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>{d.source}</p>
+    </div>
+  );
+}
 
 /* ── option catalogs (spec) ── */
 const LIFESTYLE = ['Mostly Indoors', 'Mixed', 'Mostly Outdoors'];
@@ -334,6 +385,9 @@ export function Profile() {
           {analysis ? <AssessmentView a={analysis} analyzedAt={analyzedAt} /> : (
             <EmptyState icon="✨" title="No assessment yet" hint="Add photos and analyse, or fill in your profile and save — your assessment appears here." />
           )}
+
+          {/* Medical Hub biomarkers → skin & hair, right here on the profile tab. */}
+          <BiomarkerCorrelation />
         </div>
       )}
 
