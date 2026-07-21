@@ -313,6 +313,44 @@ export function detectProteins(r: RecipeWithIng): Set<string> {
   }
   return found;
 }
+
+// ── Carbohydrate base + cooking method detection (weekly variety, §variety) ──
+// Same name+ingredient scan as proteins, used to rotate the staple carbohydrate
+// and the cooking style across the 7 days so the week doesn't become "rice +
+// curry every day". Heuristic and best-effort — a miss just returns 'other'/
+// 'mixed', which the picker treats as a neutral bucket.
+const CARB_PATTERNS: Record<string, RegExp> = {
+  rice: /\b(rice|biryani|pulao|pilaf|risotto|jeera rice|khichdi|congee|sushi)\b/i,
+  wheat: /\b(roti|chapati|chapathi|phulka|naan|paratha|paratha|bread|toast|wrap|tortilla|pita|bun|bagel|kulcha|bhatura|puri)\b/i,
+  oats: /\b(oat|oatmeal|porridge|muesli|granola|overnight oats)\b/i,
+  millet: /\b(millet|ragi|bajra|jowar|quinoa|barley|buckwheat|amaranth)\b/i,
+  potato: /\b(potato|aloo|sweet potato|yam|mash)\b/i,
+  pasta: /\b(pasta|noodle|spaghetti|macaroni|penne|lasagne|lasagna|vermicelli|ramen|hakka)\b/i,
+  corn: /\b(corn|maize|polenta|couscous|tortilla chips|nachos)\b/i,
+  legumeCarb: /\b(dal|daal|lentil|chickpea|chana|besan|poha|idli|dosa|upma|dhokla|sabudana|rajma)\b/i,
+};
+export function detectCarb(r: RecipeWithIng): string {
+  const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
+  for (const [k, re] of Object.entries(CARB_PATTERNS)) if (re.test(hay)) return k;
+  return 'other';
+}
+const METHOD_PATTERNS: Record<string, RegExp> = {
+  grilled: /\b(grill|grilled|tandoori|barbecue|bbq|char|skewer|kebab|seekh)\b/i,
+  baked: /\b(bake|baked|roast|roasted|gratin|casserole)\b/i,
+  steamed: /\b(steam|steamed|idli|dhokla|momo|dumpling|poach|poached)\b/i,
+  fried: /\b(fry|fried|stir-fry|stir fry|saute|sauté|pan-fried|tikki|pakora|fritter|cutlet|tempura|crispy)\b/i,
+  curry: /\b(curry|masala|gravy|korma|makhani|kadai|butter|qorma|rogan|kofta|sabzi|bhaji)\b/i,
+  soup: /\b(soup|broth|stew|rasam|shorba|chowder|bisque)\b/i,
+  salad: /\b(salad|slaw|kachumber|tabbouleh|caprese)\b/i,
+  bowl: /\b(bowl|buddha bowl|poke|burrito bowl)\b/i,
+  wrap: /\b(wrap|roll|kathi|burrito|frankie|taco|quesadilla|sandwich)\b/i,
+  smoothie: /\b(smoothie|shake|lassi|juice|smoothie bowl)\b/i,
+};
+export function detectMethod(r: RecipeWithIng): string {
+  const hay = r.name.toLowerCase();
+  for (const [k, re] of Object.entries(METHOD_PATTERNS)) if (re.test(hay)) return k;
+  return 'mixed';
+}
 export function allowedProteins(ex: PrefExtras): Set<string> {
   const out = new Set<string>();
   for (const p of [...(ex.proteins ?? []), ...(ex.meats ?? [])]) {
@@ -1870,25 +1908,42 @@ export class NutritionService implements OnModuleInit {
     const offset = Math.floor(Math.random() * 6);
     const key = 'wk_' + this.rand(8);
 
-    // Variety engine: across the week, never repeat the same recipe, and no single
-    // protein signature more than twice. Cuisine is left to the % preference bias
-    // (capping cuisine would fight an "Indian 70%" preference), and each day's pick
-    // rotates its start through the ranked pool.
+    // Variety engine (§variety): a dietitian-style week rotates recipes, proteins,
+    // carbohydrate bases AND cooking methods so no day feels like a repeat of the
+    // last. Hard rules: never repeat a recipe; no protein signature more than
+    // twice. Soft rotation (tried first, degrades gracefully so a slot is never
+    // empty): spread carbohydrate staples and cooking styles across the week, and
+    // avoid last week's recipes. Cuisine is left to the % preference bias (a hard
+    // cuisine cap would fight an "Indian 70%" preference), so it follows the
+    // user's declared distribution.
     const usedRecipe = new Map<string, number>();
     const usedProtein = new Map<string, number>();
+    const usedCarb = new Map<string, number>();
+    const usedMethod = new Map<string, number>();
     const count = (m: Map<string, number>, k: string) => m.get(k) ?? 0;
     const bump = (m: Map<string, number>, k: string) => m.set(k, count(m, k) + 1);
     const proteinSig = (r: RecipeWithIng) => [...detectProteins(r)].sort().join(',') || r.diet;
+    const carbSig = (r: RecipeWithIng) => detectCarb(r);
+    const methodSig = (r: RecipeWithIng) => detectMethod(r);
+    // Soft caps across the whole week (28 meals). Generous enough that a narrow
+    // recipe pool still fills every slot, tight enough to force real rotation.
+    const CARB_CAP = 4, METHOD_CAP = 4;
     const pick = (pool: RecipeWithIng[], dayIndex: number, prefer?: (r: RecipeWithIng) => boolean): RecipeWithIng | undefined => {
       if (!pool.length) return undefined;
       const rot = pool.map((_, i) => pool[(i + dayIndex + offset) % pool.length]);
       const fresh = (r: RecipeWithIng) => count(usedRecipe, r.id) < 1;                 // not used yet THIS week
       const varied = (r: RecipeWithIng) => fresh(r) && count(usedProtein, proteinSig(r)) < 2;
       const newWeek = (r: RecipeWithIng) => !recentIds.has(r.id);                        // not in LAST week's plan
-      // Preference order, best → fallback. `newWeek` (cross-week variety, §18) and
-      // `prefer` (breakfast/snack protein, §7) stack on top of the in-week rules,
-      // but every layer degrades gracefully so a slot is never left empty.
+      // Most-diverse: also spread the carbohydrate base and cooking method so we
+      // don't serve rice every meal or curry every day.
+      const diverse = (r: RecipeWithIng) => varied(r) && newWeek(r)
+        && count(usedCarb, carbSig(r)) < CARB_CAP
+        && count(usedMethod, methodSig(r)) < METHOD_CAP;
+      // Preference order, best → fallback. Each layer degrades gracefully so a
+      // slot is never left empty, ending at the plain rotation as a last resort.
       const chosen =
+        (prefer ? rot.find((r) => diverse(r) && prefer(r)) : undefined) ??
+        rot.find(diverse) ??
         (prefer ? rot.find((r) => varied(r) && newWeek(r) && prefer(r)) : undefined) ??
         rot.find((r) => varied(r) && newWeek(r)) ??
         (prefer ? rot.find((r) => varied(r) && prefer(r)) : undefined) ??
@@ -1898,6 +1953,8 @@ export class NutritionService implements OnModuleInit {
         rot[0];
       bump(usedRecipe, chosen.id);
       bump(usedProtein, proteinSig(chosen));
+      bump(usedCarb, carbSig(chosen));
+      bump(usedMethod, methodSig(chosen));
       return chosen;
     };
 
