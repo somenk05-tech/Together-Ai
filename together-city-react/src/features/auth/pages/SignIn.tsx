@@ -4,7 +4,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/api/auth.api';
 import { Button } from '@/components/ui';
 import { RegisterForm } from './RegisterForm';
-import { SocialButtons } from './SocialButtons';
 
 interface LocationState { from?: string }
 type Mode = 'login' | 'register' | 'forgot' | 'reset';
@@ -116,8 +115,6 @@ export function SignIn() {
                 <button type="button" onClick={() => { setMode('forgot'); setError(null); setNotice(null); }} style={linkBtn}>Forgot password?</button>
               </p>
             )}
-
-            {mode === 'login' && <SocialButtons />}
 
             <p className="muted" style={{ fontSize: 12.5, marginTop: 14, textAlign: 'center' }}>
               {mode === 'login' && <>New to Together City?{' '}<button type="button" onClick={() => { setMode('register'); setError(null); setNotice(null); }} style={linkBtn}>Create one</button></>}

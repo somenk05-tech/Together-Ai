@@ -165,7 +165,6 @@ const Settings = lazy(() => import('@/features/settings/pages/Settings').then((m
 const Calendar = lazy(() => import('@/features/calendar/pages/Calendar').then((m) => ({ default: m.Calendar })));
 const SignIn = lazy(() => import('@/features/auth/pages/SignIn').then((m) => ({ default: m.SignIn })));
 const Verify = lazy(() => import('@/features/auth/pages/Verify').then((m) => ({ default: m.Verify })));
-const OAuthComplete = lazy(() => import('@/features/auth/pages/OAuthComplete').then((m) => ({ default: m.OAuthComplete })));
 
 // Every lazy page is wrapped so a stale code-split chunk (after a new deploy)
 // auto-recovers instead of leaving a blank page.
@@ -428,7 +427,6 @@ export const router = createBrowserRouter([
   { path: '/sign-in', element: wrap(<SignIn />) },
   { path: '/signin', element: <Navigate to="/sign-in" replace /> },
   { path: '/verify', element: wrap(<Verify />) },
-  { path: '/oauth/complete', element: wrap(<OAuthComplete />) },
   { path: '/index.html', element: <Navigate to="/" replace /> },
   { path: '*', element: <NotFound /> },
 ]);

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/api/auth.api';
 import { Button } from '@/components/ui';
-import { SocialButtons } from './SocialButtons';
 
 /** Prefer the backend's actual error message over a canned guess. */
 function serverMessage(err: unknown): string | null {
@@ -180,8 +179,6 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
           {busy ? <><span className="tc-spin" style={{ marginRight: 8 }} /> Creating…</> : 'Create Account'}
         </Button>
       </form>
-
-      <SocialButtons />
 
       <p className="muted" style={{ fontSize: 12.5, marginTop: 16, textAlign: 'center' }}>
         Already have an account?{' '}

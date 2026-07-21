@@ -7,9 +7,6 @@ const API_URL: string =
   import.meta.env.VITE_API_URL ??
   (import.meta.env.DEV ? 'http://localhost:3000/api' : 'https://together-ai-production.up.railway.app/api');
 
-/** Absolute API base — used for full-page redirects like OAuth start URLs. */
-export const API_BASE = API_URL;
-
 /** Shared axios instance — the ONLY place HTTP is issued. Components never call fetch(). */
 export const http: AxiosInstance = axios.create({
   baseURL: API_URL,

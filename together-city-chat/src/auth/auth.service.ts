@@ -21,11 +21,16 @@ export class AuthService {
     private readonly verification: VerificationService,
   ) {}
 
-  /** Every new account is fully initialised on sign-up (no lazy gaps). Hub
-   *  profiles seed their defaults here; the rest self-seed on first visit. */
+  /** Every new account is fully initialised on sign-up — no lazy gaps. Seeds the
+   *  default hub profiles (nutrition, beauty, fitness) so the account is complete
+   *  the moment it's created; other hubs read from these + self-seed on demand. */
   private async initializeAccount(userId: string): Promise<void> {
-    await (this.prisma as unknown as { foodPref: { create(a: unknown): Promise<unknown> } })
-      .foodPref.create({ data: { userId } }).catch(() => undefined);
+    const p = this.prisma as unknown as Record<string, { create(a: unknown): Promise<unknown> }>;
+    await Promise.all([
+      p.foodPref?.create({ data: { userId } }).catch(() => undefined),        // Nutrition Hub
+      p.beautyProfile?.create({ data: { userId } }).catch(() => undefined),   // Beauty Hub
+      p.fitnessProfile?.create({ data: { userId } }).catch(() => undefined),  // Fitness Hub
+    ]);
   }
 
   async register(dto: RegisterDto): Promise<TokenPair & { userId: string }> {
