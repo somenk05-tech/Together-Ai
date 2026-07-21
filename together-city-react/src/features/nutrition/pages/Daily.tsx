@@ -7,6 +7,8 @@ import { PlanGuidanceBanner } from '../components/PlanGuidanceBanner';
 import { ProfileIncomplete } from '../components/ProfileIncomplete';
 import { useWeeklyPlan, useNutritionTargets, useDaySummary, useBuildCart } from '../hooks';
 import { nutritionApi } from '../api';
+import { useMealSwapHistory } from '../mealHistory';
+import type { WeekPlan } from '../types';
 
 /** Monday-indexed weekday (Mon=0 … Sun=6) — matches the plan's day order. */
 const todayIndex = (): number => (new Date().getDay() + 6) % 7;
@@ -23,6 +25,11 @@ export function Daily() {
   const buildCart = useBuildCart();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const mutate = async (fn: Promise<WeekPlan>) => {
+    const next = await fn;
+    qc.setQueryData(['nutrition', 'weekly', 'individual'], next);
+  };
+  const swaps = useMealSwapHistory(plan.data?.key ?? '', dayIndex, mutate);
 
   if (plan.isLoading) return <Spinner label="Plating today…" />;
   if (plan.isError || !plan.data) {
@@ -32,11 +39,6 @@ export function Daily() {
 
   const week = plan.data;
   const day = week.days[dayIndex];
-
-  const mutate = async (fn: Promise<typeof week>) => {
-    const next = await fn;
-    qc.setQueryData(['nutrition', 'weekly', 'individual'], next);
-  };
 
   return (
     <div>
@@ -54,8 +56,10 @@ export function Daily() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }} className="tc-mealgrid">
               {day.meals.map((m) => (
                 <MealCard key={m.slot} meal={m}
-                  onSwap={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))}
-                  onSkip={() => void mutate(nutritionApi.skipMeal(week.key, dayIndex, m.slot, !m.skipped))} />
+                  onSwap={() => swaps.onSwap(m.slot, m.recipe.id)}
+                  onSkip={() => void mutate(nutritionApi.skipMeal(week.key, dayIndex, m.slot, !m.skipped))}
+                  canGoBack={swaps.canGoBack(m.slot)}
+                  onBack={() => swaps.onBack(m.slot)} />
               ))}
             </div>
           </section>

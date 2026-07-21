@@ -6,6 +6,7 @@ import { ProfileIncomplete } from '@/features/nutrition/components/ProfileIncomp
 import { DailySummary } from '@/features/nutrition/components/DailySummary';
 import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRecipes, useBuildCart } from '@/features/nutrition/hooks';
 import { nutritionApi } from '@/features/nutrition/api';
+import { useMealSwapHistory } from '@/features/nutrition/mealHistory';
 import type { WeekPlan } from '@/features/nutrition/types';
 import { useFamily, headcount } from '../members';
 import { FamilySnacks } from '../components/FamilySnacks';
@@ -34,6 +35,11 @@ export function FamilyDaily() {
   const { state } = useFamily();
   const qc = useQueryClient();
   const N = headcount(state);
+  const mutate = async (fn: Promise<WeekPlan>) => {
+    const next = await fn;
+    qc.setQueryData(['nutrition', 'weekly', 'family'], next);
+  };
+  const swaps = useMealSwapHistory(plan.data?.key ?? '', dayIndex, mutate);
 
   if (plan.isLoading) return <Spinner label="Plating today…" />;
   if (plan.isError || !plan.data) {
@@ -44,11 +50,6 @@ export function FamilyDaily() {
   const week = plan.data;
   const day = week.days[dayIndex];
   const mains = day.meals.filter((m) => m.slot !== 's');
-
-  const mutate = async (fn: Promise<WeekPlan>) => {
-    const next = await fn;
-    qc.setQueryData(['nutrition', 'weekly', 'family'], next);
-  };
 
   return (
     <div>
@@ -66,8 +67,10 @@ export function FamilyDaily() {
           <div key={m.slot}>
             <span style={chipStyle}>Family · cook together</span>
             <MealCard meal={m} people={N}
-              onSwap={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))}
-              onSkip={() => void mutate(nutritionApi.skipMeal(week.key, dayIndex, m.slot, !m.skipped))} />
+              onSwap={() => swaps.onSwap(m.slot, m.recipe.id)}
+              onSkip={() => void mutate(nutritionApi.skipMeal(week.key, dayIndex, m.slot, !m.skipped))}
+              canGoBack={swaps.canGoBack(m.slot)}
+              onBack={() => swaps.onBack(m.slot)} />
           </div>
         ))}
         <FamilySnacks recipes={recipes.data ?? []} family={state} dayIndex={dayIndex} />

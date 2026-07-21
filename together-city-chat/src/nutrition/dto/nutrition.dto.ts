@@ -19,7 +19,10 @@ export type Slot = z.infer<typeof SlotSchema>;
 export const RegenerateSchema = z.object({ mode: PlanModeSchema.optional() });
 export type RegenerateDto = z.infer<typeof RegenerateSchema>;
 
-export const SwapSchema = z.object({ slot: SlotSchema });
+// `restoreRecipeId` (optional) restores a specific earlier recipe for the slot —
+// this powers the meal card's "back" arrow (undo a refresh). When absent the
+// engine picks a fresh recipe as before.
+export const SwapSchema = z.object({ slot: SlotSchema, restoreRecipeId: z.string().min(1).optional() });
 export type SwapDto = z.infer<typeof SwapSchema>;
 
 export const SkipSchema = z.object({ slot: SlotSchema, skipped: z.boolean() });

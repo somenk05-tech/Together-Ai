@@ -9,6 +9,8 @@ import { MedicalAdvisories } from '../components/MedicalAdvisories';
 import { ProfileIncomplete } from '../components/ProfileIncomplete';
 import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRegenerateWeek, useBuildCart } from '../hooks';
 import { nutritionApi } from '../api';
+import { useMealSwapHistory } from '../mealHistory';
+import type { WeekPlan } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
 
 /**
@@ -25,6 +27,14 @@ export function WeeklyPlanner() {
   const buildCart = useBuildCart();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const mutate = async (fn: Promise<WeekPlan>) => {
+    try {
+      const next = await fn;
+      qc.setQueryData(['nutrition', 'weekly', 'individual'], (prev: WeekPlan | undefined) => ({ ...((prev ?? {}) as WeekPlan), ...next }));
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'summary'] });
+    } catch { /* surfaced by the query error boundary; keep the UI responsive */ }
+  };
+  const swaps = useMealSwapHistory(plan.data?.key ?? '', dayIndex, mutate);
 
   if (plan.isLoading) return <Spinner label="Building your week…" />;
   if (plan.isError || !plan.data) {
@@ -35,14 +45,6 @@ export function WeeklyPlanner() {
   const week = plan.data;
   const day = week.days[dayIndex];
   const last = dayIndex === week.days.length - 1;
-
-  const mutate = async (fn: Promise<typeof week>) => {
-    try {
-      const next = await fn;
-      qc.setQueryData(['nutrition', 'weekly', 'individual'], (prev: typeof week | undefined) => ({ ...(prev ?? {} as typeof week), ...next }));
-      void qc.invalidateQueries({ queryKey: ['nutrition', 'summary'] });
-    } catch { /* surfaced by the query error boundary; keep the UI responsive */ }
-  };
 
   return (
     <div>
@@ -63,8 +65,10 @@ export function WeeklyPlanner() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 14, alignItems: 'start' }}>
               {day.meals.map((m) => (
                 <MealCard key={m.slot} meal={m}
-                  onSwap={() => void mutate(nutritionApi.swapMeal(week.key, dayIndex, m.slot))}
-                  onSkip={() => void mutate(nutritionApi.skipMeal(week.key, dayIndex, m.slot, !m.skipped))} />
+                  onSwap={() => swaps.onSwap(m.slot, m.recipe.id)}
+                  onSkip={() => void mutate(nutritionApi.skipMeal(week.key, dayIndex, m.slot, !m.skipped))}
+                  canGoBack={swaps.canGoBack(m.slot)}
+                  onBack={() => swaps.onBack(m.slot)} />
               ))}
             </div>
           </section>

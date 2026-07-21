@@ -10,7 +10,7 @@ const GRADE_COLOR: Record<string, string> = { A: '#2e7d4f', B: '#5a9e3f', C: '#b
 
 /** Recipe meal card — 16:9 dish photo banner (falls back to a diet-tinted panel
  *  until the image exists), health grade, per-serving portion, and the plate. */
-export function MealCard({ meal, onSwap, onSkip, people = 1 }: { meal: Meal; onSwap: () => void; onSkip: () => void; people?: number }) {
+export function MealCard({ meal, onSwap, onSkip, people = 1, onBack, canGoBack = false }: { meal: Meal; onSwap: () => void; onSkip: () => void; people?: number; onBack?: () => void; canGoBack?: boolean }) {
   const { recipe: r, slot, skipped, plate } = meal;
   const [imgOk, setImgOk] = useState(true);
   const color = DIET_COLOR[r.diet] ?? DIET_COLOR.everything;
@@ -75,7 +75,13 @@ export function MealCard({ meal, onSwap, onSkip, people = 1 }: { meal: Meal; onS
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 7, marginTop: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 7, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          {canGoBack && onBack && (
+            <button type="button" onClick={onBack} title="Back to the previous recipe" aria-label="Back to the previous recipe"
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 999, border: '1.5px solid var(--line)', background: 'var(--card)', color: 'var(--ink)', cursor: 'pointer', fontSize: 15, lineHeight: 1, flex: '0 0 auto' }}>
+              ↩
+            </button>
+          )}
           <Link to={`/nutrition/recipes/${r.id}`} className="btn btn-accent btn-sm">Recipe</Link>
           <Button size="sm" variant="line" onClick={onSwap}>Refresh</Button>
           <Button size="sm" variant="line" onClick={onSkip}>{skipped ? 'Add back' : 'Skip'}</Button>

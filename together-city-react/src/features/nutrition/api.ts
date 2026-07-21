@@ -35,8 +35,8 @@ export const nutritionApi = {
   daySummary: (planKey: string, dayIndex: number) =>
     api.get<DaySummary>(`/nutrition/plan/${planKey}/day/${dayIndex}/summary`).then((r) => r.data),
   targets: () => api.get<NutritionTargets>('/nutrition/targets').then((r) => r.data),
-  swapMeal: (planKey: string, dayIndex: number, slot: string) =>
-    api.post<WeekPlan>(`/nutrition/plan/${planKey}/day/${dayIndex}/swap`, { slot }).then((r) => r.data),
+  swapMeal: (planKey: string, dayIndex: number, slot: string, restoreRecipeId?: string) =>
+    api.post<WeekPlan>(`/nutrition/plan/${planKey}/day/${dayIndex}/swap`, restoreRecipeId ? { slot, restoreRecipeId } : { slot }).then((r) => r.data),
   skipMeal: (planKey: string, dayIndex: number, slot: string, skipped: boolean) =>
     api.post<WeekPlan>(`/nutrition/plan/${planKey}/day/${dayIndex}/skip`, { slot, skipped }).then((r) => r.data),
   healthLog: (dates: string[]) =>

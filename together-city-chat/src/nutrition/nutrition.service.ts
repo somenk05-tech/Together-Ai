@@ -2184,8 +2184,18 @@ export class NutritionService implements OnModuleInit {
   }
 
   // ─────────────── swap + sides ───────────────
-  async swap(planKey: string, dayIndex: number, slot: Slot) {
+  async swap(planKey: string, dayIndex: number, slot: Slot, restoreRecipeId?: string) {
     const meal = await this.findMeal(planKey, dayIndex, slot);
+
+    // Undo a refresh — restore a specific earlier recipe the user was shown before.
+    // Must be a real recipe for this same slot, so the plate/macros stay coherent.
+    if (restoreRecipeId) {
+      const target = await this.prisma.recipe.findUnique({ where: { id: restoreRecipeId }, select: { id: true, slot: true } });
+      if (!target || target.slot !== slot) throw new BadRequestException('That recipe cannot be restored for this slot.');
+      await this.prisma.meal.update({ where: { id: meal.id }, data: { recipeId: target.id, skipped: false } });
+      return this.shapePlan(planKey);
+    }
+
     const plan = await this.prisma.mealPlan.findUnique({ where: { key: planKey }, select: { userId: true } });
     const pref = plan ? await this.prisma.foodPref.findUnique({ where: { userId: plan.userId } }) : null;
     const diet = (pref?.diet ?? 'everything') as Diet;

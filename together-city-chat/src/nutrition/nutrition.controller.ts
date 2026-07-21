@@ -183,7 +183,7 @@ export class NutritionController {
   @Post('plan/:key/day/:idx/swap')
   @UsePipes(new ZodValidationPipe(SwapSchema))
   swap(@Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SwapDto) {
-    return this.nutrition.swap(key, idx, dto.slot as Slot);
+    return this.nutrition.swap(key, idx, dto.slot as Slot, dto.restoreRecipeId);
   }
 
   @Post('plan/:key/day/:idx/skip')
