@@ -15,6 +15,7 @@ import { ChatModule } from './chat/chat.module';
 import { MediaModule } from './media/media.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ProfileModule } from './profile/profile.module';
+import { LookupsModule } from './lookups/lookups.module';
 import { NutritionModule } from './nutrition/nutrition.module';
 import { SocialModule } from './social/social.module';
 import { DatingModule } from './dating/dating.module';
@@ -49,6 +50,7 @@ import { HealthModule } from './health/health.module';
     MediaModule,
     ChatModule,
     ProfileModule,
+    LookupsModule,
     NutritionModule,
     SocialModule,
     DatingModule,

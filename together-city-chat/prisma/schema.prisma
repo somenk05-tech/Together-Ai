@@ -1371,3 +1371,22 @@ model RecoveryCode {
   @@index([userId])
   @@index([expiresAt])
 }
+
+// ─────────────────────── Platform master data (reusable lookups) ───────────────────────
+// One generic table powering every standardized dropdown across Together City
+// (countries, states, cities, languages, religions, …). New dropdown types need
+// no schema change — just a new `category`. Hierarchy (country→state→city) is
+// expressed via `parentCode` referencing the parent row's `code` in its category.
+model Lookup {
+  id         String  @id @default(uuid())
+  category   String // 'country' | 'state' | 'city' | 'language' | 'religion' | …
+  code       String // stable code, unique within its category
+  label      String // human display value
+  parentCode String? // parent row's code (e.g. a city's state, a state's country)
+  sortOrder  Int     @default(0)
+  active     Boolean @default(true)
+
+  @@unique([category, code])
+  @@index([category, parentCode])
+  @@index([category, label])
+}

@@ -1,6 +1,9 @@
 import { useEffect, useState, useRef, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
+import { SearchSelect } from '@/components/SearchSelect';
+import { MultiSelect } from '@/components/MultiSelect';
+import type { LookupOption } from '@/api/lookups.api';
 import { useDatingProfile, useUpsertDatingProfile, type UpsertProfileInput } from '../api';
 
 const field: React.CSSProperties = {
@@ -9,18 +12,17 @@ const field: React.CSSProperties = {
 };
 const label: React.CSSProperties = { fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', margin: '14px 0 6px' };
 
-const RELATIONSHIP_GOALS = ['Marriage', 'Long-term Relationship', 'Serious Dating', 'Casual Dating', 'Friendship First'];
-const DIET_OPTS = ['Vegetarian', 'Non-veg', 'Vegan', 'Eggetarian', 'Jain'];
-const SMOKING = ['Never', 'Occasionally', 'Regularly'];
-const DRINKING = ['Never', 'Socially', 'Regularly'];
-const FITNESS = ['Sedentary', 'Lightly active', 'Active', 'Very active'];
-const EDUCATION = ['High school', 'Diploma', 'Bachelor’s', 'Master’s', 'PhD', 'Other'];
 const INTERESTS = ['Travel', 'Movies', 'Music', 'Reading', 'Cooking', 'Fitness', 'Sports', 'Photography', 'Gaming', 'Art', 'Pets', 'Technology', 'Fashion', 'Nature'];
 const TRAITS = ['Funny', 'Calm', 'Ambitious', 'Romantic', 'Adventurous', 'Introvert', 'Extrovert', 'Creative', 'Family-Oriented', 'Spiritual'];
 const VALUES = ['Family', 'Honesty', 'Loyalty', 'Kindness', 'Career', 'Adventure', 'Personal Growth', 'Financial Stability'];
-const WANTS_CHILDREN = ['Yes', 'No', 'Maybe', 'Prefer not to say'];
 const DEAL_BREAKERS = ['Smoking', 'Drinking', 'Marriage Intentions', 'Wants Children', 'Distance'];
 const AI_DIMENSIONS = ['Astrology compatibility', 'Numerology compatibility', 'Personality compatibility', 'Lifestyle compatibility', 'Interest match', 'Values match', 'Overall AI score'];
+
+/** Height options (120–220 cm) — a numeric range, generated locally. */
+const HEIGHTS: LookupOption[] = Array.from({ length: 220 - 120 + 1 }, (_, i) => {
+  const cm = 120 + i;
+  return { code: String(cm), label: `${cm} cm`, parentCode: null };
+});
 
 const MOD: Record<string, { label: string; bg: string; c: string }> = {
   approved: { label: '● Live — matching active', bg: '#e8f5e9', c: '#2e7d32' },
@@ -30,12 +32,13 @@ const MOD: Record<string, { label: string; bg: string; c: string }> = {
 };
 
 interface DX {
-  firstName?: string; city?: string; state?: string; heightCm?: number | null; languages?: string[];
+  firstName?: string; country?: string; countryCode?: string; state?: string; stateCode?: string; city?: string;
+  heightCm?: number | null; languages?: string[];
   photos?: string[]; selfieVerified?: boolean;
   relationshipGoal?: string; diet?: string; smoking?: string; drinking?: string; fitnessLevel?: string; education?: string; profession?: string;
   personalityTraits?: string[]; values?: string[];
   prefAgeMin?: number | null; prefAgeMax?: number | null; prefDistanceKm?: number | null; prefHeight?: string;
-  prefDiet?: string; prefSmoking?: string; prefDrinking?: string; wantsChildren?: string; religion?: string; prefLanguages?: string[];
+  prefDiet?: string; prefSmoking?: string; prefDrinking?: string; wantsChildren?: string; religion?: string;
   dealBreakers?: string[];
 }
 
@@ -80,14 +83,13 @@ export function DatingProfilePage() {
   const [form, setForm] = useState<UpsertProfileInput>({ gender: 'male', seeking: 'any', bio: '', birthDate: '', birthTime: '', birthPlace: '', interests: [] });
   const [dx, setDx] = useState<DX>({});
   const [collapsed, setCollapsed] = useState(false);
-  const [langText, setLangText] = useState('');
 
   useEffect(() => {
     if (existing.data) {
       const d = existing.data;
       setForm({ gender: d.gender, seeking: d.seeking, bio: d.bio ?? '', birthDate: d.birthDate, birthTime: d.birthTime ?? '', birthPlace: d.birthPlace ?? '', interests: d.interests });
       let ex: DX = {}; try { ex = d.extras ? JSON.parse(d.extras) : {}; } catch { ex = {}; }
-      setDx(ex); setLangText((ex.languages ?? []).join(', '));
+      setDx(ex);
       setCollapsed(d.moderation !== 'rejected');
     }
   }, [existing.data]);
@@ -101,6 +103,8 @@ export function DatingProfilePage() {
     if (arr.includes(v)) return arr.filter((x) => x !== v);
     return arr.length >= cap ? arr : [...arr, v];
   };
+  // Country defaults to India so State/City work without an extra tap.
+  const countryCode = dx.countryCode ?? 'IN';
 
   const onPhotos = async (files: FileList | null) => {
     if (!files) return;
@@ -114,9 +118,7 @@ export function DatingProfilePage() {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const languages = langText.split(',').map((s) => s.trim()).filter(Boolean);
-    const extras: DX = { ...dx, languages };
-    setDx(extras);
+    const extras: DX = { ...dx };
     upsert.mutate(
       { ...form, interests: (form.interests ?? []), extras: JSON.stringify(extras) },
       { onSuccess: (p) => setCollapsed(p.moderation !== 'rejected') },
@@ -141,8 +143,9 @@ export function DatingProfilePage() {
     const rows: [string, string][] = [
       ['Name', dx.firstName || '—'],
       ['Looking for', dx.relationshipGoal || '—'],
-      ['Location', [dx.city, dx.state].filter(Boolean).join(', ') || '—'],
+      ['Location', [dx.city, dx.state, dx.country].filter(Boolean).join(', ') || '—'],
       ['Height', dx.heightCm ? `${dx.heightCm} cm` : '—'],
+      ['Languages', (dx.languages ?? []).join(', ') || '—'],
       ['Interests', (form.interests ?? []).join(', ') || '—'],
       ['Personality', (dx.personalityTraits ?? []).join(', ') || '—'],
       ['Values', (dx.values ?? []).join(', ') || '—'],
@@ -204,11 +207,28 @@ export function DatingProfilePage() {
             <div><span style={label}>Date of birth</span><input type="date" required value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} style={field} /></div>
             <div><span style={label}>Time of birth <span style={{ textTransform: 'none' }}>(optional)</span></span><input type="time" value={form.birthTime ?? ''} onChange={(e) => setForm({ ...form, birthTime: e.target.value })} style={field} /></div>
             <div><span style={label}>Place of birth <span style={{ textTransform: 'none' }}>(optional)</span></span><input value={form.birthPlace ?? ''} placeholder="City" onChange={(e) => setForm({ ...form, birthPlace: e.target.value })} style={field} /></div>
-            <div><span style={label}>City</span><input value={dx.city ?? ''} onChange={(e) => setD({ city: e.target.value })} style={field} /></div>
-            <div><span style={label}>State</span><input value={dx.state ?? ''} onChange={(e) => setD({ state: e.target.value })} style={field} /></div>
-            <div><span style={label}>Height (cm)</span><input type="number" min={120} max={230} value={dx.heightCm ?? ''} onChange={(e) => setD({ heightCm: num(e.target.value) })} style={field} /></div>
-            <div><span style={label}>Languages spoken</span><input value={langText} placeholder="English, Hindi" onChange={(e) => setLangText(e.target.value)} style={field} /></div>
+
+            <div><span style={label}>Country</span>
+              <SearchSelect category="country" value={dx.country ?? 'India'} placeholder="Select country"
+                onChange={(o) => setD({ country: o?.label, countryCode: o?.code, state: undefined, stateCode: undefined, city: undefined })} />
+            </div>
+            <div><span style={label}>State</span>
+              <SearchSelect category="state" parent={countryCode} value={dx.state ?? ''} placeholder="Select state"
+                onChange={(o) => setD({ state: o?.label, stateCode: o?.code, city: undefined })} />
+            </div>
+            <div><span style={label}>City</span>
+              <SearchSelect category="city" parent={dx.stateCode} value={dx.city ?? ''} disabled={!dx.stateCode}
+                placeholder={dx.stateCode ? 'Select city' : 'Pick a state first'}
+                onChange={(o) => setD({ city: o?.label })} />
+            </div>
+            <div><span style={label}>Height</span>
+              <SearchSelect options={HEIGHTS} value={dx.heightCm ? `${dx.heightCm} cm` : ''} placeholder="Select height"
+                onChange={(o) => setD({ heightCm: o ? parseInt(o.code, 10) : null })} />
+            </div>
           </div>
+
+          <span style={label}>Languages spoken</span>
+          <MultiSelect category="language" values={dx.languages ?? []} onChange={(v) => setD({ languages: v })} placeholder="Add languages…" ariaLabel="Languages spoken" />
 
           <span style={label}>Photos (3–10)</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -237,14 +257,15 @@ export function DatingProfilePage() {
         <Phase n={2} title="About you" />
         <div className="card">
           <span style={label}>Relationship goal</span>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{RELATIONSHIP_GOALS.map((g) => <Chip key={g} on={dx.relationshipGoal === g} onClick={() => setD({ relationshipGoal: dx.relationshipGoal === g ? undefined : g })}>{g}</Chip>)}</div>
+          <SearchSelect category="relationshipGoal" value={dx.relationshipGoal ?? ''} placeholder="What are you looking for?"
+            onChange={(o) => setD({ relationshipGoal: o?.label })} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
-            <div><span style={label}>Diet</span><select value={dx.diet ?? ''} onChange={(e) => setD({ diet: e.target.value || undefined })} style={field}><option value="">—</option>{DIET_OPTS.map((o) => <option key={o}>{o}</option>)}</select></div>
-            <div><span style={label}>Fitness level</span><select value={dx.fitnessLevel ?? ''} onChange={(e) => setD({ fitnessLevel: e.target.value || undefined })} style={field}><option value="">—</option>{FITNESS.map((o) => <option key={o}>{o}</option>)}</select></div>
-            <div><span style={label}>Smoking</span><select value={dx.smoking ?? ''} onChange={(e) => setD({ smoking: e.target.value || undefined })} style={field}><option value="">—</option>{SMOKING.map((o) => <option key={o}>{o}</option>)}</select></div>
-            <div><span style={label}>Drinking</span><select value={dx.drinking ?? ''} onChange={(e) => setD({ drinking: e.target.value || undefined })} style={field}><option value="">—</option>{DRINKING.map((o) => <option key={o}>{o}</option>)}</select></div>
-            <div><span style={label}>Education</span><select value={dx.education ?? ''} onChange={(e) => setD({ education: e.target.value || undefined })} style={field}><option value="">—</option>{EDUCATION.map((o) => <option key={o}>{o}</option>)}</select></div>
-            <div><span style={label}>Profession</span><input value={dx.profession ?? ''} onChange={(e) => setD({ profession: e.target.value })} style={field} /></div>
+            <div><span style={label}>Diet</span><SearchSelect category="diet" value={dx.diet ?? ''} placeholder="Select" onChange={(o) => setD({ diet: o?.label })} /></div>
+            <div><span style={label}>Fitness level</span><SearchSelect category="exercise" value={dx.fitnessLevel ?? ''} placeholder="Select" onChange={(o) => setD({ fitnessLevel: o?.label })} /></div>
+            <div><span style={label}>Smoking</span><SearchSelect category="smoking" value={dx.smoking ?? ''} placeholder="Select" onChange={(o) => setD({ smoking: o?.label })} /></div>
+            <div><span style={label}>Drinking</span><SearchSelect category="alcohol" value={dx.drinking ?? ''} placeholder="Select" onChange={(o) => setD({ drinking: o?.label })} /></div>
+            <div><span style={label}>Education</span><SearchSelect category="education" value={dx.education ?? ''} placeholder="Select" onChange={(o) => setD({ education: o?.label })} /></div>
+            <div><span style={label}>Profession</span><SearchSelect category="occupation" value={dx.profession ?? ''} placeholder="Select" onChange={(o) => setD({ profession: o?.label })} /></div>
           </div>
           <span style={label}>Short bio (max 300)</span>
           <textarea value={form.bio ?? ''} rows={3} maxLength={300} placeholder="A line or two — honest beats impressive." onChange={(e) => setForm({ ...form, bio: e.target.value })} style={{ ...field, resize: 'vertical' }} />
@@ -270,11 +291,11 @@ export function DatingProfilePage() {
             <div><span style={label}>Age to</span><input type="number" min={18} max={99} value={dx.prefAgeMax ?? ''} onChange={(e) => setD({ prefAgeMax: num(e.target.value) })} style={field} /></div>
             <div><span style={label}>Distance (km)</span><input type="number" min={1} max={5000} value={dx.prefDistanceKm ?? ''} onChange={(e) => setD({ prefDistanceKm: num(e.target.value) })} style={field} /></div>
             <div><span style={label}>Height preference <span style={{ textTransform: 'none' }}>(optional)</span></span><input value={dx.prefHeight ?? ''} placeholder="e.g. 165–185cm" onChange={(e) => setD({ prefHeight: e.target.value })} style={field} /></div>
-            <div><span style={label}>Diet</span><select value={dx.prefDiet ?? ''} onChange={(e) => setD({ prefDiet: e.target.value || undefined })} style={field}><option value="">Any</option>{DIET_OPTS.map((o) => <option key={o}>{o}</option>)}</select></div>
-            <div><span style={label}>Wants children</span><select value={dx.wantsChildren ?? ''} onChange={(e) => setD({ wantsChildren: e.target.value || undefined })} style={field}><option value="">Any</option>{WANTS_CHILDREN.map((o) => <option key={o}>{o}</option>)}</select></div>
-            <div><span style={label}>Smoking</span><select value={dx.prefSmoking ?? ''} onChange={(e) => setD({ prefSmoking: e.target.value || undefined })} style={field}><option value="">Any</option>{SMOKING.map((o) => <option key={o}>{o}</option>)}</select></div>
-            <div><span style={label}>Drinking</span><select value={dx.prefDrinking ?? ''} onChange={(e) => setD({ prefDrinking: e.target.value || undefined })} style={field}><option value="">Any</option>{DRINKING.map((o) => <option key={o}>{o}</option>)}</select></div>
-            <div><span style={label}>Religion <span style={{ textTransform: 'none' }}>(optional)</span></span><input value={dx.religion ?? ''} onChange={(e) => setD({ religion: e.target.value })} style={field} /></div>
+            <div><span style={label}>Diet</span><SearchSelect category="diet" value={dx.prefDiet ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ prefDiet: o?.label })} /></div>
+            <div><span style={label}>Wants children</span><SearchSelect category="wantsChildren" value={dx.wantsChildren ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ wantsChildren: o?.label })} /></div>
+            <div><span style={label}>Smoking</span><SearchSelect category="smoking" value={dx.prefSmoking ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ prefSmoking: o?.label })} /></div>
+            <div><span style={label}>Drinking</span><SearchSelect category="alcohol" value={dx.prefDrinking ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ prefDrinking: o?.label })} /></div>
+            <div><span style={label}>Religion <span style={{ textTransform: 'none' }}>(optional)</span></span><SearchSelect category="religion" value={dx.religion ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ religion: o?.label })} /></div>
           </div>
           <span style={label}>Deal breakers (optional)</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{DEAL_BREAKERS.map((v) => <Chip key={v} on={(dx.dealBreakers ?? []).includes(v)} onClick={() => setD({ dealBreakers: capToggle(dx.dealBreakers, v, 5) })}>{v}</Chip>)}</div>
