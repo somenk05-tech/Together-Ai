@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { EntPage, PosterLead, PosterHero, TrustBar } from './parts';
+import { EntPage, PosterLead, TrustBar } from './parts';
 
 const CSS = `
 .ent-others .othcard{display:block;text-decoration:none;color:inherit;background:var(--card,#fff);border:1px solid var(--line,#eee);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s}
@@ -31,7 +31,6 @@ export function Others() {
     <EntPage className="ent-others">
       <style>{CSS}</style>
       <PosterLead eyebrow="Entertainment · 07" title="Others — Music, Gaming & More" sub="Nightlife, gaming tournaments and workshops that don't fit a box." />
-      <PosterHero src="/assets/img/others-hero.webp" alt="Game On: The City — esports grand finals" />
 
       <div className="blk-head rise d1"><h2>Nightlife</h2></div>
       <div className="grid3 rise d1" style={{ marginBottom: 44 }}>

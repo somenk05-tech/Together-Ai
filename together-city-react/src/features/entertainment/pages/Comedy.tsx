@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { EntPage, PosterLead, PosterHero, TrustBar } from './parts';
+import { EntPage, PosterLead, TrustBar } from './parts';
 
 const CSS = `
 .ent-comedy .comcard{display:block;text-decoration:none;color:inherit;background:var(--card,#fff);border:1px solid var(--line,#eee);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s}
@@ -33,7 +33,6 @@ export function Comedy() {
     <EntPage className="ent-comedy">
       <style>{CSS}</style>
       <PosterLead eyebrow="Entertainment · 05" title="Comedy Club" sub="Live laughs, every night of the week." />
-      <PosterHero src="/assets/img/comedy-hero.webp" alt="Stand Up for Life — a stand-up comedy special" />
 
       <div className="tabrow live rise d1">
         <a href="#tonight" className="on">Tonight's Shows</a><a href="#mics">Open Mics</a><a href="#specials">Specials on OTT</a>

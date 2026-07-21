@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { EntPage, PosterLead, PosterHero, TrustBar } from './parts';
+import { EntPage, PosterLead, TrustBar } from './parts';
 
 const CSS = `
 .ent-sports .scorestrip{display:flex;gap:16px;overflow-x:auto;padding:14px 0;margin-bottom:8px}
@@ -32,7 +32,6 @@ export function Sports() {
     <EntPage className="ent-sports">
       <style>{CSS}</style>
       <PosterLead eyebrow="Entertainment · 06" title="Sports" sub="Matchday, every day — live scores, tickets and watch parties." />
-      <PosterHero src="/assets/img/sports-hero.webp" alt="The Rivalry Rewritten — India vs Pakistan" />
 
       <div className="blk-head rise d1"><h2>Live Matches</h2></div>
       <div className="scorestrip rise d1">

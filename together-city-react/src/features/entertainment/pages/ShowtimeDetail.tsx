@@ -44,8 +44,7 @@ export function ShowtimeDetail() {
     <EntPage className="ent-detail">
       <style>{CSS}</style>
 
-      <div className="hero rise">
-        <img className="bg" src="/assets/img/entertainment.webp" alt="Now playing" style={{ objectPosition: '20% 45%' }} />
+      <div className="hero rise" style={{ background: 'linear-gradient(150deg,#241a3d,#5b4b8a 60%,#8a6a2f)' }}>
         <span className="playbtn"><span className="ic">▶</span>Watch trailer</span>
         <div className="inner">
           <div className="eyebrow">Movie · Sci-Fi · IMAX re-release</div>

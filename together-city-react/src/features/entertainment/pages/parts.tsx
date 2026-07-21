@@ -11,15 +11,6 @@ export function PosterLead({ eyebrow, title, sub }: { eyebrow: string; title: st
   );
 }
 
-/** Full-bleed hero image band. */
-export function PosterHero({ src, alt }: { src: string; alt: string }) {
-  return (
-    <div className="poster-hero rise d1">
-      <img loading="lazy" decoding="async" src={src} alt={alt} />
-    </div>
-  );
-}
-
 /** The reassurance strip at the foot of every page. */
 export function TrustBar({ items }: { items: string[] }) {
   return (

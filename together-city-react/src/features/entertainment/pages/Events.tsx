@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { EntPage, PosterLead, PosterHero, TrustBar } from './parts';
+import { EntPage, PosterLead, TrustBar } from './parts';
 
 const CSS = `
 .ent-events .evtile{aspect-ratio:16/9;border-radius:14px 14px 0 0;display:flex;align-items:flex-start;justify-content:space-between;padding:14px;color:#fff;position:relative;overflow:hidden}
@@ -41,7 +41,6 @@ export function Events() {
     <EntPage className="ent-events">
       <style>{CSS}</style>
       <PosterLead eyebrow="Entertainment · 04" title="Experiences that connect us." sub="Concerts, comedy, art, food and sport — book together, remember longer." />
-      <PosterHero src="/assets/img/events-hero.webp" alt="Together for Tomorrow — a celebration of humanity" />
 
       <div className="tabrow live rise d1">
         {TABS.map((t, i) => <a key={t} href="#events" className={i === 0 ? 'on' : undefined}>{t}</a>)}
