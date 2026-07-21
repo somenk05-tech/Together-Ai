@@ -43,7 +43,7 @@ export interface StartPayload {
 function buildSteps(p: StartPayload): Step[] {
   const prep: Step = {
     kind: 'prep',
-    text: `Mise en place — gather and prep everything for ${p.name} before you start cooking.`,
+    text: `Get everything ready — gather and prep all your ingredients for ${p.name} before you start cooking.`,
     durationSec: 0, active: true, ingredients: p.ingredients,
   };
   const source: CookStep[] = p.cookSteps && p.cookSteps.length
