@@ -48,7 +48,7 @@ export function Discover() {
       </div>
 
       {events.isLoading ? <Spinner label="Loading events…" />
-        : events.isError ? <EmptyState title="Couldn't load events" hint="Start the backend and reload." />
+        : events.isError ? <EmptyState title="Couldn't load events" hint="Please check your connection and try again." />
         : (events.data ?? []).length === 0 ? <EmptyState icon="🎭" title="Nothing in that category yet" hint="Try another category." />
         : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>

@@ -42,7 +42,7 @@ export function MyTickets() {
       </div>
 
       {q.isLoading ? <Spinner label="Loading your tickets…" />
-        : q.isError ? <EmptyState title="Couldn't load your tickets" hint="Start the backend and reload." />
+        : q.isError ? <EmptyState title="Couldn't load your tickets" hint="Please check your connection and try again." />
         : (q.data ?? []).length === 0 ? <EmptyState icon="🎟" title="No tickets yet" hint="Book an event from Discover." />
         : <div style={{ marginTop: 16 }}>{q.data?.map((t) => <TicketPass key={t.id} t={t} />)}</div>}
     </div>
