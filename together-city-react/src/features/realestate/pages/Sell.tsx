@@ -279,11 +279,8 @@ export function Sell() {
             </div>
           </div>
           <div className="card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
-              <div className="av">RM</div>
-              <div><b style={{ display: 'block', fontSize: 14 }}>Riya Mehta</b><span className="muted" style={{ fontSize: 12 }}>Verified listing agent</span></div>
-            </div>
-            <p className="muted" style={{ fontSize: 12.5 }}>Need help with pricing, photography or paperwork? Riya can review your listings before they go live.</p>
+            <div className="eyebrow">Before it goes live</div>
+            <p className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>Every listing is checked automatically — photos, pricing sanity and description — and goes live once it clears review. You'll see the outcome the moment you submit.</p>
           </div>
         </aside>
       </div>
@@ -291,7 +288,7 @@ export function Sell() {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '24px 0 0' }}>
         <Tag tone="green">✓ Verified Properties</Tag>
         <Tag tone="green">✓ Live-photo Authenticity</Tag>
-        <Tag>✓ Expert Support</Tag>
+        <Tag>✓ Automated review & moderation</Tag>
         <Tag>✓ Safe &amp; Secure</Tag>
       </div>
     </div>

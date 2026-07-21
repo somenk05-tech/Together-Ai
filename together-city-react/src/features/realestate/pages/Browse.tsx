@@ -41,7 +41,7 @@ export function Browse() {
       </div>
 
       {listings.isLoading ? <Spinner label="Finding homes…" />
-        : listings.isError ? <EmptyState title="Couldn't load listings" hint="Start the backend and reload." />
+        : listings.isError ? <EmptyState title="Couldn't load listings" hint="Please check your connection and try again." />
         : (listings.data ?? []).length === 0 ? <EmptyState icon="🏠" title="No matching homes" hint="Try widening your filters." />
         : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>

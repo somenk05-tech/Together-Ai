@@ -45,7 +45,7 @@ export function MyListings() {
       </div>
 
       {q.isLoading ? <Spinner label="Loading your listings…" />
-        : q.isError ? <EmptyState title="Couldn't load your listings" hint="Start the backend and reload." />
+        : q.isError ? <EmptyState title="Couldn't load your listings" hint="Please check your connection and try again." />
         : (q.data ?? []).length === 0 ? <EmptyState icon="🏡" title="You haven't posted anything yet" hint="Post a property — photos are required." />
         : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16, marginTop: 16 }}>

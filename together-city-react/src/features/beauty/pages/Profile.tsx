@@ -481,7 +481,7 @@ export function Profile() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 12, padding: '10px 12px', background: 'var(--paper)', borderRadius: 10 }}>
               <span style={{ fontSize: 15 }}>📷</span>
               <p className="muted" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5 }}>
-                Upload clear, well-lit photos of yourself with a bare face/scalp. <strong>No beauty filters and no AI-generated images</strong> — they distort the analysis and will be rejected. {aiEnabled ? 'AI reviews clear photos once to spot visible issues (acne, pigmentation, texture, pores, redness, hydration, hair density & scalp).' : 'Photos build your before/after alongside your profile assessment.'} Full images aren't stored — only a small unedited thumbnail for your timeline.
+                Upload clear, well-lit photos of yourself with a bare face/scalp. <strong>No beauty filters and no AI-generated images</strong> — they distort the analysis and will be rejected. {aiEnabled ? 'AI reviews clear photos once to spot visible issues (acne, pigmentation, texture, pores, redness, hydration, hair density & scalp).' : 'Photos build your before/after alongside your profile assessment.'} Full images aren't stored — only a small unedited thumbnail for your timeline. <strong>🔒 Your photos are completely private: no one but you ever sees them</strong> — they're never shown to other users, never shared, and never used for anything except your own analysis.
               </p>
             </div>
             {warning && (

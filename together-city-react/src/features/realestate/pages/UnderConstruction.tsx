@@ -63,7 +63,7 @@ export function UnderConstruction() {
       </p>
 
       {q.isLoading ? <Spinner label="Loading projects…" />
-        : q.isError ? <EmptyState title="Couldn't load projects" hint="Start the backend and reload." />
+        : q.isError ? <EmptyState title="Couldn't load projects" hint="Please check your connection and try again." />
         : (q.data ?? []).length === 0 ? <EmptyState icon="🏗" title="No under-construction projects yet" hint="Post one from “Post a property”." />
         : q.data?.map((p) => <ProjectCard key={p.id} p={p} />)}
     </div>

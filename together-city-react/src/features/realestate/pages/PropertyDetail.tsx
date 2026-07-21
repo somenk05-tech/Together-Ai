@@ -262,12 +262,12 @@ export function PropertyDetail() {
         </div>
       )}
 
-      <div className="card" style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Interested?</div>
-          <div className="muted" style={{ fontSize: 12.5 }}>Contact the {p.postedByYou ? 'buyers via' : 'seller through'} your Together City connections.</div>
+      <div className="card" style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>{p.postedByYou ? 'This is your listing' : 'Interested?'}</div>
+          <div className="muted" style={{ fontSize: 12.5 }}>{p.postedByYou ? 'Manage it from My Listings.' : 'Share it into a chat to discuss with the seller or your circle.'}</div>
         </div>
-        <Button variant="accent" size="sm">{p.postedByYou ? 'Manage listing' : 'Contact seller'}</Button>
+        {p.postedByYou && <Link to="/realestate/mine"><Button variant="accent" size="sm">My Listings</Button></Link>}
       </div>
     </div>
   );
