@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { EntPage, PosterLead, PosterHero, TrustBar } from './parts';
+import { useLiveOtt, type OttTitle } from '../api';
 
 const CSS = `
 .ent-ott .showrow{display:flex;align-items:center;gap:16px;background:var(--card,#fff);border:1px solid var(--line,#eee);border-radius:14px;padding:14px 18px;margin-bottom:10px;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s}
 .ent-ott .showrow:hover{transform:translateY(-2px);box-shadow:var(--shadow-deep)}
-.ent-ott .showrow .tile{width:52px;height:52px;border-radius:10px;flex-shrink:0;background:linear-gradient(150deg,#241a3d,#5b4b8a);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--serif,Georgia);font-size:16px}
+.ent-ott .showrow .tile{width:52px;height:52px;border-radius:10px;flex-shrink:0;background:linear-gradient(150deg,#241a3d,#5b4b8a);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--serif,Georgia);font-size:16px;overflow:hidden}
+.ent-ott .showrow .tile img{width:100%;height:100%;object-fit:cover}
 .ent-ott .showrow .grow{flex:1;min-width:0}
 .ent-ott .showrow .plat{font-size:11px;color:var(--muted)}
 .ent-ott .split{display:grid;grid-template-columns:2fr 1fr;gap:28px}
@@ -45,8 +47,23 @@ function Row({ s }: { s: Show }) {
   );
 }
 
+function LiveRow({ t, primary }: { t: OttTitle; primary?: boolean }) {
+  const sub = [t.platform ?? 'In theatres / on demand', t.genres[0], t.rating != null ? `★ ${t.rating.toFixed(1)}` : null].filter(Boolean).join(' · ');
+  return (
+    <div className="showrow">
+      <div className="tile">{t.posterUrl ? <img src={t.posterUrl} alt={t.title} loading="lazy" /> : t.title[0]}</div>
+      <div className="grow"><div style={{ fontWeight: 600 }}>{t.title}</div><div className="plat">{sub}</div></div>
+      <button type="button" className={`btn btn-sm ${primary ? 'btn-gold' : 'btn-line'}`}>Watch now</button>
+    </div>
+  );
+}
+
 /** OTT Watch — mood- and platform-filtered streaming picks across every service. */
 export function Ott() {
+  const live = useLiveOtt();
+  const isLive = live.data?.live === true;
+  const d = live.data;
+  const topPick = isLive ? d!.streaming.find((t) => t.platform) ?? d!.streaming[0] : null;
   return (
     <EntPage className="ent-ott">
       <style>{CSS}</style>
@@ -65,15 +82,20 @@ export function Ott() {
 
       <div className="split rise d2">
         <div>
-          <div className="blk-head"><h2>Now Streaming</h2></div>
-          <div className="rows" style={{ marginBottom: 32 }}>{NOW.map((s, i) => <Row key={s.t + i} s={s} />)}</div>
-          <div className="blk-head"><h2>Popular Shows</h2></div>
-          <div className="rows">{POPULAR.map((s, i) => <Row key={s.t + i} s={s} />)}</div>
+          <div className="blk-head"><h2>Now Streaming</h2>{isLive && <span className="muted" style={{ fontSize: 12 }}>Trending this week · live</span>}</div>
+          <div className="rows" style={{ marginBottom: 32 }}>
+            {isLive ? d!.streaming.map((t) => <LiveRow key={`tv${t.id}`} t={t} primary />) : NOW.map((s, i) => <Row key={s.t + i} s={s} />)}
+          </div>
+          <div className="blk-head"><h2>Popular {isLive ? 'Movies on OTT' : 'Shows'}</h2></div>
+          <div className="rows">
+            {isLive ? d!.popular.map((t) => <LiveRow key={`mv${t.id}`} t={t} />) : POPULAR.map((s, i) => <Row key={s.t + i} s={s} />)}
+          </div>
+          {isLive && <p className="muted" style={{ fontSize: 11, marginTop: 14 }}>Data & images: TMDB · JustWatch. Not endorsed or certified by TMDB.</p>}
         </div>
         <div>
           <div className="card" style={{ marginBottom: 16 }}>
             <h4>Today's Top Picks</h4>
-            <p className="muted" style={{ fontSize: 12.5, margin: '8px 0' }}>Atlas — Netflix</p>
+            <p className="muted" style={{ fontSize: 12.5, margin: '8px 0' }}>{topPick ? `${topPick.title}${topPick.platform ? ` — ${topPick.platform}` : ''}` : 'Atlas — Netflix'}</p>
             <button type="button" className="btn btn-gold btn-sm" style={{ width: '100%', justifyContent: 'center' }}>Watch now</button>
           </div>
           <div className="card" style={{ marginBottom: 16 }}>

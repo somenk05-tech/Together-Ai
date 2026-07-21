@@ -14,6 +14,23 @@ export interface Ticket {
 }
 export interface EventQuery { category?: string; city?: string }
 
+/** Live movie & OTT data (TMDB proxy — backend holds the key). */
+export interface LiveMovie {
+  id: number; title: string; rating: number | null; votes: number;
+  posterUrl: string | null; backdropUrl: string | null;
+  releaseDate: string | null; language: string; genres: string[]; overview: string;
+}
+export interface MoviesLive { live: boolean; nowPlaying: LiveMovie[]; thisWeek: LiveMovie[]; comingUp: LiveMovie[] }
+export interface OttTitle extends LiveMovie { type: 'tv' | 'movie'; platform: string | null }
+export interface OttLive { live: boolean; streaming: OttTitle[]; popular: OttTitle[] }
+export interface CastMember { name: string; character: string; photoUrl: string | null }
+export interface MovieFull extends LiveMovie {
+  runtime: number | null; tagline: string | null; status: string | null;
+  cast: CastMember[]; directors: string[];
+  watch: { stream: string[]; rent: string[]; buy: string[] };
+  attribution: string;
+}
+
 export const entApi = {
   categories: () => api.get<Category[]>('/entertainment/categories').then((r) => r.data),
   events: (q: EventQuery) => api.get<EventCard[]>('/entertainment/events', { params: q }).then((r) => r.data),
@@ -21,7 +38,20 @@ export const entApi = {
   book: (eventId: string, input: { tier: string; qty: number; method: 'wallet' | 'card' }) =>
     api.post<Ticket[]>(`/entertainment/events/${eventId}/book`, input).then((r) => r.data),
   tickets: () => api.get<Ticket[]>('/entertainment/tickets').then((r) => r.data),
+  movies: () => api.get<MoviesLive>('/entertainment/movies').then((r) => r.data),
+  movie: (id: number) => api.get<MovieFull>(`/entertainment/movies/${id}`).then((r) => r.data),
+  ott: () => api.get<OttLive>('/entertainment/ott').then((r) => r.data),
 };
+
+export function useLiveMovies() {
+  return useQuery({ queryKey: ['ent', 'movies'], queryFn: () => entApi.movies(), retry: false, staleTime: 10 * 60_000 });
+}
+export function useLiveMovie(id: number | null) {
+  return useQuery({ queryKey: ['ent', 'movie', id], queryFn: () => entApi.movie(id as number), enabled: id != null, retry: false, staleTime: 30 * 60_000 });
+}
+export function useLiveOtt() {
+  return useQuery({ queryKey: ['ent', 'ott'], queryFn: () => entApi.ott(), retry: false, staleTime: 10 * 60_000 });
+}
 
 export function useCategories() {
   return useQuery({ queryKey: ['ent', 'categories'], queryFn: () => entApi.categories() });
