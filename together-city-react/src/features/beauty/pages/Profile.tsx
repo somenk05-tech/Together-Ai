@@ -608,7 +608,7 @@ export function Profile() {
               )}
               {progress.length > 0 && (
                 <button type="button" disabled={del.isPending}
-                  onClick={() => { if (window.confirm('Delete your latest photo check-in? Your earlier timeline entries stay. This does not refund a weekly analysis.')) del.mutate(); }}
+                  onClick={() => { if (window.confirm('Delete your latest photo check-in? Your current assessment will be cleared and stays empty until you upload new photos and re-analyse. Earlier timeline entries stay; this does not refund a weekly analysis.')) del.mutate(); }}
                   style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: '#b0503e', padding: 0 }}>
                   {del.isPending ? 'Deleting…' : '🗑 Delete latest & re-upload'}
                 </button>

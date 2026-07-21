@@ -160,17 +160,18 @@ export class BeautyService {
     const photos = safeJson<{ slot: string; findings: string[] }[]>(existing?.photosJson, []);
     const photoFindings = [...new Set(photos.flatMap((x) => x.findings ?? []))];
 
-    const analysis = assessBeauty(p, photoFindings);
-    const now = new Date();
-    // Completing the profile the FIRST time creates the baseline assessment in the
-    // timeline. Later profile edits refresh the current assessment but don't add a
-    // new timeline entry (follow-ups come from dated photo assessments).
-    const progress = safeJson<ProgressEntry[]>(existing?.progressJson, []);
-    const nextProgress = progress.length === 0 ? this.appendAssessment(progress, analysis, { thumb: null }) : progress;
+    // Saving the profile alone does NOT generate an assessment — analysis is
+    // created only by the full photo + profile flow (analyzePhotos). If an
+    // assessment already exists, refresh it with the updated profile answers so
+    // it stays consistent; if none exists, stay neutral until photos arrive.
+    void photoFindings;
+    const hasExisting = Boolean(existing?.analysisJson);
+    const refreshed = hasExisting ? assessBeauty(p, [...new Set(photos.flatMap((x) => x.findings ?? []))]) : null;
     await this.beauty.upsert({
       where: { userId },
-      update: { skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto), analysisJson: JSON.stringify(analysis), progressJson: JSON.stringify(nextProgress), analyzedAt: now } as never,
-      create: { userId, skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto), photosJson: '[]', analysisJson: JSON.stringify(analysis), progressJson: JSON.stringify(nextProgress), analyzedAt: now } as never,
+      update: { skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto),
+        ...(refreshed ? { analysisJson: JSON.stringify(refreshed) } : {}) } as never,
+      create: { userId, skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto), photosJson: '[]', progressJson: '[]' } as never,
     });
     return this.getProfile(userId);
   }
@@ -333,20 +334,19 @@ export class BeautyService {
     return { limit: 5, used, remaining: Math.max(0, 5 - used) };
   }
 
-  /** Delete the latest photo check-in so the user can re-upload. The assessment
-   *  is regenerated from the profile alone (photo findings removed); the weekly
-   *  analysis counter is NOT reset — deleting doesn't refund an upload. */
+  /** Delete the latest photo check-in. The current assessment is CLEARED to a
+   *  neutral "waiting" state — nothing is shown again until the user uploads a
+   *  fresh photo set and re-analyses. Earlier timeline entries are kept; the
+   *  weekly analysis counter is NOT reset — deleting doesn't refund an upload. */
   async deleteLatestAssessment(userId: string) {
     const existing = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
     if (!existing) return this.getProfile(userId);
     const progress = safeJson<ProgressEntry[]>(existing.progressJson, []);
     if (progress.length === 0) return this.getProfile(userId);
     const nextProgress = progress.slice(0, -1);
-    const profile = safeJson<BeautyProfileInput>(existing.extras, {});
-    const analysis = assessBeauty(profile, []); // regenerate without the deleted photos' findings
     await this.beauty.upsert({
       where: { userId },
-      update: { photosJson: '[]', progressJson: JSON.stringify(nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: new Date() } as never,
+      update: { photosJson: '[]', progressJson: JSON.stringify(nextProgress), analysisJson: null, analyzedAt: null, faceJson: null } as never,
       create: { userId, skinType: 'normal', hairType: 'straight', concerns: '', photosJson: '[]', progressJson: '[]' } as never,
     });
     return this.getProfile(userId);
