@@ -10,6 +10,7 @@ import { MailService } from '../mail/mail.service';
 import { ForgotDto, LoginDto, RegisterDto, ResetDto } from './dto/auth.dto';
 import { TokenService, TokenPair } from './token.service';
 import { assertStrongPassword } from './recovery.service';
+import { VerificationService } from './verification.service';
 
 @Injectable()
 export class AuthService {
@@ -17,7 +18,15 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
     private readonly mail: MailService,
+    private readonly verification: VerificationService,
   ) {}
+
+  /** Every new account is fully initialised on sign-up (no lazy gaps). Hub
+   *  profiles seed their defaults here; the rest self-seed on first visit. */
+  private async initializeAccount(userId: string): Promise<void> {
+    await (this.prisma as unknown as { foodPref: { create(a: unknown): Promise<unknown> } })
+      .foodPref.create({ data: { userId } }).catch(() => undefined);
+  }
 
   async register(dto: RegisterDto): Promise<TokenPair & { userId: string }> {
     // Open registration — Together City is no longer invite-only.
@@ -38,6 +47,8 @@ export class AuthService {
         passwordHash: await argon2.hash(dto.password),
       },
     });
+    await this.initializeAccount(user.id);            // fully-initialised account
+    await this.verification.send(user.id).catch(() => undefined); // send verification link
     const pair = await this.tokens.issuePair({ sub: user.id, handle: user.handle });
     return { ...pair, userId: user.id };
   }

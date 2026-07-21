@@ -1,9 +1,12 @@
-import { Body, Controller, Get, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req, UseGuards, UsePipes } from '@nestjs/common';
+import type { Request } from 'express';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService } from './auth.service';
+import { VerificationService } from './verification.service';
+import { RecoveryService } from './recovery.service';
 import {
   ForgotDto,
   ForgotSchema,
@@ -19,7 +22,11 @@ import {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly verification: VerificationService,
+    private readonly recovery: RecoveryService,
+  ) {}
 
   @Post('register')
   @UsePipes(new ZodValidationPipe(RegisterSchema))
@@ -77,5 +84,43 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   logout(@CurrentUser() user: JwtUser) {
     return this.auth.logout(user.sub);
+  }
+
+  // ── Email verification ──
+  @Post('verify-email')
+  verifyEmail(@Body() dto: { token?: string }) {
+    return this.verification.verify(dto?.token ?? '');
+  }
+
+  @Post('resend-verification')
+  resendVerification(@Body() dto: { email?: string }) {
+    return this.verification.resend(dto?.email ?? '');
+  }
+
+  @Post('send-verification')
+  @UseGuards(JwtAuthGuard)
+  sendVerification(@CurrentUser() user: JwtUser) {
+    return this.verification.send(user.sub);
+  }
+
+  // ── OTP account recovery (production forgot-password) ──
+  @Post('recovery/request')
+  recoveryRequest(@Body() dto: { identifier?: string; channel?: 'email' | 'sms' }, @Req() req: Request) {
+    return this.recovery.request(dto?.identifier ?? '', dto?.channel === 'sms' ? 'sms' : 'email', req.ip, req.headers['user-agent']);
+  }
+
+  @Post('recovery/verify')
+  recoveryVerify(@Body() dto: { recoveryToken?: string; otp?: string }) {
+    return this.recovery.verify(dto?.recoveryToken ?? '', dto?.otp ?? '');
+  }
+
+  @Post('recovery/resend')
+  recoveryResend(@Body() dto: { recoveryToken?: string }) {
+    return this.recovery.resend(dto?.recoveryToken ?? '');
+  }
+
+  @Post('recovery/reset')
+  recoveryReset(@Body() dto: { resetToken?: string; newPassword?: string }) {
+    return this.recovery.reset(dto?.resetToken ?? '', dto?.newPassword ?? '');
   }
 }

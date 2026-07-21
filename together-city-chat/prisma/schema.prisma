@@ -70,7 +70,9 @@ model User {
   id           String   @id @default(uuid())
   handle       String   @unique
   name         String
-  email        String? // primary (external) email — from sign-up; receipts & recovery go here
+  email           String? // primary (external) email — from sign-up; receipts & recovery go here
+  emailVerified   Boolean   @default(false)
+  emailVerifiedAt DateTime?
   phone        String? // primary phone
   profileImage String?
   passwordHash String
@@ -1324,6 +1326,20 @@ model PasswordReset {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Email-verification (and future purpose-scoped) tokens. The raw token is sent
+// in the link; only its sha256 is stored so it's lookup-able but not reversible.
+model VerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique // sha256(rawToken)
+  purpose   String    @default("email_verification")
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([userId])
 }

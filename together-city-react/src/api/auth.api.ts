@@ -35,5 +35,9 @@ export const authApi = {
     apiPost<{ sent: boolean }>('/auth/forgot', { identifier, channel }, OkSent),
   reset: (input: { identifier: string; code: string; newPassword: string }): Promise<{ ok: boolean }> =>
     apiPost<{ ok: boolean }>('/auth/reset', input, OkReset),
+  verifyEmail: (token: string): Promise<TokenPair> =>
+    apiPost('/auth/verify-email', { token }, TokenPairSchema),
+  resendVerification: (email: string): Promise<{ ok: boolean; message: string }> =>
+    apiPost('/auth/resend-verification', { email }, z.object({ ok: z.boolean(), message: z.string() })),
   me: (): Promise<User> => apiGet('/users/me', UserSchema),
 };

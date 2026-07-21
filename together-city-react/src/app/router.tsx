@@ -164,6 +164,7 @@ const Chats = lazy(() => import('@/features/chat/pages/Chats').then((m) => ({ de
 const Settings = lazy(() => import('@/features/settings/pages/Settings').then((m) => ({ default: m.Settings })));
 const Calendar = lazy(() => import('@/features/calendar/pages/Calendar').then((m) => ({ default: m.Calendar })));
 const SignIn = lazy(() => import('@/features/auth/pages/SignIn').then((m) => ({ default: m.SignIn })));
+const Verify = lazy(() => import('@/features/auth/pages/Verify').then((m) => ({ default: m.Verify })));
 
 // Every lazy page is wrapped so a stale code-split chunk (after a new deploy)
 // auto-recovers instead of leaving a blank page.
@@ -424,6 +425,8 @@ export const router = createBrowserRouter([
     ],
   },
   { path: '/sign-in', element: wrap(<SignIn />) },
+  { path: '/signin', element: <Navigate to="/sign-in" replace /> },
+  { path: '/verify', element: wrap(<Verify />) },
   { path: '/index.html', element: <Navigate to="/" replace /> },
   { path: '*', element: <NotFound /> },
 ]);
