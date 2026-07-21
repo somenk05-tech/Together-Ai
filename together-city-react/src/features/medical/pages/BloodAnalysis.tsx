@@ -1,8 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
-import { useBloodHistory, useLatestPanel, useSaveBloodTest, useIngestBlood, useHealthSummary, useBloodTrends, type Citation, type TrendKind, type TrendPick } from '../api';
+import { useBloodHistory, useLatestPanel, useSaveBloodTest, useIngestBlood, useHealthSummary, useBloodTrends, useBiomarkerCatalog, type Citation, type TrendKind, type TrendPick, type BiomarkerSection } from '../api';
 
 /** Deterministic 0–100 wellness score ring. */
 function ScoreRing({ score, band }: { score: number; band: string }) {
@@ -123,8 +123,78 @@ function TrendsSection() {
   );
 }
 
+const FIELD_STATUS = {
+  low: { c: '#c62828', bg: '#ffebee', label: 'LOW' },
+  high: { c: '#e65100', bg: '#fff3e0', label: 'HIGH' },
+  normal: { c: '#2e7d32', bg: '#e8f5e9', label: 'OK' },
+} as const;
+function fieldStatus(def: { min: number; max: number }, raw: string | undefined): keyof typeof FIELD_STATUS | null {
+  if (raw == null || raw === '') return null;
+  const n = parseFloat(raw);
+  if (Number.isNaN(n)) return null;
+  return n < def.min ? 'low' : n > def.max ? 'high' : 'normal';
+}
+
+/** Comprehensive manual entry — collapsible sections from the biomarker catalog,
+ *  each field showing its reference range + live colour status. Supports
+ *  high-precision decimals (step="any"); values display exactly as typed. */
+function BiomarkerFields({ sections, form, setForm }: {
+  sections: BiomarkerSection[]; form: Record<string, string>; setForm: (f: Record<string, string>) => void;
+}) {
+  const [open, setOpen] = useState<Record<string, boolean>>(() =>
+    sections.reduce((a, s, i) => ({ ...a, [s.key]: i === 0 }), {}));
+  // Open any section that has a value (e.g. after an upload pre-fills it) — never auto-closes.
+  useEffect(() => {
+    setOpen((prev) => {
+      const next = { ...prev };
+      for (const s of sections) if (s.markers.some((m) => form[m.key])) next[s.key] = true;
+      return next;
+    });
+  }, [form, sections]);
+
+  return (
+    <div>
+      {sections.map((sec) => {
+        const filled = sec.markers.filter((m) => form[m.key]).length;
+        const isOpen = open[sec.key] ?? false;
+        return (
+          <div key={sec.key} style={{ border: '1px solid var(--line)', borderRadius: 12, marginBottom: 10, overflow: 'hidden' }}>
+            <button type="button" onClick={() => setOpen((o) => ({ ...o, [sec.key]: !isOpen }))}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'var(--paper)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>{isOpen ? '▾' : '▸'} {sec.label}</span>
+              {filled > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '1px 8px' }}>{filled}</span>}
+              {sec.hint && <span className="muted" style={{ marginLeft: 'auto', fontSize: 10.5 }}>{sec.hint}</span>}
+            </button>
+            {isOpen && (
+              <div style={{ padding: '2px 14px 14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(155px,1fr))', gap: '4px 14px' }}>
+                {sec.markers.map((m) => {
+                  const st = fieldStatus(m, form[m.key]);
+                  const sc = st ? FIELD_STATUS[st] : null;
+                  return (
+                    <div key={m.key} style={{ margin: '10px 0 0' }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.03em', color: 'var(--muted)' }}>{m.label}</span>
+                        {sc && <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, color: sc.c, background: sc.bg, borderRadius: 999, padding: '1px 7px' }}>{sc.label}</span>}
+                      </div>
+                      <input type="number" step="any" min="0" inputMode="decimal" placeholder={m.optional ? 'optional' : ''}
+                        value={form[m.key] ?? ''} onChange={(e) => setForm({ ...form, [m.key]: e.target.value })}
+                        style={{ width: '100%', padding: '9px 11px', border: `1.5px solid ${sc ? sc.c + '88' : 'var(--line)'}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', marginTop: 3, boxSizing: 'border-box' }} />
+                      <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>Ref {m.min}–{m.max} {m.unit}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Blood Test Analysis — Medical Hub owns the record; the cited engine reads it. */
 export function BloodAnalysis() {
+  const catalog = useBiomarkerCatalog();
   const latest = useLatestPanel();
   const history = useBloodHistory();
   const summary = useHealthSummary();
@@ -132,6 +202,7 @@ export function BloodAnalysis() {
   const ingest = useIngestBlood();
   const [form, setForm] = useState<Record<string, string>>({});
   const [lab, setLab] = useState('');
+  const [testDate, setTestDate] = useState('');
   const [extracting, setExtracting] = useState(false);
   const [extractNote, setExtractNote] = useState<string | null>(null);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
@@ -181,9 +252,10 @@ export function BloodAnalysis() {
     for (const [k, v] of Object.entries(form)) { const n = parseFloat(v); if (!Number.isNaN(n) && n >= 0) values[k] = n; }
     // Pass recordId so a manual entry / correction updates the SAME uploaded
     // report's panel instead of creating a duplicate.
-    if (Object.keys(values).length) save.mutate({ lab: lab || undefined, values, recordId: savedFile?.id }, {
-      onSuccess: () => { setForm({}); setLab(''); setSavedFile(null); setExtractNote(null); setExpanded(false); },
-    });
+    if (Object.keys(values).length) save.mutate(
+      { lab: lab || undefined, takenOn: testDate ? new Date(testDate).toISOString() : undefined, values, recordId: savedFile?.id },
+      { onSuccess: () => { setForm({}); setLab(''); setTestDate(''); setSavedFile(null); setExtractNote(null); setExpanded(false); } },
+    );
   };
 
   if (latest.isLoading) return <Spinner label="Opening your records…" />;
@@ -292,17 +364,28 @@ export function BloodAnalysis() {
 
       <form onSubmit={submit} className="card" style={{ marginTop: 18 }}>
         <div className="eyebrow">Review &amp; save</div>
-        <input value={lab} onChange={(e) => setLab(e.target.value)} placeholder="Lab name (optional)"
-          style={{ width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', outline: 'none', marginBottom: 4 }} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '4px 14px' }}>
-          {FIELDS.map((f) => (
-            <div key={f.key}>
-              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', margin: '10px 0 4px' }}>{f.label} <span style={{ fontWeight: 400 }}>({f.unit})</span></span>
-              <input type="number" step="0.1" min="0" placeholder={f.ph} value={form[f.key] ?? ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', outline: 'none' }} />
-            </div>
-          ))}
+        <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 12px' }}>
+          Enter any values from your report — the more you add, the more precise your Nutrition, Beauty and Fitness personalisation. Each field shows its reference range and flags out-of-range values. Decimals are kept exactly as entered.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 12 }}>
+          <input value={lab} onChange={(e) => setLab(e.target.value)} placeholder="Lab name (optional)"
+            style={{ width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+          <input type="date" value={testDate} onChange={(e) => setTestDate(e.target.value)} aria-label="Test date"
+            style={{ width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
         </div>
+        {catalog.data?.sections
+          ? <BiomarkerFields sections={catalog.data.sections} form={form} setForm={setForm} />
+          : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '4px 14px' }}>
+              {FIELDS.map((f) => (
+                <div key={f.key}>
+                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', margin: '10px 0 4px' }}>{f.label} <span style={{ fontWeight: 400 }}>({f.unit})</span></span>
+                  <input type="number" step="any" min="0" placeholder={f.ph} value={form[f.key] ?? ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                    style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', outline: 'none' }} />
+                </div>
+              ))}
+            </div>
+          )}
         <div style={{ marginTop: 14 }}>
           <Button type="submit" variant="accent" disabled={save.isPending}>{save.isPending ? 'Saving to your records…' : 'Save & analyse'}</Button>
         </div>

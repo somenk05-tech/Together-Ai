@@ -14,6 +14,7 @@ import {
   supplementKit, triggeredConditions, ruleFor,
 } from '../nutrition/clinical-engine';
 import type { SaveBloodTestDto } from './dto/medical.dto';
+import { BIOMARKER_SECTIONS, biomarkerDef } from './biomarker-catalog';
 
 const cite = (ids: string[]) => ids.map((id) => CITATIONS[id]).filter(Boolean);
 
@@ -303,7 +304,7 @@ export class MedicalService implements OnModuleInit {
 
   async saveBloodTest(userId: string, dto: SaveBloodTestDto & { recordId?: string }) {
     const values = Object.fromEntries(
-      Object.entries(dto.values).filter(([, v]) => typeof v === 'number'),
+      Object.entries(dto.values).filter(([k, v]) => typeof v === 'number' && !Number.isNaN(v) && biomarkerDef(k)),
     ) as Record<string, number>;
     const testId = await this.upsertPanelAndAnalyze(userId, {
       values, lab: dto.lab ?? null,
@@ -453,6 +454,11 @@ export class MedicalService implements OnModuleInit {
     });
     if (!test) return { markers: [], alerts: [], conditions: [], takenOn: null };
     return this.analyze(userId, test.id);
+  }
+
+  /** The manual-entry biomarker catalog — sections, ranges, units, hub tags. */
+  biomarkerCatalog() {
+    return { sections: BIOMARKER_SECTIONS };
   }
 
   // ─────────────── longitudinal trends (auto-runs at 2+ panels) ───────────────

@@ -62,6 +62,12 @@ export class MedicalController {
     return this.medical.analyze(user.sub, id);
   }
 
+  // Manual-entry biomarker catalog (sections + reference ranges + hub tags).
+  @Get('biomarkers/catalog')
+  biomarkerCatalog() {
+    return this.medical.biomarkerCatalog();
+  }
+
   @Get('supplement-plan')
   supplementPlan(@CurrentUser() user: JwtUser) {
     return this.medical.supplementPlan(user.sub);

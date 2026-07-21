@@ -55,6 +55,10 @@ export interface BloodTrends {
 export interface MedicalRecord { id: string; kind: string; title: string; detail: string | null; hasFile?: boolean; mimeType?: string | null; sizeBytes?: number; bloodTestId?: string | null; analyzed?: boolean; recordedOn: string }
 export interface StorageUsage { quotaBytes: number; usedBytes: number; mailBytes: number; healthBytes: number; usedPct: number; remainingBytes: number }
 export interface ExtractResult { recordId: string; aiEnabled: boolean; extracted: Record<string, number>; markerCount: number; lab: string | null; takenOn: string | null; note: string }
+/** Manual-entry biomarker catalog (comprehensive form). */
+export interface BiomarkerDef { key: string; label: string; unit: string; min: number; max: number; hubs: string[]; optional?: boolean; higherBetter?: boolean }
+export interface BiomarkerSection { key: string; label: string; hint?: string; markers: BiomarkerDef[] }
+export interface BiomarkerCatalog { sections: BiomarkerSection[] }
 /** Upload → auto-analyse result: the report is filed AND (when readable) analysed in one call. */
 export interface IngestResult {
   recordId: string; bloodTestId: string | null; aiEnabled: boolean;
@@ -85,6 +89,7 @@ export const medicalApi = {
   trends: () => api.get<BloodTrends>('/medical/blood-tests/trends').then((r) => r.data),
   analyze: (id: string) => api.get<BloodAnalysis>(`/medical/blood-tests/${id}`).then((r) => r.data),
   supplementPlan: () => api.get<SupplementPlan>('/medical/supplement-plan').then((r) => r.data),
+  biomarkerCatalog: () => api.get<BiomarkerCatalog>('/medical/biomarkers/catalog').then((r) => r.data),
   summary: () => api.get<HealthSummary>('/medical/summary').then((r) => r.data),
   storage: () => api.get<StorageUsage>('/medical/storage').then((r) => r.data),
   deleteRecord: (id: string) => api.delete<MedicalRecord[]>(`/medical/records/${id}`).then((r) => r.data),
@@ -127,7 +132,7 @@ function syncPanelQueries(qc: ReturnType<typeof useQueryClient>) {
 export function useSaveBloodTest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { lab?: string; values: Record<string, number>; recordId?: string }) => medicalApi.saveBloodTest(input),
+    mutationFn: (input: { lab?: string; takenOn?: string; values: Record<string, number>; recordId?: string }) => medicalApi.saveBloodTest(input),
     onSuccess: (analysis) => {
       qc.setQueryData(['medical', 'latest'], analysis);
       syncPanelQueries(qc);
@@ -151,6 +156,9 @@ export function useIngestBlood() {
 }
 export function useMedicalSupplementPlan() {
   return useQuery({ queryKey: ['medical', 'supplements'], queryFn: () => medicalApi.supplementPlan() });
+}
+export function useBiomarkerCatalog() {
+  return useQuery({ queryKey: ['medical', 'biomarker-catalog'], queryFn: () => medicalApi.biomarkerCatalog(), staleTime: Infinity });
 }
 export function useHealthSummary() {
   // The narrative is cached server-side; keep it fresh in the client cache too so
