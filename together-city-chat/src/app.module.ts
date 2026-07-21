@@ -29,11 +29,13 @@ import { TravelModule } from './travel/travel.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { MailModule } from './mail/mail.module';
 import { AiModule } from './ai/ai.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
+    HealthModule,
     PrismaModule,
     RedisModule,
     EventsModule,
