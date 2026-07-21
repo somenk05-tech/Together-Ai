@@ -11,12 +11,25 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService);
 
   app.use(helmet());
-  // Never send "*" with credentials (invalid + insecure). Dev: reflect the request
-  // origin. Prod: an explicit comma-separated allowlist (enforced non-empty at boot).
+  // CORS. Auth is Bearer-token + localStorage (no ambient session cookie), so a
+  // cross-origin site can't ride a logged-in user's credentials — which lets us
+  // be resilient about origins without the classic CSRF risk. We allow: the
+  // explicit CORS_ORIGIN allowlist, ANY of this app's own Vercel deployments
+  // (production alias, branch aliases, and per-deploy preview URLs — a single
+  // pinned alias otherwise CORS-blocks every other URL the app answers on), and
+  // origin-less requests (curl / server-to-server / same-origin). "*" or an
+  // empty allowlist reflects any origin. Trailing slashes are tolerated.
   const corsOrigin = config.get<string>('corsOrigin') ?? '';
-  const allowlist = corsOrigin.split(',').map((s) => s.trim()).filter(Boolean);
+  const allowlist = corsOrigin.split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
+  const allowAll = corsOrigin === '*' || allowlist.length === 0;
+  const isVercelApp = (o: string) => /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(o);
   app.enableCors({
-    origin: corsOrigin === '*' || allowlist.length === 0 ? true : allowlist,
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);                       // no Origin header (curl, same-origin, S2S)
+      const o = origin.replace(/\/+$/, '');
+      if (allowAll || allowlist.includes(o) || isVercelApp(o)) return cb(null, true);
+      return cb(null, false);                                   // disallowed → browser blocks (no server crash)
+    },
     credentials: true,
   });
   app.setGlobalPrefix('api');
