@@ -157,3 +157,66 @@ describe('account recovery (OTP)', () => {
     await expect(svc.reset(resetToken, STRONG)).rejects.toThrow(/before/i); // same as current
   });
 });
+
+/* AuthService.forgot/reset — the 6-digit code flow behind the "Forgot password?" tab. */
+describe('forgot / reset (recovery code)', () => {
+  class ResetTable {
+    rows: Row[] = [];
+    private seq = 1;
+    create({ data }: { data: Row }) { const r = { id: `pr_${this.seq++}`, usedAt: null, createdAt: new Date(), ...data }; this.rows.push(r); return Promise.resolve(r); }
+    findFirst({ where }: { where: Row }) {
+      const now = Date.now();
+      const exp = where.expiresAt as { gt?: Date } | undefined;
+      const found = this.rows
+        .filter((r) => r.userId === where.userId && r.code === where.code && r.usedAt == null && (!exp?.gt || new Date(r.expiresAt as Date).getTime() > now))
+        .sort((a, b) => new Date(b.createdAt as Date).getTime() - new Date(a.createdAt as Date).getTime())[0];
+      return Promise.resolve(found ?? null);
+    }
+    update({ where, data }: { where: Row; data: Row }) { const r = this.rows.find((x) => x.id === where.id)!; Object.assign(r, data); return Promise.resolve(r); }
+  }
+  const build = (configured = true) => {
+    const prisma = { user: new Table(), passwordReset: new ResetTable() };
+    const mail = { lastBody: '', deliverSystem: (_u: string, r: { body: string }) => { (mail as { lastBody: string }).lastBody = r.body; return Promise.resolve({}); }, deliveryConfigured: () => configured };
+    const tokens = { revokedAll: [] as string[], revokeAll: (id: string) => { tokens.revokedAll.push(id); return Promise.resolve(); } };
+    const svc = new AuthService(prisma as never, tokens as never, mail as never, {} as never);
+    return { prisma, mail, tokens, svc };
+  };
+
+  it('lets a user who recovered by PHONE actually reset by phone (regression)', async () => {
+    const { prisma, mail, svc } = build();
+    const argon2 = await import('argon2');
+    prisma.user.rows.push({ id: 'u1', handle: 'priya', email: 'priya@e.com', phone: '+15551234567', passwordHash: await argon2.hash('OldPassw0rd!!') });
+    const out = await svc.forgot({ identifier: '+15551234567', channel: 'sms' } as never);
+    expect(out.delivery).toBe('live');
+    const code = otpFrom(mail.lastBody);
+    expect(code).toHaveLength(6);
+    const done = await svc.reset({ identifier: '+15551234567', code, newPassword: STRONG } as never);
+    expect(done.ok).toBe(true);
+    expect(await argon2.verify(prisma.user.rows[0].passwordHash as string, STRONG)).toBe(true);
+  });
+
+  it('reports delivery:"unconfigured" when no messaging provider is wired', async () => {
+    const { prisma, svc } = build(false);
+    prisma.user.rows.push({ id: 'u1', handle: 'sam', email: 'sam@e.com', passwordHash: 'x' });
+    const out = await svc.forgot({ identifier: 'sam@e.com', channel: 'email' } as never);
+    expect(out.delivery).toBe('unconfigured');
+  });
+
+  it('is anti-enumeration and rejects a wrong/expired code the same way', async () => {
+    const { prisma, svc } = build();
+    prisma.user.rows.push({ id: 'u1', handle: 'sam', email: 'sam@e.com', passwordHash: 'x' });
+    // Unknown account still returns sent:true (no leak).
+    const miss = await svc.forgot({ identifier: 'nobody@e.com', channel: 'email' } as never);
+    expect(miss.sent).toBe(true);
+    // Wrong code → rejected.
+    await expect(svc.reset({ identifier: 'sam@e.com', code: '000000', newPassword: STRONG } as never)).rejects.toThrow(/invalid or has expired/i);
+  });
+
+  it('reset enforces the password policy (no weak-password backdoor)', async () => {
+    const { prisma, mail, svc } = build();
+    prisma.user.rows.push({ id: 'u1', handle: 'sam', email: 'sam@e.com', passwordHash: 'x' });
+    await svc.forgot({ identifier: 'sam@e.com', channel: 'email' } as never);
+    const code = otpFrom(mail.lastBody);
+    await expect(svc.reset({ identifier: 'sam@e.com', code, newPassword: 'weak' } as never)).rejects.toThrow();
+  });
+});

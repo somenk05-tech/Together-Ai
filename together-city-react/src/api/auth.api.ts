@@ -15,7 +15,7 @@ export const LoginInput = z.object({ handle: z.string().min(3), password: z.stri
 export type RegisterInput = z.infer<typeof RegisterInput>;
 export type LoginInput = z.infer<typeof LoginInput>;
 
-const OkSent = z.object({ sent: z.boolean() });
+const OkSent = z.object({ sent: z.boolean(), delivery: z.enum(['live', 'unconfigured']).optional() });
 const OkReset = z.object({ ok: z.boolean() });
 const Ok = z.object({ ok: z.boolean() });
 
@@ -44,8 +44,8 @@ export const authApi = {
   revokeSession: (id: string): Promise<{ ok: boolean }> => apiPost('/auth/sessions/revoke', { id }, Ok),
   logoutOthers: (): Promise<{ ok: boolean }> => apiPost('/auth/logout-others', {}, Ok),
   logoutAll: (): Promise<{ ok: boolean }> => apiPost('/auth/logout-all', {}, Ok),
-  forgot: (identifier: string, channel: 'email' | 'sms' = 'email'): Promise<{ sent: boolean }> =>
-    apiPost<{ sent: boolean }>('/auth/forgot', { identifier, channel }, OkSent),
+  forgot: (identifier: string, channel: 'email' | 'sms' = 'email'): Promise<{ sent: boolean; delivery?: 'live' | 'unconfigured' }> =>
+    apiPost('/auth/forgot', { identifier, channel }, OkSent),
   reset: (input: { identifier: string; code: string; newPassword: string }): Promise<{ ok: boolean }> =>
     apiPost<{ ok: boolean }>('/auth/reset', input, OkReset),
   verifyEmail: (token: string): Promise<TokenPair> =>

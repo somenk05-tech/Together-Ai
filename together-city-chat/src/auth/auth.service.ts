@@ -84,38 +84,56 @@ export class AuthService {
     return { email, valid: true, available: !taken };
   }
 
+  /**
+   * Resolve a recovery identifier (primary email, phone, or handle / city
+   * address) to a user. Forgot and reset MUST use the exact same resolution, or
+   * a code requested one way can't be redeemed the other way (e.g. an SMS
+   * recovery by phone number would strand the user at the reset step).
+   */
+  private async findByIdentifier(identifier: string) {
+    const raw = identifier.trim();
+    const id = raw.toLowerCase();
+    if (id.includes('@') && !id.endsWith('@togethercity.tech')) {
+      return this.prisma.user.findFirst({ where: { email: id } });
+    }
+    if (/^[+0-9][0-9\s-]{5,}$/.test(id)) {
+      return this.prisma.user.findFirst({ where: { phone: raw } });
+    }
+    return this.prisma.user.findUnique({ where: { handle: id.replace(/@togethercity\.tech$/, '') } });
+  }
+
   /** Forgot password — send a recovery OTP to the citizen's primary email or phone (and their city inbox). */
-  async forgot(dto: ForgotDto): Promise<{ sent: true }> {
-    const id = dto.identifier.trim().toLowerCase();
-    const user = id.includes('@') && !id.endsWith('@togethercity.tech')
-      ? await this.prisma.user.findFirst({ where: { email: id } })
-      : /^[+0-9][0-9\s-]{5,}$/.test(id)
-        ? await this.prisma.user.findFirst({ where: { phone: dto.identifier.trim() } })
-        : await this.prisma.user.findUnique({ where: { handle: id.replace(/@togethercity\.tech$/, '') } });
+  async forgot(dto: ForgotDto): Promise<{ sent: true; delivery: 'live' | 'unconfigured' }> {
+    const channel = dto.channel === 'sms' ? 'sms' : 'email';
+    // System-wide fact (same for every request) — so the client can warn when
+    // external delivery isn't wired instead of the code silently going nowhere.
+    const delivery = this.mail.deliveryConfigured(channel) ? 'live' : 'unconfigured';
+    const user = await this.findByIdentifier(dto.identifier);
     // Always respond the same way — never leak whether an account exists.
     if (user) {
-      const channel = dto.channel === 'sms' && user.phone ? 'sms' : 'email';
+      // Fall back to email if SMS was asked for but there's no phone on file.
+      const sendChannel = dto.channel === 'sms' && user.phone ? 'sms' : 'email';
       const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
       await this.prisma.passwordReset.create({ data: { userId: user.id, code, expiresAt: new Date(Date.now() + 30 * 60 * 1000) } });
-      const body = channel === 'sms'
+      const body = sendChannel === 'sms'
         ? `Together City recovery code: ${code}. Expires in 30 minutes. Didn't request it? Ignore this message.`
         : [
             `We received a request to reset your Together City password.`,
             ``, `Your recovery code is: ${code}`, `It expires in 30 minutes.`, ``,
             `Enter it on the reset screen along with a new password. If you didn't request this, you can ignore this message — your password stays unchanged.`,
           ].join('\n');
-      await this.mail.deliverSystem(user.id, { subject: '🔐 Your Together City recovery code', body }, 'recovery', channel).catch(() => undefined);
+      await this.mail.deliverSystem(user.id, { subject: '🔐 Your Together City recovery code', body }, 'recovery', sendChannel).catch(() => undefined);
     }
-    return { sent: true };
+    return { sent: true, delivery };
   }
 
   /** Reset password with the recovery code; emails a security confirmation. */
   async reset(dto: ResetDto): Promise<{ ok: true }> {
-    const id = dto.identifier.trim().toLowerCase();
-    const user = id.includes('@') && !id.endsWith('@togethercity.tech')
-      ? await this.prisma.user.findFirst({ where: { email: id } })
-      : await this.prisma.user.findUnique({ where: { handle: id.replace(/@togethercity\.tech$/, '') } });
-    if (!user) throw new UnauthorizedException('Invalid code or account');
+    // Enforce the SAME strength policy as registration — otherwise the reset
+    // path is a backdoor to weak passwords the sign-up form would reject.
+    assertStrongPassword(dto.newPassword);
+    const user = await this.findByIdentifier(dto.identifier);
+    if (!user) throw new UnauthorizedException('That code is invalid or has expired.');
     const reset = await this.prisma.passwordReset.findFirst({
       where: { userId: user.id, code: dto.code, usedAt: null, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: 'desc' },

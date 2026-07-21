@@ -4,7 +4,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import {
   MAIL_DOMAIN, QUOTA_BYTES, addressFor, handleFromAddress, snippetOf, sizeOf, welcomeMail,
 } from './mail.constants';
-import { createMessagingProvider, type Channel } from './messaging-provider';
+import { createMessagingProvider, messagingConfigured, type Channel } from './messaging-provider';
 import type { FlagDto, FolderQueryDto, SendMailDto } from './dto/mail.dto';
 
 @Injectable()
@@ -172,6 +172,11 @@ export class MailService {
    * email; 'sms' → primary phone. The city inbox is the ledger; the external copy
    * goes through the pluggable provider (stub by default).
    */
+  /** Is real external delivery wired for this channel? (stub → false) */
+  deliveryConfigured(channel: Channel = 'email'): boolean {
+    return messagingConfigured(channel);
+  }
+
   async deliverSystem(
     userId: string,
     r: { subject: string; body: string },

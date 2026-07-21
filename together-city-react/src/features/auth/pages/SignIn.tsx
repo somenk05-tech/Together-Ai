@@ -39,7 +39,22 @@ export function SignIn() {
     setBusy(true); setError(null); setNotice(null);
     try {
       if (mode === 'login') { await login(handle.trim(), password); navigate(from, { replace: true }); }
-      else if (mode === 'forgot') { await authApi.forgot(identifier.trim(), channel); setNotice(channel === 'sms' ? `If an account matches, we've texted a 6-digit code to its primary phone. Enter it below.` : `If an account matches, we've emailed a 6-digit recovery code to its primary email. Enter it below.`); setMode('reset'); }
+      else if (mode === 'forgot') {
+        const res = await authApi.forgot(identifier.trim(), channel);
+        if (res.delivery === 'unconfigured') {
+          // The code was generated but external delivery isn't wired on the
+          // server, so it won't actually arrive — say so instead of sending the
+          // user to a reset screen to wait for a code that never comes.
+          setNotice(channel === 'sms'
+            ? `SMS delivery isn't set up on this server yet, so no text can be sent. Ask the Together City team to enable SMS, then try again.`
+            : `Email delivery isn't set up on this server yet, so the recovery code can't be emailed. Ask the Together City team to enable email (Resend), then try again.`);
+        } else {
+          setNotice(channel === 'sms'
+            ? `If an account matches, we've texted a 6-digit code to its primary phone. Enter it below.`
+            : `If an account matches, we've emailed a 6-digit recovery code to its primary email. Enter it below.`);
+          setMode('reset');
+        }
+      }
       else if (mode === 'reset') { await authApi.reset({ identifier: identifier.trim(), code: code.trim(), newPassword: password }); setNotice('Password changed. Sign in with your new password.'); setMode('login'); setPassword(''); }
     } catch (err) {
       setError(
@@ -100,6 +115,7 @@ export function SignIn() {
                 <>
                   <input required autoFocus inputMode="numeric" value={code} placeholder="6-digit recovery code" onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))} className="tc-field" style={field} />
                   <input required type="password" value={password} placeholder="New password" name="new-password" autoComplete="new-password" onChange={(e) => setPassword(e.target.value)} className="tc-field" style={field} />
+                  <p className="muted" style={{ fontSize: 11.5, margin: '-4px 0 8px' }}>At least 12 characters, with an uppercase & lowercase letter, a number, and a symbol.</p>
                 </>
               )}
 

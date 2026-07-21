@@ -107,6 +107,16 @@ export class ResendEmailProvider implements MessagingProvider {
  * EMAIL_PROVIDER (then MESSAGING_PROVIDER, then stub); SMS to SMS_PROVIDER.
  * Unset → StubMessagingProvider, so the app runs with no vendor credentials.
  */
+/**
+ * Whether a REAL (non-stub) provider is wired for a channel. Lets flows like
+ * password recovery tell the user "delivery isn't set up yet" instead of
+ * silently pretending a code was sent. This is a system-wide config fact — it
+ * reveals nothing about any specific account.
+ */
+export function messagingConfigured(channel: Channel): boolean {
+  return createMessagingProvider(channel).name !== 'stub';
+}
+
 export function createMessagingProvider(channel: Channel): MessagingProvider {
   if (channel === 'email') {
     const provider = (process.env.EMAIL_PROVIDER ?? process.env.MESSAGING_PROVIDER ?? 'stub').toLowerCase();
