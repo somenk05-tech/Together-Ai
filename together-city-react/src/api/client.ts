@@ -12,6 +12,10 @@ export const http: AxiosInstance = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 20000,
+  // Send/receive the HttpOnly refresh cookie (cross-site to the API domain), so
+  // sessions can be silently restored on browser restart. The access token is
+  // still a Bearer header; the cookie is an added, more-secure refresh channel.
+  withCredentials: true,
 });
 
 http.interceptors.request.use((cfg: InternalAxiosRequestConfig) => {

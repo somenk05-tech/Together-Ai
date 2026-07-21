@@ -10,7 +10,27 @@ export interface TokenPair {
   refreshToken: string;
 }
 
-/** Issues/rotates JWT access + refresh tokens. Refresh tokens are stored hashed. */
+/** Metadata captured per session, for the "active devices" list. */
+export interface SessionMeta {
+  device?: string; // user-agent
+  ip?: string;
+}
+
+export interface SessionInfo {
+  id: string;
+  device: string | null;
+  ip: string | null;
+  createdAt: Date;
+  lastUsedAt: Date;
+  current: boolean;
+}
+
+/**
+ * Issues/rotates JWT access + refresh tokens. Refresh tokens are stored hashed,
+ * one row per device session. A silent refresh rotates the token in place (same
+ * session id + createdAt), so the "active sessions" list stays stable and each
+ * device can be revoked individually.
+ */
 @Injectable()
 export class TokenService {
   private readonly logger = new Logger('TokenService');
@@ -19,63 +39,114 @@ export class TokenService {
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    // Boot marker: the effective token lifetimes + signing-secret state. Reveals
-    // a misconfigured TTL (e.g. JWT_ACCESS_TTL="15m" → 15 seconds) at a glance.
     const sec = this.config.get<string>('jwt.accessSecret') ?? 'dev-access';
-    this.logger.log(`accessTtl=${this.accessTtl()}s refreshTtl=${this.config.get<number>('jwt.refreshTtl') ?? 1209600}s signSecret len=${sec.length} default=${sec === 'dev-access'}`);
+    this.logger.log(`accessTtl=${this.accessTtl()}s refreshTtl=${this.refreshTtl()}s signSecret len=${sec.length} default=${sec === 'dev-access'}`);
   }
 
-  /** Access-token lifetime in seconds, floored so a misparsed env value (e.g.
-   *  "15m" → 15) can never issue near-instantly-expiring tokens. */
   private accessTtl(): number {
     const raw = this.config.get<number>('jwt.accessTtl') ?? 900;
     return Number.isFinite(raw) && raw >= 300 ? raw : 900;
+  }
+
+  private refreshTtl(): number {
+    const raw = this.config.get<number>('jwt.refreshTtl') ?? 5184000;
+    return Number.isFinite(raw) && raw >= 3600 ? raw : 5184000;
   }
 
   private hash(token: string): string {
     return createHash('sha256').update(token).digest('hex');
   }
 
-  async issuePair(user: JwtUser): Promise<TokenPair> {
+  private async signPair(user: JwtUser): Promise<TokenPair> {
     const accessToken = await this.jwt.signAsync(user, {
       secret: this.config.get<string>('jwt.accessSecret'),
       expiresIn: this.accessTtl(),
     });
     const refreshToken = await this.jwt.signAsync(user, {
       secret: this.config.get<string>('jwt.refreshSecret'),
-      expiresIn: this.config.get<number>('jwt.refreshTtl'),
-    });
-    const ttl = this.config.get<number>('jwt.refreshTtl') ?? 1209600;
-    await this.prisma.refreshToken.create({
-      data: {
-        userId: user.sub,
-        tokenHash: this.hash(refreshToken),
-        expiresAt: new Date(Date.now() + ttl * 1000),
-      },
+      expiresIn: this.refreshTtl(),
     });
     return { accessToken, refreshToken };
   }
 
-  /** Verifies + rotates a refresh token (single-use). */
-  async rotate(refreshToken: string): Promise<TokenPair> {
+  /** New login/registration → a fresh session row. */
+  async issuePair(user: JwtUser, meta: SessionMeta = {}): Promise<TokenPair> {
+    const pair = await this.signPair(user);
+    await this.prisma.refreshToken.create({
+      data: {
+        userId: user.sub,
+        tokenHash: this.hash(pair.refreshToken),
+        expiresAt: new Date(Date.now() + this.refreshTtl() * 1000),
+        device: meta.device ?? null,
+        ip: meta.ip ?? null,
+      } as never,
+    });
+    return pair;
+  }
+
+  /**
+   * Verify + rotate a refresh token, single-use, IN PLACE — the session row keeps
+   * its id/createdAt/device and gets a new hash + extended expiry + lastUsedAt.
+   */
+  async rotate(refreshToken: string, meta: SessionMeta = {}): Promise<TokenPair> {
     const payload = await this.jwt.verifyAsync<JwtUser>(refreshToken, {
       secret: this.config.get<string>('jwt.refreshSecret'),
     });
-    const stored = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash: this.hash(refreshToken) },
-    });
+    const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash: this.hash(refreshToken) } });
     if (!stored || stored.revoked || stored.expiresAt < new Date()) {
       throw new Error('Invalid refresh token');
     }
+    const pair = await this.signPair({ sub: payload.sub, handle: payload.handle });
     await this.prisma.refreshToken.update({
       where: { id: stored.id },
-      data: { revoked: true },
+      data: {
+        tokenHash: this.hash(pair.refreshToken),
+        expiresAt: new Date(Date.now() + this.refreshTtl() * 1000),
+        lastUsedAt: new Date(),
+        ...(meta.ip ? { ip: meta.ip } : {}),
+        ...(meta.device ? { device: meta.device } : {}),
+      } as never,
     });
-    return this.issuePair({ sub: payload.sub, handle: payload.handle });
+    return pair;
   }
 
+  /** Revoke a single session by its refresh token (log out this device). */
+  async revokeOne(refreshToken: string): Promise<void> {
+    if (!refreshToken) return;
+    await this.prisma.refreshToken.updateMany({ where: { tokenHash: this.hash(refreshToken) }, data: { revoked: true } });
+  }
+
+  /** Revoke a session by id, scoped to its owner (log out a chosen device). */
+  async revokeSession(userId: string, sessionId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({ where: { id: sessionId, userId }, data: { revoked: true } });
+  }
+
+  /** Revoke every session for a user (log out of all devices / password change). */
   async revokeAll(userId: string): Promise<void> {
     await this.prisma.refreshToken.updateMany({ where: { userId }, data: { revoked: true } });
+  }
+
+  /** Revoke every OTHER session, keeping the caller's current one. */
+  async revokeOthers(userId: string, currentRefreshToken?: string): Promise<void> {
+    const currentHash = currentRefreshToken ? this.hash(currentRefreshToken) : '__none__';
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revoked: false, NOT: { tokenHash: currentHash } },
+      data: { revoked: true },
+    });
+  }
+
+  /** Active sessions for the "signed-in devices" screen. */
+  async listSessions(userId: string, currentRefreshToken?: string): Promise<SessionInfo[]> {
+    const rows = (await this.prisma.refreshToken.findMany({
+      where: { userId, revoked: false, expiresAt: { gt: new Date() } },
+      orderBy: { lastUsedAt: 'desc' } as never,
+      select: { id: true, device: true, ip: true, createdAt: true, lastUsedAt: true, tokenHash: true } as never,
+    })) as unknown as Array<{ id: string; device: string | null; ip: string | null; createdAt: Date; lastUsedAt: Date; tokenHash: string }>;
+    const currentHash = currentRefreshToken ? this.hash(currentRefreshToken) : null;
+    return rows.map((r) => ({
+      id: r.id, device: r.device, ip: r.ip, createdAt: r.createdAt, lastUsedAt: r.lastUsedAt,
+      current: currentHash != null && r.tokenHash === currentHash,
+    }));
   }
 
   verifyAccess(token: string): Promise<JwtUser> {

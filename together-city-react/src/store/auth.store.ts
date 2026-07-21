@@ -58,10 +58,10 @@ export const useAuthStore = create<AuthState>()(
       },
 
       refresh: async () => {
+        // Try the stored refresh token first; if there isn't one, the request
+        // still goes out and the backend uses the HttpOnly refresh cookie. Only a
+        // genuine failure (no token AND no valid cookie) clears the session.
         const rt = get().tokens?.refreshToken;
-        // No usable refresh token → the session is unrecoverable; clear it so the
-        // app drops cleanly to the login screen instead of looping on 401s.
-        if (!rt) { set({ user: null, tokens: null }); return null; }
         try {
           const tokens = await authApi.refresh(rt);
           set({ tokens });
@@ -82,8 +82,15 @@ export const useAuthStore = create<AuthState>()(
 
       hydrate: async () => {
         const t = get().tokens;
-        // Fresh visitor / no session → just show the app (login screen).
-        if (!t?.accessToken) { set({ ready: true }); return; }
+        // No stored access token → attempt a silent restore from the HttpOnly
+        // refresh cookie (survives a localStorage wipe / reopened browser). If
+        // there's no cookie either, this fails cleanly to the login screen.
+        if (!t?.accessToken) {
+          const fresh = await get().refresh();
+          set({ ready: true });
+          if (fresh) authApi.me().then((user) => set({ user })).catch(() => undefined);
+          return;
+        }
         // Stored access token already expired: refresh ONCE before rendering as
         // authenticated, so we never fire a burst of doomed protected requests.
         // If refresh fails, the session is cleared → clean login screen.

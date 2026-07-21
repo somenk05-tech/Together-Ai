@@ -1,8 +1,9 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebPush } from '@/hooks/useWebPush';
 import { Card, Button } from '@/components/ui';
+import { authApi, type SessionInfo } from '@/api/auth.api';
 
 /** A neutral, self-contained on/off switch (on-device preference). */
 function Switch({ on, onChange, disabled }: { on: boolean; onChange?: (v: boolean) => void; disabled?: boolean }) {
@@ -51,15 +52,63 @@ function SectionTitle({ eyebrow, title, link }: { eyebrow?: string; title: strin
   );
 }
 
-/** Best-effort label for the device this session is running on. */
-function currentDevice(): string {
-  if (typeof navigator === 'undefined') return 'This device';
-  const ua = navigator.userAgent;
+/** Friendly device label from a stored user-agent string. */
+function labelUA(ua: string | null): string {
+  if (!ua) return 'Unknown device';
   const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android'
-    : /Macintosh/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows PC' : /Linux/.test(ua) ? 'Linux' : 'This device';
+    : /Macintosh/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows PC' : /Linux/.test(ua) ? 'Linux' : 'Device';
   const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari'
     : /Firefox\//.test(ua) ? 'Firefox' : 'Browser';
   return `${os} · ${browser}`;
+}
+function timeAgo(iso: string): string {
+  const d = Date.now() - new Date(iso).getTime();
+  const m = Math.round(d / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.round(h / 24)}d ago`;
+}
+
+/** Real, backend-driven "signed-in devices" manager. */
+function DevicesCard() {
+  const [sessions, setSessions] = useState<SessionInfo[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = () => authApi.sessions().then(setSessions).catch(() => setSessions([]));
+  useEffect(() => { void load(); }, []);
+
+  const act = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    try { await fn(); await load(); } catch { /* leave list as-is */ } finally { setBusy(false); }
+  };
+
+  const others = (sessions ?? []).filter((s) => !s.current).length;
+
+  return (
+    <Card style={{ marginTop: 18 }}>
+      <SectionTitle eyebrow="Devices" title="Where you're signed in" />
+      {sessions === null && <p className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>Loading your sessions…</p>}
+      {sessions?.length === 0 && <p className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>No other active sessions.</p>}
+      {(sessions ?? []).map((s) => (
+        <Row key={s.id}
+          title={labelUA(s.device)}
+          desc={`${s.current ? 'This device · ' : ''}Active ${timeAgo(s.lastUsedAt)}${s.ip ? ` · ${s.ip}` : ''}`}
+          right={s.current
+            ? <span className="tag" style={{ background: 'var(--accent)', color: '#fff' }}>Current</span>
+            : <Button size="sm" variant="line" disabled={busy} onClick={() => void act(() => authApi.revokeSession(s.id))}>Log out</Button>}
+        />
+      ))}
+      {others > 0 && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+          <Button size="sm" variant="line" disabled={busy} onClick={() => void act(authApi.logoutOthers)}>Log out of all other devices</Button>
+        </div>
+      )}
+      <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+        You stay signed in on each device until you log out here, change your password, or a session expires.
+      </p>
+    </Card>
+  );
 }
 
 export function Settings() {
@@ -75,7 +124,6 @@ export function Settings() {
 
   const [confirmText, setConfirmText] = useState('');
   const [deleteNote, setDeleteNote] = useState(false);
-  const device = useMemo(currentDevice, []);
   const pushOn = push.permission === 'granted';
 
   return (
@@ -116,14 +164,8 @@ export function Settings() {
         <Row title="Social — likes & comments" desc="Mute individual notifications, keep digests" right={<Switch on={socialMute} onChange={setSocialMute} />} />
       </Card>
 
-      {/* Devices */}
-      <Card style={{ marginTop: 18 }}>
-        <SectionTitle eyebrow="Devices" title="Where you're signed in" />
-        <Row title={device} desc="This device · signed in now" right={<span className="tag" style={{ background: 'var(--accent)', color: '#fff' }}>Current</span>} />
-        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
-          Other devices appear here when you sign in on them. Signing out below ends this session.
-        </p>
-      </Card>
+      {/* Devices — real, backend-driven session manager */}
+      <DevicesCard />
 
       {/* Subscription & account */}
       <Card style={{ marginTop: 18 }}>

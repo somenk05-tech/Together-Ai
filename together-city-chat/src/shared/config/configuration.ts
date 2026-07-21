@@ -83,7 +83,9 @@ export default (): AppConfig => {
     accessSecret: process.env.JWT_ACCESS_SECRET ?? DEV_ACCESS_SECRET,
     refreshSecret: process.env.JWT_REFRESH_SECRET ?? DEV_REFRESH_SECRET,
     accessTtl: int(process.env.JWT_ACCESS_TTL, 900),
-    refreshTtl: int(process.env.JWT_REFRESH_TTL, 1209600),
+    // 60 days — long-lived refresh so "stay signed in until I log out" holds
+    // across browser restarts. Rotated single-use on every silent refresh.
+    refreshTtl: int(process.env.JWT_REFRESH_TTL, 5184000),
   },
   policy: {
     editWindowSec: int(process.env.MESSAGE_EDIT_WINDOW_SEC, 900),

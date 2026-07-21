@@ -8,7 +8,7 @@ import * as argon2 from 'argon2';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { ForgotDto, LoginDto, RegisterDto, ResetDto } from './dto/auth.dto';
-import { TokenService, TokenPair } from './token.service';
+import { TokenService, TokenPair, SessionMeta } from './token.service';
 import { assertStrongPassword } from './recovery.service';
 import { VerificationService } from './verification.service';
 
@@ -33,7 +33,7 @@ export class AuthService {
     ]);
   }
 
-  async register(dto: RegisterDto): Promise<TokenPair & { userId: string }> {
+  async register(dto: RegisterDto, meta: SessionMeta = {}): Promise<TokenPair & { userId: string }> {
     // Open registration — Together City is no longer invite-only.
     assertStrongPassword(dto.password);
     const existing = await this.prisma.user.findUnique({ where: { handle: dto.handle.toLowerCase() } });
@@ -54,7 +54,7 @@ export class AuthService {
     });
     await this.initializeAccount(user.id);            // fully-initialised account
     await this.verification.send(user.id).catch(() => undefined); // send verification link
-    const pair = await this.tokens.issuePair({ sub: user.id, handle: user.handle });
+    const pair = await this.tokens.issuePair({ sub: user.id, handle: user.handle }, meta);
     return { ...pair, userId: user.id };
   }
 
@@ -131,24 +131,47 @@ export class AuthService {
     return { ok: true };
   }
 
-  async login(dto: LoginDto): Promise<TokenPair & { userId: string }> {
+  async login(dto: LoginDto, meta: SessionMeta = {}): Promise<TokenPair & { userId: string }> {
     const user = await this.prisma.user.findUnique({ where: { handle: dto.handle } });
     if (!user || !(await argon2.verify(user.passwordHash, dto.password))) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    const pair = await this.tokens.issuePair({ sub: user.id, handle: user.handle });
+    const pair = await this.tokens.issuePair({ sub: user.id, handle: user.handle }, meta);
     return { ...pair, userId: user.id };
   }
 
-  async refresh(refreshToken: string): Promise<TokenPair> {
+  async refresh(refreshToken: string, meta: SessionMeta = {}): Promise<TokenPair> {
     try {
-      return await this.tokens.rotate(refreshToken);
+      return await this.tokens.rotate(refreshToken, meta);
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
 
-  async logout(userId: string): Promise<void> {
+  /** Log out THIS device only (revoke the presented refresh token). */
+  async logout(refreshToken?: string): Promise<{ ok: true }> {
+    if (refreshToken) await this.tokens.revokeOne(refreshToken);
+    return { ok: true };
+  }
+
+  /** Log out of every device (also used after a password change). */
+  async logoutAll(userId: string): Promise<{ ok: true }> {
     await this.tokens.revokeAll(userId);
+    return { ok: true };
+  }
+
+  /** Log out of all OTHER devices, keeping the current session. */
+  async logoutOthers(userId: string, currentRefreshToken?: string): Promise<{ ok: true }> {
+    await this.tokens.revokeOthers(userId, currentRefreshToken);
+    return { ok: true };
+  }
+
+  listSessions(userId: string, currentRefreshToken?: string) {
+    return this.tokens.listSessions(userId, currentRefreshToken);
+  }
+
+  async revokeSession(userId: string, sessionId: string): Promise<{ ok: true }> {
+    await this.tokens.revokeSession(userId, sessionId);
+    return { ok: true };
   }
 }
