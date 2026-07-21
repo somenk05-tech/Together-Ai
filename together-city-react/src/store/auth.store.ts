@@ -58,10 +58,14 @@ export const useAuthStore = create<AuthState>()(
       },
 
       refresh: async () => {
-        // Try the stored refresh token first; if there isn't one, the request
-        // still goes out and the backend uses the HttpOnly refresh cookie. Only a
-        // genuine failure (no token AND no valid cookie) clears the session.
+        // Persistent login runs on the refresh token in localStorage (no cookie).
+        // Without one there's nothing to refresh, so clear cleanly to the login
+        // screen instead of firing a doomed request.
         const rt = get().tokens?.refreshToken;
+        if (!rt) {
+          set({ user: null, tokens: null });
+          return null;
+        }
         try {
           const tokens = await authApi.refresh(rt);
           set({ tokens });
@@ -82,13 +86,11 @@ export const useAuthStore = create<AuthState>()(
 
       hydrate: async () => {
         const t = get().tokens;
-        // No stored access token → attempt a silent restore from the HttpOnly
-        // refresh cookie (survives a localStorage wipe / reopened browser). If
-        // there's no cookie either, this fails cleanly to the login screen.
+        // No stored session at all → straight to the login screen. (Persistent
+        // login is restored from the refresh token in localStorage below, when
+        // one exists but the access token has expired.)
         if (!t?.accessToken) {
-          const fresh = await get().refresh();
           set({ ready: true });
-          if (fresh) authApi.me().then((user) => set({ user })).catch(() => undefined);
           return;
         }
         // Stored access token already expired: refresh ONCE before rendering as

@@ -12,10 +12,15 @@ export const http: AxiosInstance = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 20000,
-  // Send/receive the HttpOnly refresh cookie (cross-site to the API domain), so
-  // sessions can be silently restored on browser restart. The access token is
-  // still a Bearer header; the cookie is an added, more-secure refresh channel.
-  withCredentials: true,
+  // NOTE: we deliberately do NOT set `withCredentials: true`. This is a
+  // cross-origin app (frontend on Vercel, API on Railway). Credentialed
+  // requests require the API to echo the exact origin in
+  // Access-Control-Allow-Origin AND send Allow-Credentials:true — if the
+  // deployed backend ever answers with `*` (or the CORS config drifts), the
+  // browser blocks EVERY response, including login, which surfaces to users as
+  // a bogus "Invalid handle or password". Persistent sessions run entirely on
+  // the Bearer access token + the refresh token stored in localStorage, so no
+  // cookie is needed. Keep this off unless the API is same-origin.
 });
 
 http.interceptors.request.use((cfg: InternalAxiosRequestConfig) => {
