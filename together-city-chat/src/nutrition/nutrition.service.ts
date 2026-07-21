@@ -1985,12 +1985,20 @@ export class NutritionService implements OnModuleInit {
     return { kcal: shape.kcal, protein: shape.protein, carbs: shape.carbs, fat: shape.fat, fiber: shape.fiber };
   }
 
-  async daySummary(planKey: string, dayIndex: number) {
+  /** Ownership guard — a meal plan may only be read/mutated by the user it belongs to. */
+  private async assertOwnsPlan(planKey: string, userId: string): Promise<void> {
+    const plan = await this.prisma.mealPlan.findUnique({ where: { key: planKey }, select: { userId: true } });
+    if (!plan) throw new NotFoundException('plan not found');
+    if (plan.userId !== userId) throw new ForbiddenException('That meal plan is not yours.');
+  }
+
+  async daySummary(userId: string, planKey: string, dayIndex: number) {
     const day = await this.prisma.mealPlanDay.findFirst({
       where: { dayIndex, plan: { key: planKey } },
       include: { plan: { select: { userId: true } }, meals: { include: { recipe: { include: { ingredients: true } } } } },
     });
     if (!day) throw new NotFoundException('plan day not found');
+    if (day.plan.userId !== userId) throw new ForbiddenException('That meal plan is not yours.');
     const opts = await this.plateOptsFor(day.plan.userId);
     const tg = await this.targets(day.plan.userId);
     // Dynamic budgets: skipped meals redistribute to the remaining plates.
@@ -2184,7 +2192,8 @@ export class NutritionService implements OnModuleInit {
   }
 
   // ─────────────── swap + sides ───────────────
-  async swap(planKey: string, dayIndex: number, slot: Slot, restoreRecipeId?: string) {
+  async swap(userId: string, planKey: string, dayIndex: number, slot: Slot, restoreRecipeId?: string) {
+    await this.assertOwnsPlan(planKey, userId);
     const meal = await this.findMeal(planKey, dayIndex, slot);
 
     // Undo a refresh — restore a specific earlier recipe the user was shown before.
@@ -2236,13 +2245,15 @@ export class NutritionService implements OnModuleInit {
   }
 
   /** Skip / un-skip a meal for the day. */
-  async setSkip(planKey: string, dayIndex: number, slot: Slot, skipped: boolean) {
+  async setSkip(userId: string, planKey: string, dayIndex: number, slot: Slot, skipped: boolean) {
+    await this.assertOwnsPlan(planKey, userId);
     const meal = await this.findMeal(planKey, dayIndex, slot);
     await this.prisma.meal.update({ where: { id: meal.id }, data: { skipped } });
     return this.shapePlan(planKey);
   }
 
-  async setSides(planKey: string, dayIndex: number, slot: Slot, sides: { rice: number; roti: number; curd: number; salad: number }) {
+  async setSides(userId: string, planKey: string, dayIndex: number, slot: Slot, sides: { rice: number; roti: number; curd: number; salad: number }) {
+    await this.assertOwnsPlan(planKey, userId);
     const meal = await this.findMeal(planKey, dayIndex, slot);
     await this.prisma.meal.update({
       where: { id: meal.id },

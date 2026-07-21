@@ -176,26 +176,26 @@ export class NutritionController {
   }
 
   @Get('plan/:key/day/:idx/summary')
-  daySummary(@Param('key') key: string, @Param('idx', ParseIntPipe) idx: number) {
-    return this.nutrition.daySummary(key, idx);
+  daySummary(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number) {
+    return this.nutrition.daySummary(user.sub, key, idx);
   }
 
   @Post('plan/:key/day/:idx/swap')
   @UsePipes(new ZodValidationPipe(SwapSchema))
-  swap(@Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SwapDto) {
-    return this.nutrition.swap(key, idx, dto.slot as Slot, dto.restoreRecipeId);
+  swap(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SwapDto) {
+    return this.nutrition.swap(user.sub, key, idx, dto.slot as Slot, dto.restoreRecipeId);
   }
 
   @Post('plan/:key/day/:idx/skip')
   @UsePipes(new ZodValidationPipe(SkipSchema))
-  skip(@Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SkipDto) {
-    return this.nutrition.setSkip(key, idx, dto.slot as Slot, dto.skipped);
+  skip(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SkipDto) {
+    return this.nutrition.setSkip(user.sub, key, idx, dto.slot as Slot, dto.skipped);
   }
 
   @Patch('plan/:key/day/:idx/sides')
   @UsePipes(new ZodValidationPipe(SidesSchema))
-  sides(@Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SidesDto) {
-    return this.nutrition.setSides(key, idx, dto.slot as Slot, dto.sides);
+  sides(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SidesDto) {
+    return this.nutrition.setSides(user.sub, key, idx, dto.slot as Slot, dto.sides);
   }
 
   // ─── My Health Profile calorie log (persists per day) ───

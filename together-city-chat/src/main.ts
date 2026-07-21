@@ -11,7 +11,14 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService);
 
   app.use(helmet());
-  app.enableCors({ origin: config.get<string>('corsOrigin'), credentials: true });
+  // Never send "*" with credentials (invalid + insecure). Dev: reflect the request
+  // origin. Prod: an explicit comma-separated allowlist (enforced non-empty at boot).
+  const corsOrigin = config.get<string>('corsOrigin') ?? '';
+  const allowlist = corsOrigin.split(',').map((s) => s.trim()).filter(Boolean);
+  app.enableCors({
+    origin: corsOrigin === '*' || allowlist.length === 0 ? true : allowlist,
+    credentials: true,
+  });
   app.setGlobalPrefix('api');
   app.useGlobalFilters(new AllExceptionsFilter());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));

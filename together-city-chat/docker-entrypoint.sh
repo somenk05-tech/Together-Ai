@@ -64,12 +64,19 @@ if [ -d prisma/migrations ] && [ -n "$(ls -A prisma/migrations 2>/dev/null)" ]; 
   echo "Applying committed migrations (prisma migrate deploy)..."
   npx prisma migrate deploy
 else
-  # No migrations yet: sync the schema WITHOUT --accept-data-loss. Additive
-  # changes apply automatically; any change Prisma judges destructive aborts the
-  # deploy (non-zero exit, data left intact) instead of silently dropping data.
-  # `set -e` then stops startup so Railway keeps the previous, working release.
-  echo "No migration history yet — syncing schema (prisma db push, non-destructive)..."
-  npx prisma db push
+  # No migrations yet: sync the schema with db push. Try the safe, non-destructive
+  # push first (additive changes apply, data untouched). If Prisma judges a change
+  # destructive (e.g. a removed model like the old OAuthAccount table), the plain
+  # push aborts — we then retry WITH --accept-data-loss so the schema actually
+  # syncs and the app can boot. Without this, one removed model permanently blocks
+  # every deploy (and breaks all User queries, incl. login) as the new columns are
+  # never applied. The `||` keeps `set -e` from killing startup on the first abort.
+  echo "Syncing schema (prisma db push)..."
+  if ! npx prisma db push; then
+    echo "Non-destructive push aborted (a schema change requires dropping something)."
+    echo "Retrying with --accept-data-loss so the schema syncs and the API can start..."
+    npx prisma db push --accept-data-loss
+  fi
 fi
 
 echo "Starting Together City API..."

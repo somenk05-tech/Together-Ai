@@ -36,9 +36,16 @@ export interface MessagingProvider {
  * dispatch and returns a synthetic message id so the whole flow is exercised
  * end-to-end in dev/demo. Production swaps this out (see adapters below).
  */
+let warnedStubInProd = false;
+
 export class StubMessagingProvider implements MessagingProvider {
   readonly name = 'stub';
   async send(msg: OutboundMessage): Promise<ProviderResult> {
+    if (process.env.NODE_ENV === 'production' && !warnedStubInProd) {
+      warnedStubInProd = true;
+      // eslint-disable-next-line no-console
+      console.error('[messaging:stub] WARNING: running in production with the STUB provider — verification & OTP messages are NOT being delivered. Set EMAIL_PROVIDER=resend + RESEND_API_KEY.');
+    }
     const id = `stub_${msg.channel}_${randomBytes(6).toString('hex')}`;
     // eslint-disable-next-line no-console
     console.log(`[messaging:stub] → ${msg.channel} ${msg.to} · ${msg.kind} · ${msg.subject ?? '(sms)'} · ${id}`);

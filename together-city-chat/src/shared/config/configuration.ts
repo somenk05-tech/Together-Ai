@@ -39,15 +39,49 @@ export interface AppConfig {
 const int = (v: string | undefined, d: number): number =>
   v === undefined ? d : Number.parseInt(v, 10);
 
-export default (): AppConfig => ({
+const DEV_ACCESS_SECRET = 'dev-access';
+const DEV_REFRESH_SECRET = 'dev-refresh';
+
+/**
+ * Surface insecure/incomplete production config LOUDLY at boot so it's never a
+ * silent problem. This warns rather than throws: a hard crash here would take the
+ * whole API down if an env var is missing, and we never want config hygiene to
+ * cause an outage. Set STRICT_PROD_CONFIG=true to upgrade these warnings to a
+ * hard boot failure once the env vars are in place.
+ */
+function assertProductionConfig(): void {
+  if ((process.env.NODE_ENV ?? 'development') !== 'production') return;
+  const problems: string[] = [];
+  if (!process.env.JWT_ACCESS_SECRET || process.env.JWT_ACCESS_SECRET === DEV_ACCESS_SECRET) problems.push('JWT_ACCESS_SECRET is missing/default — set a strong unique value.');
+  if (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === DEV_REFRESH_SECRET) problems.push('JWT_REFRESH_SECRET is missing/default — set a strong unique value.');
+  const cors = process.env.CORS_ORIGIN ?? '';
+  if (!cors || cors === '*') problems.push('CORS_ORIGIN is unset/"*" — set an explicit origin list.');
+  const emailProvider = (process.env.EMAIL_PROVIDER ?? process.env.MESSAGING_PROVIDER ?? 'stub').toLowerCase();
+  if (emailProvider === 'stub' && process.env.ALLOW_STUB_MESSAGING !== 'true') {
+    problems.push('EMAIL_PROVIDER is unset (stub) — verification & OTP emails will NOT send. Set EMAIL_PROVIDER=resend + RESEND_API_KEY (or ALLOW_STUB_MESSAGING=true to acknowledge).');
+  }
+  if (!problems.length) return;
+  const banner = `\n${'='.repeat(66)}\n INSECURE / INCOMPLETE PRODUCTION CONFIG:\n  - ${problems.join('\n  - ')}\n${'='.repeat(66)}`;
+  if (process.env.STRICT_PROD_CONFIG === 'true') {
+    throw new Error(`Refusing to start (STRICT_PROD_CONFIG):${banner}`);
+  }
+  // eslint-disable-next-line no-console
+  console.error(banner);
+}
+
+export default (): AppConfig => {
+  assertProductionConfig();
+  const isProd = (process.env.NODE_ENV ?? 'development') === 'production';
+  return {
   env: process.env.NODE_ENV ?? 'development',
   port: int(process.env.PORT, 4000),
-  corsOrigin: process.env.CORS_ORIGIN ?? '*',
+  // Dev reflects the request origin ('*' sentinel → handled in main.ts); prod is an explicit list.
+  corsOrigin: process.env.CORS_ORIGIN ?? (isProd ? '' : '*'),
   databaseUrl: process.env.DATABASE_URL ?? '',
   redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379',
   jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET ?? 'dev-access',
-    refreshSecret: process.env.JWT_REFRESH_SECRET ?? 'dev-refresh',
+    accessSecret: process.env.JWT_ACCESS_SECRET ?? DEV_ACCESS_SECRET,
+    refreshSecret: process.env.JWT_REFRESH_SECRET ?? DEV_REFRESH_SECRET,
     accessTtl: int(process.env.JWT_ACCESS_TTL, 900),
     refreshTtl: int(process.env.JWT_REFRESH_TTL, 1209600),
   },
@@ -74,4 +108,5 @@ export default (): AppConfig => ({
     clientEmail: process.env.FCM_CLIENT_EMAIL ?? '',
     privateKey: (process.env.FCM_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
   },
-});
+  };
+};

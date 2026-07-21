@@ -6,28 +6,29 @@ import { PrismaService } from '../shared/prisma/prisma.service';
  * Browser / PWA push via the Web Push protocol (VAPID). Delivers a notification
  * to a recipient's device even when Together City is completely closed.
  *
- * Keys come from env (VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY); a baked-in default
- * keypair keeps it working out of the box. Subscriptions are stored in
+ * Keys MUST come from env (VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY) — a private key
+ * must never be committed to source. If they're unset, web push is simply
+ * disabled (the app degrades gracefully; no notifications are sent). Generate a
+ * keypair with `npx web-push generate-vapid-keys`. Subscriptions are stored in
  * DeviceToken rows (platform='webpush', token = JSON.stringify(subscription)),
  * so no schema change is required.
  */
-const DEFAULT_PUBLIC = 'BIoQIxiLAQfsc21jkQ0lcCEA0l3o_6QxtffRxhPqx7xZL91YzF7HEVyZQvSeen7s8A-eUsrM1ylzQx9Z6BPFFIg';
-const DEFAULT_PRIVATE = 'lZx_OARVcX49EAh1QAX0QXErF4raokFu-wDgBjcjglI';
-
 @Injectable()
 export class WebPushProvider {
   private readonly logger = new Logger('WebPushProvider');
-  readonly publicKey = process.env.VAPID_PUBLIC_KEY || DEFAULT_PUBLIC;
-  private readonly privateKey = process.env.VAPID_PRIVATE_KEY || DEFAULT_PRIVATE;
+  readonly publicKey = process.env.VAPID_PUBLIC_KEY ?? '';
+  private readonly privateKey = process.env.VAPID_PRIVATE_KEY ?? '';
   private readonly subject = process.env.VAPID_SUBJECT || 'mailto:connect@togethercity.tech';
   private ready = false;
 
   constructor(private readonly prisma: PrismaService) {
+    if (!this.publicKey || !this.privateKey) {
+      this.logger.log('Web push disabled — set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY to enable.');
+      return;
+    }
     try {
-      if (this.publicKey && this.privateKey) {
-        webpush.setVapidDetails(this.subject, this.publicKey, this.privateKey);
-        this.ready = true;
-      }
+      webpush.setVapidDetails(this.subject, this.publicKey, this.privateKey);
+      this.ready = true;
     } catch (e) {
       this.logger.warn(`VAPID init failed: ${(e as Error).message}`);
     }
