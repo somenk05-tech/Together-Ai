@@ -38,11 +38,27 @@ interface TmdbItem {
 }
 interface TmdbList { results: TmdbItem[] }
 interface TmdbProviders { results?: Record<string, { flatrate?: { provider_name: string }[]; rent?: { provider_name: string }[]; buy?: { provider_name: string }[] }> }
+interface TmdbVideo { key: string; site: string; type: string; official: boolean; name: string }
 interface TmdbDetail extends TmdbItem {
   runtime?: number; tagline?: string; status?: string;
   genres?: { id: number; name: string }[];
-  credits?: { cast?: { name: string; character: string; profile_path: string | null }[]; crew?: { name: string; job: string }[] };
+  credits?: { cast?: { id: number; name: string; character: string; profile_path: string | null }[]; crew?: { name: string; job: string }[] };
   'watch/providers'?: TmdbProviders;
+  videos?: { results?: TmdbVideo[] };
+  recommendations?: TmdbList;
+  release_dates?: { results?: { iso_3166_1: string; release_dates: { certification: string }[] }[] };
+  content_ratings?: { results?: { iso_3166_1: string; rating: string }[] };
+  // TV-only
+  number_of_seasons?: number; number_of_episodes?: number;
+  seasons?: { season_number: number; name: string; episode_count: number; air_date: string | null; poster_path: string | null }[];
+  next_episode_to_air?: { name: string; air_date: string; season_number: number; episode_number: number } | null;
+  created_by?: { name: string }[];
+  episode_run_time?: number[];
+}
+interface TmdbPerson {
+  id: number; name: string; biography?: string; birthday?: string | null; deathday?: string | null;
+  place_of_birth?: string | null; known_for_department?: string; profile_path: string | null;
+  combined_credits?: { cast?: (TmdbItem & { popularity: number; character?: string })[] };
 }
 
 export interface MovieCard {
@@ -119,29 +135,171 @@ export class TmdbService {
     }
   }
 
-  /** Full detail for one movie — overview, cast, runtime and where to watch in India. */
+  /** Best official YouTube trailer/teaser key. */
+  private trailerOf(d: TmdbDetail): string | null {
+    const vids = (d.videos?.results ?? []).filter((v) => v.site === 'YouTube');
+    const pick = vids.find((v) => v.type === 'Trailer' && v.official) ?? vids.find((v) => v.type === 'Trailer') ?? vids.find((v) => v.type === 'Teaser');
+    return pick?.key ?? null;
+  }
+
+  private dedupeNames(xs: { provider_name: string }[] | undefined): string[] {
+    return [...new Set((xs ?? []).map((p) => p.provider_name))];
+  }
+
+  private shapeCast(d: TmdbDetail) {
+    return (d.credits?.cast ?? []).slice(0, 10).map((c) => ({ id: c.id, name: c.name, character: c.character, photoUrl: c.profile_path ? `${IMG}/w185${c.profile_path}` : null }));
+  }
+
+  private shapeRecs(d: TmdbDetail, type: 'movie' | 'tv') {
+    return (d.recommendations?.results ?? []).filter((r) => r.poster_path).slice(0, 8).map((r) => ({ ...this.shape(r), type }));
+  }
+
+  /** Full detail for one movie — cast, trailer, certification, recommendations, where to watch. */
   async movieDetail(id: string) {
     if (!this.enabled) throw new ServiceUnavailableException('movie data is not configured');
     if (!/^\d+$/.test(id)) throw new NotFoundException('movie not found');
     try {
-      const d = await this.get<TmdbDetail>(`/movie/${id}`, { append_to_response: 'credits,watch/providers' });
+      const d = await this.get<TmdbDetail>(`/movie/${id}`, { append_to_response: 'credits,watch/providers,videos,recommendations,release_dates' });
       const inProviders = d['watch/providers']?.results?.[REGION];
-      const dedupe = (xs: { provider_name: string }[] | undefined) => [...new Set((xs ?? []).map((p) => p.provider_name))];
+      const certRow = d.release_dates?.results?.find((r) => r.iso_3166_1 === REGION) ?? d.release_dates?.results?.find((r) => r.iso_3166_1 === 'US');
+      const certification = certRow?.release_dates.map((x) => x.certification).find((c) => c) ?? null;
       return {
         ...this.shape(d),
+        type: 'movie' as const,
         genres: (d.genres ?? []).map((g) => g.name).slice(0, 4),
         runtime: d.runtime ?? null,
         tagline: d.tagline || null,
         status: d.status ?? null,
-        cast: (d.credits?.cast ?? []).slice(0, 6).map((c) => ({ name: c.name, character: c.character, photoUrl: c.profile_path ? `${IMG}/w185${c.profile_path}` : null })),
+        certification,
+        trailerKey: this.trailerOf(d),
+        cast: this.shapeCast(d),
         directors: (d.credits?.crew ?? []).filter((c) => c.job === 'Director').map((c) => c.name).slice(0, 2),
-        watch: { stream: dedupe(inProviders?.flatrate).slice(0, 4), rent: dedupe(inProviders?.rent).slice(0, 3), buy: dedupe(inProviders?.buy).slice(0, 3) },
+        watch: { stream: this.dedupeNames(inProviders?.flatrate).slice(0, 4), rent: this.dedupeNames(inProviders?.rent).slice(0, 3), buy: this.dedupeNames(inProviders?.buy).slice(0, 3) },
+        recommendations: this.shapeRecs(d, 'movie'),
+        seasons: [], nextEpisode: null, creators: [],
         attribution: 'Movie data & images: TMDB',
       };
     } catch (e) {
       if (e instanceof NotFoundException) throw e;
       this.log.warn(`movieDetail(${id}) failed: ${(e as Error).message}`);
       throw new NotFoundException('movie not found');
+    }
+  }
+
+  /** Full detail for one TV series — seasons, next episode, trailer, recommendations. */
+  async tvDetail(id: string) {
+    if (!this.enabled) throw new ServiceUnavailableException('tv data is not configured');
+    if (!/^\d+$/.test(id)) throw new NotFoundException('series not found');
+    try {
+      const d = await this.get<TmdbDetail>(`/tv/${id}`, { append_to_response: 'credits,watch/providers,videos,recommendations,content_ratings' });
+      const inProviders = d['watch/providers']?.results?.[REGION];
+      const rating = d.content_ratings?.results?.find((r) => r.iso_3166_1 === REGION)?.rating ?? d.content_ratings?.results?.find((r) => r.iso_3166_1 === 'US')?.rating ?? null;
+      return {
+        ...this.shape(d),
+        type: 'tv' as const,
+        genres: (d.genres ?? []).map((g) => g.name).slice(0, 4),
+        runtime: d.episode_run_time?.[0] ?? null,
+        tagline: d.tagline || null,
+        status: d.status ?? null,
+        certification: rating,
+        trailerKey: this.trailerOf(d),
+        cast: this.shapeCast(d),
+        directors: (d.created_by ?? []).map((c) => c.name).slice(0, 2),
+        watch: { stream: this.dedupeNames(inProviders?.flatrate).slice(0, 4), rent: this.dedupeNames(inProviders?.rent).slice(0, 3), buy: this.dedupeNames(inProviders?.buy).slice(0, 3) },
+        recommendations: this.shapeRecs(d, 'tv'),
+        seasons: (d.seasons ?? []).filter((s) => s.season_number > 0).map((s) => ({ number: s.season_number, name: s.name, episodes: s.episode_count, airDate: s.air_date })),
+        nextEpisode: d.next_episode_to_air
+          ? { name: d.next_episode_to_air.name, airDate: d.next_episode_to_air.air_date, season: d.next_episode_to_air.season_number, episode: d.next_episode_to_air.episode_number }
+          : null,
+        creators: (d.created_by ?? []).map((c) => c.name),
+        attribution: 'Series data & images: TMDB',
+      };
+    } catch (e) {
+      if (e instanceof NotFoundException) throw e;
+      this.log.warn(`tvDetail(${id}) failed: ${(e as Error).message}`);
+      throw new NotFoundException('series not found');
+    }
+  }
+
+  /** Search movies, series and people in one query. */
+  async search(q: string) {
+    if (!this.enabled || !q.trim()) return { live: this.enabled, results: [] };
+    try {
+      const d = await this.get<TmdbList>('/search/multi', { query: q.trim().slice(0, 80), include_adult: 'false', page: '1' });
+      const results = (d.results ?? [])
+        .filter((r) => (r.media_type === 'movie' || r.media_type === 'tv') && r.poster_path)
+        .slice(0, 12)
+        .map((r) => ({ ...this.shape(r), type: r.media_type as 'movie' | 'tv' }));
+      return { live: true, results };
+    } catch (e) {
+      this.log.warn(`search failed: ${(e as Error).message}`);
+      return { live: false, results: [] };
+    }
+  }
+
+  /** Discover movies with working filters — genre, language, sort. */
+  async discover(genre?: string, lang?: string, sort?: string) {
+    if (!this.enabled) return { live: false as const, results: [] };
+    try {
+      const genreId = Object.entries(GENRES).find(([, name]) => name.toLowerCase() === (genre ?? '').toLowerCase())?.[0];
+      const langCode = Object.entries(LANGS).find(([, name]) => name.toLowerCase() === (lang ?? '').toLowerCase())?.[0];
+      const params: Record<string, string> = {
+        region: REGION, include_adult: 'false', 'vote_count.gte': '25',
+        sort_by: sort === 'rating' ? 'vote_average.desc' : 'popularity.desc',
+      };
+      if (genreId) params.with_genres = genreId;
+      if (langCode) params.with_original_language = langCode;
+      const d = await this.get<TmdbList>('/discover/movie', params);
+      return { live: true as const, results: d.results.filter((m) => m.poster_path).slice(0, 16).map((m) => ({ ...this.shape(m), type: 'movie' as const })) };
+    } catch (e) {
+      this.log.warn(`discover failed: ${(e as Error).message}`);
+      return { live: false as const, results: [] };
+    }
+  }
+
+  /** Curated Movies — critics' picks, hidden gems and Indian indie cinema. */
+  async curated() {
+    if (!this.enabled) return { live: false as const, topRated: [], hiddenGems: [], indianIndie: [] };
+    try {
+      const [top, gems, indie] = await Promise.all([
+        this.get<TmdbList>('/movie/top_rated', { region: REGION, page: '1' }),
+        this.get<TmdbList>('/discover/movie', { include_adult: 'false', sort_by: 'vote_average.desc', 'vote_count.gte': '80', 'vote_count.lte': '1200', 'vote_average.gte': '7.4', 'primary_release_date.gte': '2015-01-01' }),
+        this.get<TmdbList>('/discover/movie', { include_adult: 'false', sort_by: 'vote_average.desc', with_original_language: 'hi|ta|te|ml|kn|bn|mr', 'vote_count.gte': '40', 'vote_average.gte': '7.0' }),
+      ]);
+      const shape = (l: TmdbList, n: number) => l.results.filter((m) => m.poster_path).slice(0, n).map((m) => ({ ...this.shape(m), type: 'movie' as const }));
+      return { live: true as const, topRated: shape(top, 8), hiddenGems: shape(gems, 8), indianIndie: shape(indie, 8) };
+    } catch (e) {
+      this.log.warn(`curated() fell back: ${(e as Error).message}`);
+      return { live: false as const, topRated: [], hiddenGems: [], indianIndie: [] };
+    }
+  }
+
+  /** Person — bio and best-known titles. */
+  async person(id: string) {
+    if (!this.enabled) throw new ServiceUnavailableException('people data is not configured');
+    if (!/^\d+$/.test(id)) throw new NotFoundException('person not found');
+    try {
+      const p = await this.get<TmdbPerson>(`/person/${id}`, { append_to_response: 'combined_credits' });
+      const seen = new Set<number>();
+      const knownFor = (p.combined_credits?.cast ?? [])
+        .filter((c) => c.poster_path && (c.media_type === 'movie' || c.media_type === 'tv') && !seen.has(c.id) && seen.add(c.id))
+        .sort((a, b) => b.popularity - a.popularity)
+        .slice(0, 8)
+        .map((c) => ({ ...this.shape(c), type: c.media_type as 'movie' | 'tv' }));
+      return {
+        id: p.id, name: p.name,
+        photoUrl: p.profile_path ? `${IMG}/w342${p.profile_path}` : null,
+        department: p.known_for_department ?? null,
+        birthday: p.birthday ?? null, deathday: p.deathday ?? null,
+        placeOfBirth: p.place_of_birth ?? null,
+        biography: (p.biography ?? '').slice(0, 700) || null,
+        knownFor,
+        attribution: 'People data & images: TMDB',
+      };
+    } catch (e) {
+      if (e instanceof NotFoundException) throw e;
+      this.log.warn(`person(${id}) failed: ${(e as Error).message}`);
+      throw new NotFoundException('person not found');
     }
   }
 

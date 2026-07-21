@@ -31,9 +31,34 @@ export class EntertainmentController {
     return this.tmdb.movieDetail(id);
   }
 
+  @Get('tv/:id')
+  tv(@Param('id') id: string) {
+    return this.tmdb.tvDetail(id);
+  }
+
   @Get('ott')
   ott() {
     return this.tmdb.ott();
+  }
+
+  @Get('search')
+  search(@Query('q') q: string) {
+    return this.tmdb.search(q ?? '');
+  }
+
+  @Get('discover')
+  discover(@Query('genre') genre?: string, @Query('lang') lang?: string, @Query('sort') sort?: string) {
+    return this.tmdb.discover(genre, lang, sort);
+  }
+
+  @Get('curated-movies')
+  curatedMovies() {
+    return this.tmdb.curated();
+  }
+
+  @Get('person/:id')
+  person(@Param('id') id: string) {
+    return this.tmdb.person(id);
   }
 
   @Get('events')
