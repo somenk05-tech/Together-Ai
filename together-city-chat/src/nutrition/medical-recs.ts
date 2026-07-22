@@ -183,7 +183,7 @@ export function buildMedicalRecs(
     }
     recs.push({ key: 'oil-swap', label: 'Replace butter/ghee-heavy dishes with olive or mustard-oil cooking', reason: 'Unsaturated oils improve LDL:HDL — the planner already down-weights butter-heavy recipes for you.', applyable: false });
     if (flags.trig === 'high') {
-      recs.push({ key: 'omega3', label: 'Eat fatty fish ~twice a week (or discuss omega-3 supplements with your doctor)', reason: "2–4 g/day EPA+DHA effectively lowers triglycerides (Krause's Nutrition Care Process).", applyable: false });
+      recs.push({ key: 'omega3', label: 'Eat fatty fish ~twice a week (or discuss omega-3 supplements with your doctor)', reason: '2–4 g/day EPA+DHA effectively lowers triglycerides.', applyable: false });
     }
     const before = cholesterolScore(prefs);
     const after = cholesterolScore(applyPatch(prefs, patch));
@@ -206,7 +206,7 @@ export function buildMedicalRecs(
       recs.push({ key: 'add-legumes', label: 'Add legumes several times per week', reason: 'Legumes blunt the glucose response of a meal.', applyable: true });
       patch.addProteins = [...(patch.addProteins ?? []), 'Lentils & Dal'];
     }
-    recs.push({ key: 'carb-spread', label: 'Spread carbohydrates across 3 moderate meals (+1–2 snacks)', reason: "Distributing carbs through the day steadies glucose (Krause's) — your plan structure already follows this.", applyable: false });
+    recs.push({ key: 'carb-spread', label: 'Spread carbohydrates across 3 moderate meals (+1–2 snacks)', reason: 'Distributing carbs through the day steadies glucose — your plan structure already follows this.', applyable: false });
     recs.push({ key: 'protein-every-meal', label: 'Include protein with every meal', reason: 'Protein flattens the glucose curve — your per-meal protein split already enforces this.', applyable: false });
     const before = diabetesScore(prefs);
     const after = diabetesScore(applyPatch(prefs, patch));
@@ -244,7 +244,7 @@ export function buildMedicalRecs(
   if (has('uric', 'gout')) {
     const recs: MedRec[] = [];
     const patch: MedRecPatch = {};
-    recs.push({ key: 'avoid-purine', label: 'Avoid organ meats and small oily fish (anchovies, sardines, herring)', reason: "The highest-purine foods (Krause's Nutrition Care Process, Box 39-3) — the planner already excludes them for you.", applyable: false });
+    recs.push({ key: 'avoid-purine', label: 'Avoid organ meats and small oily fish (anchovies, sardines, herring)', reason: 'The highest-purine foods — the planner already excludes them for you.', applyable: false });
     recs.push({ key: 'less-fructose', label: 'Limit sweetened soft drinks, juices and sweet pastries', reason: 'Fructose raises uric acid production directly.', applyable: false });
     if (hasP(prefs, 'Mutton')) recs.push({ key: 'less-mutton', label: 'Reduce mutton frequency', reason: 'Red and organ meats are the highest-purine foods.', applyable: false });
     if (hasP(prefs, 'Prawns')) {
@@ -252,7 +252,7 @@ export function buildMedicalRecs(
       patch.removeProteins = [...(patch.removeProteins ?? []), 'Prawns'];
     }
     if (!hasP(prefs, 'Curd') && !hasP(prefs, 'Milk') && prefs.diet !== 'vegan') {
-      recs.push({ key: 'add-dairy', label: 'Increase low-fat dairy (curd, milk)', reason: "Dairy, eggs, vegetable protein and cherries appear protective against gout attacks (Krause's)." , applyable: true });
+      recs.push({ key: 'add-dairy', label: 'Increase low-fat dairy (curd, milk)', reason: 'Dairy, eggs, vegetable protein and cherries appear protective against gout attacks.', applyable: true });
       patch.addProteins = [...(patch.addProteins ?? []), 'Curd'];
     }
     recs.push({ key: 'veg-up', label: 'Increase vegetables', reason: 'Plant purines do not raise gout risk the way meat purines do.', applyable: false });

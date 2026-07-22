@@ -118,7 +118,7 @@ export const MNT_RULES: Record<string, MntRule> = {
     avoid: ['fructose syrup', 'alcohol', 'beer', 'wine'],
     advisory: {
       title: 'Liver-recovery pattern active',
-      body: 'A Mediterranean-leaning, lower-fructose pattern with a moderate calorie deficit — 3–5% weight loss improves liver fat and 7–10% improves most liver damage markers (ESPEN-UEG). Sugary drinks are the single biggest lever.',
+      body: 'A Mediterranean-leaning, lower-fructose pattern with a moderate calorie deficit — 3–5% weight loss improves liver fat and 7–10% improves most liver damage markers. Sugary drinks are the single biggest lever.',
     },
   },
   gout: {
@@ -140,7 +140,7 @@ export const MNT_RULES: Record<string, MntRule> = {
     emphasize: /dal|egg|curd|paneer|milk|khichdi|soft/i,
     advisory: {
       title: 'Healthy-ageing pattern active',
-      body: 'Protein is raised to 1.0–1.2 g/kg to protect muscle, energy oriented around ~30 kcal/kg, and fluids matter more with age: at least 1.6 L/day of drinks for women, 2.0 L/day for men (ESPEN geriatrics).',
+      body: 'Protein is raised to 1.0–1.2 g/kg to protect muscle, energy oriented around ~30 kcal/kg, and fluids matter more with age: at least 1.6 L/day of drinks for women, 2.0 L/day for men.',
     },
   },
 };

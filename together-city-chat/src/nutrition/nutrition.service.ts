@@ -1426,7 +1426,7 @@ export class NutritionService implements OnModuleInit {
       if (!rule.advisory) continue;
       out.push({
         key: `mnt-${rule.key}`, title: rule.advisory.title,
-        body: `${rule.advisory.body} — Source: ${rule.citation}.`,
+        body: rule.advisory.body,
       });
     }
 
