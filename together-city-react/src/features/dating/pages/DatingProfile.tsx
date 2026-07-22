@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { useFormValidation, ValidationSummary, FieldError, successToast } from '@/components/form-validation';
 import { Button, Spinner } from '@/components/ui';
 import { SearchSelect } from '@/components/SearchSelect';
 import { MultiSelect } from '@/components/MultiSelect';
@@ -116,12 +117,20 @@ export function DatingProfilePage() {
   };
   const removePhoto = (i: number) => setD({ photos: (dx.photos ?? []).filter((_, idx) => idx !== i) });
 
+  // Global validation standard — the match engine needs these to work at all.
+  const v = useFormValidation([
+    { key: 'birthDate', label: 'Date of birth', valid: () => Boolean(form.birthDate), message: 'Enter your Date of birth.' },
+    { key: 'bio', label: 'Bio', valid: () => (form.bio ?? '').trim().length >= 20, message: 'Write a short Bio (at least 20 characters).' },
+    { key: 'interests', label: 'Interests', valid: () => (form.interests ?? []).length >= 3, message: 'Pick at least 3 Interests.' },
+  ]);
+
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    if (!v.validate()) return; // never save an incomplete dating profile
     const extras: DX = { ...dx };
     upsert.mutate(
       { ...form, interests: (form.interests ?? []), extras: JSON.stringify(extras) },
-      { onSuccess: (p) => setCollapsed(p.moderation !== 'rejected') },
+      { onSuccess: (p) => { setCollapsed(p.moderation !== 'rejected'); successToast('Dating profile saved successfully.'); } },
     );
   };
 
@@ -189,6 +198,7 @@ export function DatingProfilePage() {
       <StatusBanner />
 
       <form onSubmit={submit}>
+        <ValidationSummary missing={v.missing} />
         {/* Phase 1 — Basic info */}
         <Phase n={1} title="Basic information" />
         <div className="card">
@@ -204,7 +214,7 @@ export function DatingProfilePage() {
                 <option value="any">Anyone</option><option value="male">Men</option><option value="female">Women</option><option value="nonbinary">Non-binary people</option>
               </select>
             </div>
-            <div><span style={label}>Date of birth</span><input type="date" required value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} style={field} /></div>
+            <div ref={v.reg('birthDate')}><span style={label}>Date of birth</span><input type="date" value={form.birthDate} onChange={(e) => { setForm({ ...form, birthDate: e.target.value }); v.clear('birthDate'); }} style={{ ...field, ...v.errStyle('birthDate') }} /><FieldError msg={v.errors.birthDate} /></div>
             <div><span style={label}>Time of birth <span style={{ textTransform: 'none' }}>(optional)</span></span><input type="time" value={form.birthTime ?? ''} onChange={(e) => setForm({ ...form, birthTime: e.target.value })} style={field} /></div>
             <div><span style={label}>Place of birth <span style={{ textTransform: 'none' }}>(optional)</span></span><input value={form.birthPlace ?? ''} placeholder="City" onChange={(e) => setForm({ ...form, birthPlace: e.target.value })} style={field} /></div>
 
@@ -268,14 +278,16 @@ export function DatingProfilePage() {
             <div><span style={label}>Profession</span><SearchSelect category="occupation" value={dx.profession ?? ''} placeholder="Select" onChange={(o) => setD({ profession: o?.label })} /></div>
           </div>
           <span style={label}>Short bio (max 300)</span>
-          <textarea value={form.bio ?? ''} rows={3} maxLength={300} placeholder="A line or two — honest beats impressive." onChange={(e) => setForm({ ...form, bio: e.target.value })} style={{ ...field, resize: 'vertical' }} />
+          <textarea ref={(el) => v.reg('bio')(el)} value={form.bio ?? ''} rows={3} maxLength={300} placeholder="A line or two — honest beats impressive." onChange={(e) => { setForm({ ...form, bio: e.target.value }); v.clear('bio'); }} style={{ ...field, resize: 'vertical', ...v.errStyle('bio') }} />
+          <FieldError msg={v.errors.bio} />
           <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>{(form.bio ?? '').length}/300 · no phone numbers, socials or links — they’re auto-rejected.</p>
         </div>
 
         {/* Phase 3 — Personality & interests */}
         <Phase n={3} title="Personality & interests" />
         <div className="card">
-          <span style={label}>Interests (up to 10) · {(form.interests ?? []).length}/10</span>
+          <span ref={v.reg('interests')} style={label}>Interests (up to 10, at least 3) · {(form.interests ?? []).length}/10</span>
+          <FieldError msg={v.errors.interests} />
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{INTERESTS.map((v) => <Chip key={v} on={(form.interests ?? []).includes(v)} onClick={() => setForm({ ...form, interests: capToggle((form.interests ?? []), v, 10) })}>{v}</Chip>)}</div>
           <span style={label}>Personality traits (up to 8) · {(dx.personalityTraits ?? []).length}/8</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{TRAITS.map((v) => <Chip key={v} on={(dx.personalityTraits ?? []).includes(v)} onClick={() => setD({ personalityTraits: capToggle(dx.personalityTraits, v, 8) })}>{v}</Chip>)}</div>

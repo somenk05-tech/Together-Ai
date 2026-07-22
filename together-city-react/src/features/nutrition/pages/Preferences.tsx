@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { useFormValidation, ValidationSummary, FieldError, successToast } from '@/components/form-validation';
 import { Button, Spinner } from '@/components/ui';
 import { useFoodPref, useNutritionTargets, useUpdateFoodPref } from '../hooks';
 import { useBloodHistory } from '@/features/medical/api';
@@ -269,9 +270,23 @@ export function Preferences() {
     ['Body', bodySummary],
   ];
 
+  // Global validation standard: block save until every required field is set.
+  const v = useFormValidation([
+    { key: 'diet', label: 'Dietary Preference', valid: () => Boolean(form?.diet), message: 'Select your Dietary Preference.' },
+    { key: 'age', label: 'Age', valid: () => form?.age != null && form.age >= 10 && form.age <= 120, message: 'Enter your Age (10–120).' },
+    { key: 'sex', label: 'Sex', valid: () => Boolean(form?.sex), message: 'Select your Sex.' },
+    { key: 'height', label: 'Height', valid: () => form?.heightCm != null && form.heightCm >= 80 && form.heightCm <= 250, message: 'Enter your Height (80–250 cm).' },
+    { key: 'weight', label: 'Weight', valid: () => form?.weightKg != null && form.weightKg >= 25 && form.weightKg <= 400, message: 'Enter your Weight (25–400 kg).' },
+    { key: 'activity', label: 'Activity Level', valid: () => form?.activity != null && form.activity > 0, message: 'Choose your Activity Level.' },
+    { key: 'goal', label: 'Goal', valid: () => Boolean(form?.goal), message: 'Choose your Goal.' },
+    { key: 'budget', label: 'Grocery Budget', valid: () => ex.budgetInr != null && ex.budgetInr >= 50 && ex.budgetInr <= 5000, message: 'Enter your Grocery Budget (₹50–₹5,000 per day).' },
+    { key: 'delivery', label: 'Delivery Schedule', valid: () => Boolean(ex.delivery), message: 'Choose your Delivery Schedule.' },
+  ]);
+
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setSaved(false);
+    if (!v.validate()) return; // nothing is saved until every required field is complete
     // Persist a diet-consistent profile: veg diets store all-veg weekly days.
     // Mirror the condition chips into the legacy `conditions` string so the
     // planner / AI / profile keep reading a single field.
@@ -289,7 +304,7 @@ export function Preferences() {
       ...(form.sex ? { sex: form.sex } : {}),
       extras: JSON.stringify(exToSave),
     };
-    update.mutate(payload, { onSuccess: () => { setSaved(true); setCollapsed(true); } });
+    update.mutate(payload, { onSuccess: () => { setSaved(true); setCollapsed(true); successToast('Preferences saved successfully.'); } });
   };
 
   return (
@@ -324,6 +339,7 @@ export function Preferences() {
       )}
 
       <form onSubmit={submit} style={{ display: collapsed ? 'none' : 'block' }}>
+        <ValidationSummary missing={v.missing} />
         {/* 0 · Blood test status (from Medical hub) */}
         <div className="card" style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 200 }}>
@@ -484,28 +500,32 @@ export function Preferences() {
             🔗 Shared with your <Link to="/fitness/workout" style={{ color: 'var(--accent)', fontWeight: 600 }}>Fitness hub</Link> — set your body stats once here and workouts use them automatically.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
-            <div>
+            <div ref={v.reg('age')}>
               <span style={label}>Age</span>
               <input type="number" min={10} max={120} value={form.age ?? ''} placeholder="30"
-                onChange={(e) => setForm({ ...form, age: num(e.target.value) })} style={field} />
+                onChange={(e) => { setForm({ ...form, age: num(e.target.value) }); v.clear('age'); }} style={{ ...field, ...v.errStyle('age') }} />
+              <FieldError msg={v.errors.age} />
             </div>
-            <div>
+            <div ref={v.reg('sex')}>
               <span style={label}>Sex</span>
-              <select value={form.sex ?? ''} onChange={(e) => setForm({ ...form, sex: (e.target.value || null) as FoodPref['sex'] })} style={field}>
+              <select value={form.sex ?? ''} onChange={(e) => { setForm({ ...form, sex: (e.target.value || null) as FoodPref['sex'] }); v.clear('sex'); }} style={{ ...field, ...v.errStyle('sex') }}>
                 <option value="">—</option>
                 <option value="female">Female</option>
                 <option value="male">Male</option>
               </select>
+              <FieldError msg={v.errors.sex} />
             </div>
-            <div>
+            <div ref={v.reg('height')}>
               <span style={label}>Height (cm)</span>
               <input type="number" min={80} max={250} value={form.heightCm ?? ''} placeholder="172"
-                onChange={(e) => setForm({ ...form, heightCm: num(e.target.value) })} style={field} />
+                onChange={(e) => { setForm({ ...form, heightCm: num(e.target.value) }); v.clear('height'); }} style={{ ...field, ...v.errStyle('height') }} />
+              <FieldError msg={v.errors.height} />
             </div>
-            <div>
+            <div ref={v.reg('weight')}>
               <span style={label}>Weight (kg)</span>
               <input type="number" min={25} max={400} value={form.weightKg ?? ''} placeholder="70"
-                onChange={(e) => setForm({ ...form, weightKg: num(e.target.value) })} style={field} />
+                onChange={(e) => { setForm({ ...form, weightKg: num(e.target.value) }); v.clear('weight'); }} style={{ ...field, ...v.errStyle('weight') }} />
+              <FieldError msg={v.errors.weight} />
             </div>
           </div>
 
@@ -543,17 +563,19 @@ export function Preferences() {
         <div className="card" style={{ marginTop: 16 }}>
           <div className="eyebrow">Budget &amp; delivery</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
-            <div>
+            <div ref={v.reg('budget')}>
               <span style={label}>Grocery budget (₹/day per person)</span>
               <input type="number" min={50} max={5000} value={ex.budgetInr ?? ''} placeholder="500"
-                onChange={(e) => setEx({ ...ex, budgetInr: num(e.target.value) })} style={field} />
+                onChange={(e) => { setEx({ ...ex, budgetInr: num(e.target.value) }); v.clear('budget'); }} style={{ ...field, ...v.errStyle('budget') }} />
+              <FieldError msg={v.errors.budget} />
             </div>
-            <div>
+            <div ref={v.reg('delivery')}>
               <span style={label}>Delivery schedule</span>
-              <select value={ex.delivery ?? ''} onChange={(e) => setEx({ ...ex, delivery: e.target.value })} style={field}>
+              <select value={ex.delivery ?? ''} onChange={(e) => { setEx({ ...ex, delivery: e.target.value }); v.clear('delivery'); }} style={{ ...field, ...v.errStyle('delivery') }}>
                 <option value="">—</option>
                 {DELIVERY.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
+              <FieldError msg={v.errors.delivery} />
             </div>
           </div>
         </div>

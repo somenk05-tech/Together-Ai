@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useFormValidation, ValidationSummary, successToast } from '@/components/form-validation';
 import { Button, Spinner, EmptyState } from '@/components/ui';
 import { useFitnessProfile, useSaveFitnessProfile } from '../api';
 
@@ -35,6 +36,13 @@ export function Profile() {
   const [heightCm, setHeightCm] = useState<number | ''>('');
   const [weightKg, setWeightKg] = useState<number | ''>('');
   const [bodyGoal, setBodyGoal] = useState('athletic');
+
+  // Global validation standard — height & weight are required for real targets.
+  const v = useFormValidation([
+    { key: 'age', label: 'Age', valid: () => age >= 10 && age <= 100, message: 'Enter your Age (10–100).' },
+    { key: 'height', label: 'Height', valid: () => heightCm !== '' && Number(heightCm) >= 100 && Number(heightCm) <= 250, message: 'Enter your Height (100–250 cm).' },
+    { key: 'weight', label: 'Weight', valid: () => weightKg !== '' && Number(weightKg) >= 30 && Number(weightKg) <= 300, message: 'Enter your Weight (30–300 kg).' },
+  ]);
 
   useEffect(() => {
     if (profile.data) {
@@ -119,21 +127,22 @@ export function Profile() {
         <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
           <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             Height
-            <input type="number" min={120} max={230} value={heightCm} onChange={(e) => setHeightCm(e.target.value === '' ? '' : Number(e.target.value))} placeholder="cm"
-              style={{ width: 84, padding: '8px 10px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+            <input ref={(el) => v.reg('height')(el)} type="number" min={120} max={230} value={heightCm} onChange={(e) => { setHeightCm(e.target.value === '' ? '' : Number(e.target.value)); v.clear('height'); }} placeholder="cm"
+              style={{ width: 84, padding: '8px 10px', border: `1.5px solid ${v.errors.height ? '#c0392b' : 'var(--line)'}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
           </label>
           <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             Weight
-            <input type="number" min={30} max={300} value={weightKg} onChange={(e) => setWeightKg(e.target.value === '' ? '' : Number(e.target.value))} placeholder="kg"
-              style={{ width: 84, padding: '8px 10px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+            <input ref={(el) => v.reg('weight')(el)} type="number" min={30} max={300} value={weightKg} onChange={(e) => { setWeightKg(e.target.value === '' ? '' : Number(e.target.value)); v.clear('weight'); }} placeholder="kg"
+              style={{ width: 84, padding: '8px 10px', border: `1.5px solid ${v.errors.weight ? '#c0392b' : 'var(--line)'}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
           </label>
           <span className="muted" style={{ fontSize: 11.5, alignSelf: 'center', maxWidth: 260 }}>Needed for your calorie & macro targets — used to build the diet plan.</span>
         </div>
       </div>
 
+      <ValidationSummary missing={v.missing} />
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <Button variant="accent" disabled={save.isPending}
-          onClick={() => save.mutate({ age, sex, level, mode, goal, conditions, heightCm: num(heightCm), weightKg: num(weightKg), bodyGoal })}>
+          onClick={() => { if (!v.validate()) return; save.mutate({ age, sex, level, mode, goal, conditions, heightCm: num(heightCm), weightKg: num(weightKg), bodyGoal }, { onSuccess: () => successToast('Fitness profile saved successfully.') }); }}>
           {save.isPending ? 'Saving…' : 'Save & build my plan'}
         </Button>
         {save.isSuccess && <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>✓ Saved — see My Plan & Body Goal</span>}
