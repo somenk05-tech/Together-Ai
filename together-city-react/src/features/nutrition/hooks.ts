@@ -347,3 +347,41 @@ export function useCancelDelivery() {
     },
   });
 }
+
+// ───── Quick Commerce — find the grocery list across online stores ─────
+
+export function useQcCompare(mode: 'individual' | 'family' = 'individual', enabled = true) {
+  return useQuery({
+    queryKey: ['nutrition', 'qc-compare', mode],
+    queryFn: () => nutritionApi.qcCompare(mode),
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useQcSearch() {
+  return useMutation({ mutationFn: (q: string) => nutritionApi.qcSearch(q) });
+}
+
+export function useQcOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ provider, mode, method }: { provider: string; mode?: 'individual' | 'family'; method?: 'wallet' | 'card' }) =>
+      nutritionApi.qcOrder(provider, mode ?? 'individual', method ?? 'wallet'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['nutrition', 'orders'] }),
+  });
+}
+
+/** Live tracking — polls while the order is on its way, stops once delivered. */
+export function useQcTrack(orderId: string | null, delivered = false) {
+  return useQuery({
+    queryKey: ['nutrition', 'qc-track', orderId],
+    queryFn: () => nutritionApi.qcTrack(orderId as string),
+    enabled: !!orderId,
+    refetchInterval: delivered ? false : 10_000,
+  });
+}
+
+export function useNutritionOrders() {
+  return useQuery({ queryKey: ['nutrition', 'orders'], queryFn: nutritionApi.orders });
+}

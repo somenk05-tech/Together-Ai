@@ -722,6 +722,7 @@ model NutritionOrder {
   userId    String
   totalInr  Int
   status    String   @default("placed") // placed | cancelled
+  qcJson    String? // quick-commerce metadata: provider, ETA, rider, timeline
   createdAt DateTime @default(now())
 
   user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)

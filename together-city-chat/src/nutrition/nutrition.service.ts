@@ -20,6 +20,11 @@ import { addonLabel, addonMacros, complementByKey, fillGapWithComplements, type 
 import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, type MntRule } from './clinical-mnt';
+import {
+  QC_PROVIDERS, buildQcMeta, compareStores, applyBadges, refreshTotals, quoteStore, trackFromMeta,
+  type QcListItem, type QcMeta, type QcStoreQuote,
+} from './quick-commerce';
+import { QuickCommerceClient } from './quick-commerce-client';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOTS: Slot[] = ['b', 'l', 's', 'd'];
@@ -4512,6 +4517,166 @@ export class NutritionService implements OnModuleInit {
     return rows.map((o) => this.shapeOrder(o));
   }
 
+  // ───────────────────────── Quick Commerce API ─────────────────────────
+  // Find the grocery list across online stores (Blinkit, Zepto, Instamart,
+  // BigBasket, JioMart + TC Express): per-store prices, availability, fees and
+  // ETA for the SAME list — then order through whichever store wins. Live data
+  // comes from quickcommerceapi.com when QUICKCOMMERCE_API_KEY is set; the
+  // deterministic simulator covers every gap so the feature always works.
+
+  private readonly qcClient = new QuickCommerceClient();
+  private static readonly QC_DEFAULT_LAT = parseFloat(process.env.QC_DEFAULT_LAT || '19.08');
+  private static readonly QC_DEFAULT_LON = parseFloat(process.env.QC_DEFAULT_LON || '72.88');
+
+  /** The saved grocery list flattened into priceable items. */
+  private async qcListItems(userId: string, mode: PlanMode): Promise<QcListItem[]> {
+    const plan = await this.groceryPlan(userId, mode);
+    const items: QcListItem[] = [];
+    for (const aisle of plan.aisles as Array<{ key: string; items: Array<{ name: string; grams: number }> }>) {
+      for (const it of aisle.items) {
+        const baseInr = Math.max(8, Math.round(((COST_PER_KG[aisle.key] ?? 90) * Math.max(120, it.grams)) / 1000));
+        items.push({ name: it.name, grams: it.grams, baseInr });
+      }
+    }
+    return items;
+  }
+
+  /** Overlay live prices/ETAs from the QuickCommerce API onto simulator quotes. */
+  private async qcLiveOverlay(quotes: QcStoreQuote[], items: QcListItem[], lat: number, lon: number): Promise<boolean> {
+    if (!this.qcClient.enabled || !items.length) return false;
+    let anyLive = false;
+    // Chunked so a 40-item list doesn't open 40 sockets at once.
+    const chunk = 6;
+    for (let i = 0; i < items.length; i += chunk) {
+      await Promise.all(items.slice(i, i + chunk).map(async (it) => {
+        const live = await this.qcClient.searchItem(it.name, lat, lon);
+        if (!live) return;
+        for (const lp of live) {
+          const q = quotes.find((x) => x.provider.key === lp.platformKey);
+          const iq = q?.items.find((x) => x.name === it.name);
+          if (!q || !iq) continue;
+          iq.priceInr = lp.priceInr;
+          iq.available = lp.available;
+          iq.note = lp.available ? (lp.packLabel ? `live · ${lp.packLabel}` : 'live') : 'out of stock';
+          anyLive = true;
+        }
+      }));
+    }
+    if (anyLive) {
+      for (const q of quotes) refreshTotals(q);
+      const etas = await this.qcClient.etas(lat, lon);
+      for (const e of etas) {
+        const q = quotes.find((x) => x.provider.key === e.platformKey);
+        if (q && e.storeOpen) q.etaMinutes = e.etaMinutes;
+      }
+      applyBadges(quotes);
+    }
+    return anyLive;
+  }
+
+  /** Compare the whole grocery list across every store. */
+  async qcCompare(userId: string, mode: PlanMode = 'individual', lat?: number, lon?: number) {
+    const items = await this.qcListItems(userId, mode);
+    if (!items.length) return { itemCount: 0, live: false, quotes: [], note: 'Generate a meal plan first — the grocery list drives the comparison.' };
+    const quotes = compareStores(items);
+    const live = await this.qcLiveOverlay(
+      quotes, items, lat ?? NutritionService.QC_DEFAULT_LAT, lon ?? NutritionService.QC_DEFAULT_LON,
+    ).catch(() => false);
+    // The full per-item breakdown is heavy — trim to what the UI shows.
+    return {
+      itemCount: items.length,
+      live,
+      quotes: quotes.map((q) => ({
+        ...q,
+        items: undefined,
+        unavailable: q.unavailable.slice(0, 6),
+        unavailableCount: q.unavailable.length,
+      })),
+    };
+  }
+
+  /** Find ONE product across all the stores (search across apps). */
+  async qcSearch(q: string, lat?: number, lon?: number) {
+    const name = q.trim();
+    if (!name) return { query: q, live: false, results: [] };
+    const cat = groceryAisle(name);
+    const base: QcListItem = { name, grams: 500, baseInr: Math.max(10, Math.round(((COST_PER_KG[cat] ?? 90) * 400) / 1000)) };
+    const quotes = QC_PROVIDERS.map((p) => quoteStore(p, [base]));
+    let live = false;
+    if (this.qcClient.enabled) {
+      const lp = await this.qcClient.searchItem(name, lat ?? NutritionService.QC_DEFAULT_LAT, lon ?? NutritionService.QC_DEFAULT_LON).catch(() => null);
+      if (lp) {
+        for (const l of lp) {
+          const quote = quotes.find((x) => x.provider.key === l.platformKey);
+          const iq = quote?.items[0];
+          if (!quote || !iq) continue;
+          iq.priceInr = l.priceInr; iq.available = l.available;
+          iq.note = l.available ? (l.packLabel ? `live · ${l.packLabel}` : 'live') : 'out of stock';
+          refreshTotals(quote);
+          live = true;
+        }
+      }
+    }
+    const results = quotes
+      .map((quote) => ({
+        provider: quote.provider,
+        priceInr: quote.items[0].priceInr,
+        available: quote.items[0].available,
+        note: quote.items[0].note,
+        etaMinutes: quote.etaMinutes,
+        deliveryFeeInr: quote.deliveryFeeInr,
+      }))
+      .sort((a, b) => Number(b.available) - Number(a.available) || a.priceInr - b.priceInr);
+    return { query: name, live, results };
+  }
+
+  /** Order the list through a chosen store — charged via the city wallet,
+   *  delivered express with live tracking. */
+  async qcOrder(userId: string, providerKey: string, mode: PlanMode = 'individual', method?: 'wallet' | 'card') {
+    const items = await this.qcListItems(userId, mode);
+    if (!items.length) throw new NotFoundException('Generate a meal plan first — your grocery list is empty.');
+    const quotes = compareStores(items);
+    await this.qcLiveOverlay(quotes, items, NutritionService.QC_DEFAULT_LAT, NutritionService.QC_DEFAULT_LON).catch(() => false);
+    const quote = quotes.find((x) => x.provider.key === providerKey);
+    if (!quote) throw new NotFoundException('Unknown store.');
+    if (!quote.availableCount) throw new BadRequestException(`${quote.provider.name} has none of your items in stock right now.`);
+
+    await this.financial.charge(userId, {
+      hub: 'Nutrition', category: 'nutrition',
+      label: `Quick commerce · ${quote.provider.name} (${quote.availableCount} items)`,
+      amountInr: quote.totalInr, method,
+    });
+    const FRESH = new Set(['produce', 'fruit', 'meat', 'dairy']);
+    const order = await this.prisma.nutritionOrder.create({
+      data: {
+        userId,
+        totalInr: quote.totalInr,
+        qcJson: '',
+        items: {
+          create: quote.items.filter((i) => i.available).map((i) => ({
+            name: i.name, category: FRESH.has(groceryAisle(i.name)) ? 'fresh' : 'pantry', qty: 1, priceInr: i.priceInr,
+          })),
+        },
+      } as never,
+      include: { items: true, deliveries: true },
+    });
+    const meta = buildQcMeta(quote, order.id);
+    await this.prisma.nutritionOrder.update({ where: { id: order.id }, data: { qcJson: JSON.stringify(meta) } as never });
+    await this.stockPantryFromItems(userId, quote.items.filter((i) => i.available).map((i) => ({ name: i.name, grams: i.grams }))).catch(() => undefined);
+    return { ...this.shapeOrder(order), qc: { ...meta, tracking: trackFromMeta(meta) } };
+  }
+
+  /** Live tracking for a quick-commerce order — advances purely with time. */
+  async qcTrack(userId: string, orderId: string) {
+    const order = await this.prisma.nutritionOrder.findFirst({ where: { id: orderId, userId } });
+    if (!order) throw new NotFoundException('order not found');
+    const raw = (order as { qcJson?: string | null }).qcJson;
+    if (!raw) throw new NotFoundException('not a quick-commerce order');
+    let meta: QcMeta;
+    try { meta = JSON.parse(raw) as QcMeta; } catch { throw new NotFoundException('tracking unavailable'); }
+    return { orderId, totalInr: order.totalInr, tracking: trackFromMeta(meta) };
+  }
+
   /** Cancel a scheduled fresh delivery — its amount refunds to the wallet. */
   async cancelDelivery(userId: string, orderId: string, deliveryId: string) {
     const delivery = await this.prisma.freshDelivery.findFirst({
@@ -4533,10 +4698,18 @@ export class NutritionService implements OnModuleInit {
     items: { id: string; name: string; category: string; qty: number; priceInr: number }[];
     deliveries: { id: string; dayIndex: number; date: Date; status: string; amountInr: number }[];
   }) {
+    // Quick-commerce orders carry provider + live tracking (computed from time).
+    let qc: (QcMeta & { tracking: ReturnType<typeof trackFromMeta> }) | null = null;
+    const rawQc = (o as { qcJson?: string | null }).qcJson;
+    if (rawQc) {
+      try { const meta = JSON.parse(rawQc) as QcMeta; qc = { ...meta, tracking: trackFromMeta(meta) }; }
+      catch { qc = null; }
+    }
     return {
       id: o.id,
       totalInr: o.totalInr,
       status: o.status,
+      qc,
       createdAt: o.createdAt.toISOString(),
       items: o.items.map((i) => ({ id: i.id, name: i.name, category: i.category, qty: i.qty, priceInr: i.priceInr })),
       deliveries: o.deliveries.map((d) => ({

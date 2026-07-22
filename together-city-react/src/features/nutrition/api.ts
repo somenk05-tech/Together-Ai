@@ -89,6 +89,13 @@ export const nutritionApi = {
   wallet: () => api.get<Wallet>('/nutrition/wallet').then((r) => r.data),
   orders: () => api.get<NutritionOrder[]>('/nutrition/orders').then((r) => r.data),
   placeOrder: (method: 'wallet' | 'card' = 'wallet') => api.post<NutritionOrder>('/nutrition/orders', { method }).then((r) => r.data),
+  qcCompare: (mode: 'individual' | 'family' = 'individual') =>
+    api.get<QcCompare>('/nutrition/qc/compare', { params: { mode } }).then((r) => r.data),
+  qcSearch: (q: string) => api.get<QcSearch>('/nutrition/qc/search', { params: { q } }).then((r) => r.data),
+  qcOrder: (provider: string, mode: 'individual' | 'family' = 'individual', method: 'wallet' | 'card' = 'wallet') =>
+    api.post<NutritionOrder>('/nutrition/qc/order', { provider, mode, method }).then((r) => r.data),
+  qcTrack: (orderId: string) =>
+    api.get<{ orderId: string; totalInr: number; tracking: QcTracking }>(`/nutrition/qc/orders/${orderId}/track`).then((r) => r.data),
   cancelDelivery: (orderId: string, deliveryId: string) =>
     api.post<NutritionOrder[]>(`/nutrition/orders/${orderId}/deliveries/${deliveryId}/cancel`, {}).then((r) => r.data),
 };
@@ -274,7 +281,34 @@ export interface FoodPref {
 export interface WalletTransaction { id: string; amountInr: number; kind: 'credit' | 'debit' | 'refund'; note: string | null; createdAt: string }
 export interface Wallet { balanceInr: number; transactions: WalletTransaction[] }
 export interface FreshDelivery { id: string; dayIndex: number; date: string; status: 'scheduled' | 'delivered' | 'cancelled'; amountInr: number }
+export interface QcTrackStage { key: string; label: string; atMin: number; done: boolean; current: boolean }
+export interface QcTracking {
+  provider: { key: string; name: string; icon: string };
+  rider: { name: string; rating: number };
+  etaMinutes: number; elapsedMinutes: number; arrivingInMinutes: number;
+  progressPct: number; delivered: boolean; stages: QcTrackStage[];
+}
+export interface QcOrderMeta {
+  providerKey: string; providerName: string; providerIcon: string;
+  etaMinutes: number; deliveryFeeInr: number; surgeInr: number;
+  placedAt: string; rider: { name: string; rating: number };
+  tracking: QcTracking;
+}
+export interface QcQuote {
+  provider: { key: string; name: string; icon: string; tagline: string };
+  etaMinutes: number; itemsTotalInr: number; deliveryFeeInr: number; surgeInr: number;
+  availableCount: number; itemCount: number; unavailable: string[]; unavailableCount: number;
+  totalInr: number; freeDeliveryOverInr: number; badges: string[];
+}
+export interface QcCompare { itemCount: number; live: boolean; quotes: QcQuote[]; note?: string }
+export interface QcSearchRow {
+  provider: { key: string; name: string; icon: string; tagline: string };
+  priceInr: number; available: boolean; note: string | null; etaMinutes: number; deliveryFeeInr: number;
+}
+export interface QcSearch { query: string; live: boolean; results: QcSearchRow[] }
+
 export interface NutritionOrder {
+  qc?: QcOrderMeta | null;
   id: string;
   totalInr: number;
   status: string;
