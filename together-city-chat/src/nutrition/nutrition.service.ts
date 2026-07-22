@@ -2650,7 +2650,7 @@ export class NutritionService implements OnModuleInit {
         + 1.0 * Math.abs(n.carbs / k - tD.carb) / Math.max(0.01, tD.carb)
         + 1.0 * Math.abs(n.fat / k - tD.fat) / Math.max(0.01, tD.fat)
         + 0.6 * Math.max(0, tD.fiber - n.fiber / k) / Math.max(0.002, tD.fiber)   // fibre: only shortfall hurts
-        + 0.4 * Math.abs(n.kcal - mealKcal) / Math.max(1, mealKcal)               // portionable near its slot budget
+        + 1.2 * Math.abs(n.kcal - mealKcal) / Math.max(1, mealKcal)               // a dietitian sizes each meal to its slot
         - 0.03 * microRichness(r)                                                 // micro-dense food fills RDAs by default
         + dietPlanBias(dietPlans, r, { protein: n.protein / k, fiber: n.fiber / k }); // assigned-plan nudge (±0.5 max)
     };
@@ -2721,7 +2721,7 @@ export class NutritionService implements OnModuleInit {
     for (let d = 0; d < DAYS.length; d++) {
       const dayVeg = ex.weekly?.[SHORT_DAYS[d]] === 'veg';
       const ranked = dayVeg ? vegRanked : baseRanked;
-      const pickSlot = (slot: Slot): RecipeWithIng | undefined => {
+      const pickSlot = (slot: Slot, rotShift = 0): RecipeWithIng | undefined => {
         const full = ranked[slot];
         const list = modes.length ? full.slice(0, Math.max(6, Math.ceil(full.length / 2))) : full;
         // Preference nudge for breakfast/snack, but nutrition-fit decides among
@@ -2730,7 +2730,7 @@ export class NutritionService implements OnModuleInit {
         const prefer = (slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)
           ? (r: RecipeWithIng) => hasSelectedAnimalProtein(r, allowed)
           : undefined;
-        return pick(list, d, slot, prefer);
+        return pick(list, d + rotShift, slot, prefer);
       };
       // Evaluate a candidate set of picks: quantized solve (½–1½ plates) with
       // shared plate budgets, then complement fill, then the HARD gate. Score
@@ -2740,7 +2740,10 @@ export class NutritionService implements OnModuleInit {
       const evalPicks = (p: Partial<Record<Slot, RecipeWithIng>>) => {
         const solved = this.solveDayQ(mealsLikeOf(p), d, tg, opts);
         const planned = this.planDayAddons(solved.items, solved.pcts, tg, diet, dietPlans);
-        return { ...solved, ...planned, score: planned.violation.total };
+        const addonItems = Object.values(planned.addons).reduce((n, a) => n + a.length, 0);
+        // A dietitian prefers the day whose MEALS carry the nutrition: add-on
+        // items cost score, so recipe swaps win over patching whenever possible.
+        return { ...solved, ...planned, score: planned.violation.total + addonItems * 0.35 };
       };
 
       // Trial every structure from the same starting variety state; keep the best.
@@ -2792,6 +2795,25 @@ export class NutritionService implements OnModuleInit {
           }
         }
         if (ev.score > 0) ev = evalPicks(picks[d]); // settle on the final picks
+
+        // Full-day REDESIGN (dietitian rule: if a day can't be balanced, don't
+        // patch it — compose a new one). Re-pick every slot from a shifted
+        // rotation and keep whichever day reviews better.
+        if (ev.score > 0) {
+          const redesignState = snapMaps();
+          restoreMaps(baseState);
+          const redesign: Partial<Record<Slot, RecipeWithIng>> = {};
+          for (const slot of SLOTS) {
+            if (!chosen.picksT[slot] && !picks[d][slot]) continue;
+            const r = pickSlot(slot, 3);
+            if (r) redesign[slot] = r;
+          }
+          const savedPicks = picks[d];
+          picks[d] = redesign;
+          const evR = evalPicks(redesign);
+          if (evR.score < ev.score - 0.1) { ev = evR; }
+          else { picks[d] = savedPicks; restoreMaps(redesignState); }
+        }
       }
       portions[d] = ev.pcts;
       dayAddons[d] = ev.addons;
@@ -2950,7 +2972,9 @@ export class NutritionService implements OnModuleInit {
     const pAllow = Math.max(tg.protein * 0.02, 5);
     const gapKcal = tg.kcal - t.kcal;
     let addons: Record<string, AddonPick[]> = {};
-    if (gapKcal > kAllow) {
+    // Dietitian rule: swaps fix composition; an accompaniment is only added for
+    // a genuinely meaningful remaining gap, max one per meal / two per day.
+    if (gapKcal > Math.max(kAllow, 120)) {
       addons = fillGapWithComplements({
         gapKcal,
         gapProtein: (tg.protein - pAllow) - t.protein,
@@ -3056,7 +3080,8 @@ export class NutritionService implements OnModuleInit {
     const evalNow = () => {
       const solved = this.solveDayQ(mealsLike(), dayIndex, tg, opts);
       const planned = this.planDayAddons(solved.items, solved.pcts, tg, diet as string, plans);
-      return { ...solved, ...planned, score: planned.violation.total };
+      const addonItems = Object.values(planned.addons).reduce((n, a) => n + a.length, 0);
+      return { ...solved, ...planned, score: planned.violation.total + addonItems * 0.35 };
     };
 
     let ev = evalNow();
@@ -3076,7 +3101,7 @@ export class NutritionService implements OnModuleInit {
         return 3.0 * Math.abs(n.protein / k - tD.protein) / Math.max(0.005, tD.protein)
           + 1.0 * Math.abs(n.carbs / k - tD.carb) / Math.max(0.01, tD.carb)
           + 1.0 * Math.abs(n.fat / k - tD.fat) / Math.max(0.01, tD.fat)
-          + 0.4 * Math.abs(n.kcal - mealKcal) / Math.max(1, mealKcal)
+          + 1.2 * Math.abs(n.kcal - mealKcal) / Math.max(1, mealKcal)
           + dietPlanBias(plans, r, { protein: n.protein / k, fiber: n.fiber / k });
       };
       const inUse = () => new Set([...picks.values()].map((r) => r.id));

@@ -77,9 +77,17 @@ export function fillGapWithComplements(opts: {
   diet: string;
   plans: string[];
   slots: string[];                 // active slots today, in fill order
+  /** Dietitian discipline: at most ONE accompaniment per meal… */
+  maxItemsPerMeal?: number;
+  /** …and at most TWO across the day. A real plate gets a glass of milk or a
+   *  bowl of curd — never a scatter of mini-foods to patch the math. */
+  maxItemsTotal?: number;
 }): Record<string, AddonPick[]> {
   const bySlot: Record<string, AddonPick[]> = {};
-  const countIn = (slot: string) => (bySlot[slot] ?? []).reduce((s, p) => s + p.units, 0);
+  const maxPerMeal = opts.maxItemsPerMeal ?? 1;
+  const maxTotal = opts.maxItemsTotal ?? 2;
+  const itemsIn = (slot: string) => (bySlot[slot] ?? []).length;
+  const itemsTotal = () => Object.values(bySlot).reduce((s, a) => s + a.length, 0);
   const unitsOf = (slot: string, key: string) => (bySlot[slot] ?? []).find((p) => p.key === key)?.units ?? 0;
   let { gapKcal, gapProtein, proteinCeiling } = opts;
 
@@ -87,20 +95,23 @@ export function fillGapWithComplements(opts: {
     c.diets.includes(opts.diet) && !(c.avoidForPlans ?? []).some((p) => opts.plans.includes(p)));
 
   for (let guard = 0; guard < 24 && gapKcal > 60; guard++) {
+    if (itemsTotal() >= maxTotal && !Object.values(bySlot).some((a) => a.some((p) => (complementByKey.get(p.key)?.maxUnits ?? 1) > p.units))) break;
     let best: { c: ComplementDef; slot: string; score: number } | null = null;
     for (const c of usable) {
       if (c.protein > proteinCeiling + 0.5) continue;   // never bust the protein band
       for (const slot of opts.slots) {
         if (!c.slots.includes(slot)) continue;
-        if (countIn(slot) >= 3 || unitsOf(slot, c.key) >= c.maxUnits) continue;
+        const isNewItem = unitsOf(slot, c.key) === 0;
+        if (isNewItem && (itemsIn(slot) >= maxPerMeal || itemsTotal() >= maxTotal)) continue;
+        if (unitsOf(slot, c.key) >= c.maxUnits) continue;
         // Prefer items whose protein share matches what the gap needs, that
         // don't overshoot the remaining energy, spread across slots.
         const wantProteinDensity = gapProtein > 0 ? gapProtein / Math.max(1, gapKcal) : 0;
         const density = c.protein / c.kcal;
         const over = Math.max(0, c.kcal - gapKcal) / Math.max(1, c.kcal);
-        const score = Math.abs(density - wantProteinDensity) * 3 + over * 2 + countIn(slot) * 0.3;
+        const score = Math.abs(density - wantProteinDensity) * 3 + over * 2 + itemsIn(slot) * 0.3;
         if (!best || score < best.score) best = { c, slot, score };
-        break; // first suitable slot in fill order is fine — slot spread comes from countIn penalty
+        break; // first suitable slot in fill order is fine — slot spread comes from the itemsIn penalty
       }
     }
     if (!best) break;
