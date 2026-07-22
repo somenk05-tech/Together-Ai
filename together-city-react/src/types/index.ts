@@ -60,6 +60,8 @@ export interface Message {
   share?: ShareCard | null;
   status?: 'SENT' | 'DELIVERED' | 'READ';
   createdAt: string;
+  edited?: boolean;
+  deleted?: boolean; // soft-deleted for everyone → render tombstone
   media?: MediaAttachment[];
 }
 

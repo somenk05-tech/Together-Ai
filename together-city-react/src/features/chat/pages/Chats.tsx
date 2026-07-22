@@ -33,10 +33,13 @@ export function Chats() {
   const [live, setLive] = useState<Message[]>([]);
   const [peerTyping, setPeerTyping] = useState(false);
   const [statusMap, setStatusMap] = useState<Record<string, 'DELIVERED' | 'READ'>>({});
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());        // deleted for me
+  const [tombstoned, setTombstoned] = useState<Set<string>>(new Set());       // deleted for everyone
+  const [editsMap, setEditsMap] = useState<Record<string, Message>>({});      // live edits
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset the live buffer whenever the conversation changes.
-  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); }, [activeId]);
+  useEffect(() => { setLive([]); setPeerTyping(false); setStatusMap({}); setHiddenIds(new Set()); setTombstoned(new Set()); setEditsMap({}); }, [activeId]);
 
   // Live delivery/read receipts → advance the ticks on your sent messages.
   useEffect(() => {
@@ -59,7 +62,33 @@ export function Chats() {
     setPeerTyping(isTyping);
   }, [user?.id]);
 
-  const { send, setTyping } = useChatRealtime(activeId, onMessage, onTyping);
+  // Realtime deletions/edits from any device — applied instantly, no refresh.
+  const onDeleted = useCallback((messageId: string) => {
+    setTombstoned((s) => new Set(s).add(messageId));
+  }, []);
+  const onEdited = useCallback((m: Message) => {
+    setEditsMap((s) => ({ ...s, [m.id]: m }));
+  }, []);
+
+  const { send, setTyping } = useChatRealtime(activeId, onMessage, onTyping, onDeleted, onEdited);
+
+  /** Delete a message (soft delete server-side; synced across devices). */
+  const deleteMessage = useCallback(async (messageId: string, scope: 'ME' | 'EVERYONE') => {
+    try {
+      await chatApi.deleteMessage(messageId, scope);
+      if (scope === 'ME') setHiddenIds((s) => new Set(s).add(messageId));
+      else setTombstoned((s) => new Set(s).add(messageId));
+      void qc.invalidateQueries({ queryKey: ['chat', 'messages', activeId] });
+    } catch { /* window passed or network — leave the message untouched */ }
+  }, [activeId, qc]);
+
+  const editMessage = useCallback(async (messageId: string, body: string) => {
+    try {
+      const updated = await chatApi.editMessage(messageId, body);
+      setEditsMap((s) => ({ ...s, [messageId]: updated }));
+      void qc.invalidateQueries({ queryKey: ['chat', 'messages', activeId] });
+    } catch { /* edit window passed — keep original */ }
+  }, [activeId, qc]);
 
   const emitTyping = useCallback((t: boolean) => {
     setTyping(t);
@@ -67,10 +96,15 @@ export function Chats() {
     if (t) typingTimer.current = setTimeout(() => setTyping(false), 2500);
   }, [setTyping]);
 
-  const messages = useMemo(
-    () => [...(history.data?.items ?? []), ...live].map((m) => (statusMap[m.id] ? { ...m, status: statusMap[m.id] } : m)),
-    [history.data, live, statusMap],
-  );
+  const messages = useMemo(() => {
+    const seen = new Set<string>();
+    return [...(history.data?.items ?? []), ...live]
+      .filter((m) => (seen.has(m.id) ? false : seen.add(m.id)))
+      .filter((m) => !hiddenIds.has(m.id))                      // deleted for me → gone entirely
+      .map((m) => (editsMap[m.id] ? { ...m, ...editsMap[m.id] } : m))
+      .map((m) => (tombstoned.has(m.id) ? { ...m, deleted: true, body: '' } : m))
+      .map((m) => (statusMap[m.id] ? { ...m, status: statusMap[m.id] } : m));
+  }, [history.data, live, statusMap, hiddenIds, tombstoned, editsMap]);
 
   // Opening a conversation marks it read. REST reliably clears the unread badge
   // (independent of the socket); the socket read drives blue read-receipt ticks.
@@ -108,7 +142,7 @@ export function Chats() {
           <>
             {history.isLoading
               ? <Spinner />
-              : <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping} />}
+              : <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping} onDelete={deleteMessage} onEdit={editMessage} />}
             <Composer onSend={send} onTyping={emitTyping} />
           </>
         ) : (

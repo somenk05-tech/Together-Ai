@@ -72,6 +72,8 @@ export const MessageSchema = z.object({
   share: ShareCardSchema.nullable().optional(),
   status: z.enum(['SENT', 'DELIVERED', 'READ']).optional(),
   createdAt: z.string(),
+  edited: z.boolean().optional(),
+  deleted: z.boolean().optional(),
   editedAt: z.string().nullable().optional(),
   media: z.array(MediaAttachmentSchema).optional(),
 });

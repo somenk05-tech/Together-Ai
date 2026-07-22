@@ -84,11 +84,17 @@ export class MessagesService {
     });
     const hasMore = messages.length > take;
     const page = hasMore ? messages.slice(0, take) : messages; // newest-first
+    const visible = page.filter((m) => !this.hiddenFor(m).includes(userId)); // "deleted for me" stays hidden
     return {
       // Frontend expects `items` in chronological order (oldest→newest) for display.
-      items: page.map((m) => this.serialize(m)).reverse(),
+      items: visible.map((m) => this.serialize(m)).reverse(),
       nextCursor: hasMore ? page[page.length - 1].id : null,
     };
+  }
+
+  /** Users who chose "delete for me" on a message (new column — offline client can't type it). */
+  private hiddenFor(m: unknown): string[] {
+    try { return JSON.parse((m as { hiddenForJson?: string | null }).hiddenForJson ?? '[]') as string[]; } catch { return []; }
   }
 
   async edit(userId: string, messageId: string, dto: EditMessageDto) {
@@ -116,24 +122,31 @@ export class MessagesService {
 
     if (dto.scope === 'EVERYONE') {
       if (msg.senderId !== userId) throw new ForbiddenException('Not your message');
-      const windowSec = this.config.get<number>('policy.deleteEveryoneWindowSec') ?? 3600;
+      const windowSec = this.config.get<number>('policy.deleteEveryoneWindowSec') ?? 900; // 15 min default
       if (Date.now() - msg.createdAt.getTime() > windowSec * 1000) {
         throw new ForbiddenException('Delete-for-everyone window has passed');
       }
+      // Soft delete: the row stays, with a full audit trail of who/when.
       await this.prisma.message.update({
         where: { id: messageId },
-        data: { deleted: true, text: null },
+        data: { deleted: true, text: null, deletedAt: new Date(), deletedById: userId } as never,
       });
       this.bus.publish({ kind: 'message.deleted', conversationId: msg.conversationId, messageId });
       return { deleted: true, scope: 'EVERYONE' };
     }
 
-    // "Delete for me": hide by marking this user's status row. (A per-user
-    // hidden-flag table is the production approach; MessageStatus is reused here.)
-    await this.prisma.messageStatus.updateMany({
-      where: { messageId, userId },
-      data: { status: DeliveryStatus.READ },
-    });
+    // "Delete for me": record this user on the message's hidden list — the
+    // message disappears from THEIR history only; everyone else still sees it.
+    await this.assertMember(userId, msg.conversationId);
+    const hidden = ((): string[] => {
+      try { return JSON.parse((msg as { hiddenForJson?: string | null }).hiddenForJson ?? '[]') as string[]; } catch { return []; }
+    })();
+    if (!hidden.includes(userId)) {
+      await this.prisma.message.update({
+        where: { id: messageId },
+        data: { hiddenForJson: JSON.stringify([...hidden, userId]) } as never,
+      });
+    }
     return { deleted: true, scope: 'ME' };
   }
 
@@ -214,7 +227,7 @@ export class MessagesService {
       orderBy: { createdAt: 'desc' },
       take: dto.limit ?? 50,
     });
-    return messages.map((m) => this.serialize(m));
+    return messages.filter((m) => !this.hiddenFor(m).includes(userId)).map((m) => this.serialize(m));
   }
 
   // ── helpers ──────────────────────────────────────────────

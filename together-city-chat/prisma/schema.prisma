@@ -236,7 +236,10 @@ model Message {
   replyToMessageId String?
   shareJson        String? // a shared hub item (flight/product/property/…) rendered as a rich card
   edited           Boolean     @default(false)
-  deleted          Boolean     @default(false) // "delete for everyone"
+  deleted          Boolean     @default(false) // "delete for everyone" (soft delete — row kept)
+  deletedAt        DateTime?   // when delete-for-everyone happened
+  deletedById      String?     // who deleted it
+  hiddenForJson    String?     // JSON userId[] — users who chose "delete for me"
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { useCallback, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPost } from './http';
+import { apiDelete, apiGet, apiPost, apiPut } from './http';
 import { socketClient, WS } from './socket';
 import {
   ConversationSchema, MessagePageSchema, MessageSchema,
@@ -29,6 +29,10 @@ export const chatApi = {
     apiPost('/chat/group', { title, memberIds }, ConversationSchema),
   markRead: (conversationId: string): Promise<{ ok: boolean }> =>
     apiPost(`/chat/${conversationId}/read`, {}, z.object({ ok: z.boolean() })),
+  deleteMessage: (messageId: string, scope: 'ME' | 'EVERYONE'): Promise<{ deleted: boolean; scope: string }> =>
+    apiDelete(`/messages/${messageId}`, z.object({ deleted: z.boolean(), scope: z.string() }), { data: { scope } }),
+  editMessage: (messageId: string, body: string): Promise<Message> =>
+    apiPut(`/messages/${messageId}`, { text: body }, MessageSchema),
 };
 
 /* ---------------- React Query hooks ---------------- */
@@ -62,6 +66,8 @@ export function useChatRealtime(
   conversationId: string | undefined,
   onMessage: (m: Message) => void,
   onTyping?: (userId: string, isTyping: boolean) => void,
+  onDeleted?: (messageId: string) => void,
+  onEdited?: (m: Message) => void,
 ) {
   useEffect(() => {
     if (!conversationId) return;
@@ -69,11 +75,13 @@ export function useChatRealtime(
     const offMsg = socketClient.on<Message>(WS.RECEIVE_MESSAGE, (m) => { if (m.conversationId === conversationId) onMessage(m); });
     const offStart = socketClient.on<TypingPayload>(WS.TYPING_START, (e) => { if (e.conversationId === conversationId) onTyping?.(e.userId, true); });
     const offStop = socketClient.on<TypingPayload>(WS.TYPING_STOP, (e) => { if (e.conversationId === conversationId) onTyping?.(e.userId, false); });
+    const offDel = socketClient.on<{ messageId: string }>(WS.MESSAGE_DELETED, ({ messageId }) => onDeleted?.(messageId));
+    const offEdit = socketClient.on<Message>(WS.MESSAGE_EDITED, (m) => { if (m.conversationId === conversationId) onEdited?.(m); });
     return () => {
       socketClient.emit(WS.LEAVE_CONVERSATION, { conversationId });
-      offMsg(); offStart(); offStop();
+      offMsg(); offStart(); offStop(); offDel(); offEdit();
     };
-  }, [conversationId, onMessage, onTyping]);
+  }, [conversationId, onMessage, onTyping, onDeleted, onEdited]);
 
   const send = useCallback((body: string) => {
     if (conversationId) socketClient.emit(WS.SEND_MESSAGE, { conversationId, body, clientId: crypto.randomUUID() });
