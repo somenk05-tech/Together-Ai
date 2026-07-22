@@ -11,14 +11,18 @@ const GRADE_COLOR: Record<string, string> = { A: '#2e7d4f', B: '#5a9e3f', C: '#b
 /** Recipe meal card — 16:9 dish photo banner (falls back to a diet-tinted panel
  *  until the image exists), health grade, per-serving portion, and the plate. */
 export function MealCard({ meal, onSwap, onSkip, people = 1, onBack, canGoBack = false }: { meal: Meal; onSwap: () => void; onSkip: () => void; people?: number; onBack?: () => void; canGoBack?: boolean }) {
-  const { recipe: r, slot, skipped, plate, portionPct } = meal;
+  const { recipe: r, slot, skipped, plate, portionPct, addons = [] } = meal;
   const tuned = portionPct != null && portionPct !== 100 && !plate;
-  // Single source of truth: r.* arrive PORTION-SCALED from the planner; derive
-  // the base per-plate figures back so the card can show the math explicitly
-  // (matching the recipe page, which always shows base per-plate values).
   const pf = tuned ? portionPct! / 100 : 1;
-  const baseKcal = Math.round((plate ? plate.totals.kcal : r.kcal) / pf);
-  const pfLabel = pf.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+  // Dietitian language, never multipliers: quantized portions map to plate
+  // fractions; anything else (legacy data) falls back to a serving descriptor.
+  const PORTION_TEXT: Record<number, string> = {
+    50: 'Half plate', 75: '¾ plate', 125: '1¼ plates', 150: '1½ plates',
+  };
+  const portionText = tuned
+    ? PORTION_TEXT[portionPct!] ?? (pf > 1.5 ? 'Large serving — have it as two helpings' : pf < 0.5 ? 'Small taster plate' : `${Math.round(pf * 100)}% of a standard plate`)
+    : null;
+  const addonsKcal = addons.reduce((s, a) => s + a.kcal, 0);
   const [imgOk, setImgOk] = useState(true);
   const color = DIET_COLOR[r.diet] ?? DIET_COLOR.everything;
   const n = Math.max(1, people);
@@ -60,32 +64,33 @@ export function MealCard({ meal, onSwap, onSkip, people = 1, onBack, canGoBack =
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <span className="tag" style={{ background: `${color}1a`, color }}>{r.diet === 'nonveg' ? 'NON-VEG' : r.diet.toUpperCase()}</span>
           <span style={{ fontWeight: 700, fontSize: 15 }}>{mealKcal} <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>kcal</span></span>
-          {tuned && (
+          {portionText && (
             <span title="Portion sized by the planner so your day lands on its calorie & macro targets"
               style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}>
-              ⚖ portion ×{pfLabel}
+              🍽 {portionText}
             </span>
           )}
         </div>
-        {tuned && (
-          <p className="muted" style={{ margin: '5px 0 0', fontSize: 11.5 }}>
-            {baseKcal} kcal per plate × {pfLabel} portion = <b style={{ color: 'var(--ink)' }}>{mealKcal} kcal</b>
-            {' '}· recipe page shows per-plate values
-          </p>
-        )}
-        {tuned && pf >= 1.75 && (
-          <p style={{ margin: '5px 0 0', fontSize: 11.5, color: 'var(--accent)', fontWeight: 600 }}>
-            💡 Large portion — easier as two servings: one at {LABEL[slot]?.toLowerCase()}, the second an hour or two later. Same food, same totals.
-          </p>
-        )}
-        {tuned && pf <= 0.65 && (
-          <p className="muted" style={{ margin: '5px 0 0', fontSize: 11.5 }}>
-            💡 Light portion — about {pf <= 0.55 ? 'half' : 'two-thirds'} of a standard plate keeps your day on target.
-          </p>
-        )}
         <p className="muted" style={{ margin: '7px 0 0', fontSize: 12 }}>
           {LABEL[slot]} · {r.country} · {r.minutes} min{r.recipeNo ? ` · No. ${r.recipeNo.toLocaleString('en-IN')}` : ''}
         </p>
+
+        {addons.length > 0 && (
+          <div style={{ marginTop: 10, borderTop: '1px solid var(--line)', paddingTop: 10 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Also on your plate</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {addons.map((a) => (
+                <div key={a.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12.5 }}>
+                  <span>＋ {a.label}</span>
+                  <span className="muted" style={{ whiteSpace: 'nowrap' }}>{a.kcal} kcal</span>
+                </div>
+              ))}
+            </div>
+            <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+              Meal total: <b style={{ color: 'var(--ink)' }}>{mealKcal + addonsKcal} kcal</b>
+            </p>
+          </div>
+        )}
 
         {plate && (
           <div style={{ marginTop: 10, borderTop: '1px solid var(--line)', paddingTop: 10 }}>

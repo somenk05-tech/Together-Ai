@@ -35,7 +35,8 @@ export interface Meal {
   slot: Slot;
   recipe: Recipe;
   skipped: boolean;
-  portionPct?: number; // day-optimizer portion factor (100 = standard serving)
+  portionPct?: number; // quantized portion (50/75/100/125/150 — ½ to 1½ plates)
+  addons?: MealAddon[]; // complement foods on this plate (egg, curd, fruit…)
   sides?: Sides;
   plate?: Plate;   // assembled Indian thali (lunch/dinner Indian mains only)
 }
@@ -135,3 +136,6 @@ export interface MicroIntake {
 
 /** Personalized Nutrition Advice item (dietary balance advisory). */
 export interface NutritionAdvisory { key: string; title: string; body: string }
+
+/** A complement food added to a meal's plate (whole units — egg, curd, fruit…). */
+export interface MealAddon { key: string; units: number; label: string; kcal: number }

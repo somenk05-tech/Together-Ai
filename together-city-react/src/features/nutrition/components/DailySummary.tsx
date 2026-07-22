@@ -246,18 +246,23 @@ function AutoBalance({ summary, targets, planKey, dayIndex }: {
       </div>
     );
   }
-  // Repair already ran and the day still sits outside a band → the recipe pool
-  // can't fully satisfy the prescription. Say so honestly; never instruct.
+  // The exhaustive repair (portions → swaps → removal ladder) ran and the day
+  // STILL violates a hard band → the recipe library itself cannot satisfy the
+  // prescription. Per spec, this is the only case shown, naming the limiting
+  // constraint — never a shrug over an invalid plan.
+  const limiting = (repair.data as { limiting?: { nutrient: string; side: string } } | undefined)?.limiting;
+  const NAME: Record<string, string> = { kcal: 'calories', protein: 'protein', carbs: 'carbohydrates', fat: 'fat', fiber: 'fibre' };
   return (
     <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--paper)', borderRadius: 10 }}>
       <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>
-        Optimized to your closest possible fit
+        Recipe library limit reached
       </div>
       <p className="muted" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.55 }}>
-        With your current dietary preferences and medical targets, this is the closest balance available today
-        {over.length > 0 && <> — still slightly high on {over.join(', ')}</>}
-        {under.length > 0 && <>{over.length ? ';' : ' —'} slightly short on {under.join(', ')}</>}.
-        {' '}Tomorrow's plan compensates automatically.
+        After searching every suitable recipe, portion and meal structure, your current recipe library cannot fully satisfy
+        your nutritional prescription today. Limiting factor: <b style={{ color: 'var(--ink)' }}>
+        {limiting ? `${NAME[limiting.nutrient] ?? limiting.nutrient} (${limiting.side === 'over' ? 'no options low enough' : 'no options rich enough'})`
+          : [...over, ...under].slice(0, 1).join('') || 'multiple nutrients'}</b>.
+        {' '}The plan shown is the mathematically closest available; expanding your dietary preferences would widen the search.
       </p>
     </div>
   );

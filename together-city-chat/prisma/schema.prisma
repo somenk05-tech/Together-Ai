@@ -398,7 +398,8 @@ model Meal {
   slot       String // b | l | s | d
   recipeId   String
   skipped    Boolean @default(false)
-  portionPct Int     @default(100) // portion factor (60–180%) — set by the day optimizer
+  portionPct Int     @default(100) // quantized portion (50/75/100/125/150) — set by the day optimizer
+  addonsJson String? // complement foods on the plate: [{key, units}] — fills energy gaps realistically
   sidesRice  Int     @default(0)
   sidesRoti  Int     @default(0)
   sidesCurd  Int     @default(0)

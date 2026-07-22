@@ -16,6 +16,7 @@ import type { BloodInputDto, Diet, FoodPrefDto, PlanMode, Slot } from './dto/nut
 import { assemblePlate, perMealTargets, type PlateOpts, type DayMealInput } from './plate';
 import { estimateDayMicros, type DayMealForMicros } from './micros-engine';
 import { assignDietPlans, dietPlanBias, planLabel, DIET_PLAN_CATALOG } from './diet-plans';
+import { addonLabel, addonMacros, complementByKey, fillGapWithComplements, type AddonPick } from './complements';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOTS: Slot[] = ['b', 'l', 's', 'd'];
@@ -789,9 +790,17 @@ export interface DayItemForOpt {
   kcal: number; protein: number; carbs: number; fat: number; fiber: number;
   minPct?: number; maxPct?: number; // plate meals pass 100/100
 }
+export interface SolveOpts {
+  /** Allowed portion steps (e.g. quantized [50,75,100,125,150] — "½–1½ plates"). */
+  steps?: number[];
+  /** Default per-item ceiling when the item doesn't set maxPct. */
+  defaultMax?: number;
+}
+
 export function optimizeDayPortions(
   items: DayItemForOpt[],
   target: { kcal: number; protein: number; carb: number; fat: number; fiber: number },
+  solveOpts?: SolveOpts,
 ): Record<string, number> {
   if (!items.length) return {};
   const NUTS: Array<[keyof DayItemForOpt & ('kcal' | 'protein' | 'carbs' | 'fat' | 'fiber'), number, number, number, number]> = [
@@ -819,12 +828,15 @@ export function optimizeDayPortions(
     return e;
   };
   const pcts = items.map(() => 100);
-  const OPTIONS: number[] = [];
-  for (let p = 60; p <= 250; p += 5) OPTIONS.push(p);
+  let OPTIONS: number[];
+  if (solveOpts?.steps?.length) OPTIONS = [...solveOpts.steps].sort((a, b) => a - b);
+  else { OPTIONS = []; for (let p = 60; p <= 250; p += 5) OPTIONS.push(p); }
+  const loDefault = OPTIONS[0];
+  const hiDefault = solveOpts?.defaultMax ?? (solveOpts?.steps?.length ? OPTIONS[OPTIONS.length - 1] : 200);
   for (let pass = 0; pass < 5; pass++) {
     let changed = false;
     for (let i = 0; i < items.length; i++) {
-      const lo = items[i].minPct ?? 60, hi = items[i].maxPct ?? 200;
+      const lo = items[i].minPct ?? loDefault, hi = items[i].maxPct ?? hiDefault;
       let best = pcts[i], bestErr = errOf(pcts);
       for (const opt of OPTIONS) {
         if (opt < lo || opt > hi) continue;
@@ -886,36 +898,42 @@ export function floorDeficitPct(
   target: { kcal: number; protein: number },
 ): number {
   const t = dayTotalsFor(items, pcts);
-  const kcalPct = target.kcal > 0 ? (t.kcal / target.kcal) * 100 : 100;
-  const protPct = target.protein > 0 ? (t.protein / target.protein) * 100 : 100;
-  return Math.max(0, 95 - kcalPct) + Math.max(0, 95 - protPct);
+  // Floors derive from the HARD bands: target minus the allowed under-tolerance.
+  const kAllow = Math.max(target.kcal * 0.02, 60);
+  const pAllow = Math.max(target.protein * 0.02, 5);
+  const kDef = target.kcal > 0 ? Math.max(0, (target.kcal - kAllow - t.kcal) / target.kcal) * 100 : 0;
+  const pDef = target.protein > 0 ? Math.max(0, (target.protein - pAllow - t.protein) / target.protein) * 100 : 0;
+  return kDef + pDef;
 }
 
 /**
- * Tolerance bands (spec §validation): every nutrient must land inside its band
- * before a plan may be shown — a 66 g protein target must never present a
- * 189 g day. Bands are asymmetric: undershoot floors are strict (95%),
- * overshoot allowances vary by how harmful an excess is. Fibre overshoot is
- * harmless within reason.
+ * HARD tolerance system (spec): the Daily Nutrition Targets are non-negotiable
+ * CONSTRAINTS. A plan may only be shown when every nutrient is inside its band.
+ * Percent tolerances follow the prescription (±2% kcal/protein, ±3% carbs/fat,
+ * fibre 100–110%); each carries a small ABSOLUTE allowance because food is
+ * discrete — a boiled egg is 78 kcal and cannot be eaten fractionally. The
+ * effective allowance is max(pct-of-target, abs).
  */
 export const DAY_TOLERANCE = {
-  kcal: { minPct: 95, maxPct: 108 },
-  protein: { minPct: 90, maxPct: 115 },   // hard cap matters for kidney-moderated targets
-  carbs: { minPct: 70, maxPct: 112 },
-  fat: { minPct: 60, maxPct: 115 },
-  fiber: { minPct: 70, maxPct: 160 },
+  kcal: { underPct: 2, overPct: 2, abs: 60 },
+  protein: { underPct: 2, overPct: 2, abs: 5 },
+  carbs: { underPct: 3, overPct: 3, abs: 14 },
+  fat: { underPct: 3, overPct: 3, abs: 6 },
+  fiber: { underPct: 0, overPct: 10, abs: 4 },  // minimum 100% of target, max 110%
 } as const;
 
 /**
- * How far (in %-points, summed) the day sits OUTSIDE its tolerance bands.
- * 0 = a valid plan. Used as the primary swap-acceptance metric so the repair
- * loop drives every nutrient into its band before polishing closeness.
+ * How far (in %-points of target, summed) the day sits OUTSIDE its hard bands.
+ * 0 = a valid plan. The primary metric for the validation gate and every
+ * swap/removal acceptance decision.
  */
 export function bandViolationPct(
   items: DayItemForOpt[], pcts: Record<string, number>,
   target: { kcal: number; protein: number; carb: number; fat: number; fiber: number },
+  extra?: { kcal: number; protein: number; carbs: number; fat: number; fiber: number },
 ): { total: number; worstNutrient: string; worstSide: 'over' | 'under' } {
   const t = dayTotalsFor(items, pcts);
+  if (extra) { t.kcal += extra.kcal; t.protein += extra.protein; t.carbs += extra.carbs; t.fat += extra.fat; t.fiber += extra.fiber; }
   const rows: Array<[keyof typeof DAY_TOLERANCE, number, number]> = [
     ['kcal', t.kcal, target.kcal], ['protein', t.protein, target.protein],
     ['carbs', t.carbs, target.carb], ['fat', t.fat, target.fat], ['fiber', t.fiber, target.fiber],
@@ -923,11 +941,13 @@ export function bandViolationPct(
   let total = 0, worst = 0, worstNutrient = 'kcal', worstSide: 'over' | 'under' = 'over';
   for (const [key, tot, T] of rows) {
     if (!T || T <= 0) continue;
-    const pct = (tot / T) * 100;
     const band = DAY_TOLERANCE[key];
-    const v = pct > band.maxPct ? pct - band.maxPct : pct < band.minPct ? band.minPct - pct : 0;
+    const overAllow = Math.max((T * band.overPct) / 100, band.abs);
+    const underAllow = Math.max((T * band.underPct) / 100, band.abs);
+    const beyond = tot > T + overAllow ? tot - (T + overAllow) : tot < T - underAllow ? (T - underAllow) - tot : 0;
+    const v = (beyond / T) * 100;
     total += v;
-    if (v > worst) { worst = v; worstNutrient = key; worstSide = pct > band.maxPct ? 'over' : 'under'; }
+    if (v > worst) { worst = v; worstNutrient = key; worstSide = tot > T ? 'over' : 'under'; }
   }
   return { total: Math.round(total * 10) / 10, worstNutrient, worstSide };
 }
@@ -943,15 +963,24 @@ export function bandViolationPct(
 export function solveDayPortions(
   items: DayItemForOpt[],
   target: { kcal: number; protein: number; carb: number; fat: number; fiber: number },
+  solveOpts?: SolveOpts,
 ): { pcts: Record<string, number>; deficit: number; worst: number; nutrient: string; violation: number } {
+  const quantized = Boolean(solveOpts?.steps?.length);
+  const step = quantized
+    ? Math.min(...solveOpts!.steps!.slice(1).map((v, i) => v - solveOpts!.steps![i]))
+    : 5;
+  const hardCap = quantized ? (solveOpts?.defaultMax ?? Math.max(...solveOpts!.steps!)) : 300;
+  const floorOf = (it: DayItemForOpt) => it.minPct ?? (quantized ? Math.min(...solveOpts!.steps!) : 60);
   let use = items;
-  let pcts = optimizeDayPortions(use, target);
+  let pcts = optimizeDayPortions(use, target, solveOpts);
   let deficit = floorDeficitPct(use, pcts, target);
-  for (const cap of [250, 300]) {
+  // Non-quantized mode may escalate ceilings; quantized (realistic-portion)
+  // mode never does — energy gaps are closed by complement foods instead.
+  for (const cap of quantized ? [] : [250, 300]) {
     if (deficit <= 0) break;
     const widened = items.map((it) =>
       it.minPct === 100 && it.maxPct === 100 ? it : { ...it, maxPct: Math.max(it.maxPct ?? 200, cap) });
-    const p2 = optimizeDayPortions(widened, target);
+    const p2 = optimizeDayPortions(widened, target, solveOpts);
     const d2 = floorDeficitPct(widened, p2, target);
     if (d2 < deficit) { use = widened; pcts = p2; deficit = d2; }
   }
@@ -961,22 +990,21 @@ export function solveDayPortions(
   // time on whichever dish adds the most of what's missing, until calories AND
   // protein reach ≥95% or every dish is at its 300% ceiling.
   if (deficit > 0) {
-    const HARD_CAP = 300;
     const filled = { ...pcts };
     for (let guard = 0; guard < 400 && floorDeficitPct(use, filled, target) > 0; guard++) {
       const t = dayTotalsFor(use, filled);
-      const needK = target.kcal > 0 && t.kcal < 0.95 * target.kcal;
-      const needP = target.protein > 0 && t.protein < 0.95 * target.protein;
+      const needK = target.kcal > 0 && t.kcal < target.kcal - Math.max(target.kcal * 0.02, 60);
+      const needP = target.protein > 0 && t.protein < target.protein - Math.max(target.protein * 0.02, 5);
       let bestIdx = -1, bestGain = 0;
       for (let i = 0; i < use.length; i++) {
         const it = use[i];
         const pinned = it.minPct === 100 && it.maxPct === 100;
-        if (pinned || (filled[it.slot] ?? 100) >= HARD_CAP) continue;
+        if (pinned || (filled[it.slot] ?? 100) >= Math.min(it.maxPct ?? hardCap, hardCap)) continue;
         const gain = (needK ? it.kcal : 0) + (needP ? it.protein * 12 : 0);
         if (gain > bestGain) { bestGain = gain; bestIdx = i; }
       }
-      if (bestIdx < 0) break; // nothing left to raise — caller's swap stage takes over
-      filled[use[bestIdx].slot] = (filled[use[bestIdx].slot] ?? 100) + 5;
+      if (bestIdx < 0) break; // nothing left to raise — complements / swaps take over
+      filled[use[bestIdx].slot] = (filled[use[bestIdx].slot] ?? 100) + step;
     }
     const dFilled = floorDeficitPct(use, filled, target);
     if (dFilled < deficit) { pcts = filled; deficit = dFilled; }
@@ -995,13 +1023,13 @@ export function solveDayPortions(
         const it = use[i];
         const pinned = it.minPct === 100 && it.maxPct === 100;
         const cur = trimmed[it.slot] ?? 100;
-        if (pinned || cur <= (it.minPct ?? 60)) continue;
+        if (pinned || cur <= floorOf(it)) continue;
         const amt = (it[key] as number) ?? 0;
         if (amt > bestAmt) { bestAmt = amt; bestIdx = i; }
       }
       if (bestIdx < 0) break;
       const slot = use[bestIdx].slot;
-      const attempt = { ...trimmed, [slot]: (trimmed[slot] ?? 100) - 5 };
+      const attempt = { ...trimmed, [slot]: (trimmed[slot] ?? 100) - step };
       // never trade the floors away to fix an overshoot
       if (floorDeficitPct(use, attempt, target) > 0) break;
       const v2 = bandViolationPct(use, attempt, target);
@@ -2518,6 +2546,7 @@ export class NutritionService implements OnModuleInit {
 
     const picks: Record<number, Partial<Record<Slot, RecipeWithIng>>> = {};
     const portions: Record<number, Record<string, number>> = {};
+    const dayAddons: Record<number, Record<string, AddonPick[]>> = {};
     for (let d = 0; d < DAYS.length; d++) {
       const dayVeg = ex.weekly?.[SHORT_DAYS[d]] === 'veg';
       const ranked = dayVeg ? vegRanked : baseRanked;
@@ -2532,89 +2561,69 @@ export class NutritionService implements OnModuleInit {
           : undefined;
         return pick(list, d, slot, prefer);
       };
-      const buildItems = (): DayItemForOpt[] => SLOTS.filter((sl) => picks[d][sl]).map((sl) => {
-        const r = picks[d][sl] as RecipeWithIng;
-        const mealTarget = tg.perMeal[sl as 'b' | 'l' | 's' | 'd']?.kcal;
-        const base = this.mealMacros(r as never, sl, d, opts, mealTarget);
-        const isPlate = /india/i.test(r.country) && (sl === 'l' || sl === 'd');
-        return { slot: sl, ...base, ...(isPlate ? { minPct: 100, maxPct: 100 } : {}) };
-      });
+      // Evaluate a candidate set of picks: quantized solve (½–1½ plates) with
+      // shared plate budgets, then complement fill, then the HARD gate. Score
+      // is the total band violation of the COMPLETE day (dishes + add-ons).
+      const mealsLikeOf = (p: Partial<Record<Slot, RecipeWithIng>>) =>
+        SLOTS.filter((sl) => p[sl]).map((sl) => ({ slot: sl as string, skipped: false, recipe: p[sl] as unknown }));
+      const evalPicks = (p: Partial<Record<Slot, RecipeWithIng>>) => {
+        const solved = this.solveDayQ(mealsLikeOf(p), d, tg, opts);
+        const planned = this.planDayAddons(solved.items, solved.pcts, tg, diet, dietPlans);
+        return { ...solved, ...planned, score: planned.violation.total };
+      };
 
       // Trial every structure from the same starting variety state; keep the best.
       const baseState = snapMaps();
-      type Trial = { picksT: Partial<Record<Slot, RecipeWithIng>>; sol: ReturnType<typeof solveDayPortions>; score: number; state: ReturnType<typeof snapMaps> };
+      type Trial = { picksT: Partial<Record<Slot, RecipeWithIng>>; ev: ReturnType<typeof evalPicks>; state: ReturnType<typeof snapMaps> };
       let best: Trial | null = null;
       for (const S of STRUCTURES) {
         restoreMaps(baseState);
         const trial: Partial<Record<Slot, RecipeWithIng>> = {};
         for (const slot of S) { const r = pickSlot(slot); if (r) trial[slot] = r; }
-        picks[d] = trial;
-        const sol = solveDayPortions(buildItems(), tg);
-        const score = sol.deficit * 10 + sol.violation + Math.max(0, sol.worst - 3) * 0.2;
+        const ev = evalPicks(trial);
         // First (standard) structure sets the bar; later, smaller structures
         // must beat it by a real margin to be worth losing a meal.
-        if (!best || score < best.score - 0.75) best = { picksT: trial, sol, score, state: snapMaps() };
+        if (!best || ev.score < best.ev.score - 0.5) best = { picksT: trial, ev, state: snapMaps() };
+        if (best.ev.score <= 0) break;   // valid — no need to try smaller structures
       }
       const chosen = best as Trial;
       restoreMaps(chosen.state);
       picks[d] = chosen.picksT;
-      const daySlots = SLOTS.filter((sl) => picks[d][sl]);
-      let items = buildItems();
-      let sol = chosen.sol;
-      // Swap stage — portion scaling comes first (solveDayPortions escalates to
-      // 300% before we get here); replacement only runs when scaling can't
-      // close the gap or the day is still >3% off balance. Acceptance is
-      // floor-first: a combination that fixes a calorie/protein shortfall
-      // always beats one that is merely "closer"; once floors pass, lower
-      // worst-deviation wins (which also walks protein back toward
-      // condition-capped targets). Same hard-filtered pools — the safety/
-      // condition constraints live inside the pool, so a swap can never
-      // violate them.
-      // Repair loop — the plan is INVALID until every nutrient sits inside its
-      // tolerance band (a 66 g protein target must never ship a 189 g day).
-      // Acceptance is lexicographic: fix floors first, then band violations
-      // (composition swaps toward dishes whose density matches the targets),
-      // then plain closeness. Up to two sweeps over the slots, wide alternate
-      // pool; same hard-filtered pools, so a swap can never violate the
-      // safety/condition constraints.
-      const valid = () => sol.deficit <= 0 && sol.violation <= 0 && sol.worst <= 3;
-      if (!valid()) {
-        const dayVeg = ex.weekly?.[SHORT_DAYS[d]] === 'veg';
+      let ev = chosen.ev;
+
+      // HARD-GATE repair: the plan is INVALID until every nutrient (including
+      // the complement add-ons) sits inside its band. Swap recipes — fit-sorted
+      // candidates most likely to fix the violated nutrient first — until the
+      // gate passes or the pool is exhausted. Pools are hard-filtered, so a
+      // swap can never violate diet/medical constraints.
+      if (ev.score > 0) {
         const pools = dayVeg ? vegRanked : baseRanked;
-        for (let sweep = 0; sweep < 2 && !valid(); sweep++) {
-          for (const sl of daySlots) {
-            if (valid()) break;
-            const isPlate = /india/i.test((picks[d][sl] as RecipeWithIng).country) && (sl === 'l' || sl === 'd');
-            if (isPlate) continue;
+        for (let sweep = 0; sweep < 2 && ev.score > 0; sweep++) {
+          for (const sl of SLOTS.filter((s) => picks[d][s])) {
+            if (ev.score <= 0) break;
             const original = picks[d][sl] as RecipeWithIng;
-            // Candidates sorted by nutritional fit to the prescription — the
-            // repair tries the dishes MOST LIKELY to fix the violated band
-            // first, instead of walking the pool in rank order.
+            const isPlate = /india/i.test(original.country) && (sl === 'l' || sl === 'd');
+            if (isPlate) continue;
             const alternates = (pools[sl] ?? [])
               .filter((r) => r.id !== original.id && count(usedRecipe, r.id) < (sweep === 0 ? 1 : 2))
-              .slice(0, 160)
+              .slice(0, 200)
               .map((r) => ({ r, s: fitScore(r, sl, d) }))
               .sort((a, b) => a.s - b.s)
-              .slice(0, sweep === 0 ? 24 : 40)
+              .slice(0, sweep === 0 ? 30 : 60)
               .map((x) => x.r);
             for (const alt of alternates) {
               picks[d][sl] = alt;
-              const tryItems = buildItems();
-              const trySol = solveDayPortions(tryItems, tg);
-              const better = trySol.deficit < sol.deficit - 0.1
-                || (trySol.deficit <= sol.deficit && trySol.violation < sol.violation - 0.1)
-                || (trySol.deficit <= sol.deficit && trySol.violation <= 0 && sol.violation <= 0 && trySol.worst < sol.worst - 0.5);
-              if (better) { sol = trySol; items = tryItems; bump(usedRecipe, alt.id); }
+              const tryEv = evalPicks(picks[d]);
+              if (tryEv.score < ev.score - 0.1) { ev = tryEv; bump(usedRecipe, alt.id); }
               else picks[d][sl] = original;
-              if (valid()) break;
+              if (ev.score <= 0) break;
             }
           }
         }
-        // recompute once more with the final picks
-        items = buildItems();
-        sol = solveDayPortions(items, tg);
+        if (ev.score > 0) ev = evalPicks(picks[d]); // settle on the final picks
       }
-      portions[d] = sol.pcts;
+      portions[d] = ev.pcts;
+      dayAddons[d] = ev.addons;
     }
 
     // One plan per user+mode — clear old ones so the profile stays the source of truth.
@@ -2641,6 +2650,7 @@ export class NutritionService implements OnModuleInit {
                   recipeId: recipe.id,
                   skipped: false,
                   portionPct: portions[dayIndex]?.[slot] ?? 100,
+                  addonsJson: JSON.stringify(dayAddons[dayIndex]?.[slot] ?? []),
                   sidesRice: withSides ? (slot === 'l' ? 1 : 0) : 0,
                   sidesRoti: withSides ? 2 : 0,
                   sidesCurd: slot === 'l' ? 1 : 0,
@@ -2681,17 +2691,106 @@ export class NutritionService implements OnModuleInit {
 
   /** Describe a day's meals for the dynamic budget split — which flex (Indian
    *  lunch/dinner plates) and the fixed calories of the rest. */
-  private dayMealInputs(meals: Array<{ slot: string; skipped: boolean; recipe: { country: string } }>): DayMealInput[] {
+  private dayMealInputs(meals: Array<{ slot: string; skipped: boolean; portionPct?: number | null; recipe: { country: string } }>): DayMealInput[] {
     return meals.map((m) => {
       const indian = /india/i.test(m.recipe.country);
       const isPlate = (m.slot === 'l' || m.slot === 'd') && indian;
+      // PORTION-AWARE fixed kcal — the single-source-of-truth fix: plate budgets
+      // must see the portions the optimizer actually prescribed, otherwise the
+      // plates absorb a phantom remainder and the day inflates past its target.
+      const pf = ((m.portionPct ?? 100) as number) / 100;
       return {
         slot: m.slot as DayMealInput['slot'],
         skipped: m.skipped,
         isPlate,
-        fixedKcal: isPlate ? 0 : this.recipeShape(m.recipe as unknown as Parameters<NutritionService['recipeShape']>[0]).kcal,
+        fixedKcal: isPlate ? 0 : this.recipeShape(m.recipe as unknown as Parameters<NutritionService['recipeShape']>[0]).kcal * pf,
       };
     });
+  }
+
+  /** Quantized, realistic-portion solve options: ½ / ¾ / 1 / 1¼ / 1½ plates. */
+  private static readonly QSOLVE: SolveOpts = { steps: [50, 75, 100, 125, 150], defaultMax: 150 };
+
+  /**
+   * THE one day-measurement everyone shares (generator, repair, rebalance,
+   * overview): plate budgets from perMealTargets with portion-aware fixed
+   * kcal, plates pinned at 100%, other dishes carry base per-serving macros.
+   */
+  private buildDayItems(
+    meals: Array<{ slot: string; skipped: boolean; portionPct?: number | null; recipe: unknown }>,
+    pcts: Record<string, number>,
+    dayIndex: number,
+    tg: Awaited<ReturnType<NutritionService['targets']>>,
+    opts: PlateOpts,
+  ): DayItemForOpt[] {
+    const withPcts = meals.map((m) => ({ ...m, portionPct: pcts[m.slot] ?? m.portionPct ?? 100 }));
+    const dyn = perMealTargets(this.dayMealInputs(withPcts as never), tg.kcal);
+    return withPcts.filter((m) => !m.skipped).map((m) => {
+      const country = (m.recipe as { country: string }).country;
+      const isPlate = (m.slot === 'l' || m.slot === 'd') && /india/i.test(country);
+      const mealTarget = isPlate ? dyn[m.slot as 'l' | 'd'] : undefined;
+      const base = this.mealMacros(m.recipe as never, m.slot, dayIndex, opts, mealTarget);
+      return { slot: m.slot, ...base, ...(isPlate ? { minPct: 100, maxPct: 100 } : {}) };
+    });
+  }
+
+  /**
+   * Iterated quantized solve: portions and plate budgets feed each other, so
+   * solve to a fixed point (2–3 rounds converge — plates absorb the remainder,
+   * a negative feedback). Returns the FINAL items so validation and totals are
+   * computed on exactly what will be stored and displayed.
+   */
+  private solveDayQ(
+    meals: Array<{ slot: string; skipped: boolean; portionPct?: number | null; recipe: unknown }>,
+    dayIndex: number,
+    tg: Awaited<ReturnType<NutritionService['targets']>>,
+    opts: PlateOpts,
+  ): { pcts: Record<string, number>; sol: ReturnType<typeof solveDayPortions>; items: DayItemForOpt[] } {
+    let pcts: Record<string, number> = {};
+    for (const m of meals) if (!m.skipped) pcts[m.slot] = 100;
+    let items = this.buildDayItems(meals, pcts, dayIndex, tg, opts);
+    let sol = solveDayPortions(items, tg, NutritionService.QSOLVE);
+    for (let round = 0; round < 2; round++) {
+      const next = { ...pcts, ...sol.pcts };
+      const changed = Object.keys(next).some((k) => next[k] !== pcts[k]);
+      pcts = next;
+      items = this.buildDayItems(meals, pcts, dayIndex, tg, opts);
+      sol = solveDayPortions(items, tg, NutritionService.QSOLVE);
+      if (!changed) break;
+    }
+    return { pcts: { ...pcts, ...sol.pcts }, sol, items };
+  }
+
+  /**
+   * Close the remaining gap to the prescription with realistic complement
+   * foods (whole units — egg, curd, fruit, nuts, roti…), then run the HARD
+   * validation gate on totals INCLUDING the add-ons.
+   */
+  private planDayAddons(
+    items: DayItemForOpt[],
+    pcts: Record<string, number>,
+    tg: Awaited<ReturnType<NutritionService['targets']>>,
+    diet: string,
+    plans: string[],
+  ): { addons: Record<string, AddonPick[]>; extra: ReturnType<typeof addonMacros>; violation: ReturnType<typeof bandViolationPct> } {
+    const t = dayTotalsFor(items, pcts);
+    const kAllow = Math.max(tg.kcal * 0.02, 60);
+    const pAllow = Math.max(tg.protein * 0.02, 5);
+    const gapKcal = tg.kcal - t.kcal;
+    let addons: Record<string, AddonPick[]> = {};
+    if (gapKcal > kAllow) {
+      addons = fillGapWithComplements({
+        gapKcal,
+        gapProtein: (tg.protein - pAllow) - t.protein,
+        proteinCeiling: tg.protein + pAllow - t.protein,
+        diet,
+        plans,
+        slots: items.map((i) => i.slot),
+      });
+    }
+    const extra = addonMacros(Object.values(addons).flat());
+    const violation = bandViolationPct(items, pcts, tg, extra);
+    return { addons, extra, violation };
   }
 
   /** The nutrition a single meal contributes — the assembled thali total for an
@@ -2720,23 +2819,27 @@ export class NutritionService implements OnModuleInit {
       include: { plan: { select: { userId: true } }, meals: { include: { recipe: true } } },
     });
     if (!day) return;
-    const tg = await this.targets(day.plan.userId);
-    const opts = await this.plateOptsFor(day.plan.userId);
-    const dyn = perMealTargets(this.dayMealInputs(day.meals as never), tg.kcal);
+    const userId = day.plan.userId;
+    const tg = await this.targets(userId);
+    const opts = await this.plateOptsFor(userId);
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     const active = day.meals.filter((m) => !m.skipped);
     if (!active.length) return;
-    const items: DayItemForOpt[] = active.map((m) => {
-      const mealTarget = dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal;
-      const base = this.mealMacros(m.recipe as never, m.slot, dayIndex, opts, mealTarget);
-      const isPlate = /india/i.test((m.recipe as { country: string }).country) && (m.slot === 'l' || m.slot === 'd');
-      return { slot: m.slot, ...base, ...(isPlate ? { minPct: 100, maxPct: 100 } : {}) };
+    // Same machinery as generation: quantized solve on the SHARED measurement,
+    // then complement fill — after a skip/refresh the remaining meals and
+    // add-ons re-close the day to the prescription.
+    const { pcts, items } = this.solveDayQ(day.meals as never, dayIndex, tg, opts);
+    const plans = assignDietPlans({
+      conditions: ex.healthConditions ?? [], flags: flagsFor(await this.bloodValues(userId)) as Record<string, string>,
+      goal: pref?.goal ?? 'maintain', diet: (pref?.diet ?? 'everything') as Diet, age: pref?.age ?? 30,
     });
-    // Floor-guaranteed solve: after a skip/refresh the remaining meals scale up
-    // (to 300% if needed) so the end-of-day totals still reach ≥95% of the
-    // calorie & protein targets. Plates self-size through their dynamic budget.
-    const { pcts } = solveDayPortions(items, tg);
+    const { addons } = this.planDayAddons(items, pcts, tg, (pref?.diet ?? 'everything') as string, plans);
     await Promise.all(active.map((m) =>
-      this.prisma.meal.update({ where: { id: m.id }, data: { portionPct: pcts[m.slot] ?? 100 } as never }).catch(() => undefined),
+      this.prisma.meal.update({
+        where: { id: m.id },
+        data: { portionPct: pcts[m.slot] ?? 100, addonsJson: JSON.stringify(addons[m.slot] ?? []) } as never,
+      }).catch(() => undefined),
     ));
   }
 
@@ -2767,18 +2870,26 @@ export class NutritionService implements OnModuleInit {
 
     const picks = new Map<string, RecipeWithIng>();
     const mealIdBySlot = new Map<string, string>();
-    for (const m of active) { picks.set(m.slot, m.recipe as unknown as RecipeWithIng); mealIdBySlot.set(m.slot, m.id); }
+    const skippedSlots = new Set<string>();
+    for (const m of day.meals) mealIdBySlot.set(m.slot, m.id);
+    for (const m of active) picks.set(m.slot, m.recipe as unknown as RecipeWithIng);
     const isPlate = (r: RecipeWithIng, sl: string) => /india/i.test(r.country) && (sl === 'l' || sl === 'd');
-    const buildItems = (): DayItemForOpt[] => [...picks.entries()].map(([sl, r]) => {
-      const mealTarget = tg.perMeal[sl as 'b' | 'l' | 's' | 'd']?.kcal;
-      const base = this.mealMacros(r as never, sl, dayIndex, opts, mealTarget);
-      return { slot: sl, ...base, ...(isPlate(r, sl) ? { minPct: 100, maxPct: 100 } : {}) };
+    const plans = assignDietPlans({
+      conditions: ex.healthConditions ?? [], flags: flagsFor(await this.bloodValues(userId)) as Record<string, string>,
+      goal: pref?.goal ?? 'maintain', diet, age: pref?.age ?? 30,
     });
+    const mealsLike = () => [...picks.entries()]
+      .filter(([sl]) => !skippedSlots.has(sl))
+      .map(([sl, r]) => ({ slot: sl, skipped: false, recipe: r as unknown }));
+    const evalNow = () => {
+      const solved = this.solveDayQ(mealsLike(), dayIndex, tg, opts);
+      const planned = this.planDayAddons(solved.items, solved.pcts, tg, diet as string, plans);
+      return { ...solved, ...planned, score: planned.violation.total };
+    };
 
-    let sol = solveDayPortions(buildItems(), tg);
-    const valid = () => sol.deficit <= 0 && sol.violation <= 0;
+    let ev = evalNow();
     let changedRecipes = false;
-    if (!valid()) {
+    if (ev.score > 0) {
       const recipes = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true, priceInr: true } } } })) as unknown as RecipeWithIng[];
       const modes = planningModes(flagsFor(await this.bloodValues(userId)), pref?.goal ?? 'maintain');
       const pools = this.rankedPools(recipes, diet, ex, modes);
@@ -2786,10 +2897,6 @@ export class NutritionService implements OnModuleInit {
         protein: tg.protein / Math.max(1, tg.kcal), carb: tg.carb / Math.max(1, tg.kcal),
         fat: tg.fat / Math.max(1, tg.kcal), fiber: tg.fiber / Math.max(1, tg.kcal),
       };
-      const repairPlans = assignDietPlans({
-        conditions: ex.healthConditions ?? [], flags: flagsFor(await this.bloodValues(userId)) as Record<string, string>,
-        goal: pref?.goal ?? 'maintain', diet, age: pref?.age ?? 30,
-      });
       const fit = (r: RecipeWithIng, sl: string): number => {
         const mealKcal = tg.perMeal[sl as 'b' | 'l' | 's' | 'd']?.kcal ?? tg.kcal / 4;
         const n = this.mealMacros(r as never, sl, dayIndex, opts, mealKcal);
@@ -2798,45 +2905,71 @@ export class NutritionService implements OnModuleInit {
           + 1.0 * Math.abs(n.carbs / k - tD.carb) / Math.max(0.01, tD.carb)
           + 1.0 * Math.abs(n.fat / k - tD.fat) / Math.max(0.01, tD.fat)
           + 0.4 * Math.abs(n.kcal - mealKcal) / Math.max(1, mealKcal)
-          + dietPlanBias(repairPlans, r, { protein: n.protein / k, fiber: n.fiber / k });
+          + dietPlanBias(plans, r, { protein: n.protein / k, fiber: n.fiber / k });
       };
       const inUse = () => new Set([...picks.values()].map((r) => r.id));
-      for (let sweep = 0; sweep < 2 && !valid(); sweep++) {
+      // Stage 1+2: portions are inside evalNow; swap recipes until the gate passes.
+      for (let sweep = 0; sweep < 2 && ev.score > 0; sweep++) {
         for (const sl of [...picks.keys()]) {
-          if (valid()) break;
+          if (ev.score <= 0) break;
+          if (skippedSlots.has(sl)) continue;
           const original = picks.get(sl) as RecipeWithIng;
           if (isPlate(original, sl)) continue;
           const used = inUse();
           const alternates = (pools[sl as Slot] ?? [])
             .filter((r) => !used.has(r.id))
-            .slice(0, 160)
+            .slice(0, 200)
             .map((r) => ({ r, s: fit(r, sl) }))
             .sort((a, b) => a.s - b.s)
-            .slice(0, sweep === 0 ? 24 : 40)
+            .slice(0, sweep === 0 ? 30 : 60)
             .map((x) => x.r);
           for (const alt of alternates) {
             picks.set(sl, alt);
-            const trySol = solveDayPortions(buildItems(), tg);
-            const better = trySol.deficit < sol.deficit - 0.1
-              || (trySol.deficit <= sol.deficit && trySol.violation < sol.violation - 0.1);
-            if (better) { sol = trySol; changedRecipes = true; }
+            const tryEv = evalNow();
+            if (tryEv.score < ev.score - 0.1) { ev = tryEv; changedRecipes = true; }
             else picks.set(sl, original);
-            if (valid()) break;
+            if (ev.score <= 0) break;
           }
         }
       }
+      // Stage 3 (removal ladder): if the day is still over its targets with
+      // every dish at minimum portion, drop the snack, then breakfast — the
+      // objective is the most accurate day, not keeping every planned meal.
+      for (const dropSlot of ['s', 'b']) {
+        if (ev.score <= 0) break;
+        if (!picks.has(dropSlot) || skippedSlots.has(dropSlot)) continue;
+        skippedSlots.add(dropSlot);
+        const tryEv = evalNow();
+        if (tryEv.score < ev.score - 0.1) { ev = tryEv; changedRecipes = true; }
+        else skippedSlots.delete(dropSlot);
+      }
+      if (ev.score > 0) ev = evalNow();
     }
 
-    // Persist the repaired day: recipe swaps + optimized portions.
+    // Persist the repaired day: swaps, portions, add-ons, and any dropped meals.
     await Promise.all([...picks.entries()].map(([sl, r]) => {
       const id = mealIdBySlot.get(sl);
       if (!id) return Promise.resolve(undefined);
+      const dropped = skippedSlots.has(sl);
       return this.prisma.meal.update({
         where: { id },
-        data: { recipeId: r.id, portionPct: sol.pcts[sl] ?? 100 } as never,
+        data: {
+          recipeId: r.id,
+          skipped: dropped,
+          portionPct: dropped ? 100 : (ev.pcts[sl] ?? 100),
+          addonsJson: JSON.stringify(dropped ? [] : (ev.addons[sl] ?? [])),
+        } as never,
       }).catch(() => undefined);
     }));
-    return { repaired: changedRecipes || true, valid: sol.violation <= 0 && sol.deficit <= 0, violation: sol.violation };
+    const valid = ev.score <= 0;
+    return {
+      repaired: changedRecipes || true,
+      valid,
+      violation: ev.violation.total,
+      // Only meaningful when invalid: the single constraint the recipe library
+      // could not satisfy — surfaced to the user per spec.
+      limiting: valid ? null : { nutrient: ev.violation.worstNutrient, side: ev.violation.worstSide },
+    };
   }
 
   /** Ownership guard — a meal plan may only be read/mutated by the user it belongs to. */
@@ -2870,6 +3003,15 @@ export class NutritionService implements OnModuleInit {
       const ing = m.recipe.ingredients.reduce((sum, i) => sum + i.priceInr, 0);
       cost += ing > 0 ? Math.round(ing / s) : Math.round((m.recipe.kcal / s) * 0.11);
     }
+    // Complement add-ons are part of the day's nutrition — same source the
+    // cards display.
+    const addonPicks: AddonPick[] = day.meals.filter((m) => !m.skipped).flatMap((m) => {
+      try { return JSON.parse(((m as { addonsJson?: string | null }).addonsJson) ?? '[]') as AddonPick[]; } catch { return []; }
+    });
+    const addonTotals = addonMacros(addonPicks);
+    kcal += addonTotals.kcal; protein += addonTotals.protein; carbs += addonTotals.carbs;
+    fat += addonTotals.fat; fiber += addonTotals.fiber;
+
     kcal = Math.round(kcal); protein = Math.round(protein); carbs = Math.round(carbs);
     fat = Math.round(fat); fiber = Math.round(fiber); cost = Math.round(cost);
 
@@ -2884,6 +3026,15 @@ export class NutritionService implements OnModuleInit {
       servings: recipeServings(m.recipe),
       portionFactor: ((m as { portionPct?: number }).portionPct ?? 100) / 100,
     }));
+    // Add-ons contribute micros too (their keywords feed the same estimator).
+    if (addonPicks.length) {
+      microMeals.push({
+        recipeName: 'Add-ons',
+        ingredients: addonPicks.map((p) => ({ name: complementByKey.get(p.key)?.microKeyword ?? p.key })),
+        servings: 1,
+        portionFactor: 1,
+      });
+    }
     const micros = estimateDayMicros(microMeals, pref?.age ?? 30, pref?.sex ?? 'male')
       .map((mi) => ({
         ...mi,
@@ -4034,11 +4185,21 @@ export class NutritionService implements OnModuleInit {
               fiber: Math.round(recipe.fiber * pf),
               gramsPerServing: Math.round((recipe.gramsPerServing ?? 0) * pf),
             };
+            // Complement foods on this plate (whole units, dietitian-style).
+            let addons: Array<{ key: string; units: number; label: string; kcal: number }> = [];
+            try {
+              const picks = JSON.parse(((m as { addonsJson?: string | null }).addonsJson) ?? '[]') as AddonPick[];
+              addons = picks.map((p) => ({
+                key: p.key, units: p.units, label: addonLabel(p.key, p.units),
+                kcal: Math.round((complementByKey.get(p.key)?.kcal ?? 0) * p.units),
+              }));
+            } catch { addons = []; }
             return {
               slot: m.slot,
               recipe: scaled,
               skipped: m.skipped,
               portionPct: pct,
+              addons,
               sides: { rice: m.sidesRice, roti: m.sidesRoti, curd: m.sidesCurd, salad: m.sidesSalad },
               plate,
             };
