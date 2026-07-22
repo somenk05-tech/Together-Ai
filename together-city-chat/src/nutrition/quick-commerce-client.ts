@@ -35,6 +35,10 @@ export class QuickCommerceClient {
   private readonly key = process.env.QUICKCOMMERCE_API_KEY || '';
   readonly enabled = !!this.key;
   private shapeWarned = false;
+  /** Once a combined (no-platform) search 422s, go straight to per-platform. */
+  private perPlatformMode = false;
+  private lastStatus: number | null = null;
+  private readonly bodyLogged = new Set<string>();
   /** cacheKey → { at, data } — six-hour TTL, in-memory (single instance). */
   private cache = new Map<string, { at: number; data: unknown }>();
   private static TTL_MS = 6 * 3600_000;
@@ -55,7 +59,18 @@ export class QuickCommerceClient {
         headers: { 'X-API-Key': this.key, Accept: 'application/json' },
         signal: AbortSignal.timeout(8000),
       });
-      if (!res.ok) { this.logger.warn(`${path} → HTTP ${res.status}`); return null; }
+      this.lastStatus = res.status;
+      if (!res.ok) {
+        // Log the response BODY once per path+status — a 422 body names the
+        // exact missing/invalid parameter, which is the whole diagnosis.
+        const logKey = `${path}:${res.status}`;
+        if (!this.bodyLogged.has(logKey)) {
+          this.bodyLogged.add(logKey);
+          const body = await res.text().catch(() => '');
+          this.logger.warn(`${path} → HTTP ${res.status} · ${body.slice(0, 300)}`);
+        }
+        return null;
+      }
       const data = (await res.json()) as T;
       this.cache.set(cacheKey, { at: Date.now(), data });
       if (this.cache.size > 3000) this.cache.clear(); // crude bound
@@ -79,10 +94,33 @@ export class QuickCommerceClient {
     return null;
   }
 
-  /** Search ONE item across platforms at a location → best price per platform. */
+  /** Search ONE item across platforms at a location → best price per platform.
+   *  Tries the cross-platform call first (1 credit); if the API requires a
+   *  `platform` parameter (422), permanently switches to per-platform calls
+   *  (1 credit per store). */
   async searchItem(q: string, lat: number, lon: number): Promise<LivePrice[] | null> {
-    const raw = await this.get<unknown>('/v1/search', { q, lat: lat.toFixed(2), lon: lon.toFixed(2) });
-    if (!raw) return null;
+    if (!this.perPlatformMode) {
+      const combined = await this.get<unknown>('/v1/search', { q, lat: lat.toFixed(2), lon: lon.toFixed(2) });
+      if (combined) return this.parseSearch(combined, null, q);
+      if (this.lastStatus === 422 || this.lastStatus === 400) {
+        this.perPlatformMode = true;
+        this.logger.log('search requires an explicit platform — switching to per-platform calls (1 credit per store per item).');
+      } else {
+        return null;
+      }
+    }
+    // Per-platform: query each store separately and merge.
+    const merged: LivePrice[] = [];
+    await Promise.all(PLATFORM_MAP.map(async (p) => {
+      const raw = await this.get<unknown>('/v1/search', { q, platform: p.api, lat: lat.toFixed(2), lon: lon.toFixed(2) });
+      if (!raw) return;
+      const parsed = this.parseSearch(raw, p.key, q);
+      if (parsed) merged.push(...parsed.filter((x) => x.platformKey === p.key));
+    }));
+    return merged.length ? merged : null;
+  }
+
+  private parseSearch(raw: unknown, defaultHint: string | null, q: string): LivePrice[] | null {
     // Tolerant extraction: results may live under data/products/results/items,
     // be grouped PER PLATFORM ({"blinkit": [...], "zepto": [...]}), or be a
     // flat array with a platform field on each product. Handle all three.
@@ -101,7 +139,7 @@ export class QuickCommerceClient {
         }
       }
     };
-    dig(raw, null);
+    dig(raw, defaultHint);
     if (!buckets.length && !this.shapeWarned) {
       // The upstream shape didn't match any known container — log its top-level
       // keys ONCE so a mismatch is diagnosable straight from Railway logs.

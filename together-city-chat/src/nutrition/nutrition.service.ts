@@ -4541,14 +4541,19 @@ export class NutritionService implements OnModuleInit {
     return items;
   }
 
-  /** Overlay live prices/ETAs from the QuickCommerce API onto simulator quotes. */
+  /** Overlay live prices/ETAs from the QuickCommerce API onto simulator quotes.
+   *  Credit budget: only the QC_LIVE_MAX_ITEMS most expensive items are priced
+   *  live (per-platform mode costs one credit per store per item) — the rest
+   *  keep estimates. Cached six hours, so this spends once per day in practice. */
   private async qcLiveOverlay(quotes: QcStoreQuote[], items: QcListItem[], lat: number, lon: number): Promise<boolean> {
     if (!this.qcClient.enabled || !items.length) return false;
+    const maxLive = Math.max(1, parseInt(process.env.QC_LIVE_MAX_ITEMS || '12', 10));
+    const liveItems = [...items].sort((a, b) => b.baseInr - a.baseInr).slice(0, maxLive);
     let anyLive = false;
-    // Chunked so a 40-item list doesn't open 40 sockets at once.
-    const chunk = 6;
-    for (let i = 0; i < items.length; i += chunk) {
-      await Promise.all(items.slice(i, i + chunk).map(async (it) => {
+    // Chunked so a big list doesn't open too many sockets at once.
+    const chunk = 4;
+    for (let i = 0; i < liveItems.length; i += chunk) {
+      await Promise.all(liveItems.slice(i, i + chunk).map(async (it) => {
         const live = await this.qcClient.searchItem(it.name, lat, lon);
         if (!live) return;
         for (const lp of live) {
@@ -4583,10 +4588,14 @@ export class NutritionService implements OnModuleInit {
       quotes, items, lat ?? NutritionService.QC_DEFAULT_LAT, lon ?? NutritionService.QC_DEFAULT_LON,
     ).catch(() => false);
     // The full per-item breakdown is heavy — trim to what the UI shows.
+    const maxLive = Math.max(1, parseInt(process.env.QC_LIVE_MAX_ITEMS || '12', 10));
     return {
       itemCount: items.length,
       live,
       liveEnabled: this.qcClient.enabled,
+      liveNote: live && items.length > maxLive
+        ? `Live prices applied to your ${maxLive} biggest items to conserve API credits; the rest use estimates. Raise QC_LIVE_MAX_ITEMS to widen coverage.`
+        : undefined,
       quotes: quotes.map((q) => ({
         ...q,
         items: undefined,

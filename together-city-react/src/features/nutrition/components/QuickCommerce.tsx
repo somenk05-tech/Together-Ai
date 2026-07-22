@@ -92,6 +92,7 @@ export function QuickCommercePanel({ mode = 'individual' }: { mode?: 'individual
         stock and fees — so you can order through whichever wins.
       </p>
 
+      {compare.data?.liveNote && <p className="muted" style={{ fontSize: 11, margin: '0 0 10px' }}>ⓘ {compare.data.liveNote}</p>}
       {compare.isLoading && <Spinner label="Pricing your list across stores…" />}
       {compare.data?.note && <Card style={{ padding: 16 }}><p className="muted" style={{ fontSize: 13 }}>{compare.data.note}</p></Card>}
 
