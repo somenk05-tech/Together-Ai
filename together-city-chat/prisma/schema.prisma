@@ -398,6 +398,7 @@ model Meal {
   slot       String // b | l | s | d
   recipeId   String
   skipped    Boolean @default(false)
+  portionPct Int     @default(100) // portion factor (60–180%) — set by the day optimizer
   sidesRice  Int     @default(0)
   sidesRoti  Int     @default(0)
   sidesCurd  Int     @default(0)

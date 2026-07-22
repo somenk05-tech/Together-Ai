@@ -11,7 +11,8 @@ const GRADE_COLOR: Record<string, string> = { A: '#2e7d4f', B: '#5a9e3f', C: '#b
 /** Recipe meal card — 16:9 dish photo banner (falls back to a diet-tinted panel
  *  until the image exists), health grade, per-serving portion, and the plate. */
 export function MealCard({ meal, onSwap, onSkip, people = 1, onBack, canGoBack = false }: { meal: Meal; onSwap: () => void; onSkip: () => void; people?: number; onBack?: () => void; canGoBack?: boolean }) {
-  const { recipe: r, slot, skipped, plate } = meal;
+  const { recipe: r, slot, skipped, plate, portionPct } = meal;
+  const tuned = portionPct != null && portionPct !== 100 && !plate;
   const [imgOk, setImgOk] = useState(true);
   const color = DIET_COLOR[r.diet] ?? DIET_COLOR.everything;
   const n = Math.max(1, people);
@@ -53,6 +54,12 @@ export function MealCard({ meal, onSwap, onSkip, people = 1, onBack, canGoBack =
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <span className="tag" style={{ background: `${color}1a`, color }}>{r.diet === 'nonveg' ? 'NON-VEG' : r.diet.toUpperCase()}</span>
           <span style={{ fontWeight: 700, fontSize: 15 }}>{mealKcal} <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>kcal</span></span>
+          {tuned && (
+            <span title="Portion sized by the planner so your day lands on its calorie & macro targets"
+              style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}>
+              ⚖ portion ×{(portionPct! / 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}
+            </span>
+          )}
         </div>
         <p className="muted" style={{ margin: '7px 0 0', fontSize: 12 }}>
           {LABEL[slot]} · {r.country} · {r.minutes} min{r.recipeNo ? ` · No. ${r.recipeNo.toLocaleString('en-IN')}` : ''}

@@ -771,6 +771,94 @@ export function computeTargets(inp: TargetInput) {
 }
 
 /**
+ * Day-portion optimizer (§targets): work BACKWARDS from the user's daily
+ * targets. Given the day's chosen dishes (with their per-serving macros), solve
+ * a portion factor (60–180%) for each dish so the day's combined kcal, protein,
+ * carbs, fat and fibre land as close as possible to the targets — overshoot on
+ * calories/protein/fat is penalised harder than undershoot, and fibre only
+ * penalises undershoot. Indian thali plates already self-size to their calorie
+ * budget, so they are held at 100% and the optimizer shapes the day around
+ * them. Deterministic coordinate descent — no randomness, same inputs → same
+ * portions everywhere (cards, dashboard, history).
+ */
+export interface DayItemForOpt {
+  slot: string;
+  kcal: number; protein: number; carbs: number; fat: number; fiber: number;
+  minPct?: number; maxPct?: number; // plate meals pass 100/100
+}
+export function optimizeDayPortions(
+  items: DayItemForOpt[],
+  target: { kcal: number; protein: number; carb: number; fat: number; fiber: number },
+): Record<string, number> {
+  if (!items.length) return {};
+  const NUTS: Array<[keyof DayItemForOpt & ('kcal' | 'protein' | 'carbs' | 'fat' | 'fiber'), number, number, number, number]> = [
+    // [key, target, weight, overshootFactor, undershootFactor]
+    ['kcal', target.kcal, 3.0, 1.5, 1.0],
+    ['protein', target.protein, 2.2, 1.8, 1.0],   // exceeding protein matters (kidney-moderated targets)
+    ['carbs', target.carb, 1.0, 1.2, 0.8],
+    ['fat', target.fat, 1.0, 1.4, 0.7],
+    ['fiber', target.fiber, 0.8, 0.0, 1.0],       // fibre: only undershoot hurts
+  ];
+  const errOf = (pcts: number[]): number => {
+    let e = 0;
+    for (const [key, T, w, over, under] of NUTS) {
+      if (!T || T <= 0) continue;
+      let tot = 0;
+      for (let i = 0; i < items.length; i++) tot += (items[i][key] as number) * (pcts[i] / 100);
+      const dev = (tot - T) / T;
+      e += w * dev * dev * (dev > 0 ? over : under);
+    }
+    return e;
+  };
+  const pcts = items.map(() => 100);
+  const OPTIONS: number[] = [];
+  for (let p = 60; p <= 180; p += 5) OPTIONS.push(p);
+  for (let pass = 0; pass < 5; pass++) {
+    let changed = false;
+    for (let i = 0; i < items.length; i++) {
+      const lo = items[i].minPct ?? 60, hi = items[i].maxPct ?? 180;
+      let best = pcts[i], bestErr = errOf(pcts);
+      for (const opt of OPTIONS) {
+        if (opt < lo || opt > hi) continue;
+        if (opt === pcts[i]) continue;
+        const prev = pcts[i];
+        pcts[i] = opt;
+        const e = errOf(pcts);
+        if (e < bestErr - 1e-9) { best = opt; bestErr = e; }
+        pcts[i] = prev;
+      }
+      if (best !== pcts[i]) { pcts[i] = best; changed = true; }
+    }
+    if (!changed) break;
+  }
+  return Object.fromEntries(items.map((it, i) => [it.slot, pcts[i]]));
+}
+
+/** Worst relative deviation (abs, as %) of the day vs targets — for swap decisions. */
+export function dayDeviationPct(
+  items: DayItemForOpt[], pcts: Record<string, number>,
+  target: { kcal: number; protein: number; carb: number; fat: number; fiber: number },
+): { worst: number; nutrient: string } {
+  const totals = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+  for (const it of items) {
+    const f = (pcts[it.slot] ?? 100) / 100;
+    totals.kcal += it.kcal * f; totals.protein += it.protein * f; totals.carbs += it.carbs * f;
+    totals.fat += it.fat * f; totals.fiber += it.fiber * f;
+  }
+  const pairs: Array<[string, number, number]> = [
+    ['calories', totals.kcal, target.kcal], ['protein', totals.protein, target.protein],
+    ['carbs', totals.carbs, target.carb], ['fat', totals.fat, target.fat],
+  ];
+  let worst = 0, nutrient = 'calories';
+  for (const [name, tot, T] of pairs) {
+    if (!T) continue;
+    const dev = Math.abs((tot - T) / T) * 100;
+    if (dev > worst) { worst = dev; nutrient = name; }
+  }
+  return { worst: Math.round(worst * 10) / 10, nutrient };
+}
+
+/**
  * Keep a meal's macros physiologically consistent with its calorie figure.
  * The 12,976-recipe world dataset carries noisy protein/carb/fat/fibre values
  * (some per-100 g, some per-batch, some simply wrong) that the per-serving
@@ -2089,6 +2177,54 @@ export class NutritionService implements OnModuleInit {
       }
     }
 
+    // ── target optimization (§targets): solve portions per day, swap when portions
+    // alone can't reach the goals. Plates self-size, other dishes scale 60–180%.
+    const tg = await this.targets(userId);
+    const opts = await this.plateOptsFor(userId);
+    const portions: Record<number, Record<string, number>> = {};
+    for (let d = 0; d < DAYS.length; d++) {
+      const daySlots = SLOTS.filter((sl) => picks[d][sl]);
+      const buildItems = (): DayItemForOpt[] => daySlots.map((sl) => {
+        const r = picks[d][sl] as RecipeWithIng;
+        const mealTarget = tg.perMeal[sl as 'b' | 'l' | 's' | 'd']?.kcal;
+        const base = this.mealMacros(r as never, sl, d, opts, mealTarget);
+        const isPlate = /india/i.test(r.country) && (sl === 'l' || sl === 'd');
+        return { slot: sl, ...base, ...(isPlate ? { minPct: 100, maxPct: 100 } : {}) };
+      });
+      let items = buildItems();
+      let pcts = optimizeDayPortions(items, tg);
+      let { worst } = dayDeviationPct(items, pcts, tg);
+      // Swap stage: if still >3% off, try alternates for each swappable slot and
+      // keep the combination that lands closest. Same hard-filtered pools — the
+      // safety/condition constraints are inside the pool, so a swap can never
+      // violate them.
+      if (worst > 3) {
+        const dayVeg = ex.weekly?.[SHORT_DAYS[d]] === 'veg';
+        const pools = dayVeg ? vegRanked : baseRanked;
+        for (const sl of daySlots) {
+          if (worst <= 3) break;
+          const isPlate = /india/i.test((picks[d][sl] as RecipeWithIng).country) && (sl === 'l' || sl === 'd');
+          if (isPlate) continue;
+          const original = picks[d][sl] as RecipeWithIng;
+          const alternates = (pools[sl] ?? []).filter((r) => r.id !== original.id && count(usedRecipe, r.id) < 1).slice(0, 8);
+          for (const alt of alternates) {
+            picks[d][sl] = alt;
+            const tryItems = buildItems();
+            const tryPcts = optimizeDayPortions(tryItems, tg);
+            const { worst: w2 } = dayDeviationPct(tryItems, tryPcts, tg);
+            if (w2 < worst - 0.5) { worst = w2; items = tryItems; pcts = tryPcts; bump(usedRecipe, alt.id); }
+            else picks[d][sl] = alt === picks[d][sl] ? original : picks[d][sl];
+            if (picks[d][sl] !== alt) picks[d][sl] = original;
+            if (worst <= 3) break;
+          }
+        }
+        // recompute once more with the final picks
+        items = buildItems();
+        pcts = optimizeDayPortions(items, tg);
+      }
+      portions[d] = pcts;
+    }
+
     // One plan per user+mode — clear old ones so the profile stays the source of truth.
     // Replace ONLY the plan for this same calendar week (preserve other weeks).
     const owned = await this.prisma.mealPlan.findMany({ where: { userId, mode } }) as unknown as Array<{ id: string; weekStart?: Date | null; createdAt: Date }>;
@@ -2112,11 +2248,12 @@ export class NutritionService implements OnModuleInit {
                   slot,
                   recipeId: recipe.id,
                   skipped: false,
+                  portionPct: portions[dayIndex]?.[slot] ?? 100,
                   sidesRice: withSides ? (slot === 'l' ? 1 : 0) : 0,
                   sidesRoti: withSides ? 2 : 0,
                   sidesCurd: slot === 'l' ? 1 : 0,
                   sidesSalad: withSides ? 1 : 0,
-                };
+                } as never;
               }),
             },
           })),
@@ -2178,6 +2315,36 @@ export class NutritionService implements OnModuleInit {
     return { kcal: shape.kcal, protein: shape.protein, carbs: shape.carbs, fat: shape.fat, fiber: shape.fiber };
   }
 
+  /**
+   * Re-optimize one day's portions against the owner's daily targets. Runs after
+   * generation, every refresh, and every skip — so the Daily Nutrition Overview
+   * is always the OPTIMIZED total, never an accident of per-serving sizes.
+   * Health/condition constraints live upstream (recipe filtering + computeTargets
+   * adjustments) and are never relaxed here.
+   */
+  private async rebalanceDay(planKey: string, dayIndex: number): Promise<void> {
+    const day = await this.prisma.mealPlanDay.findFirst({
+      where: { dayIndex, plan: { key: planKey } },
+      include: { plan: { select: { userId: true } }, meals: { include: { recipe: true } } },
+    });
+    if (!day) return;
+    const tg = await this.targets(day.plan.userId);
+    const opts = await this.plateOptsFor(day.plan.userId);
+    const dyn = perMealTargets(this.dayMealInputs(day.meals as never), tg.kcal);
+    const active = day.meals.filter((m) => !m.skipped);
+    if (!active.length) return;
+    const items: DayItemForOpt[] = active.map((m) => {
+      const mealTarget = dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal;
+      const base = this.mealMacros(m.recipe as never, m.slot, dayIndex, opts, mealTarget);
+      const isPlate = /india/i.test((m.recipe as { country: string }).country) && (m.slot === 'l' || m.slot === 'd');
+      return { slot: m.slot, ...base, ...(isPlate ? { minPct: 100, maxPct: 100 } : {}) };
+    });
+    const pcts = optimizeDayPortions(items, tg);
+    await Promise.all(active.map((m) =>
+      this.prisma.meal.update({ where: { id: m.id }, data: { portionPct: pcts[m.slot] ?? 100 } as never }).catch(() => undefined),
+    ));
+  }
+
   /** Ownership guard — a meal plan may only be read/mutated by the user it belongs to. */
   private async assertOwnsPlan(planKey: string, userId: string): Promise<void> {
     const plan = await this.prisma.mealPlan.findUnique({ where: { key: planKey }, select: { userId: true } });
@@ -2203,7 +2370,8 @@ export class NutritionService implements OnModuleInit {
       // Aggregate the SAME plate/dish the card shows — the single source of truth.
       const mealTarget = dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal;
       const n = this.mealMacros(m.recipe as unknown as RecipeWithIng & { kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number }, m.slot, dayIndex, opts, mealTarget);
-      kcal += n.kcal; protein += n.protein; carbs += n.carbs; fat += n.fat; fiber += n.fiber;
+      const pf = ((m as { portionPct?: number }).portionPct ?? 100) / 100; // optimizer's portion factor
+      kcal += n.kcal * pf; protein += n.protein * pf; carbs += n.carbs * pf; fat += n.fat * pf; fiber += n.fiber * pf;
       const s = recipeServings(m.recipe);
       const ing = m.recipe.ingredients.reduce((sum, i) => sum + i.priceInr, 0);
       cost += ing > 0 ? Math.round(ing / s) : Math.round((m.recipe.kcal / s) * 0.11);
@@ -2395,6 +2563,7 @@ export class NutritionService implements OnModuleInit {
       const target = await this.prisma.recipe.findUnique({ where: { id: restoreRecipeId }, select: { id: true, slot: true } });
       if (!target || target.slot !== slot) throw new BadRequestException('That recipe cannot be restored for this slot.');
       await this.prisma.meal.update({ where: { id: meal.id }, data: { recipeId: target.id, skipped: false } });
+      await this.rebalanceDay(planKey, dayIndex);
       return this.shapePlan(planKey);
     }
 
@@ -2434,6 +2603,9 @@ export class NutritionService implements OnModuleInit {
       const pick = top[Math.floor(Math.random() * top.length)];
       await this.prisma.meal.update({ where: { id: meal.id }, data: { recipeId: pick.id, skipped: false } });
     }
+    // A refresh changes the day's macro mix — rebalance every portion so the
+    // daily totals stay on target.
+    await this.rebalanceDay(planKey, dayIndex);
     return this.shapePlan(planKey);
   }
 
@@ -2442,6 +2614,9 @@ export class NutritionService implements OnModuleInit {
     await this.assertOwnsPlan(planKey, userId);
     const meal = await this.findMeal(planKey, dayIndex, slot);
     await this.prisma.meal.update({ where: { id: meal.id }, data: { skipped } });
+    // Skipping frees calories — the remaining meals grow (portions up to 180%)
+    // to recover the day's targets; un-skipping shrinks them back.
+    await this.rebalanceDay(planKey, dayIndex);
     return this.shapePlan(planKey);
   }
 
@@ -3330,10 +3505,24 @@ export class NutritionService implements OnModuleInit {
             const plate = indian && (m.slot === 'l' || m.slot === 'd')
               ? assemblePlate(recipe, m.slot as 'l' | 'd', plateOpts, d.dayIndex * 4 + slotOrder[m.slot], dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal)
               : undefined;
+            // Portion factor from the day optimizer: the card shows the SCALED
+            // dish (kcal, macros, grams) so what you see is what the day counts.
+            const pct = (m as { portionPct?: number }).portionPct ?? 100;
+            const pf = pct / 100;
+            const scaled = pct === 100 ? recipe : {
+              ...recipe,
+              kcal: Math.round(recipe.kcal * pf),
+              protein: Math.round(recipe.protein * pf),
+              carbs: Math.round(recipe.carbs * pf),
+              fat: Math.round(recipe.fat * pf),
+              fiber: Math.round(recipe.fiber * pf),
+              gramsPerServing: Math.round((recipe.gramsPerServing ?? 0) * pf),
+            };
             return {
               slot: m.slot,
-              recipe,
+              recipe: scaled,
               skipped: m.skipped,
+              portionPct: pct,
               sides: { rice: m.sidesRice, roti: m.sidesRoti, curd: m.sidesCurd, salad: m.sidesSalad },
               plate,
             };

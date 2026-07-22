@@ -35,6 +35,7 @@ export interface Meal {
   slot: Slot;
   recipe: Recipe;
   skipped: boolean;
+  portionPct?: number; // day-optimizer portion factor (100 = standard serving)
   sides?: Sides;
   plate?: Plate;   // assembled Indian thali (lunch/dinner Indian mains only)
 }
