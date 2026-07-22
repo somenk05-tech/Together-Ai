@@ -37,6 +37,12 @@ export class NutritionController {
     return this.nutrition.dietPlans(user.sub);
   }
 
+  /** Nutrition QA audit report — ingredient-derived validation of the recipe library. */
+  @Get('qa/report')
+  qaReport() {
+    return this.nutrition.qaReportView();
+  }
+
   @Get('preferences')
   prefs(@CurrentUser() user: JwtUser) {
     return this.nutrition.foodPref(user.sub);

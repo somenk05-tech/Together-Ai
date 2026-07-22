@@ -17,6 +17,7 @@ import { assemblePlate, perMealTargets, type PlateOpts, type DayMealInput } from
 import { estimateDayMicros, type DayMealForMicros } from './micros-engine';
 import { assignDietPlans, dietPlanBias, planLabel, DIET_PLAN_CATALOG } from './diet-plans';
 import { addonLabel, addonMacros, complementByKey, fillGapWithComplements, type AddonPick } from './complements';
+import { auditRecipe, type QaRecipe } from './nutrition-qa';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOTS: Slot[] = ['b', 'l', 's', 'd'];
@@ -1097,9 +1098,72 @@ export class NutritionService implements OnModuleInit {
     // Recipe data: adopt the v2 dataset (per-serving, cleaned) on an existing DB,
     // else load it fresh. Background so it never blocks boot; both are idempotent.
     // The old dropped-rows purge is skipped once v2 is in (v2 is already clean).
+    // The nutrition QA audit then validates EVERY recipe from its ingredients
+    // (Atwater + plausibility) and persists corrections — once per QA version.
     void this.ensureRecipeLibrary()
       .then(() => this.adoptDatasetV2())
+      .then(() => this.runNutritionQa())
       .catch(() => undefined);
+  }
+
+  // ─────────────── nutrition QA (ingredient-level ground truth) ───────────────
+  private static readonly QA_VERSION = 1;
+  private qaReport: {
+    at: string; scanned: number; corrected: number; flagged: number;
+    byIssue: Record<string, number>; samples: Array<{ name: string; issues: string[] }>;
+  } | null = null;
+
+  /** Last audit report (admin/debug view). */
+  qaReportView() {
+    return this.qaReport ?? { at: null, scanned: 0, corrected: 0, flagged: 0, byIssue: {}, samples: [], note: 'QA has not run yet on this instance.' };
+  }
+
+  /**
+   * Audit the entire recipe table for nutritional accuracy: derive nutrition
+   * from ingredient gram weights, validate with Atwater factors, repair
+   * implausible serving counts, clamp impossible values, persist corrections.
+   * Runs once per QA_VERSION (rows are stamped), in batches, off the boot path.
+   */
+  private async runNutritionQa(): Promise<void> {
+    try {
+      const pending = (await this.prisma.recipe.findMany({
+        where: { qaVersion: { lt: NutritionService.QA_VERSION } } as never,
+        include: { ingredients: { select: { name: true, grams: true } } },
+      })) as unknown as Array<QaRecipe & { recipeNo?: number | null }>;
+      if (!pending.length) return;
+      this.logger.log(`Nutrition QA v${NutritionService.QA_VERSION}: auditing ${pending.length} recipes from their ingredients…`);
+      let corrected = 0, flagged = 0;
+      const byIssue: Record<string, number> = {};
+      const samples: Array<{ name: string; issues: string[] }> = [];
+      const CHUNK = 100;
+      for (let i = 0; i < pending.length; i += CHUNK) {
+        const batch = pending.slice(i, i + CHUNK);
+        await Promise.all(batch.map(async (rec) => {
+          const res = auditRecipe(rec);
+          if (res.issues.length) {
+            flagged++;
+            for (const iss of res.issues) { const k = iss.split(' ')[0]; byIssue[k] = (byIssue[k] ?? 0) + 1; }
+            if (samples.length < 25) samples.push({ name: rec.name, issues: res.issues });
+          }
+          const data: Record<string, unknown> = { qaVersion: NutritionService.QA_VERSION };
+          if (res.fix) {
+            corrected++;
+            data.kcal = Math.round(res.fix.kcal);
+            data.protein = Math.round(res.fix.protein);
+            data.carbs = Math.round(res.fix.carbs);
+            data.fat = Math.round(res.fix.fat);
+            data.fiber = Math.round(res.fix.fiber);
+            data.servings = res.fix.servings;
+            data.gramsPerServing = Math.round(res.fix.gramsPerServing);
+          }
+          await this.prisma.recipe.update({ where: { id: rec.id }, data: data as never }).catch(() => undefined);
+        }));
+      }
+      this.qaReport = { at: new Date().toISOString(), scanned: pending.length, corrected, flagged, byIssue, samples };
+      this.logger.log(`Nutrition QA: ${pending.length} scanned, ${corrected} corrected, ${flagged} flagged. Top issues: ${Object.entries(byIssue).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => `${k}×${v}`).join(', ')}`);
+    } catch (e) {
+      this.logger.warn(`Nutrition QA skipped: ${(e as Error).message}`);
+    }
   }
 
   /**

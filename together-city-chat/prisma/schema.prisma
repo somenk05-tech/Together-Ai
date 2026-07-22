@@ -325,6 +325,7 @@ model Recipe {
   servings        Int     @default(0) // 0 = batch totals (estimate servings); >0 = per-serving data (v2 dataset)
   healthGrade     String? // A–E health grade (v2 dataset)
   healthPercent   Int     @default(0) // 0–100 health score (v2 dataset)
+  qaVersion       Int     @default(0) // nutrition-QA pass version applied to this row
   steps           String? // cached JSON array of cooking-method steps
   cookSteps       String? // cached JSON of structured cook steps [{text,durationSec,active}]
 
