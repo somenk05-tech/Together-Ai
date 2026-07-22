@@ -171,6 +171,20 @@ export function Preferences() {
     }));
   }, [exLoaded, bloodHistory.data]);
 
+  // Global validation standard: block save until every required field is set.
+  // NOTE: must be called before any early return — hooks can't be conditional.
+  const v = useFormValidation([
+    { key: 'diet', label: 'Dietary Preference', valid: () => Boolean(form?.diet), message: 'Select your Dietary Preference.' },
+    { key: 'age', label: 'Age', valid: () => form?.age != null && form.age >= 10 && form.age <= 120, message: 'Enter your Age (10–120).' },
+    { key: 'sex', label: 'Sex', valid: () => Boolean(form?.sex), message: 'Select your Sex.' },
+    { key: 'height', label: 'Height', valid: () => form?.heightCm != null && form.heightCm >= 80 && form.heightCm <= 250, message: 'Enter your Height (80–250 cm).' },
+    { key: 'weight', label: 'Weight', valid: () => form?.weightKg != null && form.weightKg >= 25 && form.weightKg <= 400, message: 'Enter your Weight (25–400 kg).' },
+    { key: 'activity', label: 'Activity Level', valid: () => form?.activity != null && form.activity > 0, message: 'Choose your Activity Level.' },
+    { key: 'goal', label: 'Goal', valid: () => Boolean(form?.goal), message: 'Choose your Goal.' },
+    { key: 'budget', label: 'Grocery Budget', valid: () => ex.budgetInr != null && ex.budgetInr >= 50 && ex.budgetInr <= 5000, message: 'Enter your Grocery Budget (₹50–₹5,000 per day).' },
+    { key: 'delivery', label: 'Delivery Schedule', valid: () => Boolean(ex.delivery), message: 'Choose your Delivery Schedule.' },
+  ]);
+
   if (existing.isLoading || !form) return <Spinner label="Loading your preferences…" />;
 
   const num = (v: string) => (v ? parseInt(v, 10) : null);
@@ -269,19 +283,6 @@ export function Preferences() {
     ['Budget', ex.budgetInr ? `₹${ex.budgetInr}/day` : '—'],
     ['Body', bodySummary],
   ];
-
-  // Global validation standard: block save until every required field is set.
-  const v = useFormValidation([
-    { key: 'diet', label: 'Dietary Preference', valid: () => Boolean(form?.diet), message: 'Select your Dietary Preference.' },
-    { key: 'age', label: 'Age', valid: () => form?.age != null && form.age >= 10 && form.age <= 120, message: 'Enter your Age (10–120).' },
-    { key: 'sex', label: 'Sex', valid: () => Boolean(form?.sex), message: 'Select your Sex.' },
-    { key: 'height', label: 'Height', valid: () => form?.heightCm != null && form.heightCm >= 80 && form.heightCm <= 250, message: 'Enter your Height (80–250 cm).' },
-    { key: 'weight', label: 'Weight', valid: () => form?.weightKg != null && form.weightKg >= 25 && form.weightKg <= 400, message: 'Enter your Weight (25–400 kg).' },
-    { key: 'activity', label: 'Activity Level', valid: () => form?.activity != null && form.activity > 0, message: 'Choose your Activity Level.' },
-    { key: 'goal', label: 'Goal', valid: () => Boolean(form?.goal), message: 'Choose your Goal.' },
-    { key: 'budget', label: 'Grocery Budget', valid: () => ex.budgetInr != null && ex.budgetInr >= 50 && ex.budgetInr <= 5000, message: 'Enter your Grocery Budget (₹50–₹5,000 per day).' },
-    { key: 'delivery', label: 'Delivery Schedule', valid: () => Boolean(ex.delivery), message: 'Choose your Delivery Schedule.' },
-  ]);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();

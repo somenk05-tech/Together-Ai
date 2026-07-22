@@ -95,6 +95,14 @@ export function DatingProfilePage() {
     }
   }, [existing.data]);
 
+  // Global validation standard — the match engine needs these to work at all.
+  // NOTE: must be called before any early return — hooks can't be conditional.
+  const v = useFormValidation([
+    { key: 'birthDate', label: 'Date of birth', valid: () => Boolean(form.birthDate), message: 'Enter your Date of birth.' },
+    { key: 'bio', label: 'Bio', valid: () => (form.bio ?? '').trim().length >= 20, message: 'Write a short Bio (at least 20 characters).' },
+    { key: 'interests', label: 'Interests', valid: () => (form.interests ?? []).length >= 3, message: 'Pick at least 3 Interests.' },
+  ]);
+
   if (existing.isLoading) return <Spinner label="Loading your profile…" />;
 
   const setD = (patch: Partial<DX>) => setDx((prev) => ({ ...prev, ...patch }));
@@ -116,13 +124,6 @@ export function DatingProfilePage() {
     setD({ photos: [...(dx.photos ?? []), ...urls] });
   };
   const removePhoto = (i: number) => setD({ photos: (dx.photos ?? []).filter((_, idx) => idx !== i) });
-
-  // Global validation standard — the match engine needs these to work at all.
-  const v = useFormValidation([
-    { key: 'birthDate', label: 'Date of birth', valid: () => Boolean(form.birthDate), message: 'Enter your Date of birth.' },
-    { key: 'bio', label: 'Bio', valid: () => (form.bio ?? '').trim().length >= 20, message: 'Write a short Bio (at least 20 characters).' },
-    { key: 'interests', label: 'Interests', valid: () => (form.interests ?? []).length >= 3, message: 'Pick at least 3 Interests.' },
-  ]);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
