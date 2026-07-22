@@ -899,9 +899,9 @@ export function floorDeficitPct(
  */
 export const DAY_TOLERANCE = {
   kcal: { minPct: 95, maxPct: 108 },
-  protein: { minPct: 95, maxPct: 115 },   // hard cap matters for kidney-moderated targets
-  carbs: { minPct: 60, maxPct: 112 },     // carbs may run low when other macros fill the energy
-  fat: { minPct: 55, maxPct: 115 },
+  protein: { minPct: 90, maxPct: 115 },   // hard cap matters for kidney-moderated targets
+  carbs: { minPct: 70, maxPct: 112 },
+  fat: { minPct: 60, maxPct: 115 },
   fiber: { minPct: 70, maxPct: 160 },
 } as const;
 
@@ -2384,7 +2384,41 @@ export class NutritionService implements OnModuleInit {
     // Soft caps across the whole week (28 meals). Generous enough that a narrow
     // recipe pool still fills every slot, tight enough to force real rotation.
     const CARB_CAP = 4, METHOD_CAP = 4;
-    const pick = (pool: RecipeWithIng[], dayIndex: number, prefer?: (r: RecipeWithIng) => boolean): RecipeWithIng | undefined => {
+
+    // ── Nutrition-first fit score (spec: the prescription is the CONSTRAINT and
+    // the meals are the solution). The user's daily targets define ideal macro
+    // DENSITIES (grams per kcal); a dish whose composition matches those
+    // densities can be portioned onto the prescription exactly. Protein density
+    // is weighted hardest — it's the axis condition-moderated targets (kidney)
+    // and goals live on. Lower score = better fit. A small bonus rewards
+    // micronutrient-rich ingredient profiles so RDAs fill up by construction.
+    const tg = await this.targets(userId);
+    const opts = await this.plateOptsFor(userId);
+    const tD = {
+      protein: tg.protein / Math.max(1, tg.kcal), carb: tg.carb / Math.max(1, tg.kcal),
+      fat: tg.fat / Math.max(1, tg.kcal), fiber: tg.fiber / Math.max(1, tg.kcal),
+    };
+    const microRichnessCache = new Map<string, number>();
+    const microRichness = (r: RecipeWithIng): number => {
+      const hit = microRichnessCache.get(r.id);
+      if (hit !== undefined) return hit;
+      const keys = new Set(estimateDayMicros([{ recipeName: r.name, ingredients: r.ingredients, servings: 1, portionFactor: 1 }], 30, 'male')
+        .filter((m) => m.intake > 0).map((m) => m.key));
+      microRichnessCache.set(r.id, keys.size);
+      return keys.size;
+    };
+    const fitScore = (r: RecipeWithIng, slot: Slot, dayIndex: number): number => {
+      const mealKcal = tg.perMeal[slot as 'b' | 'l' | 's' | 'd']?.kcal ?? tg.kcal / 4;
+      const n = this.mealMacros(r as never, slot, dayIndex, opts, mealKcal);
+      const k = Math.max(1, n.kcal);
+      return 3.0 * Math.abs(n.protein / k - tD.protein) / Math.max(0.005, tD.protein)
+        + 1.0 * Math.abs(n.carbs / k - tD.carb) / Math.max(0.01, tD.carb)
+        + 1.0 * Math.abs(n.fat / k - tD.fat) / Math.max(0.01, tD.fat)
+        + 0.6 * Math.max(0, tD.fiber - n.fiber / k) / Math.max(0.002, tD.fiber)   // fibre: only shortfall hurts
+        + 0.4 * Math.abs(n.kcal - mealKcal) / Math.max(1, mealKcal)               // portionable near its slot budget
+        - 0.03 * microRichness(r);                                                // micro-dense food fills RDAs by default
+    };
+    const pick = (pool: RecipeWithIng[], dayIndex: number, slot: Slot, prefer?: (r: RecipeWithIng) => boolean): RecipeWithIng | undefined => {
       if (!pool.length) return undefined;
       const rot = pool.map((_, i) => pool[(i + dayIndex + offset) % pool.length]);
       const fresh = (r: RecipeWithIng) => count(usedRecipe, r.id) < 1;                 // not used yet THIS week
@@ -2395,17 +2429,29 @@ export class NutritionService implements OnModuleInit {
       const diverse = (r: RecipeWithIng) => varied(r) && newWeek(r)
         && count(usedCarb, carbSig(r)) < CARB_CAP
         && count(usedMethod, methodSig(r)) < METHOD_CAP;
-      // Preference order, best → fallback. Each layer degrades gracefully so a
-      // slot is never left empty, ending at the plain rotation as a last resort.
+      // Within each variety tier, take the BEST NUTRITIONAL FIT among the first
+      // dozen candidates — not merely the first hit. Tiers still degrade
+      // gracefully so a slot is never left empty.
+      const bestOf = (pred: (r: RecipeWithIng) => boolean): RecipeWithIng | undefined => {
+        const cands: RecipeWithIng[] = [];
+        for (const r of rot) { if (pred(r)) { cands.push(r); if (cands.length >= 12) break; } }
+        if (!cands.length) return undefined;
+        let best = cands[0], bestS = fitScore(cands[0], slot, dayIndex);
+        for (let i = 1; i < cands.length; i++) {
+          const s = fitScore(cands[i], slot, dayIndex);
+          if (s < bestS) { best = cands[i]; bestS = s; }
+        }
+        return best;
+      };
       const chosen =
-        (prefer ? rot.find((r) => diverse(r) && prefer(r)) : undefined) ??
-        rot.find(diverse) ??
-        (prefer ? rot.find((r) => varied(r) && newWeek(r) && prefer(r)) : undefined) ??
-        rot.find((r) => varied(r) && newWeek(r)) ??
-        (prefer ? rot.find((r) => varied(r) && prefer(r)) : undefined) ??
-        rot.find(varied) ??
-        (prefer ? rot.find((r) => fresh(r) && prefer(r)) : undefined) ??
-        rot.find(fresh) ??
+        (prefer ? bestOf((r) => diverse(r) && prefer(r)) : undefined) ??
+        bestOf(diverse) ??
+        (prefer ? bestOf((r) => varied(r) && newWeek(r) && prefer(r)) : undefined) ??
+        bestOf((r) => varied(r) && newWeek(r)) ??
+        (prefer ? bestOf((r) => varied(r) && prefer(r)) : undefined) ??
+        bestOf(varied) ??
+        (prefer ? bestOf((r) => fresh(r) && prefer(r)) : undefined) ??
+        bestOf(fresh) ??
         rot[0];
       bump(usedRecipe, chosen.id);
       bump(usedProtein, proteinSig(chosen));
@@ -2425,18 +2471,19 @@ export class NutritionService implements OnModuleInit {
         // Non-veg breakfast/snack: prefer a selected animal protein (egg/chicken/
         // fish), falling back to a veg option only if none fits (spec §7). The
         // user's preference is honoured regardless of medical conditions (§21).
+        // Preference nudge for breakfast/snack, but nutrition-fit decides among
+        // the preferred candidates — and when the prescription is protein-capped
+        // (kidney), density fit naturally steers toward lighter dishes.
         const prefer = (slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)
           ? (r: RecipeWithIng) => hasSelectedAnimalProtein(r, allowed)
           : undefined;
-        const r = pick(list, d, prefer);
+        const r = pick(list, d, slot, prefer);
         if (r) picks[d][slot] = r;
       }
     }
 
     // ── target optimization (§targets): solve portions per day, swap when portions
-    // alone can't reach the goals. Plates self-size, other dishes scale 60–180%.
-    const tg = await this.targets(userId);
-    const opts = await this.plateOptsFor(userId);
+    // alone can't reach the goals. Plates self-size; tg/opts already loaded above.
     const portions: Record<number, Record<string, number>> = {};
     for (let d = 0; d < DAYS.length; d++) {
       const daySlots = SLOTS.filter((sl) => picks[d][sl]);
@@ -2475,9 +2522,16 @@ export class NutritionService implements OnModuleInit {
             const isPlate = /india/i.test((picks[d][sl] as RecipeWithIng).country) && (sl === 'l' || sl === 'd');
             if (isPlate) continue;
             const original = picks[d][sl] as RecipeWithIng;
+            // Candidates sorted by nutritional fit to the prescription — the
+            // repair tries the dishes MOST LIKELY to fix the violated band
+            // first, instead of walking the pool in rank order.
             const alternates = (pools[sl] ?? [])
               .filter((r) => r.id !== original.id && count(usedRecipe, r.id) < (sweep === 0 ? 1 : 2))
-              .slice(0, sweep === 0 ? 24 : 40);
+              .slice(0, 160)
+              .map((r) => ({ r, s: fitScore(r, sl, d) }))
+              .sort((a, b) => a.s - b.s)
+              .slice(0, sweep === 0 ? 24 : 40)
+              .map((x) => x.r);
             for (const alt of alternates) {
               picks[d][sl] = alt;
               const tryItems = buildItems();

@@ -197,6 +197,48 @@ function NutrientRow({ label, consumed, target, unit }: { label: string; consume
   );
 }
 
+/** Out-of-balance warning: tells the user plainly when the day over- or
+ *  under-delivers vs their prescription, and what to do about it. */
+function BalanceWarning({ summary, targets }: { summary: DaySummary; targets: NutritionTargets }) {
+  const rows: Array<[string, number, number, number, number]> = [
+    // label, consumed, target, minPct, maxPct
+    ['calories', summary.kcal, targets.kcal, 95, 108],
+    ['protein', summary.protein, targets.protein, 90, 115],
+    ['carbs', summary.carbs, targets.carb, 70, 112],
+    ['fat', summary.fat, targets.fat, 60, 115],
+    ['fibre', summary.fiber, targets.fiber, 70, 999],
+  ];
+  const over: string[] = [], under: string[] = [];
+  for (const [label, consumed, target, minPct, maxPct] of rows) {
+    if (!target) continue;
+    const pct = (consumed / target) * 100;
+    if (pct > maxPct) over.push(`${label} (${Math.round(consumed)} vs ${Math.round(target)} target)`);
+    else if (pct < minPct) under.push(`${label} (${Math.round(consumed)} vs ${Math.round(target)} target)`);
+  }
+  if (!over.length && !under.length) return null;
+  return (
+    <div role="alert" style={{ marginTop: 10, padding: '10px 12px', border: '1.5px solid #e2b3a8', background: '#fdf3f1', borderRadius: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: '#b0503e', marginBottom: 4 }}>
+        ⚠ This day is out of balance — adjust your plan
+      </div>
+      {over.length > 0 && (
+        <p style={{ fontSize: 11.5, margin: '2px 0', color: '#8a4436', lineHeight: 1.5 }}>
+          <b>Too much:</b> {over.join(' · ')}
+        </p>
+      )}
+      {under.length > 0 && (
+        <p style={{ fontSize: 11.5, margin: '2px 0', color: '#8a4436', lineHeight: 1.5 }}>
+          <b>Too little:</b> {under.join(' · ')}
+        </p>
+      )}
+      <p style={{ fontSize: 11.5, margin: '4px 0 0', color: '#8a4436', lineHeight: 1.5 }}>
+        Refresh the heaviest meals or regenerate the week so the planner rebalances the whole day to your targets.
+        {over.some((s) => s.startsWith('protein')) && ' With your protein target medically moderated, prefer lighter-protein dishes when refreshing.'}
+      </p>
+    </div>
+  );
+}
+
 /** Personalized Nutrition Advice — dietary balance advisories (informational, never blocking). */
 function AdviceSection() {
   const advice = useNutritionAdvice();
@@ -235,6 +277,7 @@ export function DailySummary({ day, summary, targets }: { day: string; summary: 
             <NutrientRow label="Carbs" consumed={summary.carbs} target={targets.carb} unit="g" />
             <NutrientRow label="Fat" consumed={summary.fat} target={targets.fat} unit="g" />
             <NutrientRow label="Fibre" consumed={summary.fiber} target={targets.fiber} unit="g" />
+            <BalanceWarning summary={summary} targets={targets} />
             {targets.adjustments && targets.adjustments.length > 0 && (
               <div style={{ marginTop: 10, padding: '8px 10px', background: 'var(--paper)', borderRadius: 10 }}>
                 <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Targets adjusted for you</div>
