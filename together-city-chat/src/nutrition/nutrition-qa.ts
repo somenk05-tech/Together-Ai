@@ -31,6 +31,8 @@ const TABLE: Array<[RegExp, Per100]> = [
   [/ghee|clarified butter/i, { kcal: 900, p: 0, c: 0, f: 100, fb: 0 }],
   [/butter/i, { kcal: 717, p: 0.9, c: 0.1, f: 81, fb: 0 }],
   [/olive oil|sunflower oil|mustard oil|vegetable oil|sesame oil|coconut oil|\boil\b/i, { kcal: 884, p: 0, c: 0, f: 100, fb: 0 }],
+  [/coconut milk|coconut cream/i, { kcal: 197, p: 2, c: 3, f: 20, fb: 0.5 }],
+  [/cashew cream/i, { kcal: 300, p: 5, c: 12, f: 26, fb: 1 }],
   [/cream/i, { kcal: 340, p: 2, c: 3, f: 36, fb: 0 }],
   [/mayonnaise|mayo/i, { kcal: 680, p: 1, c: 1, f: 75, fb: 0 }],
   // dairy & alternatives
@@ -60,15 +62,15 @@ const TABLE: Array<[RegExp, Per100]> = [
   [/basmati|rice|poha|flattened rice|idli|dosa batter|sushi rice/i, { kcal: 350, p: 7, c: 78, f: 0.8, fb: 1.5 }],
   [/quinoa/i, { kcal: 368, p: 14, c: 64, f: 6, fb: 7 }],
   [/oats|oat/i, { kcal: 380, p: 13, c: 67, f: 7, fb: 10 }],
-  [/ragi|finger millet|millet|bajra|jowar|amaranth|rajgira|barley|daliya|semolina|rava|sooji/i, { kcal: 350, p: 10, c: 70, f: 3, fb: 8 }],
+  [/ragi|finger millet|millet|bajra|jowar|amaranth|rajgira|barley|daliya|semolina|rava|sooji|bulgur|couscous|farro/i, { kcal: 350, p: 10, c: 70, f: 3, fb: 8 }],
   [/wheat flour|atta|maida|gram flour|besan|flour/i, { kcal: 350, p: 11, c: 70, f: 2, fb: 8 }],
   [/roti|chapati|paratha|naan|pita|tortilla|bread|toast|bun|sourdough/i, { kcal: 270, p: 9, c: 50, f: 4, fb: 4 }],
-  [/pasta|penne|spaghetti|noodle|macaroni/i, { kcal: 360, p: 12, c: 72, f: 2, fb: 3 }],
+  [/pasta|penne|spaghetti|noodle|macaroni|linguine/i, { kcal: 360, p: 12, c: 72, f: 2, fb: 3 }],
   [/sago|sabudana|tapioca/i, { kcal: 350, p: 0.2, c: 87, f: 0, fb: 0.9 }],
   [/makhana|foxnut/i, { kcal: 350, p: 10, c: 77, f: 0.5, fb: 7.5 }],
   [/granola|muesli|cornflake|cereal/i, { kcal: 420, p: 9, c: 70, f: 12, fb: 6 }],
-  [/potato/i, { kcal: 80, p: 2, c: 17, f: 0.1, fb: 2 }],
   [/sweet potato/i, { kcal: 86, p: 1.6, c: 20, f: 0.1, fb: 3 }],
+  [/potato/i, { kcal: 80, p: 2, c: 17, f: 0.1, fb: 2 }],
   // nuts & seeds
   [/peanut butter/i, { kcal: 590, p: 25, c: 20, f: 50, fb: 6 }],
   [/almond|cashew|walnut|pista|nuts|badam|kaju/i, { kcal: 600, p: 20, c: 20, f: 52, fb: 8 }],
@@ -77,10 +79,10 @@ const TABLE: Array<[RegExp, Per100]> = [
   [/coconut/i, { kcal: 350, p: 3, c: 15, f: 33, fb: 9 }],
   [/avocado/i, { kcal: 160, p: 2, c: 9, f: 15, fb: 7 }],
   // vegetables & greens
-  [/spinach|palak|methi|greens|kale|amaranth leaves|saag|lettuce|cabbage|broccoli|cauliflower/i, { kcal: 30, p: 2.5, c: 4.5, f: 0.4, fb: 2.5 }],
+  [/spinach|palak|methi|greens|kale|amaranth leaves|saag|lettuce|cabbage|broccoli|cauliflower|bok choy|celery|asparagus|leek/i, { kcal: 30, p: 2.5, c: 4.5, f: 0.4, fb: 2.5 }],
   [/tomato/i, { kcal: 18, p: 0.9, c: 3.9, f: 0.2, fb: 1.2 }],
   [/onion/i, { kcal: 40, p: 1.1, c: 9, f: 0.1, fb: 1.7 }],
-  [/carrot|beetroot|pumpkin|gourd|lauki|zucchini|cucumber|capsicum|bell pepper|brinjal|eggplant|okra|bhindi|beans?\b|peas|matar|mixed vegetable|vegetable|veg\b/i, { kcal: 40, p: 1.8, c: 8, f: 0.3, fb: 2.5 }],
+  [/carrot|beetroot|pumpkin|squash|gourd|lauki|zucchini|cucumber|capsicum|bell pepper|brinjal|eggplant|okra|bhindi|beans?\b|peas|matar|mixed vegetable|vegetable|veg\b/i, { kcal: 40, p: 1.8, c: 8, f: 0.3, fb: 2.5 }],
   [/mushroom/i, { kcal: 22, p: 3.1, c: 3.3, f: 0.3, fb: 1 }],
   [/corn|sweetcorn/i, { kcal: 96, p: 3.4, c: 21, f: 1.5, fb: 2.4 }],
   // fruit
@@ -94,7 +96,7 @@ const TABLE: Array<[RegExp, Per100]> = [
   [/tomato sauce|salsa|gravy|curry paste|pesto/i, { kcal: 90, p: 2.5, c: 10, f: 4.5, fb: 1.5 }],
   [/soy sauce|vinegar|lemon|lime|tamarind/i, { kcal: 30, p: 1, c: 6, f: 0, fb: 0.3 }],
   [/salt/i, { kcal: 0, p: 0, c: 0, f: 0, fb: 0 }],
-  [/spice|masala|turmeric|chilli|chili|pepper|cumin|coriander seed|garam|ginger|garlic|herbs?|cilantro|parsley|mint|pudina|curry leaves|tempering/i, { kcal: 60, p: 3, c: 10, f: 1.5, fb: 3 }],
+  [/spice|masala|turmeric|chilli|chili|pepper|cumin|coriander|garam|ginger|garlic|herbs?|cilantro|parsley|mint|pudina|curry leaves|tempering|basil|dill|lemongrass|miso|oregano|thyme|bay/i, { kcal: 60, p: 3, c: 10, f: 1.5, fb: 3 }],
   [/water|ice/i, { kcal: 0, p: 0, c: 0, f: 0, fb: 0 }],
 ];
 
@@ -175,7 +177,7 @@ export function auditRecipe(rec: QaRecipe, tolerancePct = 5): QaResult {
     if (drift * 100 > tolerancePct) issues.push(`ingredient-derived kcal ${Math.round(per)}/serving vs stored ${Math.round(storedPer)} (${Math.round(drift * 100)}% off)`);
     if (storedServings !== servings) issues.push(`servings ${storedServings} → ${servings} (batch of ${Math.round(totalAw)} kcal)`);
     // fibre ceiling is the only clamp needed — macros are real ingredient mass
-    fb = Math.max(0, Math.min(fb, r1((kcal / 1000) * 16), r1(Math.max(c, 0))));
+    fb = Math.max(0, Math.min(fb, r1((kcal / 1000) * 25), r1(Math.max(c, 0))));
   } else {
     // Table can't see enough of the dish — keep stored kcal, normalise macros
     // to it with Atwater and apply the physiological clamps.
@@ -192,7 +194,7 @@ export function auditRecipe(rec: QaRecipe, tolerancePct = 5): QaResult {
     p = Math.min(p, r1((kcal * 0.45) / 4));
     f = Math.min(f, r1((kcal * 0.65) / 9));
     c = Math.max(0, Math.min(c, r1(Math.max(0, kcal - 4 * p - 9 * f) / 4)));
-    fb = Math.max(0, Math.min(fb, r1((kcal / 1000) * 16), r1(Math.max(c, 0))));
+    fb = Math.max(0, Math.min(fb, r1((kcal / 1000) * 25), r1(Math.max(c, 0))));
   }
 
   const changed = Math.abs(kcal - rec.kcal) > 1 || Math.abs(p - rec.protein) > 0.5
