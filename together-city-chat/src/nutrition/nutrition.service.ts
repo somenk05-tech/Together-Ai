@@ -2372,10 +2372,10 @@ export class NutritionService implements OnModuleInit {
     // avoid last week's recipes. Cuisine is left to the % preference bias (a hard
     // cuisine cap would fight an "Indian 70%" preference), so it follows the
     // user's declared distribution.
-    const usedRecipe = new Map<string, number>();
-    const usedProtein = new Map<string, number>();
-    const usedCarb = new Map<string, number>();
-    const usedMethod = new Map<string, number>();
+    let usedRecipe = new Map<string, number>();
+    let usedProtein = new Map<string, number>();
+    let usedCarb = new Map<string, number>();
+    let usedMethod = new Map<string, number>();
     const count = (m: Map<string, number>, k: string) => m.get(k) ?? 0;
     const bump = (m: Map<string, number>, k: string) => m.set(k, count(m, k) + 1);
     const proteinSig = (r: RecipeWithIng) => [...detectProteins(r)].sort().join(',') || r.diet;
@@ -2460,42 +2460,70 @@ export class NutritionService implements OnModuleInit {
       return chosen;
     };
 
+    // ── Dynamic meal structure (spec: the NUMBER of meals is an optimization
+    // outcome, not a fixed design decision). For each day we trial 4-meal
+    // (b/l/s/d), 3-meal (b/l/d) and 2-meal (l/d) structures, pick + portion-
+    // solve each, and keep the structure whose day best satisfies the
+    // prescription. The standard 4-meal day wins ties; fewer meals take over
+    // only when they MEANINGFULLY improve validity — e.g. a kidney-moderated
+    // 66 g protein target that four dishes can't stay under. Very high targets
+    // are covered by larger portions plus the card's split-into-two-servings
+    // guidance (effectively 5–6 eating occasions without new slots).
+    const STRUCTURES: Slot[][] = [
+      [...SLOTS],                                        // 4 meals — standard
+      SLOTS.filter((s) => s !== 's') as Slot[],          // 3 meals — no snack
+      SLOTS.filter((s) => s === 'l' || s === 'd') as Slot[], // 2 meals — lunch + dinner
+    ];
+    const snapMaps = () => [new Map(usedRecipe), new Map(usedProtein), new Map(usedCarb), new Map(usedMethod)] as const;
+    const restoreMaps = (s: readonly [Map<string, number>, Map<string, number>, Map<string, number>, Map<string, number>]) => {
+      usedRecipe = new Map(s[0]); usedProtein = new Map(s[1]); usedCarb = new Map(s[2]); usedMethod = new Map(s[3]);
+    };
+
     const picks: Record<number, Partial<Record<Slot, RecipeWithIng>>> = {};
+    const portions: Record<number, Record<string, number>> = {};
     for (let d = 0; d < DAYS.length; d++) {
-      picks[d] = {};
       const dayVeg = ex.weekly?.[SHORT_DAYS[d]] === 'veg';
       const ranked = dayVeg ? vegRanked : baseRanked;
-      for (const slot of SLOTS) {
+      const pickSlot = (slot: Slot): RecipeWithIng | undefined => {
         const full = ranked[slot];
         const list = modes.length ? full.slice(0, Math.max(6, Math.ceil(full.length / 2))) : full;
-        // Non-veg breakfast/snack: prefer a selected animal protein (egg/chicken/
-        // fish), falling back to a veg option only if none fits (spec §7). The
-        // user's preference is honoured regardless of medical conditions (§21).
         // Preference nudge for breakfast/snack, but nutrition-fit decides among
         // the preferred candidates — and when the prescription is protein-capped
         // (kidney), density fit naturally steers toward lighter dishes.
         const prefer = (slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)
           ? (r: RecipeWithIng) => hasSelectedAnimalProtein(r, allowed)
           : undefined;
-        const r = pick(list, d, slot, prefer);
-        if (r) picks[d][slot] = r;
-      }
-    }
-
-    // ── target optimization (§targets): solve portions per day, swap when portions
-    // alone can't reach the goals. Plates self-size; tg/opts already loaded above.
-    const portions: Record<number, Record<string, number>> = {};
-    for (let d = 0; d < DAYS.length; d++) {
-      const daySlots = SLOTS.filter((sl) => picks[d][sl]);
-      const buildItems = (): DayItemForOpt[] => daySlots.map((sl) => {
+        return pick(list, d, slot, prefer);
+      };
+      const buildItems = (): DayItemForOpt[] => SLOTS.filter((sl) => picks[d][sl]).map((sl) => {
         const r = picks[d][sl] as RecipeWithIng;
         const mealTarget = tg.perMeal[sl as 'b' | 'l' | 's' | 'd']?.kcal;
         const base = this.mealMacros(r as never, sl, d, opts, mealTarget);
         const isPlate = /india/i.test(r.country) && (sl === 'l' || sl === 'd');
         return { slot: sl, ...base, ...(isPlate ? { minPct: 100, maxPct: 100 } : {}) };
       });
+
+      // Trial every structure from the same starting variety state; keep the best.
+      const baseState = snapMaps();
+      type Trial = { picksT: Partial<Record<Slot, RecipeWithIng>>; sol: ReturnType<typeof solveDayPortions>; score: number; state: ReturnType<typeof snapMaps> };
+      let best: Trial | null = null;
+      for (const S of STRUCTURES) {
+        restoreMaps(baseState);
+        const trial: Partial<Record<Slot, RecipeWithIng>> = {};
+        for (const slot of S) { const r = pickSlot(slot); if (r) trial[slot] = r; }
+        picks[d] = trial;
+        const sol = solveDayPortions(buildItems(), tg);
+        const score = sol.deficit * 10 + sol.violation + Math.max(0, sol.worst - 3) * 0.2;
+        // First (standard) structure sets the bar; later, smaller structures
+        // must beat it by a real margin to be worth losing a meal.
+        if (!best || score < best.score - 0.75) best = { picksT: trial, sol, score, state: snapMaps() };
+      }
+      const chosen = best as Trial;
+      restoreMaps(chosen.state);
+      picks[d] = chosen.picksT;
+      const daySlots = SLOTS.filter((sl) => picks[d][sl]);
       let items = buildItems();
-      let sol = solveDayPortions(items, tg);
+      let sol = chosen.sol;
       // Swap stage — portion scaling comes first (solveDayPortions escalates to
       // 300% before we get here); replacement only runs when scaling can't
       // close the gap or the day is still >3% off balance. Acceptance is

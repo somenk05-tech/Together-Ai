@@ -13,6 +13,12 @@ const GRADE_COLOR: Record<string, string> = { A: '#2e7d4f', B: '#5a9e3f', C: '#b
 export function MealCard({ meal, onSwap, onSkip, people = 1, onBack, canGoBack = false }: { meal: Meal; onSwap: () => void; onSkip: () => void; people?: number; onBack?: () => void; canGoBack?: boolean }) {
   const { recipe: r, slot, skipped, plate, portionPct } = meal;
   const tuned = portionPct != null && portionPct !== 100 && !plate;
+  // Single source of truth: r.* arrive PORTION-SCALED from the planner; derive
+  // the base per-plate figures back so the card can show the math explicitly
+  // (matching the recipe page, which always shows base per-plate values).
+  const pf = tuned ? portionPct! / 100 : 1;
+  const baseKcal = Math.round((plate ? plate.totals.kcal : r.kcal) / pf);
+  const pfLabel = pf.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
   const [imgOk, setImgOk] = useState(true);
   const color = DIET_COLOR[r.diet] ?? DIET_COLOR.everything;
   const n = Math.max(1, people);
@@ -57,10 +63,26 @@ export function MealCard({ meal, onSwap, onSkip, people = 1, onBack, canGoBack =
           {tuned && (
             <span title="Portion sized by the planner so your day lands on its calorie & macro targets"
               style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}>
-              ⚖ portion ×{(portionPct! / 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}
+              ⚖ portion ×{pfLabel}
             </span>
           )}
         </div>
+        {tuned && (
+          <p className="muted" style={{ margin: '5px 0 0', fontSize: 11.5 }}>
+            {baseKcal} kcal per plate × {pfLabel} portion = <b style={{ color: 'var(--ink)' }}>{mealKcal} kcal</b>
+            {' '}· recipe page shows per-plate values
+          </p>
+        )}
+        {tuned && pf >= 1.75 && (
+          <p style={{ margin: '5px 0 0', fontSize: 11.5, color: 'var(--accent)', fontWeight: 600 }}>
+            💡 Large portion — easier as two servings: one at {LABEL[slot]?.toLowerCase()}, the second an hour or two later. Same food, same totals.
+          </p>
+        )}
+        {tuned && pf <= 0.65 && (
+          <p className="muted" style={{ margin: '5px 0 0', fontSize: 11.5 }}>
+            💡 Light portion — about {pf <= 0.55 ? 'half' : 'two-thirds'} of a standard plate keeps your day on target.
+          </p>
+        )}
         <p className="muted" style={{ margin: '7px 0 0', fontSize: 12 }}>
           {LABEL[slot]} · {r.country} · {r.minutes} min{r.recipeNo ? ` · No. ${r.recipeNo.toLocaleString('en-IN')}` : ''}
         </p>
