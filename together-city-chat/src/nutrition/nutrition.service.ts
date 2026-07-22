@@ -744,7 +744,17 @@ export function computeTargets(inp: TargetInput) {
   const kcal = Math.max(1400, Math.round(tdee * (1 + adj)));
 
   const refWeight = bmi >= 27 ? Math.round(25 * h * h) : weight;
-  let proteinPerKg = goal === 'gain' ? 2.0 : goal === 'lose' ? 1.8 : 1.6;
+  // Evidence-based protein prescription (g/kg/day):
+  //   healthy adult 0.8 · older adults >65 1.0–1.2 · weight loss 1.2–1.6 ·
+  //   strength/muscle gain 1.6–2.2 · endurance 1.2–1.7 · T2 diabetes 1.0–1.5 ·
+  //   CKD 1–2 0.8–1.0 · CKD 3–5 (no dialysis) 0.55–0.8 · dialysis 1.0–1.2.
+  // The highest applicable indication wins; kidney disease overrides all
+  // (applied below with the other conditions).
+  let proteinPerKg = 0.8;                                                    // healthy adult baseline
+  if (age > 65) proteinPerKg = Math.max(proteinPerKg, 1.1);                  // healthy ageing 1.0–1.2
+  if (goal === 'lose') proteinPerKg = Math.max(proteinPerKg, 1.4);           // weight loss 1.2–1.6
+  if (goal === 'gain') proteinPerKg = Math.max(proteinPerKg, 1.8);           // strength / muscle gain 1.6–2.2
+  if (activity >= 1.8 && goal !== 'gain') proteinPerKg = Math.max(proteinPerKg, 1.4); // endurance 1.2–1.7
   const fatPct = 0.27;
   let fiber = Math.max(25, Math.min(50, Math.round((kcal / 1000) * 14)));
 
@@ -761,19 +771,44 @@ export function computeTargets(inp: TargetInput) {
   let sodiumMaxMg = 2300;
   let potassiumMinMg = 3500;
 
-  if (diabetes) { proteinPerKg = Math.max(proteinPerKg, 1.8); fiber = Math.max(fiber, 35); sugarMaxG = 20; adjustments.push('Diabetes: higher protein & fibre, lower-glycaemic carbs, added sugar ≤20 g'); }
+  if (diabetes) {
+    // T2 diabetes (healthy kidneys): 1.0–1.5 g/kg individualized — floor 1.0,
+    // capped at 1.5 unless a muscle-gain goal justifies more.
+    proteinPerKg = Math.max(proteinPerKg, 1.0);
+    if (goal !== 'gain') proteinPerKg = Math.min(proteinPerKg, 1.5);
+    fiber = Math.max(fiber, 35); sugarMaxG = 20;
+    adjustments.push('Diabetes: protein 1.0–1.5 g/kg, higher fibre, lower-glycaemic carbs, added sugar ≤20 g');
+  }
   if (highChol) { satFatMaxG = Math.round((kcal * 0.06) / 9); fiber = Math.max(fiber, 35); adjustments.push('Raised cholesterol/triglycerides: saturated fat ≤6% kcal, more soluble fibre'); }
-  if (fattyLiver) { proteinPerKg = Math.max(proteinPerKg, 1.8); sugarMaxG = Math.min(sugarMaxG, 20); satFatMaxG = Math.min(satFatMaxG, Math.round((kcal * 0.07) / 9)); adjustments.push('Fatty liver: lean protein up, added sugar & saturated fat down'); }
+  if (fattyLiver) { proteinPerKg = Math.max(proteinPerKg, 1.2); sugarMaxG = Math.min(sugarMaxG, 20); satFatMaxG = Math.min(satFatMaxG, Math.round((kcal * 0.07) / 9)); adjustments.push('Fatty liver: lean protein maintained, added sugar & saturated fat down'); }
   if (hypertension) { sodiumMaxMg = 1500; potassiumMinMg = 4700; adjustments.push('Hypertension: sodium ≤1500 mg, higher potassium (DASH)'); }
-  if (kidney) { proteinPerKg = Math.min(proteinPerKg, 0.8); sodiumMaxMg = Math.min(sodiumMaxMg, 2000); potassiumMinMg = 2000; adjustments.push('Kidney condition noted: protein target moderated to protect kidney function, with sodium & potassium limited — confirm targets with your nephrologist'); }
+  if (kidney) {
+    // Kidney disease OVERRIDES every other protein indication.
+    const dialysis = has('dialysis');
+    const lateStage = has('stage 3', 'stage 4', 'stage 5', 'stage3', 'stage4', 'stage5');
+    if (dialysis) {
+      proteinPerKg = 1.1; // dialysis: 1.0–1.2 g/kg (or higher if advised)
+      adjustments.push('Dialysis: protein 1.0–1.2 g/kg to replace dialysate losses — follow your nephrologist/dietitian if advised higher');
+    } else if (lateStage) {
+      proteinPerKg = 0.7; // CKD stage 3–5, not on dialysis: 0.55–0.8 g/kg
+      adjustments.push('CKD stage 3–5 (no dialysis): protein 0.55–0.8 g/kg — moderated to protect kidney function; confirm with your nephrologist');
+    } else {
+      proteinPerKg = Math.min(proteinPerKg, 0.9); // CKD stage 1–2 / unstaged: 0.8–1.0 g/kg
+      adjustments.push('Kidney condition: protein moderated to ~0.8–1.0 g/kg (higher only if clinically appropriate), sodium & potassium limited — confirm targets with your nephrologist');
+    }
+    sodiumMaxMg = Math.min(sodiumMaxMg, 2000); potassiumMinMg = 2000;
+  }
 
   const protein = Math.round(proteinPerKg * refWeight);
   const fat = Math.round((kcal * fatPct) / 9);
   const carb = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
   const split: Record<'b' | 'l' | 's' | 'd', number> = { b: 0.25, l: 0.32, s: 0.13, d: 0.30 };
+  // Protein is spread EVENLY through the day (muscle protein synthesis +
+  // satiety) rather than back-loaded at dinner — e.g. 120 g → 30/30/20/40.
+  const proteinSplit: Record<'b' | 'l' | 's' | 'd', number> = { b: 0.25, l: 0.25, s: 0.17, d: 0.33 };
   const perMeal = Object.fromEntries(
     (['b', 'l', 's', 'd'] as const).map((slot) => [slot, {
-      kcal: Math.round(kcal * split[slot]), protein: Math.round(protein * split[slot]),
+      kcal: Math.round(kcal * split[slot]), protein: Math.round(protein * proteinSplit[slot]),
       carb: Math.round(carb * split[slot]), fat: Math.round(fat * split[slot]),
     }]),
   );
