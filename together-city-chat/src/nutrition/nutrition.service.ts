@@ -2603,6 +2603,7 @@ export class NutritionService implements OnModuleInit {
    *  forced vegetarian (weekly veg/non-veg rule) on top of the base diet. */
   private rankedPools(
     recipes: RecipeWithIng[], dayDiet: Diet, ex: PrefExtras, modes: ReturnType<typeof planningModes>,
+    preferAnimalProtein = true,
   ): Record<Slot, RecipeWithIng[]> {
     const mix = ex.cuisineMix ?? (ex.cuisines?.length ? Object.fromEntries(ex.cuisines.map((c) => [c, 1])) : {});
     const allowed = allowedProteins(ex);
@@ -2627,7 +2628,7 @@ export class NutritionService implements OnModuleInit {
       // keeps the clinical + cuisine order intact within each group. We honour
       // the user's food preference even with a medical condition (§21): the plan
       // follows their choice; medical guidance is shown as advice, not enforced.
-      if ((slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)) {
+      if (preferAnimalProtein && (slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)) {
         const withP = ordered.filter((r) => hasSelectedAnimalProtein(r, allowed));
         const without = ordered.filter((r) => !hasSelectedAnimalProtein(r, allowed));
         ordered = [...withP, ...without];
@@ -2681,9 +2682,23 @@ export class NutritionService implements OnModuleInit {
       conditions: ex.healthConditions ?? [], flags: bloodFlags as Record<string, string>,
       age: pref?.age ?? 30, sex: pref?.sex ?? 'male',
     });
-    const baseRanked = this.rankedPools(recipes, diet, ex, modes);
+    // Targets drive selection, so compute them BEFORE ranking the pools. The
+    // protein DENSITY target (g per kcal) decides whether this is a genuinely
+    // high-protein prescription. Only then do we let breakfast/snack lean into
+    // animal-protein dishes; a modest-protein plan (the common case, and the
+    // one that used to "spill" past 100 %) must NOT be pushed toward dense
+    // protein foods it can't stay under.
+    const tg = await this.targets(userId);
+    const opts = await this.plateOptsFor(userId);
+    const proteinDensityTarget = tg.protein / Math.max(1, tg.kcal);
+    const proteinCapped = isProteinRestricted(ex);
+    // High-protein prescription ≈ ≥0.04 g/kcal (~103 g at 2,573 kcal). Below
+    // that, protein is the binding ceiling, so we suppress every protein-seeking
+    // heuristic and hard-cap per-dish protein density instead.
+    const preferAnimalProtein = !proteinCapped && proteinDensityTarget >= 0.04;
+    const baseRanked = this.rankedPools(recipes, diet, ex, modes, preferAnimalProtein);
     // Some days can be forced vegetarian by the weekly rule — precompute a veg pool.
-    const vegRanked = this.rankedPools(recipes, 'veg', ex, modes);
+    const vegRanked = this.rankedPools(recipes, 'veg', ex, modes, preferAnimalProtein);
 
     const offset = Math.floor(Math.random() * 6);
     const key = 'wk_' + this.rand(8);
@@ -2716,8 +2731,6 @@ export class NutritionService implements OnModuleInit {
     // is weighted hardest — it's the axis condition-moderated targets (kidney)
     // and goals live on. Lower score = better fit. A small bonus rewards
     // micronutrient-rich ingredient profiles so RDAs fill up by construction.
-    const tg = await this.targets(userId);
-    const opts = await this.plateOptsFor(userId);
     const tD = {
       protein: tg.protein / Math.max(1, tg.kcal), carb: tg.carb / Math.max(1, tg.kcal),
       fat: tg.fat / Math.max(1, tg.kcal), fiber: tg.fiber / Math.max(1, tg.kcal),
@@ -2735,7 +2748,12 @@ export class NutritionService implements OnModuleInit {
       const mealKcal = tg.perMeal[slot as 'b' | 'l' | 's' | 'd']?.kcal ?? tg.kcal / 4;
       const n = this.mealMacros(r as never, slot, dayIndex, opts, mealKcal);
       const k = Math.max(1, n.kcal);
-      return 3.0 * Math.abs(n.protein / k - tD.protein) / Math.max(0.005, tD.protein)
+      // Protein is ASYMMETRIC: weekly protein must stay ≤100 %, so a dish that
+      // is denser than the target is far worse than one that is lighter. Over-
+      // target density is penalised ~3× harder than under — this is what stops
+      // the optimiser from ever "spilling" protein past the prescription.
+      const pDev = (n.protein / k - tD.protein) / Math.max(0.005, tD.protein);
+      return 3.0 * (pDev > 0 ? pDev * 3 : -pDev)
         + 1.0 * Math.abs(n.carbs / k - tD.carb) / Math.max(0.01, tD.carb)
         + 1.0 * Math.abs(n.fat / k - tD.fat) / Math.max(0.01, tD.fat)
         + 0.6 * Math.max(0, tD.fiber - n.fiber / k) / Math.max(0.002, tD.fiber)   // fibre: only shortfall hurts
@@ -2810,7 +2828,6 @@ export class NutritionService implements OnModuleInit {
     // aims at its share of the REMAINING weekly budget, so the caps are
     // enforced arithmetically as the week is composed — then a final week
     // validation gate rejects and regenerates if anything still escapes.
-    const proteinCapped = isProteinRestricted(ex);
     const initState = snapMaps();
     const composeWeek = (weekShift: number) => {
       restoreMaps(initState);
@@ -2823,14 +2840,30 @@ export class NutritionService implements OnModuleInit {
       const ranked = dayVeg ? vegRanked : baseRanked;
       const pickSlot = (slot: Slot, rotShift = 0): RecipeWithIng | undefined => {
         const full = ranked[slot];
-        const list = modes.length ? full.slice(0, Math.max(6, Math.ceil(full.length / 2))) : full;
-        // Preference nudge for breakfast/snack, but nutrition-fit decides among
-        // the preferred candidates — and when the prescription is protein-capped
-        // (kidney), density fit naturally steers toward lighter dishes.
-        const prefer = (slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)
+        const sliced = modes.length ? full.slice(0, Math.max(6, Math.ceil(full.length / 2))) : full;
+        // HARD protein-density ceiling: no dish denser than ~1.5× the target
+        // protein density may even enter the candidate set (portioning can't
+        // lower a dish's density, so an over-dense dish spills protein at ANY
+        // serving size). Relax the cap only if the slot would go under-stocked,
+        // and never for a genuinely high-protein prescription (cap is high there).
+        const densityCap = Math.max(proteinDensityTarget * 1.5, 0.03);
+        const rDensity = (r: RecipeWithIng): number => {
+          const m = r as unknown as { protein?: number; kcal?: number };
+          return (m.protein ?? 0) / Math.max(1, m.kcal ?? 1);
+        };
+        const capped = (() => {
+          for (let t = 0, f = 1; t < 6; t++, f *= 1.3) {
+            const kept = sliced.filter((r) => rDensity(r) <= densityCap * f);
+            if (kept.length >= 10) return kept;
+          }
+          return sliced;
+        })();
+        // Preference nudge for breakfast/snack — ONLY when the prescription
+        // genuinely wants dense protein; suppressed otherwise so it can't spill.
+        const prefer = preferAnimalProtein && (slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)
           ? (r: RecipeWithIng) => hasSelectedAnimalProtein(r, allowed)
           : undefined;
-        return pick(list, d + rotShift + weekShift, slot, prefer);
+        return pick(capped, d + rotShift + weekShift, slot, prefer);
       };
       // Evaluate a candidate set of picks: quantized solve (½–1½ plates) with
       // shared plate budgets, then complement fill, then the HARD gate. Score
