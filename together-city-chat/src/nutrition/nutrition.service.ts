@@ -3016,22 +3016,23 @@ export class NutritionService implements OnModuleInit {
     return meals.map((m) => {
       const indian = /india/i.test(m.recipe.country);
       const isPlate = (m.slot === 'l' || m.slot === 'd') && indian;
-      // ONE STANDARD SERVING everywhere — portion factors are retired; every
-      // dish contributes exactly its per-plate values (recipe page = card = sum).
+      // Portion-aware: plate budgets must see the PORTIONED contribution of
+      // the fixed dishes, or the plates absorb a phantom remainder.
+      const pf = ((m.portionPct ?? 100) as number) / 100;
       return {
         slot: m.slot as DayMealInput['slot'],
         skipped: m.skipped,
         isPlate,
-        fixedKcal: isPlate ? 0 : this.recipeShape(m.recipe as unknown as Parameters<NutritionService['recipeShape']>[0]).kcal,
+        fixedKcal: isPlate ? 0 : this.recipeShape(m.recipe as unknown as Parameters<NutritionService['recipeShape']>[0]).kcal * pf,
       };
     });
   }
 
-  /** ONE STANDARD SERVING per meal card — no portion multipliers anywhere.
-   *  Energy/protein gaps are closed by complement foods or recipe swaps, never
-   *  by scaling a dish (spec: the recipe page and the meal card must show the
-   *  IDENTICAL per-plate values). */
-  private static readonly QSOLVE: SolveOpts = { steps: [100], defaultMax: 100 };
+  /** Dietitian portion control: servings quantized to ½ / ¾ / 1 / 1¼ / 1½
+   *  plates. The card shows the PORTIONED values (what you eat) plus the
+   *  serving size; the recipe page shows per-full-plate values. Every consumer
+   *  counts the same portioned numbers, so totals always reconcile. */
+  private static readonly QSOLVE: SolveOpts = { steps: [50, 75, 100, 125, 150], defaultMax: 150 };
 
   /**
    * THE one day-measurement everyone shares (generator, repair, rebalance,
@@ -3421,7 +3422,7 @@ export class NutritionService implements OnModuleInit {
 
   /** Shared per-day totals (dishes + add-ons) — the same numbers the cards show. */
   private dayTotalsCore(
-    meals: Array<{ slot: string; skipped: boolean; recipe: unknown; addonsJson?: string | null }>,
+    meals: Array<{ slot: string; skipped: boolean; portionPct?: number | null; recipe: unknown; addonsJson?: string | null }>,
     dayIndex: number,
     tg: Awaited<ReturnType<NutritionService['targets']>>,
     opts: PlateOpts,
@@ -3432,7 +3433,8 @@ export class NutritionService implements OnModuleInit {
       if (m.skipped) continue;
       const mealTarget = dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal;
       const n = this.mealMacros(m.recipe as never, m.slot, dayIndex, opts, mealTarget);
-      kcal += n.kcal; protein += n.protein; carbs += n.carbs; fat += n.fat; fiber += n.fiber;
+      const pf = ((m.portionPct ?? 100) as number) / 100;  // portioned = what's eaten
+      kcal += n.kcal * pf; protein += n.protein * pf; carbs += n.carbs * pf; fat += n.fat * pf; fiber += n.fiber * pf;
     }
     const addonPicks: AddonPick[] = meals.filter((m) => !m.skipped).flatMap((m) => {
       try { return JSON.parse((m.addonsJson) ?? '[]') as AddonPick[]; } catch { return []; }
@@ -3516,8 +3518,8 @@ export class NutritionService implements OnModuleInit {
       // Aggregate the SAME plate/dish the card shows — the single source of truth.
       const mealTarget = dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal;
       const n = this.mealMacros(m.recipe as unknown as RecipeWithIng & { kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number }, m.slot, dayIndex, opts, mealTarget);
-      // ONE STANDARD SERVING — exactly what the card and recipe page show.
-      kcal += n.kcal; protein += n.protein; carbs += n.carbs; fat += n.fat; fiber += n.fiber;
+      const pf = ((m as { portionPct?: number }).portionPct ?? 100) / 100;  // portioned = what the card shows
+      kcal += n.kcal * pf; protein += n.protein * pf; carbs += n.carbs * pf; fat += n.fat * pf; fiber += n.fiber * pf;
       const s = recipeServings(m.recipe);
       const ing = m.recipe.ingredients.reduce((sum, i) => sum + i.priceInr, 0);
       cost += ing > 0 ? Math.round(ing / s) : Math.round((m.recipe.kcal / s) * 0.11);
@@ -3543,7 +3545,7 @@ export class NutritionService implements OnModuleInit {
       recipeName: m.recipe.name,
       ingredients: m.recipe.ingredients,
       servings: recipeServings(m.recipe),
-      portionFactor: 1,
+      portionFactor: ((m as { portionPct?: number }).portionPct ?? 100) / 100,
     }));
     // Add-ons contribute micros too (their keywords feed the same estimator).
     if (addonPicks.length) {
@@ -4701,10 +4703,20 @@ export class NutritionService implements OnModuleInit {
                 recipeId: c.role === 'main' ? m.recipe.id : this.matchComponentRecipe(nameIdx, c.name),
               })),
             } : undefined;
-            // ONE STANDARD SERVING — the card carries the recipe's per-plate
-            // values verbatim (identical to the recipe detail page). Any legacy
-            // portionPct is ignored; extra energy rides in the add-ons list.
-            const scaled = recipe;
+            // The card carries the PORTIONED values (what this meal actually
+            // contributes); the serving size is shown alongside, and the recipe
+            // page keeps per-full-plate values.
+            const pct = (m as { portionPct?: number }).portionPct ?? 100;
+            const pf = pct / 100;
+            const scaled = pct === 100 ? recipe : {
+              ...recipe,
+              kcal: Math.round(recipe.kcal * pf),
+              protein: Math.round(recipe.protein * pf),
+              carbs: Math.round(recipe.carbs * pf),
+              fat: Math.round(recipe.fat * pf),
+              fiber: Math.round(recipe.fiber * pf),
+              gramsPerServing: Math.round((recipe.gramsPerServing ?? 0) * pf),
+            };
             // Complement foods on this plate (whole units, dietitian-style).
             let addons: Array<{ key: string; units: number; label: string; kcal: number }> = [];
             try {
@@ -4718,7 +4730,7 @@ export class NutritionService implements OnModuleInit {
               slot: m.slot,
               recipe: scaled,
               skipped: m.skipped,
-              portionPct: 100,
+              portionPct: pct,
               addons,
               sides: { rice: m.sidesRice, roti: m.sidesRoti, curd: m.sidesCurd, salad: m.sidesSalad },
               plate,
