@@ -1,5 +1,5 @@
 import { http as api } from '@/api/client';
-import type { WeekPlan, WeekSummary, DaySummary, NutritionTargets, NutritionAdvisory, Sides, Recipe, NutritionHistoryWeek } from './types';
+import type { WeekPlan, WeekSummary, DaySummary, NutritionTargets, NutritionAdvisory, MedRecCard, Sides, Recipe, NutritionHistoryWeek } from './types';
 
 /** Nutrition endpoints on the NestJS backend (no engine logic duplicated client-side). */
 export const nutritionApi = {
@@ -46,6 +46,9 @@ export const nutritionApi = {
     api.post<{ repaired: boolean; valid: boolean }>(`/nutrition/plan/${planKey}/day/${dayIndex}/rebalance`, {}).then((r) => r.data),
   targets: () => api.get<NutritionTargets>('/nutrition/targets').then((r) => r.data),
   advice: () => api.get<NutritionAdvisory[]>('/nutrition/advice').then((r) => r.data),
+  medicalRecs: () => api.get<{ cards: MedRecCard[] }>('/nutrition/medical-recs').then((r) => r.data),
+  decideMedicalRec: (condition: string, choice: 'apply' | 'keep') =>
+    api.post<{ ok: boolean; choice: string; message: string }>('/nutrition/medical-recs/decide', { condition, choice }).then((r) => r.data),
   swapMeal: (planKey: string, dayIndex: number, slot: string, restoreRecipeId?: string) =>
     api.post<WeekPlan>(`/nutrition/plan/${planKey}/day/${dayIndex}/swap`, restoreRecipeId ? { slot, restoreRecipeId } : { slot }).then((r) => r.data),
   skipMeal: (planKey: string, dayIndex: number, slot: string, skipped: boolean) =>

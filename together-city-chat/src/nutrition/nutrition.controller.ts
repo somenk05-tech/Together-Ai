@@ -4,6 +4,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
+import { z } from 'zod';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { NutritionService } from './nutrition.service';
 import {
@@ -41,6 +42,21 @@ export class NutritionController {
   @Get('qa/report')
   qaReport() {
     return this.nutrition.qaReportView();
+  }
+
+  /** Medical Nutrition Recommendations — condition guidelines vs the user's preferences. */
+  @Get('medical-recs')
+  medicalRecs(@CurrentUser() user: JwtUser) {
+    return this.nutrition.medicalRecs(user.sub);
+  }
+
+  @Post('medical-recs/decide')
+  @UsePipes(new ZodValidationPipe(z.object({
+    condition: z.string().min(1).max(40),
+    choice: z.enum(['apply', 'keep']),
+  })))
+  decideMedicalRec(@CurrentUser() user: JwtUser, @Body() dto: { condition: string; choice: 'apply' | 'keep' }) {
+    return this.nutrition.decideMedicalRec(user.sub, dto.condition, dto.choice);
   }
 
   @Get('preferences')

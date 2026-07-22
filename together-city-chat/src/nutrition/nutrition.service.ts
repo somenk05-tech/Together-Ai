@@ -18,6 +18,7 @@ import { estimateDayMicros, type DayMealForMicros } from './micros-engine';
 import { assignDietPlans, dietPlanBias, planLabel, DIET_PLAN_CATALOG } from './diet-plans';
 import { addonLabel, addonMacros, complementByKey, fillGapWithComplements, type AddonPick } from './complements';
 import { auditRecipe, type QaRecipe } from './nutrition-qa';
+import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOTS: Slot[] = ['b', 'l', 's', 'd'];
@@ -1281,6 +1282,68 @@ export class NutritionService implements OnModuleInit {
       sex: pref?.sex ?? null,
       activity: pref?.activity ?? 1.4,
       extras: (pref as { extras?: string | null } | null)?.extras ?? null,
+    };
+  }
+
+  // ─────────────── medical nutrition recommendations ───────────────
+  /**
+   * Active Medical Nutrition Recommendation cards: blood test → condition
+   * guidelines → compared against the user's SELECTED preferences → personalised
+   * suggestions + honest before/after quality score. Cards the user has already
+   * decided on (applied or kept) stay hidden — no nagging.
+   */
+  async medicalRecs(userId: string) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const flags = flagsFor(await this.bloodValues(userId)) as Record<string, string>;
+    const prefs: MedPrefs = {
+      diet: (pref?.diet ?? 'everything'),
+      proteins: ex.proteins ?? [],
+      weekly: (ex.weekly ?? {}) as Record<string, 'veg' | 'nonveg'>,
+      healthConditions: ex.healthConditions ?? [],
+      excluded: ex.excluded ?? '',
+    };
+    const cards = buildMedicalRecs(prefs, flags);
+    const decided = ((ex as { medRecChoices?: Record<string, string> }).medRecChoices) ?? {};
+    return {
+      cards: cards.filter((c) => !decided[c.condition]),
+      decided,
+    };
+  }
+
+  /** One-tap Apply / Keep for a recommendation card. Apply patches the stored
+   *  preferences; both record the choice so the card never nags again. */
+  async decideMedicalRec(userId: string, condition: string, choice: 'apply' | 'keep') {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    if (!pref) throw new NotFoundException('preferences not found');
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras) as Record<string, unknown>;
+    const flags = flagsFor(await this.bloodValues(userId)) as Record<string, string>;
+    const prefs: MedPrefs = {
+      diet: (pref.diet ?? 'everything'),
+      proteins: (ex.proteins as string[]) ?? [],
+      weekly: ((ex.weekly as Record<string, 'veg' | 'nonveg'>) ?? {}),
+      healthConditions: (ex.healthConditions as string[]) ?? [],
+      excluded: (ex.excluded as string) ?? '',
+    };
+    const card = buildMedicalRecs(prefs, flags).find((c) => c.condition === condition);
+    if (choice === 'apply' && card) {
+      const next = applyPatch(prefs, card.patch);
+      ex.proteins = next.proteins;
+      ex.weekly = next.weekly;
+    }
+    const choices = ((ex.medRecChoices as Record<string, string>) ?? {});
+    choices[condition] = choice === 'apply' ? 'applied' : 'kept';
+    ex.medRecChoices = choices;
+    await this.prisma.foodPref.update({
+      where: { userId },
+      data: { extras: JSON.stringify(ex) } as never,
+    });
+    return {
+      ok: true,
+      choice,
+      message: choice === 'apply'
+        ? 'Preferences updated — regenerate your week to apply the kidney-friendlier plan.'
+        : "We'll respect your choices and create the best possible meal plan within your selected preferences. Some recommendations may be less effective because of these constraints.",
     };
   }
 

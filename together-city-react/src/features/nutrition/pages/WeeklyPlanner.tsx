@@ -4,6 +4,7 @@ import { PageHeader, Button, Spinner, EmptyState } from '@/components/ui';
 import { DayTabs } from '../components/DayTabs';
 import { MealCard } from '../components/MealCard';
 import { DailySummary } from '../components/DailySummary';
+import { MedicalRecs } from '../components/MedicalRecs';
 import { PlanGuidanceBanner } from '../components/PlanGuidanceBanner';
 import { MedicalAdvisories } from '../components/MedicalAdvisories';
 import { ProfileIncomplete } from '../components/ProfileIncomplete';
@@ -114,6 +115,7 @@ export function WeeklyPlanner() {
         title="Weekly Meal Planner 🌿"
         sub={week.weekLabel ? `${onCurrentWeek ? 'This week' : 'Saved week'} · Week ${week.weekNumber} · ${week.weekLabel}` : 'Personalised meals from the Together City world database.'} />
       <PlanGuidanceBanner guidance={(week as unknown as { guidance?: import('../types').PlanGuidance }).guidance} />
+      <MedicalRecs />
       <MedicalAdvisories advisories={week.advisories} healthScore={week.healthScore} />
 
       {weeksQ.data && weeksQ.data.length > 0 && (

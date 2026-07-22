@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader, Button, Spinner, EmptyState } from '@/components/ui';
 import { MealCard } from '../components/MealCard';
 import { DailySummary } from '../components/DailySummary';
+import { MedicalRecs } from '../components/MedicalRecs';
 import { PlanGuidanceBanner } from '../components/PlanGuidanceBanner';
 import { ProfileIncomplete } from '../components/ProfileIncomplete';
 import { useDailyPlan, useNutritionTargets, useDaySummary, useBuildCart, syncPlanCaches } from '../hooks';
@@ -62,6 +63,7 @@ export function Daily() {
       <PageHeader eyebrow="Nutrition Hub · 04"
         title={`Today's plate — ${day.day} 🍽️`}
         sub="Your day, sliced live from the weekly plan. Swap anything; the groceries and macros follow." />
+      <MedicalRecs />
       <PlanGuidanceBanner guidance={(plan.data as unknown as { guidance?: import('../types').PlanGuidance }).guidance} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '2.3fr 1fr', gap: 28, alignItems: 'start' }} className="tc-dashgrid">

@@ -137,5 +137,12 @@ export interface MicroIntake {
 /** Personalized Nutrition Advice item (dietary balance advisory). */
 export interface NutritionAdvisory { key: string; title: string; body: string }
 
+/** Medical Nutrition Recommendation card (condition guidelines vs preferences). */
+export interface MedRecCard {
+  condition: string; icon: string; title: string; intro: string;
+  recs: Array<{ key: string; label: string; reason: string; applyable: boolean }>;
+  scoreBefore: number; scoreAfter: number;
+}
+
 /** A complement food added to a meal's plate (whole units — egg, curd, fruit…). */
 export interface MealAddon { key: string; units: number; label: string; kcal: number }

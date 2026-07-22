@@ -66,6 +66,24 @@ export function useNutritionTargets() {
   return useQuery({ queryKey: ['nutrition', 'targets'], queryFn: () => nutritionApi.targets() });
 }
 
+/** Medical Nutrition Recommendations — shown above the meal plan. */
+export function useMedicalRecs() {
+  return useQuery({ queryKey: ['nutrition', 'medical-recs'], queryFn: () => nutritionApi.medicalRecs() });
+}
+export function useDecideMedicalRec() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { condition: string; choice: 'apply' | 'keep' }) => nutritionApi.decideMedicalRec(v.condition, v.choice),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['nutrition', 'medical-recs'] });
+      qc.invalidateQueries({ queryKey: ['nutrition', 'preferences'] });
+      qc.invalidateQueries({ queryKey: ['nutrition', 'weekly'] });
+      qc.invalidateQueries({ queryKey: ['nutrition', 'targets'] });
+      qc.invalidateQueries({ queryKey: ['nutrition', 'advice'] });
+    },
+  });
+}
+
 /** Personalized Nutrition Advice — dietary-balance advisories for the overview. */
 export function useNutritionAdvice() {
   return useQuery({ queryKey: ['nutrition', 'advice'], queryFn: () => nutritionApi.advice() });
