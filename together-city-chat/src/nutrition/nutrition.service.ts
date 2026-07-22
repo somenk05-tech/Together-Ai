@@ -15,6 +15,7 @@ import {
 import type { BloodInputDto, Diet, FoodPrefDto, PlanMode, Slot } from './dto/nutrition.dto';
 import { assemblePlate, perMealTargets, type PlateOpts, type DayMealInput } from './plate';
 import { estimateDayMicros, type DayMealForMicros } from './micros-engine';
+import { assignDietPlans, dietPlanBias, planLabel, DIET_PLAN_CATALOG } from './diet-plans';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOTS: Slot[] = ['b', 'l', 's', 'd'];
@@ -1151,6 +1152,22 @@ export class NutritionService implements OnModuleInit {
   }
 
   // ─────────────── dietary balance & nutrition advisory ───────────────
+  /** The backend-assigned diet plans for this user (read-only; auto-updates
+   *  with profile/blood changes). */
+  async dietPlans(userId: string) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const flags = flagsFor(await this.bloodValues(userId));
+    const assigned = assignDietPlans({
+      conditions: ex.healthConditions ?? [], flags: flags as Record<string, string>,
+      goal: pref?.goal ?? 'maintain', diet: (pref?.diet ?? 'everything') as Diet, age: pref?.age ?? 30,
+    });
+    return {
+      assigned: assigned.map((k) => DIET_PLAN_CATALOG.find((p) => p.key === k)).filter(Boolean),
+      note: 'Assigned automatically from your profile, conditions, blood tests and goals — personalization always takes priority over any single named plan.',
+    };
+  }
+
   /**
    * Personalized Nutrition Advice: friendly, evidence-based advisories that
    * flag where the user's CHOSEN diet pattern may need attention — informational,
@@ -1164,6 +1181,18 @@ export class NutritionService implements OnModuleInit {
     const flags = flagsFor(await this.bloodValues(userId));
     const tg = await this.targets(userId);
     const out: Array<{ key: string; title: string; body: string }> = [];
+
+    // Backend-assigned diet pattern (Diet Plan Guide) — shown read-only, first.
+    const assigned = assignDietPlans({
+      conditions: ex.healthConditions ?? [], flags: flags as Record<string, string>,
+      goal: pref?.goal ?? 'maintain', diet, age: pref?.age ?? 30,
+    });
+    if (assigned.length) {
+      out.push({
+        key: 'diet-plans', title: 'Your diet pattern — assigned for you',
+        body: `Based on your medical conditions, blood tests, goals and preferences, your meal plans follow ${assigned.map(planLabel).join(' + ')} principles. This is decided automatically and updates whenever your profile or blood results change — nothing to configure.`,
+      });
+    }
 
     const proteins = (ex.proteins ?? []).map((p) => p.toLowerCase());
     const plantSources = ['paneer', 'tofu', 'legumes'];
@@ -2356,7 +2385,14 @@ export class NutritionService implements OnModuleInit {
     const recipes = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true, priceInr: true } } } })) as unknown as RecipeWithIng[];
 
     // Condition-aware selection: blood flags + goal switch on planning modes.
-    const modes = planningModes(flagsFor(await this.bloodValues(userId)), pref?.goal ?? 'maintain');
+    const bloodFlags = flagsFor(await this.bloodValues(userId));
+    const modes = planningModes(bloodFlags, pref?.goal ?? 'maintain');
+    // Backend-assigned diet plans (Diet Plan Guide): decided from the profile,
+    // never picked by the user; they bias recipe selection below.
+    const dietPlans = assignDietPlans({
+      conditions: ex.healthConditions ?? [], flags: bloodFlags as Record<string, string>,
+      goal: pref?.goal ?? 'maintain', diet, age: pref?.age ?? 30,
+    });
     const baseRanked = this.rankedPools(recipes, diet, ex, modes);
     // Some days can be forced vegetarian by the weekly rule — precompute a veg pool.
     const vegRanked = this.rankedPools(recipes, 'veg', ex, modes);
@@ -2416,7 +2452,8 @@ export class NutritionService implements OnModuleInit {
         + 1.0 * Math.abs(n.fat / k - tD.fat) / Math.max(0.01, tD.fat)
         + 0.6 * Math.max(0, tD.fiber - n.fiber / k) / Math.max(0.002, tD.fiber)   // fibre: only shortfall hurts
         + 0.4 * Math.abs(n.kcal - mealKcal) / Math.max(1, mealKcal)               // portionable near its slot budget
-        - 0.03 * microRichness(r);                                                // micro-dense food fills RDAs by default
+        - 0.03 * microRichness(r)                                                 // micro-dense food fills RDAs by default
+        + dietPlanBias(dietPlans, r, { protein: n.protein / k, fiber: n.fiber / k }); // assigned-plan nudge (±0.5 max)
     };
     const pick = (pool: RecipeWithIng[], dayIndex: number, slot: Slot, prefer?: (r: RecipeWithIng) => boolean): RecipeWithIng | undefined => {
       if (!pool.length) return undefined;
@@ -2749,6 +2786,10 @@ export class NutritionService implements OnModuleInit {
         protein: tg.protein / Math.max(1, tg.kcal), carb: tg.carb / Math.max(1, tg.kcal),
         fat: tg.fat / Math.max(1, tg.kcal), fiber: tg.fiber / Math.max(1, tg.kcal),
       };
+      const repairPlans = assignDietPlans({
+        conditions: ex.healthConditions ?? [], flags: flagsFor(await this.bloodValues(userId)) as Record<string, string>,
+        goal: pref?.goal ?? 'maintain', diet, age: pref?.age ?? 30,
+      });
       const fit = (r: RecipeWithIng, sl: string): number => {
         const mealKcal = tg.perMeal[sl as 'b' | 'l' | 's' | 'd']?.kcal ?? tg.kcal / 4;
         const n = this.mealMacros(r as never, sl, dayIndex, opts, mealKcal);
@@ -2756,7 +2797,8 @@ export class NutritionService implements OnModuleInit {
         return 3.0 * Math.abs(n.protein / k - tD.protein) / Math.max(0.005, tD.protein)
           + 1.0 * Math.abs(n.carbs / k - tD.carb) / Math.max(0.01, tD.carb)
           + 1.0 * Math.abs(n.fat / k - tD.fat) / Math.max(0.01, tD.fat)
-          + 0.4 * Math.abs(n.kcal - mealKcal) / Math.max(1, mealKcal);
+          + 0.4 * Math.abs(n.kcal - mealKcal) / Math.max(1, mealKcal)
+          + dietPlanBias(repairPlans, r, { protein: n.protein / k, fiber: n.fiber / k });
       };
       const inUse = () => new Set([...picks.values()].map((r) => r.id));
       for (let sweep = 0; sweep < 2 && !valid(); sweep++) {

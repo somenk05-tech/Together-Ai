@@ -31,6 +31,12 @@ export class NutritionController {
     return this.nutrition.advisories(user.sub);
   }
 
+  /** Backend-assigned diet plans (read-only; decided from the profile). */
+  @Get('diet-plans')
+  dietPlans(@CurrentUser() user: JwtUser) {
+    return this.nutrition.dietPlans(user.sub);
+  }
+
   @Get('preferences')
   prefs(@CurrentUser() user: JwtUser) {
     return this.nutrition.foodPref(user.sub);
