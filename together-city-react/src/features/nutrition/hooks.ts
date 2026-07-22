@@ -143,6 +143,20 @@ export function useRespondHouseholdInvite() {
   });
 }
 
+/** Auto-repair a saved day in place (swaps + portions) so it meets the
+ *  prescription — invalidates the day summary and both plan views. */
+export function useRepairDay() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { planKey: string; dayIndex: number }) => nutritionApi.repairDay(v.planKey, v.dayIndex),
+    onSuccess: (_r, v) => {
+      qc.invalidateQueries({ queryKey: ['nutrition', 'summary', v.planKey, v.dayIndex] });
+      qc.invalidateQueries({ queryKey: ['nutrition', 'weekly'] });
+      qc.invalidateQueries({ queryKey: ['nutrition', 'daily'] });
+    },
+  });
+}
+
 export function useDaySummary(planKey: string | undefined, dayIndex: number) {
   return useQuery({
     queryKey: ['nutrition', 'summary', planKey, dayIndex],

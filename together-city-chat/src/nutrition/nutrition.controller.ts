@@ -212,6 +212,13 @@ export class NutritionController {
     return this.nutrition.daySummary(user.sub, key, idx);
   }
 
+  /** Auto-repair: swap dishes + re-solve portions so the saved day meets its
+   *  tolerance bands — the app fixes the plan, never the user. */
+  @Post('plan/:key/day/:idx/rebalance')
+  repairDay(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number) {
+    return this.nutrition.repairDay(user.sub, key, idx);
+  }
+
   @Post('plan/:key/day/:idx/swap')
   @UsePipes(new ZodValidationPipe(SwapSchema))
   swap(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SwapDto) {

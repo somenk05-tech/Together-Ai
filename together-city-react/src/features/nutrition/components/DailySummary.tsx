@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { DaySummary, NutritionTargets, MicroIntake } from '../types';
-import { useNutritionAdvice } from '../hooks';
+import { useNutritionAdvice, useRepairDay } from '../hooks';
 
 /* Legacy fallback labels when the backend hasn't sent rich micros yet. */
 const MICRO_LABELS: Array<[string, string]> = [
@@ -197,43 +197,67 @@ function NutrientRow({ label, consumed, target, unit }: { label: string; consume
   );
 }
 
-/** Out-of-balance warning: tells the user plainly when the day over- or
- *  under-delivers vs their prescription, and what to do about it. */
-function BalanceWarning({ summary, targets }: { summary: DaySummary; targets: NutritionTargets }) {
-  const rows: Array<[string, number, number, number, number]> = [
-    // label, consumed, target, minPct, maxPct
-    ['calories', summary.kcal, targets.kcal, 95, 108],
-    ['protein', summary.protein, targets.protein, 90, 115],
-    ['carbs', summary.carbs, targets.carb, 70, 112],
-    ['fat', summary.fat, targets.fat, 60, 115],
-    ['fibre', summary.fiber, targets.fiber, 70, 999],
-  ];
+const BANDS: Array<[string, (s: DaySummary) => number, (t: NutritionTargets) => number, number, number]> = [
+  // label, consumed, target, minPct, maxPct
+  ['calories', (s) => s.kcal, (t) => t.kcal, 95, 108],
+  ['protein', (s) => s.protein, (t) => t.protein, 90, 115],
+  ['carbs', (s) => s.carbs, (t) => t.carb, 70, 112],
+  ['fat', (s) => s.fat, (t) => t.fat, 60, 115],
+  ['fibre', (s) => s.fiber, (t) => t.fiber, 70, 999],
+];
+function bandIssues(summary: DaySummary, targets: NutritionTargets) {
   const over: string[] = [], under: string[] = [];
-  for (const [label, consumed, target, minPct, maxPct] of rows) {
+  for (const [label, cf, tf, minPct, maxPct] of BANDS) {
+    const target = tf(targets), consumed = cf(summary);
     if (!target) continue;
     const pct = (consumed / target) * 100;
-    if (pct > maxPct) over.push(`${label} (${Math.round(consumed)} vs ${Math.round(target)} target)`);
-    else if (pct < minPct) under.push(`${label} (${Math.round(consumed)} vs ${Math.round(target)} target)`);
+    if (pct > maxPct) over.push(`${label} ${Math.round(consumed)} vs ${Math.round(target)}`);
+    else if (pct < minPct) under.push(`${label} ${Math.round(consumed)} vs ${Math.round(target)}`);
   }
-  if (!over.length && !under.length) return null;
-  return (
-    <div role="alert" style={{ marginTop: 10, padding: '10px 12px', border: '1.5px solid #e2b3a8', background: '#fdf3f1', borderRadius: 10 }}>
-      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: '#b0503e', marginBottom: 4 }}>
-        ⚠ This day is out of balance — adjust your plan
+  return { over, under, out: over.length + under.length > 0 };
+}
+
+/** Auto-balance: when the shown day violates the prescription, the APP fixes
+ *  it — swap + re-portion server-side, then refresh. The user is never asked
+ *  to repair the plan; they only see a note while it happens, and an honest
+ *  "closest your preferences allow" if the recipe pool truly can't satisfy
+ *  every target. */
+function AutoBalance({ summary, targets, planKey, dayIndex }: {
+  summary: DaySummary; targets: NutritionTargets; planKey?: string; dayIndex?: number;
+}) {
+  const repair = useRepairDay();
+  const attempted = useRef<Set<string>>(new Set());
+  const { over, under, out } = bandIssues(summary, targets);
+  const key = `${planKey}:${dayIndex}`;
+  const canFix = Boolean(planKey) && dayIndex != null;
+
+  useEffect(() => {
+    if (out && canFix && !attempted.current.has(key) && !repair.isPending) {
+      attempted.current.add(key);
+      repair.mutate({ planKey: planKey as string, dayIndex: dayIndex as number });
+    }
+  }, [out, canFix, key, planKey, dayIndex, repair]);
+
+  if (!out) return null;
+  if (repair.isPending || (canFix && !attempted.current.has(key))) {
+    return (
+      <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--paper)', borderRadius: 10, fontSize: 11.5, color: 'var(--ink-soft)' }}>
+        ⚖ Balancing this day to your targets — swapping dishes and re-portioning…
       </div>
-      {over.length > 0 && (
-        <p style={{ fontSize: 11.5, margin: '2px 0', color: '#8a4436', lineHeight: 1.5 }}>
-          <b>Too much:</b> {over.join(' · ')}
-        </p>
-      )}
-      {under.length > 0 && (
-        <p style={{ fontSize: 11.5, margin: '2px 0', color: '#8a4436', lineHeight: 1.5 }}>
-          <b>Too little:</b> {under.join(' · ')}
-        </p>
-      )}
-      <p style={{ fontSize: 11.5, margin: '4px 0 0', color: '#8a4436', lineHeight: 1.5 }}>
-        Refresh the heaviest meals or regenerate the week so the planner rebalances the whole day to your targets.
-        {over.some((s) => s.startsWith('protein')) && ' With your protein target medically moderated, prefer lighter-protein dishes when refreshing.'}
+    );
+  }
+  // Repair already ran and the day still sits outside a band → the recipe pool
+  // can't fully satisfy the prescription. Say so honestly; never instruct.
+  return (
+    <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--paper)', borderRadius: 10 }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>
+        Optimized to your closest possible fit
+      </div>
+      <p className="muted" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.55 }}>
+        With your current dietary preferences and medical targets, this is the closest balance available today
+        {over.length > 0 && <> — still slightly high on {over.join(', ')}</>}
+        {under.length > 0 && <>{over.length ? ';' : ' —'} slightly short on {under.join(', ')}</>}.
+        {' '}Tomorrow's plan compensates automatically.
       </p>
     </div>
   );
@@ -257,7 +281,9 @@ function AdviceSection() {
 }
 
 /** Daily Nutrition Overview — Target vs Consumed vs Remaining for every macro. */
-export function DailySummary({ day, summary, targets }: { day: string; summary: DaySummary; targets?: NutritionTargets }) {
+export function DailySummary({ day, summary, targets, planKey, dayIndex }: {
+  day: string; summary: DaySummary; targets?: NutritionTargets; planKey?: string; dayIndex?: number;
+}) {
   // Rich micros from the backend when available; legacy coverage map otherwise.
   const micros: MicroIntake[] = summary.micros?.length
     ? summary.micros
@@ -277,7 +303,7 @@ export function DailySummary({ day, summary, targets }: { day: string; summary: 
             <NutrientRow label="Carbs" consumed={summary.carbs} target={targets.carb} unit="g" />
             <NutrientRow label="Fat" consumed={summary.fat} target={targets.fat} unit="g" />
             <NutrientRow label="Fibre" consumed={summary.fiber} target={targets.fiber} unit="g" />
-            <BalanceWarning summary={summary} targets={targets} />
+            <AutoBalance summary={summary} targets={targets} planKey={planKey} dayIndex={dayIndex} />
             {targets.adjustments && targets.adjustments.length > 0 && (
               <div style={{ marginTop: 10, padding: '8px 10px', background: 'var(--paper)', borderRadius: 10 }}>
                 <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Targets adjusted for you</div>

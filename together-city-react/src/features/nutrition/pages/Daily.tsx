@@ -95,7 +95,7 @@ export function Daily() {
 
         <div>
           {summary.data
-            ? <DailySummary day={day.day} summary={summary.data} targets={targets.data} />
+            ? <DailySummary day={day.day} summary={summary.data} targets={targets.data} planKey={plan.data?.key} dayIndex={dayIndex} />
             : <Spinner />}
         </div>
       </div>

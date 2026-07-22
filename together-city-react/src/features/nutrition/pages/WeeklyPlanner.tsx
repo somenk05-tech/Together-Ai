@@ -191,7 +191,7 @@ export function WeeklyPlanner() {
 
         <div style={{ position: 'sticky', top: 'calc(var(--header-h) + 24px)' }}>
           {summary.data
-            ? <DailySummary day={day.dateLabel ?? day.day} summary={summary.data} targets={targets.data} />
+            ? <DailySummary day={day.dateLabel ?? day.day} summary={summary.data} targets={targets.data} planKey={activeKey} dayIndex={dayIndex} />
             : <Spinner label="Totalling the day…" />}
         </div>
       </div>

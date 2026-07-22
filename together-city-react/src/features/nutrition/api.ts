@@ -42,6 +42,8 @@ export const nutritionApi = {
     api.post<WeekPlan>('/nutrition/plan/weekly/duplicate', { mode, sourceKey, weekStart }).then((r) => r.data),
   daySummary: (planKey: string, dayIndex: number) =>
     api.get<DaySummary>(`/nutrition/plan/${planKey}/day/${dayIndex}/summary`).then((r) => r.data),
+  repairDay: (planKey: string, dayIndex: number) =>
+    api.post<{ repaired: boolean; valid: boolean }>(`/nutrition/plan/${planKey}/day/${dayIndex}/rebalance`, {}).then((r) => r.data),
   targets: () => api.get<NutritionTargets>('/nutrition/targets').then((r) => r.data),
   advice: () => api.get<NutritionAdvisory[]>('/nutrition/advice').then((r) => r.data),
   swapMeal: (planKey: string, dayIndex: number, slot: string, restoreRecipeId?: string) =>
