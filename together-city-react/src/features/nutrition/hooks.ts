@@ -66,6 +66,11 @@ export function useNutritionTargets() {
   return useQuery({ queryKey: ['nutrition', 'targets'], queryFn: () => nutritionApi.targets() });
 }
 
+/** Personalized Nutrition Advice — dietary-balance advisories for the overview. */
+export function useNutritionAdvice() {
+  return useQuery({ queryKey: ['nutrition', 'advice'], queryFn: () => nutritionApi.advice() });
+}
+
 export function useNutritionHistory(mode: 'individual' | 'family' = 'individual') {
   return useQuery({ queryKey: ['nutrition', 'history', mode], queryFn: () => nutritionApi.history(mode) });
 }

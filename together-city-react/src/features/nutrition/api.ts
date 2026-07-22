@@ -1,5 +1,5 @@
 import { http as api } from '@/api/client';
-import type { WeekPlan, WeekSummary, DaySummary, NutritionTargets, Sides, Recipe, NutritionHistoryWeek } from './types';
+import type { WeekPlan, WeekSummary, DaySummary, NutritionTargets, NutritionAdvisory, Sides, Recipe, NutritionHistoryWeek } from './types';
 
 /** Nutrition endpoints on the NestJS backend (no engine logic duplicated client-side). */
 export const nutritionApi = {
@@ -43,6 +43,7 @@ export const nutritionApi = {
   daySummary: (planKey: string, dayIndex: number) =>
     api.get<DaySummary>(`/nutrition/plan/${planKey}/day/${dayIndex}/summary`).then((r) => r.data),
   targets: () => api.get<NutritionTargets>('/nutrition/targets').then((r) => r.data),
+  advice: () => api.get<NutritionAdvisory[]>('/nutrition/advice').then((r) => r.data),
   swapMeal: (planKey: string, dayIndex: number, slot: string, restoreRecipeId?: string) =>
     api.post<WeekPlan>(`/nutrition/plan/${planKey}/day/${dayIndex}/swap`, restoreRecipeId ? { slot, restoreRecipeId } : { slot }).then((r) => r.data),
   skipMeal: (planKey: string, dayIndex: number, slot: string, skipped: boolean) =>

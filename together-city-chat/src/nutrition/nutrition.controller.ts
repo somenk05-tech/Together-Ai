@@ -25,6 +25,12 @@ export class NutritionController {
     return this.nutrition.targets(user.sub);
   }
 
+  /** Personalized Nutrition Advice — dietary-balance advisories (informational, never blocking). */
+  @Get('advice')
+  advice(@CurrentUser() user: JwtUser) {
+    return this.nutrition.advisories(user.sub);
+  }
+
   @Get('preferences')
   prefs(@CurrentUser() user: JwtUser) {
     return this.nutrition.foodPref(user.sub);

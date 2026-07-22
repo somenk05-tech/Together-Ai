@@ -14,6 +14,7 @@ import {
 } from './clinical-engine';
 import type { BloodInputDto, Diet, FoodPrefDto, PlanMode, Slot } from './dto/nutrition.dto';
 import { assemblePlate, perMealTargets, type PlateOpts, type DayMealInput } from './plate';
+import { estimateDayMicros, type DayMealForMicros } from './micros-engine';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOTS: Slot[] = ['b', 'l', 's', 'd'];
@@ -890,6 +891,47 @@ export function floorDeficitPct(
 }
 
 /**
+ * Tolerance bands (spec §validation): every nutrient must land inside its band
+ * before a plan may be shown — a 66 g protein target must never present a
+ * 189 g day. Bands are asymmetric: undershoot floors are strict (95%),
+ * overshoot allowances vary by how harmful an excess is. Fibre overshoot is
+ * harmless within reason.
+ */
+export const DAY_TOLERANCE = {
+  kcal: { minPct: 95, maxPct: 108 },
+  protein: { minPct: 95, maxPct: 115 },   // hard cap matters for kidney-moderated targets
+  carbs: { minPct: 60, maxPct: 112 },     // carbs may run low when other macros fill the energy
+  fat: { minPct: 55, maxPct: 115 },
+  fiber: { minPct: 70, maxPct: 160 },
+} as const;
+
+/**
+ * How far (in %-points, summed) the day sits OUTSIDE its tolerance bands.
+ * 0 = a valid plan. Used as the primary swap-acceptance metric so the repair
+ * loop drives every nutrient into its band before polishing closeness.
+ */
+export function bandViolationPct(
+  items: DayItemForOpt[], pcts: Record<string, number>,
+  target: { kcal: number; protein: number; carb: number; fat: number; fiber: number },
+): { total: number; worstNutrient: string; worstSide: 'over' | 'under' } {
+  const t = dayTotalsFor(items, pcts);
+  const rows: Array<[keyof typeof DAY_TOLERANCE, number, number]> = [
+    ['kcal', t.kcal, target.kcal], ['protein', t.protein, target.protein],
+    ['carbs', t.carbs, target.carb], ['fat', t.fat, target.fat], ['fiber', t.fiber, target.fiber],
+  ];
+  let total = 0, worst = 0, worstNutrient = 'kcal', worstSide: 'over' | 'under' = 'over';
+  for (const [key, tot, T] of rows) {
+    if (!T || T <= 0) continue;
+    const pct = (tot / T) * 100;
+    const band = DAY_TOLERANCE[key];
+    const v = pct > band.maxPct ? pct - band.maxPct : pct < band.minPct ? band.minPct - pct : 0;
+    total += v;
+    if (v > worst) { worst = v; worstNutrient = key; worstSide = pct > band.maxPct ? 'over' : 'under'; }
+  }
+  return { total: Math.round(total * 10) / 10, worstNutrient, worstSide };
+}
+
+/**
  * Solve portions with the never-under-target guarantee: optimize normally
  * (60–200% per dish), and if calories or protein still land under 95% of
  * target, escalate the portion ceiling (250%, then 300%) for every dish that
@@ -900,7 +942,7 @@ export function floorDeficitPct(
 export function solveDayPortions(
   items: DayItemForOpt[],
   target: { kcal: number; protein: number; carb: number; fat: number; fiber: number },
-): { pcts: Record<string, number>; deficit: number; worst: number; nutrient: string } {
+): { pcts: Record<string, number>; deficit: number; worst: number; nutrient: string; violation: number } {
   let use = items;
   let pcts = optimizeDayPortions(use, target);
   let deficit = floorDeficitPct(use, pcts, target);
@@ -938,8 +980,41 @@ export function solveDayPortions(
     const dFilled = floorDeficitPct(use, filled, target);
     if (dFilled < deficit) { pcts = filled; deficit = dFilled; }
   }
+  // Trim pass: pull overshooting nutrients back inside their tolerance bands
+  // wherever portions allow it WITHOUT re-breaking the calorie/protein floors.
+  // 5% at a time off the dish contributing most of the excess nutrient.
+  {
+    const trimmed = { ...pcts };
+    for (let guard = 0; guard < 200; guard++) {
+      const v = bandViolationPct(use, trimmed, target);
+      if (v.total <= 0 || v.worstSide !== 'over') break;
+      const key = v.worstNutrient as 'kcal' | 'protein' | 'carbs' | 'fat' | 'fiber';
+      let bestIdx = -1, bestAmt = 0;
+      for (let i = 0; i < use.length; i++) {
+        const it = use[i];
+        const pinned = it.minPct === 100 && it.maxPct === 100;
+        const cur = trimmed[it.slot] ?? 100;
+        if (pinned || cur <= (it.minPct ?? 60)) continue;
+        const amt = (it[key] as number) ?? 0;
+        if (amt > bestAmt) { bestAmt = amt; bestIdx = i; }
+      }
+      if (bestIdx < 0) break;
+      const slot = use[bestIdx].slot;
+      const attempt = { ...trimmed, [slot]: (trimmed[slot] ?? 100) - 5 };
+      // never trade the floors away to fix an overshoot
+      if (floorDeficitPct(use, attempt, target) > 0) break;
+      const v2 = bandViolationPct(use, attempt, target);
+      if (v2.total >= v.total) break;
+      trimmed[slot] = attempt[slot];
+    }
+    if (bandViolationPct(use, trimmed, target).total < bandViolationPct(use, pcts, target).total
+      && floorDeficitPct(use, trimmed, target) <= deficit) {
+      pcts = trimmed;
+    }
+  }
   const { worst, nutrient } = dayDeviationPct(use, pcts, target);
-  return { pcts, deficit, worst, nutrient };
+  const violation = bandViolationPct(use, pcts, target).total;
+  return { pcts, deficit, worst, nutrient, violation };
 }
 
 /**
@@ -1073,6 +1148,103 @@ export class NutritionService implements OnModuleInit {
       activity: pref?.activity ?? 1.4,
       extras: (pref as { extras?: string | null } | null)?.extras ?? null,
     };
+  }
+
+  // ─────────────── dietary balance & nutrition advisory ───────────────
+  /**
+   * Personalized Nutrition Advice: friendly, evidence-based advisories that
+   * flag where the user's CHOSEN diet pattern may need attention — informational,
+   * never blocking, always food-first (supplements only as a fallback note).
+   * Inputs: diet + protein selections, health conditions, blood flags, targets.
+   */
+  async advisories(userId: string): Promise<Array<{ key: string; title: string; body: string }>> {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const diet = (pref?.diet ?? 'everything') as Diet;
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const flags = flagsFor(await this.bloodValues(userId));
+    const tg = await this.targets(userId);
+    const out: Array<{ key: string; title: string; body: string }> = [];
+
+    const proteins = (ex.proteins ?? []).map((p) => p.toLowerCase());
+    const plantSources = ['paneer', 'tofu', 'legumes'];
+    const hasPlant = proteins.some((p) => plantSources.includes(p));
+    const onlyAnimal = proteins.length > 0 && !hasPlant && ['everything', 'nonveg', 'pesc'].includes(diet);
+
+    if (onlyAnimal) {
+      out.push({
+        key: 'only-nonveg', title: 'Mostly animal-protein selections',
+        body: 'Your protein sources are currently all animal-based. For optimal long-term health, consider including a variety of vegetables, fruits, legumes, whole grains, nuts and seeds — they improve fibre intake, vitamins, minerals, antioxidants and gut health. Your plans will still follow your preferences.',
+      });
+    }
+    if (diet === 'veg' || diet === 'egg') {
+      out.push({
+        key: 'veg', title: 'Vegetarian pattern — nutrients to watch',
+        body: 'A vegetarian diet may need extra attention to protein, vitamin B12, iron, zinc, omega-3 fatty acids and vitamin D. The meal planner maximises plant-based protein (dal, paneer, tofu, legumes) where possible; if your targets can’t be met through food alone, consider discussing appropriate supplementation with your healthcare professional.',
+      });
+    }
+    if (diet === 'vegan') {
+      out.push({
+        key: 'vegan', title: 'Vegan pattern — nutrients to watch',
+        body: 'Ensure adequate intake of vitamin B12, vitamin D, calcium, iodine, iron, zinc, omega-3 fatty acids and high-quality plant proteins (tofu, soy, legumes, nuts and seeds). Supplementation — especially B12 — may be beneficial where dietary intake is insufficient.',
+      });
+    }
+    if (diet === 'jain') {
+      out.push({
+        key: 'jain', title: 'Jain pattern — planned around your preferences',
+        body: 'Your dietary preferences may limit certain nutrient sources (iron, zinc and B12 in particular, with no root vegetables). The meal planner optimises within your preferences — dairy, legumes, grains and seeds carry most of the load — and will suggest food alternatives first, with supplements only when food alone can’t close a gap.',
+      });
+    }
+    if (diet === 'pesc' && !onlyAnimal) {
+      out.push({
+        key: 'pesc', title: 'Pescatarian pattern',
+        body: 'Fish covers omega-3s and quality protein well. Keep legumes, whole grains, nuts and colourful vegetables in the rotation for fibre, iron and antioxidants — your plans balance these automatically.',
+      });
+    }
+
+    // Blood-flag notes (food-first, only for markers the panel actually flagged).
+    if (flags.b12 === 'low') {
+      out.push({
+        key: 'b12', title: 'Vitamin B12 is low on your latest panel',
+        body: diet === 'vegan' || diet === 'veg' || diet === 'jain'
+          ? 'Plant-forward diets carry little B12. Dairy and eggs help where they fit your pattern; a B12 supplement is commonly needed — worth confirming with your doctor.'
+          : 'Include eggs, dairy, fish or lean meat regularly; ask your doctor whether a supplement makes sense for you.',
+      });
+    }
+    if (flags.vitd === 'low' || flags.vitD === 'low') {
+      out.push({
+        key: 'vitd', title: 'Vitamin D is low on your latest panel',
+        body: 'Some sunlight most days plus vitamin-D-rich foods (fortified dairy, eggs, fish where they fit your diet) helps; supplementation is often the practical fix — confirm the dose with your doctor.',
+      });
+    }
+    if (flags.hb === 'low' || flags.ferritin === 'low') {
+      out.push({
+        key: 'iron', title: 'Iron stores look low',
+        body: 'Your plans lean on iron-rich foods that fit your diet (legumes, greens, seeds' + (diet === 'everything' || diet === 'nonveg' ? ', lean red meat' : '') + '). Pair them with vitamin-C foods (lemon, amla, citrus) to absorb more; avoid tea/coffee right after meals.',
+      });
+    }
+
+    // Feasibility note: a tight (condition-moderated) protein target with a
+    // protein-dense selection, or a high target on a plant-only diet.
+    const kidneyModerated = tg.adjustments?.some((a: string) => /kidney/i.test(a));
+    if (kidneyModerated) {
+      out.push({
+        key: 'kidney-protein', title: 'Protein is intentionally moderated',
+        body: `Because of your kidney condition, your protein target is ${tg.protein} g — deliberately moderate. Your plans favour lighter-protein meals to stay near it, so days may look lower-protein than typical fitness advice; that is by design. Confirm targets with your nephrologist.`,
+      });
+    } else if ((diet === 'vegan' || diet === 'jain') && tg.protein >= 110) {
+      out.push({
+        key: 'plant-protein', title: 'High protein target on a plant-based diet',
+        body: `Your target is ${tg.protein} g/day from plant sources. It’s achievable with tofu, soy chunks, dals and legumes at every meal, but takes planning — the planner prioritises these. If days keep landing short, a plant protein supplement is a reasonable backstop.`,
+      });
+    }
+
+    if (!out.length) {
+      out.push({
+        key: 'balanced', title: 'Your pattern looks well-rounded',
+        body: 'No specific nutritional gaps stand out from your preferences and latest results. Keep variety high — different vegetables, whole grains, proteins and fruits across the week — and your plans will handle the numbers.',
+      });
+    }
+    return out;
   }
 
   // ─────────────── health profile · calorie log ───────────────
@@ -2286,24 +2458,37 @@ export class NutritionService implements OnModuleInit {
       // condition-capped targets). Same hard-filtered pools — the safety/
       // condition constraints live inside the pool, so a swap can never
       // violate them.
-      if (sol.deficit > 0 || sol.worst > 3) {
+      // Repair loop — the plan is INVALID until every nutrient sits inside its
+      // tolerance band (a 66 g protein target must never ship a 189 g day).
+      // Acceptance is lexicographic: fix floors first, then band violations
+      // (composition swaps toward dishes whose density matches the targets),
+      // then plain closeness. Up to two sweeps over the slots, wide alternate
+      // pool; same hard-filtered pools, so a swap can never violate the
+      // safety/condition constraints.
+      const valid = () => sol.deficit <= 0 && sol.violation <= 0 && sol.worst <= 3;
+      if (!valid()) {
         const dayVeg = ex.weekly?.[SHORT_DAYS[d]] === 'veg';
         const pools = dayVeg ? vegRanked : baseRanked;
-        for (const sl of daySlots) {
-          if (sol.deficit <= 0 && sol.worst <= 3) break;
-          const isPlate = /india/i.test((picks[d][sl] as RecipeWithIng).country) && (sl === 'l' || sl === 'd');
-          if (isPlate) continue;
-          const original = picks[d][sl] as RecipeWithIng;
-          const alternates = (pools[sl] ?? []).filter((r) => r.id !== original.id && count(usedRecipe, r.id) < 1).slice(0, 8);
-          for (const alt of alternates) {
-            picks[d][sl] = alt;
-            const tryItems = buildItems();
-            const trySol = solveDayPortions(tryItems, tg);
-            const better = trySol.deficit < sol.deficit - 0.1
-              || (trySol.deficit <= 0 && sol.deficit <= 0 && trySol.worst < sol.worst - 0.5);
-            if (better) { sol = trySol; items = tryItems; bump(usedRecipe, alt.id); }
-            else picks[d][sl] = original;
-            if (sol.deficit <= 0 && sol.worst <= 3) break;
+        for (let sweep = 0; sweep < 2 && !valid(); sweep++) {
+          for (const sl of daySlots) {
+            if (valid()) break;
+            const isPlate = /india/i.test((picks[d][sl] as RecipeWithIng).country) && (sl === 'l' || sl === 'd');
+            if (isPlate) continue;
+            const original = picks[d][sl] as RecipeWithIng;
+            const alternates = (pools[sl] ?? [])
+              .filter((r) => r.id !== original.id && count(usedRecipe, r.id) < (sweep === 0 ? 1 : 2))
+              .slice(0, sweep === 0 ? 24 : 40);
+            for (const alt of alternates) {
+              picks[d][sl] = alt;
+              const tryItems = buildItems();
+              const trySol = solveDayPortions(tryItems, tg);
+              const better = trySol.deficit < sol.deficit - 0.1
+                || (trySol.deficit <= sol.deficit && trySol.violation < sol.violation - 0.1)
+                || (trySol.deficit <= sol.deficit && trySol.violation <= 0 && sol.violation <= 0 && trySol.worst < sol.worst - 0.5);
+              if (better) { sol = trySol; items = tryItems; bump(usedRecipe, alt.id); }
+              else picks[d][sl] = original;
+              if (valid()) break;
+            }
           }
         }
         // recompute once more with the final picks
@@ -2469,15 +2654,37 @@ export class NutritionService implements OnModuleInit {
     }
     kcal = Math.round(kcal); protein = Math.round(protein); carbs = Math.round(carbs);
     fat = Math.round(fat); fiber = Math.round(fiber); cost = Math.round(cost);
-    const cov = (p: number) => Math.max(15, Math.min(140, Math.round(p)));
-    return {
-      kcal, protein, carbs, fat, fiber, cost,
-      coverage: {
-        protein: cov((protein / 130) * 100), fiber: cov((fiber / 32) * 100),
-        fe: cov(protein * 0.9 + 20), ca: cov(60 + dayIndex * 3), mg: cov(75),
-        zn: cov(58), b12: cov(88), va: cov(72), vc: cov(115), vd: cov(45),
-      },
-    };
+
+    // Real micronutrient estimation from the day's ACTUAL ingredients (portion-
+    // scaled), with age/sex targets and blood-marker links — replaces the old
+    // placeholder coverage constants.
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const flags = flagsFor(await this.bloodValues(userId));
+    const microMeals: DayMealForMicros[] = day.meals.filter((m) => !m.skipped).map((m) => ({
+      recipeName: m.recipe.name,
+      ingredients: m.recipe.ingredients,
+      servings: recipeServings(m.recipe),
+      portionFactor: ((m as { portionPct?: number }).portionPct ?? 100) / 100,
+    }));
+    const micros = estimateDayMicros(microMeals, pref?.age ?? 30, pref?.sex ?? 'male')
+      .map((mi) => ({
+        ...mi,
+        markerStatus: mi.marker ? (flags[mi.marker] as string | undefined) ?? null : null,
+      }));
+    // fibre rides with the macros but belongs in the micro dashboard too
+    const fiberTarget = tg.fiber || 36;
+    micros.push({
+      key: 'fiber', label: 'Fibre', unit: 'g', intake: fiber, target: fiberTarget,
+      pct: Math.round((fiber / fiberTarget) * 100), marker: undefined,
+      foods: ['Whole grains & millets', 'Dals & legumes', 'Vegetables with skins', 'Fruit (guava, apple)', 'Seeds'],
+      topSources: [], markerStatus: null,
+    });
+
+    // Legacy coverage map (old clients) — now driven by the real estimates.
+    const coverage = Object.fromEntries(micros.map((mi) => [mi.key, Math.max(0, Math.min(200, mi.pct))]));
+    coverage.protein = Math.round((protein / Math.max(1, tg.protein)) * 100);
+
+    return { kcal, protein, carbs, fat, fiber, cost, coverage, micros };
   }
 
   // ─────────────── nutrition history (spec §19) ───────────────

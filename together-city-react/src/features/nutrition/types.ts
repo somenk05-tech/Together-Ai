@@ -121,5 +121,17 @@ export interface NutritionTargets {
 
 export interface DaySummary {
   kcal: number; protein: number; carbs: number; fat: number; fiber: number; cost: number;
-  coverage: Record<string, number>;   // micronutrient % of daily reference
+  coverage: Record<string, number>;   // micronutrient % of daily reference (legacy)
+  micros?: MicroIntake[];             // real ingredient-estimated micronutrients
 }
+
+/** One micronutrient row from the backend estimation engine. */
+export interface MicroIntake {
+  key: string; label: string; unit: string;
+  intake: number; target: number; pct: number;
+  marker?: string; markerStatus?: string | null;
+  foods: string[]; topSources: string[];
+}
+
+/** Personalized Nutrition Advice item (dietary balance advisory). */
+export interface NutritionAdvisory { key: string; title: string; body: string }
