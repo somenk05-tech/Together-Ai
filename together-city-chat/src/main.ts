@@ -29,11 +29,13 @@ async function bootstrap(): Promise<void> {
   const allowlist = corsOrigin.split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
   const allowAll = corsOrigin === '*' || allowlist.length === 0;
   const isVercelApp = (o: string) => /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(o);
+  // Our own custom domain (and subdomains) is always allowed — no env change needed.
+  const isOwnDomain = (o: string) => /^https:\/\/([a-z0-9-]+\.)?togethercity\.app$/i.test(o);
   app.enableCors({
     origin: (origin, cb) => {
       if (!origin) return cb(null, true);                       // no Origin header (curl, same-origin, S2S)
       const o = origin.replace(/\/+$/, '');
-      if (allowAll || allowlist.includes(o) || isVercelApp(o)) return cb(null, true);
+      if (allowAll || allowlist.includes(o) || isVercelApp(o) || isOwnDomain(o)) return cb(null, true);
       return cb(null, false);                                   // disallowed → browser blocks (no server crash)
     },
     credentials: true,
