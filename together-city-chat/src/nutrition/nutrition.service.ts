@@ -773,9 +773,10 @@ export function computeTargets(inp: TargetInput) {
 /**
  * Day-portion optimizer (§targets): work BACKWARDS from the user's daily
  * targets. Given the day's chosen dishes (with their per-serving macros), solve
- * a portion factor (60–180%) for each dish so the day's combined kcal, protein,
- * carbs, fat and fibre land as close as possible to the targets — overshoot on
- * calories/protein/fat is penalised harder than undershoot, and fibre only
+ * a portion factor (60–200%, escalating to 300% when the day would otherwise
+ * finish under target) for each dish so the day's combined kcal, protein,
+ * carbs, fat and fibre land as close as possible to the targets — UNDERSHOOT of
+ * calories/protein is the failure mode and dominates the objective; fibre only
  * penalises undershoot. Indian thali plates already self-size to their calorie
  * budget, so they are held at 100% and the optimizer shapes the day around
  * them. Deterministic coordinate descent — no randomness, same inputs → same
@@ -793,11 +794,16 @@ export function optimizeDayPortions(
   if (!items.length) return {};
   const NUTS: Array<[keyof DayItemForOpt & ('kcal' | 'protein' | 'carbs' | 'fat' | 'fiber'), number, number, number, number]> = [
     // [key, target, weight, overshootFactor, undershootFactor]
-    ['kcal', target.kcal, 3.0, 1.5, 1.0],
-    ['protein', target.protein, 2.2, 1.8, 1.0],   // exceeding protein matters (kidney-moderated targets)
-    ['carbs', target.carb, 1.0, 1.2, 0.8],
-    ['fat', target.fat, 1.0, 1.4, 0.7],
-    ['fiber', target.fiber, 0.8, 0.0, 1.0],       // fibre: only undershoot hurts
+    // Priority order (spec): 1) hit calories, 2) hit protein — UNDERSHOOT is the
+    // failure mode ("the day must never finish under target"), so undershoot
+    // dominates the objective. Overshoot is tolerated and only gently nudged
+    // down (the swap stage handles condition-capped targets by preferring
+    // less-dense dishes — never by starving the day of calories).
+    ['kcal', target.kcal, 6.0, 0.35, 1.0],
+    ['protein', target.protein, 4.0, 0.15, 1.0],
+    ['carbs', target.carb, 0.6, 1.0, 0.4],
+    ['fat', target.fat, 0.6, 1.2, 0.4],
+    ['fiber', target.fiber, 0.5, 0.0, 1.0],       // fibre: only undershoot hurts
   ];
   const errOf = (pcts: number[]): number => {
     let e = 0;
@@ -812,11 +818,11 @@ export function optimizeDayPortions(
   };
   const pcts = items.map(() => 100);
   const OPTIONS: number[] = [];
-  for (let p = 60; p <= 180; p += 5) OPTIONS.push(p);
+  for (let p = 60; p <= 250; p += 5) OPTIONS.push(p);
   for (let pass = 0; pass < 5; pass++) {
     let changed = false;
     for (let i = 0; i < items.length; i++) {
-      const lo = items[i].minPct ?? 60, hi = items[i].maxPct ?? 180;
+      const lo = items[i].minPct ?? 60, hi = items[i].maxPct ?? 200;
       let best = pcts[i], bestErr = errOf(pcts);
       for (const opt of OPTIONS) {
         if (opt < lo || opt > hi) continue;
@@ -856,6 +862,84 @@ export function dayDeviationPct(
     if (dev > worst) { worst = dev; nutrient = name; }
   }
   return { worst: Math.round(worst * 10) / 10, nutrient };
+}
+
+/** Day totals for a portion assignment. */
+export function dayTotalsFor(items: DayItemForOpt[], pcts: Record<string, number>) {
+  const t = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+  for (const it of items) {
+    const f = (pcts[it.slot] ?? 100) / 100;
+    t.kcal += it.kcal * f; t.protein += it.protein * f; t.carbs += it.carbs * f;
+    t.fat += it.fat * f; t.fiber += it.fiber * f;
+  }
+  return t;
+}
+
+/**
+ * Final validation (spec): a day is only complete when calories AND protein are
+ * ≥95% of target. Returns the combined shortfall in %-points (0 = passes).
+ */
+export function floorDeficitPct(
+  items: DayItemForOpt[], pcts: Record<string, number>,
+  target: { kcal: number; protein: number },
+): number {
+  const t = dayTotalsFor(items, pcts);
+  const kcalPct = target.kcal > 0 ? (t.kcal / target.kcal) * 100 : 100;
+  const protPct = target.protein > 0 ? (t.protein / target.protein) * 100 : 100;
+  return Math.max(0, 95 - kcalPct) + Math.max(0, 95 - protPct);
+}
+
+/**
+ * Solve portions with the never-under-target guarantee: optimize normally
+ * (60–200% per dish), and if calories or protein still land under 95% of
+ * target, escalate the portion ceiling (250%, then 300%) for every dish that
+ * isn't hard-pinned (thali plates stay self-sized). Portion scaling comes
+ * before replacement — the caller's swap stage only runs if this can't close
+ * the gap alone.
+ */
+export function solveDayPortions(
+  items: DayItemForOpt[],
+  target: { kcal: number; protein: number; carb: number; fat: number; fiber: number },
+): { pcts: Record<string, number>; deficit: number; worst: number; nutrient: string } {
+  let use = items;
+  let pcts = optimizeDayPortions(use, target);
+  let deficit = floorDeficitPct(use, pcts, target);
+  for (const cap of [250, 300]) {
+    if (deficit <= 0) break;
+    const widened = items.map((it) =>
+      it.minPct === 100 && it.maxPct === 100 ? it : { ...it, maxPct: Math.max(it.maxPct ?? 200, cap) });
+    const p2 = optimizeDayPortions(widened, target);
+    const d2 = floorDeficitPct(widened, p2, target);
+    if (d2 < deficit) { use = widened; pcts = p2; deficit = d2; }
+  }
+  // Guaranteed-floor fill: the balanced objective can leave a day under target
+  // when every dish is macro-skewed (e.g. all-protein picks vs a capped protein
+  // target). The floors are non-negotiable — raise portions greedily, 5% at a
+  // time on whichever dish adds the most of what's missing, until calories AND
+  // protein reach ≥95% or every dish is at its 300% ceiling.
+  if (deficit > 0) {
+    const HARD_CAP = 300;
+    const filled = { ...pcts };
+    for (let guard = 0; guard < 400 && floorDeficitPct(use, filled, target) > 0; guard++) {
+      const t = dayTotalsFor(use, filled);
+      const needK = target.kcal > 0 && t.kcal < 0.95 * target.kcal;
+      const needP = target.protein > 0 && t.protein < 0.95 * target.protein;
+      let bestIdx = -1, bestGain = 0;
+      for (let i = 0; i < use.length; i++) {
+        const it = use[i];
+        const pinned = it.minPct === 100 && it.maxPct === 100;
+        if (pinned || (filled[it.slot] ?? 100) >= HARD_CAP) continue;
+        const gain = (needK ? it.kcal : 0) + (needP ? it.protein * 12 : 0);
+        if (gain > bestGain) { bestGain = gain; bestIdx = i; }
+      }
+      if (bestIdx < 0) break; // nothing left to raise — caller's swap stage takes over
+      filled[use[bestIdx].slot] = (filled[use[bestIdx].slot] ?? 100) + 5;
+    }
+    const dFilled = floorDeficitPct(use, filled, target);
+    if (dFilled < deficit) { pcts = filled; deficit = dFilled; }
+  }
+  const { worst, nutrient } = dayDeviationPct(use, pcts, target);
+  return { pcts, deficit, worst, nutrient };
 }
 
 /**
@@ -2192,17 +2276,21 @@ export class NutritionService implements OnModuleInit {
         return { slot: sl, ...base, ...(isPlate ? { minPct: 100, maxPct: 100 } : {}) };
       });
       let items = buildItems();
-      let pcts = optimizeDayPortions(items, tg);
-      let { worst } = dayDeviationPct(items, pcts, tg);
-      // Swap stage: if still >3% off, try alternates for each swappable slot and
-      // keep the combination that lands closest. Same hard-filtered pools — the
-      // safety/condition constraints are inside the pool, so a swap can never
+      let sol = solveDayPortions(items, tg);
+      // Swap stage — portion scaling comes first (solveDayPortions escalates to
+      // 300% before we get here); replacement only runs when scaling can't
+      // close the gap or the day is still >3% off balance. Acceptance is
+      // floor-first: a combination that fixes a calorie/protein shortfall
+      // always beats one that is merely "closer"; once floors pass, lower
+      // worst-deviation wins (which also walks protein back toward
+      // condition-capped targets). Same hard-filtered pools — the safety/
+      // condition constraints live inside the pool, so a swap can never
       // violate them.
-      if (worst > 3) {
+      if (sol.deficit > 0 || sol.worst > 3) {
         const dayVeg = ex.weekly?.[SHORT_DAYS[d]] === 'veg';
         const pools = dayVeg ? vegRanked : baseRanked;
         for (const sl of daySlots) {
-          if (worst <= 3) break;
+          if (sol.deficit <= 0 && sol.worst <= 3) break;
           const isPlate = /india/i.test((picks[d][sl] as RecipeWithIng).country) && (sl === 'l' || sl === 'd');
           if (isPlate) continue;
           const original = picks[d][sl] as RecipeWithIng;
@@ -2210,19 +2298,19 @@ export class NutritionService implements OnModuleInit {
           for (const alt of alternates) {
             picks[d][sl] = alt;
             const tryItems = buildItems();
-            const tryPcts = optimizeDayPortions(tryItems, tg);
-            const { worst: w2 } = dayDeviationPct(tryItems, tryPcts, tg);
-            if (w2 < worst - 0.5) { worst = w2; items = tryItems; pcts = tryPcts; bump(usedRecipe, alt.id); }
-            else picks[d][sl] = alt === picks[d][sl] ? original : picks[d][sl];
-            if (picks[d][sl] !== alt) picks[d][sl] = original;
-            if (worst <= 3) break;
+            const trySol = solveDayPortions(tryItems, tg);
+            const better = trySol.deficit < sol.deficit - 0.1
+              || (trySol.deficit <= 0 && sol.deficit <= 0 && trySol.worst < sol.worst - 0.5);
+            if (better) { sol = trySol; items = tryItems; bump(usedRecipe, alt.id); }
+            else picks[d][sl] = original;
+            if (sol.deficit <= 0 && sol.worst <= 3) break;
           }
         }
         // recompute once more with the final picks
         items = buildItems();
-        pcts = optimizeDayPortions(items, tg);
+        sol = solveDayPortions(items, tg);
       }
-      portions[d] = pcts;
+      portions[d] = sol.pcts;
     }
 
     // One plan per user+mode — clear old ones so the profile stays the source of truth.
@@ -2339,7 +2427,10 @@ export class NutritionService implements OnModuleInit {
       const isPlate = /india/i.test((m.recipe as { country: string }).country) && (m.slot === 'l' || m.slot === 'd');
       return { slot: m.slot, ...base, ...(isPlate ? { minPct: 100, maxPct: 100 } : {}) };
     });
-    const pcts = optimizeDayPortions(items, tg);
+    // Floor-guaranteed solve: after a skip/refresh the remaining meals scale up
+    // (to 300% if needed) so the end-of-day totals still reach ≥95% of the
+    // calorie & protein targets. Plates self-size through their dynamic budget.
+    const { pcts } = solveDayPortions(items, tg);
     await Promise.all(active.map((m) =>
       this.prisma.meal.update({ where: { id: m.id }, data: { portionPct: pcts[m.slot] ?? 100 } as never }).catch(() => undefined),
     ));
