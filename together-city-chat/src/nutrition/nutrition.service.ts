@@ -430,12 +430,20 @@ const MEDICAL_EXCLUDE: Record<string, string[]> = {
   'kidney disease': ['pickle', 'papad', 'processed', 'organ meat', 'sardine', 'anchovy'],
   'fatty liver': ['alcohol', 'wine', 'beer', 'deep fried', 'deep-fried', 'lard', 'fructose syrup'],
   pcos: ['sugar', 'syrup', 'maida', 'refined flour', 'white bread', 'soda', 'candy'],
+  // Krause's (14th ed., Box 39-3): highest-purine foods + fructose sources.
+  // Note: NOT generic "gravy" — Indian onion-tomato gravies are fine; the
+  // guideline targets meat-based broths/stocks.
+  'high uric acid': ['organ meat', 'liver', 'gizzard', 'kaleji', 'brain', 'anchovy', 'anchovies', 'sardine', 'herring', 'meat broth', 'bone broth', 'fructose syrup', 'sweetened soda'],
+  gout: ['organ meat', 'liver', 'gizzard', 'kaleji', 'brain', 'anchovy', 'anchovies', 'sardine', 'herring', 'meat broth', 'bone broth', 'fructose syrup', 'sweetened soda'],
 };
 function passesMedical(r: RecipeWithIng, conditions: string[]): boolean {
   if (!conditions.length) return true;
   const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
   for (const c of conditions) {
-    const kws = MEDICAL_EXCLUDE[c.trim().toLowerCase()];
+    const key = c.trim().toLowerCase();
+    const kws = MEDICAL_EXCLUDE[key]
+      ?? (key.includes('uric') || key.includes('gout') ? MEDICAL_EXCLUDE.gout : undefined)
+      ?? (key.includes('kidney') || key.includes('renal') || key.includes('ckd') ? MEDICAL_EXCLUDE['kidney disease'] : undefined);
     if (kws && kws.some((k) => hay.includes(k))) return false;
   }
   return true;
