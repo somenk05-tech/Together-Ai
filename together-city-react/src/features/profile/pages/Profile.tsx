@@ -185,11 +185,22 @@ export function Profile() {
       </Card>
 
       {/* Quick access — Calendar lives here now (moved out of the top bar) */}
-      <Link to="/calendar" className="card lift" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, textDecoration: 'none', color: 'inherit' }}>
+      <Link to="/calendar" className="card lift" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12, textDecoration: 'none', color: 'inherit' }}>
         <span style={{ fontSize: 22 }}>🗓</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 15 }}>Calendar</div>
           <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>Your appointments, bookings and reminders across the city.</p>
+        </div>
+        <span style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
+      </Link>
+
+      {/* Astrology Profile — the shared birth-details profile (Astrology Zone,
+          dating matchmaking, compatibility reports all read from it) */}
+      <Link to="/profile/astrology" className="card lift" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, textDecoration: 'none', color: 'inherit' }}>
+        <span style={{ fontSize: 22 }}>🔭</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 15 }}>Astrology Profile</div>
+          <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>Birth date, time and place — entered once, used by horoscopes, matchmaking and compatibility.</p>
         </div>
         <span style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
       </Link>

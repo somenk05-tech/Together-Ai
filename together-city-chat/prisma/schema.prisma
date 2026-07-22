@@ -111,6 +111,9 @@ model User {
   workoutLogs          WorkoutLog[]
   cityWallet           CityWallet?
   walletTxns           WalletTxn[]
+  astroProfile         AstroProfile?
+  astroQuestions       AstroQuestion[]
+  astroReadings        AstroReading[]
   budgets              Budget[]
   jobProfile           JobProfile?
   jobsPosted           Job[]
@@ -1403,4 +1406,61 @@ model Lookup {
   @@unique([category, code])
   @@index([category, parentCode])
   @@index([category, label])
+}
+
+// ─────────────────────── Astrology Zone ───────────────────────
+// One shared birth-details profile powering every feature that reads a chart
+// (Astrology Zone, Dating matchmaking, compatibility, future features). If the
+// user already entered birth details elsewhere (dating onboarding), the service
+// auto-seeds this profile so nothing is asked twice.
+model AstroProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  birthDate    DateTime
+  birthTime    String // "HH:MM" local at birth place
+  birthCountry String
+  birthState   String?
+  birthCity    String
+  timeZone     String // IANA, auto-detected client-side, editable
+  lat          Float? // resolved from city lookup (approximate is fine)
+  lng          Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Paid "Ask the Astrologer" consultations (₹75/question) — every question and
+// its full answer is kept so users can revisit any consultation later.
+model AstroQuestion {
+  id        String   @id @default(uuid())
+  userId    String
+  topic     String
+  question  String
+  answer    String
+  priceInr  Int      @default(75)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// One saved reading per user per period — daily rows keyed by the user's LOCAL
+// calendar day (their midnight starts a new one), monthly rows keyed by month
+// (fixed from the 1st). The composers are deterministic, so the stored reading
+// is exactly what a midnight/1st-of-month batch job would have produced —
+// persisted on first touch of the new period and archived on the profile.
+model AstroReading {
+  id          String   @id @default(uuid())
+  userId      String
+  kind        String // 'daily' | 'monthly'
+  period      String // daily: YYYY-MM-DD (user tz) · monthly: YYYY-MM
+  readingJson String // full reading payload
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, period])
+  @@index([userId, kind, createdAt])
 }

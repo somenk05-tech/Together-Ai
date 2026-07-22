@@ -1,0 +1,283 @@
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../shared/prisma/prisma.service';
+import { FinancialService } from '../financial/financial.service';
+import { AiService } from '../ai/ai.service';
+import {
+  NatalChart, geocodeApprox, natalChart, scanMonth, tzOffsetMinutes, SIGNS,
+} from './astro-engine';
+import { composeAnswer, composeDaily, composeMonthly } from './astro-content';
+
+export interface SaveAstroProfileDto {
+  birthDate: string;   // YYYY-MM-DD
+  birthTime: string;   // HH:MM (local at birth place)
+  birthCountry: string;
+  birthState?: string | null;
+  birthCity: string;
+  timeZone: string;    // IANA, auto-detected client-side
+}
+export interface AskDto { topic: string; question: string; method?: 'wallet' | 'card' }
+
+export const ASK_PRICE_INR = 75;
+
+interface AstroProfileRow {
+  id: string; userId: string; birthDate: Date; birthTime: string;
+  birthCountry: string; birthState: string | null; birthCity: string;
+  timeZone: string; lat: number | null; lng: number | null; updatedAt: Date;
+}
+interface AstroQuestionRow {
+  id: string; userId: string; topic: string; question: string; answer: string;
+  priceInr: number; createdAt: Date;
+}
+
+/**
+ * Astrology Zone — one shared birth profile powering daily/monthly horoscopes
+ * and the paid Ask-the-Astrologer consultations. Birth details entered anywhere
+ * else in the app (dating onboarding) are automatically reused, so the user is
+ * never asked twice. All readings derive from the deterministic planetary
+ * engine; AI (when configured) only polishes prose, never invents positions.
+ */
+@Injectable()
+export class AstrologyService {
+  private readonly logger = new Logger('AstrologyService');
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly financial: FinancialService,
+    private readonly ai: AiService,
+  ) {}
+
+  /** New tables reach the generated client on deploy (`prisma db push` at boot);
+   *  the offline local client predates them, hence the loose accessor. */
+  private get db() {
+    return this.prisma as unknown as {
+      astroProfile: {
+        findUnique: (a: unknown) => Promise<AstroProfileRow | null>;
+        upsert: (a: unknown) => Promise<AstroProfileRow>;
+      };
+      astroQuestion: {
+        create: (a: unknown) => Promise<AstroQuestionRow>;
+        findMany: (a: unknown) => Promise<AstroQuestionRow[]>;
+      };
+      astroReading: {
+        findUnique: (a: unknown) => Promise<{ readingJson: string } | null>;
+        upsert: (a: unknown) => Promise<{ readingJson: string }>;
+        findMany: (a: unknown) => Promise<Array<{ period: string; readingJson: string }>>;
+      };
+    };
+  }
+
+  /** One saved reading per user per period (daily flips at the user's midnight,
+   *  monthly is fixed from the 1st). Deterministic composers mean the lazy
+   *  write stores exactly what a scheduled batch would have produced. */
+  private async cachedReading<T extends object>(
+    userId: string, kind: 'daily' | 'monthly', period: string, compute: () => T,
+  ): Promise<T & { saved: boolean }> {
+    const hit = await this.db.astroReading.findUnique({
+      where: { userId_kind_period: { userId, kind, period } },
+    }).catch(() => null);
+    if (hit) {
+      try { return { ...(JSON.parse(hit.readingJson) as T), saved: true }; }
+      catch { /* recompute below */ }
+    }
+    const reading = compute();
+    await this.db.astroReading.upsert({
+      where: { userId_kind_period: { userId, kind, period } },
+      update: { readingJson: JSON.stringify(reading) },
+      create: { userId, kind, period, readingJson: JSON.stringify(reading) },
+    }).catch(() => undefined); // table may not exist mid-deploy — reading still returns
+    return { ...reading, saved: true };
+  }
+
+  // ───────────────────────── Profile ─────────────────────────
+
+  /** The shared astrology profile. If absent, birth details already given to
+   *  the dating hub are auto-migrated in — entered once, reused everywhere. */
+  async getProfile(userId: string) {
+    let row = await this.db.astroProfile.findUnique({ where: { userId } }).catch(() => null);
+    let source: 'astrology' | 'dating' | null = row ? 'astrology' : null;
+
+    if (!row) {
+      const dating = await this.prisma.datingProfile.findUnique({ where: { userId } }).catch(() => null);
+      if (dating?.birthDate) {
+        const place = (dating.birthPlace ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+        const birthCity = place[0] ?? '';
+        const birthCountry = place[place.length - 1] && place.length > 1 ? place[place.length - 1] : 'India';
+        if (dating.birthTime && birthCity) {
+          // Complete elsewhere → persist silently so every feature shares it.
+          const timeZone = 'Asia/Kolkata';
+          const { lat, lng } = geocodeApprox(birthCity, place[1] ?? null, birthCountry, timeZone);
+          row = await this.db.astroProfile.upsert({
+            where: { userId },
+            update: {},
+            create: {
+              userId, birthDate: dating.birthDate, birthTime: dating.birthTime,
+              birthCountry, birthState: place.length > 2 ? place[1] : null, birthCity,
+              timeZone, lat, lng,
+            },
+          }).catch(() => null as never);
+          source = row ? 'dating' : null;
+        } else {
+          // Partial → prefill the form, never ask for what we already know.
+          return {
+            complete: false,
+            profile: null,
+            prefill: {
+              birthDate: dating.birthDate.toISOString().slice(0, 10),
+              birthTime: dating.birthTime ?? '',
+              birthCity, birthCountry,
+              birthState: place.length > 2 ? place[1] : '',
+            },
+            source: 'dating' as const,
+          };
+        }
+      }
+    }
+    if (!row) return { complete: false, profile: null, prefill: null, source: null };
+    return { complete: true, profile: this.shape(row), prefill: null, source };
+  }
+
+  async saveProfile(userId: string, dto: SaveAstroProfileDto) {
+    const birthDate = new Date(`${dto.birthDate}T00:00:00.000Z`);
+    if (isNaN(birthDate.getTime())) throw new BadRequestException('Invalid birth date.');
+    if (birthDate.getTime() > Date.now()) throw new BadRequestException('Birth date cannot be in the future.');
+    // Validate the zone (falls back inside the engine, but reject junk here).
+    try { new Intl.DateTimeFormat('en-US', { timeZone: dto.timeZone }); }
+    catch { throw new BadRequestException('Unknown time zone.'); }
+    const { lat, lng } = geocodeApprox(dto.birthCity, dto.birthState ?? null, dto.birthCountry, dto.timeZone);
+    const data = {
+      birthDate, birthTime: dto.birthTime, birthCountry: dto.birthCountry.trim(),
+      birthState: dto.birthState?.trim() || null, birthCity: dto.birthCity.trim(),
+      timeZone: dto.timeZone, lat, lng,
+    };
+    const row = await this.db.astroProfile.upsert({
+      where: { userId },
+      update: data,
+      create: { userId, ...data },
+    });
+    return { saved: true, profile: this.shape(row) };
+  }
+
+  private shape(row: AstroProfileRow) {
+    const chart = this.chartOf(row);
+    return {
+      birthDate: row.birthDate.toISOString().slice(0, 10),
+      birthTime: row.birthTime,
+      birthCountry: row.birthCountry,
+      birthState: row.birthState,
+      birthCity: row.birthCity,
+      timeZone: row.timeZone,
+      chart: {
+        sunSign: chart.sun.sign, moonSign: chart.moon.sign,
+        ascendant: chart.ascendant?.sign ?? null,
+        signs: SIGNS,
+      },
+    };
+  }
+
+  private chartOf(row: AstroProfileRow): NatalChart {
+    return natalChart(row.birthDate, row.birthTime, row.timeZone, row.lat, row.lng);
+  }
+
+  private async requireProfile(userId: string): Promise<AstroProfileRow | null> {
+    await this.getProfile(userId); // triggers the dating auto-migration if possible
+    return this.db.astroProfile.findUnique({ where: { userId } }).catch(() => null);
+  }
+
+  /** The user's "now" in their own time zone (so the daily flips at THEIR midnight). */
+  private userNow(row: AstroProfileRow): Date {
+    const now = new Date();
+    return new Date(now.getTime() + tzOffsetMinutes(row.timeZone, now) * 60000);
+  }
+
+  // ───────────────────────── Tab 01 · Today's Horoscope ─────────────────────────
+
+  async daily(userId: string) {
+    const row = await this.requireProfile(userId);
+    if (!row) return { needsProfile: true as const }; // only for stored birth details
+    const local = this.userNow(row);
+    const dateKey = local.toISOString().slice(0, 10); // the user's OWN calendar day
+    const reading = await this.cachedReading(userId, 'daily', dateKey,
+      () => composeDaily(this.chartOf(row), userId, local));
+    return { needsProfile: false as const, ...reading };
+  }
+
+  /** Saved daily predictions on the profile — the archive, newest first. */
+  async dailyHistory(userId: string) {
+    const rows = await this.db.astroReading.findMany({
+      where: { userId, kind: 'daily' }, orderBy: { period: 'desc' }, take: 30,
+    }).catch(() => [] as Array<{ period: string; readingJson: string }>);
+    return rows.map((r) => {
+      try { return JSON.parse(r.readingJson); } catch { return { date: r.period, text: '' }; }
+    }).filter((r) => r.text);
+  }
+
+  // ───────────────────────── Tab 02 · Monthly Horoscope ─────────────────────────
+
+  async monthly(userId: string) {
+    const row = await this.requireProfile(userId);
+    if (!row) return { needsProfile: true as const }; // only for stored birth details
+    const local = this.userNow(row);
+    const monthKey = local.toISOString().slice(0, 7); // one per user per calendar month
+    const reading = await this.cachedReading(userId, 'monthly', monthKey, () => {
+      const chart = this.chartOf(row);
+      const astro = scanMonth(chart, local.getUTCFullYear(), local.getUTCMonth() + 1);
+      return composeMonthly(chart, userId, astro);
+    });
+    return { needsProfile: false as const, ...reading };
+  }
+
+  // ───────────────────────── Tab 03 · Ask the Astrologer ─────────────────────────
+
+  async ask(userId: string, dto: AskDto) {
+    const row = await this.requireProfile(userId);
+    if (!row) return { needsProfile: true as const };
+    const chart = this.chartOf(row);
+    const local = this.userNow(row);
+    const astro = scanMonth(chart, local.getUTCFullYear(), local.getUTCMonth() + 1);
+
+    // Charge FIRST (throws 400 on insufficient balance — nothing is stored).
+    const payment = await this.financial.charge(userId, {
+      hub: 'Astrology', category: 'astrology', label: `Ask the Astrologer · ${dto.topic}`,
+      amountInr: ASK_PRICE_INR, method: dto.method,
+    });
+
+    // Deterministic, chart-based answer is the guaranteed floor; AI (when
+    // configured) rewrites it with the same facts for a more natural voice.
+    const fallback = composeAnswer(chart, userId, dto.topic, dto.question, new Date(), astro);
+    const transitFacts = astro.transits.map((t) => `${t.planet} in ${t.sign}${t.retrograde ? ' (retro)' : ''}`).join('; ');
+    const ai = await this.ai.json<{ answer?: string }>(
+      'You are a warm, experienced Vedic-Western hybrid astrologer writing a paid consultation reply. ' +
+      'Use ONLY the chart facts provided — never invent planetary positions. 350-550 words, flowing prose, ' +
+      'specific to the question, ending with one concrete next step. Return {"answer": "..."}.',
+      `Question (topic: ${dto.topic}): ${dto.question}\n\n` +
+      `Natal: Sun ${chart.sun.sign}, Moon ${chart.moon.sign}, Ascendant ${chart.ascendant?.sign ?? 'unknown'}.\n` +
+      `Current transits: ${transitFacts}.\nFavourable dates this month: ${astro.bestDates.join(', ') || 'none'}. ` +
+      `Caution dates: ${astro.cautionDates.join(', ') || 'none'}.\n\n` +
+      `Reference draft (rewrite, keep all facts):\n${fallback}`,
+      { answer: fallback },
+      1600,
+    );
+    const answer = (ai.answer && ai.answer.trim().length > 200) ? ai.answer.trim() : fallback;
+
+    const saved = await this.db.astroQuestion.create({
+      data: { userId, topic: dto.topic, question: dto.question, answer, priceInr: ASK_PRICE_INR },
+    });
+    this.logger.log(`Astrology consultation for ${userId} · ${dto.topic} · ₹${ASK_PRICE_INR}`);
+    return {
+      needsProfile: false as const,
+      id: saved.id, topic: saved.topic, question: saved.question, answer: saved.answer,
+      priceInr: saved.priceInr, createdAt: saved.createdAt,
+      payment: { method: payment.method, balanceInr: payment.balanceInr },
+    };
+  }
+
+  /** My Questions — every paid consultation, newest first. */
+  async questions(userId: string) {
+    const rows = await this.db.astroQuestion.findMany({
+      where: { userId }, orderBy: { createdAt: 'desc' }, take: 100,
+    }).catch(() => [] as AstroQuestionRow[]);
+    return rows.map((r) => ({
+      id: r.id, topic: r.topic, question: r.question, answer: r.answer,
+      priceInr: r.priceInr, createdAt: r.createdAt,
+    }));
+  }
+}

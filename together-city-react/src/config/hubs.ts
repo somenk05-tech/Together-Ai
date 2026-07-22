@@ -61,12 +61,12 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   astrology: {
-    key: 'astrology', name: 'Astrology Hub', tag: 'Read the stars, together', backPath: '/astrology', dark: true,
+    key: 'astrology', name: 'Astrology Zone', tag: 'Read the stars, together', backPath: '/astrology', dark: true,
     items: [
-      { path: '/astrology/chart', index: '01', label: 'Birth Chart', sub: 'Your natal chart & placements' },
-      { path: '/astrology/horoscope', index: '02', label: 'Daily Horoscope', sub: 'Today, personalised to you' },
-      { path: '/astrology/compatibility', index: '03', label: 'Compatibility', sub: 'Cosmic match with anyone' },
-      { path: '/astrology/consult', index: '04', label: 'Talk to an Astrologer', sub: 'Book a live reading' },
+      { path: '/astrology/today', index: '01', label: "Today's Horoscope", sub: 'Your day, from your chart' },
+      { path: '/astrology/monthly', index: '02', label: 'Monthly Horoscope', sub: 'Premium month-ahead reading' },
+      { path: '/astrology/ask', index: '03', label: 'Ask the Astrologer', sub: '₹75 · personal consultation' },
+      { path: '/profile/astrology', index: '04', label: 'Astrology Profile', sub: 'Birth details, entered once' },
     ],
   },
   nutrition: {
