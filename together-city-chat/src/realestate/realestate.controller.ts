@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, Query, UseGuards, UsePipes } from '
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
+import { z } from 'zod';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { RealEstateService } from './realestate.service';
 import { PostPropertySchema, type PostPropertyDto, ListingQuerySchema, type ListingQueryDto } from './dto/realestate.dto';
@@ -45,6 +46,10 @@ export class RealEstateController {
   }
 
   @Post('moderation/:id/decision')
+  @UsePipes(new ZodValidationPipe(z.object({
+    decision: z.enum(['approved', 'rejected']),
+    reason: z.string().max(500).optional(),
+  })))
   moderationDecide(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: { decision: 'approved' | 'rejected'; reason?: string }) {
     return this.realestate.moderationDecide(user.handle, id, body.decision === 'rejected' ? 'rejected' : 'approved', (body.reason ?? '').slice(0, 500));
   }

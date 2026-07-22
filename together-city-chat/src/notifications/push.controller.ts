@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards, UsePipes } from '@nestjs/common';
+import { z } from 'zod';
+import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -21,6 +23,9 @@ export class PushController {
 
   /** Store (or refresh) this device's browser push subscription. */
   @Post('subscribe')
+  @UsePipes(new ZodValidationPipe(z.object({
+    subscription: z.object({ endpoint: z.string().url().max(2048) }).passthrough(),
+  })))
   async subscribe(@CurrentUser() user: JwtUser, @Body() body: { subscription: unknown }) {
     if (!body?.subscription) return { ok: false };
     const token = JSON.stringify(body.subscription);
@@ -34,6 +39,9 @@ export class PushController {
 
   /** Remove this device's subscription (e.g. the user disabled notifications). */
   @Post('unsubscribe')
+  @UsePipes(new ZodValidationPipe(z.object({
+    subscription: z.object({ endpoint: z.string().max(2048) }).passthrough().optional(),
+  })))
   async unsubscribe(@CurrentUser() _user: JwtUser, @Body() body: { subscription?: unknown }) {
     if (body?.subscription) {
       await this.prisma.deviceToken.deleteMany({ where: { token: JSON.stringify(body.subscription) } });

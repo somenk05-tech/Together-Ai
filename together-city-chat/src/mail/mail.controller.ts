@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards, UsePipes 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
+import { z } from 'zod';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { MailService } from './mail.service';
 import { FlagSchema, type FlagDto, FolderQuerySchema, type FolderQueryDto, SendMailSchema, type SendMailDto } from './dto/mail.dto';
@@ -27,6 +28,10 @@ export class MailController {
   }
 
   @Post('primary')
+  @UsePipes(new ZodValidationPipe(z.object({
+    email: z.string().email().max(254).optional(),
+    phone: z.string().max(20).regex(/^[+0-9 ()-]*$/).optional(),
+  }).strict()))
   setPrimary(@CurrentUser() user: JwtUser, @Body() body: { email?: string; phone?: string }) {
     return this.mail.setPrimary(user.sub, { email: body?.email, phone: body?.phone });
   }

@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Query, Req, Res, UseGuards, UsePipes } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -75,6 +76,7 @@ export class AuthController {
     private readonly recovery: RecoveryService,
   ) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   @UsePipes(new ZodValidationPipe(RegisterSchema))
   async register(@Body() dto: RegisterDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
@@ -83,6 +85,7 @@ export class AuthController {
     return result;
   }
 
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @Post('login')
   @UsePipes(new ZodValidationPipe(LoginSchema))
   async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
@@ -92,27 +95,32 @@ export class AuthController {
   }
 
   // Live handle availability + suggestions for the sign-up form.
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Get('handle-available')
   handleAvailable(@Query('handle') handle: string) {
     return this.auth.handleAvailable(handle ?? '');
   }
 
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('check-handle')
   checkHandle(@Body() dto: { handle?: string }) {
     return this.auth.handleAvailable(dto?.handle ?? '');
   }
 
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
   @Post('check-email')
   checkEmail(@Body() dto: { email?: string }) {
     return this.auth.emailAvailable(dto?.email ?? '');
   }
 
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
   @Get('email-available')
   emailAvailable(@Query('email') email: string) {
     return this.auth.emailAvailable(email ?? '');
   }
 
   // Silent refresh — token from the HttpOnly cookie, or the body as a fallback.
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('refresh')
   async refresh(@Body() dto: { refreshToken?: string }, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const token = currentRefresh(req, dto?.refreshToken) ?? '';
@@ -121,12 +129,14 @@ export class AuthController {
     return pair;
   }
 
+  @Throttle({ default: { limit: 5, ttl: 300_000 } })
   @Post('forgot')
   @UsePipes(new ZodValidationPipe(ForgotSchema))
   forgot(@Body() dto: ForgotDto) {
     return this.auth.forgot(dto);
   }
 
+  @Throttle({ default: { limit: 6, ttl: 300_000 } })
   @Post('reset')
   @UsePipes(new ZodValidationPipe(ResetSchema))
   reset(@Body() dto: ResetDto) {
@@ -169,16 +179,19 @@ export class AuthController {
   }
 
   // ── Email verification ──
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('verify-email')
   verifyEmail(@Body() dto: { token?: string }) {
     return this.verification.verify(dto?.token ?? '');
   }
 
+  @Throttle({ default: { limit: 3, ttl: 300_000 } })
   @Post('resend-verification')
   resendVerification(@Body() dto: { email?: string }) {
     return this.verification.resend(dto?.email ?? '');
   }
 
+  @Throttle({ default: { limit: 3, ttl: 300_000 } })
   @Post('send-verification')
   @UseGuards(JwtAuthGuard)
   sendVerification(@CurrentUser() user: JwtUser) {
@@ -186,21 +199,25 @@ export class AuthController {
   }
 
   // ── OTP account recovery (production forgot-password) ──
+  @Throttle({ default: { limit: 4, ttl: 300_000 } })
   @Post('recovery/request')
   recoveryRequest(@Body() dto: { identifier?: string; channel?: 'email' | 'sms' }, @Req() req: Request) {
     return this.recovery.request(dto?.identifier ?? '', dto?.channel === 'sms' ? 'sms' : 'email', req.ip, req.headers['user-agent']);
   }
 
+  @Throttle({ default: { limit: 8, ttl: 300_000 } })
   @Post('recovery/verify')
   recoveryVerify(@Body() dto: { recoveryToken?: string; otp?: string }) {
     return this.recovery.verify(dto?.recoveryToken ?? '', dto?.otp ?? '');
   }
 
+  @Throttle({ default: { limit: 3, ttl: 300_000 } })
   @Post('recovery/resend')
   recoveryResend(@Body() dto: { recoveryToken?: string }) {
     return this.recovery.resend(dto?.recoveryToken ?? '');
   }
 
+  @Throttle({ default: { limit: 5, ttl: 300_000 } })
   @Post('recovery/reset')
   recoveryReset(@Body() dto: { resetToken?: string; newPassword?: string }) {
     return this.recovery.reset(dto?.resetToken ?? '', dto?.newPassword ?? '');
