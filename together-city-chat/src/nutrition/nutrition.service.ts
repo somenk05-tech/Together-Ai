@@ -1009,8 +1009,11 @@ export function solveDayPortions(
   solveOpts?: SolveOpts,
 ): { pcts: Record<string, number>; deficit: number; worst: number; nutrient: string; violation: number } {
   const quantized = Boolean(solveOpts?.steps?.length);
+  // Single-step mode ([100]) = fixed standard servings: no fill/trim movement.
   const step = quantized
-    ? Math.min(...solveOpts!.steps!.slice(1).map((v, i) => v - solveOpts!.steps![i]))
+    ? (solveOpts!.steps!.length > 1
+      ? Math.min(...solveOpts!.steps!.slice(1).map((v, i) => v - solveOpts!.steps![i]))
+      : 0)
     : 5;
   const hardCap = quantized ? (solveOpts?.defaultMax ?? Math.max(...solveOpts!.steps!)) : 300;
   const floorOf = (it: DayItemForOpt) => it.minPct ?? (quantized ? Math.min(...solveOpts!.steps!) : 60);
@@ -1032,7 +1035,7 @@ export function solveDayPortions(
   // target). The floors are non-negotiable — raise portions greedily, 5% at a
   // time on whichever dish adds the most of what's missing, until calories AND
   // protein reach ≥95% or every dish is at its 300% ceiling.
-  if (deficit > 0) {
+  if (deficit > 0 && step > 0) {
     const filled = { ...pcts };
     for (let guard = 0; guard < 400 && floorDeficitPct(use, filled, target) > 0; guard++) {
       const t = dayTotalsFor(use, filled);
@@ -1055,7 +1058,7 @@ export function solveDayPortions(
   // Trim pass: pull overshooting nutrients back inside their tolerance bands
   // wherever portions allow it WITHOUT re-breaking the calorie/protein floors.
   // 5% at a time off the dish contributing most of the excess nutrient.
-  {
+  if (step > 0) {
     const trimmed = { ...pcts };
     for (let guard = 0; guard < 200; guard++) {
       const v = bandViolationPct(use, trimmed, target);
@@ -2863,21 +2866,22 @@ export class NutritionService implements OnModuleInit {
     return meals.map((m) => {
       const indian = /india/i.test(m.recipe.country);
       const isPlate = (m.slot === 'l' || m.slot === 'd') && indian;
-      // PORTION-AWARE fixed kcal — the single-source-of-truth fix: plate budgets
-      // must see the portions the optimizer actually prescribed, otherwise the
-      // plates absorb a phantom remainder and the day inflates past its target.
-      const pf = ((m.portionPct ?? 100) as number) / 100;
+      // ONE STANDARD SERVING everywhere — portion factors are retired; every
+      // dish contributes exactly its per-plate values (recipe page = card = sum).
       return {
         slot: m.slot as DayMealInput['slot'],
         skipped: m.skipped,
         isPlate,
-        fixedKcal: isPlate ? 0 : this.recipeShape(m.recipe as unknown as Parameters<NutritionService['recipeShape']>[0]).kcal * pf,
+        fixedKcal: isPlate ? 0 : this.recipeShape(m.recipe as unknown as Parameters<NutritionService['recipeShape']>[0]).kcal,
       };
     });
   }
 
-  /** Quantized, realistic-portion solve options: ½ / ¾ / 1 / 1¼ / 1½ plates. */
-  private static readonly QSOLVE: SolveOpts = { steps: [50, 75, 100, 125, 150], defaultMax: 150 };
+  /** ONE STANDARD SERVING per meal card — no portion multipliers anywhere.
+   *  Energy/protein gaps are closed by complement foods or recipe swaps, never
+   *  by scaling a dish (spec: the recipe page and the meal card must show the
+   *  IDENTICAL per-plate values). */
+  private static readonly QSOLVE: SolveOpts = { steps: [100], defaultMax: 100 };
 
   /**
    * THE one day-measurement everyone shares (generator, repair, rebalance,
@@ -3165,8 +3169,8 @@ export class NutritionService implements OnModuleInit {
       // Aggregate the SAME plate/dish the card shows — the single source of truth.
       const mealTarget = dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal;
       const n = this.mealMacros(m.recipe as unknown as RecipeWithIng & { kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number }, m.slot, dayIndex, opts, mealTarget);
-      const pf = ((m as { portionPct?: number }).portionPct ?? 100) / 100; // optimizer's portion factor
-      kcal += n.kcal * pf; protein += n.protein * pf; carbs += n.carbs * pf; fat += n.fat * pf; fiber += n.fiber * pf;
+      // ONE STANDARD SERVING — exactly what the card and recipe page show.
+      kcal += n.kcal; protein += n.protein; carbs += n.carbs; fat += n.fat; fiber += n.fiber;
       const s = recipeServings(m.recipe);
       const ing = m.recipe.ingredients.reduce((sum, i) => sum + i.priceInr, 0);
       cost += ing > 0 ? Math.round(ing / s) : Math.round((m.recipe.kcal / s) * 0.11);
@@ -3192,7 +3196,7 @@ export class NutritionService implements OnModuleInit {
       recipeName: m.recipe.name,
       ingredients: m.recipe.ingredients,
       servings: recipeServings(m.recipe),
-      portionFactor: ((m as { portionPct?: number }).portionPct ?? 100) / 100,
+      portionFactor: 1,
     }));
     // Add-ons contribute micros too (their keywords feed the same estimator).
     if (addonPicks.length) {
@@ -4340,19 +4344,10 @@ export class NutritionService implements OnModuleInit {
             const plate = indian && (m.slot === 'l' || m.slot === 'd')
               ? assemblePlate(recipe, m.slot as 'l' | 'd', plateOpts, d.dayIndex * 4 + slotOrder[m.slot], dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal)
               : undefined;
-            // Portion factor from the day optimizer: the card shows the SCALED
-            // dish (kcal, macros, grams) so what you see is what the day counts.
-            const pct = (m as { portionPct?: number }).portionPct ?? 100;
-            const pf = pct / 100;
-            const scaled = pct === 100 ? recipe : {
-              ...recipe,
-              kcal: Math.round(recipe.kcal * pf),
-              protein: Math.round(recipe.protein * pf),
-              carbs: Math.round(recipe.carbs * pf),
-              fat: Math.round(recipe.fat * pf),
-              fiber: Math.round(recipe.fiber * pf),
-              gramsPerServing: Math.round((recipe.gramsPerServing ?? 0) * pf),
-            };
+            // ONE STANDARD SERVING — the card carries the recipe's per-plate
+            // values verbatim (identical to the recipe detail page). Any legacy
+            // portionPct is ignored; extra energy rides in the add-ons list.
+            const scaled = recipe;
             // Complement foods on this plate (whole units, dietitian-style).
             let addons: Array<{ key: string; units: number; label: string; kcal: number }> = [];
             try {
@@ -4366,7 +4361,7 @@ export class NutritionService implements OnModuleInit {
               slot: m.slot,
               recipe: scaled,
               skipped: m.skipped,
-              portionPct: pct,
+              portionPct: 100,
               addons,
               sides: { rice: m.sidesRice, roti: m.sidesRoti, curd: m.sidesCurd, salad: m.sidesSalad },
               plate,

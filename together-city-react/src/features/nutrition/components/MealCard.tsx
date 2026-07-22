@@ -11,17 +11,10 @@ const GRADE_COLOR: Record<string, string> = { A: '#2e7d4f', B: '#5a9e3f', C: '#b
 /** Recipe meal card — 16:9 dish photo banner (falls back to a diet-tinted panel
  *  until the image exists), health grade, per-serving portion, and the plate. */
 export function MealCard({ meal, onSwap, onSkip, people = 1, onBack, canGoBack = false }: { meal: Meal; onSwap: () => void; onSkip: () => void; people?: number; onBack?: () => void; canGoBack?: boolean }) {
-  const { recipe: r, slot, skipped, plate, portionPct, addons = [] } = meal;
-  const tuned = portionPct != null && portionPct !== 100 && !plate;
-  const pf = tuned ? portionPct! / 100 : 1;
-  // Dietitian language, never multipliers: quantized portions map to plate
-  // fractions; anything else (legacy data) falls back to a serving descriptor.
-  const PORTION_TEXT: Record<number, string> = {
-    50: 'Half plate', 75: '¾ plate', 125: '1¼ plates', 150: '1½ plates',
-  };
-  const portionText = tuned
-    ? PORTION_TEXT[portionPct!] ?? (pf > 1.5 ? 'Large serving — have it as two helpings' : pf < 0.5 ? 'Small taster plate' : `${Math.round(pf * 100)}% of a standard plate`)
-    : null;
+  const { recipe: r, slot, skipped, plate, addons = [] } = meal;
+  // ONE STANDARD SERVING per card — the values here are byte-identical to the
+  // recipe page (single source of truth). Additional energy arrives as clearly
+  // listed add-ons below, never as a portion multiplier.
   const addonsKcal = addons.reduce((s, a) => s + a.kcal, 0);
   const [imgOk, setImgOk] = useState(true);
   const color = DIET_COLOR[r.diet] ?? DIET_COLOR.everything;
@@ -64,12 +57,6 @@ export function MealCard({ meal, onSwap, onSkip, people = 1, onBack, canGoBack =
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <span className="tag" style={{ background: `${color}1a`, color }}>{r.diet === 'nonveg' ? 'NON-VEG' : r.diet.toUpperCase()}</span>
           <span style={{ fontWeight: 700, fontSize: 15 }}>{mealKcal} <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>kcal</span></span>
-          {portionText && (
-            <span title="Portion sized by the planner so your day lands on its calorie & macro targets"
-              style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}>
-              🍽 {portionText}
-            </span>
-          )}
         </div>
         <p className="muted" style={{ margin: '7px 0 0', fontSize: 12 }}>
           {LABEL[slot]} · {r.country} · {r.minutes} min{r.recipeNo ? ` · No. ${r.recipeNo.toLocaleString('en-IN')}` : ''}
