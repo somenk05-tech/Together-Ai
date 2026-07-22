@@ -4393,6 +4393,54 @@ export class NutritionService implements OnModuleInit {
       R('Jain Paneer Curry & Roti', 'India', 'd', 520, 24, 46, 26, 7, 30, 340, 'jain', [['Paneer', 110, 65], ['Tomato gravy', 110, 22], ['Roti', 60, 12]]),
       R('Lauki Kofta & Rice', 'India', 'd', 500, 14, 66, 20, 8, 35, 360, 'veg', [['Bottle gourd', 150, 20], ['Gravy', 110, 22], ['Rice', 110, 18]]),
       R('Baked Beans on Toast', 'UK', 'd', 430, 18, 66, 10, 14, 12, 320, 'vegan', [['Baked beans', 200, 30], ['Whole-grain toast', 80, 20]]),
+
+      // ───────── Protein-gap expansion (paneer · dal · tofu · protein breakfasts ·
+      // kidney-friendly light-protein) — closes the library's thin categories ─────────
+      // Paneer-forward
+      R('Paneer Tikka Skewers', 'India', 's', 280, 19, 10, 18, 2, 25, 160, 'veg', [['Paneer', 100, 60], ['Capsicum', 50, 10], ['Curd', 30, 5], ['Spices', 6, 4]]),
+      R('Paneer Paratha & Curd', 'India', 'b', 470, 21, 46, 22, 5, 25, 300, 'veg', [['Wheat flour', 80, 13], ['Paneer', 80, 48], ['Curd', 80, 12], ['Ghee', 6, 6]]),
+      R('Matar Paneer & Roti', 'India', 'l', 540, 25, 52, 26, 9, 30, 360, 'veg', [['Paneer', 100, 60], ['Green peas', 70, 12], ['Tomato gravy', 110, 20], ['Roti', 60, 12]]),
+      R('Paneer Bhurji Wrap', 'India', 'b', 420, 22, 40, 19, 5, 20, 280, 'veg', [['Paneer', 90, 54], ['Roti', 70, 14], ['Onion tomato', 60, 10]]),
+      R('Kadai Paneer & Roti', 'India', 'd', 540, 25, 46, 28, 8, 30, 350, 'veg', [['Paneer', 110, 66], ['Capsicum', 70, 14], ['Onion tomato gravy', 100, 18], ['Roti', 60, 12]]),
+      R('Chilli Paneer (Dry)', 'China', 's', 300, 18, 18, 18, 3, 20, 170, 'veg', [['Paneer', 100, 60], ['Capsicum', 60, 12], ['Soy garlic sauce', 20, 8]]),
+      R('Paneer Salad Bowl', 'India', 'l', 380, 24, 22, 22, 6, 15, 320, 'veg', [['Paneer', 110, 66], ['Salad vegetables', 150, 28], ['Peanuts', 15, 9], ['Lemon', 10, 2]]),
+      R('Paneer Stuffed Besan Cheela', 'India', 'b', 400, 24, 34, 18, 6, 22, 260, 'veg', [['Gram flour', 60, 14], ['Paneer', 70, 42], ['Tomato', 40, 8], ['Coriander', 8, 3]]),
+      // Dal / legume-forward
+      R('Dal Palak & Roti', 'India', 'd', 470, 20, 62, 12, 12, 30, 360, 'vegan', [['Toor dal', 90, 20], ['Spinach', 100, 14], ['Roti', 90, 15]]),
+      R('Panchmel Dal & Jeera Rice', 'India', 'l', 540, 20, 84, 12, 13, 35, 400, 'vegan', [['Mixed dal', 100, 24], ['Rice', 140, 24], ['Cumin tempering', 8, 5]]),
+      R('Moong Dal Khichdi Bowl', 'India', 'd', 430, 18, 66, 9, 10, 25, 380, 'vegan', [['Moong dal', 70, 16], ['Rice', 90, 15], ['Vegetables', 80, 16]]),
+      R('Rajma Salad Bowl', 'India', 'l', 420, 18, 62, 10, 14, 20, 340, 'vegan', [['Kidney beans', 120, 26], ['Onion tomato', 80, 14], ['Corn', 50, 10], ['Lemon', 10, 2]]),
+      R('Dal Chilla with Mint Chutney', 'India', 'b', 360, 19, 48, 9, 8, 25, 240, 'vegan', [['Moong dal', 90, 22], ['Onion', 30, 5], ['Mint chutney', 25, 6]]),
+      R('Chana Sundal', 'India', 's', 230, 11, 32, 6, 8, 15, 140, 'vegan', [['Chickpeas', 90, 20], ['Coconut', 15, 6], ['Mustard tempering', 6, 4]]),
+      R('Masoor Dal Soup', 'India', 's', 210, 13, 30, 4, 6, 20, 260, 'vegan', [['Masoor dal', 60, 14], ['Tomato', 60, 10], ['Garlic', 8, 3]]),
+      R('Hara Bhara Kabab', 'India', 's', 260, 12, 34, 9, 8, 25, 150, 'veg', [['Spinach', 80, 12], ['Green peas', 60, 10], ['Chana dal', 40, 9], ['Potato', 50, 6]]),
+      R('Sambar with Brown Rice', 'India', 'l', 500, 17, 82, 10, 12, 35, 400, 'vegan', [['Toor dal', 80, 18], ['Mixed vegetables', 100, 18], ['Brown rice', 140, 26]]),
+      R('Lobia Curry & Roti', 'India', 'd', 480, 19, 68, 12, 12, 35, 360, 'vegan', [['Black-eyed beans', 110, 22], ['Onion tomato gravy', 100, 18], ['Roti', 90, 15]]),
+      // Tofu / soy
+      R('Tofu Bhurji', 'India', 'b', 320, 21, 16, 19, 4, 15, 250, 'vegan', [['Tofu', 180, 48], ['Onion tomato', 70, 12], ['Turmeric spices', 5, 4]]),
+      R('Soy Chunk Curry & Rice', 'India', 'l', 520, 28, 68, 12, 9, 30, 380, 'vegan', [['Soy chunks', 60, 16], ['Onion tomato gravy', 120, 20], ['Rice', 140, 24]]),
+      R('Tofu Tikka Skewers', 'India', 's', 240, 17, 12, 14, 3, 25, 150, 'vegan', [['Tofu', 140, 38], ['Capsicum', 50, 10], ['Spice marinade', 15, 6]]),
+      R('Soy Keema Pav', 'India', 'b', 420, 24, 52, 12, 8, 25, 280, 'vegan', [['Soy granules', 60, 16], ['Onion tomato', 80, 14], ['Whole-grain pav', 80, 18]]),
+      R('Silken Tofu Miso Soup', 'Japan', 's', 180, 12, 14, 8, 3, 15, 300, 'vegan', [['Silken tofu', 120, 34], ['Miso', 15, 10], ['Spring onion', 15, 4]]),
+      R('Tofu Green Curry & Rice', 'Thailand', 'd', 520, 22, 62, 20, 7, 30, 380, 'vegan', [['Tofu', 130, 36], ['Green curry vegetables', 120, 24], ['Rice', 130, 22]]),
+      // Protein-rich breakfasts
+      R('Masala Egg White Omelette & Toast', 'India', 'b', 340, 26, 30, 12, 4, 15, 260, 'egg', [['Egg whites', 150, 30], ['Whole-grain toast', 70, 18], ['Onion chilli', 40, 6]]),
+      R('Curd Oats Power Bowl', 'India', 'b', 380, 20, 50, 10, 7, 10, 300, 'veg', [['Oats', 55, 16], ['Greek yogurt', 130, 35], ['Seeds', 12, 8], ['Banana', 50, 6]]),
+      R('Moong Sprout Poha', 'India', 'b', 350, 15, 56, 8, 8, 20, 280, 'vegan', [['Flattened rice', 60, 13], ['Moong sprouts', 90, 16], ['Peanuts', 18, 10]]),
+      R('Egg Bhurji Multigrain Wrap', 'India', 'b', 430, 26, 40, 18, 6, 18, 280, 'egg', [['Egg', 120, 28], ['Multigrain roti', 80, 18], ['Onion tomato', 50, 8]]),
+      R('Quinoa Upma with Peanuts', 'India', 'b', 380, 14, 52, 13, 7, 22, 280, 'vegan', [['Quinoa', 70, 26], ['Vegetables', 80, 14], ['Peanuts', 20, 11]]),
+      R('Paneer & Corn Sandwich', 'India', 'b', 420, 22, 46, 17, 6, 15, 260, 'veg', [['Whole-grain bread', 80, 20], ['Paneer', 70, 42], ['Sweetcorn', 50, 10]]),
+      R('Dahi Chia Parfait', 'India', 'b', 330, 17, 34, 13, 8, 10, 260, 'veg', [['Greek yogurt', 150, 40], ['Chia seeds', 20, 20], ['Fruit', 80, 14]]),
+      R('Besan Moong Waffle', 'India', 'b', 360, 20, 44, 11, 7, 25, 220, 'veg', [['Gram flour', 50, 12], ['Moong dal', 40, 10], ['Curd', 60, 9], ['Vegetables', 50, 9]]),
+      // Kidney-friendly light-protein (lower protein density, gentle sodium)
+      R('Vegetable Sevai Upma', 'India', 'b', 340, 7, 60, 8, 5, 20, 280, 'vegan', [['Rice vermicelli', 80, 14], ['Vegetables', 90, 16], ['Oil tempering', 8, 7]]),
+      R('Ghee Rice with Sautéed Veg', 'India', 'l', 520, 9, 84, 16, 6, 25, 380, 'veg', [['Rice', 160, 27], ['Mixed vegetables', 120, 22], ['Ghee', 12, 12]]),
+      R('Lemon Poha with Vegetables', 'India', 'b', 330, 6, 58, 8, 4, 15, 270, 'vegan', [['Flattened rice', 75, 16], ['Vegetables', 80, 14], ['Lemon', 12, 3], ['Oil', 8, 7]]),
+      R('Aloo Capsicum & Phulka', 'India', 'd', 450, 10, 74, 13, 8, 28, 350, 'vegan', [['Potato', 130, 14], ['Capsicum', 80, 16], ['Phulka roti', 90, 15]]),
+      R('Vegetable Pulao (Light)', 'India', 'l', 490, 9, 84, 13, 7, 30, 380, 'vegan', [['Basmati rice', 150, 28], ['Mixed vegetables', 120, 22], ['Oil whole spices', 10, 9]]),
+      R('Sabudana Fruit Bowl', 'India', 's', 260, 3, 52, 5, 3, 20, 240, 'jain', [['Sago', 60, 13], ['Fruit', 100, 18], ['Coconut', 10, 4]]),
+      R('Rice Sevai with Coconut', 'India', 'd', 430, 7, 74, 12, 5, 25, 340, 'vegan', [['Rice vermicelli', 100, 18], ['Coconut', 25, 10], ['Vegetables', 70, 12], ['Oil', 8, 7]]),
+      R('Honey Fruit Chaat', 'India', 's', 190, 2, 44, 1, 5, 10, 220, 'vegan', [['Seasonal fruit', 220, 40], ['Honey', 12, 6], ['Lemon chaat masala', 5, 3]]),
     ];
     const missing = seed.filter((s) => !existing.has(s.name));
     for (const r of missing) {
