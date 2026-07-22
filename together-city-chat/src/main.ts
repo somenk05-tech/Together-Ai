@@ -27,7 +27,10 @@ async function bootstrap(): Promise<void> {
   // empty allowlist reflects any origin. Trailing slashes are tolerated.
   const corsOrigin = config.get<string>('corsOrigin') ?? '';
   const allowlist = corsOrigin.split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
-  const allowAll = corsOrigin === '*' || allowlist.length === 0;
+  // '*' is the dev sentinel only. In production an empty CORS_ORIGIN no longer
+  // reflects every origin — the app's own domain + its Vercel deployments are
+  // always allowed, so an empty allowlist is safe and strict by default.
+  const allowAll = corsOrigin === '*';
   const isVercelApp = (o: string) => /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(o);
   // Our own custom domain (and subdomains) is always allowed — no env change needed.
   const isOwnDomain = (o: string) => /^https:\/\/([a-z0-9-]+\.)?togethercity\.app$/i.test(o);

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 import { SOCIAL_WS } from './social.events';
+import { wsCors } from '../shared/ws-cors';
 
 /**
  * Broadcast-only gateway for the Social hub. It shares the default Socket.IO
@@ -9,7 +10,7 @@ import { SOCIAL_WS } from './social.events';
  * it only fans domain events out so feeds update live.
  */
 @Injectable()
-@WebSocketGateway({ cors: { origin: '*', credentials: true } })
+@WebSocketGateway({ cors: wsCors })
 export class SocialGateway {
   @WebSocketServer() private server!: Server;
   private readonly logger = new Logger(SocialGateway.name);

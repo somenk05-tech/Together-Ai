@@ -51,9 +51,22 @@ const DEV_REFRESH_SECRET = 'dev-refresh';
  */
 function assertProductionConfig(): void {
   if ((process.env.NODE_ENV ?? 'development') !== 'production') return;
+  // JWT secrets are ALWAYS fatal in production: booting with forgeable tokens is
+  // strictly worse than downtime. (Everything else below warns unless strict.)
+  const fatal: string[] = [];
+  if (!process.env.JWT_ACCESS_SECRET || process.env.JWT_ACCESS_SECRET === DEV_ACCESS_SECRET) {
+    fatal.push('JWT_ACCESS_SECRET is missing/default — set a strong unique value (≥32 random chars).');
+  }
+  if (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === DEV_REFRESH_SECRET) {
+    fatal.push('JWT_REFRESH_SECRET is missing/default — set a strong unique value (≥32 random chars).');
+  }
+  if (fatal.length) {
+    throw new Error(`Refusing to start with insecure JWT config:\n  - ${fatal.join('\n  - ')}`);
+  }
   const problems: string[] = [];
-  if (!process.env.JWT_ACCESS_SECRET || process.env.JWT_ACCESS_SECRET === DEV_ACCESS_SECRET) problems.push('JWT_ACCESS_SECRET is missing/default — set a strong unique value.');
-  if (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === DEV_REFRESH_SECRET) problems.push('JWT_REFRESH_SECRET is missing/default — set a strong unique value.');
+  if ((process.env.JWT_ACCESS_SECRET ?? '').length < 32 || (process.env.JWT_REFRESH_SECRET ?? '').length < 32) {
+    problems.push('JWT secrets are shorter than 32 chars — rotate to ≥32 random chars.');
+  }
   const cors = process.env.CORS_ORIGIN ?? '';
   if (!cors || cors === '*') problems.push('CORS_ORIGIN is unset/"*" — set an explicit origin list.');
   const emailProvider = (process.env.EMAIL_PROVIDER ?? process.env.MESSAGING_PROVIDER ?? 'stub').toLowerCase();

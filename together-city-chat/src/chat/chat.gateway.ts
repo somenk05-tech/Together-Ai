@@ -21,6 +21,7 @@ import { ChatEventBus, ChatEvent } from '../shared/events/chat-events';
 import { parseOrThrow } from '../shared/zod/zod-validation.pipe';
 import { WsExceptionFilter } from './ws-exception.filter';
 import { WS, room } from './chat.events';
+import { wsCors } from '../shared/ws-cors';
 import {
   AckSchema,
   JoinConversationSchema,
@@ -44,7 +45,7 @@ interface AuthedSocket extends Socket {
  * delegated to services and awaited before broadcast.
  */
 @UseFilters(new WsExceptionFilter())
-@WebSocketGateway({ cors: { origin: '*', credentials: true } })
+@WebSocketGateway({ cors: wsCors })
 export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() private server!: Server;
   private readonly logger = new Logger(ChatGateway.name);
