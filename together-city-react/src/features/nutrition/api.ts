@@ -1,5 +1,5 @@
 import { http as api } from '@/api/client';
-import type { WeekPlan, WeekSummary, DaySummary, NutritionTargets, NutritionAdvisory, MedRecCard, Sides, Recipe, NutritionHistoryWeek } from './types';
+import type { WeekPlan, WeekSummary, DaySummary, NutritionTargets, NutritionAdvisory, MedRecCard, WeekNutritionSummary, Sides, Recipe, NutritionHistoryWeek } from './types';
 
 /** Nutrition endpoints on the NestJS backend (no engine logic duplicated client-side). */
 export const nutritionApi = {
@@ -40,6 +40,8 @@ export const nutritionApi = {
     api.post<WeekPlan>('/nutrition/plan/weekly/new', { mode, weekStart }).then((r) => r.data),
   duplicateWeek: (sourceKey: string, mode: 'individual' | 'family' = 'individual', weekStart?: string) =>
     api.post<WeekPlan>('/nutrition/plan/weekly/duplicate', { mode, sourceKey, weekStart }).then((r) => r.data),
+  weekSummary: (planKey: string) =>
+    api.get<WeekNutritionSummary>(`/nutrition/plan/${planKey}/week-summary`).then((r) => r.data),
   daySummary: (planKey: string, dayIndex: number) =>
     api.get<DaySummary>(`/nutrition/plan/${planKey}/day/${dayIndex}/summary`).then((r) => r.data),
   repairDay: (planKey: string, dayIndex: number) =>

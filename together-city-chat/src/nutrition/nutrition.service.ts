@@ -2765,6 +2765,11 @@ export class NutritionService implements OnModuleInit {
     const picks: Record<number, Partial<Record<Slot, RecipeWithIng>>> = {};
     const portions: Record<number, Record<string, number>> = {};
     const dayAddons: Record<number, Record<string, AddonPick[]>> = {};
+    // ── Weekly nutritional budgeting: the WEEK is the optimization unit. Each
+    // day carries the accumulated deviation forward so later days naturally
+    // compensate (Monday high → Tuesday lower), while daily medical caps hold.
+    const weekCarry = { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0 };
+    const proteinCapped = isProteinRestricted(ex);
     for (let d = 0; d < DAYS.length; d++) {
       const dayVeg = ex.weekly?.[SHORT_DAYS[d]] === 'veg';
       const ranked = dayVeg ? vegRanked : baseRanked;
@@ -2782,11 +2787,12 @@ export class NutritionService implements OnModuleInit {
       // Evaluate a candidate set of picks: quantized solve (½–1½ plates) with
       // shared plate budgets, then complement fill, then the HARD gate. Score
       // is the total band violation of the COMPLETE day (dishes + add-ons).
+      const tgDay = this.carryAdjustedTarget(tg, weekCarry, proteinCapped);
       const mealsLikeOf = (p: Partial<Record<Slot, RecipeWithIng>>) =>
         SLOTS.filter((sl) => p[sl]).map((sl) => ({ slot: sl as string, skipped: false, recipe: p[sl] as unknown }));
       const evalPicks = (p: Partial<Record<Slot, RecipeWithIng>>) => {
-        const solved = this.solveDayQ(mealsLikeOf(p), d, tg, opts);
-        const planned = this.planDayAddons(solved.items, solved.pcts, tg, diet, dietPlans);
+        const solved = this.solveDayQ(mealsLikeOf(p), d, tgDay, opts);
+        const planned = this.planDayAddons(solved.items, solved.pcts, tgDay, diet, dietPlans);
         const addonItems = Object.values(planned.addons).reduce((n, a) => n + a.length, 0);
         // A dietitian prefers the day whose MEALS carry the nutrition: add-on
         // items cost score, so recipe swaps win over patching whenever possible.
@@ -2865,6 +2871,13 @@ export class NutritionService implements OnModuleInit {
       }
       portions[d] = ev.pcts;
       dayAddons[d] = ev.addons;
+      // Update the weekly carry with this day's outcome vs the BASE target.
+      const dayTot = dayTotalsFor(ev.items, ev.pcts);
+      weekCarry.kcal += tg.kcal - (dayTot.kcal + ev.extra.kcal);
+      weekCarry.protein += tg.protein - (dayTot.protein + ev.extra.protein);
+      weekCarry.carb += tg.carb - (dayTot.carbs + ev.extra.carbs);
+      weekCarry.fat += tg.fat - (dayTot.fat + ev.extra.fat);
+      weekCarry.fiber += tg.fiber - (dayTot.fiber + ev.extra.fiber);
     }
 
     // One plan per user+mode — clear old ones so the profile stays the source of truth.
@@ -3072,13 +3085,15 @@ export class NutritionService implements OnModuleInit {
     if (!active.length) return;
     // Same machinery as generation: quantized solve on the SHARED measurement,
     // then complement fill — after a skip/refresh the remaining meals and
-    // add-ons re-close the day to the prescription.
-    const { pcts, items } = this.solveDayQ(day.meals as never, dayIndex, tg, opts);
+    // add-ons re-close the day to the prescription. Weekly budgeting: this
+    // day's working target absorbs the deviation of the days BEFORE it.
+    const tgDay = await this.weekAwareTarget(planKey, dayIndex, tg, opts, isProteinRestricted(ex));
+    const { pcts, items } = this.solveDayQ(day.meals as never, dayIndex, tgDay, opts);
     const plans = assignDietPlans({
       conditions: ex.healthConditions ?? [], flags: flagsFor(await this.bloodValues(userId)) as Record<string, string>,
       goal: pref?.goal ?? 'maintain', diet: (pref?.diet ?? 'everything') as Diet, age: pref?.age ?? 30,
     });
-    const { addons } = this.planDayAddons(items, pcts, tg, (pref?.diet ?? 'everything') as string, plans);
+    const { addons } = this.planDayAddons(items, pcts, tgDay, (pref?.diet ?? 'everything') as string, plans);
     await Promise.all(active.map((m) =>
       this.prisma.meal.update({
         where: { id: m.id },
@@ -3122,12 +3137,13 @@ export class NutritionService implements OnModuleInit {
       conditions: ex.healthConditions ?? [], flags: flagsFor(await this.bloodValues(userId)) as Record<string, string>,
       goal: pref?.goal ?? 'maintain', diet, age: pref?.age ?? 30,
     });
+    const tgDay = await this.weekAwareTarget(planKey, dayIndex, tg, opts, isProteinRestricted(ex));
     const mealsLike = () => [...picks.entries()]
       .filter(([sl]) => !skippedSlots.has(sl))
       .map(([sl, r]) => ({ slot: sl, skipped: false, recipe: r as unknown }));
     const evalNow = () => {
-      const solved = this.solveDayQ(mealsLike(), dayIndex, tg, opts);
-      const planned = this.planDayAddons(solved.items, solved.pcts, tg, diet as string, plans);
+      const solved = this.solveDayQ(mealsLike(), dayIndex, tgDay, opts);
+      const planned = this.planDayAddons(solved.items, solved.pcts, tgDay, diet as string, plans);
       const addonItems = Object.values(planned.addons).reduce((n, a) => n + a.length, 0);
       return { ...solved, ...planned, score: planned.violation.total + addonItems * 0.35 };
     };
@@ -3265,6 +3281,122 @@ export class NutritionService implements OnModuleInit {
     const plan = await this.prisma.mealPlan.findUnique({ where: { key: planKey }, select: { userId: true } });
     if (!plan) throw new NotFoundException('plan not found');
     if (plan.userId !== userId) throw new ForbiddenException('That meal plan is not yours.');
+  }
+
+  /** Working target for one day of a SAVED plan, absorbing prior days' deviation. */
+  private async weekAwareTarget(
+    planKey: string,
+    dayIndex: number,
+    tg: Awaited<ReturnType<NutritionService['targets']>>,
+    opts: PlateOpts,
+    proteinCapped: boolean,
+  ) {
+    if (dayIndex <= 0) return tg;
+    const prior = await this.prisma.mealPlanDay.findMany({
+      where: { plan: { key: planKey }, dayIndex: { lt: dayIndex } },
+      include: { meals: { include: { recipe: { include: { ingredients: true } } } } },
+    }).catch(() => []);
+    const carry = { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0 };
+    for (const d of prior) {
+      const t = this.dayTotalsCore(d.meals as never, d.dayIndex, tg, opts);
+      carry.kcal += tg.kcal - t.kcal; carry.protein += tg.protein - t.protein;
+      carry.carb += tg.carb - t.carbs; carry.fat += tg.fat - t.fat; carry.fiber += tg.fiber - t.fiber;
+    }
+    return this.carryAdjustedTarget(tg, carry, proteinCapped);
+  }
+
+  /**
+   * Weekly budgeting: nudge a day's working target by the week's accumulated
+   * deviation (Monday ran 150 kcal over → Tuesday aims slightly lower). Bounded
+   * to safe daily ranges, and protein NEVER rises above the prescribed daily
+   * cap for protein-restricted (renal) users — disease limits stay daily.
+   */
+  private carryAdjustedTarget(
+    tg: Awaited<ReturnType<NutritionService['targets']>>,
+    carry: { kcal: number; protein: number; carb: number; fat: number; fiber: number },
+    proteinCapped: boolean,
+  ) {
+    const c = (base: number, dev: number, loPct: number, hiPct: number) =>
+      Math.round(Math.min(base * hiPct, Math.max(base * loPct, base + dev * 0.5)));
+    const protein = proteinCapped
+      ? Math.min(tg.protein, c(tg.protein, carry.protein, 0.88, 1.0))
+      : c(tg.protein, carry.protein, 0.88, 1.1);
+    return { ...tg, kcal: c(tg.kcal, carry.kcal, 0.92, 1.08), protein, carb: c(tg.carb, carry.carb, 0.85, 1.15), fat: c(tg.fat, carry.fat, 0.85, 1.12), fiber: c(tg.fiber, carry.fiber, 0.9, 1.15) };
+  }
+
+  /** Shared per-day totals (dishes + add-ons) — the same numbers the cards show. */
+  private dayTotalsCore(
+    meals: Array<{ slot: string; skipped: boolean; recipe: unknown; addonsJson?: string | null }>,
+    dayIndex: number,
+    tg: Awaited<ReturnType<NutritionService['targets']>>,
+    opts: PlateOpts,
+  ) {
+    const dyn = perMealTargets(this.dayMealInputs(meals as never), tg.kcal);
+    let kcal = 0, protein = 0, carbs = 0, fat = 0, fiber = 0;
+    for (const m of meals) {
+      if (m.skipped) continue;
+      const mealTarget = dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal;
+      const n = this.mealMacros(m.recipe as never, m.slot, dayIndex, opts, mealTarget);
+      kcal += n.kcal; protein += n.protein; carbs += n.carbs; fat += n.fat; fiber += n.fiber;
+    }
+    const addonPicks: AddonPick[] = meals.filter((m) => !m.skipped).flatMap((m) => {
+      try { return JSON.parse((m.addonsJson) ?? '[]') as AddonPick[]; } catch { return []; }
+    });
+    const a = addonMacros(addonPicks);
+    return {
+      kcal: Math.round(kcal + a.kcal), protein: Math.round(protein + a.protein),
+      carbs: Math.round(carbs + a.carbs), fat: Math.round(fat + a.fat), fiber: Math.round(fiber + a.fiber),
+    };
+  }
+
+  /**
+   * Weekly Nutrition Progress (spec §weekly budgeting): per-day totals,
+   * cumulative intake vs cumulative target for every day, and the Sunday
+   * weekly score + compliance. A dietitian judges the WEEK; daily medical
+   * caps still gate each individual day elsewhere.
+   */
+  async weekSummary(userId: string, planKey: string) {
+    await this.assertOwnsPlan(planKey, userId);
+    const plan = await this.prisma.mealPlan.findUnique({
+      where: { key: planKey },
+      include: { days: { orderBy: { dayIndex: 'asc' }, include: { meals: { include: { recipe: { include: { ingredients: true } } } } } } },
+    });
+    if (!plan) throw new NotFoundException('plan not found');
+    const tg = await this.targets(userId);
+    const opts = await this.plateOptsFor(userId);
+    const KEYS = ['kcal', 'protein', 'carbs', 'fat', 'fiber'] as const;
+    const targetOf = { kcal: tg.kcal, protein: tg.protein, carbs: tg.carb, fat: tg.fat, fiber: tg.fiber };
+
+    const perDay = plan.days.map((d) => ({
+      dayIndex: d.dayIndex, day: d.dayName,
+      ...this.dayTotalsCore(d.meals as never, d.dayIndex, tg, opts),
+    }));
+    const cum = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+    const days = perDay.map((p, i) => {
+      for (const k of KEYS) cum[k] += p[k];
+      return {
+        ...p,
+        cumulative: { ...cum },
+        cumulativeTarget: Object.fromEntries(KEYS.map((k) => [k, Math.round(targetOf[k] * (i + 1))])),
+      };
+    });
+    const weeklyTarget = Object.fromEntries(KEYS.map((k) => [k, Math.round(targetOf[k] * 7)])) as Record<typeof KEYS[number], number>;
+    // Weekly score: 100 minus %-points outside the weekly tolerance bands
+    // (same pct tolerances as daily, applied at week scale; overshoot 2×).
+    let penalty = 0; let complianceSum = 0;
+    for (const k of KEYS) {
+      const T = weeklyTarget[k]; if (!T) continue;
+      const tol = DAY_TOLERANCE[k === 'carbs' ? 'carbs' : k];
+      const overAllow = (T * tol.overPct) / 100 + tol.abs * 3;
+      const underAllow = (T * tol.underPct) / 100 + tol.abs * 3;
+      const v = cum[k];
+      if (v > T + overAllow) penalty += ((v - T - overAllow) / T) * 100 * 2;
+      else if (v < T - underAllow) penalty += ((T - underAllow - v) / T) * 100;
+      complianceSum += Math.min(100, Math.max(0, 100 - (Math.abs(v - T) / T) * 100));
+    }
+    const weeklyScore = Math.max(0, Math.min(100, Math.round(100 - penalty)));
+    const compliancePct = Math.round(complianceSum / KEYS.length);
+    return { key: planKey, days, weeklyTarget, weeklyIntake: { ...cum }, weeklyScore, compliancePct, dailyTarget: targetOf };
   }
 
   async daySummary(userId: string, planKey: string, dayIndex: number) {

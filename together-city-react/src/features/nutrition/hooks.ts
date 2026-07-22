@@ -57,6 +57,7 @@ export function syncPlanCaches(qc: QueryClient, mode: string, plan: WeekPlan) {
   qc.setQueryData(KEY(mode), merge);
   qc.setQueryData(DAILY_KEY(mode), merge);
   void qc.invalidateQueries({ queryKey: ['nutrition', 'summary'] });
+  void qc.invalidateQueries({ queryKey: ['nutrition', 'week-summary'] });
   void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] });
   void qc.invalidateQueries({ queryKey: ['nutrition', 'history', mode] });
   void qc.invalidateQueries({ queryKey: ['nutrition', 'weeks', mode] });
@@ -169,9 +170,18 @@ export function useRepairDay() {
     mutationFn: (v: { planKey: string; dayIndex: number }) => nutritionApi.repairDay(v.planKey, v.dayIndex),
     onSuccess: (_r, v) => {
       qc.invalidateQueries({ queryKey: ['nutrition', 'summary', v.planKey, v.dayIndex] });
+      qc.invalidateQueries({ queryKey: ['nutrition', 'week-summary'] });
       qc.invalidateQueries({ queryKey: ['nutrition', 'weekly'] });
       qc.invalidateQueries({ queryKey: ['nutrition', 'daily'] });
     },
+  });
+}
+
+export function useWeekNutrition(planKey: string | undefined) {
+  return useQuery({
+    queryKey: ['nutrition', 'week-summary', planKey],
+    queryFn: () => nutritionApi.weekSummary(planKey as string),
+    enabled: Boolean(planKey),
   });
 }
 

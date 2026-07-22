@@ -138,6 +138,22 @@ export interface MicroIntake {
 /** Personalized Nutrition Advice item (dietary balance advisory). */
 export interface NutritionAdvisory { key: string; title: string; body: string }
 
+/** Weekly Nutrition Progress payload (cumulative budgeting). */
+export interface WeekNutritionSummary {
+  key: string;
+  days: Array<{
+    dayIndex: number; day: string;
+    kcal: number; protein: number; carbs: number; fat: number; fiber: number;
+    cumulative: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
+    cumulativeTarget: Record<string, number>;
+  }>;
+  weeklyTarget: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
+  weeklyIntake: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
+  weeklyScore: number;
+  compliancePct: number;
+  dailyTarget: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
+}
+
 /** Medical Nutrition Recommendation card (condition guidelines vs preferences). */
 export interface MedRecCard {
   condition: string; icon: string; title: string; intro: string;

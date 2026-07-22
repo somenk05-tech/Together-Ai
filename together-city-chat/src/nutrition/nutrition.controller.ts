@@ -235,6 +235,12 @@ export class NutritionController {
     return this.nutrition.nutritionHistoryDetail(user.sub, id);
   }
 
+  /** Weekly Nutrition Progress — per-day, cumulative and weekly totals + scores. */
+  @Get('plan/:key/week-summary')
+  weekSummary(@CurrentUser() user: JwtUser, @Param('key') key: string) {
+    return this.nutrition.weekSummary(user.sub, key);
+  }
+
   @Get('plan/:key/day/:idx/summary')
   daySummary(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number) {
     return this.nutrition.daySummary(user.sub, key, idx);

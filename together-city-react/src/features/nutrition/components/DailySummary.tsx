@@ -1,6 +1,68 @@
 import { useEffect, useRef } from 'react';
-import type { DaySummary, NutritionTargets } from '../types';
-import { useNutritionAdvice, useRepairDay } from '../hooks';
+import type { DaySummary, NutritionTargets, WeekNutritionSummary } from '../types';
+import { useNutritionAdvice, useRepairDay, useWeekNutrition } from '../hooks';
+
+const MACROS: Array<[key: 'kcal' | 'protein' | 'carbs' | 'fat' | 'fiber', label: string, unit: string]> = [
+  ['kcal', 'Calories', 'kcal'], ['protein', 'Protein', 'g'], ['carbs', 'Carbs', 'g'], ['fat', 'Fat', 'g'], ['fiber', 'Fibre', 'g'],
+];
+
+/** One cumulative row: week-to-date intake vs week-to-date target, with the
+ *  selected day's own intake beneath. */
+function WeekRow({ label, unit, cum, cumTarget, today, todayTarget }: {
+  label: string; unit: string; cum: number; cumTarget: number; today: number; todayTarget: number;
+}) {
+  const pct = cumTarget > 0 ? Math.round((cum / cumTarget) * 100) : 0;
+  const over = pct > 106;
+  const col = over ? '#c0392b' : pct >= 90 ? 'var(--accent)' : '#b08d3e';
+  return (
+    <div style={{ margin: '10px 0' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12.5 }}>
+        <span style={{ fontWeight: 600 }}>{label}</span>
+        <span className="muted">
+          <b style={{ color: 'var(--ink)' }}>{cum.toLocaleString('en-IN')}</b> / {cumTarget.toLocaleString('en-IN')} {unit}
+          <span style={{ marginLeft: 8, fontWeight: 700, color: col }}>{pct}%</span>
+        </span>
+      </div>
+      <span style={{ display: 'block', height: 6, background: 'var(--line)', borderRadius: 4, overflow: 'hidden', marginTop: 5 }}>
+        <span style={{ display: 'block', height: '100%', width: `${Math.min(100, pct)}%`, background: col }} />
+      </span>
+      <div className="muted" style={{ fontSize: 10.5, marginTop: 3 }}>
+        today {today.toLocaleString('en-IN')} / {todayTarget.toLocaleString('en-IN')} {unit}
+      </div>
+    </div>
+  );
+}
+
+/** Weekly Nutrition Progress — cumulative budgeting view (Mon → selected day). */
+function WeekProgress({ week, dayIndex }: { week: WeekNutritionSummary; dayIndex: number }) {
+  const day = week.days.find((d) => d.dayIndex === dayIndex) ?? week.days[week.days.length - 1];
+  if (!day) return null;
+  const isSunday = day.dayIndex >= 6;
+  return (
+    <>
+      {MACROS.map(([k, label, unit]) => (
+        <WeekRow key={k} label={label} unit={unit}
+          cum={day.cumulative[k]} cumTarget={Number(day.cumulativeTarget[k] ?? 0)}
+          today={day[k]} todayTarget={week.dailyTarget[k]} />
+      ))}
+      {isSunday && (
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 12, padding: '12px 14px', background: 'var(--paper)', borderRadius: 12 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 700, lineHeight: 1 }}>{week.weeklyScore}</div>
+            <div className="muted" style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '.06em' }}>weekly score</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 700, lineHeight: 1 }}>{week.compliancePct}%</div>
+            <div className="muted" style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '.06em' }}>compliance</div>
+          </div>
+          <p className="muted" style={{ fontSize: 11, margin: 0, lineHeight: 1.45 }}>
+            Week complete — cumulative intake vs your full weekly prescription.
+          </p>
+        </div>
+      )}
+    </>
+  );
+}
 
 const BANDS: Array<[string, (s: DaySummary) => number, (t: NutritionTargets) => number, number, number]> = [
   // label, consumed, target, minPct, maxPct
@@ -114,22 +176,33 @@ function NutrientRow({ label, consumed, target, unit }: { label: string; consume
   );
 }
 
-/** Daily Nutrition Overview — Target vs Consumed vs Remaining for every macro. */
+/** Weekly Nutrition Progress — cumulative budgeting (falls back to the plain
+ *  daily view when the weekly summary isn't available). */
 export function DailySummary({ day, summary, targets, planKey, dayIndex }: {
   day: string; summary: DaySummary; targets?: NutritionTargets; planKey?: string; dayIndex?: number;
 }) {
+  const week = useWeekNutrition(planKey);
+  const hasWeek = Boolean(week.data?.days?.length) && dayIndex != null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div className="card">
-        <h4 style={{ marginBottom: 4 }}>Daily Nutrition Overview — {day}</h4>
-        <p className="muted" style={{ fontSize: 11.5, margin: '0 0 8px' }}>Consumed vs your personalised target</p>
+        <h4 style={{ marginBottom: 4 }}>{hasWeek ? 'Weekly Nutrition Progress' : 'Daily Nutrition Overview'} — {day}</h4>
+        <p className="muted" style={{ fontSize: 11.5, margin: '0 0 8px' }}>
+          {hasWeek ? 'Week-to-date intake vs your cumulative prescription — a dietitian balances the week, not each day in isolation' : 'Consumed vs your personalised target'}
+        </p>
         {targets ? (
           <>
-            <NutrientRow label="Calories" consumed={summary.kcal} target={targets.kcal} unit="kcal" />
-            <NutrientRow label="Protein" consumed={summary.protein} target={targets.protein} unit="g" />
-            <NutrientRow label="Carbs" consumed={summary.carbs} target={targets.carb} unit="g" />
-            <NutrientRow label="Fat" consumed={summary.fat} target={targets.fat} unit="g" />
-            <NutrientRow label="Fibre" consumed={summary.fiber} target={targets.fiber} unit="g" />
+            {hasWeek
+              ? <WeekProgress week={week.data as WeekNutritionSummary} dayIndex={dayIndex as number} />
+              : (
+                <>
+                  <NutrientRow label="Calories" consumed={summary.kcal} target={targets.kcal} unit="kcal" />
+                  <NutrientRow label="Protein" consumed={summary.protein} target={targets.protein} unit="g" />
+                  <NutrientRow label="Carbs" consumed={summary.carbs} target={targets.carb} unit="g" />
+                  <NutrientRow label="Fat" consumed={summary.fat} target={targets.fat} unit="g" />
+                  <NutrientRow label="Fibre" consumed={summary.fiber} target={targets.fiber} unit="g" />
+                </>
+              )}
             <AutoBalance summary={summary} targets={targets} planKey={planKey} dayIndex={dayIndex} />
             {targets.adjustments && targets.adjustments.length > 0 && (
               <div style={{ marginTop: 10, padding: '8px 10px', background: 'var(--paper)', borderRadius: 10 }}>
