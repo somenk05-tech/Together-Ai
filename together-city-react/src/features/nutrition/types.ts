@@ -27,6 +27,7 @@ export interface PlateComponent {
   role: 'main' | 'secondary' | 'carb' | 'vegetable' | 'dairy' | 'salad';
   icon: string; name: string; portion: string;
   kcal: number; protein: number; carbs: number; fat: number; fiber: number;
+  recipeId?: string;   // clickable → that component's own recipe page
 }
 export interface PlateMacro { kcal: number; protein: number; carbs: number; fat: number; fiber: number }
 export interface Plate { components: PlateComponent[]; totals: PlateMacro }

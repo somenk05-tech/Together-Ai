@@ -85,7 +85,14 @@ export function MealCard({ meal, onSwap, onSkip, people = 1, onBack, canGoBack =
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               {plate.components.map((c, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12.5 }}>
-                  <span>{c.icon} {c.name}</span>
+                  {c.recipeId ? (
+                    <Link to={`/nutrition/recipes/${c.recipeId}`} title="View recipe"
+                      style={{ color: 'var(--ink)', textDecoration: 'none', borderBottom: '1px dotted var(--muted)' }}>
+                      {c.icon} {c.name}
+                    </Link>
+                  ) : (
+                    <span>{c.icon} {c.name}</span>
+                  )}
                   <span className="muted" style={{ whiteSpace: 'nowrap' }}>{c.portion}{c.kcal ? ` · ${c.kcal} kcal` : ''}</span>
                 </div>
               ))}

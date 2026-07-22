@@ -6,7 +6,7 @@
  */
 
 export interface Macro { kcal: number; protein: number; carbs: number; fat: number; fiber: number }
-export interface Comp extends Macro { role: 'main' | 'secondary' | 'carb' | 'vegetable' | 'dairy' | 'salad'; icon: string; name: string; portion: string }
+export interface Comp extends Macro { role: 'main' | 'secondary' | 'carb' | 'vegetable' | 'dairy' | 'salad'; icon: string; name: string; portion: string; recipeId?: string }
 export interface Plate { components: Comp[]; totals: Macro }
 
 export interface PlateOpts {

@@ -1012,10 +1012,13 @@ export function bandViolationPct(
     const band = DAY_TOLERANCE[key];
     const overAllow = Math.max((T * band.overPct) / 100, band.abs);
     const underAllow = Math.max((T * band.underPct) / 100, band.abs);
-    const beyond = tot > T + overAllow ? tot - (T + overAllow) : tot < T - underAllow ? (T - underAllow) - tot : 0;
-    const v = (beyond / T) * 100;
+    const isOver = tot > T + overAllow;
+    const beyond = isOver ? tot - (T + overAllow) : tot < T - underAllow ? (T - underAllow) - tot : 0;
+    // A dietitian NEVER exceeds a prescribed limit: overshoot counts 3× so the
+    // search always eliminates excess before polishing a shortfall.
+    const v = (beyond / T) * 100 * (isOver ? 3 : 1);
     total += v;
-    if (v > worst) { worst = v; worstNutrient = key; worstSide = tot > T ? 'over' : 'under'; }
+    if (v > worst) { worst = v; worstNutrient = key; worstSide = isOver ? 'over' : 'under'; }
   }
   return { total: Math.round(total * 10) / 10, worstNutrient, worstSide };
 }
@@ -2816,7 +2819,7 @@ export class NutritionService implements OnModuleInit {
       // swap can never violate diet/medical constraints.
       if (ev.score > 0) {
         const pools = dayVeg ? vegRanked : baseRanked;
-        for (let sweep = 0; sweep < 2 && ev.score > 0; sweep++) {
+        for (let sweep = 0; sweep < 3 && ev.score > 0; sweep++) {
           for (const sl of SLOTS.filter((s) => picks[d][s])) {
             if (ev.score <= 0) break;
             const original = picks[d][sl] as RecipeWithIng;
@@ -2824,10 +2827,10 @@ export class NutritionService implements OnModuleInit {
             if (isPlate) continue;
             const alternates = (pools[sl] ?? [])
               .filter((r) => r.id !== original.id && count(usedRecipe, r.id) < (sweep === 0 ? 1 : 2))
-              .slice(0, 200)
+              .slice(0, 300)
               .map((r) => ({ r, s: fitScore(r, sl, d) }))
               .sort((a, b) => a.s - b.s)
-              .slice(0, sweep === 0 ? 30 : 60)
+              .slice(0, sweep === 0 ? 40 : sweep === 1 ? 80 : 120)
               .map((x) => x.r);
             for (const alt of alternates) {
               picks[d][sl] = alt;
@@ -2841,15 +2844,16 @@ export class NutritionService implements OnModuleInit {
         if (ev.score > 0) ev = evalPicks(picks[d]); // settle on the final picks
 
         // Full-day REDESIGN (dietitian rule: if a day can't be balanced, don't
-        // patch it — compose a new one). Re-pick every slot from a shifted
-        // rotation and keep whichever day reviews better.
-        if (ev.score > 0) {
+        // patch it — compose a new one). Up to two attempts from different
+        // rotations; keep whichever day reviews best.
+        for (const rotShift of [3, 5]) {
+          if (ev.score <= 0) break;
           const redesignState = snapMaps();
           restoreMaps(baseState);
           const redesign: Partial<Record<Slot, RecipeWithIng>> = {};
           for (const slot of SLOTS) {
             if (!chosen.picksT[slot] && !picks[d][slot]) continue;
-            const r = pickSlot(slot, 3);
+            const r = pickSlot(slot, rotShift);
             if (r) redesign[slot] = r;
           }
           const savedPicks = picks[d];
@@ -3159,10 +3163,10 @@ export class NutritionService implements OnModuleInit {
           const used = inUse();
           const alternates = (pools[sl as Slot] ?? [])
             .filter((r) => !used.has(r.id))
-            .slice(0, 200)
+            .slice(0, 300)
             .map((r) => ({ r, s: fit(r, sl) }))
             .sort((a, b) => a.s - b.s)
-            .slice(0, sweep === 0 ? 30 : 60)
+            .slice(0, sweep === 0 ? 40 : 100)
             .map((x) => x.r);
           for (const alt of alternates) {
             picks.set(sl, alt);
@@ -3203,14 +3207,57 @@ export class NutritionService implements OnModuleInit {
       }).catch(() => undefined);
     }));
     const valid = ev.score <= 0;
+    let limiting: { nutrient: string; side: string; achieved: number; target: number } | null = null;
+    if (!valid) {
+      const totals = dayTotalsFor(ev.items, ev.pcts);
+      const ex2 = ev.extra;
+      const key = ev.violation.worstNutrient as 'kcal' | 'protein' | 'carbs' | 'fat' | 'fiber';
+      const achievedMap = {
+        kcal: totals.kcal + ex2.kcal, protein: totals.protein + ex2.protein,
+        carbs: totals.carbs + ex2.carbs, fat: totals.fat + ex2.fat, fiber: totals.fiber + ex2.fiber,
+      };
+      const targetMap = { kcal: tg.kcal, protein: tg.protein, carbs: tg.carb, fat: tg.fat, fiber: tg.fiber };
+      limiting = {
+        nutrient: ev.violation.worstNutrient, side: ev.violation.worstSide,
+        achieved: Math.round(achievedMap[key] ?? 0), target: Math.round(targetMap[key] ?? 0),
+      };
+    }
     return {
       repaired: changedRecipes || true,
       valid,
       violation: ev.violation.total,
-      // Only meaningful when invalid: the single constraint the recipe library
-      // could not satisfy — surfaced to the user per spec.
-      limiting: valid ? null : { nutrient: ev.violation.worstNutrient, side: ev.violation.worstSide },
+      // Only meaningful when the EXHAUSTIVE search failed: the single
+      // constraint the recipe library cannot satisfy, with the closest
+      // achievable value so the user sees exactly why.
+      limiting,
     };
+  }
+
+  // ── plate-component → library-recipe matching (clickable thali items) ──
+  private recipeNameIndex: Array<{ id: string; name: string }> | null = null;
+  private async nameIndex(): Promise<Array<{ id: string; name: string }>> {
+    if (!this.recipeNameIndex) {
+      const rows = await this.prisma.recipe.findMany({ select: { id: true, name: true } }).catch(() => []);
+      this.recipeNameIndex = rows.map((r) => ({ id: r.id, name: r.name.toLowerCase() }));
+    }
+    return this.recipeNameIndex;
+  }
+  /** Best-effort library match for a plate component name ("Masoor Dal" → the
+   *  Masoor Dal recipe) so every thali item can open a real recipe page. */
+  private matchComponentRecipe(index: Array<{ id: string; name: string }>, compName: string): string | undefined {
+    const q = compName.toLowerCase().replace(/\(.*?\)/g, '').replace(/plain |mixed |seasonal |sprouts? & /g, '').trim();
+    if (q.length < 3) return undefined;
+    const exact = index.find((r) => r.name === q);
+    if (exact) return exact.id;
+    const contains = index.find((r) => r.name.includes(q));
+    if (contains) return contains.id;
+    // last word match ("Cauliflower Sabzi" → any sabzi/curry with cauliflower)
+    const words = q.split(/\s+/).filter((w) => w.length > 3);
+    if (words.length >= 2) {
+      const hit = index.find((r) => words.every((w) => r.name.includes(w)));
+      if (hit) return hit.id;
+    }
+    return undefined;
   }
 
   /** Ownership guard — a meal plan may only be read/mutated by the user it belongs to. */
@@ -4382,6 +4429,7 @@ export class NutritionService implements OnModuleInit {
     // Plate context + per-meal calorie budgets — SAME source the dashboard sums.
     const plateOpts = await this.plateOptsFor(plan.userId);
     const tg = await this.targets(plan.userId);
+    const nameIdx = await this.nameIndex();
 
     // Real calendar dates (spec §20): anchor the Mon→Sun week to the plan's
     // saved weekStart (the calendar week it's FOR), falling back to its creation
@@ -4410,9 +4458,18 @@ export class NutritionService implements OnModuleInit {
             // Thali assembly is for INDIAN mains only — Western/other cuisines stay
             // a single plated dish, not a roti+rice+dal+curd thali.
             const indian = /india/i.test(m.recipe.country);
-            const plate = indian && (m.slot === 'l' || m.slot === 'd')
+            const rawPlate = indian && (m.slot === 'l' || m.slot === 'd')
               ? assemblePlate(recipe, m.slot as 'l' | 'd', plateOpts, d.dayIndex * 4 + slotOrder[m.slot], dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal)
               : undefined;
+            // Every thali component is clickable: the main links to its own
+            // recipe; sides best-effort-match to library recipes by name.
+            const plate = rawPlate ? {
+              ...rawPlate,
+              components: rawPlate.components.map((c) => ({
+                ...c,
+                recipeId: c.role === 'main' ? m.recipe.id : this.matchComponentRecipe(nameIdx, c.name),
+              })),
+            } : undefined;
             // ONE STANDARD SERVING — the card carries the recipe's per-plate
             // values verbatim (identical to the recipe detail page). Any legacy
             // portionPct is ignored; extra energy rides in the add-ons list.

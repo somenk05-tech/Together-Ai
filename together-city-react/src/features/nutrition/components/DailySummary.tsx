@@ -55,7 +55,7 @@ function AutoBalance({ summary, targets, planKey, dayIndex }: {
   // STILL violates a hard band → the recipe library itself cannot satisfy the
   // prescription. Per spec, this is the only case shown, naming the limiting
   // constraint — never a shrug over an invalid plan.
-  const limiting = (repair.data as { limiting?: { nutrient: string; side: string } } | undefined)?.limiting;
+  const limiting = (repair.data as { limiting?: { nutrient: string; side: string; achieved?: number; target?: number } } | undefined)?.limiting;
   const NAME: Record<string, string> = { kcal: 'calories', protein: 'protein', carbs: 'carbohydrates', fat: 'fat', fiber: 'fibre' };
   return (
     <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--paper)', borderRadius: 10 }}>
@@ -65,7 +65,7 @@ function AutoBalance({ summary, targets, planKey, dayIndex }: {
       <p className="muted" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.55 }}>
         After searching every suitable recipe, portion and meal structure, your current recipe library cannot fully satisfy
         your nutritional prescription today. Limiting factor: <b style={{ color: 'var(--ink)' }}>
-        {limiting ? `${NAME[limiting.nutrient] ?? limiting.nutrient} (${limiting.side === 'over' ? 'no options low enough' : 'no options rich enough'})`
+        {limiting ? `${NAME[limiting.nutrient] ?? limiting.nutrient} — ${limiting.side === 'over' ? 'the lowest achievable' : 'the highest achievable'} is ${limiting.achieved ?? '?'} vs your ${limiting.target ?? '?'} target`
           : [...over, ...under].slice(0, 1).join('') || 'multiple nutrients'}</b>.
         {' '}The plan shown is the mathematically closest available; expanding your dietary preferences would widen the search.
       </p>
