@@ -5,7 +5,7 @@ import { useHubTheme } from '@/hooks/useHubTheme';
 interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: string; cx?: number; cy?: number; rx?: number; ry?: number; }
 const ZONES: Zone[] = [
   { to: '/travel', label: 'Travel Hub', shape: 'poly', points: '135,335 240,272 400,230 505,242 545,290 535,355 470,385 330,398 210,388 152,368' },
-  { to: '/restaurants', label: 'Restaurants', shape: 'poly', points: '508,342 540,304 715,299 756,334 758,442 706,472 545,470 508,432' },
+  { to: '/astrology', label: 'Astrology Hub', shape: 'poly', points: '508,342 540,304 715,299 756,334 758,442 706,472 545,470 508,432' },
   { to: '/nutrition', label: 'Nutrition & Groceries', shape: 'poly', points: '118,428 152,390 388,384 425,416 425,540 380,576 162,576 118,540' },
   { to: '/entertainment', label: 'Entertainment', shape: 'poly', points: '528,466 562,427 758,424 790,458 790,580 744,616 572,616 528,578' },
   { to: '/social', label: 'Social Life', shape: 'poly', points: '228,612 268,568 608,564 640,600 640,750 590,790 282,790 228,748' },
@@ -20,7 +20,7 @@ const ZONES: Zone[] = [
 interface Pavilion { to: string; img: string; title: string; meta: string; blurb: string; soon?: boolean; }
 const PAVILIONS: Pavilion[] = [
   { to: '/travel', img: 'travel-hub.webp', title: 'Travel Hub', meta: 'Flights · Trains · Hotels · Packages', blurb: 'Plan your entire journey in one place — chat with friends, split expenses, book together.' },
-  { to: '/restaurants', img: 'resturants.webp', title: 'Restaurants', meta: 'Find a meal · Explore · Book a table', blurb: 'Shortlisted for quality, hygiene and consistency — you only see places that meet the standard.' },
+  { to: '/astrology', img: 'astrology-hub.webp', title: 'Astrology Hub', meta: 'Birth chart · Horoscope · Compatibility', blurb: 'Your natal chart, daily readings and cosmic compatibility — guidance written in the stars, personalised to you.' },
   { to: '/nutrition', img: 'nutrition-and-groceies.webp', title: 'Nutrition & Groceries', meta: 'Meal plans · Grocery · Supplements', blurb: 'Every meal plan and grocery list personalised around your body, blood reports and goals.' },
   { to: '/social', img: 'social-life.webp', title: 'Social Life', meta: 'Feed · Explore · Circles · Events', blurb: 'Discover everything happening around you — and earn rewards for authentic contributions.' },
   { to: '/dating', img: 'dating-hub.webp', title: 'Dating Hub', meta: 'Curated matches · Activity dating', blurb: 'Instead of endless profiles, we introduce you to your most compatible matches.' },
@@ -46,7 +46,22 @@ export function Home() {
     <div>
       {/* ============ THE PAVILION CITY ============ */}
       <div className="citymap">
-        <img className="bg" src={img('final-homepage.webp')} alt="Together City — golden-hour pavilion city on the waterfront" />
+        {/* Looping city background video. The still image is the poster, so the
+            page looks identical until the video loads (and if the video is ever
+            missing) — the clickable building zones below never break. */}
+        <video
+          className="bg"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          poster={img('final-homepage.webp')}
+          aria-label="Together City — golden-hour pavilion city on the waterfront"
+        >
+          <source src="/assets/video/together-city-loop.webm" type="video/webm" />
+          <source src="/assets/video/together-city-loop.mp4" type="video/mp4" />
+        </video>
         <svg className="bmap" viewBox="0 0 1903 826" preserveAspectRatio="xMidYMid slice" aria-label="Together City map">
           {ZONES.map((z) => (
             <g key={z.to} role="link" aria-label={z.label} onClick={() => navigate(z.to)} style={{ cursor: 'pointer' }}>

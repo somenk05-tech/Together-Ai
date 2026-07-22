@@ -14,7 +14,7 @@ export interface HubConfig {
 /** Header tabs — ported 1:1 from tc.js NAV (order preserved). */
 export const NAV: NavItem[] = [
   { key: 'travel', label: 'TRAVEL', path: '/travel' },
-  { key: 'restaurants', label: 'RESTAURANTS', path: '/restaurants' },
+  { key: 'astrology', label: 'ASTROLOGY', path: '/astrology' },
   { key: 'nutrition', label: 'NUTRITION', path: '/nutrition' },
   { key: 'entertainment', label: 'ENTERTAINMENT', path: '/entertainment' },
   { key: 'social', label: 'SOCIAL LIFE', path: '/social' },
@@ -58,6 +58,15 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/restaurants/reviews', index: '08', label: 'My Reviews', sub: 'Your voice, your ratings' },
       { path: '/restaurants/reservations', index: '09', label: 'Reservations', sub: 'Your table bookings' },
       { path: '/restaurants/orders', index: '10', label: 'My Orders', sub: 'Food orders & wallet' },
+    ],
+  },
+  astrology: {
+    key: 'astrology', name: 'Astrology Hub', tag: 'Read the stars, together', backPath: '/astrology', dark: true,
+    items: [
+      { path: '/astrology/chart', index: '01', label: 'Birth Chart', sub: 'Your natal chart & placements' },
+      { path: '/astrology/horoscope', index: '02', label: 'Daily Horoscope', sub: 'Today, personalised to you' },
+      { path: '/astrology/compatibility', index: '03', label: 'Compatibility', sub: 'Cosmic match with anyone' },
+      { path: '/astrology/consult', index: '04', label: 'Talk to an Astrologer', sub: 'Book a live reading' },
     ],
   },
   nutrition: {

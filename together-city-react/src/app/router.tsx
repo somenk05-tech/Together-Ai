@@ -174,6 +174,11 @@ export const router = createBrowserRouter([
       // 12 hub landings, generated from config
       { path: '/travel', element: <HubLanding hub="travel" /> },
       { path: '/restaurants', element: <RequireAuth>{wrap(<RestHome />)}</RequireAuth> },
+      { path: '/astrology', element: <HubLanding hub="astrology" /> },
+      { path: '/astrology/chart', element: <HubStub title="Birth Chart" /> },
+      { path: '/astrology/horoscope', element: <HubStub title="Daily Horoscope" /> },
+      { path: '/astrology/compatibility', element: <HubStub title="Compatibility" /> },
+      { path: '/astrology/consult', element: <HubStub title="Talk to an Astrologer" /> },
       { path: '/mail', element: <HubLanding hub="mail" /> },
       { path: '/nutrition', element: <HubLanding hub="nutrition" /> },
       { path: '/entertainment', element: <HubLanding hub="entertainment" /> },

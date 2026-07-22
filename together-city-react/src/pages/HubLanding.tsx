@@ -11,6 +11,7 @@ import { Button } from '@/components/ui';
 const HUB_HERO: Partial<Record<HubKey, string>> = {
   travel: 'travel-hub.webp',
   restaurants: 'resturants.webp',
+  astrology: 'astrology-hub.webp',
   nutrition: 'nutrition-and-groceies.webp',
   entertainment: 'entertainment.webp',
   social: 'social-life.webp',
