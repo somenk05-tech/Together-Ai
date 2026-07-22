@@ -16,7 +16,9 @@ async function bootstrap(): Promise<void> {
 
   app.use(json({ limit: '30mb' }));
   app.use(urlencoded({ limit: '30mb', extended: true }));
-  app.use(helmet());
+  // 2-year HSTS with preload — HTTPS only, everywhere (TLS terminates at the
+  // platform edge; HTTP never reaches the app).
+  app.use(helmet({ hsts: { maxAge: 63072000, includeSubDomains: true, preload: true } }));
   // CORS. Auth is Bearer-token + localStorage (no ambient session cookie), so a
   // cross-origin site can't ride a logged-in user's credentials — which lets us
   // be resilient about origins without the classic CSRF risk. We allow: the
