@@ -19,6 +19,7 @@ import { assignDietPlans, dietPlanBias, planLabel, DIET_PLAN_CATALOG } from './d
 import { addonLabel, addonMacros, complementByKey, fillGapWithComplements, type AddonPick } from './complements';
 import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
+import { activeMntRules, mntRecipeBias, type MntRule } from './clinical-mnt';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOTS: Slot[] = ['b', 'l', 's', 'd'];
@@ -791,22 +792,31 @@ export function computeTargets(inp: TargetInput) {
   if (highChol) { satFatMaxG = Math.round((kcal * 0.06) / 9); fiber = Math.max(fiber, 35); adjustments.push('Raised cholesterol/triglycerides: saturated fat ≤6% kcal, more soluble fibre'); }
   if (fattyLiver) { proteinPerKg = Math.max(proteinPerKg, 1.2); sugarMaxG = Math.min(sugarMaxG, 20); satFatMaxG = Math.min(satFatMaxG, Math.round((kcal * 0.07) / 9)); adjustments.push('Fatty liver: lean protein maintained, added sugar & saturated fat down'); }
   if (hypertension) { sodiumMaxMg = 1500; potassiumMinMg = 4700; adjustments.push('Hypertension: sodium ≤1500 mg, higher potassium (DASH)'); }
+  let potassiumMaxMg: number | undefined;
+  let phosphorusMaxMg: number | undefined;
   if (kidney) {
-    // Kidney disease OVERRIDES every other protein indication.
+    // Kidney disease OVERRIDES every other protein indication. Note the renal
+    // potassium semantics: a CEILING (hyperkalemia risk), never a floor.
     const dialysis = has('dialysis');
     const lateStage = has('stage 3', 'stage 4', 'stage 5', 'stage3', 'stage4', 'stage5');
     if (dialysis) {
       proteinPerKg = 1.1; // dialysis: 1.0–1.2 g/kg (or higher if advised)
-      adjustments.push('Dialysis: protein 1.0–1.2 g/kg to replace dialysate losses — follow your nephrologist/dietitian if advised higher');
+      potassiumMaxMg = 2500; phosphorusMaxMg = 1000;
+      adjustments.push("Dialysis: protein 1.0–1.2 g/kg to replace dialysate losses (Krause's) — follow your nephrologist/dietitian if advised higher");
     } else if (lateStage) {
       proteinPerKg = 0.7; // CKD stage 3–5, not on dialysis: 0.55–0.8 g/kg
-      adjustments.push('CKD stage 3–5 (no dialysis): protein 0.55–0.8 g/kg — moderated to protect kidney function; confirm with your nephrologist');
+      potassiumMaxMg = 2500; phosphorusMaxMg = 900;
+      adjustments.push("CKD stage 3–5 (no dialysis): protein 0.55–0.8 g/kg (Krause's), potassium ≤2,500 mg, phosphorus ≤900 mg — confirm with your nephrologist");
     } else {
       proteinPerKg = Math.min(proteinPerKg, 0.9); // CKD stage 1–2 / unstaged: 0.8–1.0 g/kg
-      adjustments.push('Kidney condition: protein moderated to ~0.8–1.0 g/kg (higher only if clinically appropriate), sodium & potassium limited — confirm targets with your nephrologist');
+      potassiumMaxMg = 3000; phosphorusMaxMg = 1000;
+      adjustments.push('Kidney condition: protein moderated to ~0.8–1.0 g/kg, sodium ≤2,000 mg, potassium & phosphorus capped — confirm targets with your nephrologist');
     }
-    sodiumMaxMg = Math.min(sodiumMaxMg, 2000); potassiumMinMg = 2000;
+    sodiumMaxMg = Math.min(sodiumMaxMg, 2000);
+    potassiumMinMg = 0; // the DASH-style floor does not apply to renal patients
   }
+  // Geriatric fluids (ESPEN): ≥1.6 L/day drinks for women, ≥2.0 L/day for men.
+  const geriatricFluidMl = age >= 65 ? (sex === 'female' ? 1600 : 2000) : 0;
 
   const protein = Math.round(proteinPerKg * refWeight);
   const fat = Math.round((kcal * fatPct) / 9);
@@ -821,7 +831,14 @@ export function computeTargets(inp: TargetInput) {
       carb: Math.round(carb * split[slot]), fat: Math.round(fat * split[slot]),
     }]),
   );
-  return { kcal, protein, carb, fat, fiber, waterMl: Math.round(weight * 35), sugarMaxG, satFatMaxG, sodiumMaxMg, potassiumMinMg, perMeal, adjustments };
+  return {
+    kcal, protein, carb, fat, fiber,
+    waterMl: Math.max(Math.round(weight * 35), geriatricFluidMl),
+    sugarMaxG, satFatMaxG, sodiumMaxMg, potassiumMinMg,
+    ...(potassiumMaxMg ? { potassiumMaxMg } : {}),
+    ...(phosphorusMaxMg ? { phosphorusMaxMg } : {}),
+    perMeal, adjustments,
+  };
 }
 
 /**
@@ -1398,6 +1415,18 @@ export class NutritionService implements OnModuleInit {
       out.push({
         key: 'diet-plans', title: 'Your diet pattern — assigned for you',
         body: `Based on your medical conditions, blood tests, goals and preferences, your meal plans follow ${assigned.map(planLabel).join(' + ')} principles. This is decided automatically and updates whenever your profile or blood results change — nothing to configure.`,
+      });
+    }
+    // Clinical MNT patterns (Krause's / ESPEN) active for this user, with sources.
+    const mnt = activeMntRules({
+      conditions: ex.healthConditions ?? [], flags: flags as Record<string, string>,
+      age: pref?.age ?? 30, sex: pref?.sex ?? 'male',
+    });
+    for (const rule of mnt) {
+      if (!rule.advisory) continue;
+      out.push({
+        key: `mnt-${rule.key}`, title: rule.advisory.title,
+        body: `${rule.advisory.body} — Source: ${rule.citation}.`,
       });
     }
 
@@ -2600,6 +2629,12 @@ export class NutritionService implements OnModuleInit {
       conditions: ex.healthConditions ?? [], flags: bloodFlags as Record<string, string>,
       goal: pref?.goal ?? 'maintain', diet, age: pref?.age ?? 30,
     });
+    // Clinical MNT layer (mined from Krause's + ESPEN): condition-specific
+    // emphasize/limit food guidance biases every recipe decision.
+    const mntRules: MntRule[] = activeMntRules({
+      conditions: ex.healthConditions ?? [], flags: bloodFlags as Record<string, string>,
+      age: pref?.age ?? 30, sex: pref?.sex ?? 'male',
+    });
     const baseRanked = this.rankedPools(recipes, diet, ex, modes);
     // Some days can be forced vegetarian by the weekly rule — precompute a veg pool.
     const vegRanked = this.rankedPools(recipes, 'veg', ex, modes);
@@ -2660,7 +2695,8 @@ export class NutritionService implements OnModuleInit {
         + 0.6 * Math.max(0, tD.fiber - n.fiber / k) / Math.max(0.002, tD.fiber)   // fibre: only shortfall hurts
         + 1.2 * Math.abs(n.kcal - mealKcal) / Math.max(1, mealKcal)               // a dietitian sizes each meal to its slot
         - 0.03 * microRichness(r)                                                 // micro-dense food fills RDAs by default
-        + dietPlanBias(dietPlans, r, { protein: n.protein / k, fiber: n.fiber / k }); // assigned-plan nudge (±0.5 max)
+        + dietPlanBias(dietPlans, r, { protein: n.protein / k, fiber: n.fiber / k })  // assigned-plan nudge (±0.5 max)
+        + mntRecipeBias(mntRules, r);                                             // clinical MNT guidance (±0.4 max)
     };
     const pick = (pool: RecipeWithIng[], dayIndex: number, slot: Slot, prefer?: (r: RecipeWithIng) => boolean): RecipeWithIng | undefined => {
       if (!pool.length) return undefined;
