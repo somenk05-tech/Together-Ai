@@ -300,6 +300,12 @@ const PROTEIN_LABEL: Record<string, string> = {
   chicken: 'chicken', mutton: 'mutton', fish: 'fish', prawns: 'prawns', prawn: 'prawns',
   beef: 'beef', pork: 'pork', egg: 'egg', eggs: 'egg', paneer: 'paneer', tofu: 'tofu',
   legumes: 'legumes', legume: 'legumes', lentils: 'legumes', beans: 'legumes',
+  // Grouped protein-source chips (v2 preferences UI). Plant/dairy selections
+  // never restrict recipes (only animal tokens are hard-filtered) — these map
+  // so family-swap and preference logic still recognise them.
+  'lentils & dal': 'legumes', dal: 'legumes', chickpeas: 'legumes', 'beans & legumes': 'legumes',
+  rajma: 'legumes', peas: 'legumes', sprouts: 'legumes',
+  'soy / tofu': 'tofu', soy: 'tofu',
 };
 
 // Word-boundary matchers (allow a trailing plural "s"), precompiled once. Naive

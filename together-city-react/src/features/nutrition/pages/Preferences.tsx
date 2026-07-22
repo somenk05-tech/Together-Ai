@@ -26,20 +26,42 @@ const ACTIVITY: { value: number; label: string }[] = [
 ];
 
 const CUISINES = ['Indian', 'Chinese', 'Italian', 'Mexican', 'Thai', 'Continental', 'Japanese', 'Mediterranean', 'American', 'Middle Eastern'];
-// One unified protein list (meats + eggs + plant proteins) — the single source of
-// truth for what a user eats. No separate "Meats you eat" box to contradict it.
-const PROTEINS = ['Chicken', 'Mutton', 'Fish', 'Prawns', 'Beef', 'Pork', 'Egg', 'Paneer', 'Tofu', 'Legumes'];
 
-// Which proteins each diet may pick from. Veg/vegan/jain never see meat or fish;
-// egg adds eggs; fish (pescatarian) adds seafood only.
+// ── Protein sources, grouped like a dietitian's intake form ──
+// India-first: Beef & Pork live behind a "Show international ingredients"
+// toggle (hidden + never auto-selected by default).
+const INTL_ANIMAL = ['Beef', 'Pork'];
+const PROTEIN_GROUPS: Array<{ title: string; items: string[] }> = [
+  { title: 'Animal', items: ['Chicken', 'Egg', 'Fish', 'Prawns', 'Mutton', ...INTL_ANIMAL] },
+  { title: 'Dairy', items: ['Paneer', 'Cheese', 'Curd', 'Milk'] },
+  { title: 'Plant', items: ['Lentils & Dal', 'Chickpeas', 'Beans & Legumes', 'Rajma', 'Soy / Tofu', 'Peas', 'Sprouts', 'Nuts', 'Seeds', 'Quinoa'] },
+];
+const DAIRY_P = PROTEIN_GROUPS[1].items;
+const PLANT_P = PROTEIN_GROUPS[2].items;
+const VEGGIE_SET = [...DAIRY_P, ...PLANT_P];
+
+// Which proteins each diet may pick from (visibility). Veg/jain never see meat
+// or fish; vegan also hides dairy; egg adds eggs; fish (pesc) adds seafood.
 const PROTEINS_BY_DIET: Record<string, string[]> = {
-  everything: PROTEINS,
-  nonveg: PROTEINS,
-  pesc: ['Fish', 'Prawns', 'Egg', 'Paneer', 'Tofu', 'Legumes'],
-  egg: ['Egg', 'Paneer', 'Tofu', 'Legumes'],
-  veg: ['Paneer', 'Tofu', 'Legumes'],
-  vegan: ['Tofu', 'Legumes'],
-  jain: ['Paneer', 'Tofu', 'Legumes'],
+  everything: [...PROTEIN_GROUPS[0].items, ...VEGGIE_SET],
+  nonveg: [...PROTEIN_GROUPS[0].items, ...VEGGIE_SET],
+  pesc: ['Fish', 'Prawns', 'Egg', ...VEGGIE_SET],
+  egg: ['Egg', ...VEGGIE_SET],
+  veg: VEGGIE_SET,
+  vegan: PLANT_P.filter((p) => p !== 'Soy / Tofu').concat(['Soy / Tofu']),
+  jain: [...DAIRY_P, ...PLANT_P.filter((p) => p !== 'Sprouts')],
+};
+
+// Intelligent auto-selection: picking a diet pattern pre-selects its compatible
+// sources (the user can still fine-tune). Beef/Pork are never auto-selected.
+const AUTO_SELECT: Record<string, string[]> = {
+  everything: ['Chicken', 'Egg', 'Fish', 'Prawns', 'Mutton', ...VEGGIE_SET],
+  nonveg: ['Chicken', 'Egg', 'Fish', 'Prawns', 'Mutton', ...VEGGIE_SET],
+  pesc: ['Fish', 'Prawns', 'Egg', ...VEGGIE_SET],
+  egg: ['Egg', ...VEGGIE_SET],
+  veg: VEGGIE_SET,
+  vegan: PROTEINS_BY_DIET.vegan,
+  jain: PROTEINS_BY_DIET.jain,
 };
 const PATTERNS = ['Balanced', 'High protein', 'Low carb', 'Keto', 'Mediterranean', 'Diabetic-friendly', 'Heart-healthy', 'Low sodium', 'Gluten-free', 'Lactose-free'];
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -65,6 +87,7 @@ interface Extras {
   healthGoals?: string[];            // wellness goals (multi-select)
   proteins?: string[];
   meats?: string[];
+  showIntl?: boolean;                // show international ingredients (beef/pork)
   allergies?: string;
   excluded?: string;
   pattern?: string;
@@ -221,17 +244,33 @@ export function Preferences() {
   // their weekly days are all vegetarian.
   const VEG_DIETS = ['veg', 'vegan', 'jain', 'egg'];
   const isVegDiet = VEG_DIETS.includes(form.diet);
-  const shownProteins = PROTEINS.filter((p) => (PROTEINS_BY_DIET[form.diet] ?? PROTEINS).includes(p));
+  const showIntl = Boolean((ex as { showIntl?: boolean }).showIntl);
+  const dietAllowed = PROTEINS_BY_DIET[form.diet] ?? PROTEINS_BY_DIET.everything;
+  const visibleGroups = PROTEIN_GROUPS
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((p) => dietAllowed.includes(p) && (showIntl || !INTL_ANIMAL.includes(p))),
+    }))
+    .filter((g) => g.items.length > 0);
   const weeklyDefault: 'veg' | 'nonveg' = isVegDiet ? 'veg' : 'nonveg';
   const weeklyValue = (day: string): 'veg' | 'nonveg' => (isVegDiet ? 'veg' : ex.weekly?.[day] ?? weeklyDefault);
 
-  // Picking a diet reveals the rest and prunes now-disallowed choices.
+  // Intelligent auto-selection: picking a diet pattern pre-selects its
+  // compatible protein sources (never Beef/Pork unless international is on and
+  // the user adds them manually). The user can still fine-tune afterwards.
   const chooseDiet = (key: string) => {
-    const pa = PROTEINS_BY_DIET[key] ?? PROTEINS;
     setForm({ ...form, diet: key });
-    // Prune now-disallowed proteins; meats are folded into proteins (no separate list).
-    setEx({ ...ex, proteins: (ex.proteins ?? []).filter((p) => pa.includes(p)), meats: [] });
+    setEx({ ...ex, proteins: [...(AUTO_SELECT[key] ?? AUTO_SELECT.everything)], meats: [] });
     setDietChosen(true);
+  };
+  const toggleIntl = () => {
+    const next = !showIntl;
+    setEx({
+      ...ex,
+      ...( { showIntl: next } as Record<string, unknown>),
+      // turning international off also deselects Beef/Pork
+      proteins: next ? (ex.proteins ?? []) : (ex.proteins ?? []).filter((p) => !INTL_ANIMAL.includes(p)),
+    } as typeof ex);
   };
 
   // Cuisine mix (%). Fall back to an even split of the legacy `cuisines` list.
@@ -417,17 +456,30 @@ export function Preferences() {
           </div>
 
           {!dietChosen ? (
-            <p className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>Pick your diet above to choose your protein sources.</p>
+            <p className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>Pick your diet above — we'll pre-select the protein sources that fit it.</p>
           ) : (
             <>
               <span style={label}>Protein sources</span>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {shownProteins.map((p) => (
-                  <Chip key={p} on={(ex.proteins ?? []).includes(p)} onClick={() => setEx({ ...ex, proteins: toggle(ex.proteins, p) })}>{p}</Chip>
-                ))}
-              </div>
+              {visibleGroups.map((g) => (
+                <div key={g.title} style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', margin: '6px 0 6px' }}>{g.title}</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {g.items.map((p) => (
+                      <Chip key={p} on={(ex.proteins ?? []).includes(p)} onClick={() => setEx({ ...ex, proteins: toggle(ex.proteins, p) })}>{p}</Chip>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {!isVegDiet && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--ink-soft)', marginTop: 4, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={showIntl} onChange={toggleIntl} style={{ accentColor: 'var(--accent)' }} />
+                  Show international ingredients (beef, pork)
+                </label>
+              )}
               <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
-                {isVegDiet ? 'Your plan is fully vegetarian — only these will appear.' : 'Only the proteins you pick here will appear in your plans.'}
+                {isVegDiet
+                  ? 'Your plan is fully vegetarian — sources pre-selected to match; tap to fine-tune.'
+                  : 'Pre-selected for your diet — tap to fine-tune. Only the animal proteins you keep selected will appear in your plans.'}
               </p>
             </>
           )}
