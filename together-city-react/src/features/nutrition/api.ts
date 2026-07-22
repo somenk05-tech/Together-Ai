@@ -300,12 +300,12 @@ export interface QcQuote {
   availableCount: number; itemCount: number; unavailable: string[]; unavailableCount: number;
   totalInr: number; freeDeliveryOverInr: number; badges: string[];
 }
-export interface QcCompare { itemCount: number; live: boolean; quotes: QcQuote[]; note?: string }
+export interface QcCompare { itemCount: number; live: boolean; liveEnabled?: boolean; quotes: QcQuote[]; note?: string }
 export interface QcSearchRow {
   provider: { key: string; name: string; icon: string; tagline: string };
   priceInr: number; available: boolean; note: string | null; etaMinutes: number; deliveryFeeInr: number;
 }
-export interface QcSearch { query: string; live: boolean; results: QcSearchRow[] }
+export interface QcSearch { query: string; live: boolean; liveEnabled?: boolean; results: QcSearchRow[] }
 
 export interface NutritionOrder {
   qc?: QcOrderMeta | null;

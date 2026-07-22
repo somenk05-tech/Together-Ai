@@ -34,6 +34,7 @@ export class QuickCommerceClient {
   private readonly logger = new Logger('QuickCommerceAPI');
   private readonly key = process.env.QUICKCOMMERCE_API_KEY || '';
   readonly enabled = !!this.key;
+  private shapeWarned = false;
   /** cacheKey → { at, data } — six-hour TTL, in-memory (single instance). */
   private cache = new Map<string, { at: number; data: unknown }>();
   private static TTL_MS = 6 * 3600_000;
@@ -83,23 +84,35 @@ export class QuickCommerceClient {
     const raw = await this.get<unknown>('/v1/search', { q, lat: lat.toFixed(2), lon: lon.toFixed(2) });
     if (!raw) return null;
     // Tolerant extraction: results may live under data/products/results/items,
-    // grouped per platform or flat with a platform field on each product.
-    const buckets: unknown[] = [];
-    const dig = (o: unknown) => {
-      if (Array.isArray(o)) { buckets.push(...o); return; }
-      if (o && typeof o === 'object') {
-        for (const k of ['data', 'products', 'results', 'items']) {
-          const v = (o as Record<string, unknown>)[k];
-          if (v) dig(v);
+    // be grouped PER PLATFORM ({"blinkit": [...], "zepto": [...]}), or be a
+    // flat array with a platform field on each product. Handle all three.
+    const buckets: Array<{ o: Record<string, unknown>; hint: string | null }> = [];
+    const dig = (node: unknown, hint: string | null, depth = 0) => {
+      if (depth > 4) return;
+      if (Array.isArray(node)) {
+        for (const x of node) if (x && typeof x === 'object') buckets.push({ o: x as Record<string, unknown>, hint });
+        return;
+      }
+      if (node && typeof node === 'object') {
+        for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+          const platformKey = this.matchPlatform(k);
+          if (platformKey && v && typeof v === 'object') dig(v, platformKey, depth + 1);
+          else if (['data', 'products', 'results', 'items'].includes(k) && v) dig(v, hint, depth + 1);
         }
       }
     };
-    dig(raw);
+    dig(raw, null);
+    if (!buckets.length && !this.shapeWarned) {
+      // The upstream shape didn't match any known container — log its top-level
+      // keys ONCE so a mismatch is diagnosable straight from Railway logs.
+      this.shapeWarned = true;
+      const keys = raw && typeof raw === 'object' ? Object.keys(raw as object).slice(0, 12).join(', ') : typeof raw;
+      this.logger.warn(`search response had no recognisable product array — top-level keys: [${keys}]. Send this log line to adjust the parser.`);
+    }
     const best = new Map<string, LivePrice>();
     for (const b of buckets) {
-      if (!b || typeof b !== 'object') continue;
-      const o = b as Record<string, unknown>;
-      const key = this.matchPlatform(o.platform ?? o.source ?? o.app ?? o.store);
+      const o = b.o;
+      const key = b.hint ?? this.matchPlatform(o.platform ?? o.source ?? o.app ?? o.store);
       if (!key) continue;
       const price = this.num(o.price ?? o.selling_price ?? o.sellingPrice ?? o.offer_price ?? o.sp);
       if (price == null || price <= 0) continue;

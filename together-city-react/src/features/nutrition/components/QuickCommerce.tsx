@@ -83,7 +83,9 @@ export function QuickCommercePanel({ mode = 'individual' }: { mode?: 'individual
         <h3 style={{ fontFamily: 'var(--serif)', fontSize: 19, margin: 0 }}>Your list, across every store</h3>
         {compare.data?.live
           ? <Tag>LIVE prices</Tag>
-          : <span className="muted" style={{ fontSize: 11 }}>estimated prices — live store data connects automatically when enabled</span>}
+          : compare.data?.liveEnabled
+            ? <span className="muted" style={{ fontSize: 11 }}>⚡ live store connection active — matching products… (estimates shown meanwhile)</span>
+            : <span className="muted" style={{ fontSize: 11 }}>estimated prices — live store data connects automatically when enabled</span>}
       </div>
       <p className="muted" style={{ fontSize: 12.5, margin: '0 0 14px' }}>
         The same {compare.data?.itemCount ?? ''} items priced at each quick-commerce store — with delivery time,

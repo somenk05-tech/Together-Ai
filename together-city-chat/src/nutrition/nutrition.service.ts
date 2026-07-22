@@ -4577,7 +4577,7 @@ export class NutritionService implements OnModuleInit {
   /** Compare the whole grocery list across every store. */
   async qcCompare(userId: string, mode: PlanMode = 'individual', lat?: number, lon?: number) {
     const items = await this.qcListItems(userId, mode);
-    if (!items.length) return { itemCount: 0, live: false, quotes: [], note: 'Generate a meal plan first — the grocery list drives the comparison.' };
+    if (!items.length) return { itemCount: 0, live: false, liveEnabled: this.qcClient.enabled, quotes: [], note: 'Generate a meal plan first — the grocery list drives the comparison.' };
     const quotes = compareStores(items);
     const live = await this.qcLiveOverlay(
       quotes, items, lat ?? NutritionService.QC_DEFAULT_LAT, lon ?? NutritionService.QC_DEFAULT_LON,
@@ -4586,6 +4586,7 @@ export class NutritionService implements OnModuleInit {
     return {
       itemCount: items.length,
       live,
+      liveEnabled: this.qcClient.enabled,
       quotes: quotes.map((q) => ({
         ...q,
         items: undefined,
@@ -4598,7 +4599,7 @@ export class NutritionService implements OnModuleInit {
   /** Find ONE product across all the stores (search across apps). */
   async qcSearch(q: string, lat?: number, lon?: number) {
     const name = q.trim();
-    if (!name) return { query: q, live: false, results: [] };
+    if (!name) return { query: q, live: false, liveEnabled: this.qcClient.enabled, results: [] };
     const cat = groceryAisle(name);
     const base: QcListItem = { name, grams: 500, baseInr: Math.max(10, Math.round(((COST_PER_KG[cat] ?? 90) * 400) / 1000)) };
     const quotes = QC_PROVIDERS.map((p) => quoteStore(p, [base]));
@@ -4627,7 +4628,7 @@ export class NutritionService implements OnModuleInit {
         deliveryFeeInr: quote.deliveryFeeInr,
       }))
       .sort((a, b) => Number(b.available) - Number(a.available) || a.priceInr - b.priceInr);
-    return { query: name, live, results };
+    return { query: name, live, liveEnabled: this.qcClient.enabled, results };
   }
 
   /** Order the list through a chosen store — charged via the city wallet,
