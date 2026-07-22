@@ -78,10 +78,30 @@ export class AiService {
 
   /** Extract markers from the plain text of a report (e.g. a text-based PDF).
    *  Uses the text model — cheaper and more reliable than PDF vision. */
+  /**
+   * messages.create with an automatic model fallback: if the preferred model is
+   * unavailable to this API key (404 not_found / 403), retry once on the default
+   * model rather than silently failing the feature.
+   */
+  private async createWithFallback(params: Omit<Anthropic.MessageCreateParamsNonStreaming, 'model'> & { model: string }): Promise<Anthropic.Message> {
+    if (!this.client) throw new Error('AI disabled');
+    try {
+      return await this.client.messages.create(params);
+    } catch (e) {
+      const msg = (e as Error).message ?? '';
+      const modelProblem = /not_found|model|permission|403|404/i.test(msg);
+      if (modelProblem && params.model !== this.model) {
+        this.logger.warn(`Model ${params.model} unavailable (${msg.slice(0, 120)}) — retrying on ${this.model}`);
+        return await this.client.messages.create({ ...params, model: this.model });
+      }
+      throw e;
+    }
+  }
+
   async extractMarkersFromText(text: string): Promise<{ values: Record<string, number>; lab?: string; takenOn?: string }> {
     if (!this.client || !text.trim()) return { values: {} };
     try {
-      const res = await this.client.messages.create({
+      const res = await this.createWithFallback({
         model: this.bloodModel,
         max_tokens: 1024,
         system: `${AiService.MARKER_SYSTEM}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
@@ -114,7 +134,7 @@ export class AiService {
       const block = isPdf
         ? ({ type: 'document', source } as unknown as Anthropic.ContentBlockParam)
         : ({ type: 'image', source } as unknown as Anthropic.ContentBlockParam);
-      const res = await this.client.messages.create({
+      const res = await this.createWithFallback({
         model: this.visionModel,
         max_tokens: 1024,
         system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
@@ -176,7 +196,7 @@ export class AiService {
         type: 'image',
         source: { type: 'base64', media_type: (im.mediaType || 'image/jpeg') as 'image/jpeg', data: im.base64 },
       } as unknown as Anthropic.ContentBlockParam));
-      const res = await this.client.messages.create({
+      const res = await this.createWithFallback({
         model: this.visionModel,
         max_tokens: 512,
         system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
