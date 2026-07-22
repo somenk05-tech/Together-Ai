@@ -991,6 +991,49 @@ export const DAY_TOLERANCE = {
 } as const;
 
 /**
+ * WEEKLY hard clinical constraints (spec): asymmetric, non-negotiable.
+ *   protein  ≤100% (never over — the defining rule)
+ *   carbs    95–100%
+ *   calories 98–100%
+ *   fat      95–100%
+ *   fibre    100–110%
+ * Small absolute allowances account for food being discrete at week scale.
+ */
+export const WEEK_TOLERANCE = {
+  kcal: { minPct: 98, maxPct: 100, abs: 120 },
+  protein: { minPct: 95, maxPct: 100, abs: 5 },
+  carbs: { minPct: 95, maxPct: 100, abs: 25 },
+  fat: { minPct: 95, maxPct: 100, abs: 9 },
+  fiber: { minPct: 100, maxPct: 110, abs: 7 },
+} as const;
+
+/** Weekly totals vs the weekly bands. Protein-over and carbs-under — the two
+ *  "never display" violations — count 3×. 0 = presentable week. */
+export function weekBandViolation(
+  totals: { kcal: number; protein: number; carbs: number; fat: number; fiber: number },
+  daily: { kcal: number; protein: number; carb: number; fat: number; fiber: number },
+): { total: number; worstNutrient: string; worstSide: 'over' | 'under' } {
+  const rows: Array<[keyof typeof WEEK_TOLERANCE, number, number]> = [
+    ['kcal', totals.kcal, daily.kcal * 7], ['protein', totals.protein, daily.protein * 7],
+    ['carbs', totals.carbs, daily.carb * 7], ['fat', totals.fat, daily.fat * 7], ['fiber', totals.fiber, daily.fiber * 7],
+  ];
+  let total = 0, worst = 0, worstNutrient = 'kcal', worstSide: 'over' | 'under' = 'over';
+  for (const [key, tot, T] of rows) {
+    if (!T || T <= 0) continue;
+    const band = WEEK_TOLERANCE[key];
+    const hi = (T * band.maxPct) / 100 + band.abs;
+    const lo = (T * band.minPct) / 100 - band.abs;
+    const isOver = tot > hi;
+    const beyond = isOver ? tot - hi : tot < lo ? lo - tot : 0;
+    const critical = (key === 'protein' && isOver) || (key === 'carbs' && !isOver && beyond > 0);
+    const v = (beyond / T) * 100 * (critical ? 3 : 1);
+    total += v;
+    if (v > worst) { worst = v; worstNutrient = key; worstSide = isOver ? 'over' : 'under'; }
+  }
+  return { total: Math.round(total * 10) / 10, worstNutrient, worstSide };
+}
+
+/**
  * How far (in %-points of target, summed) the day sits OUTSIDE its hard bands.
  * 0 = a valid plan. The primary metric for the validation gate and every
  * swap/removal acceptance decision.
@@ -2762,15 +2805,20 @@ export class NutritionService implements OnModuleInit {
       usedRecipe = new Map(s[0]); usedProtein = new Map(s[1]); usedCarb = new Map(s[2]); usedMethod = new Map(s[3]);
     };
 
-    const picks: Record<number, Partial<Record<Slot, RecipeWithIng>>> = {};
-    const portions: Record<number, Record<string, number>> = {};
-    const dayAddons: Record<number, Record<string, AddonPick[]>> = {};
-    // ── Weekly nutritional budgeting: the WEEK is the optimization unit. Each
-    // day carries the accumulated deviation forward so later days naturally
-    // compensate (Monday high → Tuesday lower), while daily medical caps hold.
-    const weekCarry = { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0 };
+    // ── Weekly nutritional budgeting: the WEEK is the optimization unit under
+    // HARD weekly rules (protein ≤100%, carbs ≥95%, kcal 98–100%…). Each day
+    // aims at its share of the REMAINING weekly budget, so the caps are
+    // enforced arithmetically as the week is composed — then a final week
+    // validation gate rejects and regenerates if anything still escapes.
     const proteinCapped = isProteinRestricted(ex);
-    for (let d = 0; d < DAYS.length; d++) {
+    const initState = snapMaps();
+    const composeWeek = (weekShift: number) => {
+      restoreMaps(initState);
+      const picks: Record<number, Partial<Record<Slot, RecipeWithIng>>> = {};
+      const portions: Record<number, Record<string, number>> = {};
+      const dayAddons: Record<number, Record<string, AddonPick[]>> = {};
+      const consumed = { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0 };
+      for (let d = 0; d < DAYS.length; d++) {
       const dayVeg = ex.weekly?.[SHORT_DAYS[d]] === 'veg';
       const ranked = dayVeg ? vegRanked : baseRanked;
       const pickSlot = (slot: Slot, rotShift = 0): RecipeWithIng | undefined => {
@@ -2782,12 +2830,12 @@ export class NutritionService implements OnModuleInit {
         const prefer = (slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)
           ? (r: RecipeWithIng) => hasSelectedAnimalProtein(r, allowed)
           : undefined;
-        return pick(list, d + rotShift, slot, prefer);
+        return pick(list, d + rotShift + weekShift, slot, prefer);
       };
       // Evaluate a candidate set of picks: quantized solve (½–1½ plates) with
       // shared plate budgets, then complement fill, then the HARD gate. Score
       // is the total band violation of the COMPLETE day (dishes + add-ons).
-      const tgDay = this.carryAdjustedTarget(tg, weekCarry, proteinCapped);
+      const tgDay = this.weekBudgetTarget(tg, consumed, d, proteinCapped);
       const mealsLikeOf = (p: Partial<Record<Slot, RecipeWithIng>>) =>
         SLOTS.filter((sl) => p[sl]).map((sl) => ({ slot: sl as string, skipped: false, recipe: p[sl] as unknown }));
       const evalPicks = (p: Partial<Record<Slot, RecipeWithIng>>) => {
@@ -2871,14 +2919,33 @@ export class NutritionService implements OnModuleInit {
       }
       portions[d] = ev.pcts;
       dayAddons[d] = ev.addons;
-      // Update the weekly carry with this day's outcome vs the BASE target.
+      // Consume this day's outcome from the weekly budget.
       const dayTot = dayTotalsFor(ev.items, ev.pcts);
-      weekCarry.kcal += tg.kcal - (dayTot.kcal + ev.extra.kcal);
-      weekCarry.protein += tg.protein - (dayTot.protein + ev.extra.protein);
-      weekCarry.carb += tg.carb - (dayTot.carbs + ev.extra.carbs);
-      weekCarry.fat += tg.fat - (dayTot.fat + ev.extra.fat);
-      weekCarry.fiber += tg.fiber - (dayTot.fiber + ev.extra.fiber);
+      consumed.kcal += dayTot.kcal + ev.extra.kcal;
+      consumed.protein += dayTot.protein + ev.extra.protein;
+      consumed.carb += dayTot.carbs + ev.extra.carbs;
+      consumed.fat += dayTot.fat + ev.extra.fat;
+      consumed.fiber += dayTot.fiber + ev.extra.fiber;
+      }
+      const weekTotals = { kcal: consumed.kcal, protein: consumed.protein, carbs: consumed.carb, fat: consumed.fat, fiber: consumed.fiber };
+      const gate = weekBandViolation(weekTotals, tg);
+      return { picks, portions, dayAddons, weekTotals, gate };
+    };
+
+    // WEEK VALIDATION GATE: compose, and if any weekly hard rule fails,
+    // reject the whole week and regenerate from a different rotation —
+    // keep whichever attempt satisfies the constraints best.
+    let weekPlan = composeWeek(0);
+    if (weekPlan.gate.total > 0) {
+      const retry = composeWeek(11);
+      if (retry.gate.total < weekPlan.gate.total) weekPlan = retry;
     }
+    if (weekPlan.gate.total > 0) {
+      this.logger.warn(`Week gate not fully satisfied after regeneration: worst=${weekPlan.gate.worstNutrient} ${weekPlan.gate.worstSide} (${weekPlan.gate.total} pts)`);
+    }
+    const picks = weekPlan.picks;
+    const portions = weekPlan.portions;
+    const dayAddons = weekPlan.dayAddons;
 
     // One plan per user+mode — clear old ones so the profile stays the source of truth.
     // Replace ONLY the plan for this same calendar week (preserve other weeks).
@@ -3283,6 +3350,34 @@ export class NutritionService implements OnModuleInit {
     if (plan.userId !== userId) throw new ForbiddenException('That meal plan is not yours.');
   }
 
+  /**
+   * Remaining-budget day target: each day aims at (weekly remaining ÷ days
+   * left), with directional safety factors that make the weekly HARD rules
+   * arithmetically enforceable — protein aims 1.5% under its share (so day
+   * overshoot tolerance can never push the week past 100%), calories aim
+   * 0.5% under, fibre 2% over. Clamped to sane daily ranges; renal protein
+   * NEVER exceeds the prescribed daily cap.
+   */
+  private weekBudgetTarget(
+    tg: Awaited<ReturnType<NutritionService['targets']>>,
+    consumed: { kcal: number; protein: number; carb: number; fat: number; fiber: number },
+    dayIdx: number,
+    proteinCapped: boolean,
+  ) {
+    const remain = Math.max(1, 7 - dayIdx);
+    const budget = (dailyT: number, cons: number) => (dailyT * 7 - cons) / remain;
+    const clamp = (v: number, lo: number, hi: number) => Math.round(Math.min(hi, Math.max(lo, v)));
+    const proteinHi = proteinCapped ? tg.protein : tg.protein * 1.06;
+    return {
+      ...tg,
+      kcal: clamp(budget(tg.kcal, consumed.kcal) * 0.995, tg.kcal * 0.9, tg.kcal * 1.06),
+      protein: clamp(budget(tg.protein, consumed.protein) * 0.985, tg.protein * 0.8, proteinHi),
+      carb: clamp(budget(tg.carb, consumed.carb) * 1.0, tg.carb * 0.85, tg.carb * 1.15),
+      fat: clamp(budget(tg.fat, consumed.fat) * 0.99, tg.fat * 0.85, tg.fat * 1.1),
+      fiber: clamp(budget(tg.fiber, consumed.fiber) * 1.02, tg.fiber * 0.9, tg.fiber * 1.18),
+    };
+  }
+
   /** Working target for one day of a SAVED plan, absorbing prior days' deviation. */
   private async weekAwareTarget(
     planKey: string,
@@ -3296,13 +3391,13 @@ export class NutritionService implements OnModuleInit {
       where: { plan: { key: planKey }, dayIndex: { lt: dayIndex } },
       include: { meals: { include: { recipe: { include: { ingredients: true } } } } },
     }).catch(() => []);
-    const carry = { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0 };
+    const consumed = { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0 };
     for (const d of prior) {
       const t = this.dayTotalsCore(d.meals as never, d.dayIndex, tg, opts);
-      carry.kcal += tg.kcal - t.kcal; carry.protein += tg.protein - t.protein;
-      carry.carb += tg.carb - t.carbs; carry.fat += tg.fat - t.fat; carry.fiber += tg.fiber - t.fiber;
+      consumed.kcal += t.kcal; consumed.protein += t.protein;
+      consumed.carb += t.carbs; consumed.fat += t.fat; consumed.fiber += t.fiber;
     }
-    return this.carryAdjustedTarget(tg, carry, proteinCapped);
+    return this.weekBudgetTarget(tg, consumed, dayIndex, proteinCapped);
   }
 
   /**
@@ -3367,10 +3462,13 @@ export class NutritionService implements OnModuleInit {
     const KEYS = ['kcal', 'protein', 'carbs', 'fat', 'fiber'] as const;
     const targetOf = { kcal: tg.kcal, protein: tg.protein, carbs: tg.carb, fat: tg.fat, fiber: tg.fiber };
 
+    const mon = weekMonday((plan as { weekStart?: Date | null }).weekStart ?? plan.createdAt);
     const perDay = plan.days.map((d) => ({
       dayIndex: d.dayIndex, day: d.dayName,
+      dateShort: (() => { const dt = addDays(mon, d.dayIndex); return `${d.dayName.slice(0, 3)}, ${dt.getDate()} ${MONTHS[dt.getMonth()]}`; })(),
       ...this.dayTotalsCore(d.meals as never, d.dayIndex, tg, opts),
     }));
+    const weeklyTargetOf = Object.fromEntries(KEYS.map((k) => [k, Math.round(targetOf[k] * 7)])) as Record<typeof KEYS[number], number>;
     const cum = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
     const days = perDay.map((p, i) => {
       for (const k of KEYS) cum[k] += p[k];
@@ -3378,25 +3476,26 @@ export class NutritionService implements OnModuleInit {
         ...p,
         cumulative: { ...cum },
         cumulativeTarget: Object.fromEntries(KEYS.map((k) => [k, Math.round(targetOf[k] * (i + 1))])),
+        // Remaining weekly allowance after this day — the budget still to eat.
+        remaining: Object.fromEntries(KEYS.map((k) => [k, Math.max(0, weeklyTargetOf[k] - cum[k])])),
       };
     });
-    const weeklyTarget = Object.fromEntries(KEYS.map((k) => [k, Math.round(targetOf[k] * 7)])) as Record<typeof KEYS[number], number>;
-    // Weekly score: 100 minus %-points outside the weekly tolerance bands
-    // (same pct tolerances as daily, applied at week scale; overshoot 2×).
-    let penalty = 0; let complianceSum = 0;
+    const weeklyTarget = weeklyTargetOf;
+    // Weekly score straight from the HARD weekly bands (protein ≤100%,
+    // carbs ≥95%, kcal 98–100%…). 100 = every rule satisfied.
+    const gate = weekBandViolation({ ...cum }, tg);
+    let complianceSum = 0;
     for (const k of KEYS) {
       const T = weeklyTarget[k]; if (!T) continue;
-      const tol = DAY_TOLERANCE[k === 'carbs' ? 'carbs' : k];
-      const overAllow = (T * tol.overPct) / 100 + tol.abs * 3;
-      const underAllow = (T * tol.underPct) / 100 + tol.abs * 3;
-      const v = cum[k];
-      if (v > T + overAllow) penalty += ((v - T - overAllow) / T) * 100 * 2;
-      else if (v < T - underAllow) penalty += ((T - underAllow - v) / T) * 100;
-      complianceSum += Math.min(100, Math.max(0, 100 - (Math.abs(v - T) / T) * 100));
+      complianceSum += Math.min(100, Math.max(0, 100 - (Math.abs(cum[k] - T) / T) * 100));
     }
-    const weeklyScore = Math.max(0, Math.min(100, Math.round(100 - penalty)));
+    const weeklyScore = Math.max(0, Math.min(100, Math.round(100 - gate.total)));
     const compliancePct = Math.round(complianceSum / KEYS.length);
-    return { key: planKey, days, weeklyTarget, weeklyIntake: { ...cum }, weeklyScore, compliancePct, dailyTarget: targetOf };
+    return {
+      key: planKey, days, weeklyTarget, weeklyIntake: { ...cum }, weeklyScore, compliancePct,
+      dailyTarget: targetOf,
+      weekStartLabel: `${DAYS[0].slice(0, 3)}, ${mon.getDate()} ${MONTHS[mon.getMonth()]} ${mon.getFullYear()}`,
+    };
   }
 
   async daySummary(userId: string, planKey: string, dayIndex: number) {

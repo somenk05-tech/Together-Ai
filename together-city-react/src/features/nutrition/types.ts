@@ -142,16 +142,18 @@ export interface NutritionAdvisory { key: string; title: string; body: string }
 export interface WeekNutritionSummary {
   key: string;
   days: Array<{
-    dayIndex: number; day: string;
+    dayIndex: number; day: string; dateShort?: string;
     kcal: number; protein: number; carbs: number; fat: number; fiber: number;
     cumulative: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
     cumulativeTarget: Record<string, number>;
+    remaining?: Record<string, number>;
   }>;
   weeklyTarget: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
   weeklyIntake: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
   weeklyScore: number;
   compliancePct: number;
   dailyTarget: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
+  weekStartLabel?: string;
 }
 
 /** Medical Nutrition Recommendation card (condition guidelines vs preferences). */
