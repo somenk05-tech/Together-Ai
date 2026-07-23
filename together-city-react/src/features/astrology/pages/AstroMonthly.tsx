@@ -11,7 +11,7 @@ export function AstroMonthly() {
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 16px' }}>
-      <AstroHeader title="Monthly Horoscope" lede="Your month ahead — career, money, love, health, family and travel, written from your birth chart like a premium astrology magazine." />
+      <AstroHeader title="Monthly Horoscope" lede="Your month ahead — career, money, love, health, family and travel, written from your Vedic (sidereal) birth chart like a premium astrology magazine." />
       <AstroTabs />
       {monthly.isLoading && <Spinner label="Composing your month…" />}
       {monthly.isError && <EmptyState title="Couldn't load the monthly reading" hint="Reload in a moment." />}

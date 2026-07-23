@@ -1,15 +1,21 @@
 import {
   aspectBetween, julianDay, moonLongitude, moonPhaseAngle, natalChart,
-  positionsAt, scanMonth, signOf, sunLongitude, tzOffsetMinutes, geocodeApprox,
+  positionsAt, scanMonth, signOf, siderealLon, sunLongitude, tzOffsetMinutes, geocodeApprox,
 } from './astro-engine';
 
+/** Vedic sidereal sun sign for a date (what the whole engine now reports). */
+const vedicSun = (iso: string) => {
+  const jd = julianDay(new Date(iso));
+  return signOf(siderealLon(sunLongitude(jd), jd));
+};
+
 describe('astro-engine', () => {
-  it('places the Sun in the correct zodiac sign on known dates', () => {
-    // Mid-sign dates (avoid cusp ambiguity from the ~1° tolerance)
-    expect(signOf(sunLongitude(julianDay(new Date('2000-01-05T12:00:00Z'))))).toBe('Capricorn');
-    expect(signOf(sunLongitude(julianDay(new Date('1995-08-08T12:00:00Z'))))).toBe('Leo');
-    expect(signOf(sunLongitude(julianDay(new Date('1988-05-05T12:00:00Z'))))).toBe('Taurus');
-    expect(signOf(sunLongitude(julianDay(new Date('2010-11-08T12:00:00Z'))))).toBe('Scorpio');
+  it('places the Sun in the correct VEDIC (sidereal) sign on known dates', () => {
+    // Sidereal = tropical − Lahiri ayanamsa (~24°), the Jyotish standard.
+    expect(vedicSun('2000-01-05T12:00:00Z')).toBe('Sagittarius');
+    expect(vedicSun('1995-08-08T12:00:00Z')).toBe('Cancer');
+    expect(vedicSun('1988-05-05T12:00:00Z')).toBe('Aries');
+    expect(vedicSun('2010-11-08T12:00:00Z')).toBe('Libra');
   });
 
   it('moves the Moon ~12-14°/day and the phase angle accordingly', () => {

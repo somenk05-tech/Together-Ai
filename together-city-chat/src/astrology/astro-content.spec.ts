@@ -11,7 +11,7 @@ describe('astro-content', () => {
     expect(a.words).toBeGreaterThanOrEqual(100);
     expect(a.words).toBeLessThanOrEqual(200);
     expect(a.date).toBe('2026-07-22');
-    expect(a.sunSign).toBe('Gemini');
+    expect(a.sunSign).toBe('Taurus'); // Vedic sidereal
     // Same user+day → identical; different user → different text
     expect(composeDaily(chart, 'user-1', day).text).toBe(a.text);
     expect(composeDaily(chart2, 'user-2', day).text).not.toBe(a.text);
@@ -42,7 +42,7 @@ describe('astro-content', () => {
     const astro = scanMonth(chart, 2026, 7);
     const ans = composeAnswer(chart, 'user-1', 'Career', 'Should I change my job this year or wait for a promotion?', new Date('2026-07-22T09:00:00Z'), astro);
     expect(wordCount(ans)).toBeGreaterThanOrEqual(300);
-    expect(ans).toContain('Gemini'); // reads the actual natal sun
+    expect(ans).toContain('Taurus'); // reads the actual natal sun (Vedic)
     expect(ans.toLowerCase()).toContain('career');
     // Different topic reads differently
     const ans2 = composeAnswer(chart, 'user-1', 'Marriage', 'When is a good period for my wedding?', new Date('2026-07-22T09:00:00Z'), astro);

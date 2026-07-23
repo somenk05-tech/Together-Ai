@@ -68,9 +68,14 @@ export class AstrologyService {
   /** One saved reading per user per period (daily flips at the user's midnight,
    *  monthly is fixed from the 1st). Deterministic composers mean the lazy
    *  write stores exactly what a scheduled batch would have produced. */
+  /** Reading engine version — bumped to v2 with the Vedic (sidereal) switch so
+   *  cached tropical readings regenerate instead of being served stale. */
+  private static readonly READING_VER = 'v2';
+
   private async cachedReading<T extends object>(
-    userId: string, kind: 'daily' | 'monthly', period: string, compute: () => T,
+    userId: string, kind: 'daily' | 'monthly', periodKey: string, compute: () => T,
   ): Promise<T & { saved: boolean }> {
+    const period = `${AstrologyService.READING_VER}:${periodKey}`;
     const hit = await this.db.astroReading.findUnique({
       where: { userId_kind_period: { userId, kind, period } },
     }).catch(() => null);
@@ -166,6 +171,7 @@ export class AstrologyService {
       birthState: row.birthState,
       birthCity: row.birthCity,
       timeZone: row.timeZone,
+      updatedAt: row.updatedAt.toISOString(),
       chart: {
         sunSign: chart.sun.sign, moonSign: chart.moon.sign,
         ascendant: chart.ascendant?.sign ?? null,
@@ -204,7 +210,8 @@ export class AstrologyService {
   /** Saved daily predictions on the profile — the archive, newest first. */
   async dailyHistory(userId: string) {
     const rows = await this.db.astroReading.findMany({
-      where: { userId, kind: 'daily' }, orderBy: { period: 'desc' }, take: 30,
+      where: { userId, kind: 'daily', period: { startsWith: `${AstrologyService.READING_VER}:` } },
+      orderBy: { period: 'desc' }, take: 30,
     }).catch(() => [] as Array<{ period: string; readingJson: string }>);
     return rows.map((r) => {
       try { return JSON.parse(r.readingJson); } catch { return { date: r.period, text: '' }; }

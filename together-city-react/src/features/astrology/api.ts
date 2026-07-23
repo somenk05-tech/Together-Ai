@@ -7,6 +7,7 @@ export interface AstroChartSummary { sunSign: string; moonSign: string; ascendan
 export interface AstroProfile {
   birthDate: string; birthTime: string | null; timeKnown: boolean; birthCountry: string;
   birthState: string | null; birthCity: string; timeZone: string;
+  updatedAt?: string;
   chart: AstroChartSummary;
 }
 export interface AstroProfileView {

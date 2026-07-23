@@ -15,7 +15,7 @@ export function AstroToday() {
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 16px' }}>
-      <AstroHeader title="Today's Horoscope" lede="A personalized daily reading generated from your birth chart and today's planetary transits." />
+      <AstroHeader title="Today's Horoscope" lede="A personalized daily reading from your Vedic birth chart (sidereal · Jyotish) and today's planetary transits." />
       <AstroTabs />
       {daily.isLoading && <Spinner label="Reading today's sky…" />}
       {daily.isError && <EmptyState title="Couldn't reach the stars" hint="Reload in a moment." />}

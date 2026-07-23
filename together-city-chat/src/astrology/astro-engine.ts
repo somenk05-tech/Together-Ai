@@ -145,6 +145,19 @@ export function bodyLongitude(planet: PlanetName, jd: number): number {
   return planetLongitude(planet, jd);
 }
 
+// ───────────────────────── Vedic (sidereal) zodiac ─────────────────────────
+// The Astrology Zone uses authentic Vedic astrology (Jyotish): every sign
+// placement is SIDEREAL, computed by subtracting the Lahiri ayanamsa from the
+// tropical longitude. Aspects, phases and retrogrades are angle differences,
+// so they are identical in both zodiacs — only sign boundaries shift.
+
+/** Lahiri (Chitrapaksha) ayanamsa in degrees — standard for Jyotish. */
+export function ayanamsaDeg(jd: number): number {
+  return 23.85675 + (50.2888 / 3600) * ((jd - 2451545.0) / 365.25);
+}
+/** Tropical → sidereal longitude at a given instant. */
+export const siderealLon = (tropical: number, jd: number) => norm360(tropical - ayanamsaDeg(jd));
+
 export const signIndex = (lon: number) => Math.floor(norm360(lon) / 30) % 12;
 export const signOf = (lon: number): SignName => SIGNS[signIndex(lon)];
 export const degreeInSign = (lon: number) => Math.round(norm360(lon) % 30);
@@ -162,9 +175,10 @@ export function isRetrograde(planet: PlanetName, jd: number): boolean {
 
 export interface BodyPosition { planet: PlanetName; lon: number; sign: SignName; degree: number; retrograde: boolean }
 
+/** All bodies at jd — SIDEREAL longitudes (Vedic sign placements). */
 export function positionsAt(jd: number): BodyPosition[] {
   return PLANETS.map((p) => {
-    const lon = bodyLongitude(p, jd);
+    const lon = siderealLon(bodyLongitude(p, jd), jd);
     return { planet: p, lon, sign: signOf(lon), degree: degreeInSign(lon), retrograde: isRetrograde(p, jd) };
   });
 }
@@ -183,7 +197,7 @@ export function ascendantLongitude(jd: number, latDeg: number, lngDegEast: numbe
   const ramc = rad(norm360(gmstDeg(jd) + lngDegEast));
   const lat = rad(Math.max(-66, Math.min(66, latDeg))); // clamp: formula degenerates at poles
   const asc = Math.atan2(Math.cos(ramc), -(Math.sin(ramc) * Math.cos(eps) + Math.tan(lat) * Math.sin(eps)));
-  return norm360(deg(asc));
+  return siderealLon(norm360(deg(asc)), jd); // Vedic lagna (sidereal)
 }
 
 // ───────────────────────── Aspects ─────────────────────────
@@ -296,8 +310,8 @@ export function scanMonth(chart: NatalChart, year: number, month: number): Month
     const phase = moonPhaseAngle(jd);
     if (prev) {
       // Lunations: phase angle crossing 0 (new) or 180 (full)
-      if (prevPhase > 340 && phase < 20) events.push({ day, kind: 'lunation', text: `New Moon in ${signOf(moonLongitude(jd))}` });
-      if (prevPhase < 180 && phase >= 180) events.push({ day, kind: 'lunation', text: `Full Moon in ${signOf(moonLongitude(jd))}` });
+      if (prevPhase > 340 && phase < 20) events.push({ day, kind: 'lunation', text: `New Moon in ${signOf(siderealLon(moonLongitude(jd), jd))}` });
+      if (prevPhase < 180 && phase >= 180) events.push({ day, kind: 'lunation', text: `Full Moon in ${signOf(siderealLon(moonLongitude(jd), jd))}` });
       for (const p of pos) {
         const was = prev.find((q) => q.planet === p.planet)!;
         if (p.planet !== 'Moon' && was.sign !== p.sign) {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Spinner, Tag } from '@/components/ui';
 import { SearchSelect } from '@/components/SearchSelect';
@@ -117,6 +118,48 @@ const to12h = (hhmm: string) => {
   return `${h12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 };
 
+/** Compact summary shown once details are saved — the form stays hidden
+ *  unless the user explicitly chooses Edit Birth Details. */
+function SummaryCard({ profile, justSaved, onEdit }: {
+  profile: NonNullable<import('../api').AstroProfileView['profile']>;
+  justSaved: boolean;
+  onEdit: () => void;
+}) {
+  const d = new Date(profile.birthDate + 'T00:00:00');
+  const dateStr = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+  const timeStr = profile.timeKnown && profile.birthTime ? to12h(profile.birthTime) : 'Time unknown';
+  const place = [profile.birthCity, profile.birthState, profile.birthCountry].filter(Boolean).join(', ');
+  const updated = profile.updatedAt ? new Date(profile.updatedAt) : null;
+  const daysAgo = updated ? Math.floor((Date.now() - updated.getTime()) / 86_400_000) : null;
+  const updatedLabel = daysAgo == null ? '' : daysAgo === 0 ? 'Today' : daysAgo === 1 ? 'Yesterday'
+    : updated!.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  return (
+    <Card className="rise" style={{ padding: '24px 26px' }}>
+      <MasterPhoto />
+      <p style={{ fontSize: 15, fontWeight: 800, color: '#2e7d4f', margin: '0 0 10px' }}>
+        ✓ Birth Details {justSaved ? 'Completed' : 'Saved'}
+      </p>
+      <p style={{ fontSize: 15, fontWeight: 600, margin: '0 0 2px' }}>{dateStr} • {timeStr}</p>
+      <p className="muted" style={{ fontSize: 13.5, margin: '0 0 14px' }}>{place}</p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+        <Tag>☀️ Sun {profile.chart.sunSign}</Tag>
+        <Tag>🌙 Moon {profile.chart.moonSign}</Tag>
+        {profile.chart.ascendant && <Tag>⬆️ {profile.chart.ascendant} Rising</Tag>}
+      </div>
+      {updatedLabel && <p className="muted" style={{ fontSize: 11.5, margin: '0 0 14px' }}>Last updated: {updatedLabel}</p>}
+      {justSaved && (
+        <p className="muted" style={{ fontSize: 12.5, margin: '0 0 14px' }}>
+          Taking you to your Today\'s Horoscope…
+        </p>
+      )}
+      <Button variant="line" onClick={onEdit}>Edit Birth Details</Button>
+      <p className="muted" style={{ fontSize: 11, marginTop: 12 }}>
+        Vedic (sidereal) chart · used automatically across Together AI wherever astrology or compatibility is required.
+      </p>
+    </Card>
+  );
+}
+
 /** Profile → Birth Details — the Master Profile record used by every astrology
  *  and compatibility feature across Together AI. Entered once, never retyped. */
 export function AstroProfilePage() {
@@ -137,6 +180,16 @@ export function AstroProfilePage() {
   const [missing, setMissing] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [collapsing, setCollapsing] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  const navigate = useNavigate();
+
+  // Returning users with saved details see the compact summary, not the form.
+  useEffect(() => {
+    if (view.data && !view.data.complete) setEditing(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view.data?.complete]);
 
   const countries = useLookups('country');
   const states = useLookups('state', { parent: country.code });
@@ -188,7 +241,13 @@ export function AstroProfilePage() {
       birthCity: city.trim(),
       timeZone,
     }, {
-      onSuccess: () => setSaved(true),
+      onSuccess: () => {
+        // Chart generated → animate the form closed (≈350 ms) into the summary
+        // card, then take the user straight to their Today's Horoscope.
+        setSaved(true); setJustSaved(true); setCollapsing(true);
+        setTimeout(() => { setEditing(false); setCollapsing(false); }, 380);
+        setTimeout(() => navigate('/astrology/today'), 1500);
+      },
       onError: (e) => {
         const m = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
         setError(Array.isArray(m) ? m.join(' ') : m ?? 'Could not save — please try again.');
@@ -209,7 +268,12 @@ export function AstroProfilePage() {
         </p>
       </div>
       {view.isLoading && <Spinner label="Loading your details…" />}
-      {view.data && (
+      {view.data?.complete && view.data.profile && !editing && (
+        <SummaryCard profile={view.data.profile} justSaved={justSaved} onEdit={() => setEditing(true)} />
+      )}
+      {view.data && (!view.data.complete || editing) && (
+        <div style={{ transition: 'opacity .35s ease, transform .35s ease',
+          opacity: collapsing ? 0 : 1, transform: collapsing ? 'translateY(-8px) scale(.985)' : 'none' }}>
         <Card className="rise" style={{ padding: '24px 26px' }}>
           <MasterPhoto />
           {view.data.source === 'dating' && (
@@ -321,6 +385,7 @@ export function AstroProfilePage() {
             )}
           </div>
         </Card>
+        </div>
       )}
 
       {/* Privacy */}

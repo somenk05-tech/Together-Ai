@@ -209,7 +209,7 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
           `Read the sections below as one connected story: what happens in your career this month is linked to how you manage energy, and both feed the quality of your closest relationships.`,
           `Treat this month as a single project with several fronts — career, money, love, health — that all draw from the same reserve of ${st.keywords[1] ?? st.keywords[0]}.`,
         ]),
-        `Where specific dates are named, they come from exact planetary geometry against your birth chart, not generic sign-only astrology.`,
+        `Where specific dates are named, they come from exact planetary geometry against your birth chart on the sidereal (Vedic) zodiac — Jyotish Shastra, not generic Western sign-only astrology.`,
       ),
     ),
   });
