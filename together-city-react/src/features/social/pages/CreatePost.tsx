@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui';
 import { useConnections } from '@/api';
 import { useCreatePost } from '../api';
 
@@ -80,6 +79,9 @@ export function CreatePost() {
   const [tagged, setTagged] = useState<Array<{ id: string; name: string; handle: string }>>([]);
   const [audience, setAudience] = useState<AudienceKey>('public');
   const [open, setOpen] = useState<string | null>(null);
+  // Share lifecycle: idle → sharing → success (→ navigate) | error
+  const [phase, setPhase] = useState<'idle' | 'sharing' | 'success' | 'error'>('idle');
+  const busy = phase === 'sharing' || phase === 'success';
 
   const onFiles = (files: FileList | null) => {
     if (!files) return;
@@ -129,6 +131,8 @@ export function CreatePost() {
   const canShare = Boolean(text.trim()) || media.length > 0 || Boolean(placeName.trim());
 
   const share = () => {
+    if (busy || !canShare) return; // prevent duplicate submissions
+    setPhase('sharing');
     const finalText = [text.trim(), hashtags.join(' ')].filter(Boolean).join('\n\n');
     create.mutate(
       {
@@ -140,7 +144,17 @@ export function CreatePost() {
         audience,
         tagged: tagged.length ? tagged : undefined,
       },
-      { onSuccess: () => nav('/social/feed') },
+      {
+        onSuccess: (post) => {
+          // Brief success confirmation, then auto-return to the City Feed with
+          // the new post highlighted at the top (Instagram/X-style flow).
+          setPhase('success');
+          window.setTimeout(() => {
+            nav('/social/feed', { state: { newPostId: post.id, justShared: true } });
+          }, 550);
+        },
+        onError: () => setPhase('error'), // stay on page, restore the button
+      },
     );
   };
 
@@ -168,9 +182,9 @@ export function CreatePost() {
       <div className="eyebrow rise">Social Life · Create Post</div>
       <h1 className="rise" style={{ fontSize: 'clamp(24px,3vw,34px)', marginBottom: 14 }}>Share with your city</h1>
 
-      <div className="card rise" style={{ padding: '16px 18px' }}>
+      <div className="card rise" style={{ padding: '16px 18px', opacity: busy ? 0.55 : 1, pointerEvents: busy ? 'none' : 'auto', transition: 'opacity .2s' }}>
         <textarea
-          value={text} onChange={(e) => setText(e.target.value)} rows={4}
+          value={text} onChange={(e) => setText(e.target.value)} rows={4} disabled={busy}
           placeholder="What's happening today? Share a thought, photo, video or moment with your city."
           style={{ ...inputStyle, border: 'none', padding: 0, resize: 'vertical', fontSize: 15, lineHeight: 1.6, background: 'transparent' }}
         />
@@ -344,11 +358,31 @@ export function CreatePost() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
-        <Link className="btn btn-line" to="/social/feed" style={{ flex: 1, justifyContent: 'center' }}>Cancel</Link>
-        <Button type="button" variant="accent" onClick={share} disabled={create.isPending || !canShare} style={{ flex: 2, justifyContent: 'center' }}>
-          {create.isPending ? 'Posting…' : `Share ${audDef.emoji}`}
-        </Button>
+      {phase === 'error' && (
+        <div role="alert" style={{ background: '#fdecea', color: '#b3261e', border: '1px solid #f4c7c3', borderRadius: 12, padding: '11px 14px', margin: '0 0 12px', fontSize: 13, fontWeight: 500 }}>
+          Upload failed. Please check your connection and try again.
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, justifyContent: busy ? 'center' : 'stretch' }}>
+        {!busy && (
+          <Link className="btn btn-line" to="/social/feed" style={{ flex: 1, justifyContent: 'center' }}>Cancel</Link>
+        )}
+        <button type="button" onClick={share} disabled={busy || !canShare}
+          className="btn"
+          style={{
+            flex: busy ? 'none' : 2, width: busy ? 150 : undefined, justifyContent: 'center',
+            display: 'flex', alignItems: 'center', gap: 8, borderRadius: 999, padding: '11px 18px',
+            fontFamily: 'inherit', fontWeight: 700, fontSize: 14, cursor: busy || !canShare ? 'default' : 'pointer',
+            border: 'none', color: '#fff',
+            background: phase === 'success' ? '#2e7d4f' : 'var(--accent)',
+            opacity: !busy && !canShare ? 0.5 : 1,
+            transition: 'flex .35s ease, width .35s ease, background .25s ease',
+          }}>
+          {phase === 'sharing' && (<><span className="tc-spin" /> Sharing…</>)}
+          {phase === 'success' && (<>✓ Shared</>)}
+          {(phase === 'idle' || phase === 'error') && (<>Share {audDef.emoji}</>)}
+        </button>
       </div>
     </div>
   );

@@ -159,6 +159,28 @@ export class ConnectionsService {
     return this.shape(updated, userId, other);
   }
 
+  /** Two-way sync (hub → People): a hub removing a member for `module` clears
+   *  that module on the shared connection record, so the People view never drifts
+   *  from what the hub shows. Universal modules are never touched. Safe to call
+   *  from any hub; no-op when the pair has no connection or already lacks it. */
+  async revokeModuleForPair(userA: string, userB: string, module: string): Promise<void> {
+    if (UNIVERSAL_MODULES.includes(module as (typeof UNIVERSAL_MODULES)[number])) return;
+    const { userOneId, userTwoId } = orderPair(userA, userB);
+    const conn = await this.prisma.connection.findUnique({
+      where: {
+        userOneId_userTwoId_connectionType: { userOneId, userTwoId, connectionType: ConnectionType.FRIEND },
+      },
+    }).catch(() => null);
+    if (!conn) return;
+    const current = parseModules((conn as { modulesJson?: string | null }).modulesJson);
+    if (!current.includes(module)) return;
+    const next = current.filter((m) => m !== module);
+    await this.prisma.connection.update({
+      where: { id: conn.id },
+      data: { modulesJson: JSON.stringify(withUniversal(next)) } as never,
+    }).catch(() => undefined);
+  }
+
   /** Everyone connected to this user FOR a given module — what every hub
    *  displays ("Connected via People") instead of running its own invites. */
   async listForModule(userId: string, module: string): Promise<ShapedConnection[]> {

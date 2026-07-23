@@ -70,7 +70,14 @@ export function useCreatePost() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreatePostInput) => socialApi.create(input),
-    onSuccess: () => {
+    onSuccess: (post) => {
+      // Optimistically insert the new post at the TOP of every cached feed
+      // filter so it shows instantly, before the background refetch lands.
+      qc.setQueriesData<FeedPage>({ queryKey: FEED_KEY }, (page) =>
+        page && !page.items.some((p) => p.id === post.id)
+          ? { ...page, items: [post, ...page.items] }
+          : page,
+      );
       void qc.invalidateQueries({ queryKey: FEED_KEY });
       void qc.invalidateQueries({ queryKey: ['social', 'map'] });
     },

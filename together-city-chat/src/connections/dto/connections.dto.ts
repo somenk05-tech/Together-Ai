@@ -6,9 +6,14 @@ import { z } from 'zod';
  * the app's UI uses. Domain-specific links — doctor/patient etc. — are created
  * by their own modules, not here.)
  */
+// Real Together City hubs only. Chat + Mail are Universal (auto on every
+// connection). Family+Friend may share social/travel/entertainment/fitness;
+// Family-only adds nutrition/medical/financial. Grocery, Weekly/Daily Planner,
+// Shared Pantry and Orders live INSIDE Nutrition — not separate toggles.
+// Calendar is a private per-user activity log, never a shared connection.
 export const CONNECTION_MODULES = [
-  'chat', 'mail', 'social', 'nutrition', 'grocery', 'pantry', 'medical', 'travel',
-  'calendar', 'entertainment', 'financial', 'jobs', 'beauty', 'fitness',
+  'chat', 'mail', 'social', 'travel', 'entertainment', 'fitness',
+  'nutrition', 'medical', 'financial',
 ] as const;
 
 /** Universal modules — every connection gets these automatically; they are

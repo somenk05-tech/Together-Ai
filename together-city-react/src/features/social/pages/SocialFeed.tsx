@@ -1,5 +1,5 @@
-import { useMemo, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -133,8 +133,9 @@ function CommentsPanel({ postId }: { postId: string }) {
   );
 }
 
-/** One clean card for every kind of post — photo, video, check-in, text. */
-function PostCard({ post }: { post: Post }) {
+/** One clean card for every kind of post — photo, video, check-in, text.
+ *  `isNew` marks a just-posted item: a "New" chip, "Just now", auto-playing video. */
+function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
   const like = useToggleLike();
   const [showComments, setShowComments] = useState(false);
   const [saved, setSaved] = useState(() => savedIds().has(post.id));
@@ -156,7 +157,7 @@ function PostCard({ post }: { post: Post }) {
   const aud = post.audience && post.audience !== 'public' ? AUD_EMOJI[post.audience] : null;
 
   return (
-    <article className="card" style={{ marginBottom: 16 }}>
+    <article className="card" style={{ marginBottom: 16, ...(isNew ? { boxShadow: '0 0 0 2px var(--accent)', animation: 'tc-pop .3s ease-out' } : {}) }}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <Avatar name={post.author.name} src={post.author.profileImage} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -164,9 +165,10 @@ function PostCard({ post }: { post: Post }) {
             {post.author.name}
             <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}> @{post.author.handle}</span>
             {aud && <span title={post.audience} style={{ fontSize: 12, marginLeft: 6 }}>{aud}</span>}
+            {isNew && <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#fff', background: 'var(--accent)', borderRadius: 999, padding: '2px 8px', marginLeft: 8 }}>New</span>}
           </div>
           <div className="muted" style={{ fontSize: 11.5 }}>
-            {timeAgo(post.createdAt)} ago
+            {isNew ? 'Just now' : `${timeAgo(post.createdAt)} ago`}
             {post.feeling ? ` · feeling ${post.feeling}` : ''}
           </div>
           {post.placeName && (
@@ -200,6 +202,7 @@ function PostCard({ post }: { post: Post }) {
       )}
       {videos.map((m) => (
         <video key={m.id} src={m.url} controls playsInline
+          autoPlay={isNew} muted={isNew} loop={isNew}
           style={{ width: '100%', maxHeight: 420, borderRadius: 14, marginTop: 12, background: '#000', display: 'block' }} />
       ))}
 
@@ -275,12 +278,38 @@ function Sidebar({ posts }: { posts: Post[] }) {
  *  videos, business updates and community posts in a single clean stream. */
 export function SocialFeed() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<string>('foryou');
   const feed = useFeed(filter);
   const items = feed.data?.items ?? [];
 
+  // Post-share landing: highlight the new post, scroll to top, flash a toast.
+  const navState = location.state as { newPostId?: string; justShared?: boolean } | null;
+  const [newPostId, setNewPostId] = useState<string | null>(null);
+  const [toast, setToast] = useState(false);
+  useEffect(() => {
+    if (!navState?.justShared) return;
+    setNewPostId(navState.newPostId ?? null);
+    setToast(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Clear router state so a refresh/back doesn't re-trigger the toast.
+    navigate(location.pathname, { replace: true, state: null });
+    const t1 = window.setTimeout(() => setToast(false), 3000);
+    const t2 = window.setTimeout(() => setNewPostId(null), 12000);
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
+      {toast && (
+        <div role="status" style={{ position: 'fixed', top: 18, left: '50%', transform: 'translateX(-50%)', zIndex: 80,
+          background: '#1f7a46', color: '#fff', borderRadius: 999, padding: '11px 20px', fontSize: 13.5, fontWeight: 600,
+          boxShadow: '0 8px 28px rgba(0,0,0,.28)', animation: 'tc-rise .3s ease-out', display: 'flex', alignItems: 'center', gap: 8 }}>
+          ✓ Your post has been shared to your city.
+        </div>
+      )}
       <div className="eyebrow">Social Life</div>
       <h1 style={{ fontSize: 26, marginBottom: 4 }}>
         {user ? `What's happening, ${user.name.split(' ')[0]}` : 'The city feed'}
@@ -310,7 +339,7 @@ export function SocialFeed() {
             <EmptyState icon="🌆" title={filter === 'foryou' ? 'No moments yet' : 'Nothing here yet'}
               hint={filter === 'nearby' ? 'Posts with a pinned location appear here.' : filter === 'following' ? 'Follow people to fill this lens.' : 'Be the first to share one.'} />
           )}
-          {items.map((p) => <PostCard key={p.id} post={p} />)}
+          {items.map((p) => <PostCard key={p.id} post={p} isNew={p.id === newPostId} />)}
         </div>
 
         {/* Right sidebar — desktop only (CSS media query) */}

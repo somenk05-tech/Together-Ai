@@ -14,18 +14,18 @@ export const UNIVERSAL_MODULES: ModuleDef[] = [
   { key: 'mail', label: 'Mail', emoji: '\u2709\uFE0F' },
 ];
 
+// Real Together City hubs only. Nutrition already contains Grocery, Weekly &
+// Daily Planner, Shared Pantry and Orders \u2014 so those are NOT separate toggles.
+// Calendar is a private per-user activity log, never a shared connection.
 export const MODULES: ModuleDef[] = [
   ...UNIVERSAL_MODULES,
-  { key: 'nutrition', label: 'Nutrition Family Hub', emoji: '\u{1F37D}\uFE0F' },
-  { key: 'medical', label: 'Medical Hub', emoji: '\u{1FA7A}' },
-  { key: 'financial', label: 'Financial Hub', emoji: '\u{1F4B0}' },
-  { key: 'grocery', label: 'Grocery', emoji: '\u{1F6D2}' },
-  { key: 'pantry', label: 'Shared Pantry', emoji: '\u{1F3E0}' },
-  { key: 'travel', label: 'Travel', emoji: '\u2708\uFE0F' },
-  { key: 'calendar', label: 'Shared Calendar', emoji: '\u{1F4C5}' },
-  { key: 'fitness', label: 'Fitness', emoji: '\u{1F4AA}' },
   { key: 'social', label: 'Social Life', emoji: '\u{1F389}' },
+  { key: 'travel', label: 'Travel', emoji: '\u2708\uFE0F' },
   { key: 'entertainment', label: 'Entertainment', emoji: '\u{1F3AC}' },
+  { key: 'fitness', label: 'Fitness', emoji: '\u{1F4AA}' },
+  { key: 'nutrition', label: 'Nutrition', emoji: '\u{1F37D}\uFE0F' },
+  { key: 'medical', label: 'Medical', emoji: '\u{1FA7A}' },
+  { key: 'financial', label: 'Financial', emoji: '\u{1F4B0}' },
 ];
 
 export const moduleDef = (key: string): ModuleDef =>
@@ -33,8 +33,10 @@ export const moduleDef = (key: string): ModuleDef =>
 
 /** OPTIONAL hubs each relationship may connect (universal ones excluded). */
 export const MODULES_BY_RELATIONSHIP: Record<string, string[]> = {
-  family: ['nutrition', 'medical', 'financial', 'grocery', 'pantry', 'travel', 'calendar', 'fitness', 'social', 'entertainment'],
-  friend: ['travel', 'social', 'entertainment', 'fitness'],
+  // Family + Friend share the everyday/social hubs; Nutrition, Medical and
+  // Financial are Family-only (they expose household, health and money data).
+  family: ['social', 'travel', 'entertainment', 'fitness', 'nutrition', 'medical', 'financial'],
+  friend: ['social', 'travel', 'entertainment', 'fitness'],
 };
 
 export const DEFAULT_MODULES = ['chat', 'mail', 'social'];

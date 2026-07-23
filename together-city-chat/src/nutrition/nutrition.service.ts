@@ -8,6 +8,7 @@ import { MasterProfileService } from '../profile/master-profile.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
+import { ConnectionsService } from '../connections/connections.service';
 import {
   CITATIONS, MARKER_RULES, criticalAlerts, evaluateMarker, supplementKit,
   flagsFor, planGuidance, rankByModes, planningModes, ruleFor,
@@ -1213,6 +1214,7 @@ export class NutritionService implements OnModuleInit {
     private readonly conversations: ConversationsService,
     private readonly financial: FinancialService,
     private readonly ai: AiService,
+    private readonly connections: ConnectionsService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -1844,6 +1846,9 @@ export class NutritionService implements OnModuleInit {
     const link = await this.household.findFirst({ where: { ownerId, memberUserId } }).catch(() => null);
     if (link) await this.household.update({ where: { id: link.id }, data: { status: 'removed' } as never }).catch(() => undefined);
     await this.members.deleteMany({ where: { ownerId, memberUserId } }).catch(() => undefined);
+    // Two-way sync: removing inside Nutrition immediately turns the People
+    // `nutrition` module OFF on the shared connection record (no drift).
+    await this.connections.revokeModuleForPair(ownerId, memberUserId, 'nutrition').catch(() => undefined);
     return this.familyMembers(ownerId);
   }
 

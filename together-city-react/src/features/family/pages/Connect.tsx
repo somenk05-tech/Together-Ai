@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { PageHeader, Button, Spinner } from '@/components/ui';
 import {
   useFamilyMembers, useFamilyMemberMutations, useFamilyProfile,
-  useHouseholdInvites, useInviteHousehold, useRespondHouseholdInvite, useHouseholdSharing,
+  useHouseholdInvites, useRespondHouseholdInvite, useHouseholdSharing,
 } from '@/features/nutrition/hooks';
 import type { HouseholdSharing } from '@/features/nutrition/api';
-import { nutritionApi } from '@/features/nutrition/api';
-import type { FamilyMemberProfile, FamilyMemberInput, HouseholdRole, HouseholdSearchResult } from '@/features/nutrition/api';
+import type { FamilyMemberProfile, FamilyMemberInput, HouseholdRole } from '@/features/nutrition/api';
+import { AddHubMemberDialog } from '@/features/connections/components/AddHubMemberDialog';
 
 const DIETS: Record<string, string> = {
   everything: 'Non-vegetarian', nonveg: 'Non-vegetarian', veg: 'Vegetarian', vegan: 'Vegan',
@@ -21,112 +21,10 @@ const ROLE_META: Record<HouseholdRole, { label: string; color: string; soft: str
   child: { label: 'Child', color: '#b0803a', soft: '#f7efe1' },
   guest: { label: 'Guest', color: '#7a7a72', soft: '#eeeee9' },
 };
-const INVITE_ROLES: HouseholdRole[] = ['adult', 'child', 'guest'];
-
 const fld: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
 const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--muted)', display: 'block', marginBottom: 4 };
 
 const initialsOf = (name: string) => name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
-
-/* ─────────────────────────── Search + invite modal ─────────────────────────── */
-function InviteModal({ onClose }: { onClose: () => void }) {
-  const invite = useInviteHousehold();
-  const [q, setQ] = useState('');
-  const [role, setRole] = useState<HouseholdRole>('adult');
-  const [searching, setSearching] = useState(false);
-  const [result, setResult] = useState<HouseholdSearchResult | null>(null);
-  const [sent, setSent] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-
-  const doSearch = async () => {
-    if (!q.trim()) return;
-    setSearching(true); setResult(null); setSent(null); setErr(null);
-    try { setResult(await nutritionApi.searchHouseholdUser(q.trim())); }
-    catch { setErr('Search failed — try again.'); }
-    finally { setSearching(false); }
-  };
-  const send = () => {
-    setErr(null);
-    invite.mutate({ userRef: result?.user?.id ?? q.trim(), role }, {
-      onSuccess: (r) => setSent(r.message),
-      onError: () => setErr('Could not send the invitation.'),
-    });
-  };
-
-  const rel = result?.relationship;
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,14,.5)', zIndex: 60, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '8vh 16px', overflowY: 'auto' }}>
-      <div onClick={(e) => e.stopPropagation()} className="card" style={{ maxWidth: 460, width: '100%', padding: 22 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: 18 }}>Invite to your Household</h3>
-            <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>Find a Together City member by their user ID or @username. This is private to the Nutrition Hub — it never adds them as a friend or social connection. Tip: connecting as Family in People (with the Nutrition module ticked) adds them here automatically — one request, every hub connected.</p>
-          </div>
-          <button onClick={onClose} aria-label="Close" style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--muted)', lineHeight: 1 }}>×</button>
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <span style={lbl}>Together City User ID or @username</span>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input style={fld} value={q} placeholder="e.g. @priya or a user ID"
-              onChange={(e) => { setQ(e.target.value); setResult(null); setSent(null); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } }} />
-            <Button variant="line" onClick={doSearch} disabled={searching || !q.trim()}>{searching ? '…' : 'Search'}</Button>
-          </div>
-        </div>
-
-        {result && !result.found && (
-          <p style={{ color: '#c0392b', fontSize: 13, marginTop: 14 }}>No Together City member matches “{q.trim()}”. Check the ID or username and try again.</p>
-        )}
-
-        {result?.found && result.user && (
-          <div style={{ marginTop: 16, border: '1px solid var(--line)', borderRadius: 14, padding: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div className="av" style={{ width: 46, height: 46, fontSize: 16, overflow: 'hidden', backgroundImage: result.user.profileImage ? `url(${result.user.profileImage})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-                {!result.user.profileImage && initialsOf(result.user.name)}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h4 style={{ margin: 0, fontSize: 15.5 }}>{result.user.name}</h4>
-                <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>@{result.user.handle}</p>
-              </div>
-            </div>
-
-            {rel === 'self' && <p className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>That’s you — you’re the head of this household.</p>}
-            {rel === 'member' && <p style={{ fontSize: 12.5, marginTop: 12, color: '#2e7d4f', fontWeight: 600 }}>✓ Already in your household.</p>}
-            {rel === 'pending' && <p style={{ fontSize: 12.5, marginTop: 12, color: '#b0803a', fontWeight: 600 }}>⏳ Invitation already pending.</p>}
-
-            {(rel === 'none' || rel === 'pending') && !sent && (
-              <div style={{ marginTop: 14 }}>
-                <span style={lbl}>Household role</span>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                  {INVITE_ROLES.map((r) => (
-                    <button key={r} type="button" onClick={() => setRole(r)}
-                      style={{ cursor: 'pointer', flex: 1, borderRadius: 999, padding: '7px 0', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
-                        border: `1.5px solid ${role === r ? ROLE_META[r].color : 'var(--line)'}`, background: role === r ? ROLE_META[r].soft : 'transparent', color: role === r ? ROLE_META[r].color : 'var(--ink)' }}>
-                      {ROLE_META[r].label}
-                    </button>
-                  ))}
-                </div>
-                <Button variant="accent" onClick={send} disabled={invite.isPending} style={{ width: '100%' }}>
-                  {invite.isPending ? 'Sending…' : 'Send household invite →'}
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {sent && (
-          <div style={{ marginTop: 16, background: 'var(--accent-soft)', borderRadius: 12, padding: 14 }}>
-            <strong style={{ fontSize: 13.5, color: 'var(--accent)' }}>✓ Invitation sent</strong>
-            <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 10px' }}>They’ll see “{sent}” in Nutrition Hub and can Accept or Decline.</p>
-            <Button variant="line" size="sm" onClick={onClose}>Done</Button>
-          </div>
-        )}
-        {err && <p style={{ color: '#c0392b', fontSize: 13, marginTop: 12 }}>{err}</p>}
-      </div>
-    </div>
-  );
-}
 
 /* ─────────────────────── Incoming invitations (to me) ─────────────────────── */
 function InvitesInbox() {
@@ -375,7 +273,7 @@ export function FamilyConnect() {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 16px' }}>
           <h3 style={{ fontSize: 18, margin: 0 }}>Household</h3>
-          {editing === null && <Button variant="accent" onClick={() => setInviting(true)}>+ Add member</Button>}
+          {editing === null && <Button variant="accent" onClick={() => setInviting(true)}>+ Add Member</Button>}
         </div>
 
         {members.isLoading && <Spinner label="Loading your household…" />}
@@ -400,7 +298,15 @@ export function FamilyConnect() {
         </p>
       </div>
 
-      {inviting && <InviteModal onClose={() => setInviting(false)} />}
+      {inviting && (
+        <AddHubMemberDialog
+          moduleKey="nutrition"
+          title="Add to Nutrition Family Hub"
+          blurb="Add someone you cook for by their exact @handle."
+          familyOnly
+          onClose={() => setInviting(false)}
+        />
+      )}
     </div>
   );
 }
