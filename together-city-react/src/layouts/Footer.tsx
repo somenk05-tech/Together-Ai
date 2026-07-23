@@ -4,10 +4,12 @@ export function Footer() {
   return (
     <footer className="tc-footer">
       <span className="word">TOGETHER CITY</span>
-      <nav>
-        <Link to="/">City</Link>
-        <Link to="/chats">Chats</Link><Link to="/connections">Connections</Link><Link to="/profile">Profile</Link>
-        <Link to="/settings">Settings</Link>
+      <nav aria-label="Utility">
+        <Link to="/about">About</Link>
+        <Link to="/help">Help</Link>
+        <Link to="/legal/privacy">Privacy</Link>
+        <Link to="/legal/terms">Terms</Link>
+        <Link to="/contact">Contact</Link>
       </nav>
       <span>The world's largest digital city. Everything personalized. © 2026 Together City</span>
     </footer>

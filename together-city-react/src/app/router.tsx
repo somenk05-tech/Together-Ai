@@ -160,6 +160,8 @@ const Settings = lazy(() => import('@/features/settings/pages/Settings').then((m
 const Calendar = lazy(() => import('@/features/calendar/pages/Calendar').then((m) => ({ default: m.Calendar })));
 const SignIn = lazy(() => import('@/features/auth/pages/SignIn').then((m) => ({ default: m.SignIn })));
 const Verify = lazy(() => import('@/features/auth/pages/Verify').then((m) => ({ default: m.Verify })));
+const PrivacySettings = lazy(() => import('@/features/privacy/pages/PrivacySettings').then((m) => ({ default: m.PrivacySettings })));
+const Info = lazy(() => import('@/pages/Info').then((m) => ({ default: m.Info })));
 
 // Every lazy page is wrapped so a stale code-split chunk (after a new deploy)
 // auto-recovers instead of leaving a blank page.
@@ -196,6 +198,12 @@ export const router = createBrowserRouter([
       { path: '/fitness', element: <HubLanding hub="fitness" /> },
       { path: '/profile', element: <RequireAuth>{wrap(<Profile />)}</RequireAuth> },
       { path: '/settings', element: <RequireAuth>{wrap(<Settings />)}</RequireAuth> },
+      { path: '/settings/privacy', element: <RequireAuth>{wrap(<PrivacySettings />)}</RequireAuth> },
+      { path: '/legal/privacy', element: wrap(<Info slug="privacy" />) },
+      { path: '/legal/terms', element: wrap(<Info slug="terms" />) },
+      { path: '/about', element: wrap(<Info slug="about" />) },
+      { path: '/help', element: wrap(<Info slug="help" />) },
+      { path: '/contact', element: wrap(<Info slug="contact" />) },
       { path: '/calendar', element: <RequireAuth>{wrap(<Calendar />)}</RequireAuth> },
       { path: '/chats', element: <RequireAuth>{wrap(<Chats />)}</RequireAuth> },
       { path: '/connections', element: <RequireAuth>{wrap(<Connections />)}</RequireAuth> },

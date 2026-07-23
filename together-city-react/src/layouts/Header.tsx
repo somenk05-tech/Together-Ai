@@ -7,6 +7,9 @@ import {
   useIncomingRequestCount, useUnreadChatCount,
   useUnreadNotificationCount, useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead,
 } from '@/api';
+import { Icon, type IconName } from '@/components/ui/Icon';
+import { CommandPalette } from '@/components/CommandPalette';
+import { useTrackRecent } from '@/hooks/useTrackRecent';
 
 /** Small red count bubble for pending connection requests. */
 function Badge({ count }: { count: number }) {
@@ -20,10 +23,10 @@ function Badge({ count }: { count: number }) {
   );
 }
 
-const ICON_FOR: Record<string, string> = {
-  like: '❤️', comment: '💬', follow: '➕', connection_request: '🤝',
-  connection_accepted: '✅', post_live: '🎉', mention: '📣',
-  message: '💬', dating_like: '💛', dating_match: '💫',
+const ICON_FOR: Record<string, IconName> = {
+  like: 'heart', comment: 'comment', follow: 'follow', connection_request: 'connection',
+  connection_accepted: 'accepted', post_live: 'sparkles', mention: 'mention',
+  message: 'comment', dating_like: 'heart', dating_match: 'sparkles',
 };
 function timeAgo(iso: string): string {
   const s = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
@@ -60,7 +63,7 @@ function NotificationBell() {
     <div ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
       <button type="button" aria-label="Notifications" onClick={() => setOpen((o) => !o)}
         style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6, padding: 0 }}>
-        <span aria-hidden>🔔</span> <span className="lab">ALERTS</span>
+        <Icon name="bell" size={17} /> <span className="lab">ALERTS</span>
         <Badge count={unread.data ?? 0} />
       </button>
       {open && (
@@ -78,7 +81,7 @@ function NotificationBell() {
             <button key={n.id} type="button" onClick={() => openItem(n.id, n.href, n.read)}
               style={{ display: 'flex', gap: 10, width: '100%', textAlign: 'left', padding: '11px 14px', border: 'none', borderBottom: '1px solid var(--line)',
                 background: n.read ? 'transparent' : 'var(--accent-soft)', cursor: 'pointer', fontFamily: 'inherit' }}>
-              <span aria-hidden style={{ fontSize: 16, lineHeight: 1.3 }}>{ICON_FOR[n.kind] ?? '🔔'}</span>
+              <Icon name={ICON_FOR[n.kind] ?? 'bell'} size={16} style={{ marginTop: 1, color: 'var(--accent)' }} />
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 13, fontWeight: n.read ? 500 : 700 }}>{n.title}</span>
                 {n.body && <span className="muted" style={{ display: 'block', fontSize: 12, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.body}</span>}
@@ -104,9 +107,11 @@ export function Header() {
   const unreadChats = useUnreadChatCount();
   const firstName = (user?.name ?? '').trim().split(' ')[0] || 'Profile';
   const tabs = NAV.filter((n) => n.key !== 'mail'); // Mail lives in the actions, not the tab row
+  useTrackRecent(); // remember where we've been — powers Recently Viewed + breadcrumbs
   return (
     <header className="tc-header">
-      <button className="tc-burger" aria-label="Open menu" onClick={() => toggleSidebar()}>☰</button>
+      <CommandPalette />
+      <button className="tc-burger" aria-label="Open menu" onClick={() => toggleSidebar()}><Icon name="menu" size={20} /></button>
       <Link to="/" className="tc-logo">
         <span className="mark"><img src="/assets/img/tc-logo.png" alt="Together City" width={34} height={34} /></span>
         <span className="word">TOGETHER CITY</span>
@@ -119,13 +124,18 @@ export function Header() {
         ))}
       </nav>
       <div className="tc-actions">
+        <button type="button" aria-label="Search — jump to anything (Ctrl/Cmd K)" title="Search (⌘K)"
+          onClick={() => window.dispatchEvent(new Event('tc:command'))}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6, padding: 0 }}>
+          <Icon name="search" size={17} /> <span className="lab">SEARCH</span>
+        </button>
         <Link to="/connections" aria-label="Requests" style={{ position: 'relative' }}>
-          <span aria-hidden>🤝</span> <span className="lab">PEOPLE</span>
+          <Icon name="connection" size={17} /> <span className="lab">PEOPLE</span>
           <Badge count={requests} />
         </Link>
-        <Link to="/mail/inbox" aria-label="Mail"><span aria-hidden>✉</span> <span className="lab">MAIL</span></Link>
+        <Link to="/mail/inbox" aria-label="Mail"><Icon name="mail" size={17} /> <span className="lab">MAIL</span></Link>
         <Link to="/chats" aria-label="Chat" style={{ position: 'relative' }}>
-          <span aria-hidden>💬</span> <span className="lab">CHAT</span>
+          <Icon name="chat" size={17} /> <span className="lab">CHAT</span>
           <Badge count={unreadChats} />
         </Link>
         <NotificationBell />
@@ -134,7 +144,7 @@ export function Header() {
             <img src={user.profileImage} alt="" width={22} height={22}
               style={{ borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1.5px solid var(--line)' }} />
           ) : (
-            <span aria-hidden>👤</span>
+            <Icon name="user" size={20} />
           )}
           <span className="lab">{firstName}</span>
         </Link>

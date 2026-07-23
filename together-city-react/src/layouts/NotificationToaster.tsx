@@ -2,13 +2,14 @@ import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotificationSync } from '@/api';
 import type { NotificationItem } from '@/api/schemas';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
-interface Toast { id: string; icon: string; title: string; body?: string; href?: string }
+interface Toast { id: string; icon: IconName; title: string; body?: string; href?: string }
 
-const ICON_FOR: Record<string, string> = {
-  like: '❤️', comment: '💬', follow: '➕', connection_request: '🤝',
-  connection_accepted: '✅', post_live: '🎉', mention: '📣',
-  message: '💬', dating_like: '💛', dating_match: '💫',
+const ICON_FOR: Record<string, IconName> = {
+  like: 'heart', comment: 'comment', follow: 'follow', connection_request: 'connection',
+  connection_accepted: 'accepted', post_live: 'sparkles', mention: 'mention',
+  message: 'comment', dating_like: 'heart', dating_match: 'sparkles',
 };
 
 /**
@@ -32,7 +33,7 @@ export function NotificationToaster() {
   useNotificationSync((n: NotificationItem) => {
     // Unique per toast — a grouped message notification reuses its row id when it
     // updates, so key it with a nonce to avoid React key collisions.
-    push({ id: `${n.id}-${Math.random().toString(36).slice(2, 7)}`, icon: ICON_FOR[n.kind] ?? '🔔', title: n.title, body: n.body, href: n.href });
+    push({ id: `${n.id}-${Math.random().toString(36).slice(2, 7)}`, icon: ICON_FOR[n.kind] ?? 'bell', title: n.title, body: n.body, href: n.href });
   });
 
   if (!toasts.length) return null;
@@ -44,7 +45,7 @@ export function NotificationToaster() {
           style={{ display: 'flex', gap: 10, alignItems: 'flex-start', textAlign: 'left', width: '100%', cursor: 'pointer',
             background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, padding: '11px 13px',
             boxShadow: '0 10px 32px rgba(0,0,0,.18)', fontFamily: 'inherit', animation: 'tc-rise .28s ease-out' }}>
-          <span aria-hidden style={{ fontSize: 17, lineHeight: 1.2 }}>{t.icon}</span>
+          <Icon name={t.icon} size={17} style={{ marginTop: 1, color: 'var(--accent)' }} />
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: 'block', fontSize: 13, fontWeight: 700 }}>{t.title}</span>
             {t.body && <span className="muted" style={{ display: 'block', fontSize: 12, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.body}</span>}

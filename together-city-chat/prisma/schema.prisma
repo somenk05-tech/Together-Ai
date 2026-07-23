@@ -105,6 +105,7 @@ model User {
   doctorProfile        Doctor?
   consults             Consult[]
   medicalConsents      MedicalConsent[]
+  privacySettings      PrivacySetting[]
   beautyProfile        BeautyProfile?
   beautyOrders         BeautyOrder[]
   fitnessProfile       FitnessProfile?
@@ -922,6 +923,23 @@ model MedicalConsent {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, hub])
+  @@index([userId])
+}
+
+// Contextual consent + granular privacy permissions (audit 2.2). One row per
+// (user, key): key is "tos", "ack:<hub>", or "pref:<permission>"; value is a
+// short string ("true"/"false"). Durable, cross-device record behind the client
+// privacy store.
+model PrivacySetting {
+  id        String   @id @default(uuid())
+  userId    String
+  key       String
+  value     String
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
   @@index([userId])
 }
 

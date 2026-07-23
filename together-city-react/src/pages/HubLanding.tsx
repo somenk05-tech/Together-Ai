@@ -3,6 +3,7 @@ import type { HubKey } from '@/types';
 import { HUBS } from '@/config/hubs';
 import { useHubTheme } from '@/hooks/useHubTheme';
 import { Button } from '@/components/ui';
+import { HubConsentGate } from '@/features/privacy/HubConsentGate';
 
 /**
  * Hub → hero image, matching the vanilla website's hub landings 1:1
@@ -34,6 +35,7 @@ export function HubLanding({ hub }: { hub: HubKey }) {
   const firstInner = cfg.items[0]?.path ?? cfg.backPath;
   const heroSrc = `/assets/img/${HUB_HERO[hub] ?? `${hub}.webp`}`;
   return (
+    <HubConsentGate hub={hub}>
     <div className="gateway-lite" style={{ position: 'relative', minHeight: 'calc(100vh - var(--header-h))', display: 'flex', alignItems: 'flex-end', color: '#fff', overflow: 'hidden' }}>
       <img className="bg" src={heroSrc} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(8,9,8,.82),rgba(8,9,8,.2))' }} />
@@ -45,5 +47,6 @@ export function HubLanding({ hub }: { hub: HubKey }) {
         </div>
       </div>
     </div>
+    </HubConsentGate>
   );
 }

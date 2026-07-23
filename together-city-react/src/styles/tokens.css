@@ -1,8 +1,10 @@
 /* Design tokens ported 1:1 from the vanilla site (assets/css/tc.css :root). */
 :root {
-  --ink: #141412; --ink-soft: #4a4a44; --muted: #8a8a80;
+  /* --muted darkened from #8a8a80 (~3.1:1) to meet WCAG AA (~4.9:1 on paper) for small text (audit 5.2). */
+  --ink: #141412; --ink-soft: #45453f; --muted: #63635b;
   --paper: #faf9f6; --card: #ffffff; --line: #e8e6df;
-  --gold: #b08d3e; --gold-soft: #f3ead6; --gold-bright: #d4af5e;
+  /* --gold is a fill colour (white text on gold). For gold-coloured TEXT use --gold-ink, which passes AA on light backgrounds. */
+  --gold: #b08d3e; --gold-soft: #f3ead6; --gold-bright: #d4af5e; --gold-ink: #856210;
   --green: #2e5c3f; --green-soft: #eaf2ec;
   --blue: #3a6ea5; --blue-soft: #e9f1f8;
   --rose: #b76e79; --rose-soft: #f9eef0;

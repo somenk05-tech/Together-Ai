@@ -8,6 +8,7 @@ import type { LookupOption } from '@/api/lookups.api';
 import { useDatingProfile, useUpsertDatingProfile, useDeleteDatingProfile, type UpsertProfileInput, type Visibility, type ProfileCompletion } from '../api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
+import { PrivacyNote } from '@/features/privacy/PrivacyNote';
 
 const field: React.CSSProperties = {
   width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 10,
@@ -285,6 +286,7 @@ export function DatingProfilePage() {
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '28px 16px' }}>
         <div className="eyebrow">Dating Hub · Your profile</div>
         <h1 style={{ fontSize: 26 }}>Tell the stars about you</h1>
+        <PrivacyNote hub="dating" style={{ margin: '10px 0 14px' }} />
         <StatusBanner />
         <CompletionCard completion={completion} />
         <div className="card" style={{ marginTop: 16 }}>

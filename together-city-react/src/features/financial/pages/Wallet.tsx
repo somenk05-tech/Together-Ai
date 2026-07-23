@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useWallet, useTopUp, useServices, useLinkCard, useRemoveCard, catIcon, inr, type Txn } from '../api';
+import { PrivacyNote } from '@/features/privacy/PrivacyNote';
 
 const TOPUPS = [500, 1000, 2000, 5000];
 
@@ -36,9 +37,10 @@ export function Wallet() {
     <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
       <div className="eyebrow">Financial · Wallet</div>
       <h1 style={{ fontSize: 26 }}>Your city wallet</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
+      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px' }}>
         One balance for the whole city — top up here and pay across Nutrition, Beauty and Medical.
       </p>
+      <PrivacyNote hub="financial" style={{ marginBottom: 16 }} />
 
       <div className="card" style={{ marginBottom: 14, background: 'linear-gradient(135deg, var(--accent) 0%, #3a1220 100%)', color: '#fff', border: 'none' }}>
         <div style={{ fontSize: 12, opacity: .85, textTransform: 'uppercase', letterSpacing: '.08em' }}>Balance</div>

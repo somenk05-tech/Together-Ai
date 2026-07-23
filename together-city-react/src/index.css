@@ -122,7 +122,7 @@ section.blk { margin: 0 0 56px; }
 @media (max-width:1200px) { .grid5 { grid-template-columns: repeat(2,1fr); } }
 @media (max-width:680px) { .grid5 { grid-template-columns: 1fr; } }
 .pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
-.tag.gold { background: var(--gold-soft); color: var(--gold); }
+.tag.gold { background: var(--gold-soft); color: var(--gold-ink); }
 .tag.amber { background: #faf3e0; color: #9a7b2e; }
 .tag.dark { background: #1c1e1a; color: #e8d9b0; }
 .stat .delta.up { color: #2e7d4f; } .stat .delta.down { color: #b0503e; }

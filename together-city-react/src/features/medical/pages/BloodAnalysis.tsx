@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useBloodHistory, useLatestPanel, useSaveBloodTest, useIngestBlood, useHealthSummary, useBloodTrends, useBiomarkerCatalog, type Citation, type TrendKind, type TrendPick, type BiomarkerSection } from '../api';
+import { PrivacyNote } from '@/features/privacy/PrivacyNote';
 
 /** Deterministic 0–100 wellness score ring. */
 function ScoreRing({ score, band }: { score: number; band: string }) {
@@ -272,6 +273,8 @@ export function BloodAnalysis() {
         Interpretation is grounded in established clinical-nutrition guidance; add CRP
         and we flag markers inflammation can distort. Not a diagnosis.
       </p>
+
+      <PrivacyNote hub="medical" style={{ margin: '16px 0 0' }} />
 
       {data && data.alerts.length > 0 && (
         <div style={{ marginTop: 16 }}>

@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useHubTheme } from '@/hooks/useHubTheme';
 import { CityHeader } from '@/components/CityHeader';
+import { RecentPanel } from '@/components/RecentPanel';
 
 /** A clickable building silhouette on the pavilion-city map. */
 interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: string; cx?: number; cy?: number; rx?: number; ry?: number; }
@@ -101,6 +102,9 @@ export function Home() {
         </div>
 
         <div className="rule" />
+
+        {/* ============ CONTINUE WHERE YOU LEFT OFF ============ */}
+        <RecentPanel />
 
         {/* ============ WALK THE DISTRICTS ============ */}
         <section className="blk">

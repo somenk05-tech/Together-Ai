@@ -1,0 +1,70 @@
+import type { ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { usePrivacyStore } from './store';
+import { consentFor } from './consent.config';
+import { pushAck } from './api';
+import { Icon } from '@/components/ui/Icon';
+import { Button } from '@/components/ui';
+
+/**
+ * Shows a short, plain-language consent screen the first time a user enters a
+ * sensitive hub (Medical, Dating, Financial, Family, Astrology) — what data, why,
+ * who can see it, and how to control it (audit 2.2). Once acknowledged it never
+ * shows again; non-sensitive hubs pass straight through.
+ */
+export function HubConsentGate({ hub, children }: { hub?: string; children: ReactNode }) {
+  const cfg = consentFor(hub);
+  const nav = useNavigate();
+  const acked = usePrivacyStore((s) => (hub ? s.acks[hub] : true));
+  const ackHub = usePrivacyStore((s) => s.ackHub);
+
+  if (!cfg || acked) return <>{children}</>;
+
+  const rows: { label: string; body: string }[] = [
+    { label: 'What we use', body: cfg.what },
+    { label: 'Why', body: cfg.why },
+    { label: 'Who can see it', body: cfg.who },
+    { label: 'Your control', body: cfg.control },
+  ];
+
+  const accept = () => { if (hub) { ackHub(hub); pushAck(hub); } };
+
+  return (
+    <div style={{ maxWidth: 560, margin: '0 auto', padding: '40px 18px 56px' }}>
+      <div className="card rise" style={{ padding: '30px 28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+          <span style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--accent-soft)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <Icon name={cfg.icon} size={22} style={{ color: 'var(--accent)' }} />
+          </span>
+          <div>
+            <div className="eyebrow">{cfg.label} · Your privacy</div>
+            <h1 style={{ fontSize: 21, lineHeight: 1.25 }}>Before you continue</h1>
+          </div>
+        </div>
+
+        <p style={{ fontSize: 14.5, lineHeight: 1.65, marginBottom: 18 }}>{cfg.promise}</p>
+
+        <div style={{ borderTop: '1px solid var(--line)' }}>
+          {rows.map((r) => (
+            <div key={r.label} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--line)' }}>
+              <Icon name="accepted" size={16} style={{ color: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{r.label}</div>
+                <div className="muted" style={{ fontSize: 13, lineHeight: 1.55, marginTop: 2 }}>{r.body}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p className="muted" style={{ fontSize: 11.5, margin: '14px 0 18px' }}>
+          You can change or withdraw this any time in Settings → Privacy &amp; Permissions.
+        </p>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Button variant="accent" style={{ flex: 1, justifyContent: 'center' }} onClick={accept}>Got it — continue</Button>
+          <Button variant="ghost" style={{ justifyContent: 'center' }} onClick={() => nav(-1)}>Not now</Button>
+        </div>
+      </div>
+    </div>
+  );
+}

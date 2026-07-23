@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { profileApi, type MasterProfileView } from '@/features/profile/api';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAstroProfile, useSaveAstroProfile } from '../hooks';
+import { PrivacyNote } from '@/features/privacy/PrivacyNote';
 
 /** Photo-or-initials avatar (same look as the main profile page). */
 function Avatar({ src, name, size = 56 }: { src?: string | null; name: string; size?: number }) {
@@ -367,6 +368,7 @@ export function AstroProfilePage() {
         <div className="eyebrow">Profile · Master Profile</div>
         <h1 style={{ fontSize: 'clamp(24px,3vw,32px)' }}>Birth Details</h1>
       </div>
+      <PrivacyNote hub="astrology" style={{ marginBottom: 16 }} />
       {view.isLoading && <Spinner label="Loading your details…" />}
       {!view.isLoading && <PersonalInfoSection />}
       {view.data?.complete && view.data.profile && !editing && (

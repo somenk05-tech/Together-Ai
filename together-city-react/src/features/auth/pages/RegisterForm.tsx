@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/api/auth.api';
 import { isServerUnreachable, SERVER_UNREACHABLE_MSG } from '@/api/client';
 import { Button } from '@/components/ui';
+import { usePrivacyStore } from '@/features/privacy/store';
+import { pushTos } from '@/features/privacy/api';
 
 /** Prefer the backend's actual error message over a canned guess. */
 function serverMessage(err: unknown): string | null {
@@ -38,6 +40,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [agreed, setAgreed] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -70,15 +73,18 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
   const pwScore = pwChecks.filter((c) => c.ok).length;
   const pwStrong = pwScore === PW_RULES.length;
 
-  const canSubmit = hStatus === 'ok' && name.trim() && emailOk(email) && pwStrong && !busy;
+  const acceptTos = usePrivacyStore((s) => s.acceptTos);
+  const canSubmit = hStatus === 'ok' && name.trim() && emailOk(email) && pwStrong && agreed && !busy;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!agreed) { setError('Please accept the Terms of Service and Privacy Policy to continue.'); return; }
     if (!canSubmit) { setError('Please complete the highlighted fields.'); return; }
     setBusy(true);
     try {
       await register(handle.trim().toLowerCase(), name.trim(), password, { email: email.trim().toLowerCase(), phone: showPhone ? phone.trim() : undefined });
+      acceptTos(); pushTos(); // record consent to ToS + Privacy at account creation
       setDone(true);   // auto-logged-in on success
     } catch (err) {
       setError(isServerUnreachable(err) ? SERVER_UNREACHABLE_MSG : (serverMessage(err) ?? 'Could not create your account — try again.'));
@@ -174,7 +180,21 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
             onChange={(e) => setPhone(e.target.value)} className="tc-field" style={{ ...field, marginTop: 12 }} />
         )}
 
-        {error && <p className="tc-shake" style={{ ...errStyle, textAlign: 'center', margin: '12px 0 0' }}>{error}</p>}
+        {/* Terms / Privacy acceptance + a short "your data is yours" reassurance (audit 2.2). */}
+        <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 16, cursor: 'pointer', fontSize: 12.5, lineHeight: 1.5 }}>
+          <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} aria-describedby="tos-note"
+            style={{ marginTop: 2, width: 16, height: 16, accentColor: 'var(--accent)', flexShrink: 0 }} />
+          <span>
+            I agree to the{' '}
+            <Link to="/legal/terms" target="_blank" style={{ color: 'var(--accent)', fontWeight: 600 }}>Terms of Service</Link>{' '}and{' '}
+            <Link to="/legal/privacy" target="_blank" style={{ color: 'var(--accent)', fontWeight: 600 }}>Privacy Policy</Link>.
+            <span id="tos-note" className="muted" style={{ display: 'block', marginTop: 3 }}>
+              Your data is yours. Sensitive information — health, dating, finances — stays private by default and is only used to personalize the features you choose.
+            </span>
+          </span>
+        </label>
+
+        {error && <p className="tc-shake" role="alert" style={{ ...errStyle, textAlign: 'center', margin: '12px 0 0' }}>{error}</p>}
 
         <Button type="submit" variant="accent" disabled={!canSubmit} style={{ width: '100%', justifyContent: 'center', marginTop: 16, opacity: canSubmit ? 1 : 0.6 }}>
           {busy ? <><span className="tc-spin" style={{ marginRight: 8 }} /> Creating…</> : 'Create Account'}

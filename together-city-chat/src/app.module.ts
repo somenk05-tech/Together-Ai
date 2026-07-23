@@ -33,6 +33,7 @@ import { CityModule } from './city/city.module';
 import { AiModule } from './ai/ai.module';
 import { HealthModule } from './health/health.module';
 import { AstrologyModule } from './astrology/astrology.module';
+import { PrivacyModule } from './privacy/privacy.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { AstrologyModule } from './astrology/astrology.module';
     RestaurantsModule,
     MailModule,
     CityModule,
+    PrivacyModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
