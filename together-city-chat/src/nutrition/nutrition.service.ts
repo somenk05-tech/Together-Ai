@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'fs';
 import { gunzipSync } from 'zlib';
 import { join } from 'path';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { MasterProfileService } from '../profile/master-profile.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
@@ -1208,6 +1209,7 @@ export class NutritionService implements OnModuleInit {
   private readonly logger = new Logger(NutritionService.name);
   constructor(
     private readonly prisma: PrismaService,
+    private readonly masterProfile: MasterProfileService,
     private readonly conversations: ConversationsService,
     private readonly financial: FinancialService,
     private readonly ai: AiService,
@@ -1342,11 +1344,18 @@ export class NutritionService implements OnModuleInit {
     // `extras` exists on Railway's freshly-generated client; cast for the local
     // (offline) client which can't be regenerated here.
     const data = dto as Record<string, unknown>;
-    return this.prisma.foodPref.upsert({
+    const saved = await this.prisma.foodPref.upsert({
       where: { userId },
       update: data,
       create: { userId, ...data },
     } as Parameters<typeof this.prisma.foodPref.upsert>[0]);
+    // Master Profile sync — body metrics are shared fields (spec: no duplicates).
+    await this.masterProfile.syncShared(userId, {
+      heightCm: (dto as { heightCm?: number }).heightCm,
+      weightKg: (dto as { weightKg?: number }).weightKg,
+      gender: (dto as { sex?: string }).sex,
+    }, 'nutrition').catch(() => undefined);
+    return saved;
   }
 
   /** Current preferences (defaults if never saved) — powers the Preferences form. */

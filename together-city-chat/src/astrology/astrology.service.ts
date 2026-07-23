@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { MasterProfileService } from '../profile/master-profile.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import {
@@ -41,6 +42,7 @@ export class AstrologyService {
   private readonly logger = new Logger('AstrologyService');
   constructor(
     private readonly prisma: PrismaService,
+    private readonly masterProfile: MasterProfileService,
     private readonly financial: FinancialService,
     private readonly ai: AiService,
   ) {}
@@ -98,9 +100,25 @@ export class AstrologyService {
    *  the dating hub are auto-migrated in — entered once, reused everywhere. */
   async getProfile(userId: string) {
     let row = await this.db.astroProfile.findUnique({ where: { userId } }).catch(() => null);
-    let source: 'astrology' | 'dating' | null = row ? 'astrology' : null;
+    let source: 'astrology' | 'dating' | 'master' | null = row ? 'astrology' : null;
 
     if (!row) {
+      // Master Profile first (single source of truth): if it already knows the
+      // birth details — from ANY hub — materialise the astro row from it.
+      const master = await this.masterProfile.get(userId).catch(() => null);
+      if (master?.dateOfBirth && master.birthCity && master.birthCountry) {
+        const timeZone = master.timeZone || 'Asia/Kolkata';
+        const { lat, lng } = geocodeApprox(master.birthCity, master.birthState ?? null, master.birthCountry, timeZone);
+        row = await this.db.astroProfile.upsert({
+          where: { userId }, update: {},
+          create: {
+            userId, birthDate: new Date(master.dateOfBirth), birthTime: master.timeOfBirth ?? null,
+            birthCountry: master.birthCountry, birthState: master.birthState ?? null,
+            birthCity: master.birthCity, timeZone, lat, lng,
+          },
+        }).catch(() => null as never);
+        if (row) return { complete: true, profile: this.shape(row), prefill: null, source: 'master' as const };
+      }
       const dating = await this.prisma.datingProfile.findUnique({ where: { userId } }).catch(() => null);
       if (dating?.birthDate) {
         const place = (dating.birthPlace ?? '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -158,6 +176,12 @@ export class AstrologyService {
       update: data,
       create: { userId, ...data },
     });
+    // Master Profile sync — birth details are shared fields used app-wide.
+    await this.masterProfile.syncShared(userId, {
+      dateOfBirth: birthDate, timeOfBirth: data.birthTime,
+      birthCountry: data.birthCountry, birthState: data.birthState, birthCity: data.birthCity,
+      timeZone: data.timeZone,
+    }, 'astrology').catch(() => undefined);
     return { saved: true, profile: this.shape(row) };
   }
 

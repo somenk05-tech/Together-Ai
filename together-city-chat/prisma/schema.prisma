@@ -111,6 +111,7 @@ model User {
   workoutLogs          WorkoutLog[]
   cityWallet           CityWallet?
   walletTxns           WalletTxn[]
+  masterProfile        MasterProfile?
   astroProfile         AstroProfile?
   astroQuestions       AstroQuestion[]
   astroReadings        AstroReading[]
@@ -1464,4 +1465,34 @@ model AstroReading {
 
   @@unique([userId, kind, period])
   @@index([userId, kind, createdAt])
+}
+
+// ─────────────────────── Master Profile ───────────────────────
+// THE single source of truth for shared user information. Every hub reads
+// from it (auto-populate) and writes shared fields back through
+// MasterProfileService.syncShared(), which also propagates the values into
+// the hub tables that historically duplicated them (astro, dating, food,
+// fitness) so every engine keeps working while never diverging again.
+model MasterProfile {
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  gender       String? // male | female | nonbinary | other
+  dateOfBirth  DateTime?
+  timeOfBirth  String? // HH:MM · null = unknown
+  birthCountry String?
+  birthState   String?
+  birthCity    String?
+  country      String? // current location
+  state        String?
+  city         String?
+  timeZone     String?
+  languages    String? // csv
+  heightCm     Int?
+  weightKg     Int?
+  occupation   String?
+  phone        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

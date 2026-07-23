@@ -6,7 +6,8 @@ import { SearchSelect } from '@/components/SearchSelect';
 import { useLookups, type LookupOption } from '@/api/lookups.api';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/auth.store';
-import { profileApi } from '@/features/profile/api';
+import { profileApi, type MasterProfileView } from '@/features/profile/api';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAstroProfile, useSaveAstroProfile } from '../hooks';
 
 /** Photo-or-initials avatar (same look as the main profile page). */
@@ -117,6 +118,124 @@ const to12h = (hhmm: string) => {
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 };
+
+const GENDERS = [
+  { code: 'male', label: 'Male' }, { code: 'female', label: 'Female' },
+  { code: 'nonbinary', label: 'Non-binary' }, { code: 'other', label: 'Other' },
+];
+
+/** Personal Information — shared Master Profile fields beyond birth details.
+ *  Follows the global standard: expands only while editing, collapses to a
+ *  read-only summary after save, syncs to every hub automatically. */
+function PersonalInfoSection() {
+  const qc = useQueryClient();
+  const master = useQuery({ queryKey: ['profile', 'master'], queryFn: profileApi.master });
+  const saveM = useMutation({
+    mutationFn: (patch: Partial<MasterProfileView>) => profileApi.updateMaster(patch),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['profile'] }); void qc.invalidateQueries({ queryKey: ['astrology'] }); },
+  });
+  const [editing, setEditing] = useState(false);
+  const [collapsing, setCollapsing] = useState(false);
+  const [form, setForm] = useState({ gender: '', heightCm: '', languages: '', occupation: '', phone: '' });
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const m = master.data;
+    if (!m || loaded) return;
+    setForm({
+      gender: m.gender ?? '', heightCm: m.heightCm ? String(m.heightCm) : '',
+      languages: m.languages ?? '', occupation: m.occupation ?? '', phone: m.phone ?? '',
+    });
+    setEditing(!(m.gender || m.heightCm || m.languages)); // returning users see the summary
+    setLoaded(true);
+  }, [master.data, loaded]);
+
+  const save = () => {
+    saveM.mutate({
+      gender: form.gender || null,
+      heightCm: form.heightCm ? parseInt(form.heightCm, 10) : null,
+      languages: form.languages.trim() || null,
+      occupation: form.occupation.trim() || null,
+      phone: form.phone.trim() || null,
+    }, {
+      onSuccess: () => {
+        setCollapsing(true);
+        setTimeout(() => { setEditing(false); setCollapsing(false); }, 380);
+      },
+    });
+  };
+
+  const m = master.data;
+  if (!m) return null;
+  const summaryBits = [
+    m.gender && GENDERS.find((g) => g.code === m.gender)?.label,
+    m.heightCm && `${m.heightCm} cm`,
+    m.languages, m.occupation, m.phone,
+  ].filter(Boolean);
+
+  return (
+    <Card className="rise" style={{ padding: '20px 26px', marginBottom: 16 }}>
+      {!editing ? (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div>
+              <p style={{ fontSize: 13.5, fontWeight: 800, margin: '0 0 4px' }}>
+                {summaryBits.length ? '✓ Personal Information' : 'Personal Information'}
+              </p>
+              <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>
+                {summaryBits.length ? summaryBits.join(' · ') : 'Gender, height, languages, occupation and phone — shared across every hub.'}
+              </p>
+            </div>
+            <Button size="sm" variant="line" onClick={() => setEditing(true)}>
+              {summaryBits.length ? 'Edit' : 'Add details'}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ transition: 'opacity .35s ease, transform .35s ease',
+          opacity: collapsing ? 0 : 1, transform: collapsing ? 'translateY(-8px) scale(.985)' : 'none' }}>
+          <p style={{ fontSize: 13.5, fontWeight: 800, margin: '0 0 12px' }}>Personal Information</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
+            <div>
+              <label style={label}>Gender</label>
+              <SearchSelect options={GENDERS.map((g) => ({ code: g.code, label: g.label, parentCode: null }))}
+                value={GENDERS.find((g) => g.code === form.gender)?.label ?? ''}
+                placeholder="Select…" onChange={(o) => setForm((f) => ({ ...f, gender: o?.code ?? '' }))} />
+            </div>
+            <div>
+              <label style={label}>Height (cm)</label>
+              <input type="number" min={50} max={272} value={form.heightCm}
+                onChange={(e) => setForm((f) => ({ ...f, heightCm: e.target.value }))} style={field} />
+            </div>
+            <div>
+              <label style={label}>Languages</label>
+              <input value={form.languages} placeholder="Hindi, English…"
+                onChange={(e) => setForm((f) => ({ ...f, languages: e.target.value }))} style={field} />
+            </div>
+            <div>
+              <label style={label}>Occupation</label>
+              <input value={form.occupation} placeholder="e.g. Engineer"
+                onChange={(e) => setForm((f) => ({ ...f, occupation: e.target.value }))} style={field} />
+            </div>
+            <div>
+              <label style={label}>Phone</label>
+              <input value={form.phone} placeholder="+91…"
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} style={field} />
+            </div>
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <Button size="sm" variant="accent" disabled={saveM.isPending} onClick={save}>
+              {saveM.isPending ? 'Saving…' : 'Save Personal Info'}
+            </Button>
+            <span className="muted" style={{ fontSize: 11.5, marginLeft: 10 }}>
+              Synchronizes automatically across dating, nutrition, fitness and astrology.
+            </span>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 /** Compact summary shown once details are saved — the form stays hidden
  *  unless the user explicitly chooses Edit Birth Details. */
@@ -268,6 +387,7 @@ export function AstroProfilePage() {
         </p>
       </div>
       {view.isLoading && <Spinner label="Loading your details…" />}
+      {!view.isLoading && <PersonalInfoSection />}
       {view.data?.complete && view.data.profile && !editing && (
         <SummaryCard profile={view.data.profile} justSaved={justSaved} onEdit={() => setEditing(true)} />
       )}

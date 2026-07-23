@@ -5,11 +5,49 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ProfileService } from './profile.service';
+import { MasterProfileService, type SharedFields } from './master-profile.service';
 
 @Controller('profile')
 @UseGuards(JwtAuthGuard)
 export class ProfileController {
-  constructor(private readonly profile: ProfileService) {}
+  constructor(
+    private readonly profile: ProfileService,
+    private readonly masterProfile: MasterProfileService,
+  ) {}
+
+  /** The Master Profile — single source of truth for shared user information. */
+  @Get('master')
+  master(@CurrentUser() user: JwtUser) {
+    return this.masterProfile.get(user.sub);
+  }
+
+  /** Update shared fields — propagates to every hub that duplicates them. */
+  @Patch('master')
+  @UsePipes(new ZodValidationPipe(z.object({
+    gender: z.enum(['male', 'female', 'nonbinary', 'other']).nullable().optional(),
+    dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    timeOfBirth: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
+    birthCountry: z.string().max(60).nullable().optional(),
+    birthState: z.string().max(60).nullable().optional(),
+    birthCity: z.string().max(80).nullable().optional(),
+    country: z.string().max(60).nullable().optional(),
+    state: z.string().max(60).nullable().optional(),
+    city: z.string().max(80).nullable().optional(),
+    timeZone: z.string().max(60).nullable().optional(),
+    languages: z.string().max(300).nullable().optional(),
+    heightCm: z.number().int().min(50).max(272).nullable().optional(),
+    weightKg: z.number().int().min(20).max(400).nullable().optional(),
+    occupation: z.string().max(80).nullable().optional(),
+    phone: z.string().max(20).nullable().optional(),
+  })))
+  async updateMaster(@CurrentUser() user: JwtUser, @Body() body: Record<string, unknown>) {
+    const patch: SharedFields = {
+      ...body,
+      dateOfBirth: typeof body.dateOfBirth === 'string' ? new Date(body.dateOfBirth + 'T00:00:00.000Z') : (body.dateOfBirth as null | undefined),
+    } as SharedFields;
+    await this.masterProfile.syncShared(user.sub, patch, 'master-profile-page');
+    return this.masterProfile.get(user.sub);
+  }
 
   @Get('summary')
   summary(@CurrentUser() user: JwtUser) {

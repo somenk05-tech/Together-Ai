@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { MasterProfileService } from '../profile/master-profile.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
@@ -20,6 +21,7 @@ interface InviteDelegate { createMany(a: unknown): Promise<{ count: number }>; f
 export class DatingService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly masterProfile: MasterProfileService,
     private readonly conversations: ConversationsService,
     private readonly financial: FinancialService,
     private readonly ai: AiService,
@@ -49,6 +51,17 @@ export class DatingService {
       update: data as never,
       create: { userId, ...data } as never,
     });
+
+    // Master Profile sync (spec: every hub writes shared fields back to the
+    // single source of truth, which propagates to astrology/nutrition/fitness).
+    const place = (dto.birthPlace ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+    await this.masterProfile.syncShared(userId, {
+      gender: dto.gender,
+      dateOfBirth: new Date(dto.birthDate + 'T00:00:00Z'),
+      timeOfBirth: dto.birthTime ?? null,
+      birthCity: place[0], birthState: place.length > 2 ? place[1] : undefined,
+      birthCountry: place.length > 1 ? place[place.length - 1] : undefined,
+    }, 'dating').catch(() => undefined);
 
     // Every profile passes AI + rule moderation before it's visible to others.
     const result = await this.moderateProfile(userId, dto);

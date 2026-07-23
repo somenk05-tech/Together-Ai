@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { MasterProfileService } from '../profile/master-profile.service';
 import { MedicalService } from '../medical/medical.service';
 import { flagsFor } from '../nutrition/clinical-engine';
 import {
@@ -14,6 +15,7 @@ const DEFAULT_PROFILE = { age: 35, sex: 'other', level: 'beginner', mode: 'mixed
 export class FitnessService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly masterProfile: MasterProfileService,
     // Fitness reads biomarkers only through the Medical Hub's consent gate.
     private readonly medical: MedicalService,
   ) {}
@@ -43,6 +45,11 @@ export class FitnessService {
       conditions: dto.conditions.join(','), heightCm: dto.heightCm ?? null, weightKg: dto.weightKg ?? null, bodyGoal: dto.bodyGoal,
     };
     await this.prisma.fitnessProfile.upsert({ where: { userId }, update: data, create: { userId, ...data } });
+    // Master Profile sync — height/weight/gender are shared fields.
+    await this.masterProfile.syncShared(userId, {
+      heightCm: dto.heightCm ?? undefined, weightKg: dto.weightKg ?? undefined,
+      gender: dto.sex === 'other' ? undefined : dto.sex,
+    }, 'fitness').catch(() => undefined);
     return this.getProfile(userId);
   }
 
