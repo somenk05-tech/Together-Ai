@@ -63,6 +63,7 @@ export class AstrologyService {
         findUnique: (a: unknown) => Promise<{ readingJson: string } | null>;
         upsert: (a: unknown) => Promise<{ readingJson: string }>;
         findMany: (a: unknown) => Promise<Array<{ period: string; readingJson: string }>>;
+        deleteMany: (a: unknown) => Promise<unknown>;
       };
     };
   }
@@ -176,6 +177,11 @@ export class AstrologyService {
       update: data,
       create: { userId, ...data },
     });
+    // Birth details changed → today's cached horoscope + this month's reading are
+    // now stale. Drop the user's cached readings so daily/monthly/insights
+    // regenerate from the new chart on the next fetch (spec: show the UPDATED
+    // horoscope after saving).
+    await this.db.astroReading.deleteMany({ where: { userId } }).catch(() => undefined);
     // Master Profile sync — birth details are shared fields used app-wide.
     await this.masterProfile.syncShared(userId, {
       dateOfBirth: birthDate, timeOfBirth: data.birthTime,
