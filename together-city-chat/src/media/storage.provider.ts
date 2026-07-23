@@ -1,8 +1,18 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, PutBucketCorsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
+/** Origins allowed to upload directly to the bucket from the browser. Overridable
+ *  via MEDIA_CORS_ORIGINS (comma-separated). */
+const DEFAULT_CORS_ORIGINS = [
+  'https://togethercity.app',
+  'https://www.togethercity.app',
+  'https://*.togethercity.app',
+  'https://*.vercel.app',
+  'http://localhost:5173',
+];
 
 export interface PresignedUpload {
   uploadUrl: string; // PUT here directly from the client
@@ -21,16 +31,20 @@ export interface PresignedUpload {
  * flow still runs end-to-end without cloud credentials.
  */
 @Injectable()
-export class StorageProvider {
+export class StorageProvider implements OnModuleInit {
   private readonly logger = new Logger(StorageProvider.name);
   private readonly s3: S3Client | null;
   private readonly bucket: string;
   private readonly healthBucket: string;
   private readonly publicBase: string;
+  private readonly corsOrigins: string[];
   private readonly expiresInSec = 900;
   private readonly downloadTtlSec = 300; // signed GET links for private health docs
 
   constructor(private readonly config: ConfigService) {
+    const originsCsv = this.config.get<string>('media.corsOrigins') ?? '';
+    this.corsOrigins = originsCsv.split(',').map((s) => s.trim()).filter(Boolean);
+    if (!this.corsOrigins.length) this.corsOrigins = DEFAULT_CORS_ORIGINS;
     this.bucket = this.config.get<string>('media.bucket') ?? '';
     // Private vault for medical documents. Falls back to the main bucket when a
     // dedicated private bucket isn't configured — health docs are still served
@@ -54,6 +68,34 @@ export class StorageProvider {
       this.logger.warn(
         'Media storage not fully configured (missing S3_ENDPOINT / keys / MEDIA_BUCKET) — returning unsigned URLs.',
       );
+    }
+  }
+
+  /** On boot, apply the browser-upload CORS rule to the media + health buckets so
+   *  presigned PUTs from the site aren't blocked. Best-effort: requires the R2/S3
+   *  token to permit bucket configuration — if it doesn't (403), we log the exact
+   *  rule to add manually and uploads still work once it's set in the dashboard. */
+  async onModuleInit(): Promise<void> {
+    if (!this.s3) return;
+    const rule = {
+      AllowedOrigins: this.corsOrigins,
+      AllowedMethods: ['PUT', 'GET', 'HEAD'],
+      AllowedHeaders: ['*'],
+      ExposeHeaders: ['ETag'],
+      MaxAgeSeconds: 3600,
+    };
+    const buckets = Array.from(new Set([this.bucket, this.healthBucket].filter(Boolean)));
+    for (const Bucket of buckets) {
+      try {
+        await this.s3.send(new PutBucketCorsCommand({ Bucket, CORSConfiguration: { CORSRules: [rule] } }));
+        this.logger.log(`R2/S3 CORS applied to bucket "${Bucket}" for: ${this.corsOrigins.join(', ')}`);
+      } catch (e) {
+        this.logger.warn(
+          `Could not auto-apply CORS to bucket "${Bucket}" (${(e as Error).message}). ` +
+          `Add this rule to the bucket in Cloudflare R2 → Settings → CORS Policy: ` +
+          JSON.stringify([{ AllowedOrigins: this.corsOrigins, AllowedMethods: ['PUT', 'GET', 'HEAD'], AllowedHeaders: ['*'], ExposeHeaders: ['ETag'], MaxAgeSeconds: 3600 }]),
+        );
+      }
     }
   }
 

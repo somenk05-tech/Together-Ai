@@ -27,6 +27,7 @@ export interface AppConfig {
     endpoint: string;
     accessKeyId: string;
     secretAccessKey: string;
+    corsOrigins: string;
   };
   fcm: {
     enabled: boolean;
@@ -116,6 +117,9 @@ export default (): AppConfig => {
     endpoint: process.env.S3_ENDPOINT ?? '',
     accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
+    // Browser origins allowed to PUT directly to the bucket (presigned uploads).
+    // Comma-separated; defaults cover the production site + Vercel URLs + dev.
+    corsOrigins: process.env.MEDIA_CORS_ORIGINS ?? '',
   },
   fcm: {
     enabled: process.env.FCM_ENABLED === 'true',
