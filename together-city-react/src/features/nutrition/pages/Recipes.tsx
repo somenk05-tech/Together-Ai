@@ -4,6 +4,8 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { AiSuggestions } from '@/components/AiSuggestions';
 import { useRecipes, useSearchRecipes, useBuildCart } from '../hooks';
 import { recipeImageUrl } from '../recipeImages';
+import { ShareToChat } from '@/features/chat/share';
+import type { ShareCard } from '@/types';
 import type { DietKey, Recipe } from '../types';
 
 /** Diet colour identity — ported from the vanilla site (TCPLAN.dietOf). */
@@ -74,10 +76,25 @@ function RecipeCard({ r }: { r: Recipe }) {
             <span><strong>{r.carbs}g</strong> carbs</span>
             <span><strong>{r.fiber}g</strong> fibre</span>
           </div>
+          {/* 💬 Send to Chat — don't navigate when sharing. */}
+          <div style={{ marginTop: 10 }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+            <ShareToChat item={recipeShareCard(r)} label="Send" />
+          </div>
         </div>
       </article>
     </Link>
   );
+}
+
+/** Rich chat share-card for a recipe. */
+function recipeShareCard(r: Recipe): ShareCard {
+  return {
+    kind: 'recipe', hub: 'Nutrition', title: r.name,
+    subtitle: [r.country, `${r.minutes} min`].filter(Boolean).join(' • '),
+    image: r.imageUrl ?? recipeImageUrl(r.recipeNo) ?? null,
+    meta: [`${r.kcal} kcal`, `${r.protein}g protein`, r.healthGrade ? `Grade ${r.healthGrade.toUpperCase()}` : ''].filter(Boolean),
+    deepLink: `/nutrition/recipes/${r.id}`,
+  };
 }
 
 const TABS: { key: DietKey; label: string }[] = [

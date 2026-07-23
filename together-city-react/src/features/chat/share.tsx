@@ -9,6 +9,8 @@ const KIND_META: Record<string, { icon: string; label: string }> = {
   product: { icon: '🛍', label: 'Product' }, property: { icon: '🏠', label: 'Property' },
   event: { icon: '🎟', label: 'Event' }, restaurant: { icon: '🍽', label: 'Restaurant' },
   dish: { icon: '🍲', label: 'Dish' }, ticket: { icon: '🎫', label: 'Ticket' }, job: { icon: '💼', label: 'Job' },
+  movie: { icon: '🎬', label: 'Movie' }, tv: { icon: '📺', label: 'TV Show' },
+  recipe: { icon: '🥗', label: 'Recipe' }, place: { icon: '📍', label: 'Place' },
 };
 const inr = (n: number) => '₹' + Math.round(n).toLocaleString('en-IN');
 

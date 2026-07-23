@@ -1,6 +1,7 @@
 import { EntPage, PosterLead, TrustBar } from './parts';
 import { Spinner, EmptyState } from '@/components/ui';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useLiveMovies, useTitleSearch, useBrowse } from '../api';
 import { KIT_CSS, TitleCard, TitleSheet, Pager, prettyDate, type TitleSel } from './movieKit';
 
@@ -17,6 +18,17 @@ const CSS = KIT_CSS + `
 export function Movies() {
   const live = useLiveMovies();
   const [sel, setSel] = useState<TitleSel | null>(null);
+  // Deep-link from a shared chat card: /entertainment/movies?t=movie-123 opens the sheet.
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    const t = params.get('t');
+    if (!t) return;
+    const [type, id] = t.split('-');
+    if ((type === 'movie' || type === 'tv') && id) setSel({ type, id: Number(id) });
+    params.delete('t');
+    setParams(params, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [q, setQ] = useState('');
   const [lang, setLang] = useState('');
   const [genre, setGenre] = useState('');

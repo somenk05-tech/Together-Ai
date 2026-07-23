@@ -1,5 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useLiveTitle, usePerson, useWatchlist, useToggleWatch, useStreamSources, type LiveMovie, type TitleRef } from '../api';
+import { ShareToChat } from '@/features/chat/share';
+import type { ShareCard } from '@/types';
+
+/** Build a rich chat share-card from any movie/TV title. */
+export function titleShareCard(m: (TitleRef | LiveMovie) & { type?: 'movie' | 'tv' }): ShareCard {
+  const kind = m.type === 'tv' ? 'tv' : 'movie';
+  return {
+    kind, hub: 'Entertainment', title: m.title,
+    subtitle: [m.language, ...(m.genres ?? []).slice(0, 2)].filter(Boolean).join(' • '),
+    image: m.posterUrl ?? null,
+    meta: [m.rating != null ? `★ ${m.rating.toFixed(1)}` : '', ...(m.genres ?? []).slice(0, 2)].filter(Boolean),
+    deepLink: `/entertainment/movies?t=${kind}-${m.id}`,
+  };
+}
 
 /**
  * Shared TMDB UI kit for the Entertainment hub — poster cards, the full
@@ -145,6 +159,10 @@ export function TitleCard({ m, i, badge, sub, onOpen }: { m: TitleRef | (LiveMov
         <div className="mvk-pills">
           <span>{m.language}</span>
           {m.genres.slice(0, 2).map((g) => <span key={g}>{g}</span>)}
+        </div>
+        {/* 💬 Send to Chat — stop the card's open-sheet click. */}
+        <div style={{ marginTop: 8 }} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          <ShareToChat item={titleShareCard(m)} label="Send" />
         </div>
       </div>
     </div>

@@ -2,8 +2,21 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useJobMatches, useApply, type JobMatch } from '../api';
+import { ShareToChat } from '@/features/chat/share';
+import type { ShareCard } from '@/types';
 
 const scoreColor = (s: number) => (s >= 75 ? '#2e7d32' : s >= 50 ? '#e65100' : 'var(--muted)');
+
+/** Rich chat share-card for a job. */
+function jobShareCard(job: JobMatch): ShareCard {
+  return {
+    kind: 'job', hub: 'Jobs', title: job.title,
+    subtitle: [job.company, job.location, job.remote ? 'Remote' : ''].filter(Boolean).join(' • '),
+    image: null,
+    meta: [`₹${job.salaryLpa} LPA`, `${job.score}% match`],
+    deepLink: '/jobs/matches',
+  };
+}
 
 function JobCard({ job }: { job: JobMatch }) {
   const apply = useApply();
@@ -52,7 +65,10 @@ function JobCard({ job }: { job: JobMatch }) {
                 <p className="muted" style={{ fontSize: 11, margin: '8px 0 0' }}>🔒 Applying shares your headline & matched skills with <strong>{job.company}</strong> only.</p>
               </div>
             ) : (
-              <Button variant="accent" size="sm" onClick={() => setOpen(true)}>Apply</Button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Button variant="accent" size="sm" onClick={() => setOpen(true)}>Apply</Button>
+                <ShareToChat item={jobShareCard(job)} label="Send" />
+              </div>
             )}
           </div>
         </div>
