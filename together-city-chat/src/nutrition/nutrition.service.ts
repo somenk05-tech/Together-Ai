@@ -2483,19 +2483,24 @@ export class NutritionService implements OnModuleInit {
     }
     const currentMon = weekMonday(new Date());
 
-    // FAMILY MODE: a connected member's Individual planner is a READ-ONLY,
-    // personalised view of the household's master family plan (single source of
-    // truth). Only when the family flag is ON; otherwise the member gets their
-    // own independent plan below. Owners keep using mode='family' directly.
-    if (mode === 'individual') {
-      const ctx = await this.familyContext(userId).catch(() => null);
-      if (ctx?.role === 'member' && ctx.familyMealPlanning) {
-        const derived = await this.familyDerivedWeekly(userId, ctx.ownerId, currentMon).catch(() => null);
-        if (derived) {
-          const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-          return { ...derived, stale: false, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
-        }
+    // Planner mode is the single switch between the household's SHARED plan
+    // (family) and this user's OWN independent plan (individual). A user can
+    // only be in family mode when they truly belong to a household that has
+    // Family Meal Planning on — otherwise fall back to their individual plan.
+    const ctx = await this.familyContext(userId).catch(() => null);
+    if (mode === 'family' && !(ctx?.hasFamily && ctx.familyMealPlanning)) mode = 'individual';
+
+    // FAMILY MODE for a connected MEMBER: a READ-ONLY, personalised view of the
+    // household's master family plan (single source of truth). Owners fall
+    // through and load their own stored master plan (mode='family') below.
+    if (mode === 'family' && ctx?.role === 'member') {
+      const derived = await this.familyDerivedWeekly(userId, ctx.ownerId, currentMon).catch(() => null);
+      if (derived) {
+        const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
+        return { ...derived, stale: false, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
       }
+      // The household hasn't built its master plan yet — nothing to show.
+      return { needsPlan: true, key: '', days: [], stale: false, isCurrentWeek: false, guidance: null, advisories: [], familyMode: true, readOnly: true };
     }
 
     const plans = await this.prisma.mealPlan.findMany({ where: { userId, mode }, orderBy: { createdAt: 'desc' } }) as unknown as Array<{ key: string; weekStart?: Date | null; createdAt: Date }>;
@@ -2533,17 +2538,17 @@ export class NutritionService implements OnModuleInit {
     if (!status.complete) {
       return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
     }
-    // In Family Mode a member cannot generate a different plan — return the
+    // In Family Mode a member cannot regenerate the master — return the
     // read-only family-derived view instead (the owner regenerates the master).
-    if (mode === 'individual') {
-      const ctx = await this.familyContext(userId).catch(() => null);
-      if (ctx?.role === 'member' && ctx.familyMealPlanning) {
-        const derived = await this.familyDerivedWeekly(userId, ctx.ownerId, weekMonday(new Date())).catch(() => null);
-        if (derived) {
-          const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-          return { ...derived, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
-        }
+    const ctx = await this.familyContext(userId).catch(() => null);
+    if (mode === 'family' && !(ctx?.hasFamily && ctx.familyMealPlanning)) mode = 'individual';
+    if (mode === 'family' && ctx?.role === 'member') {
+      const derived = await this.familyDerivedWeekly(userId, ctx.ownerId, weekMonday(new Date())).catch(() => null);
+      if (derived) {
+        const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
+        return { ...derived, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
       }
+      return { needsPlan: true, key: '', days: [], guidance: null, advisories: [], familyMode: true, readOnly: true };
     }
     const plan = await this.generatePlan(userId, mode, weekMonday(new Date()));
     const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
@@ -2592,15 +2597,15 @@ export class NutritionService implements OnModuleInit {
     if (!status.complete) return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
     // Family Mode: members don't author their own weeks — hand back the read-only
     // family-derived view (the owner owns the master plan).
-    if (mode === 'individual') {
-      const ctx = await this.familyContext(userId).catch(() => null);
-      if (ctx?.role === 'member' && ctx.familyMealPlanning) {
-        const derived = await this.familyDerivedWeekly(userId, ctx.ownerId, weekMonday(new Date())).catch(() => null);
-        if (derived) {
-          const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-          return { ...derived, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
-        }
+    const ctx = await this.familyContext(userId).catch(() => null);
+    if (mode === 'family' && !(ctx?.hasFamily && ctx.familyMealPlanning)) mode = 'individual';
+    if (mode === 'family' && ctx?.role === 'member') {
+      const derived = await this.familyDerivedWeekly(userId, ctx.ownerId, weekMonday(new Date())).catch(() => null);
+      if (derived) {
+        const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
+        return { ...derived, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
       }
+      return { needsPlan: true, key: '', days: [], guidance: null, advisories: [], familyMode: true, readOnly: true };
     }
     const plans = await this.prisma.mealPlan.findMany({ where: { userId, mode }, orderBy: { createdAt: 'desc' } }) as unknown as Array<{ weekStart?: Date | null; createdAt: Date }>;
     const currentMon = weekMonday(new Date());
@@ -3689,9 +3694,21 @@ export class NutritionService implements OnModuleInit {
       include: { plan: { select: { userId: true } }, meals: { include: { recipe: { include: { ingredients: true } } } } },
     });
     if (!day) throw new NotFoundException('plan day not found');
-    if (day.plan.userId !== userId) throw new ForbiddenException('That meal plan is not yours.');
-    const opts = await this.plateOptsFor(day.plan.userId);
-    const tg = await this.targets(day.plan.userId);
+    const planOwner = day.plan.userId;
+    // A household MEMBER may total the SHARED family plan (read-only). Their
+    // numbers are personalised by the same factor the scaled meal cards use, so
+    // the information bar matches the plates. Anyone else is refused.
+    let factor = 1;
+    if (planOwner !== userId) {
+      const ctx = await this.familyContext(userId).catch(() => null);
+      const allowed = ctx?.role === 'member' && ctx.ownerId === planOwner && ctx.familyMealPlanning;
+      if (!allowed) throw new ForbiddenException('That meal plan is not yours.');
+      const [mine, theirs] = await Promise.all([this.targets(userId), this.targets(planOwner)]);
+      factor = Math.min(1.9, Math.max(0.4, (mine.kcal || 1) / (theirs.kcal || 1)));
+    }
+    const reqTg = planOwner === userId ? null : await this.targets(userId);
+    const opts = await this.plateOptsFor(planOwner);
+    const tg = await this.targets(planOwner);
     // Dynamic budgets: skipped meals redistribute to the remaining plates.
     const dyn = perMealTargets(this.dayMealInputs(day.meals), tg.kcal);
 
@@ -3701,11 +3718,11 @@ export class NutritionService implements OnModuleInit {
       // Aggregate the SAME plate/dish the card shows — the single source of truth.
       const mealTarget = dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal;
       const n = this.mealMacros(m.recipe as unknown as RecipeWithIng & { kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number }, m.slot, dayIndex, opts, mealTarget);
-      const pf = ((m as { portionPct?: number }).portionPct ?? 100) / 100;  // portioned = what the card shows
+      const pf = (((m as { portionPct?: number }).portionPct ?? 100) / 100) * factor;  // portioned = what the (scaled) card shows
       kcal += n.kcal * pf; protein += n.protein * pf; carbs += n.carbs * pf; fat += n.fat * pf; fiber += n.fiber * pf;
       const s = recipeServings(m.recipe);
       const ing = m.recipe.ingredients.reduce((sum, i) => sum + i.priceInr, 0);
-      cost += ing > 0 ? Math.round(ing / s) : Math.round((m.recipe.kcal / s) * 0.11);
+      cost += (ing > 0 ? Math.round(ing / s) : Math.round((m.recipe.kcal / s) * 0.11)) * factor;
     }
     // Complement add-ons are part of the day's nutrition — same source the
     // cards display.
@@ -3713,8 +3730,8 @@ export class NutritionService implements OnModuleInit {
       try { return JSON.parse(((m as { addonsJson?: string | null }).addonsJson) ?? '[]') as AddonPick[]; } catch { return []; }
     });
     const addonTotals = addonMacros(addonPicks);
-    kcal += addonTotals.kcal; protein += addonTotals.protein; carbs += addonTotals.carbs;
-    fat += addonTotals.fat; fiber += addonTotals.fiber;
+    kcal += addonTotals.kcal * factor; protein += addonTotals.protein * factor; carbs += addonTotals.carbs * factor;
+    fat += addonTotals.fat * factor; fiber += addonTotals.fiber * factor;
 
     kcal = Math.round(kcal); protein = Math.round(protein); carbs = Math.round(carbs);
     fat = Math.round(fat); fiber = Math.round(fiber); cost = Math.round(cost);
@@ -3728,7 +3745,7 @@ export class NutritionService implements OnModuleInit {
       recipeName: m.recipe.name,
       ingredients: m.recipe.ingredients,
       servings: recipeServings(m.recipe),
-      portionFactor: ((m as { portionPct?: number }).portionPct ?? 100) / 100,
+      portionFactor: (((m as { portionPct?: number }).portionPct ?? 100) / 100) * factor,
     }));
     // Add-ons contribute micros too (their keywords feed the same estimator).
     if (addonPicks.length) {
@@ -3736,7 +3753,7 @@ export class NutritionService implements OnModuleInit {
         recipeName: 'Add-ons',
         ingredients: addonPicks.map((p) => ({ name: complementByKey.get(p.key)?.microKeyword ?? p.key })),
         servings: 1,
-        portionFactor: 1,
+        portionFactor: factor,
       });
     }
     const micros = estimateDayMicros(microMeals, pref?.age ?? 30, pref?.sex ?? 'male')
@@ -3745,7 +3762,7 @@ export class NutritionService implements OnModuleInit {
         markerStatus: mi.marker ? (flags[mi.marker] as string | undefined) ?? null : null,
       }));
     // fibre rides with the macros but belongs in the micro dashboard too
-    const fiberTarget = tg.fiber || 36;
+    const fiberTarget = (reqTg ?? tg).fiber || 36;
     micros.push({
       key: 'fiber', label: 'Fibre', unit: 'g', intake: fiber, target: fiberTarget,
       pct: Math.round((fiber / fiberTarget) * 100), marker: undefined,
@@ -3755,7 +3772,7 @@ export class NutritionService implements OnModuleInit {
 
     // Legacy coverage map (old clients) — now driven by the real estimates.
     const coverage = Object.fromEntries(micros.map((mi) => [mi.key, Math.max(0, Math.min(200, mi.pct))]));
-    coverage.protein = Math.round((protein / Math.max(1, tg.protein)) * 100);
+    coverage.protein = Math.round((protein / Math.max(1, (reqTg ?? tg).protein)) * 100);
 
     return { kcal, protein, carbs, fat, fiber, cost, coverage, micros };
   }

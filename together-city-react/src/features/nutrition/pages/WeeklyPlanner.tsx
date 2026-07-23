@@ -10,8 +10,10 @@ import { MedicalAdvisories } from '../components/MedicalAdvisories';
 import { ProfileIncomplete } from '../components/ProfileIncomplete';
 import {
   useWeeklyPlan, useNutritionTargets, useDaySummary, useRegenerateWeek, useBuildCart,
-  useWeeks, useWeekByKey, useNewWeek, useDuplicateWeek, syncPlanCaches, useFamilyMealPlanning,
+  useWeeks, useWeekByKey, useNewWeek, useDuplicateWeek, syncPlanCaches,
 } from '../hooks';
+import { usePlannerMode } from '../plannerMode';
+import { PlannerModeToggle } from '../components/PlannerModeToggle';
 import { nutritionApi } from '../api';
 import { useMealSwapHistory } from '../mealHistory';
 import type { WeekPlan, WeekSummary } from '../types';
@@ -57,41 +59,6 @@ function WeekTimeline({ weeks, activeKey, onSelect, onNewWeek, newBusy }: {
   );
 }
 
-/** Family Mode banner with an inline Family-Meal-Planning switch. The head of
- *  the household can flip the whole family between one shared plan and
- *  independent plans right here; toggling OFF drops everyone (including this
- *  view) back to their own individual plan. Members see who set it. */
-function FamilyModeBanner({ ownerName }: { ownerName?: string }) {
-  const { query, update } = useFamilyMealPlanning();
-  const ctx = query.data;
-  const isOwner = ctx?.role === 'owner';
-  const on = ctx?.familyMealPlanning ?? true; // banner only shows while family planning is on
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', padding: '12px 16px', margin: '0 0 16px', background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 12 }}>
-      <span style={{ fontSize: 18 }}>👨‍👩‍👧</span>
-      <span style={{ fontSize: 13, flex: 1, minWidth: 200 }}>
-        <b>Based on your Family Meal Plan{ownerName ? ` · ${ownerName}` : ''}.</b> These are the household's shared meals, with portions and macros personalised to your targets and any medical or diet needs.
-      </span>
-      {isOwner ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent)' }}>{on ? 'Family plan' : 'Individual plan'}</span>
-          <button role="switch" aria-checked={on} disabled={update.isPending}
-            title={on ? 'Switch the household to independent plans' : 'Switch the household back to one shared plan'}
-            onClick={() => update.mutate(!on)}
-            style={{ width: 48, height: 28, borderRadius: 999, border: 'none', cursor: update.isPending ? 'wait' : 'pointer', position: 'relative', transition: 'background .15s', background: on ? 'var(--accent)' : 'var(--line)' }}>
-            <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
-          </button>
-        </div>
-      ) : (
-        <span className="muted" style={{ fontSize: 11.5, flex: 'none', textAlign: 'right', maxWidth: 150 }}>
-          To plan independently, ask the head of your household to turn off Family Meal Planning.
-        </span>
-      )}
-    </div>
-  );
-}
-
 /** Weekly Meal Planner — a calendar of saved weeks. The current week is the
  *  default; previous weeks are permanent, revisitable and editable in place. */
 export function WeeklyPlanner() {
@@ -99,12 +66,16 @@ export function WeeklyPlanner() {
   const [dayIndex, setDayIndex] = useState(todayIndex);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-  const current = useWeeklyPlan('individual');
-  const weeksQ = useWeeks('individual');
+  // Planner mode — Family (shared) vs Individual (own). Switching is instant.
+  const planner = usePlannerMode();
+  const mode = planner.mode;
+
+  const current = useWeeklyPlan(mode);
+  const weeksQ = useWeeks(mode);
   const targets = useNutritionTargets();
-  const regenerate = useRegenerateWeek('individual');
-  const newWeek = useNewWeek('individual');
-  const duplicate = useDuplicateWeek('individual');
+  const regenerate = useRegenerateWeek(mode);
+  const newWeek = useNewWeek(mode);
+  const duplicate = useDuplicateWeek(mode);
   const buildCart = useBuildCart();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -125,9 +96,9 @@ export function WeeklyPlanner() {
       if (viewingPast && selectedKey) {
         qc.setQueryData(['nutrition', 'week', selectedKey], (prev: WeekPlan | undefined) => ({ ...((prev ?? {}) as WeekPlan), ...next }));
         void qc.invalidateQueries({ queryKey: ['nutrition', 'summary'] });
-        void qc.invalidateQueries({ queryKey: ['nutrition', 'weeks', 'individual'] });
+        void qc.invalidateQueries({ queryKey: ['nutrition', 'weeks', mode] });
       } else {
-        syncPlanCaches(qc, 'individual', next);
+        syncPlanCaches(qc, mode, next);
       }
     } catch { /* surfaced by the query error boundary; keep the UI responsive */ }
   };
@@ -149,14 +120,18 @@ export function WeeklyPlanner() {
       <PageHeader eyebrow="Nutrition Hub · 03"
         title="Weekly Meal Planner 🌿"
         sub={week.weekLabel ? `${onCurrentWeek ? 'This week' : 'Saved week'} · Week ${week.weekNumber} · ${week.weekLabel}` : 'Personalised meals from the Together City world database.'} />
+
+      {/* Planner mode — one shared Family Plan or your own Individual Plan.
+          Shown only when the household actually offers a shared plan. */}
+      {planner.canUseFamily && (
+        <PlannerModeToggle mode={mode} onChange={planner.setMode}
+          ownerName={mode === 'family' ? week.basedOnFamily?.ownerName : null}
+          busy={planQ.isFetching} />
+      )}
+
       <PlanGuidanceBanner guidance={(week as unknown as { guidance?: import('../types').PlanGuidance }).guidance} />
       <MedicalRecs />
       <MedicalAdvisories advisories={week.advisories} healthScore={week.healthScore} />
-
-      {/* Family Mode: a personalised view of the household's master plan. The
-          head of the household can switch the whole family back to independent
-          plans right here (the toggle); members see who set it. */}
-      {week.familyMode && <FamilyModeBanner ownerName={week.basedOnFamily?.ownerName} />}
 
       {!week.familyMode && weeksQ.data && weeksQ.data.length > 0 && (
         <WeekTimeline
@@ -234,7 +209,9 @@ export function WeeklyPlanner() {
         <div style={{ position: 'sticky', top: 'calc(var(--header-h) + 24px)' }}>
           {summary.data
             ? <DailySummary day={day.dateLabel ?? day.day} summary={summary.data} targets={targets.data} planKey={activeKey} dayIndex={dayIndex} />
-            : <Spinner label="Totalling the day…" />}
+            : summary.isLoading
+              ? <Spinner label="Totalling the day…" />
+              : <EmptyState icon="🧮" title="Day totals unavailable" hint="They'll appear once this day's plan finishes loading." />}
         </div>
       </div>
     </div>

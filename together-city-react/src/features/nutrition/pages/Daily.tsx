@@ -7,6 +7,8 @@ import { MedicalRecs } from '../components/MedicalRecs';
 import { PlanGuidanceBanner } from '../components/PlanGuidanceBanner';
 import { ProfileIncomplete } from '../components/ProfileIncomplete';
 import { useDailyPlan, useNutritionTargets, useDaySummary, useBuildCart, syncPlanCaches } from '../hooks';
+import { usePlannerMode } from '../plannerMode';
+import { PlannerModeToggle } from '../components/PlannerModeToggle';
 import { nutritionApi } from '../api';
 import { useMealSwapHistory } from '../mealHistory';
 import type { WeekPlan } from '../types';
@@ -20,7 +22,9 @@ const todayIndex = (): number => (new Date().getDay() + 6) % 7;
  */
 export function Daily() {
   const dayIndex = todayIndex();
-  const plan = useDailyPlan('individual');
+  const planner = usePlannerMode();
+  const mode = planner.mode;
+  const plan = useDailyPlan(mode);
   const targets = useNutritionTargets();
   const summary = useDaySummary(plan.data?.key, dayIndex);
   const buildCart = useBuildCart();
@@ -30,8 +34,10 @@ export function Daily() {
   // daily and weekly caches, so the Weekly planner reflects it immediately —
   // one plan, never two versions.
   const mutate = async (fn: Promise<WeekPlan>) => {
-    const next = await fn;
-    syncPlanCaches(qc, 'individual', next);
+    try {
+      const next = await fn;
+      syncPlanCaches(qc, mode, next);
+    } catch { /* e.g. a member editing the read-only family plan — ignore, keep UI responsive */ }
   };
   const swaps = useMealSwapHistory(plan.data?.key ?? '', dayIndex, mutate);
 
@@ -63,6 +69,13 @@ export function Daily() {
       <PageHeader eyebrow="Nutrition Hub · 04"
         title={`Today's plate — ${day.day} 🍽️`}
         sub="Your day, sliced live from the weekly plan. Swap anything; the groceries and macros follow." />
+
+      {planner.canUseFamily && (
+        <PlannerModeToggle mode={mode} onChange={planner.setMode}
+          ownerName={mode === 'family' ? week.basedOnFamily?.ownerName : null}
+          busy={plan.isFetching} />
+      )}
+
       <MedicalRecs />
       <PlanGuidanceBanner guidance={(plan.data as unknown as { guidance?: import('../types').PlanGuidance }).guidance} />
 
@@ -98,7 +111,9 @@ export function Daily() {
         <div>
           {summary.data
             ? <DailySummary day={day.day} summary={summary.data} targets={targets.data} planKey={plan.data?.key} dayIndex={dayIndex} />
-            : <Spinner />}
+            : summary.isLoading
+              ? <Spinner />
+              : <EmptyState icon="🧮" title="Day totals unavailable" hint="They'll appear once today's plan finishes loading." />}
         </div>
       </div>
 
