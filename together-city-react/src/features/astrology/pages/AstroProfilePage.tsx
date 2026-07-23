@@ -366,10 +366,6 @@ export function AstroProfilePage() {
       <div className="rise" style={{ marginBottom: 18 }}>
         <div className="eyebrow">Profile · Master Profile</div>
         <h1 style={{ fontSize: 'clamp(24px,3vw,32px)' }}>Birth Details</h1>
-        <p className="lede">
-          Your birth details are stored securely in your Master Profile and are automatically used across
-          Together AI wherever astrology or compatibility is required.
-        </p>
       </div>
       {view.isLoading && <Spinner label="Loading your details…" />}
       {!view.isLoading && <PersonalInfoSection />}

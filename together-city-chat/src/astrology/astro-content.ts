@@ -12,6 +12,7 @@ import {
   BodyPosition, MonthAstro, NatalChart, SignName, aspectBetween, moonPhaseName,
   julianDay, positionsAt, HARMONIOUS, CHALLENGING, AspectType,
 } from './astro-engine';
+import type { Numerology, Dasha } from './personal-factors';
 
 // ───────────────────────── Seeded randomness ─────────────────────────
 
@@ -166,6 +167,107 @@ export function composeDaily(chart: NatalChart, userSeed: string, date: Date): D
 }
 
 // ───────────────────────── Monthly horoscope ─────────────────────────
+
+// ───────────────────────── Personal Guidance Engine (daily) ─────────────────────────
+
+export interface GuidanceSection { key: string; title: string; icon: string; body: string }
+export interface LuckyElements { number: number; color: string; time: string; direction: string }
+export interface DailyGuidance {
+  date: string;
+  framing: string;               // honest "guidance, not prediction" note
+  theme: string;
+  moonPhase: string;
+  sunSign: SignName;
+  numerology: { lifePath: number; personalYear: number; personalMonth: number; personalDay: number };
+  dasha: { maha: string; antar: string };
+  sections: GuidanceSection[];   // career, relationships, health, finance, growth
+  lucky: LuckyElements;
+  reflection: string;
+  text: string;                  // flattened prose (history + back-compat)
+  words: number;
+}
+
+const LUCKY_COLORS: Record<string, string[]> = {
+  fire: ['red', 'saffron', 'gold'], earth: ['forest green', 'brown', 'olive'],
+  air: ['sky blue', 'silver', 'soft white'], water: ['sea green', 'deep blue', 'pearl white'],
+};
+const DIRECTION_BY_ELEMENT: Record<string, string> = { fire: 'south', earth: 'south-west', air: 'west', water: 'north' };
+const TIME_OF_DAY = ['early morning', 'late morning', 'afternoon', 'early evening'];
+const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+/**
+ * The Personal Guidance Engine — structured, emotionally-intelligent guidance
+ * across Career, Relationships, Health, Finance and Personal Growth, plus lucky
+ * elements and a reflection prompt. Combines the birth chart, today's transits,
+ * numerology and the running Dasha. Deterministic (the honest floor); the
+ * service AI-polishes the wording without changing the facts. Nothing here is a
+ * prediction — it's guidance to think with.
+ */
+export function composeGuidance(chart: NatalChart, userSeed: string, date: Date, num: Numerology, dasha: Dasha): DailyGuidance {
+  const iso = date.toISOString().slice(0, 10);
+  const rng = mulberry32(hashSeed(userSeed + iso + 'g3'));
+  const jd = julianDay(new Date(date.getTime()));
+  const transits = positionsAt(jd);
+  const hits = hitsAgainstNatal(transits, chart);
+  const find = (p: string) => transits.find((t) => t.planet === p)!;
+  const moonT = find('Moon'), mercury = find('Mercury'), venus = find('Venus'), mars = find('Mars'), jupiter = find('Jupiter');
+  const phase = moonPhaseName(jd);
+  const sun = T[chart.sun.sign];
+  const lead = hits[0];
+  const waxing = /(New|Waxing)/.test(phase);
+
+  const theme = lead
+    ? (lead.harmonious ? pick(rng, ['A day that works with you', 'Supportive momentum', 'Green lights ahead'])
+                       : pick(rng, ['A day for steady hands', 'Patience pays today', 'Slow is smooth today']))
+    : pick(rng, ['A quiet, open day', 'Your day to set the tone', 'A clear sky']);
+
+  const career = [
+    mercury.retrograde
+      ? `With Mercury retrograde in ${mercury.sign}, today favours reviewing, finishing and double-checking over launching. If an important decision can wait a day, letting it may lead to a better outcome than reacting immediately.`
+      : `Mercury in ${mercury.sign} supports clear communication — a good window to have the conversation, or send the message, you've been putting off. Say it plainly and calmly.`,
+    `Your numerology cycle leans toward ${num.dayFocus}, so ${num.personalDay === 9 ? 'closing open loops before starting something new will feel especially satisfying' : num.personalDay === 1 ? 'a small, deliberate first step counts more than a grand plan' : 'steady, unhurried progress serves you better than pushing hard'}.`,
+    `In your longer ${dasha.maha} period — a season of ${dasha.theme} — effort tends to compound when it stays consistent rather than dramatic.`,
+  ].join(' ');
+
+  const relationships = `Venus in ${venus.sign} favours a ${T[venus.sign].love} approach; a small, sincere gesture will likely land better than a grand one. The ${phase} Moon in ${moonT.sign} tilts the mood toward ${fmtList(T[moonT.sign].keywords.slice(0, 2))} — if a conversation matters today, listening carefully first may do more than reacting quickly.`;
+
+  const health = `Your energy runs ${T[mars.sign].element === 'fire' ? 'hot' : T[mars.sign].element === 'earth' ? 'steady' : T[mars.sign].element === 'air' ? 'restless' : 'deep'} with Mars in ${mars.sign}${mars.retrograde ? ' (retrograde — pace yourself)' : ''}. ${cap(sun.health)} — so honour the basics: water, one proper meal, and twenty unhurried minutes of movement or fresh air will do more than any quick fix.`;
+
+  const finance = `Money tends to reward ${T[venus.sign].money} choices right now. With a Personal Year themed around ${num.yearTheme}, a simple test helps before any spend or commitment: does this serve where you're actually heading this year? ${jupiter.retrograde ? 'Jupiter retrograde gently suggests consolidating what you have over chasing something new.' : `Jupiter in ${jupiter.sign} favours patient, considered growth over quick wins.`}`;
+
+  const growth = `Your Life Path ${num.lifePath} carries ${num.lifePathMeaning}; today asks for one honest, small step rather than a leap. The ${phase} is a natural moment to ${waxing ? 'set an intention and begin' : 'release something you\'ve outgrown'} — trust that quiet, repeated effort is doing more than it appears to.`;
+
+  const el = sun.element;
+  const lucky: LuckyElements = {
+    number: num.personalDay,
+    color: pick(rng, LUCKY_COLORS[el] ?? LUCKY_COLORS.air),
+    time: pick(rng, TIME_OF_DAY),
+    direction: DIRECTION_BY_ELEMENT[el] ?? 'east',
+  };
+
+  const reflection = pick(rng, [
+    `This evening, note one thing you accomplished recently and one small step you'd like to take tomorrow. Naming both turns a busy day into a clear one.`,
+    `Before bed, write down one moment today you're quietly proud of, and one worry you can set down until morning.`,
+    `Take five minutes tonight to ask: what deserves a little more of my attention this week, and what deserves a little less? Let the answer be gentle.`,
+  ]);
+
+  const framing = `Reflective guidance from your birth chart, today's transits and your numerology — offered to help you think, not to predict what will happen. You always hold the pen.`;
+
+  const sections: GuidanceSection[] = [
+    { key: 'career', title: 'Career & Work', icon: '💼', body: career },
+    { key: 'relationships', title: 'Relationships', icon: '❤️', body: relationships },
+    { key: 'health', title: 'Health & Energy', icon: '🌿', body: health },
+    { key: 'finance', title: 'Finance', icon: '💰', body: finance },
+    { key: 'growth', title: 'Personal Growth', icon: '🌱', body: growth },
+  ];
+  const text = sections.map((s) => s.body).join('\n\n');
+  return {
+    date: iso, framing, theme, moonPhase: phase, sunSign: chart.sun.sign,
+    numerology: { lifePath: num.lifePath, personalYear: num.personalYear, personalMonth: num.personalMonth, personalDay: num.personalDay },
+    dasha: { maha: dasha.maha, antar: dasha.antar },
+    sections, lucky, reflection, text, words: wordCount(text),
+  };
+}
 
 export interface MonthlySection { key: string; title: string; body: string }
 export interface MonthlyReading {

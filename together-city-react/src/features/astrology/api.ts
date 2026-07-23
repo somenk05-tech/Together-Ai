@@ -20,9 +20,18 @@ export interface SaveAstroProfileInput {
   birthDate: string; birthTime: string | null; birthCountry: string;
   birthState?: string | null; birthCity: string; timeZone: string;
 }
+export interface GuidanceSection { key: string; title: string; icon: string; body: string }
+export interface LuckyElements { number: number; color: string; time: string; direction: string }
 export interface DailyReading {
   needsProfile: boolean; date: string; theme: string; text: string;
   moonPhase: string; sunSign: string; words: number;
+  // Personal Guidance Engine (optional — older history rows won't have these).
+  framing?: string;
+  numerology?: { lifePath: number; personalYear: number; personalMonth: number; personalDay: number };
+  dasha?: { maha: string; antar: string };
+  sections?: GuidanceSection[];
+  lucky?: LuckyElements;
+  reflection?: string;
 }
 export interface MonthlySection { key: string; title: string; body: string }
 export interface MonthlyReading {

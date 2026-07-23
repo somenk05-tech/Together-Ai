@@ -15,7 +15,7 @@ export function AstroToday() {
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 16px' }}>
-      <AstroHeader title="Today's Horoscope" lede="A personalized daily reading from your Vedic birth chart (sidereal · Jyotish) and today's planetary transits." />
+      <AstroHeader title="Today's Guidance" lede="Personal guidance from your Vedic birth chart, today's transits, your Dasha period and numerology — practical reflection and encouragement, offered as guidance rather than fixed prediction." />
       <AstroTabs />
       {daily.isLoading && <Spinner label="Reading today's sky…" />}
       {daily.isError && <EmptyState title="Couldn't reach the stars" hint="Reload in a moment." />}
@@ -26,12 +26,49 @@ export function AstroToday() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
               <Tag>☀️ {d.sunSign}</Tag>
               <Tag>🌙 {d.moonPhase}</Tag>
+              {d.numerology && <Tag>🔢 Life Path {d.numerology.lifePath}</Tag>}
+              {d.numerology && <Tag>Personal Day {d.numerology.personalDay}</Tag>}
+              {d.dasha && <Tag>🪐 {d.dasha.maha} Dasha</Tag>}
               <Tag>{new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</Tag>
             </div>
-            <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(20px,2.4vw,26px)', marginBottom: 12 }}>{d.theme}</h2>
-            <p style={{ fontSize: 15.5, lineHeight: 1.75 }}>{d.text}</p>
-            <p className="muted" style={{ fontSize: 11.5, marginTop: 16 }}>
-              Saved to your profile · written once for {d.date} from your chart and today's actual planetary positions.
+            <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(20px,2.4vw,26px)', marginBottom: 6 }}>{d.theme}</h2>
+
+            {d.sections && d.sections.length > 0 ? (
+              <>
+                <div style={{ marginTop: 10 }}>
+                  {d.sections.map((s) => (
+                    <div key={s.key} style={{ marginTop: 16 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14.5 }}>
+                        <span aria-hidden>{s.icon}</span>{s.title}
+                      </div>
+                      <p style={{ fontSize: 14.5, lineHeight: 1.7, margin: '4px 0 0', color: 'var(--ink-soft)' }}>{s.body}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {d.lucky && (
+                  <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center', marginTop: 20, background: 'var(--accent-soft)', borderRadius: 12, padding: '12px 16px' }}>
+                    <span style={{ fontWeight: 700, fontSize: 13.5 }}>✨ Lucky today</span>
+                    <span style={{ fontSize: 13 }}>Number <b>{d.lucky.number}</b></span>
+                    <span style={{ fontSize: 13 }}>Colour <b style={{ textTransform: 'capitalize' }}>{d.lucky.color}</b></span>
+                    <span style={{ fontSize: 13 }}>Best time <b>{d.lucky.time}</b></span>
+                    <span style={{ fontSize: 13 }}>Direction <b style={{ textTransform: 'capitalize' }}>{d.lucky.direction}</b></span>
+                  </div>
+                )}
+
+                {d.reflection && (
+                  <div style={{ marginTop: 16, borderLeft: '3px solid var(--accent)', padding: '6px 0 6px 14px' }}>
+                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>🪞 Daily Reflection</div>
+                    <p style={{ fontSize: 14, lineHeight: 1.65, margin: '4px 0 0' }}>{d.reflection}</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p style={{ fontSize: 15.5, lineHeight: 1.75, marginTop: 10 }}>{d.text}</p>
+            )}
+
+            <p className="muted" style={{ fontSize: 11.5, marginTop: 18, fontStyle: 'italic' }}>
+              {d.framing ?? `Saved to your profile · written once for ${d.date} from your chart and today's actual planetary positions.`}
             </p>
           </Card>
 

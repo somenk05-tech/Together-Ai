@@ -6,7 +6,8 @@ import { AiService } from '../ai/ai.service';
 import {
   NatalChart, geocodeApprox, natalChart, scanMonth, tzOffsetMinutes, SIGNS,
 } from './astro-engine';
-import { composeAnswer, composeDaily, composeMonthly } from './astro-content';
+import { composeAnswer, composeGuidance, composeMonthly, wordCount, type DailyGuidance } from './astro-content';
+import { computeNumerology, vimshottariDasha } from './personal-factors';
 
 export interface SaveAstroProfileDto {
   birthDate: string;          // YYYY-MM-DD
@@ -73,10 +74,10 @@ export class AstrologyService {
    *  write stores exactly what a scheduled batch would have produced. */
   /** Reading engine version — bumped to v2 with the Vedic (sidereal) switch so
    *  cached tropical readings regenerate instead of being served stale. */
-  private static readonly READING_VER = 'v2';
+  private static readonly READING_VER = 'v3';
 
   private async cachedReading<T extends object>(
-    userId: string, kind: 'daily' | 'monthly', periodKey: string, compute: () => T,
+    userId: string, kind: 'daily' | 'monthly', periodKey: string, compute: () => T | Promise<T>,
   ): Promise<T & { saved: boolean }> {
     const period = `${AstrologyService.READING_VER}:${periodKey}`;
     const hit = await this.db.astroReading.findUnique({
@@ -86,7 +87,7 @@ export class AstrologyService {
       try { return { ...(JSON.parse(hit.readingJson) as T), saved: true }; }
       catch { /* recompute below */ }
     }
-    const reading = compute();
+    const reading = await compute();
     await this.db.astroReading.upsert({
       where: { userId_kind_period: { userId, kind, period } },
       update: { readingJson: JSON.stringify(reading) },
@@ -233,8 +234,52 @@ export class AstrologyService {
     const local = this.userNow(row);
     const dateKey = local.toISOString().slice(0, 10); // the user's OWN calendar day
     const reading = await this.cachedReading(userId, 'daily', dateKey,
-      () => composeDaily(this.chartOf(row), userId, local));
+      () => this.buildDailyGuidance(row, userId, local));
     return { needsProfile: false as const, ...reading };
+  }
+
+  /**
+   * Personal Guidance Engine — build structured, emotionally-intelligent daily
+   * guidance from the chart + transits + numerology + Dasha, then let the AI
+   * warm the wording WITHOUT changing the facts or turning it into prediction.
+   * The deterministic composition is the guaranteed floor if AI is off/ fails.
+   */
+  private async buildDailyGuidance(row: AstroProfileRow, userId: string, local: Date): Promise<DailyGuidance> {
+    const chart = this.chartOf(row);
+    const num = computeNumerology(row.birthDate, local);
+    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
+    const g = composeGuidance(chart, userId, local, num, dasha);
+
+    const facts =
+      `Sun ${chart.sun.sign}, Moon ${chart.moon.sign}, Ascendant ${chart.ascendant?.sign ?? 'unknown'}. ` +
+      `Moon phase: ${g.moonPhase}. Running Dasha: ${dasha.maha} (${dasha.antar} sub-period). ` +
+      `Numerology — Life Path ${num.lifePath}, Personal Year ${num.personalYear}, Personal Month ${num.personalMonth}, Personal Day ${num.personalDay}.`;
+    const draft = g.sections.map((s) => `${s.title}: ${s.body}`).join('\n') + `\nReflection: ${g.reflection}`;
+
+    const fallback = {
+      career: g.sections[0].body, relationships: g.sections[1].body, health: g.sections[2].body,
+      finance: g.sections[3].body, growth: g.sections[4].body, reflection: g.reflection,
+    };
+    const ai = await this.ai.json<typeof fallback>(
+      'You write PERSONAL daily guidance for one person — warm, emotionally intelligent, supportive, practical and honest. ' +
+      'Rewrite each section in a natural, encouraging voice. HARD RULES: never predict specific events or guarantee outcomes; ' +
+      'frame everything as reflection, possibility and practical suggestion (use "may", "consider", "a good day to…"); ' +
+      'use ONLY the facts provided — never invent planets, transits, dates or events; 2–3 sentences per section, no headers inside the text. ' +
+      'Return JSON {"career","relationships","health","finance","growth","reflection"}.',
+      `Facts (do not contradict these):\n${facts}\n\nDraft to warm up (keep the meaning + all facts):\n${draft}`,
+      fallback,
+      1400,
+    );
+    const use = (v: string | undefined, fb: string) => (v && v.trim().length > 40 ? v.trim() : fb);
+    g.sections[0].body = use(ai.career, fallback.career);
+    g.sections[1].body = use(ai.relationships, fallback.relationships);
+    g.sections[2].body = use(ai.health, fallback.health);
+    g.sections[3].body = use(ai.finance, fallback.finance);
+    g.sections[4].body = use(ai.growth, fallback.growth);
+    g.reflection = use(ai.reflection, fallback.reflection);
+    g.text = g.sections.map((s) => s.body).join('\n\n');
+    g.words = wordCount(g.text);
+    return g;
   }
 
   /** Saved daily predictions on the profile — the archive, newest first. */
