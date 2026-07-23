@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
+import { successToast } from '@/components/form-validation';
 import { chatApi, useConversations, useChatContacts } from '@/api';
 import type { ShareCard } from '@/types';
 
@@ -58,6 +59,7 @@ function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => void })
   const [target, setTarget] = useState<{ type: 'conversation' | 'contact'; id: string; handle?: string; label: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
 
   const contactList = useMemo(() => {
@@ -68,13 +70,21 @@ function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => void })
   const send = async () => {
     if (!target) return;
     setBusy(true);
+    setError(null);
     try {
       let convId = target.id;
       if (target.type === 'contact') { const c = await chatApi.startDirect(target.handle as string); convId = c.id; }
       await chatApi.sendShare(convId, note.trim(), item);
+      // Brief ✓ Sent, then auto-close back to exactly where the user was, with a
+      // confirmation toast. Failures keep the dialog open (see catch).
       setDone(true);
-      setTimeout(onClose, 1100);
-    } finally { setBusy(false); }
+      const name = target.label;
+      setTimeout(() => { onClose(); successToast(`Shared with ${name}.`); }, 450);
+    } catch {
+      setError('Unable to send. Please try again.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const row = (active: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 10, cursor: 'pointer', border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft, #f5efe0)' : 'transparent' });
@@ -83,10 +93,9 @@ function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => void })
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 100, display: 'grid', placeItems: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(460px, 96vw)', maxHeight: '88vh', overflow: 'auto' }}>
         {done ? (
-          <div style={{ textAlign: 'center', padding: '24px 8px' }}>
-            <div style={{ fontSize: 34 }}>✅</div>
-            <div style={{ fontWeight: 700, fontSize: 16, marginTop: 6 }}>Shared to your chat</div>
-            <div className="muted" style={{ fontSize: 13 }}>Open Chats to see it.</div>
+          <div style={{ textAlign: 'center', padding: '22px 8px' }}>
+            <div style={{ fontSize: 30, color: '#2e7d4f', fontWeight: 800, lineHeight: 1 }}>✓</div>
+            <div style={{ fontWeight: 700, fontSize: 15, marginTop: 6 }}>Sent</div>
           </div>
         ) : (
           <>
@@ -127,6 +136,9 @@ function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => void })
               <Button variant="accent" disabled={!target || busy} onClick={send}>{busy ? 'Sending…' : target ? `Send to ${target.label}` : 'Pick a chat'}</Button>
               <Button variant="line" onClick={onClose}>Cancel</Button>
             </div>
+            {error && (
+              <p role="alert" style={{ color: '#c0392b', fontSize: 12.5, fontWeight: 600, margin: '10px 0 0' }}>{error}</p>
+            )}
           </>
         )}
       </div>
