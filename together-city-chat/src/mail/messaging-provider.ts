@@ -57,7 +57,7 @@ export class StubMessagingProvider implements MessagingProvider {
 /**
  * Resend email provider (recommended). Enable with EMAIL_PROVIDER=resend and set
  * RESEND_API_KEY + EMAIL_FROM (a verified sender, e.g. "Together City
- * <no-reply@togethercity.tech>"). SendGrid is a drop-in alternative behind the
+ * <no-reply@togethercity.app>"). SendGrid is a drop-in alternative behind the
  * same interface — implement SendgridEmailProvider and add a case below.
  */
 export class ResendEmailProvider implements MessagingProvider {
@@ -67,7 +67,9 @@ export class ResendEmailProvider implements MessagingProvider {
 
   constructor(
     apiKey: string = process.env.RESEND_API_KEY ?? '',
-    from: string = process.env.EMAIL_FROM ?? 'Together City <no-reply@togethercity.tech>',
+    // Must be a domain VERIFIED in Resend. Defaults to togethercity.app (the
+    // verified sending domain); override with EMAIL_FROM if you verify another.
+    from: string = process.env.EMAIL_FROM ?? 'Together City <no-reply@togethercity.app>',
   ) {
     this.client = new Resend(apiKey);
     this.from = from;
