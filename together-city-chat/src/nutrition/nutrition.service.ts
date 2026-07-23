@@ -5130,6 +5130,10 @@ export class NutritionService implements OnModuleInit {
       ...(steps && steps.length ? { steps: JSON.stringify(steps) } : {}),
       ingredients: { create: ingredients.map(([iname, grams, priceInr]) => ({ name: iname, grams, priceInr })) },
     });
+    // Stamp sequential public Recipe Numbers onto a block of recipes so old→new
+    // numbering stays traceable. Used for the "LowProtein 300 (new)" range.
+    const withRecipeNos = <T>(start: number, arr: T[]): (T & { recipeNo: number })[] =>
+      arr.map((r, i) => ({ ...r, recipeNo: start + i }));
     const seed = [
       // ───────── Breakfast (b) ─────────
       R('Masala Oats', 'India', 'b', 320, 12, 48, 8, 7, 15, 280, 'veg', [['Oats', 60, 18], ['Mixed vegetables', 80, 20], ['Spices', 5, 5]]),
@@ -5442,7 +5446,11 @@ export class NutritionService implements OnModuleInit {
       R('Honey Toast Plate', 'Continental', 's', 383, 8, 62, 12, 3, 15, 115, 'veg', [['Bread', 85, 21], ['Honey', 20, 10], ['Butter', 10, 10]]),
       R('Mango Coconut Cup (Large)', 'India', 's', 306, 2, 58, 7, 7, 15, 310, 'vegan', [['Mango', 280, 51], ['Coconut', 20, 8], ['Honey', 10, 5]]),
       R('Baked Potato Chaat Bowl', 'India', 's', 306, 10, 60, 3, 7, 15, 430, 'vegan', [['Potato', 315, 35], ['Curd', 80, 13], ['Tamarind', 25, 6], ['Spices', 10, 8]]),
+    ];
 
+    // "LowProtein 300 (new)" — 150 high-calorie low-protein mains + 150 snack
+    // soups, numbered Recipe No 11223–11522 in order (old→new mapping).
+    const lowProtein300 = withRecipeNos(11223, [
       // ───────── High-calorie low-protein library (150 recipes) — salads,
       // rice/grain bowls, pasta, wraps, potato & breakfast dishes engineered
       // to add calories/carbs/fibre with protein held to 5–8 g (ingredient-
@@ -5751,12 +5759,22 @@ export class NutritionService implements OnModuleInit {
       R('Minestrone Verde', 'Italy', 's', 202, 6.7, 30.2, 6.1, 5.1, 15, 429, 'vegan', [['Zucchini', 80, 3], ['Spinach', 60, 2], ['Peas', 60, 2], ['Pasta', 18, 3], ['Onion', 30, 2], ['Olive oil', 5, 2], ['Basil herbs', 6, 2], ['Water', 170, 7]], ['Wash and roughly chop the Zucchini, Spinach and Peas.', 'Heat the olive oil in a pot and sauté the Onion and Basil herbs for 1–2 minutes until fragrant.', 'Add the Zucchini, Spinach and Peas and stir for 2–3 minutes.', 'Pour in water (and stock if using), bring to a boil, then simmer for 12–15 minutes until everything is soft.', 'Blend to your preferred texture — smooth or lightly chunky.', 'Season, finish with Basil herbs, and serve hot.']),
       R('Harvest Vegetable Soup', 'USA', 's', 194, 6.7, 31.3, 4.7, 4.9, 15, 435, 'vegan', [['Carrot', 70, 3], ['Sweetcorn', 67, 5], ['Beans', 9, 2], ['Tomato', 80, 3], ['Onion', 30, 2], ['Olive oil', 3, 2], ['Herbs', 6, 2], ['Water', 170, 7]], ['Wash and roughly chop the Carrot, Sweetcorn and Beans.', 'Heat the olive oil in a pot and sauté the Onion and Herbs for 1–2 minutes until fragrant.', 'Add the Carrot, Sweetcorn and Beans and stir for 2–3 minutes.', 'Pour in water (and stock if using), bring to a boil, then simmer for 12–15 minutes until everything is soft.', 'Blend to your preferred texture — smooth or lightly chunky.', 'Season, finish with Herbs, and serve hot.']),
       R('Roasted Sweet Potato & Chilli Soup', 'Mexico', 's', 203, 3.8, 39.4, 3.4, 5.1, 15, 439, 'vegan', [['Sweet potato', 168, 13], ['Tomato', 60, 2], ['Onion', 30, 2], ['Olive oil', 3, 2], ['Chili spice', 8, 2], ['Water', 170, 7]], ['Wash and roughly chop the Tomato and Onion.', 'Heat the olive oil in a pot and sauté the Onion and Chili spice for 1–2 minutes until fragrant.', 'Add the Tomato and Onion and stir for 2–3 minutes.', 'Pour in water (and stock if using), bring to a boil, then simmer for 12–15 minutes until everything is soft.', 'Blend to your preferred texture — smooth or lightly chunky.', 'Season, finish with fresh herbs, and serve hot.']),
-    ];
-    const missing = seed.filter((s) => !existing.has(s.name));
+    ]);
+
+    const seedAll = [...seed, ...lowProtein300];
+    const missing = seedAll.filter((s) => !existing.has(s.name));
     for (const r of missing) {
-      await this.prisma.recipe.create({ data: r }).catch(() => undefined);
+      await this.prisma.recipe.create({ data: r as never }).catch(() => undefined);
     }
     if (missing.length) this.logger.log(`Recipe library topped up: +${missing.length} (total ${existing.size + missing.length}).`);
+
+    // Assign / refresh the "LowProtein 300 (new)" recipe numbers 11223–11522.
+    // Idempotent, and updates rows seeded BEFORE numbering — so the old→new
+    // mapping always applies on boot (matches even if a recipe already exists).
+    for (const r of lowProtein300) {
+      await this.prisma.recipe.updateMany({ where: { name: r.name }, data: { recipeNo: r.recipeNo } as never }).catch(() => undefined);
+    }
+    this.logger.log(`LowProtein 300: recipe numbers 11223–${11223 + lowProtein300.length - 1} assigned (${lowProtein300.length} recipes).`);
   }
 
   /**
