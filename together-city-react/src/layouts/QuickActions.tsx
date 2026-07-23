@@ -21,31 +21,41 @@ const pill: React.CSSProperties = {
 };
 
 /**
- * Search · People · Mail · Chat quick-action pills. Lives in the header on inner
- * pages, and (on the city home) in a bar just below the hero video — same
- * aesthetics in both places.
+ * Search · People · Mail · Chat quick-action pills (same aesthetics wherever
+ * used). `show` selects which pills to render: 'all' (default), just the
+ * 'search' pill, or the 'links' trio (People/Mail/Chat). On the city home the
+ * Search pill sits in a bar below the hero video while People/Mail/Chat stay in
+ * the header; inner pages keep all four in the header.
  */
-export function QuickActions() {
+export function QuickActions({ show = 'all' }: { show?: 'all' | 'search' | 'links' }) {
   const requests = useIncomingRequestCount();
   const unreadChats = useUnreadChatCount();
+  const searchOn = show === 'all' || show === 'search';
+  const linksOn = show === 'all' || show === 'links';
   return (
     <div className="tc-actions" style={{ gap: 8 }}>
-      <button type="button" aria-label="Search — jump to anything (Ctrl/Cmd K)" title="Search (⌘K)"
-        onClick={() => window.dispatchEvent(new Event('tc:command'))}
-        style={{ ...pill, cursor: 'pointer', font: 'inherit', fontSize: 10.5, letterSpacing: '.06em', fontWeight: 600, textTransform: 'uppercase' }}>
-        <Icon name="search" size={17} /> <span className="lab">SEARCH</span>
-      </button>
-      <Link to="/connections" aria-label="Requests" style={pill}>
-        <Icon name="connection" size={17} /> <span className="lab">PEOPLE</span>
-        <Badge count={requests} />
-      </Link>
-      <Link to="/mail/inbox" aria-label="Mail" style={pill}>
-        <Icon name="mail" size={17} /> <span className="lab">MAIL</span>
-      </Link>
-      <Link to="/chats" aria-label="Chat" style={pill}>
-        <Icon name="chat" size={17} /> <span className="lab">CHAT</span>
-        <Badge count={unreadChats} />
-      </Link>
+      {searchOn && (
+        <button type="button" aria-label="Search — jump to anything (Ctrl/Cmd K)" title="Search (⌘K)"
+          onClick={() => window.dispatchEvent(new Event('tc:command'))}
+          style={{ ...pill, cursor: 'pointer', font: 'inherit', fontSize: 10.5, letterSpacing: '.06em', fontWeight: 600, textTransform: 'uppercase' }}>
+          <Icon name="search" size={17} /> <span className="lab">SEARCH</span>
+        </button>
+      )}
+      {linksOn && (
+        <>
+          <Link to="/connections" aria-label="Requests" style={pill}>
+            <Icon name="connection" size={17} /> <span className="lab">PEOPLE</span>
+            <Badge count={requests} />
+          </Link>
+          <Link to="/mail/inbox" aria-label="Mail" style={pill}>
+            <Icon name="mail" size={17} /> <span className="lab">MAIL</span>
+          </Link>
+          <Link to="/chats" aria-label="Chat" style={pill}>
+            <Icon name="chat" size={17} /> <span className="lab">CHAT</span>
+            <Badge count={unreadChats} />
+          </Link>
+        </>
+      )}
     </div>
   );
 }

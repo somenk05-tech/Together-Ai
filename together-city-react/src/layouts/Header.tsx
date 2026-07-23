@@ -123,9 +123,9 @@ export function Header() {
         ))}
       </nav>
       <div className="tc-actions">
-        {/* Search · People · Mail · Chat live here on inner pages; on the city
-            home they move to a bar just below the hero video. */}
-        {!isHome && <QuickActions />}
+        {/* Inner pages keep all four here; on the city home only Search moves to
+            the bar below the hero video — People/Mail/Chat stay in the header. */}
+        <QuickActions show={isHome ? 'links' : 'all'} />
         <NotificationBell />
         <Link to="/profile" aria-label="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           {user?.profileImage ? (

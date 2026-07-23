@@ -82,10 +82,10 @@ export function Home() {
         </svg>
       </div>
 
-      {/* Quick actions — moved out of the header on the home page to sit in a
-          clean bar just below the hero video (same pill aesthetics). */}
+      {/* On the home page, only Search sits in a clean bar just below the hero
+          video (People/Mail/Chat stay in the header). Same pill aesthetics. */}
       <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 24px', borderBottom: '1px solid var(--line)', background: 'var(--paper)' }}>
-        <QuickActions />
+        <QuickActions show="search" />
       </div>
 
       {/* mobile fallback grid */}
