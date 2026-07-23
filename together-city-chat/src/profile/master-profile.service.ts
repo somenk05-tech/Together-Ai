@@ -154,12 +154,21 @@ export class MasterProfileService {
       }).catch(() => undefined);
     }
 
+    // Age: prefer the precise value from date-of-birth, but fall back to the raw
+    // age stored by hubs that never collect a DOB (Nutrition / Fitness) — so a
+    // user who only filled Nutrition still gets their age everywhere.
+    const rawFoodAge = (food as { age?: number | null } | null)?.age;
+    const rawFitAge = (fitness as { age?: number | null } | null)?.age;
+    const age = computeAge(merged.dateOfBirth ?? null)
+      ?? (typeof rawFoodAge === 'number' ? rawFoodAge : null)
+      ?? (typeof rawFitAge === 'number' ? rawFitAge : null);
+
     return {
       name: user?.name ?? '',
       email: user?.email ?? '',
       photo: (user as { profileImage?: string | null } | null)?.profileImage ?? null,
       ...merged,
-      age: computeAge(merged.dateOfBirth ?? null),
+      age,
       updatedAt: row?.updatedAt?.toISOString?.() ?? null,
     };
   }

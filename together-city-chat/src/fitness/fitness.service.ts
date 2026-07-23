@@ -30,19 +30,24 @@ export class FitnessService {
 
   async getProfile(userId: string) {
     const row = await this.prisma.fitnessProfile.findUnique({ where: { userId } });
+    // Shared demographics (age, gender, height, weight) are owned by the Master
+    // Profile — the single source of truth — so they always reflect whatever the
+    // user entered in any hub. Fitness owns only level/mode/goal/conditions/body.
+    const pre = await this.prefillFromMaster(userId).catch(() => null);
     if (!row) {
-      // Auto-populate from the Master Profile (spec: never ask twice). Shared
-      // demographics — age, gender, height, weight — carry over from whatever
-      // hub the user filled first; only fitness-specific answers remain.
-      const pre = await this.prefillFromMaster(userId).catch(() => null);
       const sex = pre?.sex ?? 'other';
       return { ...DEFAULT_PROFILE, ...(pre ?? {}), saved: false, prefilled: Boolean(pre && (pre.heightCm || pre.weightKg || pre.age)), options: this.optionsFor(sex) };
     }
+    // Master demographics take precedence over the fitness row's cached copy.
+    const age = pre?.age ?? row.age;
+    const sex = pre?.sex ?? row.sex;
+    const heightCm = pre?.heightCm ?? row.heightCm;
+    const weightKg = pre?.weightKg ?? row.weightKg;
     return {
-      age: row.age, sex: row.sex, level: row.level, mode: row.mode, goal: row.goal,
+      age, sex, level: row.level, mode: row.mode, goal: row.goal,
       conditions: row.conditions ? row.conditions.split(',').filter(Boolean) : [],
-      heightCm: row.heightCm, weightKg: row.weightKg, bodyGoal: row.bodyGoal,
-      saved: true, options: this.optionsFor(row.sex),
+      heightCm, weightKg, bodyGoal: row.bodyGoal,
+      saved: true, options: this.optionsFor(sex),
     };
   }
 

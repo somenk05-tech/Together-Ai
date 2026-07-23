@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { AiSuggestions } from '@/components/AiSuggestions';
 import { useFitnessPlan, type Session, type ConditionAdjustment, type Citation } from '../api';
-import { say, stopSpeaking, speechSupported } from '../voice';
 
 const intensityColor: Record<string, string> = { light: '#2e7d32', moderate: '#e65100', vigorous: '#c62828' };
 const kindIcon: Record<string, string> = { aerobic: '🏃', strength: '🏋️', balance: '🧘', mobility: '🤸', recovery: '😌' };
@@ -52,23 +50,10 @@ function DayRow({ s }: { s: Session }) {
 /** My Plan — age + condition-differentiated weekly training, with a voice trainer. */
 export function Plan() {
   const q = useFitnessPlan();
-  const [speaking, setSpeaking] = useState(false);
 
   if (q.isLoading) return <Spinner label="Building your plan…" />;
   if (q.isError || !q.data) return <EmptyState title="Couldn't load your plan" hint="Set your profile first, then reload." />;
   const p = q.data;
-
-  const readAloud = () => {
-    if (speaking) { stopSpeaking(); setSpeaking(false); return; }
-    const lines = [
-      `Here is your weekly plan. You're in the ${p.band.label} band, training ${p.level}, ${p.mode}.`,
-      `Target: ${p.weeklyTargets.aerobicMinutes}, strength on ${p.weeklyTargets.resistanceDays} days.`,
-      ...p.adjustments.map((a) => `${a.title}. ${a.effect}`),
-      ...p.sessions.filter((s) => s.minutes > 0).map((s) => `${s.day}: ${s.focus}, ${s.minutes} minutes, ${s.intensity}.`),
-    ];
-    say(lines.join(' '), { interrupt: true });
-    setSpeaking(true);
-  };
 
   return (
     <div style={{ maxWidth: 740, margin: '0 auto', padding: '28px 16px' }}>
@@ -76,7 +61,6 @@ export function Plan() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: 26, margin: 0 }}>Your week</h1>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          {speechSupported() && <Button variant="line" size="sm" onClick={readAloud}>{speaking ? '⏹ Stop' : '🔊 Read aloud'}</Button>}
           <Link to="/fitness/trainer"><Button variant="accent" size="sm">🎥 Trainer Mode</Button></Link>
         </div>
       </div>
