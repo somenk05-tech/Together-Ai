@@ -16,7 +16,8 @@ export interface OutboundMessage {
   channel: Channel;
   to: string;          // email address or E.164 phone
   subject?: string;    // email only
-  body: string;
+  body: string;        // plain-text (SMS body, or the email text fallback)
+  html?: string;       // email only — rich HTML body (falls back to `body`)
   kind: string;        // receipt | recovery | security | welcome
 }
 
@@ -80,6 +81,8 @@ export class ResendEmailProvider implements MessagingProvider {
       from: this.from,
       to: msg.to,
       subject: msg.subject ?? '(no subject)',
+      // Send both: HTML for clients that render it, plain text as the fallback.
+      ...(msg.html ? { html: msg.html } : {}),
       text: msg.body,
     });
     if (error) {

@@ -3,6 +3,7 @@ import { randomInt, randomBytes } from 'crypto';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { recoveryOtpEmail, passwordChangedEmail } from '../mail/email-templates';
 import { TokenService } from './token.service';
 
 const GENERIC = "If an account matching your information exists, we've sent a verification code.";
@@ -98,11 +99,8 @@ export class RecoveryService {
     if (channel === 'sms') {
       return this.mail.deliverSystem(userId, { subject: 'Together City verification code', body: `Your Together City verification code is ${otp}. Expires in 10 minutes.` }, 'recovery', 'sms');
     }
-    const body = [
-      'Your verification code is', '', otp, '', 'This code expires in 10 minutes.', '',
-      'If you did not request this, ignore this email — your password stays unchanged.',
-    ].join('\n');
-    return this.mail.deliverSystem(userId, { subject: 'Your Together City Recovery Code', body }, 'recovery', 'email');
+    const { subject, text, html } = recoveryOtpEmail(otp, 10);
+    return this.mail.deliverSystem(userId, { subject, body: text, html }, 'recovery', 'email');
   }
 
   private async load(where: Record<string, unknown>): Promise<RecoveryRow | null> {
@@ -157,10 +155,8 @@ export class RecoveryService {
     await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: await argon2.hash(newPassword) } });
     await this.codes.updateMany({ where: { userId: user.id, usedAt: null }, data: { usedAt: new Date() } }).catch(() => undefined);
     await this.tokens.revokeAll(user.id);  // sign out everywhere + kill refresh tokens
-    await this.mail.deliverSystem(user.id, {
-      subject: 'Your Together City password was changed',
-      body: 'Your password was just reset and you have been signed out of every device. If this wasn’t you, reset your password again immediately and contact support.',
-    }, 'security').catch(() => undefined);
+    const changed = passwordChangedEmail();
+    await this.mail.deliverSystem(user.id, { subject: changed.subject, body: changed.text, html: changed.html }, 'security').catch(() => undefined);
     this.logger.log(`recovery completed user=${user.id}`);
     return { ok: true };
   }

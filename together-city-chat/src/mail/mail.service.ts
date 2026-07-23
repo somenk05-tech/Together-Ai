@@ -112,7 +112,15 @@ export class MailService {
     if (!me) throw new NotFoundException('user not found');
 
     const recipientHandle = handleFromAddress(dto.to);
-    if (!recipientHandle) throw new BadRequestException(`Together City Mail only delivers to @${MAIL_DOMAIN} addresses.`);
+    // External (global) email — a valid address that isn't a city mailbox goes
+    // out through the email provider (Resend), with a Sent copy kept in the city.
+    if (!recipientHandle) {
+      const to = dto.to.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+        throw new BadRequestException('Enter a valid email address (a citizen @' + MAIL_DOMAIN + ' handle, or any external email).');
+      }
+      return this.sendExternal(userId, sender.address, me.name, to, dto);
+    }
     const recipient = await this.prisma.user.findUnique({ where: { handle: recipientHandle }, select: { id: true, handle: true, name: true } });
     if (!recipient) throw new BadRequestException(`No such city mailbox: ${addressFor(recipientHandle)}`);
 
@@ -143,6 +151,46 @@ export class MailService {
     if (recipient.id !== userId) {
       await this.prisma.mailAccount.findUnique({ where: { userId: recipient.id } }).then((a) => a ?? this.ensureAccount(recipient.id));
       await this.prisma.mailMessage.create({ data: { ...base, ownerId: recipient.id, boxUserId: recipient.id, folder: 'inbox', read: false } });
+    }
+    return this.list(userId, { folder: 'sent' });
+  }
+
+  /** Send to a GLOBAL (external) email address via the email provider (Resend).
+   *  Keeps a Sent copy in the city; logs the dispatch to the outbox. */
+  private async sendExternal(userId: string, fromAddr: string, fromName: string, toEmail: string, dto: SendMailDto) {
+    const subject = dto.subject?.trim() || '(no subject)';
+    const size = sizeOf(subject, dto.body);
+    const used = await this.usedBytes(userId);
+    if (used + size > QUOTA_BYTES) throw new BadRequestException('Your 10 GB mailbox is full. Delete some mail and try again.');
+
+    const threadId = dto.threadId ?? randomUUID();
+    // Sender's Sent copy (the city ledger).
+    await this.prisma.mailMessage.create({
+      data: {
+        ownerId: userId, boxUserId: userId, folder: 'sent', read: true,
+        fromAddr, fromName, toAddr: toEmail, toName: toEmail,
+        subject, body: dto.body, snippet: snippetOf(dto.body), sizeBytes: size, system: false, threadId,
+      },
+    });
+
+    // External dispatch through the provider. From = the verified EMAIL_FROM
+    // sender; the sender's city identity is noted in the body footer.
+    const footer = `\n\n${'─'.repeat(28)}\nSent by ${fromName} (${fromAddr}) via Together City Mail.`;
+    const provider = createMessagingProvider('email');
+    const res = await provider
+      .send({ channel: 'email', to: toEmail, subject, body: dto.body + footer, kind: 'mail' })
+      .catch(() => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const }));
+    await this.prisma.emailDelivery.create({
+      data: {
+        userId, channel: 'email', toEmail, kind: 'mail', subject, body: dto.body,
+        provider: res.provider, providerMessageId: res.providerMessageId ?? undefined, status: res.status,
+      },
+    }).catch(() => undefined);
+
+    // A real (configured) provider that failed should surface an error; the stub
+    // reports 'sent' so demo/dev never blocks.
+    if (res.status === 'failed' && messagingConfigured('email')) {
+      throw new BadRequestException(`Couldn't deliver to ${toEmail} right now — please try again.`);
     }
     return this.list(userId, { folder: 'sent' });
   }
@@ -179,7 +227,7 @@ export class MailService {
 
   async deliverSystem(
     userId: string,
-    r: { subject: string; body: string },
+    r: { subject: string; body: string; html?: string },
     kind: 'receipt' | 'recovery' | 'security' | 'welcome' = 'receipt',
     channel: Channel = 'email',
   ) {
@@ -201,7 +249,7 @@ export class MailService {
     // External dispatch through the messaging provider (stub by default).
     if (target) {
       const provider = createMessagingProvider(channel);
-      const res = await provider.send({ channel, to: target, subject, body: r.body, kind }).catch(() => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const }));
+      const res = await provider.send({ channel, to: target, subject, body: r.body, ...(channel === 'email' && r.html ? { html: r.html } : {}), kind }).catch(() => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const }));
       await this.prisma.emailDelivery.create({
         data: {
           userId, channel, toEmail: channel === 'email' ? target : null, toPhone: channel === 'sms' ? target : null,

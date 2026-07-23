@@ -4,7 +4,8 @@ import { Button } from '@/components/ui';
 import { useDirectory, useSendMail, useMailAccount, type DirectoryEntry } from '../api';
 import { payError } from '@/features/financial/api';
 
-/** Compose — write to any @togethercity.tech citizen, with directory autocomplete. */
+/** Compose — write to any @togethercity.tech citizen (directory autocomplete)
+ *  OR any external/global email address (delivered via the email provider). */
 export function Compose() {
   const [params] = useSearchParams();
   const nav = useNavigate();
@@ -40,7 +41,7 @@ export function Compose() {
         <div style={{ position: 'relative' }}>
           <label style={{ fontSize: 12 }} className="muted">To</label>
           <input value={to} onChange={(e) => { setTo(e.target.value); setShowSug(true); }} onFocus={() => setShowSug(true)}
-            placeholder="handle@togethercity.tech" style={inp} autoComplete="off" />
+            placeholder="handle@togethercity.tech · or any email address" style={inp} autoComplete="off" />
           {showSug && suggestions.length > 0 && (
             <div className="card" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, padding: 4, marginTop: 4, maxHeight: 240, overflow: 'auto' }}>
               {suggestions.map((d) => (
@@ -73,7 +74,7 @@ export function Compose() {
             {send.isPending ? 'Sending…' : threadId ? 'Send reply' : 'Send'}
           </Button>
           <Button variant="line" onClick={() => nav(-1)}>Cancel</Button>
-          <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>Delivers within Together City</span>
+          <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>Delivers to citizens and external emails</span>
         </div>
       </div>
     </div>
