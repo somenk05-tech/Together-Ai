@@ -303,7 +303,9 @@ export class AstrologyService {
     const reading = await this.cachedReading(userId, 'monthly', monthKey, () => {
       const chart = this.chartOf(row);
       const astro = scanMonth(chart, local.getUTCFullYear(), local.getUTCMonth() + 1);
-      return composeMonthly(chart, userId, astro);
+      const num = computeNumerology(row.birthDate, local);
+      const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
+      return composeMonthly(chart, userId, astro, num, dasha);
     });
     return { needsProfile: false as const, ...reading };
   }

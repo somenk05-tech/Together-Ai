@@ -21,12 +21,14 @@ export function AstroMonthly() {
           <Card className="rise" style={{ padding: '26px 26px 18px', marginBottom: 18 }}>
             <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(21px,2.6vw,28px)', marginBottom: 10 }}>{m.title}</h2>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {m.numerology && <Tag>🔢 Personal Year {m.numerology.personalYear}</Tag>}
+              {m.numerology && <Tag>Personal Month {m.numerology.personalMonth}</Tag>}
+              {m.dasha && <Tag>🪐 {m.dasha.maha} Dasha</Tag>}
               {m.bestDates.length > 0 && <Tag>✨ Best: {m.bestDates.join(', ')}</Tag>}
               {m.cautionDates.length > 0 && <Tag>⚠️ Caution: {m.cautionDates.join(', ')}</Tag>}
-              <Tag>{m.words.toLocaleString('en-IN')} words</Tag>
             </div>
-            <p className="muted" style={{ fontSize: 11.5, marginTop: 12 }}>
-              Written once for {m.month} from your birth chart and this month's actual planetary movements — saved to your profile.
+            <p className="muted" style={{ fontSize: 11.5, marginTop: 12, fontStyle: 'italic' }}>
+              {m.framing ?? `Written once for ${m.month} from your birth chart and this month's actual planetary movements — saved to your profile.`}
             </p>
           </Card>
           {m.sections.map((s, i) => (

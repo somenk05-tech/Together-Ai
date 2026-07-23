@@ -273,11 +273,14 @@ export interface MonthlySection { key: string; title: string; body: string }
 export interface MonthlyReading {
   month: string; title: string; sections: MonthlySection[]; words: number;
   bestDates: number[]; cautionDates: number[];
+  framing?: string;
+  numerology?: { lifePath: number; personalYear: number; personalMonth: number };
+  dasha?: { maha: string; antar: string };
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-export function composeMonthly(chart: NatalChart, userSeed: string, astro: MonthAstro): MonthlyReading {
+export function composeMonthly(chart: NatalChart, userSeed: string, astro: MonthAstro, num?: Numerology, dasha?: Dasha): MonthlyReading {
   const monthName = `${MONTHS[astro.month - 1]} ${astro.year}`;
   const rng = mulberry32(hashSeed(userSeed + `${astro.year}-${astro.month}`));
   const sun = chart.sun.sign, moon = chart.moon.sign;
@@ -315,6 +318,21 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
       ),
     ),
   });
+
+  if (num && dasha) {
+    sections.push({
+      key: 'cycle', title: 'Your Cycle & Timing', body: para(
+        P(
+          `Beyond the sky, your personal cycles set this month's tone. You're in a Personal Month ${num.personalMonth} inside a Personal Year ${num.personalYear} — a season emphasising ${num.yearTheme}.`,
+          `Numerologically, ${monthName} leans toward ${num.personalMonth === 9 || num.personalMonth === 4 ? 'completing, consolidating and tidying loose ends' : num.personalMonth === 1 || num.personalMonth === 5 ? 'initiating, adapting and trying the new' : 'steady, relational progress rather than dramatic moves'}.`,
+        ),
+        P(
+          `In the longer arc, you're moving through a ${dasha.maha} Mahādasha (with a ${dasha.antar} sub-period) — a chapter themed around ${dasha.theme}. It helps to read the month's events through that lens: what supports that theme tends to flow, and what fights it tends to feel heavier than it should.`,
+        ),
+        P(`Hold all of this as guidance to think with — timing that points to where your effort is likeliest to pay, never a fixed prediction. The choices stay yours.`),
+      ),
+    });
+  }
 
   sections.push({
     key: 'career', title: 'Career & Business', body: para(
@@ -526,6 +544,9 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
     words: sections.reduce((n, s) => n + wordCount(s.body), 0),
     bestDates: astro.bestDates,
     cautionDates: astro.cautionDates,
+    framing: 'This monthly guidance blends your Vedic chart, transits, Dasha period and numerology — offered as reflection and timing, not fixed prediction.',
+    ...(num ? { numerology: { lifePath: num.lifePath, personalYear: num.personalYear, personalMonth: num.personalMonth } } : {}),
+    ...(dasha ? { dasha: { maha: dasha.maha, antar: dasha.antar } } : {}),
   };
 }
 

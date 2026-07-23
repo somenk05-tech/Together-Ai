@@ -37,6 +37,9 @@ export interface MonthlySection { key: string; title: string; body: string }
 export interface MonthlyReading {
   needsProfile: boolean; month: string; title: string; sections: MonthlySection[];
   words: number; bestDates: number[]; cautionDates: number[];
+  framing?: string;
+  numerology?: { lifePath: number; personalYear: number; personalMonth: number };
+  dasha?: { maha: string; antar: string };
 }
 export interface AstroQuestion {
   id: string; topic: string; question: string; answer: string;
