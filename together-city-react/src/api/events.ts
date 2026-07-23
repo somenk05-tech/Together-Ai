@@ -15,6 +15,7 @@ export const WS = {
   HEARTBEAT: 'heartbeat',
   CHAT_NOTIFICATION: 'chat_notification',
   ERROR: 'error_event',
+  CONNECTIONS_CHANGED: 'connections:changed',
 } as const;
 
 export type WsEvent = (typeof WS)[keyof typeof WS];

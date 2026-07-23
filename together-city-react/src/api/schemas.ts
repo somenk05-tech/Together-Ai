@@ -30,6 +30,7 @@ export const ConnectionSchema = z.object({
   incoming: z.boolean(), // true ⇒ the other person requested; you can accept
   relationship: z.string().nullable().optional(),
   modules: z.array(z.string()).optional(),
+  hubPermissions: z.record(z.boolean()).optional(), // same data as `modules`, as a hub→on/off map
   user: UserSchema.pick({ id: true, handle: true, name: true, profileImage: true }),
 });
 export type Connection = z.infer<typeof ConnectionSchema>;

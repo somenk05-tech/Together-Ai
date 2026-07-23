@@ -4,6 +4,7 @@ import { Footer } from './Footer';
 import { useSocket } from '@/hooks/useSocket';
 import { useChatNotifications } from '@/hooks/useChatNotifications';
 import { useWebPush } from '@/hooks/useWebPush';
+import { useConnectionSync } from '@/api/connections.api';
 import { CookRoot } from '@/features/nutrition/components/CookMode';
 
 /** Root layout for full-width hub landings & the city home. */
@@ -11,6 +12,7 @@ export function AppShell() {
   useSocket(); // connect Socket.IO whenever authenticated (chat, presence, notifications)
   useChatNotifications(); // instant unread badge + delivery receipts, app-wide
   useWebPush(); // keep the browser push subscription fresh when already granted
+  useConnectionSync(); // live hub-permission sync — People + hub pages never drift
   return (
     <>
       <Header />

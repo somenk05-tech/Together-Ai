@@ -2,7 +2,9 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { ConnectionStatus, ConnectionType, Connection, User } from '@prisma/client';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { orderPair } from './connection.util';
-import { RequestConnectionDto, RespondConnectionDto, UpdateModulesDto, UNIVERSAL_MODULES } from './dto/connections.dto';
+import { RequestConnectionDto, RespondConnectionDto, UpdateModulesDto } from './dto/connections.dto';
+import { UNIVERSAL_SLUGS, PERMISSIONED_SLUGS, isHub, isUniversalHub } from './hubs.registry';
+import { ConnectionsGateway } from './connections.gateway';
 
 /** Shape the UI consumes: the OTHER party + a friendly status + direction. */
 export interface ShapedConnection {
@@ -11,15 +13,26 @@ export interface ShapedConnection {
   incoming: boolean; // true when the OTHER person sent the request (you can accept)
   relationship: string | null;
   modules: string[]; // Universal Connection Model — module permissions on this ONE record
+  hubPermissions: Record<string, boolean>; // the SAME data as a hub→on/off map (single source)
   user: { id: string; handle: string; name: string; profileImage: string | null };
 }
 
-const DEFAULT_MODULES = ['chat', 'mail', 'social'];
-/** Chat + Mail are universal: silently added to every grant set. */
-const withUniversal = (mods: string[]): string[] => [...new Set([...UNIVERSAL_MODULES, ...mods])];
+const DEFAULT_MODULES = ['social'];
+/** Chat + Mail are universal: silently added to every grant set. Unknown/removed
+ *  hub keys (grocery, pantry, calendar…) are stripped here, so legacy rows can
+ *  never resurface a deleted hub anywhere in the API. */
+const withUniversal = (mods: string[]): string[] => [...new Set([...UNIVERSAL_SLUGS, ...mods.filter(isHub)])];
 const parseModules = (raw: unknown): string[] => {
   try { const v = JSON.parse(String(raw ?? '')); return withUniversal(Array.isArray(v) ? v.filter((x) => typeof x === 'string') : DEFAULT_MODULES); }
   catch { return withUniversal(DEFAULT_MODULES); }
+};
+/** The single-source permission record as a hub→boolean map (universal hubs are
+ *  always-on and therefore omitted, matching the People UI checkboxes). */
+const permissionMap = (modules: string[]): Record<string, boolean> => {
+  const on = new Set(modules);
+  const map: Record<string, boolean> = {};
+  for (const slug of PERMISSIONED_SLUGS) map[slug] = on.has(slug);
+  return map;
 };
 
 const STATUS_OUT: Record<ConnectionStatus, ShapedConnection['status']> = {
@@ -31,7 +44,23 @@ const STATUS_OUT: Record<ConnectionStatus, ShapedConnection['status']> = {
 
 @Injectable()
 export class ConnectionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly gateway: ConnectionsGateway,
+  ) {}
+
+  /** Broadcast a permission change to BOTH members so every open page (People +
+   *  each hub) invalidates and re-reads the shared store — no manual refresh. */
+  private broadcast(conn: Connection): void {
+    const modules = parseModules((conn as { modulesJson?: string | null }).modulesJson);
+    this.gateway.permissionsChanged([conn.userOneId, conn.userTwoId], {
+      connectionId: conn.id,
+      status: STATUS_OUT[conn.status],
+      relationship: (conn as { relationship?: string | null }).relationship ?? null,
+      modules,
+      hubPermissions: permissionMap(modules),
+    });
+  }
 
   /** Send (or re-send) a friend request by handle. Idempotent per pair. */
   async request(requesterId: string, dto: RequestConnectionDto): Promise<ShapedConnection> {
@@ -76,8 +105,10 @@ export class ConnectionsService {
           modulesJson: JSON.stringify(withUniversal(dto.modules ?? DEFAULT_MODULES)),
         } as never,
       });
+      this.broadcast(reopened);
       return this.shape(reopened, requesterId, target);
     }
+    this.broadcast(conn);
     return this.shape(conn, requesterId, target);
   }
 
@@ -110,6 +141,7 @@ export class ConnectionsService {
       // the granted modules everywhere — no separate hub invitations.
       await this.syncModules(updated).catch(() => undefined);
     }
+    this.broadcast(updated);
     const otherId = updated.userOneId === userId ? updated.userTwoId : updated.userOneId;
     const other = await this.prisma.user.findUnique({ where: { id: otherId } });
     return this.shape(updated, userId, other);
@@ -154,9 +186,58 @@ export class ConnectionsService {
         await this.unsyncHousehold(updated).catch(() => undefined);
       }
     }
+    this.broadcast(updated);
     const otherId = updated.userOneId === userId ? updated.userTwoId : updated.userOneId;
     const other = await this.prisma.user.findUnique({ where: { id: otherId } });
     return this.shape(updated, userId, other);
+  }
+
+  /** SINGLE SOURCE OF TRUTH write path — set a full hub→boolean permission map on
+   *  ONE connection record. The People page checkbox grid uses this
+   *  (PATCH /connections/:id/permissions); every hub reads the same store. */
+  async setPermissions(userId: string, connectionId: string, map: Record<string, boolean>, relationship?: string): Promise<ShapedConnection> {
+    const conn = await this.prisma.connection.findUnique({ where: { id: connectionId } });
+    if (!conn) throw new NotFoundException('Connection not found');
+    if (conn.userOneId !== userId && conn.userTwoId !== userId) throw new ForbiddenException('Not your connection');
+    // Start from the current set, then apply only permissioned (non-universal) keys.
+    const current = new Set(parseModules((conn as { modulesJson?: string | null }).modulesJson));
+    for (const [slug, on] of Object.entries(map)) {
+      if (!isHub(slug) || isUniversalHub(slug)) continue; // ignore unknown & universal
+      if (on) current.add(slug); else current.delete(slug);
+    }
+    return this.updateModules(userId, connectionId, { modules: [...current], relationship: relationship as UpdateModulesDto['relationship'] });
+  }
+
+  /** Toggle ONE hub for ONE connection — the write path behind
+   *  PATCH /hub/:hub/members. Updates the same shared permission store. */
+  async setHubMember(userId: string, hub: string, connectionId: string, enabled: boolean): Promise<ShapedConnection> {
+    if (!isHub(hub)) throw new BadRequestException('Unknown hub');
+    if (isUniversalHub(hub)) throw new BadRequestException('Chat & Mail are universal and always on.');
+    return this.setPermissions(userId, connectionId, { [hub]: enabled });
+  }
+
+  /** THE hub permission gate — reads the shared store, never hardcodes membership.
+   *  True iff the two users share an ACCEPTED connection with `hub` granted. */
+  async canAccessHub(a: string, b: string, hub: string): Promise<boolean> {
+    if (a === b) return true;
+    if (isUniversalHub(hub)) {
+      const { userOneId, userTwoId } = orderPair(a, b);
+      const c = await this.prisma.connection.findFirst({ where: { userOneId, userTwoId, status: ConnectionStatus.ACCEPTED }, select: { id: true } });
+      return !!c;
+    }
+    const { userOneId, userTwoId } = orderPair(a, b);
+    const conn = await this.prisma.connection.findFirst({
+      where: { userOneId, userTwoId, status: ConnectionStatus.ACCEPTED },
+    }).catch(() => null);
+    if (!conn) return false;
+    return parseModules((conn as { modulesJson?: string | null }).modulesJson).includes(hub);
+  }
+
+  /** Throws 403 unless `viewer` may access `owner`'s `hub` per the shared store. */
+  async assertHubAccess(viewer: string, owner: string, hub: string): Promise<void> {
+    if (!(await this.canAccessHub(viewer, owner, hub))) {
+      throw new ForbiddenException(`No ${hub} access for this member.`);
+    }
   }
 
   /** Two-way sync (hub → People): a hub removing a member for `module` clears
@@ -164,7 +245,7 @@ export class ConnectionsService {
    *  from what the hub shows. Universal modules are never touched. Safe to call
    *  from any hub; no-op when the pair has no connection or already lacks it. */
   async revokeModuleForPair(userA: string, userB: string, module: string): Promise<void> {
-    if (UNIVERSAL_MODULES.includes(module as (typeof UNIVERSAL_MODULES)[number])) return;
+    if (isUniversalHub(module)) return;
     const { userOneId, userTwoId } = orderPair(userA, userB);
     const conn = await this.prisma.connection.findUnique({
       where: {
@@ -175,10 +256,11 @@ export class ConnectionsService {
     const current = parseModules((conn as { modulesJson?: string | null }).modulesJson);
     if (!current.includes(module)) return;
     const next = current.filter((m) => m !== module);
-    await this.prisma.connection.update({
+    const updated = await this.prisma.connection.update({
       where: { id: conn.id },
       data: { modulesJson: JSON.stringify(withUniversal(next)) } as never,
-    }).catch(() => undefined);
+    }).catch(() => null);
+    if (updated) this.broadcast(updated); // two-way sync → refresh People + hub lists
   }
 
   /** Everyone connected to this user FOR a given module — what every hub
@@ -194,8 +276,9 @@ export class ConnectionsService {
     const conn = await this.prisma.connection.findUnique({ where: { id: connectionId } });
     if (!conn) throw new NotFoundException('Connection not found');
     if (conn.userOneId !== userId && conn.userTwoId !== userId) throw new ForbiddenException('Not your connection');
-    await this.prisma.connection.update({ where: { id: conn.id }, data: { status: ConnectionStatus.REMOVED } });
+    const removed = await this.prisma.connection.update({ where: { id: conn.id }, data: { status: ConnectionStatus.REMOVED } });
     await this.unsyncHousehold(conn).catch(() => undefined);
+    this.broadcast(removed); // disconnects everywhere — refresh People + every hub list
     // Social follows end with the connection.
     await this.prisma.follow.deleteMany({
       where: {
@@ -251,11 +334,13 @@ export class ConnectionsService {
   }
 
   private shape(conn: Connection, meId: string, other: User | null): ShapedConnection {
+    const modules = parseModules((conn as { modulesJson?: string | null }).modulesJson);
     return {
       id: conn.id,
       status: STATUS_OUT[conn.status],
       relationship: (conn as { relationship?: string | null }).relationship ?? null,
-      modules: parseModules((conn as { modulesJson?: string | null }).modulesJson),
+      modules,
+      hubPermissions: permissionMap(modules),
       incoming: conn.requestedById !== meId,
       user: other
         ? { id: other.id, handle: other.handle, name: other.name, profileImage: other.profileImage ?? null }
