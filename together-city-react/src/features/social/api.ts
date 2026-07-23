@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 /** Social domain types — mirror the NestJS social module DTOs. */
 export interface PostAuthor { id: string; handle: string; name: string; profileImage: string | null }
+/** A follower/following row with the viewer's follow-state for Follow / Following / Follow back. */
+export interface FollowPerson extends PostAuthor { iFollow: boolean; followsMe: boolean }
 export interface PostMedia { id: string; url: string; kind: 'image' | 'video'; thumbUrl: string | null }
 export interface Post {
   id: string;
@@ -39,8 +41,12 @@ export const socialApi = {
   feed: (cursor?: string, filter?: string) =>
     api.get<FeedPage>('/social/feed', { params: { cursor, limit: 20, ...(filter ? { filter } : {}) } }).then((r) => r.data),
   map: () => api.get<Post[]>('/social/map').then((r) => r.data),
-  followers: () => api.get<PostAuthor[]>('/social/followers').then((r) => r.data),
-  following: () => api.get<PostAuthor[]>('/social/following').then((r) => r.data),
+  followers: () => api.get<FollowPerson[]>('/social/followers').then((r) => r.data),
+  following: () => api.get<FollowPerson[]>('/social/following').then((r) => r.data),
+  follow: (person: { handle?: string; userId?: string }) =>
+    api.post<{ following: boolean; userId: string }>('/social/follow', person).then((r) => r.data),
+  unfollow: (userId: string) =>
+    api.delete<{ following: boolean; userId: string }>(`/social/follow/${userId}`).then((r) => r.data),
   create: (input: CreatePostInput) =>
     api.post<Post>('/social/posts', input).then((r) => r.data),
   remove: (postId: string) => api.delete<{ ok: boolean }>(`/social/posts/${postId}`).then((r) => r.data),
@@ -62,6 +68,28 @@ export function useMap() {
 }
 export function useFollowers() {
   return useQuery({ queryKey: ['social', 'followers'], queryFn: () => socialApi.followers() });
+}
+export function useFollow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (person: { handle?: string; userId?: string }) => socialApi.follow(person),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['social', 'followers'] });
+      void qc.invalidateQueries({ queryKey: ['social', 'following'] });
+      void qc.invalidateQueries({ queryKey: ['profile', 'me'] });
+    },
+  });
+}
+export function useUnfollow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => socialApi.unfollow(userId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['social', 'followers'] });
+      void qc.invalidateQueries({ queryKey: ['social', 'following'] });
+      void qc.invalidateQueries({ queryKey: ['profile', 'me'] });
+    },
+  });
 }
 export function useFollowing() {
   return useQuery({ queryKey: ['social', 'following'], queryFn: () => socialApi.following() });

@@ -9,7 +9,7 @@ export interface ProfileSummary { hubs: HubContribution[]; sections: ProfileSect
 export type Relationship = 'none' | 'pending_out' | 'pending_in' | 'accepted' | 'blocked';
 
 /** Derived, activity-based reputation & city points — no stored/dummy values. */
-export interface ProfileStats { posts: number; reputation: number; cityPoints: number; connections: number; }
+export interface ProfileStats { posts: number; reputation: number; cityPoints: number; connections: number; followers: number; following: number; }
 
 /** The signed-in citizen's own social profile (My Profile page). */
 export interface MyProfile {
@@ -172,17 +172,25 @@ export class ProfileService {
   /** Reputation & city points derived from real activity — 0 for a brand-new
    *  account, growing as the citizen posts and connects. Never seeded. */
   async statsFor(userId: string): Promise<ProfileStats> {
-    const [posts, likesReceived, commentsReceived, connections] = await Promise.all([
+    const [posts, likesReceived, commentsReceived, followerRows, followeeRows, connRows] = await Promise.all([
       this.prisma.post.count({ where: { authorId: userId } }),
       this.prisma.like.count({ where: { post: { authorId: userId } } }),
       this.prisma.comment.count({ where: { post: { authorId: userId } } }),
-      this.prisma.connection.count({ where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] } }),
+      this.prisma.follow.findMany({ where: { followeeId: userId }, select: { followerId: true } }),
+      this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } }),
+      this.prisma.connection.findMany({ where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] }, select: { userOneId: true, userTwoId: true } }),
     ]);
+    const connIds = connRows.map((c) => (c.userOneId === userId ? c.userTwoId : c.userOneId));
+    const connections = connRows.length;
+    // Followers/following mirror the real lists: follow edges unioned with
+    // connections (which are mutual follows), de-duplicated.
+    const followers = new Set([...followerRows.map((r) => r.followerId), ...connIds]).size;
+    const following = new Set([...followeeRows.map((r) => r.followeeId), ...connIds]).size;
     // Reputation rewards engagement your posts earn plus real connections;
     // city points reward contribution volume. Simple, transparent, real.
     const reputation = likesReceived + commentsReceived * 2 + connections * 3;
     const cityPoints = posts * 10 + likesReceived + commentsReceived;
-    return { posts, reputation, cityPoints, connections };
+    return { posts, reputation, cityPoints, connections, followers, following };
   }
 
   /** The signed-in citizen's own profile. */

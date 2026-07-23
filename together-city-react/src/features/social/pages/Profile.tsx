@@ -10,6 +10,7 @@ import {
   useMyProfile, useMyPosts, usePeopleSearch, usePublicProfile, useUpdateProfile,
   type MyProfile, type ProfilePost, type PersonResult, type PublicProfile, type Relationship,
 } from '../myProfile.api';
+import { useFollowers, useFollowing, useFollow, useUnfollow, type FollowPerson } from '../api';
 
 const money = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
 const PAY_PER_VIDEO = 100;
@@ -384,7 +385,57 @@ function EarnView({ posts }: { posts: ProfilePost[] }) {
   );
 }
 
-type Tab = 'posts' | 'earn' | 'people';
+/** One row in the Followers / Following list, with a live Follow / Following /
+ *  Follow-back action wired to the real follow graph. */
+function FollowRow({ person, onView }: { person: FollowPerson; onView: () => void }) {
+  const follow = useFollow();
+  const unfollow = useUnfollow();
+  const busy = follow.isPending || unfollow.isPending;
+  const label = person.iFollow ? 'Following' : person.followsMe ? 'Follow back' : 'Follow';
+  const act = () => {
+    if (busy) return;
+    if (person.iFollow) unfollow.mutate(person.id);
+    else follow.mutate({ userId: person.id });
+  };
+  return (
+    <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px' }}>
+      <button type="button" onClick={onView} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>
+        <Avatar src={person.profileImage} name={person.name} size={44} />
+      </button>
+      <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={onView}>
+        <div style={{ fontWeight: 600, fontSize: 14 }}>{person.name}</div>
+        <div className="muted" style={{ fontSize: 12, fontFamily: 'monospace' }}>@{person.handle}{person.followsMe && !person.iFollow ? ' · follows you' : ''}</div>
+      </div>
+      <Button variant={person.iFollow ? 'line' : 'accent'} size="sm" disabled={busy} onClick={act}>
+        {busy ? '…' : label}
+      </Button>
+    </div>
+  );
+}
+
+function FollowList({ kind }: { kind: 'followers' | 'following' }) {
+  const followers = useFollowers();
+  const following = useFollowing();
+  const [view, setView] = useState<string | null>(null);
+  const q = kind === 'followers' ? followers : following;
+  const people = q.data ?? [];
+  if (q.isLoading) return <div style={{ marginTop: 16 }}><Spinner label={`Loading ${kind}…`} /></div>;
+  if (!people.length) {
+    return (
+      <p className="muted" style={{ fontSize: 13.5, marginTop: 20 }}>
+        {kind === 'followers' ? 'No followers yet — share posts and connect with people to grow your circle.' : "You're not following anyone yet. Find people to follow below."}
+      </p>
+    );
+  }
+  return (
+    <div className="rise d1" style={{ display: 'grid', gap: 8, marginTop: 16, maxWidth: 560 }}>
+      {people.map((person) => <FollowRow key={person.id} person={person} onView={() => setView(person.handle)} />)}
+      {view && <PublicProfileModal handle={view} onClose={() => setView(null)} />}
+    </div>
+  );
+}
+
+type Tab = 'posts' | 'earn' | 'followers' | 'following';
 
 /** Social Life · My Profile — real identity, stats, posts, People search & Post & Earn. */
 export function SocialProfile() {
@@ -417,8 +468,14 @@ export function SocialProfile() {
           {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 1 }}>📍 {p.city}</p>}
           {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '8px 0 0', maxWidth: 560 }}>{p.bio}</p>}
           {p.website && <p style={{ margin: '4px 0 0' }}><a href={p.website} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--accent)' }}>{p.website.replace(/^https?:\/\//, '')}</a></p>}
-          <div style={{ display: 'flex', gap: 26, margin: '12px 0 0' }}>
+          <div style={{ display: 'flex', gap: 22, margin: '12px 0 0', flexWrap: 'wrap' }}>
             <StatCell n={p.stats.posts} label="posts" />
+            <button type="button" onClick={() => setTab('followers')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit' }}>
+              <StatCell n={p.stats.followers} label="followers" />
+            </button>
+            <button type="button" onClick={() => setTab('following')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit' }}>
+              <StatCell n={p.stats.following} label="following" />
+            </button>
             <StatCell n={p.stats.reputation} label="reputation" />
             <StatCell n={p.stats.cityPoints} label="city points" />
           </div>
@@ -427,13 +484,15 @@ export function SocialProfile() {
 
       <div className="rise d1" style={{ display: 'flex', gap: 8, marginTop: 20, flexWrap: 'wrap' }}>
         <button type="button" className={`pill ${tab === 'posts' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('posts')}>Posts</button>
+        <button type="button" className={`pill ${tab === 'followers' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('followers')}>Followers</button>
+        <button type="button" className={`pill ${tab === 'following' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('following')}>Following</button>
         <button type="button" className={`pill ${tab === 'earn' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('earn')}>💰 Post &amp; Earn</button>
-        <button type="button" className={`pill ${tab === 'people' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('people')}>People</button>
       </div>
 
       {tab === 'posts' && <PostsTab />}
+      {tab === 'followers' && <FollowList kind="followers" />}
+      {tab === 'following' && (<><FollowList kind="following" /><PeopleTab /></>)}
       {tab === 'earn' && <div className="rise d1" style={{ marginTop: 16 }}><EarnView posts={allPosts} /></div>}
-      {tab === 'people' && <PeopleTab />}
 
       {editing && <EditProfileModal me={p} onClose={() => setEditing(false)} />}
     </div>

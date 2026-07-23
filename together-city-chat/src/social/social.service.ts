@@ -32,14 +32,22 @@ export class SocialService {
     return [...ids];
   }
 
-  /** Followers = people who follow you OR are connected to you. */
+  /** The set of userIds THIS user follows (their outbound follow edges). */
+  private async myFollowingSet(userId: string): Promise<Set<string>> {
+    const rows = await this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } });
+    return new Set(rows.map((r) => r.followeeId));
+  }
+
+  /** Followers = people who follow you OR are connected to you. Each carries
+   *  `iFollow` (do you follow them back?) so the UI shows Following / Follow back. */
   async followers(userId: string) {
-    const [rows, conns] = await Promise.all([
+    const [rows, conns, iFollow] = await Promise.all([
       this.prisma.follow.findMany({ where: { followeeId: userId }, select: { follower: { select: AUTHOR_SELECT } } }),
       this.prisma.connection.findMany({
         where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
         include: { userOne: { select: AUTHOR_SELECT }, userTwo: { select: AUTHOR_SELECT } },
       }),
+      this.myFollowingSet(userId),
     ]);
     const byId = new Map<string, { id: string; handle: string; name: string; profileImage: string | null }>();
     for (const r of rows) byId.set(r.follower.id, r.follower);
@@ -47,16 +55,39 @@ export class SocialService {
       const u = c.userOneId === userId ? c.userTwo : c.userOne;
       byId.set(u.id, u);
     }
-    return [...byId.values()];
+    return [...byId.values()].map((u) => ({ ...u, followsMe: true, iFollow: iFollow.has(u.id) }));
   }
 
-  /** Following = people you follow OR are connected to (mutual with connections). */
+  /** Following = people you follow OR are connected to (connections are mutual).
+   *  Each carries `followsMe` so the UI can flag mutuals. */
   async following(userId: string) {
     const network = await this.networkIds(userId);
     const others = network.filter((id) => id !== userId);
     if (!others.length) return [];
-    const users = await this.prisma.user.findMany({ where: { id: { in: others } }, select: AUTHOR_SELECT });
-    return users;
+    const [users, followerRows] = await Promise.all([
+      this.prisma.user.findMany({ where: { id: { in: others } }, select: AUTHOR_SELECT }),
+      this.prisma.follow.findMany({ where: { followeeId: userId }, select: { followerId: true } }),
+    ]);
+    const followsMe = new Set(followerRows.map((r) => r.followerId));
+    return users.map((u) => ({ ...u, iFollow: true, followsMe: followsMe.has(u.id) }));
+  }
+
+  /** Follow another citizen (idempotent). You can't follow yourself. */
+  async follow(userId: string, targetRef: string) {
+    const ref = (targetRef ?? '').trim().replace(/^@/, '').toLowerCase();
+    if (!ref) throw new NotFoundException('No citizen specified.');
+    const target = await this.prisma.user.findFirst({ where: { OR: [{ id: targetRef }, { handle: ref }] }, select: { id: true } });
+    if (!target) throw new NotFoundException('No citizen with that handle.');
+    if (target.id === userId) throw new ForbiddenException("You can't follow yourself.");
+    await this.prisma.follow.createMany({ data: [{ followerId: userId, followeeId: target.id }], skipDuplicates: true });
+    return { following: true, userId: target.id };
+  }
+
+  /** Stop following someone (removes only your outbound follow edge). If you're
+   *  connected, they remain in your circle via the connection — by design. */
+  async unfollow(userId: string, targetId: string) {
+    await this.prisma.follow.deleteMany({ where: { followerId: userId, followeeId: targetId } });
+    return { following: false, userId: targetId };
   }
 
   // ─────────────── posts ───────────────

@@ -36,6 +36,18 @@ export class SocialController {
     return this.social.following(user.sub);
   }
 
+  // Follow a citizen by handle or id (idempotent).
+  @Post('follow')
+  follow(@CurrentUser() user: JwtUser, @Body() dto: { handle?: string; userId?: string }) {
+    return this.social.follow(user.sub, dto?.userId ?? dto?.handle ?? '');
+  }
+
+  // Stop following someone.
+  @Delete('follow/:userId')
+  unfollow(@CurrentUser() user: JwtUser, @Param('userId') userId: string) {
+    return this.social.unfollow(user.sub, userId);
+  }
+
   @Post('posts')
   @UsePipes(new ZodValidationPipe(CreatePostSchema))
   create(@CurrentUser() user: JwtUser, @Body() dto: CreatePostDto) {

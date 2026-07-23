@@ -3,7 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 
 export type Relationship = 'none' | 'pending_out' | 'pending_in' | 'accepted' | 'blocked';
 
-export interface ProfileStats { posts: number; reputation: number; cityPoints: number; connections: number }
+export interface ProfileStats { posts: number; reputation: number; cityPoints: number; connections: number; followers: number; following: number }
 
 export interface MyProfile {
   id: string; handle: string; name: string; profileImage: string | null;
