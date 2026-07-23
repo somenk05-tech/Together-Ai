@@ -10,7 +10,7 @@ export interface BodyGoalOption { key: string; label: string; tag: string }
 export interface FitnessProfile {
   age: number; sex: string; level: string; mode: string; goal: string; conditions: string[];
   heightCm: number | null; weightKg: number | null; bodyGoal: string;
-  saved: boolean; options: { levels: FitnessOption[]; modes: FitnessOption[]; bodyGoals: BodyGoalOption[] };
+  saved: boolean; prefilled?: boolean; options: { levels: FitnessOption[]; modes: FitnessOption[]; bodyGoals: BodyGoalOption[] };
 }
 export interface BodyProgram {
   goalKey: string; goalLabel: string; tag: string; hasMetrics: boolean;

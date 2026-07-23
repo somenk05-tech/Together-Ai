@@ -68,6 +68,12 @@ export function Profile() {
         and, with your consent, by your blood markers from the Medical Hub.
       </p>
 
+      {!profile.data.saved && profile.data.prefilled && (
+        <div style={{ marginBottom: 16, background: 'var(--accent-soft)', borderRadius: 12, padding: '11px 14px', fontSize: 13 }}>
+          ✨ We pre-filled your age, gender, height and weight from your Together City profile. Just set your training preferences and save.
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="eyebrow">About you</div>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>

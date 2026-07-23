@@ -30,8 +30,44 @@ export class DatingService {
   // ─────────────── profile ───────────────
   async getProfile(userId: string) {
     const profile = await this.prisma.datingProfile.findUnique({ where: { userId } });
-    if (!profile) return null;
+    if (!profile) {
+      // First-time open: auto-populate shared fields from the Master Profile so
+      // the user only answers dating-specific questions (spec: never ask twice).
+      const pre = await this.prefillFromMaster(userId).catch(() => null);
+      return pre;
+    }
     return this.shapeProfile(profile);
+  }
+
+  /** A prefill object (no saved profile yet) built from the Master Profile —
+   *  name, gender, DOB, birth details, languages and current location. */
+  private async prefillFromMaster(userId: string) {
+    const m = await this.masterProfile.get(userId);
+    const hasAny = m.gender || m.dateOfBirth || m.languages || m.birthCity || m.city;
+    if (!hasAny) return null;
+    const birthPlace = [m.birthCity, m.birthState, m.birthCountry].filter(Boolean).join(', ') || null;
+    const iso = (d: Date | string | null | undefined) => {
+      if (!d) return null;
+      const dt = typeof d === 'string' ? new Date(d) : d;
+      return isNaN(dt.getTime()) ? null : dt.toISOString().slice(0, 10);
+    };
+    return {
+      prefilled: true as const,
+      saved: false as const,
+      name: m.name ?? '',
+      gender: m.gender ?? null,
+      seeking: null,
+      birthDate: iso(m.dateOfBirth),
+      birthTime: m.timeOfBirth ?? null,
+      birthPlace,
+      languages: m.languages ?? null,
+      country: m.country ?? m.birthCountry ?? null,
+      state: m.state ?? m.birthState ?? null,
+      city: m.city ?? m.birthCity ?? null,
+      heightCm: typeof m.heightCm === 'number' ? m.heightCm : null,
+      interests: [],
+      bio: null,
+    };
   }
 
   async upsertProfile(userId: string, dto: UpsertDatingProfileDto) {

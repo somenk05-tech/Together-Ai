@@ -86,12 +86,30 @@ export function DatingProfilePage() {
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    if (existing.data) {
-      const d = existing.data;
-      setForm({ gender: d.gender, seeking: d.seeking, bio: d.bio ?? '', birthDate: d.birthDate, birthTime: d.birthTime ?? '', birthPlace: d.birthPlace ?? '', interests: d.interests });
+    const d = existing.data as (typeof existing.data & { saved?: boolean; name?: string; country?: string | null; state?: string | null; city?: string | null; heightCm?: number | null }) | null;
+    if (!d) return;
+    const isSaved = (d as { saved?: boolean }).saved !== false; // prefill objects carry saved:false
+    setForm({
+      gender: (d.gender as UpsertProfileInput['gender']) ?? 'male',
+      seeking: (d.seeking as UpsertProfileInput['seeking']) ?? 'any',
+      bio: d.bio ?? '', birthDate: d.birthDate ?? '', birthTime: d.birthTime ?? '',
+      birthPlace: d.birthPlace ?? '', interests: d.interests ?? [],
+    });
+    if (isSaved) {
       let ex: DX = {}; try { ex = d.extras ? JSON.parse(d.extras) : {}; } catch { ex = {}; }
       setDx(ex);
       setCollapsed(d.moderation !== 'rejected');
+    } else {
+      // First-time open: seed the location/name/height fields the form shows from
+      // the Master Profile prefill (spec: auto-populate, never ask twice).
+      setDx((prev) => ({
+        ...prev,
+        firstName: prev.firstName || d.name || undefined,
+        country: prev.country || d.country || undefined,
+        state: prev.state || d.state || undefined,
+        city: prev.city || d.city || undefined,
+        heightCm: prev.heightCm || d.heightCm || undefined,
+      }));
     }
   }, [existing.data]);
 
@@ -135,7 +153,9 @@ export function DatingProfilePage() {
     );
   };
 
-  const data = upsert.data ?? existing.data;
+  // A prefill (saved:false) is NOT a saved profile — don't show status/summary for it.
+  const saved = Boolean(existing.data) && (existing.data as { saved?: boolean }).saved !== false;
+  const data = upsert.data ?? (saved ? existing.data : null);
   const mod = data ? MOD[data.moderation] ?? MOD.approved : null;
   const photos = dx.photos ?? [];
 
@@ -149,7 +169,7 @@ export function DatingProfilePage() {
     </div>
   ) : null;
 
-  if (collapsed && existing.data) {
+  if (collapsed && saved) {
     const rows: [string, string][] = [
       ['Name', dx.firstName || '—'],
       ['Looking for', dx.relationshipGoal || '—'],
@@ -197,6 +217,12 @@ export function DatingProfilePage() {
         Four short screens (~3–5 min). Matching is astrology-first; only matches scoring 75%+ are ever shown. Your profile passes a safety check before it goes live.
       </p>
       <StatusBanner />
+
+      {!saved && existing.data && (existing.data as { prefilled?: boolean }).prefilled && (
+        <div style={{ marginTop: 14, background: 'var(--accent-soft)', borderRadius: 12, padding: '11px 14px', fontSize: 13 }}>
+          ✨ We pre-filled what we already know from your Together City profile. Just add your dating-specific details and photos.
+        </div>
+      )}
 
       <form onSubmit={submit}>
         <ValidationSummary missing={v.missing} />
@@ -322,7 +348,7 @@ export function DatingProfilePage() {
         </div>
 
         <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Button type="submit" variant="accent" disabled={upsert.isPending}>{upsert.isPending ? 'Saving…' : existing.data ? 'Save profile' : 'Create profile'}</Button>
+          <Button type="submit" variant="accent" disabled={upsert.isPending}>{upsert.isPending ? 'Saving…' : saved ? 'Save profile' : 'Create profile'}</Button>
           {data?.sign && <span className="pill" style={{ border: '1px solid var(--line)', borderRadius: 999, padding: '6px 14px', fontSize: 12.5 }}>✨ Your sign: <strong>{data.sign}</strong></span>}
         </div>
       </form>

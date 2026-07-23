@@ -30,13 +30,32 @@ export class FitnessService {
 
   async getProfile(userId: string) {
     const row = await this.prisma.fitnessProfile.findUnique({ where: { userId } });
-    if (!row) return { ...DEFAULT_PROFILE, saved: false, options: this.optionsFor('other') };
+    if (!row) {
+      // Auto-populate from the Master Profile (spec: never ask twice). Shared
+      // demographics — age, gender, height, weight — carry over from whatever
+      // hub the user filled first; only fitness-specific answers remain.
+      const pre = await this.prefillFromMaster(userId).catch(() => null);
+      const sex = pre?.sex ?? 'other';
+      return { ...DEFAULT_PROFILE, ...(pre ?? {}), saved: false, prefilled: Boolean(pre && (pre.heightCm || pre.weightKg || pre.age)), options: this.optionsFor(sex) };
+    }
     return {
       age: row.age, sex: row.sex, level: row.level, mode: row.mode, goal: row.goal,
       conditions: row.conditions ? row.conditions.split(',').filter(Boolean) : [],
       heightCm: row.heightCm, weightKg: row.weightKg, bodyGoal: row.bodyGoal,
       saved: true, options: this.optionsFor(row.sex),
     };
+  }
+
+  /** Shared demographics from the Master Profile for a first-time fitness form. */
+  private async prefillFromMaster(userId: string): Promise<{ age?: number; sex?: string; heightCm?: number | null; weightKg?: number | null } | null> {
+    const m = await this.masterProfile.get(userId);
+    const sex = m.gender === 'male' || m.gender === 'female' ? m.gender : undefined;
+    const out: { age?: number; sex?: string; heightCm?: number | null; weightKg?: number | null } = {};
+    if (typeof m.age === 'number') out.age = m.age;
+    if (sex) out.sex = sex;
+    if (typeof m.heightCm === 'number') out.heightCm = m.heightCm;
+    if (typeof m.weightKg === 'number') out.weightKg = m.weightKg;
+    return Object.keys(out).length ? out : null;
   }
 
   async saveProfile(userId: string, dto: SaveFitnessProfileDto) {
