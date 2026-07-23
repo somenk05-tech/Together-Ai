@@ -155,8 +155,11 @@ export class DatingService {
       where: { userId: { not: userId }, visible: true, moderation: 'approved' } as never,
       take: 500,
     });
+    // Connections/blocked users never get a "new match" alert about this member.
+    const excluded = await this.connectionExclusions(userId);
 
     for (const cand of candidates) {
+      if (excluded.has(cand.userId)) continue;
       const candD = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility;
       // Romantic reachability both ways (mirrors matches()).
       const iWant = mine.seeking === 'any' || mine.seeking === cand.gender;
@@ -306,8 +309,12 @@ export class DatingService {
       states.find((s) => s.userOneId === otherId || s.userTwoId === otherId);
 
     const myD = this.parseDX((mine as { extras?: string | null }).extras);
+    // Privacy: connections (family/friend/any) and blocked users NEVER enter the
+    // dating pool — enforced before any scoring (spec: Connection Exclusion).
+    const excluded = await this.connectionExclusions(userId);
     const results = [];
     for (const cand of candidates) {
+      if (excluded.has(cand.userId)) continue;
       const state = stateFor(cand.userId);
       // Quality rules: skip passed (cooldown = forever here) and existing matches.
       if (state && this.passedBy(state, userId)) continue;
@@ -360,6 +367,24 @@ export class DatingService {
 
   private parseDX(extras: string | null | undefined): DXProfile {
     try { return extras ? (JSON.parse(extras) as DXProfile) : {}; } catch { return {}; }
+  }
+
+  /**
+   * Mandatory dating privacy rule (server-side, never frontend): the set of
+   * users who must NEVER appear in this member's Dating Hub or reach the
+   * compatibility engine — everyone they share an ACCEPTED connection with
+   * (family, friend, partner, colleague, any Together City connection) and
+   * anyone in a BLOCKED relationship, in either direction. Family and friends
+   * therefore never discover the member's dating profile.
+   */
+  private async connectionExclusions(userId: string): Promise<Set<string>> {
+    const conns = await this.prisma.connection.findMany({
+      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: { in: ['ACCEPTED', 'BLOCKED'] } } as never,
+      select: { userOneId: true, userTwoId: true },
+    });
+    const set = new Set<string>();
+    for (const c of conns) set.add(c.userOneId === userId ? c.userTwoId : c.userOneId);
+    return set;
   }
 
   /** Best-effort precompute cache of a pair's factor scores. Stored under the
@@ -493,8 +518,11 @@ export class DatingService {
     const cands = await this.prisma.datingProfile.findMany({ where: { userId: { not: hostId }, visible: true, moderation: 'approved' } as never });
     const hostD = this.parseDX((host as { extras?: string | null }).extras);
     const hostInterests = this.splitInterests(host.interests);
+    // Never invite a family member, friend, existing connection or blocked user.
+    const excluded = await this.connectionExclusions(hostId);
     const scored: { userId: string; overall: number }[] = [];
     for (const c of cands) {
+      if (excluded.has(c.userId)) continue;
       const iWant = host.seeking === 'any' || host.seeking === c.gender;
       const theyWant = c.seeking === 'any' || c.seeking === host.gender;
       if (!iWant || !theyWant) continue;

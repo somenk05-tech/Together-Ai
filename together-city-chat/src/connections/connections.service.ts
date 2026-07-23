@@ -141,6 +141,14 @@ export class ConnectionsService {
       where: { id: conn.id },
       data: { status },
     });
+    // Dating privacy (Connection Exclusion): the moment two people become
+    // connected in People — or one blocks the other — they must disappear from
+    // each other's Dating Hub. Tear down any dating match state + cached
+    // compatibility between them. (COUPLE is Dating's own relationship, so it's
+    // never torn down here; it's created directly by the Dating Hub.)
+    if (updated.connectionType !== ConnectionType.COUPLE) {
+      await this.purgeDatingBetween(updated.userOneId, updated.userTwoId).catch(() => undefined);
+    }
     // Accepting a connection makes the two people follow each other (Social hub).
     if (status === ConnectionStatus.ACCEPTED) {
       await this.prisma.follow.createMany({
@@ -311,6 +319,18 @@ export class ConnectionsService {
   }
 
   /** End any household link between the two users (both directions). */
+  /** Remove a pair from each other's Dating Hub: delete any dating-match state
+   *  and cached compatibility between them (privacy rule — connections are never
+   *  dating candidates). The dating conversation, if any, stays as their normal
+   *  People chat (archive policy). */
+  private async purgeDatingBetween(a: string, b: string): Promise<void> {
+    await this.prisma.datingMatch.deleteMany({
+      where: { OR: [{ userOneId: a, userTwoId: b }, { userOneId: b, userTwoId: a }] },
+    }).catch(() => undefined);
+    await (this.prisma as unknown as { compatibilityScore: { deleteMany(x: unknown): Promise<unknown> } }).compatibilityScore
+      .deleteMany({ where: { OR: [{ userA: a, userB: b }, { userA: b, userB: a }] } }).catch(() => undefined);
+  }
+
   private async unsyncHousehold(conn: Connection): Promise<void> {
     const household = (this.prisma as unknown as {
       householdMember: { updateMany: (a: unknown) => Promise<unknown> };
