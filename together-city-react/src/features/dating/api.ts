@@ -51,6 +51,33 @@ export interface CuratedMatch {
   conversationId: string | null;
 }
 
+export interface MatchDetail {
+  user: { id: string; handle: string; name: string; profileImage: string | null };
+  name: string;
+  age: number;
+  gender: string;
+  bio: string | null;
+  photos: string[];
+  interests: string[];
+  personalityTraits: string[];
+  values: string[];
+  city: string | null;
+  state: string | null;
+  heightCm: number | null;
+  languages: string[];
+  relationshipGoal: string | null;
+  diet: string | null; smoking: string | null; drinking: string | null;
+  fitnessLevel: string | null; education: string | null; occupation: string | null;
+  verified: boolean;
+  yourSign: string; theirSign: string;
+  score: number;
+  breakdown: FactorBreakdown;
+  reasons: string[];
+  likedByMe: boolean;
+  matched: boolean;
+  conversationId: string | null;
+}
+
 export interface UpsertProfileInput {
   gender: DatingProfile['gender'];
   seeking: DatingProfile['seeking'];
@@ -67,6 +94,7 @@ export const datingApi = {
   upsertProfile: (input: UpsertProfileInput) => api.post<DatingProfile>('/dating/profile', input).then((r) => r.data),
   deleteProfile: () => api.delete<{ ok: boolean; deleted: boolean }>('/dating/profile').then((r) => r.data),
   matches: (kind: MatchKind) => api.get<CuratedMatch[]>('/dating/matches', { params: { kind } }).then((r) => r.data),
+  matchDetail: (targetUserId: string, kind: MatchKind) => api.get<MatchDetail>(`/dating/matches/${targetUserId}`, { params: { kind } }).then((r) => r.data),
   like: (targetUserId: string, kind: MatchKind) =>
     api.post<{ matched: boolean; conversationId: string | null; chatLocked: boolean; matchId: string }>(`/dating/matches/${targetUserId}/like`, { kind }).then((r) => r.data),
   unlockChat: (targetUserId: string, kind: MatchKind, method: 'wallet' | 'card' = 'wallet') =>
@@ -136,6 +164,13 @@ export function useDeleteDatingProfile() {
 }
 export function useMatches(kind: MatchKind, enabled = true) {
   return useQuery({ queryKey: ['dating', 'matches', kind], queryFn: () => datingApi.matches(kind), enabled });
+}
+export function useMatchDetail(targetUserId: string | null, kind: MatchKind) {
+  return useQuery({
+    queryKey: ['dating', 'match', kind, targetUserId],
+    queryFn: () => datingApi.matchDetail(targetUserId as string, kind),
+    enabled: Boolean(targetUserId),
+  });
 }
 export function useLikeMatch(kind: MatchKind) {
   const qc = useQueryClient();

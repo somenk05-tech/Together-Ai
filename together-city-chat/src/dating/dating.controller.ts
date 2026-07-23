@@ -38,6 +38,12 @@ export class DatingController {
     return this.dating.matches(user.sub, kind);
   }
 
+  @Get('matches/:targetUserId')
+  matchDetail(@CurrentUser() user: JwtUser, @Param('targetUserId') targetUserId: string, @Query() query: Record<string, unknown>) {
+    const { kind } = parseOrThrow(MatchesQuerySchema, query);
+    return this.dating.matchDetail(user.sub, targetUserId, kind);
+  }
+
   @Post('matches/:targetUserId/like')
   like(
     @CurrentUser() user: JwtUser,

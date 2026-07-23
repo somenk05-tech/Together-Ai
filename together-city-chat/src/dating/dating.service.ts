@@ -376,6 +376,81 @@ export class DatingService {
   }
 
   /**
+   * One match's FULL profile for the detail view — the same scoring and privacy
+   * gates as the list (approved + visible + not a connection/blocked + mutually
+   * reachable), plus the richer fields a full profile shows (location, height,
+   * occupation, lifestyle, personality, values, the whole photo gallery).
+   */
+  async matchDetail(userId: string, targetUserId: string, kind: MatchKind = 'romantic') {
+    const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
+    if (!mine) throw new NotFoundException('create your dating profile first');
+    const cand = await this.prisma.datingProfile.findUnique({
+      where: { userId: targetUserId },
+      include: { user: { select: { id: true, handle: true, name: true, profileImage: true } } },
+    });
+    if (!cand || !cand.visible || (cand as { moderation?: string }).moderation !== 'approved') {
+      throw new NotFoundException('This profile is not available.');
+    }
+    // Privacy: a connection or blocked user's dating profile is never exposed.
+    const excluded = await this.connectionExclusions(userId);
+    if (excluded.has(targetUserId)) throw new NotFoundException('This profile is not available.');
+
+    const myD = this.parseDX((mine as { extras?: string | null }).extras);
+    const candD = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & {
+      firstName?: string; photos?: string[]; languages?: string[]; heightCm?: number | null;
+      education?: string; profession?: string; selfieVerified?: boolean;
+    };
+    const theirAge = this.ageOf(cand.birthDate);
+
+    // Romantic requires mutual seeking + passing both sides' hard filters.
+    if (kind === 'romantic') {
+      const iWant = mine.seeking === 'any' || mine.seeking === cand.gender;
+      const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
+      if (!iWant || !theyWant) throw new NotFoundException('This profile is not available.');
+      if (hardFilterReason(myD, candD, theirAge)) throw new NotFoundException('This profile is not available.');
+    }
+
+    const myInterests = this.splitInterests(mine.interests);
+    const theirInterests = this.splitInterests(cand.interests);
+    const { score: astro, signA, signB } = compatibilityScore(
+      { userId, birthDate: mine.birthDate, interests: myInterests },
+      { userId: targetUserId, birthDate: cand.birthDate, interests: theirInterests },
+    );
+    const breakdown = factorScores(astro, myInterests, theirInterests, myD, candD);
+    const score = overallScore(breakdown);
+
+    const state = await this.prisma.datingMatch.findFirst({
+      where: { OR: [{ userOneId: userId, userTwoId: targetUserId }, { userOneId: targetUserId, userTwoId: userId }], kind },
+    });
+    const photos = (candD.photos?.length ? candD.photos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, 10);
+
+    return {
+      user: cand.user,
+      name: candD.firstName || cand.user.name,
+      age: theirAge,
+      gender: cand.gender,
+      bio: cand.bio,
+      photos,
+      interests: theirInterests,
+      personalityTraits: candD.personalityTraits ?? [],
+      values: candD.values ?? [],
+      city: candD.city ?? null, state: candD.state ?? null,
+      heightCm: candD.heightCm ?? null,
+      languages: candD.languages ?? [],
+      relationshipGoal: candD.relationshipGoal ?? null,
+      diet: candD.diet ?? null, smoking: candD.smoking ?? null, drinking: candD.drinking ?? null,
+      fitnessLevel: candD.fitnessLevel ?? null, education: candD.education ?? null, occupation: candD.profession ?? null,
+      verified: Boolean(candD.selfieVerified),
+      yourSign: signA, theirSign: signB,
+      score, breakdown,
+      reasons: explain(breakdown, sharedItems(myInterests, theirInterests)),
+      likedByMe: state ? this.likedBy(state, userId) : false,
+      matched: state?.status === 'matched',
+      conversationId: state?.conversationId ?? null,
+    };
+  }
+
+  /**
    * Mandatory dating privacy rule (server-side, never frontend): the set of
    * users who must NEVER appear in this member's Dating Hub or reach the
    * compatibility engine — everyone they share an ACCEPTED connection with

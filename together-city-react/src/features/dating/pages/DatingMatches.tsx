@@ -26,29 +26,35 @@ function ScoreRing({ score }: { score: number }) {
 /** Photo hero + swipeable thumbnail strip. The primary photo fills a 16:10
  *  banner with a gradient scrim; the name, age and star-line sit on the image,
  *  and the score ring floats top-right. Tap a thumbnail to bring it forward. */
-function MatchGallery({ photos, name, age, theirSign, yourSign, score }: {
-  photos: string[]; name: string; age?: number; theirSign: string; yourSign: string; score: number;
+function MatchGallery({ photos, name, age, theirSign, yourSign, score, href }: {
+  photos: string[]; name: string; age?: number; theirSign: string; yourSign: string; score: number; href?: string;
 }) {
   const [active, setActive] = useState(0);
   const hero = photos[active] ?? photos[0];
-  return (
-    <div>
-      <div style={{ position: 'relative', aspectRatio: '16 / 10', background: 'var(--paper)', overflow: 'hidden' }}>
-        <img src={hero} alt={name} loading="lazy"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(15,12,8,.80) 0%, rgba(15,12,8,.18) 44%, rgba(15,12,8,0) 70%)' }} />
-        <div style={{ position: 'absolute', top: 12, right: 12, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.45))' }}>
-          <ScoreRing score={score} />
+  const HeroInner = (
+    <>
+      <img src={hero} alt={name} loading="lazy"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(15,12,8,.80) 0%, rgba(15,12,8,.18) 44%, rgba(15,12,8,0) 70%)' }} />
+      <div style={{ position: 'absolute', top: 12, right: 12, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.45))' }}>
+        <ScoreRing score={score} />
+      </div>
+      <div style={{ position: 'absolute', left: 16, right: 16, bottom: 12, color: '#fff' }}>
+        <div style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 700, lineHeight: 1.15, textShadow: '0 1px 10px rgba(0,0,0,.5)' }}>
+          {name}{age ? `, ${age}` : ''}
         </div>
-        <div style={{ position: 'absolute', left: 16, right: 16, bottom: 12, color: '#fff' }}>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 700, lineHeight: 1.15, textShadow: '0 1px 10px rgba(0,0,0,.5)' }}>
-            {name}{age ? `, ${age}` : ''}
-          </div>
-          <div style={{ fontSize: 12.5, opacity: 0.92, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
-            {theirSign} · with your {yourSign} — written in the stars
-          </div>
+        <div style={{ fontSize: 12.5, opacity: 0.92, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
+          {theirSign} · with your {yourSign} — written in the stars
         </div>
       </div>
+    </>
+  );
+  const heroStyle: React.CSSProperties = { position: 'relative', display: 'block', aspectRatio: '16 / 10', background: 'var(--paper)', overflow: 'hidden' };
+  return (
+    <div>
+      {href
+        ? <Link to={href} style={heroStyle} aria-label={`Open ${name}'s profile`}>{HeroInner}</Link>
+        : <div style={heroStyle}>{HeroInner}</div>}
       {photos.length > 1 && (
         <div style={{ display: 'flex', gap: 6, padding: '8px 10px 2px', overflowX: 'auto' }}>
           {photos.map((p, i) => (
@@ -76,17 +82,18 @@ function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
   const chatOpen = unlocked || Boolean(match.conversationId);
   const photos = match.photos ?? [];
   const hasPhotos = photos.length > 0;
+  const detailHref = `/dating/match?u=${match.user.id}&kind=${kind}`;
 
   return (
     <article className="card" style={{ marginBottom: 16, padding: 0, overflow: 'hidden' }}>
       {hasPhotos ? (
         <MatchGallery photos={photos} name={match.user.name} age={match.age}
-          theirSign={match.theirSign} yourSign={match.yourSign} score={match.score} />
+          theirSign={match.theirSign} yourSign={match.yourSign} score={match.score} href={detailHref} />
       ) : (
         <div style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '18px 18px 0' }}>
           <ScoreRing score={match.score} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>{match.user.name}{match.age ? `, ${match.age}` : ''}</div>
+            <Link to={detailHref} style={{ fontWeight: 700, fontSize: 16 }}>{match.user.name}{match.age ? `, ${match.age}` : ''}</Link>
             <div className="muted" style={{ fontSize: 12.5 }}>
               {match.theirSign} · with your {match.yourSign} — written in the stars
             </div>
