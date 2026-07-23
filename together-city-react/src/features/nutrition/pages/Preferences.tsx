@@ -4,6 +4,8 @@ import { useFormValidation, ValidationSummary, FieldError, successToast } from '
 import { Button, Spinner } from '@/components/ui';
 import { useFoodPref, useNutritionTargets, useUpdateFoodPref } from '../hooks';
 import { useBloodHistory } from '@/features/medical/api';
+import { useMasterProfile } from '@/features/profile/hooks';
+import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 import type { FoodPref } from '../api';
 import { DIET_META } from './Recipes';
 
@@ -149,6 +151,8 @@ export function Preferences() {
   const existing = useFoodPref();
   const update = useUpdateFoodPref();
   const bloodHistory = useBloodHistory();
+  const master = useMasterProfile();
+  const ageLocked = master.data?.age != null;
   const [form, setForm] = useState<FoodPref | null>(null);
   const [ex, setEx] = useState<Extras>({});
   const [saved, setSaved] = useState(false);
@@ -174,6 +178,12 @@ export function Preferences() {
       setExLoaded(true);
     }
   }, [existing.data, form]);
+
+  // Age is owned by the Master Profile: keep the (read-only) field in step with it.
+  useEffect(() => {
+    const mAge = master.data?.age;
+    if (mAge != null && form && form.age !== mAge) setForm((f) => (f ? { ...f, age: mAge } : f));
+  }, [master.data?.age, form]);
 
   // Pre-select health conditions + goals from the latest blood panel (once, after
   // the saved profile has loaded) — "if there's blood data, feed it in; else the
@@ -555,9 +565,10 @@ export function Preferences() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
             <div ref={v.reg('age')}>
               <span style={label}>Age</span>
-              <input type="number" min={10} max={120} value={form.age ?? ''} placeholder="30"
-                onChange={(e) => { setForm({ ...form, age: num(e.target.value) }); v.clear('age'); }} style={{ ...field, ...v.errStyle('age') }} />
-              <FieldError msg={v.errors.age} />
+              <input type="number" min={10} max={120} value={form.age ?? ''} placeholder="30" disabled={ageLocked}
+                title={ageLocked ? 'Set in your Master Profile' : undefined}
+                onChange={(e) => { setForm({ ...form, age: num(e.target.value) }); v.clear('age'); }} style={{ ...field, ...v.errStyle('age'), ...(ageLocked ? masterLockedStyle : {}) }} />
+              {ageLocked ? <MasterLockedNote label="Age" /> : <FieldError msg={v.errors.age} />}
             </div>
             <div ref={v.reg('sex')}>
               <span style={label}>Sex</span>

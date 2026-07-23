@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useFormValidation, ValidationSummary, successToast } from '@/components/form-validation';
 import { Button, Spinner, EmptyState } from '@/components/ui';
 import { useFitnessProfile, useSaveFitnessProfile } from '../api';
+import { useMasterProfile } from '@/features/profile/hooks';
+import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 
 const GOALS = [
   { key: 'general', label: 'General health' }, { key: 'weightLoss', label: 'Weight loss' },
@@ -26,6 +28,8 @@ function Choice({ on, label, onClick }: { on: boolean; label: string; onClick: (
 /** Fitness Profile — age, ability (basic → super-athletic), modality, goal, conditions. */
 export function Profile() {
   const profile = useFitnessProfile();
+  const master = useMasterProfile();
+  const ageLocked = master.data?.age != null;
   const save = useSaveFitnessProfile();
   const [age, setAge] = useState(35);
   const [sex, setSex] = useState('other');
@@ -74,12 +78,14 @@ export function Profile() {
           <label style={{ fontSize: 13.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             Age
             <input type="number" min={13} max={100} value={age} onChange={(e) => setAge(Number(e.target.value))}
-              style={{ width: 72, padding: '8px 10px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+              disabled={ageLocked} title={ageLocked ? 'Set in your Master Profile' : undefined}
+              style={{ width: 72, padding: '8px 10px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', ...(ageLocked ? masterLockedStyle : {}) }} />
           </label>
           <div style={{ display: 'flex', gap: 8 }}>
             {SEX.map((s) => <Choice key={s.key} on={sex === s.key} label={s.label} onClick={() => setSex(s.key)} />)}
           </div>
         </div>
+        {ageLocked && <MasterLockedNote label="Age" />}
       </div>
 
       <div className="card" style={{ marginBottom: 14 }}>

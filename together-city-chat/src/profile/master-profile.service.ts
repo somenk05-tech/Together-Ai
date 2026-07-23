@@ -112,14 +112,22 @@ export class MasterProfileService {
     const astroDb = (this.prisma as unknown as {
       astroProfile: { findUnique: (a: unknown) => Promise<Record<string, unknown> | null> };
     }).astroProfile;
-    const [row, user, astro, dating, food, fitness] = await Promise.all([
+    const beautyDb = (this.prisma as unknown as {
+      beautyProfile: { findUnique: (a: unknown) => Promise<{ extras?: string | null } | null> };
+    }).beautyProfile;
+    const [row, user, astro, dating, food, fitness, beauty] = await Promise.all([
       this.master.findUnique({ where: { userId } }).catch(() => null),
       this.prisma.user.findUnique({ where: { id: userId } }),
       astroDb.findUnique({ where: { userId } }).catch(() => null),
       this.prisma.datingProfile.findUnique({ where: { userId } }).catch(() => null),
       this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null),
       this.prisma.fitnessProfile.findUnique({ where: { userId } }).catch(() => null),
+      beautyDb.findUnique({ where: { userId } }).catch(() => null),
     ]);
+    // Beauty stores its Basic Profile (age/gender/height/weight/city/occupation)
+    // inside an extras JSON blob — parse it so those fields count as a source.
+    let beautyEx: { age?: number; gender?: string; heightCm?: number; weightKg?: number; city?: string; occupation?: string } = {};
+    try { beautyEx = beauty?.extras ? JSON.parse(beauty.extras) : {}; } catch { beautyEx = {}; }
 
     const astroRow = astro as { birthDate?: Date; birthTime?: string | null; birthCountry?: string; birthState?: string | null; birthCity?: string; timeZone?: string } | null;
     const place = ((dating?.birthPlace as string | undefined) ?? '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -140,6 +148,7 @@ export class MasterProfileService {
       } : {},
       food ? { heightCm: food.heightCm, weightKg: food.weightKg, gender: food.sex } : {},
       fitness ? { heightCm: fitness.heightCm, weightKg: fitness.weightKg, gender: fitness.sex === 'other' ? undefined : fitness.sex } : {},
+      { heightCm: beautyEx.heightCm, weightKg: beautyEx.weightKg, gender: beautyEx.gender, city: beautyEx.city, occupation: beautyEx.occupation },
     );
 
     // Self-healing consolidation: persist anything the sources knew that the
@@ -161,7 +170,8 @@ export class MasterProfileService {
     const rawFitAge = (fitness as { age?: number | null } | null)?.age;
     const age = computeAge(merged.dateOfBirth ?? null)
       ?? (typeof rawFoodAge === 'number' ? rawFoodAge : null)
-      ?? (typeof rawFitAge === 'number' ? rawFitAge : null);
+      ?? (typeof rawFitAge === 'number' ? rawFitAge : null)
+      ?? (typeof beautyEx.age === 'number' ? beautyEx.age : null);
 
     return {
       name: user?.name ?? '',

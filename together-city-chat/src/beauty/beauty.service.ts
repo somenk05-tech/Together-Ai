@@ -3,6 +3,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { MedicalService } from '../medical/medical.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
+import { MasterProfileService } from '../profile/master-profile.service';
 import {
   beautyInsights, recommendProducts, BEAUTY_PRODUCTS, CONCERN_TAGS,
   type BeautyInsight,
@@ -47,7 +48,25 @@ export class BeautyService {
     private readonly medical: MedicalService,
     private readonly financial: FinancialService,
     private readonly ai: AiService,
+    private readonly masterProfile: MasterProfileService,
   ) {}
+
+  /** Overlay the Master Profile's shared demographics onto the beauty profile
+   *  blob so the Skin & Hair form auto-fills age/gender/height/weight/city/
+   *  occupation from whatever hub the user filled first (single source of truth). */
+  private async withMasterDemographics(userId: string, profile: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const m = await this.masterProfile.get(userId).catch(() => null);
+    if (!m) return profile;
+    const merged = { ...profile };
+    const put = (k: string, v: unknown) => { if (v !== undefined && v !== null && v !== '') merged[k] = v; };
+    put('age', typeof m.age === 'number' ? m.age : undefined);
+    put('gender', m.gender ?? undefined);
+    put('heightCm', typeof m.heightCm === 'number' ? m.heightCm : undefined);
+    put('weightKg', typeof m.weightKg === 'number' ? m.weightKg : undefined);
+    put('city', m.city ?? undefined);
+    put('occupation', m.occupation ?? undefined);
+    return merged;
+  }
 
   private get beauty() {
     return (this.prisma as unknown as {
@@ -132,12 +151,16 @@ export class BeautyService {
   // ─────────────── skin & hair profile ───────────────
   async getProfile(userId: string) {
     const row = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
-    if (!row) return { ...DEFAULT_PROFILE, saved: false, profile: {}, analysis: null, photos: [], analyzedAt: null, aiEnabled: this.ai.enabled };
+    if (!row) {
+      // First open: auto-fill shared demographics from the Master Profile.
+      const profile = await this.withMasterDemographics(userId, {});
+      return { ...DEFAULT_PROFILE, saved: false, profile, analysis: null, photos: [], analyzedAt: null, aiEnabled: this.ai.enabled };
+    }
     return {
       skinType: row.skinType, hairType: row.hairType,
       concerns: row.concerns ? row.concerns.split(',').filter(Boolean) : [],
       saved: true,
-      profile: safeJson<Record<string, unknown>>(row.extras, {}),
+      profile: await this.withMasterDemographics(userId, safeJson<Record<string, unknown>>(row.extras, {})),
       analysis: safeJson<unknown>(row.analysisJson, null),
       photos: safeJson<unknown[]>(row.photosJson, []),
       progress: safeJson<ProgressEntry[]>(row.progressJson, []),
@@ -173,6 +196,15 @@ export class BeautyService {
         ...(refreshed ? { analysisJson: JSON.stringify(refreshed) } : {}) } as never,
       create: { userId, skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto), photosJson: '[]', progressJson: '[]' } as never,
     });
+
+    // Master Profile sync — shared demographics flow back to the single source of
+    // truth and propagate to every other hub (age lives in the master fallback).
+    const pp = p as { gender?: string; heightCm?: number; weightKg?: number; city?: string; occupation?: string };
+    await this.masterProfile.syncShared(userId, {
+      gender: pp.gender, heightCm: pp.heightCm, weightKg: pp.weightKg,
+      city: pp.city, occupation: pp.occupation,
+    }, 'beauty').catch(() => undefined);
+
     return this.getProfile(userId);
   }
 

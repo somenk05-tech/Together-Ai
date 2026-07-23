@@ -6,6 +6,8 @@ import { SearchSelect } from '@/components/SearchSelect';
 import { MultiSelect } from '@/components/MultiSelect';
 import type { LookupOption } from '@/api/lookups.api';
 import { useDatingProfile, useUpsertDatingProfile, type UpsertProfileInput } from '../api';
+import { useMasterProfile } from '@/features/profile/hooks';
+import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 
 const field: React.CSSProperties = {
   width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 10,
@@ -79,6 +81,8 @@ function resizePhoto(file: File, maxDim = 720): Promise<string> {
 export function DatingProfilePage() {
   const existing = useDatingProfile();
   const upsert = useUpsertDatingProfile();
+  const master = useMasterProfile();
+  const dobLocked = Boolean(master.data?.dateOfBirth);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<UpsertProfileInput>({ gender: 'male', seeking: 'any', bio: '', birthDate: '', birthTime: '', birthPlace: '', interests: [] });
@@ -112,6 +116,15 @@ export function DatingProfilePage() {
       }));
     }
   }, [existing.data]);
+
+  // Date of birth is owned by the Master Profile — keep the locked field in sync.
+  useEffect(() => {
+    const dob = master.data?.dateOfBirth;
+    if (!dob) return;
+    const iso = new Date(dob).toISOString().slice(0, 10);
+    if (iso && !isNaN(new Date(dob).getTime())) setForm((f) => (f.birthDate === iso ? f : { ...f, birthDate: iso }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [master.data?.dateOfBirth]);
 
   // Global validation standard — the match engine needs these to work at all.
   // NOTE: must be called before any early return — hooks can't be conditional.
@@ -235,7 +248,7 @@ export function DatingProfilePage() {
                 <option value="any">Anyone</option><option value="male">Men</option><option value="female">Women</option><option value="nonbinary">Non-binary people</option>
               </select>
             </div>
-            <div ref={v.reg('birthDate')}><span style={label}>Date of birth</span><input type="date" value={form.birthDate} onChange={(e) => { setForm({ ...form, birthDate: e.target.value }); v.clear('birthDate'); }} style={{ ...field, ...v.errStyle('birthDate') }} /><FieldError msg={v.errors.birthDate} /></div>
+            <div ref={v.reg('birthDate')}><span style={label}>Date of birth</span><input type="date" value={form.birthDate} disabled={dobLocked} title={dobLocked ? 'Set in your Master Profile' : undefined} onChange={(e) => { setForm({ ...form, birthDate: e.target.value }); v.clear('birthDate'); }} style={{ ...field, ...v.errStyle('birthDate'), ...(dobLocked ? masterLockedStyle : {}) }} />{dobLocked ? <MasterLockedNote label="Date of birth" /> : <FieldError msg={v.errors.birthDate} />}</div>
             <div><span style={label}>Time of birth <span style={{ textTransform: 'none' }}>(optional)</span></span><input type="time" value={form.birthTime ?? ''} onChange={(e) => setForm({ ...form, birthTime: e.target.value })} style={field} /></div>
             <div><span style={label}>Place of birth <span style={{ textTransform: 'none' }}>(optional)</span></span><input value={form.birthPlace ?? ''} placeholder="City" onChange={(e) => setForm({ ...form, birthPlace: e.target.value })} style={field} /></div>
 

@@ -5,10 +5,11 @@ import { BeautyController } from './beauty.controller';
 import { BeautyService } from './beauty.service';
 import { FinancialModule } from '../financial/financial.module';
 import { AiModule } from '../ai/ai.module';
+import { ProfileModule } from '../profile/profile.module';
 
 @Module({
   // MedicalModule gives Beauty the consent-gated biomarker reader.
-  imports: [PrismaModule, MedicalModule, FinancialModule, AiModule],
+  imports: [PrismaModule, MedicalModule, FinancialModule, AiModule, ProfileModule],
   controllers: [BeautyController],
   providers: [BeautyService],
 })

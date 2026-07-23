@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
 import { useBeautyProfile, useSaveBeautyProfile, useAnalyzeBeautyPhotos, useBeautyInsights, useBeautyHistory, useConditionSuggestions, useDeleteLatestAssessment } from '../api';
 import type { BeautyAssessment, BeautyReading, AssessLevel, BeautyProgressEntry } from '../api';
+import { useMasterProfile } from '@/features/profile/hooks';
+import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 
 /** Assessment-level display meta for the timeline. */
 const LEVEL_META: Record<string, { c: string; label: string }> = {
@@ -371,6 +373,8 @@ export function Profile() {
   const save = useSaveBeautyProfile();
   const analyze = useAnalyzeBeautyPhotos();
   const del = useDeleteLatestAssessment();
+  const master = useMasterProfile();
+  const ageLocked = master.data?.age != null;
   const [tab, setTab] = useState<'photos' | 'profile'>('photos');
   const [f, setF] = useState<Form>(EMPTY);
   const [pics, setPics] = useState<Record<string, { preview: string; base64: string; mediaType: string }>>({});
@@ -660,13 +664,14 @@ export function Profile() {
           <div className="card" style={{ marginBottom: 14 }}>
             <div className="eyebrow" style={{ marginBottom: 10 }}>Basic profile</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 10 }}>
-              <input style={fld} type="number" placeholder="Age" value={f.age ?? ''} onChange={(e) => set('age', e.target.value ? +e.target.value : undefined)} />
+              <input style={{ ...fld, ...(ageLocked ? masterLockedStyle : {}) }} type="number" placeholder="Age" value={f.age ?? ''} disabled={ageLocked} title={ageLocked ? 'Set in your Master Profile' : undefined} onChange={(e) => set('age', e.target.value ? +e.target.value : undefined)} />
               <select style={fld} value={f.gender ?? ''} onChange={(e) => set('gender', e.target.value || undefined)}><option value="">Gender</option><option>Female</option><option>Male</option><option>Other</option></select>
               <input style={fld} type="number" placeholder="Height (cm)" value={f.heightCm ?? ''} onChange={(e) => set('heightCm', e.target.value ? +e.target.value : undefined)} />
               <input style={fld} type="number" placeholder="Weight (kg)" value={f.weightKg ?? ''} onChange={(e) => set('weightKg', e.target.value ? +e.target.value : undefined)} />
               <input style={fld} placeholder="City / climate" value={f.city ?? ''} onChange={(e) => set('city', e.target.value)} />
               <input style={fld} placeholder="Occupation" value={f.occupation ?? ''} onChange={(e) => set('occupation', e.target.value)} />
             </div>
+            {ageLocked && <MasterLockedNote label="Age" />}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
               {LIFESTYLE.map((l) => <Chip key={l} on={isOn('lifestyle', l)} label={l} onClick={() => single('lifestyle', l)} />)}
             </div>
