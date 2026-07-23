@@ -129,6 +129,23 @@ export function useHouseholdSharing() {
   return { query, update };
 }
 
+/** Family Meal Planning mode — the shared household toggle + this user's role.
+ *  Toggling regenerates nobody automatically; members derive live from the
+ *  master plan, so every planner cache is invalidated to re-read on next view. */
+export function useFamilyMealPlanning() {
+  const qc = useQueryClient();
+  const query = useQuery({ queryKey: ['nutrition', 'family', 'meal-planning'], queryFn: () => nutritionApi.familyMealPlanning() });
+  const update = useMutation({
+    mutationFn: (on: boolean) => nutritionApi.setFamilyMealPlanning(on),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'family', 'meal-planning'] });
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'weekly'] });
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'daily'] });
+    },
+  });
+  return { query, update };
+}
+
 /** Shared household pantry. */
 export function usePantry() {
   return useQuery({ queryKey: ['nutrition', 'family', 'pantry'], queryFn: () => nutritionApi.pantry() });

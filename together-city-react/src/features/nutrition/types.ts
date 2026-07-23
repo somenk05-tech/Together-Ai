@@ -90,6 +90,9 @@ export interface WeekPlan {
   needsPlan?: boolean;                           // read-only view (Daily) with no saved plan yet
   stale?: boolean;                               // preferences changed since the plan was saved
   isCurrentWeek?: boolean;                       // whether the loaded plan is this calendar week
+  familyMode?: boolean;                          // this plan is derived from the household master plan
+  readOnly?: boolean;                            // member view — can't regenerate in Family Mode
+  basedOnFamily?: { ownerName: string; factor: number }; // whose family plan + personalisation factor
 }
 
 /** One saved week in the calendar/timeline. */

@@ -118,7 +118,18 @@ export function WeeklyPlanner() {
       <MedicalRecs />
       <MedicalAdvisories advisories={week.advisories} healthScore={week.healthScore} />
 
-      {weeksQ.data && weeksQ.data.length > 0 && (
+      {/* Family Mode: this is a read-only, personalised view of the household's
+          master plan. The member can't generate a different week. */}
+      {week.familyMode && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', margin: '0 0 16px', background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 12 }}>
+          <span style={{ fontSize: 18 }}>👨‍👩‍👧</span>
+          <span style={{ fontSize: 13, flex: 1, minWidth: 200 }}>
+            <b>Based on your Family Meal Plan{week.basedOnFamily?.ownerName ? ` · ${week.basedOnFamily.ownerName}` : ''}.</b> These are the household's shared meals, with portions and macros personalised to your targets and any medical or diet needs. To plan independently, ask the head of your household to turn off Family Meal Planning.
+          </span>
+        </div>
+      )}
+
+      {!week.familyMode && weeksQ.data && weeksQ.data.length > 0 && (
         <WeekTimeline
           weeks={weeksQ.data} activeKey={activeKey}
           onSelect={(key) => { setSelectedKey(key); setDayIndex(todayIndex()); }}
@@ -141,7 +152,7 @@ export function WeeklyPlanner() {
 
       {/* Saved plans never regenerate on their own — offer an explicit refresh when
           preferences changed (current week only). */}
-      {onCurrentWeek && week.stale && (
+      {!week.readOnly && onCurrentWeek && week.stale && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', margin: '0 0 16px', background: '#fff8e1', border: '1px solid #f0d68a', borderRadius: 12 }}>
           <span style={{ fontSize: 18 }}>✳️</span>
           <span style={{ fontSize: 13, flex: 1, minWidth: 200 }}>Your food preferences changed since this week was generated. Your saved plan is unchanged — regenerate it to apply your new preferences.</span>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { PageHeader, Button, Spinner } from '@/components/ui';
 import {
   useFamilyMembers, useFamilyMemberMutations, useFamilyProfile,
-  useHouseholdInvites, useRespondHouseholdInvite, useHouseholdSharing,
+  useHouseholdInvites, useRespondHouseholdInvite, useHouseholdSharing, useFamilyMealPlanning,
 } from '@/features/nutrition/hooks';
 import type { HouseholdSharing } from '@/features/nutrition/api';
 import type { FamilyMemberProfile, FamilyMemberInput, HouseholdRole } from '@/features/nutrition/api';
@@ -108,6 +108,47 @@ function FamilyProfileCard() {
           ⚠️ {p.summary.medicalAlerts.length} medical note{p.summary.medicalAlerts.length === 1 ? '' : 's'} across the household — the planner portions each plate to keep everyone safe.
         </p>
       )}
+    </div>
+  );
+}
+
+/* ─────────────────── Family Meal Planning mode (household toggle) ─────────────────── */
+function FamilyMealPlanningCard() {
+  const { query, update } = useFamilyMealPlanning();
+  const ctx = query.data;
+  if (!ctx) return null;
+  const on = ctx.familyMealPlanning;
+  const isOwner = ctx.role === 'owner';
+  return (
+    <div className="card" style={{ marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <h3 style={{ margin: 0, fontSize: 16 }}>🍽️ Family Meal Planning</h3>
+        <span className="muted" style={{ fontSize: 12 }}>cook together, or plan independently</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600 }}>{on ? 'ON — one shared family meal' : 'OFF — independent meal plans'}</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+            {on
+              ? 'Everyone follows the same weekly meals with personalised portions, macros and medical or diet substitutions. Refreshing or skipping a meal updates every member.'
+              : 'Each connected member gets their own independent AI meal plan while staying in the family. Refreshing a meal affects only that member.'}
+          </div>
+        </div>
+        {isOwner ? (
+          <button role="switch" aria-checked={on} disabled={update.isPending}
+            onClick={() => update.mutate(!on)}
+            style={{ flex: 'none', width: 48, height: 28, borderRadius: 999, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .15s', background: on ? 'var(--accent)' : 'var(--line)' }}>
+            <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+          </button>
+        ) : (
+          <span className="muted" style={{ fontSize: 11.5, textAlign: 'right', maxWidth: 130 }}>
+            Set by the head of your household.
+          </span>
+        )}
+      </div>
+      <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>
+        This is a family-level setting — it applies to everyone in the household.
+      </p>
     </div>
   );
 }
@@ -268,6 +309,7 @@ export function FamilyConnect() {
 
       <div style={{ maxWidth: 820, margin: '0 auto' }}>
         <InvitesInbox />
+        <FamilyMealPlanningCard />
         <FamilyProfileCard />
         <PrivacyCard />
 

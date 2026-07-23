@@ -20,6 +20,8 @@ export const nutritionApi = {
   familyHealth: () => api.get<FamilyHealth>('/nutrition/family/health').then((r) => r.data),
   householdSharing: () => api.get<HouseholdSharing>('/nutrition/family/sharing').then((r) => r.data),
   setHouseholdSharing: (patch: Partial<HouseholdSharing>) => api.patch<HouseholdSharing>('/nutrition/family/sharing', patch).then((r) => r.data),
+  familyMealPlanning: () => api.get<FamilyMealPlanningContext>('/nutrition/family/meal-planning').then((r) => r.data),
+  setFamilyMealPlanning: (on: boolean) => api.patch<{ familyMealPlanning: boolean }>('/nutrition/family/meal-planning', { on }).then((r) => r.data),
   pantry: () => api.get<PantryView>('/nutrition/family/pantry').then((r) => r.data),
   addPantryItem: (name: string, grams?: number) => api.post<PantryView>('/nutrition/family/pantry', { name, grams }).then((r) => r.data),
   stockPantry: () => api.post<PantryView>('/nutrition/family/pantry/stock', {}).then((r) => r.data),
@@ -114,6 +116,14 @@ export interface FamilyMemberProfile {
   targets: { kcal: number; protein: number; carb: number; fat: number; fiber: number; adjustments: string[] };
 }
 export interface HouseholdSharing { targets: boolean; conditions: boolean; weight: boolean; bloodTests: boolean }
+
+/** Planner context for this user: their household role + the shared mode flag. */
+export interface FamilyMealPlanningContext {
+  role: 'owner' | 'member' | 'solo';
+  ownerId: string;
+  familyMealPlanning: boolean;
+  hasFamily: boolean;
+}
 
 /** Family Health command centre (Medical Hub → Family Profiles). */
 export type HealthStatus = 'excellent' | 'good' | 'attention' | 'follow-up';

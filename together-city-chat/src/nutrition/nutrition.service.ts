@@ -271,6 +271,10 @@ interface PrefExtras {
   allergies?: string; excluded?: string; maxCookMin?: number | null; weekly?: Record<string, 'veg' | 'nonveg'>;
   healthConditions?: string[]; budgetInr?: number | null;
   householdSharing?: Partial<HouseholdSharing>;
+  /** Family-level setting (stored on the household OWNER's pref). Default ON:
+   *  one shared master plan with personalised portions. OFF: every connected
+   *  member gets an independent AI plan while staying in the family. */
+  familyMealPlanning?: boolean;
 }
 /** Parse a JSON string column, returning a fallback on null/invalid. */
 function safeJson<T>(s: string | null | undefined, fallback: T): T {
@@ -1871,6 +1875,93 @@ export class NutritionService implements OnModuleInit {
     return next;
   }
 
+  // ─────────────── Family Meal Planning mode (family-level setting) ───────────────
+  /** The household's Family-Meal-Planning flag (stored on the OWNER's pref).
+   *  Defaults to ON — one shared master plan with personalised portions. */
+  async getFamilyMealPlanning(ownerId: string): Promise<boolean> {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(() => null);
+    return parseExtras((pref as { extras?: string | null } | null)?.extras).familyMealPlanning !== false;
+  }
+
+  /** Set the household's Family-Meal-Planning flag (owner only). */
+  async setFamilyMealPlanning(ownerId: string, on: boolean): Promise<{ familyMealPlanning: boolean }> {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(() => null);
+    if (!pref) throw new NotFoundException('Set up your Nutrition profile first.');
+    const extras = parseExtras((pref as { extras?: string | null }).extras);
+    extras.familyMealPlanning = !!on;
+    await this.prisma.foodPref.update({ where: { userId: ownerId }, data: { extras: JSON.stringify(extras) } as never });
+    return { familyMealPlanning: !!on };
+  }
+
+  /** The household owner this user is an ACCEPTED member of (or null). */
+  private async householdOwnerFor(memberUserId: string): Promise<string | null> {
+    const link = await this.household.findFirst({ where: { memberUserId, status: 'accepted' } }).catch(() => null);
+    return link?.ownerId ?? null;
+  }
+
+  /**
+   * Resolve how the planner should behave for this user:
+   *  - `owner`  : head of a household with ≥1 accepted member.
+   *  - `member` : an accepted member of someone else's household.
+   *  - `solo`   : nobody connected → always an independent plan.
+   * `familyMealPlanning` is the household's shared flag (default ON). When ON,
+   * members follow one master family plan (read-only personalised view); when
+   * OFF, every member gets an independent AI plan while staying connected.
+   */
+  async familyContext(userId: string): Promise<{ role: 'owner' | 'member' | 'solo'; ownerId: string; familyMealPlanning: boolean; hasFamily: boolean }> {
+    const asOwner = await this.household.findFirst({ where: { ownerId: userId, memberUserId: { not: null }, status: 'accepted' } as never }).catch(() => null);
+    if (asOwner) {
+      return { role: 'owner', ownerId: userId, familyMealPlanning: await this.getFamilyMealPlanning(userId), hasFamily: true };
+    }
+    const ownerId = await this.householdOwnerFor(userId);
+    if (ownerId) {
+      return { role: 'member', ownerId, familyMealPlanning: await this.getFamilyMealPlanning(ownerId), hasFamily: true };
+    }
+    return { role: 'solo', ownerId: userId, familyMealPlanning: true, hasFamily: false };
+  }
+
+  /**
+   * A member's READ-ONLY view derived from the household's master family plan:
+   * the same meals, scaled to this member's own daily-calorie target (with their
+   * macros recomputed proportionally). Returns null when the household has no
+   * family plan yet (caller then falls back to the member's own plan). This is
+   * the single-source-of-truth read for the Individual planner in Family Mode.
+   */
+  private async familyDerivedWeekly(memberUserId: string, ownerId: string, currentMon: Date) {
+    const plans = await this.prisma.mealPlan.findMany({ where: { userId: ownerId, mode: 'family' }, orderBy: { createdAt: 'desc' } }) as unknown as Array<{ key: string; weekStart?: Date | null; createdAt: Date }>;
+    const master = plans.find((p) => this.planWeek(p).getTime() === currentMon.getTime()) ?? plans[0];
+    if (!master) return null;
+
+    const shaped = await this.shapePlan(master.key);
+    // Personalisation factor: this member's daily target vs the plan owner's.
+    const [mine, theirs] = await Promise.all([this.targets(memberUserId), this.targets(ownerId)]);
+    const factor = Math.min(1.9, Math.max(0.4, (mine.kcal || 1) / (theirs.kcal || 1)));
+    const owner = await this.prisma.user.findUnique({ where: { id: ownerId }, select: { name: true } }).catch(() => null);
+
+    const scaleMeal = (m: Record<string, unknown>): Record<string, unknown> => ({
+      ...m,
+      grams: typeof m.grams === 'number' ? Math.round((m.grams as number) * factor) : m.grams,
+      kcal: typeof m.kcal === 'number' ? Math.round((m.kcal as number) * factor) : m.kcal,
+      protein: typeof m.protein === 'number' ? Math.round((m.protein as number) * factor) : m.protein,
+      carbs: typeof m.carbs === 'number' ? Math.round((m.carbs as number) * factor) : m.carbs,
+      fat: typeof m.fat === 'number' ? Math.round((m.fat as number) * factor) : m.fat,
+      fiber: typeof m.fiber === 'number' ? Math.round((m.fiber as number) * factor) : m.fiber,
+    });
+
+    const days = (shaped.days as Array<Record<string, unknown>>).map((d) => ({
+      ...d,
+      meals: (d.meals as Array<Record<string, unknown>>).map(scaleMeal),
+    }));
+
+    return {
+      ...shaped,
+      days,
+      familyMode: true as const,
+      readOnly: true as const,
+      basedOnFamily: { ownerName: owner?.name ?? 'your family', factor: Math.round(factor * 100) / 100 },
+    };
+  }
+
   // ─────────────── shared pantry (one per household) ───────────────
   /** The household pantry, grouped into supermarket aisles with on-hand amounts. */
   async pantryList(ownerId: string) {
@@ -2391,6 +2482,22 @@ export class NutritionService implements OnModuleInit {
       return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
     }
     const currentMon = weekMonday(new Date());
+
+    // FAMILY MODE: a connected member's Individual planner is a READ-ONLY,
+    // personalised view of the household's master family plan (single source of
+    // truth). Only when the family flag is ON; otherwise the member gets their
+    // own independent plan below. Owners keep using mode='family' directly.
+    if (mode === 'individual') {
+      const ctx = await this.familyContext(userId).catch(() => null);
+      if (ctx?.role === 'member' && ctx.familyMealPlanning) {
+        const derived = await this.familyDerivedWeekly(userId, ctx.ownerId, currentMon).catch(() => null);
+        if (derived) {
+          const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
+          return { ...derived, stale: false, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
+        }
+      }
+    }
+
     const plans = await this.prisma.mealPlan.findMany({ where: { userId, mode }, orderBy: { createdAt: 'desc' } }) as unknown as Array<{ key: string; weekStart?: Date | null; createdAt: Date }>;
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const current = plans.find((p) => this.planWeek(p).getTime() === currentMon.getTime());
@@ -2425,6 +2532,18 @@ export class NutritionService implements OnModuleInit {
     const status = await this.profileStatus(userId);
     if (!status.complete) {
       return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
+    }
+    // In Family Mode a member cannot generate a different plan — return the
+    // read-only family-derived view instead (the owner regenerates the master).
+    if (mode === 'individual') {
+      const ctx = await this.familyContext(userId).catch(() => null);
+      if (ctx?.role === 'member' && ctx.familyMealPlanning) {
+        const derived = await this.familyDerivedWeekly(userId, ctx.ownerId, weekMonday(new Date())).catch(() => null);
+        if (derived) {
+          const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
+          return { ...derived, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
+        }
+      }
     }
     const plan = await this.generatePlan(userId, mode, weekMonday(new Date()));
     const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
@@ -2471,6 +2590,18 @@ export class NutritionService implements OnModuleInit {
   async newWeek(userId: string, mode: PlanMode = 'individual', weekStart?: string) {
     const status = await this.profileStatus(userId);
     if (!status.complete) return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
+    // Family Mode: members don't author their own weeks — hand back the read-only
+    // family-derived view (the owner owns the master plan).
+    if (mode === 'individual') {
+      const ctx = await this.familyContext(userId).catch(() => null);
+      if (ctx?.role === 'member' && ctx.familyMealPlanning) {
+        const derived = await this.familyDerivedWeekly(userId, ctx.ownerId, weekMonday(new Date())).catch(() => null);
+        if (derived) {
+          const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
+          return { ...derived, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
+        }
+      }
+    }
     const plans = await this.prisma.mealPlan.findMany({ where: { userId, mode }, orderBy: { createdAt: 'desc' } }) as unknown as Array<{ weekStart?: Date | null; createdAt: Date }>;
     const currentMon = weekMonday(new Date());
     const weeks = new Set(plans.map((p) => this.planWeek(p).getTime()));

@@ -187,6 +187,19 @@ export class NutritionController {
     return this.nutrition.familyHealth(user.sub);
   }
 
+  // Family Meal Planning mode — the household setting (owner) + this user's
+  // planner context (owner/member/solo + whether the shared plan is active).
+  @Get('family/meal-planning')
+  async familyMealPlanning(@CurrentUser() user: JwtUser) {
+    const ctx = await this.nutrition.familyContext(user.sub);
+    return ctx;
+  }
+
+  @Patch('family/meal-planning')
+  setFamilyMealPlanning(@CurrentUser() user: JwtUser, @Body() dto: { on?: boolean }) {
+    return this.nutrition.setFamilyMealPlanning(user.sub, Boolean(dto?.on));
+  }
+
   // Privacy — what I share with households I belong to (medical private by default).
   @Get('family/sharing')
   getSharing(@CurrentUser() user: JwtUser) {
