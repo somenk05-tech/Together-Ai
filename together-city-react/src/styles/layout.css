@@ -9,9 +9,12 @@
 .tc-logo .mark { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
 .tc-logo .mark img { display: block; width: 32px; height: 32px; object-fit: contain; }
 .tc-logo .word { font-family: var(--serif); font-size: 14px; letter-spacing: .13em; white-space: nowrap; }
-.tc-actions { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; flex-wrap: wrap; }
-.tc-actions a { display: flex; align-items: center; gap: 6px; font-size: 10.5px; letter-spacing: .06em; font-weight: 600; padding: 8px 13px; border: 1px solid var(--line); border-radius: 999px; transition: all .2s; color: var(--ink); white-space: nowrap; text-transform: uppercase; }
-.tc-actions a:hover { border-color: var(--gold); color: var(--gold); }
+/* Row 2 wrapper — centres the pill group as one line. The inner .tc-actions
+   groups (incl. QuickActions) stay auto-width so nothing wraps to a 2nd line. */
+.tc-actionbar { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; flex-wrap: wrap; }
+.tc-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.tc-actionbar a, .tc-actions a { display: flex; align-items: center; gap: 6px; font-size: 10.5px; letter-spacing: .06em; font-weight: 600; padding: 8px 13px; border: 1px solid var(--line); border-radius: 999px; transition: all .2s; color: var(--ink); white-space: nowrap; text-transform: uppercase; }
+.tc-actionbar a:hover, .tc-actions a:hover { border-color: var(--gold); color: var(--gold); }
 .tc-nav { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-width: 0; overflow: hidden; }
 .tc-nav a { font-size: 11px; letter-spacing: .06em; font-weight: 600; padding: 6px 6px; white-space: nowrap; color: inherit; opacity: .74; border-bottom: 2px solid transparent; transition: opacity .2s; }
 .tc-nav a:hover { opacity: 1; }

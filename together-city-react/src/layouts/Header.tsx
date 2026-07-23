@@ -122,7 +122,7 @@ export function Header() {
         </Link>
       </div>
       {/* Row 2 — Search · People · Mail · Chat · Alerts · Profile, centred below the logo. */}
-      <div className="tc-actions">
+      <div className="tc-actionbar">
         <QuickActions show="all" />
         <NotificationBell />
         <Link to="/profile" aria-label="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
