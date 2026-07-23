@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { SocialGateway } from './social.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 import type { CreateCommentDto, CreatePostDto, FeedQueryDto } from './dto/social.dto';
 
 const AUTHOR_SELECT = { id: true, handle: true, name: true, profileImage: true } as const;
@@ -10,6 +11,7 @@ export class SocialService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: SocialGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /**
@@ -79,7 +81,16 @@ export class SocialService {
     const target = await this.prisma.user.findFirst({ where: { OR: [{ id: targetRef }, { handle: ref }] }, select: { id: true } });
     if (!target) throw new NotFoundException('No citizen with that handle.');
     if (target.id === userId) throw new ForbiddenException("You can't follow yourself.");
+    const before = await this.prisma.follow.findUnique({ where: { followerId_followeeId: { followerId: userId, followeeId: target.id } } }).catch(() => null);
     await this.prisma.follow.createMany({ data: [{ followerId: userId, followeeId: target.id }], skipDuplicates: true });
+    // Notify only on a genuinely new follow (not a repeat).
+    if (!before) {
+      void this.actorName(userId).then((name) =>
+        this.notifications.create({
+          userId: target.id, actorId: userId, kind: 'follow',
+          title: `${name} started following you`, href: '/social/profile', entityId: userId,
+        }));
+    }
     return { following: true, userId: target.id };
   }
 
@@ -110,6 +121,11 @@ export class SocialService {
     });
     const shaped = this.shapePost(post, { likes: 0, comments: 0 }, false);
     this.gateway.postNew(shaped);
+    // "Your post is now live" — self-notification (no actor, so not skipped).
+    void this.notifications.create({
+      userId, kind: 'post_live', title: 'Your post is now live',
+      body: post.text ? post.text.slice(0, 80) : 'Shared to your city.', href: '/social/feed', entityId: post.id,
+    });
     return shaped;
   }
 
@@ -203,7 +219,7 @@ export class SocialService {
 
   // ─────────────── comments ───────────────
   async comment(userId: string, postId: string, dto: CreateCommentDto) {
-    await this.assertPost(postId);
+    const post = await this.assertPost(postId);
     const comment = await this.prisma.comment.create({
       data: { postId, authorId: userId, text: dto.text.trim() },
       include: { author: { select: AUTHOR_SELECT } },
@@ -216,6 +232,12 @@ export class SocialService {
       createdAt: comment.createdAt.toISOString(),
     };
     this.gateway.commentNew(shaped);
+    // Notify the post author that someone commented.
+    void this.notifications.create({
+      userId: post.authorId, actorId: userId, kind: 'comment',
+      title: `${comment.author.name} commented on your post`,
+      body: comment.text.slice(0, 80), href: '/social/feed', entityId: postId,
+    });
     return shaped;
   }
 
@@ -238,7 +260,7 @@ export class SocialService {
   // ─────────────── likes ───────────────
   /** Idempotent toggle — returns the new state + count. */
   async toggleLike(userId: string, postId: string) {
-    await this.assertPost(postId);
+    const post = await this.assertPost(postId);
     const existing = await this.prisma.like.findUnique({
       where: { postId_userId: { postId, userId } },
     });
@@ -247,14 +269,28 @@ export class SocialService {
     const likes = await this.prisma.like.count({ where: { postId } });
     const result = { postId, liked: !existing, likes };
     this.gateway.likeChanged(result);
+    // Notify the author when a NEW like lands (not on unlike).
+    if (!existing) {
+      void this.actorName(userId).then((name) =>
+        this.notifications.create({
+          userId: post.authorId, actorId: userId, kind: 'like',
+          title: `${name} liked your post`, href: '/social/feed', entityId: postId,
+        }));
+    }
     return result;
   }
 
   // ─────────────── helpers ───────────────
   private async assertPost(postId: string) {
-    const post = await this.prisma.post.findUnique({ where: { id: postId }, select: { id: true } });
+    const post = await this.prisma.post.findUnique({ where: { id: postId }, select: { id: true, authorId: true } });
     if (!post) throw new NotFoundException('post not found');
     return post;
+  }
+
+  /** The display name of whoever triggered a notification. */
+  private async actorName(userId: string): Promise<string> {
+    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(() => null);
+    return u?.name ?? 'Someone';
   }
 
   private shapePost(

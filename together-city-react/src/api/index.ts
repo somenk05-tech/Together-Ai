@@ -10,5 +10,5 @@ export { authApi, LoginInput, RegisterInput } from './auth.api';
 export { usersApi, useMe, useOnlineContacts, RelationshipSchema, LookupSchema, type Relationship, type LookupResult } from './users.api';
 export { connectionsApi, useConnections, useRequestConnection, useRespondConnection, useIncomingRequestCount } from './connections.api';
 export { chatApi, useConversations, useUnreadChatCount, useMessages, useChatRealtime, useStartDirect, useChatContacts, useCreateGroup, type Contact } from './chat.api';
-export { notificationsApi, useNotifications, useMarkNotificationRead } from './notifications.api';
+export { notificationsApi, useNotifications, useUnreadNotificationCount, useMarkNotificationRead, useMarkAllNotificationsRead, useNotificationSync } from './notifications.api';
 export { mediaApi, PresignInput, PresignResult } from './media.api';

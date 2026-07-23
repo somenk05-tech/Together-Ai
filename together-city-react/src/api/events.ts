@@ -16,6 +16,8 @@ export const WS = {
   CHAT_NOTIFICATION: 'chat_notification',
   ERROR: 'error_event',
   CONNECTIONS_CHANGED: 'connections:changed',
+  NOTIFICATION_NEW: 'notification:new',
+  NOTIFICATION_COUNT: 'notification:count',
 } as const;
 
 export type WsEvent = (typeof WS)[keyof typeof WS];

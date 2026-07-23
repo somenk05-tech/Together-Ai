@@ -1,20 +1,64 @@
 import { z } from 'zod';
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost } from './http';
 import { NotificationSchema, type NotificationItem } from './schemas';
+import { socketClient } from './socket';
+import { WS } from './events';
 
 export const notificationsApi = {
   list: (): Promise<NotificationItem[]> => apiGet('/notifications', z.array(NotificationSchema)),
-  markRead: (id: string): Promise<void> => apiPost(`/notifications/${id}/read`, {}, z.void()),
+  unreadCount: (): Promise<number> => apiGet('/notifications/unread-count', z.object({ count: z.number() })).then((r) => r.count),
+  markRead: (id: string): Promise<void> => apiPost(`/notifications/${id}/read`, {}, z.object({ ok: z.boolean() })).then(() => undefined),
+  markAllRead: (): Promise<void> => apiPost('/notifications/read-all', {}, z.object({ ok: z.boolean() })).then(() => undefined),
 };
 
+const LIST_KEY = ['notifications'] as const;
+const COUNT_KEY = ['notifications', 'unread'] as const;
+
 export function useNotifications() {
-  return useQuery({ queryKey: ['notifications'], queryFn: () => notificationsApi.list() });
+  return useQuery({ queryKey: LIST_KEY, queryFn: () => notificationsApi.list() });
+}
+export function useUnreadNotificationCount() {
+  return useQuery({ queryKey: COUNT_KEY, queryFn: () => notificationsApi.unreadCount(), refetchInterval: 60_000 });
 }
 export function useMarkNotificationRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => notificationsApi.markRead(id),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: LIST_KEY });
+      void qc.invalidateQueries({ queryKey: COUNT_KEY });
+    },
   });
+}
+export function useMarkAllNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => notificationsApi.markAllRead(),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: LIST_KEY });
+      void qc.invalidateQueries({ queryKey: COUNT_KEY });
+    },
+  });
+}
+
+/**
+ * Live notification sync: when the backend pushes a new notification (or an
+ * updated unread count), refresh the bell + the Notifications page so nothing
+ * needs a manual reload. Also fires `onNew` so the app can show a toast.
+ */
+export function useNotificationSync(onNew?: (n: NotificationItem) => void): void {
+  const qc = useQueryClient();
+  useEffect(() => {
+    const offNew = socketClient.on<NotificationItem>(WS.NOTIFICATION_NEW, (n) => {
+      void qc.invalidateQueries({ queryKey: LIST_KEY });
+      void qc.invalidateQueries({ queryKey: COUNT_KEY });
+      onNew?.(n);
+    });
+    const offCount = socketClient.on(WS.NOTIFICATION_COUNT, () => {
+      void qc.invalidateQueries({ queryKey: COUNT_KEY });
+    });
+    return () => { offNew(); offCount(); };
+  }, [qc, onNew]);
 }

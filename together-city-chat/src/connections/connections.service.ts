@@ -5,6 +5,7 @@ import { orderPair } from './connection.util';
 import { RequestConnectionDto, RespondConnectionDto, UpdateModulesDto } from './dto/connections.dto';
 import { UNIVERSAL_SLUGS, PERMISSIONED_SLUGS, isHub, isUniversalHub } from './hubs.registry';
 import { ConnectionsGateway } from './connections.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 
 /** Shape the UI consumes: the OTHER party + a friendly status + direction. */
 export interface ShapedConnection {
@@ -47,6 +48,7 @@ export class ConnectionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: ConnectionsGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Broadcast a permission change to BOTH members so every open page (People +
@@ -106,10 +108,21 @@ export class ConnectionsService {
         } as never,
       });
       this.broadcast(reopened);
+      void this.notifyRequest(requesterId, target.id);
       return this.shape(reopened, requesterId, target);
     }
     this.broadcast(conn);
+    void this.notifyRequest(requesterId, target.id);
     return this.shape(conn, requesterId, target);
+  }
+
+  /** Tell the recipient a connection request arrived. */
+  private async notifyRequest(requesterId: string, recipientId: string): Promise<void> {
+    const u = await this.prisma.user.findUnique({ where: { id: requesterId }, select: { name: true } }).catch(() => null);
+    await this.notifications.create({
+      userId: recipientId, actorId: requesterId, kind: 'connection_request',
+      title: `${u?.name ?? 'Someone'} sent you a connection request`, href: '/connections', entityId: requesterId,
+    });
   }
 
   /** Accept or block a request. Only the recipient may accept. */
@@ -140,6 +153,12 @@ export class ConnectionsService {
       // System Sync (Universal Connection Model): accepting in People connects
       // the granted modules everywhere — no separate hub invitations.
       await this.syncModules(updated).catch(() => undefined);
+      // Tell the original requester their request was accepted.
+      const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(() => null);
+      void this.notifications.create({
+        userId: updated.requestedById, actorId: userId, kind: 'connection_accepted',
+        title: `${me?.name ?? 'Someone'} accepted your connection request`, href: '/connections', entityId: userId,
+      });
     }
     this.broadcast(updated);
     const otherId = updated.userOneId === userId ? updated.userTwoId : updated.userOneId;
