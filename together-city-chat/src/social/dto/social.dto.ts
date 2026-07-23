@@ -17,9 +17,14 @@ export const CreatePostSchema = z
       .optional(),
     lat: z.number().min(-90).max(90).optional(),
     lng: z.number().min(-180).max(180).optional(),
+    audience: z.enum(['public', 'friends', 'family', 'private']).optional(),
+    placeName: z.string().max(120).optional(),
+    tagged: z.array(z.object({
+      id: z.string().min(1), name: z.string().max(80), handle: z.string().max(40),
+    })).max(10).optional(),
   })
-  .refine((p) => Boolean(p.text?.trim()) || (p.media?.length ?? 0) > 0, {
-    message: 'a post needs text or media',
+  .refine((p) => Boolean(p.text?.trim()) || (p.media?.length ?? 0) > 0 || Boolean(p.placeName?.trim()), {
+    message: 'a post needs text, media or a check-in location',
   });
 export type CreatePostDto = z.infer<typeof CreatePostSchema>;
 
@@ -29,5 +34,6 @@ export type CreateCommentDto = z.infer<typeof CreateCommentSchema>;
 export const FeedQuerySchema = z.object({
   cursor: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
+  filter: z.enum(['foryou', 'friends', 'nearby', 'trending', 'following']).optional(),
 });
 export type FeedQueryDto = z.infer<typeof FeedQuerySchema>;

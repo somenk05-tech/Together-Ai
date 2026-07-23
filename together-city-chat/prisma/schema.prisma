@@ -553,6 +553,9 @@ model Post {
   authorId  String
   text      String?
   feeling   String?
+  audience  String   @default("public") // public | friends | family | private
+  placeName String? // check-in / travel location label
+  taggedJson String? // JSON [{id, name, handle}] — tagged friends
   lat       Float?
   lng       Float?
   createdAt DateTime @default(now())

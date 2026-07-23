@@ -66,12 +66,15 @@ export class SocialService {
         authorId: userId,
         text: dto.text?.trim() ?? null,
         feeling: dto.feeling ?? null,
+        audience: dto.audience ?? 'public',
+        placeName: dto.placeName?.trim() || null,
+        taggedJson: dto.tagged?.length ? JSON.stringify(dto.tagged) : null,
         lat: dto.lat ?? null,
         lng: dto.lng ?? null,
         media: dto.media?.length
           ? { create: dto.media.map((m) => ({ url: m.url, kind: m.kind, thumbUrl: m.thumbUrl ?? null })) }
           : undefined,
-      },
+      } as never,
       include: { author: { select: AUTHOR_SELECT }, media: true },
     });
     const shaped = this.shapePost(post, { likes: 0, comments: 0 }, false);
@@ -91,12 +94,28 @@ export class SocialService {
   /** Cursor-paginated feed, newest first. Cursor = last post id of the previous page. */
   async feed(userId: string, query: FeedQueryDto) {
     const { cursor, limit } = query;
-    const network = await this.networkIds(userId);
+    const filter = (query as { filter?: string }).filter ?? 'foryou';
+    let network = await this.networkIds(userId);
+    // Five feed lenses (spec): For You (whole network) · Friends (connections
+    // only, not yourself) · Nearby (geo-pinned posts) · Trending (most-liked
+    // this week) · Following (people you follow).
+    if (filter === 'friends') network = network.filter((id) => id !== userId);
+    if (filter === 'following') {
+      const follows = await this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } });
+      network = follows.map((f) => f.followeeId);
+    }
+    const weekAgo = new Date(Date.now() - 7 * 86_400_000);
     const posts = await this.prisma.post.findMany({
-      where: { authorId: { in: network } },
+      where: {
+        authorId: { in: network },
+        ...(filter === 'nearby' ? { lat: { not: null } } : {}),
+        ...(filter === 'trending' ? { createdAt: { gte: weekAgo } } : {}),
+      },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: (filter === 'trending'
+        ? [{ likes: { _count: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }]
+        : [{ createdAt: 'desc' }, { id: 'desc' }]) as never,
       include: {
         author: { select: AUTHOR_SELECT },
         media: true,
@@ -104,12 +123,39 @@ export class SocialService {
         likes: { where: { userId }, select: { id: true } },
       },
     });
-    const hasMore = posts.length > limit;
-    const page = hasMore ? posts.slice(0, limit) : posts;
+    // Audience gate (Universal Connection Model): public → network; friends →
+    // any accepted connection; family → connections whose relationship is
+    // family; private → the author alone. Feed is already network-scoped, so
+    // only family/private need the extra check here.
+    const familyIds = await this.familyIds(userId);
+    const visible = posts.filter((p) => {
+      const aud = (p as unknown as { audience?: string | null }).audience ?? 'public';
+      if (p.authorId === userId) return true;
+      if (aud === 'private') return false;
+      if (aud === 'family') return familyIds.has(p.authorId);
+      return true; // public | friends — network-scoped already
+    });
+    const hasMore = visible.length > limit;
+    const page = hasMore ? visible.slice(0, limit) : visible;
     return {
       items: page.map((p) => this.shapePost(p, p._count, p.likes.length > 0)),
       nextCursor: hasMore ? page[page.length - 1].id : null,
     };
+  }
+
+  /** Accepted connections marked as FAMILY (for family-audience posts). */
+  private async familyIds(userId: string): Promise<Set<string>> {
+    const rows = await this.prisma.connection.findMany({
+      where: {
+        status: 'ACCEPTED' as never,
+        OR: [{ userOneId: userId }, { userTwoId: userId }],
+      },
+    }).catch(() => []);
+    return new Set(
+      rows
+        .filter((r) => ((r as unknown as { relationship?: string | null }).relationship ?? '') === 'family')
+        .map((r) => (r.userOneId === userId ? r.userTwoId : r.userOneId)),
+    );
   }
 
   /** Posts that carry geo coordinates — powers the Social map (your network). */
@@ -194,10 +240,16 @@ export class SocialService {
     counts: { likes: number; comments: number },
     likedByMe: boolean,
   ) {
+    const px = p as unknown as { audience?: string | null; placeName?: string | null; taggedJson?: string | null };
+    let tagged: Array<{ id: string; name: string; handle: string }> = [];
+    try { tagged = px.taggedJson ? JSON.parse(px.taggedJson) : []; } catch { tagged = []; }
     return {
       id: p.id,
       text: p.text,
       feeling: p.feeling,
+      audience: px.audience ?? 'public',
+      placeName: px.placeName ?? null,
+      tagged,
       lat: p.lat,
       lng: p.lng,
       author: p.author,

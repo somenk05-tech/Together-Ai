@@ -8,6 +8,9 @@ export interface Post {
   id: string;
   text: string | null;
   feeling: string | null;
+  audience?: string;
+  placeName?: string | null;
+  tagged?: Array<{ id: string; name: string; handle: string }>;
   lat: number | null;
   lng: number | null;
   author: PostAuthor;
@@ -24,14 +27,17 @@ export interface PostComment { id: string; postId: string; text: string; author:
 export interface CreatePostInput {
   text?: string;
   feeling?: string;
+  audience?: 'public' | 'friends' | 'family' | 'private';
+  placeName?: string;
+  tagged?: Array<{ id: string; name: string; handle: string }>;
   media?: { url: string; kind: 'image' | 'video'; thumbUrl?: string | null }[];
   lat?: number;
   lng?: number;
 }
 
 export const socialApi = {
-  feed: (cursor?: string) =>
-    api.get<FeedPage>('/social/feed', { params: { cursor, limit: 20 } }).then((r) => r.data),
+  feed: (cursor?: string, filter?: string) =>
+    api.get<FeedPage>('/social/feed', { params: { cursor, limit: 20, ...(filter ? { filter } : {}) } }).then((r) => r.data),
   map: () => api.get<Post[]>('/social/map').then((r) => r.data),
   followers: () => api.get<PostAuthor[]>('/social/followers').then((r) => r.data),
   following: () => api.get<PostAuthor[]>('/social/following').then((r) => r.data),
@@ -48,8 +54,8 @@ export const socialApi = {
 
 const FEED_KEY = ['social', 'feed'] as const;
 
-export function useFeed() {
-  return useQuery({ queryKey: FEED_KEY, queryFn: () => socialApi.feed() });
+export function useFeed(filter = 'foryou') {
+  return useQuery({ queryKey: [...FEED_KEY, filter], queryFn: () => socialApi.feed(undefined, filter) });
 }
 export function useMap() {
   return useQuery({ queryKey: ['social', 'map'], queryFn: () => socialApi.map() });

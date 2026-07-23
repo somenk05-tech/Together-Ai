@@ -240,3 +240,7 @@ table.tc td b { color: var(--ink); }
 .tc-field { transition: border-color .16s ease, box-shadow .16s ease, background .16s ease; }
 .tc-field:focus-within, .tc-field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 .tc-riser > * { animation: tc-rise .28s ease-out both; }
+
+/* Social feed right sidebar — desktop only */
+.feed-sidebar { display: none; }
+@media (min-width: 1000px) { .feed-sidebar { display: block; } }
