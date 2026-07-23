@@ -15,7 +15,7 @@ function Badge({ count }: { count: number }) {
 }
 
 const pill: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, letterSpacing: '.06em', fontWeight: 600,
+  display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--chip-fs)', letterSpacing: '.06em', fontWeight: 600,
   padding: '8px 13px', border: '1px solid var(--line)', borderRadius: 999, color: 'var(--ink)',
   whiteSpace: 'nowrap', textTransform: 'uppercase', background: 'transparent', position: 'relative',
 };
@@ -37,7 +37,7 @@ export function QuickActions({ show = 'all' }: { show?: 'all' | 'search' | 'link
       {searchOn && (
         <button type="button" aria-label="Search — jump to anything (Ctrl/Cmd K)" title="Search (⌘K)"
           onClick={() => window.dispatchEvent(new Event('tc:command'))}
-          style={{ ...pill, cursor: 'pointer', font: 'inherit', fontSize: 10.5, letterSpacing: '.06em', fontWeight: 600, textTransform: 'uppercase' }}>
+          style={{ ...pill, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '.06em', fontWeight: 600, textTransform: 'uppercase' }}>
           <Icon name="search" size={17} /> <span className="lab">SEARCH</span>
         </button>
       )}

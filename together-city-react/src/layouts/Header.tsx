@@ -64,7 +64,7 @@ function NotificationBell() {
     <div ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
       <button type="button" aria-label="Notifications" onClick={() => setOpen((o) => !o)}
         style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
-          fontSize: 10.5, letterSpacing: '.06em', fontWeight: 600, textTransform: 'uppercase', padding: '8px 13px',
+          fontSize: 'var(--chip-fs)', letterSpacing: '.06em', fontWeight: 600, textTransform: 'uppercase', padding: '8px 13px',
           border: '1px solid var(--line)', borderRadius: 999, color: 'var(--ink)', background: 'transparent', cursor: 'pointer' }}>
         <Icon name="bell" size={17} /> <span className="lab">ALERTS</span>
         <Badge count={unread.data ?? 0} />
