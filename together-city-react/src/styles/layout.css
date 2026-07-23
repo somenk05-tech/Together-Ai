@@ -1,15 +1,15 @@
 /* ============ layout shell — ported from tc.css, with mobile drawer ============ */
 .tc-header { position: fixed; top: var(--safe-top); left: 0; right: 0; height: var(--header-h); z-index: 100; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 8px 24px; background: #fff; border-bottom: 1px solid var(--line); color: var(--ink); }
-/* Row 1: burger left · actions right, with the logo absolutely centred on the
-   page so neither side's width can pull it off-centre. */
-.tc-header-top { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 40px; }
-.tc-header-top .tc-logo { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+/* Stacked, centred header: Row 1 logo · Row 2 actions · Row 3 hub tabs — all centred.
+   The burger is pinned left on Row 1 (mobile) without shifting the centred logo. */
+.tc-header-top { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 38px; }
+.tc-header-top .tc-burger { position: absolute; left: 0; top: 50%; transform: translateY(-50%); }
 .tc-burger { display: none; background: none; border: none; font-size: 20px; cursor: pointer; }
 .tc-logo { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
 .tc-logo .mark { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
 .tc-logo .mark img { display: block; width: 32px; height: 32px; object-fit: contain; }
 .tc-logo .word { font-family: var(--serif); font-size: 14px; letter-spacing: .13em; white-space: nowrap; }
-.tc-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.tc-actions { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; flex-wrap: wrap; }
 .tc-actions a { display: flex; align-items: center; gap: 6px; font-size: 10.5px; letter-spacing: .06em; font-weight: 600; padding: 8px 13px; border: 1px solid var(--line); border-radius: 999px; transition: all .2s; color: var(--ink); white-space: nowrap; text-transform: uppercase; }
 .tc-actions a:hover { border-color: var(--gold); color: var(--gold); }
 .tc-nav { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-width: 0; overflow: hidden; }

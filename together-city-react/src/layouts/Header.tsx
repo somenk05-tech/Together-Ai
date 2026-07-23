@@ -113,29 +113,29 @@ export function Header() {
     <header className="tc-header">
       <CommandPalette />
       <FloatingSearch />
-      {/* Row 1 — burger (left) · centred logo · actions (right). */}
+      {/* Row 1 — centred logo (burger pinned left for mobile). */}
       <div className="tc-header-top">
         <button className="tc-burger" aria-label="Open menu" onClick={() => toggleSidebar()}><Icon name="menu" size={20} /></button>
         <Link to="/" className="tc-logo">
           <span className="mark"><img src="/assets/img/tc-logo.png" alt="Together City" width={34} height={34} /></span>
           <span className="word">TOGETHER CITY</span>
         </Link>
-        <div className="tc-actions">
-          {/* People · Mail · Chat. Search is now the draggable floating tab. */}
-          <QuickActions show="links" />
-          <NotificationBell />
-          <Link to="/profile" aria-label="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            {user?.profileImage ? (
-              <img src={user.profileImage} alt="" width={22} height={22}
-                style={{ borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1.5px solid var(--line)' }} />
-            ) : (
-              <Icon name="user" size={20} />
-            )}
-            <span className="lab">{firstName}</span>
-          </Link>
-        </div>
       </div>
-      {/* Row 2 — hub tabs, centred below the logo. */}
+      {/* Row 2 — Search · People · Mail · Chat · Alerts · Profile, centred below the logo. */}
+      <div className="tc-actions">
+        <QuickActions show="all" />
+        <NotificationBell />
+        <Link to="/profile" aria-label="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {user?.profileImage ? (
+            <img src={user.profileImage} alt="" width={22} height={22}
+              style={{ borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1.5px solid var(--line)' }} />
+          ) : (
+            <Icon name="user" size={20} />
+          )}
+          <span className="lab">{firstName}</span>
+        </Link>
+      </div>
+      {/* Row 3 — hub tabs, centred below the actions. */}
       <nav className="tc-nav" aria-label="Hubs">
         {tabs.map((n) => (
           <NavLink key={n.key} to={n.path} className={({ isActive }) => (isActive ? 'on' : undefined)}>
