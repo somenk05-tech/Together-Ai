@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -40,6 +40,12 @@ export class ConnectionsController {
   @UsePipes(new ZodValidationPipe(UpdateModulesSchema))
   updateModules(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: UpdateModulesDto) {
     return this.connections.updateModules(user.sub, id, dto);
+  }
+
+  /** Remove — instantly disconnects from ALL Together City hubs. */
+  @Delete(':id')
+  remove(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.connections.remove(user.sub, id);
   }
 
   /** Everyone connected for a given module — hubs display, never re-invite. */

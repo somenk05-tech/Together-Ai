@@ -8,8 +8,12 @@ import { z } from 'zod';
  */
 export const CONNECTION_MODULES = [
   'chat', 'mail', 'social', 'nutrition', 'grocery', 'pantry', 'medical', 'travel',
-  'entertainment', 'financial', 'jobs', 'beauty', 'fitness',
+  'calendar', 'entertainment', 'financial', 'jobs', 'beauty', 'fitness',
 ] as const;
+
+/** Universal modules — every connection gets these automatically; they are
+ *  never toggles and can never be revoked while the connection exists. */
+export const UNIVERSAL_MODULES = ['chat', 'mail'] as const;
 
 export const RequestConnectionSchema = z.object({
   handle: z.string().min(1).max(40),
@@ -18,7 +22,8 @@ export const RequestConnectionSchema = z.object({
 });
 
 export const UpdateModulesSchema = z.object({
-  modules: z.array(z.enum(CONNECTION_MODULES)).max(12),
+  modules: z.array(z.enum(CONNECTION_MODULES)).max(14),
+  relationship: z.enum(['family', 'friend', 'partner', 'colleague', 'other']).optional(),
 });
 export type UpdateModulesDto = z.infer<typeof UpdateModulesSchema>;
 export type RequestConnectionDto = z.infer<typeof RequestConnectionSchema>;

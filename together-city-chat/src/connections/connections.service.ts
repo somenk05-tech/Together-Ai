@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { ConnectionStatus, ConnectionType, Connection, User } from '@prisma/client';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { orderPair } from './connection.util';
-import { RequestConnectionDto, RespondConnectionDto, UpdateModulesDto } from './dto/connections.dto';
+import { RequestConnectionDto, RespondConnectionDto, UpdateModulesDto, UNIVERSAL_MODULES } from './dto/connections.dto';
 
 /** Shape the UI consumes: the OTHER party + a friendly status + direction. */
 export interface ShapedConnection {
@@ -14,10 +14,12 @@ export interface ShapedConnection {
   user: { id: string; handle: string; name: string; profileImage: string | null };
 }
 
-const DEFAULT_MODULES = ['chat', 'social'];
+const DEFAULT_MODULES = ['chat', 'mail', 'social'];
+/** Chat + Mail are universal: silently added to every grant set. */
+const withUniversal = (mods: string[]): string[] => [...new Set([...UNIVERSAL_MODULES, ...mods])];
 const parseModules = (raw: unknown): string[] => {
-  try { const v = JSON.parse(String(raw ?? '')); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : DEFAULT_MODULES; }
-  catch { return DEFAULT_MODULES; }
+  try { const v = JSON.parse(String(raw ?? '')); return withUniversal(Array.isArray(v) ? v.filter((x) => typeof x === 'string') : DEFAULT_MODULES); }
+  catch { return withUniversal(DEFAULT_MODULES); }
 };
 
 const STATUS_OUT: Record<ConnectionStatus, ShapedConnection['status']> = {
@@ -55,11 +57,11 @@ export class ConnectionsService {
         status: ConnectionStatus.PENDING,
         requestedById: requesterId,
         relationship: dto.relationship ?? null,
-        modulesJson: JSON.stringify(dto.modules?.length ? dto.modules : DEFAULT_MODULES),
+        modulesJson: JSON.stringify(withUniversal(dto.modules ?? DEFAULT_MODULES)),
       } as never,
       // Re-requesting refreshes the requested modules/relationship.
       update: dto.modules?.length || dto.relationship ? {
-        ...(dto.modules?.length ? { modulesJson: JSON.stringify(dto.modules) } : {}),
+        ...(dto.modules?.length ? { modulesJson: JSON.stringify(withUniversal(dto.modules)) } : {}),
         ...(dto.relationship ? { relationship: dto.relationship } : {}),
       } as never : {},
     });
@@ -71,7 +73,7 @@ export class ConnectionsService {
         data: {
           status: ConnectionStatus.PENDING, requestedById: requesterId,
           relationship: dto.relationship ?? null,
-          modulesJson: JSON.stringify(dto.modules?.length ? dto.modules : DEFAULT_MODULES),
+          modulesJson: JSON.stringify(withUniversal(dto.modules ?? DEFAULT_MODULES)),
         } as never,
       });
       return this.shape(reopened, requesterId, target);
@@ -136,12 +138,22 @@ export class ConnectionsService {
     const conn = await this.prisma.connection.findUnique({ where: { id: connectionId } });
     if (!conn) throw new NotFoundException('Connection not found');
     if (conn.userOneId !== userId && conn.userTwoId !== userId) throw new ForbiddenException('Not your connection');
-    const modules = dto.modules.length ? dto.modules : DEFAULT_MODULES;
+    const before = parseModules((conn as { modulesJson?: string | null }).modulesJson);
+    const modules = withUniversal(dto.modules);
     const updated = await this.prisma.connection.update({
       where: { id: conn.id },
-      data: { modulesJson: JSON.stringify(modules) } as never,
+      data: {
+        modulesJson: JSON.stringify(modules),
+        ...(dto.relationship ? { relationship: dto.relationship } : {}),
+      } as never,
     });
-    if (updated.status === ConnectionStatus.ACCEPTED) await this.syncModules(updated).catch(() => undefined);
+    if (updated.status === ConnectionStatus.ACCEPTED) {
+      await this.syncModules(updated).catch(() => undefined);
+      // Revoking a module disconnects that hub too (nutrition → household).
+      if (before.includes('nutrition') && !modules.includes('nutrition')) {
+        await this.unsyncHousehold(updated).catch(() => undefined);
+      }
+    }
     const otherId = updated.userOneId === userId ? updated.userTwoId : updated.userOneId;
     const other = await this.prisma.user.findUnique({ where: { id: otherId } });
     return this.shape(updated, userId, other);
@@ -152,6 +164,42 @@ export class ConnectionsService {
   async listForModule(userId: string, module: string): Promise<ShapedConnection[]> {
     const all = await this.listForUser(userId, 'accepted');
     return all.filter((c) => c.modules.includes(module));
+  }
+
+  /** Remove a connection entirely — instantly disconnects the pair from EVERY
+   *  hub (People, household/nutrition, medical family, travel …). */
+  async remove(userId: string, connectionId: string): Promise<{ removed: true }> {
+    const conn = await this.prisma.connection.findUnique({ where: { id: connectionId } });
+    if (!conn) throw new NotFoundException('Connection not found');
+    if (conn.userOneId !== userId && conn.userTwoId !== userId) throw new ForbiddenException('Not your connection');
+    await this.prisma.connection.update({ where: { id: conn.id }, data: { status: ConnectionStatus.REMOVED } });
+    await this.unsyncHousehold(conn).catch(() => undefined);
+    // Social follows end with the connection.
+    await this.prisma.follow.deleteMany({
+      where: {
+        OR: [
+          { followerId: conn.userOneId, followeeId: conn.userTwoId },
+          { followerId: conn.userTwoId, followeeId: conn.userOneId },
+        ],
+      },
+    }).catch(() => undefined);
+    return { removed: true };
+  }
+
+  /** End any household link between the two users (both directions). */
+  private async unsyncHousehold(conn: Connection): Promise<void> {
+    const household = (this.prisma as unknown as {
+      householdMember: { updateMany: (a: unknown) => Promise<unknown> };
+    }).householdMember;
+    await household.updateMany({
+      where: {
+        OR: [
+          { ownerId: conn.userOneId, memberUserId: conn.userTwoId },
+          { ownerId: conn.userTwoId, memberUserId: conn.userOneId },
+        ],
+      },
+      data: { status: 'removed' },
+    }).catch(() => undefined);
   }
 
   /** Propagate granted modules into hub systems (accept once, connected everywhere). */

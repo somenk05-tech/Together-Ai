@@ -5,7 +5,7 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useConnections, useRespondConnection, chatApi } from '@/api';
 import type { Connection } from '@/api/schemas';
 import { MemberFinder } from '../components/MemberFinder';
-import { useUpdateModules } from '@/api/connections.api';
+import { useRemoveConnection, useUpdateModules } from '@/api/connections.api';
 import { DEFAULT_MODULES, RELATIONSHIPS, allowedModules } from '../modules';
 import { ModuleChips, ModuleToggles } from '../components/ModuleToggles';
 
@@ -41,21 +41,52 @@ function Row({ c, actions, subtitle, children }: { c: Connection; actions?: Reac
 
 const relLabel = (r?: string | null) => RELATIONSHIPS.find((x) => x.key === r)?.label ?? null;
 
-/** Manage a connection's module grants — the ONE record every hub queries. */
-function ManagePanel({ c }: { c: Connection }) {
+/** Manage a connection — change relationship, toggle hub modules, save.
+ *  The ONE record every hub queries updates everywhere immediately. */
+function ManagePanel({ c, onDone }: { c: Connection; onDone: () => void }) {
   const update = useUpdateModules();
-  const [selected, setSelected] = useState<string[]>(c.modules ?? DEFAULT_MODULES);
-  const rel = c.relationship ?? 'friend';
-  const dirty = JSON.stringify([...selected].sort()) !== JSON.stringify([...(c.modules ?? DEFAULT_MODULES)].sort());
+  const [rel, setRel] = useState<string>(c.relationship ?? 'friend');
+  const [selected, setSelected] = useState<string[]>((c.modules ?? DEFAULT_MODULES));
   return (
     <div style={{ marginTop: 10, paddingLeft: 56 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        {RELATIONSHIPS.map((r) => (
+          <button key={r.key} type="button"
+            onClick={() => { setRel(r.key); setSelected((m) => m.filter((k) => allowedModules(r.key).includes(k))); }}
+            style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 14px',
+              borderRadius: 9, border: `1.5px solid ${rel === r.key ? 'var(--accent)' : 'var(--line)'}`,
+              background: rel === r.key ? 'var(--accent-soft)' : 'var(--card)', color: 'var(--ink)' }}>
+            {r.emoji} {r.label}
+          </button>
+        ))}
+      </div>
       <ModuleToggles relationship={rel} selected={selected.filter((k) => allowedModules(rel).includes(k))} onChange={setSelected} />
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
-        <Button size="sm" variant="accent" disabled={!dirty || update.isPending}
-          onClick={() => update.mutate({ id: c.id, modules: selected })}>
-          {update.isPending ? 'Saving…' : 'Save modules'}
+        <Button size="sm" variant="accent" disabled={update.isPending}
+          onClick={() => update.mutate({ id: c.id, modules: selected, relationship: rel }, { onSuccess: onDone })}>
+          {update.isPending ? 'Saving…' : 'Save changes'}
         </Button>
         <span className="muted" style={{ fontSize: 11 }}>Connected hubs update everywhere immediately.</span>
+      </div>
+    </div>
+  );
+}
+
+/** Remove confirmation — disconnects the person from ALL shared hubs. */
+function RemoveConfirm({ c, onCancel }: { c: Connection; onCancel: () => void }) {
+  const remove = useRemoveConnection();
+  return (
+    <div style={{ marginTop: 10, paddingLeft: 56 }}>
+      <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.25)' }}>
+        <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>Remove {c.user.name.split(' ')[0]} from your connections?</p>
+        <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>This will disconnect them from all shared hubs.</p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button size="sm" variant="line" onClick={onCancel}>Cancel</Button>
+          <Button size="sm" variant="accent" disabled={remove.isPending}
+            onClick={() => remove.mutate(c.id, { onSuccess: onCancel })}>
+            {remove.isPending ? 'Removing…' : 'Remove'}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -69,6 +100,7 @@ export function Connections() {
   const qc = useQueryClient();
   const [opening, setOpening] = useState<string | null>(null);
   const [managing, setManaging] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
 
   const openChat = async (h: string) => {
     setOpening(h);
@@ -135,8 +167,11 @@ export function Connections() {
           accepted.map((c) => (
             <Row key={c.id} c={c} subtitle={relLabel(c.relationship) ?? undefined} actions={
               <div style={{ display: 'flex', gap: 8 }}>
-                <Button size="sm" variant="line" onClick={() => setManaging(managing === c.id ? null : c.id)}>
-                  {managing === c.id ? 'Close' : 'Modules'}
+                <Button size="sm" variant="line" onClick={() => { setRemoving(null); setManaging(managing === c.id ? null : c.id); }}>
+                  {managing === c.id ? 'Close' : 'Manage'}
+                </Button>
+                <Button size="sm" variant="line" onClick={() => { setManaging(null); setRemoving(removing === c.id ? null : c.id); }}>
+                  Remove
                 </Button>
                 <Button size="sm" variant="accent" disabled={opening === c.user.handle}
                   onClick={() => openChat(c.user.handle)}>
@@ -144,7 +179,8 @@ export function Connections() {
                 </Button>
               </div>
             }>
-              {managing === c.id && <ManagePanel c={c} />}
+              {managing === c.id && <ManagePanel c={c} onDone={() => setManaging(null)} />}
+              {removing === c.id && <RemoveConfirm c={c} onCancel={() => setRemoving(null)} />}
             </Row>
           ))
         )}

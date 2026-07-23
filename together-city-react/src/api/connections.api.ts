@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPatch, apiPost } from './http';
+import { apiDelete, apiGet, apiPatch, apiPost } from './http';
 import { ConnectionSchema, ConnectionStatusSchema, type Connection, type ConnectionStatus } from './schemas';
 
 export const connectionsApi = {
@@ -8,8 +8,10 @@ export const connectionsApi = {
     apiGet('/connections', z.array(ConnectionSchema), { params: status ? { status } : undefined }),
   request: (handle: string, opts?: { modules?: string[]; relationship?: string }): Promise<Connection> =>
     apiPost('/connections/request', { handle, ...(opts ?? {}) }, ConnectionSchema),
-  updateModules: (connectionId: string, modules: string[]): Promise<Connection> =>
-    apiPatch(`/connections/${connectionId}/modules`, { modules }, ConnectionSchema),
+  updateModules: (connectionId: string, modules: string[], relationship?: string): Promise<Connection> =>
+    apiPatch(`/connections/${connectionId}/modules`, { modules, ...(relationship ? { relationship } : {}) }, ConnectionSchema),
+  remove: (connectionId: string): Promise<{ removed: boolean }> =>
+    apiDelete(`/connections/${connectionId}`, z.object({ removed: z.boolean() })),
   respond: (connectionId: string, accept: boolean): Promise<Connection> =>
     apiPost('/connections/respond', { connectionId, status: accept ? 'accepted' : 'blocked' }, ConnectionSchema),
 };
@@ -40,7 +42,15 @@ export function useRequestConnection() {
 export function useUpdateModules() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { id: string; modules: string[] }) => connectionsApi.updateModules(v.id, v.modules),
+    mutationFn: (v: { id: string; modules: string[]; relationship?: string }) =>
+      connectionsApi.updateModules(v.id, v.modules, v.relationship),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['connections'] }),
+  });
+}
+export function useRemoveConnection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => connectionsApi.remove(id),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['connections'] }),
   });
 }
