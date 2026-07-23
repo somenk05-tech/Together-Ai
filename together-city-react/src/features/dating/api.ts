@@ -4,6 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 /** Dating domain types — mirror the NestJS dating module DTOs. */
 export type MatchKind = 'romantic' | 'platonic';
 
+export type Visibility = 'everyone' | 'threshold' | 'paused' | 'hidden';
+
+export interface CompletionSuggestion { key: string; label: string; weight: number }
+export interface ProfileCompletion { percent: number; suggestions: CompletionSuggestion[]; complete: boolean }
+
 export interface DatingProfile {
   userId: string;
   gender: 'male' | 'female' | 'nonbinary';
@@ -15,6 +20,9 @@ export interface DatingProfile {
   interests: string[];
   sign: string;
   visible: boolean;
+  visibility?: Visibility;
+  minMatchScore?: number;
+  completion?: ProfileCompletion;
   extras: string | null;
   moderation: 'approved' | 'pending' | 'rejected' | 'review';
   moderationReasons: string[];
@@ -55,6 +63,7 @@ export interface UpsertProfileInput {
 export const datingApi = {
   profile: () => api.get<DatingProfile | null>('/dating/profile').then((r) => r.data),
   upsertProfile: (input: UpsertProfileInput) => api.post<DatingProfile>('/dating/profile', input).then((r) => r.data),
+  deleteProfile: () => api.delete<{ ok: boolean; deleted: boolean }>('/dating/profile').then((r) => r.data),
   matches: (kind: MatchKind) => api.get<CuratedMatch[]>('/dating/matches', { params: { kind } }).then((r) => r.data),
   like: (targetUserId: string, kind: MatchKind) =>
     api.post<{ matched: boolean; conversationId: string | null; chatLocked: boolean; matchId: string }>(`/dating/matches/${targetUserId}/like`, { kind }).then((r) => r.data),
@@ -106,7 +115,21 @@ export function useUpsertDatingProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: UpsertProfileInput) => datingApi.upsertProfile(input),
-    onSuccess: (profile) => qc.setQueryData(['dating', 'profile'], profile),
+    onSuccess: (profile) => {
+      qc.setQueryData(['dating', 'profile'], profile);
+      // A saved edit changes compatibility — refresh the match lists.
+      void qc.invalidateQueries({ queryKey: ['dating', 'matches'] });
+    },
+  });
+}
+export function useDeleteDatingProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => datingApi.deleteProfile(),
+    onSuccess: () => {
+      qc.setQueryData(['dating', 'profile'], null);
+      void qc.invalidateQueries({ queryKey: ['dating'] });
+    },
   });
 }
 export function useMatches(kind: MatchKind, enabled = true) {

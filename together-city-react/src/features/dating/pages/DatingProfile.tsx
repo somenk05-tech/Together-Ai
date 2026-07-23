@@ -5,7 +5,7 @@ import { Button, Spinner } from '@/components/ui';
 import { SearchSelect } from '@/components/SearchSelect';
 import { MultiSelect } from '@/components/MultiSelect';
 import type { LookupOption } from '@/api/lookups.api';
-import { useDatingProfile, useUpsertDatingProfile, type UpsertProfileInput } from '../api';
+import { useDatingProfile, useUpsertDatingProfile, useDeleteDatingProfile, type UpsertProfileInput, type Visibility, type ProfileCompletion } from '../api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 
@@ -43,6 +43,7 @@ interface DX {
   prefAgeMin?: number | null; prefAgeMax?: number | null; prefDistanceKm?: number | null; prefHeight?: string;
   prefDiet?: string; prefSmoking?: string; prefDrinking?: string; wantsChildren?: string; religion?: string;
   dealBreakers?: string[];
+  visibility?: Visibility; minMatchScore?: number;
 }
 
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
@@ -60,6 +61,83 @@ const Phase = ({ n, title }: { n: number; title: string }) => (
     <h2 style={{ fontSize: 17, margin: 0 }}>{title}</h2>
   </div>
 );
+
+/** Circular completion ring + AI suggestions for what to add next. */
+function CompletionCard({ completion }: { completion?: ProfileCompletion }) {
+  if (!completion) return null;
+  const pct = Math.max(0, Math.min(100, completion.percent));
+  const ring = `conic-gradient(var(--accent) ${pct * 3.6}deg, var(--line) 0deg)`;
+  return (
+    <div className="card" style={{ marginTop: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ position: 'relative', width: 64, height: 64, flex: 'none', borderRadius: '50%', background: ring, display: 'grid', placeItems: 'center' }}>
+          <div style={{ width: 50, height: 50, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', fontSize: 15, fontWeight: 800 }}>{pct}%</div>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5 }}>Dating Profile · {pct}% Complete</div>
+          <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>
+            {completion.complete ? 'Your profile is fully complete — great match quality.' : 'Complete your profile to improve your match quality.'}
+          </p>
+        </div>
+      </div>
+      {completion.suggestions.length > 0 && (
+        <ul style={{ margin: '12px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {completion.suggestions.map((s) => (
+            <li key={s.key} style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>{s.label}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+const VIS_OPTIONS: { key: Visibility; label: string; hint: string }[] = [
+  { key: 'everyone', label: 'Visible to everyone who matches', hint: 'Anyone you score ≥75% with can see you.' },
+  { key: 'threshold', label: 'Visible only above a compatibility threshold', hint: 'Only people above your chosen score see you.' },
+  { key: 'paused', label: 'Pause my profile', hint: 'Temporarily hidden from matching — nothing is deleted.' },
+  { key: 'hidden', label: 'Hide my profile', hint: 'Fully hidden from the matching pool.' },
+];
+
+/** Profile visibility controls + delete. */
+function VisibilityCard({ visibility, minScore, onChange, onDelete, deleting }: {
+  visibility: Visibility; minScore: number;
+  onChange: (v: Visibility, min: number) => void; onDelete: () => void; deleting: boolean;
+}) {
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <h3 style={{ margin: 0, fontSize: 16 }}>🔒 Profile visibility</h3>
+      <p className="muted" style={{ fontSize: 12, margin: '4px 0 12px' }}>Control who can see you in the matching pool.</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {VIS_OPTIONS.map((o) => {
+          const active = visibility === o.key;
+          return (
+            <label key={o.key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+              border: `1.5px solid ${active ? 'var(--accent)' : 'var(--line)'}`, background: active ? 'var(--accent-soft)' : 'transparent' }}>
+              <input type="radio" name="visibility" checked={active} onChange={() => onChange(o.key, minScore)} style={{ marginTop: 2 }} />
+              <span>
+                <span style={{ fontSize: 13.5, fontWeight: 600, display: 'block' }}>{o.label}</span>
+                <span className="muted" style={{ fontSize: 12 }}>{o.hint}</span>
+                {o.key === 'threshold' && active && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                    <input type="range" min={75} max={95} step={1} value={minScore} onChange={(e) => onChange('threshold', parseInt(e.target.value, 10))} style={{ flex: 1 }} />
+                    <strong style={{ fontSize: 13 }}>{minScore}%+</strong>
+                  </span>
+                )}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 14, borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+        <Button variant="line" size="sm" disabled={deleting}
+          onClick={() => { if (window.confirm('Delete your dating profile? This removes you from all matches and cannot be undone.')) onDelete(); }}
+          style={{ color: '#c62828', borderColor: '#f0b0b0' }}>
+          {deleting ? 'Deleting…' : 'Delete dating profile'}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function resizePhoto(file: File, maxDim = 720): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -81,6 +159,7 @@ function resizePhoto(file: File, maxDim = 720): Promise<string> {
 export function DatingProfilePage() {
   const existing = useDatingProfile();
   const upsert = useUpsertDatingProfile();
+  const del = useDeleteDatingProfile();
   const master = useMasterProfile();
   const dobLocked = Boolean(master.data?.dateOfBirth);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -90,7 +169,7 @@ export function DatingProfilePage() {
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    const d = existing.data as (typeof existing.data & { saved?: boolean; name?: string; country?: string | null; state?: string | null; city?: string | null; heightCm?: number | null }) | null;
+    const d = existing.data as (typeof existing.data & { saved?: boolean; name?: string; country?: string | null; state?: string | null; city?: string | null; heightCm?: number | null; photo?: string | null }) | null;
     if (!d) return;
     const isSaved = (d as { saved?: boolean }).saved !== false; // prefill objects carry saved:false
     setForm({
@@ -113,6 +192,8 @@ export function DatingProfilePage() {
         state: prev.state || d.state || undefined,
         city: prev.city || d.city || undefined,
         heightCm: prev.heightCm || d.heightCm || undefined,
+        // Reuse the Master Profile photo as the first dating photo (spec §4).
+        photos: prev.photos && prev.photos.length ? prev.photos : (d.photo ? [d.photo] : prev.photos),
       }));
     }
   }, [existing.data]);
@@ -171,6 +252,10 @@ export function DatingProfilePage() {
   const data = upsert.data ?? (saved ? existing.data : null);
   const mod = data ? MOD[data.moderation] ?? MOD.approved : null;
   const photos = dx.photos ?? [];
+  const completion = upsert.data?.completion ?? (existing.data as { completion?: ProfileCompletion } | null)?.completion;
+  const visibility: Visibility = dx.visibility ?? 'everyone';
+  const minScore = dx.minMatchScore ?? 75;
+  const onDelete = () => del.mutate(undefined, { onSuccess: () => { setCollapsed(false); setDx({}); successToast('Dating profile deleted.'); } });
 
   const StatusBanner = () => data && mod ? (
     <div style={{ marginTop: 14, background: mod.bg, color: mod.c, borderRadius: 12, padding: '11px 14px', fontSize: 13 }}>
@@ -194,16 +279,18 @@ export function DatingProfilePage() {
       ['Values', (dx.values ?? []).join(', ') || '—'],
       ['Photos', `${photos.length}`],
       ['Your sign', data?.sign ?? '—'],
+      ['Visibility', VIS_OPTIONS.find((o) => o.key === visibility)?.label ?? 'Visible to everyone who matches'],
     ];
     return (
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '28px 16px' }}>
         <div className="eyebrow">Dating Hub · Your profile</div>
         <h1 style={{ fontSize: 26 }}>Tell the stars about you</h1>
         <StatusBanner />
+        <CompletionCard completion={completion} />
         <div className="card" style={{ marginTop: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 style={{ margin: 0 }}>Your dating profile</h3>
-            <Button variant="line" size="sm" onClick={() => setCollapsed(false)}>Edit</Button>
+            <Button variant="line" size="sm" onClick={() => setCollapsed(false)}>Edit Profile</Button>
           </div>
           {photos.length > 0 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '12px 0' }}>
@@ -230,6 +317,7 @@ export function DatingProfilePage() {
         Four short screens (~3–5 min). Matching is astrology-first; only matches scoring 75%+ are ever shown. Your profile passes a safety check before it goes live.
       </p>
       <StatusBanner />
+      <CompletionCard completion={completion} />
 
       <form onSubmit={submit}>
         <ValidationSummary missing={v.missing} />
@@ -353,6 +441,12 @@ export function DatingProfilePage() {
           <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 8px' }}>No input needed — from your details we compute your compatibility for every candidate:</p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{AI_DIMENSIONS.map((d) => <span key={d} className="tag">{d}</span>)}</div>
         </div>
+
+        {/* Visibility + delete — only meaningful once a profile exists, but the
+            controls are always available so the user can set them up-front. */}
+        <VisibilityCard visibility={visibility} minScore={minScore}
+          onChange={(vv, min) => setD({ visibility: vv, minMatchScore: min })}
+          onDelete={onDelete} deleting={del.isPending} />
 
         <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <Button type="submit" variant="accent" disabled={upsert.isPending}>{upsert.isPending ? 'Saving…' : saved ? 'Save profile' : 'Create profile'}</Button>

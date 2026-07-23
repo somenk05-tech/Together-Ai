@@ -4,13 +4,20 @@ import { MasterProfileService } from '../profile/master-profile.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { compatibilityScore, zodiacSign } from './astrology';
 import { factorScores, overallScore, hardFilterReason, explain, sharedItems, type DXProfile, type FactorBreakdown } from './matching';
+import { profileCompletion } from './completion';
 import { decide, scanText, type Check, type ModerationResult } from '../realestate/moderation';
 import { nickname } from '../shared/nickname';
 import type { MatchKind, UpsertDatingProfileDto } from './dto/dating.dto';
 
 const MATCH_THRESHOLD = 75; // only curated matches ≥75% are ever shown (spec)
+const MATCH_LIMIT = 24;     // a full ranked list of real matches (not endless swiping)
+
+/** Visibility mode (stored in the profile's extras JSON). */
+type Visibility = 'everyone' | 'threshold' | 'paused' | 'hidden';
+interface DXVisibility { visibility?: Visibility; minMatchScore?: number }
 
 type ActivityRow = { id: string; hostId: string; text: string; category: string; date: string; time: string | null; groupSize: string; description: string | null; createdAt: Date };
 type InviteRow = { id: string; activityId: string; invitedUserId: string; compatibility: number; status: string; trustLevel: number; invitedReveal: boolean; hostReveal: boolean; invitedFriends: boolean; hostFriends: boolean; conversationId: string | null; createdAt: Date };
@@ -25,6 +32,7 @@ export class DatingService {
     private readonly conversations: ConversationsService,
     private readonly financial: FinancialService,
     private readonly ai: AiService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ─────────────── profile ───────────────
@@ -65,12 +73,24 @@ export class DatingService {
       state: m.state ?? m.birthState ?? null,
       city: m.city ?? m.birthCity ?? null,
       heightCm: typeof m.heightCm === 'number' ? m.heightCm : null,
+      photo: (m as { photo?: string | null }).photo ?? null,
       interests: [],
       bio: null,
+      // A starting completeness from what the Master Profile already knows, so
+      // the user sees progress before answering a single dating-specific field.
+      completion: profileCompletion({
+        birthTime: m.timeOfBirth, languages: m.languages ? [m.languages] : [], city: m.city ?? m.birthCity ?? null,
+      }),
     };
   }
 
   async upsertProfile(userId: string, dto: UpsertDatingProfileDto) {
+    // Visibility mode lives in the extras JSON. paused/hidden take the profile
+    // out of everyone's matching pool (visible=false); everyone/threshold keep
+    // it in (threshold is enforced per-viewer in matches()).
+    const dx = this.parseDX(dto.extras) as DXVisibility;
+    const visibility: Visibility = dx.visibility ?? (dto.visible === false ? 'hidden' : 'everyone');
+    const inPool = visibility === 'everyone' || visibility === 'threshold';
     const data = {
       gender: dto.gender,
       seeking: dto.seeking,
@@ -80,7 +100,7 @@ export class DatingService {
       birthPlace: dto.birthPlace ?? null,
       interests: (dto.interests ?? []).join(','),
       extras: dto.extras ?? null,
-      visible: dto.visible ?? true,
+      visible: inPool,
     };
     const profile = await this.prisma.datingProfile.upsert({
       where: { userId },
@@ -107,8 +127,96 @@ export class DatingService {
     });
     await this.logModeration(userId, 'system', result.decision, result.reasons.join(' · '));
 
+    // Dynamic matching (spec §2/§6/§11): once a profile is approved and in the
+    // pool, re-run matching against everyone and alert people who just gained a
+    // new ≥75% match. Fire-and-forget so saving stays snappy.
+    if (result.decision === 'approved' && inPool) {
+      void this.reindexAfterChange(userId).catch(() => undefined);
+    }
+
     const shaped = this.shapeProfile({ ...profile, moderation: result.decision, moderationJson: JSON.stringify(result) });
     return { ...shaped, notice: this.noticeFor(result) };
+  }
+
+  /**
+   * Recompute this user's compatibility against every other approved, in-pool
+   * profile. Whenever a pair CROSSES the match threshold upward (was below /
+   * unknown, now ≥75%), notify the OTHER user in near real-time — "You have a
+   * new 89% compatible match." The sorted-pair compatibility cache is the ledger
+   * that prevents re-notifying on every subsequent edit.
+   */
+  private async reindexAfterChange(userId: string): Promise<void> {
+    const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
+    if (!mine || !mine.visible || (mine as { moderation?: string }).moderation !== 'approved') return;
+    const myD = this.parseDX((mine as { extras?: string | null }).extras);
+    const myInterests = this.splitInterests(mine.interests);
+
+    const candidates = await this.prisma.datingProfile.findMany({
+      where: { userId: { not: userId }, visible: true, moderation: 'approved' } as never,
+      take: 500,
+    });
+
+    for (const cand of candidates) {
+      const candD = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility;
+      // Romantic reachability both ways (mirrors matches()).
+      const iWant = mine.seeking === 'any' || mine.seeking === cand.gender;
+      const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
+      if (!iWant || !theyWant) continue;
+      const theirAge = this.ageOf(cand.birthDate);
+      if (hardFilterReason(myD, candD, theirAge)) continue;
+      if (hardFilterReason(candD, myD, this.ageOf(mine.birthDate))) continue;
+
+      const { score: astro } = compatibilityScore(
+        { userId, birthDate: mine.birthDate, interests: myInterests },
+        { userId: cand.userId, birthDate: cand.birthDate, interests: this.splitInterests(cand.interests) },
+      );
+      const breakdown = factorScores(astro, myInterests, this.splitInterests(cand.interests), myD, candD);
+      const score = overallScore(breakdown);
+
+      // Threshold-visibility: the candidate only wants to appear to people they
+      // score highly with — don't announce a match that won't be shown.
+      const candMin = candD.visibility === 'threshold' ? (candD.minMatchScore ?? MATCH_THRESHOLD) : MATCH_THRESHOLD;
+
+      const prev = await this.readPairScore(userId, cand.userId);
+      await this.cacheScore(userId, cand.userId, breakdown, score);
+
+      const crossedUp = (prev == null || prev < MATCH_THRESHOLD) && score >= MATCH_THRESHOLD && score >= candMin;
+      if (!crossedUp) continue;
+
+      // Never announce a pair they've already passed on.
+      const state = await this.prisma.datingMatch.findFirst({
+        where: { OR: [{ userOneId: userId, userTwoId: cand.userId }, { userOneId: cand.userId, userTwoId: userId }], kind: 'romantic' },
+      });
+      if (state && (state.status === 'passed' || state.status === 'matched')) continue;
+
+      await this.notifications.create({
+        userId: cand.userId,
+        kind: 'dating_match',
+        title: `You have a new ${score}% compatible match`,
+        body: 'A newly compatible member just joined your matches in the Dating Hub.',
+        href: '/dating/matches',
+        actorId: userId,
+      }).catch(() => undefined);
+    }
+  }
+
+  /** Sorted-pair cached overall score (the notification ledger), or null. */
+  private async readPairScore(a: string, b: string): Promise<number | null> {
+    const [userA, userB] = [a, b].sort();
+    const row = await (this.prisma as unknown as { compatibilityScore: { findUnique(x: unknown): Promise<{ overall: number } | null> } }).compatibilityScore
+      .findUnique({ where: { userA_userB: { userA, userB } } }).catch(() => null);
+    return row ? row.overall : null;
+  }
+
+  /** Permanently delete the dating profile and everything derived from it —
+   *  match states and cached compatibility rows. Removes the user from every
+   *  other member's matching pool immediately. */
+  async deleteProfile(userId: string) {
+    await this.prisma.datingMatch.deleteMany({ where: { OR: [{ userOneId: userId }, { userTwoId: userId }] } }).catch(() => undefined);
+    await (this.prisma as unknown as { compatibilityScore: { deleteMany(a: unknown): Promise<unknown> } }).compatibilityScore
+      .deleteMany({ where: { OR: [{ userA: userId }, { userB: userId }] } }).catch(() => undefined);
+    await this.prisma.datingProfile.delete({ where: { userId } }).catch(() => undefined);
+    return { ok: true as const, deleted: true as const };
   }
 
   private noticeFor(r: ModerationResult): string {
@@ -222,9 +330,13 @@ export class DatingService {
       );
       const myInterests = this.splitInterests(mine.interests);
       const theirInterests = this.splitInterests(cand.interests);
-      const breakdown = factorScores(astro, myInterests, theirInterests, myD, this.parseDX((cand as { extras?: string | null }).extras));
+      const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility;
+      const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
       const score = overallScore(breakdown);
       if (score < MATCH_THRESHOLD) continue;
+      // Threshold-visibility: this candidate only wants to be seen by people
+      // they score highly with — hide them from viewers below their minimum.
+      if (candDX.visibility === 'threshold' && score < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
 
       void this.cacheScore(userId, cand.userId, breakdown, score);
       results.push({
@@ -242,16 +354,19 @@ export class DatingService {
         conversationId: state?.conversationId ?? null,
       });
     }
-    // Top 3 highest-scoring only — no endless swiping.
-    return results.sort((a, b) => b.score - a.score).slice(0, 3);
+    // A full ranked list of real matches (highest compatibility first).
+    return results.sort((a, b) => b.score - a.score).slice(0, MATCH_LIMIT);
   }
 
   private parseDX(extras: string | null | undefined): DXProfile {
     try { return extras ? (JSON.parse(extras) as DXProfile) : {}; } catch { return {}; }
   }
 
-  /** Best-effort precompute cache of a pair's factor scores. */
-  private async cacheScore(userA: string, userB: string, f: FactorBreakdown, overall: number) {
+  /** Best-effort precompute cache of a pair's factor scores. Stored under the
+   *  SORTED pair key so there's exactly one row per pair (also the ledger that
+   *  live re-matching reads to detect threshold crossings). */
+  private async cacheScore(a: string, b: string, f: FactorBreakdown, overall: number) {
+    const [userA, userB] = [a, b].sort();
     await (this.prisma as unknown as { compatibilityScore: { upsert(a: unknown): Promise<unknown> } }).compatibilityScore
       .upsert({
         where: { userA_userB: { userA, userB } },
@@ -488,6 +603,14 @@ export class DatingService {
   }) {
     let reasons: string[] = [];
     try { reasons = p.moderationJson ? (JSON.parse(p.moderationJson) as ModerationResult).reasons : []; } catch { reasons = []; }
+    const dx = this.parseDX((p as { extras?: string | null }).extras) as DXProfile & DXVisibility & { photos?: string[]; languages?: string[] };
+    const interests = this.splitInterests(p.interests);
+    const completion = profileCompletion({
+      bio: p.bio, interests, birthTime: p.birthTime, photos: dx.photos, personalityTraits: dx.personalityTraits,
+      values: dx.values, languages: dx.languages, city: dx.city, relationshipGoal: dx.relationshipGoal,
+      diet: dx.diet, smoking: dx.smoking, drinking: dx.drinking, fitnessLevel: dx.fitnessLevel,
+      prefAgeMin: dx.prefAgeMin, prefAgeMax: dx.prefAgeMax,
+    });
     return {
       userId: p.userId,
       gender: p.gender,
@@ -496,12 +619,15 @@ export class DatingService {
       birthDate: p.birthDate.toISOString().slice(0, 10),
       birthTime: p.birthTime,
       birthPlace: p.birthPlace,
-      interests: this.splitInterests(p.interests),
+      interests,
       sign: zodiacSign(p.birthDate).name,
       visible: p.visible,
+      visibility: (dx.visibility ?? 'everyone') as Visibility,
+      minMatchScore: dx.minMatchScore ?? MATCH_THRESHOLD,
       extras: (p as { extras?: string | null }).extras ?? null,
       moderation: (p as { moderation?: string }).moderation ?? 'approved',
       moderationReasons: reasons,
+      completion,
     };
   }
 }

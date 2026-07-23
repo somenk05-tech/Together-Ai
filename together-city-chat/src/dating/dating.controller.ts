@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -25,6 +25,11 @@ export class DatingController {
   @UsePipes(new ZodValidationPipe(UpsertDatingProfileSchema))
   upsert(@CurrentUser() user: JwtUser, @Body() dto: UpsertDatingProfileDto) {
     return this.dating.upsertProfile(user.sub, dto);
+  }
+
+  @Delete('profile')
+  deleteProfile(@CurrentUser() user: JwtUser) {
+    return this.dating.deleteProfile(user.sub);
   }
 
   @Get('matches')
