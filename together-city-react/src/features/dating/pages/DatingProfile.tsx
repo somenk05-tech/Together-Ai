@@ -218,12 +218,6 @@ export function DatingProfilePage() {
       </p>
       <StatusBanner />
 
-      {!saved && existing.data && (existing.data as { prefilled?: boolean }).prefilled && (
-        <div style={{ marginTop: 14, background: 'var(--accent-soft)', borderRadius: 12, padding: '11px 14px', fontSize: 13 }}>
-          ✨ We pre-filled what we already know from your Together City profile. Just add your dating-specific details and photos.
-        </div>
-      )}
-
       <form onSubmit={submit}>
         <ValidationSummary missing={v.missing} />
         {/* Phase 1 — Basic info */}
