@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Spinner, Tag } from '@/components/ui';
 import { SearchSelect } from '@/components/SearchSelect';
-import { useLookups, type LookupOption } from '@/api/lookups.api';
+import { useLookups } from '@/api/lookups.api';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/auth.store';
 import { profileApi, type MasterProfileView } from '@/features/profile/api';
@@ -98,20 +98,6 @@ const TZ_BY_COUNTRY: Record<string, string> = {
   VN: 'Asia/Ho_Chi_Minh', ZA: 'Africa/Johannesburg',
 };
 
-/** 1-minute interval time options in AM/PM, coded as 24h HH:MM. */
-function useTimeOptions(): LookupOption[] {
-  return useMemo(() => {
-    const out: LookupOption[] = [];
-    for (let h = 0; h < 24; h++) {
-      for (let m = 0; m < 60; m++) {
-        const code = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-        const h12 = h % 12 === 0 ? 12 : h % 12;
-        out.push({ code, label: `${h12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`, parentCode: null });
-      }
-    }
-    return out;
-  }, []);
-}
 const to12h = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number);
   if (!isFinite(h)) return '';
@@ -284,7 +270,6 @@ function SummaryCard({ profile, justSaved, onEdit }: {
 export function AstroProfilePage() {
   const view = useAstroProfile();
   const save = useSaveAstroProfile();
-  const timeOptions = useTimeOptions();
   const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
   const today = new Date().toISOString().slice(0, 10);
 
@@ -410,9 +395,11 @@ export function AstroProfilePage() {
             <div>
               <label style={label}>Time of Birth</label>
               {!timeUnknown ? (
-                <SearchSelect options={timeOptions} value={birthTime ? to12h(birthTime) : ''}
-                  placeholder="Search a time — e.g. 7:10 PM"
-                  onChange={(opt) => setBirthTime(opt?.code ?? '')} ariaLabel="Time of birth" />
+                <>
+                  <input type="time" value={birthTime} onChange={(e) => setBirthTime(e.target.value)}
+                    style={field} aria-label="Time of birth" step={60} />
+                  <p className="muted" style={{ fontSize: 11.5, margin: '5px 0 0' }}>Type or pick your exact time — to the minute.</p>
+                </>
               ) : (
                 <div style={{ ...field, background: 'var(--paper)', color: 'var(--muted)', fontSize: 13 }}>Time unknown</div>
               )}
