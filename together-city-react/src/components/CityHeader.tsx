@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useCityHeader } from '@/api/city.api';
+import { useMasterProfile } from '@/features/profile/hooks';
 
 /** Best-effort device geolocation (non-blocking). Resolves null if denied. */
 function useDeviceCoords(): { lat: number; lng: number } | null {
@@ -37,7 +38,11 @@ function useLiveDate(): Date {
  */
 export function CityHeader({ variant = 'overlay' }: { variant?: 'overlay' | 'plain' }) {
   const coords = useDeviceCoords();
-  const q = useCityHeader(coords);
+  // When there's no device location, hint the API with the user's home city
+  // (from the Master Profile) so weather still resolves to the right place.
+  const master = useMasterProfile();
+  const homeCity = coords ? null : (master.data?.city || master.data?.birthCity || null);
+  const q = useCityHeader(coords, homeCity);
   const now = useLiveDate();
   const data = q.data;
 

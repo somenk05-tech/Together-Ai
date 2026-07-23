@@ -17,15 +17,18 @@ export const CityHeaderSchema = z.object({
 export type CityHeader = z.infer<typeof CityHeaderSchema>;
 
 export const cityApi = {
-  header: (coords?: { lat: number; lng: number }): Promise<CityHeader> =>
-    apiGet('/city/header', CityHeaderSchema, { params: coords ? { lat: coords.lat, lng: coords.lng } : undefined }),
+  header: (coords?: { lat: number; lng: number } | null, city?: string | null): Promise<CityHeader> =>
+    apiGet('/city/header', CityHeaderSchema, {
+      params: coords ? { lat: coords.lat, lng: coords.lng } : city ? { city } : undefined,
+    }),
 };
 
-/** Live city header — refreshes weather every 20 minutes. */
-export function useCityHeader(coords?: { lat: number; lng: number } | null) {
+/** Live city header — refreshes weather every 20 minutes. Pass device coords
+ *  when available, otherwise a home-city hint. */
+export function useCityHeader(coords?: { lat: number; lng: number } | null, city?: string | null) {
   return useQuery({
-    queryKey: ['city', 'header', coords ? `${coords.lat.toFixed(3)},${coords.lng.toFixed(3)}` : 'profile'],
-    queryFn: () => cityApi.header(coords ?? undefined),
+    queryKey: ['city', 'header', coords ? `${coords.lat.toFixed(3)},${coords.lng.toFixed(3)}` : (city ?? 'default')],
+    queryFn: () => cityApi.header(coords, city),
     refetchInterval: 20 * 60 * 1000,
     staleTime: 15 * 60 * 1000,
   });
