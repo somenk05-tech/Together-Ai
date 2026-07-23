@@ -2,15 +2,23 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { ConnectionStatus, ConnectionType, Connection, User } from '@prisma/client';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { orderPair } from './connection.util';
-import { RequestConnectionDto, RespondConnectionDto } from './dto/connections.dto';
+import { RequestConnectionDto, RespondConnectionDto, UpdateModulesDto } from './dto/connections.dto';
 
 /** Shape the UI consumes: the OTHER party + a friendly status + direction. */
 export interface ShapedConnection {
   id: string;
   status: 'pending' | 'accepted' | 'blocked';
   incoming: boolean; // true when the OTHER person sent the request (you can accept)
+  relationship: string | null;
+  modules: string[]; // Universal Connection Model — module permissions on this ONE record
   user: { id: string; handle: string; name: string; profileImage: string | null };
 }
+
+const DEFAULT_MODULES = ['chat', 'social'];
+const parseModules = (raw: unknown): string[] => {
+  try { const v = JSON.parse(String(raw ?? '')); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : DEFAULT_MODULES; }
+  catch { return DEFAULT_MODULES; }
+};
 
 const STATUS_OUT: Record<ConnectionStatus, ShapedConnection['status']> = {
   PENDING: 'pending',
@@ -46,16 +54,25 @@ export class ConnectionsService {
         connectionType: ConnectionType.FRIEND,
         status: ConnectionStatus.PENDING,
         requestedById: requesterId,
-      },
-      // Re-requesting after a decline/removal re-opens it as pending from this requester.
-      update: {},
+        relationship: dto.relationship ?? null,
+        modulesJson: JSON.stringify(dto.modules?.length ? dto.modules : DEFAULT_MODULES),
+      } as never,
+      // Re-requesting refreshes the requested modules/relationship.
+      update: dto.modules?.length || dto.relationship ? {
+        ...(dto.modules?.length ? { modulesJson: JSON.stringify(dto.modules) } : {}),
+        ...(dto.relationship ? { relationship: dto.relationship } : {}),
+      } as never : {},
     });
 
     // If a prior row exists but was removed/blocked, re-open it as a fresh pending request.
     if (conn.status === ConnectionStatus.REMOVED) {
       const reopened = await this.prisma.connection.update({
         where: { id: conn.id },
-        data: { status: ConnectionStatus.PENDING, requestedById: requesterId },
+        data: {
+          status: ConnectionStatus.PENDING, requestedById: requesterId,
+          relationship: dto.relationship ?? null,
+          modulesJson: JSON.stringify(dto.modules?.length ? dto.modules : DEFAULT_MODULES),
+        } as never,
       });
       return this.shape(reopened, requesterId, target);
     }
@@ -87,6 +104,9 @@ export class ConnectionsService {
         ],
         skipDuplicates: true,
       });
+      // System Sync (Universal Connection Model): accepting in People connects
+      // the granted modules everywhere — no separate hub invitations.
+      await this.syncModules(updated).catch(() => undefined);
     }
     const otherId = updated.userOneId === userId ? updated.userTwoId : updated.userOneId;
     const other = await this.prisma.user.findUnique({ where: { id: otherId } });
@@ -111,10 +131,61 @@ export class ConnectionsService {
     return shaped;
   }
 
+  /** One record, many permissions: hubs query THIS. */
+  async updateModules(userId: string, connectionId: string, dto: UpdateModulesDto): Promise<ShapedConnection> {
+    const conn = await this.prisma.connection.findUnique({ where: { id: connectionId } });
+    if (!conn) throw new NotFoundException('Connection not found');
+    if (conn.userOneId !== userId && conn.userTwoId !== userId) throw new ForbiddenException('Not your connection');
+    const modules = dto.modules.length ? dto.modules : DEFAULT_MODULES;
+    const updated = await this.prisma.connection.update({
+      where: { id: conn.id },
+      data: { modulesJson: JSON.stringify(modules) } as never,
+    });
+    if (updated.status === ConnectionStatus.ACCEPTED) await this.syncModules(updated).catch(() => undefined);
+    const otherId = updated.userOneId === userId ? updated.userTwoId : updated.userOneId;
+    const other = await this.prisma.user.findUnique({ where: { id: otherId } });
+    return this.shape(updated, userId, other);
+  }
+
+  /** Everyone connected to this user FOR a given module — what every hub
+   *  displays ("Connected via People") instead of running its own invites. */
+  async listForModule(userId: string, module: string): Promise<ShapedConnection[]> {
+    const all = await this.listForUser(userId, 'accepted');
+    return all.filter((c) => c.modules.includes(module));
+  }
+
+  /** Propagate granted modules into hub systems (accept once, connected everywhere). */
+  private async syncModules(conn: Connection): Promise<void> {
+    const modules = parseModules((conn as { modulesJson?: string | null }).modulesJson);
+    // Nutrition Family Hub: the requester becomes the household owner, the
+    // acceptor joins as an accepted member — replaces the separate invite flow.
+    if (modules.includes('nutrition')) {
+      const ownerId = conn.requestedById;
+      const memberUserId = conn.userOneId === ownerId ? conn.userTwoId : conn.userOneId;
+      const household = (this.prisma as unknown as {
+        householdMember: {
+          findFirst: (a: unknown) => Promise<{ id: string; status: string } | null>;
+          create: (a: unknown) => Promise<unknown>;
+          update: (a: unknown) => Promise<unknown>;
+        };
+      }).householdMember;
+      const existing = await household.findFirst({ where: { ownerId, memberUserId } }).catch(() => null);
+      if (!existing) {
+        await household.create({ data: { ownerId, memberUserId, role: 'adult', status: 'accepted', requestedById: ownerId } }).catch(() => undefined);
+      } else if (existing.status !== 'accepted') {
+        await household.update({ where: { id: existing.id }, data: { status: 'accepted' } }).catch(() => undefined);
+      }
+    }
+    // Medical reads the household; travel/entertainment/etc consume the record
+    // directly via listForModule — nothing extra to create.
+  }
+
   private shape(conn: Connection, meId: string, other: User | null): ShapedConnection {
     return {
       id: conn.id,
       status: STATUS_OUT[conn.status],
+      relationship: (conn as { relationship?: string | null }).relationship ?? null,
+      modules: parseModules((conn as { modulesJson?: string | null }).modulesJson),
       incoming: conn.requestedById !== meId,
       user: other
         ? { id: other.id, handle: other.handle, name: other.name, profileImage: other.profileImage ?? null }

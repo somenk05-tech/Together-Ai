@@ -60,7 +60,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 18 }}>Invite to your Household</h3>
-            <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>Find a Together City member by their user ID or @username. This is private to the Nutrition Hub — it never adds them as a friend or social connection.</p>
+            <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>Find a Together City member by their user ID or @username. This is private to the Nutrition Hub — it never adds them as a friend or social connection. Tip: connecting as Family in People (with the Nutrition module ticked) adds them here automatically — one request, every hub connected.</p>
           </div>
           <button onClick={onClose} aria-label="Close" style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--muted)', lineHeight: 1 }}>×</button>
         </div>

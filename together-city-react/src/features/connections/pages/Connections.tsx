@@ -5,6 +5,9 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useConnections, useRespondConnection, chatApi } from '@/api';
 import type { Connection } from '@/api/schemas';
 import { MemberFinder } from '../components/MemberFinder';
+import { useUpdateModules } from '@/api/connections.api';
+import { DEFAULT_MODULES, RELATIONSHIPS, allowedModules } from '../modules';
+import { ModuleChips, ModuleToggles } from '../components/ModuleToggles';
 
 function Avatar({ name }: { name: string }) {
   return (
@@ -19,15 +22,41 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-function Row({ c, actions }: { c: Connection; actions?: React.ReactNode }) {
+function Row({ c, actions, subtitle, children }: { c: Connection; actions?: React.ReactNode; subtitle?: string; children?: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: '1px solid var(--line)' }}>
-      <Avatar name={c.user.name} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: 14 }}>{c.user.name}</div>
-        <div className="muted" style={{ fontSize: 12 }}>@{c.user.handle}</div>
+    <div style={{ padding: '12px 0', borderTop: '1px solid var(--line)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Avatar name={c.user.name} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>{c.user.name}</div>
+          <div className="muted" style={{ fontSize: 12 }}>@{c.user.handle}{subtitle ? ` · ${subtitle}` : ''}</div>
+          <ModuleChips modules={c.modules ?? DEFAULT_MODULES} />
+        </div>
+        {actions}
       </div>
-      {actions}
+      {children}
+    </div>
+  );
+}
+
+const relLabel = (r?: string | null) => RELATIONSHIPS.find((x) => x.key === r)?.label ?? null;
+
+/** Manage a connection's module grants — the ONE record every hub queries. */
+function ManagePanel({ c }: { c: Connection }) {
+  const update = useUpdateModules();
+  const [selected, setSelected] = useState<string[]>(c.modules ?? DEFAULT_MODULES);
+  const rel = c.relationship ?? 'friend';
+  const dirty = JSON.stringify([...selected].sort()) !== JSON.stringify([...(c.modules ?? DEFAULT_MODULES)].sort());
+  return (
+    <div style={{ marginTop: 10, paddingLeft: 56 }}>
+      <ModuleToggles relationship={rel} selected={selected.filter((k) => allowedModules(rel).includes(k))} onChange={setSelected} />
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
+        <Button size="sm" variant="accent" disabled={!dirty || update.isPending}
+          onClick={() => update.mutate({ id: c.id, modules: selected })}>
+          {update.isPending ? 'Saving…' : 'Save modules'}
+        </Button>
+        <span className="muted" style={{ fontSize: 11 }}>Connected hubs update everywhere immediately.</span>
+      </div>
     </div>
   );
 }
@@ -39,6 +68,7 @@ export function Connections() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [opening, setOpening] = useState<string | null>(null);
+  const [managing, setManaging] = useState<string | null>(null);
 
   const openChat = async (h: string) => {
     setOpening(h);
@@ -58,10 +88,11 @@ export function Connections() {
 
   return (
     <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
-      <div className="eyebrow">Together City</div>
-      <h1 style={{ fontSize: 26 }}>Social connections</h1>
+      <div className="eyebrow">Together City · People</div>
+      <h1 style={{ fontSize: 26 }}>People</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
-        Everyone you’re connected to across the city. Chat and sharing are gated by your connections.
+        The universal connection center. Connect once, choose the hubs to share — every hub across the
+        city simply shows Connected or Not Connected from this one place.
       </p>
 
       <MemberFinder />
@@ -73,6 +104,7 @@ export function Connections() {
             <Row
               key={c.id}
               c={c}
+              subtitle={relLabel(c.relationship) ? `wants to connect with you as ${relLabel(c.relationship)}` : 'wants to connect with you'}
               actions={
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button size="sm" variant="accent" disabled={respond.isPending}
@@ -101,12 +133,19 @@ export function Connections() {
           <EmptyState icon="🤝" title="No connections yet" hint="Send a request by handle above." />
         ) : (
           accepted.map((c) => (
-            <Row key={c.id} c={c} actions={
-              <Button size="sm" variant="accent" disabled={opening === c.user.handle}
-                onClick={() => openChat(c.user.handle)}>
-                {opening === c.user.handle ? '…' : 'Message'}
-              </Button>
-            } />
+            <Row key={c.id} c={c} subtitle={relLabel(c.relationship) ?? undefined} actions={
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button size="sm" variant="line" onClick={() => setManaging(managing === c.id ? null : c.id)}>
+                  {managing === c.id ? 'Close' : 'Modules'}
+                </Button>
+                <Button size="sm" variant="accent" disabled={opening === c.user.handle}
+                  onClick={() => openChat(c.user.handle)}>
+                  {opening === c.user.handle ? '…' : 'Message'}
+                </Button>
+              </div>
+            }>
+              {managing === c.id && <ManagePanel c={c} />}
+            </Row>
           ))
         )}
       </div>

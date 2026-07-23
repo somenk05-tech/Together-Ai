@@ -4,6 +4,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Card, Button, Spinner } from '@/components/ui';
 import { usersApi, chatApi, useConnections, type LookupResult } from '@/api';
 import { useRequestConnection, useRespondConnection } from '@/api/connections.api';
+import { DEFAULT_MODULES, RELATIONSHIPS, allowedModules } from '../modules';
+import { ModuleToggles } from './ModuleToggles';
 
 /**
  * Private discovery: find ONE member by their EXACT @handle — there is no
@@ -23,6 +25,9 @@ export function MemberFinder() {
   const [result, setResult] = useState<LookupResult>(null);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [relationship, setRelationship] = useState<'family' | 'friend'>('friend');
+  const [modules, setModules] = useState<string[]>(DEFAULT_MODULES);
 
   const search = async (e: FormEvent) => {
     e.preventDefault();
@@ -39,7 +44,9 @@ export function MemberFinder() {
   const connect = async () => {
     if (!result) return;
     try {
-      await requestConn.mutateAsync(result.handle);
+      const scoped = modules.filter((m) => allowedModules(relationship).includes(m));
+      await requestConn.mutateAsync({ handle: result.handle, relationship, modules: scoped.length ? scoped : DEFAULT_MODULES });
+      setConnecting(false);
       setResult({ ...result, relationship: 'pending_out' });
     } catch { setError('Could not send the request — try again.'); }
   };
@@ -108,8 +115,8 @@ export function MemberFinder() {
             <div style={{ fontSize: 14, fontWeight: 600 }}>{result.name}</div>
             <div className="muted" style={{ fontSize: 12, fontFamily: 'monospace' }}>@{result.handle}</div>
           </div>
-          {result.relationship === 'none' && (
-            <Button variant="accent" size="sm" disabled={requestConn.isPending} onClick={connect}>Connect</Button>
+          {result.relationship === 'none' && !connecting && (
+            <Button variant="accent" size="sm" onClick={() => setConnecting(true)}>Connect</Button>
           )}
           {result.relationship === 'pending_out' && (
             <Button variant="line" size="sm" disabled>Requested</Button>
@@ -123,6 +130,34 @@ export function MemberFinder() {
           {result.relationship === 'blocked' && (
             <Button variant="line" size="sm" disabled>Unavailable</Button>
           )}
+        </div>
+      )}
+
+      {/* Universal Connection Model: relationship first, then the hubs to connect */}
+      {!busy && result && result.relationship === 'none' && connecting && (
+        <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginTop: 4 }}>
+          <p style={{ fontSize: 12.5, fontWeight: 700, margin: '0 0 8px' }}>Relationship</p>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            {RELATIONSHIPS.map((r) => (
+              <button key={r.key} type="button"
+                onClick={() => { setRelationship(r.key); setModules((m) => m.filter((k) => allowedModules(r.key).includes(k))); }}
+                style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '8px 16px',
+                  borderRadius: 10, border: `1.5px solid ${relationship === r.key ? 'var(--accent)' : 'var(--line)'}`,
+                  background: relationship === r.key ? 'var(--accent-soft)' : 'var(--card)', color: 'var(--ink)' }}>
+                {r.emoji} {r.label}
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize: 12.5, fontWeight: 700, margin: '0 0 8px' }}>Connect modules</p>
+          <ModuleToggles relationship={relationship} selected={modules} onChange={setModules} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+            <Button variant="accent" size="sm" disabled={requestConn.isPending || modules.length === 0} onClick={connect}>
+              {requestConn.isPending ? 'Sending…' : 'Send Connection Request'}
+            </Button>
+            <span className="muted" style={{ fontSize: 11.5 }}>
+              They get ONE request in People — accepted hubs connect everywhere automatically.
+            </span>
+          </div>
         </div>
       )}
     </Card>

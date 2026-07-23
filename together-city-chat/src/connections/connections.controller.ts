@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -9,6 +9,8 @@ import {
   RequestConnectionSchema,
   RespondConnectionDto,
   RespondConnectionSchema,
+  UpdateModulesDto,
+  UpdateModulesSchema,
 } from './dto/connections.dto';
 
 @Controller('connections')
@@ -31,5 +33,18 @@ export class ConnectionsController {
   @Get()
   list(@CurrentUser() user: JwtUser, @Query('status') status?: string) {
     return this.connections.listForUser(user.sub, status);
+  }
+
+  /** Universal Connection Model — update module permissions on ONE record. */
+  @Patch(':id/modules')
+  @UsePipes(new ZodValidationPipe(UpdateModulesSchema))
+  updateModules(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: UpdateModulesDto) {
+    return this.connections.updateModules(user.sub, id, dto);
+  }
+
+  /** Everyone connected for a given module — hubs display, never re-invite. */
+  @Get('module/:key')
+  forModule(@CurrentUser() user: JwtUser, @Param('key') key: string) {
+    return this.connections.listForModule(user.sub, key);
   }
 }

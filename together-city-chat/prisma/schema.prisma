@@ -181,6 +181,8 @@ model Connection {
   connectionType ConnectionType
   status         ConnectionStatus @default(PENDING)
   requestedById  String // who initiated (for accept/decline UX)
+  relationship   String? // family | friend | partner | colleague | other
+  modulesJson    String? // JSON string[] — module permissions granted on this ONE record (chat, social, nutrition, medical, travel, entertainment, financial, jobs, beauty, fitness). Universal Connection Model: every hub queries this, no per-hub invites.
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
