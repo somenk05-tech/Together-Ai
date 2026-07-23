@@ -211,4 +211,77 @@ export class MasterProfileService {
     this.logger.log(`shared fields synced from ${source}: ${Object.keys(clean).join(', ')}`);
     return { synced: true, fields: Object.keys(clean) };
   }
+
+  /**
+   * ONE platform-wide profile-completion score (spec: Progressive Profile
+   * Completion). Aggregates the Master identity + every hub profile into a
+   * single percentage, with a per-hub breakdown the Master Profile page renders
+   * as "what's left to complete". Reads live each call, so it's always current
+   * after any hub save (which syncs shared fields back here).
+   */
+  async completion(userId: string) {
+    const m = await this.get(userId);
+    const px = this.prisma as unknown as {
+      foodPref: { findUnique(a: unknown): Promise<{ diet?: string | null; weightKg?: number | null } | null> };
+      fitnessProfile: { findUnique(a: unknown): Promise<{ goal?: string | null; level?: string | null } | null> };
+      beautyProfile: { findUnique(a: unknown): Promise<{ extras?: string | null } | null> };
+      datingProfile: { findUnique(a: unknown): Promise<{ bio?: string | null; interests?: string | null; extras?: string | null } | null> };
+      jobProfile: { findUnique(a: unknown): Promise<{ headline?: string | null } | null> };
+      user: { findUnique(a: unknown): Promise<{ bio?: string | null } | null> };
+    };
+    const [food, fitness, beauty, dating, jobs, user] = await Promise.all([
+      px.foodPref.findUnique({ where: { userId } }).catch(() => null),
+      px.fitnessProfile.findUnique({ where: { userId } }).catch(() => null),
+      px.beautyProfile.findUnique({ where: { userId } }).catch(() => null),
+      px.datingProfile.findUnique({ where: { userId } }).catch(() => null),
+      px.jobProfile.findUnique({ where: { userId } }).catch(() => null),
+      px.user.findUnique({ where: { id: userId } }).catch(() => null),
+    ]);
+
+    const has = (v: unknown): boolean => v !== undefined && v !== null && v !== '';
+    const json = (s: string | null | undefined): Record<string, unknown> => { try { return s ? JSON.parse(s) : {}; } catch { return {}; } };
+    const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+    const datingEx = json(dating?.extras);
+    const beautyEx = json(beauty?.extras);
+
+    const section = (key: string, label: string, href: string, checks: boolean[]) => {
+      const done = checks.filter(Boolean).length;
+      return { key, label, href, done, total: checks.length, percent: Math.round((done / checks.length) * 100), complete: done === checks.length };
+    };
+
+    const sections = [
+      section('identity', 'Identity', '/profile', [
+        has(m.name), has(m.dateOfBirth), has(m.gender), has(m.heightCm), has(m.city), has(m.languages), has(m.photo),
+      ]),
+      section('astrology', 'Astrology', '/profile/astrology', [
+        has(m.dateOfBirth), has(m.timeOfBirth), has(m.birthCity ?? m.city),
+      ]),
+      section('nutrition', 'Nutrition', '/nutrition/preferences', [
+        Boolean(food), has(food?.diet), has(food?.weightKg),
+      ]),
+      section('fitness', 'Fitness', '/fitness/profile', [
+        Boolean(fitness), has(fitness?.goal), has(fitness?.level),
+      ]),
+      section('beauty', 'Beauty', '/beauty/profile', [
+        Boolean(beauty), arr(beautyEx.photos).length > 0, arr(beautyEx.goals).length > 0 || has(beautyEx.goal),
+      ]),
+      section('dating', 'Dating', '/dating/profile', [
+        Boolean(dating), has(dating?.bio), (dating?.interests ?? '').split(',').filter(Boolean).length >= 3, arr(datingEx.photos).length >= 3,
+      ]),
+      section('jobs', 'Jobs', '/jobs/profile', [
+        Boolean(jobs), has(jobs?.headline),
+      ]),
+      section('social', 'Social', '/social/profile', [
+        has(user?.bio),
+      ]),
+    ];
+
+    const totalDone = sections.reduce((s, x) => s + x.done, 0);
+    const totalChecks = sections.reduce((s, x) => s + x.total, 0);
+    const percent = Math.round((totalDone / Math.max(1, totalChecks)) * 100);
+    // Most impactful next steps: incomplete sections, least-complete first.
+    const nextUp = sections.filter((s) => !s.complete).sort((a, b) => a.percent - b.percent).slice(0, 4).map((s) => ({ key: s.key, label: s.label, href: s.href }));
+
+    return { percent, complete: percent >= 100, sections, nextUp };
+  }
 }

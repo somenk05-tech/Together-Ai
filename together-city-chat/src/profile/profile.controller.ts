@@ -21,6 +21,12 @@ export class ProfileController {
     return this.masterProfile.get(user.sub);
   }
 
+  /** One platform-wide profile-completion score + per-hub breakdown. */
+  @Get('completion')
+  completion(@CurrentUser() user: JwtUser) {
+    return this.masterProfile.completion(user.sub);
+  }
+
   /** Update shared fields — propagates to every hub that duplicates them. */
   @Patch('master')
   @UsePipes(new ZodValidationPipe(z.object({

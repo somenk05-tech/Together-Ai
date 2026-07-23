@@ -11,8 +11,20 @@ export interface MasterProfileView {
   age?: number | null; updatedAt?: string | null;
 }
 
+export interface CompletionSection {
+  key: string; label: string; href: string;
+  done: number; total: number; percent: number; complete: boolean;
+}
+export interface ProfileCompletion {
+  percent: number;
+  complete: boolean;
+  sections: CompletionSection[];
+  nextUp: { key: string; label: string; href: string }[];
+}
+
 export const profileApi = {
   master: () => api.get<MasterProfileView>('/profile/master').then((r) => r.data),
+  completion: () => api.get<ProfileCompletion>('/profile/completion').then((r) => r.data),
   updateMaster: (patch: Partial<MasterProfileView>) =>
     api.patch<MasterProfileView>('/profile/master', patch).then((r) => r.data),
   summary: () => api.get<ProfileSummary>('/profile/summary').then((r) => r.data),

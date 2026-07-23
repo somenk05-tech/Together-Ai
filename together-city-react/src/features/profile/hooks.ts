@@ -11,3 +11,9 @@ export function useProfileSummary() {
 export function useMasterProfile() {
   return useQuery({ queryKey: ['profile', 'master'], queryFn: () => profileApi.master(), staleTime: 30_000 });
 }
+
+/** One platform-wide profile-completion score across all hubs. Recomputed on
+ *  the server each read, so it reflects the latest saves. */
+export function useProfileCompletion() {
+  return useQuery({ queryKey: ['profile', 'completion'], queryFn: () => profileApi.completion(), staleTime: 15_000 });
+}

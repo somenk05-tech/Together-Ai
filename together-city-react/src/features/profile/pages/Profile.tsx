@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/auth.store';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
-import { useProfileSummary } from '../hooks';
+import { useProfileSummary, useProfileCompletion } from '../hooks';
 import { profileApi } from '../api';
 import { useWebPush } from '@/hooks/useWebPush';
 import { useConnections, useRespondConnection, useUnreadChatCount, useIncomingRequestCount } from '@/api';
@@ -19,6 +19,52 @@ function Avatar({ src, name, size = 56 }: { src?: string | null; name: string; s
     <div className="tc-avatar" style={{ width: size, height: size, fontSize: size / 3, flexShrink: 0 }}>
       {(name || 'You').slice(0, 2).toUpperCase()}
     </div>
+  );
+}
+
+/** ONE profile-completion score across all hubs, with per-hub progress bars and
+ *  quick links to finish whatever's incomplete. Enter info once; every hub
+ *  reuses it, and this stays current after any save. */
+function ProfileCompletionCard() {
+  const q = useProfileCompletion();
+  const d = q.data;
+  if (!d) return null;
+  const pct = Math.max(0, Math.min(100, d.percent));
+  const ring = `conic-gradient(var(--accent) ${pct * 3.6}deg, var(--line) 0deg)`;
+  return (
+    <Card style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', width: 68, height: 68, flex: 'none', borderRadius: '50%', background: ring, display: 'grid', placeItems: 'center' }}>
+          <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', fontSize: 16, fontWeight: 800 }}>{pct}%</div>
+        </div>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <h3 style={{ margin: 0, fontSize: 16 }}>Profile completion</h3>
+          <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>
+            {d.complete ? 'Your profile is complete across every hub.' : 'One profile, reused across every hub — finish the rest to unlock better results.'}
+          </p>
+          {d.nextUp.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+              {d.nextUp.map((n) => (
+                <Link key={n.key} to={n.href} className="tag" style={{ textDecoration: 'none' }}>Complete {n.label} →</Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: '10px 16px', marginTop: 16 }}>
+        {d.sections.map((s) => (
+          <Link key={s.key} to={s.href} style={{ textDecoration: 'none', color: 'inherit' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 4 }}>
+              <span style={{ fontWeight: 600 }}>{s.label}</span>
+              <span className="muted">{s.complete ? '✓' : `${s.percent}%`}</span>
+            </div>
+            <div style={{ height: 5, borderRadius: 3, background: 'var(--line)', overflow: 'hidden' }}>
+              <div style={{ width: `${s.percent}%`, height: '100%', background: s.complete ? '#2e7d4f' : 'var(--accent)' }} />
+            </div>
+          </Link>
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -183,6 +229,9 @@ export function Profile() {
           <Button variant="line" size="sm" onClick={signOut}>Sign out</Button>
         </div>
       </Card>
+
+      {/* One completion score across every hub profile */}
+      <ProfileCompletionCard />
 
       {/* Quick access — Calendar lives here now (moved out of the top bar) */}
       <Link to="/calendar" className="card lift" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12, textDecoration: 'none', color: 'inherit' }}>
