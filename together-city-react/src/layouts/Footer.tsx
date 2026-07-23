@@ -9,7 +9,7 @@ export function Footer() {
         <Link to="/chats">Chats</Link><Link to="/connections">Connections</Link><Link to="/profile">Profile</Link>
         <Link to="/settings">Settings</Link>
       </nav>
-      <span>One city. Every part of life. © 2026 Together City</span>
+      <span>The biggest digital city in the world — everything personalized. © 2026 Together City</span>
     </footer>
   );
 }
