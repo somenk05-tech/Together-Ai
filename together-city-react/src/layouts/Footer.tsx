@@ -5,7 +5,7 @@ export function Footer() {
     <footer className="tc-footer">
       <span className="word">TOGETHER CITY</span>
       <nav>
-        <Link to="/">City</Link><Link to="/dashboard">Dashboard</Link>
+        <Link to="/">City</Link><Link to="/profile">Dashboard</Link>
         <Link to="/chats">Chats</Link><Link to="/connections">Connections</Link><Link to="/profile">Profile</Link>
         <Link to="/settings">Settings</Link>
       </nav>
