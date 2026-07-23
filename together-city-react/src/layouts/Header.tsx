@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { NAV } from '@/config/hubs';
 import { useUiStore } from '@/store/ui.store';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  useIncomingRequestCount, useUnreadChatCount,
   useUnreadNotificationCount, useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead,
 } from '@/api';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { CommandPalette } from '@/components/CommandPalette';
+import { QuickActions } from './QuickActions';
 import { useTrackRecent } from '@/hooks/useTrackRecent';
 
 /** Small red count bubble for pending connection requests. */
@@ -103,8 +103,7 @@ function NotificationBell() {
 export function Header() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const { user } = useAuth();
-  const requests = useIncomingRequestCount();
-  const unreadChats = useUnreadChatCount();
+  const isHome = useLocation().pathname === '/';
   const firstName = (user?.name ?? '').trim().split(' ')[0] || 'Profile';
   const tabs = NAV.filter((n) => n.key !== 'mail'); // Mail lives in the actions, not the tab row
   useTrackRecent(); // remember where we've been — powers Recently Viewed + breadcrumbs
@@ -124,20 +123,9 @@ export function Header() {
         ))}
       </nav>
       <div className="tc-actions">
-        <button type="button" aria-label="Search — jump to anything (Ctrl/Cmd K)" title="Search (⌘K)"
-          onClick={() => window.dispatchEvent(new Event('tc:command'))}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6, padding: 0 }}>
-          <Icon name="search" size={17} /> <span className="lab">SEARCH</span>
-        </button>
-        <Link to="/connections" aria-label="Requests" style={{ position: 'relative' }}>
-          <Icon name="connection" size={17} /> <span className="lab">PEOPLE</span>
-          <Badge count={requests} />
-        </Link>
-        <Link to="/mail/inbox" aria-label="Mail"><Icon name="mail" size={17} /> <span className="lab">MAIL</span></Link>
-        <Link to="/chats" aria-label="Chat" style={{ position: 'relative' }}>
-          <Icon name="chat" size={17} /> <span className="lab">CHAT</span>
-          <Badge count={unreadChats} />
-        </Link>
+        {/* Search · People · Mail · Chat live here on inner pages; on the city
+            home they move to a bar just below the hero video. */}
+        {!isHome && <QuickActions />}
         <NotificationBell />
         <Link to="/profile" aria-label="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           {user?.profileImage ? (
