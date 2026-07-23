@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useHubTheme } from '@/hooks/useHubTheme';
+import { CityHeader } from '@/components/CityHeader';
 
 /** A clickable building silhouette on the pavilion-city map. */
 interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: string; cx?: number; cy?: number; rx?: number; ry?: number; }
@@ -45,7 +46,11 @@ export function Home() {
   return (
     <div>
       {/* ============ THE PAVILION CITY ============ */}
-      <div className="citymap">
+      <div className="citymap" style={{ position: 'relative' }}>
+        {/* Dynamic city strip — location · date · live weather, top-left in the sky. */}
+        <div style={{ position: 'absolute', top: 18, left: 18, zIndex: 5, pointerEvents: 'none' }}>
+          <CityHeader />
+        </div>
         {/* Looping city background video. The still image is the poster, so the
             page looks identical until the video loads (and if the video is ever
             missing) — the clickable building zones below never break. */}
