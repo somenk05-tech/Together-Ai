@@ -1,7 +1,7 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, PutBucketCorsCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, PutBucketCorsCommand, GetBucketCorsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 /** Origins allowed to upload directly to the bucket from the browser. Overridable
@@ -97,6 +97,27 @@ export class StorageProvider implements OnModuleInit {
         );
       }
     }
+  }
+
+  /** Read back the LIVE CORS policy on each bucket so we can confirm browser
+   *  uploads will be accepted — without digging through logs. */
+  async corsStatus(): Promise<{ configured: boolean; buckets: Array<{ bucket: string; hasRule: boolean; allowsSite: boolean; origins: string[]; methods: string[]; error?: string }> }> {
+    if (!this.s3) return { configured: false, buckets: [] };
+    const names = Array.from(new Set([this.bucket, this.healthBucket].filter(Boolean)));
+    const buckets = [];
+    for (const bucket of names) {
+      try {
+        const res = await this.s3.send(new GetBucketCorsCommand({ Bucket: bucket }));
+        const rules = res.CORSRules ?? [];
+        const origins = Array.from(new Set(rules.flatMap((r) => r.AllowedOrigins ?? [])));
+        const methods = Array.from(new Set(rules.flatMap((r) => r.AllowedMethods ?? [])));
+        const allowsSite = origins.some((o) => o === '*' || o.includes('togethercity.app')) && methods.includes('PUT');
+        buckets.push({ bucket, hasRule: rules.length > 0, allowsSite, origins, methods });
+      } catch (e) {
+        buckets.push({ bucket, hasRule: false, allowsSite: false, origins: [], methods: [], error: (e as Error).message });
+      }
+    }
+    return { configured: true, buckets };
   }
 
   async presignUpload(userId: string, mimeType: string, ext: string): Promise<PresignedUpload> {
