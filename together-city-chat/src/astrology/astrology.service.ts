@@ -8,8 +8,8 @@ import {
 import { composeAnswer, composeDaily, composeMonthly } from './astro-content';
 
 export interface SaveAstroProfileDto {
-  birthDate: string;   // YYYY-MM-DD
-  birthTime: string;   // HH:MM (local at birth place)
+  birthDate: string;          // YYYY-MM-DD
+  birthTime?: string | null;  // HH:MM (local at birth place) · null = time unknown
   birthCountry: string;
   birthState?: string | null;
   birthCity: string;
@@ -20,7 +20,7 @@ export interface AskDto { topic: string; question: string; method?: 'wallet' | '
 export const ASK_PRICE_INR = 75;
 
 interface AstroProfileRow {
-  id: string; userId: string; birthDate: Date; birthTime: string;
+  id: string; userId: string; birthDate: Date; birthTime: string | null;
   birthCountry: string; birthState: string | null; birthCity: string;
   timeZone: string; lat: number | null; lng: number | null; updatedAt: Date;
 }
@@ -101,7 +101,7 @@ export class AstrologyService {
         const place = (dating.birthPlace ?? '').split(',').map((s) => s.trim()).filter(Boolean);
         const birthCity = place[0] ?? '';
         const birthCountry = place[place.length - 1] && place.length > 1 ? place[place.length - 1] : 'India';
-        if (dating.birthTime && birthCity) {
+        if (birthCity) {
           // Complete elsewhere → persist silently so every feature shares it.
           const timeZone = 'Asia/Kolkata';
           const { lat, lng } = geocodeApprox(birthCity, place[1] ?? null, birthCountry, timeZone);
@@ -109,7 +109,7 @@ export class AstrologyService {
             where: { userId },
             update: {},
             create: {
-              userId, birthDate: dating.birthDate, birthTime: dating.birthTime,
+              userId, birthDate: dating.birthDate, birthTime: dating.birthTime ?? null,
               birthCountry, birthState: place.length > 2 ? place[1] : null, birthCity,
               timeZone, lat, lng,
             },
@@ -144,7 +144,7 @@ export class AstrologyService {
     catch { throw new BadRequestException('Unknown time zone.'); }
     const { lat, lng } = geocodeApprox(dto.birthCity, dto.birthState ?? null, dto.birthCountry, dto.timeZone);
     const data = {
-      birthDate, birthTime: dto.birthTime, birthCountry: dto.birthCountry.trim(),
+      birthDate, birthTime: dto.birthTime || null, birthCountry: dto.birthCountry.trim(),
       birthState: dto.birthState?.trim() || null, birthCity: dto.birthCity.trim(),
       timeZone: dto.timeZone, lat, lng,
     };
@@ -161,6 +161,7 @@ export class AstrologyService {
     return {
       birthDate: row.birthDate.toISOString().slice(0, 10),
       birthTime: row.birthTime,
+      timeKnown: !!row.birthTime,
       birthCountry: row.birthCountry,
       birthState: row.birthState,
       birthCity: row.birthCity,

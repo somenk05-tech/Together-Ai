@@ -6,14 +6,13 @@ export function NeedsProfileCard() {
   return (
     <Card style={{ maxWidth: 560, margin: '40px auto', textAlign: 'center', padding: '36px 28px' }}>
       <div style={{ fontSize: 34, marginBottom: 10 }}>🔭</div>
-      <h2 style={{ fontFamily: 'var(--serif)', marginBottom: 10 }}>Complete Your Astrology Profile</h2>
-      <p className="muted" style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 6 }}>
-        To generate personalized horoscopes and compatibility readings, please add your:
+      <h2 style={{ fontFamily: 'var(--serif)', marginBottom: 10 }}>Complete Your Birth Details</h2>
+      <p className="muted" style={{ fontSize: 14, lineHeight: 1.65, marginBottom: 18 }}>
+        To generate your personalized horoscope, compatibility reports, and birth chart, please add your
+        birth details. This information is saved once in your Master Profile and automatically used
+        across Together AI.
       </p>
-      <p style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.9, marginBottom: 18 }}>
-        Date of Birth · Time of Birth · Place of Birth
-      </p>
-      <Link to="/profile/astrology"><Button variant="accent">Go to Profile → Astrology Profile</Button></Link>
+      <Link to="/profile/astrology"><Button variant="accent">Complete Birth Details</Button></Link>
       <p className="muted" style={{ fontSize: 12, marginTop: 14 }}>
         Already added these during onboarding or dating? They're reused automatically — you never enter them twice.
       </p>

@@ -1418,7 +1418,7 @@ model AstroProfile {
   id           String   @id @default(uuid())
   userId       String   @unique
   birthDate    DateTime
-  birthTime    String // "HH:MM" local at birth place
+  birthTime    String? // "HH:MM" local at birth place · null = time unknown (Sun-sign chart)
   birthCountry String
   birthState   String?
   birthCity    String

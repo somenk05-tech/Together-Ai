@@ -8,7 +8,7 @@ import { AstrologyService, AskDto, SaveAstroProfileDto } from './astrology.servi
 
 const SaveProfileSchema = z.object({
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD'),
-  birthTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM (24h)'),
+  birthTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM (24h)').nullable().optional(),
   birthCountry: z.string().min(2).max(60),
   birthState: z.string().max(60).optional().nullable(),
   birthCity: z.string().min(1).max(80),

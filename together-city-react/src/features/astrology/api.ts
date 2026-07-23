@@ -5,7 +5,7 @@ import { http as api } from '@/api/client';
 
 export interface AstroChartSummary { sunSign: string; moonSign: string; ascendant: string | null }
 export interface AstroProfile {
-  birthDate: string; birthTime: string; birthCountry: string;
+  birthDate: string; birthTime: string | null; timeKnown: boolean; birthCountry: string;
   birthState: string | null; birthCity: string; timeZone: string;
   chart: AstroChartSummary;
 }
@@ -16,7 +16,7 @@ export interface AstroProfileView {
   source: 'astrology' | 'dating' | null;
 }
 export interface SaveAstroProfileInput {
-  birthDate: string; birthTime: string; birthCountry: string;
+  birthDate: string; birthTime: string | null; birthCountry: string;
   birthState?: string | null; birthCity: string; timeZone: string;
 }
 export interface DailyReading {

@@ -48,7 +48,15 @@ export function Header() {
           <span aria-hidden>💬</span> <span className="lab">CHAT</span>
           <Badge count={unreadChats} />
         </Link>
-        <Link to="/profile" aria-label="Profile"><span aria-hidden>👤</span> <span className="lab">{firstName}</span></Link>
+        <Link to="/profile" aria-label="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {user?.profileImage ? (
+            <img src={user.profileImage} alt="" width={22} height={22}
+              style={{ borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1.5px solid var(--line)' }} />
+          ) : (
+            <span aria-hidden>👤</span>
+          )}
+          <span className="lab">{firstName}</span>
+        </Link>
       </div>
     </header>
   );
