@@ -37,6 +37,7 @@ export class StorageProvider implements OnModuleInit {
   private readonly bucket: string;
   private readonly healthBucket: string;
   private readonly publicBase: string;
+  private readonly endpoint: string;
   private readonly corsOrigins: string[];
   private readonly expiresInSec = 900;
   private readonly downloadTtlSec = 300; // signed GET links for private health docs
@@ -52,6 +53,7 @@ export class StorageProvider implements OnModuleInit {
     this.healthBucket = this.config.get<string>('media.privateBucket') || this.bucket;
     this.publicBase = this.config.get<string>('media.publicBaseUrl') ?? '';
     const endpoint = this.config.get<string>('media.endpoint') ?? '';
+    this.endpoint = endpoint;
     const accessKeyId = this.config.get<string>('media.accessKeyId') ?? '';
     const secretAccessKey = this.config.get<string>('media.secretAccessKey') ?? '';
     const region = this.config.get<string>('media.region') ?? 'auto';
@@ -99,25 +101,43 @@ export class StorageProvider implements OnModuleInit {
     }
   }
 
-  /** Read back the LIVE CORS policy on each bucket so we can confirm browser
-   *  uploads will be accepted — without digging through logs. */
-  async corsStatus(): Promise<{ configured: boolean; buckets: Array<{ bucket: string; hasRule: boolean; allowsSite: boolean; origins: string[]; methods: string[]; error?: string }> }> {
-    if (!this.s3) return { configured: false, buckets: [] };
+  /**
+   * Confirm browser uploads will be accepted. `uploadAllowed` is the source of
+   * truth: it fires a REAL CORS preflight (OPTIONS + Origin + PUT) at the bucket
+   * — exactly what the browser does — so it works even when the token can't read
+   * bucket config. `configReadable`/`origins` come from GetBucketCors when the
+   * token permits it (nice-to-have, not required).
+   */
+  async corsStatus(): Promise<{ configured: boolean; site: string; buckets: Array<Record<string, unknown>> }> {
+    const site = this.corsOrigins.find((o) => o.includes('togethercity.app')) ?? 'https://togethercity.app';
+    if (!this.s3) return { configured: false, site, buckets: [] };
     const names = Array.from(new Set([this.bucket, this.healthBucket].filter(Boolean)));
-    const buckets = [];
+    const buckets: Array<Record<string, unknown>> = [];
     for (const bucket of names) {
+      // 1) The definitive check — a browser-style preflight.
+      let uploadAllowed = false; let allowOrigin: string | null = null; let preflightError: string | undefined;
       try {
-        const res = await this.s3.send(new GetBucketCorsCommand({ Bucket: bucket }));
-        const rules = res.CORSRules ?? [];
-        const origins = Array.from(new Set(rules.flatMap((r) => r.AllowedOrigins ?? [])));
-        const methods = Array.from(new Set(rules.flatMap((r) => r.AllowedMethods ?? [])));
-        const allowsSite = origins.some((o) => o === '*' || o.includes('togethercity.app')) && methods.includes('PUT');
-        buckets.push({ bucket, hasRule: rules.length > 0, allowsSite, origins, methods });
-      } catch (e) {
-        buckets.push({ bucket, hasRule: false, allowsSite: false, origins: [], methods: [], error: (e as Error).message });
-      }
+        const res = await fetch(`${this.endpoint}/${bucket}/cors-preflight-probe`, {
+          method: 'OPTIONS',
+          headers: { Origin: site, 'Access-Control-Request-Method': 'PUT', 'Access-Control-Request-Headers': 'content-type' },
+        });
+        allowOrigin = res.headers.get('access-control-allow-origin');
+        uploadAllowed = allowOrigin === '*' || allowOrigin === site;
+      } catch (e) { preflightError = (e as Error).message; }
+
+      // 2) Best-effort config read (only if the token is allowed to).
+      let configReadable = false; let origins: string[] = []; let methods: string[] = [];
+      try {
+        const cors = await this.s3.send(new GetBucketCorsCommand({ Bucket: bucket }));
+        const rules = cors.CORSRules ?? [];
+        origins = Array.from(new Set(rules.flatMap((r) => r.AllowedOrigins ?? [])));
+        methods = Array.from(new Set(rules.flatMap((r) => r.AllowedMethods ?? [])));
+        configReadable = true;
+      } catch { /* token can't read bucket config — fine, preflight is authoritative */ }
+
+      buckets.push({ bucket, uploadAllowed, allowOrigin, configReadable, origins, methods, ...(preflightError ? { preflightError } : {}) });
     }
-    return { configured: true, buckets };
+    return { configured: true, site, buckets };
   }
 
   async presignUpload(userId: string, mimeType: string, ext: string): Promise<PresignedUpload> {
