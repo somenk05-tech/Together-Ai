@@ -2,7 +2,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useHubTheme } from '@/hooks/useHubTheme';
 import { CityHeader } from '@/components/CityHeader';
 import { RecentPanel } from '@/components/RecentPanel';
-import { QuickActions } from '@/layouts/QuickActions';
 
 /** A clickable building silhouette on the pavilion-city map. */
 interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: string; cx?: number; cy?: number; rx?: number; ry?: number; }
@@ -80,12 +79,6 @@ export function Home() {
             </g>
           ))}
         </svg>
-      </div>
-
-      {/* On the home page, only Search sits in a clean bar just below the hero
-          video (People/Mail/Chat stay in the header). Same pill aesthetics. */}
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 24px', borderBottom: '1px solid var(--line)', background: 'var(--paper)' }}>
-        <QuickActions show="search" />
       </div>
 
       {/* mobile fallback grid */}

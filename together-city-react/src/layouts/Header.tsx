@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { NAV } from '@/config/hubs';
 import { useUiStore } from '@/store/ui.store';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,6 +8,7 @@ import {
 } from '@/api';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { CommandPalette } from '@/components/CommandPalette';
+import { FloatingSearch } from '@/components/FloatingSearch';
 import { QuickActions } from './QuickActions';
 import { useTrackRecent } from '@/hooks/useTrackRecent';
 
@@ -62,7 +63,9 @@ function NotificationBell() {
   return (
     <div ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
       <button type="button" aria-label="Notifications" onClick={() => setOpen((o) => !o)}
-        style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6, padding: 0 }}>
+        style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
+          fontSize: 10.5, letterSpacing: '.06em', fontWeight: 600, textTransform: 'uppercase', padding: '8px 13px',
+          border: '1px solid var(--line)', borderRadius: 999, color: 'var(--ink)', background: 'transparent', cursor: 'pointer' }}>
         <Icon name="bell" size={17} /> <span className="lab">ALERTS</span>
         <Badge count={unread.data ?? 0} />
       </button>
@@ -103,18 +106,36 @@ function NotificationBell() {
 export function Header() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const { user } = useAuth();
-  const isHome = useLocation().pathname === '/';
   const firstName = (user?.name ?? '').trim().split(' ')[0] || 'Profile';
   const tabs = NAV.filter((n) => n.key !== 'mail'); // Mail lives in the actions, not the tab row
   useTrackRecent(); // remember where we've been — powers Recently Viewed + breadcrumbs
   return (
     <header className="tc-header">
       <CommandPalette />
-      <button className="tc-burger" aria-label="Open menu" onClick={() => toggleSidebar()}><Icon name="menu" size={20} /></button>
-      <Link to="/" className="tc-logo">
-        <span className="mark"><img src="/assets/img/tc-logo.png" alt="Together City" width={34} height={34} /></span>
-        <span className="word">TOGETHER CITY</span>
-      </Link>
+      <FloatingSearch />
+      {/* Row 1 — burger (left) · centred logo · actions (right). */}
+      <div className="tc-header-top">
+        <button className="tc-burger" aria-label="Open menu" onClick={() => toggleSidebar()}><Icon name="menu" size={20} /></button>
+        <Link to="/" className="tc-logo">
+          <span className="mark"><img src="/assets/img/tc-logo.png" alt="Together City" width={34} height={34} /></span>
+          <span className="word">TOGETHER CITY</span>
+        </Link>
+        <div className="tc-actions">
+          {/* People · Mail · Chat. Search is now the draggable floating tab. */}
+          <QuickActions show="links" />
+          <NotificationBell />
+          <Link to="/profile" aria-label="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {user?.profileImage ? (
+              <img src={user.profileImage} alt="" width={22} height={22}
+                style={{ borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1.5px solid var(--line)' }} />
+            ) : (
+              <Icon name="user" size={20} />
+            )}
+            <span className="lab">{firstName}</span>
+          </Link>
+        </div>
+      </div>
+      {/* Row 2 — hub tabs, centred below the logo. */}
       <nav className="tc-nav" aria-label="Hubs">
         {tabs.map((n) => (
           <NavLink key={n.key} to={n.path} className={({ isActive }) => (isActive ? 'on' : undefined)}>
@@ -122,21 +143,6 @@ export function Header() {
           </NavLink>
         ))}
       </nav>
-      <div className="tc-actions">
-        {/* Inner pages keep all four here; on the city home only Search moves to
-            the bar below the hero video — People/Mail/Chat stay in the header. */}
-        <QuickActions show={isHome ? 'links' : 'all'} />
-        <NotificationBell />
-        <Link to="/profile" aria-label="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          {user?.profileImage ? (
-            <img src={user.profileImage} alt="" width={22} height={22}
-              style={{ borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1.5px solid var(--line)' }} />
-          ) : (
-            <Icon name="user" size={20} />
-          )}
-          <span className="lab">{firstName}</span>
-        </Link>
-      </div>
     </header>
   );
 }
