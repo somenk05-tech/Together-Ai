@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { orderPair } from '../connections/connection.util';
+import { MasterProfileService } from './master-profile.service';
 
 export interface HubContribution { hub: string; label: string; summary: string; href: string; }
 export interface ProfileSection { key: string; label: string; value: string | null; }
@@ -37,7 +38,10 @@ interface UserRow {
  */
 @Injectable()
 export class ProfileService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly masterProfile: MasterProfileService,
+  ) {}
 
   async summary(userId: string): Promise<ProfileSummary> {
     const user = await this.prisma.user.findUnique({
@@ -236,6 +240,11 @@ export class ProfileService {
     }
     if (Object.keys(data).length) {
       await this.prisma.user.update({ where: { id: userId }, data: data as never });
+    }
+    // City is a shared field — write it back to the Master Profile so every hub
+    // picks it up (spec: hubs write shared fields to the single source of truth).
+    if (dto.city !== undefined) {
+      await this.masterProfile.syncShared(userId, { city: (data.city as string | null) ?? undefined }, 'social').catch(() => undefined);
     }
     return this.me(userId);
   }

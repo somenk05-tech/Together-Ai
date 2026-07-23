@@ -185,6 +185,21 @@ export function Preferences() {
     if (mAge != null && form && form.age !== mAge) setForm((f) => (f ? { ...f, age: mAge } : f));
   }, [master.data?.age, form]);
 
+  // Auto-fill the other shared body fields (sex, height, weight) from the Master
+  // Profile when this hub hasn't got them yet (spec: read shared; never re-ask).
+  useEffect(() => {
+    const m = master.data;
+    if (!m || !form) return;
+    setForm((f) => {
+      if (!f) return f;
+      const patch: Partial<FoodPref> = {};
+      if (!f.sex && (m.gender === 'male' || m.gender === 'female')) patch.sex = m.gender;
+      if (f.heightCm == null && m.heightCm != null) patch.heightCm = m.heightCm;
+      if (f.weightKg == null && m.weightKg != null) patch.weightKg = m.weightKg;
+      return Object.keys(patch).length ? { ...f, ...patch } : f;
+    });
+  }, [master.data, form]);
+
   // Pre-select health conditions + goals from the latest blood panel (once, after
   // the saved profile has loaded) — "if there's blood data, feed it in; else the
   // user picks." Blood-derived picks are merged on top of anything already saved.

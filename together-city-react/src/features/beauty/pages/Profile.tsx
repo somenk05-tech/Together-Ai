@@ -367,6 +367,43 @@ function ProgressView({ entries }: { entries: BeautyProgressEntry[] }) {
   );
 }
 
+/** Master gender ('male'/'female') → Beauty's capitalised option. */
+const capGender = (g?: string | null): string | undefined => {
+  const s = (g ?? '').toLowerCase();
+  return s === 'male' ? 'Male' : s === 'female' ? 'Female' : s ? 'Other' : undefined;
+};
+/** Is a saved beauty profile fully answered (all 18 required)? */
+function isBeautyComplete(p: Partial<Form>): boolean {
+  return REQUIRED_SINGLE.every((k) => Boolean(p[k] && String(p[k]).trim()))
+    && REQUIRED_MULTI.every((k) => ((p[k] as string[]) ?? []).length > 0);
+}
+
+/** Collapsed, read-only summary of the completed Skin & Hair profile + Edit. */
+function BeautyProfileSummary({ f, onEdit }: { f: Form; onEdit: () => void }) {
+  const rows: [string, string][] = [
+    ['Basics', [f.age ? `${f.age}y` : null, f.gender, f.heightCm ? `${f.heightCm}cm` : null, f.weightKg ? `${f.weightKg}kg` : null, f.city].filter(Boolean).join(' · ') || '—'],
+    ['Skin', [f.skinType, f.skinTone, f.undertone].filter(Boolean).join(' · ') || '—'],
+    ['Skin goals', (f.skinGoals ?? []).slice(0, 4).join(', ') || '—'],
+    ['Hair', [f.hairType, f.hairThickness, f.hairTexture, f.scalpType].filter(Boolean).join(' · ') || '—'],
+    ['Hair goals', (f.hairGoals ?? []).slice(0, 4).join(', ') || '—'],
+    ['Budget', f.budget || '—'],
+  ];
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h3 style={{ margin: 0, fontSize: 16 }}>Your Skin &amp; Hair Profile</h3>
+        <Button variant="line" size="sm" onClick={onEdit}>Edit</Button>
+      </div>
+      {rows.map(([k, val]) => (
+        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '9px 0', borderTop: '1px solid var(--line)' }}>
+          <span className="muted" style={{ fontSize: 12.5, flexShrink: 0 }}>{k}</span>
+          <span style={{ fontSize: 13, textAlign: 'right' }}>{val}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── page ── */
 export function Profile() {
   const profile = useBeautyProfile();
@@ -377,14 +414,29 @@ export function Profile() {
   const ageLocked = master.data?.age != null;
   const [tab, setTab] = useState<'photos' | 'profile'>('photos');
   const [f, setF] = useState<Form>(EMPTY);
+  const [editingProfile, setEditingProfile] = useState(false);
   const [pics, setPics] = useState<Record<string, { preview: string; base64: string; mediaType: string }>>({});
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
-    if (profile.data?.profile && Object.keys(profile.data.profile).length) {
-      setF({ ...EMPTY, ...(profile.data.profile as Partial<Form>) });
-    }
-  }, [profile.data]);
+    const saved = profile.data?.profile && Object.keys(profile.data.profile).length ? (profile.data.profile as Partial<Form>) : null;
+    const m = master.data;
+    if (!saved && !m) return;
+    setF((prev) => {
+      const base = saved ? { ...EMPTY, ...saved } : { ...prev };
+      // Auto-fill shared basics from the Master Profile where this hub is blank
+      // (spec: read shared fields; never re-ask). Age is master-owned when set.
+      if (m) {
+        if (m.age != null) base.age = m.age;
+        base.gender ??= capGender(m.gender);
+        base.heightCm ??= m.heightCm ?? undefined;
+        base.weightKg ??= m.weightKg ?? undefined;
+        base.city ??= m.city ?? undefined;
+        base.occupation ??= m.occupation ?? undefined;
+      }
+      return base;
+    });
+  }, [profile.data, master.data]);
 
   // Auto-select lab-supported medical conditions (Diabetes, Thyroid) once the
   // profile + suggestions have loaded. Applied a single time so the user can
@@ -455,6 +507,9 @@ export function Profile() {
   const profileTotal = REQUIRED_SINGLE.length + REQUIRED_MULTI.length;
   const profileComplete = answered >= profileTotal;
   const overallPct = Math.round(((Math.min(picsCount, 6) / 6) * 0.5 + (answered / profileTotal) * 0.5) * 100);
+  // Once the SAVED profile is complete, show it collapsed (summary + Edit).
+  const savedComplete = isBeautyComplete((profile.data?.profile ?? {}) as Partial<Form>);
+  const collapsedProfile = savedComplete && !editingProfile;
   const missing = [
     ...REQUIRED_SINGLE.filter((k) => !(f[k] && String(f[k]).trim())),
     ...REQUIRED_MULTI.filter((k) => (((f[k] as string[]) ?? []).length === 0)),
@@ -649,6 +704,10 @@ export function Profile() {
             </div>
           )}
           <OnboardingProgress />
+          {collapsedProfile ? (
+            <BeautyProfileSummary f={f} onEdit={() => setEditingProfile(true)} />
+          ) : (
+          <>
           {(() => {
             const estimated = (profile.data?.profile as { aiEstimated?: Record<string, boolean> } | undefined)?.aiEstimated ?? {};
             const keys = Object.keys(estimated).filter((k) => estimated[k]);
@@ -744,13 +803,15 @@ export function Profile() {
                 {save.isPending || analyze.isPending ? 'Generating your assessment…' : '✨ Generate my AI assessment'}
               </Button>
             ) : (
-              <Button variant="accent" disabled={save.isPending || !profileComplete} onClick={() => save.mutate(f as unknown as Record<string, unknown>)}>
+              <Button variant="accent" disabled={save.isPending || !profileComplete} onClick={() => save.mutate(f as unknown as Record<string, unknown>, { onSuccess: () => setEditingProfile(false) })}>
                 {save.isPending ? 'Saving…' : 'Save profile'}
               </Button>
             )}
             {!profileComplete && <span className="muted" style={{ fontSize: 12 }}>{profileTotal - answered} question{profileTotal - answered === 1 ? '' : 's'} left — "Don't know" counts as an answer.</span>}
             {save.isSuccess && profileComplete && <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>✓ Saved</span>}
           </div>
+          </>
+          )}
 
           {analysis && <AssessmentView a={analysis} analyzedAt={analyzedAt} />}
         </div>

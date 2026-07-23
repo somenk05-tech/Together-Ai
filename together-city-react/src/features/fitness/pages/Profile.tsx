@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useFormValidation, ValidationSummary, successToast } from '@/components/form-validation';
 import { Button, Spinner, EmptyState } from '@/components/ui';
 import { useFitnessProfile, useSaveFitnessProfile } from '../api';
@@ -40,6 +41,7 @@ export function Profile() {
   const [heightCm, setHeightCm] = useState<number | ''>('');
   const [weightKg, setWeightKg] = useState<number | ''>('');
   const [bodyGoal, setBodyGoal] = useState('athletic');
+  const [collapsed, setCollapsed] = useState(false);
 
   // Global validation standard — height & weight are required for real targets.
   const v = useFormValidation([
@@ -49,12 +51,18 @@ export function Profile() {
   ]);
 
   useEffect(() => {
-    if (profile.data) {
-      setAge(profile.data.age); setSex(profile.data.sex); setLevel(profile.data.level);
-      setMode(profile.data.mode); setGoal(profile.data.goal); setConditions(profile.data.conditions);
-      setHeightCm(profile.data.heightCm ?? ''); setWeightKg(profile.data.weightKg ?? ''); setBodyGoal(profile.data.bodyGoal ?? 'athletic');
-    }
-  }, [profile.data]);
+    if (!profile.data) return;
+    const d = profile.data;
+    const m = master.data;
+    // Auto-fill shared fields from the Master Profile when this hub hasn't got
+    // them yet (spec: read shared fields; never re-ask).
+    setAge(m?.age ?? d.age);
+    setSex(d.sex && d.sex !== 'other' ? d.sex : (m?.gender ?? d.sex));
+    setLevel(d.level); setMode(d.mode); setGoal(d.goal); setConditions(d.conditions);
+    setHeightCm(d.heightCm ?? (m?.heightCm ?? '')); setWeightKg(d.weightKg ?? (m?.weightKg ?? '')); setBodyGoal(d.bodyGoal ?? 'athletic');
+    // Already completed before → open as a compact summary, not the full form.
+    setCollapsed(Boolean(d.heightCm && d.weightKg));
+  }, [profile.data, master.data]);
 
   if (profile.isLoading) return <Spinner label="Loading your fitness profile…" />;
   if (profile.isError || !profile.data) return <EmptyState title="Couldn't load your profile" hint="Start the backend and reload." />;
@@ -62,6 +70,41 @@ export function Profile() {
   const { levels, modes, bodyGoals } = profile.data.options;
   const toggle = (k: string) => setConditions((c) => (c.includes(k) ? c.filter((x) => x !== k) : [...c, k]));
   const num = (v: number | '') => (v === '' ? undefined : Number(v));
+
+  // Collapsed: a read-only summary card with an Edit button (spec: collapse
+  // completed sections, keep them compact but easy to reopen).
+  if (collapsed) {
+    const rows: [string, string][] = [
+      ['Age', String(age)],
+      ['Sex', SEX.find((s) => s.key === sex)?.label ?? sex],
+      ['Ability', levels.find((l) => l.key === level)?.label ?? level],
+      ['Training style', modes.find((m) => m.key === mode)?.label ?? mode],
+      ['Goal', GOALS.find((g) => g.key === goal)?.label ?? goal],
+      ['Body goal', bodyGoals.find((b) => b.key === bodyGoal)?.label ?? bodyGoal],
+      ['Height', heightCm ? `${heightCm} cm` : '—'],
+      ['Weight', weightKg ? `${weightKg} kg` : '—'],
+      ['Conditions', conditions.length ? conditions.map((c) => CONDITIONS.find((x) => x.key === c)?.label ?? c).join(', ') : 'None'],
+    ];
+    return (
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
+        <div className="eyebrow">Fitness · Profile</div>
+        <h1 style={{ fontSize: 26 }}>Your training profile</h1>
+        <div className="card" style={{ marginTop: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h3 style={{ margin: 0 }}>Training profile</h3>
+            <Button variant="line" size="sm" onClick={() => setCollapsed(false)}>Edit</Button>
+          </div>
+          {rows.map(([k, val]) => (
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '9px 0', borderTop: '1px solid var(--line)' }}>
+              <span className="muted" style={{ fontSize: 12.5, flexShrink: 0 }}>{k}</span>
+              <span style={{ fontSize: 13, textAlign: 'right' }}>{val}</span>
+            </div>
+          ))}
+          <p className="muted" style={{ fontSize: 11.5, marginTop: 12 }}>Shared details (age, height, weight) also live in your <Link to="/profile" style={{ color: 'var(--accent)', fontWeight: 600 }}>Master Profile</Link>.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
@@ -148,7 +191,7 @@ export function Profile() {
       <ValidationSummary missing={v.missing} />
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <Button variant="accent" disabled={save.isPending}
-          onClick={() => { if (!v.validate()) return; save.mutate({ age, sex, level, mode, goal, conditions, heightCm: num(heightCm), weightKg: num(weightKg), bodyGoal }, { onSuccess: () => successToast('Fitness profile saved successfully.') }); }}>
+          onClick={() => { if (!v.validate()) return; save.mutate({ age, sex, level, mode, goal, conditions, heightCm: num(heightCm), weightKg: num(weightKg), bodyGoal }, { onSuccess: () => { setCollapsed(true); successToast('Fitness profile saved successfully.'); } }); }}>
           {save.isPending ? 'Saving…' : 'Save & build my plan'}
         </Button>
         {save.isSuccess && <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>✓ Saved — see My Plan & Body Goal</span>}

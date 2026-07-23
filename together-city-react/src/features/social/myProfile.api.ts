@@ -57,6 +57,8 @@ export function useUpdateProfile() {
     onSuccess: (data) => {
       qc.setQueryData(ME_KEY, data);
       void qc.invalidateQueries({ queryKey: ['profile', 'summary'] });
+      void qc.invalidateQueries({ queryKey: ['profile', 'master'] });
+      void qc.invalidateQueries({ queryKey: ['profile', 'completion'] });
       void qc.invalidateQueries({ queryKey: ['auth', 'me'] });
     },
   });

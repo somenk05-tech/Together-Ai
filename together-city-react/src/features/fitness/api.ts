@@ -74,7 +74,7 @@ export function useSaveFitnessProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: fitnessApi.saveProfile,
-    onSuccess: (p) => { qc.setQueryData(['fitness', 'profile'], p); void qc.invalidateQueries({ queryKey: ['fitness', 'plan'] }); },
+    onSuccess: (p) => { qc.setQueryData(['fitness', 'profile'], p); void qc.invalidateQueries({ queryKey: ['fitness', 'plan'] }); void qc.invalidateQueries({ queryKey: ['profile'] }); },
   });
 }
 export function useFitnessPlan() {

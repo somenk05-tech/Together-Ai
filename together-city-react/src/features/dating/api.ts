@@ -149,6 +149,8 @@ export function useUpsertDatingProfile() {
       qc.setQueryData(['dating', 'profile'], profile);
       // A saved edit changes compatibility — refresh the match lists.
       void qc.invalidateQueries({ queryKey: ['dating', 'matches'] });
+      // Shared fields flowed to the Master Profile — refresh it + completion.
+      void qc.invalidateQueries({ queryKey: ['profile'] });
     },
   });
 }

@@ -330,6 +330,7 @@ export function useUpdateFoodPref() {
       qc.setQueryData(['nutrition', 'preferences'], pref);
       void qc.invalidateQueries({ queryKey: ['nutrition', 'targets'] });
       void qc.invalidateQueries({ queryKey: ['nutrition', 'weekly'] });
+      void qc.invalidateQueries({ queryKey: ['profile'] });
     },
   });
 }

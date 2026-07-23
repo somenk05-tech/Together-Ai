@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { MasterProfileService } from '../profile/master-profile.service';
 import { parseResume, matchJobs, labelFor, JOB_SEEDS, type ParsedResume, type JobLike } from './jobs-engine';
 import type { UploadResumeDto, SaveJobProfileDto, ApplyDto, PostJobDto } from './dto/jobs.dto';
 
 @Injectable()
 export class JobsService implements OnModuleInit {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly masterProfile: MasterProfileService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     await this.ensureSeedJobs();
@@ -23,7 +27,14 @@ export class JobsService implements OnModuleInit {
   }
 
   async getProfile(userId: string) {
-    return this.shapeProfile(await this.prisma.jobProfile.findUnique({ where: { userId } }));
+    const shaped = this.shapeProfile(await this.prisma.jobProfile.findUnique({ where: { userId } }));
+    // Auto-fill the shared location from the Master Profile when the CV had none
+    // (spec: read shared fields; never re-ask).
+    if (!shaped.location) {
+      const m = await this.masterProfile.get(userId).catch(() => null);
+      if (m?.city) shaped.location = m.city;
+    }
+    return shaped;
   }
 
   async uploadResume(userId: string, dto: UploadResumeDto) {
@@ -47,6 +58,9 @@ export class JobsService implements OnModuleInit {
   private async persistProfile(userId: string, p: ParsedResume, resumeText: string, resumeName: string | null) {
     const data = { headline: p.headline, skills: p.skills.join(','), experienceYears: p.experienceYears, seniority: p.seniority, location: p.location, resumeText, resumeName };
     await this.prisma.jobProfile.upsert({ where: { userId }, update: data, create: { userId, ...data } });
+    // Write shared fields back to the Master Profile (job title → occupation,
+    // CV location → city) so every other hub stays in sync.
+    await this.masterProfile.syncShared(userId, { occupation: p.headline || undefined, city: p.location ?? undefined }, 'jobs').catch(() => undefined);
   }
 
   // ─────────────── job board (seeded + company-posted) ───────────────

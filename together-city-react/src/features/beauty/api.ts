@@ -112,6 +112,7 @@ export function useSaveBeautyProfile() {
       qc.setQueryData(['beauty', 'profile'], p);
       void qc.invalidateQueries({ queryKey: ['beauty', 'products'] });
       void qc.invalidateQueries({ queryKey: ['beauty', 'history'] });
+      void qc.invalidateQueries({ queryKey: ['profile'] });
     },
   });
 }

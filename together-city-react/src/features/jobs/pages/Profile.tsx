@@ -13,10 +13,11 @@ export function Profile() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [text, setText] = useState('');
   const [readError, setReadError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const parse = (resumeText: string, name?: string) => {
-    if (resumeText.trim()) upload.mutate({ resumeText, fileName: name });
+    if (resumeText.trim()) upload.mutate({ resumeText, fileName: name }, { onSuccess: () => setEditing(false) });
   };
 
   const handleFile = (f: File) => {
@@ -45,15 +46,21 @@ export function Profile() {
   if (profile.isLoading) return <Spinner label="Opening your profile…" />;
   if (profile.isError || !profile.data) return <EmptyState title="Couldn't load your profile" hint="Start the backend and reload." />;
   const p = profile.data;
+  // Once a CV is parsed, collapse the uploader and lead with the parsed summary
+  // (Edit / re-upload reopens it). Matches the collapse pattern in other hubs.
+  const collapsed = p.saved && !editing;
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
       <div className="eyebrow">Jobs · Resume & Profile</div>
-      <h1 style={{ fontSize: 26 }}>Upload your CV</h1>
+      <h1 style={{ fontSize: 26 }}>{collapsed ? 'Your resume & profile' : 'Upload your CV'}</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
-        Drop your CV in and we'll parse your skills, seniority and experience — then match you to open roles automatically.
+        {collapsed
+          ? 'Parsed from your CV and matched to roles. Re-upload anytime to refresh it.'
+          : "Drop your CV in and we'll parse your skills, seniority and experience — then match you to open roles automatically."}
       </p>
 
+      {!collapsed && (<>
       {/* Upload dropzone */}
       <div
         onClick={() => fileRef.current?.click()}
@@ -107,6 +114,7 @@ export function Profile() {
           </Button>
         </div>
       )}
+      </>)}
 
       {/* Privacy note */}
       <div className="card" style={{ marginBottom: 16, borderLeft: '4px solid var(--accent)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -132,8 +140,9 @@ export function Profile() {
                 <span key={s.key} style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 11px' }}>{s.label}</span>
               ))}
           </div>
-          <div style={{ marginTop: 14 }}>
+          <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <Link to="/jobs/matches"><Button variant="accent" size="sm">See matched roles →</Button></Link>
+            {collapsed && <Button variant="line" size="sm" onClick={() => setEditing(true)}>Edit / re-upload CV</Button>}
           </div>
         </div>
       )}
