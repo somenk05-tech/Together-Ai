@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { AiSuggestions } from '@/components/AiSuggestions';
 import {
-  useDatingProfile, useLikeMatch, useUnlockChat, useMatches, usePassMatch, type CuratedMatch, type MatchKind,
+  useDatingProfile, useLikeMatch, useUnlockChat, useDiscover, usePassMatch, type CuratedMatch, type MatchKind, type DiscoverSection,
 } from '../api';
 import { payError, type PayMethod } from '@/features/financial/api';
 import { PaymentSheet } from '@/features/financial/PaymentSheet';
@@ -180,11 +180,31 @@ function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
   );
 }
 
-/** Curated Matches (romantic) / New Friends (platonic) — only ≥75% ever shown. */
+/** One titled group of match cards — curated, recommended, or a discovery pool. */
+function MatchSection({ section, kind }: { section: DiscoverSection; kind: MatchKind }) {
+  const badge = section.tier === 'ideal' ? { text: '75%+', bg: 'var(--accent-soft)', fg: 'var(--accent)' }
+    : section.tier === 'recommended' ? { text: 'Early days', bg: '#faf3e0', fg: '#8a6a1f' }
+    : { text: 'Discover', bg: 'var(--paper)', fg: 'var(--muted)' };
+  return (
+    <section style={{ marginBottom: 26 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 4px' }}>
+        <h2 style={{ fontSize: 18, margin: 0 }}>{section.label}</h2>
+        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em',
+          background: badge.bg, color: badge.fg, borderRadius: 999, padding: '2px 9px' }}>{badge.text}</span>
+        <span className="muted" style={{ fontSize: 12, marginLeft: 'auto' }}>{section.matches.length}</span>
+      </div>
+      <p className="muted" style={{ fontSize: 12.5, margin: '0 0 12px', lineHeight: 1.5 }}>{section.note}</p>
+      {section.matches.map((m) => <MatchCard key={m.user.id} match={m} kind={kind} />)}
+    </section>
+  );
+}
+
+/** Curated Matches (romantic) / New Friends (platonic) — with a low-density
+ *  discovery mode so a new market never opens to an empty hub (audit 6.1). */
 export function DatingMatches() {
   const [kind, setKind] = useState<MatchKind>('romantic');
   const profile = useDatingProfile();
-  const matches = useMatches(kind, Boolean(profile.data));
+  const discover = useDiscover(kind, Boolean(profile.data));
 
   if (profile.isLoading) return <Spinner label="Consulting the stars…" />;
 
@@ -208,7 +228,9 @@ export function DatingMatches() {
       <div className="eyebrow">Dating Hub</div>
       <h1 style={{ fontSize: 26 }}>{kind === 'romantic' ? 'Curated Matches' : 'New Friends'}</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
-        Curated, not endless — the AI shows only genuine matches (75%+), ranked by compatibility. Pass or match, and the list stays current.
+        {discover.data?.lowDensity
+          ? 'Curated, not endless. Your city is still growing, so alongside any strong matches we surface recommended and nearby residents to discover — clearly labelled, never padded as perfect matches.'
+          : 'Curated, not endless — the AI shows only genuine matches (75%+), ranked by compatibility. Pass or match, and the list stays current.'}
       </p>
 
       <AiSuggestions kind="astrology" />
@@ -230,11 +252,15 @@ export function DatingMatches() {
         ))}
       </div>
 
-      {matches.isLoading && <Spinner label="Scoring compatibility…" />}
-      {matches.data && matches.data.length === 0 && (
-        <EmptyState icon="🌙" title="No ≥75% matches right now" hint="The city never pads the list — check back as more residents join." />
+      {discover.isLoading && <Spinner label="Scoring compatibility…" />}
+      {discover.data && discover.data.sections.length === 0 && (
+        <EmptyState
+          icon="🌙"
+          title={kind === 'romantic' ? 'No one to show just yet' : 'No new friends to show yet'}
+          hint="Your city is just getting started here. As more residents join, matches and people to discover will appear — check back soon."
+        />
       )}
-      {matches.data?.map((m) => <MatchCard key={m.user.id} match={m} kind={kind} />)}
+      {discover.data?.sections.map((s) => <MatchSection key={s.key} section={s} kind={kind} />)}
     </div>
   );
 }

@@ -371,6 +371,161 @@ export class DatingService {
     return results.sort((a, b) => b.score - a.score).slice(0, MATCH_LIMIT);
   }
 
+  /**
+   * Low-density discovery mode (audit 6.1). New markets rarely have enough ≥75%
+   * matches on day one, and an empty Dating hub churns hard. This scores every
+   * eligible candidate once, then:
+   *   1. shows the ideal ≥75% pool as "Curated Matches",
+   *   2. if that's sparse, progressively relaxes the bar (65% → 55%) under a
+   *      clearly-labelled "Recommended Matches" (not presented as ideal),
+   *   3. still sparse → surfaces discovery pools: New Members, Recently Active,
+   *      People Nearby and Growing Community Picks, so a new resident always
+   *      sees real people.
+   * Privacy is unchanged: connection/blocked exclusions and each candidate's own
+   * threshold-visibility opt-in are still enforced — we only relax the GLOBAL bar.
+   */
+  async discover(userId: string, kind: MatchKind) {
+    const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
+    if (!mine) throw new NotFoundException('create your dating profile first');
+
+    const candidates = await this.prisma.datingProfile.findMany({
+      where: { userId: { not: userId }, visible: true, moderation: 'approved' } as never,
+      include: { user: { select: { id: true, handle: true, name: true, profileImage: true, createdAt: true, lastSeen: true, onlineStatus: true } } },
+    });
+    const states = await this.prisma.datingMatch.findMany({
+      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], kind },
+    });
+    const stateFor = (otherId: string) => states.find((s) => s.userOneId === otherId || s.userTwoId === otherId);
+
+    const myD = this.parseDX((mine as { extras?: string | null }).extras) as DXProfile & { city?: string };
+    const myCity = (myD.city ?? '').trim().toLowerCase();
+    const excluded = await this.connectionExclusions(userId);
+
+    interface Scored {
+      card: Record<string, unknown> & {
+        user: { id: string; handle: string; name: string; profileImage: string | null };
+        score: number;
+      };
+      createdAt: number; lastSeen: number; online: boolean; city: string;
+    }
+    const scored: Scored[] = [];
+
+    for (const cand of candidates) {
+      if (excluded.has(cand.userId)) continue;
+      const state = stateFor(cand.userId);
+      if (state && this.passedBy(state, userId)) continue;
+      if (state?.status === 'matched') continue;
+
+      if (kind === 'romantic') {
+        const iWant = mine.seeking === 'any' || mine.seeking === cand.gender;
+        const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
+        if (!iWant || !theyWant) continue;
+        const theirAge = Math.floor((Date.now() - new Date(cand.birthDate).getTime()) / (365.25 * 86_400_000));
+        const theirD = this.parseDX((cand as { extras?: string | null }).extras);
+        if (hardFilterReason(myD, theirD, theirAge)) continue;
+      }
+
+      const { score: astro, signA, signB } = compatibilityScore(
+        { userId, birthDate: mine.birthDate, interests: this.splitInterests(mine.interests) },
+        { userId: cand.userId, birthDate: cand.birthDate, interests: this.splitInterests(cand.interests) },
+      );
+      const myInterests = this.splitInterests(mine.interests);
+      const theirInterests = this.splitInterests(cand.interests);
+      const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & { city?: string; photos?: string[] };
+      const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
+      const score = overallScore(breakdown);
+      // Respect each candidate's own opt-in even in discovery — never override it.
+      if (candDX.visibility === 'threshold' && score < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
+
+      const candPhotos = candDX.photos ?? [];
+      const photos = (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, 6);
+      scored.push({
+        card: {
+          matchId: state?.id ?? null,
+          user: { id: cand.user.id, handle: cand.user.handle, name: cand.user.name, profileImage: cand.user.profileImage },
+          bio: cand.bio,
+          interests: theirInterests,
+          photos,
+          age: this.ageOf(cand.birthDate),
+          yourSign: signA,
+          theirSign: signB,
+          score,
+          breakdown,
+          reasons: explain(breakdown, sharedItems(myInterests, theirInterests)),
+          likedByMe: state ? this.likedBy(state, userId) : false,
+          matched: false,
+          conversationId: state?.conversationId ?? null,
+        },
+        createdAt: new Date(cand.createdAt).getTime(),
+        lastSeen: new Date(cand.user.lastSeen).getTime(),
+        online: cand.user.onlineStatus,
+        city: (candDX.city ?? '').trim().toLowerCase(),
+      });
+    }
+
+    const used = new Set<string>();
+    const take = (arr: Scored[], n: number) => {
+      const out: Record<string, unknown>[] = [];
+      for (const x of arr) {
+        if (out.length >= n) break;
+        if (used.has(x.card.user.id)) continue;
+        used.add(x.card.user.id);
+        out.push(x.card);
+      }
+      return out;
+    };
+
+    const sections: { key: string; label: string; note: string; tier: 'ideal' | 'recommended' | 'discovery'; matches: Record<string, unknown>[] }[] = [];
+
+    const ideal = scored.filter((s) => s.card.score >= MATCH_THRESHOLD).sort((a, b) => b.card.score - a.card.score);
+    const recommended = scored.filter((s) => s.card.score >= 55 && s.card.score < MATCH_THRESHOLD).sort((a, b) => b.card.score - a.card.score);
+
+    if (ideal.length) {
+      sections.push({ key: 'curated', label: 'Curated Matches', note: 'Your strongest matches — 75%+ compatibility.', tier: 'ideal', matches: take(ideal, MATCH_LIMIT) });
+    }
+
+    // Progressively relax the bar only when the ideal pool is thin.
+    if (ideal.length < 6 && recommended.length) {
+      const band = recommended.some((s) => s.card.score >= 65) ? 65 : 55;
+      const pool = recommended.filter((s) => s.card.score >= band);
+      sections.push({
+        key: 'recommended', label: 'Recommended Matches', tier: 'recommended',
+        note: `Early days in your city — these are your closest matches so far (${band}%+). As more residents join, stronger matches will appear.`,
+        matches: take(pool, MATCH_LIMIT),
+      });
+    }
+
+    // Discovery pools fill in only while things are still sparse, so dense
+    // markets keep a purely compatibility-ranked list.
+    const sparse = used.size < 8;
+    if (sparse) {
+      const newMembers = [...scored].sort((a, b) => b.createdAt - a.createdAt);
+      const nm = take(newMembers, 8);
+      if (nm.length) sections.push({ key: 'new', label: 'New Members', note: 'Just joined the city — say hello early.', tier: 'discovery', matches: nm });
+
+      const active = [...scored].sort((a, b) => (Number(b.online) - Number(a.online)) || (b.lastSeen - a.lastSeen));
+      const ac = take(active, 8);
+      if (ac.length) sections.push({ key: 'active', label: 'Recently Active', note: 'Online now or active recently.', tier: 'discovery', matches: ac });
+
+      if (myCity) {
+        const nearby = scored.filter((s) => s.city && s.city === myCity).sort((a, b) => b.card.score - a.card.score);
+        const nb = take(nearby, 8);
+        if (nb.length) sections.push({ key: 'nearby', label: 'People Nearby', note: `New faces in ${myD.city}.`, tier: 'discovery', matches: nb });
+      }
+
+      const growing = [...scored].sort((a, b) => b.card.score - a.card.score);
+      const gp = take(growing, 8);
+      if (gp.length) sections.push({ key: 'growing', label: 'Growing Community Picks', note: 'More residents to meet as your city grows.', tier: 'discovery', matches: gp });
+    }
+
+    return {
+      sections,
+      idealCount: ideal.length,
+      lowDensity: ideal.length < 6,
+      totalDiscoverable: scored.length,
+    };
+  }
+
   private parseDX(extras: string | null | undefined): DXProfile {
     try { return extras ? (JSON.parse(extras) as DXProfile) : {}; } catch { return {}; }
   }

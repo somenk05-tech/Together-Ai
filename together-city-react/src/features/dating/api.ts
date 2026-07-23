@@ -78,6 +78,22 @@ export interface MatchDetail {
   conversationId: string | null;
 }
 
+/** Low-density discovery mode (audit 6.1): sectioned results with a relaxed
+ *  bar + fallback categories when ideal ≥75% matches are scarce. */
+export interface DiscoverSection {
+  key: string;
+  label: string;
+  note: string;
+  tier: 'ideal' | 'recommended' | 'discovery';
+  matches: CuratedMatch[];
+}
+export interface DiscoverResult {
+  sections: DiscoverSection[];
+  idealCount: number;
+  lowDensity: boolean;
+  totalDiscoverable: number;
+}
+
 export interface UpsertProfileInput {
   gender: DatingProfile['gender'];
   seeking: DatingProfile['seeking'];
@@ -94,6 +110,7 @@ export const datingApi = {
   upsertProfile: (input: UpsertProfileInput) => api.post<DatingProfile>('/dating/profile', input).then((r) => r.data),
   deleteProfile: () => api.delete<{ ok: boolean; deleted: boolean }>('/dating/profile').then((r) => r.data),
   matches: (kind: MatchKind) => api.get<CuratedMatch[]>('/dating/matches', { params: { kind } }).then((r) => r.data),
+  discover: (kind: MatchKind) => api.get<DiscoverResult>('/dating/discover', { params: { kind } }).then((r) => r.data),
   matchDetail: (targetUserId: string, kind: MatchKind) => api.get<MatchDetail>(`/dating/matches/${targetUserId}`, { params: { kind } }).then((r) => r.data),
   like: (targetUserId: string, kind: MatchKind) =>
     api.post<{ matched: boolean; conversationId: string | null; chatLocked: boolean; matchId: string }>(`/dating/matches/${targetUserId}/like`, { kind }).then((r) => r.data),
@@ -167,6 +184,9 @@ export function useDeleteDatingProfile() {
 export function useMatches(kind: MatchKind, enabled = true) {
   return useQuery({ queryKey: ['dating', 'matches', kind], queryFn: () => datingApi.matches(kind), enabled });
 }
+export function useDiscover(kind: MatchKind, enabled = true) {
+  return useQuery({ queryKey: ['dating', 'discover', kind], queryFn: () => datingApi.discover(kind), enabled });
+}
 export function useMatchDetail(targetUserId: string | null, kind: MatchKind) {
   return useQuery({
     queryKey: ['dating', 'match', kind, targetUserId],
@@ -178,20 +198,30 @@ export function useLikeMatch(kind: MatchKind) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (targetUserId: string) => datingApi.like(targetUserId, kind),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
+    },
   });
 }
 export function useUnlockChat(kind: MatchKind) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { targetUserId: string; method: 'wallet' | 'card' }) => datingApi.unlockChat(v.targetUserId, kind, v.method),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] }); void qc.invalidateQueries({ queryKey: ['financial'] }); },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
+      void qc.invalidateQueries({ queryKey: ['financial'] });
+    },
   });
 }
 export function usePassMatch(kind: MatchKind) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (targetUserId: string) => datingApi.pass(targetUserId, kind),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
+    },
   });
 }
