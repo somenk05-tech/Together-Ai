@@ -10,7 +10,7 @@ import { MedicalAdvisories } from '../components/MedicalAdvisories';
 import { ProfileIncomplete } from '../components/ProfileIncomplete';
 import {
   useWeeklyPlan, useNutritionTargets, useDaySummary, useRegenerateWeek, useBuildCart,
-  useWeeks, useWeekByKey, useNewWeek, useDuplicateWeek, syncPlanCaches,
+  useWeeks, useWeekByKey, useNewWeek, useDuplicateWeek, syncPlanCaches, useFamilyMealPlanning,
 } from '../hooks';
 import { nutritionApi } from '../api';
 import { useMealSwapHistory } from '../mealHistory';
@@ -53,6 +53,41 @@ function WeekTimeline({ weeks, activeKey, onSelect, onNewWeek, newBusy }: {
         )}
         {showPrev && previous.map((w) => chip(w, w.key === activeKey))}
       </div>
+    </div>
+  );
+}
+
+/** Family Mode banner with an inline Family-Meal-Planning switch. The head of
+ *  the household can flip the whole family between one shared plan and
+ *  independent plans right here; toggling OFF drops everyone (including this
+ *  view) back to their own individual plan. Members see who set it. */
+function FamilyModeBanner({ ownerName }: { ownerName?: string }) {
+  const { query, update } = useFamilyMealPlanning();
+  const ctx = query.data;
+  const isOwner = ctx?.role === 'owner';
+  const on = ctx?.familyMealPlanning ?? true; // banner only shows while family planning is on
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', padding: '12px 16px', margin: '0 0 16px', background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 12 }}>
+      <span style={{ fontSize: 18 }}>👨‍👩‍👧</span>
+      <span style={{ fontSize: 13, flex: 1, minWidth: 200 }}>
+        <b>Based on your Family Meal Plan{ownerName ? ` · ${ownerName}` : ''}.</b> These are the household's shared meals, with portions and macros personalised to your targets and any medical or diet needs.
+      </span>
+      {isOwner ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent)' }}>{on ? 'Family plan' : 'Individual plan'}</span>
+          <button role="switch" aria-checked={on} disabled={update.isPending}
+            title={on ? 'Switch the household to independent plans' : 'Switch the household back to one shared plan'}
+            onClick={() => update.mutate(!on)}
+            style={{ width: 48, height: 28, borderRadius: 999, border: 'none', cursor: update.isPending ? 'wait' : 'pointer', position: 'relative', transition: 'background .15s', background: on ? 'var(--accent)' : 'var(--line)' }}>
+            <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+          </button>
+        </div>
+      ) : (
+        <span className="muted" style={{ fontSize: 11.5, flex: 'none', textAlign: 'right', maxWidth: 150 }}>
+          To plan independently, ask the head of your household to turn off Family Meal Planning.
+        </span>
+      )}
     </div>
   );
 }
@@ -118,16 +153,10 @@ export function WeeklyPlanner() {
       <MedicalRecs />
       <MedicalAdvisories advisories={week.advisories} healthScore={week.healthScore} />
 
-      {/* Family Mode: this is a read-only, personalised view of the household's
-          master plan. The member can't generate a different week. */}
-      {week.familyMode && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', margin: '0 0 16px', background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 12 }}>
-          <span style={{ fontSize: 18 }}>👨‍👩‍👧</span>
-          <span style={{ fontSize: 13, flex: 1, minWidth: 200 }}>
-            <b>Based on your Family Meal Plan{week.basedOnFamily?.ownerName ? ` · ${week.basedOnFamily.ownerName}` : ''}.</b> These are the household's shared meals, with portions and macros personalised to your targets and any medical or diet needs. To plan independently, ask the head of your household to turn off Family Meal Planning.
-          </span>
-        </div>
-      )}
+      {/* Family Mode: a personalised view of the household's master plan. The
+          head of the household can switch the whole family back to independent
+          plans right here (the toggle); members see who set it. */}
+      {week.familyMode && <FamilyModeBanner ownerName={week.basedOnFamily?.ownerName} />}
 
       {!week.familyMode && weeksQ.data && weeksQ.data.length > 0 && (
         <WeekTimeline

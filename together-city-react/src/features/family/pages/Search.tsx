@@ -1,64 +1,124 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { PageHeader, Button, EmptyState } from '@/components/ui';
+import { useMemo, useState, type KeyboardEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { PageHeader, Button, EmptyState, Spinner } from '@/components/ui';
+import { useSearchRecipes, useFamilyMembers, useBuildCart } from '@/features/nutrition/hooks';
+import { recipeImageUrl } from '@/features/nutrition/recipeImages';
+import type { Recipe, DietKey } from '@/features/nutrition/types';
 import { useFamily, headcount } from '../members';
 
 /**
- * Search by Ingredients (family-search.html). No ingredient-search endpoint
- * exists on the backend, so — as in the vanilla site — this runs against a
- * local curated recipe set. Results respect the family-safe (veg-only) toggle,
- * flag kid-friendly dishes and portion for the whole family.
+ * Search by Ingredients — the FAMILY view of the same real recipe search that
+ * powers Nutrition Hub · 10 (`/nutrition/recipes/search`). It queries the live
+ * world database by ingredient, then layers on the household context: results
+ * respect every member's diet (family-safe toggle → veg-only when any member is
+ * vegetarian), lighter dishes are flagged Kid-Friendly, and every recipe is
+ * portioned + basketed for the whole household.
  */
-interface FamilyRecipe {
-  id: string; name: string; cuisine: string; minutes: number; veg: boolean; kcal: number; gPerPlate: number; ingredients: string[];
-}
 
-const RECIPES: FamilyRecipe[] = [
-  { id: 'palak-paneer', name: 'Palak Paneer', cuisine: 'North Indian', minutes: 30, veg: true, kcal: 320, gPerPlate: 240, ingredients: ['paneer', 'spinach', 'onion', 'tomato', 'garlic', 'cream'] },
-  { id: 'paneer-bhurji', name: 'Paneer Bhurji', cuisine: 'North Indian', minutes: 20, veg: true, kcal: 280, gPerPlate: 200, ingredients: ['paneer', 'onion', 'tomato', 'capsicum', 'spices'] },
-  { id: 'saag-aloo', name: 'Saag Aloo', cuisine: 'Punjabi', minutes: 25, veg: true, kcal: 210, gPerPlate: 220, ingredients: ['spinach', 'potato', 'onion', 'garlic'] },
-  { id: 'palak-dal', name: 'Palak Dal', cuisine: 'Indian', minutes: 30, veg: true, kcal: 240, gPerPlate: 250, ingredients: ['spinach', 'toor dal', 'onion', 'tomato', 'garlic'] },
-  { id: 'veg-pulao', name: 'Vegetable Pulao', cuisine: 'Indian', minutes: 35, veg: true, kcal: 340, gPerPlate: 280, ingredients: ['rice', 'onion', 'tomato', 'mixed vegetables', 'spices'] },
-  { id: 'jeera-rice', name: 'Jeera Rice', cuisine: 'Indian', minutes: 20, veg: true, kcal: 260, gPerPlate: 200, ingredients: ['rice', 'cumin', 'ghee'] },
-  { id: 'tomato-rasam', name: 'Tomato Rasam', cuisine: 'South Indian', minutes: 20, veg: true, kcal: 120, gPerPlate: 200, ingredients: ['tomato', 'tamarind', 'garlic', 'spices'] },
-  { id: 'banana-oat-smoothie', name: 'Banana Oat Smoothie', cuisine: 'Continental', minutes: 5, veg: true, kcal: 220, gPerPlate: 300, ingredients: ['banana', 'oats', 'yogurt', 'milk'] },
-  { id: 'curd-rice', name: 'Curd Rice', cuisine: 'South Indian', minutes: 15, veg: true, kcal: 300, gPerPlate: 250, ingredients: ['rice', 'yogurt', 'onion', 'curry leaves'] },
-  { id: 'chicken-curry', name: 'Home-style Chicken Curry', cuisine: 'Indian', minutes: 40, veg: false, kcal: 420, gPerPlate: 260, ingredients: ['chicken', 'onion', 'tomato', 'garlic', 'spices'] },
-  { id: 'egg-bhurji', name: 'Egg Bhurji', cuisine: 'Indian', minutes: 15, veg: false, kcal: 240, gPerPlate: 180, ingredients: ['egg', 'onion', 'tomato', 'spices'] },
-  { id: 'yogurt-parfait', name: 'Yogurt & Banana Parfait', cuisine: 'Continental', minutes: 5, veg: true, kcal: 190, gPerPlate: 200, ingredients: ['yogurt', 'banana', 'oats', 'honey'] },
-];
+const STAPLES = ['onion', 'tomato', 'rice', 'chicken', 'yogurt', 'banana', 'paneer', 'spinach', 'egg', 'oats'];
 
-const STAPLES = ['onion', 'tomato', 'rice', 'chicken', 'yogurt', 'banana'];
+const VEG_DIETS: DietKey[] = ['veg', 'vegan', 'jain'];
+const DIET_LABEL: Record<DietKey, string> = {
+  everything: '', veg: 'Veg', vegan: 'Vegan', jain: 'Jain', nonveg: 'Non-veg', pesc: 'Fish', egg: 'Egg',
+};
 
 const chipStyle: React.CSSProperties = { cursor: 'pointer' };
 
+/** A recipe card in the family matches grid — photo-led like the individual hub,
+ *  but portioned "for N" and basket-ready. */
+function FamilyRecipeCard({ r, headN, onBasket, basketing }: { r: Recipe; headN: number; onBasket: () => void; basketing: boolean }) {
+  const [imgOk, setImgOk] = useState(true);
+  const img = r.imageUrl ?? recipeImageUrl(r.recipeNo);
+  const hasImg = Boolean(img) && imgOk;
+  const veg = VEG_DIETS.includes(r.diet);
+  const kid = r.kcal <= 350; // lighter dish → kid-appropriate
+  const dietLbl = DIET_LABEL[r.diet] || (veg ? 'Veg' : 'Non-veg');
+
+  return (
+    <div className="pcard card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ position: 'relative', aspectRatio: '16 / 9', overflow: 'hidden', background: 'linear-gradient(140deg, #2e7d3218, #2e7d3238)' }}>
+        {hasImg ? (
+          <img src={img} alt={r.name} loading="lazy" onError={() => setImgOk(false)}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, opacity: 0.45 }}>🍲</div>
+        )}
+      </div>
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <h4 style={{ marginBottom: 4 }}>{r.name}</h4>
+        <p className="meta" style={{ margin: '0 0 6px' }}>
+          {r.country} · {r.minutes} min · {dietLbl}
+          {kid && <span className="tag green" style={{ marginLeft: 6 }}>Kid-Friendly</span>}
+        </p>
+        <span className="kcal" style={{ fontWeight: 700 }}>{r.kcal} kcal</span>
+        <span className="muted" style={{ fontSize: 11 }}> · {r.gramsPerServing} g/plate · {r.protein}g protein</span>
+        <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 12, flexWrap: 'wrap' }}>
+          <Link to={`/nutrition/recipes/${r.id}`} className="btn btn-accent btn-sm">Recipe (for {headN})</Link>
+          <button type="button" className="btn btn-line btn-sm" onClick={onBasket} disabled={basketing}>
+            {basketing ? 'Adding…' : 'Add to Basket'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function FamilySearch() {
   const { state } = useFamily();
-  const N = headcount(state);
+  const membersQ = useFamilyMembers();
+  const members = membersQ.data ?? [];
+  const navigate = useNavigate();
+
   const [ings, setIngs] = useState<string[]>(['paneer', 'spinach']);
   const [safe, setSafe] = useState(true);
   const [draft, setDraft] = useState('');
 
-  const results = useMemo(() => {
-    let pool = RECIPES.filter((r) => ings.some((i) => r.ingredients.some((ri) => ri.indexOf(i) >= 0)));
-    if (safe) pool = pool.filter((r) => r.veg);
-    return pool
-      .map((r) => ({ r, matched: ings.filter((i) => r.ingredients.some((ri) => ri.indexOf(i) >= 0)) }))
-      .sort((a, b) => b.matched.length - a.matched.length)
-      .slice(0, 9);
-  }, [ings, safe]);
+  // Real household context (falls back to the local family model when the
+  // backend household is empty, e.g. a solo user).
+  const headN = members.length || headcount(state) || 1;
+  const hasVegMember = members.some((m) => VEG_DIETS.includes(m.diet as DietKey));
+
+  // Family-safe → constrain the world search to vegetarian dishes so nothing
+  // non-veg reaches a household with vegetarian members.
+  const diet: DietKey | undefined = safe && hasVegMember ? 'veg' : undefined;
+
+  const searching = ings.length > 0;
+  const search = useSearchRecipes(ings, diet);
+  const shown: Recipe[] = useMemo(() => (search.data ?? []).slice(0, 24), [search.data]);
+  const busy = searching && search.isLoading;
+
+  const buildCart = useBuildCart();
+  const [basketingId, setBasketingId] = useState<string | null>(null);
 
   const addIng = (v: string) => {
     const t = v.trim().toLowerCase();
     if (t && ings.indexOf(t) < 0) setIngs((x) => [...x, t]);
   };
   const removeIng = (v: string) => setIngs((x) => x.filter((i) => i !== v));
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && draft.trim()) { e.preventDefault(); addIng(draft); setDraft(''); }
+  };
+
+  const basketOne = (r: Recipe) => {
+    setBasketingId(r.id);
+    buildCart.mutate(
+      { recipeIds: [r.id], people: headN, mode: 'family' },
+      { onSuccess: () => navigate('/family/grocery'), onSettled: () => setBasketingId(null) },
+    );
+  };
+  const basketAll = () => {
+    if (!shown.length) return;
+    buildCart.mutate(
+      { recipeIds: shown.map((r) => r.id), people: headN, mode: 'family' },
+      { onSuccess: () => navigate('/family/grocery') },
+    );
+  };
 
   return (
     <div>
       <PageHeader eyebrow="Family Nutrition · 06"
         title="Search by Ingredients"
-        sub="Tell us what's in the kitchen — results respect every member's exclusions, flag kid-friendly recipes, and portion ingredients for the whole family." />
+        sub="Tell us what's in the kitchen — we search the Together City world database and respect every member's diet, flag kid-friendly recipes, and portion ingredients for the whole family." />
 
       <div className="card" style={{ marginBottom: 26 }}>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -67,8 +127,7 @@ export function FamilySearch() {
               {ing}<span style={{ marginLeft: 6, opacity: 0.6 }}>✕</span>
             </span>
           ))}
-          <input value={draft} onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && draft.trim()) { addIng(draft); setDraft(''); } }}
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey}
             placeholder="Type an ingredient and press Enter…"
             style={{ flex: 1, minWidth: 180, border: '1px solid var(--line)', borderRadius: 999, padding: '12px 18px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'inherit' }} />
           <Button variant="accent" size="sm" onClick={() => { if (draft.trim()) { addIng(draft); setDraft(''); } }}>Search →</Button>
@@ -80,33 +139,30 @@ export function FamilySearch() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 28, alignItems: 'start' }} className="tc-dashgrid">
         <div>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, gap: 12, flexWrap: 'wrap' }}>
             <h2>Matches</h2>
-            <span className="meta">{results.length} recipe{results.length === 1 ? '' : 's'} found</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              {shown.length > 0 && (
+                <Button variant="line" size="sm" onClick={basketAll} disabled={buildCart.isPending}>
+                  🛒 Family basket ({shown.length})
+                </Button>
+              )}
+              <span className="meta">{shown.length} recipe{shown.length === 1 ? '' : 's'} found</span>
+            </div>
           </div>
-          {results.length === 0 ? (
-            <EmptyState title="No recipes match yet" hint="Add another ingredient." />
+
+          {busy ? (
+            <Spinner label="Matching your ingredients…" />
+          ) : !searching ? (
+            <EmptyState title="Add an ingredient to start" hint="Type what's in your kitchen — or tap a staple on the right." />
+          ) : shown.length === 0 ? (
+            <EmptyState title="No recipes use those ingredients" hint="Try fewer or different ingredients." />
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 16 }}>
-              {results.map(({ r, matched }) => {
-                const kid = r.kcal <= 350;
-                return (
-                  <div key={r.id} className="pcard card" style={{ padding: 16 }}>
-                    <h4 style={{ marginBottom: 4 }}>{r.name}</h4>
-                    <p className="meta" style={{ margin: '0 0 4px' }}>
-                      {r.cuisine} · {r.minutes} min · {r.veg ? 'Veg' : 'Non-veg'}
-                      {kid && <span className="tag green" style={{ marginLeft: 6 }}>Kid-Friendly</span>}
-                    </p>
-                    <span className="kcal" style={{ fontWeight: 700 }}>{r.kcal} kcal</span>
-                    <span className="muted" style={{ fontSize: 11 }}> · {r.gPerPlate} g/plate</span>
-                    <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 6 }}>Uses: {matched.join(', ')}</div>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                      <span className="btn btn-accent btn-sm">Recipe (for {N})</span>
-                      <Link to="/family/grocery" className="btn btn-line btn-sm">Add to Basket</Link>
-                    </div>
-                  </div>
-                );
-              })}
+              {shown.map((r) => (
+                <FamilyRecipeCard key={r.id} r={r} headN={headN}
+                  onBasket={() => basketOne(r)} basketing={basketingId === r.id} />
+              ))}
             </div>
           )}
         </div>
@@ -115,7 +171,7 @@ export function FamilySearch() {
           <div className="card">
             <h4>Kitchen Staples</h4>
             <div className="pill-row" style={{ marginTop: 12 }}>
-              {STAPLES.map((s) => (
+              {STAPLES.filter((s) => !ings.includes(s)).map((s) => (
                 <span key={s} className="pill" style={chipStyle} onClick={() => addIng(s)}>+ {s}</span>
               ))}
             </div>
@@ -123,7 +179,9 @@ export function FamilySearch() {
           <div className="card">
             <h4>Long-Term Memory</h4>
             <p className="meta" style={{ display: 'block', marginTop: 10 }}>
-              Dietary needs and conditions you set for each family member are remembered — non-veg and high-sugar dishes are auto-excluded for those who need it, and lighter meals are flagged <span className="tag green">Kid-Friendly</span>.
+              {members.length > 1
+                ? <>Cooking for <strong>{headN}</strong>{hasVegMember ? ' — vegetarian members are honoured, so non-veg dishes are auto-excluded while “Family-safe” is on' : ''}. Lighter meals are flagged <span className="tag green">Kid-Friendly</span>.</>
+                : <>Dietary needs you set for each family member are remembered — non-veg and high-sugar dishes are auto-excluded for those who need it, and lighter meals are flagged <span className="tag green">Kid-Friendly</span>.</>}
             </p>
           </div>
         </div>
