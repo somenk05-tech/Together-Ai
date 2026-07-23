@@ -105,6 +105,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     await this.permission.assertCanPostToConversation(client.userId, conversationId);
     await client.join(room.conversation(conversationId));
     await this.redis.setOpenConversation(client.userId, conversationId);
+    // Opening a chat clears its message notification from the bell.
+    void this.notifications.markConversationRead(client.userId, conversationId);
   }
 
   @SubscribeMessage(WS.LEAVE_CONVERSATION)

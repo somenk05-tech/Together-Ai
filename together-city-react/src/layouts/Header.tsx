@@ -23,6 +23,7 @@ function Badge({ count }: { count: number }) {
 const ICON_FOR: Record<string, string> = {
   like: '❤️', comment: '💬', follow: '➕', connection_request: '🤝',
   connection_accepted: '✅', post_live: '🎉', mention: '📣',
+  message: '💬', dating_like: '💛', dating_match: '💫',
 };
 function timeAgo(iso: string): string {
   const s = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 1000));

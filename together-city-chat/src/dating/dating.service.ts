@@ -498,8 +498,22 @@ export class DatingService {
         where: { id: updated.id },
         data: { status: 'matched' },
       });
+      // Tell the other person it's now a mutual match.
+      void this.notifications.create({
+        userId: targetUserId, actorId: userId, kind: 'dating_match',
+        title: kind === 'romantic' ? "It’s a match! 💫" : "You’re connected 🤝",
+        body: kind === 'romantic' ? 'You both liked each other — open Dating to say hi.' : 'You both connected — open Dating to say hi.',
+        href: '/dating/matches',
+      });
       return { matched: true, conversationId: null, chatLocked: true, matchId: matched.id };
     }
+    // A one-way like/request — nudge the other person to check their matches.
+    void this.notifications.create({
+      userId: targetUserId, actorId: userId, kind: 'dating_like',
+      title: kind === 'romantic' ? 'You have a new like 💛' : 'Someone wants to connect',
+      body: 'A member likes your profile — see who in your matches.',
+      href: '/dating/matches',
+    });
     return { matched: false, conversationId: null, chatLocked: false, matchId: updated.id };
   }
 

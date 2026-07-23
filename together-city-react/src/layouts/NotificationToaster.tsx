@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotificationSync } from '@/api';
-import { socketClient } from '@/api/socket';
-import { WS } from '@/api/events';
 import type { NotificationItem } from '@/api/schemas';
 
 interface Toast { id: string; icon: string; title: string; body?: string; href?: string }
@@ -10,6 +8,7 @@ interface Toast { id: string; icon: string; title: string; body?: string; href?:
 const ICON_FOR: Record<string, string> = {
   like: '❤️', comment: '💬', follow: '➕', connection_request: '🤝',
   connection_accepted: '✅', post_live: '🎉', mention: '📣',
+  message: '💬', dating_like: '💛', dating_match: '💫',
 };
 
 /**
@@ -27,22 +26,14 @@ export function NotificationToaster() {
     window.setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== t.id)), 5000);
   }, []);
 
-  // In-app notifications (social + connections).
+  // App-wide notifications — social, connections, dating AND new chat messages
+  // (messages now flow through the in-app notification feed too, titled with the
+  // sender's name, so there's a single toast source and no duplicates).
   useNotificationSync((n: NotificationItem) => {
-    push({ id: n.id, icon: ICON_FOR[n.kind] ?? '🔔', title: n.title, body: n.body, href: n.href });
+    // Unique per toast — a grouped message notification reuses its row id when it
+    // updates, so key it with a nonce to avoid React key collisions.
+    push({ id: `${n.id}-${Math.random().toString(36).slice(2, 7)}`, icon: ICON_FOR[n.kind] ?? '🔔', title: n.title, body: n.body, href: n.href });
   });
-
-  // Chat messages — reuse the existing chat notification event.
-  useEffect(() => {
-    const off = socketClient.on<{ conversationId?: string; title?: string; body?: string; preview?: string }>(WS.CHAT_NOTIFICATION, (m) => {
-      push({
-        id: `chat-${m.conversationId ?? Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        icon: '💬', title: m.title || 'New message', body: m.body || m.preview,
-        href: m.conversationId ? `/chats?c=${m.conversationId}` : '/chats',
-      });
-    });
-    return off;
-  }, [push]);
 
   if (!toasts.length) return null;
   return (

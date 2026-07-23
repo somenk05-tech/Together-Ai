@@ -45,8 +45,10 @@ export class NotificationsService {
     return (this.prisma as unknown as {
       notification: {
         create: (a: unknown) => Promise<NotificationRow>;
+        findFirst: (a: unknown) => Promise<NotificationRow | null>;
         findMany: (a: unknown) => Promise<NotificationRow[]>;
         count: (a: unknown) => Promise<number>;
+        update: (a: unknown) => Promise<NotificationRow>;
         updateMany: (a: unknown) => Promise<unknown>;
       };
     }).notification;
@@ -99,6 +101,36 @@ export class NotificationsService {
     this.gateway.emitCount(userId, 0);
   }
 
+  /**
+   * A new message as an in-app bell notification — ONE entry per conversation
+   * that updates in place (so an active chat doesn't spam the feed with a row
+   * per message). Titled with the sender's name; emitting it drives the live
+   * bell + the corner toast.
+   */
+  private async upsertMessageNotification(recipientId: string, conversationId: string, title: string, preview: string): Promise<void> {
+    try {
+      const existing = await this.notif.findFirst({
+        where: { userId: recipientId, kind: 'message', entityId: conversationId, read: false },
+        orderBy: { createdAt: 'desc' },
+      });
+      const data = { title, body: preview, href: `/chats?c=${conversationId}` };
+      const row = existing
+        ? await this.notif.update({ where: { id: existing.id }, data: { ...data, createdAt: new Date() } })
+        : await this.notif.create({ data: { userId: recipientId, kind: 'message', entityId: conversationId, ...data } });
+      const count = await this.unreadCount(recipientId);
+      this.gateway.emitNew(recipientId, this.shape(row), count);
+    } catch (e) {
+      this.log.warn(`message notification failed: ${(e as Error).message}`);
+    }
+  }
+
+  /** Clear a conversation's message notification once the user opens it, so the
+   *  bell badge stays in sync with what they've actually read. */
+  async markConversationRead(userId: string, conversationId: string): Promise<void> {
+    await this.notif.updateMany({ where: { userId, kind: 'message', entityId: conversationId, read: false }, data: { read: true } }).catch(() => undefined);
+    this.gateway.emitCount(userId, await this.unreadCount(userId));
+  }
+
   async notifyNewMessage(params: {
     conversationId: string;
     senderId: string;
@@ -121,6 +153,10 @@ export class NotificationsService {
         where: { conversationId_userId: { conversationId: params.conversationId, userId: recipientId } },
       });
       if (member?.muted) continue;
+
+      // In-app bell notification (grouped per chat) + live toast, titled with
+      // the sender's name.
+      await this.upsertMessageNotification(recipientId, params.conversationId, sender.name, params.preview);
 
       const devices = await this.prisma.deviceToken.findMany({
         where: { userId: recipientId },
