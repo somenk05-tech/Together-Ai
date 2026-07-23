@@ -50,32 +50,30 @@ export function CityHeader({ variant = 'overlay' }: { variant?: 'overlay' | 'pla
 
   const dot = <span aria-hidden style={{ color: soft, opacity: 0.7 }}>·</span>;
 
-  if (!data && q.isLoading) {
-    return (
-      <div style={wrap(dark)}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: soft, letterSpacing: '.01em', whiteSpace: 'nowrap' }}>{day} · {date}</div>
-      </div>
-    );
-  }
-  if (!data) return null;
+  // ALWAYS render — the date shows immediately, city + weather fill in when the
+  // API responds (and it degrades gracefully if the weather call ever fails).
+  const hasWeather = data?.temperatureC != null;
 
   return (
-    <div style={wrap(dark)} aria-label={`${data.city}, ${day} ${date}${data.temperatureC != null ? `, ${data.temperatureC} degrees` : ''}`}>
-      {/* Everything on one line: 📍 City · Thu 23 Jul · 🌧 27°C · feels 29° */}
+    <div style={wrap(dark)} aria-label={`${data?.city ?? 'Your city'}, ${day} ${date}${hasWeather ? `, ${data!.temperatureC} degrees` : ''}`}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', lineHeight: 1 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 800, fontSize: 14.5, color: ink, letterSpacing: '-.01em' }}>
-          <span aria-hidden style={{ fontSize: 13 }}>📍</span>{data.city}
-        </span>
-        {dot}
-        <span style={{ fontSize: 13, color: soft, fontWeight: 500 }}>{day} {date}</span>
-        {data.temperatureC != null && (
+        {data?.city && (
+          <>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 800, fontSize: 14.5, color: ink, letterSpacing: '-.01em' }}>
+              <span aria-hidden style={{ fontSize: 13 }}>📍</span>{data.city}
+            </span>
+            {dot}
+          </>
+        )}
+        <span style={{ fontSize: 13, color: soft, fontWeight: 600 }}>{day} {date}</span>
+        {hasWeather && (
           <>
             {dot}
-            <span aria-hidden style={{ fontSize: 16 }}>{data.icon}</span>
-            <span style={{ fontSize: 14, fontWeight: 800, color: ink }}>{data.temperatureC}°C</span>
-            {data.description && <span style={{ fontSize: 12.5, color: soft }}>{data.description}</span>}
-            {data.feelsLikeC != null && data.feelsLikeC !== data.temperatureC && (
-              <>{dot}<span style={{ fontSize: 12.5, color: soft }}>feels {data.feelsLikeC}°</span></>
+            <span aria-hidden style={{ fontSize: 16 }}>{data!.icon}</span>
+            <span style={{ fontSize: 14, fontWeight: 800, color: ink }}>{data!.temperatureC}°C</span>
+            {data!.description && <span style={{ fontSize: 12.5, color: soft }}>{data!.description}</span>}
+            {data!.feelsLikeC != null && data!.feelsLikeC !== data!.temperatureC && (
+              <>{dot}<span style={{ fontSize: 12.5, color: soft }}>feels {data!.feelsLikeC}°</span></>
             )}
           </>
         )}
@@ -86,13 +84,14 @@ export function CityHeader({ variant = 'overlay' }: { variant?: 'overlay' | 'pla
 
 function wrap(dark: boolean): React.CSSProperties {
   return {
-    display: 'inline-block', padding: '9px 15px', borderRadius: 999, maxWidth: '92vw', overflow: 'hidden',
+    display: 'inline-block', padding: '10px 16px', borderRadius: 999, maxWidth: '92vw', overflow: 'hidden',
+    // Higher-contrast panel so it stays legible over a bright sunset sky.
     background: dark
-      ? 'linear-gradient(150deg, rgba(28,24,18,.55), rgba(14,12,10,.42))'
+      ? 'linear-gradient(150deg, rgba(20,17,12,.72), rgba(10,9,7,.60))'
       : 'var(--card)',
     backdropFilter: dark ? 'blur(14px) saturate(1.1)' : undefined,
     WebkitBackdropFilter: dark ? 'blur(14px) saturate(1.1)' : undefined,
-    border: dark ? '1px solid rgba(255,255,255,.18)' : '1px solid var(--line)',
-    boxShadow: dark ? '0 8px 28px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.10)' : '0 2px 12px rgba(0,0,0,.05)',
+    border: dark ? '1px solid rgba(255,255,255,.22)' : '1px solid var(--line)',
+    boxShadow: dark ? '0 10px 32px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.12)' : '0 2px 12px rgba(0,0,0,.05)',
   };
 }

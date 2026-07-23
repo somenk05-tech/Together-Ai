@@ -47,8 +47,9 @@ export function Home() {
     <div>
       {/* ============ THE PAVILION CITY ============ */}
       <div className="citymap" style={{ position: 'relative' }}>
-        {/* Dynamic city strip — location · date · live weather, top-left in the sky. */}
-        <div style={{ position: 'absolute', top: 18, left: 18, zIndex: 5, pointerEvents: 'none' }}>
+        {/* Dynamic city strip — location · date · live weather, top-left in the sky.
+            z-index above the clickable map SVG (which is z-index 5). */}
+        <div style={{ position: 'absolute', top: 18, left: 18, zIndex: 20, pointerEvents: 'none' }}>
           <CityHeader />
         </div>
         {/* Looping city background video. The still image is the poster, so the
