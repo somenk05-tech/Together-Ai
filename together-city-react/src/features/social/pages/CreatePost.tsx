@@ -5,6 +5,43 @@ import { useCreatePost } from '../api';
 
 interface MediaItem { type: 'image' | 'video'; src: string; dur?: number }
 
+// Inline-media limits (until object storage is configured). A 75 MB video is
+// ~100 MB as base64; the server body limit is raised to match.
+const MAX_VIDEO_BYTES = 75 * 1024 * 1024;   // 75 MB per video
+const MAX_TOTAL_BYTES = 105 * 1024 * 1024;  // total encoded payload ceiling
+const mb = (b: number) => Math.round(b / (1024 * 1024));
+/** Approx decoded byte size of a base64 data URL. */
+const dataUrlBytes = (src: string): number => {
+  const i = src.indexOf(',');
+  const b64 = i >= 0 ? src.slice(i + 1) : src;
+  return Math.ceil(b64.length * 0.75);
+};
+const readAsDataURL = (f: File): Promise<string> =>
+  new Promise((res, rej) => { const rd = new FileReader(); rd.onerror = () => rej(new Error('read failed')); rd.onload = () => res(String(rd.result)); rd.readAsDataURL(f); });
+/** Downscale + re-encode a photo so it posts as a small JPEG (never a raw 8 MB
+ *  phone photo). Keeps aspect ratio; caps the long edge at 1600 px. */
+const compressImage = (f: File): Promise<string> => new Promise((resolve, reject) => {
+  const rd = new FileReader();
+  rd.onerror = () => reject(new Error('read failed'));
+  rd.onload = () => {
+    const img = new Image();
+    img.onerror = () => reject(new Error('decode failed'));
+    img.onload = () => {
+      const MAXDIM = 1600;
+      const scale = Math.min(1, MAXDIM / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * scale));
+      c.height = Math.max(1, Math.round(img.height * scale));
+      const ctx = c.getContext('2d');
+      if (!ctx) return reject(new Error('no canvas'));
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.src = String(rd.result);
+  };
+  rd.readAsDataURL(f);
+});
+
 const FEELINGS = ['😊 Happy', '😌 Relaxed', '🤩 Excited', '🙏 Grateful', '✨ Blessed', '❤️ Loved', '🧭 Adventurous', '🌇 Nostalgic', '🎉 Celebrating', '☕ Cosy'];
 
 export const AUDIENCES = [
@@ -81,26 +118,38 @@ export function CreatePost() {
   const [open, setOpen] = useState<string | null>(null);
   // Share lifecycle: idle → sharing → success (→ navigate) | error
   const [phase, setPhase] = useState<'idle' | 'sharing' | 'success' | 'error'>('idle');
+  const [errMsg, setErrMsg] = useState<string | null>(null);
+  const [mediaError, setMediaError] = useState<string | null>(null);
   const busy = phase === 'sharing' || phase === 'success';
 
-  const onFiles = (files: FileList | null) => {
+  const onFiles = async (files: FileList | null) => {
     if (!files) return;
-    Array.from(files).forEach((f) => {
+    setMediaError(null);
+    for (const f of Array.from(files)) {
       const isVid = /^video\//.test(f.type);
-      const rd = new FileReader();
-      rd.onload = () => {
-        const src = String(rd.result);
-        const item: MediaItem = { type: isVid ? 'video' : 'image', src };
+      try {
         if (isVid) {
+          if (f.size > MAX_VIDEO_BYTES) {
+            setMediaError(`"${f.name}" is ${mb(f.size)} MB — videos must be under ${mb(MAX_VIDEO_BYTES)} MB.`);
+            continue;
+          }
+          const src = await readAsDataURL(f);
+          const item: MediaItem = { type: 'video', src };
           const v = document.createElement('video');
           v.preload = 'metadata';
           v.onloadedmetadata = () => { item.dur = Math.round(v.duration) || 0; setMedia((prev) => [...prev]); };
           v.src = src;
+          setMedia((prev) => [...prev, item].slice(0, 10));
+        } else {
+          // Photos are downscaled + re-encoded so they always post as small JPEGs.
+          const src = await compressImage(f);
+          const item: MediaItem = { type: 'image', src };
+          setMedia((prev) => [...prev, item].slice(0, 10));
         }
-        setMedia((prev) => [...prev, item].slice(0, 10));
-      };
-      rd.readAsDataURL(f);
-    });
+      } catch {
+        setMediaError(`Couldn't process "${f.name}". Try a different file.`);
+      }
+    }
   };
 
   const useLocation = () => {
@@ -132,6 +181,15 @@ export function CreatePost() {
 
   const share = () => {
     if (busy || !canShare) return; // prevent duplicate submissions
+    // Reject an over-large combined payload up front with a precise message,
+    // rather than letting the request fail at the server body limit.
+    const totalBytes = media.reduce((s, m) => s + dataUrlBytes(m.src), 0);
+    if (totalBytes > MAX_TOTAL_BYTES) {
+      setMediaError(`These files total ${mb(totalBytes)} MB — that's over the ${mb(MAX_TOTAL_BYTES)} MB limit for one post. Remove one or use a smaller video.`);
+      return;
+    }
+    setMediaError(null);
+    setErrMsg(null);
     setPhase('sharing');
     const finalText = [text.trim(), hashtags.join(' ')].filter(Boolean).join('\n\n');
     create.mutate(
@@ -153,7 +211,18 @@ export function CreatePost() {
             nav('/social/feed', { state: { newPostId: post.id, justShared: true } });
           }, 550);
         },
-        onError: () => setPhase('error'), // stay on page, restore the button
+        onError: (e: unknown) => {
+          // Surface the REAL error so the banner is honest (never a generic
+          // "upload failed" when the server actually returned a reason).
+          const ax = e as { response?: { status?: number; data?: { message?: string } }; message?: string };
+          const status = ax?.response?.status;
+          setErrMsg(
+            status === 413
+              ? 'That video is too large to post right now. Try a shorter clip.'
+              : ax?.response?.data?.message || ax?.message || 'Something went wrong publishing your post. Please try again.',
+          );
+          setPhase('error'); // stay on page, restore the button
+        },
       },
     );
   };
@@ -358,9 +427,9 @@ export function CreatePost() {
         </div>
       </div>
 
-      {phase === 'error' && (
+      {(phase === 'error' || mediaError) && (
         <div role="alert" style={{ background: '#fdecea', color: '#b3261e', border: '1px solid #f4c7c3', borderRadius: 12, padding: '11px 14px', margin: '0 0 12px', fontSize: 13, fontWeight: 500 }}>
-          Upload failed. Please check your connection and try again.
+          {mediaError ?? errMsg ?? 'Something went wrong publishing your post. Please try again.'}
         </div>
       )}
 

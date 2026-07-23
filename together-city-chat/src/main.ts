@@ -14,8 +14,11 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: false, bodyParser: false });
   const config = app.get(ConfigService);
 
-  app.use(json({ limit: '30mb' }));
-  app.use(urlencoded({ limit: '30mb', extended: true }));
+  // Raised to fit a 75 MB video posted inline as base64 (~100 MB encoded) until
+  // object storage (R2/S3) credentials are configured and direct-to-bucket
+  // uploads take over. Photo/report base64 uploads sit comfortably under this.
+  app.use(json({ limit: '120mb' }));
+  app.use(urlencoded({ limit: '120mb', extended: true }));
   // 2-year HSTS with preload — HTTPS only, everywhere (TLS terminates at the
   // platform edge; HTTP never reaches the app).
   app.use(helmet({ hsts: { maxAge: 63072000, includeSubDomains: true, preload: true } }));
