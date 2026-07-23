@@ -1,9 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useConnections } from '@/api';
+import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useCreatePost } from '../api';
 
-interface MediaItem { type: 'image' | 'video'; src: string; dur?: number; portrait?: boolean }
+// `file` is kept for media that uploads to storage (video) — the `src` is only a
+// local preview; the real post URL comes from the R2 upload on share.
+interface MediaItem { type: 'image' | 'video'; src: string; file?: File; dur?: number; portrait?: boolean }
 /** Frame ratio: 9:16 for vertical media, 16:9 for landscape. */
 const frameRatio = (portrait?: boolean) => (portrait ? '9 / 16' : '16 / 9');
 
@@ -12,6 +15,15 @@ const frameRatio = (portrait?: boolean) => (portrait ? '9 / 16' : '16 / 9');
 const MAX_VIDEO_BYTES = 75 * 1024 * 1024;   // 75 MB per video
 const MAX_TOTAL_BYTES = 105 * 1024 * 1024;  // total encoded payload ceiling
 const mb = (b: number) => Math.round(b / (1024 * 1024));
+const sizeMB = (b: number) => (b / 1048576).toFixed(b < 10485760 ? 1 : 0);
+/** Human format label for a picked video file, e.g. "MP4" / "MOV" / "WEBM". */
+const fileFmt = (f?: File): string => {
+  const t = (f?.type || '').split('/')[1] || '';
+  if (t === 'quicktime') return 'MOV';
+  if (t) return t.toUpperCase();
+  return (f?.name.split('.').pop() || 'VIDEO').toUpperCase();
+};
+const VIDEO_FORMATS = 'MP4, WebM or MOV';
 /** Approx decoded byte size of a base64 data URL. */
 const dataUrlBytes = (src: string): number => {
   const i = src.indexOf(',');
@@ -136,7 +148,9 @@ export function CreatePost() {
             continue;
           }
           const src = await readAsDataURL(f);
-          const item: MediaItem = { type: 'video', src };
+          // Keep the File — the video uploads to storage on share (a data-URL
+          // video won't stream/play reliably in the feed).
+          const item: MediaItem = { type: 'video', src, file: f };
           const v = document.createElement('video');
           v.preload = 'metadata';
           v.onloadedmetadata = () => {
@@ -185,23 +199,34 @@ export function CreatePost() {
 
   const canShare = Boolean(text.trim()) || media.length > 0 || Boolean(placeName.trim());
 
-  const share = () => {
+  const share = async () => {
     if (busy || !canShare) return; // prevent duplicate submissions
-    // Reject an over-large combined payload up front with a precise message,
-    // rather than letting the request fail at the server body limit.
-    const totalBytes = media.reduce((s, m) => s + dataUrlBytes(m.src), 0);
-    if (totalBytes > MAX_TOTAL_BYTES) {
-      setMediaError(`These files total ${mb(totalBytes)} MB — that's over the ${mb(MAX_TOTAL_BYTES)} MB limit for one post. Remove one or use a smaller video.`);
+    // Only inline media (image data-URLs) counts toward the post-body limit —
+    // videos upload to storage and travel as a short URL.
+    const inlineBytes = media.filter((m) => !m.file).reduce((s, m) => s + dataUrlBytes(m.src), 0);
+    if (inlineBytes > MAX_TOTAL_BYTES) {
+      setMediaError(`These files total ${mb(inlineBytes)} MB — that's over the ${mb(MAX_TOTAL_BYTES)} MB limit for one post. Remove one or use a smaller file.`);
       return;
     }
     setMediaError(null);
     setErrMsg(null);
     setPhase('sharing');
+    // Upload any file-backed media (video) to storage; images stay inline.
+    let uploaded: { url: string; kind: 'image' | 'video' }[];
+    try {
+      uploaded = await Promise.all(
+        media.map(async (m) => (m.file ? { url: await mediaApi.upload(m.file), kind: m.type } : { url: m.src, kind: m.type })),
+      );
+    } catch (e) {
+      setErrMsg(uploadErrorMessage(e));
+      setPhase('error');
+      return;
+    }
     const finalText = [text.trim(), hashtags.join(' ')].filter(Boolean).join('\n\n');
     create.mutate(
       {
         text: finalText || undefined,
-        media: media.length ? media.map((m) => ({ url: m.src, kind: m.type })) : undefined,
+        media: uploaded.length ? uploaded : undefined,
         feeling: feeling ?? undefined,
         placeName: placeName.trim() || undefined,
         ...(geo ? { lat: geo.lat, lng: geo.lng } : {}),
@@ -281,6 +306,11 @@ export function CreatePost() {
                   {m.type === 'video'
                     ? <video src={m.src} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : <img src={m.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                  {m.type === 'video' && m.file && (
+                    <span style={{ position: 'absolute', top: 6, left: 6, color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(0,0,0,.6)' }}>
+                      {fileFmt(m.file)} · {sizeMB(m.file.size)} MB
+                    </span>
+                  )}
                   {badge && (
                     <span style={{ position: 'absolute', bottom: 6, left: 6, color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: badge.eligible ? 'rgba(46,125,70,.92)' : 'rgba(180,105,31,.92)' }}>
                       {badge.text}
@@ -339,6 +369,10 @@ export function CreatePost() {
           {tool('hashtags', '# Hashtags', hashtags.length > 0)}
           {tool('audience', `${audDef.emoji} ${audDef.label}`, audience !== 'public')}
         </div>
+
+        <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>
+          🎥 Video: {VIDEO_FORMATS} · up to {mb(MAX_VIDEO_BYTES)} MB each (MP4 plays on every device). 📷 Photos are optimised automatically.
+        </p>
 
         <input ref={photoPicker} type="file" accept="image/*" multiple style={{ display: 'none' }}
           onChange={(e) => { onFiles(e.target.files); e.target.value = ''; }} />

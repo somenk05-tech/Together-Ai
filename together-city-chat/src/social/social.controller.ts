@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { z } from 'zod';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -52,6 +53,12 @@ export class SocialController {
   @UsePipes(new ZodValidationPipe(CreatePostSchema))
   create(@CurrentUser() user: JwtUser, @Body() dto: CreatePostDto) {
     return this.social.createPost(user.sub, dto);
+  }
+
+  @Patch('posts/:id')
+  update(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
+    const { text } = parseOrThrow(z.object({ text: z.string().max(5000) }), body);
+    return this.social.updatePost(user.sub, id, text);
   }
 
   @Delete('posts/:id')

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  useAddComment, useComments, useCreatePost, useFeed, useToggleLike, type Post,
+  useAddComment, useComments, useCreatePost, useFeed, useToggleLike, useDeletePost, useUpdatePost, type Post,
 } from '../api';
 
 function timeAgo(iso: string): string {
@@ -160,6 +160,13 @@ function VideoFrame({ url, isNew }: { url: string; isNew: boolean }) {
  *  `isNew` marks a just-posted item: a "New" chip, "Just now", auto-playing video. */
 function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
   const like = useToggleLike();
+  const del = useDeletePost();
+  const upd = useUpdatePost();
+  const { user } = useAuth();
+  const isMine = Boolean(user && (user.id === post.author.id || user.handle === post.author.handle));
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(post.text ?? '');
   const [showComments, setShowComments] = useState(false);
   const [saved, setSaved] = useState(() => savedIds().has(post.id));
   const actionStyle = (on = false): React.CSSProperties => ({
@@ -198,6 +205,24 @@ function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', marginTop: 2 }}>📍 {post.placeName}</div>
           )}
         </div>
+        {isMine && (
+          <div style={{ position: 'relative', flex: 'none' }}>
+            <button type="button" aria-label="Post options" onClick={() => setMenuOpen((o) => !o)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, lineHeight: 1, color: 'var(--muted)', padding: '2px 6px' }}>⋯</button>
+            {menuOpen && (
+              <>
+                <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
+                <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 21, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, boxShadow: '0 10px 32px rgba(0,0,0,.16)', overflow: 'hidden', minWidth: 150 }}>
+                  <button type="button" onClick={() => { setDraft(post.text ?? ''); setEditing(true); setMenuOpen(false); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--ink)' }}>✏️ Edit post</button>
+                  <button type="button" disabled={del.isPending}
+                    onClick={() => { setMenuOpen(false); if (window.confirm('Delete this post? This cannot be undone.')) del.mutate(post.id); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: '#c0392b' }}>🗑 Delete post</button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {(post.tagged?.length ?? 0) > 0 && (
@@ -222,7 +247,20 @@ function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
       )}
       {videos.map((m) => <VideoFrame key={m.id} url={m.url} isNew={isNew} />)}
 
-      {post.text && <p style={{ fontSize: 14.5, lineHeight: 1.55, margin: '12px 0 0', whiteSpace: 'pre-wrap' }}>{post.text}</p>}
+      {editing ? (
+        <div style={{ marginTop: 12 }}>
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} maxLength={5000} autoFocus
+            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button type="button" disabled={upd.isPending}
+              onClick={() => upd.mutate({ postId: post.id, text: draft }, { onSuccess: () => setEditing(false) })}
+              className="btn btn-accent btn-sm">{upd.isPending ? 'Saving…' : 'Save'}</button>
+            <button type="button" onClick={() => { setEditing(false); setDraft(post.text ?? ''); }} className="btn btn-line btn-sm">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        post.text && <p style={{ fontSize: 14.5, lineHeight: 1.55, margin: '12px 0 0', whiteSpace: 'pre-wrap' }}>{post.text}</p>
+      )}
 
       <div style={{ display: 'flex', gap: 20, marginTop: 12, alignItems: 'center' }}>
         <button type="button" onClick={() => like.mutate(post.id)} style={actionStyle(post.likedByMe)}>

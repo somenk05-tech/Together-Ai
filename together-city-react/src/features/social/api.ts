@@ -50,6 +50,7 @@ export const socialApi = {
   create: (input: CreatePostInput) =>
     api.post<Post>('/social/posts', input).then((r) => r.data),
   remove: (postId: string) => api.delete<{ ok: boolean }>(`/social/posts/${postId}`).then((r) => r.data),
+  update: (postId: string, text: string) => api.patch<Post>(`/social/posts/${postId}`, { text }).then((r) => r.data),
   like: (postId: string) =>
     api.post<{ postId: string; liked: boolean; likes: number }>(`/social/posts/${postId}/like`, {}).then((r) => r.data),
   comments: (postId: string) =>
@@ -108,6 +109,28 @@ export function useCreatePost() {
       );
       void qc.invalidateQueries({ queryKey: FEED_KEY });
       void qc.invalidateQueries({ queryKey: ['social', 'map'] });
+    },
+  });
+}
+export function useDeletePost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: string) => socialApi.remove(postId),
+    onSuccess: (_r, postId) => {
+      qc.setQueriesData<FeedPage>({ queryKey: FEED_KEY }, (page) =>
+        page ? { ...page, items: page.items.filter((p) => p.id !== postId) } : page);
+      void qc.invalidateQueries({ queryKey: ['social', 'map'] });
+      void qc.invalidateQueries({ queryKey: ['profile', 'me'] });
+    },
+  });
+}
+export function useUpdatePost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { postId: string; text: string }) => socialApi.update(v.postId, v.text),
+    onSuccess: (updated) => {
+      qc.setQueriesData<FeedPage>({ queryKey: FEED_KEY }, (page) =>
+        page ? { ...page, items: page.items.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)) } : page);
     },
   });
 }

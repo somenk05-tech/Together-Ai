@@ -138,6 +138,20 @@ export class SocialService {
     return { ok: true };
   }
 
+  /** Edit a post's caption/text (author only). Media stays as-is. */
+  async updatePost(userId: string, postId: string, text: string) {
+    const existing = await this.prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
+    if (!existing) throw new NotFoundException('post not found');
+    if (existing.authorId !== userId) throw new ForbiddenException('not your post');
+    const updated = await this.prisma.post.update({
+      where: { id: postId },
+      data: { text: text.trim() || null },
+      include: { author: { select: AUTHOR_SELECT }, media: true, _count: { select: { likes: true, comments: true } }, likes: { where: { userId }, select: { id: true } } },
+    });
+    const u = updated as unknown as { _count: { likes: number; comments: number }; likes: unknown[] };
+    return this.shapePost(updated as never, u._count, u.likes.length > 0);
+  }
+
   /** Cursor-paginated feed, newest first. Cursor = last post id of the previous page. */
   async feed(userId: string, query: FeedQueryDto) {
     const { cursor, limit } = query;
