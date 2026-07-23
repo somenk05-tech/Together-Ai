@@ -23,6 +23,47 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
+/** Photo hero + swipeable thumbnail strip. The primary photo fills a 16:10
+ *  banner with a gradient scrim; the name, age and star-line sit on the image,
+ *  and the score ring floats top-right. Tap a thumbnail to bring it forward. */
+function MatchGallery({ photos, name, age, theirSign, yourSign, score }: {
+  photos: string[]; name: string; age?: number; theirSign: string; yourSign: string; score: number;
+}) {
+  const [active, setActive] = useState(0);
+  const hero = photos[active] ?? photos[0];
+  return (
+    <div>
+      <div style={{ position: 'relative', aspectRatio: '16 / 10', background: 'var(--paper)', overflow: 'hidden' }}>
+        <img src={hero} alt={name} loading="lazy"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(15,12,8,.80) 0%, rgba(15,12,8,.18) 44%, rgba(15,12,8,0) 70%)' }} />
+        <div style={{ position: 'absolute', top: 12, right: 12, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.45))' }}>
+          <ScoreRing score={score} />
+        </div>
+        <div style={{ position: 'absolute', left: 16, right: 16, bottom: 12, color: '#fff' }}>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 700, lineHeight: 1.15, textShadow: '0 1px 10px rgba(0,0,0,.5)' }}>
+            {name}{age ? `, ${age}` : ''}
+          </div>
+          <div style={{ fontSize: 12.5, opacity: 0.92, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
+            {theirSign} · with your {yourSign} — written in the stars
+          </div>
+        </div>
+      </div>
+      {photos.length > 1 && (
+        <div style={{ display: 'flex', gap: 6, padding: '8px 10px 2px', overflowX: 'auto' }}>
+          {photos.map((p, i) => (
+            <button key={i} type="button" onClick={() => setActive(i)} aria-label={`Photo ${i + 1}`}
+              style={{ flex: 'none', width: 46, height: 46, padding: 0, borderRadius: 8, overflow: 'hidden', cursor: 'pointer',
+                border: `2px solid ${i === active ? 'var(--accent)' : 'transparent'}`, opacity: i === active ? 1 : 0.8, background: 'none' }}>
+              <img src={p} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
   const like = useLikeMatch(kind);
   const pass = usePassMatch(kind);
@@ -33,20 +74,28 @@ function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
 
   const matched = result?.matched || match.matched;
   const chatOpen = unlocked || Boolean(match.conversationId);
+  const photos = match.photos ?? [];
+  const hasPhotos = photos.length > 0;
 
   return (
-    <article className="card" style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-        <ScoreRing score={match.score} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>{match.user.name}</div>
-          <div className="muted" style={{ fontSize: 12.5 }}>
-            {match.theirSign} · with your {match.yourSign} — written in the stars
+    <article className="card" style={{ marginBottom: 16, padding: 0, overflow: 'hidden' }}>
+      {hasPhotos ? (
+        <MatchGallery photos={photos} name={match.user.name} age={match.age}
+          theirSign={match.theirSign} yourSign={match.yourSign} score={match.score} />
+      ) : (
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '18px 18px 0' }}>
+          <ScoreRing score={match.score} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{match.user.name}{match.age ? `, ${match.age}` : ''}</div>
+            <div className="muted" style={{ fontSize: 12.5 }}>
+              {match.theirSign} · with your {match.yourSign} — written in the stars
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {match.bio && <p style={{ fontSize: 14, lineHeight: 1.5, margin: '12px 0 0', color: 'var(--ink-soft)' }}>{match.bio}</p>}
+      <div style={{ padding: hasPhotos ? '14px 18px 18px' : '12px 18px 18px' }}>
+      {match.bio && <p style={{ fontSize: 14, lineHeight: 1.5, margin: '0 0 0', color: 'var(--ink-soft)' }}>{match.bio}</p>}
 
       {match.breakdown && (
         <div style={{ marginTop: 12, background: 'var(--paper)', borderRadius: 12, padding: '12px 14px' }}>
@@ -119,6 +168,7 @@ function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
           </div>
         )}
       </div>
+      </div>
     </article>
   );
 }
@@ -151,7 +201,7 @@ export function DatingMatches() {
       <div className="eyebrow">Dating Hub</div>
       <h1 style={{ fontSize: 26 }}>{kind === 'romantic' ? 'Curated Matches' : 'New Friends'}</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
-        Curated, not endless — the AI shows only your top 3 matches (75%+). Pass or match, and the next best appears.
+        Curated, not endless — the AI shows only genuine matches (75%+), ranked by compatibility. Pass or match, and the list stays current.
       </p>
 
       <AiSuggestions kind="astrology" />

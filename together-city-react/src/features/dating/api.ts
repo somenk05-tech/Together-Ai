@@ -38,6 +38,8 @@ export interface CuratedMatch {
   user: { id: string; handle: string; name: string; profileImage: string | null };
   bio: string | null;
   interests: string[];
+  photos?: string[];
+  age?: number;
   yourSign: string;
   theirSign: string;
   score: number;

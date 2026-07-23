@@ -346,11 +346,17 @@ export class DatingService {
       if (candDX.visibility === 'threshold' && score < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
 
       void this.cacheScore(userId, cand.userId, breakdown, score);
+      // Their uploaded gallery (first is primary). Falls back to the account
+      // photo so a card is never empty. Only eligible viewers reach this point.
+      const candPhotos = (candDX as { photos?: string[] }).photos ?? [];
+      const photos = (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, 6);
       results.push({
         matchId: state?.id ?? null,
         user: cand.user,
         bio: cand.bio,
         interests: theirInterests,
+        photos,
+        age: this.ageOf(cand.birthDate),
         yourSign: signA,
         theirSign: signB,
         score,
