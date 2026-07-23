@@ -1,10 +1,9 @@
 /* ============ layout shell — ported from tc.css, with mobile drawer ============ */
 .tc-header { position: fixed; top: var(--safe-top); left: 0; right: 0; height: var(--header-h); z-index: 100; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 8px 24px; background: #fff; border-bottom: 1px solid var(--line); color: var(--ink); }
-/* Row 1: burger left · logo centred · actions right (equal 1fr side columns keep the logo truly centred). */
-.tc-header-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; width: 100%; }
-.tc-header-top .tc-burger { justify-self: start; }
-.tc-header-top .tc-logo { justify-self: center; }
-.tc-header-top .tc-actions { justify-self: end; }
+/* Row 1: burger left · actions right, with the logo absolutely centred on the
+   page so neither side's width can pull it off-centre. */
+.tc-header-top { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 40px; }
+.tc-header-top .tc-logo { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
 .tc-burger { display: none; background: none; border: none; font-size: 20px; cursor: pointer; }
 .tc-logo { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
 .tc-logo .mark { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
