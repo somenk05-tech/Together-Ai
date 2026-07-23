@@ -133,6 +133,29 @@ function CommentsPanel({ postId }: { postId: string }) {
   );
 }
 
+/** A single feed image. When it's the only image, the frame adapts to the
+ *  photo's orientation (16:9 landscape or 9:16 vertical); in a grid it stays 16:9. */
+function ImgCell({ url, adaptive, overlay }: { url: string; adaptive: boolean; overlay?: React.ReactNode }) {
+  const [portrait, setPortrait] = useState(false);
+  return (
+    <div style={{ position: 'relative', aspectRatio: adaptive && portrait ? '9 / 16' : '16 / 9', maxHeight: adaptive ? 560 : undefined, background: '#000' }}>
+      <img src={url} alt="" onLoad={(e) => { if (adaptive) setPortrait(e.currentTarget.naturalHeight > e.currentTarget.naturalWidth); }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      {overlay}
+    </div>
+  );
+}
+
+/** A feed video framed 16:9 (landscape) or 9:16 (vertical) by its real dimensions. */
+function VideoFrame({ url, isNew }: { url: string; isNew: boolean }) {
+  const [portrait, setPortrait] = useState(false);
+  return (
+    <video src={url} controls playsInline autoPlay={isNew} muted={isNew} loop={isNew}
+      onLoadedMetadata={(e) => setPortrait(e.currentTarget.videoHeight > e.currentTarget.videoWidth)}
+      style={{ width: '100%', aspectRatio: portrait ? '9 / 16' : '16 / 9', maxHeight: 560, objectFit: 'cover', borderRadius: 14, marginTop: 12, background: '#000', display: 'block' }} />
+  );
+}
+
 /** One clean card for every kind of post — photo, video, check-in, text.
  *  `isNew` marks a just-posted item: a "New" chip, "Just now", auto-playing video. */
 function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
@@ -188,23 +211,16 @@ function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
         <div style={{ marginTop: 12, borderRadius: 14, overflow: 'hidden',
           display: 'grid', gap: 3, gridTemplateColumns: images.length > 1 ? '1fr 1fr' : '1fr' }}>
           {images.slice(0, 4).map((m, i) => (
-            <div key={m.id} style={{ position: 'relative' }}>
-              <img src={m.url} alt="" style={{ width: '100%', height: images.length > 1 ? 200 : 'auto', maxHeight: 420, objectFit: 'cover', display: 'block' }} />
-              {i === 3 && images.length > 4 && (
-                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.5)', color: '#fff',
-                  display: 'grid', placeItems: 'center', fontSize: 20, fontWeight: 800 }}>
+            <ImgCell key={m.id} url={m.url} adaptive={images.length === 1}
+              overlay={i === 3 && images.length > 4 ? (
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.5)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 20, fontWeight: 800 }}>
                   +{images.length - 4}
                 </div>
-              )}
-            </div>
+              ) : null} />
           ))}
         </div>
       )}
-      {videos.map((m) => (
-        <video key={m.id} src={m.url} controls playsInline
-          autoPlay={isNew} muted={isNew} loop={isNew}
-          style={{ width: '100%', maxHeight: 420, borderRadius: 14, marginTop: 12, background: '#000', display: 'block' }} />
-      ))}
+      {videos.map((m) => <VideoFrame key={m.id} url={m.url} isNew={isNew} />)}
 
       {post.text && <p style={{ fontSize: 14.5, lineHeight: 1.55, margin: '12px 0 0', whiteSpace: 'pre-wrap' }}>{post.text}</p>}
 

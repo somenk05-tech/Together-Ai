@@ -3,7 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useConnections } from '@/api';
 import { useCreatePost } from '../api';
 
-interface MediaItem { type: 'image' | 'video'; src: string; dur?: number }
+interface MediaItem { type: 'image' | 'video'; src: string; dur?: number; portrait?: boolean }
+/** Frame ratio: 9:16 for vertical media, 16:9 for landscape. */
+const frameRatio = (portrait?: boolean) => (portrait ? '9 / 16' : '16 / 9');
 
 // Inline-media limits (until object storage is configured). A 75 MB video is
 // ~100 MB as base64; the server body limit is raised to match.
@@ -20,7 +22,7 @@ const readAsDataURL = (f: File): Promise<string> =>
   new Promise((res, rej) => { const rd = new FileReader(); rd.onerror = () => rej(new Error('read failed')); rd.onload = () => res(String(rd.result)); rd.readAsDataURL(f); });
 /** Downscale + re-encode a photo so it posts as a small JPEG (never a raw 8 MB
  *  phone photo). Keeps aspect ratio; caps the long edge at 1600 px. */
-const compressImage = (f: File): Promise<string> => new Promise((resolve, reject) => {
+const compressImage = (f: File): Promise<{ src: string; portrait: boolean }> => new Promise((resolve, reject) => {
   const rd = new FileReader();
   rd.onerror = () => reject(new Error('read failed'));
   rd.onload = () => {
@@ -35,7 +37,7 @@ const compressImage = (f: File): Promise<string> => new Promise((resolve, reject
       const ctx = c.getContext('2d');
       if (!ctx) return reject(new Error('no canvas'));
       ctx.drawImage(img, 0, 0, c.width, c.height);
-      resolve(c.toDataURL('image/jpeg', 0.82));
+      resolve({ src: c.toDataURL('image/jpeg', 0.82), portrait: img.height > img.width });
     };
     img.src = String(rd.result);
   };
@@ -137,13 +139,17 @@ export function CreatePost() {
           const item: MediaItem = { type: 'video', src };
           const v = document.createElement('video');
           v.preload = 'metadata';
-          v.onloadedmetadata = () => { item.dur = Math.round(v.duration) || 0; setMedia((prev) => [...prev]); };
+          v.onloadedmetadata = () => {
+            item.dur = Math.round(v.duration) || 0;
+            item.portrait = v.videoHeight > v.videoWidth;
+            setMedia((prev) => [...prev]);
+          };
           v.src = src;
           setMedia((prev) => [...prev, item].slice(0, 10));
         } else {
           // Photos are downscaled + re-encoded so they always post as small JPEGs.
-          const src = await compressImage(f);
-          const item: MediaItem = { type: 'image', src };
+          const { src, portrait } = await compressImage(f);
+          const item: MediaItem = { type: 'image', src, portrait };
           setMedia((prev) => [...prev, item].slice(0, 10));
         }
       } catch {
@@ -267,11 +273,11 @@ export function CreatePost() {
         )}
 
         {media.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginTop: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8, marginTop: 12 }}>
             {media.map((m, i) => {
               const badge = m.type === 'video' ? fmtBadge(m.dur) : null;
               return (
-                <div key={i} style={{ position: 'relative', aspectRatio: '1/1', borderRadius: 12, overflow: 'hidden', background: '#000' }}>
+                <div key={i} style={{ position: 'relative', aspectRatio: frameRatio(m.portrait), maxHeight: 320, borderRadius: 12, overflow: 'hidden', background: '#000' }}>
                   {m.type === 'video'
                     ? <video src={m.src} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : <img src={m.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
