@@ -48,11 +48,12 @@ export function CityHeader({ variant = 'overlay' }: { variant?: 'overlay' | 'pla
   const ink = dark ? '#fff' : 'var(--ink)';
   const soft = dark ? 'rgba(255,255,255,.82)' : 'var(--muted)';
 
+  const dot = <span aria-hidden style={{ color: soft, opacity: 0.7 }}>·</span>;
+
   if (!data && q.isLoading) {
-    // Reserve space with just the date so the strip never pops in jarringly.
     return (
       <div style={wrap(dark)}>
-        <div style={{ fontSize: 12.5, color: soft, letterSpacing: '.01em' }}>{day} · {date}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: soft, letterSpacing: '.01em', whiteSpace: 'nowrap' }}>{day} · {date}</div>
       </div>
     );
   }
@@ -60,41 +61,38 @@ export function CityHeader({ variant = 'overlay' }: { variant?: 'overlay' | 'pla
 
   return (
     <div style={wrap(dark)} aria-label={`${data.city}, ${day} ${date}${data.temperatureC != null ? `, ${data.temperatureC} degrees` : ''}`}>
-      {/* Line 1 — location */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: 17, color: ink, lineHeight: 1.05, letterSpacing: '-.01em' }}>
-        <span aria-hidden style={{ fontSize: 14 }}>📍</span> {data.city}
-      </div>
-      {/* Line 2 — day + date */}
-      <div style={{ fontSize: 12.5, color: soft, marginTop: 3, fontWeight: 500, letterSpacing: '.01em' }}>{day} · {date}</div>
-
-      {/* Weather — two lines: temp + condition, then "feels like" */}
-      {data.temperatureC != null && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginTop: 9, paddingTop: 9, borderTop: `1px solid ${dark ? 'rgba(255,255,255,.14)' : 'var(--line)'}` }}>
-          <span aria-hidden style={{ fontSize: 27, lineHeight: 1 }}>{data.icon}</span>
-          <div style={{ lineHeight: 1.2 }}>
-            <div style={{ fontSize: 19, fontWeight: 800, color: ink, letterSpacing: '-.01em' }}>
-              {data.temperatureC}°C
-              {data.description && <span style={{ fontSize: 12.5, fontWeight: 500, color: soft, marginLeft: 7 }}>{data.description}</span>}
-            </div>
+      {/* Everything on one line: 📍 City · Thu 23 Jul · 🌧 27°C · feels 29° */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', lineHeight: 1 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 800, fontSize: 14.5, color: ink, letterSpacing: '-.01em' }}>
+          <span aria-hidden style={{ fontSize: 13 }}>📍</span>{data.city}
+        </span>
+        {dot}
+        <span style={{ fontSize: 13, color: soft, fontWeight: 500 }}>{day} {date}</span>
+        {data.temperatureC != null && (
+          <>
+            {dot}
+            <span aria-hidden style={{ fontSize: 16 }}>{data.icon}</span>
+            <span style={{ fontSize: 14, fontWeight: 800, color: ink }}>{data.temperatureC}°C</span>
+            {data.description && <span style={{ fontSize: 12.5, color: soft }}>{data.description}</span>}
             {data.feelsLikeC != null && data.feelsLikeC !== data.temperatureC && (
-              <div style={{ fontSize: 12, color: soft, marginTop: 1 }}>Feels like {data.feelsLikeC}°</div>
+              <>{dot}<span style={{ fontSize: 12.5, color: soft }}>feels {data.feelsLikeC}°</span></>
             )}
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
 function wrap(dark: boolean): React.CSSProperties {
   return {
-    display: 'inline-block', padding: '13px 17px', borderRadius: 18, minWidth: 172,
+    display: 'inline-block', padding: '9px 15px', borderRadius: 999, maxWidth: '92vw', overflow: 'hidden',
     background: dark
-      ? 'linear-gradient(150deg, rgba(28,24,18,.58), rgba(14,12,10,.44))'
+      ? 'linear-gradient(150deg, rgba(28,24,18,.55), rgba(14,12,10,.42))'
       : 'var(--card)',
     backdropFilter: dark ? 'blur(14px) saturate(1.1)' : undefined,
     WebkitBackdropFilter: dark ? 'blur(14px) saturate(1.1)' : undefined,
     border: dark ? '1px solid rgba(255,255,255,.18)' : '1px solid var(--line)',
-    boxShadow: dark ? '0 10px 34px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.10)' : '0 2px 12px rgba(0,0,0,.05)',
+    boxShadow: dark ? '0 8px 28px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.10)' : '0 2px 12px rgba(0,0,0,.05)',
   };
 }
