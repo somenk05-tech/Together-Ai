@@ -1698,8 +1698,8 @@ export class NutritionService implements OnModuleInit {
       includePantry: ex.includePantry ?? false,
       clinicalTag: this.clinicalTag(conditions),
       avoidRice: optimal ? isClinical && /diabet|hba1c/.test(condText) : /diabet|hba1c/.test(condText),
-      caps: optimal ? fullCaps : undefined,          // My Preferences enforces nothing clinical
-      clinical: optimal ? isClinical : false,
+      caps: optimal && isClinical ? fullCaps : undefined,   // enforce caps only in Optimal Health AND only for a real condition
+      clinical: optimal && isClinical,
       maxMinutes: optimal ? undefined : (ex.maxCookMin ?? undefined),
       favourites: optimal ? undefined : (favourites.length ? favourites : undefined),
       skips: ex.composedSkips,
