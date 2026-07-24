@@ -188,46 +188,86 @@ export function componentId(name: string): string {
   return 'cmp-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-/** Generate concise, real cooking steps for a curated component from its role +
- *  ingredients (HIGH-4) — so every recipe carries instructions, not just macros. */
+/** Generate full, real step-by-step cooking instructions for a curated component
+ *  from its role + ingredients (HIGH-4) — so every recipe carries a complete
+ *  method, not just a two-line sketch. Deterministic (no AI). */
 export function componentSteps(s: ComponentSeed): string[] {
   const names = s.ing.map(([n]) => n.toLowerCase());
   const has = (k: string) => names.some((n) => n.includes(k));
-  const prep = 'Prep and chop the ingredients.';
+  const protein = has('paneer') ? 'paneer' : has('tofu') ? 'tofu' : has('egg') ? 'eggs' : has('chicken') ? 'chicken' : has('fish') ? 'fish' : has('soya') ? 'soya chunks' : 'main ingredient';
+  const dishWord = s.name.split(' ')[0].toLowerCase();
+  const out: string[] = [];
+
   switch (s.role) {
     case 'dal':
-      return [`Rinse the ${s.name.split(' ')[0].toLowerCase()} and pressure-cook with water and a pinch of turmeric until soft.`,
-        `Heat oil and temper cumin${has('onion') ? ', then sauté onion' : ''}${has('tomato') ? ' and tomato until soft' : ''}.`,
-        'Stir in the cooked dal, simmer 5–7 minutes, season to taste and finish with coriander.'];
+      out.push(`Rinse the ${dishWord} in a couple of changes of water until the water runs clear.`);
+      out.push('Pressure-cook it with fresh water, a pinch of turmeric and a little salt for 3–4 whistles (or simmer 25–30 minutes) until soft and mashable.');
+      out.push('Heat the oil or ghee in a pan and crackle the cumin seeds until fragrant.');
+      if (has('onion') || has('ginger') || has('garlic')) out.push(`Add the ${has('ginger') || has('garlic') ? 'ginger-garlic and ' : ''}${has('onion') ? 'onion' : 'aromatics'} and sauté until soft and golden.`);
+      if (has('tomato')) out.push('Stir in the tomato with red chilli powder and cook until it turns soft and the oil separates.');
+      out.push('Pour in the cooked dal, add water to your preferred consistency and simmer for 5–7 minutes.');
+      out.push('Adjust the salt, finish with fresh coriander (and a squeeze of lemon) and serve hot.');
+      return out;
     case 'main':
-      return [prep,
-        `Heat oil${has('onion') ? ', sauté onion' : ''}${has('tomato') ? ' and tomato into a masala' : ''}; add your spices.`,
-        `Add the ${has('paneer') ? 'paneer' : has('tofu') ? 'tofu' : has('egg') ? 'eggs' : has('chicken') ? 'chicken' : has('fish') ? 'fish' : 'main ingredient'} and cook through.`,
-        'Simmer to the gravy consistency you like, adjust seasoning and serve hot.'];
+      out.push('Prep everything first: chop the onion and tomato, and clean/cube the main ingredient.');
+      out.push(`Heat the oil in a pan${has('onion') ? ' and sauté the onion until golden brown' : ' over medium heat'}.`);
+      if (has('ginger') || has('garlic') || has('onion')) out.push('Add the ginger-garlic and cook for a minute until the raw smell disappears.');
+      if (has('tomato')) out.push('Add the tomato with turmeric, red chilli and coriander powder, and cook to a thick, glossy masala.');
+      if (has('cashew')) out.push('Stir in a cashew paste for a rich, creamy gravy.');
+      out.push(`Add the ${protein} and coat it well in the masala, letting it sear for a couple of minutes.`);
+      out.push('Pour in a little water, cover and simmer until cooked through and the gravy thickens to your liking.');
+      out.push('Check the seasoning, garnish with fresh coriander and serve hot.');
+      return out;
     case 'vegetable':
-      return [`Wash and cut the ${s.name.replace(/sabzi|poriyal|thoran|curry/i, '').trim().toLowerCase()}.`,
-        'Heat oil, temper mustard/cumin (and curry leaves), then add the vegetables.',
-        'Cook covered until tender, season, and finish with a little coconut or coriander.'];
+      out.push(`Wash and cut the ${s.name.replace(/sabzi|poriyal|thoran|curry|masala/gi, '').trim().toLowerCase() || 'vegetables'} into even pieces.`);
+      out.push('Heat the oil and temper mustard and cumin seeds until they splutter (add curry leaves and a dried chilli if you have them).');
+      if (has('onion')) out.push('Add the onion and sauté until soft.');
+      out.push('Add the vegetables with turmeric and salt, and toss to coat in the tempering.');
+      out.push('Cook covered on low heat, stirring now and then, until tender.');
+      out.push(`Finish with ${has('coconut') ? 'grated coconut and ' : ''}fresh coriander and a squeeze of lemon, and serve.`);
+      return out;
     case 'carb':
       return has('flour')
-        ? ['Knead the flour into a soft dough and rest 10 minutes.', 'Divide, roll into rounds and cook on a hot tawa, flipping until it puffs.']
-        : ['Rinse the grain in a couple of changes of water.', 'Cook with measured water until fluffy; rest 5 minutes and fluff with a fork.'];
+        ? ['Mix the flour with a pinch of salt, then add water gradually and knead into a soft, smooth dough.',
+          'Cover and rest the dough for 10–15 minutes.',
+          'Divide into equal balls and roll each into a thin round on a lightly floured surface.',
+          'Cook on a hot tawa, flipping, until brown spots appear and the bread puffs up.',
+          'Brush with a little ghee and keep warm under a cloth.']
+        : ['Rinse the grain in 2–3 changes of water until the water runs clear.',
+          'Soak for 10–15 minutes for fluffier, separate grains (optional).',
+          'Cook with measured water (about 1 part grain to 2 parts water) until tender and the water is absorbed.',
+          'Rest for 5 minutes off the heat, then fluff gently with a fork and serve.'];
     case 'salad':
-      return ['Wash and finely chop all the vegetables.', 'Toss with lemon juice and a pinch of salt (and roasted cumin), and serve fresh.'];
+      return ['Wash all the vegetables well under running water.',
+        'Finely chop or dice them into even, bite-sized pieces.',
+        'Combine in a bowl and add lemon juice, salt, roasted cumin and a little black pepper.',
+        'Toss well, garnish with coriander and serve fresh and crisp.'];
     case 'dairy':
-      return ['Whisk the curd smooth.', has('cucumber') || has('boondi') ? 'Fold in the add-ins, season lightly and chill.' : 'Season lightly and serve chilled.'];
+      out.push('Whisk the curd until completely smooth, adding a splash of water for a lighter consistency.');
+      if (has('cucumber') || has('boondi') || has('tomato') || has('onion')) out.push('Fold in the chopped add-ins.');
+      out.push('Season with roasted cumin powder, salt and a pinch of black salt or red chilli.');
+      out.push('Chill for a few minutes and serve cold.');
+      return out;
     case 'soup':
-      return [prep, 'Simmer the ingredients with water/stock until soft.', 'Blend or strain as needed, season and serve warm.'];
+      return ['Prep and roughly chop all the ingredients.',
+        'Heat a little oil or butter and sauté the aromatics until fragrant.',
+        'Add the vegetables and water or stock, and simmer until everything is soft.',
+        'Blend smooth (or leave it chunky), then season to taste.',
+        'Finish with cracked pepper or herbs and serve warm.'];
     case 'breakfast':
-      return [prep, `Cook the ${s.name.toLowerCase()} on medium heat until done.`, 'Plate hot and serve with chutney or curd as you like.'];
+      out.push('Gather and measure all the ingredients.');
+      if (has('batter') || has('besan') || has('flour') || has('rava') || has('semolina')) out.push('Mix into a smooth, pourable batter and rest it briefly.');
+      out.push(`Cook the ${s.name.toLowerCase()} on medium heat until golden and cooked through.`);
+      out.push('Plate hot and serve with chutney or curd as you like.');
+      return out;
     case 'snack':
     case 'drink':
-      return has('shake') || has('smoothie') || has('lassi') || has('buttermilk')
-        ? ['Add everything to a blender.', 'Blend until smooth and serve chilled.']
-        : ['Assemble/portion the ingredients.', 'Season or garnish lightly and serve.'];
+      return (has('shake') || has('smoothie') || has('lassi') || has('buttermilk') || has('juice'))
+        ? ['Add all the ingredients to a blender with a little water or ice.', 'Blend until completely smooth.', 'Pour into a glass and serve chilled.']
+        : ['Portion and lightly prep the ingredients.', 'Roast, toss or assemble as needed and season lightly.', 'Serve fresh.'];
     case 'dessert':
-      return [prep, 'Cook/assemble the ingredients and sweeten to taste.', 'Chill and serve.'];
+      return ['Prep and measure the ingredients.', 'Cook or assemble them together, sweetening to taste.', 'Chill or set as needed, then serve.'];
     default:
-      return [prep, `Prepare the ${s.name.toLowerCase()} and serve.`];
+      return ['Prep and chop the ingredients.', `Prepare the ${s.name.toLowerCase()} following its usual method.`, 'Season to taste and serve.'];
   }
 }

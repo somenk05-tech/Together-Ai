@@ -4666,11 +4666,49 @@ export class NutritionService implements OnModuleInit {
   /** Build a recipe-detail payload for a curated component recipe (seed pool). It
    *  carries real ingredients, steps and macros; it has no dataset photo, so the
    *  UI renders its gradient tile (photos need the image dataset). */
+  /** The seasonings/aromatics a curated component's method actually uses but that
+   *  aren't in its macro-bearing ingredient tuple — added to the DISPLAY list (as
+   *  "to taste") so the ingredient list is complete and matches the steps. Skips
+   *  anything already present. Display-only: nutrition stays from the seed. */
+  private curatedSeasonings(role: string, names: string[]): Array<{ name: string; grams: number; priceInr: number; toTaste?: boolean }> {
+    const have = (k: string) => names.some((n) => n.includes(k));
+    const add: Array<[string, string[]]> = [];
+    const push = (label: string, keys: string[]) => { if (!keys.some((k) => have(k))) add.push([label, keys]); };
+    switch (role) {
+      case 'dal':
+        push('Turmeric', ['turmeric']); push('Cumin seeds', ['cumin']); push('Red chilli powder', ['chilli', 'chili']);
+        push('Ginger-garlic', ['ginger', 'garlic']); push('Fresh coriander', ['coriander']); push('Salt', ['salt']); break;
+      case 'main':
+        push('Turmeric', ['turmeric']); push('Red chilli powder', ['chilli', 'chili']); push('Coriander powder', ['coriander']);
+        push('Garam masala', ['garam']); push('Ginger-garlic', ['ginger', 'garlic']); push('Fresh coriander', ['coriander']); push('Salt', ['salt']); break;
+      case 'vegetable':
+        push('Mustard seeds', ['mustard']); push('Cumin seeds', ['cumin']); push('Turmeric', ['turmeric']);
+        push('Curry leaves', ['curry leaf', 'curry leaves']); push('Fresh coriander', ['coriander']); push('Salt', ['salt']); break;
+      case 'carb':
+        push('Salt', ['salt']); if (have('flour')) push('Ghee', ['ghee']); break;
+      case 'salad':
+        push('Lemon juice', ['lemon', 'lime']); push('Roasted cumin', ['cumin']); push('Black pepper', ['pepper']); push('Salt', ['salt']); break;
+      case 'dairy':
+        push('Roasted cumin', ['cumin']); push('Salt', ['salt']); break;
+      case 'soup':
+        push('Black pepper', ['pepper']); push('Salt', ['salt']); break;
+      case 'breakfast':
+        push('Salt', ['salt']); break;
+      default:
+        push('Salt', ['salt']); break;
+    }
+    return add.map(([label]) => ({ name: label, grams: 0, priceInr: 0, toTaste: true }));
+  }
+
   private curatedRecipe(seed: PoolRecipe) {
     const round1 = (n: number) => Math.round(n * 10) / 10;
-    const ingredients = seed.ingredients.map((i) => isSalt(i.name)
-      ? { name: 'Salt', grams: 0, priceInr: 0, toTaste: true }
-      : { name: i.name, grams: round1(i.grams), priceInr: 0 });
+    const seedNames = seed.ingredients.map((i) => i.name.toLowerCase());
+    const ingredients = [
+      ...seed.ingredients.map((i) => isSalt(i.name)
+        ? { name: 'Salt', grams: 0, priceInr: 0, toTaste: true }
+        : { name: i.name, grams: round1(i.grams), priceInr: 0 }),
+      ...this.curatedSeasonings(seed.role, seedNames),   // complete the list with the method's seasonings
+    ];
     const cookSteps = (seed.steps ?? []).map((text) => ({ text }));
     return {
       id: seed.id, recipeNo: null,
