@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { decodeMeal } from '../shareMeal';
 
 /* ------------------------------------------------------------------ *
@@ -19,6 +19,10 @@ function tint(key: string): string {
 export function SharedMeal() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // So a recipe opened from this card returns HERE (RecipeDetail's Back does
+  // navigate(-1) when a `from` is supplied, else it goes to the recipe library).
+  const from = location.pathname + location.search;
   const meal = useMemo(() => {
     const d = params.get('d');
     return d ? decodeMeal(d) : null;
@@ -76,7 +80,7 @@ export function SharedMeal() {
               );
               const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 12, padding: '11px 4px', borderTop: i ? '1px solid var(--line)' : 'none', textAlign: 'left', width: '100%' };
               return clickable ? (
-                <Link key={recipeId + i} to={`/nutrition/recipes/${recipeId}`} style={{ ...rowStyle, textDecoration: 'none', color: 'inherit' }}>{inner}</Link>
+                <Link key={recipeId + i} to={`/nutrition/recipes/${recipeId}`} state={{ from }} style={{ ...rowStyle, textDecoration: 'none', color: 'inherit' }}>{inner}</Link>
               ) : (
                 <div key={name + i} style={rowStyle}>{inner}</div>
               );
