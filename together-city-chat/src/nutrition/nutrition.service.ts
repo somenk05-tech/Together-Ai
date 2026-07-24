@@ -22,6 +22,8 @@ import { addonLabel, addonMacros, complementByKey, fillGapWithComplements, type 
 import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, type MntRule } from './clinical-mnt';
+import { composeWeek, type ComposerPrefs, type Diet as ComposerDiet } from './meal-composer';
+import { resolveSchedule, fastingSafety } from './meal-engine';
 import {
   QC_PROVIDERS, buildQcMeta, compareStores, applyBadges, refreshTotals, quoteStore, trackFromMeta,
   type QcListItem, type QcMeta, type QcStoreQuote,
@@ -271,6 +273,13 @@ interface PrefExtras {
   allergies?: string; excluded?: string; maxCookMin?: number | null; weekly?: Record<string, 'veg' | 'nonveg'>;
   healthConditions?: string[]; budgetInr?: number | null;
   householdSharing?: Partial<HouseholdSharing>;
+  /** Per-slot cuisine preferences + locks (Meal-Planning-Engine-Spec Rule 11/12). */
+  cuisineBySlot?: Partial<Record<'breakfast' | 'lunch' | 'dinner' | 'snack', Record<string, number>>>;
+  cuisineLocks?: Partial<Record<'breakfast' | 'lunch' | 'dinner' | 'snack', boolean>>;
+  /** Intermittent fasting settings (spec IF). */
+  fasting?: { enabled?: boolean; protocol?: string; window?: { start: string; end: string }; mealTimes?: Record<string, string> };
+  /** Grocery pantry-staple toggle (Rule 10). Default excludes pantry items. */
+  includePantry?: boolean;
   /** Family-level setting (stored on the household OWNER's pref). Default ON:
    *  one shared master plan with personalised portions. OFF: every connected
    *  member gets an independent AI plan while staying in the family. */
@@ -1344,6 +1353,95 @@ export class NutritionService implements OnModuleInit {
       sex: pref?.sex ?? 'male', activity: pref?.activity ?? 1.4, goal: pref?.goal ?? 'maintain',
       conditions: ex.healthConditions ?? [], flags,
     });
+  }
+
+  /** Derive a short clinical meal-name tag from the user's conditions (Rule 16). */
+  private clinicalTag(conditions: string[]): string | undefined {
+    const c = conditions.join(' ').toLowerCase();
+    if (/kidney|renal|ckd|dialysis/.test(c)) return 'Renal Friendly';
+    if (/diabet|hba1c/.test(c)) return 'Diabetic Friendly';
+    if (/hypertension|blood pressure/.test(c)) return 'Heart Friendly';
+    if (/cholesterol|lipid|triglyceride/.test(c)) return 'Heart Friendly';
+    return undefined;
+  }
+
+  /** Stable numeric seed from a user id so week generation is deterministic. */
+  private seedFor(userId: string): number {
+    let h = 2166136261;
+    for (let i = 0; i < userId.length; i++) { h ^= userId.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+
+  /**
+   * Composite 5-slot meal plan (Meal-Planning-Engine-Spec). Reuses the clinical
+   * target computation, then composes complete titled meals from real recipes
+   * with per-slot cuisine, variety, intermittent-fasting schedule and a strictly
+   * recipe-derived grocery list.
+   */
+  async composedPlan(userId: string) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const conditions = ex.healthConditions ?? [];
+    const flags = flagsFor(await this.bloodValues(userId));
+    const t = computeTargets({
+      weightKg: pref?.weightKg ?? 70, heightCm: pref?.heightCm ?? 172, age: pref?.age ?? 30,
+      sex: pref?.sex ?? 'male', activity: pref?.activity ?? 1.4, goal: pref?.goal ?? 'maintain',
+      conditions, flags,
+    });
+    const excluded = [
+      ...(ex.excluded ? ex.excluded.split(',') : []),
+      ...(ex.allergies ? ex.allergies.split(',') : []),
+    ].map((s) => s.trim()).filter(Boolean);
+
+    const cprefs: ComposerPrefs = {
+      diet: ((pref?.diet as ComposerDiet) ?? 'vegetarian'),
+      excluded,
+      cuisineBySlot: ex.cuisineBySlot,
+      cuisineLocks: ex.cuisineLocks,
+      fasting: ex.fasting,
+      includePantry: ex.includePantry ?? false,
+      clinicalTag: this.clinicalTag(conditions),
+      avoidRice: /diabet|hba1c/.test(conditions.join(' ').toLowerCase()),
+    };
+    const targets = { kcal: t.kcal, protein: t.protein, carbs: (t as { carb: number }).carb, fat: t.fat, fiber: t.fiber };
+    const week = composeWeek(targets, cprefs, 7, this.seedFor(userId));
+
+    const safety = ex.fasting?.enabled ? fastingSafety(conditions.join(' ')) : { level: 'ok' as const, notes: [] };
+    return { ...week, prescription: t, fastingSafety: safety };
+  }
+
+  /** Read the meal-planning settings (cuisine per slot, fasting, pantry). */
+  async mealSettings(userId: string) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const conditions = ex.healthConditions ?? [];
+    return {
+      cuisineBySlot: ex.cuisineBySlot ?? {},
+      cuisineLocks: ex.cuisineLocks ?? {},
+      fasting: ex.fasting ?? { enabled: false, protocol: '16:8' },
+      includePantry: ex.includePantry ?? false,
+      schedule: resolveSchedule(ex.fasting),
+      fastingSafety: fastingSafety(conditions.join(' ')),
+    };
+  }
+
+  /** Merge a partial meal-settings patch into the pref extras JSON. */
+  async setMealSettings(userId: string, patch: Partial<Pick<PrefExtras, 'cuisineBySlot' | 'cuisineLocks' | 'fasting' | 'includePantry'>>) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const next: PrefExtras = {
+      ...ex,
+      ...(patch.cuisineBySlot !== undefined ? { cuisineBySlot: patch.cuisineBySlot } : {}),
+      ...(patch.cuisineLocks !== undefined ? { cuisineLocks: patch.cuisineLocks } : {}),
+      ...(patch.fasting !== undefined ? { fasting: patch.fasting } : {}),
+      ...(patch.includePantry !== undefined ? { includePantry: patch.includePantry } : {}),
+    };
+    await this.prisma.foodPref.upsert({
+      where: { userId },
+      update: { extras: JSON.stringify(next) },
+      create: { userId, extras: JSON.stringify(next) },
+    } as Parameters<typeof this.prisma.foodPref.upsert>[0]);
+    return this.mealSettings(userId);
   }
 
   async upsertFoodPref(userId: string, dto: FoodPrefDto) {

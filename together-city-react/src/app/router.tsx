@@ -18,6 +18,9 @@ import { NotFound } from '@/pages/NotFound';
 const WeeklyPlanner = lazy(() =>
   import('@/features/nutrition/pages/WeeklyPlanner').then((m) => ({ default: m.WeeklyPlanner })),
 );
+const MealPlan = lazy(() =>
+  import('@/features/nutrition/pages/MealPlan').then((m) => ({ default: m.MealPlan })),
+);
 const NutritionHistory = lazy(() =>
   import('@/features/nutrition/pages/NutritionHistory').then((m) => ({ default: m.NutritionHistory })),
 );
@@ -214,7 +217,9 @@ export const router = createBrowserRouter([
     // Nutrition inner pages — reference vertical with sidebar.
     element: <HubLayout hub={HUBS.nutrition} />,
     children: [
-      { path: '/nutrition/weekly', element: wrap(<WeeklyPlanner />) },
+      { path: '/nutrition/weekly', element: <RequireAuth>{wrap(<MealPlan />)}</RequireAuth> },
+      { path: '/nutrition/plan', element: <RequireAuth>{wrap(<MealPlan />)}</RequireAuth> },
+      { path: '/nutrition/weekly-classic', element: wrap(<WeeklyPlanner />) },
       { path: '/nutrition/history', element: <RequireAuth>{wrap(<NutritionHistory />)}</RequireAuth> },
       { path: '/nutrition/daily', element: <RequireAuth>{wrap(<Daily />)}</RequireAuth> },
       { path: '/nutrition/blood', element: <RequireAuth>{wrap(<Blood />)}</RequireAuth> },

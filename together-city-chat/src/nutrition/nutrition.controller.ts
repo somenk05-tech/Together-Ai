@@ -70,6 +70,33 @@ export class NutritionController {
     return this.nutrition.upsertFoodPref(user.sub, dto);
   }
 
+  // ── Composite meal engine (Meal-Planning-Engine-Spec) ──
+  @Get('plan/composed')
+  composed(@CurrentUser() user: JwtUser) {
+    return this.nutrition.composedPlan(user.sub);
+  }
+
+  @Get('meal-settings')
+  mealSettings(@CurrentUser() user: JwtUser) {
+    return this.nutrition.mealSettings(user.sub);
+  }
+
+  @Patch('meal-settings')
+  @UsePipes(new ZodValidationPipe(z.object({
+    cuisineBySlot: z.record(z.string(), z.record(z.string(), z.number())).optional(),
+    cuisineLocks: z.record(z.string(), z.boolean()).optional(),
+    fasting: z.object({
+      enabled: z.boolean().optional(),
+      protocol: z.string().optional(),
+      window: z.object({ start: z.string(), end: z.string() }).optional(),
+      mealTimes: z.record(z.string(), z.string()).optional(),
+    }).optional(),
+    includePantry: z.boolean().optional(),
+  })))
+  updateMealSettings(@CurrentUser() user: JwtUser, @Body() dto: Record<string, unknown>) {
+    return this.nutrition.setMealSettings(user.sub, dto);
+  }
+
   // Specific plan routes first, then parameterised ones.
   @Get('plan/weekly')
   weekly(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode, @Query('readOnly') readOnly?: string) {
