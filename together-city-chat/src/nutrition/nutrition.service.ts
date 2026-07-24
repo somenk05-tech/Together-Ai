@@ -22,8 +22,8 @@ import { addonLabel, addonMacros, complementByKey, fillGapWithComplements, type 
 import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, type MntRule } from './clinical-mnt';
-import { composeWeek, type ComposerPrefs, type Diet as ComposerDiet } from './meal-composer';
-import { resolveSchedule, fastingSafety } from './meal-engine';
+import { composeWeek, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
+import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
 import {
   QC_PROVIDERS, buildQcMeta, compareStores, applyBadges, refreshTotals, quoteStore, trackFromMeta,
   type QcListItem, type QcMeta, type QcStoreQuote,
@@ -1365,6 +1365,68 @@ export class NutritionService implements OnModuleInit {
     return undefined;
   }
 
+  private datasetPoolCache: PoolRecipe[] | null = null;
+
+  /** Map a dataset diet string to the composer's diet ladder. */
+  private mapDiet(d: string): ComposerDiet {
+    const x = (d || '').toLowerCase();
+    if (x === 'vegan' || x === 'jainvegan') return 'vegan';
+    if (x === 'egg' || x === 'eggetarian') return 'eggetarian';
+    if (x === 'veg' || x === 'vegetarian') return 'vegetarian';
+    return 'nonveg';
+  }
+
+  /** Primary plate role for a set of categories (dataset injection: big slots only). */
+  private roleFor(cats: MealCategory[]): string | null {
+    if (cats.includes('breakfast')) return 'breakfast';
+    if (cats.includes('lunch') || cats.includes('dinner')) return 'main';
+    if (cats.includes('soup')) return 'soup';
+    if (cats.includes('dessert')) return 'dessert';
+    if (cats.includes('drink')) return 'drink';
+    if (cats.includes('snack')) return 'snack';
+    return null; // skip dataset sides/condiments/salads — plate sides stay curated
+  }
+
+  /**
+   * Build the injectable dataset pool (11k recipes) for the composite engine:
+   * per-serving macros + per-serving ingredient grams, categorised, tagged with
+   * a plate role. Cached (user-independent). Grocery stays exact because every
+   * ingredient carries real grams from RecipeIngredient.
+   */
+  private async datasetPool(): Promise<PoolRecipe[]> {
+    if (this.datasetPoolCache) return this.datasetPoolCache;
+    const rows = (await this.prisma.recipe.findMany({
+      include: { ingredients: { select: { name: true, grams: true } } },
+    })) as unknown as Array<{
+      id: string; name: string; country: string; slot: string; diet: string;
+      kcal: number; protein: number; carbs: number; fat: number; fiber: number;
+      minutes: number; gramsPerServing: number; servings?: number;
+      ingredients: Array<{ name: string; grams?: number | null }>;
+    }>;
+    const out: PoolRecipe[] = [];
+    for (const r of rows) {
+      if (!r.ingredients?.length) continue;
+      const cats = categorizeRecipe({ name: r.name, slot: r.slot, minutes: r.minutes, kcal: r.kcal });
+      const role = this.roleFor(cats);
+      if (!role) continue;
+      const s = Math.max(1, r.servings ?? 1);
+      const per = (n: number) => Math.max(0, Math.round((n || 0) / s));
+      const ingredients = r.ingredients
+        .map((i) => ({ name: i.name, grams: Math.max(1, Math.round((i.grams ?? 0) / s)) }))
+        .filter((i) => i.name && (i.grams ?? 0) > 0);
+      if (!ingredients.length) continue;
+      out.push({
+        id: r.id, name: r.name, cuisine: r.country, categories: cats, role,
+        kcal: per(r.kcal) || 200, protein: per(r.protein), carbs: per(r.carbs), fat: per(r.fat), fiber: per(r.fiber),
+        minutes: r.minutes || 20, grams: per(r.gramsPerServing) || 200, diet: this.mapDiet(r.diet),
+        ingredients,
+      });
+    }
+    this.datasetPoolCache = out;
+    this.logger.log(`Composite meal engine: dataset pool built (${out.length} recipes).`);
+    return out;
+  }
+
   /** Stable numeric seed from a user id so week generation is deterministic. */
   private seedFor(userId: string): number {
     let h = 2166136261;
@@ -1393,10 +1455,16 @@ export class NutritionService implements OnModuleInit {
       ...(ex.allergies ? ex.allergies.split(',') : []),
     ].map((s) => s.trim()).filter(Boolean);
 
+    // Default to an Indian-first per-slot cuisine when the user hasn't set one,
+    // so dataset variety doesn't surface unexpected cuisines by default.
+    const cuisineBySlot = (ex.cuisineBySlot && Object.keys(ex.cuisineBySlot).length)
+      ? ex.cuisineBySlot
+      : { breakfast: { Indian: 100 }, lunch: { Indian: 90, Continental: 10 }, dinner: { Indian: 90, Chinese: 10 }, snack: {} };
+
     const cprefs: ComposerPrefs = {
       diet: ((pref?.diet as ComposerDiet) ?? 'vegetarian'),
       excluded,
-      cuisineBySlot: ex.cuisineBySlot,
+      cuisineBySlot,
       cuisineLocks: ex.cuisineLocks,
       fasting: ex.fasting,
       includePantry: ex.includePantry ?? false,
@@ -1404,7 +1472,8 @@ export class NutritionService implements OnModuleInit {
       avoidRice: /diabet|hba1c/.test(conditions.join(' ').toLowerCase()),
     };
     const targets = { kcal: t.kcal, protein: t.protein, carbs: (t as { carb: number }).carb, fat: t.fat, fiber: t.fiber };
-    const week = composeWeek(targets, cprefs, 7, this.seedFor(userId));
+    const datasetPool = await this.datasetPool().catch(() => []);   // dataset mains → variety; grocery stays exact
+    const week = composeWeek(targets, cprefs, 7, this.seedFor(userId), datasetPool);
 
     const safety = ex.fasting?.enabled ? fastingSafety(conditions.join(' ')) : { level: 'ok' as const, notes: [] };
     return { ...week, prescription: t, fastingSafety: safety };

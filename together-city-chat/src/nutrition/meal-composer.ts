@@ -54,12 +54,13 @@ export interface ComposedWeek {
 
 /* ─────────────────────────── Recipe pool ─────────────────────────── */
 
-interface PoolRecipe extends Omit<ComponentSeed, 'ing'> {
+export interface PoolRecipe extends Omit<ComponentSeed, 'ing'> {
   id: string;
   ingredients: Array<{ name: string; grams: number }>;
 }
 
-const POOL: PoolRecipe[] = COMPONENT_SEEDS.map((s) => ({
+/** The curated component recipes (sides, snacks, breakfasts) — always available. */
+export const SEED_POOL: PoolRecipe[] = COMPONENT_SEEDS.map((s) => ({
   ...s, id: componentId(s.name),
   ingredients: s.ing.map(([name, grams]) => ({ name, grams })),
 }));
@@ -93,6 +94,7 @@ function mulberry(seed: number) {
 interface SelectCtx {
   slot: SlotCode; prefs: ComposerPrefs; rnd: () => number;
   used: Map<string, number>;      // recipeId → times used this week (variety)
+  pool: PoolRecipe[];             // combined recipe pool (seeds + dataset mains)
   banRole?: string;               // avoid a role
 }
 
@@ -109,7 +111,7 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
   const userDiet = prefs.diet ?? 'vegetarian';
   const excluded = (prefs.excluded ?? []).map((e) => e.toLowerCase());
 
-  return POOL.filter((r) => {
+  return ctx.pool.filter((r) => {
     if (r.role !== role) return false;
     if (!r.categories.some((c) => slotCats.includes(c))) return false;
     if (!dietOk(r.diet, userDiet)) return false;
@@ -126,8 +128,14 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
 
 /** Pick one recipe for a role, favouring cuisine weight + variety (least-used first). */
 function pick(role: string, ctx: SelectCtx): PoolRecipe | null {
-  const cands = candidates(role, ctx);
+  let cands = candidates(role, ctx);
   if (!cands.length) return null;
+  // Bound work for large dataset roles (e.g. thousands of mains): rotate by a
+  // random offset each call and consider a window — keeps variety, caps cost.
+  if (cands.length > 140) {
+    const start = Math.floor(ctx.rnd() * cands.length);
+    cands = [...cands.slice(start), ...cands.slice(0, start)].slice(0, 140);
+  }
   const bucket = cuisineBucket(ctx.slot);
   const mix = ctx.prefs.cuisineBySlot?.[bucket];
   const scored = cands.map((r) => {
@@ -220,7 +228,7 @@ function composeMeal(slot: SlotCode, targetKcal: number, energyPct: number, sche
 
   // Guarantee at least one component (never an empty meal — Rule 1).
   if (!components.length) {
-    const any = POOL.find((r) => r.categories.some((c) => def.categories.includes(c)) && dietOk(r.diet, ctx.prefs.diet ?? 'vegetarian'));
+    const any = ctx.pool.find((r) => r.categories.some((c) => def.categories.includes(c)) && dietOk(r.diet, ctx.prefs.diet ?? 'vegetarian'));
     if (any) use(any, 'main', 100);
   }
 
@@ -235,18 +243,20 @@ function composeMeal(slot: SlotCode, targetKcal: number, energyPct: number, sche
 
 /* ─────────────────────────── Compose a week ─────────────────────────── */
 
-export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7, seed = 7): ComposedWeek {
+export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7, seed = 7, extraPool: PoolRecipe[] = []): ComposedWeek {
   const schedule: DaySchedule = resolveSchedule(prefs.fasting);
   const rnd = mulberry(seed);
   const used = new Map<string, number>();          // week-wide variety ledger
   const bfCount = new Map<string, number>();       // breakfast repeat cap (Rule 14)
   let lastLunchMain = ''; let lastDinnerMain = '';
+  // Dataset mains + curated components. Seeds win on id collisions.
+  const pool: PoolRecipe[] = [...SEED_POOL, ...extraPool.filter((r) => !SEED_POOL.some((s) => s.id === r.id))];
 
   const outDays: ComposedDay[] = [];
   for (let d = 0; d < days; d++) {
     const meals: ComposedMeal[] = [];
     for (const sm of schedule.meals) {
-      const ctx: SelectCtx = { slot: sm.code, prefs, rnd, used };
+      const ctx: SelectCtx = { slot: sm.code, prefs, rnd, used, pool };
       let meal = composeMeal(sm.code, targets.kcal * sm.energy, sm.energy, sm.scheduledTime, ctx);
 
       // Variety hard rules (Rule 14): breakfast ≤2×/wk; no consecutive lunch/dinner main.
