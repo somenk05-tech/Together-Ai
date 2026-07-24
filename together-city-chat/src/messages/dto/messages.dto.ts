@@ -22,16 +22,30 @@ export const AttachmentSchema = z.object({
   height: z.number().int().nonnegative().optional(),
 });
 
-/** A shared hub item (flight, product, property, event, …) carried in a message. */
+/**
+ * A shared hub item (flight, product, property, event, movie, tv, recipe, …)
+ * carried in a message and rendered as a rich card.
+ *
+ * `kind` is an OPEN string, not a closed enum: every hub coins its own kinds
+ * (Entertainment → 'movie' / 'tv', Nutrition → 'recipe', and future hubs will
+ * add more). The frontend already treats `kind` as an opaque string, so a
+ * closed backend enum here silently 400'd every share whose kind wasn't in the
+ * list (this is what broke the Entertainment Hub "Send" button). Keeping it a
+ * bounded string keeps the contract forward-compatible for all hubs.
+ *
+ * Optional text fields use `.nullish()` (accept null OR undefined) because the
+ * frontend sends explicit `null` for absent values (e.g. `image: posterUrl ?? null`);
+ * a plain `.optional()` rejects `null` and would fail validation.
+ */
 export const ShareCardSchema = z.object({
-  kind: z.enum(['flight', 'trip', 'product', 'property', 'event', 'restaurant', 'dish', 'ticket', 'job']),
-  hub: z.string().max(40).optional(),
-  title: z.string().max(160),
-  subtitle: z.string().max(200).optional(),
-  image: z.string().max(200000).optional(),
-  priceInr: z.number().optional(),
-  meta: z.array(z.string().max(60)).max(6).optional(),
-  deepLink: z.string().max(200).optional(),
+  kind: z.string().min(1).max(40),
+  hub: z.string().max(40).nullish(),
+  title: z.string().min(1).max(200),
+  subtitle: z.string().max(300).nullish(),
+  image: z.string().max(200000).nullish(),
+  priceInr: z.number().finite().nullish(),
+  meta: z.array(z.string().max(80)).max(8).nullish(),
+  deepLink: z.string().max(300).nullish(),
 });
 
 export const SendMessageSchema = z

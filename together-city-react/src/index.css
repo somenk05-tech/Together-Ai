@@ -29,8 +29,15 @@ img { max-width: 100%; }
   .lede { font-size: 17px; color: var(--ink-soft); max-width: 66ch; }
   .muted { color: var(--muted); }
 
-  .btn { display: inline-flex; align-items: center; gap: 9px; border-radius: 999px; font-size: 12px; letter-spacing: .12em; font-weight: 600; text-transform: uppercase; padding: 15px 32px; transition: transform .2s ease-out, box-shadow .2s, background .2s, color .2s; cursor: pointer; border: none; }
-  .btn:hover { transform: translateY(-2px); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; border-radius: 999px; font-size: 12px; letter-spacing: .12em; font-weight: 600; text-transform: uppercase; padding: 15px 32px; transition: transform .12s ease-out, box-shadow .2s, background .2s, color .2s, opacity .2s, filter .2s; cursor: pointer; border: none; user-select: none; }
+  .btn:not(:disabled):hover { transform: translateY(-2px); }
+  /* Pressed state — settles back down and eases the lift for tactile feedback. */
+  .btn:not(:disabled):active { transform: translateY(0) scale(.98); box-shadow: none; filter: brightness(.97); }
+  /* Keyboard focus ring (accessibility) — visible only for keyboard users. */
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* Disabled + in-flight/loading: dimmed, no lift, not interactive. `aria-busy`
+     covers the "sending" state where the button stays mounted but is disabled. */
+  .btn:disabled, .btn[aria-disabled="true"], .btn[aria-busy="true"] { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; filter: none; }
   .btn-gold { background: var(--gold); color: #fff; }
   .btn-gold:hover { background: var(--gold-bright); box-shadow: 0 10px 28px rgba(176,141,62,.35); }
   .btn-accent { background: var(--accent); color: #fff; }

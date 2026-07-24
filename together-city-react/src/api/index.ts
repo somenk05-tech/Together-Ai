@@ -5,6 +5,7 @@
 export * from './schemas';
 export * from './events';
 export { socketClient, WS } from './socket';
+export { isServerUnreachable, SERVER_UNREACHABLE_MSG } from './client';
 
 export { authApi, LoginInput, RegisterInput } from './auth.api';
 export { usersApi, useMe, useOnlineContacts, RelationshipSchema, LookupSchema, type Relationship, type LookupResult } from './users.api';

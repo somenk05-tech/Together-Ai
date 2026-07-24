@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { chatApi, useConversations, useConnections, useChatContacts, type ShareCard } from '@/api';
+import { chatApi, useConversations, useConnections, useChatContacts, isServerUnreachable, type ShareCard } from '@/api';
 
 /* ------------------------------------------------------------------ *
  * Universal Share Sheet — a single, content-agnostic "send to people"
@@ -138,28 +138,109 @@ export function useShareRecipients() {
   }, [convos.data, convos.isLoading, convos.isError, connections.data, connections.isLoading, connections.isError, contacts.data]);
 }
 
+/** Error thrown when some (but not necessarily all) recipients could not be reached. */
+export class PartialShareError extends Error {
+  constructor(public readonly failed: number, public readonly total: number) {
+    super(`Failed to send to ${failed} of ${total} recipients`);
+    this.name = 'PartialShareError';
+  }
+}
+
 /**
- * Reusable send wiring — mirrors the existing chat share path exactly:
- * direct recipients resolve a conversation via startDirect(handle), then every
- * target receives the share via chatApi.sendShare. Deduplicates so a person who
- * appears in both Recent and Connections is only sent to once.
+ * Retry a delivery step ONLY when the request never reached the server (no HTTP
+ * response — DNS failure, timeout, offline, CORS block). In that case no write
+ * happened, so retrying cannot create a duplicate. If the server DID respond
+ * (even with an error), we do NOT retry — the request may have been persisted,
+ * and a blind retry would double-send.
  */
-export function useShareSend() {
-  return useCallback(async (recipients: ShareRecipient[], message: string, card: ShareCard) => {
-    const seen = new Set<string>();
-    for (const r of recipients) {
-      const key = r.conversationId ? `c:${r.conversationId}` : r.handle ? `h:${r.handle}` : r.id;
-      if (seen.has(key)) continue;
-      seen.add(key);
+async function withTransientRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (!isServerUnreachable(err) || i === attempts - 1) throw err;
+      // Exponential-ish backoff: 250ms, 600ms.
+      await new Promise((res) => setTimeout(res, 250 + i * 350));
+    }
+  }
+  throw lastErr;
+}
+
+/** The two calls the send flow needs — injectable so the algorithm is unit-testable. */
+export interface ShareSendApi {
+  startDirect: (handle: string) => Promise<{ id: string }>;
+  sendShare: (conversationId: string, body: string, card: ShareCard) => Promise<unknown>;
+}
+
+/**
+ * Core send algorithm — pure aside from the injected `api` and the `delivered`
+ * set it mutates. Exported for direct testing (see UniversalShareSheet.send.spec).
+ *
+ * Hardening for the "Send" button:
+ *  - Deduplicates within a single send (a person in both Recent and
+ *    Connections is only sent to once) via `seen`.
+ *  - `delivered` carries conversations already sent to, so a retry after a
+ *    partial failure — or a second click — never re-sends to someone who
+ *    already received the card (cross-request idempotency, no DB migration).
+ *  - Retries only transient (never-reached-server) failures, so temporary
+ *    network blips recover without producing duplicates.
+ *  - Attempts EVERY recipient even if some fail, then throws PartialShareError
+ *    naming how many failed, so the UI can report precisely instead of aborting
+ *    on the first error.
+ */
+export async function deliverShareCard(
+  recipients: ShareRecipient[],
+  message: string,
+  card: ShareCard,
+  delivered: Set<string>,
+  api: ShareSendApi = chatApi,
+): Promise<void> {
+  const seen = new Set<string>();
+  const body = message.trim();
+  let failed = 0;
+  let attempted = 0;
+
+  for (const r of recipients) {
+    const key = r.conversationId ? `c:${r.conversationId}` : r.handle ? `h:${r.handle}` : r.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    try {
       let convId = r.conversationId;
+      // Skip conversations already delivered to (retry / re-click idempotency)
+      // before spending a network call.
+      if (convId && delivered.has(convId)) continue;
+      attempted++;
       if (!convId && r.handle) {
-        const conv = await chatApi.startDirect(r.handle);
+        const handle = r.handle;
+        const conv = await withTransientRetry(() => api.startDirect(handle));
         convId = conv.id;
       }
-      if (!convId) continue;
-      await chatApi.sendShare(convId, message.trim(), card);
+      if (!convId) { failed++; continue; }
+      if (delivered.has(convId)) continue; // resolved to an already-delivered convo
+      const cid = convId; // const so the closure sees a non-undefined string
+      await withTransientRetry(() => api.sendShare(cid, body, card));
+      delivered.add(cid);
+    } catch {
+      failed++;
     }
-  }, []);
+  }
+
+  if (failed > 0) throw new PartialShareError(failed, attempted);
+}
+
+/**
+ * Reusable send wiring. Holds a per-mounted-button `delivered` set so retries
+ * and re-clicks stay idempotent for the life of the button.
+ */
+export function useShareSend() {
+  const deliveredRef = useRef<Set<string>>(new Set());
+  return useCallback(
+    (recipients: ShareRecipient[], message: string, card: ShareCard) =>
+      deliverShareCard(recipients, message, card, deliveredRef.current),
+    [],
+  );
 }
 
 /* ------------------------------ styles ----------------------------- */
@@ -202,6 +283,10 @@ export function UniversalShareSheet({
   const sheetRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
+  // Synchronous in-flight guard. React state (`phase`) updates asynchronously,
+  // so two clicks fired within the same tick could both read phase==='idle'
+  // and double-send. This ref flips synchronously and blocks the second click.
+  const sendingRef = useRef(false);
 
   // Focus management: initial focus, focus trap, Esc-to-close, focus restore.
   useEffect(() => {
@@ -257,16 +342,34 @@ export function UniversalShareSheet({
   const count = selected.size;
 
   const handleSend = useCallback(async () => {
-    if (count === 0 || phase !== 'idle') return;
+    // Guard synchronously (ref) AND on rendered state (phase) so rapid repeat
+    // clicks and no-selection clicks never trigger a second send.
+    if (count === 0 || phase !== 'idle' || sendingRef.current) return;
+    sendingRef.current = true;
     setPhase('sending');
     setError(null);
     try {
       await onSend(selectedRecipients, message);
       setPhase('sent');
       window.setTimeout(() => { onClose(); }, 900);
-    } catch {
-      setError('Couldn’t send to everyone. Please try again.');
+    } catch (err) {
+      // Precise messaging: partial failure names the count; a total network
+      // outage explains the connection; anything else is a generic retry.
+      const e = err as { name?: string; failed?: number; total?: number };
+      if (e?.name === 'PartialShareError' && typeof e.failed === 'number') {
+        setError(
+          e.failed === e.total
+            ? 'Couldn’t send — please check your connection and try again.'
+            : `Sent to some, but ${e.failed} of ${e.total} didn’t go through. Tap Send to retry the rest.`,
+        );
+      } else if (isServerUnreachable(err)) {
+        setError('Can’t reach the server right now — please try again in a moment.');
+      } else {
+        setError('Couldn’t send. Please try again.');
+      }
       setPhase('idle');
+    } finally {
+      sendingRef.current = false;
     }
   }, [count, phase, onSend, selectedRecipients, message, onClose]);
 
@@ -384,6 +487,7 @@ export function UniversalShareSheet({
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={2}
+                maxLength={8192}
                 placeholder="Say something…"
                 style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical', background: 'var(--card,#fff)', color: 'var(--ink)' }}
               />
@@ -438,7 +542,8 @@ export function UniversalShareSheet({
                 type="button"
                 className="btn btn-accent"
                 disabled={count === 0 || phase === 'sending'}
-                onClick={handleSend}
+                aria-busy={phase === 'sending'}
+                onClick={() => { void handleSend(); }}
                 aria-label={count ? `Send to ${count} ${count === 1 ? 'recipient' : 'recipients'}` : 'Send (select at least one recipient)'}
               >
                 {phase === 'sending'
