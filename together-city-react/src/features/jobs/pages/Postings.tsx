@@ -1,21 +1,31 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useMyPostings, useApplicants, type Posting } from '../api';
+import { useMyPostings, useApplicants, useUpdateApplicationStatus, type Posting } from '../api';
+
+const APPLICANT_STATUS: Record<string, { label: string; color: string }> = {
+  applied: { label: 'Applied', color: '#e65100' },
+  shortlisted: { label: 'Shortlisted', color: '#2e7d32' },
+  rejected: { label: 'Not selected', color: '#c62828' },
+};
 
 function Applicants({ posting }: { posting: Posting }) {
   const q = useApplicants(posting.id, true);
+  const upd = useUpdateApplicationStatus(posting.id);
   if (q.isLoading) return <div className="muted" style={{ fontSize: 12.5, padding: '8px 0' }}>Loading applicants…</div>;
   const list = q.data?.applicants ?? [];
   if (list.length === 0) return <div className="muted" style={{ fontSize: 12.5, padding: '8px 0' }}>No applicants yet.</div>;
   return (
     <div style={{ marginTop: 8 }}>
-      {list.map((a) => (
+      {list.map((a) => {
+        const st = APPLICANT_STATUS[a.status] ?? APPLICANT_STATUS.applied;
+        return (
         <div key={a.id} style={{ padding: '10px 0', borderTop: '1px solid var(--line)' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
             <strong style={{ fontSize: 13.5 }}>{a.name}</strong>
             <span className="muted" style={{ fontSize: 12 }}>{a.headline || `${a.experienceYears} yrs`}</span>
-            <span className="muted" style={{ marginLeft: 'auto', fontSize: 11.5 }}>{a.appliedOn}</span>
+            <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: st.color, border: `1px solid ${st.color}`, borderRadius: 999, padding: '1px 8px' }}>{st.label}</span>
+            <span className="muted" style={{ fontSize: 11.5 }}>{a.appliedOn}</span>
           </div>
           {a.matchedSkills.length > 0 && (
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 5 }}>
@@ -23,8 +33,14 @@ function Applicants({ posting }: { posting: Posting }) {
             </div>
           )}
           {a.coverNote && <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', margin: '6px 0 0' }}>“{a.coverNote}”</p>}
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            {a.status !== 'shortlisted' && <Button variant="accent" size="sm" disabled={upd.isPending} onClick={() => upd.mutate({ id: a.id, status: 'shortlisted' })}>Shortlist</Button>}
+            {a.status !== 'rejected' && <Button variant="line" size="sm" disabled={upd.isPending} onClick={() => upd.mutate({ id: a.id, status: 'rejected' })}>Reject</Button>}
+            {a.status !== 'applied' && <Button variant="line" size="sm" disabled={upd.isPending} onClick={() => upd.mutate({ id: a.id, status: 'applied' })}>Reset</Button>}
+          </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

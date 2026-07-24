@@ -6,6 +6,11 @@ export const UploadResumeSchema = z.object({
 });
 export type UploadResumeDto = z.infer<typeof UploadResumeSchema>;
 
+export const UpdateApplicationStatusSchema = z.object({
+  status: z.enum(['applied', 'shortlisted', 'rejected']),
+});
+export type UpdateApplicationStatusDto = z.infer<typeof UpdateApplicationStatusSchema>;
+
 export const SaveJobProfileSchema = z.object({
   headline: z.string().min(1).max(120),
   skills: z.array(z.string().max(40)).max(40),

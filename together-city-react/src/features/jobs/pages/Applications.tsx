@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useApplications } from '../api';
+import { useApplications, useWithdraw } from '../api';
 
 const statusStyle: Record<string, { color: string; label: string }> = {
   applied: { color: '#e65100', label: 'Applied' },
@@ -11,6 +11,7 @@ const statusStyle: Record<string, { color: string; label: string }> = {
 /** My Applications — track everything you've applied to. */
 export function Applications() {
   const q = useApplications();
+  const withdraw = useWithdraw();
   if (q.isLoading) return <Spinner label="Loading your applications…" />;
   if (q.isError || !q.data) return <EmptyState title="Couldn't load your applications" hint="Please check your connection and try again." />;
 
@@ -35,6 +36,13 @@ export function Applications() {
                   <div className="muted" style={{ fontSize: 12.5 }}>{a.company} · applied {a.appliedOn}</div>
                 </div>
                 <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: s.color, border: `1px solid ${s.color}`, borderRadius: 999, padding: '2px 10px' }}>{s.label}</span>
+                {a.status !== 'rejected' && (
+                  <button type="button" disabled={withdraw.isPending}
+                    onClick={() => { if (window.confirm(`Withdraw your application to ${a.title}?`)) withdraw.mutate(a.id); }}
+                    style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px' }}>
+                    Withdraw
+                  </button>
+                )}
               </div>
             );
           })}

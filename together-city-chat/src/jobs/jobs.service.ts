@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { parseResume, matchJobs, labelFor, JOB_SEEDS, type ParsedResume, type JobLike } from './jobs-engine';
@@ -98,6 +98,12 @@ export class JobsService implements OnModuleInit {
   }
 
   async apply(userId: string, dto: ApplyDto) {
+    // C2: you can't apply without a parsed resume/profile — recruiters were
+    // getting blank "0 yrs, no skills" applications.
+    const profile = await this.prisma.jobProfile.findUnique({ where: { userId } });
+    if (!profile || !(profile.skills && profile.skills.trim())) {
+      throw new BadRequestException('Add your resume before applying so recruiters can see your skills.');
+    }
     const job = await this.prisma.job.findUnique({ where: { id: dto.jobId } });
     if (!job) throw new NotFoundException('job not found');
     await this.prisma.jobApplication.upsert({
@@ -106,6 +112,25 @@ export class JobsService implements OnModuleInit {
       create: { userId, jobId: dto.jobId, title: job.title, company: job.company, coverNote: dto.coverNote ?? null, status: 'applied' },
     });
     return this.applications(userId);
+  }
+
+  /** H6: a candidate withdraws their own application. */
+  async withdraw(userId: string, appId: string) {
+    const app = await this.prisma.jobApplication.findUnique({ where: { id: appId } });
+    if (!app) throw new NotFoundException('application not found');
+    if (app.userId !== userId) throw new ForbiddenException('not your application');
+    await this.prisma.jobApplication.delete({ where: { id: appId } });
+    return this.applications(userId);
+  }
+
+  /** C1: a recruiter shortlists / rejects an applicant on one of their postings. */
+  async updateApplicationStatus(userId: string, appId: string, status: string) {
+    const app = await this.prisma.jobApplication.findUnique({ where: { id: appId } });
+    if (!app) throw new NotFoundException('application not found');
+    const job = await this.prisma.job.findUnique({ where: { id: app.jobId } });
+    if (!job || job.postedById !== userId) throw new ForbiddenException('not your posting');
+    await this.prisma.jobApplication.update({ where: { id: appId }, data: { status } });
+    return this.applicants(userId, app.jobId);
   }
 
   async applications(userId: string) {
@@ -141,19 +166,26 @@ export class JobsService implements OnModuleInit {
     if (!job) throw new NotFoundException('posting not found');
     const apps = await this.prisma.jobApplication.findMany({ where: { jobId }, orderBy: { createdAt: 'desc' } });
     const jobSkills = new Set(job.skills ? job.skills.split(',').filter(Boolean) : []);
-    const out = [];
-    for (const a of apps) {
-      const applicant = await this.prisma.user.findUnique({ where: { id: a.userId }, select: { name: true, handle: true } });
-      const prof = await this.prisma.jobProfile.findUnique({ where: { userId: a.userId } });
+    // M1: batch the user + profile lookups instead of N+1 per applicant.
+    const userIds = [...new Set(apps.map((a) => a.userId))];
+    const [users, profs] = await Promise.all([
+      this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, handle: true } }),
+      this.prisma.jobProfile.findMany({ where: { userId: { in: userIds } } }),
+    ]);
+    const userBy = new Map(users.map((u) => [u.id, u]));
+    const profBy = new Map(profs.map((p) => [p.userId, p]));
+    const out = apps.map((a) => {
+      const applicant = userBy.get(a.userId);
+      const prof = profBy.get(a.userId);
       const skills = prof?.skills ? prof.skills.split(',').filter(Boolean) : [];
       const matched = skills.filter((s) => jobSkills.has(s));
-      out.push({
+      return {
         id: a.id, name: applicant?.name ?? 'Candidate', handle: applicant?.handle ?? '',
         headline: prof?.headline ?? '', experienceYears: prof?.experienceYears ?? 0,
         matchedSkills: matched.map((k) => labelFor(k)), coverNote: a.coverNote, status: a.status,
         appliedOn: a.createdAt.toISOString().slice(0, 10),
-      });
-    }
+      };
+    });
     return { job: { id: job.id, title: job.title, company: job.company }, applicants: out };
   }
 

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -9,6 +9,7 @@ import {
   SaveJobProfileSchema, type SaveJobProfileDto,
   ApplySchema, type ApplyDto,
   PostJobSchema, type PostJobDto,
+  UpdateApplicationStatusSchema, type UpdateApplicationStatusDto,
 } from './dto/jobs.dto';
 
 @Controller('jobs')
@@ -47,6 +48,19 @@ export class JobsController {
   @UsePipes(new ZodValidationPipe(ApplySchema))
   apply(@CurrentUser() user: JwtUser, @Body() dto: ApplyDto) {
     return this.jobs.apply(user.sub, dto);
+  }
+
+  /** Candidate withdraws their own application. */
+  @Delete('applications/:id')
+  withdraw(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.jobs.withdraw(user.sub, id);
+  }
+
+  /** Recruiter shortlists / rejects an applicant on one of THEIR postings. */
+  @Patch('applications/:id/status')
+  @UsePipes(new ZodValidationPipe(UpdateApplicationStatusSchema))
+  updateApplicationStatus(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: UpdateApplicationStatusDto) {
+    return this.jobs.updateApplicationStatus(user.sub, id, dto.status);
   }
 
   // ── employer side ──

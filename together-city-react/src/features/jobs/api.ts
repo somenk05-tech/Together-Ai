@@ -31,6 +31,9 @@ export const jobsApi = {
     api.post<Posting[]>('/jobs/postings', input).then((r) => r.data),
   myPostings: () => api.get<Posting[]>('/jobs/postings').then((r) => r.data),
   applicants: (id: string) => api.get<ApplicantsResponse>(`/jobs/postings/${id}/applicants`).then((r) => r.data),
+  withdraw: (id: string) => api.delete<Application[]>(`/jobs/applications/${id}`).then((r) => r.data),
+  updateApplicationStatus: (id: string, status: string) =>
+    api.patch<ApplicantsResponse>(`/jobs/applications/${id}/status`, { status }).then((r) => r.data),
 };
 
 export function useJobProfile() {
@@ -75,6 +78,20 @@ export function useMyPostings() {
 }
 export function useApplicants(id: string, enabled: boolean) {
   return useQuery({ queryKey: ['jobs', 'applicants', id], queryFn: () => jobsApi.applicants(id), enabled });
+}
+export function useWithdraw() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => jobsApi.withdraw(id),
+    onSuccess: (apps) => { qc.setQueryData(['jobs', 'applications'], apps); void qc.invalidateQueries({ queryKey: ['jobs', 'matches'] }); },
+  });
+}
+export function useUpdateApplicationStatus(jobId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; status: 'shortlisted' | 'rejected' | 'applied' }) => jobsApi.updateApplicationStatus(v.id, v.status),
+    onSuccess: (res) => { qc.setQueryData(['jobs', 'applicants', jobId], res); },
+  });
 }
 
 export const SAMPLE_RESUME = `Priya Sharma — Senior Frontend Engineer
