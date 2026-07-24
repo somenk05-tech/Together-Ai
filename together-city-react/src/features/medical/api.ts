@@ -84,20 +84,25 @@ export const medicalApi = {
   saveBloodTest: (input: { lab?: string; takenOn?: string; values: Record<string, number>; recordId?: string }) =>
     api.post<BloodAnalysis>('/medical/blood-tests', input).then((r) => r.data),
   ingestBlood: (input: { fileKey: string; mimeType: string; sizeBytes: number; title?: string; detail?: string }) =>
-    api.post<IngestResult>('/medical/blood-tests/ingest', input).then((r) => r.data),
+    // Reading a report runs AI extraction (with vision fallback) server-side —
+    // far longer than the client's default 20s timeout. Without this override
+    // the browser gave up mid-read and showed "Could not reach the server".
+    api.post<IngestResult>('/medical/blood-tests/ingest', input, { timeout: 180000 }).then((r) => r.data),
   history: () => api.get<BloodTestSummary[]>('/medical/blood-tests').then((r) => r.data),
   latest: () => api.get<BloodAnalysis>('/medical/blood-tests/latest').then((r) => r.data),
   trends: () => api.get<BloodTrends>('/medical/blood-tests/trends').then((r) => r.data),
   analyze: (id: string) => api.get<BloodAnalysis>(`/medical/blood-tests/${id}`).then((r) => r.data),
   supplementPlan: () => api.get<SupplementPlan>('/medical/supplement-plan').then((r) => r.data),
   biomarkerCatalog: () => api.get<BiomarkerCatalog>('/medical/biomarkers/catalog').then((r) => r.data),
-  summary: () => api.get<HealthSummary>('/medical/summary').then((r) => r.data),
+  // First summary after a new panel is AI-generated server-side and can exceed
+  // the client's default 20s timeout; give it room (it's cached after that).
+  summary: () => api.get<HealthSummary>('/medical/summary', { timeout: 90000 }).then((r) => r.data),
   storage: () => api.get<StorageUsage>('/medical/storage').then((r) => r.data),
   deleteRecord: (id: string) => api.delete<MedicalRecord[]>(`/medical/records/${id}`).then((r) => r.data),
   uploadDocument: (input: { kind: string; title: string; detail?: string; fileKey: string; mimeType?: string; sizeBytes: number }) =>
     api.post<MedicalRecord[]>('/medical/documents', input).then((r) => r.data),
   extractBlood: (input: { fileKey: string; mimeType: string; sizeBytes: number; title?: string }) =>
-    api.post<ExtractResult>('/medical/blood-tests/extract', input).then((r) => r.data),
+    api.post<ExtractResult>('/medical/blood-tests/extract', input, { timeout: 180000 }).then((r) => r.data),
   recordFile: (id: string) => api.get<{ url: string | null; expiresInSec: number }>(`/medical/records/${id}/file`).then((r) => r.data),
 };
 

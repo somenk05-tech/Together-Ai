@@ -409,11 +409,17 @@ export class MedicalService implements OnModuleInit {
       takenOn: Number.isNaN(takenOnDate.getTime()) ? new Date() : takenOnDate,
       recordId: rec.id,
     });
-    const [analysis, summary] = await Promise.all([this.analyze(userId, testId), this.healthSummary(userId)]);
+    // Respond as soon as the deterministic analysis is ready. The AI narrative
+    // summary takes tens of seconds on a first read — it is already pre-warming
+    // in the background (kicked off inside upsertPanelAndAnalyze), and the
+    // client's summary query fetches it when it lands. Blocking the upload
+    // response on it pushed total time past browser/client timeouts, which
+    // surfaced as "Could not reach the server" even though reading succeeded.
+    const analysis = await this.analyze(userId, testId);
     return {
       recordId: rec.id, bloodTestId: testId, aiEnabled: this.ai.enabled,
       extracted: values, markerCount, lab: extracted.lab ?? null, takenOn: extracted.takenOn ?? null,
-      analysis, summary,
+      analysis, summary: null as Awaited<ReturnType<MedicalService['healthSummary']>> | null,
       note: `Read ${markerCount} marker${markerCount === 1 ? '' : 's'} from your report and analysed it automatically.`,
     };
   }
