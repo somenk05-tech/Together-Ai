@@ -7,7 +7,7 @@ describe('meal composer — structure rules', () => {
   it('every day has all five mandatory slots (Rule 1)', () => {
     const wk = composeWeek(TARGETS, base);
     for (const d of wk.days) {
-      expect(d.meals.map((m) => m.slot)).toEqual(['b', 'ms', 'l', 'es', 'd']);
+      expect(d.meals.map((m) => m.slot)).toEqual(['b', 'l', 's', 'es', 'd']);
       expect(d.meals.every((m) => m.components.length >= 1)).toBe(true);
     }
   });

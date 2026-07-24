@@ -1462,7 +1462,7 @@ export class NutritionService implements OnModuleInit {
     const out: PoolRecipe[] = [];
     for (const r of rows) {
       if (!r.ingredients?.length) continue;
-      const cats = categorizeRecipe({ name: r.name, slot: r.slot, minutes: r.minutes, kcal: r.kcal });
+      const cats = categorizeRecipe({ name: r.name, slot: r.slot, cuisine: r.country, minutes: r.minutes, kcal: r.kcal });
       const role = this.roleFor(cats);
       if (!role) continue;
       const s = Math.max(1, r.servings ?? 1);

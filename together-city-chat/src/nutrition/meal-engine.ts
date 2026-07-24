@@ -11,8 +11,11 @@
  * variety and validation layers all consume.
  */
 
-/** The five mandatory meal slots (Rule 1). Order is the eating order. */
-export type SlotCode = 'b' | 'ms' | 'l' | 'es' | 'd';
+/** The daily meal slots, modelled on how Indian families actually eat (eating
+ *  order): Breakfast → Lunch → (afternoon) Snack → Evening soup (~7 PM) → Dinner.
+ *  'es' is the dedicated evening soup course; 's' is the light afternoon snack
+ *  (fresh fruit by default). */
+export type SlotCode = 'b' | 'l' | 's' | 'es' | 'd';
 
 export interface SlotDef {
   code: SlotCode;
@@ -37,10 +40,11 @@ export const ENERGY_MAX = 0.35;
 export const ENERGY_MIN = 0.08;
 
 export const SLOTS: SlotDef[] = [
-  { code: 'b',  key: 'breakfast',     label: 'Breakfast',      energy: 0.28, start: '07:00', end: '10:00', categories: ['breakfast', 'drink', 'salad'],                         minComponents: 1, maxComponents: 2, cuisineBucket: 'breakfast' },
-  { code: 'l',  key: 'lunch',         label: 'Lunch',          energy: 0.32, start: '12:00', end: '14:00', categories: ['lunch', 'side', 'salad', 'soup', 'dessert', 'drink'], minComponents: 3, maxComponents: 6, cuisineBucket: 'lunch' },
-  { code: 'es', key: 'evening_snack', label: 'Evening Snack',  energy: 0.12, start: '16:00', end: '18:00', categories: ['snack', 'drink', 'salad', 'soup'],                    minComponents: 1, maxComponents: 2, cuisineBucket: 'snack' },
-  { code: 'd',  key: 'dinner',        label: 'Dinner',         energy: 0.28, start: '19:00', end: '21:00', categories: ['dinner', 'side', 'salad', 'soup', 'drink'],           minComponents: 3, maxComponents: 5, cuisineBucket: 'dinner' },
+  { code: 'b',  key: 'breakfast', label: 'Breakfast',    energy: 0.25, start: '07:00', end: '09:30', categories: ['breakfast', 'drink', 'salad', 'snack'],       minComponents: 1, maxComponents: 2, cuisineBucket: 'breakfast' },
+  { code: 'l',  key: 'lunch',     label: 'Lunch',        energy: 0.30, start: '12:30', end: '14:00', categories: ['lunch', 'side', 'salad', 'dessert', 'drink'], minComponents: 3, maxComponents: 6, cuisineBucket: 'lunch' },
+  { code: 's',  key: 'snack',     label: 'Snack',        energy: 0.08, start: '16:00', end: '17:30', categories: ['snack', 'drink', 'salad'],                    minComponents: 1, maxComponents: 2, cuisineBucket: 'snack' },
+  { code: 'es', key: 'evening',   label: 'Evening Soup', energy: 0.10, start: '18:30', end: '19:30', categories: ['soup', 'drink'],                              minComponents: 1, maxComponents: 2, cuisineBucket: 'dinner' },
+  { code: 'd',  key: 'dinner',    label: 'Dinner',       energy: 0.27, start: '20:00', end: '21:30', categories: ['dinner', 'side', 'salad', 'drink'],           minComponents: 3, maxComponents: 5, cuisineBucket: 'dinner' },
 ];
 
 export const SLOT_ORDER: SlotCode[] = SLOTS.map((s) => s.code);
@@ -64,11 +68,41 @@ export const MEAL_CATEGORIES: MealCategory[] = [
 export type CuisineBucket = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export const CUISINE_BUCKETS: CuisineBucket[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
-/** Foods that must never be a breakfast (Rule 4) — heavy lunch/dinner mains. */
-const NOT_BREAKFAST = /dal makhani|rajma|butter chicken|biryani|pulao|korma|rogan|vindaloo|curry\b|masala\s+(gravy|curry)|kadai|handi|do pyaza|mutton|lamb|goat/i;
-/** Positive breakfast signals (Rule 4 allowed examples). */
-const BREAKFAST_HINT = /idli|dosa|poha|upma|paratha|thepla|oats|porridge|cereal|muesli|chilla|cheela|besan|smoothie|pancake|toast|omelet|omelette|egg|paneer bhurji|bhurji|uttapam|vada|dhokla|sandwich|granola|fruit bowl|stuffed roti|aloo paratha/i;
-const SNACK_HINT = /\bsnack\b|nuts|seeds|roasted chana|sprouts|buttermilk|chaas|protein (shake|bar)|smoothie|lassi|boiled egg|corn|chaat|bhel|tikki|cutlet|fruit|makhana|trail mix|yogurt|curd cup/i;
+/**
+ * Foods that must never be a breakfast — heavy lunch/dinner mains and restaurant
+ * dishes. Encodes the spec's "breakfast should never include" list (butter
+ * chicken, paneer butter masala, dal makhani, rajma chawal, biryani …).
+ */
+const NOT_BREAKFAST = /dal makhani|\brajma\b|rajma chawal|butter chicken|paneer butter masala|paneer.*masala|\bchole\b|chana masala|\bkadhi\b|biryani|pula(o|v)|korma|rogan|vindaloo|curry\b|masala\s+(gravy|curry)|kadai|kadhai|handi|do pyaza|tikka masala|\bmutton\b|\blamb\b|\bgoat\b|dum\b/i;
+/**
+ * Dishes that are DEFINITELY never breakfast — heavy restaurant mains only. This
+ * is narrower than NOT_BREAKFAST on purpose: a "Curry Omelette" or "Masala Egg" is
+ * a legitimate Indian breakfast, so bare `curry` must NOT veto breakfast here
+ * (that's what wrongly demoted egg breakfasts to lunch).
+ */
+const HARD_NOT_BREAKFAST = /dal makhani|\brajma\b|butter chicken|paneer butter masala|paneer.*masala|tikka masala|biryani|pula(o|v)|korma|rogan josh|vindaloo|\bmutton\b|\blamb\b|\bgoat\b|manchurian|kadai|kadhai/i;
+/**
+ * Authentic Indian breakfast lexicon (spec §1). This is the SOLE authority on
+ * breakfast — a name matching one of these (and not a HARD_NOT_BREAKFAST main) is a
+ * breakfast regardless of the dataset's (often wrong) country/slot tag.
+ */
+const BREAKFAST_HINT = /\b(idli|dosa|dosai|uttapam|uthappam|utthapam|appam|idiyappam|puttu|poha|upma|pongal|\bvada\b|medu vada|sabudana|dhokla|paratha|thepla|khakhra|cheela|chilla|besan chilla|moong dal chilla|daliya|dalia|\boats\b|oatmeal|porridge|muesli|granola|corn ?flakes|\bcereal\b|overnight oats|chia pudding|chia seed pudding|smoothie bowl|omelet|omelette|frittata|scramble|egg bhurji|paneer bhurji|\bbhurji\b|scrambled egg|boiled egg|egg white|masala egg|\bcrepe|sandwich|\btoast\b|pancake|waffle|\bkanji\b|fruit bowl|muesli bowl|granola bowl|hash brown|stuffed paratha|aloo paratha|methi thepla|protein shake|protein smoothie)\b/i;
+/**
+ * International / restaurant mains that are DINNER-appropriate in an Indian
+ * household (spec §5) — never breakfast, and not a default weekday lunch. Routing
+ * these to dinner-only keeps weekday lunches traditionally Indian (spec §2).
+ */
+const INTERNATIONAL = /\b(thai|pad thai|tom yum|green curry|red curry|massaman|schez(w|u)an|szechuan|hakka|manchurian|chow ?mein|fried rice|hakka noodles?|\bnoodles?\b|ramen|teriyaki|sushi|tempura|\bpasta\b|spaghetti|penne|fusilli|lasagn|macaroni|risotto|gnocchi|ravioli|alfredo|\bpizza\b|\bburger\b|\btaco\b|burrito|quesadilla|nacho|enchilada|fajita|falafel|shawarma|kung pao|sweet and sour|dim ?sum|gyoza|bibimbap|\bpho\b|\bwrap\b|continental)\b/i;
+/**
+ * Fresh fruit — the default Indian snack (spec §3). Whole/cut fruit is a SNACK,
+ * never forced into a meal. Guarded so "fruit custard"/"fruit cake" (dessert) and
+ * "fruit smoothie"/"fruit juice" (drink) keep their own category.
+ */
+const FRESH_FRUIT = /\b(apple|banana|orange|papaya|water ?melon|musk ?melon|cantaloupe|guava|\bpear\b|mango|grapes?|pomegranate|pineapple|kiwi|chikoo|sapota|litchi|lychee|\bplum\b|peach|apricot|berries|strawberr|blueberr|seasonal fruit|fruit bowl|fruit salad|fruit chaat|cut fruits?|sliced fruit|mixed fruit|fruit platter|dry fruits?|\bdates\b)\b/i;
+/** Light Indian snack signals (spec §3 optional list) — nuts, buttermilk, sprouts, etc. */
+const SNACK_HINT = /\bsnack\b|\bnuts\b|almonds|walnuts|cashews|makhana|makhna|fox ?nuts|roasted chana|chana chaat|\bsprouts?\b|buttermilk|chaas|\blassi\b|protein bar|energy bar|trail mix|greek yogurt|\byogurt\b|curd cup|\bcorn\b|sundal|sweet corn|coconut water/i;
+/** Deep-fried / heavy snacks the planner must NOT auto-recommend (spec §3). */
+const FRIED_SNACK = /\b(samosa|kachori|pakora|pakoda|vada pav|bhajji|bhaji fry|medu vada|aloo tikki|cutlet|spring roll|french fries|fries|puri|poori|bread pakora|chips)\b/i;
 const DESSERT_HINT = /halwa|kheer|barfi|barfee|ladoo|laddu|jalebi|gulab jamun|rasgulla|dessert|pudding|ice ?cream|cake|brownie|mousse|custard|sheera|payasam|sandesh/i;
 const DRINK_HINT = /juice|smoothie|shake|lassi|buttermilk|chaas|\btea\b|coffee|milk\b|\bwater\b|lemonade|coconut water|kadha|drink/i;
 const SOUP_HINT = /soup|shorba|rasam|broth|stew|dal soup/i;
@@ -92,9 +126,13 @@ export interface CategorizeInput {
   name: string;
   /** Legacy single-slot tag on the recipe ('b' | 'l' | 's' | 'd'). */
   slot?: string | null;
+  /** Origin cuisine/country (e.g. 'India', 'Thailand', 'Italy') — used to keep
+   *  weekday lunches Indian and route international dishes to dinner. */
+  cuisine?: string | null;
   minutes?: number | null;
   kcal?: number | null;
 }
+
 
 /**
  * Derive a recipe's meal categories (Rule 13) from its name + legacy slot tag.
@@ -110,40 +148,78 @@ export function categorizeRecipe(r: CategorizeInput): MealCategory[] {
   // served as a snack or main).
   if (PURE_CONDIMENT.test(name)) return ['condiment'];
 
-  // Strong keyword signals first (they can override a mis-tagged legacy slot).
+  // Fresh fruit is the DEFAULT Indian snack (spec §3) — classify it snack-only so
+  // it's never forced into a meal slot. (Guarded against fruit desserts/drinks.)
+  if (FRESH_FRUIT.test(name) && !DESSERT_HINT.test(name) && !DRINK_HINT.test(name) && !STAPLE_CARB.test(name)) {
+    return ['snack'];
+  }
+
+  // Breakfast is decided FIRST and authoritatively by the lexicon (spec §1). The
+  // dataset's country/slot tags are unreliable (granola tagged "Thai", "Plain
+  // Dosai" tagged Continental), so a recognised breakfast wins over them; only a
+  // hard restaurant main (butter chicken, biryani, mutton…) can veto it.
+  if (BREAKFAST_HINT.test(name) && !HARD_NOT_BREAKFAST.test(name)) return ['breakfast'];
+
+  const heavyMain = NOT_BREAKFAST.test(name);
+  // International detection is by DISH NAME only — the country field is too noisy to
+  // trust. A telltale name (thai/pasta/pizza/noodles/fried rice…) marks dinner fare.
+  const international = INTERNATIONAL.test(name);
+
+  // Non-meal signals first (these win over the legacy slot tag).
   if (DESSERT_HINT.test(name)) set.add('dessert');
   if (DRINK_HINT.test(name)) set.add('drink');
   if (SOUP_HINT.test(name)) set.add('soup');
   if (SALAD_HINT.test(name)) set.add('salad');
   if (CONDIMENT_HINT.test(name)) set.add('condiment');
   if (SIDE_HINT.test(name)) set.add('side');
-  if (BREAKFAST_HINT.test(name)) set.add('breakfast');
-  if (SNACK_HINT.test(name)) set.add('snack');
 
-  // Legacy slot tag → base category, unless it contradicts a breakfast rule.
+  // Light snack signals (nuts, sprouts, buttermilk, roasted chana…). Deep-fried /
+  // heavy snacks are NOT auto-recommended (spec §3) — they stay out of the pool.
+  if (SNACK_HINT.test(name) && !heavyMain && !FRIED_SNACK.test(name)) set.add('snack');
+
+  // International / restaurant dishes (spec §5) are DINNER fare — never a weekday
+  // lunch. Return dinner-only so a foreign main (even "Chicken Pasta Salad") can't
+  // leak into the lunch thali via a stray salad/side tag. Drink/dessert/soup keep
+  // their own dedicated slot.
+  if (international) {
+    if (set.has('drink')) return ['drink'];
+    if (set.has('dessert')) return ['dessert'];
+    if (set.has('soup')) return ['soup'];
+    return ['dinner'];
+  }
+
+  // Legacy dataset slot tag. The tag is Western/unreliable — the breakfast LEXICON
+  // above is the sole authority on breakfast, so a 'b'/'s'-tagged dish that isn't a
+  // recognised breakfast/snack is NOT force-fed into those slots (this is what put
+  // "Masala Mushroom & Eggplant" into breakfast). Such a tag only seeds a light
+  // snack; otherwise the dish falls through to the content-based default below.
+  const light = (r.kcal ?? 999) <= 200 || (r.minutes ?? 99) <= 10;
   switch (r.slot) {
-    case 'b': set.add('breakfast'); break;
-    case 's': set.add('snack'); break;
-    case 'l': if (!set.has('breakfast')) set.add('lunch'); break;
+    case 'b':
+    case 's':
+      if (set.size === 0 && light && !heavyMain && !FRIED_SNACK.test(name)) set.add('snack');
+      break;
+    case 'l': if (!set.has('breakfast')) { set.add('lunch'); set.add('dinner'); } break;
     case 'd': if (!set.has('breakfast')) set.add('dinner'); break;
     default: break;
   }
 
-  // A heavy main is a lunch/dinner even if the legacy tag was odd.
-  if (NOT_BREAKFAST.test(name)) {
+  // A heavy Indian main is a lunch AND dinner staple (dal rice, rajma, paneer
+  // masala, chicken curry — spec §2 & §5).
+  if (heavyMain) {
     set.delete('breakfast');
     if (!set.has('lunch') && !set.has('dinner')) { set.add('lunch'); set.add('dinner'); }
   }
 
-  // A plain staple carb is a side, never a stand-alone snack (unless it's genuinely
-  // a snack/breakfast food like poha/upma — those carry their own hint).
-  if (set.has('snack') && STAPLE_CARB.test(name) && !SNACK_HINT.test(name) && !BREAKFAST_HINT.test(name)) {
+  // A plain staple carb (rice/roti/bread on its own) is a side, never a stand-alone
+  // snack (unless it's genuinely a snack/breakfast food like poha/upma).
+  if (set.has('snack') && STAPLE_CARB.test(name) && !SNACK_HINT.test(name)) {
     set.delete('snack');
     set.add('side');
   }
 
-  // Light, quick items with no strong signal make reasonable snacks — but a bare
-  // staple carb still falls through to a side, not a snack.
+  // No strong signal → sensible default. A bare staple carb is a side; a light/quick
+  // dish is a snack; anything substantial becomes a lunch+dinner main.
   if (set.size === 0) {
     if (STAPLE_CARB.test(name)) set.add('side');
     else if ((r.kcal ?? 999) <= 200 || (r.minutes ?? 99) <= 10) set.add('snack');
@@ -175,8 +251,8 @@ export interface FastingProtocol {
   key: string; label: string; window: [string, string]; slots: SlotCode[];
 }
 export const FASTING_PROTOCOLS: Record<string, FastingProtocol> = {
-  '12:12': { key: '12:12', label: '12:12', window: ['08:00', '20:00'], slots: ['b', 'l', 'es', 'd'] },
-  '14:10': { key: '14:10', label: '14:10', window: ['10:00', '20:00'], slots: ['l', 'es', 'd'] },
+  '12:12': { key: '12:12', label: '12:12', window: ['08:00', '20:00'], slots: ['b', 'l', 's', 'es', 'd'] },
+  '14:10': { key: '14:10', label: '14:10', window: ['10:00', '20:00'], slots: ['l', 's', 'es', 'd'] },
   '16:8':  { key: '16:8',  label: '16:8',  window: ['12:00', '20:00'], slots: ['l', 'es', 'd'] },
   '18:6':  { key: '18:6',  label: '18:6',  window: ['13:00', '19:00'], slots: ['l', 'es', 'd'] },
   '20:4':  { key: '20:4',  label: '20:4',  window: ['14:00', '18:00'], slots: ['l', 'd'] },
@@ -210,8 +286,8 @@ function customSlots(hours: number): SlotCode[] {
   if (hours <= 3) return ['l'];
   if (hours <= 5) return ['l', 'd'];
   if (hours <= 8) return ['l', 'es', 'd'];
-  if (hours <= 11) return ['l', 'es', 'd'];
-  return ['b', 'l', 'es', 'd'];
+  if (hours <= 11) return ['l', 's', 'es', 'd'];
+  return ['b', 'l', 's', 'es', 'd'];
 }
 
 /**

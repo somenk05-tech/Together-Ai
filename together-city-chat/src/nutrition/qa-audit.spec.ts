@@ -53,7 +53,7 @@ function auditWeek(name: string, prefs: ComposerPrefs, targets: { kcal: number; 
 
   for (const day of wk.days) {
     const slots = day.meals.map((m) => m.slot).join(',');
-    if (!prefs.fasting?.enabled && slots !== 'b,ms,l,es,d') add('CRIT', 'Structure', `${name}: day ${day.dayIndex + 1} slots = ${slots}`);
+    if (!prefs.fasting?.enabled && slots !== 'b,l,s,es,d') add('CRIT', 'Structure', `${name}: day ${day.dayIndex + 1} slots = ${slots}`);
     for (const m of day.meals) {
       if (!m.components.length) add('CRIT', 'Structure', `${name}: empty ${m.label}`);
       if (!/^\d{2}:\d{2}$/.test(m.scheduledTime)) add('HIGH', 'Timing', `${name}: bad time ${m.scheduledTime}`);

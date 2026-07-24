@@ -376,8 +376,14 @@ function mealTitle(slot: SlotCode, comps: MealComponentOut[], prefs: ComposerPre
   const clin = prefs.clinicalTag ? `${prefs.clinicalTag} ` : '';
   const dietWord = prefs.diet === 'vegan' ? 'Vegan' : prefs.diet === 'nonveg' ? '' : 'Veg';
   if (slot === 'b') return `${clin}${dietWord ? dietWord + ' ' : ''}Breakfast`.trim();
-  if (slot === 'ms') return `${clin}Morning Snack`.trim();
-  if (slot === 'es') return `${clin}Evening Snack`.trim();
+  if (slot === 's') {
+    const snack = comps[0];
+    return `${clin}${snack ? snack.name.split('(')[0].trim() : 'Snack'}`.replace(/\s+/g, ' ').trim();
+  }
+  if (slot === 'es') {
+    const soup = comps.find((c) => c.role === 'soup') ?? comps[0];
+    return `${clin}${soup ? soup.name.split('(')[0].trim() : 'Evening Soup'}`.replace(/\s+/g, ' ').trim();
+  }
   const main = comps.find((c) => c.role === 'main') ?? comps.find((c) => c.role === 'dal');
   const base = slot === 'l' ? 'Thali' : 'Dinner Plate';
   const lead = main ? main.name.split('(')[0].trim() : (dietWord || 'Balanced');
@@ -455,6 +461,19 @@ function fitMeal(sel: Sel[], targetKcal: number, proteinTarget: number): MealCom
   return sel.map((s, i) => scaleComponent(s.r, Math.round(scale[i]), s.role));
 }
 
+/** Fresh-fruit names — the default afternoon snack (spec §3). */
+const FRUIT_NAME = /\b(apple|banana|orange|papaya|water ?melon|musk ?melon|guava|\bpear\b|mango|grapes?|pomegranate|pineapple|kiwi|chikoo|sapota|litchi|lychee|peach|apricot|berries|strawberr|blueberr|\bfruit\b)\b/i;
+
+/** Pick a fresh-fruit snack (least-used first for variety); null if none qualify. */
+function pickFruit(ctx: SelectCtx): PoolRecipe | null {
+  const cands = candidates('snack', ctx).filter((c) => FRUIT_NAME.test(c.name));
+  if (!cands.length) return null;
+  cands.sort((a, b) => (ctx.used.get(a.id) ?? 0) - (ctx.used.get(b.id) ?? 0));
+  const minUse = ctx.used.get(cands[0].id) ?? 0;
+  const top = cands.filter((c) => (ctx.used.get(c.id) ?? 0) === minUse);
+  return top[Math.floor(ctx.rnd() * top.length)] ?? cands[0];
+}
+
 function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, fibreTarget: number, energyPct: number, scheduledTime: string, ctx: SelectCtx): ComposedMeal {
   const def = SLOT_BY_CODE[slot];
   const sel: Sel[] = [];
@@ -465,8 +484,12 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
     take(bf, 'breakfast');
     // If breakfast alone can't reach ~85% of target even at max scale, add a light side.
     if (bf && bf.kcal * 1.6 < targetKcal * 0.85) take(pick('snack', ctx), 'side');
-  } else if (slot === 'ms' || slot === 'es') {
-    take(pick('snack', ctx) ?? pick('drink', ctx), 'snack');
+  } else if (slot === 's') {
+    // Afternoon snack — fresh fruit by default (spec §3), else a light snack/drink.
+    take(pickFruit(ctx) ?? pick('snack', ctx) ?? pick('drink', ctx), 'snack');
+  } else if (slot === 'es') {
+    // Dedicated ~7 PM evening course — a soup by default (spec §4), else a light drink.
+    take(pick('soup', ctx) ?? pick('drink', ctx) ?? pick('snack', ctx), 'soup');
   } else {
     // Lunch / dinner composite plate (Rules 6, 7).
     // Renal (potassium-capped): dal is very high-K/P — drop it, prefer a low-K
@@ -498,7 +521,7 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
     take(carb, 'carb');
     take(pick('salad', ctx), 'salad');
     if (ctx.prefs.diet !== 'vegan' && !renal) take(pick('dairy', ctx), 'dairy');  // curd is moderate-K — skip for renal
-    if (slot === 'd' && !renal) take(pick('soup', ctx), 'soup');
+    // (Soup is now its own dedicated evening slot — no longer added to the dinner plate.)
     // Last-resort protein guarantee (SAFE — QA H2 fix): only relax the cuisine
     // LOCK, never diet, allergen excludes, clinical completeness or renal K/P
     // ceilings. If nothing safe qualifies, leave the protein role empty and let
@@ -781,8 +804,11 @@ export function validateWeek(days: ComposedDay[], grocery: GroceryItem[], target
       if (m.slot === 'b' && m.components.some((c) => c.category === 'lunch' || c.category === 'dinner')) {
         issues.push(`Day ${day.dayIndex + 1}: breakfast contains a lunch/dinner recipe`);
       }
-      // meal title must not be a bare recipe name (Rule 16)
-      if (m.components.length && m.components.some((c) => c.name === m.title)) {
+      // Meal title must not be a bare recipe name (Rule 16) — this catches a
+      // composite plate that collapsed to one dish. The single-dish courses
+      // (afternoon Snack, Evening Soup) are legitimately named after their dish,
+      // so they're exempt.
+      if (m.components.length && m.slot !== 's' && m.slot !== 'es' && m.components.some((c) => c.name === m.title)) {
         issues.push(`Day ${day.dayIndex + 1} ${m.label}: title equals a recipe name`);
       }
     }
