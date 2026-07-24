@@ -15,11 +15,22 @@ const KIND_META: Record<string, { icon: string; label: string }> = {
 };
 const inr = (n: number) => '₹' + Math.round(n).toLocaleString('en-IN');
 
-/** Renders a shared hub item as a rich card (used inside a chat message and in the share preview). */
-export function ShareCardView({ card, compact }: { card: ShareCard; compact?: boolean }) {
+/**
+ * Renders a shared hub item as a rich card (used inside a chat message and in the share preview).
+ * `clickable` makes the WHOLE card a link to its deepLink (used in message threads) — the CTA
+ * then renders as a visual affordance only, so we never nest <a> inside <a>.
+ */
+export function ShareCardView({ card, compact, clickable }: { card: ShareCard; compact?: boolean; clickable?: boolean }) {
   const meta = KIND_META[card.kind] ?? { icon: '🔗', label: 'Shared' };
-  return (
-    <div style={{ border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden', background: 'var(--card, #fff)', width: compact ? '100%' : 280, maxWidth: '100%' }}>
+  const ctaText = KIND_META[card.kind] ? `View ${meta.label} →` : 'View in hub →';
+  const asLink = Boolean(clickable && card.deepLink);
+  const shell: React.CSSProperties = {
+    display: 'block', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden',
+    background: 'var(--card, #fff)', width: compact ? '100%' : 280, maxWidth: '100%',
+    color: 'inherit', textDecoration: 'none', ...(asLink ? { cursor: 'pointer' } : null),
+  };
+  const body = (
+    <>
       {card.image && <div style={{ aspectRatio: '16 / 9', background: 'var(--line)' }}><img src={card.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>}
       <div style={{ padding: '10px 12px' }}>
         <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--accent)' }}>{meta.icon} {card.hub || meta.label}</div>
@@ -43,11 +54,16 @@ export function ShareCardView({ card, compact }: { card: ShareCard; compact?: bo
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 9 }}>
           {typeof card.priceInr === 'number' && card.priceInr > 0 && <div style={{ fontWeight: 800, fontSize: 15 }}>{inr(card.priceInr)}</div>}
-          {card.deepLink && <Link to={card.deepLink} style={{ marginLeft: 'auto' }}><Button variant="line" size="sm">{KIND_META[card.kind] ? `View ${meta.label} →` : 'View in hub →'}</Button></Link>}
+          {card.deepLink && (asLink
+            ? <span className="btn btn-line btn-sm" aria-hidden style={{ marginLeft: 'auto', pointerEvents: 'none' }}>{ctaText}</span>
+            : <Link to={card.deepLink} style={{ marginLeft: 'auto' }}><Button variant="line" size="sm">{ctaText}</Button></Link>)}
         </div>
       </div>
-    </div>
+    </>
   );
+  return asLink
+    ? <Link to={card.deepLink as string} aria-label={`Open ${card.title}`} style={shell}>{body}</Link>
+    : <div style={shell}>{body}</div>;
 }
 
 /** A "Share" button that opens a modal to send this item into a Together City chat. */

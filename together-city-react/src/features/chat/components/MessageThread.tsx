@@ -22,8 +22,8 @@ const CSS = `
 .tc-msg-actions button{border:none;background:none;cursor:pointer;font-size:12px;padding:4px 7px;border-radius:999px;font-family:inherit;color:var(--ink-soft,#555);line-height:1}
 .tc-msg-actions button:hover{background:var(--paper,#f4f1ea)}
 .tc-msg-actions button.danger{color:#b0503e}
-.tc-msg-collapse{overflow:hidden;transition:max-height .25s ease,opacity .25s ease,margin .25s ease}
-.tc-msg-collapsing{max-height:0!important;opacity:0;margin:0!important}
+.tc-msg-collapse{overflow:visible;max-height:2000px;transition:max-height .25s ease,opacity .25s ease,margin .25s ease}
+.tc-msg-collapsing{max-height:0!important;opacity:0;margin:0!important;overflow:hidden}
 `;
 
 /** 15-minute edit / delete-for-everyone window (matches the server policy). */
@@ -101,7 +101,7 @@ export function MessageThread({ messages, currentUserId, typing, onDelete, onEdi
         return (
           <div key={m.id}
             className={`tc-msg-row tc-msg-collapse${isCollapsing ? ' tc-msg-collapsing' : ''}${touchOpen === m.id ? ' touch-open' : ''}`}
-            style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: m.share ? 300 : '72%', maxHeight: 500 }}
+            style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: m.share ? 300 : '72%' }}
             onTouchStart={() => { longPress.current = setTimeout(() => setTouchOpen((t) => (t === m.id ? null : m.id)), 450); }}
             onTouchEnd={() => { if (longPress.current) clearTimeout(longPress.current); }}
             onTouchMove={() => { if (longPress.current) clearTimeout(longPress.current); }}>
@@ -139,7 +139,7 @@ export function MessageThread({ messages, currentUserId, typing, onDelete, onEdi
                     marginBottom: m.share ? 6 : 0,
                   }}>{m.body}</div>
                 )}
-                {m.share && <ShareCardView card={m.share} compact />}
+                {m.share && <ShareCardView card={m.share} compact clickable />}
               </>
             )}
 
