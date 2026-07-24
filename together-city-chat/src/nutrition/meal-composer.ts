@@ -3,6 +3,12 @@ import {
   resolveSchedule, type FastingPrefs, type DaySchedule,
 } from './meal-engine';
 import { COMPONENT_SEEDS, componentId, isPantryStaple, type ComponentSeed } from './component-recipes';
+import { computeNutrients } from './ingredient-nutrients';
+
+/** Clinically-capped nutrients tracked on every recipe/meal/day (Workstream A). */
+export interface Nutrients { sodiumMg: number; potassiumMg: number; phosphorusMg: number; sugarG: number; satFatG: number }
+export interface ClinicalCaps { sodiumMg?: number; potassiumMg?: number; phosphorusMg?: number; sugarG?: number; satFatG?: number }
+const ZERO_NUTR: Nutrients = { sodiumMg: 0, potassiumMg: 0, phosphorusMg: 0, sugarG: 0, satFatG: 0 };
 
 /* ─────────────────────────── Types the frontend consumes ─────────────────────────── */
 
@@ -19,37 +25,57 @@ export interface ComposerPrefs {
   includePantry?: boolean;             // grocery pantry toggle (Rule 10)
   clinicalTag?: string;                // e.g. 'Diabetic Friendly', 'Renal Friendly'
   avoidRice?: boolean;
+  /** Daily clinical caps from computeTargets (Workstream A). When set, capped
+   *  roles use only nutrition-complete recipes and selection minimises the load. */
+  caps?: ClinicalCaps;
+  clinical?: boolean;                  // is this a clinical profile (enforce caps hard)
 }
 
 export interface DayTargets { kcal: number; protein: number; carbs: number; fat: number; fiber: number }
 
 export interface MealIngredient { name: string; grams: number; pantry: boolean }
-export interface MealComponentOut {
+export interface MealComponentOut extends Nutrients {
   recipeId: string; name: string; role: string; category: MealCategory;
   portionPct: number; grams: number;
   kcal: number; protein: number; carbs: number; fat: number; fiber: number;
+  nutrientComplete: boolean;
   minutes: number; ingredients: MealIngredient[];
 }
+export interface MealTotals extends DayTargets, Nutrients {}
 export interface ComposedMeal {
   slot: SlotCode; key: string; label: string;
   title: string;                       // composite meal name (Rule 16)
   scheduledTime: string;               // core property (IF Rule 7)
   energyPct: number; targetKcal: number;
-  totals: DayTargets; minutes: number;
+  totals: MealTotals; minutes: number;
   components: MealComponentOut[];
 }
 export interface ComposedDay {
   dayIndex: number;
   fasting: boolean; protocol: string | null; window: { start: string; end: string };
-  meals: ComposedMeal[]; totals: DayTargets;
+  meals: ComposedMeal[]; totals: MealTotals;
+  capBreaches?: string[];
 }
 export interface GroceryItem { name: string; grams: number; unit: string; pantry: boolean; fromRecipes: string[] }
 export interface ComposedWeek {
   days: ComposedDay[];
   grocery: GroceryItem[];
   targets: DayTargets;
+  caps?: ClinicalCaps;
   fasting: boolean; protocol: string | null;
   validation: { ok: boolean; issues: string[] };
+}
+
+/** Which caps a day's totals exceed (Workstream A enforcement + reporting). */
+function capBreaches(totals: MealTotals, caps?: ClinicalCaps): string[] {
+  if (!caps) return [];
+  const out: string[] = [];
+  if (caps.sodiumMg && totals.sodiumMg > caps.sodiumMg) out.push(`sodium ${totals.sodiumMg}/${caps.sodiumMg} mg`);
+  if (caps.potassiumMg && totals.potassiumMg > caps.potassiumMg) out.push(`potassium ${totals.potassiumMg}/${caps.potassiumMg} mg`);
+  if (caps.phosphorusMg && totals.phosphorusMg > caps.phosphorusMg) out.push(`phosphorus ${totals.phosphorusMg}/${caps.phosphorusMg} mg`);
+  if (caps.sugarG && totals.sugarG > caps.sugarG) out.push(`sugar ${totals.sugarG}/${caps.sugarG} g`);
+  if (caps.satFatG && totals.satFatG > caps.satFatG) out.push(`sat fat ${totals.satFatG}/${caps.satFatG} g`);
+  return out;
 }
 
 /* ─────────────────────────── Recipe pool ─────────────────────────── */
@@ -57,13 +83,20 @@ export interface ComposedWeek {
 export interface PoolRecipe extends Omit<ComponentSeed, 'ing'> {
   id: string;
   ingredients: Array<{ name: string; grams: number }>;
+  nutrients: Nutrients;               // per standard serving (Workstream A)
+  nutrientComplete: boolean;
 }
 
 /** The curated component recipes (sides, snacks, breakfasts) — always available. */
-export const SEED_POOL: PoolRecipe[] = COMPONENT_SEEDS.map((s) => ({
-  ...s, id: componentId(s.name),
-  ingredients: s.ing.map(([name, grams]) => ({ name, grams })),
-}));
+export const SEED_POOL: PoolRecipe[] = COMPONENT_SEEDS.map((s) => {
+  const ingredients = s.ing.map(([name, grams]) => ({ name, grams }));
+  const n = computeNutrients(ingredients);
+  return {
+    ...s, id: componentId(s.name), ingredients,
+    nutrients: { sodiumMg: n.na, potassiumMg: n.k, phosphorusMg: n.p, sugarG: n.sug, satFatG: n.sfat },
+    nutrientComplete: n.complete,
+  };
+});
 
 const CUISINE_NORMALISE: Record<string, string> = { India: 'Indian', Indian: 'Indian', Global: 'Global' };
 function normCuisine(c: string): string { return CUISINE_NORMALISE[c] ?? c; }
@@ -95,7 +128,7 @@ interface SelectCtx {
   slot: SlotCode; prefs: ComposerPrefs; rnd: () => number;
   used: Map<string, number>;      // recipeId → times used this week (variety)
   pool: PoolRecipe[];             // combined recipe pool (seeds + dataset mains)
-  banRole?: string;               // avoid a role
+  banMain?: string;               // recipeId of yesterday's main — never repeat consecutively
 }
 
 function cuisineBucket(slot: SlotCode) { return SLOT_BY_CODE[slot].cuisineBucket; }
@@ -113,8 +146,11 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
 
   return ctx.pool.filter((r) => {
     if (r.role !== role) return false;
+    if (role === 'main' && ctx.banMain && r.id === ctx.banMain) return false;  // no consecutive-day main
     if (!r.categories.some((c) => slotCats.includes(c))) return false;
     if (!dietOk(r.diet, userDiet)) return false;
+    // Clinical profiles: only build from food whose capped nutrients are known.
+    if (prefs.clinical && !r.nutrientComplete) return false;
     const cu = normCuisine(r.cuisine);
     if (allowedCuisines && allowedCuisines.length && cu !== 'Global' && !allowedCuisines.includes(cu)) {
       // out-of-cuisine: allowed only if bucket not locked
@@ -138,12 +174,23 @@ function pick(role: string, ctx: SelectCtx): PoolRecipe | null {
   }
   const bucket = cuisineBucket(ctx.slot);
   const mix = ctx.prefs.cuisineBySlot?.[bucket];
+  const caps = ctx.prefs.caps;
   const scored = cands.map((r) => {
     const cu = normCuisine(r.cuisine);
     const w = mix ? (mix[cu] ?? mix[r.cuisine] ?? (cu === 'Global' ? 5 : 1)) : 1;
     const usedPenalty = (ctx.used.get(r.id) ?? 0) * 100;   // strongly prefer unused (variety)
     const jitter = ctx.rnd() * 5;
-    return { r, score: w + jitter - usedPenalty };
+    // Clinical: prefer low capped-nutrient load (fraction of the daily cap it uses).
+    let capPenalty = 0;
+    if (caps) {
+      const n = r.nutrients;
+      if (caps.sodiumMg) capPenalty += n.sodiumMg / caps.sodiumMg;
+      if (caps.potassiumMg) capPenalty += (n.potassiumMg / caps.potassiumMg) * 1.4; // renal K weighted
+      if (caps.phosphorusMg) capPenalty += (n.phosphorusMg / caps.phosphorusMg) * 1.4;
+      if (caps.sugarG) capPenalty += n.sugarG / caps.sugarG;
+      if (caps.satFatG) capPenalty += n.satFatG / caps.satFatG;
+    }
+    return { r, score: w + jitter - usedPenalty - capPenalty * 30 };
   });
   scored.sort((a, b) => b.score - a.score);
   return scored[0].r;
@@ -156,14 +203,21 @@ function scaleComponent(r: PoolRecipe, portionPct: number, role: string): MealCo
     recipeId: r.id, name: r.name, role: role, category: (r.categories[0] ?? 'side'),
     portionPct, grams: Math.round(r.grams * f),
     kcal: Math.round(r.kcal * f), protein: round(r.protein * f), carbs: round(r.carbs * f),
-    fat: round(r.fat * f), fiber: round(r.fiber * f), minutes: r.minutes,
+    fat: round(r.fat * f), fiber: round(r.fiber * f),
+    sodiumMg: Math.round(r.nutrients.sodiumMg * f), potassiumMg: Math.round(r.nutrients.potassiumMg * f),
+    phosphorusMg: Math.round(r.nutrients.phosphorusMg * f), sugarG: round(r.nutrients.sugarG * f), satFatG: round(r.nutrients.satFatG * f),
+    nutrientComplete: r.nutrientComplete, minutes: r.minutes,
     ingredients: r.ingredients.map((i) => ({ name: i.name, grams: Math.round(i.grams * f), pantry: isPantryStaple(i.name) })),
   };
 }
 
-const sumTotals = (cs: MealComponentOut[]): DayTargets => cs.reduce(
-  (t, c) => ({ kcal: t.kcal + c.kcal, protein: t.protein + c.protein, carbs: t.carbs + c.carbs, fat: t.fat + c.fat, fiber: t.fiber + c.fiber }),
-  { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
+const sumTotals = (cs: MealComponentOut[]): MealTotals => cs.reduce(
+  (t, c) => ({
+    kcal: t.kcal + c.kcal, protein: t.protein + c.protein, carbs: t.carbs + c.carbs, fat: t.fat + c.fat, fiber: t.fiber + c.fiber,
+    sodiumMg: t.sodiumMg + c.sodiumMg, potassiumMg: t.potassiumMg + c.potassiumMg, phosphorusMg: t.phosphorusMg + c.phosphorusMg,
+    sugarG: Math.round((t.sugarG + c.sugarG) * 10) / 10, satFatG: Math.round((t.satFatG + c.satFatG) * 10) / 10,
+  }),
+  { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, ...ZERO_NUTR },
 );
 
 /* ─────────────────────────── Meal naming (Rule 16) ─────────────────────────── */
@@ -264,20 +318,23 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
   } else if (slot === 'ms' || slot === 'es') {
     take(pick('snack', ctx) ?? pick('drink', ctx), 'snack');
   } else {
-    // Lunch / dinner composite plate (Rules 6, 7)
+    // Lunch / dinner composite plate (Rules 6, 7).
+    // Renal (potassium-capped): dal is very high-K/P — drop it, prefer a low-K
+    // rice carb and low-K vegetables, and lean on egg/paneer protein instead.
+    const renal = Boolean(ctx.prefs.caps?.potassiumMg && ctx.prefs.caps.potassiumMg <= 3000);
     take(pick('main', ctx), 'main');
-    take(pick('dal', ctx), 'dal');
+    if (!renal) take(pick('dal', ctx), 'dal');
     take(pick('vegetable', ctx), 'vegetable');
     const carbCands = candidates('carb', ctx);
-    const wantRice = slot === 'l' && !ctx.prefs.avoidRice;
+    const wantRice = (slot === 'l' && !ctx.prefs.avoidRice) || renal;   // rice is low-K
     const carb = carbCands.length
       ? (wantRice ? (carbCands.find((c) => /rice|millet/i.test(c.name)) ?? carbCands[0])
                   : (carbCands.find((c) => /roti|phulka/i.test(c.name)) ?? carbCands[0]))
       : null;
     take(carb, 'carb');
     take(pick('salad', ctx), 'salad');
-    if (ctx.prefs.diet !== 'vegan') take(pick('dairy', ctx), 'dairy');
-    if (slot === 'd') take(pick('soup', ctx), 'soup');
+    if (ctx.prefs.diet !== 'vegan' && !renal) take(pick('dairy', ctx), 'dairy');  // curd is moderate-K — skip for renal
+    if (slot === 'd' && !renal) take(pick('soup', ctx), 'soup');
   }
 
   // Guarantee at least one component (never an empty meal — Rule 1).
@@ -311,7 +368,8 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
   for (let d = 0; d < days; d++) {
     const meals: ComposedMeal[] = [];
     for (const sm of schedule.meals) {
-      const ctx: SelectCtx = { slot: sm.code, prefs, rnd, used, pool };
+      const banMain = sm.code === 'l' ? lastLunchMain : sm.code === 'd' ? lastDinnerMain : undefined;
+      const ctx: SelectCtx = { slot: sm.code, prefs, rnd, used, pool, banMain: banMain || undefined };
       const mealKcal = targets.kcal * sm.energy; const mealProtein = targets.protein * sm.energy;
       let meal = composeMeal(sm.code, mealKcal, mealProtein, sm.energy, sm.scheduledTime, ctx);
 
@@ -336,15 +394,61 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
       }
       meals.push(meal);
     }
+    if (prefs.caps) reduceToCaps(meals, prefs.caps);   // bounded reduce for renal/HTN/DM caps
+    const totals = sumTotals(meals.flatMap((m) => m.components));
     outDays.push({
       dayIndex: d, fasting: schedule.fasting, protocol: schedule.protocol, window: schedule.window,
-      meals, totals: sumTotals(meals.flatMap((m) => m.components)),
+      meals, totals, capBreaches: capBreaches(totals, prefs.caps),
     });
   }
 
   const grocery = composeGrocery(outDays, { includePantry: prefs.includePantry ?? false });
-  const validation = validateWeek(outDays, grocery, targets);
-  return { days: outDays, grocery, targets, fasting: schedule.fasting, protocol: schedule.protocol, validation };
+  const validation = validateWeek(outDays, grocery, targets, prefs.caps);
+  return { days: outDays, grocery, targets, caps: prefs.caps, fasting: schedule.fasting, protocol: schedule.protocol, validation };
+}
+
+/**
+ * Bounded reduce pass: if a day breaches a clinical cap, scale down the biggest
+ * contributors of the breached nutrient (respecting per-role minimums) until the
+ * cap is met or minimums are reached. Renal caps (K/P/Na) take priority; a small
+ * calorie give-back is acceptable to keep a renal plan safe.
+ */
+function reduceToCaps(meals: ComposedMeal[], caps: ClinicalCaps): void {
+  const NUTR: Array<[keyof ClinicalCaps, keyof Nutrients]> = [
+    ['potassiumMg', 'potassiumMg'], ['phosphorusMg', 'phosphorusMg'], ['sodiumMg', 'sodiumMg'], ['sugarG', 'sugarG'], ['satFatG', 'satFatG'],
+  ];
+  const allComps = () => meals.flatMap((m) => m.components);
+  for (const [capKey, nKey] of NUTR) {
+    const cap = caps[capKey];
+    if (!cap) continue;
+    for (let it = 0; it < 12; it++) {
+      const total = allComps().reduce((t, c) => t + (c[nKey] as number), 0);
+      if (total <= cap) break;
+      // biggest contributor with room to shrink
+      let worst: MealComponentOut | null = null;
+      for (const c of allComps()) {
+        const min = (ROLE_BOUNDS[c.role]?.[0] ?? 50);
+        if (c.portionPct > min + 2 && (worst === null || (c[nKey] as number) > (worst[nKey] as number))) worst = c;
+      }
+      if (!worst) break;
+      const min = (ROLE_BOUNDS[worst.role]?.[0] ?? 50);
+      const nextPct = Math.max(min, worst.portionPct - 15);
+      rescale(worst, nextPct);
+    }
+  }
+  for (const m of meals) m.totals = sumTotals(m.components);
+}
+
+/** Rescale an already-emitted component in place to a new portion %. */
+function rescale(c: MealComponentOut, pct: number): void {
+  const f = pct / Math.max(1, c.portionPct);
+  const r1 = (n: number) => Math.round(n * 10) / 10;
+  c.grams = Math.round(c.grams * f); c.kcal = Math.round(c.kcal * f);
+  c.protein = r1(c.protein * f); c.carbs = r1(c.carbs * f); c.fat = r1(c.fat * f); c.fiber = r1(c.fiber * f);
+  c.sodiumMg = Math.round(c.sodiumMg * f); c.potassiumMg = Math.round(c.potassiumMg * f); c.phosphorusMg = Math.round(c.phosphorusMg * f);
+  c.sugarG = r1(c.sugarG * f); c.satFatG = r1(c.satFatG * f);
+  c.ingredients = c.ingredients.map((i) => ({ ...i, grams: Math.round(i.grams * f) }));
+  c.portionPct = pct;
 }
 
 /* ─────────────────────────── Grocery (Rule 10) ─────────────────────────── */
@@ -376,7 +480,7 @@ export function composeGrocery(days: ComposedDay[], opts: { includePantry: boole
 
 /* ─────────────────────────── Validation (Rule 18 + Rule 10 integrity) ─────────────────────────── */
 
-export function validateWeek(days: ComposedDay[], grocery: GroceryItem[], targets: DayTargets): { ok: boolean; issues: string[] } {
+export function validateWeek(days: ComposedDay[], grocery: GroceryItem[], targets: DayTargets, caps?: ClinicalCaps): { ok: boolean; issues: string[] } {
   const issues: string[] = [];
   const recipeIds = new Set(days.flatMap((d) => d.meals.flatMap((m) => m.components.map((c) => c.recipeId))));
 
@@ -406,6 +510,10 @@ export function validateWeek(days: ComposedDay[], grocery: GroceryItem[], target
   // Grocery integrity (Rule 10): every grocery item traces to a plan recipe.
   for (const g of grocery) {
     if (!g.fromRecipes.some((id) => recipeIds.has(id))) issues.push(`Grocery "${g.name}" not traceable to any plan recipe`);
+  }
+  // Clinical caps enforced on the plate (Workstream A).
+  if (caps) for (const day of days) {
+    for (const b of capBreaches(day.totals, caps)) issues.push(`Day ${day.dayIndex + 1} clinical cap: ${b}`);
   }
   return { ok: issues.length === 0, issues };
 }

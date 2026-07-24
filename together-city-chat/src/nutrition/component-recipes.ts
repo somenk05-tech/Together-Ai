@@ -79,6 +79,10 @@ const VEGS: ComponentSeed[] = [
   S('Cabbage Poriyal', 'India', ['side', 'lunch', 'dinner'], 'vegetable', [80, 3, 10, 3, 4], 20, 120, 'vegan', [['Cabbage', 110], ['Coconut (grated)', 10], ['Cooking oil', 5]]),
   S('Green Beans Thoran', 'India', ['side', 'lunch', 'dinner'], 'vegetable', [85, 3, 10, 3, 4], 20, 120, 'vegan', [['Green beans', 110], ['Coconut (grated)', 10], ['Cooking oil', 5]]),
   S('Baingan Bharta', 'India', ['side', 'lunch', 'dinner'], 'vegetable', [110, 3, 12, 6, 5], 35, 150, 'vegan', [['Brinjal (eggplant)', 130], ['Onion', 30], ['Tomato', 30], ['Cooking oil', 7]]),
+  // Low-potassium/phosphorus vegetables for renal plates.
+  S('Lauki (Bottle Gourd) Sabzi', 'India', ['side', 'lunch', 'dinner'], 'vegetable', [70, 2, 9, 3, 3], 25, 150, 'vegan', [['Bottle gourd', 130], ['Cooking oil', 5]]),
+  S('Ash Gourd Curry', 'India', ['side', 'lunch', 'dinner'], 'vegetable', [70, 2, 8, 3, 3], 25, 150, 'vegan', [['Ash gourd', 130], ['Cooking oil', 5]]),
+  S('Ridge Gourd Sabzi', 'India', ['side', 'lunch', 'dinner'], 'vegetable', [70, 2, 8, 3, 3], 25, 150, 'vegan', [['Ridge gourd', 130], ['Cooking oil', 5]]),
 ];
 
 /** Dairy / raita. */

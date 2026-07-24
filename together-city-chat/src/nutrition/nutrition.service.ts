@@ -24,6 +24,7 @@ import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, type MntRule } from './clinical-mnt';
 import { composeWeek, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
+import { computeNutrients } from './ingredient-nutrients';
 import {
   QC_PROVIDERS, buildQcMeta, compareStores, applyBadges, refreshTotals, quoteStore, trackFromMeta,
   type QcListItem, type QcMeta, type QcStoreQuote,
@@ -1415,11 +1416,14 @@ export class NutritionService implements OnModuleInit {
         .map((i) => ({ name: i.name, grams: Math.max(1, Math.round((i.grams ?? 0) / s)) }))
         .filter((i) => i.name && (i.grams ?? 0) > 0);
       if (!ingredients.length) continue;
+      const n = computeNutrients(ingredients);
       out.push({
         id: r.id, name: r.name, cuisine: r.country, categories: cats, role,
         kcal: per(r.kcal) || 200, protein: per(r.protein), carbs: per(r.carbs), fat: per(r.fat), fiber: per(r.fiber),
         minutes: r.minutes || 20, grams: per(r.gramsPerServing) || 200, diet: this.mapDiet(r.diet),
         ingredients,
+        nutrients: { sodiumMg: n.na, potassiumMg: n.k, phosphorusMg: n.p, sugarG: n.sug, satFatG: n.sfat },
+        nutrientComplete: n.complete,
       });
     }
     this.datasetPoolCache = out;
@@ -1461,6 +1465,16 @@ export class NutritionService implements OnModuleInit {
       ? ex.cuisineBySlot
       : { breakfast: { Indian: 100 }, lunch: { Indian: 90, Continental: 10 }, dinner: { Indian: 90, Chinese: 10 }, snack: {} };
 
+    // Clinical caps enforced on the plate (Workstream A / CRIT-1).
+    const condText = conditions.join(' ').toLowerCase();
+    const isClinical = /kidney|renal|ckd|dialysis|diabet|hba1c|hypertension|blood pressure|cholesterol|lipid|triglycer|fatty liver|gout/.test(condText)
+      || flags.hba1c === 'high' || flags.ldl === 'high' || flags.trig === 'high';
+    const capsRaw = t as unknown as { sodiumMaxMg?: number; potassiumMaxMg?: number; phosphorusMaxMg?: number; sugarMaxG?: number; satFatMaxG?: number };
+    const caps = isClinical ? {
+      sodiumMg: capsRaw.sodiumMaxMg, potassiumMg: capsRaw.potassiumMaxMg, phosphorusMg: capsRaw.phosphorusMaxMg,
+      sugarG: capsRaw.sugarMaxG, satFatG: capsRaw.satFatMaxG,
+    } : undefined;
+
     const cprefs: ComposerPrefs = {
       diet: ((pref?.diet as ComposerDiet) ?? 'vegetarian'),
       excluded,
@@ -1469,7 +1483,9 @@ export class NutritionService implements OnModuleInit {
       fasting: ex.fasting,
       includePantry: ex.includePantry ?? false,
       clinicalTag: this.clinicalTag(conditions),
-      avoidRice: /diabet|hba1c/.test(conditions.join(' ').toLowerCase()),
+      avoidRice: /diabet|hba1c/.test(condText),
+      caps,
+      clinical: isClinical,
     };
     const targets = { kcal: t.kcal, protein: t.protein, carbs: (t as { carb: number }).carb, fat: t.fat, fiber: t.fiber };
     const datasetPool = await this.datasetPool().catch(() => []);   // dataset mains → variety; grocery stays exact

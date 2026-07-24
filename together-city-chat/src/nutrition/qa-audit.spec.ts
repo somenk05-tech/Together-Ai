@@ -123,11 +123,26 @@ describe('Nutrition Hub — post-deployment QA audit', () => {
     if ((dialysis.protein as number) <= (ckd.protein as number)) add('MED', 'Clinical', 'Dialysis protein not higher than CKD');
     if ((senior.protein as number) <= (healthy.protein as number)) add('MED', 'Clinical', 'Senior protein not raised');
 
-    // Does the COMPOSED PLATE track the micronutrients the clinical rules limit?
-    const wkCkd = composeWeek({ kcal: (ckd.kcal as number), protein: (ckd.protein as number), carbs: (ckd as { carb: number }).carb, fat: (ckd.fat as number), fiber: (ckd.fiber as number) }, { diet: 'vegetarian', clinicalTag: 'Renal Friendly' }, 2, 7);
+    // Does the COMPOSED PLATE track + enforce the nutrients the clinical rules limit?
+    const capsOf = (t: Record<string, unknown>) => ({
+      sodiumMg: t.sodiumMaxMg as number, potassiumMg: t.potassiumMaxMg as number, phosphorusMg: t.phosphorusMaxMg as number,
+      sugarG: t.sugarMaxG as number, satFatG: t.satFatMaxG as number,
+    });
+    const ckdCaps = capsOf(ckd);
+    const wkCkd = composeWeek({ kcal: (ckd.kcal as number), protein: (ckd.protein as number), carbs: (ckd as { carb: number }).carb, fat: (ckd.fat as number), fiber: (ckd.fiber as number) }, { diet: 'vegetarian', clinicalTag: 'Renal Friendly', clinical: true, caps: ckdCaps }, 3, 7);
     const comp0 = wkCkd.days[0].meals[0].components[0] as unknown as Record<string, unknown>;
-    const tracksMicros = ['sodium', 'potassium', 'phosphorus', 'sugar'].some((k) => k in comp0);
-    if (!tracksMicros) add('CRIT', 'Clinical', 'Composed meals track only kcal/protein/carbs/fat/fiber — sodium/potassium/phosphorus/sugar and all micronutrients are NOT computed, so CKD/dialysis/HTN numeric limits are not enforced on the actual plate (only keyword bias / titles).');
+    const tracksMicros = ['sodiumMg', 'potassiumMg', 'phosphorusMg', 'sugarG', 'satFatG'].every((k) => k in comp0);
+    if (!tracksMicros) add('CRIT', 'Clinical', 'Composed meals do not track sodium/potassium/phosphorus/sugar/satfat on components.');
+    for (const day of wkCkd.days) {
+      if (ckdCaps.potassiumMg && day.totals.potassiumMg > ckdCaps.potassiumMg * 1.03) add('HIGH', 'Clinical', `CKD day ${day.dayIndex + 1}: potassium ${day.totals.potassiumMg} > cap ${ckdCaps.potassiumMg}`);
+      if (ckdCaps.phosphorusMg && day.totals.phosphorusMg > ckdCaps.phosphorusMg * 1.03) add('HIGH', 'Clinical', `CKD day ${day.dayIndex + 1}: phosphorus ${day.totals.phosphorusMg} > cap ${ckdCaps.phosphorusMg}`);
+      if (ckdCaps.sodiumMg && day.totals.sodiumMg > ckdCaps.sodiumMg * 1.03) add('HIGH', 'Clinical', `CKD day ${day.dayIndex + 1}: sodium ${day.totals.sodiumMg} > cap ${ckdCaps.sodiumMg}`);
+    }
+    // Diabetes sugar cap on the plate
+    const dmCaps = capsOf(diabetic);
+    const wkDm = composeWeek({ kcal: (diabetic.kcal as number), protein: (diabetic.protein as number), carbs: (diabetic as { carb: number }).carb, fat: (diabetic.fat as number), fiber: (diabetic.fiber as number) }, { diet: 'vegetarian', clinical: true, caps: dmCaps, avoidRice: true }, 3, 7);
+    for (const day of wkDm.days) if (dmCaps.sugarG && day.totals.sugarG > dmCaps.sugarG * 1.05) add('MED', 'Clinical', `Diabetes day ${day.dayIndex + 1}: sugar ${day.totals.sugarG} > cap ${dmCaps.sugarG}`);
+    void htn;
 
     // Run every profile.
     for (const p of PROFILES) {
