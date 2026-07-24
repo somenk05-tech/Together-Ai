@@ -1709,8 +1709,11 @@ export class NutritionService implements OnModuleInit {
         cuisineLocks: ex.cuisineLocks,
         fasting: ex.fasting,
         includePantry: ex.includePantry ?? false,
-        clinicalTag: this.clinicalTag(conditions),
-        avoidRice: optimal ? (isClinical && isDiabetic) : isDiabetic,
+        // Clinical labelling + rules apply ONLY in Optimal Health. My Preferences
+        // is purely the user's choices — no "Renal Friendly"/"Diabetic" naming and
+        // no avoid-rice; it just reflects what they picked (and warns via compliance).
+        clinicalTag: optimal ? this.clinicalTag(conditions) : undefined,
+        avoidRice: optimal && isClinical && isDiabetic,
         caps: optimal ? healthCaps : undefined,
         clinical: optimal && isClinical,   // hard gate / blocking only for a real condition
         maxMinutes: optimal ? undefined : (ex.maxCookMin ?? undefined),
