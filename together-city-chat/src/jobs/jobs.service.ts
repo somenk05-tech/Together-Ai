@@ -139,8 +139,22 @@ export class JobsService implements OnModuleInit {
   }
 
   // ─────────────── employer side (post a job, see applicants) ───────────────
+  private seniorityFromYears(years: number): string {
+    return years >= 10 ? 'lead' : years >= 6 ? 'senior' : years >= 2 ? 'mid' : 'junior';
+  }
+
   async postJob(userId: string, dto: PostJobDto) {
-    const seniority = dto.minYears >= 10 ? 'lead' : dto.minYears >= 6 ? 'senior' : dto.minYears >= 2 ? 'mid' : 'junior';
+    // M2: don't let the same role be posted twice by the same employer.
+    const dupe = await this.prisma.job.findFirst({
+      where: {
+        postedById: userId,
+        title: { equals: dto.title, mode: 'insensitive' },
+        company: { equals: dto.company, mode: 'insensitive' },
+        location: { equals: dto.location, mode: 'insensitive' },
+      },
+    });
+    if (dupe) throw new BadRequestException('You already have a posting with this title, company and location.');
+    const seniority = dto.seniority ?? this.seniorityFromYears(dto.minYears); // M5
     await this.prisma.job.create({
       data: {
         postedById: userId, title: dto.title, company: dto.company, location: dto.location, remote: dto.remote,
@@ -150,13 +164,37 @@ export class JobsService implements OnModuleInit {
     return this.myPostings(userId);
   }
 
+  /** H4: edit one of your own postings (existing columns only — no migration). */
+  async updatePosting(userId: string, id: string, dto: PostJobDto) {
+    const existing = await this.prisma.job.findFirst({ where: { id, postedById: userId } });
+    if (!existing) throw new NotFoundException('posting not found');
+    const seniority = dto.seniority ?? this.seniorityFromYears(dto.minYears);
+    await this.prisma.job.update({
+      where: { id },
+      data: {
+        title: dto.title, company: dto.company, location: dto.location, remote: dto.remote,
+        seniority, skills: dto.skills.join(','), minYears: dto.minYears, salaryLpa: dto.salaryLpa, blurb: dto.blurb ?? '',
+      },
+    });
+    return this.myPostings(userId);
+  }
+
+  /** H4: delete one of your own postings (cascades to its applications). */
+  async deletePosting(userId: string, id: string) {
+    const existing = await this.prisma.job.findFirst({ where: { id, postedById: userId } });
+    if (!existing) throw new NotFoundException('posting not found');
+    await this.prisma.job.delete({ where: { id } });
+    return this.myPostings(userId);
+  }
+
   async myPostings(userId: string) {
     const rows = await this.prisma.job.findMany({ where: { postedById: userId }, orderBy: { createdAt: 'desc' } });
     const counts = await this.prisma.jobApplication.groupBy({ by: ['jobId'], where: { jobId: { in: rows.map((r) => r.id) } }, _count: { jobId: true } });
     const countBy = new Map(counts.map((c) => [c.jobId, c._count.jobId]));
     return rows.map((r) => ({
       id: r.id, title: r.title, company: r.company, location: r.location, remote: r.remote,
-      salaryLpa: r.salaryLpa, skills: (r.skills ? r.skills.split(',').filter(Boolean) : []).map((k) => ({ key: k, label: labelFor(k) })),
+      salaryLpa: r.salaryLpa, minYears: r.minYears, seniority: r.seniority, blurb: r.blurb,
+      skills: (r.skills ? r.skills.split(',').filter(Boolean) : []).map((k) => ({ key: k, label: labelFor(k) })),
       applicantCount: countBy.get(r.id) ?? 0, postedOn: r.createdAt.toISOString().slice(0, 10),
     }));
   }

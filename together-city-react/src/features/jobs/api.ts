@@ -14,7 +14,8 @@ export interface JobMatch {
 }
 export interface MatchesResponse { hasProfile: boolean; matches: JobMatch[] }
 export interface Application { id: string; jobId: string; title: string; company: string; status: string; coverNote: string | null; appliedOn: string }
-export interface Posting { id: string; title: string; company: string; location: string; remote: boolean; salaryLpa: number; skills: Skill[]; applicantCount: number; postedOn: string }
+export interface Posting { id: string; title: string; company: string; location: string; remote: boolean; salaryLpa: number; minYears: number; seniority: string; blurb: string; skills: Skill[]; applicantCount: number; postedOn: string }
+export interface PostJobInput { title: string; company: string; location: string; remote: boolean; skills: string[]; minYears: number; salaryLpa: number; blurb?: string; seniority?: 'junior' | 'mid' | 'senior' | 'lead' }
 export interface Applicant { id: string; name: string; handle: string; headline: string; experienceYears: number; matchedSkills: string[]; coverNote: string | null; status: string; appliedOn: string }
 export interface ApplicantsResponse { job: { id: string; title: string; company: string }; applicants: Applicant[] }
 
@@ -27,8 +28,12 @@ export const jobsApi = {
   matches: () => api.get<MatchesResponse>('/jobs/matches').then((r) => r.data),
   applications: () => api.get<Application[]>('/jobs/applications').then((r) => r.data),
   apply: (jobId: string, coverNote?: string) => api.post<Application[]>('/jobs/applications', { jobId, coverNote }).then((r) => r.data),
-  postJob: (input: { title: string; company: string; location: string; remote: boolean; skills: string[]; minYears: number; salaryLpa: number; blurb?: string }) =>
+  postJob: (input: PostJobInput) =>
     api.post<Posting[]>('/jobs/postings', input).then((r) => r.data),
+  editPosting: (id: string, input: PostJobInput) =>
+    api.put<Posting[]>(`/jobs/postings/${id}`, input).then((r) => r.data),
+  deletePosting: (id: string) =>
+    api.delete<Posting[]>(`/jobs/postings/${id}`).then((r) => r.data),
   myPostings: () => api.get<Posting[]>('/jobs/postings').then((r) => r.data),
   applicants: (id: string) => api.get<ApplicantsResponse>(`/jobs/postings/${id}/applicants`).then((r) => r.data),
   withdraw: (id: string) => api.delete<Application[]>(`/jobs/applications/${id}`).then((r) => r.data),
@@ -70,6 +75,20 @@ export function usePostJob() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: jobsApi.postJob,
+    onSuccess: (list) => { qc.setQueryData(['jobs', 'postings'], list); void qc.invalidateQueries({ queryKey: ['jobs', 'matches'] }); },
+  });
+}
+export function useEditPosting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; input: PostJobInput }) => jobsApi.editPosting(v.id, v.input),
+    onSuccess: (list) => { qc.setQueryData(['jobs', 'postings'], list); void qc.invalidateQueries({ queryKey: ['jobs', 'matches'] }); },
+  });
+}
+export function useDeletePosting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => jobsApi.deletePosting(id),
     onSuccess: (list) => { qc.setQueryData(['jobs', 'postings'], list); void qc.invalidateQueries({ queryKey: ['jobs', 'matches'] }); },
   });
 }

@@ -34,5 +34,8 @@ export const PostJobSchema = z.object({
   minYears: z.number().int().min(0).max(30),
   salaryLpa: z.number().int().min(1).max(1000),
   blurb: z.string().max(1000).optional(),
+  // M5: let the recruiter set the level explicitly instead of deriving it from
+  // min-years (which silently contradicted the title).
+  seniority: z.enum(['junior', 'mid', 'senior', 'lead']).optional(),
 });
 export type PostJobDto = z.infer<typeof PostJobSchema>;

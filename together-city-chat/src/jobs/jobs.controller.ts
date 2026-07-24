@@ -79,4 +79,15 @@ export class JobsController {
   applicants(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.jobs.applicants(user.sub, id);
   }
+
+  @Put('postings/:id')
+  @UsePipes(new ZodValidationPipe(PostJobSchema))
+  editPosting(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: PostJobDto) {
+    return this.jobs.updatePosting(user.sub, id, dto);
+  }
+
+  @Delete('postings/:id')
+  deletePosting(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.jobs.deletePosting(user.sub, id);
+  }
 }
