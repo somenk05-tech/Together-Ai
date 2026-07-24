@@ -8,6 +8,7 @@ import {
 } from '../composed.api';
 import { VegMark, mealKind } from '../components/VegMark';
 import { ShareIconButton } from '@/components/share/ShareButton';
+import { encodeMeal } from '../shareMeal';
 import type { ShareCard } from '@/api';
 
 /** Build a rich, shareable recipe card from a meal — its headline dish photo,
@@ -21,17 +22,25 @@ function mealShareCard(meal: ComposedMeal, master: MealComponent | null): ShareC
     `C ${Math.round(t.carbs)}g`,
     `F ${Math.round(t.fat)}g`,
   ];
+  // The whole meal, encoded into the deep link, so tapping the shared card opens a
+  // full-page read-only view of the ENTIRE meal (photo, name, macros, every dish),
+  // where each dish links to its detailed recipe — no server lookup needed.
+  const token = encodeMeal({
+    t: meal.title,
+    l: meal.label,
+    i: master?.imageUrl ?? null,
+    k: Math.round(t.kcal),
+    m: macros,
+    d: meal.components.map((c) => [c.name, c.recipeId, Math.round(c.kcal)] as [string, string, number]),
+  });
   return {
     kind: 'recipe',
-    // The WHOLE meal, not just the headline dish: the meal's name, its photo, the
-    // full dish list, and the meal's calories/macros — so the recipient sees the
-    // entire card exactly as it appears in the plan.
     title: meal.title,
     subtitle: `${meal.label} · ${meal.components.length} ${meal.components.length === 1 ? 'dish' : 'dishes'}`,
     image: master?.imageUrl ?? null,
     meta: macros,
     items: meal.components.map((c) => `${c.name} · ${Math.round(c.kcal)} kcal`),
-    deepLink: master?.recipeId ? `/nutrition/recipes/${master.recipeId}` : undefined,
+    deepLink: `/nutrition/shared-meal?d=${token}`,
   };
 }
 

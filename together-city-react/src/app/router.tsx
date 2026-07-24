@@ -28,6 +28,7 @@ const Profile = lazy(() => import('@/features/profile/pages/Profile').then((m) =
 const SocialFeed = lazy(() => import('@/features/social/pages/SocialFeed').then((m) => ({ default: m.SocialFeed })));
 const RecipeLibrary = lazy(() => import('@/features/nutrition/pages/RecipeLibrary').then((m) => ({ default: m.RecipeLibrary })));
 const RecipeDetail = lazy(() => import('@/features/nutrition/pages/RecipeDetail').then((m) => ({ default: m.RecipeDetail })));
+const SharedMeal = lazy(() => import('@/features/nutrition/pages/SharedMeal').then((m) => ({ default: m.SharedMeal })));
 const Grocery = lazy(() => import('@/features/nutrition/pages/Grocery').then((m) => ({ default: m.Grocery })));
 const Orders = lazy(() => import('@/features/nutrition/pages/Orders').then((m) => ({ default: m.Orders })));
 const Preferences = lazy(() => import('@/features/nutrition/pages/Preferences').then((m) => ({ default: m.Preferences })));
@@ -230,6 +231,7 @@ export const router = createBrowserRouter([
       { path: '/nutrition/recipes-classic', element: <Navigate to="/nutrition/recipes" replace /> },
       { path: '/nutrition/library', element: <RequireAuth>{wrap(<RecipeLibrary />)}</RequireAuth> },
       { path: '/nutrition/recipes/:id', element: wrap(<RecipeDetail />) },
+      { path: '/nutrition/shared-meal', element: wrap(<SharedMeal />) },
       { path: '/nutrition/supplements', element: <RequireAuth>{wrap(<Supplements />)}</RequireAuth> },
       { path: '/nutrition/dietitian', element: <RequireAuth>{wrap(<Dietitian />)}</RequireAuth> },
       { path: '/nutrition/onboarding', element: wrap(<NutOnboarding />) },
