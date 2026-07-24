@@ -73,6 +73,12 @@ export const nutritionApi = {
     }).then((r) => r.data),
   recipe: (id: string) =>
     api.get<RecipeDetail>(`/nutrition/recipes/${id}`).then((r) => r.data),
+  savedRecipes: () =>
+    api.get<{ ids: string[]; recipes: Recipe[] }>('/nutrition/saved').then((r) => r.data),
+  saveRecipe: (id: string, saved: boolean) =>
+    api.post<{ saved: boolean; ids: string[] }>(`/nutrition/recipes/${id}/save`, { saved }).then((r) => r.data),
+  recipeVariants: (id: string, type: string) =>
+    api.get<{ type: string; label: string; note: string; items: Recipe[] }>(`/nutrition/recipes/${id}/variants`, { params: { type } }).then((r) => r.data),
   groceryPlan: (mode: 'individual' | 'family' = 'individual') =>
     api.get<GroceryPlan>('/nutrition/grocery/plan', { params: { mode } }).then((r) => r.data),
   cart: () => api.get<GroceryCart>('/nutrition/cart').then((r) => r.data),

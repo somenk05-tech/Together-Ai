@@ -368,9 +368,28 @@ export class NutritionController {
     return this.nutrition.searchByIngredients(user.sub, terms, diet);
   }
 
+  // GET /api/nutrition/saved — the user's saved/favourited recipes (cards).
+  @Get('saved')
+  savedRecipes(@CurrentUser() user: JwtUser) {
+    return this.nutrition.savedRecipes(user.sub);
+  }
+
+  // GET /api/nutrition/recipes/:id/variants?type=higher_protein — real alternatives.
+  @Get('recipes/:id/variants')
+  recipeVariants(@Param('id') id: string, @Query('type') type = 'similar') {
+    return this.nutrition.recipeVariants(id, type);
+  }
+
   @Get('recipes/:id')
   recipe(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.nutrition.recipe(id, user.sub);
+  }
+
+  // POST /api/nutrition/recipes/:id/save — toggle a favourite.
+  @Post('recipes/:id/save')
+  @UsePipes(new ZodValidationPipe(z.object({ saved: z.boolean() })))
+  saveRecipe(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: { saved: boolean }) {
+    return this.nutrition.setSavedRecipe(user.sub, id, body.saved);
   }
 
   @Get('cart')

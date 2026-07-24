@@ -242,6 +242,26 @@ export function useGroceryCart() {
   return useQuery({ queryKey: ['nutrition', 'cart'], queryFn: () => nutritionApi.cart() });
 }
 
+/** Server-side saved recipes (favourites). */
+export function useSavedRecipes() {
+  return useQuery({ queryKey: ['nutrition', 'saved'], queryFn: () => nutritionApi.savedRecipes() });
+}
+export function useToggleSave() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, saved }: { id: string; saved: boolean }) => nutritionApi.saveRecipe(id, saved),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['nutrition', 'saved'] }); },
+  });
+}
+/** One-tap real recipe variants (higher protein, vegan, kidney-friendly…). */
+export function useRecipeVariants(id: string | undefined, type: string | null) {
+  return useQuery({
+    queryKey: ['nutrition', 'variants', id, type],
+    queryFn: () => nutritionApi.recipeVariants(id as string, type as string),
+    enabled: Boolean(id) && Boolean(type),
+  });
+}
+
 /** Supermarket-style grocery plan (Grocery Planner redesign) — aisles + recipe view. */
 export function useGroceryPlan(mode: 'individual' | 'family' = 'individual') {
   return useQuery({

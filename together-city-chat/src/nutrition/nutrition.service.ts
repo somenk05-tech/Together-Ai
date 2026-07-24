@@ -22,7 +22,7 @@ import { addonLabel, addonMacros, complementByKey, fillGapWithComplements, type 
 import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, mntAvoidKeywords, type MntRule } from './clinical-mnt';
-import { composeWeek, scaleComposedWeek, complianceReport, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
+import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { scoreDual, buildScorecard, guidelineCaps } from './plan-score';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
 import { computeNutrients, computeMicros, isSalt } from './ingredient-nutrients';
@@ -289,6 +289,8 @@ interface PrefExtras {
    *  one shared master plan with personalised portions. OFF: every connected
    *  member gets an independent AI plan while staying in the family. */
   familyMealPlanning?: boolean;
+  /** Saved / favourited recipe ids (server-side favourites). */
+  savedRecipes?: string[];
 }
 /** Parse a JSON string column, returning a fallback on null/invalid. */
 function safeJson<T>(s: string | null | undefined, fallback: T): T {
@@ -4726,6 +4728,115 @@ export class NutritionService implements OnModuleInit {
       method: cookSteps.map((s) => s.text),
       cookSteps,
     };
+  }
+
+  /* ─────────────────── Saved recipes (server-side favourites) ─────────────────── */
+
+  /** Map a composer diet to the frontend DietKey used for card colours. */
+  private dietKey(d: string): string {
+    return d === 'vegan' ? 'vegan' : d === 'eggetarian' ? 'egg' : d === 'vegetarian' ? 'veg' : 'nonveg';
+  }
+  /** Lightweight recipe card from a pool/seed recipe (for saved + variant lists). */
+  private poolCard(r: PoolRecipe) {
+    return {
+      id: r.id, recipeNo: null as number | null, name: r.name, country: r.cuisine,
+      kcal: Math.round(r.kcal), protein: Math.round(r.protein), carbs: Math.round(r.carbs), fat: Math.round(r.fat), fiber: Math.round(r.fiber),
+      minutes: r.minutes, gramsPerServing: r.grams, diet: this.dietKey(r.diet), imageUrl: r.imageUrl ?? null, healthPercent: 0,
+    };
+  }
+
+  async savedRecipeIds(userId: string): Promise<string[]> {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    return ex.savedRecipes ?? [];
+  }
+
+  async setSavedRecipe(userId: string, recipeId: string, saved: boolean): Promise<{ saved: boolean; ids: string[] }> {
+    const ids = new Set(await this.savedRecipeIds(userId));
+    if (saved) ids.add(recipeId); else ids.delete(recipeId);
+    const next = [...ids].slice(-500);                 // sane upper bound
+    await this.mergeExtras(userId, { savedRecipes: next });
+    return { saved: ids.has(recipeId), ids: next };
+  }
+
+  /** The user's saved recipes, resolved to cards (dataset + curated). */
+  async savedRecipes(userId: string) {
+    const ids = await this.savedRecipeIds(userId);
+    if (!ids.length) return { ids: [], recipes: [] as ReturnType<NutritionService['poolCard']>[] };
+    const pool = await this.datasetPoolReady();
+    const byId = new Map<string, PoolRecipe>([...SEED_POOL, ...pool].map((r) => [r.id, r]));
+    const recipes = ids.map((id) => byId.get(id)).filter((r): r is PoolRecipe => Boolean(r)).map((r) => this.poolCard(r));
+    return { ids, recipes };
+  }
+
+  /* ─────────────────── AI-style recipe variants (real dataset swaps) ─────────────────── */
+
+  private static readonly VARIANT_META: Record<string, { label: string; note: string }> = {
+    higher_protein: { label: 'Higher protein', note: 'Similar dishes with noticeably more protein.' },
+    reduce_calories: { label: 'Fewer calories', note: 'Lighter versions of this kind of dish.' },
+    reduce_carbs: { label: 'Lower carb', note: 'Comparable dishes with fewer carbohydrates.' },
+    kidney: { label: 'Kidney-friendly', note: 'Low potassium, phosphorus and sodium.' },
+    liver: { label: 'Liver-friendly', note: 'Low in saturated fat and added sugar.' },
+    vegetarian: { label: 'Vegetarian', note: 'The same kind of dish, made vegetarian.' },
+    vegan: { label: 'Vegan', note: 'Fully plant-based versions.' },
+    jain: { label: 'Jain', note: 'No onion, garlic or root vegetables.' },
+    gluten_free: { label: 'Gluten-free', note: 'Without wheat, maida or other gluten sources.' },
+    budget: { label: 'Budget', note: 'Simpler dishes with fewer ingredients.' },
+    premium: { label: 'Premium', note: 'Richer dishes, more protein and ingredients.' },
+    similar: { label: 'Similar recipes', note: 'Closest dishes to this one.' },
+  };
+
+  /**
+   * "AI variants" — one-tap alternatives (Higher protein, Vegan, Kidney-friendly…).
+   * Rather than fabricate a modified recipe with made-up nutrition, we return the
+   * closest REAL dataset recipes that satisfy the constraint, ranked by similarity
+   * to the current dish. Nutrition is therefore always accurate (real recipes).
+   */
+  async recipeVariants(id: string, type: string) {
+    const meta = NutritionService.VARIANT_META[type] ?? NutritionService.VARIANT_META.similar;
+    const pool = await this.datasetPoolReady();
+    const all = [...SEED_POOL, ...pool];
+    const cur = all.find((r) => r.id === id);
+    if (!cur) throw new NotFoundException('recipe not found');
+
+    const ladder: Record<string, string[]> = {
+      vegan: ['vegan'], vegetarian: ['vegan', 'vegetarian'],
+      eggetarian: ['vegan', 'vegetarian', 'eggetarian'], nonveg: ['vegan', 'vegetarian', 'eggetarian', 'nonveg'],
+    };
+    const inDiet = ladder[cur.diet] ?? ladder.nonveg;
+    const glutenRe = /wheat|maida|\bflour\b|bread|\broti\b|phulka|paratha|naan|pasta|noodle|semolina|rava|barley|seitan|bulgur|couscous|macaroni|spaghetti/i;
+    const jainRe = /onion|garlic|potato|carrot|radish|beetroot|mushroom|ginger/i;
+    const hay = (r: PoolRecipe) => `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
+    const sameKind = (r: PoolRecipe) => r.role === cur.role || r.categories.some((c) => cur.categories.includes(c));
+
+    let cands = all.filter((r) => r.id !== cur.id && sameKind(r));
+    const keepDiet = (r: PoolRecipe) => inDiet.includes(r.diet);
+    switch (type) {
+      case 'vegetarian': cands = cands.filter((r) => ['vegan', 'vegetarian'].includes(r.diet)); break;
+      case 'vegan': cands = cands.filter((r) => r.diet === 'vegan'); break;
+      case 'jain': cands = cands.filter((r) => ['vegan', 'vegetarian'].includes(r.diet) && !jainRe.test(hay(r))); break;
+      case 'gluten_free': cands = cands.filter((r) => keepDiet(r) && !glutenRe.test(hay(r))); break;
+      case 'higher_protein': cands = cands.filter((r) => keepDiet(r) && r.protein >= cur.protein * 1.12 + 2); break;
+      case 'reduce_calories': cands = cands.filter((r) => keepDiet(r) && r.kcal <= cur.kcal * 0.85); break;
+      case 'reduce_carbs': cands = cands.filter((r) => keepDiet(r) && r.carbs <= cur.carbs * 0.8); break;
+      case 'kidney': cands = cands.filter((r) => keepDiet(r) && r.nutrientComplete && r.nutrients.potassiumMg <= 400 && r.nutrients.phosphorusMg <= 250 && r.nutrients.sodiumMg <= 500); break;
+      case 'liver': cands = cands.filter((r) => keepDiet(r) && r.nutrients.satFatG <= 6 && r.nutrients.addedSugarG <= 8); break;
+      case 'budget': cands = cands.filter((r) => keepDiet(r) && r.ingredients.length <= cur.ingredients.length); break;
+      case 'premium': cands = cands.filter((r) => keepDiet(r) && r.protein >= cur.protein && r.ingredients.length >= cur.ingredients.length); break;
+      default: cands = cands.filter((r) => keepDiet(r)); break;
+    }
+
+    const curCui = normCuisine(cur.cuisine);
+    const closeness = (r: PoolRecipe) => -(Math.abs(r.kcal - cur.kcal) / 60) - (Math.abs(r.protein - cur.protein) / 6) + (normCuisine(r.cuisine) === curCui ? 3 : 0);
+    const rankers: Record<string, (r: PoolRecipe) => number> = {
+      higher_protein: (r) => r.protein, reduce_calories: (r) => -r.kcal, reduce_carbs: (r) => -r.carbs,
+      kidney: (r) => -r.nutrients.potassiumMg, liver: (r) => -r.nutrients.satFatG,
+      budget: (r) => -r.ingredients.length, premium: (r) => r.protein,
+    };
+    const rank = rankers[type] ?? closeness;
+    cands.sort((a, b) => (rank(b) - rank(a)) || (closeness(b) - closeness(a)));
+
+    return { type, label: meta.label, note: meta.note, items: cands.slice(0, 6).map((r) => this.poolCard(r)) };
   }
 
   /** Reference nutrition for a single portion of each Indian-thali side. */

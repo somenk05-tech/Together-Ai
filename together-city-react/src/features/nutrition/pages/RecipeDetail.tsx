@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { EmptyState, Spinner } from '@/components/ui';
-import { useRecipe, useRecipes, useBuildCart } from '../hooks';
+import { useRecipe, useRecipes, useBuildCart, useSavedRecipes, useToggleSave, useRecipeVariants } from '../hooks';
 import { stepTimerSeconds } from '../components/CookMode';
 import { useCookStore } from '../cook.store';
 import { DIET_META } from './Recipes';
@@ -21,10 +21,12 @@ const DV = { protein: 50, carbs: 275, fat: 78, fiber: 28, sugar: 50, satFat: 20,
 
 const difficultyFor = (min: number) => (min <= 15 ? 'Easy' : min <= 35 ? 'Medium' : 'Involved');
 
-/** Favourites — persisted locally so Save survives a reload (real app, not an artifact). */
-const FAV_KEY = 'tc:savedRecipes';
-function readFavs(): string[] { try { return JSON.parse(localStorage.getItem(FAV_KEY) ?? '[]'); } catch { return []; } }
-function writeFavs(ids: string[]) { try { localStorage.setItem(FAV_KEY, JSON.stringify(ids)); } catch { /* ignore */ } }
+/** One-tap variant actions — each returns real, matching dataset recipes. */
+const VARIANTS: [string, string][] = [
+  ['higher_protein', 'Higher protein'], ['reduce_calories', 'Fewer calories'], ['reduce_carbs', 'Lower carb'],
+  ['kidney', 'Kidney-friendly'], ['liver', 'Liver-friendly'], ['vegetarian', 'Vegetarian'], ['vegan', 'Vegan'],
+  ['jain', 'Jain'], ['gluten_free', 'Gluten-free'], ['budget', 'Budget'], ['premium', 'Premium'], ['similar', 'Similar recipes'],
+];
 
 /** Grocery aisle for an ingredient (keyword heuristic — honest grouping, no data needed). */
 function aisleFor(name: string): string {
@@ -151,7 +153,7 @@ function Donut({ kcal, p, c, f }: { kcal: number; p: number; c: number; f: numbe
 }
 
 /* ─────────────────────────── active-section tabs ─────────────────────────── */
-const TABS = [['overview', 'Overview'], ['ingredients', 'Ingredients'], ['directions', 'Directions'], ['nutrition', 'Nutrition'], ['benefits', 'Health Benefits'], ['foryou', 'For You']] as const;
+const TABS = [['overview', 'Overview'], ['ingredients', 'Ingredients'], ['directions', 'Directions'], ['nutrition', 'Nutrition'], ['benefits', 'Health Benefits'], ['variants', 'Make it Yours'], ['foryou', 'For You']] as const;
 function useActiveSection(ids: string[]) {
   const [active, setActive] = useState(ids[0]);
   useEffect(() => {
@@ -176,15 +178,17 @@ export function RecipeDetail() {
   const location = useLocation();
   const cameFrom = (location.state as { from?: string } | null)?.from;
 
+  const savedQ = useSavedRecipes();
+  const toggleSaveM = useToggleSave();
   const [plates, setPlates] = useState(1);
   const [heroOk, setHeroOk] = useState(true);
   const [done, setDone] = useState<Set<number>>(new Set());
-  const [saved, setSaved] = useState(false);
   const [added, setAdded] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [variant, setVariant] = useState<string | null>(null);
+  const variantsQ = useRecipeVariants(id, variant);
   const active = useActiveSection(TABS.map((t) => t[0]));
 
-  useEffect(() => { if (id) setSaved(readFavs().includes(id)); }, [id]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2200); return () => clearTimeout(t); }, [toast]);
 
   if (recipe.isLoading) return <Spinner label="Plating up…" />;
@@ -210,8 +214,9 @@ export function RecipeDetail() {
     ? [n.sodiumMg > 700 && 'sodium', n.addedSugarG > 12 && 'added sugar', n.satFatG > 10 && 'saturated fat'].filter(Boolean).join(' & ')
     : null;
 
+  const saved = (savedQ.data?.ids ?? []).includes(r.id);
   const toGrocery = () => buildCart.mutate({ recipeIds: [r.id] }, { onSuccess: () => { setAdded(true); setToast('Added to your grocery list'); } });
-  const toggleSave = () => { const favs = readFavs(); const next = saved ? favs.filter((x) => x !== r.id) : [...favs, r.id]; writeFavs(next); setSaved(!saved); setToast(saved ? 'Removed from saved' : 'Saved'); };
+  const toggleSave = () => { const next = !saved; toggleSaveM.mutate({ id: r.id, saved: next }, { onSuccess: () => setToast(next ? 'Saved' : 'Removed from saved') }); };
   const share = async () => {
     const url = window.location.href;
     try { if (navigator.share) { await navigator.share({ title: r.name, url }); return; } } catch { /* cancelled */ }
@@ -459,6 +464,59 @@ export function RecipeDetail() {
           </div>
         </section>
       )}
+
+      {/* MAKE IT YOURS — one-tap variants (real matching recipes) */}
+      <section id="variants" style={{ ...sectionStyle, ...cardStyle, marginTop: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ display: 'grid', placeItems: 'center', width: 32, height: 32, borderRadius: 9, background: 'var(--green-soft)', color: 'var(--green)', flex: '0 0 auto' }}><Ic name="sparkle" size={18} /></span>
+          <div><h2 style={h2}>Make it yours</h2><div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>One tap finds real recipes that match — nutrition stays accurate.</div></div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
+          {VARIANTS.map(([key, label]) => {
+            const on = variant === key;
+            return (
+              <button key={key} type="button" onClick={() => setVariant(on ? null : key)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 999, border: `1.5px solid ${on ? 'var(--green)' : 'var(--line)'}`, background: on ? 'var(--green)' : 'var(--card)', color: on ? '#fff' : 'var(--ink-soft)' }}>
+                {on && <Ic name="check" size={14} stroke={2.4} />}{label}
+              </button>
+            );
+          })}
+        </div>
+        {variant && (
+          <div style={{ marginTop: 18 }}>
+            {variantsQ.isLoading && <div style={{ fontSize: 13.5, color: 'var(--muted)', padding: '8px 0' }}>Finding {VARIANTS.find((v) => v[0] === variant)?.[1].toLowerCase()} options…</div>}
+            {variantsQ.data && variantsQ.data.items.length === 0 && <div style={{ fontSize: 13.5, color: 'var(--muted)', padding: '8px 0' }}>No close {variantsQ.data.label.toLowerCase()} match found for this dish.</div>}
+            {variantsQ.data && variantsQ.data.items.length > 0 && (
+              <>
+                <div style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 12px' }}>{variantsQ.data.note}</div>
+                <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 6, scrollSnapType: 'x proximity' }}>
+                  {variantsQ.data.items.map((x) => {
+                    const mm = DIET_META[x.diet as Exclude<DietKey, 'everything'>] ?? DIET_META.veg;
+                    const src = x.imageUrl ?? recipeImageUrl(x.recipeNo);
+                    return (
+                      <Link key={x.id} to={`/nutrition/recipes/${x.id}`} state={{ from: location.pathname + location.search }} style={{ textDecoration: 'none', color: 'inherit', flex: '0 0 230px', scrollSnapAlign: 'start' }}>
+                        <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
+                          <div style={{ aspectRatio: '16 / 9', background: `linear-gradient(140deg, ${mm.color}14, ${mm.color}30)`, position: 'relative' }}>
+                            {src && <img src={src} alt={x.name} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+                          </div>
+                          <div style={{ padding: 14 }}>
+                            <div style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.3, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{x.name}</div>
+                            <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--muted)' }}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Ic name="flame" size={13} /> {x.kcal}</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Ic name="leaf" size={13} /> {x.protein}g</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Ic name="clock" size={13} /> {x.minutes}m</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </section>
 
       {/* FOR YOU — blood-marker intelligence (from whyForYou) */}
       <section id="foryou" style={{ ...sectionStyle, marginTop: 20 }}>
