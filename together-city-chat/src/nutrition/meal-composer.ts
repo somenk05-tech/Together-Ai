@@ -3,7 +3,7 @@ import {
   resolveSchedule, type FastingPrefs, type DaySchedule,
 } from './meal-engine';
 import { COMPONENT_SEEDS, componentId, componentSteps, isPantryStaple, type ComponentSeed } from './component-recipes';
-import { computeNutrients } from './ingredient-nutrients';
+import { computeNutrients, isSalt } from './ingredient-nutrients';
 
 /** Clinically-capped nutrients tracked on every recipe/meal/day (Workstream A). */
 export interface Nutrients { sodiumMg: number; potassiumMg: number; phosphorusMg: number; sugarG: number; addedSugarG: number; satFatG: number }
@@ -33,7 +33,7 @@ export interface ComposerPrefs {
 
 export interface DayTargets { kcal: number; protein: number; carbs: number; fat: number; fiber: number }
 
-export interface MealIngredient { name: string; grams: number; pantry: boolean }
+export interface MealIngredient { name: string; grams: number; pantry: boolean; toTaste?: boolean }
 export interface MealComponentOut extends Nutrients {
   recipeId: string; name: string; role: string; category: MealCategory;
   portionPct: number; grams: number;
@@ -65,6 +65,12 @@ export interface ComposedWeek {
   caps?: ClinicalCaps;
   fasting: boolean; protocol: string | null;
   validation: { ok: boolean; issues: string[] };
+  /** Clinical safety gate (QA C3 fix): true when, after regeneration attempts, a
+   *  clinical plan still could not be made to meet its medical caps or a required
+   *  meal could not be safely filled. The UI must warn instead of presenting it
+   *  as a certified-safe plan. */
+  blocked?: boolean;
+  blockReason?: string[];
 }
 
 /** Which caps a day's totals exceed (Workstream A enforcement + reporting). */
@@ -165,6 +171,14 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
     // Clinical profiles: only build from food whose capped nutrients are known.
     if (prefs.clinical && !r.nutrientComplete) return false;
     if (renal && (r.nutrients.potassiumMg > kCeil || r.nutrients.phosphorusMg > pCeil)) return false;
+    // Clinical per-serving ceilings (QA C3): no single dish may consume most of a
+    // daily cap — cuts the worst sat-fat/sodium/added-sugar outliers at the source.
+    if (prefs.clinical && prefs.caps) {
+      const cc = prefs.caps;
+      if (cc.satFatG && r.nutrients.satFatG > cc.satFatG * 0.6) return false;
+      if (cc.sodiumMg && r.nutrients.sodiumMg > cc.sodiumMg * 0.6) return false;
+      if (cc.sugarG && r.nutrients.addedSugarG > cc.sugarG * 0.7) return false;
+    }
     const cu = normCuisine(r.cuisine);
     if (allowedCuisines && allowedCuisines.length && cu !== 'Global' && !allowedCuisines.includes(cu)) {
       // out-of-cuisine: allowed only if bucket not locked
@@ -221,7 +235,9 @@ function scaleComponent(r: PoolRecipe, portionPct: number, role: string): MealCo
     sodiumMg: Math.round(r.nutrients.sodiumMg * f), potassiumMg: Math.round(r.nutrients.potassiumMg * f),
     phosphorusMg: Math.round(r.nutrients.phosphorusMg * f), sugarG: round(r.nutrients.sugarG * f), addedSugarG: round(r.nutrients.addedSugarG * f), satFatG: round(r.nutrients.satFatG * f),
     nutrientComplete: r.nutrientComplete, steps: r.steps, imageUrl: r.imageUrl ?? null, minutes: r.minutes,
-    ingredients: r.ingredients.map((i) => ({ name: i.name, grams: Math.round(i.grams * f), pantry: isPantryStaple(i.name) })),
+    ingredients: r.ingredients.map((i) => isSalt(i.name)
+      ? { name: 'Salt', grams: 0, pantry: true, toTaste: true }             // salt is always "to taste"
+      : { name: i.name, grams: Math.round(i.grams * f), pantry: isPantryStaple(i.name) }),
   };
 }
 
@@ -354,19 +370,27 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
     take(pick('salad', ctx), 'salad');
     if (ctx.prefs.diet !== 'vegan' && !renal) take(pick('dairy', ctx), 'dairy');  // curd is moderate-K — skip for renal
     if (slot === 'd' && !renal) take(pick('soup', ctx), 'soup');
-    // Last-resort protein guarantee: relax excludes rather than serve a plate
-    // with no main (a visible "adjusted for your restrictions" note can follow).
+    // Last-resort protein guarantee (SAFE — QA H2 fix): only relax the cuisine
+    // LOCK, never diet, allergen excludes, clinical completeness or renal K/P
+    // ceilings. If nothing safe qualifies, leave the protein role empty and let
+    // the cap gate block/flag the plan rather than serving an unsafe/allergen dish.
     if (!sel.some((s) => s.role === 'main' || s.role === 'dal')) {
-      const diet = ctx.prefs.diet ?? 'vegetarian';
-      const anyProt = ctx.pool.find((r) => (r.role === 'main' || r.role === 'dal') && dietOk(r.diet, diet) && r.categories.some((c) => c === 'lunch' || c === 'dinner'));
-      take(anyProt ?? null, 'main');
+      const relaxed: SelectCtx = { ...ctx, banMain: undefined, prefs: { ...ctx.prefs, cuisineLocks: undefined } };
+      const prot = pick('main', relaxed) ?? pick('dal', relaxed);
+      take(prot, prot?.role === 'dal' ? 'dal' : 'main');
     }
   }
 
-  // Guarantee at least one component (never an empty meal — Rule 1).
+  // Guarantee at least one component (never an empty meal — Rule 1), still
+  // respecting every safety filter (diet/excludes/clinical/renal); only the
+  // cuisine lock is relaxed. An empty meal is left for the cap gate to handle
+  // rather than injecting an unfiltered dish.
   if (!sel.length) {
-    const any = ctx.pool.find((r) => r.categories.some((c) => def.categories.includes(c)) && dietOk(r.diet, ctx.prefs.diet ?? 'vegetarian'));
-    take(any ?? null, 'main');
+    const relaxed: SelectCtx = { ...ctx, banMain: undefined, prefs: { ...ctx.prefs, cuisineLocks: undefined } };
+    for (const role of ['breakfast', 'main', 'dal', 'snack', 'vegetable', 'carb', 'soup', 'drink', 'salad']) {
+      const r = pick(role, relaxed);
+      if (r) { take(r, r.role === 'dal' ? 'dal' : role); break; }
+    }
   }
 
   const components = fitMeal(sel, targetKcal, proteinTarget);
@@ -391,46 +415,91 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
   const pool: PoolRecipe[] = [...SEED_POOL, ...extraPool.filter((r) => !SEED_POOL.some((s) => s.id === r.id))];
 
   const outDays: ComposedDay[] = [];
-  for (let d = 0; d < days; d++) {
+
+  /** Build one day's meals from the current variety baseline (banL/banD are the
+   *  previous day's lunch/dinner mains, to avoid consecutive repeats). */
+  const buildDayMeals = (banL: string, banD: string): ComposedMeal[] => {
+    let ll = banL; let ld = banD;
     const meals: ComposedMeal[] = [];
     for (const sm of schedule.meals) {
-      const banMain = sm.code === 'l' ? lastLunchMain : sm.code === 'd' ? lastDinnerMain : undefined;
+      const banMain = sm.code === 'l' ? ll : sm.code === 'd' ? ld : undefined;
       const ctx: SelectCtx = { slot: sm.code, prefs, rnd, used, pool, banMain: banMain || undefined };
       const mealKcal = targets.kcal * sm.energy; const mealProtein = targets.protein * sm.energy;
       let meal = composeMeal(sm.code, mealKcal, mealProtein, sm.energy, sm.scheduledTime, ctx);
-
-      // Variety hard rules (Rule 14): breakfast ≤2×/wk; no consecutive lunch/dinner main.
       if (sm.code === 'b') {
         let tries = 0;
-        while ((bfCount.get(meal.title + meal.components[0]?.recipeId) ?? 0) >= 2 && tries < 4) {
+        while ((bfCount.get(meal.components[0]?.recipeId ?? meal.title) ?? 0) >= 2 && tries < 4) {
           meal = composeMeal(sm.code, mealKcal, mealProtein, sm.energy, sm.scheduledTime, ctx); tries++;
         }
         const k = meal.components[0]?.recipeId ?? meal.title;
         bfCount.set(k, (bfCount.get(k) ?? 0) + 1);
       }
       if (sm.code === 'l' || sm.code === 'd') {
-        const mainId = meal.components.find((c) => c.role === 'main')?.recipeId ?? '';
-        const last = sm.code === 'l' ? lastLunchMain : lastDinnerMain;
+        const last = sm.code === 'l' ? ll : ld;
         let tries = 0;
-        while (mainId && mainId === last && tries < 4) {
+        while ((meal.components.find((c) => c.role === 'main')?.recipeId ?? '') === last && last && tries < 4) {
           meal = composeMeal(sm.code, mealKcal, mealProtein, sm.energy, sm.scheduledTime, ctx); tries++;
         }
         const newMain = meal.components.find((c) => c.role === 'main')?.recipeId ?? '';
-        if (sm.code === 'l') lastLunchMain = newMain; else lastDinnerMain = newMain;
+        if (sm.code === 'l') ll = newMain; else ld = newMain;
       }
       meals.push(meal);
     }
-    if (prefs.caps) reduceToCaps(meals, prefs.caps);   // bounded reduce for renal/HTN/DM caps
-    const totals = sumTotals(meals.flatMap((m) => m.components));
+    return meals;
+  };
+
+  /** Recompute the variety ledger + consecutive-main bans from committed days so
+   *  regeneration attempts start from an identical, fair baseline. */
+  const rebaseVariety = () => {
+    used.clear(); bfCount.clear();
+    for (const day of outDays) {
+      for (const m of day.meals) for (const c of m.components) used.set(c.recipeId, (used.get(c.recipeId) ?? 0) + 1);
+      const bid = day.meals.find((m) => m.slot === 'b')?.components[0]?.recipeId;
+      if (bid) bfCount.set(bid, (bfCount.get(bid) ?? 0) + 1);
+    }
+    const last = outDays[outDays.length - 1];
+    lastLunchMain = last?.meals.find((m) => m.slot === 'l')?.components.find((c) => c.role === 'main')?.recipeId ?? '';
+    lastDinnerMain = last?.meals.find((m) => m.slot === 'd')?.components.find((c) => c.role === 'main')?.recipeId ?? '';
+  };
+
+  const blockReason: string[] = [];
+  for (let d = 0; d < days; d++) {
+    rebaseVariety();
+    const baseUsed = new Map(used); const baseBf = new Map(bfCount);
+    const attempt = () => {
+      used.clear(); baseUsed.forEach((v, k) => used.set(k, v));
+      bfCount.clear(); baseBf.forEach((v, k) => bfCount.set(k, v));
+      const meals = buildDayMeals(lastLunchMain, lastDinnerMain);
+      if (prefs.caps) reduceToCaps(meals, prefs.caps);   // bounded reduce for renal/HTN/DM caps
+      const totals = sumTotals(meals.flatMap((m) => m.components));
+      const breaches = capBreaches(totals, prefs.caps);
+      const emptyMeal = meals.some((m) => !m.components.length);
+      return { meals, totals, breaches, emptyMeal };
+    };
+    // Clinical safety gate (QA C3): regenerate a breaching clinical day and keep
+    // the safest attempt; if it still can't meet caps, the week is BLOCKED below.
+    const score = (x: { breaches: string[]; emptyMeal: boolean }) => x.breaches.length + (x.emptyMeal ? 20 : 0);
+    let best = attempt();
+    const maxTries = (prefs.clinical && prefs.caps) ? 6 : 1;
+    for (let t = 1; t < maxTries && score(best) > 0; t++) {
+      const cand = attempt();
+      if (score(cand) < score(best)) best = cand;
+    }
     outDays.push({
       dayIndex: d, fasting: schedule.fasting, protocol: schedule.protocol, window: schedule.window,
-      meals, totals, capBreaches: capBreaches(totals, prefs.caps),
+      meals: best.meals, totals: best.totals, capBreaches: best.breaches,
     });
+    if (best.emptyMeal) blockReason.push(`Day ${d + 1}: a required meal could not be safely filled within your restrictions.`);
+    for (const b of best.breaches) blockReason.push(`Day ${d + 1}: ${b}`);
   }
 
   const grocery = composeGrocery(outDays, { includePantry: prefs.includePantry ?? false });
   const validation = validateWeek(outDays, grocery, targets, prefs.caps);
-  return { days: outDays, grocery, targets, caps: prefs.caps, fasting: schedule.fasting, protocol: schedule.protocol, validation };
+  const blocked = Boolean(prefs.clinical && blockReason.length);
+  return {
+    days: outDays, grocery, targets, caps: prefs.caps, fasting: schedule.fasting, protocol: schedule.protocol,
+    validation, blocked, blockReason: blocked ? [...new Set(blockReason)].slice(0, 20) : undefined,
+  };
 }
 
 /**
@@ -472,7 +541,7 @@ function rescale(c: MealComponentOut, pct: number): void {
   c.grams = Math.round(c.grams * f); c.kcal = Math.round(c.kcal * f);
   c.protein = r1(c.protein * f); c.carbs = r1(c.carbs * f); c.fat = r1(c.fat * f); c.fiber = r1(c.fiber * f);
   c.sodiumMg = Math.round(c.sodiumMg * f); c.potassiumMg = Math.round(c.potassiumMg * f); c.phosphorusMg = Math.round(c.phosphorusMg * f);
-  c.sugarG = r1(c.sugarG * f); c.satFatG = r1(c.satFatG * f);
+  c.sugarG = r1(c.sugarG * f); c.addedSugarG = r1(c.addedSugarG * f); c.satFatG = r1(c.satFatG * f);
   c.ingredients = c.ingredients.map((i) => ({ ...i, grams: Math.round(i.grams * f) }));
   c.portionPct = pct;
 }

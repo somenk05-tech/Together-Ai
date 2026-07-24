@@ -7,96 +7,232 @@
  * against caps on the plate, not just the prescription.
  *
  * na/k/p in mg; sug/sfat in g — all per 100 g of the ingredient.
+ *
+ * Round-2 remediation (QA C1/H1): salt is now modeled (with a per-serving clamp
+ * so the dataset's absurd "salt: 30 g" rows can't blow up sodium), the table is
+ * broadened to the highest-frequency dataset ingredients, several loose
+ * mismatches (tomato paste→tomato, chicken liver→chicken, coconut milk→grated
+ * coconut) get their own correct rows, and common spices/herbs/leavening resolve
+ * to a negligible value so a recipe is no longer marked nutrition-INCOMPLETE
+ * (and silently under-counted) just because it seasons with cumin or pepper.
  */
 export interface NutrientSet { na: number; k: number; p: number; sug: number; sfat: number; addedSug: number }
 
 /** Ingredients that contribute ADDED sugar (what the diabetes cap actually limits). */
-const ADDED_SUGAR = ['sugar', 'jaggery', 'honey', 'custard powder', 'condensed milk', 'syrup'];
+const ADDED_SUGAR = [
+  'sugar', 'jaggery', 'honey', 'custard powder', 'condensed milk', 'syrup',
+  'jam', 'ketchup', 'chocolate', 'maple', 'caramel', 'nutella', 'gulab jamun',
+  'cane sugar', 'brown sugar', 'icing', 'marmalade',
+];
 function isAddedSugar(name: string): boolean {
   const n = name.trim().toLowerCase();
   return ADDED_SUGAR.some((a) => n.includes(a));
 }
 
+/** Salt (any variety) — modeled explicitly with a hard per-serving gram clamp. */
+const SALT_SODIUM_PER_100G = 38758; // mg
+const SALT_MAX_GRAMS_PER_SERVING = 1; // realistic per-dish added-salt ceiling (~388 mg Na)
+export function isSalt(name: string): boolean {
+  const n = name.trim().toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
+  return n === 'salt' || /\b(table|sea|rock|black|pink|kosher|iodized|iodised) salt$/.test(n) || n.endsWith(' salt');
+}
+
 const T: Record<string, [number, number, number, number, number]> = {
   // [na, k, p, sugar, satfat] per 100 g
+  // ── pulses / dals ──
   'split moong dal': [27, 1150, 370, 1.5, 0.1],
   'toor dal': [30, 1390, 370, 2, 0.2],
   'masoor dal': [10, 950, 350, 2, 0.1],
   'chana dal': [40, 720, 300, 3, 0.3],
+  'urad dal': [38, 983, 385, 1.5, 0.2],
   'rajma (kidney beans)': [12, 1400, 400, 2, 0.1],
+  'black beans': [1, 1483, 352, 0.6, 0.1],
+  'black-eyed peas': [16, 1112, 424, 6.9, 0.1],
   'chickpeas': [24, 875, 366, 3, 0.6],
+  'green peas': [5, 244, 108, 5.7, 0.07],
+  'lentils': [6, 955, 351, 2, 0.1],
   'soya chunks': [3, 1700, 600, 10, 0.5],
+  'mixed sprouts': [15, 450, 200, 3, 0.2],
+  // ── aromatics / veg ──
   'onion': [4, 146, 29, 4.2, 0.02],
+  'spring onion': [16, 276, 37, 2.3, 0.03],
   'tomato': [5, 237, 24, 2.6, 0.03],
+  'tomato paste': [59, 1014, 83, 12.2, 0.06],
+  'tomato puree': [28, 439, 37, 6, 0.03],
+  'tomato ketchup': [900, 380, 30, 22, 0.1],
   'ginger-garlic': [15, 400, 150, 1, 0.1],
+  'ginger': [13, 415, 34, 1.7, 0.1],
   'garlic': [17, 401, 153, 1, 0.1],
-  'cooking oil': [0, 0, 0, 0, 14],
-  'butter': [640, 24, 24, 0.1, 51],
-  'ghee': [0, 0, 0, 0, 62],
-  'whole wheat flour': [2, 360, 320, 0.4, 0.3],
-  'jowar flour': [6, 350, 290, 2, 0.5],
-  'bajra flour': [10, 300, 290, 2, 0.7],
-  'rice': [5, 115, 115, 0.1, 0.2],
-  'brown rice': [7, 268, 264, 0.7, 0.3],
-  'foxtail millet': [4, 250, 290, 0.6, 0.6],
-  'semolina (rava)': [1, 186, 136, 0.3, 0.2],
+  'green chili': [7, 340, 46, 5, 0.03],
+  'red chili': [9, 322, 43, 5, 0.4],
   'potato': [6, 421, 57, 0.8, 0.03],
+  'sweet potato': [55, 337, 47, 4.2, 0.02],
   'cauliflower': [30, 299, 44, 1.9, 0.1],
+  'broccoli': [33, 316, 66, 1.7, 0.04],
+  'cabbage': [18, 170, 26, 3.2, 0.03],
   'okra (bhindi)': [7, 299, 61, 1.5, 0.03],
   'mixed vegetables': [40, 300, 60, 3, 0.1],
   'spinach': [79, 558, 49, 0.4, 0.06],
   'coconut (grated)': [20, 356, 113, 6, 30],
+  'coconut milk': [15, 263, 100, 3.3, 21],
   'green beans': [6, 211, 38, 3.3, 0.05],
   'capsicum': [3, 175, 20, 2.5, 0.03],
   'bell pepper': [3, 175, 20, 2.5, 0.03],
+  'mushroom': [5, 318, 86, 2, 0.06],
+  'zucchini': [8, 261, 38, 2.5, 0.03],
   'bottle gourd': [2, 150, 13, 1, 0.02],
   'ash gourd': [10, 100, 20, 1.5, 0.01],
   'ridge gourd': [3, 140, 26, 1.5, 0.02],
+  'pumpkin': [1, 340, 44, 2.8, 0.05],
   'brinjal (eggplant)': [2, 229, 24, 3.5, 0.03],
-  'curd (yogurt)': [46, 155, 95, 4.7, 1.8],
-  'boondi': [200, 100, 120, 1, 3],
   'cucumber': [2, 147, 24, 1.7, 0.01],
   'carrot': [69, 320, 35, 4.7, 0.03],
+  'beetroot': [78, 325, 40, 6.8, 0.02],
+  'radish': [39, 233, 20, 1.9, 0.01],
   'lemon': [2, 138, 16, 2.5, 0.04],
-  'mixed sprouts': [15, 450, 200, 3, 0.2],
-  'cumin seeds': [168, 1788, 499, 2, 1.5],
-  'whey protein': [200, 400, 300, 5, 1],
+  'lettuce': [28, 194, 29, 0.8, 0.01],
+  'celery': [80, 260, 24, 1.3, 0.04],
+  'sweet corn': [15, 270, 89, 3.2, 0.2],
+  'peas': [5, 244, 108, 5.7, 0.07],
+  // ── grains / carbs ──
+  'whole wheat flour': [2, 360, 320, 0.4, 0.3],
+  'all-purpose flour': [2, 107, 108, 0.3, 0.2],
+  'maida': [2, 107, 108, 0.3, 0.2],
+  'jowar flour': [6, 350, 290, 2, 0.5],
+  'bajra flour': [10, 300, 290, 2, 0.7],
+  'rice': [5, 115, 115, 0.1, 0.2],
+  'brown rice': [7, 268, 264, 0.7, 0.3],
+  'basmati rice': [5, 115, 115, 0.1, 0.2],
+  'poha': [3, 130, 110, 0.3, 0.1],
+  'quinoa': [7, 563, 457, 0, 0.7],
+  'couscous': [5, 58, 22, 0.1, 0.03],
+  'pasta': [6, 223, 189, 2.7, 0.3],
+  'noodles': [5, 44, 77, 0.6, 0.4],
+  'vermicelli': [5, 90, 80, 0.5, 0.2],
+  'sabudana': [1, 11, 7, 3, 0.01],
+  'foxtail millet': [4, 250, 290, 0.6, 0.6],
+  'semolina (rava)': [1, 186, 136, 0.3, 0.2],
+  'rolled oats': [2, 350, 410, 1, 1.2],
+  'gram flour (besan)': [64, 846, 318, 3, 0.6],
+  'whole wheat bread': [400, 254, 200, 5, 0.6],
+  'bread': [490, 115, 99, 5, 0.5],
+  // ── oils / fats ──
+  'cooking oil': [0, 0, 0, 0, 14],
+  'vegetable oil': [0, 0, 0, 0, 14],
+  'olive oil': [2, 1, 0, 0, 14],
+  'mustard oil': [0, 0, 0, 0, 12],
+  'sunflower oil': [0, 0, 0, 0, 11],
+  'sesame oil': [0, 0, 0, 0, 14],
+  'coconut oil': [0, 0, 0, 0, 87],
+  'butter': [640, 24, 24, 0.1, 51],
+  'ghee': [0, 0, 0, 0, 62],
+  // ── dairy ──
+  'curd (yogurt)': [46, 155, 95, 4.7, 1.8],
   'milk': [44, 150, 92, 5, 1.9],
-  'sugar': [0, 2, 0, 100, 0],
-  'water': [0, 0, 0, 0, 0],
-  'roasted chana': [40, 720, 300, 3, 0.5],
-  'roasted gram': [40, 720, 300, 3, 0.5],
+  'buttermilk': [105, 130, 80, 4.8, 0.6],
+  'cream': [38, 97, 60, 2.9, 19],
+  'paneer': [18, 138, 130, 1.2, 12],
+  'cheese': [620, 98, 500, 0.5, 19],
+  'tofu': [7, 121, 97, 0.6, 0.7],
+  'condensed milk': [127, 371, 253, 54, 5.5],
+  // ── protein / non-veg ──
+  'eggs': [124, 126, 198, 1.1, 3.1],
+  'egg': [124, 126, 198, 1.1, 3.1],
+  'egg white': [166, 163, 15, 0.7, 0],
+  'chicken': [70, 256, 200, 0, 2.7],
+  'chicken breast': [65, 256, 210, 0, 1],
+  'chicken liver': [71, 230, 297, 0, 1.6],
+  'fish': [60, 380, 240, 0, 1],
+  'prawns': [148, 259, 244, 0, 0.3],
+  'shrimp': [148, 259, 244, 0, 0.3],
+  'mutton': [72, 310, 188, 0, 3.5],
+  'lamb': [72, 310, 188, 0, 8.8],
+  'beef': [72, 318, 198, 0, 6],
+  'pork': [62, 423, 226, 0, 3.8],
+  'keema': [70, 290, 190, 0, 5],
+  // ── nuts / seeds ──
   'almonds': [1, 733, 481, 4.4, 3.7],
   'walnuts': [2, 441, 346, 2.6, 6],
   'cashews': [12, 660, 490, 6, 8],
   'peanuts': [18, 705, 376, 4, 7],
+  'pistachios': [1, 1025, 490, 7.7, 5.4],
   'peanut butter': [400, 550, 350, 9, 10],
-  'eggs': [124, 126, 198, 1.1, 3.1],
-  'sweet corn': [15, 270, 89, 3.2, 0.2],
+  'sesame seeds': [11, 468, 629, 0.3, 6.6],
+  'flax seeds': [30, 813, 642, 1.6, 3.7],
+  'chia seeds': [16, 407, 642, 0, 3.3],
+  'sunflower seeds': [9, 645, 660, 2.6, 4.5],
+  'pumpkin seeds': [7, 809, 1233, 1.4, 8.7],
   'makhana (fox nuts)': [20, 500, 200, 0.1, 0.1],
+  // ── fruits ──
   'apple': [1, 107, 11, 10, 0.03],
   'banana': [1, 358, 22, 12, 0.1],
   'papaya': [8, 182, 10, 8, 0.03],
   'orange': [0, 181, 14, 9, 0.02],
+  'mango': [1, 168, 14, 14, 0.06],
+  'grapes': [2, 191, 20, 15, 0.05],
+  'pomegranate': [3, 236, 36, 14, 0.1],
+  'strawberry': [1, 153, 24, 4.9, 0.01],
+  'pineapple': [1, 109, 8, 10, 0.01],
+  'watermelon': [1, 112, 11, 6, 0.02],
+  'dates': [2, 656, 62, 63, 0.03],
+  'raisins': [11, 749, 101, 59, 0.06],
   'mixed fruit': [3, 200, 15, 10, 0.05],
-  'paneer': [18, 138, 130, 1.2, 12],
-  'tofu': [7, 121, 97, 0.6, 0.7],
-  'dosa batter': [250, 90, 80, 0.5, 0.2],
-  'idli batter': [250, 90, 80, 0.5, 0.2],
-  'gram flour (besan)': [64, 846, 318, 3, 0.6],
-  'rolled oats': [2, 350, 410, 1, 1.2],
+  // ── condiments / misc ──
+  'soy sauce': [5493, 435, 125, 0.4, 0.01],
+  'vinegar': [5, 39, 8, 0.4, 0],
+  'mayonnaise': [635, 20, 27, 1.5, 1.5],
+  'tamarind': [28, 628, 113, 39, 0.03],
+  'gram flour': [64, 846, 318, 3, 0.6],
+  'boondi': [200, 100, 120, 1, 3],
+  'cumin seeds': [168, 1788, 499, 2, 1.5],
+  'cumin': [168, 1788, 499, 2, 1.5],
+  'roasted chana': [40, 720, 300, 3, 0.5],
+  'roasted gram': [40, 720, 300, 3, 0.5],
   'fenugreek leaves': [76, 770, 51, 1, 0.1],
-  'whole wheat bread': [400, 254, 200, 5, 0.6],
-  'cheese': [620, 98, 500, 0.5, 19],
   'mint leaves': [30, 458, 73, 0, 0.07],
   'coriander leaves': [46, 521, 48, 0.9, 0.01],
-  'custard powder': [100, 20, 10, 85, 0.1],
-  'fish': [60, 380, 240, 0, 1],
-  'chicken': [70, 256, 200, 0, 2.7],
+  'curry leaves': [20, 480, 57, 0, 0.1],
+  'whey protein': [200, 400, 300, 5, 1],
   'protein bar': [200, 250, 200, 15, 3],
+  'custard powder': [100, 20, 10, 85, 0.1],
+  'dosa batter': [250, 90, 80, 0.5, 0.2],
+  'idli batter': [250, 90, 80, 0.5, 0.2],
+  'sugar': [0, 2, 0, 100, 0],
+  'brown sugar': [28, 133, 4, 97, 0],
+  'jaggery': [30, 1050, 30, 85, 0.1],
+  'honey': [4, 52, 4, 82, 0],
+  'chocolate': [24, 559, 208, 48, 19],
+  'cocoa powder': [21, 1524, 734, 1.8, 8],
+  'water': [0, 0, 0, 0, 0],
 };
 
-/** Look up an ingredient's nutrients (exact, then paren-stripped, then keyword). */
+/**
+ * Spices, herbs, leavening and seasonings that appear constantly but in tiny
+ * amounts. They resolve to a negligible per-100g value so a recipe is NOT marked
+ * nutrition-incomplete (and silently under-counted) merely for being seasoned.
+ * Sodium-bearing seasonings (baking soda, stock cubes) are given real sodium.
+ */
+const NEGLIGIBLE: Array<[string, [number, number, number, number, number]]> = [
+  ['baking soda', [27360, 9, 0, 0, 0]],
+  ['baking powder', [10600, 20, 8400, 0, 0]],
+  ['bouillon', [24000, 100, 40, 1, 1]],
+  ['stock cube', [24000, 100, 40, 1, 1]],
+  ['soup stock', [900, 60, 20, 0.5, 0.3]],
+  ['yeast', [51, 955, 637, 0, 0.1]],
+];
+const SPICE_TOKENS = [
+  'pepper', 'turmeric', 'chili powder', 'chilli powder', 'red chili powder', 'coriander powder',
+  'garam masala', 'masala', 'cardamom', 'clove', 'cinnamon', 'bay leaf', 'mustard seed', 'mustard',
+  'asafoetida', 'hing', 'fenugreek seed', 'fennel', 'nutmeg', 'mace', 'star anise', 'saffron',
+  'oregano', 'basil', 'thyme', 'rosemary', 'parsley', 'paprika', 'cayenne', 'chaat masala',
+  'kasuri methi', 'dry mango', 'amchur', 'carom', 'ajwain', 'nigella', 'poppy seed', 'dried red chili',
+  'vanilla', 'food color', 'food colour', 'kewra', 'rose water', 'garnish', 'seasoning', 'spice',
+  'black salt', // handled by salt() first, but keep as spice fallback token
+  'green cardamom', 'black cardamom', 'peppercorn', 'italian herbs', 'mixed herbs', 'chives', 'dill',
+];
+const SPICE_DEFAULT: [number, number, number, number, number] = [8, 80, 20, 0.3, 0.1];
+
+/** Look up an ingredient's nutrients (exact, then paren-stripped, then keyword, then spice fallback). */
 function lookup(name: string): [number, number, number, number, number] | null {
   const n = name.trim().toLowerCase();
   if (T[n]) return T[n];
@@ -106,6 +242,8 @@ function lookup(name: string): [number, number, number, number, number] | null {
     const kb = key.replace(/\s*\(.*?\)\s*/g, '').trim();
     if (n.includes(kb) || bare.includes(kb)) return T[key];
   }
+  for (const [tok, v] of NEGLIGIBLE) if (n.includes(tok)) return v;
+  for (const tok of SPICE_TOKENS) if (n.includes(tok)) return SPICE_DEFAULT;
   return null;
 }
 
@@ -117,6 +255,11 @@ function lookup(name: string): [number, number, number, number, number] | null {
 export function computeNutrients(ingredients: Array<{ name: string; grams: number }>): NutrientSet & { complete: boolean } {
   let na = 0, k = 0, p = 0, sug = 0, sfat = 0, addedSug = 0, complete = ingredients.length > 0;
   for (const ing of ingredients) {
+    if (isSalt(ing.name)) {
+      const g = Math.min(ing.grams, SALT_MAX_GRAMS_PER_SERVING);
+      na += (SALT_SODIUM_PER_100G / 100) * g;
+      continue; // salt contributes only sodium; resolved (does not mark incomplete)
+    }
     const v = lookup(ing.name);
     if (!v) { complete = false; continue; }
     const f = ing.grams / 100;

@@ -24,7 +24,7 @@ import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, type MntRule } from './clinical-mnt';
 import { composeWeek, scaleComposedWeek, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
-import { computeNutrients } from './ingredient-nutrients';
+import { computeNutrients, isSalt } from './ingredient-nutrients';
 import {
   QC_PROVIDERS, buildQcMeta, compareStores, applyBadges, refreshTotals, quoteStore, trackFromMeta,
   type QcListItem, type QcMeta, type QcStoreQuote,
@@ -766,13 +766,26 @@ export function computeTargets(inp: TargetInput) {
   const goal = inp.goal || 'maintain';
   const flags = inp.flags ?? {};
 
+  // Life-stage groups (QA H4 fix): pregnancy, lactation and pediatrics change
+  // energy/protein/micronutrients and must never be put on a calorie deficit.
+  const condLower = (inp.conditions ?? []).map((x) => x.toLowerCase()).join(' ');
+  const pregnant = /pregnan/.test(condLower) || flags.pregnant === 'yes' || flags.pregnancy === 'yes';
+  const lactating = /breastfeed|lactat|nursing/.test(condLower) || flags.lactating === 'yes';
+  const trimester = Number(flags.trimester) || 0;
+  const pediatric = age < 18;
+
   const h = height / 100;
   const bmi = h > 0 ? weight / (h * h) : 22;
   const overweight = bmi >= 27;
   const bmr = 10 * weight + 6.25 * height - 5 * age + (sex === 'male' ? 5 : -161);
   const tdee = bmr * activity;
-  const adj = goal === 'lose' ? -0.18 : goal === 'gain' ? (overweight ? 0 : 0.10) : 0;
-  const kcal = Math.max(1400, Math.round(tdee * (1 + adj)));
+  const adj0 = goal === 'lose' ? -0.18 : goal === 'gain' ? (overweight ? 0 : 0.10) : 0;
+  // No calorie deficit during pregnancy, lactation or childhood/adolescence.
+  const adj = (pregnant || lactating || pediatric) ? Math.max(0, adj0) : adj0;
+  let energyExtra = 0;
+  if (pregnant) energyExtra += trimester >= 3 ? 450 : trimester === 1 ? 0 : 340; // ACOG/IOM by trimester
+  if (lactating) energyExtra += 400;
+  const kcal = Math.max(1400, Math.round(tdee * (1 + adj)) + energyExtra);
 
   const refWeight = bmi >= 27 ? Math.round(25 * h * h) : weight;
   // Evidence-based protein prescription (g/kg/day):
@@ -786,6 +799,8 @@ export function computeTargets(inp: TargetInput) {
   if (goal === 'lose') proteinPerKg = Math.max(proteinPerKg, 1.4);           // weight loss 1.2–1.6
   if (goal === 'gain') proteinPerKg = Math.max(proteinPerKg, 1.8);           // strength / muscle gain 1.6–2.2
   if (activity >= 1.8 && goal !== 'gain') proteinPerKg = Math.max(proteinPerKg, 1.4); // endurance 1.2–1.7
+  if (pregnant || lactating) proteinPerKg = Math.max(proteinPerKg, 1.1);     // pregnancy/lactation ≥1.1 g/kg
+  if (pediatric) proteinPerKg = Math.max(proteinPerKg, 1.0);                 // growth
   const fatPct = 0.27;
   let fiber = Math.max(25, Math.min(50, Math.round((kcal / 1000) * 14)));
 
@@ -839,7 +854,14 @@ export function computeTargets(inp: TargetInput) {
   // Geriatric fluids (ESPEN): ≥1.6 L/day drinks for women, ≥2.0 L/day for men.
   const geriatricFluidMl = age >= 65 ? (sex === 'female' ? 1600 : 2000) : 0;
 
-  const protein = Math.round(proteinPerKg * refWeight);
+  // Pregnancy/lactation add ~25 g/day on top of the per-kg prescription.
+  const proteinExtraG = (pregnant ? 25 : 0) + (lactating ? 25 : 0);
+  const micro: { ironMgMin?: number; folateMcgMin?: number; calciumMgMin?: number } = {};
+  if (pregnant) { micro.ironMgMin = 27; micro.folateMcgMin = 600; micro.calciumMgMin = 1000; adjustments.push('Pregnancy: energy raised by trimester, protein +25 g/day (≥1.1 g/kg), iron 27 mg, folate 600 mcg, calcium 1,000 mg — no calorie deficit. Confirm with your obstetrician.'); }
+  if (lactating) { micro.ironMgMin = Math.max(micro.ironMgMin ?? 0, 9); micro.folateMcgMin = Math.max(micro.folateMcgMin ?? 0, 500); micro.calciumMgMin = 1000; adjustments.push('Breastfeeding: +~400 kcal/day, protein +25 g/day, adequate iron/folate/calcium — no calorie deficit.'); }
+  if (pediatric) adjustments.push('Under 18: growth-appropriate energy (no weight-loss deficit) and protein ≥1.0 g/kg. Pediatric nutrition should be supervised by a pediatric dietitian — these targets are a general guide only.');
+
+  const protein = Math.round(proteinPerKg * refWeight) + proteinExtraG;
   const fat = Math.round((kcal * fatPct) / 9);
   const carb = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
   const split: Record<'b' | 'l' | 's' | 'd', number> = { b: 0.25, l: 0.32, s: 0.13, d: 0.30 };
@@ -858,6 +880,10 @@ export function computeTargets(inp: TargetInput) {
     sugarMaxG, satFatMaxG, sodiumMaxMg, potassiumMinMg,
     ...(potassiumMaxMg ? { potassiumMaxMg } : {}),
     ...(phosphorusMaxMg ? { phosphorusMaxMg } : {}),
+    pregnant, lactating, pediatric,
+    ...(micro.ironMgMin ? { ironMgMin: micro.ironMgMin } : {}),
+    ...(micro.folateMcgMin ? { folateMcgMin: micro.folateMcgMin } : {}),
+    ...(micro.calciumMgMin ? { calciumMgMin: micro.calciumMgMin } : {}),
     perMeal, adjustments,
   };
 }
@@ -4368,11 +4394,13 @@ export class NutritionService implements OnModuleInit {
       ? plateWeight / totalRecipeWeight
       : 1 / Math.max(1, shape.servings);
     const round1 = (n: number) => Math.round(n * 10) / 10;
-    const perPlateIngredients = r.ingredients.map((i) => ({
-      name: i.name,
-      grams: round1(Math.max(0, i.grams || 0) * factor),
-      priceInr: Math.round(Math.max(0, i.priceInr || 0) * factor),
-    }));
+    const perPlateIngredients = r.ingredients.map((i) => isSalt(i.name)
+      ? { name: 'Salt', grams: 0, priceInr: 0, toTaste: true }               // salt is always "to taste"
+      : {
+        name: i.name,
+        grams: round1(Math.max(0, i.grams || 0) * factor),
+        priceInr: Math.round(Math.max(0, i.priceInr || 0) * factor),
+      });
 
     return {
       ...shape,
@@ -5236,11 +5264,21 @@ export class NutritionService implements OnModuleInit {
   // ─────────────── supplements (goal + biomarker matched) ───────────────
   async supplements(userId: string) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const conditions = ex.healthConditions ?? [];
     const panel = await this.bloodPanel(userId);
     const flags: Record<string, MarkerStatus> = {};
     for (const m of panel.markers) flags[m.key] = m.status as MarkerStatus;
-    const kit = supplementKit(pref?.goal ?? 'maintain', flags);
-    return { goal: pref?.goal ?? 'maintain', kit, totalInr: kit.reduce((s, k) => s + k.priceInr, 0) };
+    const kit = supplementKit(pref?.goal ?? 'maintain', flags, { conditions, age: pref?.age ?? 30 });
+    // Condition-specific safety cautions surfaced alongside the kit (QA H3).
+    const c = conditions.join(' ').toLowerCase();
+    const cautions: string[] = [];
+    if (/kidney|renal|ckd|dialysis|nephro/.test(c)) cautions.push('Kidney disease: avoid protein powders, creatine, and standard multivitamins/electrolyte or potassium supplements unless your nephrologist approves — they can raise potassium, phosphorus and nitrogen load.');
+    if (/pregnan/.test(c)) cautions.push('Pregnancy: use a prenatal formula and avoid high-dose preformed vitamin A (retinol). Confirm every supplement with your obstetrician.');
+    if (/breastfeed|lactat|nursing/.test(c)) cautions.push('Breastfeeding: continue a prenatal/postnatal multivitamin; confirm doses with your clinician.');
+    if (/liver|cirrhosis|hepat/.test(c)) cautions.push('Liver disease: avoid megadose vitamin A, niacin and herbal/“fat-burner” supplements — several are hepatotoxic. Confirm with your hepatologist.');
+    if ((pref?.age ?? 30) < 18) cautions.push('Under 18: performance supplements (whey, creatine) are omitted — use food-first nutrition and a pediatric clinician’s guidance.');
+    return { goal: pref?.goal ?? 'maintain', kit, cautions, totalInr: kit.reduce((s, k) => s + k.priceInr, 0) };
   }
 
   // ─────────────── expert care (dietitians → real chat) ───────────────

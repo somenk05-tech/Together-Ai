@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLiveTitle, usePerson, useWatchlist, useToggleWatch, useStreamSources, type LiveMovie, type TitleRef } from '../api';
-import { ShareToChat } from '@/features/chat/share';
+import { UniversalShareSheet, useShareSend } from '@/components/share/UniversalShareSheet';
 import type { ShareCard } from '@/types';
 
 /** Build a rich chat share-card from any movie/TV title. */
@@ -141,6 +141,45 @@ export function Pager({ page, totalPages, onPage }: { page: number; totalPages: 
   );
 }
 
+/**
+ * Subtle secondary Share action for a title. Opens the reusable
+ * UniversalShareSheet with the movie's poster/title/genres/rating as its
+ * preview and reuses the app's existing chat-share send path.
+ */
+export function TitleShareButton({ m }: { m: TitleRef | (LiveMovie & { type?: 'movie' | 'tv' }) }) {
+  const [open, setOpen] = useState(false);
+  const shareSend = useShareSend();
+  const card = titleShareCard(m);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+        aria-label={`Share ${m.title}`}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          background: 'none', border: '1px solid var(--line)', color: 'var(--muted)',
+          borderRadius: 999, padding: '4px 11px', fontSize: 12, fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}
+      >
+        <span aria-hidden>↗</span> Share
+      </button>
+      {open && (
+        <UniversalShareSheet
+          open
+          onClose={() => setOpen(false)}
+          shareKind={card.kind}
+          shareRef={card.deepLink ?? String(m.id)}
+          preview={{ imageUrl: card.image, title: m.title, subtitle: card.subtitle ?? undefined, meta: card.meta }}
+          onSend={(recipients, message) => shareSend(recipients, message, card)}
+          heading="Share with"
+        />
+      )}
+    </>
+  );
+}
+
 export function TitleCard({ m, i, badge, sub, onOpen }: { m: TitleRef | (LiveMovie & { type?: 'movie' | 'tv' }); i: number; badge?: string; sub?: string; onOpen: (sel: TitleSel) => void }) {
   return (
     <div role="button" tabIndex={0} className="mvk-card"
@@ -160,9 +199,10 @@ export function TitleCard({ m, i, badge, sub, onOpen }: { m: TitleRef | (LiveMov
           <span>{m.language}</span>
           {m.genres.slice(0, 2).map((g) => <span key={g}>{g}</span>)}
         </div>
-        {/* 💬 Send to Chat — stop the card's open-sheet click. */}
+        {/* Subtle secondary "Share" action — opens the Universal Share Sheet.
+            stopPropagation so it never triggers the card's open-sheet click. */}
         <div style={{ marginTop: 8 }} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-          <ShareToChat item={titleShareCard(m)} label="Send" />
+          <TitleShareButton m={m} />
         </div>
       </div>
     </div>

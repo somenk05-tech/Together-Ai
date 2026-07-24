@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { http as api } from '@/api/client';
 
 /* Types mirror the backend meal-composer output (Meal-Planning-Engine-Spec). */
-export interface MealIngredient { name: string; grams: number; pantry: boolean }
+export interface MealIngredient { name: string; grams: number; pantry: boolean; toTaste?: boolean }
 export interface MealComponent {
   recipeId: string; name: string; role: string; category: string;
   portionPct: number; grams: number;
@@ -31,6 +31,10 @@ export interface ComposedWeek {
   targets: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
   fasting: boolean; protocol: string | null;
   validation: { ok: boolean; issues: string[] };
+  /** Clinical safety gate: when true, a clinical plan could not be made to meet its
+   *  medical caps — the UI must warn instead of presenting it as certified-safe. */
+  blocked?: boolean;
+  blockReason?: string[];
   prescription: { kcal: number; protein: number; carb: number; fat: number; fiber: number };
   fastingSafety: { level: 'ok' | 'warn' | 'block'; notes: string[] };
   basedOnFamily?: { ownerName: string; factor: number };

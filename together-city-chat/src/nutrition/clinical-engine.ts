@@ -267,19 +267,53 @@ export interface SupplementDef {
 
 /** Goal-matched base kit, upgraded by blood-panel flags. Food-first framing;
  *  consumer-level (oral) guidance only — confirm dosing with a clinician. */
-export function supplementKit(goal: string, flags: Record<string, MarkerStatus>): SupplementDef[] {
+export function supplementKit(
+  goal: string,
+  flags: Record<string, MarkerStatus>,
+  opts?: { conditions?: string[]; age?: number },
+): SupplementDef[] {
+  // Condition-aware safety (QA H3 fix): the kit must never recommend a supplement
+  // that is contraindicated for the user's condition (e.g. whey/creatine in CKD,
+  // high-dose retinol in pregnancy). These guards gate every push below.
+  const conds = (opts?.conditions ?? []).join(' ').toLowerCase();
+  const renal = /kidney|renal|ckd|dialysis|nephro/.test(conds);
+  const pregnant = /pregnan/.test(conds);
+  const lactating = /breastfeed|lactat|nursing/.test(conds);
+  const pediatric = (opts?.age ?? 30) < 18;
+
   const kit: SupplementDef[] = [
     { name: 'Omega-3 (fish oil)', purpose: 'Heart, joints, recovery; helps triglycerides', dose: '1000 mg', timing: 'With lunch', priceInr: 649, citations: ['ESPEN-OB'] },
-    { name: 'Daily multivitamin', purpose: 'Micronutrient safety net at ~RDA', dose: '1 tablet', timing: 'After breakfast', priceInr: 449, citations: ['ESPEN-CAN'] },
   ];
-  if (goal === 'gain') {
-    kit.push(
-      { name: 'Whey protein', purpose: 'Reach your protein target', dose: '30 g scoop', timing: 'Post-workout', priceInr: 1899, citations: ['ESPEN-POLY'] },
-      { name: 'Creatine monohydrate', purpose: 'Strength and lean mass', dose: '5 g', timing: 'Any time, daily', priceInr: 799, citations: ['ESPEN-POLY'] },
-    );
+  // Multivitamin varies by condition: prenatal for pregnancy/lactation, a
+  // renal-specific (low A/K/P) vitamin for CKD, generic otherwise.
+  if (pregnant || lactating) {
+    kit.push({ name: 'Prenatal multivitamin', purpose: 'Pregnancy/lactation micronutrient cover — folate, iron, iodine, choline', dose: '1 tablet', timing: 'After breakfast', priceInr: 599, citations: ['NIH-ODS'],
+      reference: 'Use a PRENATAL formula. Avoid high-dose preformed vitamin A / retinol (>3,000 mcg RAE) — teratogenic. Pregnancy: folate 600 mcg, iron 27 mg (NIH ODS). Confirm with your obstetrician.' });
+  } else if (renal) {
+    kit.push({ name: 'Renal vitamin (B-complex)', purpose: 'CKD-appropriate micronutrient support', dose: '1 tablet', timing: 'After a meal', priceInr: 499, citations: ['NIH-ODS'],
+      reference: 'Use a RENAL (low/no vitamin A, potassium and phosphorus) formulation — standard multivitamins can add potassium/phosphorus load. Confirm with your nephrologist.' });
+  } else {
+    kit.push({ name: 'Daily multivitamin', purpose: 'Micronutrient safety net at ~RDA', dose: '1 tablet', timing: 'After breakfast', priceInr: 449, citations: ['ESPEN-CAN'] });
   }
-  if (goal === 'lose') {
+  if (goal === 'gain') {
+    // Whey adds a protein/nitrogen load (unsafe in CKD) and neither whey nor
+    // creatine is appropriate for under-18s or pregnancy/lactation without supervision.
+    if (!renal && !pediatric && !pregnant && !lactating) {
+      kit.push({ name: 'Whey protein', purpose: 'Reach your protein target', dose: '30 g scoop', timing: 'Post-workout', priceInr: 1899, citations: ['ESPEN-POLY'] });
+      kit.push({ name: 'Creatine monohydrate', purpose: 'Strength and lean mass', dose: '5 g', timing: 'Any time, daily', priceInr: 799, citations: ['ESPEN-POLY'] });
+    }
+  }
+  if (goal === 'lose' && !pregnant && !lactating && !pediatric) {
     kit.push({ name: 'Psyllium fibre', purpose: 'Satiety and gut health', dose: '5 g in water', timing: 'Before dinner', priceInr: 349, citations: ['ESPEN-OB'] });
+  }
+  // Pregnancy needs folate + iron even without an abnormal blood flag.
+  if (pregnant) {
+    kit.push({ name: 'Folic acid', purpose: 'Neural-tube-defect prevention (pregnancy)', dose: '400–600 mcg', timing: 'With breakfast', priceInr: 249, citations: ['NIH-ODS'],
+      reference: 'Pregnancy RDA 600 mcg DFE. Confirm dose with your obstetrician.' });
+    if (flags.ferritin !== 'low' && flags.hb !== 'low') {
+      kit.push({ name: 'Iron (as advised)', purpose: 'Pregnancy iron demand', dose: '27 mg', timing: 'Alternate mornings with vitamin C', priceInr: 399, citations: ['NIH-ODS'],
+        reference: 'Pregnancy RDA 27 mg. Take only as advised by your clinician (NIH ODS).' });
+    }
   }
   if (flags.vitd === 'low') {
     kit.push({ name: 'Vitamin D3', purpose: 'Corrects low vitamin D (aim 30–60 ng/mL)', dose: '1000–2000 IU', timing: 'With a fatty meal', priceInr: 299, citations: ['ESPEN-MN', 'NIH-ODS'],

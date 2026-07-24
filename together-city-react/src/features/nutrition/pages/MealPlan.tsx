@@ -70,7 +70,7 @@ function MealCardV2({ meal }: { meal: ComposedMeal }) {
             <div key={c.recipeId + c.role} style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name} <span className="muted" style={{ fontWeight: 400 }}>· {c.minutes} min</span></div>
               <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                {c.ingredients.map((i) => `${i.name} ${i.grams}g${i.pantry ? ' (pantry)' : ''}`).join(' · ')}
+                {c.ingredients.map((i) => i.toTaste ? `${i.name} (to taste)` : `${i.name} ${i.grams}g${i.pantry ? ' (pantry)' : ''}`).join(' · ')}
               </div>
             </div>
           ))}
@@ -106,8 +106,8 @@ function MealCardV2({ meal }: { meal: ComposedMeal }) {
             <div className="muted" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>Ingredients</div>
             {open.ingredients.map((i) => (
               <div key={i.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
-                <span>{i.name}{i.pantry && <span className="muted" style={{ fontSize: 11 }}> · pantry</span>}</span>
-                <span className="muted">{i.grams} g</span>
+                <span>{i.name}{i.pantry && !i.toTaste && <span className="muted" style={{ fontSize: 11 }}> · pantry</span>}</span>
+                <span className="muted">{i.toTaste ? 'to taste' : `${i.grams} g`}</span>
               </div>
             ))}
           </div>
@@ -224,6 +224,13 @@ export function MealPlan() {
         Complete meals from your prescription ({wk.prescription.kcal} kcal · {wk.prescription.protein} g protein).
         {wk.fasting ? ` Intermittent fasting: ${wk.protocol}.` : ''}
       </p>
+      {wk.blocked && (
+        <div role="alert" style={{ background: '#fdecec', border: '1px solid #e0a0a0', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 12.5 }}>
+          <strong>⚠ This plan could not be fully certified against your medical limits.</strong>
+          <div style={{ marginTop: 4 }}>We couldn’t keep every day within your clinical targets with the recipes available. Please review with your clinician or dietitian before following it.</div>
+          {wk.blockReason?.length ? <ul style={{ margin: '6px 0 0 16px' }}>{wk.blockReason.slice(0, 4).map((r) => <li key={r}>{r}</li>)}</ul> : null}
+        </div>
+      )}
       {wk.basedOnFamily && (
         <div style={{ background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12.5 }}>
           Based on <strong>{wk.basedOnFamily.ownerName}'s</strong> family meal plan — same dishes and times, portions scaled to your needs ({Math.round(wk.basedOnFamily.factor * 100)}%). This view is read-only.
@@ -321,6 +328,11 @@ export function MealPlanToday() {
       <p className="muted" style={{ fontSize: 13, margin: '6px 0 14px' }}>
         Your five meals for today, on schedule.{wk.fasting ? ` Fasting: ${wk.protocol} (${d.window.start}–${d.window.end}).` : ''}
       </p>
+      {wk.blocked && (
+        <div role="alert" style={{ background: '#fdecec', border: '1px solid #e0a0a0', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 12.5 }}>
+          <strong>⚠ This plan could not be fully certified against your medical limits.</strong> Please review with your clinician or dietitian before following it.
+        </div>
+      )}
       {d.meals.map((m) => <MealCardV2 key={m.slot} meal={m} />)}
       <Card style={{ padding: '14px 18px', marginTop: 6 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
