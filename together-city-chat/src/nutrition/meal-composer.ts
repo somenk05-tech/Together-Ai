@@ -182,56 +182,111 @@ function mealTitle(slot: SlotCode, comps: MealComponentOut[], prefs: ComposerPre
 
 /* ─────────────────────────── Compose one meal ─────────────────────────── */
 
-function composeMeal(slot: SlotCode, targetKcal: number, energyPct: number, scheduledTime: string, ctx: SelectCtx): ComposedMeal {
-  const def = SLOT_BY_CODE[slot];
-  let components: MealComponentOut[] = [];
+interface Sel { r: PoolRecipe; role: string }
 
-  const use = (r: PoolRecipe | null, role: string, pct = 100) => {
-    if (!r) return;
-    ctx.used.set(r.id, (ctx.used.get(r.id) ?? 0) + 1);
-    components.push(scaleComponent(r, pct, role));
-  };
+/** Per-role portion bounds (% of a standard serving). Removes the fixed-100%
+ *  caloric floor so lower prescriptions can actually be met (fixes CRIT-2). */
+const ROLE_BOUNDS: Record<string, [number, number]> = {
+  main: [50, 150], dal: [45, 150], carb: [35, 180], vegetable: [55, 135], salad: [50, 130],
+  dairy: [50, 130], soup: [50, 140], snack: [40, 170], breakfast: [55, 165], drink: [45, 160],
+  dessert: [40, 120], side: [45, 150], condiment: [50, 120],
+};
+
+/**
+ * Day-level portion solver at the meal grain (Workstream B). First scales every
+ * flexible component jointly toward the meal's kcal target within per-role
+ * bounds (removes the fixed-serving floor), then trades calories from
+ * low-protein-density roles to high-protein-density roles at ~constant kcal to
+ * hit the protein target too — so both kcal and protein track the prescription.
+ */
+function fitMeal(sel: Sel[], targetKcal: number, proteinTarget: number): MealComponentOut[] {
+  if (!sel.length) return [];
+  const bounds = (role: string): [number, number] => ROLE_BOUNDS[role] ?? [50, 150];
+  const lo = (s: Sel) => bounds(s.role)[0];
+  const hi = (s: Sel) => bounds(s.role)[1];
+
+  const base = sel.reduce((t, s) => t + s.r.kcal, 0) || 1;
+  const scale = sel.map((s) => Math.max(lo(s), Math.min(hi(s), (targetKcal / base) * 100)));
+
+  // 1) Fit calories: push the residual onto components with headroom.
+  for (let it = 0; it < 8; it++) {
+    const total = sel.reduce((t, s, i) => t + s.r.kcal * scale[i] / 100, 0);
+    const residual = targetKcal - total;
+    if (Math.abs(residual) / Math.max(1, targetKcal) < 0.02) break;
+    const dir = residual > 0 ? 1 : -1;
+    const movable = sel.map((s, i) => ({ i, room: dir > 0 ? hi(s) - scale[i] : scale[i] - lo(s), k: s.r.kcal }))
+      .filter((m) => m.room > 0.5 && m.k > 0);
+    const kcalRoom = movable.reduce((t, m) => t + m.k * m.room / 100, 0);
+    if (kcalRoom < 1) break;
+    const apply = Math.min(Math.abs(residual), kcalRoom) * dir;
+    for (const m of movable) {
+      const share = (m.k / 100) / kcalRoom * apply;
+      scale[m.i] = Math.max(lo(sel[m.i]), Math.min(hi(sel[m.i]), scale[m.i] + (share / m.k) * 100));
+    }
+  }
+
+  // 2) Trade toward the protein target at ~constant calories: shift kcal from the
+  // lowest protein-density component to the highest, keeping total kcal steady.
+  const pDens = (s: Sel) => s.r.protein / Math.max(1, s.r.kcal);
+  for (let it = 0; it < 8; it++) {
+    const protein = sel.reduce((t, s, i) => t + s.r.protein * scale[i] / 100, 0);
+    if (protein >= proteinTarget * 0.98) break;
+    let hiC = -1, loC = -1, hiD = -1, loD = Infinity;
+    sel.forEach((s, i) => {
+      const d = pDens(s);
+      if (hi(s) - scale[i] > 0.5 && d > hiD) { hiD = d; hiC = i; }
+      if (scale[i] - lo(s) > 0.5 && d < loD) { loD = d; loC = i; }
+    });
+    if (hiC < 0 || loC < 0 || hiC === loC || pDens(sel[hiC]) <= pDens(sel[loC])) break;
+    const moveKcal = Math.min(
+      (hi(sel[hiC]) - scale[hiC]) / 100 * sel[hiC].r.kcal,
+      (scale[loC] - lo(sel[loC])) / 100 * sel[loC].r.kcal,
+      50,
+    );
+    if (moveKcal < 5) break;
+    scale[hiC] += (moveKcal / sel[hiC].r.kcal) * 100;
+    scale[loC] -= (moveKcal / sel[loC].r.kcal) * 100;
+  }
+
+  return sel.map((s, i) => scaleComponent(s.r, Math.round(scale[i]), s.role));
+}
+
+function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, energyPct: number, scheduledTime: string, ctx: SelectCtx): ComposedMeal {
+  const def = SLOT_BY_CODE[slot];
+  const sel: Sel[] = [];
+  const take = (r: PoolRecipe | null, role: string) => { if (r) { ctx.used.set(r.id, (ctx.used.get(r.id) ?? 0) + 1); sel.push({ r, role }); } };
 
   if (slot === 'b') {
     const bf = pick('breakfast', ctx);
-    // scale breakfast toward target, clamp 60–160%
-    const basePct = bf ? Math.max(60, Math.min(160, Math.round((targetKcal / Math.max(1, bf.kcal)) * 100))) : 100;
-    use(bf, 'breakfast', basePct);
-    if (sumTotals(components).kcal < targetKcal * 0.85) use(pick('snack', { ...ctx, slot }), 'side', 60);
+    take(bf, 'breakfast');
+    // If breakfast alone can't reach ~85% of target even at max scale, add a light side.
+    if (bf && bf.kcal * 1.6 < targetKcal * 0.85) take(pick('snack', ctx), 'side');
   } else if (slot === 'ms' || slot === 'es') {
-    const sn = pick('snack', ctx) ?? pick('drink', ctx);
-    const basePct = sn ? Math.max(60, Math.min(180, Math.round((targetKcal / Math.max(1, sn.kcal)) * 100))) : 100;
-    use(sn, 'snack', basePct);
+    take(pick('snack', ctx) ?? pick('drink', ctx), 'snack');
   } else {
     // Lunch / dinner composite plate (Rules 6, 7)
-    use(pick('main', ctx), 'main');
-    use(pick('dal', ctx), 'dal');
-    use(pick('vegetable', ctx), 'vegetable');
-    // carb: lunch rice-centric; dinner roti (avoid rice unless requested)
+    take(pick('main', ctx), 'main');
+    take(pick('dal', ctx), 'dal');
+    take(pick('vegetable', ctx), 'vegetable');
     const carbCands = candidates('carb', ctx);
     const wantRice = slot === 'l' && !ctx.prefs.avoidRice;
     const carb = carbCands.length
       ? (wantRice ? (carbCands.find((c) => /rice|millet/i.test(c.name)) ?? carbCands[0])
                   : (carbCands.find((c) => /roti|phulka/i.test(c.name)) ?? carbCands[0]))
       : null;
-    // size carb to fill the gap to target
-    if (carb) {
-      const soFar = sumTotals(components).kcal;
-      const gap = Math.max(0, targetKcal - soFar - 60 /* salad+curd */);
-      const pct = Math.max(50, Math.min(250, Math.round((gap / Math.max(1, carb.kcal)) * 100)));
-      use(carb, 'carb', pct);
-    }
-    use(pick('salad', ctx), 'salad');
-    if (ctx.prefs.diet !== 'vegan') use(pick('dairy', ctx), 'dairy');
-    if (slot === 'd') { const soup = pick('soup', ctx); if (soup && sumTotals(components).kcal < targetKcal * 0.8) use(soup, 'soup', 80); }
+    take(carb, 'carb');
+    take(pick('salad', ctx), 'salad');
+    if (ctx.prefs.diet !== 'vegan') take(pick('dairy', ctx), 'dairy');
+    if (slot === 'd') take(pick('soup', ctx), 'soup');
   }
 
   // Guarantee at least one component (never an empty meal — Rule 1).
-  if (!components.length) {
+  if (!sel.length) {
     const any = ctx.pool.find((r) => r.categories.some((c) => def.categories.includes(c)) && dietOk(r.diet, ctx.prefs.diet ?? 'vegetarian'));
-    if (any) use(any, 'main', 100);
+    take(any ?? null, 'main');
   }
 
+  const components = fitMeal(sel, targetKcal, proteinTarget);
   const totals = sumTotals(components);
   return {
     slot, key: def.key, label: def.label, title: mealTitle(slot, components, ctx.prefs),
@@ -257,13 +312,14 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
     const meals: ComposedMeal[] = [];
     for (const sm of schedule.meals) {
       const ctx: SelectCtx = { slot: sm.code, prefs, rnd, used, pool };
-      let meal = composeMeal(sm.code, targets.kcal * sm.energy, sm.energy, sm.scheduledTime, ctx);
+      const mealKcal = targets.kcal * sm.energy; const mealProtein = targets.protein * sm.energy;
+      let meal = composeMeal(sm.code, mealKcal, mealProtein, sm.energy, sm.scheduledTime, ctx);
 
       // Variety hard rules (Rule 14): breakfast ≤2×/wk; no consecutive lunch/dinner main.
       if (sm.code === 'b') {
         let tries = 0;
         while ((bfCount.get(meal.title + meal.components[0]?.recipeId) ?? 0) >= 2 && tries < 4) {
-          meal = composeMeal(sm.code, targets.kcal * sm.energy, sm.energy, sm.scheduledTime, ctx); tries++;
+          meal = composeMeal(sm.code, mealKcal, mealProtein, sm.energy, sm.scheduledTime, ctx); tries++;
         }
         const k = meal.components[0]?.recipeId ?? meal.title;
         bfCount.set(k, (bfCount.get(k) ?? 0) + 1);
@@ -273,7 +329,7 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
         const last = sm.code === 'l' ? lastLunchMain : lastDinnerMain;
         let tries = 0;
         while (mainId && mainId === last && tries < 4) {
-          meal = composeMeal(sm.code, targets.kcal * sm.energy, sm.energy, sm.scheduledTime, ctx); tries++;
+          meal = composeMeal(sm.code, mealKcal, mealProtein, sm.energy, sm.scheduledTime, ctx); tries++;
         }
         const newMain = meal.components.find((c) => c.role === 'main')?.recipeId ?? '';
         if (sm.code === 'l') lastLunchMain = newMain; else lastDinnerMain = newMain;
