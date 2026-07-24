@@ -221,9 +221,12 @@ export interface WhyForYou {
   personalised: boolean; headline: string; points: WhyPoint[];
   summary: string; cites: { id: string; label: string; ref: string }[];
 }
+export interface RecipeNutrients { sodiumMg: number; potassiumMg: number; phosphorusMg: number; sugarG: number; addedSugarG: number; satFatG: number; complete: boolean }
+export interface RecipeMicros { ironMg: number; calciumMg: number; vitDUg: number; vitCMg: number }
 export interface RecipeDetail extends Recipe {
   ingredients: RecipeIngredient[]; method?: string[]; cookSteps?: CookStep[];
   sides?: PlateSides; whyForYou?: WhyForYou;
+  nutrients?: RecipeNutrients; micros?: RecipeMicros; curated?: boolean;
 }
 export interface GroceryItem {
   id: string; name: string;

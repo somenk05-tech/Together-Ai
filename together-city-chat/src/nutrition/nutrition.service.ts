@@ -4641,12 +4641,21 @@ export class NutritionService implements OnModuleInit {
         priceInr: Math.round(Math.max(0, i.priceInr || 0) * factor),
       });
 
+    // Computed micronutrient/clinical panel for ONE plate (same engine the meal
+    // planner uses) — sodium/sugar/sat-fat + iron/calcium/vit D/C. Honest: values
+    // are 0 where an ingredient doesn't resolve; `complete` flags coverage.
+    const nutSrc = perPlateIngredients.map((i) => ({ name: i.name, grams: i.grams }));
+    const nut = computeNutrients(nutSrc);
+    const mic = computeMicros(nutSrc);
+
     return {
       ...shape,
       // Per-ONE-plate ingredient quantities (the UI multiplies by the chosen serving count).
       ingredients: perPlateIngredients,
       plateWeight,               // grams on a single plate (== gramsPerServing)
       totalRecipeWeight,         // full-batch weight the scaling was derived from
+      nutrients: { sodiumMg: nut.na, potassiumMg: nut.k, phosphorusMg: nut.p, sugarG: nut.sug, addedSugarG: nut.addedSug, satFatG: nut.sfat, complete: nut.complete },
+      micros: mic,               // ironMg, calciumMg, vitDUg, vitCMg
       method: cookSteps.map((s) => s.text), // back-compat plain list
       cookSteps,                            // structured: text + timer + attention
       sides,
@@ -4674,6 +4683,8 @@ export class NutritionService implements OnModuleInit {
       ingredients,
       plateWeight: Math.max(1, seed.grams),
       totalRecipeWeight: seed.ingredients.reduce((t, i) => t + Math.max(0, i.grams || 0), 0),
+      nutrients: { sodiumMg: seed.nutrients.sodiumMg, potassiumMg: seed.nutrients.potassiumMg, phosphorusMg: seed.nutrients.phosphorusMg, sugarG: seed.nutrients.sugarG, addedSugarG: seed.nutrients.addedSugarG, satFatG: seed.nutrients.satFatG, complete: seed.nutrientComplete },
+      micros: computeMicros(seed.ingredients.map((i) => ({ name: i.name, grams: i.grams }))),
       method: cookSteps.map((s) => s.text),
       cookSteps,
     };
