@@ -163,6 +163,8 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/jobs/profile', index: '01', label: 'Resume & Profile', sub: 'Upload once, we parse it' },
       { path: '/jobs/matches', index: '02', label: 'Jobs for you', sub: 'Ranked by fit' },
       { path: '/jobs/applications', index: '03', label: 'My Applications', sub: 'Track your applies' },
+      { path: '/jobs/post', index: '04', label: 'Post a Job', sub: 'Hiring? Publish a role' },
+      { path: '/jobs/postings', index: '05', label: 'My Postings', sub: 'Your roles & applicants' },
     ],
   },
   fitness: {

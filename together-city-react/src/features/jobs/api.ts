@@ -10,7 +10,7 @@ export interface JobMatch {
   id: string; title: string; company: string; location: string; remote: boolean;
   seniority: string; salaryLpa: number; blurb: string; minYears: number;
   score: number; matchedSkills: Skill[]; missingSkills: Skill[]; reasons: string[];
-  applied: boolean; postedByYou?: boolean;
+  applied: boolean; postedByYou?: boolean; fitLabel?: 'strong' | 'good' | 'fair' | 'weak';
 }
 export interface MatchesResponse { hasProfile: boolean; matches: JobMatch[] }
 export interface Application { id: string; jobId: string; title: string; company: string; status: string; coverNote: string | null; appliedOn: string }

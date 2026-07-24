@@ -35,7 +35,7 @@ export function Postings() {
   const [openId, setOpenId] = useState<string | null>(null);
 
   if (q.isLoading) return <Spinner label="Loading your postings…" />;
-  if (q.isError || !q.data) return <EmptyState title="Couldn't load postings" hint="Start the backend and reload." />;
+  if (q.isError || !q.data) return <EmptyState title="Couldn't load your postings" hint="Please check your connection and try again." />;
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>

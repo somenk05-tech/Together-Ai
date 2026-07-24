@@ -62,7 +62,7 @@ export function Profile() {
   const onDrop = (e: DragEvent) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files?.[0]; if (f) void handleFile(f); };
 
   if (profile.isLoading) return <Spinner label="Opening your profile…" />;
-  if (profile.isError || !profile.data) return <EmptyState title="Couldn't load your profile" hint="Start the backend and reload." />;
+  if (profile.isError || !profile.data) return <EmptyState title="Couldn't load your profile" hint="Please check your connection and try again." />;
   const p = profile.data;
   // Once a CV is parsed, collapse the uploader and lead with the parsed summary
   // (Edit / re-upload reopens it). Matches the collapse pattern in other hubs.

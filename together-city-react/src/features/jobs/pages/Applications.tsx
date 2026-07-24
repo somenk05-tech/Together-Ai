@@ -12,7 +12,7 @@ const statusStyle: Record<string, { color: string; label: string }> = {
 export function Applications() {
   const q = useApplications();
   if (q.isLoading) return <Spinner label="Loading your applications…" />;
-  if (q.isError || !q.data) return <EmptyState title="Couldn't load applications" hint="Start the backend and reload." />;
+  if (q.isError || !q.data) return <EmptyState title="Couldn't load your applications" hint="Please check your connection and try again." />;
 
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>

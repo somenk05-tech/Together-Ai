@@ -6,6 +6,12 @@ import { ShareToChat } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
 
 const scoreColor = (s: number) => (s >= 75 ? '#2e7d32' : s >= 50 ? '#e65100' : 'var(--muted)');
+const FIT: Record<string, { label: string; color: string }> = {
+  strong: { label: 'Strong fit', color: '#2e7d32' },
+  good: { label: 'Good fit', color: '#2e7d32' },
+  fair: { label: 'Fair fit', color: '#e65100' },
+  weak: { label: 'Low fit', color: 'var(--muted)' },
+};
 
 /** Rich chat share-card for a job. */
 function jobShareCard(job: JobMatch): ShareCard {
@@ -28,12 +34,14 @@ function JobCard({ job }: { job: JobMatch }) {
   return (
     <article className="card" style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-        <div style={{ width: 54, height: 54, borderRadius: 12, display: 'grid', placeItems: 'center', flexShrink: 0, background: 'var(--accent-soft)', color: scoreColor(job.score), fontWeight: 800, fontSize: 16 }}>
+        <div role="img" aria-label={`${job.score} percent match — ${FIT[job.fitLabel ?? 'fair']?.label ?? 'fit'}`}
+          style={{ width: 54, height: 54, borderRadius: 12, display: 'grid', placeItems: 'center', flexShrink: 0, background: 'var(--accent-soft)', color: scoreColor(job.score), fontWeight: 800, fontSize: 16 }}>
           {job.score}%
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
             <strong style={{ fontSize: 15.5 }}>{job.title}</strong>
+            {job.fitLabel && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: FIT[job.fitLabel]?.color, border: `1px solid ${FIT[job.fitLabel]?.color}`, borderRadius: 999, padding: '1px 7px' }}>{FIT[job.fitLabel]?.label}</span>}
             {job.postedByYou && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: 999, padding: '1px 7px' }}>Your posting</span>}
           </div>
           <div className="muted" style={{ fontSize: 12.5 }}>{job.company} · {job.location}{job.remote ? ' · Remote' : ''} · ₹{job.salaryLpa} LPA</div>
@@ -50,7 +58,7 @@ function JobCard({ job }: { job: JobMatch }) {
 
           <div style={{ marginTop: 12 }}>
             {applied ? (
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>✓ Applied</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>✓ Applied · <Link to="/jobs/applications" style={{ color: 'var(--accent)' }}>Track it</Link></span>
             ) : open ? (
               <div>
                 <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Add a short note to the recruiter (optional)"
@@ -81,7 +89,7 @@ function JobCard({ job }: { job: JobMatch }) {
 export function Matches() {
   const q = useJobMatches();
   if (q.isLoading) return <Spinner label="Matching you to roles…" />;
-  if (q.isError || !q.data) return <EmptyState title="Couldn't load matches" hint="Start the backend and reload." />;
+  if (q.isError || !q.data) return <EmptyState title="Couldn't load your matches" hint="Please check your connection and try again." />;
 
   if (!q.data.hasProfile) {
     return (
@@ -96,14 +104,37 @@ export function Matches() {
     );
   }
 
+  // Don't show the user their own postings among their matches.
+  const visible = q.data.matches.filter((m) => !m.postedByYou);
+  const isWeak = (m: JobMatch) => (m.fitLabel ? m.fitLabel === 'weak' : m.score < 35);
+  const good = visible.filter((m) => !isWeak(m));
+  const weak = visible.filter(isWeak);
+
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 16px' }}>
       <div className="eyebrow">Jobs · Jobs for you</div>
       <h1 style={{ fontSize: 26 }}>Jobs for you</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
-        {q.data.matches.length} open roles, ranked by fit. ✓ = a skill you have; plain = a skill the role wants.
+        {good.length} strong{good.length === 1 ? ' match' : ' matches'}, ranked by fit. ✓ = a skill you have; plain = a skill the role wants.
       </p>
-      {q.data.matches.map((j) => <JobCard key={j.id} job={j} />)}
+
+      {good.length === 0 && (
+        <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>No strong matches yet</div>
+          <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
+            Add more skills or experience to your <Link to="/jobs/profile" style={{ color: 'var(--accent)' }}>resume</Link>, or broaden your preferences — better roles will surface here.
+          </p>
+        </div>
+      )}
+
+      {good.map((j) => <JobCard key={j.id} job={j} />)}
+
+      {weak.length > 0 && (
+        <>
+          <p className="muted" style={{ fontSize: 12.5, margin: '20px 0 10px', fontWeight: 600 }}>Other open roles ({weak.length}) — a weaker fit for your profile</p>
+          {weak.map((j) => <JobCard key={j.id} job={j} />)}
+        </>
+      )}
     </div>
   );
 }
