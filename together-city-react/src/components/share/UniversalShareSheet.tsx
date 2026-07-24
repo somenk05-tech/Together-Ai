@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { chatApi, useConversations, useConnections, useChatContacts, isServerUnreachable, type ShareCard } from '@/api';
 
 /* ------------------------------------------------------------------ *
@@ -246,23 +247,63 @@ export function useShareSend() {
 /* ------------------------------ styles ----------------------------- */
 
 const SHEET_CSS = `
-.uss-overlay{position:fixed;inset:0;z-index:9500;background:rgba(10,8,20,.55);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px;animation:uss-fade .18s ease}
-.uss-sheet{display:flex;flex-direction:column;width:min(520px,96vw);max-height:88vh;background:var(--card,#fff);border:1px solid var(--line);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,.45);overflow:hidden;font-family:inherit;color:var(--ink)}
-.uss-head{flex:0 0 auto;padding:16px 18px 12px;border-bottom:1px solid var(--line);background:var(--card,#fff)}
-.uss-body{flex:1 1 auto;overflow-y:auto;padding:6px 18px 10px}
-.uss-foot{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:12px 18px;border-top:1px solid var(--line);background:var(--card,#fff)}
+/* Glassmorphism scrim: blurs + dims the page behind the sheet. */
+.uss-overlay{position:fixed;inset:0;z-index:9600;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:rgba(10,8,20,.5);-webkit-backdrop-filter:blur(10px) saturate(120%);backdrop-filter:blur(10px) saturate(120%);
+  animation:uss-ov-in .24s ease both}
+.uss-overlay.uss-closing{animation:uss-ov-out .2s ease both;pointer-events:none}
+/* Centered card on desktop. Height is capped with dvh (real mobile viewport,
+   avoids the 100vh URL-bar bug) and a hard px ceiling so it never gets huge. */
+.uss-sheet{position:relative;display:flex;flex-direction:column;width:min(480px,100%);
+  max-height:min(86vh,760px);max-height:min(86dvh,760px);
+  background:var(--card,#fff);background:color-mix(in srgb,var(--card,#fff) 92%,transparent);
+  -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+  border:1px solid var(--line);border-radius:22px;
+  box-shadow:0 24px 80px rgba(0,0,0,.45),0 2px 8px rgba(0,0,0,.12);
+  overflow:hidden;font-family:inherit;color:var(--ink);
+  animation:uss-sheet-in .26s cubic-bezier(.16,1,.3,1) both}
+.uss-overlay.uss-closing .uss-sheet{animation:uss-sheet-out .2s ease both}
+/* Sticky header (search never scrolls away) — it's a non-shrinking flex child. */
+.uss-head{position:relative;flex:0 0 auto;padding:16px 18px 12px;border-bottom:1px solid var(--line)}
+/* The ONLY scroll container. min-height:0 lets it actually shrink inside the
+   column flexbox so the footer can never be pushed off / overlap the list.
+   overscroll-behavior:contain stops scroll chaining to the page behind. */
+.uss-body{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:6px 18px 10px}
+/* Sticky footer with the Send button; safe-area padding clears the iPhone home indicator. */
+.uss-foot{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:12px 18px;
+  padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
+.uss-foot .btn{padding:11px 22px;font-size:11px;flex:0 0 auto}
+.uss-count{font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uss-err{color:#c0392b;font-size:12.5px;font-weight:600;margin:0;padding:8px 18px 0}
+.uss-close{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;
+  background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:var(--muted);transition:background .15s,color .15s}
+.uss-close:hover{background:var(--accent-soft);color:var(--ink)}
+.uss-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .uss-row{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:9px 10px;border-radius:12px;border:1.5px solid transparent;background:none;cursor:pointer;font-family:inherit;color:inherit}
 .uss-row:hover{background:var(--accent-soft)}
 .uss-row:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .uss-row[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
 .uss-search:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-@keyframes uss-fade{from{opacity:0}to{opacity:1}}
+@keyframes uss-ov-in{from{opacity:0}to{opacity:1}}
+@keyframes uss-ov-out{from{opacity:1}to{opacity:0}}
+@keyframes uss-sheet-in{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes uss-sheet-out{from{opacity:1;transform:none}to{opacity:0;transform:translateY(10px) scale(.98)}}
 @keyframes uss-spin{to{transform:rotate(360deg)}}
+/* Bottom sheet on mobile — full width, anchored to the bottom, slides up. */
 @media (max-width:560px){
   .uss-overlay{align-items:flex-end;padding:0}
-  .uss-sheet{width:100vw;max-height:92vh;border-radius:20px 20px 0 0;animation:uss-up .22s ease}
+  .uss-sheet{width:100%;max-width:none;max-height:92vh;max-height:92dvh;border-radius:22px 22px 0 0;
+    animation:uss-sheet-up .3s cubic-bezier(.16,1,.3,1) both}
+  .uss-overlay.uss-closing .uss-sheet{animation:uss-sheet-down .24s ease both}
+  .uss-head{padding-top:22px}
+  .uss-head::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:38px;height:4px;border-radius:999px;background:var(--line)}
 }
-@keyframes uss-up{from{transform:translateY(40px);opacity:.6}to{transform:translateY(0);opacity:1}}
+@keyframes uss-sheet-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes uss-sheet-down{from{transform:translateY(0)}to{transform:translateY(100%)}}
+/* Respect users who ask for reduced motion — snap instead of animate. */
+@media (prefers-reduced-motion:reduce){
+  .uss-overlay,.uss-overlay .uss-sheet{animation-duration:.001ms !important}
+}
 `;
 
 const FOCUSABLE = 'a[href],button:not([disabled]),textarea,input,[tabindex]:not([tabindex="-1"])';
@@ -278,6 +319,9 @@ export function UniversalShareSheet({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [phase, setPhase] = useState<'idle' | 'sending' | 'sent'>('idle');
   const [error, setError] = useState<string | null>(null);
+  // Drives the exit animation: when a close is requested we flip this true,
+  // let the CSS play, then actually unmount via onClose() after the animation.
+  const [closing, setClosing] = useState(false);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -287,6 +331,34 @@ export function UniversalShareSheet({
   // so two clicks fired within the same tick could both read phase==='idle'
   // and double-send. This ref flips synchronously and blocks the second click.
   const sendingRef = useRef(false);
+  const closingRef = useRef(false);
+  const closeTimer = useRef<number | undefined>(undefined);
+
+  // Animated close: play the exit transition, THEN tell the parent to unmount.
+  const CLOSE_MS = 230;
+  const beginClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    setClosing(true);
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    closeTimer.current = window.setTimeout(() => onClose(), reduce ? 0 : CLOSE_MS);
+  }, [onClose]);
+
+  // Clear the pending close timer if we unmount mid-animation (no leaked timer).
+  useEffect(() => () => { if (closeTimer.current) window.clearTimeout(closeTimer.current); }, []);
+
+  // Lock background scroll while open; compensate for the removed scrollbar so
+  // the page behind doesn't shift. Restores exactly what was there before.
+  useEffect(() => {
+    if (!open) return;
+    const body = document.body;
+    const prevOverflow = body.style.overflow;
+    const prevPad = body.style.paddingRight;
+    const scrollbar = window.innerWidth - document.documentElement.clientWidth;
+    body.style.overflow = 'hidden';
+    if (scrollbar > 0) body.style.paddingRight = `${scrollbar}px`;
+    return () => { body.style.overflow = prevOverflow; body.style.paddingRight = prevPad; };
+  }, [open]);
 
   // Focus management: initial focus, focus trap, Esc-to-close, focus restore.
   useEffect(() => {
@@ -295,7 +367,7 @@ export function UniversalShareSheet({
     const t = window.setTimeout(() => searchRef.current?.focus(), 0);
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
+      if (e.key === 'Escape') { e.stopPropagation(); beginClose(); return; }
       if (e.key !== 'Tab') return;
       const sheet = sheetRef.current;
       if (!sheet) return;
@@ -313,7 +385,7 @@ export function UniversalShareSheet({
       document.removeEventListener('keydown', onKey, true);
       restoreRef.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open, beginClose]);
 
   const allRecipients = useMemo(
     () => [...groupsData.recent, ...groupsData.connections, ...groupsData.family, ...groupsData.groups],
@@ -351,7 +423,7 @@ export function UniversalShareSheet({
     try {
       await onSend(selectedRecipients, message);
       setPhase('sent');
-      window.setTimeout(() => { onClose(); }, 900);
+      window.setTimeout(() => { beginClose(); }, 900);
     } catch (err) {
       // Precise messaging: partial failure names the count; a total network
       // outage explains the connection; anything else is a generic retry.
@@ -371,7 +443,7 @@ export function UniversalShareSheet({
     } finally {
       sendingRef.current = false;
     }
-  }, [count, phase, onSend, selectedRecipients, message, onClose]);
+  }, [count, phase, onSend, selectedRecipients, message, beginClose]);
 
   if (!open) return null;
 
@@ -415,7 +487,7 @@ export function UniversalShareSheet({
       <section style={{ marginTop: 12 }} aria-label={label}>
         <h3 style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)', margin: '0 0 4px' }}>{label}</h3>
         {filtered.length > 0
-          ? <div style={{ display: 'grid', gap: 2 }}>{filtered.map(Row)}</div>
+          ? <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>{filtered.map(Row)}</div>
           : <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '2px 2px 0' }}>{query.trim() ? 'No matches.' : (emptyHint ?? 'No one here yet.')}</p>}
       </section>
     );
@@ -423,11 +495,11 @@ export function UniversalShareSheet({
 
   const previewMeta = (preview.meta ?? []).filter(Boolean);
 
-  return (
+  return createPortal(
     <div
       ref={overlayRef}
-      className="uss-overlay"
-      onMouseDown={(e) => { if (e.target === overlayRef.current) onClose(); }}
+      className={`uss-overlay${closing ? ' uss-closing' : ''}`}
+      onMouseDown={(e) => { if (e.target === overlayRef.current) beginClose(); }}
     >
       <style>{SHEET_CSS}</style>
       <div
@@ -455,9 +527,9 @@ export function UniversalShareSheet({
                 <h2 style={{ margin: 0, fontSize: 17 }}>{heading}</h2>
                 <button
                   type="button"
-                  onClick={onClose}
+                  className="uss-close"
+                  onClick={beginClose}
                   aria-label="Close share sheet"
-                  style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: 'var(--muted)' }}
                 >{'×'}</button>
               </div>
 
@@ -527,14 +599,18 @@ export function UniversalShareSheet({
               )}
             </div>
 
+            {/* ---- Error (above the footer so it's never hidden under the
+                    safe-area / home indicator) ---- */}
+            {error && <p role="alert" className="uss-err">{error}</p>}
+
             {/* ---- Sticky footer: Send + Cancel ---- */}
             <div className="uss-foot">
-              <span style={{ fontSize: 13, fontWeight: 600, color: count ? 'var(--ink)' : 'var(--muted)' }} aria-live="polite">
+              <span className="uss-count" style={{ color: count ? 'var(--ink)' : 'var(--muted)' }} aria-live="polite">
                 {count ? `${count} selected` : 'Select recipients'}
               </span>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={beginClose}
                 className="btn btn-line"
                 style={{ marginLeft: 'auto' }}
               >Cancel</button>
@@ -554,12 +630,10 @@ export function UniversalShareSheet({
                   : `Send${count ? ` (${count})` : ''}`}
               </button>
             </div>
-            {error && (
-              <p role="alert" style={{ color: '#c0392b', fontSize: 12.5, fontWeight: 600, margin: 0, padding: '0 18px 12px' }}>{error}</p>
-            )}
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
