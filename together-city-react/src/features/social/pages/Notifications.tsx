@@ -51,7 +51,16 @@ export function SocialNotifications() {
 
       {q.isLoading && <Spinner label="Loading notifications…" />}
 
-      {!q.isLoading && shown.length === 0 && (
+      {!q.isLoading && q.isError && (
+        <div className="blk rise d1" style={{ textAlign: 'center', padding: '64px 24px' }}>
+          <div style={{ fontSize: 40, marginBottom: 10 }}>⚠️</div>
+          <h2 style={{ fontSize: 20, margin: '0 0 6px' }}>Couldn't load notifications</h2>
+          <p className="muted" style={{ fontSize: 14, margin: '0 0 14px' }}>Check your connection and try again.</p>
+          <button type="button" className="btn btn-line btn-sm" onClick={() => void q.refetch()}>Retry</button>
+        </div>
+      )}
+
+      {!q.isLoading && !q.isError && shown.length === 0 && (
         <div className="blk rise d1" style={{ textAlign: 'center', padding: '64px 24px' }}>
           <div style={{ fontSize: 40, marginBottom: 10 }}>🔔</div>
           <h2 style={{ fontSize: 20, margin: '0 0 6px' }}>{filter === 1 ? 'No unread notifications' : "You're all caught up"}</h2>

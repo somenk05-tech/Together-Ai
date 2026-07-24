@@ -10,7 +10,7 @@ import {
   useMyProfile, useMyPosts, usePeopleSearch, usePublicProfile, useUpdateProfile,
   type MyProfile, type ProfilePost, type PersonResult, type PublicProfile, type Relationship,
 } from '../myProfile.api';
-import { useFollowers, useFollowing, useFollow, useUnfollow, type FollowPerson } from '../api';
+import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useReport, type FollowPerson } from '../api';
 
 const money = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
 const PAY_PER_VIDEO = 100;
@@ -164,6 +164,36 @@ function ConnectButton({ id, handle, relationship }: { id: string; handle: strin
   return <Button variant="accent" size="sm" disabled={requestConn.isPending} onClick={connect}>Connect</Button>;
 }
 
+/** Block / Report safety actions for a person, shown in their profile modal. */
+function SafetyActions({ id, handle, onBlocked }: { id: string; handle: string; onBlocked: () => void }) {
+  const block = useBlock();
+  const report = useReport();
+  const [reported, setReported] = useState(false);
+
+  const doBlock = () => {
+    if (!window.confirm(`Block @${handle}? They won't be able to see your posts or interact with you, and you won't see theirs.`)) return;
+    block.mutate({ userId: id }, { onSuccess: onBlocked });
+  };
+  const doReport = () => {
+    const reason = window.prompt(`Report @${handle}? Optionally tell us what's wrong (spam, harassment, etc.):`, '');
+    if (reason === null) return; // cancelled
+    report.mutate({ targetType: 'user', targetId: id, reason: reason || undefined }, { onSuccess: () => setReported(true) });
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginRight: 'auto' }}>
+      <button type="button" onClick={doBlock} disabled={block.isPending}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit', color: '#c0392b', padding: 0 }}>
+        {block.isPending ? 'Blocking…' : '🚫 Block'}
+      </button>
+      <button type="button" onClick={doReport} disabled={report.isPending || reported}
+        style={{ background: 'none', border: 'none', cursor: reported ? 'default' : 'pointer', fontSize: 12.5, fontFamily: 'inherit', color: 'var(--muted)', padding: 0 }}>
+        {reported ? '✓ Reported' : '⚑ Report'}
+      </button>
+    </div>
+  );
+}
+
 function PublicProfileModal({ handle, onClose }: { handle: string; onClose: () => void }) {
   const q = usePublicProfile(handle);
   const p = q.data as PublicProfile | undefined;
@@ -191,7 +221,8 @@ function PublicProfileModal({ handle, onClose }: { handle: string; onClose: () =
               <StatCell n={p.stats.reputation} label="reputation" />
               <StatCell n={p.stats.cityPoints} label="city points" />
             </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
+              <SafetyActions id={p.id} handle={p.handle} onBlocked={onClose} />
               <Button variant="line" size="sm" onClick={onClose}>Close</Button>
               <ConnectButton id={p.id} handle={p.handle} relationship={p.relationship} />
             </div>

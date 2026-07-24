@@ -1,5 +1,5 @@
 import { http as api } from '@/api/client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 /** Social domain types — mirror the NestJS social module DTOs. */
 export interface PostAuthor { id: string; handle: string; name: string; profileImage: string | null }
@@ -57,12 +57,39 @@ export const socialApi = {
     api.get<PostComment[]>(`/social/posts/${postId}/comments`).then((r) => r.data),
   comment: (postId: string, text: string) =>
     api.post<PostComment>(`/social/posts/${postId}/comments`, { text }).then((r) => r.data),
+  // Safety
+  blocks: () => api.get<PostAuthor[]>('/social/blocks').then((r) => r.data),
+  block: (person: { handle?: string; userId?: string }) =>
+    api.post<{ blocked: boolean; userId: string }>('/social/block', person).then((r) => r.data),
+  unblock: (userId: string) =>
+    api.delete<{ blocked: boolean; userId: string }>(`/social/block/${userId}`).then((r) => r.data),
+  report: (input: { targetType: 'user' | 'post' | 'comment'; targetId: string; reason?: string }) =>
+    api.post<{ reported: boolean }>('/social/report', input).then((r) => r.data),
 };
 
 const FEED_KEY = ['social', 'feed'] as const;
 
+/** React Query's infinite-query cache shape for a feed. */
+type FeedInfinite = { pages: FeedPage[]; pageParams: unknown[] };
+
+/** Apply a transform to every post across every cached feed page. */
+function mapFeedPosts(data: FeedInfinite | undefined, fn: (items: Post[]) => Post[]): FeedInfinite | undefined {
+  if (!data) return data;
+  return { ...data, pages: data.pages.map((pg) => ({ ...pg, items: fn(pg.items) })) };
+}
+
+/**
+ * Cursor-paginated feed as an INFINITE query, so "load more" reaches past the
+ * first page. (It was a plain useQuery that ignored nextCursor, capping the
+ * feed at ~20 posts.)
+ */
 export function useFeed(filter = 'foryou') {
-  return useQuery({ queryKey: [...FEED_KEY, filter], queryFn: () => socialApi.feed(undefined, filter) });
+  return useInfiniteQuery({
+    queryKey: [...FEED_KEY, filter],
+    queryFn: ({ pageParam }) => socialApi.feed(pageParam as string | undefined, filter),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+  });
 }
 export function useMap() {
   return useQuery({ queryKey: ['social', 'map'], queryFn: () => socialApi.map() });
@@ -100,13 +127,15 @@ export function useCreatePost() {
   return useMutation({
     mutationFn: (input: CreatePostInput) => socialApi.create(input),
     onSuccess: (post) => {
-      // Optimistically insert the new post at the TOP of every cached feed
-      // filter so it shows instantly, before the background refetch lands.
-      qc.setQueriesData<FeedPage>({ queryKey: FEED_KEY }, (page) =>
-        page && !page.items.some((p) => p.id === post.id)
-          ? { ...page, items: [post, ...page.items] }
-          : page,
-      );
+      // Optimistically insert the new post at the TOP of the first page of every
+      // cached feed filter so it shows instantly, before the background refetch.
+      qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) => {
+        if (!data) return data;
+        if (data.pages.some((pg) => pg.items.some((p) => p.id === post.id))) return data;
+        const [first, ...rest] = data.pages;
+        const firstPage: FeedPage = first ?? { items: [], nextCursor: null };
+        return { ...data, pages: [{ ...firstPage, items: [post, ...firstPage.items] }, ...rest] };
+      });
       void qc.invalidateQueries({ queryKey: FEED_KEY });
       void qc.invalidateQueries({ queryKey: ['social', 'map'] });
     },
@@ -117,8 +146,8 @@ export function useDeletePost() {
   return useMutation({
     mutationFn: (postId: string) => socialApi.remove(postId),
     onSuccess: (_r, postId) => {
-      qc.setQueriesData<FeedPage>({ queryKey: FEED_KEY }, (page) =>
-        page ? { ...page, items: page.items.filter((p) => p.id !== postId) } : page);
+      qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) =>
+        mapFeedPosts(data, (items) => items.filter((p) => p.id !== postId)));
       void qc.invalidateQueries({ queryKey: ['social', 'map'] });
       void qc.invalidateQueries({ queryKey: ['profile', 'me'] });
     },
@@ -129,8 +158,8 @@ export function useUpdatePost() {
   return useMutation({
     mutationFn: (v: { postId: string; text: string }) => socialApi.update(v.postId, v.text),
     onSuccess: (updated) => {
-      qc.setQueriesData<FeedPage>({ queryKey: FEED_KEY }, (page) =>
-        page ? { ...page, items: page.items.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)) } : page);
+      qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) =>
+        mapFeedPosts(data, (items) => items.map((p) => (p.id === updated.id ? { ...p, ...updated } : p))));
     },
   });
 }
@@ -139,11 +168,13 @@ export function useToggleLike() {
   return useMutation({
     mutationFn: (postId: string) => socialApi.like(postId),
     onSuccess: (res) => {
-      qc.setQueryData<FeedPage>(FEED_KEY, (page) =>
-        page
-          ? { ...page, items: page.items.map((p) => (p.id === res.postId ? { ...p, likedByMe: res.liked, likes: res.likes } : p)) }
-          : page,
-      );
+      // Was setQueryData(FEED_KEY) — the exact key ['social','feed'], which no
+      // component subscribes to (the live key is ['social','feed',filter]). Use
+      // setQueriesData (partial match) over the infinite cache so the heart and
+      // count actually update.
+      qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) =>
+        mapFeedPosts(data, (items) =>
+          items.map((p) => (p.id === res.postId ? { ...p, likedByMe: res.liked, likes: res.likes } : p))));
     },
   });
 }
@@ -160,7 +191,38 @@ export function useAddComment() {
     mutationFn: (v: { postId: string; text: string }) => socialApi.comment(v.postId, v.text),
     onSuccess: (_c, v) => {
       void qc.invalidateQueries({ queryKey: ['social', 'comments', v.postId] });
-      void qc.invalidateQueries({ queryKey: FEED_KEY });
+      // Bump just this post's comment count in place — no full feed refetch
+      // (which reloaded/reordered the feed and lost the reader's scroll).
+      qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) =>
+        mapFeedPosts(data, (items) => items.map((p) => (p.id === v.postId ? { ...p, comments: p.comments + 1 } : p))));
     },
+  });
+}
+
+export function useBlocks() {
+  return useQuery({ queryKey: ['social', 'blocks'], queryFn: () => socialApi.blocks() });
+}
+export function useBlock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (person: { handle?: string; userId?: string }) => socialApi.block(person),
+    onSuccess: () => {
+      // A block hides their content — drop everything and refetch the world.
+      void qc.invalidateQueries({ queryKey: ['social'] });
+      void qc.invalidateQueries({ queryKey: ['profile'] });
+    },
+  });
+}
+export function useUnblock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => socialApi.unblock(userId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['social', 'blocks'] }),
+  });
+}
+export function useReport() {
+  return useMutation({
+    mutationFn: (input: { targetType: 'user' | 'post' | 'comment'; targetId: string; reason?: string }) =>
+      socialApi.report(input),
   });
 }

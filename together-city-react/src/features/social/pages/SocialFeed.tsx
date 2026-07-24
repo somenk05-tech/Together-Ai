@@ -14,7 +14,7 @@ function timeAgo(iso: string): string {
 }
 
 function Avatar({ name, src }: { name: string; src?: string | null }) {
-  if (src) return <img src={src} alt="" width={40} height={40} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />;
+  if (src) return <img src={src} alt={name} width={40} height={40} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />;
   return (
     <div className="tc-avatar" style={{
       width: 40, height: 40, borderRadius: '50%', display: 'grid', placeItems: 'center',
@@ -98,6 +98,11 @@ function Composer() {
           </Button>
         </div>
       </div>
+      {create.isError && (
+        <p role="alert" style={{ color: '#c0392b', fontSize: 12.5, margin: '8px 0 0' }}>
+          Couldn't post that just now — please try again.
+        </p>
+      )}
     </form>
   );
 }
@@ -135,11 +140,11 @@ function CommentsPanel({ postId }: { postId: string }) {
 
 /** A single feed image. When it's the only image, the frame adapts to the
  *  photo's orientation (16:9 landscape or 9:16 vertical); in a grid it stays 16:9. */
-function ImgCell({ url, adaptive, overlay }: { url: string; adaptive: boolean; overlay?: React.ReactNode }) {
+function ImgCell({ url, adaptive, overlay, alt }: { url: string; adaptive: boolean; overlay?: React.ReactNode; alt: string }) {
   const [portrait, setPortrait] = useState(false);
   return (
     <div style={{ position: 'relative', aspectRatio: adaptive && portrait ? '9 / 16' : '16 / 9', maxHeight: adaptive ? 560 : undefined, background: '#000' }}>
-      <img src={url} alt="" onLoad={(e) => { if (adaptive) setPortrait(e.currentTarget.naturalHeight > e.currentTarget.naturalWidth); }}
+      <img src={url} alt={alt} onLoad={(e) => { if (adaptive) setPortrait(e.currentTarget.naturalHeight > e.currentTarget.naturalWidth); }}
         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       {overlay}
     </div>
@@ -169,6 +174,7 @@ function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
   const [draft, setDraft] = useState(post.text ?? '');
   const [showComments, setShowComments] = useState(false);
   const [saved, setSaved] = useState(() => savedIds().has(post.id));
+  const [copied, setCopied] = useState(false);
   const actionStyle = (on = false): React.CSSProperties => ({
     background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit',
     color: on ? 'var(--accent)' : 'var(--muted)', fontWeight: on ? 700 : 400, padding: 0,
@@ -178,7 +184,12 @@ function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
     const summary = `${post.author.name} on Together City${post.placeName ? ` · 📍 ${post.placeName}` : ''}\n${post.text ?? ''}`.trim();
     try {
       if (navigator.share) await navigator.share({ text: summary, url: window.location.origin + '/social/feed' });
-      else { await navigator.clipboard.writeText(summary); }
+      else {
+        // No native share (desktop) — copy and confirm, so it's not a silent no-op.
+        await navigator.clipboard.writeText(`${summary}\n${window.location.origin}/social/feed`);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2000);
+      }
     } catch { /* cancelled */ }
   };
 
@@ -236,7 +247,7 @@ function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
         <div style={{ marginTop: 12, borderRadius: 14, overflow: 'hidden',
           display: 'grid', gap: 3, gridTemplateColumns: images.length > 1 ? '1fr 1fr' : '1fr' }}>
           {images.slice(0, 4).map((m, i) => (
-            <ImgCell key={m.id} url={m.url} adaptive={images.length === 1}
+            <ImgCell key={m.id} url={m.url} adaptive={images.length === 1} alt={`Photo shared by ${post.author.name}`}
               overlay={i === 3 && images.length > 4 ? (
                 <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.5)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 20, fontWeight: 800 }}>
                   +{images.length - 4}
@@ -249,7 +260,7 @@ function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
 
       {editing ? (
         <div style={{ marginTop: 12 }}>
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} maxLength={5000} autoFocus
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} maxLength={2200} autoFocus
             style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button type="button" disabled={upd.isPending}
@@ -269,7 +280,7 @@ function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
         <button type="button" onClick={() => setShowComments((s) => !s)} style={actionStyle()}>
           💬 {post.comments}
         </button>
-        <button type="button" onClick={() => void share()} style={actionStyle()}>↗ Share</button>
+        <button type="button" onClick={() => void share()} style={actionStyle(copied)}>{copied ? '✓ Link copied' : '↗ Share'}</button>
         <button type="button" onClick={() => setSaved(toggleSaved(post))} style={actionStyle(saved)}>
           🔖 {saved ? 'Saved' : 'Save'}
         </button>
@@ -336,7 +347,7 @@ export function SocialFeed() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<string>('foryou');
   const feed = useFeed(filter);
-  const items = feed.data?.items ?? [];
+  const items = feed.data?.pages.flatMap((p) => p.items) ?? [];
 
   // Post-share landing: highlight the new post, scroll to top, flash a toast.
   const navState = location.state as { newPostId?: string; justShared?: boolean } | null;
@@ -370,7 +381,7 @@ export function SocialFeed() {
       </h1>
       <p className="lede" style={{ marginBottom: 16 }}>Discover what's happening around you.</p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,640px) 1fr', gap: 24, alignItems: 'start' }}>
+      <div className="feed-grid" style={{ display: 'grid', gap: 24, alignItems: 'start' }}>
         <div>
           <Composer />
 
@@ -394,6 +405,14 @@ export function SocialFeed() {
               hint={filter === 'nearby' ? 'Posts with a pinned location appear here.' : filter === 'following' ? 'Follow people to fill this lens.' : 'Be the first to share one.'} />
           )}
           {items.map((p) => <PostCard key={p.id} post={p} isNew={p.id === newPostId} />)}
+
+          {feed.hasNextPage && (
+            <div style={{ display: 'grid', placeItems: 'center', margin: '18px 0 4px' }}>
+              <Button variant="line" size="sm" disabled={feed.isFetchingNextPage} onClick={() => void feed.fetchNextPage()}>
+                {feed.isFetchingNextPage ? 'Loading…' : 'Load more'}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Right sidebar — desktop only (CSS media query) */}
