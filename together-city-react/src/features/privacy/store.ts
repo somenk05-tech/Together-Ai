@@ -37,6 +37,12 @@ export const usePrivacyStore = create<PrivacyState>()(
           hydrated: true,
         })),
     }),
-    { name: 'tc-privacy-v1' },
+    {
+      name: 'tc-privacy-v1',
+      // Persist the actual consent record, but NOT `hydrated` — so every fresh
+      // load re-verifies against the server before a gate could show, picking up
+      // a consent given on another device even after this device once hydrated.
+      partialize: (s) => ({ tosAccepted: s.tosAccepted, acks: s.acks, prefs: s.prefs }),
+    },
   ),
 );
