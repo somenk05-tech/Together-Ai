@@ -1507,7 +1507,14 @@ export class NutritionService implements OnModuleInit {
    */
   async composedPlan(userId: string) {
     try {
-      return await this.buildComposedPlan(userId);
+      // Timeout race (load-issue fix): a hung DB query never throws, so a plain
+      // try/catch can't rescue it — the HTTP request would just time out and the
+      // planner would blank. Cap the personalised build; on timeout OR error we
+      // fall through to the fast, pure fallback below.
+      return await Promise.race([
+        this.buildComposedPlan(userId),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('composed-plan timeout (8s)')), 8000)),
+      ]);
     } catch (e) {
       // Resilience (load-issue fix): never blank the planner on an unexpected
       // error. Log the real cause (visible in server logs) and fall back to a
