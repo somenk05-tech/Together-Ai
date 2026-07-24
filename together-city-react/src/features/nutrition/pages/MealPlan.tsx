@@ -26,6 +26,58 @@ function macroRow(t: { kcal: number; protein: number; carbs: number; fat: number
   );
 }
 
+type Macros = { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
+
+/** Macro split as a graph: a stacked calorie bar (P/C/F) + a legend with grams and %. */
+function MacroGraph({ t }: { t: Macros }) {
+  const p = Math.max(0, t.protein), c = Math.max(0, t.carbs), f = Math.max(0, t.fat);
+  const pk = p * 4, ck = c * 4, fk = f * 9;
+  const tot = pk + ck + fk || 1;
+  const pctK = (k: number) => Math.round((k / tot) * 100);
+  const bars = [
+    { label: 'Protein', g: p, kcal: pk, color: '#3a8a4a' },
+    { label: 'Carbs', g: c, kcal: ck, color: '#e0a53b' },
+    { label: 'Fat', g: f, kcal: fk, color: '#7a6ff0' },
+  ];
+  return (
+    <div style={{ flex: 1, minWidth: 210, maxWidth: 360 }}>
+      <div role="img" aria-label={`Macro split: protein ${pctK(pk)}%, carbs ${pctK(ck)}%, fat ${pctK(fk)}% of calories`}
+        style={{ display: 'flex', height: 16, borderRadius: 8, overflow: 'hidden', background: 'var(--line)' }}>
+        {bars.map((b) => <div key={b.label} title={`${b.label} ${pctK(b.kcal)}%`} style={{ width: `${(b.kcal / tot) * 100}%`, background: b.color }} />)}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', marginTop: 9 }}>
+        {bars.map((b) => (
+          <span key={b.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+            <span style={{ width: 9, height: 9, borderRadius: 3, background: b.color, flex: '0 0 auto' }} />
+            <span><strong>{Math.round(b.g)}g</strong> <span className="muted">{b.label} · {pctK(b.kcal)}%</span></span>
+          </span>
+        ))}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+          <span style={{ width: 9, height: 9, borderRadius: 3, background: '#5aa9a0', flex: '0 0 auto' }} />
+          <span><strong>{Math.round(t.fiber)}g</strong> <span className="muted">Fibre</span></span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Totals card — big kcal on the left, macro graph on the right. */
+function DayTotalCard({ t, label = 'Day total' }: { t: Macros; label?: string }) {
+  return (
+    <Card style={{ padding: '16px 18px', marginTop: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+        <div style={{ flex: '0 0 auto' }}>
+          <strong style={{ fontSize: 14 }}>{label}</strong>
+          <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.05, marginTop: 3 }}>
+            {Math.round(t.kcal)} <span className="muted" style={{ fontSize: 13, fontWeight: 500 }}>kcal</span>
+          </div>
+        </div>
+        <MacroGraph t={t} />
+      </div>
+    </Card>
+  );
+}
+
 /** Deterministic warm food-toned gradient for a recipe without a photo. */
 function photoBg(c: MealComponent): string {
   if (c.imageUrl) return `center/cover no-repeat url(${c.imageUrl})`;
@@ -291,12 +343,7 @@ export function MealPlan() {
             <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>Eating window {d.window.start}–{d.window.end}</p>
           )}
           {d.meals.map((m) => <MealCardV2 key={m.slot} meal={m} />)}
-          <Card style={{ padding: '14px 18px', marginTop: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <strong style={{ fontSize: 14 }}>Day total</strong>
-              {macroRow(d.totals)}
-            </div>
-          </Card>
+          <DayTotalCard t={d.totals} />
         </>
       )}
 
@@ -365,12 +412,7 @@ export function MealPlanToday() {
         </div>
       )}
       {d.meals.map((m) => <MealCardV2 key={m.slot} meal={m} />)}
-      <Card style={{ padding: '14px 18px', marginTop: 6 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <strong style={{ fontSize: 14 }}>Day total</strong>
-          {macroRow(d.totals)}
-        </div>
-      </Card>
+      <DayTotalCard t={d.totals} />
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
