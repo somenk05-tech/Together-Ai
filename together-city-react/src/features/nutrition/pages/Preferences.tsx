@@ -173,8 +173,11 @@ export function Preferences() {
         parsed = { ...parsed, proteins: [...new Set([...(parsed.proteins ?? []), ...parsed.meats])], meats: [] };
       }
       setEx(parsed);
-      // Returning users who've already configured proteins see the full form.
       setDietChosen(Boolean(parsed.proteins?.length));
+      // Returning users with a SAVED profile see the read-only summary card, not
+      // the full form (the planner treats a non-empty profile as saved). They
+      // expand the form only via "Edit Food Preference Profile".
+      if (Object.keys(parsed).length > 0) setCollapsed(true);
       setExLoaded(true);
     }
   }, [existing.data, form]);
@@ -387,7 +390,7 @@ export function Preferences() {
               <div className="eyebrow" style={{ color: 'var(--accent)' }}>Saved ✓</div>
               <h3 style={{ margin: '2px 0 0' }}>Your food profile</h3>
             </div>
-            <Button type="button" variant="line" size="sm" onClick={() => { setCollapsed(false); setSaved(false); }}>Edit</Button>
+            <Button type="button" variant="line" size="sm" onClick={() => { setCollapsed(false); setSaved(false); }}>Edit Food Preference Profile</Button>
           </div>
           <div style={{ marginTop: 12 }}>
             {summaryRows.map(([k, v]) => (
