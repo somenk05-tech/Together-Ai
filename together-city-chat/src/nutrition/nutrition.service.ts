@@ -24,6 +24,7 @@ import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, mntAvoidKeywords, type MntRule } from './clinical-mnt';
 import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { scoreDual, buildScorecard, guidelineCaps } from './plan-score';
+import { recipeImageUrl } from './recipe-image-set';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
 import { computeNutrients, computeMicros, isSalt } from './ingredient-nutrients';
 import {
@@ -298,11 +299,6 @@ function safeJson<T>(s: string | null | undefined, fallback: T): T {
 }
 function parseExtras(extras: string | null | undefined): PrefExtras {
   try { return extras ? (JSON.parse(extras) as PrefExtras) : {}; } catch { return {}; }
-}
-/** Public path to a recipe's photo (served from the frontend /recipe-images/{no}.webp).
- *  Optimistic — the UI falls back to a gradient tile when an image is absent. */
-function recipeImageUrl(no?: number | null): string | null {
-  return typeof no === 'number' && no > 0 ? `/recipe-images/${no}.webp` : null;
 }
 /** Map a stored FoodPref diet value to a composer diet (single source of truth). */
 function mapUserDiet(raw?: string | null): ComposerDiet {

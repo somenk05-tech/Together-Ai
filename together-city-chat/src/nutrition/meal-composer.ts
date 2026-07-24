@@ -334,6 +334,9 @@ function pick(role: string, ctx: SelectCtx): PoolRecipe | null {
       const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
       if (ctx.prefs.favourites.some((f) => f && hay.includes(f.toLowerCase()))) bonus += 8;
     }
+    // Prefer recipes that actually have a dish photo — a soft tiebreaker so the
+    // plan users see is full of imaged meals (never overrides diet/cuisine/clinical).
+    if (r.imageUrl) bonus += 7;
     const timePenalty = (ctx.prefs.maxMinutes && r.minutes > ctx.prefs.maxMinutes) ? (r.minutes - ctx.prefs.maxMinutes) * 0.3 : 0;
     return { r, score: w + jitter - usedPenalty - capPenalty * 30 + bonus - timePenalty };
   });
