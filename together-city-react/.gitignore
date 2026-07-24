@@ -10,3 +10,4 @@ android
 # tsc -b build artifacts (emitted next to vite.config.ts)
 vite.config.js
 vite.config.d.ts
+*.tsbuildinfo
