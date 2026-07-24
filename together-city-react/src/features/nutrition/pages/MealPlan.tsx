@@ -146,16 +146,21 @@ function NIc({ name, size = 18, stroke = 1.7, style }: { name: string; size?: nu
 }
 
 const mainOf = (m: ComposedMeal) => m.components.find((c) => c.role === 'main') ?? m.components.find((c) => c.role === 'dal') ?? m.components.find((c) => c.role === 'breakfast') ?? m.components[0];
-const photoOf = (m: ComposedMeal) => m.components.find((c) => c.imageUrl) ?? mainOf(m);
+/** The card headline ("master") — always a real main/protein WITH a photo when
+ *  possible: a photographed main → any photographed dish → the main (gradient). */
+const photoOf = (m: ComposedMeal) =>
+  m.components.find((c) => (c.role === 'main' || c.role === 'dal' || c.role === 'breakfast') && c.imageUrl)
+  ?? m.components.find((c) => c.imageUrl)
+  ?? mainOf(m);
 /** A single meal column card (banner · 16:9 photo · title · dish links · prep/kcal). */
 function MealColumn({ meal, dayIndex, readOnly }: { meal: ComposedMeal; dayIndex: number; readOnly?: boolean }) {
   const navigate = useNavigate(); const location = useLocation();
   const [err, setErr] = useState(false);
   const refresh = useRefreshMeal(); const skip = useSkipMeal();
   const busy = refresh.isPending || skip.isPending;
-  const main = mainOf(meal); const photo = photoOf(meal);
+  const photo = photoOf(meal);          // the "master" headline dish (a main with a photo when possible)
   const img = photo?.imageUrl && !err ? photo.imageUrl : null;
-  const open = () => { if (main?.recipeId) navigate(`/nutrition/recipes/${main.recipeId}`, { state: { from: location.pathname + location.search } }); };
+  const open = () => { const id = photo?.recipeId; if (id) navigate(`/nutrition/recipes/${id}`, { state: { from: location.pathname + location.search } }); };
   return (
     <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 20, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow)', opacity: busy ? 0.55 : 1 }}>
       <div style={{ padding: '14px 14px 0' }}>
@@ -169,7 +174,7 @@ function MealColumn({ meal, dayIndex, readOnly }: { meal: ComposedMeal; dayIndex
           </span>
           {!img && (
             <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '22px 12px 10px', background: 'linear-gradient(transparent, rgba(0,0,0,.6))', color: '#fff', fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, textAlign: 'left', textShadow: '0 1px 4px rgba(0,0,0,.35)' }}>
-              {(main?.name ?? meal.title)}
+              {(photo?.name ?? meal.title)}
             </span>
           )}
         </div>

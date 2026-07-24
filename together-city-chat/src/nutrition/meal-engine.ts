@@ -83,7 +83,7 @@ const CONDIMENT_HINT = /chutney|pickle|achaar|achar|dip|sauce|masala paste|podi|
  * real dishes) or contains a specific multi-word condiment — then excluded from the
  * meal pool entirely (role → null).
  */
-const PURE_CONDIMENT = /(^|\s)(mayonnaise|mayo|aioli|ketchup|catsup|mustard|vinaigrette|pesto|salsa|tzatziki|guacamole|hummus|chutney|pickle|achaar|achar|relish|marmalade|preserves|compote|marinade|glaze|gravy|podi|gunpowder|furikake|dressing)$|\b(salad dressing|ranch dressing|italian dressing|caesar dressing|honey mustard|soy sauce|fish sauce|hot sauce|bbq sauce|barbecue sauce|tartar sauce|cocktail sauce|dipping sauce|curry paste|masala paste|spice rub|dry rub|dipping|spice mix|spice blend|spice powder|masala mix|masala powder|curry powder|garam masala|chaat masala|sambar powder|rasam powder|biryani masala|seasoning)\b/i;
+const PURE_CONDIMENT = /(^|\s)(mayonnaise|mayo|aioli|ketchup|catsup|mustard|vinaigrette|pesto|salsa|tzatziki|guacamole|hummus|chutney|pickle|achaar|achar|relish|marmalade|preserves|compote|marinade|glaze|gravy|podi|gunpowder|furikake|dressing)$|\b(salad dressing|ranch dressing|italian dressing|caesar dressing|honey mustard|soy sauce|fish sauce|hot sauce|bbq sauce|barbecue sauce|tartar sauce|cocktail sauce|dipping sauce|curry paste|masala paste|spice rub|dry rub|dipping|\bdip\b|spice mix|spice blend|spice powder|masala mix|masala powder|curry powder|garam masala|chaat masala|sambar powder|rasam powder|biryani masala|seasoning)\b/i;
 /** Plain staple carbs (rice/roti/bread/pasta on their own) — a side, never a
  *  stand-alone snack or meal (fixes "Microwave Rice" showing up as a snack). */
 const STAPLE_CARB = /\b(rice|roti|chapati|phulka|naan|bread|toast|pasta|noodles?|macaroni|spaghetti|khichdi)\b/i;

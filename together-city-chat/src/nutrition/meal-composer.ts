@@ -455,7 +455,7 @@ function fitMeal(sel: Sel[], targetKcal: number, proteinTarget: number): MealCom
   return sel.map((s, i) => scaleComponent(s.r, Math.round(scale[i]), s.role));
 }
 
-function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, energyPct: number, scheduledTime: string, ctx: SelectCtx): ComposedMeal {
+function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, fibreTarget: number, energyPct: number, scheduledTime: string, ctx: SelectCtx): ComposedMeal {
   const def = SLOT_BY_CODE[slot];
   const sel: Sel[] = [];
   const take = (r: PoolRecipe | null, role: string) => { if (r) { ctx.used.set(r.id, (ctx.used.get(r.id) ?? 0) + 1); sel.push({ r, role }); } };
@@ -523,12 +523,26 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
   }
 
   // Protein topping (QA H1): if the plate can't reach its protein target even at
-  // maximum portions, add one more protein-dense component before solving.
-  if (proteinTarget > 0 && sel.length && sel.length < 7 && !ctx.prefs.clinical) {
+  // maximum portions, add one more protein-dense component before solving. Now runs
+  // for CLINICAL plans too (Optimal Health) — the added dish still passes every
+  // clinical/renal filter via candidates(), and reduceToCaps trims any breach — so
+  // Optimal Health actually meets its protein prescription instead of undershooting.
+  if (proteinTarget > 0 && sel.length && sel.length < 7) {
     const maxProtein = sel.reduce((t, s) => t + s.r.protein * ((ROLE_BOUNDS[s.role]?.[1] ?? 150) / 100), 0);
     if (maxProtein < proteinTarget * 0.95) {
       const extra = pick('dal', ctx) ?? pick('dairy', ctx) ?? pick('snack', ctx) ?? pick('main', { ...ctx, banMain: undefined });
       if (extra && !sel.some((s) => s.r.id === extra.id)) take(extra, extra.role === 'dal' ? 'dal' : extra.role);
+    }
+  }
+
+  // Fibre topping: if the plate is short on fibre even at max portions, add a
+  // high-fibre side (salad → vegetable → snack) before solving, so plans meet the
+  // fibre target. Passes the same clinical/renal filters.
+  if (fibreTarget > 0 && sel.length && sel.length < 7) {
+    const maxFibre = sel.reduce((t, s) => t + s.r.fiber * ((ROLE_BOUNDS[s.role]?.[1] ?? 150) / 100), 0);
+    if (maxFibre < fibreTarget * 0.9) {
+      const extra = pick('salad', ctx) ?? pick('vegetable', ctx) ?? pick('snack', ctx);
+      if (extra && !sel.some((s) => s.r.id === extra.id)) take(extra, extra.role === 'salad' ? 'salad' : extra.role === 'vegetable' ? 'vegetable' : 'snack');
     }
   }
 
@@ -571,13 +585,13 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
       const bump = prefs.bumps?.[`d${dayIndex}:${sm.code}`] ?? 0;
       const mealRnd = (v: number) => mulberry((seed ^ Math.imul(dayIndex + 1, 2654435761) ^ Math.imul(slotHash(sm.code) + 1, 40503) ^ Math.imul(bump + 1, 2246822519) ^ Math.imul(attemptIdx * 11 + v + 1, 374761393)) >>> 0);
       const mkCtx = (v: number): SelectCtx => ({ slot: sm.code, prefs, rnd: mealRnd(v), used, pool, banMain: (sm.code === 'l' ? ll : sm.code === 'd' ? ld : undefined) || undefined });
-      const mealKcal = targets.kcal * energy; const mealProtein = targets.protein * energy;
+      const mealKcal = targets.kcal * energy; const mealProtein = targets.protein * energy; const mealFibre = targets.fiber * energy;
       let v = 0;
-      let meal = composeMeal(sm.code, mealKcal, mealProtein, energy, sm.scheduledTime, mkCtx(v));
+      let meal = composeMeal(sm.code, mealKcal, mealProtein, mealFibre, energy, sm.scheduledTime, mkCtx(v));
       if (sm.code === 'b') {
         let tries = 0;
         while ((bfCount.get(meal.components[0]?.recipeId ?? meal.title) ?? 0) >= 2 && tries < 4) {
-          v++; meal = composeMeal(sm.code, mealKcal, mealProtein, energy, sm.scheduledTime, mkCtx(v)); tries++;
+          v++; meal = composeMeal(sm.code, mealKcal, mealProtein, mealFibre, energy, sm.scheduledTime, mkCtx(v)); tries++;
         }
         const k = meal.components[0]?.recipeId ?? meal.title;
         bfCount.set(k, (bfCount.get(k) ?? 0) + 1);
@@ -586,7 +600,7 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
         const last = sm.code === 'l' ? ll : ld;
         let tries = 0;
         while ((meal.components.find((c) => c.role === 'main')?.recipeId ?? '') === last && last && tries < 6) {
-          v++; meal = composeMeal(sm.code, mealKcal, mealProtein, energy, sm.scheduledTime, mkCtx(v)); tries++;
+          v++; meal = composeMeal(sm.code, mealKcal, mealProtein, mealFibre, energy, sm.scheduledTime, mkCtx(v)); tries++;
         }
         const newMain = meal.components.find((c) => c.role === 'main')?.recipeId ?? '';
         if (sm.code === 'l') ll = newMain; else ld = newMain;

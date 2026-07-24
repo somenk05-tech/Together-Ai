@@ -87,7 +87,11 @@ function healthScore(days: ComposedDay[], targets: DayTargets, caps: ClinicalCap
   const kcalDev = Math.abs(avg.kcal - targets.kcal) / Math.max(1, targets.kcal);
   if (kcalDev > 0.10) { const p = Math.round(kcalDev * 100); notes.push({ key: 'kcal', label: 'Calories', severity: kcalDev > 0.2 ? 'warn' : 'info', detail: `${Math.round(avg.kcal)} vs ${Math.round(targets.kcal)} kcal (${avg.kcal > targets.kcal ? '+' : '−'}${p}%)` }); penalty += Math.min(15, p * 0.3); }
   under('protein', 'Protein', avg.protein, targets.protein, 'g');
-  under('fiber', 'Fibre', avg.fiber, targets.fiber, 'g');
+  // Renal plans (low potassium cap) legitimately restrict high-fibre foods
+  // (whole grains, beans, fruit are potassium-rich), so a fibre shortfall there is
+  // correct clinical behaviour, not a health failing — don't penalise it.
+  const renal = !!(caps?.potassiumMg && caps.potassiumMg <= 3000);
+  if (!renal) under('fiber', 'Fibre', avg.fiber, targets.fiber, 'g');
   over('sodium', 'Sodium', avg.sodiumMg, caps?.sodiumMg, 'mg', 1);
   over('addedSugar', 'Added sugar', avg.addedSugarG, caps?.sugarG, 'g', 1.2);
   over('satFat', 'Saturated fat', avg.satFatG, caps?.satFatG, 'g', 1);
