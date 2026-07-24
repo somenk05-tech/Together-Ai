@@ -57,7 +57,8 @@ export class SocialController {
 
   @Patch('posts/:id')
   update(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
-    const { text } = parseOrThrow(z.object({ text: z.string().max(5000) }), body);
+    // Same cap as create (2200) — an edit must not exceed the create limit.
+    const { text } = parseOrThrow(z.object({ text: z.string().max(2200) }), body);
     return this.social.updatePost(user.sub, id, text);
   }
 
@@ -67,8 +68,8 @@ export class SocialController {
   }
 
   @Get('posts/:id/comments')
-  comments(@Param('id') id: string) {
-    return this.social.comments(id);
+  comments(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.social.comments(user.sub, id);
   }
 
   @Post('posts/:id/comments')
@@ -84,5 +85,38 @@ export class SocialController {
   @Post('posts/:id/like')
   like(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.social.toggleLike(user.sub, id);
+  }
+
+  // ─────────────── safety: block & report ───────────────
+  @Get('blocks')
+  blocks(@CurrentUser() user: JwtUser) {
+    return this.social.listBlocks(user.sub);
+  }
+
+  @Post('block')
+  block(@CurrentUser() user: JwtUser, @Body() body: unknown) {
+    const { handle, userId } = parseOrThrow(
+      z.object({ handle: z.string().optional(), userId: z.string().optional() }),
+      body,
+    );
+    return this.social.block(user.sub, userId ?? handle ?? '');
+  }
+
+  @Delete('block/:userId')
+  unblock(@CurrentUser() user: JwtUser, @Param('userId') userId: string) {
+    return this.social.unblock(user.sub, userId);
+  }
+
+  @Post('report')
+  report(@CurrentUser() user: JwtUser, @Body() body: unknown) {
+    const dto = parseOrThrow(
+      z.object({
+        targetType: z.enum(['user', 'post', 'comment']),
+        targetId: z.string().min(1),
+        reason: z.string().max(500).optional(),
+      }),
+      body,
+    );
+    return this.social.report(user.sub, dto);
   }
 }

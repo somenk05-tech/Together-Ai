@@ -137,6 +137,9 @@ model User {
   postLikes            Like[]
   following            Follow[]             @relation("FollowFollower")
   followers            Follow[]             @relation("FollowFollowee")
+  blocksMade           Block[]              @relation("BlocksMade")
+  blocksReceived       Block[]              @relation("BlocksReceived")
+  reportsMade          Report[]             @relation("ReportsMade")
   datingProfile        DatingProfile?
   datingMatchesOne     DatingMatch[]        @relation("DatingUserOne")
   datingMatchesTwo     DatingMatch[]        @relation("DatingUserTwo")
@@ -569,6 +572,8 @@ model Post {
 
   @@index([createdAt])
   @@index([authorId])
+  // Serves the hot feed path: WHERE authorId IN (...) ORDER BY createdAt DESC.
+  @@index([authorId, createdAt])
 }
 
 model PostMedia {
@@ -620,6 +625,38 @@ model Follow {
 
   @@unique([followerId, followeeId])
   @@index([followeeId])
+}
+
+// Safety: one user blocking another. Blocks are one-directional records but
+// enforced both ways (a block hides content and prevents interaction between
+// the pair in either direction). Cascade-deletes with either user.
+model Block {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("BlocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+// Safety: a user-submitted report against a user, post or comment. Feeds a
+// moderation queue (reviewed out-of-band). Kept minimal and append-only.
+model Report {
+  id         String   @id @default(uuid())
+  reporterId String
+  targetType String // user | post | comment
+  targetId   String
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  reporter User @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId])
+  @@index([reporterId])
 }
 
 // ─────────────────────────── Dating Hub ───────────────────────────

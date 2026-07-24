@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+// Only accept https media URLs. `z.string().url()` alone accepts
+// `javascript:...` and `data:text/html,...`, which are stored-XSS/redirect
+// vectors if ever rendered into an href/src. Uploaded media is served over
+// https (R2/CDN), so this is safe for real content.
+const httpsUrl = z
+  .string()
+  .url()
+  .refine((u) => /^https:\/\//i.test(u), { message: 'media URL must be https' });
+
 /** Create a post — text and/or media, optional feeling + geo (for the city map). */
 export const CreatePostSchema = z
   .object({
@@ -8,9 +17,9 @@ export const CreatePostSchema = z
     media: z
       .array(
         z.object({
-          url: z.string().url(),
+          url: httpsUrl,
           kind: z.enum(['image', 'video']),
-          thumbUrl: z.string().url().optional(),
+          thumbUrl: httpsUrl.optional(),
         }),
       )
       .max(10)
