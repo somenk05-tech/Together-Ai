@@ -192,6 +192,20 @@ export class ConnectionsService {
     return shaped;
   }
 
+  /** Shareable recipients for the Universal Share Sheet: accepted connections,
+   *  flagged as family (from the relationship label) so the sheet can group them.
+   *  One consistent recipient source across every hub. */
+  async recipients(userId: string): Promise<Array<{ id: string; handle: string; name: string; avatar: string | null; relationship: string | null; family: boolean }>> {
+    const FAMILY_RE = /mother|father|\bmom\b|\bdad\b|parent|son|daughter|brother|sister|sibling|spouse|wife|husband|partner|family|cousin|uncle|aunt|grand|nephew|niece|in-law/i;
+    const all = await this.listForUser(userId, 'accepted');
+    return all
+      .map((c) => ({
+        id: c.user.id, handle: c.user.handle, name: c.user.name, avatar: c.user.profileImage ?? null,
+        relationship: c.relationship ?? null,
+        family: !!c.relationship && FAMILY_RE.test(c.relationship),
+      }));
+  }
+
   /** One record, many permissions: hubs query THIS. */
   async updateModules(userId: string, connectionId: string, dto: UpdateModulesDto): Promise<ShapedConnection> {
     const conn = await this.prisma.connection.findUnique({ where: { id: connectionId } });

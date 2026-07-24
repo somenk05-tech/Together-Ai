@@ -221,8 +221,9 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
       if (cc.sugarG && r.nutrients.addedSugarG > cc.sugarG * 0.7) return false;
     }
     const cu = normCuisine(r.cuisine);
-    if (allowedCuisines && allowedCuisines.length && cu !== 'Global' && !allowedCuisines.includes(cu)) {
-      // out-of-cuisine: allowed only if bucket not locked
+    if (allowedCuisines && allowedCuisines.length && !allowedCuisines.includes(cu)) {
+      // out-of-cuisine (incl. Global) is excluded when the bucket is LOCKED (QA L3);
+      // when unlocked it's merely down-weighted in pick().
       if (locked) return false;
     }
     const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();

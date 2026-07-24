@@ -160,16 +160,27 @@ export const COMPONENT_SEEDS: ComponentSeed[] = [
   ...MAINS, ...DALS, ...BREADS, ...RICES, ...VEGS, ...DAIRY, ...SALADS, ...SOUPS, ...SNACKS, ...BREAKFASTS, ...EXTRAS,
 ];
 
-/** Pantry staples — excluded from grocery by default (spec Rule 10 pantry). */
+/** Pantry staples — excluded from grocery by default (spec Rule 10 pantry).
+ *  Bare 'pepper' removed (it wrongly caught "bell pepper"); matching is now
+ *  whole-word so "boiled egg", "watermelon", "sugarcane", "coconut" etc. are
+ *  no longer misread as staples (QA L2 fix). */
 export const PANTRY_STAPLES = [
-  'salt', 'black pepper', 'pepper', 'turmeric', 'red chilli powder', 'chilli powder', 'cumin', 'cumin seeds',
+  'salt', 'black pepper', 'white pepper', 'turmeric', 'red chilli powder', 'chilli powder', 'cumin', 'cumin seeds',
   'coriander powder', 'garam masala', 'cooking oil', 'oil', 'ghee', 'mustard seeds', 'asafoetida', 'hing',
   'sugar', 'water', 'curry leaves', 'bay leaf', 'cinnamon', 'cardamom', 'cloves', 'ginger-garlic', 'ginger', 'garlic',
 ];
 
+// Ingredient names that contain a staple word but are real, bought foods.
+const PANTRY_FALSE_POSITIVES = /\b(bell pepper|capsicum|watermelon|water chestnut|coconut water|sugarcane|sugar snap|garlic bread|ginger ale|oil-free)\b/;
+
 export function isPantryStaple(ingredient: string): boolean {
   const n = ingredient.trim().toLowerCase();
-  return PANTRY_STAPLES.some((p) => n === p || n.includes(p));
+  if (PANTRY_FALSE_POSITIVES.test(n)) return false;
+  return PANTRY_STAPLES.some((p) => {
+    if (n === p) return true;
+    const esc = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(^|[^a-z])${esc}([^a-z]|$)`).test(n);   // whole-word, not loose substring
+  });
 }
 
 /** Stable id for a seeded component recipe (deterministic, no DB needed). */

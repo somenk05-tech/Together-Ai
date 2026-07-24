@@ -38,6 +38,13 @@ export class ConnectionsController {
     return this.connections.listForUser(user.sub, status);
   }
 
+  /** Shareable recipients for the Universal Share Sheet (accepted connections,
+   *  flagged family). One recipient source reused across every hub. */
+  @Get('recipients')
+  recipients(@CurrentUser() user: JwtUser) {
+    return this.connections.recipients(user.sub);
+  }
+
   /** Master hubs registry — the UI reads this to render toggles, so adding a hub
    *  never requires a frontend code change. */
   @Get('hubs')
