@@ -301,6 +301,18 @@ function parseExtras(extras: string | null | undefined): PrefExtras {
 function recipeImageUrl(no?: number | null): string | null {
   return typeof no === 'number' && no > 0 ? `/recipe-images/${no}.webp` : null;
 }
+/** Map a stored FoodPref diet value to a composer diet (single source of truth). */
+function mapUserDiet(raw?: string | null): ComposerDiet {
+  const d = (raw ?? '').toLowerCase();
+  const M: Record<string, ComposerDiet> = {
+    everything: 'nonveg', nonveg: 'nonveg', 'non-veg': 'nonveg', nonvegetarian: 'nonveg', 'non-vegetarian': 'nonveg',
+    pesc: 'nonveg', pescatarian: 'nonveg', fish: 'nonveg',
+    egg: 'eggetarian', eggetarian: 'eggetarian',
+    veg: 'vegetarian', vegetarian: 'vegetarian', jain: 'vegetarian',
+    vegan: 'vegan',
+  };
+  return M[d] ?? 'vegetarian';
+}
 function terms(s?: string): string[] {
   return (s ?? '').split(/[,;]/).map((t) => t.trim().toLowerCase()).filter(Boolean);
 }
@@ -1476,23 +1488,24 @@ export class NutritionService implements OnModuleInit {
     return out;
   }
 
-  private datasetPoolBuilding = false;
-  /**
-   * Kick off the 11k-recipe pool build WITHOUT blocking the caller (load-issue
-   * fix). Until the pool is warm, plan generation uses the curated seed pool only
-   * — fast and always available — so a cold boot never times out a request.
-   */
+  private datasetPoolPromise: Promise<PoolRecipe[]> | null = null;
+  /** Kick off the 11k-recipe pool build once (shared promise). */
   private warmDatasetPool(): void {
-    if (this.datasetPoolCache || this.datasetPoolBuilding) return;
-    this.datasetPoolBuilding = true;
-    void this.datasetPool()
-      .catch((e) => { this.logger.error(`dataset pool warm-up failed: ${(e as Error)?.message ?? e}`); return []; })
-      .finally(() => { this.datasetPoolBuilding = false; });
+    if (this.datasetPoolCache || this.datasetPoolPromise) return;
+    this.datasetPoolPromise = this.datasetPool()
+      .catch((e) => { this.logger.error(`dataset pool build failed: ${(e as Error)?.message ?? e}`); return [] as PoolRecipe[]; });
   }
-  /** The dataset pool if already warm, else [] (never blocks). */
-  private datasetPoolNow(): PoolRecipe[] {
+  /**
+   * The dataset pool, WAITING up to maxWaitMs for the (once-per-boot) build so the
+   * plan actually contains the full recipe set — non-veg mains and photos live
+   * here, not in the small curated seed pool. Bounded so it can't hang (the outer
+   * composedPlan timeout is longer); returns the seed-only pool ([]) if it's slow.
+   */
+  private async datasetPoolReady(maxWaitMs = 6500): Promise<PoolRecipe[]> {
+    if (this.datasetPoolCache) return this.datasetPoolCache;
     this.warmDatasetPool();
-    return this.datasetPoolCache ?? [];
+    const timeout = new Promise<PoolRecipe[]>((res) => setTimeout(() => res(this.datasetPoolCache ?? []), maxWaitMs));
+    return Promise.race([this.datasetPoolPromise ?? Promise.resolve([] as PoolRecipe[]), timeout]);
   }
 
   /** Stable numeric seed from a user id so week generation is deterministic. */
@@ -1515,6 +1528,17 @@ export class NutritionService implements OnModuleInit {
    * read-only. Everyone else gets their own composition.
    */
   async composedPlan(userId: string) {
+    // Food Preference Profile is the master source of truth — never generate a
+    // plan until it's saved. Members of a family with shared planning inherit the
+    // owner's saved profile, so they're allowed through.
+    const pref0 = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null);
+    const ex0 = parseExtras((pref0 as { extras?: string | null } | null)?.extras);
+    const profileSaved = !!pref0 && Object.keys(ex0).length > 0;
+    if (!profileSaved) {
+      const ctx0 = await this.familyContext(userId).catch(() => null);
+      const sharedMember = !!ctx0 && ctx0.role === 'member' && !!ctx0.familyMealPlanning;
+      if (!sharedMember) return { needsProfile: true as const };
+    }
     try {
       // Timeout race (load-issue fix): a hung DB query never throws, so a plain
       // try/catch can't rescue it — the HTTP request would just time out and the
@@ -1530,11 +1554,13 @@ export class NutritionService implements OnModuleInit {
       // safe general plan the user can reload to personalise.
       this.logger.error(`composedPlan failed for user=${userId}: ${(e as Error)?.stack ?? String(e)}`);
       try {
-        const t = computeTargets({ weightKg: 70, heightCm: 172, age: 30, sex: 'male', activity: 1.4, goal: 'maintain', conditions: [], flags: {} });
-        const pool = this.datasetPoolNow();
+        // Even the fallback honours the user's diet (never veg for a non-veg user).
+        const prefF = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null);
+        const t = computeTargets({ weightKg: prefF?.weightKg ?? 70, heightCm: prefF?.heightCm ?? 172, age: prefF?.age ?? 30, sex: prefF?.sex ?? 'male', activity: prefF?.activity ?? 1.4, goal: prefF?.goal ?? 'maintain', conditions: [], flags: {} });
+        const pool = await this.datasetPoolReady();
         const week = composeWeek(
           { kcal: t.kcal, protein: t.protein, carbs: (t as { carb: number }).carb, fat: t.fat, fiber: t.fiber },
-          { diet: 'vegetarian' }, 7, this.seedFor(userId), pool,
+          { diet: mapUserDiet(prefF?.diet as string | undefined) }, 7, this.seedFor(userId), pool,
         );
         return {
           ...week, prescription: t, fastingSafety: { level: 'ok' as const, notes: [] },
@@ -1613,18 +1639,7 @@ export class NutritionService implements OnModuleInit {
     // Jain is vegetarian + automatic exclusion of onion, garlic and root vegetables.
     const rawDiet = ((pref?.diet as string) ?? 'vegetarian').toLowerCase();
     const isJain = rawDiet === 'jain';
-    // Map the stored FoodPref diet value (everything/nonveg/pesc/egg/veg/vegan/jain)
-    // to a composer diet. BUG FIX: 'everything'/'pesc' were passed through unmapped,
-    // so dietOk() threw and the plan fell back to the vegetarian default — a non-veg
-    // user saw only veg dishes.
-    const DIET_MAP: Record<string, ComposerDiet> = {
-      everything: 'nonveg', nonveg: 'nonveg', 'non-veg': 'nonveg', nonvegetarian: 'nonveg', 'non-vegetarian': 'nonveg',
-      pesc: 'nonveg', pescatarian: 'nonveg', fish: 'nonveg',
-      egg: 'eggetarian', eggetarian: 'eggetarian',
-      veg: 'vegetarian', vegetarian: 'vegetarian', jain: 'vegetarian',
-      vegan: 'vegan',
-    };
-    const composerDiet: ComposerDiet = DIET_MAP[rawDiet] ?? 'vegetarian';
+    const composerDiet: ComposerDiet = mapUserDiet(rawDiet);
     const jainExcludes = isJain ? ['onion', 'garlic', 'potato', 'carrot', 'radish', 'beetroot', 'mushroom', 'ginger'] : [];
     // MNT hard-avoid lists (QA M8): organ/processed meat for gout & CKD, alcohol
     // for fatty liver, etc. — now actually applied to the composed plan.
@@ -1677,7 +1692,7 @@ export class NutritionService implements OnModuleInit {
       bumps: ex.composedBumps,
     };
     const targets = { kcal: t.kcal, protein: t.protein, carbs: (t as { carb: number }).carb, fat: t.fat, fiber: t.fiber };
-    const datasetPool = this.datasetPoolNow();   // non-blocking: [] until warm, then full 11k pool (grocery stays exact)
+    const datasetPool = await this.datasetPoolReady();   // wait (bounded) for the full 11k pool — non-veg mains + photos live here
     const week = composeWeek(targets, cprefs, 7, this.seedFor(userId), datasetPool);
 
     // Inform-and-recommend: how the preferred plan compares to the clinical ideal.
