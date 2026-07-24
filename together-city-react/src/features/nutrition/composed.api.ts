@@ -35,6 +35,9 @@ export interface ComposedWeek {
    *  medical caps — the UI must warn instead of presenting it as certified-safe. */
   blocked?: boolean;
   blockReason?: string[];
+  /** Resilience fallback: a general plan shown because the full profile couldn't be read. */
+  degraded?: boolean;
+  degradedReason?: string;
   prescription: { kcal: number; protein: number; carb: number; fat: number; fiber: number };
   fastingSafety: { level: 'ok' | 'warn' | 'block'; notes: string[] };
   basedOnFamily?: { ownerName: string; factor: number };

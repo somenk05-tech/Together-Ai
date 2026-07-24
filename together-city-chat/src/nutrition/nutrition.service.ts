@@ -1268,6 +1268,7 @@ export class NutritionService implements OnModuleInit {
     void this.ensureRecipeLibrary()
       .then(() => this.adoptDatasetV2())
       .then(() => this.runNutritionQa())
+      .then(() => { this.warmDatasetPool(); })   // warm the composite pool at boot (load-issue fix)
       .catch(() => undefined);
   }
 
@@ -1466,6 +1467,25 @@ export class NutritionService implements OnModuleInit {
     return out;
   }
 
+  private datasetPoolBuilding = false;
+  /**
+   * Kick off the 11k-recipe pool build WITHOUT blocking the caller (load-issue
+   * fix). Until the pool is warm, plan generation uses the curated seed pool only
+   * — fast and always available — so a cold boot never times out a request.
+   */
+  private warmDatasetPool(): void {
+    if (this.datasetPoolCache || this.datasetPoolBuilding) return;
+    this.datasetPoolBuilding = true;
+    void this.datasetPool()
+      .catch((e) => { this.logger.error(`dataset pool warm-up failed: ${(e as Error)?.message ?? e}`); return []; })
+      .finally(() => { this.datasetPoolBuilding = false; });
+  }
+  /** The dataset pool if already warm, else [] (never blocks). */
+  private datasetPoolNow(): PoolRecipe[] {
+    this.warmDatasetPool();
+    return this.datasetPoolCache ?? [];
+  }
+
   /** Stable numeric seed from a user id so week generation is deterministic. */
   private seedFor(userId: string): number {
     let h = 2166136261;
@@ -1486,6 +1506,33 @@ export class NutritionService implements OnModuleInit {
    * read-only. Everyone else gets their own composition.
    */
   async composedPlan(userId: string) {
+    try {
+      return await this.buildComposedPlan(userId);
+    } catch (e) {
+      // Resilience (load-issue fix): never blank the planner on an unexpected
+      // error. Log the real cause (visible in server logs) and fall back to a
+      // safe general plan the user can reload to personalise.
+      this.logger.error(`composedPlan failed for user=${userId}: ${(e as Error)?.stack ?? String(e)}`);
+      try {
+        const t = computeTargets({ weightKg: 70, heightCm: 172, age: 30, sex: 'male', activity: 1.4, goal: 'maintain', conditions: [], flags: {} });
+        const pool = this.datasetPoolNow();
+        const week = composeWeek(
+          { kcal: t.kcal, protein: t.protein, carbs: (t as { carb: number }).carb, fat: t.fat, fiber: t.fiber },
+          { diet: 'vegetarian' }, 7, this.seedFor(userId), pool,
+        );
+        return {
+          ...week, prescription: t, fastingSafety: { level: 'ok' as const, notes: [] },
+          degraded: true,
+          degradedReason: 'We had trouble reading your full profile, so this is a general starter plan. Reload to personalise it — and if it keeps happening, re-save your food preferences.',
+        };
+      } catch (e2) {
+        this.logger.error(`composedPlan fallback also failed for user=${userId}: ${(e2 as Error)?.stack ?? String(e2)}`);
+        throw e;
+      }
+    }
+  }
+
+  private async buildComposedPlan(userId: string) {
     const ctx = await this.familyContext(userId).catch(() => null);
     if (ctx && ctx.role === 'member' && ctx.familyMealPlanning) {
       const mpref = await this.prisma.foodPref.findUnique({ where: { userId } });
@@ -1591,7 +1638,7 @@ export class NutritionService implements OnModuleInit {
       clinical: isClinical,
     };
     const targets = { kcal: t.kcal, protein: t.protein, carbs: (t as { carb: number }).carb, fat: t.fat, fiber: t.fiber };
-    const datasetPool = await this.datasetPool().catch(() => []);   // dataset mains → variety; grocery stays exact
+    const datasetPool = this.datasetPoolNow();   // non-blocking: [] until warm, then full 11k pool (grocery stays exact)
     const week = composeWeek(targets, cprefs, 7, this.seedFor(userId), datasetPool);
 
     const safety = ex.fasting?.enabled ? fastingSafety(conditions.join(' ')) : { level: 'ok' as const, notes: [] };
