@@ -40,6 +40,8 @@ const T: Record<string, [number, number, number, number, number]> = {
   'spinach': [79, 558, 49, 0.4, 0.06],
   'coconut (grated)': [20, 356, 113, 6, 30],
   'green beans': [6, 211, 38, 3.3, 0.05],
+  'capsicum': [3, 175, 20, 2.5, 0.03],
+  'bell pepper': [3, 175, 20, 2.5, 0.03],
   'bottle gourd': [2, 150, 13, 1, 0.02],
   'ash gourd': [10, 100, 20, 1.5, 0.01],
   'ridge gourd': [3, 140, 26, 1.5, 0.02],

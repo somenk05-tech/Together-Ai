@@ -41,6 +41,10 @@ const MAINS: ComponentSeed[] = [
   S('Chicken Curry', 'India', ['lunch', 'dinner'], 'main', [300, 28, 8, 17, 2], 40, 220, 'nonveg', [['Chicken', 150], ['Onion', 50], ['Tomato', 50], ['Cooking oil', 10]]),
   S('Fish Curry', 'India', ['lunch', 'dinner'], 'main', [260, 26, 8, 13, 2], 35, 220, 'nonveg', [['Fish', 150], ['Onion', 45], ['Tomato', 45], ['Coconut (grated)', 20], ['Cooking oil', 8]]),
   S('Soya Chunk Masala', 'India', ['lunch', 'dinner'], 'main', [240, 20, 18, 9, 6], 30, 200, 'vegan', [['Soya chunks', 60], ['Onion', 45], ['Tomato', 45], ['Cooking oil', 8]]),
+  // Low-potassium/phosphorus mains for renal plates (minimal onion/tomato, no dal).
+  S('Tofu Capsicum Stir-fry', 'India', ['lunch', 'dinner'], 'main', [200, 14, 8, 12, 3], 20, 150, 'vegan', [['Tofu', 110], ['Capsicum', 40], ['Onion', 15], ['Cooking oil', 6]]),
+  S('Grilled Paneer & Peppers', 'India', ['lunch', 'dinner'], 'main', [240, 15, 6, 18, 1], 20, 140, 'vegetarian', [['Paneer', 100], ['Capsicum', 30], ['Cooking oil', 6]]),
+  S('Light Egg Curry', 'India', ['lunch', 'dinner'], 'main', [210, 14, 6, 14, 1], 25, 170, 'eggetarian', [['Eggs', 100], ['Onion', 20], ['Capsicum', 20], ['Cooking oil', 7]]),
 ];
 
 /** Dals & legume gravies (lunch/dinner protein). */

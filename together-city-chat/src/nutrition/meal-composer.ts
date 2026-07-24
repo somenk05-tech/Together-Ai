@@ -101,6 +101,10 @@ export const SEED_POOL: PoolRecipe[] = COMPONENT_SEEDS.map((s) => {
 const CUISINE_NORMALISE: Record<string, string> = { India: 'Indian', Indian: 'Indian', Global: 'Global' };
 function normCuisine(c: string): string { return CUISINE_NORMALISE[c] ?? c; }
 
+/** Per-role potassium/phosphorus ceilings (mg/serving) for renal plates. */
+const RENAL_K_CEIL: Record<string, number> = { main: 240, dal: 0, vegetable: 230, carb: 180, salad: 180, snack: 240, breakfast: 340, soup: 200, dessert: 240, drink: 240, side: 200, dairy: 0 };
+const RENAL_P_CEIL: Record<string, number> = { main: 220, dal: 0, vegetable: 90, carb: 300, salad: 90, snack: 260, breakfast: 260, soup: 120, dessert: 120, drink: 260, side: 220, dairy: 0 };
+
 const dietRank: Record<Diet, Diet[]> = {
   vegan: ['vegan'],
   vegetarian: ['vegan', 'vegetarian'],
@@ -144,6 +148,12 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
   const userDiet = prefs.diet ?? 'vegetarian';
   const excluded = (prefs.excluded ?? []).map((e) => e.toLowerCase());
 
+  // Renal ceilings: only genuinely low-potassium/phosphorus food may enter a
+  // renal plate, per role (the last lever to meet the strict K/P cap).
+  const renal = Boolean(prefs.caps?.potassiumMg && prefs.caps.potassiumMg <= 3000);
+  const kCeil = renal ? (RENAL_K_CEIL[role] ?? 250) : Infinity;
+  const pCeil = renal ? (RENAL_P_CEIL[role] ?? 250) : Infinity;
+
   return ctx.pool.filter((r) => {
     if (r.role !== role) return false;
     if (role === 'main' && ctx.banMain && r.id === ctx.banMain) return false;  // no consecutive-day main
@@ -151,6 +161,7 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
     if (!dietOk(r.diet, userDiet)) return false;
     // Clinical profiles: only build from food whose capped nutrients are known.
     if (prefs.clinical && !r.nutrientComplete) return false;
+    if (renal && (r.nutrients.potassiumMg > kCeil || r.nutrients.phosphorusMg > pCeil)) return false;
     const cu = normCuisine(r.cuisine);
     if (allowedCuisines && allowedCuisines.length && cu !== 'Global' && !allowedCuisines.includes(cu)) {
       // out-of-cuisine: allowed only if bucket not locked
