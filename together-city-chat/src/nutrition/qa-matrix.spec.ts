@@ -168,7 +168,7 @@ describe('Nutrition Hub — Round-2 large matrix (real 11k pool)', () => {
         if (day.totals.protein >= targets.protein * 0.9) m.proteinMetDays++;
 
         const slots = day.meals.map((mm) => mm.slot).join(',');
-        if (!prefs.fasting && slots !== 'b,ms,l,es,d') m.structureBad++;
+        if (!prefs.fasting && slots !== 'b,l,es,d') m.structureBad++;
 
         for (const meal of day.meals) {
           for (const c of meal.components) {

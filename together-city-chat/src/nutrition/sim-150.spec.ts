@@ -163,7 +163,7 @@ describe('Nutrition Hub — 150 virtual-user simulation', () => {
       for (const day of wk.days) {
         M.days++; M.dayCount++;
         const slots = day.meals.map((m) => m.slot).join(',');
-        if (u.fasting?.enabled ? day.meals.length >= 1 : slots === 'b,ms,l,es,d') M.structOk++;
+        if (u.fasting?.enabled ? day.meals.length >= 1 : slots === 'b,l,es,d') M.structOk++;
         // duplicate meals within a day (same lead recipe in 2 slots)
         const leadIds = day.meals.map((m) => m.components[0]?.recipeId).filter(Boolean);
         if (new Set(leadIds).size !== leadIds.length) M.dupMealDays++;

@@ -127,7 +127,7 @@ describe('Nutrition Engine — 250-user audit (both modes)', () => {
         else if (wk.blocked) M.prefBlocked++;
         for (const day of wk.days) {
           M.days++;
-          if (u.fasting ? day.meals.length >= 1 : day.meals.map((m) => m.slot).join(',') === 'b,ms,l,es,d') M.structOk++;
+          if (u.fasting ? day.meals.length >= 1 : day.meals.map((m) => m.slot).join(',') === 'b,l,es,d') M.structOk++;
           let lastMain = '';
           for (const m of day.meals) for (const c of m.components) {
             const pr = pool().find((x) => x.id === c.recipeId);

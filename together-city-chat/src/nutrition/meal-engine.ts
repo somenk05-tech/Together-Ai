@@ -37,11 +37,10 @@ export const ENERGY_MAX = 0.35;
 export const ENERGY_MIN = 0.08;
 
 export const SLOTS: SlotDef[] = [
-  { code: 'b',  key: 'breakfast',     label: 'Breakfast',      energy: 0.25, start: '07:00', end: '10:00', categories: ['breakfast', 'drink', 'salad'],                         minComponents: 1, maxComponents: 2, cuisineBucket: 'breakfast' },
-  { code: 'ms', key: 'morning_snack', label: 'Morning Snack',  energy: 0.10, start: '10:00', end: '11:30', categories: ['snack', 'drink', 'salad', 'soup'],                    minComponents: 1, maxComponents: 2, cuisineBucket: 'snack' },
-  { code: 'l',  key: 'lunch',         label: 'Lunch',          energy: 0.30, start: '12:00', end: '14:00', categories: ['lunch', 'side', 'salad', 'soup', 'dessert', 'drink'], minComponents: 3, maxComponents: 6, cuisineBucket: 'lunch' },
-  { code: 'es', key: 'evening_snack', label: 'Evening Snack',  energy: 0.10, start: '16:00', end: '18:00', categories: ['snack', 'drink', 'salad', 'soup'],                    minComponents: 1, maxComponents: 2, cuisineBucket: 'snack' },
-  { code: 'd',  key: 'dinner',        label: 'Dinner',         energy: 0.25, start: '19:00', end: '21:00', categories: ['dinner', 'side', 'salad', 'soup', 'drink'],           minComponents: 3, maxComponents: 5, cuisineBucket: 'dinner' },
+  { code: 'b',  key: 'breakfast',     label: 'Breakfast',      energy: 0.28, start: '07:00', end: '10:00', categories: ['breakfast', 'drink', 'salad'],                         minComponents: 1, maxComponents: 2, cuisineBucket: 'breakfast' },
+  { code: 'l',  key: 'lunch',         label: 'Lunch',          energy: 0.32, start: '12:00', end: '14:00', categories: ['lunch', 'side', 'salad', 'soup', 'dessert', 'drink'], minComponents: 3, maxComponents: 6, cuisineBucket: 'lunch' },
+  { code: 'es', key: 'evening_snack', label: 'Evening Snack',  energy: 0.12, start: '16:00', end: '18:00', categories: ['snack', 'drink', 'salad', 'soup'],                    minComponents: 1, maxComponents: 2, cuisineBucket: 'snack' },
+  { code: 'd',  key: 'dinner',        label: 'Dinner',         energy: 0.28, start: '19:00', end: '21:00', categories: ['dinner', 'side', 'salad', 'soup', 'drink'],           minComponents: 3, maxComponents: 5, cuisineBucket: 'dinner' },
 ];
 
 export const SLOT_ORDER: SlotCode[] = SLOTS.map((s) => s.code);
@@ -71,7 +70,7 @@ const NOT_BREAKFAST = /dal makhani|rajma|butter chicken|biryani|pulao|korma|roga
 const BREAKFAST_HINT = /idli|dosa|poha|upma|paratha|thepla|oats|porridge|cereal|muesli|chilla|cheela|besan|smoothie|pancake|toast|omelet|omelette|egg|paneer bhurji|bhurji|uttapam|vada|dhokla|sandwich|granola|fruit bowl|stuffed roti|aloo paratha/i;
 const SNACK_HINT = /\bsnack\b|nuts|seeds|roasted chana|sprouts|buttermilk|chaas|protein (shake|bar)|smoothie|lassi|boiled egg|corn|chaat|bhel|tikki|cutlet|fruit|makhana|trail mix|yogurt|curd cup/i;
 const DESSERT_HINT = /halwa|kheer|barfi|barfee|ladoo|laddu|jalebi|gulab jamun|rasgulla|dessert|pudding|ice ?cream|cake|brownie|mousse|custard|sheera|payasam|sandesh/i;
-const DRINK_HINT = /juice|smoothie|shake|lassi|buttermilk|chaas|tea|coffee|milk\b|water|lemonade|coconut water|kadha|drink/i;
+const DRINK_HINT = /juice|smoothie|shake|lassi|buttermilk|chaas|\btea\b|coffee|milk\b|\bwater\b|lemonade|coconut water|kadha|drink/i;
 const SOUP_HINT = /soup|shorba|rasam|broth|stew|dal soup/i;
 const SALAD_HINT = /salad|kachumber|koshimbir|raita|slaw|sprout salad/i;
 const SIDE_HINT = /roti|phulka|chapati|naan|paratha(?! stuffed)|rice\b|dal\b|lentil|sabzi|sabji|poriyal|thoran|bhaji|curd|raita|papad|pickle|chutney/i;
@@ -84,7 +83,10 @@ const CONDIMENT_HINT = /chutney|pickle|achaar|achar|dip|sauce|masala paste|podi|
  * real dishes) or contains a specific multi-word condiment — then excluded from the
  * meal pool entirely (role → null).
  */
-const PURE_CONDIMENT = /(^|\s)(mayonnaise|mayo|aioli|ketchup|catsup|mustard|vinaigrette|pesto|salsa|tzatziki|guacamole|hummus|chutney|pickle|achaar|achar|relish|marmalade|preserves|compote|marinade|glaze|gravy|podi|gunpowder|furikake|dressing)$|\b(salad dressing|ranch dressing|italian dressing|caesar dressing|honey mustard|soy sauce|fish sauce|hot sauce|bbq sauce|barbecue sauce|tartar sauce|cocktail sauce|dipping sauce|curry paste|masala paste|spice rub|dry rub|dipping)\b/i;
+const PURE_CONDIMENT = /(^|\s)(mayonnaise|mayo|aioli|ketchup|catsup|mustard|vinaigrette|pesto|salsa|tzatziki|guacamole|hummus|chutney|pickle|achaar|achar|relish|marmalade|preserves|compote|marinade|glaze|gravy|podi|gunpowder|furikake|dressing)$|\b(salad dressing|ranch dressing|italian dressing|caesar dressing|honey mustard|soy sauce|fish sauce|hot sauce|bbq sauce|barbecue sauce|tartar sauce|cocktail sauce|dipping sauce|curry paste|masala paste|spice rub|dry rub|dipping|spice mix|spice blend|spice powder|masala mix|masala powder|curry powder|garam masala|chaat masala|sambar powder|rasam powder|biryani masala|seasoning)\b/i;
+/** Plain staple carbs (rice/roti/bread/pasta on their own) — a side, never a
+ *  stand-alone snack or meal (fixes "Microwave Rice" showing up as a snack). */
+const STAPLE_CARB = /\b(rice|roti|chapati|phulka|naan|bread|toast|pasta|noodles?|macaroni|spaghetti|khichdi)\b/i;
 
 export interface CategorizeInput {
   name: string;
@@ -133,9 +135,18 @@ export function categorizeRecipe(r: CategorizeInput): MealCategory[] {
     if (!set.has('lunch') && !set.has('dinner')) { set.add('lunch'); set.add('dinner'); }
   }
 
-  // Light, quick items with no strong signal make reasonable snacks.
+  // A plain staple carb is a side, never a stand-alone snack (unless it's genuinely
+  // a snack/breakfast food like poha/upma — those carry their own hint).
+  if (set.has('snack') && STAPLE_CARB.test(name) && !SNACK_HINT.test(name) && !BREAKFAST_HINT.test(name)) {
+    set.delete('snack');
+    set.add('side');
+  }
+
+  // Light, quick items with no strong signal make reasonable snacks — but a bare
+  // staple carb still falls through to a side, not a snack.
   if (set.size === 0) {
-    if ((r.kcal ?? 999) <= 200 || (r.minutes ?? 99) <= 10) set.add('snack');
+    if (STAPLE_CARB.test(name)) set.add('side');
+    else if ((r.kcal ?? 999) <= 200 || (r.minutes ?? 99) <= 10) set.add('snack');
     else { set.add('lunch'); set.add('dinner'); }
   }
   return [...set];
@@ -164,8 +175,8 @@ export interface FastingProtocol {
   key: string; label: string; window: [string, string]; slots: SlotCode[];
 }
 export const FASTING_PROTOCOLS: Record<string, FastingProtocol> = {
-  '12:12': { key: '12:12', label: '12:12', window: ['08:00', '20:00'], slots: ['b', 'ms', 'l', 'es', 'd'] },
-  '14:10': { key: '14:10', label: '14:10', window: ['10:00', '20:00'], slots: ['ms', 'l', 'es', 'd'] },
+  '12:12': { key: '12:12', label: '12:12', window: ['08:00', '20:00'], slots: ['b', 'l', 'es', 'd'] },
+  '14:10': { key: '14:10', label: '14:10', window: ['10:00', '20:00'], slots: ['l', 'es', 'd'] },
   '16:8':  { key: '16:8',  label: '16:8',  window: ['12:00', '20:00'], slots: ['l', 'es', 'd'] },
   '18:6':  { key: '18:6',  label: '18:6',  window: ['13:00', '19:00'], slots: ['l', 'es', 'd'] },
   '20:4':  { key: '20:4',  label: '20:4',  window: ['14:00', '18:00'], slots: ['l', 'd'] },
@@ -199,8 +210,8 @@ function customSlots(hours: number): SlotCode[] {
   if (hours <= 3) return ['l'];
   if (hours <= 5) return ['l', 'd'];
   if (hours <= 8) return ['l', 'es', 'd'];
-  if (hours <= 11) return ['ms', 'l', 'es', 'd'];
-  return ['b', 'ms', 'l', 'es', 'd'];
+  if (hours <= 11) return ['l', 'es', 'd'];
+  return ['b', 'l', 'es', 'd'];
 }
 
 /**
