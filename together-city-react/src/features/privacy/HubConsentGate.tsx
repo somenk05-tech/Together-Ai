@@ -1,24 +1,38 @@
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePrivacyStore } from './store';
 import { consentFor } from './consent.config';
-import { pushAck } from './api';
+import { pushAck, hydratePrivacy } from './api';
 import { Icon } from '@/components/ui/Icon';
-import { Button } from '@/components/ui';
+import { Button, Spinner } from '@/components/ui';
 
 /**
  * Shows a short, plain-language consent screen the first time a user enters a
  * sensitive hub (Medical, Dating, Financial, Family, Astrology) — what data, why,
  * who can see it, and how to control it (audit 2.2). Once acknowledged it never
- * shows again; non-sensitive hubs pass straight through.
+ * shows again — for the USER, not just the device: before showing the gate we
+ * pull the account's server-side consent record, so a consent given on any
+ * device/session is respected everywhere. Non-sensitive hubs pass straight through.
  */
 export function HubConsentGate({ hub, children }: { hub?: string; children: ReactNode }) {
   const cfg = consentFor(hub);
   const nav = useNavigate();
   const acked = usePrivacyStore((s) => (hub ? s.acks[hub] : true));
+  const hydrated = usePrivacyStore((s) => s.hydrated);
   const ackHub = usePrivacyStore((s) => s.ackHub);
 
+  // Only reach for the server record when we might actually show the gate
+  // (not acknowledged on this device yet). If the account already consented
+  // elsewhere, hydration flips `acked` true and the gate never appears.
+  useEffect(() => {
+    if (cfg && !acked && !hydrated) void hydratePrivacy();
+  }, [cfg, acked, hydrated]);
+
   if (!cfg || acked) return <>{children}</>;
+  // Not acknowledged locally — wait for the account's record before deciding,
+  // so an already-consented user never sees this a second time.
+  if (!hydrated) return <div style={{ minHeight: '40vh', display: 'grid', placeItems: 'center' }}><Spinner label="One moment…" /></div>;
 
   const rows: { label: string; body: string }[] = [
     { label: 'What we use', body: cfg.what },
