@@ -22,7 +22,7 @@ import { addonLabel, addonMacros, complementByKey, fillGapWithComplements, type 
 import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, mntAvoidKeywords, type MntRule } from './clinical-mnt';
-import { composeWeek, scaleComposedWeek, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
+import { composeWeek, scaleComposedWeek, complianceReport, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
 import { computeNutrients, computeMicros, isSalt } from './ingredient-nutrients';
 import {
@@ -281,6 +281,9 @@ interface PrefExtras {
   fasting?: { enabled?: boolean; protocol?: string; window?: { start: string; end: string }; mealTimes?: Record<string, string> };
   /** Grocery pantry-staple toggle (Rule 10). Default excludes pantry items. */
   includePantry?: boolean;
+  /** Composed-plan per-meal overrides (Refresh/Skip). Keys "d{index}:{slotCode}". */
+  composedSkips?: string[];
+  composedBumps?: Record<string, number>;
   /** Family-level setting (stored on the household OWNER's pref). Default ON:
    *  one shared master plan with personalised portions. OFF: every connected
    *  member gets an independent AI plan while staying in the family. */
@@ -1622,16 +1625,24 @@ export class NutritionService implements OnModuleInit {
       ? ex.cuisineBySlot
       : { breakfast: { Indian: 100 }, lunch: { Indian: 90, Continental: 10 }, dinner: { Indian: 90, Chinese: 10 }, snack: {} };
 
-    // Clinical caps enforced on the plate (Workstream A / CRIT-1).
+    // Planner philosophy — "inform, don't force". Generate a PREFERENCE-FIRST plan,
+    // then score it against the clinical ideal (see compliance below). Only the
+    // genuinely dangerous limits (renal potassium/phosphorus — hyperkalemia risk)
+    // are HARD-enforced/blocked; everything else (sodium, sugar, sat-fat, carbs,
+    // calorie/protein) is ADVISORY and reported, not overridden. Allergens and
+    // diet remain absolute (already in `excluded`/`diet`).
     const condText = conditions.join(' ').toLowerCase();
     const isClinical = /kidney|renal|ckd|dialysis|diabet|hba1c|hypertension|blood pressure|cholesterol|lipid|triglycer|fatty liver|gout/.test(condText)
       || flags.hba1c === 'high' || flags.ldl === 'high' || flags.trig === 'high';
+    const seriousRenal = /kidney|renal|ckd|dialysis/.test(condText);
     const capsRaw = t as unknown as { sodiumMaxMg?: number; potassiumMaxMg?: number; phosphorusMaxMg?: number; sugarMaxG?: number; satFatMaxG?: number };
-    const caps = isClinical ? {
+    const fullCaps = {
       sodiumMg: capsRaw.sodiumMaxMg, potassiumMg: capsRaw.potassiumMaxMg, phosphorusMg: capsRaw.phosphorusMaxMg,
       sugarG: capsRaw.sugarMaxG, satFatG: capsRaw.satFatMaxG,
-    } : undefined;
+    };
+    const hardCaps = seriousRenal ? { potassiumMg: capsRaw.potassiumMaxMg, phosphorusMg: capsRaw.phosphorusMaxMg } : undefined;
 
+    const favourites = [...(ex.proteins ?? []), ...(ex.meats ?? [])].filter(Boolean);
     const cprefs: ComposerPrefs = {
       diet: composerDiet,
       excluded,
@@ -1641,15 +1652,21 @@ export class NutritionService implements OnModuleInit {
       includePantry: ex.includePantry ?? false,
       clinicalTag: this.clinicalTag(conditions),
       avoidRice: /diabet|hba1c/.test(condText),
-      caps,
-      clinical: isClinical,
+      caps: hardCaps,                 // hard-enforce only serious renal limits
+      clinical: seriousRenal,
+      maxMinutes: ex.maxCookMin ?? undefined,
+      favourites: favourites.length ? favourites : undefined,
+      skips: ex.composedSkips,
+      bumps: ex.composedBumps,
     };
     const targets = { kcal: t.kcal, protein: t.protein, carbs: (t as { carb: number }).carb, fat: t.fat, fiber: t.fiber };
     const datasetPool = this.datasetPoolNow();   // non-blocking: [] until warm, then full 11k pool (grocery stays exact)
     const week = composeWeek(targets, cprefs, 7, this.seedFor(userId), datasetPool);
 
+    // Inform-and-recommend: how the preferred plan compares to the clinical ideal.
+    const compliance = isClinical ? complianceReport(week.days, targets, fullCaps, condText) : undefined;
     const safety = ex.fasting?.enabled ? fastingSafety(conditions.join(' ')) : { level: 'ok' as const, notes: [] };
-    return { ...week, prescription: t, fastingSafety: safety };
+    return { ...week, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], ...(compliance ? { compliance } : {}) };
   }
 
   /** DB diet values that satisfy a requested diet (ladder). Real DB values:
@@ -1770,6 +1787,48 @@ export class NutritionService implements OnModuleInit {
       create: { userId, extras: JSON.stringify(next) },
     } as Parameters<typeof this.prisma.foodPref.upsert>[0]);
     return this.mealSettings(userId);
+  }
+
+  /** Merge arbitrary extras keys and persist (used by Refresh/Skip). */
+  private async mergeExtras(userId: string, patch: Partial<PrefExtras>): Promise<void> {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const next = { ...ex, ...patch };
+    await this.prisma.foodPref.upsert({
+      where: { userId },
+      update: { extras: JSON.stringify(next) },
+      create: { userId, extras: JSON.stringify(next) },
+    } as Parameters<typeof this.prisma.foodPref.upsert>[0]);
+  }
+
+  /** Refresh ONE meal — bump that slot's seed so it re-picks different recipes,
+   *  keeping the day's targets and every preference. Returns the updated plan. */
+  async refreshComposedMeal(userId: string, day: number, slot: string) {
+    const key = `d${day}:${slot}`;
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const bumps = { ...(ex.composedBumps ?? {}) };
+    bumps[key] = (bumps[key] ?? 0) + 1;
+    await this.mergeExtras(userId, { composedBumps: bumps });
+    return this.composedPlan(userId);
+  }
+
+  /** Skip / unskip ONE meal — the day's energy is redistributed across the
+   *  remaining meals and the grocery list is recomputed. Returns the updated plan. */
+  async skipComposedMeal(userId: string, day: number, slot: string, skipped: boolean) {
+    const key = `d${day}:${slot}`;
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const set = new Set(ex.composedSkips ?? []);
+    if (skipped) set.add(key); else set.delete(key);
+    await this.mergeExtras(userId, { composedSkips: [...set] });
+    return this.composedPlan(userId);
+  }
+
+  /** Restore every skipped meal for the week. */
+  async restoreComposedSkips(userId: string) {
+    await this.mergeExtras(userId, { composedSkips: [] });
+    return this.composedPlan(userId);
   }
 
   async upsertFoodPref(userId: string, dto: FoodPrefDto) {

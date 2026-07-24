@@ -81,6 +81,25 @@ export class NutritionController {
     return this.nutrition.mealSettings(user.sub);
   }
 
+  // Composite planner per-meal actions: Refresh (re-pick one meal) + Skip (drop
+  // one meal, rebalance the day, update totals + grocery).
+  @Post('plan/composed/refresh')
+  @UsePipes(new ZodValidationPipe(z.object({ day: z.number().int().min(0).max(6), slot: z.string().min(1).max(3) })))
+  refreshComposedMeal(@CurrentUser() user: JwtUser, @Body() dto: { day: number; slot: string }) {
+    return this.nutrition.refreshComposedMeal(user.sub, dto.day, dto.slot);
+  }
+
+  @Post('plan/composed/skip')
+  @UsePipes(new ZodValidationPipe(z.object({ day: z.number().int().min(0).max(6), slot: z.string().min(1).max(3), skipped: z.boolean() })))
+  skipComposedMeal(@CurrentUser() user: JwtUser, @Body() dto: { day: number; slot: string; skipped: boolean }) {
+    return this.nutrition.skipComposedMeal(user.sub, dto.day, dto.slot, dto.skipped);
+  }
+
+  @Post('plan/composed/restore')
+  restoreComposedSkips(@CurrentUser() user: JwtUser) {
+    return this.nutrition.restoreComposedSkips(user.sub);
+  }
+
   // Recipe Library — searchable/paginated recipe database (Netflix-style).
   @Get('recipes/library')
   recipeLibrary(@Query() q: Record<string, string>) {

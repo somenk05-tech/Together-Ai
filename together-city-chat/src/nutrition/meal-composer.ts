@@ -29,6 +29,22 @@ export interface ComposerPrefs {
    *  roles use only nutrition-complete recipes and selection minimises the load. */
   caps?: ClinicalCaps;
   clinical?: boolean;                  // is this a clinical profile (enforce caps hard)
+  maxMinutes?: number;                 // cooking-time preference (soft): prefer quicker recipes
+  favourites?: string[];              // favourite ingredients/foods to lean toward
+  /** Per-day meal overrides (Refresh/Skip): keys "d{index}:{slotCode}". */
+  skips?: string[];
+  bumps?: Record<string, number>;
+}
+
+/** "Inform, don't force" — how the user's preferred plan compares to the clinical ideal. */
+export interface ComplianceConcern {
+  key: string; label: string; message: string; direction: 'over' | 'under'; deltaPct: number; severity: 'info' | 'warn';
+}
+export interface ComplianceReport {
+  score: number;                       // 0–100 alignment with the ideal clinical plan
+  concerns: ComplianceConcern[];
+  swaps: string[];                     // gentle suggestions to raise the score
+  summary: string;
 }
 
 export interface DayTargets { kcal: number; protein: number; carbs: number; fat: number; fiber: number }
@@ -260,7 +276,14 @@ function pick(role: string, ctx: SelectCtx): PoolRecipe | null {
       if (caps.sugarG) capPenalty += n.addedSugarG / caps.sugarG;
       if (caps.satFatG) capPenalty += n.satFatG / caps.satFatG;
     }
-    return { r, score: w + jitter - usedPenalty - capPenalty * 30 };
+    // Preference-first nudges (soft): favour favourite ingredients + quicker recipes.
+    let bonus = 0;
+    if (ctx.prefs.favourites?.length) {
+      const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
+      if (ctx.prefs.favourites.some((f) => f && hay.includes(f.toLowerCase()))) bonus += 8;
+    }
+    const timePenalty = (ctx.prefs.maxMinutes && r.minutes > ctx.prefs.maxMinutes) ? (r.minutes - ctx.prefs.maxMinutes) * 0.3 : 0;
+    return { r, score: w + jitter - usedPenalty - capPenalty * 30 + bonus - timePenalty };
   });
   scored.sort((a, b) => b.score - a.score);
   return scored[0].r;
@@ -459,7 +482,6 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
 
 export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7, seed = 7, extraPool: PoolRecipe[] = []): ComposedWeek {
   const schedule: DaySchedule = resolveSchedule(prefs.fasting);
-  const rnd = mulberry(seed);
   const used = new Map<string, number>();          // week-wide variety ledger
   const bfCount = new Map<string, number>();       // breakfast repeat cap (Rule 14)
   let lastLunchMain = ''; let lastDinnerMain = '';
@@ -468,20 +490,30 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
 
   const outDays: ComposedDay[] = [];
 
-  /** Build one day's meals from the current variety baseline (banL/banD are the
-   *  previous day's lunch/dinner mains, to avoid consecutive repeats). */
-  const buildDayMeals = (banL: string, banD: string): ComposedMeal[] => {
+  const slotHash = (code: string) => { let h = 0; for (const c of code) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
+  const skips = new Set(prefs.skips ?? []);
+
+  /** Build one day's meals. Each meal is independently seeded from
+   *  (week seed, day, slot, refresh-bump, retry) so one meal can be refreshed in
+   *  isolation; a skipped slot is dropped and its energy redistributed across the
+   *  remaining meals so the day still hits its target. */
+  const buildDayMeals = (dayIndex: number, attemptIdx: number, banL: string, banD: string): ComposedMeal[] => {
     let ll = banL; let ld = banD;
+    const active = schedule.meals.filter((sm) => !skips.has(`d${dayIndex}:${sm.code}`));
+    const eSum = active.reduce((t, sm) => t + sm.energy, 0) || 1;
     const meals: ComposedMeal[] = [];
-    for (const sm of schedule.meals) {
-      const banMain = sm.code === 'l' ? ll : sm.code === 'd' ? ld : undefined;
-      const ctx: SelectCtx = { slot: sm.code, prefs, rnd, used, pool, banMain: banMain || undefined };
-      const mealKcal = targets.kcal * sm.energy; const mealProtein = targets.protein * sm.energy;
-      let meal = composeMeal(sm.code, mealKcal, mealProtein, sm.energy, sm.scheduledTime, ctx);
+    for (const sm of active) {
+      const energy = sm.energy / eSum;                 // renormalised after any skip
+      const bump = prefs.bumps?.[`d${dayIndex}:${sm.code}`] ?? 0;
+      const mealRnd = (v: number) => mulberry((seed ^ Math.imul(dayIndex + 1, 2654435761) ^ Math.imul(slotHash(sm.code) + 1, 40503) ^ Math.imul(bump + 1, 2246822519) ^ Math.imul(attemptIdx * 11 + v + 1, 374761393)) >>> 0);
+      const mkCtx = (v: number): SelectCtx => ({ slot: sm.code, prefs, rnd: mealRnd(v), used, pool, banMain: (sm.code === 'l' ? ll : sm.code === 'd' ? ld : undefined) || undefined });
+      const mealKcal = targets.kcal * energy; const mealProtein = targets.protein * energy;
+      let v = 0;
+      let meal = composeMeal(sm.code, mealKcal, mealProtein, energy, sm.scheduledTime, mkCtx(v));
       if (sm.code === 'b') {
         let tries = 0;
         while ((bfCount.get(meal.components[0]?.recipeId ?? meal.title) ?? 0) >= 2 && tries < 4) {
-          meal = composeMeal(sm.code, mealKcal, mealProtein, sm.energy, sm.scheduledTime, ctx); tries++;
+          v++; meal = composeMeal(sm.code, mealKcal, mealProtein, energy, sm.scheduledTime, mkCtx(v)); tries++;
         }
         const k = meal.components[0]?.recipeId ?? meal.title;
         bfCount.set(k, (bfCount.get(k) ?? 0) + 1);
@@ -490,7 +522,7 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
         const last = sm.code === 'l' ? ll : ld;
         let tries = 0;
         while ((meal.components.find((c) => c.role === 'main')?.recipeId ?? '') === last && last && tries < 4) {
-          meal = composeMeal(sm.code, mealKcal, mealProtein, sm.energy, sm.scheduledTime, ctx); tries++;
+          v++; meal = composeMeal(sm.code, mealKcal, mealProtein, energy, sm.scheduledTime, mkCtx(v)); tries++;
         }
         const newMain = meal.components.find((c) => c.role === 'main')?.recipeId ?? '';
         if (sm.code === 'l') ll = newMain; else ld = newMain;
@@ -518,10 +550,10 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
   for (let d = 0; d < days; d++) {
     rebaseVariety();
     const baseUsed = new Map(used); const baseBf = new Map(bfCount);
-    const attempt = () => {
+    const attempt = (attemptIdx: number) => {
       used.clear(); baseUsed.forEach((v, k) => used.set(k, v));
       bfCount.clear(); baseBf.forEach((v, k) => bfCount.set(k, v));
-      const meals = buildDayMeals(lastLunchMain, lastDinnerMain);
+      const meals = buildDayMeals(d, attemptIdx, lastLunchMain, lastDinnerMain);
       if (prefs.caps) reduceToCaps(meals, prefs.caps);   // bounded reduce for renal/HTN/DM caps
       const totals = sumTotals(meals.flatMap((m) => m.components));
       const breaches = capBreaches(totals, prefs.caps);
@@ -531,10 +563,10 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
     // Clinical safety gate (QA C3): regenerate a breaching clinical day and keep
     // the safest attempt; if it still can't meet caps, the week is BLOCKED below.
     const score = (x: { breaches: string[]; emptyMeal: boolean }) => x.breaches.length + (x.emptyMeal ? 20 : 0);
-    let best = attempt();
+    let best = attempt(0);
     const maxTries = (prefs.clinical && prefs.caps) ? 6 : 1;
     for (let t = 1; t < maxTries && score(best) > 0; t++) {
-      const cand = attempt();
+      const cand = attempt(t);
       if (score(cand) < score(best)) best = cand;
     }
     outDays.push({
@@ -695,4 +727,65 @@ export function validateWeek(days: ComposedDay[], grocery: GroceryItem[], target
     for (const b of capBreaches(day.totals, caps)) issues.push(`Day ${day.dayIndex + 1} clinical cap: ${b}`);
   }
   return { ok: issues.length === 0, issues };
+}
+
+/**
+ * "Inform, don't force" (planner philosophy): score how closely the user's
+ * PREFERRED plan matches the clinical ideal, list specific concerns with the
+ * actual deviation, and suggest gentle swaps — without overriding the user.
+ * The plan is generated from preferences first; this reports the trade-offs.
+ */
+export function complianceReport(days: ComposedDay[], targets: DayTargets, caps: ClinicalCaps | undefined, conditionsText: string): ComplianceReport {
+  const n = days.length || 1;
+  const sum = days.reduce((a, d) => ({
+    kcal: a.kcal + d.totals.kcal, protein: a.protein + d.totals.protein, carbs: a.carbs + d.totals.carbs, fiber: a.fiber + d.totals.fiber,
+    sodiumMg: a.sodiumMg + d.totals.sodiumMg, addedSugarG: a.addedSugarG + d.totals.addedSugarG, satFatG: a.satFatG + d.totals.satFatG,
+    potassiumMg: a.potassiumMg + d.totals.potassiumMg, phosphorusMg: a.phosphorusMg + d.totals.phosphorusMg,
+  }), { kcal: 0, protein: 0, carbs: 0, fiber: 0, sodiumMg: 0, addedSugarG: 0, satFatG: 0, potassiumMg: 0, phosphorusMg: 0 });
+  const avg = Object.fromEntries(Object.entries(sum).map(([k, v]) => [k, v / n])) as typeof sum;
+
+  const concerns: ComplianceConcern[] = [];
+  const swaps: string[] = [];
+  let penalty = 0;
+  const cond = conditionsText.toLowerCase();
+  const isDiab = /diabet|hba1c/.test(cond);
+
+  const overCap = (key: string, label: string, value: number, cap: number | undefined, unit: string, weight: number, swap: string) => {
+    if (!cap) return;
+    const deltaPct = Math.round(((value - cap) / cap) * 100);
+    if (deltaPct > 8) {
+      concerns.push({ key, label, direction: 'over', deltaPct, severity: deltaPct > 25 ? 'warn' : 'info', message: `${label} is ${deltaPct}% above the target (${Math.round(value)} vs ${Math.round(cap)} ${unit}).` });
+      penalty += Math.min(24, deltaPct * 0.6) * weight;
+      if (swap) swaps.push(swap);
+    }
+  };
+  const underTarget = (key: string, label: string, value: number, target: number, unit: string, swap: string) => {
+    const deltaPct = Math.round(((target - value) / target) * 100);
+    if (deltaPct > 8) {
+      concerns.push({ key, label, direction: 'under', deltaPct, severity: deltaPct > 25 ? 'warn' : 'info', message: `${label} is ${Math.round(target - value)} ${unit} below your target (${Math.round(value)} vs ${Math.round(target)}).` });
+      penalty += Math.min(20, deltaPct * 0.5);
+      if (swap) swaps.push(swap);
+    }
+  };
+
+  const kcalDev = Math.abs(avg.kcal - targets.kcal) / Math.max(1, targets.kcal);
+  if (kcalDev > 0.10) { const p = Math.round(kcalDev * 100); concerns.push({ key: 'kcal', label: 'Calories', direction: avg.kcal > targets.kcal ? 'over' : 'under', deltaPct: p, severity: kcalDev > 0.2 ? 'warn' : 'info', message: `Calories are ${p}% ${avg.kcal > targets.kcal ? 'above' : 'below'} your target (${Math.round(avg.kcal)} vs ${Math.round(targets.kcal)} kcal).` }); penalty += Math.min(15, p * 0.3); }
+  underTarget('protein', 'Protein', avg.protein, targets.protein, 'g', 'Add a protein side (paneer, egg, dal, tofu or fish) to hit your protein target.');
+  underTarget('fiber', 'Fibre', avg.fiber, targets.fiber, 'g', 'Add a salad or a whole grain to raise fibre.');
+  overCap('sodium', 'Sodium', avg.sodiumMg, caps?.sodiumMg, 'mg', 1, 'Cook with less salt and skip pickle/papad/processed items to cut sodium.');
+  overCap('addedSugar', 'Added sugar', avg.addedSugarG, caps?.sugarG, 'g', 1.2, 'Swap sweet snacks/drinks for fruit or nuts to lower added sugar.');
+  overCap('satFat', 'Saturated fat', avg.satFatG, caps?.satFatG, 'g', 1, 'Swap fried/creamy dishes for grilled, steamed or dal-based options.');
+  overCap('potassium', 'Potassium', avg.potassiumMg, caps?.potassiumMg, 'mg', 1.4, 'Choose lower-potassium vegetables and limit potatoes/tomatoes/banana.');
+  overCap('phosphorus', 'Phosphorus', avg.phosphorusMg, caps?.phosphorusMg, 'mg', 1.4, 'Limit dairy, nuts and whole-grain load to lower phosphorus.');
+  if (isDiab) {
+    const carbTarget = targets.carbs;
+    const deltaPct = Math.round(((avg.carbs - carbTarget) / Math.max(1, carbTarget)) * 100);
+    if (deltaPct > 12) { concerns.push({ key: 'carbs', label: 'Carbohydrates', direction: 'over', deltaPct, severity: deltaPct > 30 ? 'warn' : 'info', message: `Carbohydrates are ${deltaPct}% above the diabetes-friendly target (${Math.round(avg.carbs)} vs ${Math.round(carbTarget)} g) — this raises glycemic load.` }); penalty += Math.min(20, deltaPct * 0.5); swaps.push('Swap some white rice for millet or extra vegetables to lower glycemic load.'); }
+  }
+
+  const score = Math.max(0, Math.min(100, Math.round(100 - penalty)));
+  const summary = concerns.length
+    ? `Your preferred plan is ${score}% aligned with the ideal clinical plan for your profile. It reflects your tastes — the notes below are optional improvements, not requirements.`
+    : `Your preferred plan is ${score}% aligned with the ideal clinical plan for your profile — it both fits your preferences and meets your targets.`;
+  return { score, concerns, swaps: [...new Set(swaps)], summary };
 }
