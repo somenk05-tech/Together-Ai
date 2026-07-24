@@ -42,6 +42,8 @@ export interface ComposedWeek {
   needsProfile?: boolean;
   /** Skipped meal keys ("d{index}:{slot}") for this week. */
   skips?: string[];
+  /** Which mode produced this plan. */
+  mode?: 'preferred' | 'optimal';
   /** "Inform, don't force" — how the preferred plan compares to the clinical ideal. */
   compliance?: ComplianceReport;
   prescription: { kcal: number; protein: number; carb: number; fat: number; fiber: number; sodiumMaxMg?: number };
@@ -63,14 +65,15 @@ export interface MealSettings {
   fastingSafety: { level: 'ok' | 'warn' | 'block'; notes: string[] };
 }
 
+export type PlanMode = 'preferred' | 'optimal';
 export const composedApi = {
-  plan: () => api.get<ComposedWeek>('/nutrition/plan/composed').then((r) => r.data),
+  plan: (mode: PlanMode = 'preferred') => api.get<ComposedWeek>('/nutrition/plan/composed', { params: { mode } }).then((r) => r.data),
   settings: () => api.get<MealSettings>('/nutrition/meal-settings').then((r) => r.data),
   saveSettings: (patch: Partial<MealSettings>) => api.patch<MealSettings>('/nutrition/meal-settings', patch).then((r) => r.data),
 };
 
-export function useComposedPlan() {
-  return useQuery({ queryKey: ['nutrition', 'composed'], queryFn: () => composedApi.plan() });
+export function useComposedPlan(mode: PlanMode = 'preferred') {
+  return useQuery({ queryKey: ['nutrition', 'composed', mode], queryFn: () => composedApi.plan(mode) });
 }
 export function useMealSettings() {
   return useQuery({ queryKey: ['nutrition', 'meal-settings'], queryFn: () => composedApi.settings() });
@@ -91,7 +94,7 @@ function useComposedMutation<V>(path: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: V) => api.post<ComposedWeek>(path, body).then((r) => r.data),
-    onSuccess: (wk) => { qc.setQueryData(['nutrition', 'composed'], wk); },
+    onSuccess: (wk) => { qc.setQueryData(['nutrition', 'composed', wk.mode ?? 'preferred'], wk); void qc.invalidateQueries({ queryKey: ['nutrition', 'composed'] }); },
   });
 }
 export function useRefreshMeal() { return useComposedMutation<{ day: number; slot: string }>('/nutrition/plan/composed/refresh'); }

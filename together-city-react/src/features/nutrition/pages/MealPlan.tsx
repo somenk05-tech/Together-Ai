@@ -435,10 +435,12 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
  * grocery list is derived strictly from the plan's recipes.
  */
 export function MealPlan() {
-  const plan = useComposedPlan();
-  const settingsSave = useSaveMealSettings();
-  // Selected day lives in the URL (?day=N) so returning from a recipe restores it.
+  // Selected day + plan MODE live in the URL so returning from a recipe restores them.
   const [sp, setSp] = useSearchParams();
+  const mode: 'preferred' | 'optimal' = sp.get('mode') === 'optimal' ? 'optimal' : 'preferred';
+  const setMode = (m: 'preferred' | 'optimal') => setSp((p) => { p.set('mode', m); return p; }, { replace: true });
+  const plan = useComposedPlan(mode);
+  const settingsSave = useSaveMealSettings();
   const day = Math.max(0, Math.min(6, Number(sp.get('day')) || 0));
   const setDay = (i: number) => setSp((p) => { p.set('day', String(i)); return p; }, { replace: true });
   const [showSettings, setShowSettings] = useState(false);
@@ -462,7 +464,33 @@ export function MealPlan() {
         </div>
         {!wk.readOnly && <Button variant="line" size="sm" onClick={() => setShowSettings(true)}>Meal settings</Button>}
       </div>
-      <p className="muted" style={{ fontSize: 13, margin: '6px 0 14px' }}>
+
+      {/* Two modes: My Preferences (default) vs Optimal Health — switch any time. */}
+      <div role="tablist" aria-label="Meal plan mode" style={{ display: 'inline-flex', gap: 4, background: 'var(--line)', borderRadius: 999, padding: 4, margin: '12px 0 4px' }}>
+        {([['preferred', 'My Preferences'], ['optimal', 'Optimal Health']] as const).map(([m, label]) => (
+          <button key={m} role="tab" aria-selected={mode === m} type="button" onClick={() => setMode(m)}
+            style={{ border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '7px 16px', borderRadius: 999,
+              background: mode === m ? 'var(--card)' : 'transparent', color: mode === m ? 'var(--ink)' : 'var(--muted)', boxShadow: mode === m ? '0 1px 4px rgba(0,0,0,.12)' : 'none' }}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 12px' }}>
+        {mode === 'preferred'
+          ? 'Built from your saved Food Preference Profile — your chosen foods and protein sources, whatever your health profile.'
+          : 'The clinically ideal plan for your health profile, blood results and conditions — within your diet and allergies.'}
+      </p>
+
+      {/* Medical-guidance banner (preferred mode) — inform, offer the healthier plan, never force. */}
+      {mode === 'preferred' && wk.compliance && wk.compliance.concerns.length > 0 && (
+        <div style={{ background: '#f4f8f4', border: '1px solid #cfe3cf', borderRadius: 10, padding: '11px 14px', marginBottom: 12, fontSize: 12.5 }}>
+          <strong>Medical guidance:</strong> your preferred plan is {wk.compliance.score}% aligned with the clinical ideal.
+          {' '}{wk.compliance.concerns[0].message} You can keep your preferences, or
+          {' '}<button type="button" onClick={() => setMode('optimal')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5 }}>see the Optimal Health plan →</button>
+        </div>
+      )}
+
+      <p className="muted" style={{ fontSize: 13, margin: '0 0 14px' }}>
         Complete meals from your prescription ({wk.prescription.kcal} kcal · {wk.prescription.protein} g protein).
         {wk.fasting ? ` Intermittent fasting: ${wk.protocol}.` : ''}
       </p>

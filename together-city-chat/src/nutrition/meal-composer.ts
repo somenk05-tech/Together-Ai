@@ -123,8 +123,23 @@ export const SEED_POOL: PoolRecipe[] = COMPONENT_SEEDS.map((s) => {
   };
 });
 
-const CUISINE_NORMALISE: Record<string, string> = { India: 'Indian', Indian: 'Indian', Global: 'Global' };
-function normCuisine(c: string): string { return CUISINE_NORMALISE[c] ?? c; }
+// Reconcile dataset `country` values (India, Italy, Thailand, Greece…) with the
+// Food Preference Profile's cuisine labels (Indian, Italian, Thai, Mediterranean…)
+// so cuisine preferences actually match dataset recipes.
+const CUISINE_NORMALISE: Record<string, string> = {
+  India: 'Indian', Indian: 'Indian',
+  China: 'Chinese', Chinese: 'Chinese',
+  Italy: 'Italian', Italian: 'Italian',
+  Mexico: 'Mexican', Mexican: 'Mexican',
+  Thailand: 'Thai', Thai: 'Thai',
+  Japan: 'Japanese', Japanese: 'Japanese',
+  Greece: 'Mediterranean', Greek: 'Mediterranean', Mediterranean: 'Mediterranean',
+  Korea: 'Korean', Korean: 'Korean',
+  USA: 'American', America: 'American', American: 'American',
+  Continental: 'Continental', 'Middle Eastern': 'Middle Eastern', 'Middle East': 'Middle Eastern',
+  Global: 'Global',
+};
+function normCuisine(c: string): string { return CUISINE_NORMALISE[(c ?? '').trim()] ?? c; }
 
 /** Per-role potassium/phosphorus ceilings (mg/serving) for renal plates. */
 const RENAL_K_CEIL: Record<string, number> = { main: 240, dal: 0, vegetable: 230, carb: 180, salad: 180, snack: 240, breakfast: 340, soup: 200, dessert: 240, drink: 240, side: 200, dairy: 0 };

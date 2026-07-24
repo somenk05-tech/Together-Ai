@@ -72,8 +72,8 @@ export class NutritionController {
 
   // ── Composite meal engine (Meal-Planning-Engine-Spec) ──
   @Get('plan/composed')
-  composed(@CurrentUser() user: JwtUser) {
-    return this.nutrition.composedPlan(user.sub);
+  composed(@CurrentUser() user: JwtUser, @Query('mode') mode?: string) {
+    return this.nutrition.composedPlan(user.sub, mode === 'optimal' ? 'optimal' : 'preferred');
   }
 
   @Get('meal-settings')

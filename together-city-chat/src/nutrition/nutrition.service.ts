@@ -1527,7 +1527,7 @@ export class NutritionService implements OnModuleInit {
    * to their own calorie target — same dishes/times, portions + grocery scaled,
    * read-only. Everyone else gets their own composition.
    */
-  async composedPlan(userId: string) {
+  async composedPlan(userId: string, mode: 'preferred' | 'optimal' = 'preferred') {
     // Food Preference Profile is the master source of truth — never generate a
     // plan until it's saved. Members of a family with shared planning inherit the
     // owner's saved profile, so they're allowed through.
@@ -1545,7 +1545,7 @@ export class NutritionService implements OnModuleInit {
       // planner would blank. Cap the personalised build; on timeout OR error we
       // fall through to the fast, pure fallback below.
       return await Promise.race([
-        this.buildComposedPlan(userId),
+        this.buildComposedPlan(userId, mode),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('composed-plan timeout (8s)')), 8000)),
       ]);
     } catch (e) {
@@ -1574,7 +1574,7 @@ export class NutritionService implements OnModuleInit {
     }
   }
 
-  private async buildComposedPlan(userId: string) {
+  private async buildComposedPlan(userId: string, mode: 'preferred' | 'optimal' = 'preferred') {
     const ctx = await this.familyContext(userId).catch(() => null);
     if (ctx && ctx.role === 'member' && ctx.familyMealPlanning) {
       const mpref = await this.prisma.foodPref.findUnique({ where: { userId } });
@@ -1601,7 +1601,7 @@ export class NutritionService implements OnModuleInit {
       const shareable = dietCompatible && !mAllergies.length && !mClinical;
 
       if (shareable) {
-        const ownerPlan = await this.composeFor(ctx.ownerId);
+        const ownerPlan = await this.composeFor(ctx.ownerId, mode);
         const mt = computeTargets({
           weightKg: mpref?.weightKg ?? 70, heightCm: mpref?.heightCm ?? 172, age: mpref?.age ?? 30,
           sex: mpref?.sex ?? 'male', activity: mpref?.activity ?? 1.4, goal: mpref?.goal ?? 'maintain',
@@ -1616,15 +1616,15 @@ export class NutritionService implements OnModuleInit {
         };
       }
       // Not shareable → the member's own diet/allergies/conditions are respected.
-      const own = await this.composeFor(userId);
+      const own = await this.composeFor(userId, mode);
       const reason = mAllergies.length ? 'your allergies/exclusions'
         : mClinical ? 'your medical needs' : 'your dietary preference';
       return { ...own, personalizedForMember: true, personalizedReason: reason };
     }
-    return this.composeFor(userId);
+    return this.composeFor(userId, mode);
   }
 
-  private async composeFor(userId: string) {
+  private async composeFor(userId: string, mode: 'preferred' | 'optimal' = 'preferred') {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     const bvals = await this.bloodValues(userId);
@@ -1653,9 +1653,17 @@ export class NutritionService implements OnModuleInit {
 
     // Default to an Indian-first per-slot cuisine when the user hasn't set one,
     // so dataset variety doesn't surface unexpected cuisines by default.
+    // Cuisine preference is a PRIMARY driver: use the planner's per-slot override
+    // if set, else the SAVED PROFILE's cuisine mix (applied to every meal so the
+    // plan visibly reflects the user's taste), else an Indian-first default.
+    const profileMix: Record<string, number> | null =
+      (ex.cuisineMix && Object.keys(ex.cuisineMix).length) ? ex.cuisineMix
+        : (ex.cuisines && ex.cuisines.length) ? Object.fromEntries(ex.cuisines.map((c) => [c, 1])) : null;
     const cuisineBySlot = (ex.cuisineBySlot && Object.keys(ex.cuisineBySlot).length)
       ? ex.cuisineBySlot
-      : { breakfast: { Indian: 100 }, lunch: { Indian: 90, Continental: 10 }, dinner: { Indian: 90, Chinese: 10 }, snack: {} };
+      : profileMix
+        ? { breakfast: profileMix, lunch: profileMix, dinner: profileMix, snack: profileMix }
+        : { breakfast: { Indian: 100 }, lunch: { Indian: 90, Continental: 10 }, dinner: { Indian: 90, Chinese: 10 }, snack: {} };
 
     // Planner philosophy — "inform, don't force". Generate a PREFERENCE-FIRST plan,
     // then score it against the clinical ideal (see compliance below). Only the
@@ -1675,6 +1683,15 @@ export class NutritionService implements OnModuleInit {
     const hardCaps = seriousRenal ? { potassiumMg: capsRaw.potassiumMaxMg, phosphorusMg: capsRaw.phosphorusMaxMg } : undefined;
 
     const favourites = [...(ex.proteins ?? []), ...(ex.meats ?? [])].filter(Boolean);
+    // Two modes:
+    //  • preferred (default) — the user's saved preferences drive everything;
+    //    their chosen protein sources appear regardless of conditions; only
+    //    serious renal limits are hard-enforced. Medical guidance is informational.
+    //  • optimal — the clinically ideal plan: full caps hard-enforced and the
+    //    HEALTHIEST proteins chosen within their diet (the protein-source and
+    //    budget/time nudges are dropped so health leads), still respecting diet,
+    //    allergies and cuisine taste.
+    const optimal = mode === 'optimal';
     const cprefs: ComposerPrefs = {
       diet: composerDiet,
       excluded,
@@ -1683,22 +1700,22 @@ export class NutritionService implements OnModuleInit {
       fasting: ex.fasting,
       includePantry: ex.includePantry ?? false,
       clinicalTag: this.clinicalTag(conditions),
-      avoidRice: /diabet|hba1c/.test(condText),
-      caps: hardCaps,                 // hard-enforce only serious renal limits
-      clinical: seriousRenal,
-      maxMinutes: ex.maxCookMin ?? undefined,
-      favourites: favourites.length ? favourites : undefined,
+      avoidRice: optimal ? isClinical && /diabet|hba1c/.test(condText) : /diabet|hba1c/.test(condText),
+      caps: optimal ? fullCaps : hardCaps,          // optimal: enforce every clinical cap
+      clinical: optimal ? isClinical : seriousRenal,
+      maxMinutes: optimal ? undefined : (ex.maxCookMin ?? undefined),
+      favourites: optimal ? undefined : (favourites.length ? favourites : undefined),
       skips: ex.composedSkips,
       bumps: ex.composedBumps,
     };
     const targets = { kcal: t.kcal, protein: t.protein, carbs: (t as { carb: number }).carb, fat: t.fat, fiber: t.fiber };
     const datasetPool = await this.datasetPoolReady();   // wait (bounded) for the full 11k pool — non-veg mains + photos live here
-    const week = composeWeek(targets, cprefs, 7, this.seedFor(userId), datasetPool);
+    const week = composeWeek(targets, cprefs, 7, this.seedFor(userId) + (optimal ? 101 : 0), datasetPool);
 
-    // Inform-and-recommend: how the preferred plan compares to the clinical ideal.
+    // Inform-and-recommend: how THIS plan compares to the clinical ideal (both modes).
     const compliance = isClinical ? complianceReport(week.days, targets, fullCaps, condText) : undefined;
     const safety = ex.fasting?.enabled ? fastingSafety(conditions.join(' ')) : { level: 'ok' as const, notes: [] };
-    return { ...week, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], ...(compliance ? { compliance } : {}) };
+    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], ...(compliance ? { compliance } : {}) };
   }
 
   /** DB diet values that satisfy a requested diet (ladder). Real DB values:
