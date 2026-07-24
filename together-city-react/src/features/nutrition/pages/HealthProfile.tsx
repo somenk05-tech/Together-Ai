@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader, Button, EmptyState } from '@/components/ui';
-import { useNutritionTargets, useFoodPref, useHealthLog, useAddCalorie, useRemoveCalorie } from '../hooks';
+import { useNutritionTargets, useHealthLog, useAddCalorie, useRemoveCalorie } from '../hooks';
 
 type LogType = 'Meal Plan' | 'Extra' | 'Alcohol';
 const TYPE_TAG: Record<LogType, 'green' | 'amber' | 'red'> = { 'Meal Plan': 'green', Extra: 'amber', Alcohol: 'red' };
@@ -42,7 +42,6 @@ function Stat({ lab, val, delta, color }: { lab: string; val: string; delta?: st
  *  targets come from your Nutrition profile, entries are yours to log. */
 export function HealthProfile() {
   const targets = useNutritionTargets();
-  const foodPref = useFoodPref();
   const now = useMemo(() => new Date(), []);
   const todayStr = isoOf(now);
   const weekDates = useMemo(() => weekDatesOf(now), [now]);
@@ -88,14 +87,6 @@ export function HealthProfile() {
   log.forEach((r) => { srcTotals[r.type] += r.kcal; });
   const srcPct = (v: number) => (intake ? Math.round((v / intake) * 100) : 0);
 
-  // Activity goal — weight comes from your shared Nutrition profile.
-  const weight = foodPref.data?.weightKg ?? 65;
-  const BURN_WORKOUT = Math.round(6 * weight);
-  const BURN_WALK = Math.round((4.3 * weight) / 3);
-  const BURN_TOTAL = BURN_WORKOUT + BURN_WALK;
-  const WALK_STEPS = 2600;
-  const WALK_ONLY_MIN = Math.round(BURN_TOTAL / ((4.3 * weight) / 60));
-  const WALK_ONLY_STEPS = WALK_ONLY_MIN * 130;
 
   const macroTargets = targets.data
     ? ([['Protein', targets.data.protein], ['Carbs', targets.data.carb], ['Fat', targets.data.fat], ['Fibre', targets.data.fiber]] as [string, number][])
@@ -232,20 +223,20 @@ export function HealthProfile() {
       </div>
 
       <section style={{ marginBottom: 26 }}>
-        <div className="blk-head"><h2>Today's activity goal</h2><Link className="muted" to="/nutrition/daily" style={{ fontSize: 12 }}>From your Nutrition plan →</Link></div>
+        <div className="blk-head"><h2>Physical activity</h2></div>
         <div className="card">
-          <p className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
-            {goal
-              ? <>To maintain your <b style={{ color: 'var(--ink)' }}>{goal.toLocaleString('en-IN')} kcal</b> Nutrition plan, aim to burn about <b style={{ color: 'var(--ink)' }}>{BURN_TOTAL} kcal</b> today through activity:</>
-              : <>Set your <Link to="/nutrition/preferences" style={{ color: 'var(--accent)' }}>Nutrition profile</Link> to personalise today's activity goal.</>}
+          <p className="muted" style={{ fontSize: 13.5, marginBottom: 12, lineHeight: 1.5 }}>
+            Daily movement complements your nutrition plan and supports your health goals — it isn't required to make the plan work. These are general guidelines, not a prescription.
           </p>
           <div className="grid3">
-            <div className="stat"><div className="lab">Work out</div><div className="val" style={{ fontSize: 20 }}>60 min</div><div className="delta">circuit &amp; strength · ≈ {BURN_WORKOUT} kcal</div></div>
-            <div className="stat"><div className="lab">Walk</div><div className="val" style={{ fontSize: 20 }}>20 min</div><div className="delta">brisk · ≈ {WALK_STEPS.toLocaleString('en-IN')} steps · ≈ {BURN_WALK} kcal</div></div>
-            <div className="stat"><div className="lab">Total burn</div><div className="val" style={{ fontSize: 20 }}>{BURN_TOTAL}</div><div className="delta">kcal today</div></div>
+            <div className="stat"><div className="lab">Strength</div><div className="val" style={{ fontSize: 20 }}>2–3× / week</div><div className="delta">circuit &amp; strength</div></div>
+            <div className="stat"><div className="lab">Daily steps</div><div className="val" style={{ fontSize: 20 }}>7–10k</div><div className="delta">a common general target</div></div>
+            <div className="stat"><div className="lab">Active minutes</div><div className="val" style={{ fontSize: 20 }}>150 / week</div><div className="delta">moderate activity (WHO)</div></div>
           </div>
-          <p className="muted" style={{ fontSize: 11.5, marginTop: 12 }}>
-            Prefer to only walk? Walk about <b>{WALK_ONLY_MIN} min</b> (≈ {WALK_ONLY_STEPS.toLocaleString('en-IN')} steps) to burn the same {BURN_TOTAL} kcal.
+          <p className="muted" style={{ fontSize: 13, marginTop: 12, lineHeight: 1.5 }}>
+            {goal
+              ? <>Your nutrition plan provides about <b style={{ color: 'var(--ink)' }}>{goal.toLocaleString('en-IN')} kcal</b>/day. Connect a fitness device to track your actual activity and energy expenditure.</>
+              : <>Set your <Link to="/nutrition/preferences" style={{ color: 'var(--accent)' }}>Nutrition profile</Link> to personalise this.</>}
           </p>
         </div>
       </section>

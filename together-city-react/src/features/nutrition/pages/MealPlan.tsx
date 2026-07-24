@@ -147,16 +147,7 @@ function NIc({ name, size = 18, stroke = 1.7, style }: { name: string; size?: nu
 
 const mainOf = (m: ComposedMeal) => m.components.find((c) => c.role === 'main') ?? m.components.find((c) => c.role === 'dal') ?? m.components.find((c) => c.role === 'breakfast') ?? m.components[0];
 const photoOf = (m: ComposedMeal) => m.components.find((c) => c.imageUrl) ?? mainOf(m);
-function mealDesc(m: ComposedMeal): string {
-  const names = m.components.map((c) => c.name);
-  if (!names.length) return 'A balanced meal from your plan.';
-  const head = names[0]; const rest = names.slice(1, 4).map((n) => n.toLowerCase());
-  if (!rest.length) return `${head}.`;
-  const joined = rest.length === 1 ? rest[0] : rest.slice(0, -1).join(', ') + ' & ' + rest[rest.length - 1];
-  return `${head} with ${joined}.`;
-}
-
-/** A single meal column card (banner · 16:9 photo · title · view recipe · desc · prep/kcal). */
+/** A single meal column card (banner · 16:9 photo · title · dish links · prep/kcal). */
 function MealColumn({ meal, dayIndex, readOnly }: { meal: ComposedMeal; dayIndex: number; readOnly?: boolean }) {
   const navigate = useNavigate(); const location = useLocation();
   const [err, setErr] = useState(false);
@@ -184,11 +175,19 @@ function MealColumn({ meal, dayIndex, readOnly }: { meal: ComposedMeal; dayIndex
         </div>
       </button>
       <div style={{ padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <h3 style={{ fontSize: 15.5, margin: '0 0 6px', lineHeight: 1.3, letterSpacing: '-.01em' }}>{meal.title}</h3>
-        <button type="button" onClick={open} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
-          View recipe <NIc name="chevR" size={14} />
-        </button>
-        <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5, margin: '10px 0 14px' }}>{mealDesc(meal)}</p>
+        <h3 style={{ fontSize: 15.5, margin: '0 0 8px', lineHeight: 1.3, letterSpacing: '-.01em' }}>{meal.title}</h3>
+        {/* Every dish in the meal links to its own recipe page. */}
+        <div style={{ display: 'flex', flexDirection: 'column', margin: '0 0 12px' }}>
+          {meal.components.map((c, i) => (
+            <button key={c.recipeId + c.role} type="button"
+              onClick={() => c.recipeId && navigate(`/nutrition/recipes/${c.recipeId}`, { state: { from: location.pathname + location.search } })}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', background: 'none', border: 'none', borderTop: i ? '1px solid var(--line)' : 'none', padding: '7px 0', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>{c.name}</span>
+              <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{c.kcal} kcal</span>
+              <NIc name="chevR" size={13} style={{ color: 'var(--accent)' }} />
+            </button>
+          ))}
+        </div>
         <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: 'var(--muted)', borderTop: '1px solid var(--line)', paddingTop: 12 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><NIc name="clock" size={14} /> Prep: {meal.minutes} min</span>
           <span style={{ width: 1, height: 12, background: 'var(--line)' }} />

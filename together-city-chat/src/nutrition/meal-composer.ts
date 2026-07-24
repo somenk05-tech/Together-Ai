@@ -158,6 +158,15 @@ function dietOk(recipeDiet: Diet, userDiet: Diet): boolean {
   return (dietRank[userDiet] ?? dietRank.vegetarian).includes(recipeDiet);   // unknown diet → safe default, never crash
 }
 
+const MEAT_TOKENS = /chicken|mutton|fish|egg|prawn|shrimp|lamb|goat|beef|pork|keema|turkey|\bmeat\b|seafood|crab|salmon|tuna/i;
+/** A meat-forward profile: nonveg diet whose chosen protein sources are ALL
+ *  meat/egg. Their lunch/dinner plate should carry a second meat dish rather than
+ *  the default lentil dal — so a hardcore non-veg user isn't served half lentils. */
+function meatForwardPrefs(prefs: ComposerPrefs): boolean {
+  const favs = (prefs.favourites ?? []).map((f) => f.trim()).filter(Boolean);
+  return prefs.diet === 'nonveg' && favs.length > 0 && favs.every((f) => MEAT_TOKENS.test(f));
+}
+
 /** Allergen/exclusion synonym expansion (QA M2): a single term matches the whole
  *  family (e.g. "nuts" → almond/cashew/walnut…, "milk" → paneer/cheese/curd…). */
 const ALLERGEN_SYNONYMS: Record<string, string[]> = {
@@ -466,7 +475,16 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
     let main = pick('main', ctx) ?? pick('main', { ...ctx, banMain: undefined });
     if (!main) main = pick('dal', ctx);
     take(main, main?.role === 'dal' ? 'dal' : 'main');
-    if (!renal && main?.role !== 'dal') take(pick('dal', ctx), 'dal');
+    if (!renal && main?.role !== 'dal') {
+      if (meatForwardPrefs(ctx.prefs)) {
+        // Meat-forward: add a SECOND meat/egg protein instead of a lentil dal.
+        const second = pick('main', { ...ctx, banMain: main?.id });
+        if (second && second.id !== main?.id) take(second, 'main');
+        else take(pick('dal', ctx), 'dal');
+      } else {
+        take(pick('dal', ctx), 'dal');
+      }
+    }
     take(pick('vegetable', ctx), 'vegetable');
     const carbCands = candidates('carb', ctx);
     const wantRice = (slot === 'l' && !ctx.prefs.avoidRice) || renal;   // rice is low-K

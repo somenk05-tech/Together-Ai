@@ -1,256 +1,219 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui';
+import { useEffect, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Button, Spinner } from '@/components/ui';
+import { useFoodPref, useUpdateFoodPref } from '../hooks';
+import type { FoodPref } from '../api';
 
-/** Diet-type options for the weekly matrix. */
-const DIET_OPTS = ['Vegetarian', 'Vegan', 'Non-Veg', 'Egg', 'Jain', 'Skip'];
-const MATRIX: { day: string; cells: string[] }[] = [
-  { day: 'Mon', cells: ['Vegetarian', 'Vegetarian', 'Vegetarian', 'Vegetarian'] },
-  { day: 'Tue', cells: ['Vegetarian', 'Vegan', 'Vegetarian', 'Vegetarian'] },
-  { day: 'Wed', cells: ['Vegetarian', 'Vegetarian', 'Vegetarian', 'Skip'] },
-  { day: 'Thu', cells: ['Vegetarian', 'Non-Veg', 'Vegetarian', 'Vegetarian'] },
-  { day: 'Fri', cells: ['Vegetarian', 'Vegetarian', 'Vegetarian', 'Vegetarian'] },
-  { day: 'Sat', cells: ['Vegetarian', 'Vegetarian', 'Non-Veg', 'Vegetarian'] },
-  { day: 'Sun', cells: ['Vegetarian', 'Vegetarian', 'Vegetarian', 'Vegetarian'] },
+/* ─────────────── options (single source, token-styled) ─────────────── */
+const DIETS: { key: string; label: string }[] = [
+  { key: 'veg', label: 'Vegetarian' }, { key: 'vegan', label: 'Vegan' },
+  { key: 'nonveg', label: 'Non-Vegetarian' }, { key: 'egg', label: 'Eggetarian' }, { key: 'jain', label: 'Jain' },
 ];
-const CUISINES: [string, number][] = [
-  ['North Indian', 30], ['South Indian', 20], ['Punjabi', 15],
-  ['Gujarati', 10], ['Chinese', 10], ['Thai', 10],
+const GOALS: { key: 'lose' | 'maintain' | 'gain'; label: string }[] = [
+  { key: 'lose', label: 'Lose weight' }, { key: 'maintain', label: 'Maintain' }, { key: 'gain', label: 'Gain muscle' },
 ];
-const GOALS = ['Lose Weight', 'Gain Muscle', 'Maintain Weight', 'Eat Healthier'];
-const EXCLUSIONS = ['Peanuts', 'Shellfish', 'Mushrooms', 'Coriander', 'Onions', 'Garlic', 'Dairy'];
-const BUDGETS = ['Budget Friendly · ₹1,000–2,000', 'Moderate · ₹2,000–4,000', 'Premium · ₹4,000–10,000+'];
-
-const STEPS: [string, string][] = [
-  ['step1', '1–2 · Path'], ['step2a', '2A · Blood test'], ['step3', '3 · Confirmation'],
-  ['step4', '4 · About you'], ['step6', '6 · Weekly diet'], ['step6b', '6b · Cuisines'],
-  ['step7', '7 · Exclusions'], ['step8', '8 · Budget'],
+const ACTIVITY: { value: number; label: string }[] = [
+  { value: 1.2, label: 'Sedentary' }, { value: 1.4, label: 'Lightly active' }, { value: 1.6, label: 'Active' }, { value: 1.9, label: 'Very active' },
 ];
-
-const inputStyle: React.CSSProperties = {
-  width: '100%', border: '1px solid var(--line)', borderRadius: 8, padding: 9,
-  marginTop: 4, background: 'var(--paper)', color: 'var(--ink)',
+const PROTEINS_BY_DIET: Record<string, string[]> = {
+  veg: ['Paneer', 'Tofu', 'Lentils', 'Chickpeas', 'Beans', 'Curd', 'Milk'],
+  jain: ['Paneer', 'Tofu', 'Lentils', 'Chickpeas', 'Beans', 'Curd'],
+  vegan: ['Tofu', 'Lentils', 'Chickpeas', 'Beans', 'Soya'],
+  egg: ['Eggs', 'Paneer', 'Tofu', 'Lentils', 'Chickpeas'],
+  nonveg: ['Chicken', 'Fish', 'Mutton', 'Eggs', 'Prawns', 'Paneer'],
 };
+const CUISINES = ['Indian', 'Chinese', 'Italian', 'Thai', 'Continental', 'Mediterranean', 'Mexican', 'Japanese', 'American', 'Middle Eastern'];
+const AVOID = ['Peanuts', 'Tree nuts', 'Shellfish', 'Dairy', 'Gluten', 'Soy', 'Egg', 'Mushrooms', 'Onion', 'Garlic'];
 
-function StepHead({ n, title }: { n: string; title: string }) {
+const STEPS = ['About you', 'Your diet', 'Protein sources', 'Cuisines', 'Foods to avoid'];
+
+/* ─────────────── token-styled atoms ─────────────── */
+const card: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 20, padding: 24, boxShadow: 'var(--shadow)' };
+const field: React.CSSProperties = { width: '100%', border: '1px solid var(--line)', borderRadius: 10, padding: '11px 12px', fontSize: 15, fontFamily: 'inherit', background: 'var(--card)', color: 'var(--ink)', outline: 'none' };
+const labelStyle: React.CSSProperties = { fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 6, display: 'block' };
+
+function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-      <span style={{
-        width: 36, height: 36, borderRadius: '50%', background: 'var(--accent)', color: '#fff',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--serif)',
-        fontSize: 14, flexShrink: 0,
-      }}>{n}</span>
-      <h3 style={{ fontSize: 19 }}>{title}</h3>
-    </div>
+    <button type="button" onClick={onClick}
+      style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, padding: '9px 16px', borderRadius: 999,
+        border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'var(--card)', color: on ? '#fff' : 'var(--ink-soft)' }}>
+      {children}
+    </button>
   );
 }
 
-/** Onboarding — eight short steps that seed the meal-plan, groceries and supplements. */
+/**
+ * Nutrition onboarding — a 5-step wizard that CREATES the user's permanent
+ * nutrition profile. Everything entered here is saved to the Food Preference
+ * Profile (source of truth for meal generation) + the body/goal fields the
+ * Health Profile uses for targets. Nothing is discarded; profiles open collapsed
+ * afterwards and are edited only via "Edit".
+ */
 export function Onboarding() {
-  const [goal, setGoal] = useState('Lose Weight');
-  const [cuisineTab, setCuisineTab] = useState<'Indian' | 'International'>('Indian');
-  const [excluded, setExcluded] = useState<string[]>(['Peanuts', 'Shellfish']);
-  const [budget, setBudget] = useState(BUDGETS[1]);
-  const [matrix, setMatrix] = useState(MATRIX);
+  const navigate = useNavigate();
+  const existing = useFoodPref();
+  const update = useUpdateFoodPref();
 
-  const toggleExcl = (x: string) =>
-    setExcluded((prev) => (prev.includes(x) ? prev.filter((e) => e !== x) : [...prev, x]));
+  const [step, setStep] = useState(0);
+  const [age, setAge] = useState('');
+  const [sex, setSex] = useState<'male' | 'female' | ''>('');
+  const [height, setHeight] = useState('');
+  const [weight, setWeight] = useState('');
+  const [activity, setActivity] = useState(1.4);
+  const [goal, setGoal] = useState<'lose' | 'maintain' | 'gain'>('maintain');
+  const [diet, setDiet] = useState('veg');
+  const [proteins, setProteins] = useState<string[]>([]);
+  const [cuisines, setCuisines] = useState<string[]>(['Indian']);
+  const [avoid, setAvoid] = useState<string[]>([]);
+  const [allergies, setAllergies] = useState('');
+  const [prefilled, setPrefilled] = useState(false);
 
-  const setCell = (di: number, ci: number, val: string) =>
-    setMatrix((prev) => prev.map((r, i) =>
-      i === di ? { ...r, cells: r.cells.map((c, j) => (j === ci ? val : c)) } : r));
+  // Prefill from an existing profile so onboarding EDITS rather than re-asks.
+  useEffect(() => {
+    if (existing.data && !prefilled) {
+      const d = existing.data;
+      if (d.age) setAge(String(d.age));
+      if (d.sex) setSex(d.sex);
+      if (d.heightCm) setHeight(String(d.heightCm));
+      if (d.weightKg) setWeight(String(d.weightKg));
+      if (d.activity) setActivity(d.activity);
+      if (d.goal) setGoal(d.goal);
+      if (d.diet) setDiet(d.diet);
+      try {
+        const ex = d.extras ? JSON.parse(d.extras) : {};
+        if (ex.proteins?.length) setProteins(ex.proteins);
+        if (ex.cuisines?.length) setCuisines(ex.cuisines);
+        else if (ex.cuisineMix) setCuisines(Object.keys(ex.cuisineMix));
+        if (ex.excluded) setAvoid(String(ex.excluded).split(',').map((s: string) => s.trim()).filter(Boolean));
+        if (ex.allergies) setAllergies(ex.allergies);
+      } catch { /* ignore */ }
+      setPrefilled(true);
+    }
+  }, [existing.data, prefilled]);
+
+  const toggle = (list: string[], set: (v: string[]) => void, v: string) =>
+    set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+
+  const proteinOpts = PROTEINS_BY_DIET[diet] ?? PROTEINS_BY_DIET.veg;
+  const bodyOk = age !== '' && sex !== '' && height !== '' && weight !== '';
+  const canNext = step === 0 ? bodyOk : true;
+
+  const finish = () => {
+    const cuisineMix = cuisines.length ? Object.fromEntries(cuisines.map((c) => [c, Math.round(100 / cuisines.length)])) : {};
+    const exToSave = {
+      proteins, meats: [], cuisines, cuisineMix,
+      excluded: avoid.join(', '), allergies,
+      healthConditions: [], conditions: '',
+    };
+    const payload: Partial<FoodPref> = {
+      diet, goal, activity,
+      heightCm: Number(height) || null, weightKg: Number(weight) || null,
+      age: Number(age) || null, sex: sex || null,
+      extras: JSON.stringify(exToSave),
+    } as Partial<FoodPref>;
+    update.mutate(payload, { onSuccess: () => navigate('/nutrition/weekly') });
+  };
+
+  if (existing.isLoading) return <Spinner label="Loading your profile…" />;
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 16px' }}>
+    <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px 60px' }}>
       <div className="eyebrow">Nutrition Hub · Onboarding</div>
-      <h1 style={{ fontSize: 28, marginBottom: 10 }}>Let's personalise your nutrition experience</h1>
-      <p className="lede" style={{ marginBottom: 24 }}>
-        Eight short steps — your answers are saved to long-term memory and re-used across meal plans,
-        groceries and supplements.
+      <h1 style={{ fontSize: 28, margin: '4px 0 6px' }}>Create your nutrition profile</h1>
+      <p className="muted" style={{ fontSize: 14, lineHeight: 1.5, margin: '0 0 20px' }}>
+        Five quick steps. Everything you enter is saved to your profile and drives every meal plan, grocery list and recipe — you won't be asked again.
       </p>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 40 }}>
-        {STEPS.map(([id, label]) => (
-          <a key={id} href={`#${id}`} style={{
-            fontSize: 11, fontWeight: 600, letterSpacing: '.06em', padding: '8px 14px',
-            borderRadius: 999, border: '1px solid var(--line)', color: 'var(--muted)',
-          }}>{label}</a>
+      {/* progress */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+        {STEPS.map((s, i) => (
+          <div key={s} style={{ flex: 1 }}>
+            <div style={{ height: 4, borderRadius: 3, background: i <= step ? 'var(--accent)' : 'var(--line)' }} />
+            <div style={{ fontSize: 11.5, marginTop: 6, color: i === step ? 'var(--accent)' : 'var(--muted)', fontWeight: i === step ? 700 : 500 }}>{s}</div>
+          </div>
         ))}
       </div>
 
-      {/* STEP 1 */}
-      <section id="step1" style={{ marginBottom: 44, scrollMarginTop: 96 }}>
-        <StepHead n="1" title="Choose your path" />
-        <div className="grid2">
-          <div className="card">
-            <h4>Get Blood Test / Upload Existing Report</h4>
-            <p className="muted" style={{ fontSize: 13, margin: '8px 0 16px' }}>
-              Scientific, AI-powered — your plan is built on your real biology, not guesses.
-            </p>
-            <a href="#step2a"><Button variant="accent" size="sm">Continue with blood test</Button></a>
-          </div>
-          <div className="card">
-            <h4>Skip Blood Test</h4>
-            <p className="muted" style={{ fontSize: 13, margin: '8px 0 16px' }}>
-              Feed us basic data instead — you can always add a report later.
-            </p>
-            <a href="#step4"><Button variant="line" size="sm">Skip to basic data</Button></a>
-          </div>
-        </div>
-      </section>
-
-      {/* STEP 2A */}
-      <section id="step2a" style={{ marginBottom: 44, scrollMarginTop: 96 }}>
-        <StepHead n="2A" title="Choose your blood test" />
-        <div className="grid2">
-          <div className="card">
-            <span className="tag gold">Most Recommended</span>
-            <h4 style={{ marginTop: 10 }}>Comprehensive Panel</h4>
-            <p className="muted" style={{ fontSize: 13, margin: '6px 0 14px' }}>
-              90+ parameters · AI insights across every organ system.
-            </p>
-            <div style={{ fontSize: 22, fontWeight: 600 }}>₹1,499</div>
-            <Link to="/nutrition/blood"><Button variant="accent" size="sm" style={{ marginTop: 14 }}>Book Comprehensive</Button></Link>
-          </div>
-          <div className="card">
-            <h4>Basic Panel</h4>
-            <p className="muted" style={{ fontSize: 13, margin: '6px 0 14px' }}>
-              35+ parameters — CBC, sugar, cholesterol, kidney, liver.
-            </p>
-            <div style={{ fontSize: 22, fontWeight: 600 }}>₹799</div>
-            <Link to="/nutrition/blood"><Button variant="line" size="sm" style={{ marginTop: 14 }}>Book Basic</Button></Link>
-          </div>
-        </div>
-        <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>
-          All samples collected at home by NABL-accredited labs.
-        </p>
-      </section>
-
-      {/* STEP 3 */}
-      <section id="step3" style={{ marginBottom: 44, scrollMarginTop: 96 }}>
-        <StepHead n="3" title="Confirmation" />
-        <div className="card">
-          <p style={{ fontWeight: 600, fontSize: 16 }}>Your blood test is booked — Tomorrow, 10:00 AM</p>
-          <div className="grid2" style={{ marginTop: 16 }}>
-            <div>
-              <p style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Do's</p>
-              <p className="muted" style={{ fontSize: 13 }}>Fast 10–12 hours · Drink water · No heavy exercise</p>
-            </div>
-            <div>
-              <p style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Don'ts</p>
-              <p className="muted" style={{ fontSize: 13 }}>No smoking · No alcohol 24h prior · No unsupervised supplements</p>
-            </div>
-          </div>
-          <a href="#step4"><Button variant="accent" size="sm" style={{ marginTop: 18 }}>Fill Basic Data while waiting →</Button></a>
-        </div>
-      </section>
-
-      {/* STEP 4 */}
-      <section id="step4" style={{ marginBottom: 44, scrollMarginTop: 96 }}>
-        <StepHead n="4" title="About you" />
-        <div className="card">
-          <div className="grid4">
-            {([['Age', '32'], ['Gender', 'Male'], ['Height', '175 cm'], ['Weight', '70 kg']] as const).map(([lab, val]) => (
-              <div key={lab}>
-                <label className="muted" style={{ fontSize: 11 }}>{lab}</label>
-                <input defaultValue={val} style={inputStyle} />
+      <div style={card}>
+        {step === 0 && (
+          <>
+            <h2 style={{ fontSize: 18, margin: '0 0 16px' }}>About you</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+              <div><label style={labelStyle}>Age</label><input inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value.replace(/\D/g, ''))} style={field} placeholder="e.g. 32" /></div>
+              <div><label style={labelStyle}>Sex</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Chip on={sex === 'male'} onClick={() => setSex('male')}>Male</Chip>
+                  <Chip on={sex === 'female'} onClick={() => setSex('female')}>Female</Chip>
+                </div>
               </div>
-            ))}
-          </div>
-          <p style={{ fontWeight: 600, fontSize: 13, margin: '18px 0 8px' }}>Your goal</p>
-          <div className="pill-row">
-            {GOALS.map((g) => (
-              <span key={g} className={`pill${goal === g ? ' on' : ''}`} onClick={() => setGoal(g)} style={{ cursor: 'pointer' }}>{g}</span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* STEP 6 */}
-      <section id="step6" style={{ marginBottom: 44, scrollMarginTop: 96 }}>
-        <StepHead n="6" title="Weekly diet-type matrix" />
-        <div className="card" style={{ overflowX: 'auto' }}>
-          <table className="tc">
-            <tbody>
-              <tr><th>Day</th><th>Breakfast</th><th>Lunch</th><th>Dinner</th><th>Snacks</th></tr>
-              {matrix.map((row, di) => (
-                <tr key={row.day}>
-                  <td><b>{row.day}</b></td>
-                  {row.cells.map((cell, ci) => (
-                    <td key={ci}>
-                      <select
-                        value={cell}
-                        onChange={(e) => setCell(di, ci, e.target.value)}
-                        style={{ width: '100%', fontSize: 11, border: '1px solid var(--line)', borderRadius: 8, padding: 6, background: 'var(--paper)', color: 'var(--ink)' }}
-                      >
-                        {DIET_OPTS.map((o) => <option key={o}>{o}</option>)}
-                      </select>
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* STEP 6b */}
-      <section id="step6b" style={{ marginBottom: 44, scrollMarginTop: 96 }}>
-        <StepHead n="6b" title="Preferred cuisines" />
-        <div className="card">
-          <div className="tabrow">
-            {(['Indian', 'International'] as const).map((t) => (
-              <a key={t} href="#step6b" className={cuisineTab === t ? 'on' : ''} onClick={() => setCuisineTab(t)}>{t}</a>
-            ))}
-          </div>
-          {CUISINES.map(([name, pct]) => (
-            <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0', fontSize: 13 }}>
-              <span style={{ width: 130, flexShrink: 0, color: 'var(--ink-soft)' }}>{name}</span>
-              <div style={{ flex: 1, height: 7, background: 'var(--line)', borderRadius: 4, overflow: 'hidden' }}>
-                <span style={{ display: 'block', height: '100%', width: `${pct}%`, background: 'var(--accent)', borderRadius: 4 }} />
-              </div>
-              <span style={{ width: 38, textAlign: 'right', fontWeight: 600, flexShrink: 0 }}>{pct}%</span>
+              <div><label style={labelStyle}>Height (cm)</label><input inputMode="numeric" value={height} onChange={(e) => setHeight(e.target.value.replace(/\D/g, ''))} style={field} placeholder="e.g. 175" /></div>
+              <div><label style={labelStyle}>Weight (kg)</label><input inputMode="numeric" value={weight} onChange={(e) => setWeight(e.target.value.replace(/\D/g, ''))} style={field} placeholder="e.g. 70" /></div>
             </div>
-          ))}
-        </div>
-      </section>
+            <label style={labelStyle}>Activity level</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+              {ACTIVITY.map((a) => <Chip key={a.value} on={activity === a.value} onClick={() => setActivity(a.value)}>{a.label}</Chip>)}
+            </div>
+            <label style={labelStyle}>Your goal</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {GOALS.map((g) => <Chip key={g.key} on={goal === g.key} onClick={() => setGoal(g.key)}>{g.label}</Chip>)}
+            </div>
+          </>
+        )}
 
-      {/* STEP 7 */}
-      <section id="step7" style={{ marginBottom: 44, scrollMarginTop: 96 }}>
-        <StepHead n="7" title="Foods you don't eat" />
-        <div className="card">
-          <div className="pill-row">
-            {EXCLUSIONS.map((x) => (
-              <span key={x} className={`pill${excluded.includes(x) ? ' on' : ''}`} onClick={() => toggleExcl(x)} style={{ cursor: 'pointer' }}>{x}</span>
-            ))}
-          </div>
-          <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>
-            Saved to long-term memory — every future plan avoids these automatically.
-          </p>
-        </div>
-      </section>
+        {step === 1 && (
+          <>
+            <h2 style={{ fontSize: 18, margin: '0 0 6px' }}>Your diet</h2>
+            <p className="muted" style={{ fontSize: 13.5, margin: '0 0 16px' }}>This is the base rule every meal follows.</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {DIETS.map((d) => <Chip key={d.key} on={diet === d.key} onClick={() => { setDiet(d.key); setProteins([]); }}>{d.label}</Chip>)}
+            </div>
+          </>
+        )}
 
-      {/* STEP 8 */}
-      <section id="step8" style={{ marginBottom: 44, scrollMarginTop: 96 }}>
-        <StepHead n="8" title="Weekly food budget" />
-        <div className="card">
-          <div className="pill-row">
-            {BUDGETS.map((b) => (
-              <span key={b} className={`pill${budget === b ? ' on' : ''}`} onClick={() => setBudget(b)} style={{ cursor: 'pointer' }}>{b}</span>
-            ))}
-          </div>
-          <Link to="/nutrition/weekly">
-            <Button variant="accent" style={{ marginTop: 24, width: '100%', justifyContent: 'center' }}>
-              Finish &amp; Create My Plan →
-            </Button>
-          </Link>
-        </div>
-      </section>
+        {step === 2 && (
+          <>
+            <h2 style={{ fontSize: 18, margin: '0 0 6px' }}>Protein sources</h2>
+            <p className="muted" style={{ fontSize: 13.5, margin: '0 0 16px' }}>Pick the proteins you actually eat — your plans lean on these.</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {proteinOpts.map((p) => <Chip key={p} on={proteins.includes(p)} onClick={() => toggle(proteins, setProteins, p)}>{p}</Chip>)}
+            </div>
+          </>
+        )}
 
-      <div className="trust">
-        <span>◈ Personalised for You</span><span>◈ Expert Guidance</span>
-        <span>◈ Quality You Can Trust</span><span>◈ Better Every Day</span>
+        {step === 3 && (
+          <>
+            <h2 style={{ fontSize: 18, margin: '0 0 6px' }}>Preferred cuisines</h2>
+            <p className="muted" style={{ fontSize: 13.5, margin: '0 0 16px' }}>Your plans draw mainly from these.</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {CUISINES.map((c) => <Chip key={c} on={cuisines.includes(c)} onClick={() => toggle(cuisines, setCuisines, c)}>{c}</Chip>)}
+            </div>
+          </>
+        )}
+
+        {step === 4 && (
+          <>
+            <h2 style={{ fontSize: 18, margin: '0 0 6px' }}>Foods to avoid</h2>
+            <p className="muted" style={{ fontSize: 13.5, margin: '0 0 16px' }}>Allergies and dislikes — every plan avoids these automatically.</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+              {AVOID.map((a) => <Chip key={a} on={avoid.includes(a)} onClick={() => toggle(avoid, setAvoid, a)}>{a}</Chip>)}
+            </div>
+            <label style={labelStyle}>Anything else to avoid (optional)</label>
+            <input value={allergies} onChange={(e) => setAllergies(e.target.value)} style={field} placeholder="e.g. brinjal, prawns" />
+            <p className="muted" style={{ fontSize: 13, margin: '16px 0 0', lineHeight: 1.5 }}>
+              Have a blood report? <Link to="/nutrition/blood" style={{ color: 'var(--accent)', fontWeight: 600 }}>Connect it</Link> and your plan adapts to your biomarkers — you can do this any time.
+            </p>
+          </>
+        )}
       </div>
+
+      {/* nav */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 18 }}>
+        <Button variant="line" size="sm" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>← Back</Button>
+        {step < STEPS.length - 1
+          ? <Button variant="accent" onClick={() => canNext && setStep((s) => s + 1)} disabled={!canNext}>Next →</Button>
+          : <Button variant="accent" onClick={finish} disabled={update.isPending || !bodyOk}>{update.isPending ? 'Saving…' : 'Save & create my plan →'}</Button>}
+      </div>
+      {step === 0 && !bodyOk && <p className="muted" style={{ fontSize: 12.5, marginTop: 8, textAlign: 'right' }}>Fill in age, sex, height and weight to continue.</p>}
     </div>
   );
 }

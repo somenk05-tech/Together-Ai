@@ -69,11 +69,12 @@ const PATTERNS = ['Balanced', 'High protein', 'Low carb', 'Keto', 'Mediterranean
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DELIVERY = ['Morning (6–9am)', 'Midday (12–2pm)', 'Evening (5–8pm)'];
 const CONDITIONS = ['Diabetes', 'Hypertension', 'PCOS', 'Kidney Disease', 'Fatty Liver'];
-const WELLNESS_GOALS = ['Lose Fat', 'Gain Muscle', 'Improve Gut Health', 'Improve Skin', 'Better Hair', 'Lower Cholesterol', 'Better Sleep', 'Higher Energy', 'Diabetes Control', 'Heart Health'];
-// Auto-detected from a flagged blood marker → pre-selected concern/goal.
-const COND_FROM_MARKER: Record<string, string> = { hba1c: 'Diabetes' };
+const WELLNESS_GOALS = ['Lose Fat', 'Gain Muscle', 'Improve Gut Health', 'Improve Skin', 'Better Hair', 'Lower Cholesterol', 'Better Sleep', 'Higher Energy', 'Blood Sugar Balance', 'Heart Health'];
+// Auto-detected from a flagged blood marker → suggests a *goal* only, never a
+// diagnosis. A condition (e.g. "Diabetes") is shown ONLY if the user declares it.
+const COND_FROM_MARKER: Record<string, string> = {};
 const GOALS_FROM_MARKER: Record<string, string[]> = {
-  hba1c: ['Diabetes Control'],
+  hba1c: ['Blood Sugar Balance'],
   ldl: ['Lower Cholesterol', 'Heart Health'],
   trig: ['Lower Cholesterol', 'Heart Health'],
   hb: ['Higher Energy'],

@@ -1471,10 +1471,20 @@ export class NutritionService implements OnModuleInit {
       if (!role) continue;
       const s = Math.max(1, r.servings ?? 1);
       const per = (n: number) => Math.max(0, Math.round((n || 0) / s));
-      const ingredients = r.ingredients
+      let ingredients = r.ingredients
         .map((i) => ({ name: i.name, grams: Math.max(1, Math.round((i.grams ?? 0) / s)) }))
         .filter((i) => i.name && (i.grams ?? 0) > 0);
       if (!ingredients.length) continue;
+      // Batch-quantity normalisation: some dataset rows carry whole-batch ingredient
+      // weights with servings=1, which inflates the computed sodium/potassium/etc.
+      // (e.g. a "breakfast" reading 8,800 mg K). Scale the ingredient list down to
+      // the plate serving weight so the computed micronutrients are realistic.
+      const gps = per(r.gramsPerServing) || 200;
+      const totalW = ingredients.reduce((t, i) => t + i.grams, 0);
+      if (gps > 0 && totalW > gps * 1.6) {
+        const f = gps / totalW;
+        ingredients = ingredients.map((i) => ({ name: i.name, grams: Math.max(1, Math.round(i.grams * f)) }));
+      }
       const n = computeNutrients(ingredients);
       out.push({
         id: r.id, name: r.name, cuisine: r.country, categories: cats, role,

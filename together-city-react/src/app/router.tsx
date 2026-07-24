@@ -15,9 +15,6 @@ import { RequireAuth } from '@/features/auth/AuthGate';
 import { NotFound } from '@/pages/NotFound';
 
 // Route-level code splitting for the reference vertical.
-const WeeklyPlanner = lazy(() =>
-  import('@/features/nutrition/pages/WeeklyPlanner').then((m) => ({ default: m.WeeklyPlanner })),
-);
 const MealPlan = lazy(() =>
   import('@/features/nutrition/pages/MealPlan').then((m) => ({ default: m.MealPlan })),
 );
@@ -29,12 +26,10 @@ const NutritionHistory = lazy(() =>
 );
 const Profile = lazy(() => import('@/features/profile/pages/Profile').then((m) => ({ default: m.Profile })));
 const SocialFeed = lazy(() => import('@/features/social/pages/SocialFeed').then((m) => ({ default: m.SocialFeed })));
-const Recipes = lazy(() => import('@/features/nutrition/pages/Recipes').then((m) => ({ default: m.Recipes })));
 const RecipeLibrary = lazy(() => import('@/features/nutrition/pages/RecipeLibrary').then((m) => ({ default: m.RecipeLibrary })));
 const RecipeDetail = lazy(() => import('@/features/nutrition/pages/RecipeDetail').then((m) => ({ default: m.RecipeDetail })));
 const Grocery = lazy(() => import('@/features/nutrition/pages/Grocery').then((m) => ({ default: m.Grocery })));
 const Orders = lazy(() => import('@/features/nutrition/pages/Orders').then((m) => ({ default: m.Orders })));
-const Daily = lazy(() => import('@/features/nutrition/pages/Daily').then((m) => ({ default: m.Daily })));
 const Preferences = lazy(() => import('@/features/nutrition/pages/Preferences').then((m) => ({ default: m.Preferences })));
 const Blood = lazy(() => import('@/features/nutrition/pages/Blood').then((m) => ({ default: m.Blood })));
 const Supplements = lazy(() => import('@/features/nutrition/pages/Supplements').then((m) => ({ default: m.Supplements })));
@@ -223,16 +218,16 @@ export const router = createBrowserRouter([
     children: [
       { path: '/nutrition/weekly', element: <RequireAuth>{wrap(<MealPlan />)}</RequireAuth> },
       { path: '/nutrition/plan', element: <RequireAuth>{wrap(<MealPlan />)}</RequireAuth> },
-      { path: '/nutrition/weekly-classic', element: wrap(<WeeklyPlanner />) },
+      { path: '/nutrition/weekly-classic', element: <Navigate to="/nutrition/weekly" replace /> },
       { path: '/nutrition/history', element: <RequireAuth>{wrap(<NutritionHistory />)}</RequireAuth> },
       { path: '/nutrition/daily', element: <RequireAuth>{wrap(<MealPlanToday />)}</RequireAuth> },
-      { path: '/nutrition/daily-classic', element: <RequireAuth>{wrap(<Daily />)}</RequireAuth> },
+      { path: '/nutrition/daily-classic', element: <Navigate to="/nutrition/daily" replace /> },
       { path: '/nutrition/blood', element: <RequireAuth>{wrap(<Blood />)}</RequireAuth> },
       { path: '/nutrition/preferences', element: <RequireAuth>{wrap(<Preferences />)}</RequireAuth> },
       { path: '/nutrition/grocery', element: <RequireAuth>{wrap(<Grocery />)}</RequireAuth> },
       { path: '/nutrition/orders', element: <RequireAuth>{wrap(<Orders />)}</RequireAuth> },
       { path: '/nutrition/recipes', element: <RequireAuth>{wrap(<RecipeLibrary />)}</RequireAuth> },
-      { path: '/nutrition/recipes-classic', element: wrap(<Recipes />) },
+      { path: '/nutrition/recipes-classic', element: <Navigate to="/nutrition/recipes" replace /> },
       { path: '/nutrition/library', element: <RequireAuth>{wrap(<RecipeLibrary />)}</RequireAuth> },
       { path: '/nutrition/recipes/:id', element: wrap(<RecipeDetail />) },
       { path: '/nutrition/supplements', element: <RequireAuth>{wrap(<Supplements />)}</RequireAuth> },
