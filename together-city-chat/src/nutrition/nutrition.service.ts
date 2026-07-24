@@ -24,7 +24,7 @@ import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, mntAvoidKeywords, type MntRule } from './clinical-mnt';
 import { composeWeek, scaleComposedWeek, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
-import { computeNutrients, isSalt } from './ingredient-nutrients';
+import { computeNutrients, computeMicros, isSalt } from './ingredient-nutrients';
 import {
   QC_PROVIDERS, buildQcMeta, compareStores, applyBadges, refreshTotals, quoteStore, trackFromMeta,
   type QcListItem, type QcMeta, type QcStoreQuote,
@@ -1671,11 +1671,14 @@ export class NutritionService implements OnModuleInit {
     const kcal = per(r.kcal);
     const ings = (r.ingredients ?? []).map((i) => ({ name: i.name, grams: Math.max(1, Math.round((i.grams ?? 0) / s)) }));
     const n = computeNutrients(ings);
+    const micro = computeMicros(ings);
     const diet = r.diet === 'jainvegan' ? 'vegan' : r.diet;
     const difficulty = r.minutes <= 15 ? 'Easy' : r.minutes <= 40 ? 'Medium' : 'Hard';
     return {
       id: r.id, name: r.name, cuisine: r.country, kcal, protein: per(r.protein), carbs: per(r.carbs), fat: per(r.fat), fiber: per(r.fiber),
       minutes: r.minutes, servings: 1, difficulty, diet, healthScore: r.healthPercent ?? null, healthGrade: r.healthGrade ?? null,
+      sodiumMg: n.complete ? n.na : null, potassiumMg: n.complete ? n.k : null, sugarG: n.complete ? n.sug : null,
+      ironMg: micro.ironMg || null, calciumMg: micro.calciumMg || null, vitDUg: micro.vitDUg || null, vitCMg: micro.vitCMg || null,
       imageUrl: r.imageUrl ?? r.image ?? null,
       badges: {
         diabetes: n.complete && n.addedSug <= 6,

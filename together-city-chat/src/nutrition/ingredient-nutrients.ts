@@ -22,7 +22,8 @@ export interface NutrientSet { na: number; k: number; p: number; sug: number; sf
 const ADDED_SUGAR = [
   'sugar', 'jaggery', 'honey', 'custard powder', 'condensed milk', 'syrup',
   'jam', 'ketchup', 'chocolate', 'maple', 'caramel', 'nutella', 'gulab jamun',
-  'cane sugar', 'brown sugar', 'icing', 'marmalade',
+  'cane sugar', 'brown sugar', 'icing', 'marmalade', 'molasses', 'graham',
+  'hoisin', 'barbecue', 'bbq', 'teriyaki', 'sriracha', 'whipped topping',
 ];
 function isAddedSugar(name: string): boolean {
   const n = name.trim().toLowerCase();
@@ -204,6 +205,83 @@ const T: Record<string, [number, number, number, number, number]> = {
   'chocolate': [24, 559, 208, 48, 19],
   'cocoa powder': [21, 1524, 734, 1.8, 8],
   'water': [0, 0, 0, 0, 0],
+  // ── Phase-2 coverage: top unresolved non-Indian ingredients ──
+  'cilantro': [46, 521, 48, 0.9, 0.01],
+  'coriander': [46, 521, 48, 0.9, 0.01],
+  'lime': [2, 102, 14, 1.7, 0.02],
+  'lime juice': [2, 102, 14, 1.7, 0.02],
+  'lemon juice': [2, 102, 14, 1.7, 0.02],
+  'chili': [9, 322, 43, 5, 0.4],
+  'chilli': [9, 322, 43, 5, 0.4],
+  'yogurt': [46, 155, 95, 4.7, 1.8],
+  'yoghurt': [46, 155, 95, 4.7, 1.8],
+  'greek yogurt': [36, 141, 135, 4, 2],
+  'sour cream': [30, 125, 80, 3, 11],
+  'corn': [15, 270, 89, 3.2, 0.2],
+  'sweetcorn': [15, 270, 89, 3.2, 0.2],
+  'mint': [30, 458, 73, 0, 0.07],
+  'parmesan': [1600, 125, 700, 0.9, 17],
+  'mozzarella': [600, 76, 350, 1, 15],
+  'cheddar': [620, 98, 500, 0.5, 19],
+  'feta': [917, 62, 337, 4.1, 15],
+  'bacon': [1717, 565, 533, 0, 12],
+  'sausage': [800, 300, 180, 1, 10],
+  'ham': [1200, 290, 230, 1, 4],
+  'turkey': [103, 239, 200, 0, 1],
+  'salmon': [59, 363, 240, 0, 3],
+  'tuna': [39, 252, 254, 0, 0.3],
+  'crab': [340, 262, 200, 0, 0.2],
+  'cornstarch': [9, 3, 13, 0, 0],
+  'corn starch': [9, 3, 13, 0, 0],
+  'cornmeal': [5, 142, 120, 0.6, 0.1],
+  'oats': [2, 350, 410, 1, 1.2],
+  'oatmeal': [2, 350, 410, 1, 1.2],
+  'tortilla': [400, 150, 200, 1, 1.5],
+  'spaghetti': [6, 223, 189, 2.7, 0.3],
+  'macaroni': [6, 223, 189, 2.7, 0.3],
+  'penne': [6, 223, 189, 2.7, 0.3],
+  'barley': [9, 280, 264, 0.8, 0.2],
+  'tahini': [115, 414, 732, 0.5, 2.1],
+  'pecans': [0, 410, 277, 4, 6],
+  'mixed nuts': [10, 600, 450, 4, 6],
+  'avocado': [7, 485, 52, 0.7, 2.1],
+  'leek': [20, 180, 35, 3.9, 0.03],
+  'besan': [64, 846, 318, 3, 0.6],
+  'wheat flour': [2, 360, 320, 0.4, 0.3],
+  'all purpose flour': [2, 107, 108, 0.3, 0.2],
+  'kidney beans': [12, 1400, 400, 2, 0.1],
+  'bean sprouts': [6, 149, 101, 4, 0.05],
+  'sprouts': [15, 450, 200, 3, 0.2],
+  'molasses': [37, 1464, 84, 75, 0.1],
+  'maple syrup': [12, 212, 2, 60, 0],
+  'margarine': [2000, 42, 25, 0, 15],
+  'shortening': [0, 0, 0, 0, 25],
+  'gelatin': [196, 16, 4, 0, 0],
+  'capers': [2954, 40, 10, 0.4, 0.1],
+  'olives': [1556, 42, 4, 0, 0.5],
+  'sun-dried tomatoes': [266, 3427, 356, 38, 0.1],
+  // condiments / sauces (sodium-heavy — matters for HTN/renal)
+  'worcestershire sauce': [980, 800, 60, 19, 0],
+  'ketchup': [900, 380, 30, 22, 0.1],
+  'hot sauce': [2600, 140, 20, 1, 0],
+  'sriracha': [2100, 130, 20, 15, 0.1],
+  'salsa': [430, 290, 30, 4, 0.1],
+  'oyster sauce': [2700, 54, 30, 15, 0],
+  'teriyaki sauce': [3900, 220, 60, 15, 0],
+  'hoisin sauce': [1400, 120, 40, 30, 0.5],
+  'barbecue sauce': [815, 230, 25, 33, 0.1],
+  'bbq sauce': [815, 230, 25, 33, 0.1],
+  'fish sauce': [7900, 290, 7, 4, 0],
+  'harissa': [1200, 300, 50, 5, 1],
+  'pesto': [640, 200, 120, 1, 5],
+  'red curry paste': [1300, 300, 60, 5, 2],
+  'green curry paste': [1300, 300, 60, 5, 2],
+  'curry paste': [1300, 300, 60, 5, 2],
+  'salad dressing': [700, 60, 30, 4, 3],
+  'graham cracker': [420, 130, 120, 25, 3],
+  'whipped topping': [30, 50, 30, 25, 10],
+  'pancake mix': [700, 160, 300, 10, 1],
+  'fenugreek': [76, 770, 51, 1, 0.1],
 };
 
 /**
@@ -219,6 +297,8 @@ const NEGLIGIBLE: Array<[string, [number, number, number, number, number]]> = [
   ['stock cube', [24000, 100, 40, 1, 1]],
   ['soup stock', [900, 60, 20, 0.5, 0.3]],
   ['yeast', [51, 955, 637, 0, 0.1]],
+  ['cooking spray', [0, 0, 0, 0, 1]],
+  ['ice', [0, 0, 0, 0, 0]],
 ];
 const SPICE_TOKENS = [
   'pepper', 'turmeric', 'chili powder', 'chilli powder', 'red chili powder', 'coriander powder',
@@ -229,8 +309,29 @@ const SPICE_TOKENS = [
   'vanilla', 'food color', 'food colour', 'kewra', 'rose water', 'garnish', 'seasoning', 'spice',
   'black salt', // handled by salt() first, but keep as spice fallback token
   'green cardamom', 'black cardamom', 'peppercorn', 'italian herbs', 'mixed herbs', 'chives', 'dill',
+  'sage', 'caraway', 'marjoram', 'tarragon', 'allspice', 'curry powder', 'curry leaf', 'lemongrass',
+  'coriander seed', 'sumac', 'zaatar', "za'atar", 'herbs', 'spice mix', 'seasoning mix', 'garnish',
 ];
 const SPICE_DEFAULT: [number, number, number, number, number] = [8, 80, 20, 0.3, 0.1];
+
+/**
+ * Broad generic-token fallback for high-frequency ingredient families the exact
+ * table can't enumerate (any oil, broth/stock, generic flour, beans, sauce) and
+ * alcohol (near-zero macro but flagged for liver/avoid handling). Runs after the
+ * exact/keyword/spice passes so specific rows always win.
+ */
+const GENERIC_TOKENS: Array<[string, [number, number, number, number, number]]> = [
+  ['broth', [350, 90, 20, 0.5, 0.3]], ['stock', [350, 90, 20, 0.5, 0.3]], ['bouillon', [24000, 100, 40, 1, 1]],
+  ['groundnut oil', [0, 0, 0, 0, 4]], ['sesame oil', [0, 0, 0, 0, 14]], ['oil', [0, 0, 0, 0, 13]],
+  ['whole wheat flour', [2, 360, 320, 0.4, 0.3]], ['gram flour', [64, 846, 318, 3, 0.6]], ['rice flour', [1, 76, 98, 0.1, 0.1]], ['flour', [2, 130, 110, 0.3, 0.2]],
+  ['kidney bean', [12, 1400, 400, 2, 0.1]], ['black bean', [1, 1483, 352, 0.6, 0.1]], ['bean', [12, 1300, 380, 2, 0.2]],
+  ['curry paste', [1300, 300, 60, 5, 2]], ['dressing', [700, 60, 30, 4, 3]],
+  // alcohol — modest values; liver/avoid handling done elsewhere
+  ['wine', [8, 90, 18, 1, 0]], ['beer', [4, 27, 14, 0, 0]], ['sherry', [5, 50, 10, 2, 0]],
+  ['rum', [1, 1, 0, 0, 0]], ['sake', [2, 20, 6, 1, 0]], ['mirin', [3, 5, 2, 20, 0]],
+  ['brandy', [1, 1, 0, 0, 0]], ['whiskey', [0, 1, 0, 0, 0]], ['vodka', [1, 1, 0, 0, 0]], ['liquor', [1, 1, 0, 0, 0]],
+  ['sauce', [500, 120, 30, 5, 1]],
+];
 
 /** Look up an ingredient's nutrients (exact, then paren-stripped, then keyword, then spice fallback). */
 function lookup(name: string): [number, number, number, number, number] | null {
@@ -244,6 +345,7 @@ function lookup(name: string): [number, number, number, number, number] | null {
   }
   for (const [tok, v] of NEGLIGIBLE) if (n.includes(tok)) return v;
   for (const tok of SPICE_TOKENS) if (n.includes(tok)) return SPICE_DEFAULT;
+  for (const [tok, v] of GENERIC_TOKENS) if (n.includes(tok)) return v;
   return null;
 }
 
@@ -252,6 +354,59 @@ function lookup(name: string): [number, number, number, number, number] | null {
  * `complete` is false if any ingredient couldn't be resolved — so clinical
  * enforcement can exclude nutrition-incomplete recipes from capped roles.
  */
+/**
+ * Micronutrients (QA M6): iron, calcium, vitamin D, vitamin C per 100 g for the
+ * foods that materially contribute them, so recipe cards and blood-driven
+ * selection have real data (the dataset ships none). Foods not listed contribute
+ * 0 to that micro — honest under-estimate rather than a fabricated value.
+ * [ironMg, calciumMg, vitDUg, vitCMg]
+ */
+const MICRO: Record<string, [number, number, number, number]> = {
+  // iron-rich
+  'spinach': [2.7, 99, 0, 28], 'fenugreek leaves': [1.9, 395, 0, 52], 'liver': [9, 11, 1.2, 1.3],
+  'chicken liver': [9, 11, 1.2, 28], 'red meat': [2.6, 12, 0.1, 0], 'beef': [2.6, 12, 0.1, 0],
+  'mutton': [1.6, 12, 0, 0], 'lamb': [1.6, 12, 0, 0], 'toor dal': [5, 130, 0, 0], 'masoor dal': [7.5, 56, 0, 1.5],
+  'chana dal': [5.3, 78, 0, 1], 'chickpeas': [4.3, 105, 0, 4], 'rajma (kidney beans)': [5.2, 143, 0, 4.5],
+  'kidney beans': [5.2, 143, 0, 4.5], 'black beans': [5, 123, 0, 0], 'soya chunks': [15, 350, 0, 0],
+  'tofu': [2.7, 350, 0, 0.1], 'sesame seeds': [14.6, 975, 0, 0], 'pumpkin seeds': [8.8, 46, 0, 1.9],
+  'jaggery': [11, 85, 0, 0], 'poha': [20, 20, 0, 0], 'oats': [4.7, 54, 0, 0], 'rolled oats': [4.7, 54, 0, 0],
+  // calcium-rich
+  'milk': [0, 125, 1.3, 0], 'curd (yogurt)': [0, 121, 0.1, 1], 'yogurt': [0, 121, 0.1, 1], 'greek yogurt': [0, 110, 0, 0],
+  'paneer': [0, 480, 0.4, 0], 'cheese': [0.7, 720, 0.6, 0], 'parmesan': [0.8, 1180, 0.5, 0], 'mozzarella': [0.4, 505, 0.4, 0],
+  'ragi': [3.9, 344, 0, 0], 'almonds': [3.7, 269, 0, 0], 'sesame seeds ': [14.6, 975, 0, 0], 'buttermilk': [0, 116, 0, 0],
+  // vitamin C-rich
+  'lemon': [0.6, 26, 0, 53], 'lime': [0.6, 33, 0, 29], 'orange': [0.1, 40, 0, 53], 'amla': [0.3, 25, 0, 600],
+  'capsicum': [0.4, 10, 0, 128], 'bell pepper': [0.4, 10, 0, 128], 'green chili': [1.2, 18, 0, 143],
+  'broccoli': [0.7, 47, 0, 89], 'cauliflower': [0.4, 22, 0, 48], 'cabbage': [0.5, 40, 0, 37], 'tomato': [0.3, 10, 0, 14],
+  'papaya': [0.3, 20, 0, 61], 'strawberry': [0.4, 16, 0, 59], 'pineapple': [0.3, 13, 0, 48], 'guava': [0.3, 18, 0, 228],
+  'coriander leaves': [1.8, 67, 0, 27], 'mint': [5, 200, 0, 32], 'lemon juice': [0.1, 6, 0, 39],
+  // vitamin D-rich
+  'egg': [1.8, 56, 2, 0], 'eggs': [1.8, 56, 2, 0], 'fish': [1, 30, 11, 0], 'salmon': [0.5, 12, 13, 0],
+  'tuna': [1, 10, 5, 0], 'mushroom': [0.5, 3, 7, 2],
+};
+function lookupMicro(name: string): [number, number, number, number] | null {
+  const n = name.trim().toLowerCase();
+  if (MICRO[n]) return MICRO[n];
+  const bare = n.replace(/\s*\(.*?\)\s*/g, '').trim();
+  if (MICRO[bare]) return MICRO[bare];
+  for (const key of Object.keys(MICRO)) {
+    const kb = key.replace(/\s*\(.*?\)\s*/g, '').trim();
+    if (n.includes(kb) || bare.includes(kb)) return MICRO[key];
+  }
+  return null;
+}
+export interface MicroSet { ironMg: number; calciumMg: number; vitDUg: number; vitCMg: number }
+export function computeMicros(ingredients: Array<{ name: string; grams: number }>): MicroSet {
+  let fe = 0, ca = 0, d = 0, c = 0;
+  for (const ing of ingredients) {
+    const v = lookupMicro(ing.name);
+    if (!v) continue;
+    const f = ing.grams / 100;
+    fe += v[0] * f; ca += v[1] * f; d += v[2] * f; c += v[3] * f;
+  }
+  return { ironMg: Math.round(fe * 10) / 10, calciumMg: Math.round(ca), vitDUg: Math.round(d * 10) / 10, vitCMg: Math.round(c) };
+}
+
 export function computeNutrients(ingredients: Array<{ name: string; grams: number }>): NutrientSet & { complete: boolean } {
   let na = 0, k = 0, p = 0, sug = 0, sfat = 0, addedSug = 0, complete = ingredients.length > 0;
   for (const ing of ingredients) {
