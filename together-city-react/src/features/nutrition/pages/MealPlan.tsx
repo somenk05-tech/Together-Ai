@@ -26,6 +26,16 @@ function macroRow(t: { kcal: number; protein: number; carbs: number; fat: number
   );
 }
 
+/** Deterministic warm food-toned gradient for a recipe without a photo. */
+function photoBg(c: MealComponent): string {
+  if (c.imageUrl) return `center/cover no-repeat url(${c.imageUrl})`;
+  let h = 0;
+  for (const ch of c.recipeId + c.name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const hue = h % 360;               // spread across the wheel
+  const hue2 = (hue + 28) % 360;
+  return `linear-gradient(135deg, hsl(${hue} 55% 62%), hsl(${hue2} 60% 45%))`;
+}
+
 /** A composite meal card — title, scheduled time, components; expands to the full meal (Rule 9). */
 function MealCardV2({ meal }: { meal: ComposedMeal }) {
   const [open, setOpen] = useState<MealComponent | null>(null);
@@ -40,6 +50,22 @@ function MealCardV2({ meal }: { meal: ComposedMeal }) {
           <h3 style={{ margin: '2px 0 0', fontSize: 17 }}>{meal.title}</h3>
         </div>
         <Chip tone="accent">{Math.round(meal.energyPct * 100)}% of day</Chip>
+      </div>
+
+      {/* Photo card: every recipe in the meal as a clickable image tile (QA — visual meal header). */}
+      <div role="list" aria-label={`${meal.title} recipes`}
+        style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '12px -2px 2px', padding: '2px', scrollbarWidth: 'thin' }}>
+        {meal.components.map((c) => (
+          <button key={`ph-${c.recipeId}-${c.role}`} type="button" role="listitem" onClick={() => setOpen(c)}
+            aria-label={`${c.name} — ${c.kcal} kcal, open recipe`} title={c.name}
+            style={{ flex: '0 0 auto', width: 104, border: 'none', padding: 0, background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <div style={{ position: 'relative', width: 104, height: 76, borderRadius: 12, overflow: 'hidden', background: photoBg(c), display: 'grid', alignContent: 'end' }}>
+              <span style={{ background: 'linear-gradient(transparent, rgba(0,0,0,.6))', color: '#fff', fontSize: 10.5, fontWeight: 700,
+                padding: '14px 6px 5px', lineHeight: 1.15, textAlign: 'left', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{c.name}</span>
+            </div>
+            <div className="muted" style={{ fontSize: 10.5, marginTop: 3, textAlign: 'center', textTransform: 'capitalize' }}>{c.role}</div>
+          </button>
+        ))}
       </div>
 
       <div style={{ margin: '10px 0' }}>{macroRow(meal.totals)}</div>
