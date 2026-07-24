@@ -56,7 +56,7 @@ function ScoreDial({ label, value, hint }: { label: string; value: number; hint:
   const color = value >= 85 ? '#2e7d32' : value >= 65 ? '#8a6a1f' : '#c0392b';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 11, flex: '1 1 240px', minWidth: 220 }}>
-      <div style={{ display: 'grid', placeItems: 'center', width: 48, height: 48, borderRadius: '50%', border: `4px solid ${color}`, flex: '0 0 auto' }}>
+      <div role="img" aria-label={`${label}: ${value} out of 100`} style={{ display: 'grid', placeItems: 'center', width: 48, height: 48, borderRadius: '50%', border: `4px solid ${color}`, flex: '0 0 auto' }}>
         <strong style={{ fontSize: 14.5, color }}>{value}</strong>
       </div>
       <div style={{ minWidth: 0 }}>

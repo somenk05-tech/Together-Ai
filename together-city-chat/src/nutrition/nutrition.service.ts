@@ -22,7 +22,7 @@ import { addonLabel, addonMacros, complementByKey, fillGapWithComplements, type 
 import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, mntAvoidKeywords, type MntRule } from './clinical-mnt';
-import { composeWeek, scaleComposedWeek, complianceReport, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
+import { composeWeek, scaleComposedWeek, complianceReport, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { scoreDual, buildScorecard, guidelineCaps } from './plan-score';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
 import { computeNutrients, computeMicros, isSalt } from './ingredient-nutrients';
@@ -4593,7 +4593,14 @@ export class NutritionService implements OnModuleInit {
 
   async recipe(id: string, userId?: string) {
     const r = await this.prisma.recipe.findUnique({ where: { id }, include: { ingredients: true } });
-    if (!r) throw new NotFoundException('recipe not found');
+    if (!r) {
+      // Curated component recipe (dal/curd/salad/snack) — not a dataset row, so it
+      // has no DB record. Resolve it from the seed pool so it opens a real recipe
+      // page (with its ingredients, steps and macros) instead of a dead modal (L1).
+      const seed = SEED_POOL.find((s) => s.id === id);
+      if (seed) return this.curatedRecipe(seed);
+      throw new NotFoundException('recipe not found');
+    }
     const cookSteps = await this.recipeCookSteps(r);
     const shape = this.recipeShape(r);
 
@@ -4644,6 +4651,31 @@ export class NutritionService implements OnModuleInit {
       cookSteps,                            // structured: text + timer + attention
       sides,
       whyForYou,
+    };
+  }
+
+  /** Build a recipe-detail payload for a curated component recipe (seed pool). It
+   *  carries real ingredients, steps and macros; it has no dataset photo, so the
+   *  UI renders its gradient tile (photos need the image dataset). */
+  private curatedRecipe(seed: PoolRecipe) {
+    const round1 = (n: number) => Math.round(n * 10) / 10;
+    const ingredients = seed.ingredients.map((i) => isSalt(i.name)
+      ? { name: 'Salt', grams: 0, priceInr: 0, toTaste: true }
+      : { name: i.name, grams: round1(i.grams), priceInr: 0 });
+    const cookSteps = (seed.steps ?? []).map((text) => ({ text }));
+    return {
+      id: seed.id, recipeNo: null,
+      name: seed.name, country: seed.cuisine,
+      kcal: seed.kcal, protein: round1(seed.protein), carbs: round1(seed.carbs),
+      fat: round1(seed.fat), fiber: round1(seed.fiber), minutes: seed.minutes,
+      gramsPerServing: Math.max(1, seed.grams), diet: seed.diet,
+      servings: 1, healthGrade: null, healthPercent: 0, imageUrl: null,
+      curated: true,
+      ingredients,
+      plateWeight: Math.max(1, seed.grams),
+      totalRecipeWeight: seed.ingredients.reduce((t, i) => t + Math.max(0, i.grams || 0), 0),
+      method: cookSteps.map((s) => s.text),
+      cookSteps,
     };
   }
 
