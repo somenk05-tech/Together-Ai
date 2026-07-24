@@ -21,7 +21,7 @@ export interface ComposedMeal {
 export interface ComposedDay {
   dayIndex: number; fasting: boolean; protocol: string | null;
   window: { start: string; end: string };
-  meals: ComposedMeal[]; totals: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
+  meals: ComposedMeal[]; totals: { kcal: number; protein: number; carbs: number; fat: number; fiber: number; sodiumMg?: number; potassiumMg?: number };
   capBreaches?: string[];
 }
 export interface GroceryItem { name: string; grams: number; unit: string; pantry: boolean; fromRecipes: string[] }
@@ -38,11 +38,20 @@ export interface ComposedWeek {
   /** Resilience fallback: a general plan shown because the full profile couldn't be read. */
   degraded?: boolean;
   degradedReason?: string;
-  prescription: { kcal: number; protein: number; carb: number; fat: number; fiber: number };
+  /** Master-source-of-truth gate: true when no Food Preference Profile is saved. */
+  needsProfile?: boolean;
+  /** Skipped meal keys ("d{index}:{slot}") for this week. */
+  skips?: string[];
+  /** "Inform, don't force" — how the preferred plan compares to the clinical ideal. */
+  compliance?: ComplianceReport;
+  prescription: { kcal: number; protein: number; carb: number; fat: number; fiber: number; sodiumMaxMg?: number };
   fastingSafety: { level: 'ok' | 'warn' | 'block'; notes: string[] };
   basedOnFamily?: { ownerName: string; factor: number };
   readOnly?: boolean;
 }
+
+export interface ComplianceConcern { key: string; label: string; message: string; direction: 'over' | 'under'; deltaPct: number; severity: 'info' | 'warn' }
+export interface ComplianceReport { score: number; concerns: ComplianceConcern[]; swaps: string[]; summary: string }
 
 export type CuisineBucket = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export interface MealSettings {
@@ -76,3 +85,15 @@ export function useSaveMealSettings() {
     },
   });
 }
+
+/** Per-meal Refresh / Skip / Restore — each returns the updated week and refreshes the cache. */
+function useComposedMutation<V>(path: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: V) => api.post<ComposedWeek>(path, body).then((r) => r.data),
+    onSuccess: (wk) => { qc.setQueryData(['nutrition', 'composed'], wk); },
+  });
+}
+export function useRefreshMeal() { return useComposedMutation<{ day: number; slot: string }>('/nutrition/plan/composed/refresh'); }
+export function useSkipMeal() { return useComposedMutation<{ day: number; slot: string; skipped: boolean }>('/nutrition/plan/composed/skip'); }
+export function useRestoreSkips() { return useComposedMutation<Record<string, never>>('/nutrition/plan/composed/restore'); }
