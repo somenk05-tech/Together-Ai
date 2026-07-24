@@ -30,7 +30,7 @@ function mealShareCard(meal: ComposedMeal, master: MealComponent | null): ShareC
     l: meal.label,
     i: master?.imageUrl ?? null,
     k: Math.round(t.kcal),
-    m: macros,
+    m: macros.slice(1), // P/C/F only — kcal is rendered separately from `k`
     d: meal.components.map((c) => [c.name, c.recipeId, Math.round(c.kcal)] as [string, string, number]),
   });
   return {
