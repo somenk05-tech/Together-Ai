@@ -140,7 +140,7 @@ export function Settings() {
         </p>
         <Row title="Nutrition" desc="Blood reports adjust meal plans & supplement dosage" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
         <Row title="Family" desc="Share conditions with linked family TC-IDs" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
-        <Row title="Beauty Market" desc="Skin conditions inform dermatologist consults" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
+        <Row title="Beauty Market" desc="Skin conditions inform personalised beauty recommendations" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
         <Row title="Social Life" desc="Only consent-scoped shares (e.g. sharing a blood report)" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
       </Card>
 

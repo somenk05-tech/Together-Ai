@@ -101,7 +101,6 @@ const EntOtt = lazy(() => import('@/features/entertainment/pages/Ott').then((m) 
 const EntCurated = lazy(() => import('@/features/entertainment/pages/Curated').then((m) => ({ default: m.Curated })));
 const EntWatchlist = lazy(() => import('@/features/entertainment/pages/Watchlist').then((m) => ({ default: m.Watchlist })));
 // Beauty sub-pages
-const BeautyDermatologist = lazy(() => import('@/features/beauty/pages/Dermatologist').then((m) => ({ default: m.Dermatologist })));
 const BeautyMakeup = lazy(() => import('@/features/beauty/pages/Makeup').then((m) => ({ default: m.Makeup })));
 const BeautyRoutine = lazy(() => import('@/features/beauty/pages/Routine').then((m) => ({ default: m.Routine })));
 const BeautyCheckout = lazy(() => import('@/features/beauty/pages/Checkout').then((m) => ({ default: m.Checkout })));
@@ -294,7 +293,6 @@ export const router = createBrowserRouter([
       { path: '/beauty/profile', element: <RequireAuth>{wrap(<BeautyProfile />)}</RequireAuth> },
       { path: '/beauty/market', element: <RequireAuth>{wrap(<BeautyMarket />)}</RequireAuth> },
       { path: '/beauty/orders', element: <RequireAuth>{wrap(<BeautyOrders />)}</RequireAuth> },
-      { path: '/beauty/dermatologist', element: <RequireAuth>{wrap(<BeautyDermatologist />)}</RequireAuth> },
       { path: '/beauty/makeup', element: <RequireAuth>{wrap(<BeautyMakeup />)}</RequireAuth> },
       { path: '/beauty/routine', element: <RequireAuth>{wrap(<BeautyRoutine />)}</RequireAuth> },
       { path: '/beauty/checkout', element: <RequireAuth>{wrap(<BeautyCheckout />)}</RequireAuth> },

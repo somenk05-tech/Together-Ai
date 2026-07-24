@@ -131,9 +131,8 @@ export const HUBS: Record<HubKey, HubConfig> = {
     items: [
       { path: '/beauty/profile', index: '01', label: 'Skin & Hair Profile', sub: 'Photos, AI assessment & goals' },
       { path: '/beauty/market', index: '02', label: 'Beauty Market', sub: 'Curated, matched to you' },
-      { path: '/beauty/dermatologist', index: '03', label: 'Consult a Dermatologist', sub: 'Certified derms · video or clinic' },
-      { path: '/beauty/makeup', index: '04', label: 'Makeup Studio', sub: 'Your personal AI makeup artist' },
-      { path: '/beauty/orders', index: '05', label: 'My Orders', sub: 'Your beauty shelf' },
+      { path: '/beauty/makeup', index: '03', label: 'Makeup Studio', sub: 'Your personal AI makeup artist' },
+      { path: '/beauty/orders', index: '04', label: 'My Orders', sub: 'Your beauty shelf' },
     ],
   },
   medical: {

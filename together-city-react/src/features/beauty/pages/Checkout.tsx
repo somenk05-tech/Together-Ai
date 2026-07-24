@@ -25,7 +25,7 @@ export function Checkout() {
       <div style={{ marginBottom: 28 }}>
         <div className="eyebrow">Beauty Market · Checkout</div>
         <h1 style={{ fontSize: 'clamp(26px,3vw,38px)' }}>Review &amp; confirm your routine</h1>
-        <p className="lede" style={{ marginTop: 6 }}>15 items · your first 60-day routine, built from your Beauty Profile and your dermatologist consult.</p>
+        <p className="lede" style={{ marginTop: 6 }}>15 items · your first 60-day routine, built from your Beauty Profile.</p>
       </div>
 
       <div className="grid2" style={{ alignItems: 'start' }}>
