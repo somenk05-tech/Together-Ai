@@ -32,7 +32,7 @@ export function ShareCardView({ card, compact }: { card: ShareCard; compact?: bo
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 9 }}>
           {typeof card.priceInr === 'number' && card.priceInr > 0 && <div style={{ fontWeight: 800, fontSize: 15 }}>{inr(card.priceInr)}</div>}
-          {card.deepLink && <Link to={card.deepLink} style={{ marginLeft: 'auto' }}><Button variant="line" size="sm">View in hub →</Button></Link>}
+          {card.deepLink && <Link to={card.deepLink} style={{ marginLeft: 'auto' }}><Button variant="line" size="sm">{KIND_META[card.kind] ? `View ${meta.label} →` : 'View in hub →'}</Button></Link>}
         </div>
       </div>
     </div>

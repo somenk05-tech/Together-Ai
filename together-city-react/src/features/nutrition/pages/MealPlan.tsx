@@ -7,6 +7,29 @@ import {
   type ComposedMeal, type MealComponent, type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard,
 } from '../composed.api';
 import { VegMark, mealKind } from '../components/VegMark';
+import { ShareIconButton } from '@/components/share/ShareButton';
+import type { ShareCard } from '@/api';
+
+/** Build a rich, shareable recipe card from a meal — its headline dish photo,
+ *  the meal's name, calories and macros, deep-linked to the recipe page. Reused
+ *  by the same UniversalShareSheet every hub uses. */
+function mealShareCard(meal: ComposedMeal, master: MealComponent | null): ShareCard {
+  const t = meal.totals;
+  const macros = [
+    `${Math.round(t.kcal)} kcal`,
+    `P ${Math.round(t.protein)}g`,
+    `C ${Math.round(t.carbs)}g`,
+    `F ${Math.round(t.fat)}g`,
+  ];
+  return {
+    kind: 'recipe',
+    title: master?.name ?? meal.title,
+    subtitle: `${meal.label} · ${meal.components.length} ${meal.components.length === 1 ? 'dish' : 'dishes'}`,
+    image: master?.imageUrl ?? null,
+    meta: macros,
+    deepLink: master?.recipeId ? `/nutrition/recipes/${master.recipeId}` : undefined,
+  };
+}
 
 /** Master-source-of-truth gate: no plan until the Food Preference Profile is saved. */
 function ProfileGate() {
@@ -166,19 +189,30 @@ function MealColumn({ meal, dayIndex, readOnly }: { meal: ComposedMeal; dayIndex
       <div style={{ padding: '14px 14px 0' }}>
         <span style={{ display: 'inline-block', background: 'var(--ink)', color: '#fff', fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: 8 }}>{meal.label}</span>
       </div>
-      <button type="button" onClick={open} aria-label={`Open ${meal.title}`} style={{ margin: '12px 14px 0', border: 'none', padding: 0, background: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'block', width: 'calc(100% - 28px)' }}>
-        <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: 14, overflow: 'hidden', background: photoBg(photo) }}>
-          {img && <img src={img} alt={meal.title} loading="lazy" onError={() => setErr(true)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-          <span style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(255,255,255,.92)', borderRadius: 5, padding: 2, lineHeight: 0, boxShadow: '0 1px 3px rgba(0,0,0,.22)' }}>
-            <VegMark diet={mealKind(meal.components.map((c) => c.diet))} size={16} />
-          </span>
-          {!img && (
-            <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '22px 12px 10px', background: 'linear-gradient(transparent, rgba(0,0,0,.6))', color: '#fff', fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, textAlign: 'left', textShadow: '0 1px 4px rgba(0,0,0,.35)' }}>
-              {(photo?.name ?? meal.title)}
-            </span>
-          )}
-        </div>
-      </button>
+      <div style={{ position: 'relative', margin: '12px 14px 0', width: 'calc(100% - 28px)' }}>
+        <button type="button" onClick={open} aria-label={`Open ${meal.title}`} style={{ border: 'none', padding: 0, background: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'block', width: '100%' }}>
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: 14, overflow: 'hidden', background: photoBg(photo) }}>
+            {img && <img src={img} alt={meal.title} loading="lazy" onError={() => setErr(true)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+            {!img && (
+              <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '22px 12px 10px', background: 'linear-gradient(transparent, rgba(0,0,0,.6))', color: '#fff', fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, textAlign: 'left', textShadow: '0 1px 4px rgba(0,0,0,.35)' }}>
+                {(photo?.name ?? meal.title)}
+              </span>
+            )}
+          </div>
+        </button>
+        {/* Veg/non-veg mark + Send — siblings of the open-button so no button nests inside another. */}
+        <span style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(255,255,255,.92)', borderRadius: 5, padding: 2, lineHeight: 0, boxShadow: '0 1px 3px rgba(0,0,0,.22)', pointerEvents: 'none' }}>
+          <VegMark diet={mealKind(meal.components.map((c) => c.diet))} size={16} />
+        </span>
+        <span style={{ position: 'absolute', top: 8, right: 8 }}>
+          <ShareIconButton
+            card={mealShareCard(meal, photo)}
+            label={`Send ${photo?.name ?? meal.title}`}
+            variant="overlay"
+            size={32}
+          />
+        </span>
+      </div>
       <div style={{ padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
         <h3 style={{ fontSize: 15.5, margin: '0 0 8px', lineHeight: 1.3, letterSpacing: '-.01em' }}>{meal.title}</h3>
         {/* Every dish in the meal links to its own recipe page. */}
