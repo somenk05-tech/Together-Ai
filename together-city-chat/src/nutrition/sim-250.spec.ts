@@ -6,6 +6,16 @@ import { composeWeek, scaleComposedWeek, type ComposerPrefs, type Diet, type Poo
 import { categorizeRecipe, type MealCategory } from './meal-engine';
 import { computeNutrients } from './ingredient-nutrients';
 import { flagsFor, conditionsFromBlood } from './clinical-engine';
+import { guidelineCaps } from './plan-score';
+
+/** Diet-compatible protein sources — the production profile UI only offers these,
+ *  so the audit must too (assigning "Chicken" to a vegan is not a real scenario). */
+const DIET_PROTEINS: Record<Diet, string[]> = {
+  vegan: ['tofu', 'lentils', 'chickpeas', 'beans'],
+  vegetarian: ['paneer', 'tofu', 'lentils', 'chickpeas', 'beans'],
+  eggetarian: ['eggs', 'paneer', 'tofu', 'lentils'],
+  nonveg: ['chicken', 'fish', 'mutton', 'eggs', 'paneer'],
+};
 
 /**
  * Round-4 comprehensive audit — 250 virtual users, BOTH plan modes.
@@ -76,6 +86,9 @@ function makeUsers(): VUser[] {
   push('teen', 10, () => ({ age: 13 + (i % 5) }));
   push('proteinpick', 25, (i) => ({ proteins: rr([['Chicken', 'Fish'], ['Fish'], ['Eggs'], ['Paneer'], ['Tofu']], i), diet: 'nonveg' }));
   push('family', 10, (i) => ({ family: 3 + (i % 4) }));
+  // Keep only diet-compatible protein picks (mirrors the production profile UI) so
+  // the protein-respect metric isn't deflated by impossible combos.
+  for (const usr of u) usr.proteins = usr.proteins.filter((p) => DIET_PROTEINS[usr.diet].includes(p.toLowerCase()));
   return u;
 }
 
@@ -86,7 +99,10 @@ function prefsFor(u: VUser, mode: 'preferred' | 'optimal'): ComposerPrefs {
   const caps: ClinicalCaps = { sodiumMg: t.sodiumMaxMg, potassiumMg: t.potassiumMaxMg, phosphorusMg: t.phosphorusMaxMg, sugarG: t.sugarMaxG, satFatG: t.satFatMaxG };
   const optimal = mode === 'optimal'; const clin = isClinicalOf(u);
   const mix = { [u.cuisine]: 100 };
-  return { diet: u.diet, excluded: u.excluded, cuisineBySlot: { breakfast: mix, lunch: mix, dinner: mix, snack: mix }, fasting: u.fasting ? { enabled: true, protocol: '16:8' } : undefined, caps: optimal && clin ? caps : undefined, clinical: optimal && clin, favourites: optimal ? undefined : (u.proteins.length ? u.proteins : undefined), avoidRice: /diabet/.test(u.conditions.join(' ')) };
+  // Mirror the service: Optimal enforces clinical caps for a real condition, else
+  // general guideline caps (soft-trimmed, clinical=false → never blocks a healthy user).
+  const healthCaps = clin ? caps : guidelineCaps(t.kcal);
+  return { diet: u.diet, excluded: u.excluded, cuisineBySlot: { breakfast: mix, lunch: mix, dinner: mix, snack: mix }, fasting: u.fasting ? { enabled: true, protocol: '16:8' } : undefined, caps: optimal ? healthCaps : undefined, clinical: optimal && clin, favourites: optimal ? undefined : (u.proteins.length ? u.proteins : undefined), avoidRice: /diabet/.test(u.conditions.join(' ')) };
 }
 function planFor(u: VUser, mode: 'preferred' | 'optimal') { const t = targetsFor(u); return composeWeek({ kcal: t.kcal, protein: t.protein, carbs: (t as { carb: number }).carb, fat: t.fat, fiber: t.fiber }, prefsFor(u, mode), 7, hash(u.id) + (mode === 'optimal' ? 101 : 0), pool()); }
 function hash(s: string) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h) || 7; }
@@ -119,7 +135,9 @@ describe('Nutrition Engine — 250-user audit (both modes)', () => {
             if (u.excluded.length) { const hay = `${c.name} ${c.ingredients.map((i) => i.name).join(' ')}`.toLowerCase(); for (const ex of u.excluded) if (hay.includes(ex.toLowerCase())) M.allergenLeak++; }
           }
           for (const code of ['l', 'd'] as const) { const mid = day.meals.find((m) => m.slot === code)?.components.find((c) => c.role === 'main')?.recipeId ?? ''; if (mid && mid === lastMain) M.dupMain++; lastMain = mid; }
-          const b = day.capBreaches ?? []; if (mode === 'optimal' && b.length && !wk.blocked) { M.optUnsafeShipped++; unsafe.push(`${u.id} opt d${day.dayIndex + 1}: shipped ${JSON.stringify(b)}`); }
+          // "Unsafe shipped" = a CLINICAL user's day breaches their clinical caps without a warning.
+          // Healthy users' general-guideline caps are a soft ideal, not a safety breach (C1).
+          const b = day.capBreaches ?? []; if (mode === 'optimal' && isClinicalOf(u) && b.length && !wk.blocked) { M.optUnsafeShipped++; unsafe.push(`${u.id} opt d${day.dayIndex + 1}: shipped ${JSON.stringify(b)}`); }
         }
         const ids = new Set(wk.days.flatMap((d) => d.meals.flatMap((m) => m.components.map((c) => c.recipeId))));
         for (const g of wk.grocery) { M.groceryTot++; if (g.fromRecipes.some((id) => ids.has(id))) M.groceryOk++; }

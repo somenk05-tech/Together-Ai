@@ -236,9 +236,12 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
   const kCeil = renal ? (RENAL_K_CEIL[role] ?? 250) : Infinity;
   const pCeil = renal ? (RENAL_P_CEIL[role] ?? 250) : Infinity;
 
-  const base = ctx.pool.filter((r) => {
+  // All safety/preference filters. `respectBan` is the ONLY relaxable one — it is
+  // the consecutive-day main de-dupe, not a safety rule, so a narrow chosen-protein
+  // pool may relax it (repeat the source) rather than switch to another protein.
+  const passes = (r: PoolRecipe, respectBan: boolean): boolean => {
     if (r.role !== role) return false;
-    if (role === 'main' && ctx.banMain && r.id === ctx.banMain) return false;  // no consecutive-day main
+    if (respectBan && role === 'main' && ctx.banMain && r.id === ctx.banMain) return false;
     if (!r.categories.some((c) => slotCats.includes(c))) return false;
     if (!dietOk(r.diet, userDiet)) return false;
     // Clinical profiles: only build from food whose capped nutrients are known.
@@ -261,18 +264,28 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
     const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
     if (excluded.some((e) => e && hay.includes(e))) return false;
     return true;
-  });
+  };
+
+  const base = ctx.pool.filter((r) => passes(r, true));
 
   // Protein-source preference: the PROTEIN dish must come from a source the user
   // actually chose (their proteins/meats) whenever any qualify. Only the protein
   // roles are constrained — the rest of the plate stays flexible.
   if ((role === 'main' || role === 'dal') && prefs.favourites?.length) {
     const favs = prefs.favourites.map((f) => f.toLowerCase()).filter(Boolean);
-    const fromChosen = base.filter((r) => {
+    const matchesFav = (r: PoolRecipe) => {
       const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
       return favs.some((f) => hay.includes(f));
-    });
+    };
+    const fromChosen = base.filter(matchesFav);
     if (fromChosen.length) return fromChosen;
+    // Narrow pool: every recipe of the chosen source was removed ONLY by the
+    // consecutive-day ban. Repeating the user's protein beats silently switching
+    // to a source they didn't pick — relax just the ban, keep every safety filter.
+    if (role === 'main' && ctx.banMain) {
+      const relaxedChosen = ctx.pool.filter((r) => passes(r, false) && matchesFav(r));
+      if (relaxedChosen.length) return relaxedChosen;
+    }
   }
   return base;
 }
@@ -550,7 +563,7 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
       if (sm.code === 'l' || sm.code === 'd') {
         const last = sm.code === 'l' ? ll : ld;
         let tries = 0;
-        while ((meal.components.find((c) => c.role === 'main')?.recipeId ?? '') === last && last && tries < 4) {
+        while ((meal.components.find((c) => c.role === 'main')?.recipeId ?? '') === last && last && tries < 6) {
           v++; meal = composeMeal(sm.code, mealKcal, mealProtein, energy, sm.scheduledTime, mkCtx(v)); tries++;
         }
         const newMain = meal.components.find((c) => c.role === 'main')?.recipeId ?? '';
