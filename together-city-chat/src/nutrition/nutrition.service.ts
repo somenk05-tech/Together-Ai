@@ -22,7 +22,7 @@ import { addonLabel, addonMacros, complementByKey, fillGapWithComplements, type 
 import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, type MntRule } from './clinical-mnt';
-import { composeWeek, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
+import { composeWeek, scaleComposedWeek, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
 import { computeNutrients } from './ingredient-nutrients';
 import {
@@ -1368,6 +1368,13 @@ export class NutritionService implements OnModuleInit {
 
   private datasetPoolCache: PoolRecipe[] | null = null;
 
+  /** Normalise a dataset recipe's stored steps (JSON array or delimited text). */
+  private parseSteps(raw?: string | null): string[] {
+    if (!raw) return [];
+    try { const j = JSON.parse(raw); if (Array.isArray(j)) return j.map((x) => String(x).trim()).filter(Boolean).slice(0, 14); } catch { /* not json */ }
+    return raw.split(/\r?\n|(?<=\.)\s+/).map((x) => x.trim()).filter((x) => x.length > 3).slice(0, 14);
+  }
+
   /** Map a dataset diet string to the composer's diet ladder. */
   private mapDiet(d: string): ComposerDiet {
     const x = (d || '').toLowerCase();
@@ -1402,6 +1409,7 @@ export class NutritionService implements OnModuleInit {
       id: string; name: string; country: string; slot: string; diet: string;
       kcal: number; protein: number; carbs: number; fat: number; fiber: number;
       minutes: number; gramsPerServing: number; servings?: number;
+      steps?: string | null; cookSteps?: string | null; image?: string | null; imageUrl?: string | null;
       ingredients: Array<{ name: string; grams?: number | null }>;
     }>;
     const out: PoolRecipe[] = [];
@@ -1424,6 +1432,7 @@ export class NutritionService implements OnModuleInit {
         ingredients,
         nutrients: { sodiumMg: n.na, potassiumMg: n.k, phosphorusMg: n.p, sugarG: n.sug, addedSugarG: n.addedSug, satFatG: n.sfat },
         nutrientComplete: n.complete,
+        steps: this.parseSteps(r.cookSteps ?? r.steps), imageUrl: r.imageUrl ?? r.image ?? null,
       });
     }
     this.datasetPoolCache = out;
@@ -1444,7 +1453,35 @@ export class NutritionService implements OnModuleInit {
    * with per-slot cuisine, variety, intermittent-fasting schedule and a strictly
    * recipe-derived grocery list.
    */
+  /**
+   * Composite plan with family derivation (HIGH-3). A connected member whose
+   * household has Family Meal Planning ON gets the OWNER's composed week scaled
+   * to their own calorie target — same dishes/times, portions + grocery scaled,
+   * read-only. Everyone else gets their own composition.
+   */
   async composedPlan(userId: string) {
+    const ctx = await this.familyContext(userId).catch(() => null);
+    if (ctx && ctx.role === 'member' && ctx.familyMealPlanning) {
+      const ownerPlan = await this.composeFor(ctx.ownerId);
+      const mpref = await this.prisma.foodPref.findUnique({ where: { userId } });
+      const mex = parseExtras((mpref as { extras?: string | null } | null)?.extras);
+      const mt = computeTargets({
+        weightKg: mpref?.weightKg ?? 70, heightCm: mpref?.heightCm ?? 172, age: mpref?.age ?? 30,
+        sex: mpref?.sex ?? 'male', activity: mpref?.activity ?? 1.4, goal: mpref?.goal ?? 'maintain',
+        conditions: mex.healthConditions ?? [], flags: flagsFor(await this.bloodValues(userId)),
+      });
+      const factor = Math.max(0.4, Math.min(1.9, mt.kcal / Math.max(1, ownerPlan.targets.kcal)));
+      const owner = await this.prisma.user.findUnique({ where: { id: ctx.ownerId }, select: { name: true } }).catch(() => null);
+      const scaled = scaleComposedWeek(ownerPlan, factor);
+      return {
+        ...scaled, prescription: mt, fastingSafety: ownerPlan.fastingSafety,
+        basedOnFamily: { ownerName: owner?.name ?? 'your family', factor: Math.round(factor * 100) / 100 }, readOnly: true,
+      };
+    }
+    return this.composeFor(userId);
+  }
+
+  private async composeFor(userId: string) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     const conditions = ex.healthConditions ?? [];

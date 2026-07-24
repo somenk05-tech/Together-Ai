@@ -7,6 +7,9 @@ export interface MealComponent {
   recipeId: string; name: string; role: string; category: string;
   portionPct: number; grams: number;
   kcal: number; protein: number; carbs: number; fat: number; fiber: number;
+  sodiumMg: number; potassiumMg: number; phosphorusMg: number; sugarG: number; addedSugarG: number; satFatG: number;
+  nutrientComplete: boolean;
+  steps: string[]; imageUrl?: string | null;
   minutes: number; ingredients: MealIngredient[];
 }
 export interface ComposedMeal {
@@ -19,6 +22,7 @@ export interface ComposedDay {
   dayIndex: number; fasting: boolean; protocol: string | null;
   window: { start: string; end: string };
   meals: ComposedMeal[]; totals: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
+  capBreaches?: string[];
 }
 export interface GroceryItem { name: string; grams: number; unit: string; pantry: boolean; fromRecipes: string[] }
 export interface ComposedWeek {
@@ -29,6 +33,8 @@ export interface ComposedWeek {
   validation: { ok: boolean; issues: string[] };
   prescription: { kcal: number; protein: number; carb: number; fat: number; fiber: number };
   fastingSafety: { level: 'ok' | 'warn' | 'block'; notes: string[] };
+  basedOnFamily?: { ownerName: string; factor: number };
+  readOnly?: boolean;
 }
 
 export type CuisineBucket = 'breakfast' | 'lunch' | 'dinner' | 'snack';

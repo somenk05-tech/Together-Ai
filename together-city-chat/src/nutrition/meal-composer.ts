@@ -2,7 +2,7 @@ import {
   SLOTS, SLOT_BY_CODE, type SlotCode, type MealCategory,
   resolveSchedule, type FastingPrefs, type DaySchedule,
 } from './meal-engine';
-import { COMPONENT_SEEDS, componentId, isPantryStaple, type ComponentSeed } from './component-recipes';
+import { COMPONENT_SEEDS, componentId, componentSteps, isPantryStaple, type ComponentSeed } from './component-recipes';
 import { computeNutrients } from './ingredient-nutrients';
 
 /** Clinically-capped nutrients tracked on every recipe/meal/day (Workstream A). */
@@ -39,6 +39,7 @@ export interface MealComponentOut extends Nutrients {
   portionPct: number; grams: number;
   kcal: number; protein: number; carbs: number; fat: number; fiber: number;
   nutrientComplete: boolean;
+  steps: string[]; imageUrl?: string | null;
   minutes: number; ingredients: MealIngredient[];
 }
 export interface MealTotals extends DayTargets, Nutrients {}
@@ -85,6 +86,8 @@ export interface PoolRecipe extends Omit<ComponentSeed, 'ing'> {
   ingredients: Array<{ name: string; grams: number }>;
   nutrients: Nutrients;               // per standard serving (Workstream A)
   nutrientComplete: boolean;
+  steps: string[];                    // cooking instructions (HIGH-4)
+  imageUrl?: string | null;
 }
 
 /** The curated component recipes (sides, snacks, breakfasts) — always available. */
@@ -94,7 +97,7 @@ export const SEED_POOL: PoolRecipe[] = COMPONENT_SEEDS.map((s) => {
   return {
     ...s, id: componentId(s.name), ingredients,
     nutrients: { sodiumMg: n.na, potassiumMg: n.k, phosphorusMg: n.p, sugarG: n.sug, addedSugarG: n.addedSug, satFatG: n.sfat },
-    nutrientComplete: n.complete,
+    nutrientComplete: n.complete, steps: componentSteps(s), imageUrl: null,
   };
 });
 
@@ -217,7 +220,7 @@ function scaleComponent(r: PoolRecipe, portionPct: number, role: string): MealCo
     fat: round(r.fat * f), fiber: round(r.fiber * f),
     sodiumMg: Math.round(r.nutrients.sodiumMg * f), potassiumMg: Math.round(r.nutrients.potassiumMg * f),
     phosphorusMg: Math.round(r.nutrients.phosphorusMg * f), sugarG: round(r.nutrients.sugarG * f), addedSugarG: round(r.nutrients.addedSugarG * f), satFatG: round(r.nutrients.satFatG * f),
-    nutrientComplete: r.nutrientComplete, minutes: r.minutes,
+    nutrientComplete: r.nutrientComplete, steps: r.steps, imageUrl: r.imageUrl ?? null, minutes: r.minutes,
     ingredients: r.ingredients.map((i) => ({ name: i.name, grams: Math.round(i.grams * f), pantry: isPantryStaple(i.name) })),
   };
 }
@@ -472,6 +475,37 @@ function rescale(c: MealComponentOut, pct: number): void {
   c.sugarG = r1(c.sugarG * f); c.satFatG = r1(c.satFatG * f);
   c.ingredients = c.ingredients.map((i) => ({ ...i, grams: Math.round(i.grams * f) }));
   c.portionPct = pct;
+}
+
+/** Clone + scale a component's portion by a factor (family portion scaling). */
+function rescaleComponent(c: MealComponentOut, factor: number): MealComponentOut {
+  const nextPct = Math.max(30, Math.min(260, Math.round(c.portionPct * factor)));
+  const f = nextPct / Math.max(1, c.portionPct);
+  const r1 = (n: number) => Math.round(n * 10) / 10;
+  return {
+    ...c, portionPct: nextPct, grams: Math.round(c.grams * f), kcal: Math.round(c.kcal * f),
+    protein: r1(c.protein * f), carbs: r1(c.carbs * f), fat: r1(c.fat * f), fiber: r1(c.fiber * f),
+    sodiumMg: Math.round(c.sodiumMg * f), potassiumMg: Math.round(c.potassiumMg * f), phosphorusMg: Math.round(c.phosphorusMg * f),
+    sugarG: r1(c.sugarG * f), addedSugarG: r1(c.addedSugarG * f), satFatG: r1(c.satFatG * f),
+    ingredients: c.ingredients.map((i) => ({ ...i, grams: Math.round(i.grams * f) })),
+  };
+}
+
+/**
+ * Family-derived plan (HIGH-3): scale every meal in the owner's composed week to
+ * a member's portion `factor` (member kcal / owner kcal). Same dishes and times,
+ * portions and grocery scaled — the member's read-only view of the household plan.
+ */
+export function scaleComposedWeek(week: ComposedWeek, factor: number): ComposedWeek {
+  const days = week.days.map((d) => {
+    const meals = d.meals.map((m) => {
+      const components = m.components.map((c) => rescaleComponent(c, factor));
+      return { ...m, components, totals: sumTotals(components) };
+    });
+    const totals = sumTotals(meals.flatMap((m) => m.components));
+    return { ...d, meals, totals, capBreaches: capBreaches(totals, week.caps) };
+  });
+  return { ...week, days, grocery: composeGrocery(days, { includePantry: false }) };
 }
 
 /* ─────────────────────────── Grocery (Rule 10) ─────────────────────────── */

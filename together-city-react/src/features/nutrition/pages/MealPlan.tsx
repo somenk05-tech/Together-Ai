@@ -77,11 +77,32 @@ function MealCardV2({ meal }: { meal: ComposedMeal }) {
         </div>
       )}
 
-      <Modal open={Boolean(open)} onClose={() => setOpen(null)} title={open?.name}
-        footer={<div className="muted" style={{ fontSize: 12 }}>{open?.minutes} min · one standard serving</div>}>
+      <Modal open={Boolean(open)} onClose={() => setOpen(null)} title={open?.name} width={520}
+        footer={<div className="muted" style={{ fontSize: 12 }}>Prep ~{open?.minutes} min · one standard serving</div>}>
         {open && (
           <div>
+            {/* Image or gradient placeholder (HIGH-4) */}
+            <div style={{ height: 130, borderRadius: 12, marginBottom: 12, overflow: 'hidden',
+              background: open.imageUrl ? `center/cover url(${open.imageUrl})` : 'linear-gradient(135deg, var(--accent-soft), var(--accent))',
+              display: 'grid', placeItems: 'center' }}>
+              {!open.imageUrl && <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, textShadow: '0 1px 6px rgba(0,0,0,.3)' }}>{open.name}</span>}
+            </div>
+            {/* Clinical badges derived from the recipe's measured nutrients */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+              {open.addedSugarG <= 5 && <Chip tone="green">Diabetes-friendly</Chip>}
+              {open.potassiumMg <= 250 && open.phosphorusMg <= 220 && <Chip tone="green">Kidney-friendly</Chip>}
+              {open.satFatG <= 4 && <Chip tone="green">Heart-friendly</Chip>}
+              <Chip tone="default">{open.minutes} min</Chip>
+            </div>
             <div style={{ marginBottom: 12 }}>{macroRow(open)}</div>
+            {open.steps.length > 0 && (
+              <>
+                <div className="muted" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>How to cook</div>
+                <ol style={{ margin: '0 0 14px', paddingLeft: 18, fontSize: 13.5, lineHeight: 1.6 }}>
+                  {open.steps.map((st, i) => <li key={i} style={{ marginBottom: 4 }}>{st}</li>)}
+                </ol>
+              </>
+            )}
             <div className="muted" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>Ingredients</div>
             {open.ingredients.map((i) => (
               <div key={i.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
@@ -197,12 +218,17 @@ export function MealPlan() {
           <div className="eyebrow">Nutrition · Meal Plan</div>
           <h1 style={{ fontSize: 26 }}>Your week, meal by meal</h1>
         </div>
-        <Button variant="line" size="sm" onClick={() => setShowSettings(true)}>Meal settings</Button>
+        {!wk.readOnly && <Button variant="line" size="sm" onClick={() => setShowSettings(true)}>Meal settings</Button>}
       </div>
       <p className="muted" style={{ fontSize: 13, margin: '6px 0 14px' }}>
         Complete meals from your prescription ({wk.prescription.kcal} kcal · {wk.prescription.protein} g protein).
         {wk.fasting ? ` Intermittent fasting: ${wk.protocol}.` : ''}
       </p>
+      {wk.basedOnFamily && (
+        <div style={{ background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12.5 }}>
+          Based on <strong>{wk.basedOnFamily.ownerName}'s</strong> family meal plan — same dishes and times, portions scaled to your needs ({Math.round(wk.basedOnFamily.factor * 100)}%). This view is read-only.
+        </div>
+      )}
 
       {!wk.validation.ok && (
         <div style={{ background: '#faf3e0', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12.5 }}>
