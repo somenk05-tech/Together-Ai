@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Spinner, EmptyState, Button, Chip } from '@/components/ui';
 import { useRecipeLibrary, type RecipeCard } from '../library.api';
+import { VegMark } from '../components/VegMark';
 
 /** Debounce a fast-changing value (e.g. a search box) so it only settles after
  *  the user pauses — keeps the input responsive while throttling query-key churn. */
@@ -36,6 +37,7 @@ function RecipeTile({ r }: { r: RecipeCard }) {
           {r.imageUrl
             ? <img src={r.imageUrl} alt={r.name} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
             : <span style={{ color: '#fff', fontWeight: 700, fontSize: 14, textAlign: 'center', padding: '0 12px', textShadow: '0 1px 6px rgba(0,0,0,.35)' }}>{r.name}</span>}
+          <span style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(255,255,255,.92)', borderRadius: 5, padding: 2, lineHeight: 0, boxShadow: '0 1px 3px rgba(0,0,0,.22)' }}><VegMark diet={r.diet} size={15} /></span>
           {r.healthScore != null && (
             <span style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(255,255,255,.92)', color: healthColor(r.healthScore),
               fontSize: 11, fontWeight: 800, borderRadius: 999, padding: '3px 8px' }}>{r.healthScore}</span>

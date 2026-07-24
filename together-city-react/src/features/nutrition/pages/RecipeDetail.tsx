@@ -6,6 +6,7 @@ import { stepTimerSeconds } from '../components/CookMode';
 import { useCookStore } from '../cook.store';
 import { DIET_META } from './Recipes';
 import { recipeImageUrl } from '../recipeImages';
+import { VegMark, dietKind } from '../components/VegMark';
 import type { DietKey } from '../types';
 import type { RecipeDetail as RecipeDetailT } from '../api';
 
@@ -265,6 +266,7 @@ export function RecipeDetail() {
             {r.whyForYou?.summary ?? `A ${meta.label.toLowerCase()} ${r.country} recipe, ready in about ${r.minutes} minutes.`}
           </p>
           <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', color: 'var(--ink-soft)', fontSize: 14 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}><VegMark diet={r.diet} size={16} /> {dietKind(r.diet) === 'nonveg' ? 'Non-veg' : dietKind(r.diet) === 'egg' ? 'Egg' : 'Veg'}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}><Ic name="users" size={17} /> {plates} serving{plates > 1 ? 's' : ''}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}><Ic name="clock" size={17} /> {r.minutes} min</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}><Ic name="flame" size={17} /> {m.kcal} kcal</span>
@@ -498,6 +500,7 @@ export function RecipeDetail() {
                         <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
                           <div style={{ aspectRatio: '16 / 9', background: `linear-gradient(140deg, ${mm.color}14, ${mm.color}30)`, position: 'relative' }}>
                             {src && <img src={src} alt={x.name} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+                            <span style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,.92)', borderRadius: 5, padding: 2, lineHeight: 0, boxShadow: '0 1px 3px rgba(0,0,0,.2)' }}><VegMark diet={x.diet} size={14} /></span>
                           </div>
                           <div style={{ padding: 14 }}>
                             <div style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.3, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{x.name}</div>
@@ -591,6 +594,7 @@ export function RecipeDetail() {
                     <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
                       <div style={{ aspectRatio: '16 / 9', background: `linear-gradient(140deg, ${mm.color}14, ${mm.color}30)`, position: 'relative' }}>
                         {src && <img src={src} alt={x.name} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+                        <span style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,.92)', borderRadius: 5, padding: 2, lineHeight: 0, boxShadow: '0 1px 3px rgba(0,0,0,.2)' }}><VegMark diet={x.diet} size={14} /></span>
                       </div>
                       <div style={{ padding: 14 }}>
                         <div style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.3, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{x.name}</div>

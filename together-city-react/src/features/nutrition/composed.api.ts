@@ -10,6 +10,7 @@ export interface MealComponent {
   sodiumMg: number; potassiumMg: number; phosphorusMg: number; sugarG: number; addedSugarG: number; satFatG: number;
   nutrientComplete: boolean;
   steps: string[]; imageUrl?: string | null;
+  cuisine?: string; diet?: string;
   minutes: number; ingredients: MealIngredient[];
 }
 export interface ComposedMeal {

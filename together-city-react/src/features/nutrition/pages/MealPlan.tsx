@@ -6,6 +6,7 @@ import {
   useRefreshMeal, useSkipMeal, useRestoreSkips,
   type ComposedMeal, type MealComponent, type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard,
 } from '../composed.api';
+import { VegMark, mealKind } from '../components/VegMark';
 
 /** Master-source-of-truth gate: no plan until the Food Preference Profile is saved. */
 function ProfileGate() {
@@ -170,6 +171,9 @@ function MealColumn({ meal, dayIndex, readOnly }: { meal: ComposedMeal; dayIndex
       <button type="button" onClick={open} aria-label={`Open ${meal.title}`} style={{ margin: '12px 14px 0', border: 'none', padding: 0, background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
         <div style={{ position: 'relative', aspectRatio: '16 / 9', borderRadius: 14, overflow: 'hidden', background: img ? 'var(--line)' : photoBg(photo as MealComponent) }}>
           {img && <img src={img} alt={meal.title} loading="lazy" onError={() => setErr(true)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+          <span style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(255,255,255,.92)', borderRadius: 5, padding: 2, lineHeight: 0, boxShadow: '0 1px 3px rgba(0,0,0,.22)' }}>
+            <VegMark diet={mealKind(meal.components.map((c) => c.diet))} size={16} />
+          </span>
         </div>
       </button>
       <div style={{ padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>

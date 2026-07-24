@@ -57,6 +57,7 @@ export interface MealComponentOut extends Nutrients {
   nutrientComplete: boolean;
   steps: string[]; imageUrl?: string | null;
   cuisine?: string;                   // normalised cuisine (for preference-match scoring + UI)
+  diet?: Diet;                        // veg / non-veg / egg / vegan (for the veg mark)
   minutes: number; ingredients: MealIngredient[];
 }
 export interface MealTotals extends DayTargets, Nutrients {}
@@ -341,7 +342,7 @@ function scaleComponent(r: PoolRecipe, portionPct: number, role: string): MealCo
     fat: round(r.fat * f), fiber: round(r.fiber * f),
     sodiumMg: Math.round(r.nutrients.sodiumMg * f), potassiumMg: Math.round(r.nutrients.potassiumMg * f),
     phosphorusMg: Math.round(r.nutrients.phosphorusMg * f), sugarG: round(r.nutrients.sugarG * f), addedSugarG: round(r.nutrients.addedSugarG * f), satFatG: round(r.nutrients.satFatG * f),
-    nutrientComplete: r.nutrientComplete, steps: r.steps, imageUrl: r.imageUrl ?? null, cuisine: normCuisine(r.cuisine), minutes: r.minutes,
+    nutrientComplete: r.nutrientComplete, steps: r.steps, imageUrl: r.imageUrl ?? null, cuisine: normCuisine(r.cuisine), diet: r.diet, minutes: r.minutes,
     ingredients: r.ingredients.map((i) => isSalt(i.name)
       ? { name: 'Salt', grams: 0, pantry: true, toTaste: true }             // salt is always "to taste"
       : { name: i.name, grams: Math.round(i.grams * f), pantry: isPantryStaple(i.name) }),
