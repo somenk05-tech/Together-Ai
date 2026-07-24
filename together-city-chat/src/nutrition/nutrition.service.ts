@@ -296,6 +296,11 @@ function safeJson<T>(s: string | null | undefined, fallback: T): T {
 function parseExtras(extras: string | null | undefined): PrefExtras {
   try { return extras ? (JSON.parse(extras) as PrefExtras) : {}; } catch { return {}; }
 }
+/** Public path to a recipe's photo (served from the frontend /recipe-images/{no}.webp).
+ *  Optimistic — the UI falls back to a gradient tile when an image is absent. */
+function recipeImageUrl(no?: number | null): string | null {
+  return typeof no === 'number' && no > 0 ? `/recipe-images/${no}.webp` : null;
+}
 function terms(s?: string): string[] {
   return (s ?? '').split(/[,;]/).map((t) => t.trim().toLowerCase()).filter(Boolean);
 }
@@ -605,6 +610,7 @@ export interface RecipeShape {
   carbs: number; fat: number; fiber: number; minutes: number; gramsPerServing: number; diet: Diet;
   servings: number; // how many one-person plates the raw recipe yields
   healthGrade?: string | null; healthPercent?: number; // v2 dataset health score
+  imageUrl?: string | null; // /recipe-images/{no}.webp when available
 }
 
 /**
@@ -1436,7 +1442,7 @@ export class NutritionService implements OnModuleInit {
     const rows = (await this.prisma.recipe.findMany({
       include: { ingredients: { select: { name: true, grams: true } } },
     })) as unknown as Array<{
-      id: string; name: string; country: string; slot: string; diet: string;
+      id: string; name: string; country: string; slot: string; diet: string; recipeNo?: number | null;
       kcal: number; protein: number; carbs: number; fat: number; fiber: number;
       minutes: number; gramsPerServing: number; servings?: number;
       steps?: string | null; cookSteps?: string | null; image?: string | null; imageUrl?: string | null;
@@ -1462,7 +1468,7 @@ export class NutritionService implements OnModuleInit {
         ingredients,
         nutrients: { sodiumMg: n.na, potassiumMg: n.k, phosphorusMg: n.p, sugarG: n.sug, addedSugarG: n.addedSug, satFatG: n.sfat },
         nutrientComplete: n.complete,
-        steps: this.parseSteps(r.cookSteps ?? r.steps), imageUrl: r.imageUrl ?? r.image ?? null,
+        steps: this.parseSteps(r.cookSteps ?? r.steps), imageUrl: recipeImageUrl(r.recipeNo) ?? r.imageUrl ?? r.image ?? null,
       });
     }
     this.datasetPoolCache = out;
@@ -1563,7 +1569,7 @@ export class NutritionService implements OnModuleInit {
       // member gets their OWN personalized, safety-filtered plan.
       const ownerPref = await this.prisma.foodPref.findUnique({ where: { userId: ctx.ownerId } });
       const ownerDiet = ((ownerPref?.diet as string) ?? 'vegetarian').toLowerCase();
-      const level: Record<string, number> = { vegan: 0, vegetarian: 1, eggetarian: 2, nonveg: 3 };
+      const level: Record<string, number> = { vegan: 0, jain: 0, veg: 1, vegetarian: 1, egg: 2, eggetarian: 2, pesc: 2, pescatarian: 2, nonveg: 3, everything: 3 };
       const dietCompatible = mDiet !== 'jain' && ownerDiet !== 'jain'
         && (level[mDiet] ?? 1) >= (level[ownerDiet] ?? 1);
       const shareable = dietCompatible && !mAllergies.length && !mClinical;
@@ -1607,7 +1613,18 @@ export class NutritionService implements OnModuleInit {
     // Jain is vegetarian + automatic exclusion of onion, garlic and root vegetables.
     const rawDiet = ((pref?.diet as string) ?? 'vegetarian').toLowerCase();
     const isJain = rawDiet === 'jain';
-    const composerDiet = (isJain ? 'vegetarian' : rawDiet) as ComposerDiet;
+    // Map the stored FoodPref diet value (everything/nonveg/pesc/egg/veg/vegan/jain)
+    // to a composer diet. BUG FIX: 'everything'/'pesc' were passed through unmapped,
+    // so dietOk() threw and the plan fell back to the vegetarian default — a non-veg
+    // user saw only veg dishes.
+    const DIET_MAP: Record<string, ComposerDiet> = {
+      everything: 'nonveg', nonveg: 'nonveg', 'non-veg': 'nonveg', nonvegetarian: 'nonveg', 'non-vegetarian': 'nonveg',
+      pesc: 'nonveg', pescatarian: 'nonveg', fish: 'nonveg',
+      egg: 'eggetarian', eggetarian: 'eggetarian',
+      veg: 'vegetarian', vegetarian: 'vegetarian', jain: 'vegetarian',
+      vegan: 'vegan',
+    };
+    const composerDiet: ComposerDiet = DIET_MAP[rawDiet] ?? 'vegetarian';
     const jainExcludes = isJain ? ['onion', 'garlic', 'potato', 'carrot', 'radish', 'beetroot', 'mushroom', 'ginger'] : [];
     // MNT hard-avoid lists (QA M8): organ/processed meat for gout & CKD, alcohol
     // for fatty liver, etc. — now actually applied to the composed plan.
@@ -1703,7 +1720,7 @@ export class NutritionService implements OnModuleInit {
       minutes: r.minutes, servings: 1, difficulty, diet, healthScore: r.healthPercent ?? null, healthGrade: r.healthGrade ?? null,
       sodiumMg: n.complete ? n.na : null, potassiumMg: n.complete ? n.k : null, sugarG: n.complete ? n.sug : null,
       ironMg: micro.ironMg || null, calciumMg: micro.calciumMg || null, vitDUg: micro.vitDUg || null, vitCMg: micro.vitCMg || null,
-      imageUrl: r.imageUrl ?? r.image ?? null,
+      imageUrl: recipeImageUrl(r.recipeNo) ?? r.imageUrl ?? r.image ?? null,
       badges: {
         diabetes: n.complete && n.addedSug <= 6,
         kidney: n.complete && n.k <= 250 && n.p <= 220,
@@ -5518,6 +5535,7 @@ export class NutritionService implements OnModuleInit {
       fat: macro.fat, fiber: macro.fiber, minutes: saneMinutes(r.minutes),
       gramsPerServing: Math.max(1, per(r.gramsPerServing)), diet: displayDiet,
       servings: s, healthGrade: r.healthGrade ?? null, healthPercent: r.healthPercent ?? 0,
+      imageUrl: recipeImageUrl((r as { recipeNo?: number | null }).recipeNo),
     };
   }
 

@@ -138,7 +138,7 @@ const dietRank: Record<Diet, Diet[]> = {
 };
 
 function dietOk(recipeDiet: Diet, userDiet: Diet): boolean {
-  return dietRank[userDiet].includes(recipeDiet);
+  return (dietRank[userDiet] ?? dietRank.vegetarian).includes(recipeDiet);   // unknown diet → safe default, never crash
 }
 
 /** Allergen/exclusion synonym expansion (QA M2): a single term matches the whole
@@ -220,7 +220,7 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
   const kCeil = renal ? (RENAL_K_CEIL[role] ?? 250) : Infinity;
   const pCeil = renal ? (RENAL_P_CEIL[role] ?? 250) : Infinity;
 
-  return ctx.pool.filter((r) => {
+  const base = ctx.pool.filter((r) => {
     if (r.role !== role) return false;
     if (role === 'main' && ctx.banMain && r.id === ctx.banMain) return false;  // no consecutive-day main
     if (!r.categories.some((c) => slotCats.includes(c))) return false;
@@ -246,6 +246,19 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
     if (excluded.some((e) => e && hay.includes(e))) return false;
     return true;
   });
+
+  // Protein-source preference: the PROTEIN dish must come from a source the user
+  // actually chose (their proteins/meats) whenever any qualify. Only the protein
+  // roles are constrained — the rest of the plate stays flexible.
+  if ((role === 'main' || role === 'dal') && prefs.favourites?.length) {
+    const favs = prefs.favourites.map((f) => f.toLowerCase()).filter(Boolean);
+    const fromChosen = base.filter((r) => {
+      const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
+      return favs.some((f) => hay.includes(f));
+    });
+    if (fromChosen.length) return fromChosen;
+  }
+  return base;
 }
 
 /** Pick one recipe for a role, favouring cuisine weight + variety (least-used first). */
