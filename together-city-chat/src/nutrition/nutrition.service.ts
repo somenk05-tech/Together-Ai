@@ -1705,6 +1705,10 @@ export class NutritionService implements OnModuleInit {
     const page = Math.max(1, q.page ?? 1);
     const pageSize = Math.min(60, Math.max(12, q.pageSize ?? 24));
     const where: Record<string, unknown> = {};
+    // Hide bare generic one-word titles (QA L1 data hygiene) — e.g. a recipe
+    // literally named "Chili"/"Chicken" is noise in a browsable library.
+    const JUNK_TITLES = ['Chili', 'Chilli', 'Chicken', 'Curry', 'Dal', 'Rice', 'Soup', 'Salad', 'Sauce', 'Bread', 'Cake', 'Fish', 'Beef', 'Pork', 'Lamb', 'Snack', 'Drink', 'Dessert', 'Gravy', 'Stew'];
+    where.NOT = { name: { in: JUNK_TITLES } };
     if (q.cuisine) where.country = q.cuisine;
     if (q.search) where.name = { contains: q.search, mode: 'insensitive' };
     if (q.mealType) {
