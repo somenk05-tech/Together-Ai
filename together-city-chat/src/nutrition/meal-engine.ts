@@ -76,6 +76,15 @@ const SOUP_HINT = /soup|shorba|rasam|broth|stew|dal soup/i;
 const SALAD_HINT = /salad|kachumber|koshimbir|raita|slaw|sprout salad/i;
 const SIDE_HINT = /roti|phulka|chapati|naan|paratha(?! stuffed)|rice\b|dal\b|lentil|sabzi|sabji|poriyal|thoran|bhaji|curd|raita|papad|pickle|chutney/i;
 const CONDIMENT_HINT = /chutney|pickle|achaar|achar|dip|sauce|masala paste|podi|gunpowder/i;
+/**
+ * A recipe that IS a condiment/sauce/spread — the whole output is a topping, not a
+ * dish. These must never be served as a meal or snack (a "Mayonnaise" or "Basil
+ * Pesto" recipe is not lunch). Matched precisely — either the recipe name ENDS
+ * with a standalone condiment noun (so "Butter Chicken"/"White Sauce Pasta" stay
+ * real dishes) or contains a specific multi-word condiment — then excluded from the
+ * meal pool entirely (role → null).
+ */
+const PURE_CONDIMENT = /(^|\s)(mayonnaise|mayo|aioli|ketchup|catsup|mustard|vinaigrette|pesto|salsa|tzatziki|guacamole|hummus|chutney|pickle|achaar|achar|relish|marmalade|preserves|compote|marinade|glaze|gravy|podi|gunpowder|furikake|dressing)$|\b(salad dressing|ranch dressing|italian dressing|caesar dressing|honey mustard|soy sauce|fish sauce|hot sauce|bbq sauce|barbecue sauce|tartar sauce|cocktail sauce|dipping sauce|curry paste|masala paste|spice rub|dry rub|dipping)\b/i;
 
 export interface CategorizeInput {
   name: string;
@@ -93,6 +102,11 @@ export interface CategorizeInput {
 export function categorizeRecipe(r: CategorizeInput): MealCategory[] {
   const name = (r.name ?? '').toLowerCase();
   const set = new Set<MealCategory>();
+
+  // A pure condiment/sauce/spread is NEVER a meal or snack — mark it condiment-only
+  // so roleFor() drops it from the meal pool (fixes mayonnaise/pesto/dressing being
+  // served as a snack or main).
+  if (PURE_CONDIMENT.test(name)) return ['condiment'];
 
   // Strong keyword signals first (they can override a mis-tagged legacy slot).
   if (DESSERT_HINT.test(name)) set.add('dessert');
