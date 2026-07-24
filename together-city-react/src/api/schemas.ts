@@ -64,6 +64,8 @@ export const ShareCardSchema = z.object({
   priceInr: z.number().nullable().optional(),
   meta: z.array(z.string()).optional(),
   deepLink: z.string().nullable().optional(),
+  /** Line items of a composite card — e.g. every dish in a shared meal. */
+  items: z.array(z.string()).nullable().optional(),
 });
 export type ShareCard = z.infer<typeof ShareCardSchema>;
 

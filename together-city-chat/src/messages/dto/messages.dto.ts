@@ -46,6 +46,9 @@ export const ShareCardSchema = z.object({
   priceInr: z.number().finite().nullish(),
   meta: z.array(z.string().max(80)).max(8).nullish(),
   deepLink: z.string().max(300).nullish(),
+  // Line items of a composite card (e.g. every dish in a shared meal), so the
+  // recipient sees the WHOLE card, not just its headline.
+  items: z.array(z.string().max(120)).max(16).nullish(),
 });
 
 export const SendMessageSchema = z

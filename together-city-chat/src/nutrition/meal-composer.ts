@@ -218,6 +218,9 @@ function mulberry(seed: number) {
   };
 }
 
+/** Stable small hash of a role name — seeds a role's own reroll stream. */
+function roleHash(role: string): number { let h = 0; for (const c of role) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
+
 /* ─────────────────────────── Selection ─────────────────────────── */
 
 interface SelectCtx {
@@ -225,6 +228,8 @@ interface SelectCtx {
   used: Map<string, number>;      // recipeId → times used this week (variety)
   pool: PoolRecipe[];             // combined recipe pool (seeds + dataset mains)
   banMain?: string;               // recipeId of yesterday's main — never repeat consecutively
+  dayIndex: number;               // for per-line (component) refresh/skip keys d{day}:{slot}:{role}
+  seed: number;                   // this meal's base seed — lets one role reroll in isolation
 }
 
 function cuisineBucket(slot: SlotCode) { return SLOT_BY_CODE[slot].cuisineBucket; }
@@ -495,32 +500,42 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
     // Renal (potassium-capped): dal is very high-K/P — drop it, prefer a low-K
     // rice carb and low-K vegetables, and lean on egg/paneer protein instead.
     const renal = Boolean(ctx.prefs.caps?.potassiumMg && ctx.prefs.caps.potassiumMg <= 3000);
+    // Each plate role reads its OWN seeded stream (base seed ⊕ role ⊕ its per-line
+    // refresh count) so a user can Refresh a single dish and only THAT role rerolls
+    // like-for-like, leaving the rest of the plate untouched.
+    const compBump = (role: string) => ctx.prefs.bumps?.[`d${ctx.dayIndex}:${ctx.slot}:${role}`] ?? 0;
+    const ctxRole = (role: string): SelectCtx => ({ ...ctx, rnd: mulberry((ctx.seed ^ Math.imul(roleHash(role) + 1, 2654435761) ^ Math.imul(compBump(role) + 1, 40503)) >>> 0) });
     // Protein-role guarantee (HIGH-1): a plate must never render without a main.
     // Try main (respecting the consecutive-day ban), then relax the ban, then
     // fall back to a dal — so aggressive excludes/small pools can't empty it.
-    let main = pick('main', ctx) ?? pick('main', { ...ctx, banMain: undefined });
-    if (!main) main = pick('dal', ctx);
+    let main = pick('main', ctxRole('main')) ?? pick('main', { ...ctxRole('main'), banMain: undefined });
+    if (!main) main = pick('dal', ctxRole('main'));
     take(main, main?.role === 'dal' ? 'dal' : 'main');
     if (!renal && main?.role !== 'dal') {
       if (meatForwardPrefs(ctx.prefs)) {
         // Meat-forward: add a SECOND meat/egg protein instead of a lentil dal.
-        const second = pick('main', { ...ctx, banMain: main?.id });
+        const second = pick('main', { ...ctxRole('main'), banMain: main?.id });
         if (second && second.id !== main?.id) take(second, 'main');
-        else take(pick('dal', ctx), 'dal');
+        else take(pick('dal', ctxRole('dal')), 'dal');
       } else {
-        take(pick('dal', ctx), 'dal');
+        take(pick('dal', ctxRole('dal')), 'dal');
       }
     }
-    take(pick('vegetable', ctx), 'vegetable');
-    const carbCands = candidates('carb', ctx);
+    take(pick('vegetable', ctxRole('vegetable')), 'vegetable');
+    // Default carb honours the rice/roti preference; once the carb line has been
+    // Refreshed, rotate through the whole carb pool (rice → roti → millet …).
+    const carbCtx = ctxRole('carb');
+    const carbCands = candidates('carb', carbCtx);
     const wantRice = (slot === 'l' && !ctx.prefs.avoidRice) || renal;   // rice is low-K
-    const carb = carbCands.length
-      ? (wantRice ? (carbCands.find((c) => /rice|millet/i.test(c.name)) ?? carbCands[0])
-                  : (carbCands.find((c) => /roti|phulka/i.test(c.name)) ?? carbCands[0]))
-      : null;
+    const carb = compBump('carb') > 0
+      ? pick('carb', carbCtx)
+      : (carbCands.length
+        ? (wantRice ? (carbCands.find((c) => /rice|millet/i.test(c.name)) ?? carbCands[0])
+                    : (carbCands.find((c) => /roti|phulka/i.test(c.name)) ?? carbCands[0]))
+        : null);
     take(carb, 'carb');
-    take(pick('salad', ctx), 'salad');
-    if (ctx.prefs.diet !== 'vegan' && !renal) take(pick('dairy', ctx), 'dairy');  // curd is moderate-K — skip for renal
+    take(pick('salad', ctxRole('salad')), 'salad');
+    if (ctx.prefs.diet !== 'vegan' && !renal) take(pick('dairy', ctxRole('dairy')), 'dairy');  // curd is moderate-K — skip for renal
     // (Soup is now its own dedicated evening slot — no longer added to the dinner plate.)
     // Last-resort protein guarantee (SAFE — QA H2 fix): only relax the cuisine
     // LOCK, never diet, allergen excludes, clinical completeness or renal K/P
@@ -569,7 +584,17 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
     }
   }
 
-  const components = fitMeal(sel, targetKcal, proteinTarget);
+  // Per-line Skip (lunch/dinner): drop any role the user explicitly skipped, then
+  // let fitMeal rescale the remaining dishes to the plate's calorie target. Applied
+  // last so it also removes anything a fallback/top-up re-added for a skipped role.
+  let kept = sel;
+  if (slot === 'l' || slot === 'd') {
+    const skippedRole = (role: string) => (ctx.prefs.skips ?? []).includes(`d${ctx.dayIndex}:${ctx.slot}:${role}`);
+    const trimmed = sel.filter((s) => !skippedRole(s.role));
+    if (trimmed.length) kept = trimmed;   // never let a plate go fully empty
+  }
+
+  const components = fitMeal(kept, targetKcal, proteinTarget);
   const totals = sumTotals(components);
   return {
     slot, key: def.key, label: def.label, title: mealTitle(slot, components, ctx.prefs),
@@ -606,8 +631,8 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
     for (const sm of active) {
       const energy = sm.energy / eSum;                 // renormalised after any skip
       const bump = prefs.bumps?.[`d${dayIndex}:${sm.code}`] ?? 0;
-      const mealRnd = (v: number) => mulberry((seed ^ Math.imul(dayIndex + 1, 2654435761) ^ Math.imul(slotHash(sm.code) + 1, 40503) ^ Math.imul(bump + 1, 2246822519) ^ Math.imul(attemptIdx * 11 + v + 1, 374761393)) >>> 0);
-      const mkCtx = (v: number): SelectCtx => ({ slot: sm.code, prefs, rnd: mealRnd(v), used, pool, banMain: (sm.code === 'l' ? ll : sm.code === 'd' ? ld : undefined) || undefined });
+      const mealSeed = (v: number) => (seed ^ Math.imul(dayIndex + 1, 2654435761) ^ Math.imul(slotHash(sm.code) + 1, 40503) ^ Math.imul(bump + 1, 2246822519) ^ Math.imul(attemptIdx * 11 + v + 1, 374761393)) >>> 0;
+      const mkCtx = (v: number): SelectCtx => ({ slot: sm.code, prefs, rnd: mulberry(mealSeed(v)), used, pool, banMain: (sm.code === 'l' ? ll : sm.code === 'd' ? ld : undefined) || undefined, dayIndex, seed: mealSeed(v) });
       const mealKcal = targets.kcal * energy; const mealProtein = targets.protein * energy; const mealFibre = targets.fiber * energy;
       let v = 0;
       let meal = composeMeal(sm.code, mealKcal, mealProtein, mealFibre, energy, sm.scheduledTime, mkCtx(v));

@@ -50,6 +50,8 @@ export interface ShareCard {
   priceInr?: number | null;
   meta?: string[];
   deepLink?: string | null;
+  /** Line items of a composite card — e.g. every dish in a shared meal. */
+  items?: string[] | null;
 }
 
 export interface Message {

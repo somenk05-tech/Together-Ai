@@ -30,6 +30,17 @@ export function ShareCardView({ card, compact }: { card: ShareCard; compact?: bo
             {card.meta.map((m, i) => <span key={i} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-soft)', background: 'var(--line)', borderRadius: 999, padding: '2px 8px' }}>{m}</span>)}
           </div>
         )}
+        {/* Composite items (e.g. every dish in a shared meal) — the recipient sees the whole card. */}
+        {card.items && card.items.length > 0 && (
+          <div style={{ marginTop: 8, borderTop: '1px solid var(--line)', paddingTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {card.items.map((it, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--ink-soft)' }}>
+                <span aria-hidden style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--accent)', flex: '0 0 auto' }} />
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 9 }}>
           {typeof card.priceInr === 'number' && card.priceInr > 0 && <div style={{ fontWeight: 800, fontSize: 15 }}>{inr(card.priceInr)}</div>}
           {card.deepLink && <Link to={card.deepLink} style={{ marginLeft: 'auto' }}><Button variant="line" size="sm">{KIND_META[card.kind] ? `View ${meta.label} →` : 'View in hub →'}</Button></Link>}

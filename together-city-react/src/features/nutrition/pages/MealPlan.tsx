@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-do
 import { Card, Spinner, EmptyState, Button, Chip, Modal } from '@/components/ui';
 import {
   useComposedPlan, useMealSettings, useSaveMealSettings,
-  useRefreshMeal, useSkipMeal, useRestoreSkips,
+  useRefreshMeal, useSkipMeal, useRestoreSkips, useRefreshComponent, useSkipComponent,
   type ComposedMeal, type MealComponent, type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard,
 } from '../composed.api';
 import { VegMark, mealKind } from '../components/VegMark';
@@ -23,10 +23,14 @@ function mealShareCard(meal: ComposedMeal, master: MealComponent | null): ShareC
   ];
   return {
     kind: 'recipe',
-    title: master?.name ?? meal.title,
+    // The WHOLE meal, not just the headline dish: the meal's name, its photo, the
+    // full dish list, and the meal's calories/macros — so the recipient sees the
+    // entire card exactly as it appears in the plan.
+    title: meal.title,
     subtitle: `${meal.label} · ${meal.components.length} ${meal.components.length === 1 ? 'dish' : 'dishes'}`,
     image: master?.imageUrl ?? null,
     meta: macros,
+    items: meal.components.map((c) => `${c.name} · ${Math.round(c.kcal)} kcal`),
     deepLink: master?.recipeId ? `/nutrition/recipes/${master.recipeId}` : undefined,
   };
 }
@@ -180,7 +184,11 @@ function MealColumn({ meal, dayIndex, readOnly }: { meal: ComposedMeal; dayIndex
   const navigate = useNavigate(); const location = useLocation();
   const [err, setErr] = useState(false);
   const refresh = useRefreshMeal(); const skip = useSkipMeal();
-  const busy = refresh.isPending || skip.isPending;
+  const refreshComp = useRefreshComponent(); const skipComp = useSkipComponent();
+  const lineBusy = refreshComp.isPending || skipComp.isPending;
+  const busy = refresh.isPending || skip.isPending || lineBusy;
+  // Per-line Refresh/Skip only on the composite lunch & dinner plates.
+  const lineControls = !readOnly && (meal.slot === 'l' || meal.slot === 'd');
   const photo = photoOf(meal);          // the "master" headline dish (a main with a photo when possible)
   const img = photo?.imageUrl && !err ? photo.imageUrl : null;
   const open = () => { const id = photo?.recipeId; if (id) navigate(`/nutrition/recipes/${id}`, { state: { from: location.pathname + location.search } }); };
@@ -215,16 +223,33 @@ function MealColumn({ meal, dayIndex, readOnly }: { meal: ComposedMeal; dayIndex
       </div>
       <div style={{ padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
         <h3 style={{ fontSize: 15.5, margin: '0 0 8px', lineHeight: 1.3, letterSpacing: '-.01em' }}>{meal.title}</h3>
-        {/* Every dish in the meal links to its own recipe page. */}
+        {/* Every dish links to its own recipe page; on lunch/dinner each dish also
+            carries a Refresh (swap like-for-like) and Skip (remove) control. */}
         <div style={{ display: 'flex', flexDirection: 'column', margin: '0 0 12px' }}>
           {meal.components.map((c, i) => (
-            <button key={c.recipeId + c.role} type="button"
-              onClick={() => c.recipeId && navigate(`/nutrition/recipes/${c.recipeId}`, { state: { from: location.pathname + location.search } })}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', background: 'none', border: 'none', borderTop: i ? '1px solid var(--line)' : 'none', padding: '7px 0', cursor: 'pointer', fontFamily: 'inherit' }}>
-              <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>{c.name}</span>
-              <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{c.kcal} kcal</span>
-              <NIc name="chevR" size={13} style={{ color: 'var(--accent)' }} />
-            </button>
+            <div key={c.recipeId + c.role} style={{ display: 'flex', alignItems: 'center', gap: 2, borderTop: i ? '1px solid var(--line)' : 'none' }}>
+              <button type="button"
+                onClick={() => c.recipeId && navigate(`/nutrition/recipes/${c.recipeId}`, { state: { from: location.pathname + location.search } })}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', padding: '7px 0', cursor: 'pointer', fontFamily: 'inherit' }}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>{c.name}</span>
+                <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{c.kcal} kcal</span>
+                {!lineControls && <NIc name="chevR" size={13} style={{ color: 'var(--accent)' }} />}
+              </button>
+              {lineControls && (
+                <>
+                  <button type="button" disabled={busy} aria-label={`Swap ${c.name} for another ${c.role}`} title="Swap for another (same type)"
+                    onClick={() => refreshComp.mutate({ day: dayIndex, slot: meal.slot, role: c.role })}
+                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: 'none', border: '1px solid var(--line)', color: 'var(--muted)', cursor: 'pointer', flex: '0 0 auto', padding: 0 }}>
+                    <NIc name="refresh" size={13} />
+                  </button>
+                  <button type="button" disabled={busy} aria-label={`Skip ${c.name}`} title="Remove this dish"
+                    onClick={() => skipComp.mutate({ day: dayIndex, slot: meal.slot, role: c.role, skipped: true })}
+                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: 'none', border: '1px solid var(--line)', color: 'var(--muted)', cursor: 'pointer', flex: '0 0 auto', padding: 0 }}>
+                    <NIc name="skip" size={13} />
+                  </button>
+                </>
+              )}
+            </div>
           ))}
         </div>
         <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: 'var(--muted)', borderTop: '1px solid var(--line)', paddingTop: 12 }}>

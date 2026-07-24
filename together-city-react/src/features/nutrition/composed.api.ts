@@ -115,3 +115,6 @@ function useComposedMutation<V>(path: string) {
 export function useRefreshMeal() { return useComposedMutation<{ day: number; slot: string }>('/nutrition/plan/composed/refresh'); }
 export function useSkipMeal() { return useComposedMutation<{ day: number; slot: string; skipped: boolean }>('/nutrition/plan/composed/skip'); }
 export function useRestoreSkips() { return useComposedMutation<Record<string, never>>('/nutrition/plan/composed/restore'); }
+/** Per-line (single-dish) Refresh / Skip — reroll or drop one dish by its plate role. */
+export function useRefreshComponent() { return useComposedMutation<{ day: number; slot: string; role: string }>('/nutrition/plan/composed/refresh-item'); }
+export function useSkipComponent() { return useComposedMutation<{ day: number; slot: string; role: string; skipped: boolean }>('/nutrition/plan/composed/skip-item'); }

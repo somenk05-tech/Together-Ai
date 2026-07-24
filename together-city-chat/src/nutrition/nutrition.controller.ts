@@ -95,6 +95,20 @@ export class NutritionController {
     return this.nutrition.skipComposedMeal(user.sub, dto.day, dto.slot, dto.skipped);
   }
 
+  // Per-line (single-dish) actions: Refresh one dish (reroll its role, like-for-like)
+  // + Skip one dish (drop that role, rescale the plate).
+  @Post('plan/composed/refresh-item')
+  @UsePipes(new ZodValidationPipe(z.object({ day: z.number().int().min(0).max(6), slot: z.string().min(1).max(3), role: z.string().min(1).max(20) })))
+  refreshComposedComponent(@CurrentUser() user: JwtUser, @Body() dto: { day: number; slot: string; role: string }) {
+    return this.nutrition.refreshComposedComponent(user.sub, dto.day, dto.slot, dto.role);
+  }
+
+  @Post('plan/composed/skip-item')
+  @UsePipes(new ZodValidationPipe(z.object({ day: z.number().int().min(0).max(6), slot: z.string().min(1).max(3), role: z.string().min(1).max(20), skipped: z.boolean() })))
+  skipComposedComponent(@CurrentUser() user: JwtUser, @Body() dto: { day: number; slot: string; role: string; skipped: boolean }) {
+    return this.nutrition.skipComposedComponent(user.sub, dto.day, dto.slot, dto.role, dto.skipped);
+  }
+
   @Post('plan/composed/restore')
   restoreComposedSkips(@CurrentUser() user: JwtUser) {
     return this.nutrition.restoreComposedSkips(user.sub);

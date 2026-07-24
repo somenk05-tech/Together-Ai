@@ -1909,6 +1909,32 @@ export class NutritionService implements OnModuleInit {
     return this.composedPlan(userId);
   }
 
+  /** Refresh ONE dish within a meal — reroll just that plate role (like-for-like:
+   *  a carb stays a carb, a vegetable stays a vegetable) while every other dish on
+   *  the plate is untouched. Keyed by d{day}:{slot}:{role}. */
+  async refreshComposedComponent(userId: string, day: number, slot: string, role: string) {
+    const key = `d${day}:${slot}:${role}`;
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const bumps = { ...(ex.composedBumps ?? {}) };
+    bumps[key] = (bumps[key] ?? 0) + 1;
+    await this.mergeExtras(userId, { composedBumps: bumps });
+    return this.composedPlan(userId);
+  }
+
+  /** Skip / unskip ONE dish within a meal — that plate role is dropped and the
+   *  remaining dishes rescale to the meal's calorie target. Keyed by
+   *  d{day}:{slot}:{role}. */
+  async skipComposedComponent(userId: string, day: number, slot: string, role: string, skipped: boolean) {
+    const key = `d${day}:${slot}:${role}`;
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const set = new Set(ex.composedSkips ?? []);
+    if (skipped) set.add(key); else set.delete(key);
+    await this.mergeExtras(userId, { composedSkips: [...set] });
+    return this.composedPlan(userId);
+  }
+
   /** Restore every skipped meal for the week. */
   async restoreComposedSkips(userId: string) {
     await this.mergeExtras(userId, { composedSkips: [] });
