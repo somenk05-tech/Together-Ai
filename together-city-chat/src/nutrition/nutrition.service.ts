@@ -23,6 +23,7 @@ import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, mntAvoidKeywords, type MntRule } from './clinical-mnt';
 import { composeWeek, scaleComposedWeek, complianceReport, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
+import { scoreDual, buildScorecard, guidelineCaps } from './plan-score';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
 import { computeNutrients, computeMicros, isSalt } from './ingredient-nutrients';
 import {
@@ -1680,39 +1681,65 @@ export class NutritionService implements OnModuleInit {
     };
 
     const favourites = [...(ex.proteins ?? []), ...(ex.meats ?? [])].filter(Boolean);
-    // Two modes:
-    //  • preferred (default) — the user's saved preferences drive everything;
-    //    their chosen protein sources appear regardless of conditions; only
-    //    serious renal limits are hard-enforced. Medical guidance is informational.
-    //  • optimal — the clinically ideal plan: full caps hard-enforced and the
-    //    HEALTHIEST proteins chosen within their diet (the protein-source and
-    //    budget/time nudges are dropped so health leads), still respecting diet,
-    //    allergies and cuisine taste.
-    const optimal = mode === 'optimal';
-    const cprefs: ComposerPrefs = {
-      diet: composerDiet,
-      excluded,
-      cuisineBySlot,
-      cuisineLocks: ex.cuisineLocks,
-      fasting: ex.fasting,
-      includePantry: ex.includePantry ?? false,
-      clinicalTag: this.clinicalTag(conditions),
-      avoidRice: optimal ? isClinical && /diabet|hba1c/.test(condText) : /diabet|hba1c/.test(condText),
-      caps: optimal && isClinical ? fullCaps : undefined,   // enforce caps only in Optimal Health AND only for a real condition
-      clinical: optimal && isClinical,
-      maxMinutes: optimal ? undefined : (ex.maxCookMin ?? undefined),
-      favourites: optimal ? undefined : (favourites.length ? favourites : undefined),
-      skips: ex.composedSkips,
-      bumps: ex.composedBumps,
-    };
     const targets = { kcal: t.kcal, protein: t.protein, carbs: (t as { carb: number }).carb, fat: t.fat, fiber: t.fiber };
+    const isDiabetic = /diabet|hba1c/.test(condText);
+    const chosenCuisines = profileMix ? Object.keys(profileMix) : [];
+    // The single yardstick BOTH plans are graded against: clinical caps for a
+    // diagnosed user, otherwise general WHO guideline caps for a healthy adult.
+    const healthCaps = isClinical ? fullCaps : guidelineCaps(targets.kcal);
+
+    // Two modes:
+    //  • preferred (default) — the user's saved preferences drive everything; their
+    //    chosen protein sources appear regardless of conditions; NOTHING clinical is
+    //    hard-enforced. Medical guidance is informational.
+    //  • optimal — the clinically ideal plan. Caps are enforced toward the ideal:
+    //    clinical caps (hard, best-of-N, can BLOCK) for a real condition; general
+    //    guideline caps (soft portion-trim, never blocks) for a healthy user — so
+    //    Optimal genuinely meets nutrition guidelines and scores ~100 on health.
+    //    Protein-source and cook-time nudges are dropped so health leads; diet,
+    //    allergies and cuisine taste are still respected.
+    const cprefsFor = (m: 'preferred' | 'optimal'): ComposerPrefs => {
+      const optimal = m === 'optimal';
+      return {
+        diet: composerDiet,
+        excluded,
+        cuisineBySlot,
+        cuisineLocks: ex.cuisineLocks,
+        fasting: ex.fasting,
+        includePantry: ex.includePantry ?? false,
+        clinicalTag: this.clinicalTag(conditions),
+        avoidRice: optimal ? (isClinical && isDiabetic) : isDiabetic,
+        caps: optimal ? healthCaps : undefined,
+        clinical: optimal && isClinical,   // hard gate / blocking only for a real condition
+        maxMinutes: optimal ? undefined : (ex.maxCookMin ?? undefined),
+        favourites: optimal ? undefined : (favourites.length ? favourites : undefined),
+        skips: ex.composedSkips,
+        bumps: ex.composedBumps,
+      };
+    };
+
     const datasetPool = await this.datasetPoolReady();   // wait (bounded) for the full 11k pool — non-veg mains + photos live here
-    const week = composeWeek(targets, cprefs, 7, this.seedFor(userId) + (optimal ? 101 : 0), datasetPool);
+    const weekFor = (m: 'preferred' | 'optimal') =>
+      composeWeek(targets, cprefsFor(m), 7, this.seedFor(userId) + (m === 'optimal' ? 101 : 0), datasetPool);
+
+    const week = weekFor(mode);
+
+    // Score BOTH plans on health + preference-match so each tab can show its two
+    // scores AND the difference vs the other mode ("Optimal is correct, My
+    // Preferences is yours"). The counterpart week is composed once for scoring.
+    const scoreInputs = { targets, healthCaps, isDiabetic, favourites, cuisines: chosenCuisines, maxMinutes: ex.maxCookMin ?? undefined };
+    const otherMode: 'preferred' | 'optimal' = mode === 'optimal' ? 'preferred' : 'optimal';
+    const otherWeek = weekFor(otherMode);
+    const selfScore = scoreDual(week.days, scoreInputs);
+    const otherScore = scoreDual(otherWeek.days, scoreInputs);
+    const preferredScore = mode === 'preferred' ? selfScore : otherScore;
+    const optimalScore = mode === 'optimal' ? selfScore : otherScore;
+    const scorecard = buildScorecard(mode, preferredScore, optimalScore);
 
     // Inform-and-recommend: how THIS plan compares to the clinical ideal (both modes).
     const compliance = isClinical ? complianceReport(week.days, targets, fullCaps, condText) : undefined;
     const safety = ex.fasting?.enabled ? fastingSafety(conditions.join(' ')) : { level: 'ok' as const, notes: [] };
-    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], ...(compliance ? { compliance } : {}) };
+    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], scorecard, ...(compliance ? { compliance } : {}) };
   }
 
   /** DB diet values that satisfy a requested diet (ladder). Real DB values:

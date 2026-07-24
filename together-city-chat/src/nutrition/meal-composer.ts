@@ -56,6 +56,7 @@ export interface MealComponentOut extends Nutrients {
   kcal: number; protein: number; carbs: number; fat: number; fiber: number;
   nutrientComplete: boolean;
   steps: string[]; imageUrl?: string | null;
+  cuisine?: string;                   // normalised cuisine (for preference-match scoring + UI)
   minutes: number; ingredients: MealIngredient[];
 }
 export interface MealTotals extends DayTargets, Nutrients {}
@@ -139,7 +140,7 @@ const CUISINE_NORMALISE: Record<string, string> = {
   Continental: 'Continental', 'Middle Eastern': 'Middle Eastern', 'Middle East': 'Middle Eastern',
   Global: 'Global',
 };
-function normCuisine(c: string): string { return CUISINE_NORMALISE[(c ?? '').trim()] ?? c; }
+export function normCuisine(c: string): string { return CUISINE_NORMALISE[(c ?? '').trim()] ?? c; }
 
 /** Per-role potassium/phosphorus ceilings (mg/serving) for renal plates. */
 const RENAL_K_CEIL: Record<string, number> = { main: 240, dal: 0, vegetable: 230, carb: 180, salad: 180, snack: 240, breakfast: 340, soup: 200, dessert: 240, drink: 240, side: 200, dairy: 0 };
@@ -327,7 +328,7 @@ function scaleComponent(r: PoolRecipe, portionPct: number, role: string): MealCo
     fat: round(r.fat * f), fiber: round(r.fiber * f),
     sodiumMg: Math.round(r.nutrients.sodiumMg * f), potassiumMg: Math.round(r.nutrients.potassiumMg * f),
     phosphorusMg: Math.round(r.nutrients.phosphorusMg * f), sugarG: round(r.nutrients.sugarG * f), addedSugarG: round(r.nutrients.addedSugarG * f), satFatG: round(r.nutrients.satFatG * f),
-    nutrientComplete: r.nutrientComplete, steps: r.steps, imageUrl: r.imageUrl ?? null, minutes: r.minutes,
+    nutrientComplete: r.nutrientComplete, steps: r.steps, imageUrl: r.imageUrl ?? null, cuisine: normCuisine(r.cuisine), minutes: r.minutes,
     ingredients: r.ingredients.map((i) => isSalt(i.name)
       ? { name: 'Salt', grams: 0, pantry: true, toTaste: true }             // salt is always "to taste"
       : { name: i.name, grams: Math.round(i.grams * f), pantry: isPantryStaple(i.name) }),

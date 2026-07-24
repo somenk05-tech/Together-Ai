@@ -4,7 +4,7 @@ import { Card, Spinner, EmptyState, Button, Chip, Modal } from '@/components/ui'
 import {
   useComposedPlan, useMealSettings, useSaveMealSettings,
   useRefreshMeal, useSkipMeal, useRestoreSkips,
-  type ComposedMeal, type MealComponent, type CuisineBucket, type ComplianceReport, type ComposedDay,
+  type ComposedMeal, type MealComponent, type CuisineBucket, type ComplianceReport, type ComposedDay, type Scorecard,
 } from '../composed.api';
 
 /** Master-source-of-truth gate: no plan until the Food Preference Profile is saved. */
@@ -47,6 +47,59 @@ function HealthScoreCard({ c }: { c: ComplianceReport }) {
         </div>
       )}
       <div className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>Your preferences come first — these are suggestions, not changes. Tap “Refresh meal” to try a healthier option.</div>
+    </Card>
+  );
+}
+
+/** A single 0–100 score dial with a caption. */
+function ScoreDial({ label, value, hint }: { label: string; value: number; hint: string }) {
+  const color = value >= 85 ? '#2e7d32' : value >= 65 ? '#8a6a1f' : '#c0392b';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 11, flex: '1 1 240px', minWidth: 220 }}>
+      <div style={{ display: 'grid', placeItems: 'center', width: 48, height: 48, borderRadius: '50%', border: `4px solid ${color}`, flex: '0 0 auto' }}>
+        <strong style={{ fontSize: 14.5, color }}>{value}</strong>
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 800 }}>{label}</div>
+        <div className="muted" style={{ fontSize: 11.5, lineHeight: 1.35 }}>{hint}</div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Two-score card shown on each mode tab: this plan's Health score and its
+ * Matches-your-preferences score, plus a one-line difference vs the other plan.
+ * "Optimal is the clinically correct plan; My Preferences is yours."
+ */
+function PlanScorecard({ sc }: { sc: Scorecard }) {
+  return (
+    <Card style={{ padding: '14px 16px', marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        <ScoreDial label="Health score" value={sc.health} hint="How clinically correct this plan is" />
+        <ScoreDial label="Matches your preferences" value={sc.preference} hint="How closely it follows your saved profile" />
+      </div>
+      <div className="muted" style={{ fontSize: 12.5, marginTop: 11, lineHeight: 1.5 }}>{sc.summary}</div>
+      {(sc.healthNotes.length > 0 || sc.preferenceNotes.length > 0) && (
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginTop: 10 }}>
+          {sc.healthNotes.length > 0 && (
+            <div style={{ flex: '1 1 220px', minWidth: 200 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .3, color: 'var(--muted)', marginBottom: 4 }}>Health gaps</div>
+              <ul style={{ margin: '0 0 0 16px', fontSize: 12, lineHeight: 1.5 }}>
+                {sc.healthNotes.slice(0, 4).map((n) => <li key={n.key} style={{ color: n.severity === 'warn' ? '#c0392b' : 'inherit' }}>{n.label}: {n.detail}</li>)}
+              </ul>
+            </div>
+          )}
+          {sc.preferenceNotes.length > 0 && (
+            <div style={{ flex: '1 1 220px', minWidth: 200 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .3, color: 'var(--muted)', marginBottom: 4 }}>Preference match</div>
+              <ul style={{ margin: '0 0 0 16px', fontSize: 12, lineHeight: 1.5 }}>
+                {sc.preferenceNotes.slice(0, 4).map((n) => <li key={n.key} style={{ color: n.severity === 'warn' ? '#c0392b' : 'inherit' }}>{n.label}: {n.detail}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </Card>
   );
 }
@@ -480,6 +533,9 @@ export function MealPlan() {
           ? 'Built from your saved Food Preference Profile — your chosen foods and protein sources, whatever your health profile.'
           : 'The clinically ideal plan for your health profile, blood results and conditions — within your diet and allergies.'}
       </p>
+
+      {/* Both scores for THIS plan + the one-line difference vs the other mode. */}
+      {wk.scorecard && <PlanScorecard sc={wk.scorecard} />}
 
       {/* Medical-guidance banner (preferred mode) — inform, offer the healthier plan, never force. */}
       {mode === 'preferred' && wk.compliance && wk.compliance.concerns.length > 0 && (

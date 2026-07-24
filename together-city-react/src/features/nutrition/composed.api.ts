@@ -46,6 +46,9 @@ export interface ComposedWeek {
   mode?: 'preferred' | 'optimal';
   /** "Inform, don't force" — how the preferred plan compares to the clinical ideal. */
   compliance?: ComplianceReport;
+  /** Dual score for this plan + the counterpart mode, so each tab shows both
+   *  scores and the difference between the two plans. */
+  scorecard?: Scorecard;
   prescription: { kcal: number; protein: number; carb: number; fat: number; fiber: number; sodiumMaxMg?: number };
   fastingSafety: { level: 'ok' | 'warn' | 'block'; notes: string[] };
   basedOnFamily?: { ownerName: string; factor: number };
@@ -54,6 +57,17 @@ export interface ComposedWeek {
 
 export interface ComplianceConcern { key: string; label: string; message: string; direction: 'over' | 'under'; deltaPct: number; severity: 'info' | 'warn' }
 export interface ComplianceReport { score: number; concerns: ComplianceConcern[]; swaps: string[]; summary: string }
+
+export interface ScoreNote { key: string; label: string; detail: string; severity: 'ok' | 'info' | 'warn' }
+export interface Scorecard {
+  mode: PlanMode;
+  health: number;                 // 0–100 clinical/nutritional correctness
+  preference: number;             // 0–100 match to the saved profile
+  healthNotes: ScoreNote[];
+  preferenceNotes: ScoreNote[];
+  other: { mode: PlanMode; health: number; preference: number };
+  summary: string;                // one-line difference between the two plans
+}
 
 export type CuisineBucket = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export interface MealSettings {
