@@ -141,7 +141,7 @@ describe('Nutrition Hub — post-deployment QA audit', () => {
     // Diabetes sugar cap on the plate
     const dmCaps = capsOf(diabetic);
     const wkDm = composeWeek({ kcal: (diabetic.kcal as number), protein: (diabetic.protein as number), carbs: (diabetic as { carb: number }).carb, fat: (diabetic.fat as number), fiber: (diabetic.fiber as number) }, { diet: 'vegetarian', clinical: true, caps: dmCaps, avoidRice: true }, 3, 7);
-    for (const day of wkDm.days) if (dmCaps.sugarG && day.totals.sugarG > dmCaps.sugarG * 1.05) add('MED', 'Clinical', `Diabetes day ${day.dayIndex + 1}: sugar ${day.totals.sugarG} > cap ${dmCaps.sugarG}`);
+    for (const day of wkDm.days) if (dmCaps.sugarG && day.totals.addedSugarG > dmCaps.sugarG * 1.05) add('MED', 'Clinical', `Diabetes day ${day.dayIndex + 1}: added sugar ${day.totals.addedSugarG} > cap ${dmCaps.sugarG}`);
     void htn;
 
     // Run every profile.
@@ -156,9 +156,6 @@ describe('Nutrition Hub — post-deployment QA audit', () => {
       try { auditWeek(p.name, prefs, targets); }
       catch (e) { add('CRIT', 'Crash', `${p.name}: threw ${(e as Error).message}`); }
     }
-
-    // Jain support gap
-    if (!(['vegan', 'vegetarian', 'eggetarian', 'nonveg'] as string[]).includes('jain')) add('HIGH', 'Diet', 'Jain is not a first-class diet — no automatic onion/garlic/root-vegetable exclusion (only manual excludes).');
 
     // Intermittent fasting matrix
     for (const proto of ['12:12', '14:10', '16:8', '18:6', '20:4', 'omad']) {

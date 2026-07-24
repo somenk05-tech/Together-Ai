@@ -1422,7 +1422,7 @@ export class NutritionService implements OnModuleInit {
         kcal: per(r.kcal) || 200, protein: per(r.protein), carbs: per(r.carbs), fat: per(r.fat), fiber: per(r.fiber),
         minutes: r.minutes || 20, grams: per(r.gramsPerServing) || 200, diet: this.mapDiet(r.diet),
         ingredients,
-        nutrients: { sodiumMg: n.na, potassiumMg: n.k, phosphorusMg: n.p, sugarG: n.sug, satFatG: n.sfat },
+        nutrients: { sodiumMg: n.na, potassiumMg: n.k, phosphorusMg: n.p, sugarG: n.sug, addedSugarG: n.addedSug, satFatG: n.sfat },
         nutrientComplete: n.complete,
       });
     }
@@ -1454,9 +1454,15 @@ export class NutritionService implements OnModuleInit {
       sex: pref?.sex ?? 'male', activity: pref?.activity ?? 1.4, goal: pref?.goal ?? 'maintain',
       conditions, flags,
     });
+    // Jain is vegetarian + automatic exclusion of onion, garlic and root vegetables.
+    const rawDiet = ((pref?.diet as string) ?? 'vegetarian').toLowerCase();
+    const isJain = rawDiet === 'jain';
+    const composerDiet = (isJain ? 'vegetarian' : rawDiet) as ComposerDiet;
+    const jainExcludes = isJain ? ['onion', 'garlic', 'potato', 'carrot', 'radish', 'beetroot', 'mushroom', 'ginger'] : [];
     const excluded = [
       ...(ex.excluded ? ex.excluded.split(',') : []),
       ...(ex.allergies ? ex.allergies.split(',') : []),
+      ...jainExcludes,
     ].map((s) => s.trim()).filter(Boolean);
 
     // Default to an Indian-first per-slot cuisine when the user hasn't set one,
@@ -1476,7 +1482,7 @@ export class NutritionService implements OnModuleInit {
     } : undefined;
 
     const cprefs: ComposerPrefs = {
-      diet: ((pref?.diet as ComposerDiet) ?? 'vegetarian'),
+      diet: composerDiet,
       excluded,
       cuisineBySlot,
       cuisineLocks: ex.cuisineLocks,

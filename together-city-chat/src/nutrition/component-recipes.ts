@@ -45,6 +45,9 @@ const MAINS: ComponentSeed[] = [
   S('Tofu Capsicum Stir-fry', 'India', ['lunch', 'dinner'], 'main', [200, 14, 8, 12, 3], 20, 150, 'vegan', [['Tofu', 110], ['Capsicum', 40], ['Onion', 15], ['Cooking oil', 6]]),
   S('Grilled Paneer & Peppers', 'India', ['lunch', 'dinner'], 'main', [240, 15, 6, 18, 1], 20, 140, 'vegetarian', [['Paneer', 100], ['Capsicum', 30], ['Cooking oil', 6]]),
   S('Light Egg Curry', 'India', ['lunch', 'dinner'], 'main', [210, 14, 6, 14, 1], 25, 170, 'eggetarian', [['Eggs', 100], ['Onion', 20], ['Capsicum', 20], ['Cooking oil', 7]]),
+  // Jain-safe mains (no onion / garlic / root vegetables).
+  S('Jain Paneer Tomato Curry', 'India', ['lunch', 'dinner'], 'main', [300, 15, 10, 22, 2], 30, 170, 'vegetarian', [['Paneer', 100], ['Tomato', 50], ['Cashews', 10], ['Cooking oil', 6]]),
+  S('Jain Malai Kofta', 'India', ['lunch', 'dinner'], 'main', [320, 12, 18, 22, 3], 40, 180, 'vegetarian', [['Paneer', 70], ['Cabbage', 40], ['Tomato', 40], ['Cashews', 12], ['Cooking oil', 8]]),
 ];
 
 /** Dals & legume gravies (lunch/dinner protein). */
@@ -55,6 +58,7 @@ const DALS: ComponentSeed[] = [
   S('Chana Dal', 'India', ['side', 'lunch', 'dinner'], 'dal', [175, 9, 24, 4, 6], 35, 180, 'vegan', [['Chana dal', 45], ['Onion', 25], ['Tomato', 25], ['Cooking oil', 6]]),
   S('Rajma Masala', 'India', ['lunch', 'dinner', 'side'], 'dal', [190, 10, 27, 4, 7], 40, 200, 'vegan', [['Rajma (kidney beans)', 55], ['Onion', 40], ['Tomato', 40], ['Cooking oil', 7]]),
   S('Chole (Chickpea Masala)', 'India', ['lunch', 'dinner', 'side'], 'dal', [185, 9, 26, 5, 6], 40, 200, 'vegan', [['Chickpeas', 55], ['Onion', 40], ['Tomato', 40], ['Cooking oil', 7]]),
+  S('Jain Moong Dal', 'India', ['side', 'lunch', 'dinner'], 'dal', [150, 9, 20, 4, 5], 25, 180, 'vegan', [['Split moong dal', 40], ['Tomato', 30], ['Cumin seeds', 2], ['Cooking oil', 6]]),
 ];
 
 /** Breads / staples. */

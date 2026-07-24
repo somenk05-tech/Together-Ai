@@ -8,7 +8,14 @@
  *
  * na/k/p in mg; sug/sfat in g — all per 100 g of the ingredient.
  */
-export interface NutrientSet { na: number; k: number; p: number; sug: number; sfat: number }
+export interface NutrientSet { na: number; k: number; p: number; sug: number; sfat: number; addedSug: number }
+
+/** Ingredients that contribute ADDED sugar (what the diabetes cap actually limits). */
+const ADDED_SUGAR = ['sugar', 'jaggery', 'honey', 'custard powder', 'condensed milk', 'syrup'];
+function isAddedSugar(name: string): boolean {
+  const n = name.trim().toLowerCase();
+  return ADDED_SUGAR.some((a) => n.includes(a));
+}
 
 const T: Record<string, [number, number, number, number, number]> = {
   // [na, k, p, sugar, satfat] per 100 g
@@ -108,12 +115,18 @@ function lookup(name: string): [number, number, number, number, number] | null {
  * enforcement can exclude nutrition-incomplete recipes from capped roles.
  */
 export function computeNutrients(ingredients: Array<{ name: string; grams: number }>): NutrientSet & { complete: boolean } {
-  let na = 0, k = 0, p = 0, sug = 0, sfat = 0, complete = ingredients.length > 0;
+  let na = 0, k = 0, p = 0, sug = 0, sfat = 0, addedSug = 0, complete = ingredients.length > 0;
   for (const ing of ingredients) {
     const v = lookup(ing.name);
     if (!v) { complete = false; continue; }
     const f = ing.grams / 100;
-    na += v[0] * f; k += v[1] * f; p += v[2] * f; sug += v[3] * f; sfat += v[4] * f;
+    na += v[0] * f; k += v[1] * f; p += v[2] * f; sfat += v[4] * f;
+    const s = v[3] * f;
+    sug += s;
+    if (isAddedSugar(ing.name)) addedSug += s;
   }
-  return { na: Math.round(na), k: Math.round(k), p: Math.round(p), sug: Math.round(sug * 10) / 10, sfat: Math.round(sfat * 10) / 10, complete };
+  return {
+    na: Math.round(na), k: Math.round(k), p: Math.round(p),
+    sug: Math.round(sug * 10) / 10, sfat: Math.round(sfat * 10) / 10, addedSug: Math.round(addedSug * 10) / 10, complete,
+  };
 }
