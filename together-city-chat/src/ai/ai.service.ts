@@ -16,8 +16,8 @@ export class AiService {
   //  • bloodModel — blood-report reading, where accuracy matters → Opus 4.8.
   //  • visionModel— blood-report images/PDF vision → Opus 4.8.
   private readonly model = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';
-  private readonly bloodModel = process.env.ANTHROPIC_BLOOD_MODEL || 'claude-opus-4-8';
-  private readonly visionModel = process.env.ANTHROPIC_VISION_MODEL || 'claude-opus-4-8';
+  private readonly bloodModel = process.env.ANTHROPIC_BLOOD_MODEL || 'claude-opus-5';
+  private readonly visionModel = process.env.ANTHROPIC_VISION_MODEL || 'claude-opus-5';
   readonly enabled: boolean;
 
   /** The model id used for blood-report interpretation (recorded on stored analyses). */
@@ -85,17 +85,22 @@ export class AiService {
    */
   private async createWithFallback(params: Omit<Anthropic.MessageCreateParamsNonStreaming, 'model'> & { model: string }): Promise<Anthropic.Message> {
     if (!this.client) throw new Error('AI disabled');
-    try {
-      return await this.client.messages.create(params);
-    } catch (e) {
-      const msg = (e as Error).message ?? '';
-      const modelProblem = /not_found|model|permission|403|404/i.test(msg);
-      if (modelProblem && params.model !== this.model) {
-        this.logger.warn(`Model ${params.model} unavailable (${msg.slice(0, 120)}) — retrying on ${this.model}`);
-        return await this.client.messages.create({ ...params, model: this.model });
+    // Try the preferred model, then walk a chain of known-good current models.
+    // Extraction/interpretation calls are read-only and idempotent, so retrying on
+    // ANY failure (retired model id, 404, overloaded, transient 5xx) is safe and
+    // maximises the chance the user's report is read on the first upload.
+    const chain = [...new Set([params.model, this.bloodModel, 'claude-sonnet-5', this.model])];
+    let lastErr: unknown = null;
+    for (const model of chain) {
+      try {
+        return await this.client.messages.create({ ...params, model });
+      } catch (e) {
+        lastErr = e;
+        const msg = ((e as Error).message ?? '').slice(0, 160);
+        this.logger.warn(`messages.create failed on ${model} (${msg})${model === chain[chain.length - 1] ? '' : ' — trying next model'}`);
       }
-      throw e;
     }
+    throw lastErr instanceof Error ? lastErr : new Error('AI call failed on every model');
   }
 
   async extractMarkersFromText(text: string): Promise<{ values: Record<string, number>; lab?: string; takenOn?: string }> {
@@ -248,7 +253,7 @@ export class AiService {
       'Rules: educational ONLY, never a diagnosis, no medication names, no dosages, no treatment prescriptions. ' +
       'Be specific to the actual values. If all markers are normal, celebrate that warmly and keep the clinical arrays empty.';
     try {
-      const res = await this.client.messages.create({
+      const res = await this.createWithFallback({
         model: this.bloodModel,
         max_tokens: 1400,
         system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,

@@ -15,6 +15,8 @@ import {
 } from '../nutrition/clinical-engine';
 import type { SaveBloodTestDto } from './dto/medical.dto';
 import { BIOMARKER_SECTIONS, biomarkerDef } from './biomarker-catalog';
+import { parseReportText } from './report-parser';
+import { normalizeReportImage } from './image-normalize';
 
 const cite = (ids: string[]) => ids.map((id) => CITATIONS[id]).filter(Boolean);
 
@@ -92,15 +94,82 @@ export class MedicalService implements OnModuleInit {
 
   private readonly logger = new Logger(MedicalService.name);
 
-  /** Extract plain text from a (text-based) PDF report. */
-  private async pdfToText(buf: Buffer): Promise<string> {
+  /** Extract plain text from a (text-based) PDF report. `locked` marks a
+   *  password-protected PDF — common for Indian lab portals — so the caller can
+   *  tell the user exactly what to do instead of a generic "couldn't read". */
+  private async pdfToText(buf: Buffer): Promise<{ text: string; locked: boolean }> {
     try {
       const res = await new PDFParse({ data: new Uint8Array(buf) }).getText();
-      return res.text ?? '';
+      return { text: res.text ?? '', locked: false };
     } catch (e) {
-      this.logger.warn(`PDF text extraction failed: ${(e as Error).message}`);
-      return '';
+      const msg = (e as Error).message ?? '';
+      this.logger.warn(`PDF text extraction failed: ${msg}`);
+      return { text: '', locked: /password|encrypt/i.test(msg) };
     }
+  }
+
+  /**
+   * The ONE reading pipeline for an uploaded blood report, layered so a single
+   * failure never sends the user to manual entry:
+   *   PDF  → text extraction → AI-on-text → (0 markers?) AI vision on the PDF
+   *          → (still 0?) deterministic text parser (works with AI off/failing)
+   *   image→ normalise (HEIC/TIFF→JPEG, downscale >4MB) → AI vision
+   * The document itself is already filed by the caller, so this never throws.
+   */
+  private async readReportFromVault(fileKey: string, mimeType: string): Promise<{
+    values: Record<string, number>; lab?: string; takenOn?: string;
+    via: 'ai-text' | 'ai-vision' | 'parser' | 'none'; locked: boolean;
+  }> {
+    let extracted: { values: Record<string, number>; lab?: string; takenOn?: string } = { values: {} };
+    let via: 'ai-text' | 'ai-vision' | 'parser' | 'none' = 'none';
+    let locked = false;
+    try {
+      const obj = await this.storage.getHealthObjectBase64(fileKey);
+      if (!obj) return { values: {}, via, locked };
+      if (mimeType === 'application/pdf') {
+        const pdf = await this.pdfToText(Buffer.from(obj.base64, 'base64'));
+        locked = pdf.locked;
+        const text = pdf.text.trim();
+        this.logger.log(`blood read: pdf textLen=${text.length} locked=${locked} aiEnabled=${this.ai.enabled}`);
+        if (text && this.ai.enabled) {
+          extracted = await this.ai.extractMarkersFromText(text);
+          via = 'ai-text';
+        }
+        if (!Object.keys(extracted.values).length && this.ai.enabled && !locked) {
+          // Scanned PDF, or the text came out too jumbled to read — let the
+          // vision model look at the pages themselves.
+          extracted = await this.ai.extractBloodMarkers(obj.base64, mimeType);
+          via = 'ai-vision';
+        }
+        if (!Object.keys(extracted.values).length && text) {
+          // AI off / out of credits / failed → deterministic parse of the text.
+          const parsed = parseReportText(text);
+          if (Object.keys(parsed.values).length) { extracted = parsed; via = 'parser'; }
+        }
+      } else {
+        const img = await normalizeReportImage(obj.base64, mimeType || obj.contentType);
+        if (img.changed) this.logger.log(`blood read: image normalised ${mimeType} → ${img.mediaType}`);
+        extracted = await this.ai.extractBloodMarkers(img.base64, img.mediaType);
+        via = 'ai-vision';
+      }
+    } catch (e) {
+      this.logger.warn(`blood read failed (document still saved): ${(e as Error).message}`);
+      extracted = { values: {} };
+    }
+    const count = Object.keys(extracted.values).length;
+    if (count === 0) via = 'none';
+    this.logger.log(`blood read: via=${via} markersFound=${count} [${Object.keys(extracted.values).join(',')}]`);
+    return { ...extracted, via, locked };
+  }
+
+  /** User-facing note when a report was filed but no values could be read. */
+  private unreadableNote(locked: boolean): string {
+    if (locked) {
+      return 'Saved to your records, but this PDF is password-protected so it can’t be read automatically. Remove the password or upload a photo of the report — or enter the values below.';
+    }
+    return this.ai.enabled
+      ? 'Saved to your records, but we couldn’t read clear values from this file — enter them below to analyse.'
+      : 'AI reading is off — enter the values from your report below to analyse.';
   }
 
   /** Shared 10 GB vault: total bytes = mail + health documents. */
@@ -184,44 +253,23 @@ export class MedicalService implements OnModuleInit {
       } as never,
     });
 
-    // read it back from the private vault → AI extraction. Text-based PDFs are
-    // read via extracted text (cheaper + more reliable); images use vision.
-    let extracted: { values: Record<string, number>; lab?: string; takenOn?: string } = { values: {} };
-    const obj = await this.storage.getHealthObjectBase64(dto.fileKey);
-    this.logger.log(`blood extract: node=${process.version} mime=${dto.mimeType} objRead=${!!obj} aiEnabled=${this.ai.enabled}`);
-    // Extraction is best-effort: the document is already safely filed above, so
-    // a reading failure (e.g. a HEIC/format the vision model rejects) must never
-    // fail the request — the user just enters values manually.
-    try {
-      if (obj) {
-        if (dto.mimeType === 'application/pdf') {
-          const text = await this.pdfToText(Buffer.from(obj.base64, 'base64'));
-          this.logger.log(`blood extract: pdf textLen=${text.length}`);
-          extracted = text.trim()
-            ? await this.ai.extractMarkersFromText(text)
-            : await this.ai.extractBloodMarkers(obj.base64, dto.mimeType); // scanned PDF → vision
-        } else {
-          extracted = await this.ai.extractBloodMarkers(obj.base64, dto.mimeType);
-        }
-      }
-    } catch (e) {
-      this.logger.warn(`blood extract failed (document still saved): ${(e as Error).message}`);
-      extracted = { values: {} };
-    }
-    this.logger.log(`blood extract: markersFound=${Object.keys(extracted.values).length} [${Object.keys(extracted.values).join(',')}]`);
+    // Read it back from the private vault via the shared layered pipeline
+    // (AI text → AI vision → deterministic parser). Extraction is best-effort:
+    // the document is already safely filed above, so a reading failure must
+    // never fail the request — the user just enters values manually.
+    const read = await this.readReportFromVault(dto.fileKey, dto.mimeType);
+    const markerCount = Object.keys(read.values).length;
 
     return {
       recordId: rec.id,
       aiEnabled: this.ai.enabled,
-      extracted: extracted.values,
-      markerCount: Object.keys(extracted.values).length,
-      lab: extracted.lab ?? null,
-      takenOn: extracted.takenOn ?? null,
-      note: this.ai.enabled
-        ? (Object.keys(extracted.values).length
-            ? 'Values read from your report — please review each before saving.'
-            : 'We could not read clear values from this file. Enter them manually below.')
-        : 'AI reading is off — enter the values from your report manually below.',
+      extracted: read.values,
+      markerCount,
+      lab: read.lab ?? null,
+      takenOn: read.takenOn ?? null,
+      note: markerCount
+        ? 'Values read from your report — please review each before saving.'
+        : this.unreadableNote(read.locked),
     };
   }
 
@@ -337,26 +385,10 @@ export class MedicalService implements OnModuleInit {
       } as never,
     });
 
-    let extracted: { values: Record<string, number>; lab?: string; takenOn?: string } = { values: {} };
-    try {
-      const obj = await this.storage.getHealthObjectBase64(dto.fileKey);
-      if (obj) {
-        if (dto.mimeType === 'application/pdf') {
-          const text = await this.pdfToText(Buffer.from(obj.base64, 'base64'));
-          extracted = text.trim()
-            ? await this.ai.extractMarkersFromText(text)
-            : await this.ai.extractBloodMarkers(obj.base64, dto.mimeType);
-        } else {
-          extracted = await this.ai.extractBloodMarkers(obj.base64, dto.mimeType);
-        }
-      }
-    } catch (e) {
-      this.logger.warn(`ingest extract failed (document still saved): ${(e as Error).message}`);
-      extracted = { values: {} };
-    }
+    const extracted = await this.readReportFromVault(dto.fileKey, dto.mimeType);
 
     const values = Object.fromEntries(
-      Object.entries(extracted.values).filter(([, v]) => typeof v === 'number' && !Number.isNaN(v as number)),
+      Object.entries(extracted.values).filter(([k, v]) => typeof v === 'number' && !Number.isNaN(v as number) && biomarkerDef(k)),
     ) as Record<string, number>;
     const markerCount = Object.keys(values).length;
 
@@ -367,9 +399,7 @@ export class MedicalService implements OnModuleInit {
         lab: extracted.lab ?? null, takenOn: extracted.takenOn ?? null,
         analysis: null as Awaited<ReturnType<MedicalService['analyze']>> | null,
         summary: null as Awaited<ReturnType<MedicalService['healthSummary']>> | null,
-        note: this.ai.enabled
-          ? 'Saved to your records, but we couldn’t read clear values from this file — enter them below to analyse.'
-          : 'AI reading is off — enter the values from your report below to analyse.',
+        note: this.unreadableNote(extracted.locked),
       };
     }
 
