@@ -6,3 +6,8 @@ dist-ssr
 .DS_Store
 ios
 android
+
+# tsc -b build artifacts emitted next to config sources
+vite.config.js
+vite.config.d.ts
+*.tsbuildinfo
