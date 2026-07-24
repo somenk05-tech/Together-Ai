@@ -66,7 +66,16 @@ export const BloodInputSchema = z.object({
   hba1c: z.number().positive().max(20).optional(),     // HbA1c %
   ldl: z.number().positive().max(400).optional(),      // LDL mg/dL
   trig: z.number().positive().max(2000).optional(),    // triglycerides mg/dL
+  hdl: z.number().positive().max(150).optional(),      // HDL mg/dL
   crp: z.number().nonnegative().max(500).optional(),   // C-reactive protein mg/L
+  creatinine: z.number().positive().max(20).optional(),// serum creatinine mg/dL
+  egfr: z.number().positive().max(200).optional(),     // eGFR mL/min/1.73m²
+  alt: z.number().nonnegative().max(2000).optional(),  // ALT U/L
+  ast: z.number().nonnegative().max(2000).optional(),  // AST U/L
+  ggt: z.number().nonnegative().max(2000).optional(),  // GGT U/L
+  uricAcid: z.number().positive().max(20).optional(),  // uric acid mg/dL
+  tsh: z.number().nonnegative().max(100).optional(),   // TSH mIU/L
+  albumin: z.number().positive().max(6).optional(),    // serum albumin g/dL
 });
 export type BloodInputDto = z.infer<typeof BloodInputSchema>;
 

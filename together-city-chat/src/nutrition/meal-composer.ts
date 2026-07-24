@@ -125,6 +125,47 @@ function dietOk(recipeDiet: Diet, userDiet: Diet): boolean {
   return dietRank[userDiet].includes(recipeDiet);
 }
 
+/** Allergen/exclusion synonym expansion (QA M2): a single term matches the whole
+ *  family (e.g. "nuts" → almond/cashew/walnut…, "milk" → paneer/cheese/curd…). */
+const ALLERGEN_SYNONYMS: Record<string, string[]> = {
+  nut: ['almond', 'cashew', 'walnut', 'pistachio', 'hazelnut', 'pecan', 'nut'],
+  nuts: ['almond', 'cashew', 'walnut', 'pistachio', 'hazelnut', 'pecan', 'nut'],
+  treenut: ['almond', 'cashew', 'walnut', 'pistachio', 'hazelnut', 'pecan'],
+  peanut: ['peanut', 'groundnut'],
+  milk: ['milk', 'dairy', 'paneer', 'cheese', 'curd', 'yogurt', 'yoghurt', 'butter', 'ghee', 'cream', 'khoya', 'buttermilk'],
+  dairy: ['milk', 'dairy', 'paneer', 'cheese', 'curd', 'yogurt', 'yoghurt', 'butter', 'ghee', 'cream', 'khoya', 'buttermilk'],
+  lactose: ['milk', 'paneer', 'cheese', 'curd', 'yogurt', 'cream', 'khoya'],
+  gluten: ['wheat', 'maida', 'flour', 'bread', 'roti', 'phulka', 'paratha', 'pasta', 'noodle', 'semolina', 'rava', 'barley', 'seitan'],
+  wheat: ['wheat', 'maida', 'flour', 'bread', 'roti', 'phulka', 'paratha', 'semolina', 'rava'],
+  soy: ['soy', 'soya', 'tofu', 'edamame'],
+  soya: ['soy', 'soya', 'tofu', 'edamame'],
+  egg: ['egg'],
+  shellfish: ['prawn', 'shrimp', 'crab', 'lobster', 'shellfish'],
+  fish: ['fish', 'anchovy', 'sardine', 'tuna', 'salmon', 'mackerel'],
+  seafood: ['fish', 'prawn', 'shrimp', 'crab', 'lobster', 'anchovy', 'sardine', 'tuna', 'salmon', 'seafood'],
+  sesame: ['sesame', 'til', 'tahini'],
+};
+function expandExcluded(excluded: string[]): string[] {
+  const out = new Set<string>();
+  for (const e of excluded) {
+    const k = e.trim().toLowerCase();
+    if (!k) continue;
+    out.add(k);
+    for (const s of ALLERGEN_SYNONYMS[k] ?? []) out.add(s);
+  }
+  return [...out];
+}
+
+/** Canonical grocery key (QA M1): merges "Onion"/"Onions"/"chopped onion" etc. */
+function canonicalKey(name: string): string {
+  let n = name.trim().toLowerCase().replace(/\s*\(.*?\)\s*/g, ' ');
+  n = n.replace(/\b(chopped|sliced|diced|minced|grated|shredded|fresh|dried|raw|boiled|cooked|ground|powdered|large|small|medium|ripe|whole|halved|crushed|peeled)\b/g, ' ');
+  n = n.replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (n.endsWith('es') && n.length > 4) n = n.slice(0, -2);
+  else if (n.endsWith('s') && !n.endsWith('ss') && n.length > 3) n = n.slice(0, -1);
+  return n || name.trim().toLowerCase();
+}
+
 /** Simple seeded PRNG so week generation is deterministic (no Math.random). */
 function mulberry(seed: number) {
   return () => {
@@ -155,7 +196,7 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
   const allowedCuisines = mix ? Object.keys(mix).filter((k) => (mix[k] ?? 0) > 0).map(normCuisine) : null;
   const slotCats = SLOT_BY_CODE[slot].categories;
   const userDiet = prefs.diet ?? 'vegetarian';
-  const excluded = (prefs.excluded ?? []).map((e) => e.toLowerCase());
+  const excluded = expandExcluded(prefs.excluded ?? []);
 
   // Renal ceilings: only genuinely low-potassium/phosphorus food may enter a
   // renal plate, per role (the last lever to meet the strict K/P cap).
@@ -271,9 +312,9 @@ interface Sel { r: PoolRecipe; role: string }
 /** Per-role portion bounds (% of a standard serving). Removes the fixed-100%
  *  caloric floor so lower prescriptions can actually be met (fixes CRIT-2). */
 const ROLE_BOUNDS: Record<string, [number, number]> = {
-  main: [50, 150], dal: [45, 150], carb: [35, 180], vegetable: [55, 135], salad: [50, 130],
-  dairy: [50, 130], soup: [50, 140], snack: [40, 170], breakfast: [55, 165], drink: [45, 160],
-  dessert: [40, 120], side: [45, 150], condiment: [50, 120],
+  main: [40, 220], dal: [35, 220], carb: [30, 230], vegetable: [45, 165], salad: [40, 150],
+  dairy: [40, 170], soup: [40, 165], snack: [30, 220], breakfast: [45, 220], drink: [35, 190],
+  dessert: [30, 140], side: [35, 170], condiment: [45, 130],
 };
 
 /**
@@ -390,6 +431,16 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
     for (const role of ['breakfast', 'main', 'dal', 'snack', 'vegetable', 'carb', 'soup', 'drink', 'salad']) {
       const r = pick(role, relaxed);
       if (r) { take(r, r.role === 'dal' ? 'dal' : role); break; }
+    }
+  }
+
+  // Protein topping (QA H1): if the plate can't reach its protein target even at
+  // maximum portions, add one more protein-dense component before solving.
+  if (proteinTarget > 0 && sel.length && sel.length < 7 && !ctx.prefs.clinical) {
+    const maxProtein = sel.reduce((t, s) => t + s.r.protein * ((ROLE_BOUNDS[s.role]?.[1] ?? 150) / 100), 0);
+    if (maxProtein < proteinTarget * 0.95) {
+      const extra = pick('dal', ctx) ?? pick('dairy', ctx) ?? pick('snack', ctx) ?? pick('main', { ...ctx, banMain: undefined });
+      if (extra && !sel.some((s) => s.r.id === extra.id)) take(extra, extra.role === 'dal' ? 'dal' : extra.role);
     }
   }
 
@@ -586,7 +637,8 @@ export function composeGrocery(days: ComposedDay[], opts: { includePantry: boole
       for (const comp of meal.components) {
         for (const ing of comp.ingredients) {
           if (ing.pantry && !opts.includePantry) continue;   // pantry excluded by default
-          const key = ing.name.trim().toLowerCase();
+          if (ing.toTaste || ing.grams <= 0) continue;        // "to taste" items never bought
+          const key = canonicalKey(ing.name);                 // merge Onion/Onions/chopped onion (QA M1)
           const cur = merged.get(key);
           if (cur) {
             cur.grams += ing.grams;

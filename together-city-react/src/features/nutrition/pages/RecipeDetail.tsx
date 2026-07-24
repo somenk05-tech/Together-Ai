@@ -98,11 +98,11 @@ export function RecipeDetail() {
           ] as const).map(([label, value, unit]) => (
             <div key={label} style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12, padding: '12px 8px', textAlign: 'center' }}>
               <div style={{ fontFamily: 'var(--serif)', fontSize: 20, fontWeight: 600 }}>{value}<span style={{ fontSize: 11 }}> {unit}</span></div>
-              <div className="muted" style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
+              <div className="muted" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
             </div>
           ))}
         </div>
-        <p className="muted" style={{ fontSize: 11.5, margin: '0 0 18px' }}>Nutrition {perPlateLabel}{plates > 1 ? ` · ${r.gramsPerServing} g each` : ''}.</p>
+        <p className="muted" style={{ fontSize: 12, margin: '0 0 18px' }}>Nutrition {perPlateLabel}{plates > 1 ? ` · ${r.gramsPerServing} g each` : ''}.</p>
 
         {/* Why this is on your plate — written from the user's own blood results */}
         {r.whyForYou && (
@@ -123,7 +123,7 @@ export function RecipeDetail() {
               </div>
             )}
             {r.whyForYou.cites.length > 0 && (
-              <p className="muted" style={{ fontSize: 10.5, marginTop: 12, lineHeight: 1.5 }}>
+              <p className="muted" style={{ fontSize: 12, marginTop: 12, lineHeight: 1.5 }}>
                 Evidence: {r.whyForYou.cites.map((c) => c.label).join(' · ')}
               </p>
             )}

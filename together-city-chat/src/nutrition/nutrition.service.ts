@@ -12,7 +12,7 @@ import { ConnectionsService } from '../connections/connections.service';
 import {
   CITATIONS, MARKER_RULES, criticalAlerts, evaluateMarker, supplementKit,
   flagsFor, planGuidance, rankByModes, planningModes, ruleFor,
-  triggeredConditions, type MarkerStatus,
+  triggeredConditions, conditionsFromBlood, type MarkerStatus,
 } from './clinical-engine';
 import type { BloodInputDto, Diet, FoodPrefDto, PlanMode, Slot } from './dto/nutrition.dto';
 import { assemblePlate, perMealTargets, type PlateOpts, type DayMealInput } from './plate';
@@ -21,7 +21,7 @@ import { assignDietPlans, dietPlanBias, planLabel, DIET_PLAN_CATALOG } from './d
 import { addonLabel, addonMacros, complementByKey, fillGapWithComplements, type AddonPick } from './complements';
 import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
-import { activeMntRules, mntRecipeBias, type MntRule } from './clinical-mnt';
+import { activeMntRules, mntRecipeBias, mntAvoidKeywords, type MntRule } from './clinical-mnt';
 import { composeWeek, scaleComposedWeek, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
 import { computeNutrients, isSalt } from './ingredient-nutrients';
@@ -1488,21 +1488,49 @@ export class NutritionService implements OnModuleInit {
   async composedPlan(userId: string) {
     const ctx = await this.familyContext(userId).catch(() => null);
     if (ctx && ctx.role === 'member' && ctx.familyMealPlanning) {
-      const ownerPlan = await this.composeFor(ctx.ownerId);
       const mpref = await this.prisma.foodPref.findUnique({ where: { userId } });
       const mex = parseExtras((mpref as { extras?: string | null } | null)?.extras);
-      const mt = computeTargets({
-        weightKg: mpref?.weightKg ?? 70, heightCm: mpref?.heightCm ?? 172, age: mpref?.age ?? 30,
-        sex: mpref?.sex ?? 'male', activity: mpref?.activity ?? 1.4, goal: mpref?.goal ?? 'maintain',
-        conditions: mex.healthConditions ?? [], flags: flagsFor(await this.bloodValues(userId)),
-      });
-      const factor = Math.max(0.4, Math.min(1.9, mt.kcal / Math.max(1, ownerPlan.targets.kcal)));
-      const owner = await this.prisma.user.findUnique({ where: { id: ctx.ownerId }, select: { name: true } }).catch(() => null);
-      const scaled = scaleComposedWeek(ownerPlan, factor);
-      return {
-        ...scaled, prescription: mt, fastingSafety: ownerPlan.fastingSafety,
-        basedOnFamily: { ownerName: owner?.name ?? 'your family', factor: Math.round(factor * 100) / 100 }, readOnly: true,
-      };
+      const mFlags = flagsFor(await this.bloodValues(userId));
+      const mConds = mex.healthConditions ?? [];
+      const mDiet = ((mpref?.diet as string) ?? 'vegetarian').toLowerCase();
+      const mAllergies = [
+        ...(mex.excluded ? mex.excluded.split(',') : []),
+        ...(mex.allergies ? mex.allergies.split(',') : []),
+      ].map((s) => s.trim()).filter(Boolean);
+      const mClinical = mConds.length > 0 || mFlags.hba1c === 'high' || mFlags.ldl === 'high' || mFlags.trig === 'high';
+
+      // SAFETY (QA H6): a member may only be served the owner's scaled dishes when
+      // those dishes are actually safe for them — i.e. the member has no allergies,
+      // no clinical conditions, is not Jain, and their diet is at least as permissive
+      // as the owner's (so every owner dish fits the member's diet). Otherwise the
+      // member gets their OWN personalized, safety-filtered plan.
+      const ownerPref = await this.prisma.foodPref.findUnique({ where: { userId: ctx.ownerId } });
+      const ownerDiet = ((ownerPref?.diet as string) ?? 'vegetarian').toLowerCase();
+      const level: Record<string, number> = { vegan: 0, vegetarian: 1, eggetarian: 2, nonveg: 3 };
+      const dietCompatible = mDiet !== 'jain' && ownerDiet !== 'jain'
+        && (level[mDiet] ?? 1) >= (level[ownerDiet] ?? 1);
+      const shareable = dietCompatible && !mAllergies.length && !mClinical;
+
+      if (shareable) {
+        const ownerPlan = await this.composeFor(ctx.ownerId);
+        const mt = computeTargets({
+          weightKg: mpref?.weightKg ?? 70, heightCm: mpref?.heightCm ?? 172, age: mpref?.age ?? 30,
+          sex: mpref?.sex ?? 'male', activity: mpref?.activity ?? 1.4, goal: mpref?.goal ?? 'maintain',
+          conditions: mConds, flags: mFlags,
+        });
+        const factor = Math.max(0.4, Math.min(1.9, mt.kcal / Math.max(1, ownerPlan.targets.kcal)));
+        const owner = await this.prisma.user.findUnique({ where: { id: ctx.ownerId }, select: { name: true } }).catch(() => null);
+        const scaled = scaleComposedWeek(ownerPlan, factor);
+        return {
+          ...scaled, prescription: mt, fastingSafety: ownerPlan.fastingSafety,
+          basedOnFamily: { ownerName: owner?.name ?? 'your family', factor: Math.round(factor * 100) / 100 }, readOnly: true,
+        };
+      }
+      // Not shareable → the member's own diet/allergies/conditions are respected.
+      const own = await this.composeFor(userId);
+      const reason = mAllergies.length ? 'your allergies/exclusions'
+        : mClinical ? 'your medical needs' : 'your dietary preference';
+      return { ...own, personalizedForMember: true, personalizedReason: reason };
     }
     return this.composeFor(userId);
   }
@@ -1510,8 +1538,10 @@ export class NutritionService implements OnModuleInit {
   private async composeFor(userId: string) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-    const conditions = ex.healthConditions ?? [];
-    const flags = flagsFor(await this.bloodValues(userId));
+    const bvals = await this.bloodValues(userId);
+    // Declared conditions + conditions DERIVED from abnormal blood values (QA H5).
+    const conditions = [...new Set([...(ex.healthConditions ?? []), ...conditionsFromBlood(bvals)])];
+    const flags = flagsFor(bvals);
     const t = computeTargets({
       weightKg: pref?.weightKg ?? 70, heightCm: pref?.heightCm ?? 172, age: pref?.age ?? 30,
       sex: pref?.sex ?? 'male', activity: pref?.activity ?? 1.4, goal: pref?.goal ?? 'maintain',
@@ -1522,10 +1552,14 @@ export class NutritionService implements OnModuleInit {
     const isJain = rawDiet === 'jain';
     const composerDiet = (isJain ? 'vegetarian' : rawDiet) as ComposerDiet;
     const jainExcludes = isJain ? ['onion', 'garlic', 'potato', 'carrot', 'radish', 'beetroot', 'mushroom', 'ginger'] : [];
+    // MNT hard-avoid lists (QA M8): organ/processed meat for gout & CKD, alcohol
+    // for fatty liver, etc. — now actually applied to the composed plan.
+    const mntAvoids = mntAvoidKeywords(activeMntRules({ conditions, flags: flags as Record<string, string>, age: pref?.age ?? 30, sex: pref?.sex ?? 'male' }));
     const excluded = [
       ...(ex.excluded ? ex.excluded.split(',') : []),
       ...(ex.allergies ? ex.allergies.split(',') : []),
       ...jainExcludes,
+      ...mntAvoids,
     ].map((s) => s.trim()).filter(Boolean);
 
     // Default to an Indian-first per-slot cuisine when the user hasn't set one,
@@ -1564,12 +1598,17 @@ export class NutritionService implements OnModuleInit {
     return { ...week, prescription: t, fastingSafety: safety };
   }
 
-  /** DB diet values that satisfy a requested diet (ladder). */
+  /** DB diet values that satisfy a requested diet (ladder). Real DB values:
+   *  nonveg, vegan, veg, egg, pesc, jain, jainvegan. (QA H7 fix — every diet
+   *  now filters correctly; jain counts as vegetarian; pesc/nonveg handled.) */
   private dietDbValues(diet: string): string[] {
-    switch (diet) {
+    switch ((diet || '').toLowerCase()) {
       case 'vegan': return ['vegan', 'jainvegan'];
-      case 'vegetarian': return ['vegan', 'jainvegan', 'veg', 'vegetarian'];
-      case 'eggetarian': return ['vegan', 'jainvegan', 'veg', 'vegetarian', 'egg', 'eggetarian'];
+      case 'jain': return ['jain', 'jainvegan'];
+      case 'vegetarian': case 'veg': return ['vegan', 'jainvegan', 'veg', 'jain'];
+      case 'eggetarian': case 'egg': return ['vegan', 'jainvegan', 'veg', 'jain', 'egg'];
+      case 'pescatarian': case 'pesc': return ['vegan', 'jainvegan', 'veg', 'jain', 'egg', 'pesc'];
+      case 'nonveg': case 'non-veg': case 'nonvegetarian': return ['vegan', 'jainvegan', 'veg', 'jain', 'egg', 'pesc', 'nonveg'];
       default: return [];
     }
   }
@@ -5265,7 +5304,7 @@ export class NutritionService implements OnModuleInit {
   async supplements(userId: string) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-    const conditions = ex.healthConditions ?? [];
+    const conditions = [...new Set([...(ex.healthConditions ?? []), ...conditionsFromBlood(await this.bloodValues(userId))])];
     const panel = await this.bloodPanel(userId);
     const flags: Record<string, MarkerStatus> = {};
     for (const m of panel.markers) flags[m.key] = m.status as MarkerStatus;

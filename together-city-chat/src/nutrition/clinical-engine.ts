@@ -117,7 +117,93 @@ export const MARKER_RULES: MarkerRule[] = [
     foods: ['oily fish', 'colourful vegetables & fruit', 'olive oil', 'whole grains', 'less ultra-processed food'],
     citations: ['ESPEN-MN', 'KRAUSE'],
   },
+  {
+    key: 'creatinine', label: 'Creatinine (kidney)', unit: 'mg/dL', min: 0.6, max: 1.3, acutePhase: 'neutral',
+    lowAdvice: 'Below range — usually low muscle mass; ensure adequate protein.',
+    highAdvice: 'Raised creatinine suggests reduced kidney function — your plan moderates protein, sodium, potassium and phosphorus. Confirm staging (eGFR) with your doctor.',
+    foods: ['controlled-protein meals', 'lower-potassium vegetables', 'less processed/salty food'],
+    citations: ['KRAUSE'],
+  },
+  {
+    key: 'egfr', label: 'eGFR (kidney filtration)', unit: 'mL/min/1.73m²', min: 60, max: 200, acutePhase: 'neutral',
+    lowAdvice: 'Reduced filtration. 30–59 = CKD stage 3, 15–29 = stage 4, <15 = stage 5 — the plan applies renal protein/potassium/phosphorus limits accordingly. Confirm with your nephrologist.',
+    highAdvice: 'Normal filtration.',
+    foods: ['renal-appropriate, lower-potassium meals', 'controlled protein', 'low sodium'],
+    citations: ['KRAUSE'],
+  },
+  {
+    key: 'alt', label: 'ALT (liver)', unit: 'U/L', min: 0, max: 40, acutePhase: 'neutral',
+    lowAdvice: 'Within range.',
+    highAdvice: 'Raised ALT points to liver stress (often fatty liver). The plan cuts added sugar and saturated fat, keeps lean protein and avoids alcohol. Confirm the cause with your doctor.',
+    foods: ['vegetables & whole grains', 'lean protein', 'less added sugar & fried food', 'no alcohol'],
+    citations: ['ESPEN-LIV', 'KRAUSE'],
+  },
+  {
+    key: 'ast', label: 'AST (liver)', unit: 'U/L', min: 0, max: 40, acutePhase: 'neutral',
+    lowAdvice: 'Within range.',
+    highAdvice: 'Raised AST can reflect liver (or muscle) stress; paired with ALT/GGT it supports a fatty-liver pattern — reduce added sugar, saturated fat and alcohol.',
+    foods: ['vegetables & whole grains', 'lean protein', 'no alcohol'],
+    citations: ['ESPEN-LIV', 'KRAUSE'],
+  },
+  {
+    key: 'ggt', label: 'GGT (liver)', unit: 'U/L', min: 0, max: 55, acutePhase: 'neutral',
+    lowAdvice: 'Within range.',
+    highAdvice: 'Raised GGT is linked to fatty liver and alcohol. Prioritise an anti-inflammatory pattern and avoid alcohol.',
+    foods: ['vegetables', 'whole grains', 'olive oil', 'no alcohol'],
+    citations: ['ESPEN-LIV', 'KRAUSE'],
+  },
+  {
+    key: 'hdl', label: 'HDL ("good") cholesterol', unit: 'mg/dL', min: 40, max: 100, acutePhase: 'neutral',
+    lowAdvice: 'Low HDL raises cardiovascular risk. Favour unsaturated fats (olive oil, nuts, oily fish), stay active and limit refined carbs.',
+    highAdvice: 'Healthy HDL — keep it up.',
+    foods: ['olive oil & nuts', 'oily fish', 'activity', 'fewer refined carbs'],
+    citations: ['KRAUSE'],
+  },
+  {
+    key: 'uricAcid', label: 'Uric acid', unit: 'mg/dL', min: 2, max: 7, acutePhase: 'neutral',
+    lowAdvice: 'Within range.',
+    highAdvice: 'Raised uric acid (gout risk). The plan limits organ meats, red meat and high-purine seafood, cuts added sugar/alcohol, and keeps you hydrated.',
+    foods: ['low-purine plants', 'cherries', 'low-fat dairy', 'plenty of water', 'less red meat/alcohol'],
+    citations: ['KRAUSE'],
+  },
+  {
+    key: 'tsh', label: 'TSH (thyroid)', unit: 'mIU/L', min: 0.4, max: 4.5, acutePhase: 'neutral',
+    lowAdvice: 'Low TSH can indicate an overactive thyroid — review with your doctor.',
+    highAdvice: 'High TSH can indicate an underactive thyroid (hypothyroid). Adequate iodine, selenium and zinc help; confirm treatment with your doctor.',
+    foods: ['iodised salt (as advised)', 'dairy & eggs', 'brazil nuts (selenium)', 'seafood'],
+    citations: ['KRAUSE'],
+  },
+  {
+    key: 'albumin', label: 'Albumin (protein status)', unit: 'g/dL', min: 3.5, max: 5.5, acutePhase: 'negative',
+    lowAdvice: 'Low albumin can reflect low protein status or inflammation — the plan supports adequate protein and energy (within any renal limit). Confirm the cause with your doctor.',
+    highAdvice: 'Within range (very high usually reflects dehydration).',
+    foods: ['adequate protein (eggs, dairy, legumes, lean meat)', 'enough energy'],
+    citations: ['ESPEN-GER', 'KRAUSE'],
+  },
 ];
+
+/**
+ * Derive clinical CONDITIONS from abnormal blood values so every marker actually
+ * influences targets/meal selection (QA H5 fix). Declared conditions still win;
+ * these are merged in. Kidney staging from eGFR (then creatinine as a proxy),
+ * liver from enzymes, gout from uric acid, glycemia/lipids from HbA1c/lipids.
+ */
+export function conditionsFromBlood(v: Record<string, number>): string[] {
+  const c: string[] = [];
+  if (typeof v.egfr === 'number') {
+    if (v.egfr < 15) c.push('kidney disease stage 5');
+    else if (v.egfr < 30) c.push('kidney disease stage 4');
+    else if (v.egfr < 60) c.push('kidney disease stage 3');
+  } else if (typeof v.creatinine === 'number' && v.creatinine > 1.3) {
+    c.push('kidney disease stage 3'); // elevated creatinine without eGFR → conservative renal handling
+  }
+  if ((v.alt ?? 0) > 40 || (v.ast ?? 0) > 40 || (v.ggt ?? 0) > 55) c.push('fatty liver');
+  if ((v.uricAcid ?? 0) > 7) c.push('gout');
+  if ((v.hba1c ?? 0) >= 6.5) c.push('diabetes');
+  if ((v.ldl ?? 0) >= 160 || (v.trig ?? 0) >= 200 || (typeof v.hdl === 'number' && v.hdl < 40)) c.push('high cholesterol');
+  if ((v.tsh ?? 0) > 4.5) c.push('hypothyroid');
+  return [...new Set(c)];
+}
 
 export function ruleFor(key: string): MarkerRule | undefined {
   return MARKER_RULES.find((r) => r.key === key);
@@ -154,6 +240,16 @@ export const CRITICAL_RULES: CriticalRule[] = [
     message: 'Clearly low B12 can cause nerve damage if untreated — please see a doctor; diet alone may not correct it.' },
   { key: 'ferritin', aboveValue: 1000, urgent: false,
     message: 'Very high ferritin needs medical evaluation (iron overload or significant inflammation) — do not take iron.' },
+  { key: 'egfr', belowValue: 15, urgent: true,
+    message: 'An eGFR this low indicates advanced kidney failure — please see a nephrologist promptly; diet is supportive, not a substitute for medical care.' },
+  { key: 'creatinine', aboveValue: 4, urgent: true,
+    message: 'A creatinine this high needs urgent kidney evaluation — please seek medical care.' },
+  { key: 'alt', aboveValue: 200, urgent: false,
+    message: 'Markedly raised liver enzymes should be evaluated by a doctor alongside dietary change.' },
+  { key: 'uricAcid', aboveValue: 10, urgent: false,
+    message: 'Very high uric acid raises gout/stone risk — please review with your doctor.' },
+  { key: 'folate', belowValue: 2, urgent: false,
+    message: 'Severely low folate should be reviewed with your doctor (and checked alongside B12).' },
   { key: 'crp', aboveValue: 100, urgent: true,
     message: 'A very high CRP signals significant inflammation or infection — please seek medical care.' },
 ];
