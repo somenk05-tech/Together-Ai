@@ -1538,6 +1538,80 @@ export class NutritionService implements OnModuleInit {
     return { ...week, prescription: t, fastingSafety: safety };
   }
 
+  /** DB diet values that satisfy a requested diet (ladder). */
+  private dietDbValues(diet: string): string[] {
+    switch (diet) {
+      case 'vegan': return ['vegan', 'jainvegan'];
+      case 'vegetarian': return ['vegan', 'jainvegan', 'veg', 'vegetarian'];
+      case 'eggetarian': return ['vegan', 'jainvegan', 'veg', 'vegetarian', 'egg', 'eggetarian'];
+      default: return [];
+    }
+  }
+
+  /** Build a library recipe card from a dataset row (per-serving macros + badges). */
+  private recipeCard(r: {
+    id: string; recipeNo?: number | null; name: string; country: string; kcal: number; protein: number; carbs: number; fat: number; fiber: number;
+    minutes: number; gramsPerServing: number; diet: string; servings?: number; healthPercent?: number | null; healthGrade?: string | null;
+    image?: string | null; imageUrl?: string | null; ingredients?: Array<{ name: string; grams?: number | null }>;
+  }) {
+    const s = Math.max(1, r.servings ?? 1);
+    const per = (n: number) => Math.max(0, Math.round((n || 0) / s));
+    const kcal = per(r.kcal);
+    const ings = (r.ingredients ?? []).map((i) => ({ name: i.name, grams: Math.max(1, Math.round((i.grams ?? 0) / s)) }));
+    const n = computeNutrients(ings);
+    const diet = r.diet === 'jainvegan' ? 'vegan' : r.diet;
+    const difficulty = r.minutes <= 15 ? 'Easy' : r.minutes <= 40 ? 'Medium' : 'Hard';
+    return {
+      id: r.id, name: r.name, cuisine: r.country, kcal, protein: per(r.protein), carbs: per(r.carbs), fat: per(r.fat), fiber: per(r.fiber),
+      minutes: r.minutes, servings: 1, difficulty, diet, healthScore: r.healthPercent ?? null, healthGrade: r.healthGrade ?? null,
+      imageUrl: r.imageUrl ?? r.image ?? null,
+      badges: {
+        diabetes: n.complete && n.addedSug <= 6,
+        kidney: n.complete && n.k <= 250 && n.p <= 220,
+        heart: n.complete && n.sfat <= 5,
+        vegan: diet === 'vegan', vegetarian: diet === 'vegan' || diet === 'veg' || diet === 'vegetarian',
+      },
+    };
+  }
+
+  /** Cuisine facet for the library grid (top countries by recipe count). */
+  private async cuisineFacet() {
+    const rows = await (this.prisma as unknown as { recipe: { groupBy: (a: unknown) => Promise<Array<{ country: string; _count: { _all: number } }>> } }).recipe
+      .groupBy({ by: ['country'], _count: { _all: true }, orderBy: { _count: { country: 'desc' } }, take: 24 })
+      .catch(() => [] as Array<{ country: string; _count: { _all: number } }>);
+    return rows.filter((r) => r.country).map((r) => ({ name: r.country, count: r._count._all }));
+  }
+
+  /**
+   * Recipe Library — the complete, searchable recipe database for browsing
+   * (Netflix-style): pick a cuisine → every recipe in it, filterable and paged.
+   */
+  async recipeLibrary(q: { search?: string; cuisine?: string; mealType?: string; diet?: string; sort?: string; page?: number; pageSize?: number }) {
+    const page = Math.max(1, q.page ?? 1);
+    const pageSize = Math.min(60, Math.max(12, q.pageSize ?? 24));
+    const where: Record<string, unknown> = {};
+    if (q.cuisine) where.country = q.cuisine;
+    if (q.search) where.name = { contains: q.search, mode: 'insensitive' };
+    if (q.mealType) {
+      const slot = ({ breakfast: 'b', lunch: 'l', dinner: 'd', snack: 's' } as Record<string, string>)[q.mealType];
+      if (slot) where.slot = slot;
+    }
+    if (q.diet) { const dv = this.dietDbValues(q.diet); if (dv.length) where.diet = { in: dv }; }
+    const orderBy = (q.sort === 'rated' || q.sort === 'health' || q.sort === 'trending')
+      ? [{ healthPercent: 'desc' as const }]
+      : q.sort === 'name' ? [{ name: 'asc' as const }] : [{ recipeNo: 'desc' as const }];
+
+    const [rows, total] = await Promise.all([
+      this.prisma.recipe.findMany({ where, orderBy, skip: (page - 1) * pageSize, take: pageSize, include: { ingredients: { select: { name: true, grams: true } } } } as never) as unknown as Promise<Parameters<NutritionService['recipeCard']>[0][]>,
+      this.prisma.recipe.count({ where } as never),
+    ]);
+    return {
+      items: rows.map((r) => this.recipeCard(r)),
+      total, page, pageSize, pages: Math.ceil(total / pageSize),
+      cuisines: page === 1 ? await this.cuisineFacet() : [],
+    };
+  }
+
   /** Read the meal-planning settings (cuisine per slot, fasting, pantry). */
   async mealSettings(userId: string) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });

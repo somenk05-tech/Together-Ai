@@ -81,6 +81,15 @@ export class NutritionController {
     return this.nutrition.mealSettings(user.sub);
   }
 
+  // Recipe Library — searchable/paginated recipe database (Netflix-style).
+  @Get('recipes/library')
+  recipeLibrary(@Query() q: Record<string, string>) {
+    return this.nutrition.recipeLibrary({
+      search: q.search, cuisine: q.cuisine, mealType: q.mealType, diet: q.diet, sort: q.sort,
+      page: q.page ? parseInt(q.page, 10) : 1, pageSize: q.pageSize ? parseInt(q.pageSize, 10) : 24,
+    });
+  }
+
   @Patch('meal-settings')
   @UsePipes(new ZodValidationPipe(z.object({
     cuisineBySlot: z.record(z.string(), z.record(z.string(), z.number())).optional(),
