@@ -1665,22 +1665,19 @@ export class NutritionService implements OnModuleInit {
         ? { breakfast: profileMix, lunch: profileMix, dinner: profileMix, snack: profileMix }
         : { breakfast: { Indian: 100 }, lunch: { Indian: 90, Continental: 10 }, dinner: { Indian: 90, Chinese: 10 }, snack: {} };
 
-    // Planner philosophy — "inform, don't force". Generate a PREFERENCE-FIRST plan,
-    // then score it against the clinical ideal (see compliance below). Only the
-    // genuinely dangerous limits (renal potassium/phosphorus — hyperkalemia risk)
-    // are HARD-enforced/blocked; everything else (sodium, sugar, sat-fat, carbs,
-    // calorie/protein) is ADVISORY and reported, not overridden. Allergens and
-    // diet remain absolute (already in `excluded`/`diet`).
+    // Planner philosophy — "inform, don't force". My Preferences hard-enforces
+    // NOTHING clinical (not even renal limits): it is purely the user's choices,
+    // and the compliance banner simply WARNS and points to Optimal Health. Optimal
+    // Health is where clinical caps are actually enforced. Allergens and diet stay
+    // absolute in both modes (they live in `excluded`/`diet`).
     const condText = conditions.join(' ').toLowerCase();
     const isClinical = /kidney|renal|ckd|dialysis|diabet|hba1c|hypertension|blood pressure|cholesterol|lipid|triglycer|fatty liver|gout/.test(condText)
       || flags.hba1c === 'high' || flags.ldl === 'high' || flags.trig === 'high';
-    const seriousRenal = /kidney|renal|ckd|dialysis/.test(condText);
     const capsRaw = t as unknown as { sodiumMaxMg?: number; potassiumMaxMg?: number; phosphorusMaxMg?: number; sugarMaxG?: number; satFatMaxG?: number };
     const fullCaps = {
       sodiumMg: capsRaw.sodiumMaxMg, potassiumMg: capsRaw.potassiumMaxMg, phosphorusMg: capsRaw.phosphorusMaxMg,
       sugarG: capsRaw.sugarMaxG, satFatG: capsRaw.satFatMaxG,
     };
-    const hardCaps = seriousRenal ? { potassiumMg: capsRaw.potassiumMaxMg, phosphorusMg: capsRaw.phosphorusMaxMg } : undefined;
 
     const favourites = [...(ex.proteins ?? []), ...(ex.meats ?? [])].filter(Boolean);
     // Two modes:
@@ -1701,8 +1698,8 @@ export class NutritionService implements OnModuleInit {
       includePantry: ex.includePantry ?? false,
       clinicalTag: this.clinicalTag(conditions),
       avoidRice: optimal ? isClinical && /diabet|hba1c/.test(condText) : /diabet|hba1c/.test(condText),
-      caps: optimal ? fullCaps : hardCaps,          // optimal: enforce every clinical cap
-      clinical: optimal ? isClinical : seriousRenal,
+      caps: optimal ? fullCaps : undefined,          // My Preferences enforces nothing clinical
+      clinical: optimal ? isClinical : false,
       maxMinutes: optimal ? undefined : (ex.maxCookMin ?? undefined),
       favourites: optimal ? undefined : (favourites.length ? favourites : undefined),
       skips: ex.composedSkips,
