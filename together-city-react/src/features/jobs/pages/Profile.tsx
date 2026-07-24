@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useJobProfile, useUploadResume, SAMPLE_RESUME } from '../api';
 
+const MAX_CV_MB = 5;
+const MAX_CV_BYTES = MAX_CV_MB * 1024 * 1024;
+
 /** Resume & Profile — a simple "upload your CV" page: drop a file (or paste) and
  *  we parse it into skills, seniority and experience, then match you to roles. */
 export function Profile() {
@@ -13,6 +16,7 @@ export function Profile() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [text, setText] = useState('');
   const [readError, setReadError] = useState<string | null>(null);
+  const [reading, setReading] = useState(false);
   const [editing, setEditing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -20,28 +24,42 @@ export function Profile() {
     if (resumeText.trim()) upload.mutate({ resumeText, fileName: name }, { onSuccess: () => setEditing(false) });
   };
 
-  const handleFile = (f: File) => {
+  const handleFile = async (f: File) => {
     setReadError(null);
+    if (f.size > MAX_CV_BYTES) {
+      setReadError(`That file is ${(f.size / 1024 / 1024).toFixed(1)} MB — please upload a CV under ${MAX_CV_MB} MB.`);
+      return;
+    }
     setFileName(f.name);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const raw = String(reader.result || '');
-      // A parseable CV is text. Binary PDFs/Word docs read as mojibake — detect
-      // that and ask for a text/paste version rather than parsing garbage.
-      const printable = raw.replace(/[^\x20-\x7E\s]/g, '').length;
-      if (!raw.trim() || printable / Math.max(1, raw.length) < 0.7) {
-        setReadError("We couldn't read that file as text. Export your CV as .txt (or paste the text below) and we'll parse it.");
+    setReading(true);
+    try {
+      // Real CVs are PDFs or Word docs — extract their text in the browser
+      // (pdf.js / mammoth) before parsing, instead of reading the raw bytes.
+      // Loaded on demand so the heavy parsers don't weigh down the page.
+      const { extractCvText } = await import('../cv-extract');
+      const { text, kind } = await extractCvText(f);
+      const printable = text.replace(/[^\x20-\x7E\s]/g, '').length;
+      const looksLikeText = text.trim().length >= 30 && printable / Math.max(1, text.length) >= 0.7;
+      if (!looksLikeText) {
+        setReadError(
+          kind === 'text'
+            ? "We couldn't read that file as text. Try a PDF, Word (.docx) or .txt file — or paste the text below."
+            : "We couldn't pull enough text from that file (a scanned or image-only CV has no selectable text). Paste your CV text below and we'll parse it.",
+        );
         setPasteOpen(true);
         return;
       }
-      parse(raw, f.name);
-    };
-    reader.onerror = () => setReadError('Could not read that file — try another, or paste the text.');
-    reader.readAsText(f);
+      parse(text, f.name);
+    } catch {
+      setReadError('Could not read that file — try a PDF, Word (.docx) or .txt file, or paste the text below.');
+      setPasteOpen(true);
+    } finally {
+      setReading(false);
+    }
   };
 
-  const onFile = (e: ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) handleFile(f); };
-  const onDrop = (e: DragEvent) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); };
+  const onFile = (e: ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) void handleFile(f); };
+  const onDrop = (e: DragEvent) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files?.[0]; if (f) void handleFile(f); };
 
   if (profile.isLoading) return <Spinner label="Opening your profile…" />;
   if (profile.isError || !profile.data) return <EmptyState title="Couldn't load your profile" hint="Start the backend and reload." />;
@@ -77,14 +95,14 @@ export function Profile() {
           transition: 'all .15s', marginBottom: 12,
         }}
       >
-        <div style={{ fontSize: 40, lineHeight: 1 }}>{upload.isPending ? '⏳' : '📄'}</div>
+        <div style={{ fontSize: 40, lineHeight: 1 }}>{(reading || upload.isPending) ? '⏳' : '📄'}</div>
         <div style={{ fontWeight: 700, fontSize: 16, marginTop: 10 }}>
-          {upload.isPending ? 'Parsing your CV…' : fileName ? fileName : 'Drag & drop your CV here'}
+          {reading ? 'Reading your CV…' : upload.isPending ? 'Parsing your CV…' : fileName ? fileName : 'Drag & drop your CV here'}
         </div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>
-          {upload.isPending ? 'One moment' : 'or click to choose a file · .txt or .pdf/.docx exported as text'}
+          {(reading || upload.isPending) ? 'One moment' : `or click to choose a file · PDF, Word (.docx) or .txt · max ${MAX_CV_MB} MB`}
         </div>
-        {!upload.isPending && (
+        {!(reading || upload.isPending) && (
           <span className="btn btn-accent" style={{ display: 'inline-block', marginTop: 16 }}>Choose file</span>
         )}
         <input ref={fileRef} type="file" accept=".txt,.md,.text,.pdf,.doc,.docx,.rtf" onChange={onFile} style={{ display: 'none' }} />
