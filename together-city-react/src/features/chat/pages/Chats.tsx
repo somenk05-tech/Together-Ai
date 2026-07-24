@@ -128,8 +128,8 @@ export function Chats() {
   const onOpened = (id: string) => { setActiveId(id); void conversations.refetch(); };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', height: 'calc(100vh - var(--header-h))' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--line)', minHeight: 0 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', height: 'calc(100vh - var(--header-h) - var(--safe-top))', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--line)', minHeight: 0, overflowY: 'auto' }}>
         <ChatStarter onOpened={onOpened} />
         {list.length === 0
           ? <p className="muted" style={{ fontSize: 13, padding: '16px 16px' }}>
@@ -137,7 +137,7 @@ export function Chats() {
             </p>
           : <ConversationList items={list} activeId={activeId} onSelect={setActiveId} />}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
         {activeId ? (
           <>
             {history.isLoading
