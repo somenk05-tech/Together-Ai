@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useRecipe, useRecipes, useBuildCart } from '../hooks';
 import { stepTimerSeconds } from '../components/CookMode';
@@ -32,6 +32,8 @@ export function RecipeDetail() {
   const startCooking = useCookStore((s) => s.start);
   const buildCart = useBuildCart();
   const navigate = useNavigate();
+  const location = useLocation();
+  const cameFrom = (location.state as { from?: string } | null)?.from;
   const [plates, setPlates] = useState(1);
 
   if (recipe.isLoading) return <Spinner label="Plating up…" />;
@@ -55,7 +57,14 @@ export function RecipeDetail() {
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
-      <Link to="/nutrition/recipes" className="muted" style={{ fontSize: 13 }}>← All recipes</Link>
+      {cameFrom ? (
+        <button type="button" onClick={() => navigate(-1)} className="muted"
+          style={{ fontSize: 13, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', color: 'inherit' }}>
+          ← Back
+        </button>
+      ) : (
+        <Link to="/nutrition/recipes" className="muted" style={{ fontSize: 13 }}>← All recipes</Link>
+      )}
 
       {heroSrc && (
         <div style={{ marginTop: 14, aspectRatio: '16 / 9', overflow: 'hidden', borderRadius: 16, background: `linear-gradient(140deg, ${meta.color}18, ${meta.color}38)` }}>

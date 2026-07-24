@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Card, Spinner, EmptyState, Button, Chip, Modal } from '@/components/ui';
 import {
   useComposedPlan, useMealSettings, useSaveMealSettings,
@@ -243,6 +243,14 @@ function RecipePhotoTile({ c, onClick }: { c: MealComponent; onClick: () => void
 function MealCardV2({ meal, dayIndex }: { meal: ComposedMeal; dayIndex: number }) {
   const [open, setOpen] = useState<MealComponent | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  // Open the FULL recipe page, remembering where we came from so Back returns
+  // to the exact planner state (day preserved in the URL, scroll on POP).
+  const openRecipe = (c: MealComponent) => {
+    if (!c.recipeId) { setOpen(c); return; }
+    navigate(`/nutrition/recipes/${c.recipeId}`, { state: { from: location.pathname + location.search } });
+  };
   const refresh = useRefreshMeal();
   const skip = useSkipMeal();
   const busy = refresh.isPending || skip.isPending;
@@ -261,14 +269,14 @@ function MealCardV2({ meal, dayIndex }: { meal: ComposedMeal; dayIndex: number }
       {/* Photo card: every recipe in the meal as a 16:9 image tile (real photo or gradient). */}
       <div role="list" aria-label={`${meal.title} recipes`}
         style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '12px -2px 2px', padding: '2px', scrollbarWidth: 'thin', opacity: busy ? 0.55 : 1 }}>
-        {meal.components.map((c) => <RecipePhotoTile key={`ph-${c.recipeId}-${c.role}`} c={c} onClick={() => setOpen(c)} />)}
+        {meal.components.map((c) => <RecipePhotoTile key={`ph-${c.recipeId}-${c.role}`} c={c} onClick={() => openRecipe(c)} />)}
       </div>
 
       <div style={{ margin: '10px 0' }}>{macroRow(meal.totals)}</div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {meal.components.map((c) => (
-          <button key={c.recipeId + c.role} type="button" onClick={() => setOpen(c)}
+          <button key={c.recipeId + c.role} type="button" onClick={() => openRecipe(c)}
             style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', border: '1px solid var(--line)',
               borderRadius: 10, padding: '8px 11px', background: 'var(--card)', cursor: 'pointer', fontFamily: 'inherit' }}>
             <span style={{ flex: 1, minWidth: 0 }}>
@@ -429,7 +437,10 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
 export function MealPlan() {
   const plan = useComposedPlan();
   const settingsSave = useSaveMealSettings();
-  const [day, setDay] = useState(0);
+  // Selected day lives in the URL (?day=N) so returning from a recipe restores it.
+  const [sp, setSp] = useSearchParams();
+  const day = Math.max(0, Math.min(6, Number(sp.get('day')) || 0));
+  const setDay = (i: number) => setSp((p) => { p.set('day', String(i)); return p; }, { replace: true });
   const [showSettings, setShowSettings] = useState(false);
   const [tab, setTab] = useState<'plan' | 'grocery'>('plan');
   const restore = useRestoreSkips();
