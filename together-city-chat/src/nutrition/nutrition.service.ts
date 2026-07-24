@@ -4674,32 +4674,36 @@ export class NutritionService implements OnModuleInit {
    *  anything already present. Display-only: nutrition stays from the seed. */
   private curatedSeasonings(role: string, names: string[]): Array<{ name: string; grams: number; priceInr: number; toTaste?: boolean }> {
     const have = (k: string) => names.some((n) => n.includes(k));
-    const add: Array<[string, string[]]> = [];
-    const push = (label: string, keys: string[]) => { if (!keys.some((k) => have(k))) add.push([label, keys]); };
+    // [display label, dedupe keys, grams] — realistic per-serving amounts. Only
+    // salt stays "to taste" (grams 0); every other spice carries a measurement.
+    const add: Array<[string, string[], number]> = [];
+    const push = (label: string, keys: string[], grams: number) => { if (!keys.some((k) => have(k))) add.push([label, keys, grams]); };
     switch (role) {
       case 'dal':
-        push('Turmeric', ['turmeric']); push('Cumin seeds', ['cumin']); push('Red chilli powder', ['chilli', 'chili']);
-        push('Ginger-garlic', ['ginger', 'garlic']); push('Fresh coriander', ['coriander']); push('Salt', ['salt']); break;
+        push('Turmeric', ['turmeric'], 1); push('Cumin seeds', ['cumin'], 2); push('Red chilli powder', ['chilli', 'chili'], 1);
+        push('Ginger-garlic', ['ginger', 'garlic'], 6); push('Fresh coriander', ['coriander'], 5); push('Salt', ['salt'], 0); break;
       case 'main':
-        push('Turmeric', ['turmeric']); push('Red chilli powder', ['chilli', 'chili']); push('Coriander powder', ['coriander']);
-        push('Garam masala', ['garam']); push('Ginger-garlic', ['ginger', 'garlic']); push('Fresh coriander', ['coriander']); push('Salt', ['salt']); break;
+        push('Turmeric', ['turmeric'], 1); push('Red chilli powder', ['chilli', 'chili'], 2); push('Coriander powder', ['coriander'], 2);
+        push('Garam masala', ['garam'], 1); push('Ginger-garlic', ['ginger', 'garlic'], 8); push('Fresh coriander', ['coriander'], 5); push('Salt', ['salt'], 0); break;
       case 'vegetable':
-        push('Mustard seeds', ['mustard']); push('Cumin seeds', ['cumin']); push('Turmeric', ['turmeric']);
-        push('Curry leaves', ['curry leaf', 'curry leaves']); push('Fresh coriander', ['coriander']); push('Salt', ['salt']); break;
+        push('Mustard seeds', ['mustard'], 1); push('Cumin seeds', ['cumin'], 2); push('Turmeric', ['turmeric'], 1);
+        push('Curry leaves', ['curry leaf', 'curry leaves'], 1); push('Fresh coriander', ['coriander'], 4); push('Salt', ['salt'], 0); break;
       case 'carb':
-        push('Salt', ['salt']); if (have('flour')) push('Ghee', ['ghee']); break;
+        if (have('flour')) push('Ghee', ['ghee'], 5); push('Salt', ['salt'], 0); break;
       case 'salad':
-        push('Lemon juice', ['lemon', 'lime']); push('Roasted cumin', ['cumin']); push('Black pepper', ['pepper']); push('Salt', ['salt']); break;
+        push('Lemon juice', ['lemon', 'lime'], 5); push('Roasted cumin', ['cumin'], 1); push('Black pepper', ['pepper'], 1); push('Salt', ['salt'], 0); break;
       case 'dairy':
-        push('Roasted cumin', ['cumin']); push('Salt', ['salt']); break;
+        push('Roasted cumin', ['cumin'], 1); push('Salt', ['salt'], 0); break;
       case 'soup':
-        push('Black pepper', ['pepper']); push('Salt', ['salt']); break;
+        push('Black pepper', ['pepper'], 1); push('Salt', ['salt'], 0); break;
       case 'breakfast':
-        push('Salt', ['salt']); break;
+        push('Salt', ['salt'], 0); break;
       default:
-        push('Salt', ['salt']); break;
+        push('Salt', ['salt'], 0); break;
     }
-    return add.map(([label]) => ({ name: label, grams: 0, priceInr: 0, toTaste: true }));
+    return add.map(([label, , grams]) => grams > 0
+      ? { name: label, grams, priceInr: 0 }
+      : { name: label, grams: 0, priceInr: 0, toTaste: true });
   }
 
   private curatedRecipe(seed: PoolRecipe) {

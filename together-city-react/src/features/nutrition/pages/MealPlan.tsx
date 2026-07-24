@@ -4,7 +4,7 @@ import { Card, Spinner, EmptyState, Button, Chip, Modal } from '@/components/ui'
 import {
   useComposedPlan, useMealSettings, useSaveMealSettings,
   useRefreshMeal, useSkipMeal, useRestoreSkips,
-  type ComposedMeal, type MealComponent, type CuisineBucket, type ComplianceReport, type ComposedDay, type Scorecard,
+  type ComposedMeal, type MealComponent, type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard,
 } from '../composed.api';
 
 /** Master-source-of-truth gate: no plan until the Food Preference Profile is saved. */
@@ -19,35 +19,6 @@ function ProfileGate() {
       </p>
       <Link to="/nutrition/preferences"><Button>Complete Food Preference Profile</Button></Link>
     </div>
-  );
-}
-
-/** Health Score + concerns + optional swaps ("inform, don't force"). */
-function HealthScoreCard({ c }: { c: ComplianceReport }) {
-  const color = c.score >= 80 ? '#2e7d32' : c.score >= 60 ? '#8a6a1f' : '#c0392b';
-  return (
-    <Card style={{ padding: '14px 16px', marginBottom: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'grid', placeItems: 'center', width: 54, height: 54, borderRadius: '50%', border: `4px solid ${color}`, flex: '0 0 auto' }}>
-          <strong style={{ fontSize: 16, color }}>{c.score}</strong>
-        </div>
-        <div style={{ flex: 1, minWidth: 210 }}>
-          <strong style={{ fontSize: 13.5 }}>Health Score · {c.score}/100</strong>
-          <div className="muted" style={{ fontSize: 12.5, marginTop: 2, lineHeight: 1.45 }}>{c.summary}</div>
-        </div>
-      </div>
-      {c.concerns.length > 0 && (
-        <ul style={{ margin: '10px 0 0 16px', fontSize: 12.5, lineHeight: 1.5 }}>
-          {c.concerns.slice(0, 4).map((x) => <li key={x.key} style={{ color: x.severity === 'warn' ? '#c0392b' : 'inherit' }}>{x.message}</li>)}
-        </ul>
-      )}
-      {c.swaps.length > 0 && (
-        <div style={{ marginTop: 8, fontSize: 12.5, lineHeight: 1.5 }}>
-          <span className="muted" style={{ fontWeight: 700 }}>Optional swaps: </span>{c.swaps.slice(0, 3).join(' ')}
-        </div>
-      )}
-      <div className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>Your preferences come first — these are suggestions, not changes. Tap “Refresh meal” to try a healthier option.</div>
-    </Card>
   );
 }
 
@@ -131,138 +102,12 @@ function Legend({ color, label, g, pct }: { color: string; label: string; g: num
     </span>
   );
 }
-function NutrientBar({ label, value, target, unit }: { label: string; value: number; target: number; unit: string }) {
-  const pct = Math.min(100, Math.round((value / Math.max(1, target)) * 100));
-  const over = value > target * 1.02;
-  return (
-    <div style={{ marginBottom: 11 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 4 }}>
-        <span style={{ fontWeight: 600 }}>{label}</span>
-        <span className="muted">{Math.round(value)} / {Math.round(target)} {unit}</span>
-      </div>
-      <div style={{ height: 6, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: over ? '#c0392b' : '#2e7d32' }} />
-      </div>
-    </div>
-  );
-}
-
-/** Right-hand nutrition sidebar: summary donut, nutrient targets, health score, quick actions. */
-function PlannerSidebar({ d, prescription, compliance }: { d: ComposedDay; prescription: { kcal: number; protein: number; carb: number; fat: number; fiber: number; sodiumMaxMg?: number }; compliance?: ComplianceReport }) {
-  const t = d.totals as Totals;
-  const { p, c, f, tot } = macroKcal(t);
-  const goalPct = Math.round((t.kcal / Math.max(1, prescription.kcal)) * 100);
-  const pct = (x: number) => Math.round((x / tot) * 100);
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <Card style={{ padding: '14px 16px' }}>
-        <strong style={{ fontSize: 14 }}>Nutrition Summary</strong>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 10, flexWrap: 'wrap' }}>
-          <Donut t={t} goalPct={goalPct} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <Legend color="#3a8a4a" label="Carbs" g={t.carbs} pct={pct(c)} />
-            <Legend color="#2f6fd0" label="Protein" g={t.protein} pct={pct(p)} />
-            <Legend color="#e0a53b" label="Fats" g={t.fat} pct={pct(f)} />
-            <Legend color="#7a6ff0" label="Fibre" g={t.fiber} />
-          </div>
-        </div>
-      </Card>
-      <Card style={{ padding: '14px 16px' }}>
-        <strong style={{ fontSize: 14 }}>Nutrient Targets</strong>
-        <div style={{ marginTop: 12 }}>
-          <NutrientBar label="Calories" value={t.kcal} target={prescription.kcal} unit="kcal" />
-          <NutrientBar label="Protein" value={t.protein} target={prescription.protein} unit="g" />
-          <NutrientBar label="Fibre" value={t.fiber} target={prescription.fiber} unit="g" />
-          {t.sodiumMg != null && prescription.sodiumMaxMg != null && (
-            <NutrientBar label="Sodium" value={t.sodiumMg} target={prescription.sodiumMaxMg} unit="mg" />
-          )}
-        </div>
-      </Card>
-      {compliance && <HealthScoreCard c={compliance} />}
-      <Card style={{ padding: '14px 16px' }}>
-        <strong style={{ fontSize: 14 }}>Quick Actions</strong>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12, fontSize: 13.5 }}>
-          <Link to="/nutrition/grocery" style={{ color: 'var(--accent)', textDecoration: 'none' }}>🛒 Generate Grocery List</Link>
-          <Link to="/nutrition/supplements" style={{ color: 'var(--accent)', textDecoration: 'none' }}>💊 Add Supplement</Link>
-          <Link to="/nutrition/dietitians" style={{ color: 'var(--accent)', textDecoration: 'none' }}>🩺 Consult a Dietitian</Link>
-          <Link to="/nutrition/preferences" style={{ color: 'var(--accent)', textDecoration: 'none' }}>✎ Edit Food Preference Profile</Link>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const CUISINES = ['Indian', 'Chinese', 'Thai', 'Italian', 'Continental', 'Mediterranean', 'Global'];
 const PROTOCOLS = ['12:12', '14:10', '16:8', '18:6', '20:4', 'omad'];
 const BUCKETS: { key: CuisineBucket; label: string }[] = [
   { key: 'breakfast', label: 'Breakfast' }, { key: 'lunch', label: 'Lunch' },
   { key: 'dinner', label: 'Dinner' }, { key: 'snack', label: 'Snacks' },
 ];
-
-function macroRow(t: { kcal: number; protein: number; carbs: number; fat: number; fiber: number }) {
-  return (
-    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12 }}>
-      <span><strong>{Math.round(t.kcal)}</strong> kcal</span>
-      <span className="muted">P {Math.round(t.protein)}g</span>
-      <span className="muted">C {Math.round(t.carbs)}g</span>
-      <span className="muted">F {Math.round(t.fat)}g</span>
-      <span className="muted">Fib {Math.round(t.fiber)}g</span>
-    </div>
-  );
-}
-
-type Macros = { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
-
-/** Macro split as a graph: a stacked calorie bar (P/C/F) + a legend with grams and %. */
-function MacroGraph({ t }: { t: Macros }) {
-  const p = Math.max(0, t.protein), c = Math.max(0, t.carbs), f = Math.max(0, t.fat);
-  const pk = p * 4, ck = c * 4, fk = f * 9;
-  const tot = pk + ck + fk || 1;
-  const pctK = (k: number) => Math.round((k / tot) * 100);
-  const bars = [
-    { label: 'Protein', g: p, kcal: pk, color: '#3a8a4a' },
-    { label: 'Carbs', g: c, kcal: ck, color: '#e0a53b' },
-    { label: 'Fat', g: f, kcal: fk, color: '#7a6ff0' },
-  ];
-  return (
-    <div style={{ flex: 1, minWidth: 210, maxWidth: 360 }}>
-      <div role="img" aria-label={`Macro split: protein ${pctK(pk)}%, carbs ${pctK(ck)}%, fat ${pctK(fk)}% of calories`}
-        style={{ display: 'flex', height: 16, borderRadius: 8, overflow: 'hidden', background: 'var(--line)' }}>
-        {bars.map((b) => <div key={b.label} title={`${b.label} ${pctK(b.kcal)}%`} style={{ width: `${(b.kcal / tot) * 100}%`, background: b.color }} />)}
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', marginTop: 9 }}>
-        {bars.map((b) => (
-          <span key={b.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-            <span style={{ width: 9, height: 9, borderRadius: 3, background: b.color, flex: '0 0 auto' }} />
-            <span><strong>{Math.round(b.g)}g</strong> <span className="muted">{b.label} · {pctK(b.kcal)}%</span></span>
-          </span>
-        ))}
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-          <span style={{ width: 9, height: 9, borderRadius: 3, background: '#5aa9a0', flex: '0 0 auto' }} />
-          <span><strong>{Math.round(t.fiber)}g</strong> <span className="muted">Fibre</span></span>
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/** Totals card — big kcal on the left, macro graph on the right. */
-function DayTotalCard({ t, label = 'Day total' }: { t: Macros; label?: string }) {
-  return (
-    <Card style={{ padding: '16px 18px', marginTop: 6 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
-        <div style={{ flex: '0 0 auto' }}>
-          <strong style={{ fontSize: 14 }}>{label}</strong>
-          <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.05, marginTop: 3 }}>
-            {Math.round(t.kcal)} <span className="muted" style={{ fontSize: 13, fontWeight: 500 }}>kcal</span>
-          </div>
-        </div>
-        <MacroGraph t={t} />
-      </div>
-    </Card>
-  );
-}
 
 /** Deterministic warm food-toned gradient for a recipe without a photo. */
 function photoBg(c: MealComponent): string {
@@ -274,135 +119,190 @@ function photoBg(c: MealComponent): string {
   return `linear-gradient(135deg, hsl(${hue} 55% 62%), hsl(${hue2} 60% 45%))`;
 }
 
-/** A 16:9 recipe photo tile — real image when available, gradient + name fallback otherwise. */
-function RecipePhotoTile({ c, onClick }: { c: MealComponent; onClick: () => void }) {
+/* ─────────────────────── Premium day view (weekly + daily redesign) ─────────────────────── */
+const DAY_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+function weekDates(): Date[] {
+  const now = new Date(); const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7)); monday.setHours(0, 0, 0, 0);
+  return Array.from({ length: 7 }, (_, i) => { const dd = new Date(monday); dd.setDate(monday.getDate() + i); return dd; });
+}
+const shortDate = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase();
+const longDate = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+const NPATH: Record<string, string> = {
+  flame: 'M13 3c0 3 3 4 3 8a4 4 0 1 1-8 0c0-2 2-3 2-5 0 0 3 1 3-3z', leaf: 'M5 20c7 1 14-4 15-16C11 3 4 9 5 20zM9 16c2-4 5-6 8-7',
+  wheat: 'M12 21V8M12 10c-2-1-4-1-5 1 2 1 4 1 5-1zM12 10c2-1 4-1 5 1-2 1-4 1-5-1zM12 15c-2-1-4-1-5 1 2 1 4 1 5-1zM12 15c2-1 4-1 5 1-2 1-4 1-5-1z',
+  drop: 'M12 3s6 6 6 10a6 6 0 1 1-12 0c0-4 6-10 6-10z', sprout: 'M12 21v-7M12 14c0-3-2-5-5-5 0 3 2 5 5 5zM12 14c0-3 2-5 5-5 0 3-2 5-5 5z',
+  bulb: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10c1 1 1 2 1 3h6c0-1 0-2 1-3a6 6 0 0 0-4-10z', check: 'M20 6L9 17l-5-5',
+  clock: 'M12 7v5l3 2M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z', chevL: 'M15 6l-6 6 6 6', chevR: 'M9 6l6 6-6 6',
+  heart: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z',
+  refresh: 'M20 11a8 8 0 0 0-14-4M4 5v3h3M4 13a8 8 0 0 0 14 4M20 19v-3h-3', skip: 'M6 6l12 12M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z',
+};
+function NIc({ name, size = 18, stroke = 1.7, style }: { name: string; size?: number; stroke?: number; style?: React.CSSProperties }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', ...style }} aria-hidden><path d={NPATH[name] ?? NPATH.leaf} /></svg>;
+}
+
+const mainOf = (m: ComposedMeal) => m.components.find((c) => c.role === 'main') ?? m.components.find((c) => c.role === 'dal') ?? m.components.find((c) => c.role === 'breakfast') ?? m.components[0];
+const photoOf = (m: ComposedMeal) => m.components.find((c) => c.imageUrl) ?? mainOf(m);
+function mealDesc(m: ComposedMeal): string {
+  const names = m.components.map((c) => c.name);
+  if (!names.length) return 'A balanced meal from your plan.';
+  const head = names[0]; const rest = names.slice(1, 4).map((n) => n.toLowerCase());
+  if (!rest.length) return `${head}.`;
+  const joined = rest.length === 1 ? rest[0] : rest.slice(0, -1).join(', ') + ' & ' + rest[rest.length - 1];
+  return `${head} with ${joined}.`;
+}
+
+/** A single meal column card (banner · 16:9 photo · title · view recipe · desc · prep/kcal). */
+function MealColumn({ meal, dayIndex, readOnly }: { meal: ComposedMeal; dayIndex: number; readOnly?: boolean }) {
+  const navigate = useNavigate(); const location = useLocation();
   const [err, setErr] = useState(false);
-  const showImg = Boolean(c.imageUrl) && !err;
+  const refresh = useRefreshMeal(); const skip = useSkipMeal();
+  const busy = refresh.isPending || skip.isPending;
+  const main = mainOf(meal); const photo = photoOf(meal);
+  const img = photo?.imageUrl && !err ? photo.imageUrl : null;
+  const open = () => { if (main?.recipeId) navigate(`/nutrition/recipes/${main.recipeId}`, { state: { from: location.pathname + location.search } }); };
   return (
-    <button type="button" role="listitem" onClick={onClick} aria-label={`${c.name} — ${c.kcal} kcal, open recipe`} title={c.name}
-      style={{ flex: '0 0 auto', width: 150, border: 'none', padding: 0, background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-      <div style={{ position: 'relative', width: 150, aspectRatio: '16 / 9', borderRadius: 12, overflow: 'hidden', background: showImg ? 'var(--line)' : photoBg(c), display: 'grid', alignContent: 'end' }}>
-        {showImg && <img src={c.imageUrl ?? ''} alt={c.name} loading="lazy" onError={() => setErr(true)}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-        <span style={{ position: 'relative', background: 'linear-gradient(transparent, rgba(0,0,0,.68))', color: '#fff', fontSize: 11, fontWeight: 700,
-          padding: '16px 7px 6px', lineHeight: 1.15, textAlign: 'left', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{c.name}</span>
+    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 20, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow)', opacity: busy ? 0.55 : 1 }}>
+      <div style={{ padding: '14px 14px 0' }}>
+        <span style={{ display: 'inline-block', background: 'var(--ink)', color: '#fff', fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: 8 }}>{meal.label}</span>
       </div>
-      <div className="muted" style={{ fontSize: 11, marginTop: 3, textAlign: 'center' }}>{c.kcal} kcal · <span style={{ textTransform: 'capitalize' }}>{c.role}</span></div>
-    </button>
+      <button type="button" onClick={open} aria-label={`Open ${meal.title}`} style={{ margin: '12px 14px 0', border: 'none', padding: 0, background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+        <div style={{ position: 'relative', aspectRatio: '16 / 9', borderRadius: 14, overflow: 'hidden', background: img ? 'var(--line)' : photoBg(photo as MealComponent) }}>
+          {img && <img src={img} alt={meal.title} loading="lazy" onError={() => setErr(true)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+        </div>
+      </button>
+      <div style={{ padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <h3 style={{ fontSize: 15.5, margin: '0 0 6px', lineHeight: 1.3, letterSpacing: '-.01em' }}>{meal.title}</h3>
+        <button type="button" onClick={open} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
+          View recipe <NIc name="chevR" size={14} />
+        </button>
+        <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5, margin: '10px 0 14px' }}>{mealDesc(meal)}</p>
+        <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: 'var(--muted)', borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><NIc name="clock" size={14} /> Prep: {meal.minutes} min</span>
+          <span style={{ width: 1, height: 12, background: 'var(--line)' }} />
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><NIc name="flame" size={14} /> {Math.round(meal.totals.kcal)} kcal</span>
+        </div>
+        {!readOnly && (
+          <div style={{ display: 'flex', gap: 16, marginTop: 11 }}>
+            <button type="button" disabled={busy} onClick={() => refresh.mutate({ day: dayIndex, slot: meal.slot })} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}><NIc name="refresh" size={13} /> {refresh.isPending ? '…' : 'Refresh'}</button>
+            <button type="button" disabled={busy} onClick={() => skip.mutate({ day: dayIndex, slot: meal.slot, skipped: true })} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}><NIc name="skip" size={13} /> {skip.isPending ? '…' : 'Skip'}</button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
-/** A composite meal card — title, scheduled time, components; expands to the full meal (Rule 9). */
-function MealCardV2({ meal, dayIndex }: { meal: ComposedMeal; dayIndex: number }) {
-  const [open, setOpen] = useState<MealComponent | null>(null);
-  const [expanded, setExpanded] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
-  // Open the FULL recipe page, remembering where we came from so Back returns
-  // to the exact planner state (day preserved in the URL, scroll on POP).
-  const openRecipe = (c: MealComponent) => {
-    if (!c.recipeId) { setOpen(c); return; }
-    navigate(`/nutrition/recipes/${c.recipeId}`, { state: { from: location.pathname + location.search } });
-  };
-  const refresh = useRefreshMeal();
-  const skip = useSkipMeal();
-  const busy = refresh.isPending || skip.isPending;
+/** Left rail — day name, date, daily overview stats, balance note. */
+function DailyOverviewPanel({ d, date, note }: { d: ComposedDay; date: Date; note: string }) {
+  const t = d.totals as Totals;
+  const rows: [string, string, string][] = [
+    ['flame', `${Math.round(t.kcal)}`, 'Calories'], ['leaf', `${Math.round(t.protein)}g`, 'Protein'],
+    ['wheat', `${Math.round(t.carbs)}g`, 'Carbs'], ['drop', `${Math.round(t.fat)}g`, 'Fat'], ['sprout', `${Math.round(t.fiber)}g`, 'Fibre'],
+  ];
   return (
-    <Card style={{ padding: '16px 18px', marginBottom: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-        <div>
-          <div className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase' }}>
-            {meal.label} · {meal.scheduledTime}
-          </div>
-          <h3 style={{ margin: '2px 0 0', fontSize: 17 }}>{meal.title}</h3>
-        </div>
-        <Chip tone="accent">{Math.round(meal.energyPct * 100)}% of day</Chip>
-      </div>
-
-      {/* Photo card: every recipe in the meal as a 16:9 image tile (real photo or gradient). */}
-      <div role="list" aria-label={`${meal.title} recipes`}
-        style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '12px -2px 2px', padding: '2px', scrollbarWidth: 'thin', opacity: busy ? 0.55 : 1 }}>
-        {meal.components.map((c) => <RecipePhotoTile key={`ph-${c.recipeId}-${c.role}`} c={c} onClick={() => openRecipe(c)} />)}
-      </div>
-
-      <div style={{ margin: '10px 0' }}>{macroRow(meal.totals)}</div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {meal.components.map((c) => (
-          <button key={c.recipeId + c.role} type="button" onClick={() => openRecipe(c)}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', border: '1px solid var(--line)',
-              borderRadius: 10, padding: '8px 11px', background: 'var(--card)', cursor: 'pointer', fontFamily: 'inherit' }}>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 13.5, fontWeight: 600 }}>{c.name}</span>
-              <span className="muted" style={{ fontSize: 11.5, textTransform: 'capitalize' }}>{c.role} · {c.grams} g · {c.kcal} kcal</span>
-            </span>
-            <span className="muted" style={{ fontSize: 16 }}>›</span>
-          </button>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Button variant="line" size="sm" onClick={() => setExpanded((v) => !v)}>{expanded ? 'Hide full meal' : 'Open full meal'}</Button>
-        <Button variant="line" size="sm" disabled={busy} onClick={() => refresh.mutate({ day: dayIndex, slot: meal.slot })}>
-          {refresh.isPending ? 'Refreshing…' : '↻ Refresh meal'}
-        </Button>
-        <Button variant="line" size="sm" disabled={busy} onClick={() => skip.mutate({ day: dayIndex, slot: meal.slot, skipped: true })}>
-          {skip.isPending ? 'Skipping…' : '⊘ Skip meal'}
-        </Button>
-        <span className="muted" style={{ fontSize: 12 }}>⏱ {meal.minutes} min · {meal.components.length} recipes</span>
-      </div>
-
-      {expanded && (
-        <div style={{ marginTop: 12, borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-          <div className="muted" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>Complete meal · combined ingredients</div>
-          {meal.components.map((c) => (
-            <div key={c.recipeId + c.role} style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name} <span className="muted" style={{ fontWeight: 400 }}>· {c.minutes} min</span></div>
-              <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                {c.ingredients.map((i) => i.toTaste ? `${i.name} (to taste)` : `${i.name} ${i.grams}g${i.pantry ? ' (pantry)' : ''}`).join(' · ')}
-              </div>
+    <div>
+      <h2 style={{ fontFamily: 'var(--serif)', fontSize: 30, fontWeight: 600, margin: '0 0 6px', letterSpacing: '-.01em' }}>{DAY_FULL[d.dayIndex] ?? 'Day'}</h2>
+      <div style={{ display: 'inline-block', background: 'var(--ink)', color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', padding: '4px 12px', borderRadius: 999, marginBottom: 18 }}>{longDate(date)}</div>
+      <div style={{ border: '1px solid var(--line)', borderRadius: 18, padding: '16px 18px', background: 'var(--card)', boxShadow: 'var(--shadow)' }}>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginBottom: 15 }}>Daily overview</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {rows.map(([ic, v, l]) => (
+            <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ color: 'var(--accent)' }}><NIc name={ic} size={20} /></span>
+              <div><div style={{ fontSize: 17, fontWeight: 800, lineHeight: 1 }}>{v}</div><div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{l}</div></div>
             </div>
           ))}
         </div>
-      )}
+      </div>
+      <div style={{ marginTop: 14, border: '1px dashed var(--line)', borderRadius: 14, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <span style={{ color: 'var(--accent)' }}><NIc name="heart" size={16} /></span>
+        <span style={{ fontSize: 12.5, color: 'var(--ink-soft)', lineHeight: 1.5 }}>{note}</span>
+      </div>
+    </div>
+  );
+}
 
-      <Modal open={Boolean(open)} onClose={() => setOpen(null)} title={open?.name} width={520}
-        footer={<div className="muted" style={{ fontSize: 12 }}>Prep ~{open?.minutes} min · one standard serving</div>}>
-        {open && (
-          <div>
-            {/* Image or gradient placeholder (HIGH-4) */}
-            <div style={{ height: 130, borderRadius: 12, marginBottom: 12, overflow: 'hidden',
-              background: open.imageUrl ? `center/cover url(${open.imageUrl})` : 'linear-gradient(135deg, var(--accent-soft), var(--accent))',
-              display: 'grid', placeItems: 'center' }}>
-              {!open.imageUrl && <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, textShadow: '0 1px 6px rgba(0,0,0,.3)' }}>{open.name}</span>}
+function MacroLine({ ic, label, grams, pct }: { ic: string; label: string; grams: number; pct: number }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '20px 66px 1fr auto', alignItems: 'center', gap: 10 }}>
+      <span style={{ color: 'var(--muted)' }}><NIc name={ic} size={16} /></span>
+      <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{label}</span>
+      <span style={{ height: 6, borderRadius: 4, background: 'var(--paper)', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${Math.min(100, pct)}%`, background: 'var(--accent)', borderRadius: 4 }} /></span>
+      <span style={{ fontSize: 12.5, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{Math.round(grams)}g <span style={{ color: 'var(--muted)' }}>({pct}%)</span></span>
+    </div>
+  );
+}
+
+const DAY_TIPS = ['Drink at least 2–3 litres of water.', 'Include a variety of colourful vegetables.', 'Choose whole grains over refined grains.', 'Stay active and get good-quality sleep.'];
+
+/** The full premium day layout: left overview · meal grid · right nutrition/donut/tips. */
+function DayView({ wk, d, dayIndex, date, readOnly }: { wk: ComposedWeek; d: ComposedDay; dayIndex: number; date: Date; readOnly?: boolean }) {
+  const t = d.totals as Totals;
+  const kcal = Math.max(1, t.kcal);
+  const pPct = Math.round((t.protein * 4 / kcal) * 100);
+  const cPct = Math.round((t.carbs * 4 / kcal) * 100);
+  const fPct = Math.round((t.fat * 9 / kcal) * 100);
+  const fibPct = Math.min(100, Math.round((t.fiber / Math.max(1, wk.prescription.fiber)) * 100));
+  const note = wk.compliance
+    ? (wk.compliance.score >= 80 ? 'Great balance of protein, carbs & healthy fats!' : (wk.compliance.concerns[0]?.message ?? 'A balanced plate for your goals.'))
+    : 'A balanced plate for your goals.';
+  const card: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, padding: '16px 18px', boxShadow: 'var(--shadow)' };
+  const capTitle: React.CSSProperties = { fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginBottom: 12 };
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '200px minmax(0,1fr) 300px', gap: 22, alignItems: 'start' }} className="tc-planday">
+      <DailyOverviewPanel d={d} date={date} note={note} />
+
+      <div>
+        {d.fasting && <p className="muted" style={{ fontSize: 12.5, margin: '0 0 12px' }}>Eating window {d.window.start}–{d.window.end}</p>}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(215px, 1fr))', gap: 16 }} className="tc-mealgrid2">
+          {d.meals.map((m) => <MealColumn key={m.slot} meal={m} dayIndex={dayIndex} readOnly={readOnly} />)}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={card}>
+          <div style={capTitle}>Daily nutrition</div>
+          <div style={{ textAlign: 'center', marginBottom: 14 }}>
+            <div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1 }}>{Math.round(t.kcal).toLocaleString('en-IN')}</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>Calories</div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+            <MacroLine ic="leaf" label="Protein" grams={t.protein} pct={pPct} />
+            <MacroLine ic="wheat" label="Carbs" grams={t.carbs} pct={cPct} />
+            <MacroLine ic="drop" label="Fat" grams={t.fat} pct={fPct} />
+            <MacroLine ic="sprout" label="Fibre" grams={t.fiber} pct={fibPct} />
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={capTitle}>Macro breakdown</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Donut t={t} goalPct={Math.round((t.kcal / Math.max(1, wk.prescription.kcal)) * 100)} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <Legend color="#3a8a4a" label="Protein" g={t.protein} pct={pPct} />
+              <Legend color="#e0a53b" label="Carbs" g={t.carbs} pct={cPct} />
+              <Legend color="#7a6ff0" label="Fat" g={t.fat} pct={fPct} />
+              <Legend color="#5aa9a0" label="Fibre" g={t.fiber} />
             </div>
-            {/* Clinical badges derived from the recipe's measured nutrients */}
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-              {open.addedSugarG <= 5 && <Chip tone="green">Diabetes-friendly</Chip>}
-              {open.potassiumMg <= 250 && open.phosphorusMg <= 220 && <Chip tone="green">Kidney-friendly</Chip>}
-              {open.satFatG <= 4 && <Chip tone="green">Heart-friendly</Chip>}
-              <Chip tone="default">{open.minutes} min</Chip>
-            </div>
-            <div style={{ marginBottom: 12 }}>{macroRow(open)}</div>
-            {open.steps.length > 0 && (
-              <>
-                <div className="muted" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>How to cook</div>
-                <ol style={{ margin: '0 0 14px', paddingLeft: 18, fontSize: 13.5, lineHeight: 1.6 }}>
-                  {open.steps.map((st, i) => <li key={i} style={{ marginBottom: 4 }}>{st}</li>)}
-                </ol>
-              </>
-            )}
-            <div className="muted" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>Ingredients</div>
-            {open.ingredients.map((i) => (
-              <div key={i.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
-                <span>{i.name}{i.pantry && !i.toTaste && <span className="muted" style={{ fontSize: 11 }}> · pantry</span>}</span>
-                <span className="muted">{i.toTaste ? 'to taste' : `${i.grams} g`}</span>
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, color: 'var(--accent)', fontWeight: 800, fontSize: 12.5, letterSpacing: '.06em', textTransform: 'uppercase' }}><NIc name="bulb" size={16} /> Tips for the day</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+            {DAY_TIPS.map((tip) => (
+              <div key={tip} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12.5, color: 'var(--ink-soft)', lineHeight: 1.45 }}>
+                <span style={{ color: 'var(--accent)', marginTop: 1 }}><NIc name="check" size={14} stroke={2.2} /></span>{tip}
               </div>
             ))}
           </div>
-        )}
-      </Modal>
-    </Card>
+        </div>
+      </div>
+
+      <style>{`@media (max-width: 1040px){ .tc-planday{ grid-template-columns:1fr !important; } }`}</style>
+    </div>
   );
 }
 
@@ -506,9 +406,10 @@ export function MealPlan() {
 
   const wk = plan.data;
   const d = wk.days[day];
+  const dates = weekDates();
 
   return (
-    <div style={{ maxWidth: 1140, margin: '0 auto', padding: '20px 16px 60px' }}>
+    <div style={{ maxWidth: 1240, margin: '0 auto', padding: '20px 16px 60px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div className="eyebrow">Nutrition · Meal Plan</div>
@@ -582,27 +483,39 @@ export function MealPlan() {
 
       {tab === 'plan' && (
         <>
-          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 14 }}>
-            {wk.days.map((_, i) => (
-              <Chip key={i} selected={i === day} onClick={() => setDay(i)}>{DAY_NAMES[i] ?? `Day ${i + 1}`}</Chip>
-            ))}
+          {/* Premium day tabs — Monday → Sunday with real dates + prev/next. */}
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, marginBottom: 8 }}>
+            <button type="button" aria-label="Previous day" disabled={day === 0} onClick={() => setDay(Math.max(0, day - 1))}
+              style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: day === 0 ? 'default' : 'pointer', opacity: day === 0 ? 0.4 : 1 }}><NIc name="chevL" size={18} /></button>
+            <div style={{ flex: 1, display: 'flex', gap: 2, overflowX: 'auto', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 16, padding: 5, scrollbarWidth: 'none' }}>
+              {wk.days.map((_, i) => {
+                const on = i === day;
+                return (
+                  <button key={i} type="button" onClick={() => setDay(i)} aria-current={on}
+                    style={{ flex: '1 0 auto', minWidth: 84, border: 'none', background: on ? 'var(--accent-soft)' : 'transparent', borderRadius: 11, padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>
+                    <div style={{ fontSize: 12, fontWeight: on ? 800 : 700, letterSpacing: '.03em', color: on ? 'var(--accent)' : 'var(--ink-soft)' }}>{DAY_FULL[i].toUpperCase()}</div>
+                    <div style={{ fontSize: 10.5, marginTop: 2, color: on ? 'var(--accent)' : 'var(--muted)' }}>{shortDate(dates[i])}</div>
+                  </button>
+                );
+              })}
+            </div>
+            <button type="button" aria-label="Next day" disabled={day === wk.days.length - 1} onClick={() => setDay(Math.min(wk.days.length - 1, day + 1))}
+              style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: day === wk.days.length - 1 ? 'default' : 'pointer', opacity: day === wk.days.length - 1 ? 0.4 : 1 }}><NIc name="chevR" size={18} /></button>
           </div>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <div style={{ flex: '1 1 460px', minWidth: 0 }}>
-              {d.fasting && (
-                <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>Eating window {d.window.start}–{d.window.end}</p>
-              )}
-              {wk.skips && wk.skips.length > 0 && (
-                <div className="muted" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, fontSize: 12.5 }}>
-                  {wk.skips.length} meal{wk.skips.length > 1 ? 's' : ''} skipped this week
-                  <Button variant="line" size="sm" disabled={restore.isPending} onClick={() => restore.mutate({})}>{restore.isPending ? 'Restoring…' : 'Restore all'}</Button>
-                </div>
-              )}
-              {d.meals.map((m) => <MealCardV2 key={m.slot} meal={m} dayIndex={day} />)}
+
+          {wk.skips && wk.skips.length > 0 && (
+            <div className="muted" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '10px 0', fontSize: 12.5 }}>
+              {wk.skips.length} meal{wk.skips.length > 1 ? 's' : ''} skipped this week
+              <Button variant="line" size="sm" disabled={restore.isPending} onClick={() => restore.mutate({})}>{restore.isPending ? 'Restoring…' : 'Restore all'}</Button>
             </div>
-            <div style={{ flex: '1 1 290px', maxWidth: 340, minWidth: 260 }}>
-              <PlannerSidebar d={d} prescription={wk.prescription} compliance={wk.compliance} />
-            </div>
+          )}
+
+          <div style={{ marginTop: 14 }}>
+            <DayView wk={wk} d={d} dayIndex={day} date={dates[day]} readOnly={wk.readOnly} />
+          </div>
+
+          <div style={{ marginTop: 22, textAlign: 'center', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 14, padding: '12px 16px', fontSize: 12.5, color: 'var(--muted)' }}>
+            Tap any meal to view the full recipe — ingredients &amp; step-by-step instructions.
           </div>
         </>
       )}
@@ -652,10 +565,11 @@ export function MealPlanToday() {
   const wk = plan.data;
   const dailyIdx = wk.days[todayIndex()] ? todayIndex() : 0;
   const d = wk.days[dailyIdx];
+  const date = weekDates()[dailyIdx];
 
   return (
-    <div style={{ maxWidth: 780, margin: '0 auto', padding: '20px 16px 60px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+    <div style={{ maxWidth: 1240, margin: '0 auto', padding: '20px 16px 60px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
         <div>
           <div className="eyebrow">Nutrition · Today</div>
           <h1 style={{ fontSize: 26 }}>Today's plate</h1>
@@ -665,17 +579,15 @@ export function MealPlanToday() {
           <Link to="/nutrition/weekly"><Button variant="line" size="sm">Full week →</Button></Link>
         </div>
       </div>
-      <p className="muted" style={{ fontSize: 13, margin: '6px 0 14px' }}>
-        Your five meals for today, on schedule.{wk.fasting ? ` Fasting: ${wk.protocol} (${d.window.start}–${d.window.end}).` : ''}
+      <p className="muted" style={{ fontSize: 13, margin: '0 0 16px' }}>
+        Your meals for today, on schedule.{wk.fasting ? ` Fasting: ${wk.protocol} (${d.window.start}–${d.window.end}).` : ''}
       </p>
       {wk.blocked && (
         <div role="alert" style={{ background: '#fdecec', border: '1px solid #e0a0a0', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 12.5 }}>
           <strong>⚠ This plan could not be fully certified against your medical limits.</strong> Please review with your clinician or dietitian before following it.
         </div>
       )}
-      {wk.compliance && <HealthScoreCard c={wk.compliance} />}
-      {d.meals.map((m) => <MealCardV2 key={m.slot} meal={m} dayIndex={dailyIdx} />)}
-      <DayTotalCard t={d.totals} />
+      <DayView wk={wk} d={d} dayIndex={dailyIdx} date={date} readOnly={wk.readOnly} />
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
