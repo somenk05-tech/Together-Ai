@@ -21,6 +21,9 @@ const WeeklyPlanner = lazy(() =>
 const MealPlan = lazy(() =>
   import('@/features/nutrition/pages/MealPlan').then((m) => ({ default: m.MealPlan })),
 );
+const MealPlanToday = lazy(() =>
+  import('@/features/nutrition/pages/MealPlan').then((m) => ({ default: m.MealPlanToday })),
+);
 const NutritionHistory = lazy(() =>
   import('@/features/nutrition/pages/NutritionHistory').then((m) => ({ default: m.NutritionHistory })),
 );
@@ -221,7 +224,8 @@ export const router = createBrowserRouter([
       { path: '/nutrition/plan', element: <RequireAuth>{wrap(<MealPlan />)}</RequireAuth> },
       { path: '/nutrition/weekly-classic', element: wrap(<WeeklyPlanner />) },
       { path: '/nutrition/history', element: <RequireAuth>{wrap(<NutritionHistory />)}</RequireAuth> },
-      { path: '/nutrition/daily', element: <RequireAuth>{wrap(<Daily />)}</RequireAuth> },
+      { path: '/nutrition/daily', element: <RequireAuth>{wrap(<MealPlanToday />)}</RequireAuth> },
+      { path: '/nutrition/daily-classic', element: <RequireAuth>{wrap(<Daily />)}</RequireAuth> },
       { path: '/nutrition/blood', element: <RequireAuth>{wrap(<Blood />)}</RequireAuth> },
       { path: '/nutrition/preferences', element: <RequireAuth>{wrap(<Preferences />)}</RequireAuth> },
       { path: '/nutrition/grocery', element: <RequireAuth>{wrap(<Grocery />)}</RequireAuth> },

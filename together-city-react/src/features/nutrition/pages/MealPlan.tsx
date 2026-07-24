@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, Spinner, EmptyState, Button, Chip, Modal } from '@/components/ui';
 import {
   useComposedPlan, useMealSettings, useSaveMealSettings,
@@ -257,6 +258,50 @@ export function MealPlan() {
         </Card>
       )}
 
+      <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
+    </div>
+  );
+}
+
+/** Monday-indexed weekday (Mon=0 … Sun=6) — matches the composed week's order. */
+const todayIndex = (): number => (new Date().getDay() + 6) % 7;
+
+/**
+ * Daily Meal Planner — today's plate, sliced live from the composite week
+ * (same engine, no duplication). Shows the five scheduled meals for today.
+ */
+export function MealPlanToday() {
+  const plan = useComposedPlan();
+  const [showSettings, setShowSettings] = useState(false);
+
+  if (plan.isLoading) return <Spinner label="Plating today…" />;
+  if (plan.isError || !plan.data) return <EmptyState title="Couldn't load today's plate" hint="Add your food preferences, then reload." />;
+
+  const wk = plan.data;
+  const d = wk.days[todayIndex()] ?? wk.days[0];
+
+  return (
+    <div style={{ maxWidth: 780, margin: '0 auto', padding: '20px 16px 60px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <div className="eyebrow">Nutrition · Today</div>
+          <h1 style={{ fontSize: 26 }}>Today's plate</h1>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button variant="line" size="sm" onClick={() => setShowSettings(true)}>Meal settings</Button>
+          <Link to="/nutrition/weekly"><Button variant="line" size="sm">Full week →</Button></Link>
+        </div>
+      </div>
+      <p className="muted" style={{ fontSize: 13, margin: '6px 0 14px' }}>
+        Your five meals for today, on schedule.{wk.fasting ? ` Fasting: ${wk.protocol} (${d.window.start}–${d.window.end}).` : ''}
+      </p>
+      {d.meals.map((m) => <MealCardV2 key={m.slot} meal={m} />)}
+      <Card style={{ padding: '14px 18px', marginTop: 6 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <strong style={{ fontSize: 14 }}>Day total</strong>
+          {macroRow(d.totals)}
+        </div>
+      </Card>
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
