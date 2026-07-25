@@ -27,6 +27,7 @@ export interface ProfilePost {
   placeName?: string | null;
   tagged?: Array<{ id: string; name: string; handle: string }>;
   likedByMe?: boolean;
+  category?: string | null; // 'work' | 'personal'
 }
 export interface ProfilePostsPage { items: ProfilePost[]; nextCursor: string | null }
 

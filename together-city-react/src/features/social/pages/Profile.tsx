@@ -147,7 +147,7 @@ function PostLightbox({ post, onClose }: { post: Post; onClose: () => void }) {
   );
 }
 
-function PostsTab({ filter = 'all' }: { filter?: 'all' | 'photo' | 'video' }) {
+function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'photo' | 'video'; category?: 'all' | 'work' | 'personal' }) {
   const posts = useMyPosts();
   const reorder = useReorderMyPosts();
   const me = useMyProfile();
@@ -155,11 +155,12 @@ function PostsTab({ filter = 'all' }: { filter?: 'all' | 'photo' | 'video' }) {
   const matchesFilter = (p: ProfilePost) => {
     const hasVideo = p.media.some((m) => m.kind === 'video');
     const hasImage = p.media.some((m) => m.kind === 'image');
-    if (filter === 'video') return hasVideo;
-    if (filter === 'photo') return hasImage && !hasVideo;
+    if (filter === 'video' && !hasVideo) return false;
+    if (filter === 'photo' && !(hasImage && !hasVideo)) return false;
+    if (category !== 'all' && (p.category ?? '') !== category) return false;
     return true;
   };
-  const canArrange = true; // rearrange works on Posts, Photos and Videos tabs
+  const canArrange = true; // rearrange works on every posts tab
   const sentinel = useRef<HTMLDivElement>(null);
   const items = useMemo(() => posts.data?.pages.flatMap((pg) => pg.items) ?? [], [posts.data]);
 
@@ -220,7 +221,8 @@ function PostsTab({ filter = 'all' }: { filter?: 'all' | 'photo' | 'video' }) {
   const view = items.filter(matchesFilter);
   const grid = arranging ? arranged : view;
   const noun = filter === 'photo' ? 'photo' : filter === 'video' ? 'video' : 'post';
-  const title = filter === 'photo' ? 'Your photos' : filter === 'video' ? 'Your videos' : 'Your posts';
+  const title = category === 'work' ? 'Work' : category === 'personal' ? 'Personal'
+    : filter === 'photo' ? 'Your photos' : filter === 'video' ? 'Your videos' : 'Your posts';
 
   return (
     <>
@@ -631,7 +633,7 @@ function FollowList({ kind }: { kind: 'followers' | 'following' }) {
   );
 }
 
-type Tab = 'posts' | 'photos' | 'videos' | 'earn' | 'followers' | 'following';
+type Tab = 'posts' | 'photos' | 'videos' | 'personal' | 'work' | 'earn' | 'followers' | 'following';
 
 /** Social Life · My Profile — real identity, stats, posts, People search & Post & Earn. */
 export function SocialProfile() {
@@ -681,6 +683,8 @@ export function SocialProfile() {
         <button type="button" className={`pill ${tab === 'posts' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('posts')}>Posts</button>
         <button type="button" className={`pill ${tab === 'photos' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('photos')}>Photos</button>
         <button type="button" className={`pill ${tab === 'videos' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('videos')}>Videos</button>
+        <button type="button" className={`pill ${tab === 'personal' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('personal')}>🏖 Personal</button>
+        <button type="button" className={`pill ${tab === 'work' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('work')}>💼 Work</button>
         <button type="button" className={`pill ${tab === 'followers' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('followers')}>Followers</button>
         <button type="button" className={`pill ${tab === 'following' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('following')}>Following</button>
         <button type="button" className={`pill ${tab === 'earn' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('earn')}>💰 Post &amp; Earn</button>
@@ -689,6 +693,8 @@ export function SocialProfile() {
       {tab === 'posts' && <PostsTab />}
       {tab === 'photos' && <PostsTab filter="photo" />}
       {tab === 'videos' && <PostsTab filter="video" />}
+      {tab === 'personal' && <PostsTab category="personal" />}
+      {tab === 'work' && <PostsTab category="work" />}
       {tab === 'followers' && <FollowList kind="followers" />}
       {tab === 'following' && (<><FollowList kind="following" /><PeopleTab /></>)}
       {tab === 'earn' && <div className="rise d1" style={{ marginTop: 16 }}><EarnView posts={allPosts} /></div>}

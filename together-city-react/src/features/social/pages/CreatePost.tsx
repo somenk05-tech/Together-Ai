@@ -280,6 +280,7 @@ export function CreatePost() {
   const [tagInput, setTagInput] = useState('');
   const [tagged, setTagged] = useState<Array<{ id: string; name: string; handle: string }>>([]);
   const [audience, setAudience] = useState<AudienceKey>('public');
+  const [category, setCategory] = useState<'' | 'work' | 'personal'>('');
   const [open, setOpen] = useState<string | null>(null);
   // Share lifecycle: idle → sharing → success (→ navigate) | error
   const [phase, setPhase] = useState<'idle' | 'sharing' | 'success' | 'error'>('idle');
@@ -393,6 +394,7 @@ export function CreatePost() {
         placeName: placeName.trim() || undefined,
         ...(geo ? { lat: geo.lat, lng: geo.lng } : {}),
         audience,
+        ...(category ? { category } : {}),
         tagged: tagged.length ? tagged : undefined,
       },
       {
@@ -552,6 +554,18 @@ export function CreatePost() {
           {tool('tag', tagged.length ? `👥 ${tagged.length} tagged` : '👥 Tag People', tagged.length > 0)}
           {tool('hashtags', '# Hashtags', hashtags.length > 0)}
           {tool('audience', `${audDef.emoji} ${audDef.label}`, audience !== 'public')}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+          <span className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>Category:</span>
+          {([['', 'None'], ['personal', '🏖 Personal'], ['work', '💼 Work']] as const).map(([key, label]) => (
+            <button key={key || 'none'} type="button" onClick={() => setCategory(key)}
+              style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
+                border: `1.5px solid ${category === key ? 'var(--accent)' : 'var(--line)'}`,
+                background: category === key ? 'var(--accent)' : 'var(--card)', color: category === key ? '#fff' : 'var(--ink)' }}>
+              {label}
+            </button>
+          ))}
         </div>
 
         <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>

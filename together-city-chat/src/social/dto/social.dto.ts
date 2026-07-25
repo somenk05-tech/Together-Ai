@@ -29,6 +29,7 @@ export const CreatePostSchema = z
     lat: z.number().min(-90).max(90).optional(),
     lng: z.number().min(-180).max(180).optional(),
     audience: z.enum(['public', 'friends', 'family', 'private']).optional(),
+    category: z.enum(['work', 'personal']).optional(),
     placeName: z.string().max(120).optional(),
     tagged: z.array(z.object({
       id: z.string().min(1), name: z.string().max(80), handle: z.string().max(40),

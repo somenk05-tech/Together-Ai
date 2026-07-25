@@ -170,6 +170,7 @@ export class SocialService {
         text: this.clean(dto.text),
         feeling: this.clean(dto.feeling),
         audience,
+        category: (dto as { category?: string }).category ?? null,
         placeName: this.clean(dto.placeName),
         taggedJson: tagged ? JSON.stringify(tagged) : null,
         lat: dto.lat ?? null,

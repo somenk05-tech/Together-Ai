@@ -278,7 +278,7 @@ export class ProfileService {
     return {
       items: page.map((p) => {
         const px = p as unknown as {
-          audience?: string | null; placeName?: string | null; taggedJson?: string | null;
+          audience?: string | null; placeName?: string | null; taggedJson?: string | null; category?: string | null;
           author: { id: string; handle: string; name: string; profileImage: string | null };
           likes: unknown[]; _count: { likes: number; comments: number };
         };
@@ -299,6 +299,7 @@ export class ProfileService {
           placeName: px.placeName ?? null,
           tagged,
           likedByMe: px.likes.length > 0,
+          category: px.category ?? null,
         };
       }),
       nextCursor: hasMore ? page[page.length - 1].id : null,

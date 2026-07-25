@@ -34,6 +34,7 @@ export interface CreatePostInput {
   text?: string;
   feeling?: string;
   audience?: 'public' | 'friends' | 'family' | 'private';
+  category?: 'work' | 'personal';
   placeName?: string;
   tagged?: Array<{ id: string; name: string; handle: string }>;
   media?: { url: string; kind: 'image' | 'video'; thumbUrl?: string | null }[];
