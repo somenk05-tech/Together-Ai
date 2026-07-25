@@ -109,6 +109,12 @@ export class NutritionController {
     return this.nutrition.skipComposedComponent(user.sub, dto.day, dto.slot, dto.role, dto.skipped);
   }
 
+  // Start a fresh 3-week plan (re-anchor to today, reseed, clear overrides).
+  @Post('plan/composed/renew')
+  renewComposedPlan(@CurrentUser() user: JwtUser) {
+    return this.nutrition.renewComposedPlan(user.sub);
+  }
+
   @Post('plan/composed/restore')
   restoreComposedSkips(@CurrentUser() user: JwtUser) {
     return this.nutrition.restoreComposedSkips(user.sub);

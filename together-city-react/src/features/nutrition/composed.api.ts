@@ -43,6 +43,10 @@ export interface ComposedWeek {
   needsProfile?: boolean;
   /** Skipped meal keys ("d{index}:{slot}") for this week. */
   skips?: string[];
+  /** 3-week plan anchor: day 0 = this date (YYYY-MM-DD); reviewDate = start+planDays. */
+  planStartDate?: string;
+  reviewDate?: string;
+  planDays?: number;
   /** Which mode produced this plan. */
   mode?: 'preferred' | 'optimal';
   /** "Inform, don't force" — how the preferred plan compares to the clinical ideal. */
@@ -115,6 +119,8 @@ function useComposedMutation<V>(path: string) {
 export function useRefreshMeal() { return useComposedMutation<{ day: number; slot: string }>('/nutrition/plan/composed/refresh'); }
 export function useSkipMeal() { return useComposedMutation<{ day: number; slot: string; skipped: boolean }>('/nutrition/plan/composed/skip'); }
 export function useRestoreSkips() { return useComposedMutation<Record<string, never>>('/nutrition/plan/composed/restore'); }
+/** Start a fresh 3-week plan (re-anchor to today, reseed the meals). */
+export function useRenewPlan() { return useComposedMutation<Record<string, never>>('/nutrition/plan/composed/renew'); }
 /** Per-line (single-dish) Refresh / Skip — reroll or drop one dish by its plate role. */
 export function useRefreshComponent() { return useComposedMutation<{ day: number; slot: string; role: string }>('/nutrition/plan/composed/refresh-item'); }
 export function useSkipComponent() { return useComposedMutation<{ day: number; slot: string; role: string; skipped: boolean }>('/nutrition/plan/composed/skip-item'); }

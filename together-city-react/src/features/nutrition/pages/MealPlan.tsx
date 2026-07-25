@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-do
 import { Card, Spinner, EmptyState, Button, Chip, Modal } from '@/components/ui';
 import {
   useComposedPlan, useMealSettings, useSaveMealSettings,
-  useRefreshMeal, useSkipMeal, useRestoreSkips, useRefreshComponent, useSkipComponent,
+  useRefreshMeal, useSkipMeal, useRestoreSkips, useRefreshComponent, useSkipComponent, useRenewPlan,
   type ComposedMeal, type MealComponent, type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard,
 } from '../composed.api';
 import { VegMark, mealKind } from '../components/VegMark';
@@ -159,12 +159,24 @@ function photoBg(c?: MealComponent): string {
 }
 
 /* ─────────────────────── Premium day view (weekly + daily redesign) ─────────────────────── */
-const DAY_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-function weekDates(): Date[] {
-  const now = new Date(); const monday = new Date(now);
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7)); monday.setHours(0, 0, 0, 0);
-  return Array.from({ length: 7 }, (_, i) => { const dd = new Date(monday); dd.setDate(monday.getDate() + i); return dd; });
+const WEEKDAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+/** Midnight local for a plan-start ISO date (YYYY-MM-DD); today if absent/invalid. */
+function planStart(iso?: string): Date {
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return t;
+  const d = new Date(iso + 'T00:00:00'); d.setHours(0, 0, 0, 0);
+  return isNaN(d.getTime()) ? t : d;
 }
+/** `n` consecutive dates from a start date. */
+function datesFrom(start: Date, n: number): Date[] {
+  return Array.from({ length: n }, (_, i) => { const dd = new Date(start); dd.setDate(start.getDate() + i); return dd; });
+}
+/** Whole days between the start date and today (0 = today is the start day). */
+function dayOffset(start: Date): number {
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  return Math.round((t.getTime() - start.getTime()) / 86400000);
+}
+const weekdayFull = (d: Date) => WEEKDAY_FULL[d.getDay()];
 const shortDate = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase();
 const longDate = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -286,7 +298,7 @@ function DailyOverviewPanel({ d, date, note }: { d: ComposedDay; date: Date; not
   ];
   return (
     <div>
-      <h2 style={{ fontFamily: 'var(--serif)', fontSize: 30, fontWeight: 600, margin: '0 0 6px', letterSpacing: '-.01em' }}>{DAY_FULL[d.dayIndex] ?? 'Day'}</h2>
+      <h2 style={{ fontFamily: 'var(--serif)', fontSize: 30, fontWeight: 600, margin: '0 0 6px', letterSpacing: '-.01em' }}>{weekdayFull(date)}</h2>
       <div style={{ display: 'inline-block', background: 'var(--ink)', color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', padding: '4px 12px', borderRadius: 999, marginBottom: 18 }}>{longDate(date)}</div>
       <div style={{ border: '1px solid var(--line)', borderRadius: 18, padding: '16px 18px', background: 'var(--card)', boxShadow: 'var(--shadow)' }}>
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginBottom: 15 }}>Daily overview</div>
@@ -477,19 +489,27 @@ export function MealPlan() {
   const setMode = (m: 'preferred' | 'optimal') => setSp((p) => { p.set('mode', m); return p; }, { replace: true });
   const plan = useComposedPlan(mode);
   const settingsSave = useSaveMealSettings();
-  const day = Math.max(0, Math.min(6, Number(sp.get('day')) || 0));
   const setDay = (i: number) => setSp((p) => { p.set('day', String(i)); return p; }, { replace: true });
   const [showSettings, setShowSettings] = useState(false);
   const [tab, setTab] = useState<'plan' | 'grocery'>('plan');
   const restore = useRestoreSkips();
+  const renew = useRenewPlan();
 
-  if (plan.isLoading) return <Spinner label="Composing your week…" />;
+  if (plan.isLoading) return <Spinner label="Composing your plan…" />;
   if (plan.isError || !plan.data) return <EmptyState title="Couldn't build your plan" hint="Add your food preferences, then reload." />;
   if (plan.data.needsProfile) return <ProfileGate />;
 
   const wk = plan.data;
+  const start = planStart(wk.planStartDate);
+  const dates = datesFrom(start, wk.days.length);
+  const offset = dayOffset(start);
+  const todayIdx = Math.max(0, Math.min(wk.days.length - 1, offset));
+  const planEnded = offset >= wk.days.length;        // today is past the 3-week block
+  const endDate = dates[dates.length - 1];
+  // Default the strip to today; an explicit ?day= wins so navigation is shareable.
+  const dayParam = sp.get('day');
+  const day = Math.max(0, Math.min(wk.days.length - 1, dayParam !== null ? (Number(dayParam) || 0) : todayIdx));
   const d = wk.days[day];
-  const dates = weekDates();
 
   return (
     <div style={{ maxWidth: 1240, margin: '0 auto', padding: '20px 16px 60px' }}>
@@ -530,10 +550,25 @@ export function MealPlan() {
         </div>
       )}
 
-      <p className="muted" style={{ fontSize: 13, margin: '0 0 14px' }}>
+      <p className="muted" style={{ fontSize: 13, margin: '0 0 10px' }}>
         Complete meals from your prescription ({wk.prescription.kcal} kcal · {wk.prescription.protein} g protein).
         {wk.fasting ? ` Intermittent fasting: ${wk.protocol}.` : ''}
       </p>
+
+      {/* 3-week plan window + review prompt (planned in one go; adjust after it ends). */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: planEnded ? '#faf3e0' : 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12.5 }}>
+        <span style={{ flex: 1, minWidth: 220 }}>
+          {planEnded
+            ? <><strong>Your 3-week plan has ended.</strong> Start a fresh one and we’ll plan the next three weeks from today.</>
+            : <><strong>3-week plan</strong> · {longDate(start)} – {longDate(endDate)}. Follow it through, then come back after {longDate(endDate)} to review &amp; adjust.</>}
+        </span>
+        {!wk.readOnly && (
+          <Button variant="line" size="sm" disabled={renew.isPending}
+            onClick={() => { if (window.confirm('Start a fresh 3-week plan from today? This replaces the current plan and clears your swaps/skips.')) renew.mutate({}); }}>
+            {renew.isPending ? 'Planning…' : (planEnded ? 'Start new 3-week plan' : 'Start fresh plan')}
+          </Button>
+        )}
+      </div>
       {wk.blocked && (
         <div role="alert" style={{ background: '#fdecec', border: '1px solid #e0a0a0', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 12.5 }}>
           <strong>⚠ This plan could not be fully certified against your medical limits.</strong>
@@ -573,10 +608,11 @@ export function MealPlan() {
             <div style={{ flex: 1, display: 'flex', gap: 2, overflowX: 'auto', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 16, padding: 5, scrollbarWidth: 'none' }}>
               {wk.days.map((_, i) => {
                 const on = i === day;
+                const isToday = i === todayIdx && !planEnded;
                 return (
                   <button key={i} type="button" onClick={() => setDay(i)} aria-current={on}
                     style={{ flex: '1 0 auto', minWidth: 84, border: 'none', background: on ? 'var(--accent-soft)' : 'transparent', borderRadius: 11, padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>
-                    <div style={{ fontSize: 12, fontWeight: on ? 800 : 700, letterSpacing: '.03em', color: on ? 'var(--accent)' : 'var(--ink-soft)' }}>{DAY_FULL[i].toUpperCase()}</div>
+                    <div style={{ fontSize: 12, fontWeight: on ? 800 : 700, letterSpacing: '.03em', color: on ? 'var(--accent)' : 'var(--ink-soft)' }}>{isToday ? 'TODAY' : weekdayFull(dates[i]).toUpperCase()}</div>
                     <div style={{ fontSize: 10.5, marginTop: 2, color: on ? 'var(--accent)' : 'var(--muted)' }}>{shortDate(dates[i])}</div>
                   </button>
                 );
@@ -630,12 +666,10 @@ export function MealPlan() {
   );
 }
 
-/** Monday-indexed weekday (Mon=0 … Sun=6) — matches the composed week's order. */
-const todayIndex = (): number => (new Date().getDay() + 6) % 7;
-
 /**
- * Daily Meal Planner — today's plate, sliced live from the composite week
- * (same engine, no duplication). Shows the five scheduled meals for today.
+ * Daily Meal Planner — today's plate, sliced live from the composite plan
+ * (same engine, no duplication). Shows the five scheduled meals for today,
+ * anchored to the 3-week plan's start date.
  */
 export function MealPlanToday() {
   const plan = useComposedPlan();
@@ -646,9 +680,10 @@ export function MealPlanToday() {
   if (plan.data.needsProfile) return <ProfileGate />;
 
   const wk = plan.data;
-  const dailyIdx = wk.days[todayIndex()] ? todayIndex() : 0;
+  const start = planStart(wk.planStartDate);
+  const dailyIdx = Math.max(0, Math.min(wk.days.length - 1, dayOffset(start)));
   const d = wk.days[dailyIdx];
-  const date = weekDates()[dailyIdx];
+  const date = datesFrom(start, wk.days.length)[dailyIdx];
 
   return (
     <div style={{ maxWidth: 1240, margin: '0 auto', padding: '20px 16px 60px' }}>

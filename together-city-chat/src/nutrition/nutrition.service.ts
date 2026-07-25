@@ -286,6 +286,11 @@ interface PrefExtras {
   /** Composed-plan per-meal overrides (Refresh/Skip). Keys "d{index}:{slotCode}". */
   composedSkips?: string[];
   composedBumps?: Record<string, number>;
+  /** 3-week plan anchor: the plan runs PLAN_DAYS days from this date (YYYY-MM-DD).
+   *  Lazily set to "today" on first plan, so day 0 is the day the user started. */
+  planStartDate?: string;
+  /** Bumped when the user starts a fresh 3-week plan, to reseed the meals. */
+  planSeedBump?: number;
   /** Family-level setting (stored on the household OWNER's pref). Default ON:
    *  one shared master plan with personalised portions. OFF: every connected
    *  member gets an independent AI plan while staying in the family. */
@@ -300,6 +305,15 @@ function safeJson<T>(s: string | null | undefined, fallback: T): T {
 function parseExtras(extras: string | null | undefined): PrefExtras {
   try { return extras ? (JSON.parse(extras) as PrefExtras) : {}; } catch { return {}; }
 }
+
+/** The meal plan spans three weeks (21 days), generated in one go; the user is
+ *  prompted to review/adjust after it ends. */
+const PLAN_DAYS = 21;
+const todayISO = (): string => new Date().toISOString().slice(0, 10);
+const addDaysISO = (iso: string, n: number): string => {
+  const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
 /** Map a stored FoodPref diet value to a composer diet (single source of truth). */
 function mapUserDiet(raw?: string | null): ComposerDiet {
   const d = (raw ?? '').toLowerCase();
@@ -1636,6 +1650,12 @@ export class NutritionService implements OnModuleInit {
   private async composeFor(userId: string, mode: 'preferred' | 'optimal' = 'preferred') {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    // 3-week plan anchor: day 0 = the day the user started this plan. Lazily set on
+    // first generation so the plan progresses day-by-day and can prompt a review
+    // once its three weeks are up.
+    let planStartDate = (typeof ex.planStartDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ex.planStartDate)) ? ex.planStartDate : '';
+    const planSeedBump = Number(ex.planSeedBump) || 0;
+    if (!planStartDate) { planStartDate = todayISO(); await this.mergeExtras(userId, { planStartDate }); }
     const bvals = await this.bloodValues(userId);
     // Declared conditions + conditions DERIVED from abnormal blood values (QA H5).
     const conditions = [...new Set([...(ex.healthConditions ?? []), ...conditionsFromBlood(bvals)])];
@@ -1731,7 +1751,7 @@ export class NutritionService implements OnModuleInit {
 
     const datasetPool = await this.datasetPoolReady();   // wait (bounded) for the full 11k pool — non-veg mains + photos live here
     const weekFor = (m: 'preferred' | 'optimal') =>
-      composeWeek(targets, cprefsFor(m), 7, this.seedFor(userId) + (m === 'optimal' ? 101 : 0), datasetPool);
+      composeWeek(targets, cprefsFor(m), PLAN_DAYS, this.seedFor(userId) + Math.imul(planSeedBump, 7919) + (m === 'optimal' ? 101 : 0), datasetPool);
 
     const week = weekFor(mode);
 
@@ -1750,7 +1770,7 @@ export class NutritionService implements OnModuleInit {
     // Inform-and-recommend: how THIS plan compares to the clinical ideal (both modes).
     const compliance = isClinical ? complianceReport(week.days, targets, fullCaps, condText) : undefined;
     const safety = ex.fasting?.enabled ? fastingSafety(conditions.join(' ')) : { level: 'ok' as const, notes: [] };
-    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], scorecard, ...(compliance ? { compliance } : {}) };
+    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], scorecard, planStartDate, reviewDate: addDaysISO(planStartDate, PLAN_DAYS), planDays: PLAN_DAYS, ...(compliance ? { compliance } : {}) };
   }
 
   /** DB diet values that satisfy a requested diet (ladder). Real DB values:
@@ -1938,6 +1958,20 @@ export class NutritionService implements OnModuleInit {
   /** Restore every skipped meal for the week. */
   async restoreComposedSkips(userId: string) {
     await this.mergeExtras(userId, { composedSkips: [] });
+    return this.composedPlan(userId);
+  }
+
+  /** Start a FRESH 3-week plan: re-anchor day 0 to today, reseed the meals so the
+   *  new block differs, and clear any per-dish Refresh/Skip overrides. */
+  async renewComposedPlan(userId: string) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    await this.mergeExtras(userId, {
+      planStartDate: todayISO(),
+      planSeedBump: (Number(ex.planSeedBump) || 0) + 1,
+      composedBumps: {},
+      composedSkips: [],
+    });
     return this.composedPlan(userId);
   }
 
