@@ -61,6 +61,8 @@ export const socialApi = {
     api.post<Post>('/social/posts', input).then((r) => r.data),
   remove: (postId: string) => api.delete<{ ok: boolean }>(`/social/posts/${postId}`).then((r) => r.data),
   update: (postId: string, text: string) => api.patch<Post>(`/social/posts/${postId}`, { text }).then((r) => r.data),
+  setCategory: (postId: string, category: 'work' | 'personal' | null) =>
+    api.patch<Post>(`/social/posts/${postId}`, { category }).then((r) => r.data),
   like: (postId: string) =>
     api.post<{ postId: string; liked: boolean; likes: number }>(`/social/posts/${postId}/like`, {}).then((r) => r.data),
   comments: (postId: string) =>
@@ -177,6 +179,17 @@ export function useUpdatePost() {
       qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) =>
         mapFeedPosts(data, (items) => items.map((p) => (p.id === updated.id ? { ...p, ...updated } : p))));
       void qc.invalidateQueries({ queryKey: ['profile', 'posts'] });
+    },
+  });
+}
+export function useSetPostCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { postId: string; category: 'work' | 'personal' | null }) => socialApi.setCategory(v.postId, v.category),
+    onSuccess: () => {
+      // Re-sort the profile grid (the Personal/Work tabs read category).
+      void qc.invalidateQueries({ queryKey: ['profile', 'posts'] });
+      void qc.invalidateQueries({ queryKey: FEED_KEY });
     },
   });
 }

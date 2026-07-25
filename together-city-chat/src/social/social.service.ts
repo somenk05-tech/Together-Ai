@@ -204,14 +204,18 @@ export class SocialService {
     return { ok: true };
   }
 
-  /** Edit a post's caption/text (author only). Media stays as-is. */
-  async updatePost(userId: string, postId: string, text: string) {
+  /** Edit a post's caption/text and/or its Work/Personal category (author only).
+   *  Media stays as-is. `category: null` clears the category. */
+  async updatePost(userId: string, postId: string, dto: { text?: string; category?: 'work' | 'personal' | null }) {
     const existing = await this.prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
     if (!existing) throw new NotFoundException('post not found');
     if (existing.authorId !== userId) throw new ForbiddenException('not your post');
+    const data: { text?: string | null; category?: string | null } = {};
+    if (dto.text !== undefined) data.text = this.clean(dto.text);
+    if (dto.category !== undefined) data.category = dto.category ?? null;
     const updated = await this.prisma.post.update({
       where: { id: postId },
-      data: { text: this.clean(text) },
+      data: data as never,
       include: { author: { select: AUTHOR_SELECT }, media: true, _count: { select: { likes: true, comments: true } }, likes: { where: { userId }, select: { id: true } } },
     });
     const u = updated as unknown as { _count: { likes: number; comments: number }; likes: unknown[] };
@@ -226,7 +230,19 @@ export class SocialService {
     // Five feed lenses (spec): For You (whole network) · Friends (connections
     // only, not yourself) · Nearby (geo-pinned posts) · Trending (most-liked
     // this week) · Following (people you follow).
-    if (filter === 'friends') network = network.filter((id) => id !== userId);
+    if (filter === 'friends') {
+      // Friends = your ACCEPTED connections only (real friends), never the whole
+      // city and never people you merely follow one-way. Your own posts are
+      // excluded (you aren't your own connection).
+      const conns = await this.prisma.connection.findMany({
+        where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
+        select: { userOneId: true, userTwoId: true },
+      });
+      const blocked = await this.blockedWith(userId);
+      network = conns
+        .map((c) => (c.userOneId === userId ? c.userTwoId : c.userOneId))
+        .filter((id) => !blocked.has(id));
+    }
     if (filter === 'following') {
       const follows = await this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } });
       network = follows.map((f) => f.followeeId);
@@ -278,6 +294,9 @@ export class SocialService {
         // Photos / Videos sections: only posts carrying that media kind.
         ...(filter === 'photos' ? { media: { some: { kind: 'image' } } } : {}),
         ...(filter === 'videos' ? { media: { some: { kind: 'video' } } } : {}),
+        // Thoughts: Twitter-style text-only posts — no media, real caption,
+        // and not a repost.
+        ...(filter === 'thoughts' ? { media: { none: {} }, text: { not: null }, repostOfId: null } : {}),
         ...audienceWhere,
       },
       take: limit + 1,

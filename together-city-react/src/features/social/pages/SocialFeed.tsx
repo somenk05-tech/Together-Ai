@@ -1,79 +1,19 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
-import { PostCard, Avatar } from '../PostCard';
+import { PostCard } from '../PostCard';
 import { ReelsView } from '../ReelsView';
 import { PublicProfileModal } from './Profile';
-import { useCreatePost, useFeed, type Post } from '../api';
+import { useFeed, type Post } from '../api';
 
-/** Inline composer — text posts right here; anything richer opens the full
- *  Create Post composer (photos, video, check-ins, tags…). */
-function Composer() {
-  const nav = useNavigate();
-  const { user } = useAuth();
-  const [text, setText] = useState('');
-  const [audience, setAudience] = useState<'public' | 'friends' | 'family' | 'private'>('public');
-  const create = useCreatePost();
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!text.trim()) return;
-    create.mutate({ text: text.trim(), audience }, { onSuccess: () => setText('') });
-  };
-
-  const toolBtn = (label: string) => (
-    <button key={label} type="button" onClick={() => nav('/social/create')}
-      style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 11px',
-        borderRadius: 999, border: '1.5px solid var(--line)', background: 'var(--card)', color: 'var(--ink)', whiteSpace: 'nowrap' }}>
-      {label}
-    </button>
-  );
-
-  return (
-    <form onSubmit={submit} className="card" style={{ marginBottom: 16, padding: '14px 16px' }}>
-      <div style={{ display: 'flex', gap: 10 }}>
-        <Avatar name={user?.name ?? 'You'} src={user?.profileImage} />
-        <textarea
-          value={text} onChange={(e) => setText(e.target.value)} rows={2}
-          placeholder="What's happening today? Share a thought, photo, video or moment with your city."
-          style={{ flex: 1, border: 'none', outline: 'none', resize: 'vertical', padding: '8px 0 0',
-            fontSize: 14.5, fontFamily: 'inherit', background: 'transparent', color: 'var(--ink)', lineHeight: 1.5 }}
-        />
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 10, flexWrap: 'wrap' }}>
-        {toolBtn('📷 Photo')}
-        {toolBtn('🎥 Video')}
-        {toolBtn('📍 Location')}
-        {toolBtn('😊 Mood')}
-        <select value={audience} onChange={(e) => setAudience(e.target.value as never)}
-          style={{ fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 9px', borderRadius: 999,
-            border: '1.5px solid var(--line)', background: 'var(--card)', color: 'var(--ink)', cursor: 'pointer' }}>
-          <option value="public">🌍 Public</option>
-          <option value="friends">👥 Friends</option>
-          <option value="family">👨‍👩‍👧 Family</option>
-          <option value="private">🔒 Only Me</option>
-        </select>
-        <div style={{ marginLeft: 'auto' }}>
-          <Button type="submit" variant="accent" size="sm" disabled={create.isPending || !text.trim()}>
-            {create.isPending ? 'Posting…' : 'Post'}
-          </Button>
-        </div>
-      </div>
-      {create.isError && (
-        <p role="alert" style={{ color: '#c0392b', fontSize: 12.5, margin: '8px 0 0' }}>
-          Couldn't post that just now — please try again.
-        </p>
-      )}
-    </form>
-  );
-}
 
 const FILTERS = [
   { key: 'foryou', label: 'For You' },
   { key: 'photos', label: '📷 Photos' },
   { key: 'videos', label: '🎥 Videos' },
-  { key: 'friends', label: 'Friends' },
+  { key: 'thoughts', label: '💭 Thoughts' },
+  { key: 'friends', label: '👥 Friends' },
 ] as const;
 
 const FALLBACK_TAGS = ['#Weekend', '#Coffee', '#Mumbai', '#Fitness'];
@@ -161,7 +101,11 @@ export function SocialFeed() {
 
       <div className="feed-grid" style={{ display: 'grid', gap: 24, alignItems: 'start' }}>
         <div>
-          {filter !== 'videos' && <Composer />}
+          {filter !== 'videos' && (
+            <div style={{ marginBottom: 16 }}>
+              <Link to="/social/create" className="btn btn-accent btn-sm">+ New post</Link>
+            </div>
+          )}
 
           {/* Filters — wrap to fit instead of horizontal scrolling */}
           <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>

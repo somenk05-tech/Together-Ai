@@ -57,6 +57,6 @@ export type CreateCommentDto = z.infer<typeof CreateCommentSchema>;
 export const FeedQuerySchema = z.object({
   cursor: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
-  filter: z.enum(['foryou', 'friends', 'nearby', 'trending', 'following', 'photos', 'videos']).optional(),
+  filter: z.enum(['foryou', 'friends', 'nearby', 'trending', 'following', 'photos', 'videos', 'thoughts']).optional(),
 });
 export type FeedQueryDto = z.infer<typeof FeedQuerySchema>;

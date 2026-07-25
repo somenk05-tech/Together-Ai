@@ -58,8 +58,16 @@ export class SocialController {
   @Patch('posts/:id')
   update(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
     // Same cap as create (2200) — an edit must not exceed the create limit.
-    const { text } = parseOrThrow(z.object({ text: z.string().max(2200) }), body);
-    return this.social.updatePost(user.sub, id, text);
+    // Both fields optional: edit the caption, and/or re-sort the post into a
+    // Work / Personal category (or clear it with null) from the profile.
+    const dto = parseOrThrow(
+      z.object({
+        text: z.string().max(2200).optional(),
+        category: z.enum(['work', 'personal']).nullable().optional(),
+      }),
+      body,
+    );
+    return this.social.updatePost(user.sub, id, dto);
   }
 
   @Delete('posts/:id')

@@ -11,7 +11,7 @@ import {
   useMyProfile, useMyPosts, usePeopleSearch, usePublicProfile, useUpdateProfile, useReorderMyPosts,
   type MyProfile, type ProfilePost, type PersonResult, type PublicProfile, type Relationship,
 } from '../myProfile.api';
-import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useReport, useSetCover, type FollowPerson, type Post } from '../api';
+import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useReport, useSetCover, useSetPostCategory, type FollowPerson, type Post } from '../api';
 import { PostCard } from '../PostCard';
 
 const money = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
@@ -97,6 +97,12 @@ function PostTile({ p }: { p: ProfilePost }) {
         <span aria-hidden style={{ position: 'absolute', inset: 0, margin: 'auto', width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111', fontSize: 18, paddingLeft: 3 }}>▶</span>
       )}
       {p.outdoor && <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 14 }}>📍</span>}
+      {/* Work/Personal category badge (when the post has been sorted) */}
+      {(p.category === 'personal' || p.category === 'work') && (
+        <span style={{ position: 'absolute', top: 6, left: 6, fontSize: 10.5, fontWeight: 700, color: '#fff', background: 'rgba(0,0,0,.55)', borderRadius: 6, padding: '1px 7px' }}>
+          {p.category === 'work' ? '💼 Work' : '🏖 Personal'}
+        </span>
+      )}
       {/* Every post shows its date */}
       <span style={{ position: 'absolute', bottom: 6, left: 6, fontSize: 11, fontWeight: 600, color: '#fff', background: 'rgba(0,0,0,.5)', borderRadius: 6, padding: '1px 7px' }}>
         {tileDate(p.createdAt)}
@@ -131,14 +137,33 @@ function profilePostToPost(p: ProfilePost, me?: { id: string; handle: string; na
 /** Opens a post in place ON the profile page as the full feed card (video plays
  *  with controls, plus like/comment/share/save and Edit/Delete), so viewing or
  *  managing a post never bounces the user to the city feed. */
-function PostLightbox({ post, onClose }: { post: Post; onClose: () => void }) {
+function PostLightbox({ post, category, onClose }: { post: Post; category?: string | null; onClose: () => void }) {
   const setCover = useSetCover();
+  const setCategory = useSetPostCategory();
+  const cur = category ?? '';
+  const choose = (c: 'work' | 'personal' | null) => setCategory.mutate({ postId: post.id, category: c });
+  const chip = (key: '' | 'personal' | 'work', label: string) => (
+    <button key={key || 'none'} type="button" disabled={setCategory.isPending}
+      onClick={() => choose(key === '' ? null : key)}
+      style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
+        border: `1.5px solid ${cur === key ? 'var(--accent)' : 'var(--line)'}`,
+        background: cur === key ? 'var(--accent)' : 'var(--card)', color: cur === key ? '#fff' : 'var(--ink)' }}>
+      {label}
+    </button>
+  );
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,16,.62)', display: 'grid', placeItems: 'start center', padding: 16, zIndex: 70, overflow: 'auto' }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(600px,96vw)', margin: 'auto 0' }}>
         <PostCard post={post} manage
           onSetCover={(t) => setCover.mutate({ postId: post.id, time: t })}
           coverBusy={setCover.isPending} />
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', margin: '8px 0' }}>
+          <span className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>Sort into:</span>
+          {chip('', 'None')}
+          {chip('personal', '🏖 Personal')}
+          {chip('work', '💼 Work')}
+          {setCategory.isPending && <span className="muted" style={{ fontSize: 12 }}>Saving…</span>}
+        </div>
         <div style={{ textAlign: 'center' }}>
           <button type="button" onClick={onClose} className="btn btn-line btn-sm">Close</button>
         </div>
@@ -290,7 +315,7 @@ function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'phot
         const op = openId ? items.find((x) => x.id === openId) : null;
         // Driven by live items: if the post is edited/deleted, the lightbox
         // reflects it (and closes when the post is gone).
-        return op ? <PostLightbox post={profilePostToPost(op, me.data)} onClose={() => setOpenId(null)} /> : null;
+        return op ? <PostLightbox post={profilePostToPost(op, me.data)} category={op.category} onClose={() => setOpenId(null)} /> : null;
       })()}
     </>
   );
