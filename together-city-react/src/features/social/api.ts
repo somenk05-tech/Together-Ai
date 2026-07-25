@@ -21,6 +21,10 @@ export interface Post {
   comments: number;
   likedByMe: boolean;
   createdAt: string;
+  /** Set when this feed entry is a repost — who shared it. */
+  repostedBy?: { name: string; handle: string } | null;
+  /** Unique key per feed entry (repost id); falls back to id for originals. */
+  key?: string;
 }
 export interface FeedPage { items: Post[]; nextCursor: string | null }
 export interface PostComment { id: string; postId: string; text: string; author: PostAuthor; createdAt: string }
@@ -67,6 +71,8 @@ export const socialApi = {
     api.post<{ reported: boolean }>('/social/report', input).then((r) => r.data),
   setCover: (postId: string, time: number) =>
     api.patch<{ ok: boolean; thumbUrl: string }>(`/social/posts/${postId}/cover`, { time }).then((r) => r.data),
+  repost: (postId: string) =>
+    api.post<{ reposted: boolean }>(`/social/posts/${postId}/repost`, {}).then((r) => r.data),
 };
 
 const FEED_KEY = ['social', 'feed'] as const;
@@ -231,6 +237,16 @@ export function useReport() {
   return useMutation({
     mutationFn: (input: { targetType: 'user' | 'post' | 'comment'; targetId: string; reason?: string }) =>
       socialApi.report(input),
+  });
+}
+export function useRepost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: string) => socialApi.repost(postId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: FEED_KEY });
+      void qc.invalidateQueries({ queryKey: ['profile', 'me'] });
+    },
   });
 }
 export function useSetCover() {

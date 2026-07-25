@@ -182,7 +182,7 @@ export function SocialFeed() {
             <EmptyState icon="🌆" title={filter === 'foryou' ? 'No moments yet' : 'Nothing here yet'}
               hint={filter === 'nearby' ? 'Posts with a pinned location appear here.' : filter === 'following' ? 'Follow people to fill this lens.' : 'Be the first to share one.'} />
           )}
-          {items.map((p) => <PostCard key={p.id} post={p} isNew={p.id === newPostId} onOpenAuthor={setAuthorHandle} />)}
+          {items.map((p) => <PostCard key={p.key ?? p.id} post={p} isNew={p.id === newPostId} onOpenAuthor={setAuthorHandle} />)}
 
           {feed.hasNextPage && (
             <div style={{ display: 'grid', placeItems: 'center', margin: '18px 0 4px' }}>

@@ -559,6 +559,7 @@ model Post {
   feeling   String?
   audience  String   @default("public") // public | friends | family | private
   sortIndex Int? // author's custom order on their profile grid (null = unarranged, falls back to newest-first)
+  repostOfId String? // set when this post is a repost/share of another post
   placeName String? // check-in / travel location label
   taggedJson String? // JSON [{id, name, handle}] — tagged friends
   lat       Float?
@@ -570,11 +571,14 @@ model Post {
   media    PostMedia[]
   comments Comment[]
   likes    Like[]
+  repostOf Post?       @relation("PostReposts", fields: [repostOfId], references: [id], onDelete: Cascade)
+  reposts  Post[]      @relation("PostReposts")
 
   @@index([createdAt])
   @@index([authorId])
   // Serves the hot feed path: WHERE authorId IN (...) ORDER BY createdAt DESC.
   @@index([authorId, createdAt])
+  @@index([repostOfId])
 }
 
 model PostMedia {

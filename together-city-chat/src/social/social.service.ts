@@ -266,14 +266,78 @@ export class SocialService {
         media: true,
         _count: { select: { likes: true, comments: true } },
         likes: { where: { userId }, select: { id: true } },
-      },
+        repostOf: {
+          include: {
+            author: { select: AUTHOR_SELECT },
+            media: true,
+            _count: { select: { likes: true, comments: true } },
+            likes: { where: { userId }, select: { id: true } },
+          },
+        },
+      } as never,
     });
     const hasMore = posts.length > limit;
     const page = hasMore ? posts.slice(0, limit) : posts;
     return {
-      items: page.map((p) => this.shapePost(p, p._count, p.likes.length > 0)),
+      items: page.map((p) => this.shapeFeedRow(p)),
       nextCursor: hasMore ? page[page.length - 1].id : null,
     };
+  }
+
+  /** Shape a feed row, unwrapping reposts: a repost renders the ORIGINAL post's
+   *  content (so like/comment target the original) with a `repostedBy` label and
+   *  a `key` unique to this feed entry, dated at the share time. */
+  private shapeFeedRow(row: unknown) {
+    const r = row as {
+      id: string; createdAt: Date; repostOfId?: string | null;
+      author: { name: string; handle: string };
+      _count: { likes: number; comments: number }; likes: unknown[];
+      repostOf?: { _count: { likes: number; comments: number }; likes: unknown[] } | null;
+    };
+    if (r.repostOfId && r.repostOf) {
+      const o = r.repostOf;
+      const shaped = this.shapePost(o as never, o._count, (o.likes?.length ?? 0) > 0);
+      return { ...shaped, key: r.id, createdAt: r.createdAt.toISOString(), repostedBy: { name: r.author.name, handle: r.author.handle } };
+    }
+    const shaped = this.shapePost(row as never, r._count, (r.likes?.length ?? 0) > 0);
+    return { ...shaped, key: r.id, repostedBy: null };
+  }
+
+  /** Repost (share to feed) another citizen's post. Idempotent per user+post.
+   *  Appears at the top of the reposter's network feed as "shared by …". */
+  async repost(userId: string, postId: string) {
+    const original = await this.prisma.post.findUnique({ where: { id: postId }, select: { id: true, authorId: true, audience: true } });
+    if (!original) throw new NotFoundException('post not found');
+    await this.assertCanView(userId, original);
+    const existing = await this.prisma.post.findFirst({ where: { authorId: userId, repostOfId: postId } as never, select: { id: true } });
+    if (existing) return { reposted: true };
+    const row = await this.prisma.post.create({
+      data: { authorId: userId, repostOfId: postId, audience: 'public' } as never,
+      include: {
+        author: { select: AUTHOR_SELECT },
+        _count: { select: { likes: true, comments: true } },
+        likes: { where: { userId }, select: { id: true } },
+        repostOf: {
+          include: {
+            author: { select: AUTHOR_SELECT },
+            media: true,
+            _count: { select: { likes: true, comments: true } },
+            likes: { where: { userId }, select: { id: true } },
+          },
+        },
+      } as never,
+    });
+    const shaped = this.shapeFeedRow(row);
+    const recipients = await this.postRecipients(userId, 'public');
+    this.gateway.postNew(shaped, recipients);
+    if (original.authorId !== userId) {
+      void this.actorName(userId).then((name) =>
+        this.notifications.create({
+          userId: original.authorId, actorId: userId, kind: 'repost',
+          title: `${name} shared your post`, href: '/social/feed', entityId: postId,
+        }));
+    }
+    return { reposted: true };
   }
 
   /** Accepted connections marked as FAMILY (for family-audience posts). */

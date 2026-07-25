@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ShareModal } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
 import {
-  useAddComment, useComments, useToggleLike, useDeletePost, useUpdatePost, type Post,
+  useAddComment, useComments, useToggleLike, useDeletePost, useUpdatePost, useRepost, type Post,
 } from './api';
 
 export function timeAgo(iso: string): string {
@@ -112,6 +112,8 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
   const like = useToggleLike();
   const del = useDeletePost();
   const upd = useUpdatePost();
+  const repost = useRepost();
+  const [reposted, setReposted] = useState(false);
   const { user } = useAuth();
   const vidRef = useRef<HTMLVideoElement>(null);
   const isMine = Boolean(user && (user.id === post.author.id || user.handle === post.author.handle));
@@ -143,6 +145,11 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
 
   return (
     <article className="card" style={{ marginBottom: 16, ...(isNew ? { boxShadow: '0 0 0 2px var(--accent)', animation: 'tc-pop .3s ease-out' } : {}) }}>
+      {post.repostedBy && (
+        <div className="muted" style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+          🔁 Shared by {post.repostedBy.name} <span style={{ fontWeight: 400 }}>@{post.repostedBy.handle}</span>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <button type="button" onClick={openAuthor} aria-label={`View ${post.author.name}'s profile`}
           style={{ background: 'none', border: 'none', padding: 0, cursor: onOpenAuthor ? 'pointer' : 'default', flexShrink: 0 }}>
@@ -241,6 +248,10 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
           💬 {post.comments}
         </button>
         <button type="button" onClick={() => setShareOpen(true)} style={actionStyle()}>↗ Share</button>
+        <button type="button" disabled={repost.isPending || reposted}
+          onClick={() => repost.mutate(post.id, { onSuccess: () => setReposted(true) })} style={actionStyle(reposted)}>
+          🔁 {reposted ? 'Shared' : 'Repost'}
+        </button>
         <button type="button" onClick={() => setSaved(toggleSaved(post))} style={actionStyle(saved)}>
           🔖 {saved ? 'Saved' : 'Save'}
         </button>

@@ -176,10 +176,12 @@ export class ProfileService {
   /** Reputation & city points derived from real activity — 0 for a brand-new
    *  account, growing as the citizen posts and connects. Never seeded. */
   async statsFor(userId: string): Promise<ProfileStats> {
-    const [posts, likesReceived, commentsReceived, followerRows, followeeRows, connRows] = await Promise.all([
-      this.prisma.post.count({ where: { authorId: userId } }),
+    const [posts, likesReceived, commentsReceived, sharesReceived, followerRows, followeeRows, connRows] = await Promise.all([
+      this.prisma.post.count({ where: { authorId: userId, repostOfId: null } as never }),
       this.prisma.like.count({ where: { post: { authorId: userId } } }),
       this.prisma.comment.count({ where: { post: { authorId: userId } } }),
+      // Shares = reposts of this citizen's posts.
+      this.prisma.post.count({ where: { repostOf: { authorId: userId } } as never }),
       this.prisma.follow.findMany({ where: { followeeId: userId }, select: { followerId: true } }),
       this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } }),
       this.prisma.connection.findMany({ where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] }, select: { userOneId: true, userTwoId: true } }),
@@ -193,7 +195,8 @@ export class ProfileService {
     // Reputation rewards engagement your posts earn plus real connections;
     // city points reward contribution volume. Simple, transparent, real.
     const reputation = likesReceived + commentsReceived * 2 + connections * 3;
-    const cityPoints = posts * 10 + likesReceived + commentsReceived;
+    // City points = likes + shares your posts have earned.
+    const cityPoints = likesReceived + sharesReceived;
     return { posts, reputation, cityPoints, connections, followers, following };
   }
 
@@ -253,7 +256,7 @@ export class ProfileService {
   async myPosts(userId: string, cursor?: string, limit = 18) {
     const take = Math.min(Math.max(limit, 1), 50);
     const rows = await this.prisma.post.findMany({
-      where: { authorId: userId },
+      where: { authorId: userId, repostOfId: null } as never,
       // Author's custom profile arrangement first (sortIndex 0,1,2…), then any
       // un-arranged posts newest-first. New posts (null sortIndex) surface at top
       // of the un-arranged group.

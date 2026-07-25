@@ -87,6 +87,12 @@ export class SocialController {
     return this.social.toggleLike(user.sub, id);
   }
 
+  // Repost (share to feed) — appears at the top of the reposter's network feed.
+  @Post('posts/:id/repost')
+  repost(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.social.repost(user.sub, id);
+  }
+
   // Pin a video post's cover frame (server-side ffmpeg extraction at `time`).
   @Patch('posts/:id/cover')
   setCover(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
