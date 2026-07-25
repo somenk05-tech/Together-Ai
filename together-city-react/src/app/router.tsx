@@ -7,6 +7,7 @@ import { ChunkBoundary } from './ChunkBoundary';
 import { Home } from '@/pages/Home';
 import { HubLanding } from '@/pages/HubLanding';
 import { HubStub } from '@/pages/HubStub';
+import { CarsComingSoon } from '@/pages/CarsComingSoon';
 import { AstroToday } from '@/features/astrology/pages/AstroToday';
 import { AstroMonthly } from '@/features/astrology/pages/AstroMonthly';
 import { AstroAsk } from '@/features/astrology/pages/AstroAsk';
@@ -198,6 +199,7 @@ export const router = createBrowserRouter([
       { path: '/financial', element: <HubLanding hub="financial" /> },
       { path: '/beauty', element: <HubLanding hub="beauty" /> },
       { path: '/fitness', element: <HubLanding hub="fitness" /> },
+      { path: '/cars', element: <CarsComingSoon /> },
       { path: '/profile', element: <RequireAuth>{wrap(<Profile />)}</RequireAuth> },
       { path: '/settings', element: <RequireAuth>{wrap(<Settings />)}</RequireAuth> },
       { path: '/settings/privacy', element: <RequireAuth>{wrap(<PrivacySettings />)}</RequireAuth> },

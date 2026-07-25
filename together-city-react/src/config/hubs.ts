@@ -25,11 +25,15 @@ export const NAV: NavItem[] = [
   { key: 'financial', label: 'FINANCIAL', path: '/financial' },
   { key: 'beauty', label: 'BEAUTY', path: '/beauty' },
   { key: 'fitness', label: 'FITNESS', path: '/fitness' },
+  { key: 'cars', label: 'CARS', path: '/cars' },
   { key: 'mail', label: 'MAIL', path: '/mail' },
 ];
 
 /** Hub metadata — names/taglines ported 1:1 from tc.js SIDE. */
 export const HUBS: Record<HubKey, HubConfig> = {
+  // Cars is a coming-soon teaser (see CarsComingSoon): a nav tab + map building,
+  // no inner pages yet, so `items` is empty.
+  cars: { key: 'cars', name: 'Cars Hub', tag: 'Drive the future.', backPath: '/cars', items: [] },
   travel: {
     key: 'travel', name: 'Travel Hub', tag: 'Explore. Dream. Discover. Together.', backPath: '/travel',
     items: [
