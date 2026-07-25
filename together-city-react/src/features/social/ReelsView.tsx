@@ -24,7 +24,7 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
   };
   return (
     <div ref={scroller} onScroll={onScroll} className="tc-hscroll"
-      style={{ height: 'min(760px, calc(100vh - 150px))', maxWidth: 440, margin: '0 auto',
+      style={{ height: 'calc(100dvh - 120px)', maxWidth: 460, margin: '0 auto',
         overflowY: 'auto', scrollSnapType: 'y mandatory', background: '#000', borderRadius: 16 }}>
       {items.map((p) => <Reel key={p.key ?? p.id} post={p} onOpenAuthor={onOpenAuthor} />)}
       {isFetchingNextPage && <div style={{ height: 60, display: 'grid', placeItems: 'center' }}><Spinner /></div>}
@@ -98,7 +98,9 @@ function Reel({ post, onOpenAuthor }: { post: Post; onOpenAuthor?: (handle: stri
       {video && (
         <video ref={vref} src={video.url} poster={video.thumbUrl ?? undefined} muted={hasMusic ? true : muted} loop playsInline preload="metadata"
           onClick={togglePlay}
-          style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', display: 'block' }} />
+          // Instagram-style: fill the whole frame (crop overflow) — no black bars,
+          // vertical OR horizontal clips both cover the reel edge to edge.
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       )}
       {hasMusic && <audio ref={aref} src={post.musicUrl ?? undefined} loop muted={muted} preload="auto" />}
 
