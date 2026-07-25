@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
@@ -44,11 +45,18 @@ export function SocialFeed() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Lock the page behind the full-screen reels so only the reels scroll.
+  useEffect(() => {
+    if (filter !== 'videos') return;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, [filter]);
+
   // Videos = full-screen immersive reels: nothing else on the page. A single
   // back button returns to the City Feed (For You).
   if (filter === 'videos') {
-    return (
-      <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 45 }}>
+    return createPortal(
+      <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 1000 }}>
         <button type="button" onClick={() => setFilter('foryou')}
           style={{ position: 'absolute', top: 14, left: 14, zIndex: 4, cursor: 'pointer',
             display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700,
@@ -70,7 +78,8 @@ export function SocialFeed() {
             hasNextPage={feed.hasNextPage} fetchNextPage={() => void feed.fetchNextPage()} isFetchingNextPage={feed.isFetchingNextPage} />
         )}
         {authorHandle && <PublicProfileModal handle={authorHandle} onClose={() => setAuthorHandle(null)} />}
-      </div>
+      </div>,
+      document.body,
     );
   }
 
