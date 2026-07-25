@@ -226,7 +226,10 @@ export function Profile() {
               {data ? `Member since ${new Date(data.memberSince).toLocaleDateString()}` : 'Your Together City identity'}
             </p>
           </div>
-          <Button variant="line" size="sm" onClick={signOut}>Sign out</Button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Link to="/social/profile" className="btn btn-accent btn-sm">Change profile</Link>
+            <Button variant="line" size="sm" onClick={signOut}>Sign out</Button>
+          </div>
         </div>
       </Card>
 
