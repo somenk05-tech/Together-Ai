@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type FormEvent, type ReactNode, type Ref } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type MutableRefObject, type ReactNode, type Ref } from 'react';
 import { Button, Spinner } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { ShareModal } from '@/features/chat/share';
@@ -122,11 +122,31 @@ function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName
   );
 }
 
-/** A feed video framed 16:9 (landscape) or 9:16 (vertical) by its real dimensions. */
-function VideoFrame({ url, isNew, vref }: { url: string; isNew: boolean; vref?: Ref<HTMLVideoElement> }) {
+/** A feed video framed 16:9 (landscape) or 9:16 (vertical) by its real dimensions.
+ *  `autoInView` makes it autoplay (muted) while scrolled into view and pause when
+ *  it leaves — used by the "Videos" feed section. */
+function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: boolean; vref?: Ref<HTMLVideoElement>; autoInView?: boolean }) {
   const [portrait, setPortrait] = useState(false);
+  const localRef = useRef<HTMLVideoElement | null>(null);
+  const setRefs = useCallback((el: HTMLVideoElement | null) => {
+    localRef.current = el;
+    if (typeof vref === 'function') vref(el);
+    else if (vref) (vref as MutableRefObject<HTMLVideoElement | null>).current = el;
+  }, [vref]);
+  useEffect(() => {
+    if (!autoInView) return;
+    const el = localRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => {
+      const e = entries[0];
+      if (e.isIntersecting && e.intersectionRatio >= 0.6) { el.muted = true; void el.play().catch(() => {}); }
+      else el.pause();
+    }, { threshold: [0, 0.6] });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [autoInView]);
   return (
-    <video ref={vref} src={url} controls playsInline autoPlay={isNew} muted={isNew} loop={isNew}
+    <video ref={setRefs} src={url} controls playsInline autoPlay={isNew} muted={isNew || autoInView} loop={isNew || autoInView}
       onLoadedMetadata={(e) => setPortrait(e.currentTarget.videoHeight > e.currentTarget.videoWidth)}
       style={{ width: '100%', aspectRatio: portrait ? '9 / 16' : '16 / 9', maxHeight: 560, objectFit: 'cover', borderRadius: 14, marginTop: 12, background: '#000', display: 'block' }} />
   );
@@ -137,9 +157,9 @@ function VideoFrame({ url, isNew, vref }: { url: string; isNew: boolean; vref?: 
  *  `manage` shows the author's Edit/Delete menu (used on the profile, not the feed).
  *  `onOpenAuthor` opens the author's profile (the parent owns the modal, so this
  *  component has no dependency on the profile page — avoids a circular import). */
-export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, onSetCover, coverBusy = false }: {
+export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, onSetCover, coverBusy = false, autoplayVideo = false }: {
   post: Post; isNew?: boolean; manage?: boolean; onOpenAuthor?: (handle: string) => void;
-  onSetCover?: (timeSec: number) => void; coverBusy?: boolean;
+  onSetCover?: (timeSec: number) => void; coverBusy?: boolean; autoplayVideo?: boolean;
 }) {
   const like = useToggleLike();
   const del = useDeletePost();
@@ -238,7 +258,7 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
         </div>
       )}
       {images.length > 1 && <ImageCarousel images={images} authorName={post.author.name} />}
-      {videos.map((m, i) => <VideoFrame key={m.id} url={m.url} isNew={isNew} vref={i === 0 ? vidRef : undefined} />)}
+      {videos.map((m, i) => <VideoFrame key={m.id} url={m.url} isNew={isNew} vref={i === 0 ? vidRef : undefined} autoInView={autoplayVideo} />)}
 
       {manage && isMine && videos.length > 0 && onSetCover && (
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>

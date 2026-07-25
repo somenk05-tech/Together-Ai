@@ -254,6 +254,9 @@ export class SocialService {
         authorId: { in: network },
         ...(filter === 'nearby' ? { lat: { not: null } } : {}),
         ...(filter === 'trending' ? { createdAt: { gte: weekAgo } } : {}),
+        // Photos / Videos sections: only posts carrying that media kind.
+        ...(filter === 'photos' ? { media: { some: { kind: 'image' } } } : {}),
+        ...(filter === 'videos' ? { media: { some: { kind: 'video' } } } : {}),
         ...audienceWhere,
       },
       take: limit + 1,

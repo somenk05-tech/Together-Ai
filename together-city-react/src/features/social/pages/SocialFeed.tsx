@@ -70,6 +70,8 @@ function Composer() {
 
 const FILTERS = [
   { key: 'foryou', label: 'For You' },
+  { key: 'photos', label: '📷 Photos' },
+  { key: 'videos', label: '🎥 Videos' },
   { key: 'friends', label: 'Friends' },
   { key: 'nearby', label: 'Nearby' },
   { key: 'trending', label: 'Trending' },
@@ -182,7 +184,7 @@ export function SocialFeed() {
             <EmptyState icon="🌆" title={filter === 'foryou' ? 'No moments yet' : 'Nothing here yet'}
               hint={filter === 'nearby' ? 'Posts with a pinned location appear here.' : filter === 'following' ? 'Follow people to fill this lens.' : 'Be the first to share one.'} />
           )}
-          {items.map((p) => <PostCard key={p.key ?? p.id} post={p} isNew={p.id === newPostId} onOpenAuthor={setAuthorHandle} />)}
+          {items.map((p) => <PostCard key={p.key ?? p.id} post={p} isNew={p.id === newPostId} onOpenAuthor={setAuthorHandle} autoplayVideo={filter === 'videos'} />)}
 
           {feed.hasNextPage && (
             <div style={{ display: 'grid', placeItems: 'center', margin: '18px 0 4px' }}>
