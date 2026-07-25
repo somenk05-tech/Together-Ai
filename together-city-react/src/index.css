@@ -107,7 +107,7 @@ section.blk { margin: 0 0 56px; }
 .citymap svg.bmap { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 5; }
 .citymap svg.bmap a, .citymap svg.bmap [data-hub-zone] { cursor: pointer; outline: none; }
 .citymap svg.bmap polygon, .citymap svg.bmap ellipse { fill: rgba(255,255,255,0); stroke: none; pointer-events: fill; }
-@media (max-width:900px) { .citymap { display: none; } }
+/* City map (hero video + clickable building zones) now shows on mobile too. */
 
 .cityfallback { display: none; }
 @media (max-width:900px) {

@@ -5,18 +5,21 @@ import { RecentPanel } from '@/components/RecentPanel';
 
 /** A clickable building silhouette on the pavilion-city map. */
 interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: string; cx?: number; cy?: number; rx?: number; ry?: number; }
+// Clickable building zones, mapped to the new homepage video (buildings are
+// static; only the billboards animate). Coords are in the SVG viewBox (1903x826).
+// News, Cars and E-Commerce buildings have no hub route yet, so they're not zoned.
 const ZONES: Zone[] = [
-  { to: '/travel', label: 'Travel Hub', shape: 'poly', points: '135,335 240,272 400,230 505,242 545,290 535,355 470,385 330,398 210,388 152,368' },
-  { to: '/astrology', label: 'Astrology Hub', shape: 'poly', points: '508,342 540,304 715,299 756,334 758,442 706,472 545,470 508,432' },
-  { to: '/nutrition', label: 'Nutrition & Groceries', shape: 'poly', points: '118,428 152,390 388,384 425,416 425,540 380,576 162,576 118,540' },
-  { to: '/entertainment', label: 'Entertainment', shape: 'poly', points: '528,466 562,427 758,424 790,458 790,580 744,616 572,616 528,578' },
-  { to: '/social', label: 'Social Life', shape: 'poly', points: '228,612 268,568 608,564 640,600 640,750 590,790 282,790 228,748' },
-  { to: '/dating', label: 'Dating Hub', shape: 'ellipse', cx: 950, cy: 695, rx: 145, ry: 108 },
-  { to: '/medical', label: 'Medical Hub', shape: 'poly', points: '1258,362 1294,322 1490,320 1524,356 1524,474 1478,514 1302,512 1258,474' },
-  { to: '/realestate', label: 'Real Estate', shape: 'poly', points: '1080,496 1114,457 1300,454 1330,489 1330,594 1284,632 1120,630 1080,590' },
-  { to: '/financial', label: 'Financial District', shape: 'poly', points: '1602,236 1640,196 1844,194 1880,229 1880,378 1834,418 1650,415 1600,376' },
-  { to: '/beauty', label: 'Beauty Market', shape: 'poly', points: '1586,468 1624,430 1858,427 1895,462 1895,588 1849,626 1642,623 1586,586' },
-  { to: '/jobs', label: 'Jobs Hub', shape: 'poly', points: '1292,626 1330,586 1588,584 1620,619 1620,762 1568,805 1352,800 1292,756' },
+  { to: '/travel', label: 'Travel Hub', shape: 'poly', points: '264.9,227.9 488.7,227.9 488.7,343.8 264.9,343.8' },
+  { to: '/nutrition', label: 'Nutrition & Groceries', shape: 'poly', points: '178.4,364.2 461.2,364.2 461.2,496.4 178.4,496.4' },
+  { to: '/social', label: 'Social Life', shape: 'poly', points: '173.3,502.5 381.9,502.5 381.9,652.1 173.3,652.1' },
+  { to: '/astrology', label: 'Astrology Hub', shape: 'poly', points: '183.5,665.3 381.9,665.3 381.9,794.5 183.5,794.5' },
+  { to: '/dating', label: 'Matchmaking Hub', shape: 'ellipse', cx: 951.5, cy: 524.9, rx: 132.2, ry: 73.2 },
+  { to: '/medical', label: 'Medical Hub', shape: 'poly', points: '1144.8,290.9 1441.8,290.9 1441.8,415.0 1144.8,415.0' },
+  { to: '/jobs', label: 'Jobs Hub', shape: 'poly', points: '1195.6,504.6 1401.1,504.6 1401.1,652.1 1195.6,652.1' },
+  { to: '/beauty', label: 'Beauty Market', shape: 'poly', points: '1154.9,659.2 1401.1,659.2 1401.1,789.4 1154.9,789.4' },
+  { to: '/financial', label: 'Financial District', shape: 'poly', points: '1490.6,199.4 1790.7,199.4 1790.7,345.9 1490.6,345.9' },
+  { to: '/realestate', label: 'Real Estate', shape: 'poly', points: '1490.6,372.3 1795.8,372.3 1795.8,518.8 1490.6,518.8' },
+  { to: '/fitness', label: 'Fitness Hub', shape: 'poly', points: '1490.6,557.4 1790.7,557.4 1790.7,753.8 1490.6,753.8' },
 ];
 
 interface Pavilion { to: string; img: string; title: string; meta: string; blurb: string; soon?: boolean; }
