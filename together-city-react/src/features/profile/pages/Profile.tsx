@@ -193,15 +193,53 @@ function NotificationsTab() {
   );
 }
 
+/** Center-crop + downscale a chosen image to a square JPEG data URL. */
+function resizeAvatar(file: File, size = 240): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(url); reject(new Error('no canvas')); return; }
+      const scale = Math.max(size / img.width, size / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+    img.src = url;
+  });
+}
+
 /** Unified profile — identity, all cross-hub data, photo and notifications. */
 export function Profile() {
   const { user, signOut } = useAuth();
   const { data, isLoading, isError } = useProfileSummary();
   const [tab, setTab] = useState<Tab>('overview');
   const reqCount = useIncomingRequestCount();
+  const qc = useQueryClient();
+  const photoRef = useRef<HTMLInputElement>(null);
+  const [photoOverride, setPhotoOverride] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const name = user?.name ?? 'You';
-  const photo = data?.profileImage ?? user?.profileImage ?? null;
+  const photo = photoOverride ?? data?.profileImage ?? user?.profileImage ?? null;
+
+  const changePhoto = async (file?: File) => {
+    if (!file) return;
+    setPhotoBusy(true);
+    try {
+      const data64 = await resizeAvatar(file);
+      await profileApi.setAvatar(data64);
+      setPhotoOverride(data64);
+      void qc.invalidateQueries({ queryKey: ['profile', 'me'] });
+      void qc.invalidateQueries({ queryKey: ['profile', 'summary'] });
+      void qc.invalidateQueries({ queryKey: ['auth', 'me'] });
+    } catch { /* ignore — keep old photo */ } finally { setPhotoBusy(false); }
+  };
   const TABS: { key: Tab; label: string; badge?: number }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'photo', label: 'Photo' },
@@ -216,7 +254,15 @@ export function Profile() {
       {/* Identity */}
       <Card style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <Avatar src={photo} name={name} size={56} />
+          <input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => changePhoto(e.target.files?.[0])} />
+          <button type="button" onClick={() => photoRef.current?.click()} disabled={photoBusy}
+            aria-label="Change profile picture" title="Change profile picture"
+            style={{ position: 'relative', border: 'none', background: 'none', padding: 0, cursor: photoBusy ? 'wait' : 'pointer', borderRadius: '50%', flexShrink: 0 }}>
+            <Avatar src={photo} name={name} size={56} />
+            <span style={{ position: 'absolute', right: -2, bottom: -2, width: 22, height: 22, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 11, border: '2px solid var(--card,#fff)' }}>
+              {photoBusy ? '…' : '📷'}
+            </span>
+          </button>
           <div style={{ flex: 1, minWidth: 180 }}>
             <h3 style={{ margin: 0 }}>{name}</h3>
             <p className="muted" style={{ fontSize: 13 }}>
@@ -227,6 +273,7 @@ export function Profile() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button variant="line" size="sm" disabled={photoBusy} onClick={() => photoRef.current?.click()}>{photoBusy ? 'Uploading…' : 'Change photo'}</Button>
             <Link to="/social/profile" className="btn btn-accent btn-sm">Change profile</Link>
             <Button variant="line" size="sm" onClick={signOut}>Sign out</Button>
           </div>
