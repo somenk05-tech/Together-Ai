@@ -56,17 +56,17 @@ export function SocialFeed() {
   // back button returns to the City Feed (For You).
   if (filter === 'videos') {
     return createPortal(
-      <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 1000 }}>
+      <div style={{ position: 'fixed', inset: 0, background: '#fff', zIndex: 1000 }}>
         <button type="button" onClick={() => setFilter('foryou')}
           style={{ position: 'absolute', top: 14, left: 14, zIndex: 4, cursor: 'pointer',
             display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700,
-            color: '#fff', background: 'rgba(0,0,0,.5)', border: '1px solid rgba(255,255,255,.25)',
-            borderRadius: 999, padding: '8px 14px' }}>
+            color: 'var(--ink)', background: '#fff', border: '1px solid var(--line)',
+            borderRadius: 999, padding: '8px 14px', boxShadow: '0 2px 10px rgba(0,0,0,.08)' }}>
           ← City Feed
         </button>
-        {feed.isLoading && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fff' }}><Spinner label="Loading videos…" /></div>}
+        {feed.isLoading && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}><Spinner label="Loading videos…" /></div>}
         {!feed.isLoading && !feed.isError && items.length === 0 && (
-          <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center', color: '#fff', padding: 24 }}>
+          <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center', padding: 24 }}>
             <div>
               <div style={{ fontSize: 40, marginBottom: 10 }}>🎬</div>
               <p style={{ fontSize: 15, margin: 0 }}>No videos yet — post one and it'll play here, reels-style.</p>

@@ -1,11 +1,38 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Button, Spinner } from '@/components/ui';
 import { ShareModal } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
-import { Avatar } from './PostCard';
+import { Avatar, savedIds, toggleSaved } from './PostCard';
 import {
   useAddComment, useComments, useToggleLike, useRepost, type Post,
 } from './api';
+
+// Instagram-web style dark outline icons drawn on the white page beside the video.
+const HeartIcon = ({ filled }: { filled: boolean }) => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill={filled ? '#ed4956' : 'none'} stroke={filled ? '#ed4956' : 'currentColor'} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z" />
+  </svg>
+);
+const CommentIcon = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 11.5a8.5 8.5 0 0 1-12.3 7.6L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5z" />
+  </svg>
+);
+const RepostIcon = ({ on }: { on: boolean }) => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={on ? '#22c55e' : 'currentColor'} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+  </svg>
+);
+const ShareIcon = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" />
+  </svg>
+);
+const BookmarkIcon = ({ filled }: { filled: boolean }) => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+  </svg>
+);
 
 // Global sound preference for reels — starts UNMUTED (sound on) and a single
 // mute/unmute applies to every video and persists across scrolling and remounts
@@ -31,12 +58,28 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
     if (!el || !hasNextPage || isFetchingNextPage) return;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - el.clientHeight * 1.5) fetchNextPage();
   };
+  const go = (dir: 1 | -1) => {
+    const el = scroller.current;
+    if (el) el.scrollBy({ top: dir * el.clientHeight, behavior: 'smooth' });
+  };
   return (
-    <div ref={scroller} onScroll={onScroll} className="tc-hscroll"
-      style={{ height: fullScreen ? '100dvh' : 'calc(100dvh - 120px)', maxWidth: fullScreen ? 500 : 460, margin: '0 auto',
-        overflowY: 'auto', scrollSnapType: 'y mandatory', background: '#000', borderRadius: fullScreen ? 0 : 16 }}>
-      {items.map((p) => <Reel key={p.key ?? p.id} post={p} onOpenAuthor={onOpenAuthor} muted={muted} onToggleMute={toggleMute} />)}
-      {isFetchingNextPage && <div style={{ height: 60, display: 'grid', placeItems: 'center' }}><Spinner /></div>}
+    <div style={{ position: 'relative', height: fullScreen ? '100dvh' : 'calc(100dvh - 120px)', background: '#fff' }}>
+      <div ref={scroller} onScroll={onScroll} className="tc-hscroll"
+        style={{ height: '100%', overflowY: 'auto', scrollSnapType: 'y mandatory' }}>
+        {items.map((p) => <Reel key={p.key ?? p.id} post={p} onOpenAuthor={onOpenAuthor} muted={muted} onToggleMute={toggleMute} />)}
+        {isFetchingNextPage && <div style={{ height: 60, display: 'grid', placeItems: 'center' }}><Spinner /></div>}
+      </div>
+      {/* Instagram-web up/down navigation on the far right */}
+      <div style={{ position: 'absolute', right: 22, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {([['up', -1], ['down', 1]] as const).map(([dir, d]) => (
+          <button key={dir} type="button" onClick={() => go(d)} aria-label={dir === 'up' ? 'Previous' : 'Next'}
+            style={{ width: 44, height: 44, borderRadius: '50%', background: '#fff', border: '1px solid var(--line)', cursor: 'pointer',
+              display: 'grid', placeItems: 'center', boxShadow: '0 2px 10px rgba(0,0,0,.08)', color: 'var(--ink)' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={{ transform: dir === 'down' ? 'rotate(180deg)' : 'none' }}><path d="M18 15l-6-6-6 6" /></svg>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -54,6 +97,8 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
   const [reposted, setReposted] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [saved, setSaved] = useState(() => savedIds().has(post.id));
+  const toggleSave = () => setSaved(toggleSaved(post));
 
   // Keep the music track in lock-step with the video: play/pause/seek together.
   const syncAudioPlay = () => {
@@ -92,59 +137,60 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
     deepLink: '/social/feed',
   };
 
-  const railBtn = (icon: string, label: string | undefined, onClick: () => void) => (
-    <button type="button" onClick={onClick}
-      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, fontSize: 24, textShadow: '0 1px 6px rgba(0,0,0,.5)' }}>
-      <span>{icon}</span>
-      {label !== undefined && <span style={{ fontSize: 11, fontWeight: 700 }}>{label}</span>}
+  const railBtn = (icon: ReactNode, label: string | undefined, onClick: () => void, key: string) => (
+    <button key={key} type="button" onClick={onClick}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+      <span style={{ display: 'grid', placeItems: 'center', width: 28, height: 28 }}>{icon}</span>
+      {label !== undefined && <span style={{ fontSize: 12, fontWeight: 600 }}>{label}</span>}
     </button>
   );
 
   return (
-    <div style={{ height: '100%', scrollSnapAlign: 'start', position: 'relative', display: 'grid', placeItems: 'center', background: '#000', overflow: 'hidden' }}>
-      {video && (
-        <video ref={vref} src={video.url} poster={video.thumbUrl ?? undefined} muted={hasMusic ? true : muted} loop playsInline preload="metadata"
-          onClick={togglePlay}
-          // Keep the video's true aspect ratio inside the fixed reel window
-          // (fit, don't crop) — vertical and horizontal clips both show in full.
-          style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
-      )}
-      {hasMusic && <audio ref={aref} src={post.musicUrl ?? undefined} loop muted={muted} preload="auto" />}
-
-      {/* play/pause hint */}
-      {paused && (
-        <span aria-hidden onClick={togglePlay} style={{ position: 'absolute', inset: 0, margin: 'auto', width: 64, height: 64, borderRadius: '50%', background: 'rgba(0,0,0,.45)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 26, cursor: 'pointer' }}>▶</span>
-      )}
-
-      {/* mute toggle — one control for ALL reels (global) */}
-      <button type="button" onClick={onToggleMute}
-        style={{ position: 'absolute', top: 12, right: 12, width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 15 }}>
-        {muted ? '🔇' : '🔊'}
-      </button>
-
-      {/* right action rail */}
-      <div style={{ position: 'absolute', right: 10, bottom: 90, display: 'flex', flexDirection: 'column', gap: 18, alignItems: 'center' }}>
-        {railBtn(post.likedByMe ? '❤️' : '🤍', String(post.likes), () => like.mutate(post.id))}
-        {railBtn('💬', String(post.comments), () => setCommentsOpen(true))}
-        {railBtn(reposted ? '🔁' : '🔁', reposted ? 'Shared' : 'Repost', () => { if (!reposted) repost.mutate(post.id, { onSuccess: () => setReposted(true) }); })}
-        {railBtn('↗', 'Share', () => setShareOpen(true))}
-      </div>
-
-      {/* author + caption */}
-      <div style={{ position: 'absolute', left: 12, right: 66, bottom: 16, color: '#fff', textShadow: '0 1px 6px rgba(0,0,0,.6)' }}>
-        <button type="button" onClick={() => onOpenAuthor?.(post.author.handle)}
-          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Avatar name={post.author.name} src={post.author.profileImage} />
-          <span style={{ fontWeight: 700, fontSize: 14 }}>@{post.author.handle}</span>
-        </button>
-        {post.repostedBy && <div style={{ fontSize: 11.5, marginTop: 4, opacity: 0.9 }}>🔁 Shared by {post.repostedBy.name}</div>}
-        {post.text && <p style={{ fontSize: 13.5, lineHeight: 1.4, margin: '6px 0 0', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.text}</p>}
-        {hasMusic && (
-          <div style={{ fontSize: 12, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, opacity: 0.95 }}>
-            <span style={{ display: 'inline-block', animation: 'spin 4s linear infinite' }}>🎵</span>
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>{post.musicTitle ?? 'Original audio'}</span>
-          </div>
+    <div style={{ height: '100%', scrollSnapAlign: 'start', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      {/* video card — portrait window, black bg, letterboxes any aspect */}
+      <div style={{ position: 'relative', height: 'min(78dvh, 78vh)', aspectRatio: '9 / 16', maxWidth: '68vw', background: '#000', borderRadius: 14, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+        {video && (
+          <video ref={vref} src={video.url} poster={video.thumbUrl ?? undefined} muted={hasMusic ? true : muted} loop playsInline preload="metadata"
+            onClick={togglePlay}
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
         )}
+        {hasMusic && <audio ref={aref} src={post.musicUrl ?? undefined} loop muted={muted} preload="auto" />}
+
+        {paused && (
+          <span aria-hidden onClick={togglePlay} style={{ position: 'absolute', inset: 0, margin: 'auto', width: 64, height: 64, borderRadius: '50%', background: 'rgba(0,0,0,.45)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 26, cursor: 'pointer' }}>▶</span>
+        )}
+
+        {/* mute toggle (bottom-right of the video) — one control for ALL reels */}
+        <button type="button" onClick={onToggleMute}
+          style={{ position: 'absolute', bottom: 12, right: 12, width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 15 }}>
+          {muted ? '🔇' : '🔊'}
+        </button>
+
+        {/* action rail — OUTSIDE the video, to its right (Instagram web) */}
+        <div style={{ position: 'absolute', left: '100%', bottom: 4, marginLeft: 16, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
+          {railBtn(<HeartIcon filled={post.likedByMe} />, String(post.likes), () => like.mutate(post.id), 'like')}
+          {railBtn(<CommentIcon />, String(post.comments), () => setCommentsOpen(true), 'comment')}
+          {railBtn(<RepostIcon on={reposted} />, reposted ? 'Shared' : 'Repost', () => { if (!reposted) repost.mutate(post.id, { onSuccess: () => setReposted(true) }); }, 'repost')}
+          {railBtn(<ShareIcon />, 'Share', () => setShareOpen(true), 'share')}
+          {railBtn(<BookmarkIcon filled={saved} />, undefined, toggleSave, 'save')}
+        </div>
+
+        {/* author + caption — BELOW the video, left aligned (Instagram web) */}
+        <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 12, width: '100%', color: 'var(--ink)' }}>
+          <button type="button" onClick={() => onOpenAuthor?.(post.author.handle)}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Avatar name={post.author.name} src={post.author.profileImage} />
+            <span style={{ fontWeight: 700, fontSize: 14 }}>{post.author.handle}</span>
+          </button>
+          {post.repostedBy && <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>🔁 Shared by {post.repostedBy.name}</div>}
+          {post.text && <p style={{ fontSize: 13.5, lineHeight: 1.4, margin: '6px 0 0', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.text}</p>}
+          {hasMusic && (
+            <div className="muted" style={{ fontSize: 12, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ display: 'inline-block', animation: 'spin 4s linear infinite' }}>🎵</span>
+              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>{post.musicTitle ?? 'Original audio'}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {shareOpen && <ShareModal item={shareCard} onClose={() => setShareOpen(false)} />}
