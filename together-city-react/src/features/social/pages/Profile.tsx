@@ -688,6 +688,13 @@ export function SocialProfile() {
             <button type="button" className="btn btn-line btn-sm" onClick={() => setEditing(true)}>Edit profile</button>
             <Link className="btn btn-accent btn-sm" to="/social/create">+ New post</Link>
           </div>
+          {/* Account tabs sit right beside Edit profile (moved out of the content
+              tab bar below). */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+            <button type="button" className={`pill ${tab === 'followers' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('followers')}>Followers</button>
+            <button type="button" className={`pill ${tab === 'following' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('following')}>Following</button>
+            <button type="button" className={`pill ${tab === 'earn' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('earn')}>💰 Post &amp; Earn</button>
+          </div>
           <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>
             <span style={{ fontFamily: 'monospace' }}>@{p.handle}</span> · Joined {joined}
           </p>
@@ -713,9 +720,6 @@ export function SocialProfile() {
         <button type="button" className={`pill ${tab === 'videos' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('videos')}>Videos</button>
         <button type="button" className={`pill ${tab === 'personal' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('personal')}>🏖 Personal</button>
         <button type="button" className={`pill ${tab === 'work' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('work')}>💼 Work</button>
-        <button type="button" className={`pill ${tab === 'followers' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('followers')}>Followers</button>
-        <button type="button" className={`pill ${tab === 'following' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('following')}>Following</button>
-        <button type="button" className={`pill ${tab === 'earn' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('earn')}>💰 Post &amp; Earn</button>
       </div>
 
       {tab === 'posts' && <PostsTab />}
