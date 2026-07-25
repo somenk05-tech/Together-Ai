@@ -80,9 +80,12 @@ function PostTile({ p }: { p: ProfilePost }) {
     <div style={{ aspectRatio: '1/1', borderRadius: 8, overflow: 'hidden', position: 'relative', background: 'var(--paper)' }}>
       {imgSrc ? (
         <img src={imgSrc} alt={p.text ?? ''} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', background: isVideo ? '#000' : undefined }} />
-      ) : isVideo ? (
-        // Video with no thumbnail — a placeholder, not the video file.
-        <div style={{ width: '100%', height: '100%', background: 'linear-gradient(140deg,#2a2a33,#111)' }} />
+      ) : isVideo && first ? (
+        // No server thumbnail — show a STILL FRAME via preload="metadata" seeked
+        // to 0.1s (#t=0.1). The browser fetches only metadata + that one frame,
+        // not the whole video, and it never plays here (muted, no autoplay).
+        <video src={`${first.url}#t=0.1`} preload="metadata" muted playsInline
+          style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000', pointerEvents: 'none' }} />
       ) : (
         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, textAlign: 'center', fontSize: 13, lineHeight: 1.4, color: '#fff', background: 'linear-gradient(140deg,var(--accent),#7a4fa0)' }}>
           <span style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.feeling ? `${p.feeling} · ` : ''}{p.text || 'Post'}</span>
