@@ -30,6 +30,10 @@ export const CreatePostSchema = z
     lng: z.number().min(-180).max(180).optional(),
     audience: z.enum(['public', 'friends', 'family', 'private']).optional(),
     category: z.enum(['work', 'personal']).optional(),
+    // Attached royalty-free soundtrack (library track). Plain strings, NOT
+    // httpsUrl — library tracks are served as relative app paths (/music/x.mp3).
+    musicUrl: z.string().max(500).optional(),
+    musicTitle: z.string().max(120).optional(),
     placeName: z.string().max(120).optional(),
     tagged: z.array(z.object({
       id: z.string().min(1), name: z.string().max(80), handle: z.string().max(40),

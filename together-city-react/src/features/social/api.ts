@@ -21,6 +21,9 @@ export interface Post {
   comments: number;
   likedByMe: boolean;
   createdAt: string;
+  /** Attached royalty-free soundtrack (library track) played over reels. */
+  musicUrl?: string | null;
+  musicTitle?: string | null;
   /** Set when this feed entry is a repost — who shared it. */
   repostedBy?: { name: string; handle: string } | null;
   /** Unique key per feed entry (repost id); falls back to id for originals. */
@@ -35,6 +38,8 @@ export interface CreatePostInput {
   feeling?: string;
   audience?: 'public' | 'friends' | 'family' | 'private';
   category?: 'work' | 'personal';
+  musicUrl?: string;
+  musicTitle?: string;
   placeName?: string;
   tagged?: Array<{ id: string; name: string; handle: string }>;
   media?: { url: string; kind: 'image' | 'video'; thumbUrl?: string | null }[];

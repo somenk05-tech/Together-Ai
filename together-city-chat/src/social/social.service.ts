@@ -171,6 +171,8 @@ export class SocialService {
         feeling: this.clean(dto.feeling),
         audience,
         category: (dto as { category?: string }).category ?? null,
+        musicUrl: (dto as { musicUrl?: string }).musicUrl ?? null,
+        musicTitle: this.clean((dto as { musicTitle?: string }).musicTitle),
         placeName: this.clean(dto.placeName),
         taggedJson: tagged ? JSON.stringify(tagged) : null,
         lat: dto.lat ?? null,
@@ -596,7 +598,7 @@ export class SocialService {
     counts: { likes: number; comments: number },
     likedByMe: boolean,
   ) {
-    const px = p as unknown as { audience?: string | null; placeName?: string | null; taggedJson?: string | null };
+    const px = p as unknown as { audience?: string | null; placeName?: string | null; taggedJson?: string | null; musicUrl?: string | null; musicTitle?: string | null };
     let tagged: Array<{ id: string; name: string; handle: string }> = [];
     try { tagged = px.taggedJson ? JSON.parse(px.taggedJson) : []; } catch { tagged = []; }
     return {
@@ -605,6 +607,8 @@ export class SocialService {
       feeling: p.feeling,
       audience: px.audience ?? 'public',
       placeName: px.placeName ?? null,
+      musicUrl: px.musicUrl ?? null,
+      musicTitle: px.musicTitle ?? null,
       tagged,
       lat: p.lat,
       lng: p.lng,

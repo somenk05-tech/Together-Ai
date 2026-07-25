@@ -560,6 +560,8 @@ model Post {
   audience  String   @default("public") // public | friends | family | private
   sortIndex Int? // author's custom order on their profile grid (null = unarranged, falls back to newest-first)
   category  String? // 'work' | 'personal' — author's own sorting on their profile
+  musicUrl  String? // attached royalty-free track (plays over the video in reels)
+  musicTitle String?
   repostOfId String? // set when this post is a repost/share of another post
   placeName String? // check-in / travel location label
   taggedJson String? // JSON [{id, name, handle}] — tagged friends

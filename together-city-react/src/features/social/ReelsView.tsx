@@ -35,6 +35,11 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
 function Reel({ post, onOpenAuthor }: { post: Post; onOpenAuthor?: (handle: string) => void }) {
   const video = post.media.find((m) => m.kind === 'video');
   const vref = useRef<HTMLVideoElement>(null);
+  const aref = useRef<HTMLAudioElement>(null);
+  const hasMusic = Boolean(post.musicUrl);
+  // With a music track, the video is silenced and the track carries the sound;
+  // the mute button then toggles the track. Without a track it's the classic
+  // muted-by-default reel.
   const [muted, setMuted] = useState(true);
   const [paused, setPaused] = useState(false);
   const like = useToggleLike();
@@ -43,22 +48,33 @@ function Reel({ post, onOpenAuthor }: { post: Post; onOpenAuthor?: (handle: stri
   const [shareOpen, setShareOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
 
+  // Keep the music track in lock-step with the video: play/pause/seek together.
+  const syncAudioPlay = () => {
+    const a = aref.current;
+    if (!a) return;
+    a.currentTime = (vref.current?.currentTime ?? 0) % (a.duration || 1e9);
+    void a.play().catch(() => {});
+  };
+  const syncAudioPause = () => aref.current?.pause();
+
   useEffect(() => {
     const el = vref.current;
     if (!el) return;
     const io = new IntersectionObserver((entries) => {
       const e = entries[0];
-      if (e.isIntersecting && e.intersectionRatio >= 0.6) { void el.play().then(() => setPaused(false)).catch(() => {}); }
-      else el.pause();
+      if (e.isIntersecting && e.intersectionRatio >= 0.6) {
+        void el.play().then(() => { setPaused(false); if (hasMusic) syncAudioPlay(); }).catch(() => {});
+      } else { el.pause(); if (hasMusic) syncAudioPause(); }
     }, { threshold: [0, 0.6] });
     io.observe(el);
-    return () => io.disconnect();
-  }, []);
+    return () => { io.disconnect(); syncAudioPause(); };
+  }, [hasMusic]);
 
   const togglePlay = () => {
     const el = vref.current;
     if (!el) return;
-    if (el.paused) { void el.play(); setPaused(false); } else { el.pause(); setPaused(true); }
+    if (el.paused) { void el.play(); setPaused(false); if (hasMusic) syncAudioPlay(); }
+    else { el.pause(); setPaused(true); if (hasMusic) syncAudioPause(); }
   };
 
   const shareCard: ShareCard = {
@@ -80,10 +96,11 @@ function Reel({ post, onOpenAuthor }: { post: Post; onOpenAuthor?: (handle: stri
   return (
     <div style={{ height: '100%', scrollSnapAlign: 'start', position: 'relative', display: 'grid', placeItems: 'center', background: '#000', overflow: 'hidden' }}>
       {video && (
-        <video ref={vref} src={video.url} poster={video.thumbUrl ?? undefined} muted={muted} loop playsInline preload="metadata"
+        <video ref={vref} src={video.url} poster={video.thumbUrl ?? undefined} muted={hasMusic ? true : muted} loop playsInline preload="metadata"
           onClick={togglePlay}
           style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', display: 'block' }} />
       )}
+      {hasMusic && <audio ref={aref} src={post.musicUrl ?? undefined} loop muted={muted} preload="auto" />}
 
       {/* play/pause hint */}
       {paused && (
@@ -113,6 +130,12 @@ function Reel({ post, onOpenAuthor }: { post: Post; onOpenAuthor?: (handle: stri
         </button>
         {post.repostedBy && <div style={{ fontSize: 11.5, marginTop: 4, opacity: 0.9 }}>🔁 Shared by {post.repostedBy.name}</div>}
         {post.text && <p style={{ fontSize: 13.5, lineHeight: 1.4, margin: '6px 0 0', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.text}</p>}
+        {hasMusic && (
+          <div style={{ fontSize: 12, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, opacity: 0.95 }}>
+            <span style={{ display: 'inline-block', animation: 'spin 4s linear infinite' }}>🎵</span>
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>{post.musicTitle ?? 'Original audio'}</span>
+          </div>
+        )}
       </div>
 
       {shareOpen && <ShareModal item={shareCard} onClose={() => setShareOpen(false)} />}

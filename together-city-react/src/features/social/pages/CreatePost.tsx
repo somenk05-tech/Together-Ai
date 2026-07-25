@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useConnections } from '@/api';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useCreatePost } from '../api';
+import { MUSIC_LIBRARY, type Track } from '../musicLibrary';
 
 // `file` is kept for media that uploads to storage (video) — the `src` is only a
 // local preview; the real post URL comes from the R2 upload on share.
@@ -259,6 +260,69 @@ const inputStyle: React.CSSProperties = {
   fontSize: 14, fontFamily: 'inherit', background: 'var(--card)', color: 'var(--ink)', outline: 'none',
 };
 
+/** 🎵 Music picker — pick a royalty-free library track to play over a video
+ *  post's reel. Tap a chip to select; tap ▶/⏸ to preview. Only one track
+ *  previews at a time. Tracks whose file 404s are hidden automatically. */
+function MusicPicker({ selected, onSelect }: { selected: Track | null; onSelect: (t: Track | null) => void }) {
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [missing, setMissing] = useState<Set<string>>(new Set());
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const stop = () => { audioRef.current?.pause(); audioRef.current = null; setPreviewId(null); };
+
+  const preview = (t: Track) => {
+    if (previewId === t.id) { stop(); return; }
+    audioRef.current?.pause();
+    const a = new Audio(t.url);
+    a.volume = 0.8;
+    a.play().then(() => { audioRef.current = a; setPreviewId(t.id); })
+      .catch(() => { setMissing((m) => new Set(m).add(t.id)); });
+    a.onended = () => setPreviewId((p) => (p === t.id ? null : p));
+  };
+
+  const tracks = MUSIC_LIBRARY.filter((t) => !missing.has(t.id));
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+        <span className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>🎵 Music:</span>
+        <button type="button" onClick={() => { stop(); onSelect(null); }}
+          style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
+            border: `1.5px solid ${!selected ? 'var(--accent)' : 'var(--line)'}`,
+            background: !selected ? 'var(--accent)' : 'var(--card)', color: !selected ? '#fff' : 'var(--ink)' }}>
+          None
+        </button>
+      </div>
+      <div className="tc-hscroll" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+        {tracks.map((t) => {
+          const active = selected?.id === t.id;
+          return (
+            <div key={t.id}
+              style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 12,
+                border: `1.5px solid ${active ? 'var(--accent)' : 'var(--line)'}`,
+                background: active ? 'color-mix(in srgb, var(--accent) 12%, var(--card))' : 'var(--card)' }}>
+              <button type="button" onClick={() => preview(t)}
+                style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                  background: 'var(--accent)', color: '#fff', fontSize: 13, flex: '0 0 auto' }}>
+                {previewId === t.id ? '⏸' : '▶'}
+              </button>
+              <button type="button" onClick={() => { onSelect(active ? null : t); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)', fontFamily: 'inherit' }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{t.title}</div>
+                <div className="muted" style={{ fontSize: 11 }}>{t.mood ?? t.artist ?? 'Track'}</div>
+              </button>
+              {active && <span style={{ fontSize: 13, color: 'var(--accent)' }}>✓</span>}
+            </div>
+          );
+        })}
+        {tracks.length === 0 && (
+          <span className="muted" style={{ fontSize: 12 }}>No tracks available yet — add MP3s to public/music/.</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Social Life · Create Post — ONE composer for text, photos, videos,
  *  check-ins, feelings, tagged friends, hashtags and audience. Nothing is
  *  mandatory except having SOMETHING to share: a photo alone, a video alone,
@@ -281,6 +345,7 @@ export function CreatePost() {
   const [tagged, setTagged] = useState<Array<{ id: string; name: string; handle: string }>>([]);
   const [audience, setAudience] = useState<AudienceKey>('public');
   const [category, setCategory] = useState<'' | 'work' | 'personal'>('');
+  const [music, setMusic] = useState<Track | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   // Share lifecycle: idle → sharing → success (→ navigate) | error
   const [phase, setPhase] = useState<'idle' | 'sharing' | 'success' | 'error'>('idle');
@@ -395,6 +460,7 @@ export function CreatePost() {
         ...(geo ? { lat: geo.lat, lng: geo.lng } : {}),
         audience,
         ...(category ? { category } : {}),
+        ...(music ? { musicUrl: music.url, musicTitle: music.title } : {}),
         tagged: tagged.length ? tagged : undefined,
       },
       {
@@ -567,6 +633,10 @@ export function CreatePost() {
             </button>
           ))}
         </div>
+
+        {media.some((m) => m.type === 'video') && (
+          <MusicPicker selected={music} onSelect={setMusic} />
+        )}
 
         <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>
           🎥 Video: {VIDEO_FORMATS} · up to {mb(MAX_VIDEO_BYTES)} MB each (MP4 plays on every device). 📷 Photos are optimised automatically.

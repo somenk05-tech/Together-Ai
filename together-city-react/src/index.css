@@ -262,3 +262,6 @@ table.tc td b { color: var(--ink); }
   .feed-grid { grid-template-columns: minmax(0, 640px) 1fr; }
   .feed-sidebar { display: block; }
 }
+
+/* Spinning music note on reels with an attached soundtrack. */
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
