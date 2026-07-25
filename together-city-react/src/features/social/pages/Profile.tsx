@@ -157,12 +157,15 @@ function PostLightbox({ post, category, onClose }: { post: Post; category?: stri
         <PostCard post={post} manage
           onSetCover={(t) => setCover.mutate({ postId: post.id, time: t })}
           coverBusy={setCover.isPending} />
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', margin: '8px 0' }}>
-          <span className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>Sort into:</span>
-          {chip('', 'None')}
-          {chip('personal', '🏖 Personal')}
-          {chip('work', '💼 Work')}
-          {setCategory.isPending && <span className="muted" style={{ fontSize: 12 }}>Saving…</span>}
+        <div className="card" style={{ margin: '8px 0', padding: '12px 14px', border: '1.5px solid var(--accent)' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>
+            📂 Sort this post {setCategory.isPending && <span className="muted" style={{ fontWeight: 500 }}>· Saving…</span>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {chip('', 'None')}
+            {chip('personal', '🏖 Personal')}
+            {chip('work', '💼 Work')}
+          </div>
         </div>
         <div style={{ textAlign: 'center' }}>
           <button type="button" onClick={onClose} className="btn btn-line btn-sm">Close</button>
