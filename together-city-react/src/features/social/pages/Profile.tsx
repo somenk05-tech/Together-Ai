@@ -146,11 +146,19 @@ function PostLightbox({ post, onClose }: { post: Post; onClose: () => void }) {
   );
 }
 
-function PostsTab() {
+function PostsTab({ filter = 'all' }: { filter?: 'all' | 'photo' | 'video' }) {
   const posts = useMyPosts();
   const reorder = useReorderMyPosts();
   const me = useMyProfile();
   const [openId, setOpenId] = useState<string | null>(null);
+  const matchesFilter = (p: ProfilePost) => {
+    const hasVideo = p.media.some((m) => m.kind === 'video');
+    const hasImage = p.media.some((m) => m.kind === 'image');
+    if (filter === 'video') return hasVideo;
+    if (filter === 'photo') return hasImage && !hasVideo;
+    return true;
+  };
+  const canArrange = filter === 'all';
   const sentinel = useRef<HTMLDivElement>(null);
   const items = useMemo(() => posts.data?.pages.flatMap((pg) => pg.items) ?? [], [posts.data]);
 
@@ -202,17 +210,20 @@ function PostsTab() {
     });
   };
 
-  const grid = arranging ? arranged : items;
+  const view = items.filter(matchesFilter);
+  const grid = arranging ? arranged : view;
+  const noun = filter === 'photo' ? 'photo' : filter === 'video' ? 'video' : 'post';
+  const title = filter === 'photo' ? 'Your photos' : filter === 'video' ? 'Your videos' : 'Your posts';
 
   return (
     <>
       <div className="blk-head rise d1" style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0 }}>Your posts</h2>
+        <h2 style={{ margin: 0 }}>{title}</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {!arranging ? (
             <>
-              <span className="muted" style={{ fontSize: 12 }}>{count} post{count === 1 ? '' : 's'}{posts.hasNextPage ? '+' : ''}</span>
-              {count > 1 && <Button variant="line" size="sm" onClick={startArranging}>↕ Rearrange</Button>}
+              <span className="muted" style={{ fontSize: 12 }}>{view.length} {noun}{view.length === 1 ? '' : 's'}{posts.hasNextPage ? '+' : ''}</span>
+              {canArrange && view.length > 1 && <Button variant="line" size="sm" onClick={startArranging}>↕ Rearrange</Button>}
             </>
           ) : (
             <>
@@ -226,8 +237,15 @@ function PostsTab() {
 
       {arranging && posts.hasNextPage && (
         <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>
-          Arranging the {count} loaded posts. Scroll to load all posts before rearranging if you want to move older ones.
+          Arranging the {view.length} loaded posts. Scroll to load all posts before rearranging if you want to move older ones.
         </p>
+      )}
+
+      {view.length === 0 && (
+        <div className="blk rise d1" style={{ textAlign: 'center', padding: '44px 24px', marginTop: 16 }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>{filter === 'video' ? '🎬' : '🖼'}</div>
+          <p className="muted" style={{ fontSize: 14, margin: 0 }}>No {noun}s yet.</p>
+        </div>
       )}
 
       <div className="rise d1" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
@@ -603,7 +621,7 @@ function FollowList({ kind }: { kind: 'followers' | 'following' }) {
   );
 }
 
-type Tab = 'posts' | 'earn' | 'followers' | 'following';
+type Tab = 'posts' | 'photos' | 'videos' | 'earn' | 'followers' | 'following';
 
 /** Social Life · My Profile — real identity, stats, posts, People search & Post & Earn. */
 export function SocialProfile() {
@@ -651,12 +669,16 @@ export function SocialProfile() {
 
       <div className="rise d1" style={{ display: 'flex', gap: 8, marginTop: 20, flexWrap: 'wrap' }}>
         <button type="button" className={`pill ${tab === 'posts' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('posts')}>Posts</button>
+        <button type="button" className={`pill ${tab === 'photos' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('photos')}>Photos</button>
+        <button type="button" className={`pill ${tab === 'videos' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('videos')}>Videos</button>
         <button type="button" className={`pill ${tab === 'followers' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('followers')}>Followers</button>
         <button type="button" className={`pill ${tab === 'following' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('following')}>Following</button>
         <button type="button" className={`pill ${tab === 'earn' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('earn')}>💰 Post &amp; Earn</button>
       </div>
 
       {tab === 'posts' && <PostsTab />}
+      {tab === 'photos' && <PostsTab filter="photo" />}
+      {tab === 'videos' && <PostsTab filter="video" />}
       {tab === 'followers' && <FollowList kind="followers" />}
       {tab === 'following' && (<><FollowList kind="following" /><PeopleTab /></>)}
       {tab === 'earn' && <div className="rise d1" style={{ marginTop: 16 }}><EarnView posts={allPosts} /></div>}
