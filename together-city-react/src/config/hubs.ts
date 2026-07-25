@@ -104,9 +104,8 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/social/feed', index: '01', label: 'City Feed', sub: 'Moments from around you' },
       { path: '/social/create', index: '02', label: 'Create Post', sub: 'Share a photo, video or plan' },
       { path: '/social/map', index: '03', label: 'City Map', sub: 'Outdoor posts pinned nearby' },
-      { path: '/social/notifications', index: '04', label: 'Notifications', sub: 'Likes, comments & mentions' },
-      { path: '/social/profile', index: '05', label: 'My Profile', sub: 'Story, stats & Post & Earn' },
-      { path: '/social/saved', index: '06', label: 'Saved', sub: 'Bookmarked posts & places' },
+      { path: '/social/profile', index: '04', label: 'My Profile', sub: 'Story, stats & Post & Earn' },
+      { path: '/social/saved', index: '05', label: 'Saved', sub: 'Bookmarked posts & places' },
     ],
   },
   dating: {
