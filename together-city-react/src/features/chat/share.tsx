@@ -12,6 +12,7 @@ const KIND_META: Record<string, { icon: string; label: string }> = {
   dish: { icon: '🍲', label: 'Dish' }, ticket: { icon: '🎫', label: 'Ticket' }, job: { icon: '💼', label: 'Job' },
   movie: { icon: '🎬', label: 'Movie' }, tv: { icon: '📺', label: 'TV Show' },
   recipe: { icon: '🥗', label: 'Recipe' }, place: { icon: '📍', label: 'Place' },
+  post: { icon: '📝', label: 'Post' },
 };
 const inr = (n: number) => '₹' + Math.round(n).toLocaleString('en-IN');
 
@@ -79,7 +80,7 @@ export function ShareToChat({ item, label = 'Share to chat', variant = 'line', s
   );
 }
 
-function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => void }) {
+export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => void }) {
   const convos = useConversations();
   const contacts = useChatContacts();
   const [note, setNote] = useState('');

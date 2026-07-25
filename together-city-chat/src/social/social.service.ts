@@ -433,7 +433,13 @@ export class SocialService {
     return [...ids];
   }
 
-  /** Throw unless `userId` may view this post (audience + block enforcement). */
+  /** Throw unless `userId` may view/interact with this post. Mirrors the feed's
+   *  visibility rule exactly, so anything you can SEE you can also like/comment:
+   *   • public  → any citizen
+   *   • friends → anyone in the author's circle (you follow them OR are connected)
+   *   • family  → a family-relationship connection
+   *   • private → the author alone
+   *  Blocks (either direction) always deny. */
   private async assertCanView(userId: string, post: { authorId: string; audience?: string | null }) {
     if (post.authorId === userId) return;
     const blocked = await this.blockedWith(userId);
@@ -441,17 +447,22 @@ export class SocialService {
     const aud = post.audience ?? 'public';
     if (aud === 'public') return; // public posts are viewable by any citizen
     if (aud === 'private') throw new ForbiddenException('This post is private.');
-    // friends → any accepted connection; family → a family-relationship connection
-    const conns = await this.prisma.connection.findMany({
-      where: { status: 'ACCEPTED' as never, OR: [{ userOneId: post.authorId }, { userTwoId: post.authorId }] },
-    });
-    const ok = conns.some((r) => {
-      const otherId = r.userOneId === post.authorId ? r.userTwoId : r.userOneId;
-      if (otherId !== userId) return false;
-      if (aud === 'family') return ((r as unknown as { relationship?: string | null }).relationship ?? '') === 'family';
-      return true; // friends
-    });
-    if (!ok) throw new ForbiddenException('You do not have access to this post.');
+    const [follows, conns] = await Promise.all([
+      this.prisma.follow
+        .findUnique({ where: { followerId_followeeId: { followerId: userId, followeeId: post.authorId } } })
+        .catch(() => null),
+      this.prisma.connection.findMany({
+        where: { status: 'ACCEPTED' as never, OR: [{ userOneId: post.authorId }, { userTwoId: post.authorId }] },
+      }),
+    ]);
+    const conn = conns.find((r) => (r.userOneId === post.authorId ? r.userTwoId : r.userOneId) === userId);
+    if (aud === 'family') {
+      if (conn && ((conn as unknown as { relationship?: string | null }).relationship ?? '') === 'family') return;
+      throw new ForbiddenException('This post is for family only.');
+    }
+    // friends: a follow OR any accepted connection puts you in the circle
+    if (follows || conn) return;
+    throw new ForbiddenException('You do not have access to this post.');
   }
 
   // ─────────────── helpers ───────────────

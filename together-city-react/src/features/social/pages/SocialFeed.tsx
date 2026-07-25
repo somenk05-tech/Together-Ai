@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
+import { ShareModal } from '@/features/chat/share';
+import type { ShareCard } from '@/types';
 import {
   useAddComment, useComments, useCreatePost, useFeed, useToggleLike, useDeletePost, useUpdatePost, type Post,
 } from '../api';
@@ -174,28 +176,26 @@ function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
   const [draft, setDraft] = useState(post.text ?? '');
   const [showComments, setShowComments] = useState(false);
   const [saved, setSaved] = useState(() => savedIds().has(post.id));
-  const [copied, setCopied] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const actionStyle = (on = false): React.CSSProperties => ({
     background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit',
     color: on ? 'var(--accent)' : 'var(--muted)', fontWeight: on ? 700 : 400, padding: 0,
   });
 
-  const share = async () => {
-    const summary = `${post.author.name} on Together City${post.placeName ? ` · 📍 ${post.placeName}` : ''}\n${post.text ?? ''}`.trim();
-    try {
-      if (navigator.share) await navigator.share({ text: summary, url: window.location.origin + '/social/feed' });
-      else {
-        // No native share (desktop) — copy and confirm, so it's not a silent no-op.
-        await navigator.clipboard.writeText(`${summary}\n${window.location.origin}/social/feed`);
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2000);
-      }
-    } catch { /* cancelled */ }
-  };
-
   const images = post.media.filter((m) => m.kind === 'image');
   const videos = post.media.filter((m) => m.kind === 'video');
   const aud = post.audience && post.audience !== 'public' ? AUD_EMOJI[post.audience] : null;
+
+  // A rich card for sharing this post into a Together City chat (reuses the
+  // cross-hub Send-to-Chat primitive), so "Share" actually sends it to people.
+  const shareCard: ShareCard = {
+    kind: 'post',
+    hub: 'Social',
+    title: post.text?.trim() ? (post.text.length > 90 ? post.text.slice(0, 90) + '…' : post.text) : `${post.author.name}'s post`,
+    subtitle: `by ${post.author.name}${post.placeName ? ` · 📍 ${post.placeName}` : ''}`,
+    image: images[0]?.url ?? videos[0]?.thumbUrl ?? null,
+    deepLink: '/social/feed',
+  };
 
   return (
     <article className="card" style={{ marginBottom: 16, ...(isNew ? { boxShadow: '0 0 0 2px var(--accent)', animation: 'tc-pop .3s ease-out' } : {}) }}>
@@ -280,13 +280,14 @@ function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
         <button type="button" onClick={() => setShowComments((s) => !s)} style={actionStyle()}>
           💬 {post.comments}
         </button>
-        <button type="button" onClick={() => void share()} style={actionStyle(copied)}>{copied ? '✓ Link copied' : '↗ Share'}</button>
+        <button type="button" onClick={() => setShareOpen(true)} style={actionStyle()}>↗ Share</button>
         <button type="button" onClick={() => setSaved(toggleSaved(post))} style={actionStyle(saved)}>
           🔖 {saved ? 'Saved' : 'Save'}
         </button>
       </div>
 
       {showComments && <CommentsPanel postId={post.id} />}
+      {shareOpen && <ShareModal item={shareCard} onClose={() => setShareOpen(false)} />}
     </article>
   );
 }
