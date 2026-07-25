@@ -165,8 +165,8 @@ export function SocialFeed() {
         <div>
           <Composer />
 
-          {/* Filters — the only five you need */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', paddingBottom: 2 }}>
+          {/* Filters — wrap to fit instead of horizontal scrolling */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
             {FILTERS.map((f) => (
               <button key={f.key} type="button" onClick={() => setFilter(f.key)}
                 style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '7px 16px',
