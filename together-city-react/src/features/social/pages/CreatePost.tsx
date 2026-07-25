@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useConnections } from '@/api';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
@@ -263,12 +263,19 @@ const inputStyle: React.CSSProperties = {
 /** 🎵 Music picker — pick a royalty-free library track to play over a video
  *  post's reel. Tap a chip to select; tap ▶/⏸ to preview. Only one track
  *  previews at a time. Tracks whose file 404s are hidden automatically. */
-function MusicPicker({ selected, onSelect }: { selected: Track | null; onSelect: (t: Track | null) => void }) {
+function MusicPicker({ selected, onSelect, stopSignal }: { selected: Track | null; onSelect: (t: Track | null) => void; stopSignal?: boolean }) {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [missing, setMissing] = useState<Set<string>>(new Set());
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const stop = () => { audioRef.current?.pause(); audioRef.current = null; setPreviewId(null); };
+
+  // Stop the audition the moment the post starts uploading (stopSignal flips),
+  // so preview music never keeps playing into the share flow.
+  useEffect(() => { if (stopSignal) stop(); }, [stopSignal]);
+  // Safety net: also stop if the composer unmounts (navigating away after a
+  // successful post) — the detached Audio() would otherwise keep playing.
+  useEffect(() => () => { audioRef.current?.pause(); audioRef.current = null; }, []);
 
   const preview = (t: Track) => {
     if (previewId === t.id) { stop(); return; }
@@ -639,7 +646,7 @@ export function CreatePost() {
         </div>
 
         {media.some((m) => m.type === 'video') && (
-          <MusicPicker selected={music} onSelect={setMusic} />
+          <MusicPicker selected={music} onSelect={setMusic} stopSignal={phase !== 'idle'} />
         )}
 
         <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>
