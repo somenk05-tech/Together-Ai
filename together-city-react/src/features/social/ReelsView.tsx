@@ -7,6 +7,11 @@ import {
   useAddComment, useComments, useToggleLike, useRepost, type Post,
 } from './api';
 
+// Global sound preference for reels — starts UNMUTED (sound on) and a single
+// mute/unmute applies to every video and persists across scrolling and remounts
+// for the session. Module-level so it survives component remounts.
+let sharedMuted = false;
+
 /** Instagram-Reels-style vertical player for the Videos tab: one video per
  *  screen, snap-scroll up/down, autoplay in view, side action rail. */
 export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isFetchingNextPage, fullScreen }: {
@@ -18,6 +23,9 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
   fullScreen?: boolean;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
+  // One mute state shared by every reel. Toggling it here re-renders all reels.
+  const [muted, setMuted] = useState(sharedMuted);
+  const toggleMute = () => setMuted((m) => { sharedMuted = !m; return !m; });
   const onScroll = () => {
     const el = scroller.current;
     if (!el || !hasNextPage || isFetchingNextPage) return;
@@ -27,21 +35,19 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
     <div ref={scroller} onScroll={onScroll} className="tc-hscroll"
       style={{ height: fullScreen ? '100dvh' : 'calc(100dvh - 120px)', maxWidth: fullScreen ? 500 : 460, margin: '0 auto',
         overflowY: 'auto', scrollSnapType: 'y mandatory', background: '#000', borderRadius: fullScreen ? 0 : 16 }}>
-      {items.map((p) => <Reel key={p.key ?? p.id} post={p} onOpenAuthor={onOpenAuthor} />)}
+      {items.map((p) => <Reel key={p.key ?? p.id} post={p} onOpenAuthor={onOpenAuthor} muted={muted} onToggleMute={toggleMute} />)}
       {isFetchingNextPage && <div style={{ height: 60, display: 'grid', placeItems: 'center' }}><Spinner /></div>}
     </div>
   );
 }
 
-function Reel({ post, onOpenAuthor }: { post: Post; onOpenAuthor?: (handle: string) => void }) {
+function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenAuthor?: (handle: string) => void; muted: boolean; onToggleMute: () => void }) {
   const video = post.media.find((m) => m.kind === 'video');
   const vref = useRef<HTMLVideoElement>(null);
   const aref = useRef<HTMLAudioElement>(null);
   const hasMusic = Boolean(post.musicUrl);
-  // With a music track, the video is silenced and the track carries the sound;
-  // the mute button then toggles the track. Without a track it's the classic
-  // muted-by-default reel.
-  const [muted, setMuted] = useState(true);
+  // With a music track the video is silenced and the track carries the sound;
+  // the (global) mute button then toggles the track. Sound is on by default.
   const [paused, setPaused] = useState(false);
   const like = useToggleLike();
   const repost = useRepost();
@@ -99,9 +105,9 @@ function Reel({ post, onOpenAuthor }: { post: Post; onOpenAuthor?: (handle: stri
       {video && (
         <video ref={vref} src={video.url} poster={video.thumbUrl ?? undefined} muted={hasMusic ? true : muted} loop playsInline preload="metadata"
           onClick={togglePlay}
-          // Instagram-style: fill the whole frame (crop overflow) — no black bars,
-          // vertical OR horizontal clips both cover the reel edge to edge.
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          // Keep the video's true aspect ratio inside the fixed reel window
+          // (fit, don't crop) — vertical and horizontal clips both show in full.
+          style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
       )}
       {hasMusic && <audio ref={aref} src={post.musicUrl ?? undefined} loop muted={muted} preload="auto" />}
 
@@ -110,8 +116,8 @@ function Reel({ post, onOpenAuthor }: { post: Post; onOpenAuthor?: (handle: stri
         <span aria-hidden onClick={togglePlay} style={{ position: 'absolute', inset: 0, margin: 'auto', width: 64, height: 64, borderRadius: '50%', background: 'rgba(0,0,0,.45)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 26, cursor: 'pointer' }}>▶</span>
       )}
 
-      {/* mute toggle */}
-      <button type="button" onClick={() => setMuted((m) => !m)}
+      {/* mute toggle — one control for ALL reels (global) */}
+      <button type="button" onClick={onToggleMute}
         style={{ position: 'absolute', top: 12, right: 12, width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 15 }}>
         {muted ? '🔇' : '🔊'}
       </button>
