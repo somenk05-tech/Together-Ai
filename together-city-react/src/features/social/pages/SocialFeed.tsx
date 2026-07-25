@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { PostCard } from '../PostCard';
 import { ReelsView } from '../ReelsView';
 import { PublicProfileModal } from './Profile';
-import { useFeed, type Post } from '../api';
+import { useFeed } from '../api';
 
 
 const FILTERS = [
@@ -15,46 +15,6 @@ const FILTERS = [
   { key: 'thoughts', label: '💭 Thoughts' },
   { key: 'friends', label: '👥 Friends' },
 ] as const;
-
-const FALLBACK_TAGS = ['#Weekend', '#Coffee', '#Mumbai', '#Fitness'];
-
-/** Right sidebar (desktop) — trending, events, people, businesses. */
-function Sidebar({ posts }: { posts: Post[] }) {
-  const trending = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const p of posts) for (const m of (p.text ?? '').match(/#\w+/g) ?? []) counts.set(m, (counts.get(m) ?? 0) + 1);
-    const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([t]) => t);
-    return top.length >= 2 ? top : [...top, ...FALLBACK_TAGS.filter((t) => !top.includes(t))].slice(0, 4);
-  }, [posts]);
-  const box: React.CSSProperties = { padding: '14px 16px', marginBottom: 14 };
-  const head: React.CSSProperties = { fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 };
-  const row: React.CSSProperties = { fontSize: 13, padding: '5px 0', display: 'block', color: 'var(--ink)', textDecoration: 'none' };
-  return (
-    <aside>
-      <div className="card" style={box}>
-        <div style={head}>Trending</div>
-        {trending.map((t) => <span key={t} style={{ ...row, fontWeight: 700, color: 'var(--accent)' }}>{t}</span>)}
-      </div>
-      <div className="card" style={box}>
-        <div style={head}>Nearby events</div>
-        {[['🎸 Live Music', '/entertainment'], ['🍜 Food Festival', '/restaurants'], ['🏃 City Marathon', '/fitness']].map(([l, to]) => (
-          <Link key={l} to={to} style={row}>{l}</Link>
-        ))}
-      </div>
-      <div className="card" style={box}>
-        <div style={head}>Suggested people</div>
-        <p className="muted" style={{ fontSize: 12.5, margin: '0 0 8px' }}>Grow your circle — connect once, share everywhere.</p>
-        <Link to="/connections" className="btn btn-line btn-sm">Open People →</Link>
-      </div>
-      <div className="card" style={box}>
-        <div style={head}>Businesses near you</div>
-        {[['☕ Blue Tokai', '/restaurants'], ['🥤 Starbucks', '/restaurants'], ['🍽 Explore restaurants', '/restaurants/discover']].map(([l, to]) => (
-          <Link key={l} to={to} style={row}>{l}</Link>
-        ))}
-      </div>
-    </aside>
-  );
-}
 
 /** Social Life — one intelligent feed: friends, check-ins, travel moments,
  *  videos, business updates and community posts in a single clean stream. */
@@ -84,6 +44,36 @@ export function SocialFeed() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Videos = full-screen immersive reels: nothing else on the page. A single
+  // back button returns to the City Feed (For You).
+  if (filter === 'videos') {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 45 }}>
+        <button type="button" onClick={() => setFilter('foryou')}
+          style={{ position: 'absolute', top: 14, left: 14, zIndex: 4, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700,
+            color: '#fff', background: 'rgba(0,0,0,.5)', border: '1px solid rgba(255,255,255,.25)',
+            borderRadius: 999, padding: '8px 14px' }}>
+          ← City Feed
+        </button>
+        {feed.isLoading && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fff' }}><Spinner label="Loading videos…" /></div>}
+        {!feed.isLoading && !feed.isError && items.length === 0 && (
+          <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center', color: '#fff', padding: 24 }}>
+            <div>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>🎬</div>
+              <p style={{ fontSize: 15, margin: 0 }}>No videos yet — post one and it'll play here, reels-style.</p>
+            </div>
+          </div>
+        )}
+        {items.length > 0 && (
+          <ReelsView items={items} onOpenAuthor={setAuthorHandle} fullScreen
+            hasNextPage={feed.hasNextPage} fetchNextPage={() => void feed.fetchNextPage()} isFetchingNextPage={feed.isFetchingNextPage} />
+        )}
+        {authorHandle && <PublicProfileModal handle={authorHandle} onClose={() => setAuthorHandle(null)} />}
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
       {toast && (
@@ -99,7 +89,7 @@ export function SocialFeed() {
       </h1>
       <p className="lede" style={{ marginBottom: 16 }}>Discover what's happening around you.</p>
 
-      <div className="feed-grid" style={{ display: 'grid', gap: 24, alignItems: 'start' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <div>
           {filter !== 'videos' && (
             <div style={{ marginBottom: 16 }}>
@@ -149,13 +139,6 @@ export function SocialFeed() {
             </>
           )}
         </div>
-
-        {/* Right sidebar — desktop only, hidden in the reels view */}
-        {filter !== 'videos' && (
-          <div className="feed-sidebar">
-            <Sidebar posts={items} />
-          </div>
-        )}
       </div>
 
       {authorHandle && <PublicProfileModal handle={authorHandle} onClose={() => setAuthorHandle(null)} />}

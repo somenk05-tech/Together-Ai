@@ -9,12 +9,13 @@ import {
 
 /** Instagram-Reels-style vertical player for the Videos tab: one video per
  *  screen, snap-scroll up/down, autoplay in view, side action rail. */
-export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isFetchingNextPage }: {
+export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isFetchingNextPage, fullScreen }: {
   items: Post[];
   onOpenAuthor?: (handle: string) => void;
   hasNextPage: boolean;
   fetchNextPage: () => void;
   isFetchingNextPage: boolean;
+  fullScreen?: boolean;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const onScroll = () => {
@@ -24,8 +25,8 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
   };
   return (
     <div ref={scroller} onScroll={onScroll} className="tc-hscroll"
-      style={{ height: 'calc(100dvh - 120px)', maxWidth: 460, margin: '0 auto',
-        overflowY: 'auto', scrollSnapType: 'y mandatory', background: '#000', borderRadius: 16 }}>
+      style={{ height: fullScreen ? '100dvh' : 'calc(100dvh - 120px)', maxWidth: fullScreen ? 500 : 460, margin: '0 auto',
+        overflowY: 'auto', scrollSnapType: 'y mandatory', background: '#000', borderRadius: fullScreen ? 0 : 16 }}>
       {items.map((p) => <Reel key={p.key ?? p.id} post={p} onOpenAuthor={onOpenAuthor} />)}
       {isFetchingNextPage && <div style={{ height: 60, display: 'grid', placeItems: 'center' }}><Spinner /></div>}
     </div>
