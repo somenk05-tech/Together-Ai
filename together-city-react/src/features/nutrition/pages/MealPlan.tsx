@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Card, Spinner, EmptyState, Button, Chip, Modal } from '@/components/ui';
 import {
@@ -495,6 +495,16 @@ export function MealPlan() {
   const restore = useRestoreSkips();
   const renew = useRenewPlan();
 
+  // Keep the selected day visible: scroll the strip so the active tab centres as
+  // you move right/left, and on first load so "Today" is in view. (Declared before
+  // the early returns so hook order stays stable.)
+  const stripRef = useRef<HTMLDivElement>(null);
+  const dayKey = sp.get('day');
+  useEffect(() => {
+    const el = stripRef.current?.querySelector('[data-active="true"]') as HTMLElement | null;
+    el?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  }, [dayKey, plan.data]);
+
   if (plan.isLoading) return <Spinner label="Composing your plan…" />;
   if (plan.isError || !plan.data) return <EmptyState title="Couldn't build your plan" hint="Add your food preferences, then reload." />;
   if (plan.data.needsProfile) return <ProfileGate />;
@@ -605,12 +615,12 @@ export function MealPlan() {
           <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, marginBottom: 8 }}>
             <button type="button" aria-label="Previous day" disabled={day === 0} onClick={() => setDay(Math.max(0, day - 1))}
               style={{ display: 'grid', placeItems: 'center', width: 34, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--muted)', cursor: day === 0 ? 'default' : 'pointer', opacity: day === 0 ? 0.4 : 1 }}><NIc name="chevL" size={18} /></button>
-            <div style={{ flex: 1, display: 'flex', gap: 2, overflowX: 'auto', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 16, padding: 5, scrollbarWidth: 'none' }}>
+            <div ref={stripRef} style={{ flex: 1, display: 'flex', gap: 2, overflowX: 'auto', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 16, padding: 5, scrollbarWidth: 'none' }}>
               {wk.days.map((_, i) => {
                 const on = i === day;
                 const isToday = i === todayIdx && !planEnded;
                 return (
-                  <button key={i} type="button" onClick={() => setDay(i)} aria-current={on}
+                  <button key={i} type="button" onClick={() => setDay(i)} aria-current={on} data-active={on ? 'true' : undefined}
                     style={{ flex: '1 0 auto', minWidth: 84, border: 'none', background: on ? 'var(--accent-soft)' : 'transparent', borderRadius: 11, padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>
                     <div style={{ fontSize: 12, fontWeight: on ? 800 : 700, letterSpacing: '.03em', color: on ? 'var(--accent)' : 'var(--ink-soft)' }}>{isToday ? 'TODAY' : weekdayFull(dates[i]).toUpperCase()}</div>
                     <div style={{ fontSize: 10.5, marginTop: 2, color: on ? 'var(--accent)' : 'var(--muted)' }}>{shortDate(dates[i])}</div>
