@@ -248,6 +248,10 @@ table.tc td b { color: var(--ink); }
 .tc-field:focus-within, .tc-field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 .tc-riser > * { animation: tc-rise .28s ease-out both; }
 
+/* Horizontal swipe carousel — hide the scrollbar (snap still works). */
+.tc-hscroll { -ms-overflow-style: none; scrollbar-width: none; }
+.tc-hscroll::-webkit-scrollbar { display: none; }
+
 /* Social feed layout — single column on mobile/tablet, feed + sidebar on desktop.
    (The columns must live in CSS, not an inline style, so this media query can
    actually collapse them — otherwise the feed renders in a cramped narrow track

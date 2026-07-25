@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ShareModal } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
 import {
-  useAddComment, useComments, useToggleLike, useDeletePost, useUpdatePost, useRepost, type Post,
+  useAddComment, useComments, useToggleLike, useDeletePost, useUpdatePost, useRepost, type Post, type PostMedia,
 } from './api';
 
 export function timeAgo(iso: string): string {
@@ -86,6 +86,38 @@ function ImgCell({ url, adaptive, overlay, alt }: { url: string; adaptive: boole
       <img src={url} alt={alt} onLoad={(e) => { if (adaptive) setPortrait(e.currentTarget.naturalHeight > e.currentTarget.naturalWidth); }}
         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       {overlay}
+    </div>
+  );
+}
+
+/** Multiple images as a horizontal swipe/scroll carousel — every image is
+ *  reachable (no more +N cutoff), with dot indicators and a counter. */
+function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName: string }) {
+  const [idx, setIdx] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+  const onScroll = () => {
+    const el = ref.current;
+    if (el && el.clientWidth) setIdx(Math.round(el.scrollLeft / el.clientWidth));
+  };
+  return (
+    <div style={{ position: 'relative', marginTop: 12 }}>
+      <div ref={ref} onScroll={onScroll} className="tc-hscroll"
+        style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', borderRadius: 14, scrollbarWidth: 'none' }}>
+        {images.map((m) => (
+          <div key={m.id} style={{ flex: '0 0 100%', scrollSnapAlign: 'center', aspectRatio: '16 / 9', background: '#000' }}>
+            <img src={m.url} alt={`Photo shared by ${authorName}`} loading="lazy"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ position: 'absolute', top: 8, right: 10, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, pointerEvents: 'none' }}>
+        {idx + 1} / {images.length}
+      </div>
+      <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 5, pointerEvents: 'none' }}>
+        {images.map((m, i) => (
+          <span key={m.id} style={{ width: 6, height: 6, borderRadius: '50%', background: i === idx ? '#fff' : 'rgba(255,255,255,.5)' }} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -199,20 +231,13 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
         </p>
       )}
 
-      {/* media-first: single image full-bleed, several as a clean grid */}
-      {images.length > 0 && (
-        <div style={{ marginTop: 12, borderRadius: 14, overflow: 'hidden',
-          display: 'grid', gap: 3, gridTemplateColumns: images.length > 1 ? '1fr 1fr' : '1fr' }}>
-          {images.slice(0, 4).map((m, i) => (
-            <ImgCell key={m.id} url={m.url} adaptive={images.length === 1} alt={`Photo shared by ${post.author.name}`}
-              overlay={i === 3 && images.length > 4 ? (
-                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.5)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 20, fontWeight: 800 }}>
-                  +{images.length - 4}
-                </div>
-              ) : null} />
-          ))}
+      {/* media-first: single image full-bleed; multiple as a swipe carousel */}
+      {images.length === 1 && (
+        <div style={{ marginTop: 12, borderRadius: 14, overflow: 'hidden' }}>
+          <ImgCell url={images[0].url} adaptive alt={`Photo shared by ${post.author.name}`} />
         </div>
       )}
+      {images.length > 1 && <ImageCarousel images={images} authorName={post.author.name} />}
       {videos.map((m, i) => <VideoFrame key={m.id} url={m.url} isNew={isNew} vref={i === 0 ? vidRef : undefined} />)}
 
       {manage && isMine && videos.length > 0 && onSetCover && (

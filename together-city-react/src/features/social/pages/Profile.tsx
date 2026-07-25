@@ -5,6 +5,7 @@ import { Button, Spinner } from '@/components/ui';
 import { chatApi } from '@/api';
 import { useConnections, useRequestConnection, useRespondConnection } from '@/api/connections.api';
 import { profileApi } from '@/features/profile/api';
+import { useAuthStore } from '@/store/auth.store';
 import { initials } from '../shared';
 import {
   useMyProfile, useMyPosts, usePeopleSearch, usePublicProfile, useUpdateProfile, useReorderMyPosts,
@@ -453,8 +454,11 @@ function EditProfileModal({ me, onClose }: { me: MyProfile; onClose: () => void 
     setBusy(true); setErr(null);
     try {
       const data = await resizeToDataUrl(file);
-      await profileApi.setAvatar(data);
-      setPhoto(data);
+      const res = await profileApi.setAvatar(data);
+      const nextPhoto = res?.profileImage ?? data;
+      setPhoto(nextPhoto);
+      // Sync the auth store so the header + feed composer avatars update too.
+      useAuthStore.setState((s) => ({ user: s.user ? { ...s.user, profileImage: nextPhoto } : s.user }));
       void qc.invalidateQueries({ queryKey: ['profile', 'me'] });
       void qc.invalidateQueries({ queryKey: ['auth', 'me'] });
     } catch { setErr('Could not update the photo — try a smaller image.'); } finally { setBusy(false); }
