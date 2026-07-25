@@ -1,5 +1,5 @@
 /* ============ layout shell — ported from tc.css, with mobile drawer ============ */
-.tc-header { --chip-fs: 11px; position: fixed; top: var(--safe-top); left: 0; right: 0; height: var(--header-h); z-index: 100; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 5px 24px; background: #fff; border-bottom: 1px solid var(--line); color: var(--ink); }
+.tc-header { --chip-fs: 11px; position: fixed; top: var(--safe-top); left: 0; right: 0; height: var(--header-h); z-index: 100; display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; padding: 6px 24px 2px; background: #fff; border-bottom: 1px solid var(--line); color: var(--ink); }
 /* Two-row header: Row 1 centred logo · Row 2 hub tabs (left) + actions (right) on one line.
    The burger is pinned left on Row 1 (mobile) without shifting the centred logo. */
 .tc-header-top { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 34px; }
