@@ -64,8 +64,8 @@ function NotificationBell() {
     <div ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
       <button type="button" aria-label="Notifications" onClick={() => setOpen((o) => !o)}
         style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
-          fontSize: 'var(--chip-fs)', letterSpacing: '.06em', fontWeight: 600, textTransform: 'uppercase', padding: '8px 13px',
-          border: '1px solid var(--line)', borderRadius: 999, color: 'var(--ink)', background: 'transparent', cursor: 'pointer' }}>
+          fontSize: 'var(--chip-fs)', letterSpacing: '.05em', fontWeight: 600, textTransform: 'uppercase', padding: 0,
+          border: 'none', color: 'var(--ink)', background: 'transparent', cursor: 'pointer' }}>
         <Icon name="bell" size={17} /> <span className="lab">ALERTS</span>
         <Badge count={unread.data ?? 0} />
       </button>
@@ -121,28 +121,29 @@ export function Header() {
           <span className="word">TOGETHER CITY</span>
         </Link>
       </div>
-      {/* Row 2 — Search · People · Mail · Chat · Alerts · Profile, centred below the logo. */}
-      <div className="tc-actionbar">
-        <QuickActions show="all" />
-        <NotificationBell />
-        <Link to="/profile" aria-label="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          {user?.profileImage ? (
-            <img src={user.profileImage} alt="" width={22} height={22}
-              style={{ borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1.5px solid var(--line)' }} />
-          ) : (
-            <Icon name="user" size={20} />
-          )}
-          <span className="lab">{firstName}</span>
-        </Link>
+      {/* Row 2 — hub tabs (left) + People · Mail · Chat · Alerts · Profile (right), one line. */}
+      <div className="tc-navrow">
+        <nav className="tc-nav" aria-label="Hubs">
+          {tabs.map((n) => (
+            <NavLink key={n.key} to={n.path} className={({ isActive }) => (isActive ? 'on' : undefined)}>
+              {n.label}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="tc-actionbar">
+          <QuickActions show="links" />
+          <NotificationBell />
+          <Link to="/profile" aria-label="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {user?.profileImage ? (
+              <img src={user.profileImage} alt="" width={24} height={24}
+                style={{ borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1.5px solid var(--line)' }} />
+            ) : (
+              <Icon name="user" size={20} />
+            )}
+            <span className="lab">{firstName}</span>
+          </Link>
+        </div>
       </div>
-      {/* Row 3 — hub tabs, centred below the actions. */}
-      <nav className="tc-nav" aria-label="Hubs">
-        {tabs.map((n) => (
-          <NavLink key={n.key} to={n.path} className={({ isActive }) => (isActive ? 'on' : undefined)}>
-            {n.label}
-          </NavLink>
-        ))}
-      </nav>
     </header>
   );
 }

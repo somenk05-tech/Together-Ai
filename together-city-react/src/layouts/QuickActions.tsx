@@ -15,9 +15,8 @@ function Badge({ count }: { count: number }) {
 }
 
 const pill: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--chip-fs)', letterSpacing: '.06em', fontWeight: 600,
-  padding: '8px 13px', border: '1px solid var(--line)', borderRadius: 999, color: 'var(--ink)',
-  whiteSpace: 'nowrap', textTransform: 'uppercase', background: 'transparent', position: 'relative',
+  display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--chip-fs)', letterSpacing: '.05em', fontWeight: 600,
+  color: 'var(--ink)', whiteSpace: 'nowrap', textTransform: 'uppercase', background: 'transparent', position: 'relative',
 };
 
 /**
@@ -33,7 +32,7 @@ export function QuickActions({ show = 'all' }: { show?: 'all' | 'search' | 'link
   const searchOn = show === 'all' || show === 'search';
   const linksOn = show === 'all' || show === 'links';
   return (
-    <div className="tc-actions" style={{ gap: 8 }}>
+    <div className="tc-actions">
       {searchOn && (
         <button type="button" aria-label="Search — jump to anything (Ctrl/Cmd K)" title="Search (⌘K)"
           onClick={() => window.dispatchEvent(new Event('tc:command'))}

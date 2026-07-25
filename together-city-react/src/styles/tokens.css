@@ -14,7 +14,7 @@
   --radius: 14px; --radius-lg: 20px;
   --shadow: 0 1px 2px rgba(20,20,18,.04), 0 8px 24px rgba(20,20,18,.06);
   --shadow-deep: 0 2px 4px rgba(20,20,18,.06), 0 16px 40px rgba(20,20,18,.12);
-  --header-h: 148px; /* three-row centred header: logo · actions · hub tabs */
+  --header-h: 100px; /* two-row header: logo on top · [hub tabs left + actions right] one line */
   --serif: Georgia, "Times New Roman", serif;
   --sans: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
   --mono: "SF Mono", Menlo, Consolas, monospace;
