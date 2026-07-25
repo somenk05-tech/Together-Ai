@@ -35,6 +35,37 @@ function genPoster(file: File): Promise<File | null> {
     } catch { resolve(null); }
   });
 }
+
+/** Pick a custom cover frame for a video before posting. The video is a local
+ *  file (data URL), so capturing the current frame to a canvas has no CORS
+ *  issues. Returns a JPEG File used as the post's permanent poster (thumbUrl). */
+function CoverPicker({ item, onClose, onPick }: { item: MediaItem; onClose: () => void; onPick: (poster: File) => void }) {
+  const vref = useRef<HTMLVideoElement>(null);
+  const capture = () => {
+    const v = vref.current;
+    if (!v || !v.videoWidth || !v.videoHeight) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = v.videoWidth; canvas.height = v.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => { if (blob) onPick(new File([blob], 'poster.jpg', { type: 'image/jpeg' })); }, 'image/jpeg', 0.85);
+  };
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 90, display: 'grid', placeItems: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(560px,96vw)', maxHeight: '92vh', overflow: 'auto' }}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 17 }}>Choose cover frame</h3>
+        <video ref={vref} src={item.src} controls playsInline muted
+          style={{ width: '100%', borderRadius: 10, background: '#000', maxHeight: '60vh', display: 'block' }} />
+        <p className="muted" style={{ fontSize: 12.5, margin: '10px 0' }}>Scrub to the frame you want, pause, then set it as the cover.</p>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button type="button" className="btn btn-accent btn-sm" onClick={capture}>Use this frame</button>
+          <button type="button" className="btn btn-line btn-sm" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 /** Frame ratio: 9:16 for vertical media, 16:9 for landscape. */
 const frameRatio = (portrait?: boolean) => (portrait ? '9 / 16' : '16 / 9');
 
@@ -162,6 +193,7 @@ export function CreatePost() {
   const [phase, setPhase] = useState<'idle' | 'sharing' | 'success' | 'error'>('idle');
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [coverPick, setCoverPick] = useState<number | null>(null);
   const busy = phase === 'sharing' || phase === 'success';
 
   const onFiles = async (files: FileList | null) => {
@@ -357,10 +389,21 @@ export function CreatePost() {
                     style={{ position: 'absolute', top: 5, right: 5, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,.65)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>
                     ✕
                   </button>
+                  {m.type === 'video' && (
+                    <button type="button" onClick={() => setCoverPick(i)}
+                      style={{ position: 'absolute', bottom: 6, right: 6, color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: 'rgba(0,0,0,.65)', border: 'none', cursor: 'pointer' }}>
+                      {m.poster ? '✓ Cover set' : '🖼 Choose cover'}
+                    </button>
+                  )}
                 </div>
               );
             })}
           </div>
+        )}
+
+        {coverPick !== null && media[coverPick] && (
+          <CoverPicker item={media[coverPick]} onClose={() => setCoverPick(null)}
+            onPick={(poster) => { setMedia((prev) => prev.map((m, j) => (j === coverPick ? { ...m, poster } : m))); setCoverPick(null); }} />
         )}
 
         {hashtags.length > 0 && (

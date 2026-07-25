@@ -169,6 +169,15 @@ export class StorageProvider implements OnModuleInit {
 
   get configured(): boolean { return this.s3 !== null; }
 
+  /** Server-side upload of bytes we generated ourselves (e.g. a video poster
+   *  frame extracted with ffmpeg). Returns the public URL. */
+  async putObject(userId: string, body: Buffer, contentType: string, ext: string): Promise<string> {
+    const key = `uploads/${userId}/${randomUUID()}.${ext}`;
+    if (!this.s3) return `${this.publicBase}/${key}`;
+    await this.s3.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: contentType }));
+    return `${this.publicBase}/${key}`;
+  }
+
   // ─────────── private health-document vault (signed links only) ───────────
 
   /** Presign a PUT into the private health bucket. Returns the object key — NO

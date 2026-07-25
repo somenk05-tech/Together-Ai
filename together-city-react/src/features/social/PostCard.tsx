@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useRef, useState, type CSSProperties, type FormEvent, type ReactNode, type Ref } from 'react';
 import { Button, Spinner } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { ShareModal } from '@/features/chat/share';
@@ -91,10 +91,10 @@ function ImgCell({ url, adaptive, overlay, alt }: { url: string; adaptive: boole
 }
 
 /** A feed video framed 16:9 (landscape) or 9:16 (vertical) by its real dimensions. */
-function VideoFrame({ url, isNew }: { url: string; isNew: boolean }) {
+function VideoFrame({ url, isNew, vref }: { url: string; isNew: boolean; vref?: Ref<HTMLVideoElement> }) {
   const [portrait, setPortrait] = useState(false);
   return (
-    <video src={url} controls playsInline autoPlay={isNew} muted={isNew} loop={isNew}
+    <video ref={vref} src={url} controls playsInline autoPlay={isNew} muted={isNew} loop={isNew}
       onLoadedMetadata={(e) => setPortrait(e.currentTarget.videoHeight > e.currentTarget.videoWidth)}
       style={{ width: '100%', aspectRatio: portrait ? '9 / 16' : '16 / 9', maxHeight: 560, objectFit: 'cover', borderRadius: 14, marginTop: 12, background: '#000', display: 'block' }} />
   );
@@ -105,13 +105,15 @@ function VideoFrame({ url, isNew }: { url: string; isNew: boolean }) {
  *  `manage` shows the author's Edit/Delete menu (used on the profile, not the feed).
  *  `onOpenAuthor` opens the author's profile (the parent owns the modal, so this
  *  component has no dependency on the profile page — avoids a circular import). */
-export function PostCard({ post, isNew = false, manage = false, onOpenAuthor }: {
+export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, onSetCover, coverBusy = false }: {
   post: Post; isNew?: boolean; manage?: boolean; onOpenAuthor?: (handle: string) => void;
+  onSetCover?: (timeSec: number) => void; coverBusy?: boolean;
 }) {
   const like = useToggleLike();
   const del = useDeletePost();
   const upd = useUpdatePost();
   const { user } = useAuth();
+  const vidRef = useRef<HTMLVideoElement>(null);
   const isMine = Boolean(user && (user.id === post.author.id || user.handle === post.author.handle));
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -204,7 +206,17 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor }: 
           ))}
         </div>
       )}
-      {videos.map((m) => <VideoFrame key={m.id} url={m.url} isNew={isNew} />)}
+      {videos.map((m, i) => <VideoFrame key={m.id} url={m.url} isNew={isNew} vref={i === 0 ? vidRef : undefined} />)}
+
+      {manage && videos.length > 0 && onSetCover && (
+        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-line btn-sm" disabled={coverBusy}
+            onClick={() => onSetCover(vidRef.current?.currentTime ?? 0)}>
+            {coverBusy ? 'Setting cover…' : '🖼 Set current frame as cover'}
+          </button>
+          <span className="muted" style={{ fontSize: 11.5 }}>Pause the video on the frame you want, then set it — it’s pinned for good.</span>
+        </div>
+      )}
 
       {editing ? (
         <div style={{ marginTop: 12 }}>

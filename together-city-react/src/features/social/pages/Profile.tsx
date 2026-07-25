@@ -10,7 +10,7 @@ import {
   useMyProfile, useMyPosts, usePeopleSearch, usePublicProfile, useUpdateProfile, useReorderMyPosts,
   type MyProfile, type ProfilePost, type PersonResult, type PublicProfile, type Relationship,
 } from '../myProfile.api';
-import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useReport, type FollowPerson, type Post } from '../api';
+import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useReport, useSetCover, type FollowPerson, type Post } from '../api';
 import { PostCard } from '../PostCard';
 
 const money = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
@@ -131,10 +131,13 @@ function profilePostToPost(p: ProfilePost, me?: { id: string; handle: string; na
  *  with controls, plus like/comment/share/save and Edit/Delete), so viewing or
  *  managing a post never bounces the user to the city feed. */
 function PostLightbox({ post, onClose }: { post: Post; onClose: () => void }) {
+  const setCover = useSetCover();
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,16,.62)', display: 'grid', placeItems: 'start center', padding: 16, zIndex: 70, overflow: 'auto' }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(600px,96vw)', margin: 'auto 0' }}>
-        <PostCard post={post} manage />
+        <PostCard post={post} manage
+          onSetCover={(t) => setCover.mutate({ postId: post.id, time: t })}
+          coverBusy={setCover.isPending} />
         <div style={{ textAlign: 'center' }}>
           <button type="button" onClick={onClose} className="btn btn-line btn-sm">Close</button>
         </div>
@@ -353,7 +356,6 @@ export function PublicProfileModal({ handle, onClose }: { handle: string; onClos
             {p.website && <a href={p.website} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--accent)' }}>{p.website.replace(/^https?:\/\//, '')}</a>}
             <div style={{ display: 'flex', gap: 22, margin: '14px 0' }}>
               <StatCell n={p.stats.posts} label="posts" />
-              <StatCell n={p.stats.reputation} label="reputation" />
               <StatCell n={p.stats.cityPoints} label="city points" />
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
@@ -642,7 +644,6 @@ export function SocialProfile() {
             <button type="button" onClick={() => setTab('following')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit' }}>
               <StatCell n={p.stats.following} label="following" />
             </button>
-            <StatCell n={p.stats.reputation} label="reputation" />
             <StatCell n={p.stats.cityPoints} label="city points" />
           </div>
         </div>

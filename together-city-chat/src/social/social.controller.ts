@@ -87,6 +87,13 @@ export class SocialController {
     return this.social.toggleLike(user.sub, id);
   }
 
+  // Pin a video post's cover frame (server-side ffmpeg extraction at `time`).
+  @Patch('posts/:id/cover')
+  setCover(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
+    const { time } = parseOrThrow(z.object({ time: z.number().min(0).max(86_400) }), body);
+    return this.social.setCover(user.sub, id, time);
+  }
+
   // ─────────────── safety: block & report ───────────────
   @Get('blocks')
   blocks(@CurrentUser() user: JwtUser) {

@@ -65,6 +65,8 @@ export const socialApi = {
     api.delete<{ blocked: boolean; userId: string }>(`/social/block/${userId}`).then((r) => r.data),
   report: (input: { targetType: 'user' | 'post' | 'comment'; targetId: string; reason?: string }) =>
     api.post<{ reported: boolean }>('/social/report', input).then((r) => r.data),
+  setCover: (postId: string, time: number) =>
+    api.patch<{ ok: boolean; thumbUrl: string }>(`/social/posts/${postId}/cover`, { time }).then((r) => r.data),
 };
 
 const FEED_KEY = ['social', 'feed'] as const;
@@ -229,5 +231,16 @@ export function useReport() {
   return useMutation({
     mutationFn: (input: { targetType: 'user' | 'post' | 'comment'; targetId: string; reason?: string }) =>
       socialApi.report(input),
+  });
+}
+export function useSetCover() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { postId: string; time: number }) => socialApi.setCover(v.postId, v.time),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['profile', 'posts'] });
+      void qc.invalidateQueries({ queryKey: FEED_KEY });
+      void qc.invalidateQueries({ queryKey: ['social', 'map'] });
+    },
   });
 }

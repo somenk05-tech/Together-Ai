@@ -1,7 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { SocialGateway } from './social.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageProvider } from '../media/storage.provider';
 import type { CreateCommentDto, CreatePostDto, FeedQueryDto } from './dto/social.dto';
 
 const AUTHOR_SELECT = { id: true, handle: true, name: true, profileImage: true } as const;
@@ -12,7 +14,41 @@ export class SocialService {
     private readonly prisma: PrismaService,
     private readonly gateway: SocialGateway,
     private readonly notifications: NotificationsService,
+    private readonly storage: StorageProvider,
   ) {}
+
+  /** Set a video post's cover: extract the frame at `timeSec` with ffmpeg from
+   *  the stored video, upload it, and pin it as the media's thumbUrl — so the
+   *  poster is fixed once and grids never fetch the video to render a frame. */
+  async setCover(userId: string, postId: string, timeSec: number) {
+    const post = await this.prisma.post.findUnique({ where: { id: postId }, include: { media: true } });
+    if (!post) throw new NotFoundException('post not found');
+    if (post.authorId !== userId) throw new ForbiddenException('not your post');
+    const video = (post.media ?? []).find((m) => m.kind === 'video');
+    if (!video) throw new ForbiddenException('this post has no video');
+    const jpeg = await this.extractFrame(video.url, Math.max(0, Number(timeSec) || 0));
+    if (!jpeg) throw new InternalServerErrorException('could not extract that frame');
+    const thumbUrl = await this.storage.putObject(userId, jpeg, 'image/jpeg', 'jpg');
+    await this.prisma.postMedia.update({ where: { id: video.id }, data: { thumbUrl } });
+    return { ok: true, thumbUrl };
+  }
+
+  /** Grab a single JPEG frame at `timeSec` from a video URL via ffmpeg (stdout).
+   *  `-ss` before `-i` seeks first, so only the needed bytes are fetched. */
+  private extractFrame(videoUrl: string, timeSec: number): Promise<Buffer | null> {
+    return new Promise((resolve) => {
+      try {
+        const ff = spawn('ffmpeg', [
+          '-ss', String(timeSec), '-i', videoUrl,
+          '-frames:v', '1', '-q:v', '3', '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1',
+        ], { stdio: ['ignore', 'pipe', 'ignore'] });
+        const chunks: Buffer[] = [];
+        ff.stdout.on('data', (d: Buffer) => chunks.push(d));
+        ff.on('error', () => resolve(null));
+        ff.on('close', (code) => resolve(code === 0 && chunks.length ? Buffer.concat(chunks) : null));
+      } catch { resolve(null); }
+    });
+  }
 
   /**
    * The people whose posts you see = yourself + everyone you follow + everyone

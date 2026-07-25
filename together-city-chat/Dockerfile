@@ -4,8 +4,9 @@
 FROM node:22-slim
 WORKDIR /app
 
-# OpenSSL is required by Prisma's engines.
-RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+# OpenSSL is required by Prisma's engines; ffmpeg powers server-side video
+# cover-frame extraction (Social "Set cover").
+RUN apt-get update && apt-get install -y openssl ca-certificates ffmpeg && rm -rf /var/lib/apt/lists/*
 
 # Install deps (keep dev deps: the Prisma CLI + nest build run in this image).
 COPY package*.json ./

@@ -4,9 +4,10 @@ import { SocialController } from './social.controller';
 import { SocialGateway } from './social.gateway';
 import { SocialService } from './social.service';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { MediaModule } from '../media/media.module';
 
 @Module({
-  imports: [PrismaModule, NotificationsModule],
+  imports: [PrismaModule, NotificationsModule, MediaModule],
   controllers: [SocialController],
   providers: [SocialService, SocialGateway],
 })
