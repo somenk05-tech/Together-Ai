@@ -233,8 +233,11 @@ export function Profile() {
     setPhotoBusy(true);
     try {
       const data64 = await resizeAvatar(file);
-      await profileApi.setAvatar(data64);
-      setPhotoOverride(data64);
+      const res = await profileApi.setAvatar(data64);
+      const nextPhoto = res?.profileImage ?? data64;
+      setPhotoOverride(nextPhoto);
+      // Update the auth store so the header/master avatar refreshes everywhere.
+      useAuthStore.setState((s) => ({ user: s.user ? { ...s.user, profileImage: nextPhoto } : s.user }));
       void qc.invalidateQueries({ queryKey: ['profile', 'me'] });
       void qc.invalidateQueries({ queryKey: ['profile', 'summary'] });
       void qc.invalidateQueries({ queryKey: ['auth', 'me'] });
@@ -273,8 +276,6 @@ export function Profile() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Button variant="line" size="sm" disabled={photoBusy} onClick={() => photoRef.current?.click()}>{photoBusy ? 'Uploading…' : 'Change photo'}</Button>
-            <Link to="/social/profile" className="btn btn-accent btn-sm">Change profile</Link>
             <Button variant="line" size="sm" onClick={signOut}>Sign out</Button>
           </div>
         </div>
