@@ -215,7 +215,7 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
       )}
       {videos.map((m, i) => <VideoFrame key={m.id} url={m.url} isNew={isNew} vref={i === 0 ? vidRef : undefined} />)}
 
-      {manage && videos.length > 0 && onSetCover && (
+      {manage && isMine && videos.length > 0 && onSetCover && (
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button type="button" className="btn btn-line btn-sm" disabled={coverBusy}
             onClick={() => onSetCover(vidRef.current?.currentTime ?? 0)}>
