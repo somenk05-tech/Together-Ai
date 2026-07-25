@@ -558,6 +558,7 @@ model Post {
   text      String?
   feeling   String?
   audience  String   @default("public") // public | friends | family | private
+  sortIndex Int? // author's custom order on their profile grid (null = unarranged, falls back to newest-first)
   placeName String? // check-in / travel location label
   taggedJson String? // JSON [{id, name, handle}] — tagged friends
   lat       Float?

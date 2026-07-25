@@ -7,7 +7,7 @@ import { useConnections, useRequestConnection, useRespondConnection } from '@/ap
 import { profileApi } from '@/features/profile/api';
 import { initials } from '../shared';
 import {
-  useMyProfile, useMyPosts, usePeopleSearch, usePublicProfile, useUpdateProfile,
+  useMyProfile, useMyPosts, usePeopleSearch, usePublicProfile, useUpdateProfile, useReorderMyPosts,
   type MyProfile, type ProfilePost, type PersonResult, type PublicProfile, type Relationship,
 } from '../myProfile.api';
 import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useReport, type FollowPerson } from '../api';
@@ -62,43 +62,101 @@ function StatCell({ n, label }: { n: number; label: string }) {
   );
 }
 
-/** One post in the profile grid — real media thumbnail, or a text-post card. */
+function tileDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
+/** One post in the profile grid. Videos show only a lightweight POSTER (their
+ *  thumbnail) or a placeholder with a play button — the actual video is never
+ *  loaded here, only when the post is opened in the lightbox. This keeps the
+ *  profile from downloading every video on load. */
 function PostTile({ p }: { p: ProfilePost }) {
   const first = p.media[0];
   const isVideo = first?.kind === 'video';
-  const src = first ? (first.thumbUrl || first.url) : null;
+  // For videos, only a thumbnail image is ever loaded here (never the video file).
+  const imgSrc = isVideo ? (first?.thumbUrl ?? null) : (first ? (first.thumbUrl || first.url) : null);
   return (
     <div style={{ aspectRatio: '1/1', borderRadius: 8, overflow: 'hidden', position: 'relative', background: 'var(--paper)' }}>
-      {src ? (
-        <img src={src} alt={p.text ?? ''} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      {imgSrc ? (
+        <img src={imgSrc} alt={p.text ?? ''} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', background: isVideo ? '#000' : undefined }} />
+      ) : isVideo ? (
+        // Video with no thumbnail — a placeholder, not the video file.
+        <div style={{ width: '100%', height: '100%', background: 'linear-gradient(140deg,#2a2a33,#111)' }} />
       ) : (
         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, textAlign: 'center', fontSize: 13, lineHeight: 1.4, color: '#fff', background: 'linear-gradient(140deg,var(--accent),#7a4fa0)' }}>
           <span style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.feeling ? `${p.feeling} · ` : ''}{p.text || 'Post'}</span>
         </div>
       )}
       {isVideo && (
-        <span style={{ position: 'absolute', inset: 0, margin: 'auto', width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111', fontSize: 18, paddingLeft: 3 }}>▶</span>
+        <span aria-hidden style={{ position: 'absolute', inset: 0, margin: 'auto', width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111', fontSize: 18, paddingLeft: 3 }}>▶</span>
       )}
       {p.outdoor && <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 14 }}>📍</span>}
+      {/* Every post shows its date */}
+      <span style={{ position: 'absolute', bottom: 6, left: 6, fontSize: 11, fontWeight: 600, color: '#fff', background: 'rgba(0,0,0,.5)', borderRadius: 6, padding: '1px 7px' }}>
+        {tileDate(p.createdAt)}
+      </span>
+    </div>
+  );
+}
+
+/** Opens a post in place ON the profile page (video plays here with controls),
+ *  so viewing/playing a post never bounces the user to the city feed. */
+function PostLightbox({ post, onClose }: { post: ProfilePost; onClose: () => void }) {
+  const videos = post.media.filter((m) => m.kind === 'video');
+  const images = post.media.filter((m) => m.kind === 'image');
+  const when = new Date(post.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,16,.62)', display: 'grid', placeItems: 'center', padding: 16, zIndex: 70 }}>
+      <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(560px,96vw)', maxHeight: '90vh', overflow: 'auto', padding: 0 }}>
+        <div style={{ background: '#000' }}>
+          {videos.map((v) => (
+            <video key={v.url} src={v.url} poster={v.thumbUrl ?? undefined} controls autoPlay playsInline
+              style={{ width: '100%', maxHeight: '68vh', objectFit: 'contain', display: 'block', background: '#000' }} />
+          ))}
+          {videos.length === 0 && images.map((im) => (
+            <img key={im.url} src={im.url} alt={post.text ?? ''} style={{ width: '100%', maxHeight: '68vh', objectFit: 'contain', display: 'block' }} />
+          ))}
+        </div>
+        <div style={{ padding: '14px 16px' }}>
+          {post.feeling && <div className="muted" style={{ fontSize: 12.5, marginBottom: 4 }}>feeling {post.feeling}</div>}
+          {post.text && <p style={{ fontSize: 14.5, lineHeight: 1.55, margin: '0 0 10px', whiteSpace: 'pre-wrap' }}>{post.text}</p>}
+          <div className="muted" style={{ display: 'flex', gap: 14, fontSize: 12.5, alignItems: 'center' }}>
+            <span>{when}</span>
+            <span>❤️ {post.likeCount}</span>
+            <span>💬 {post.commentCount}</span>
+            <button type="button" onClick={onClose} className="btn btn-line btn-sm" style={{ marginLeft: 'auto' }}>Close</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 function PostsTab() {
   const posts = useMyPosts();
+  const reorder = useReorderMyPosts();
+  const [openPost, setOpenPost] = useState<ProfilePost | null>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   const items = useMemo(() => posts.data?.pages.flatMap((pg) => pg.items) ?? [], [posts.data]);
 
+  // Drag-to-arrange state. `arranged` holds the working order while editing.
+  const [arranging, setArranging] = useState(false);
+  const [arranged, setArranged] = useState<ProfilePost[]>([]);
+  const dragFrom = useRef<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+
   // Infinite scroll — fetch the next page when the sentinel scrolls into view.
+  // (Paused while arranging so the working list doesn't shift underfoot.)
   useEffect(() => {
     const el = sentinel.current;
-    if (!el || !posts.hasNextPage) return;
+    if (!el || !posts.hasNextPage || arranging) return;
     const io = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && !posts.isFetchingNextPage) void posts.fetchNextPage();
     }, { rootMargin: '400px' });
     io.observe(el);
     return () => io.disconnect();
-  }, [posts.hasNextPage, posts.isFetchingNextPage, posts]);
+  }, [posts.hasNextPage, posts.isFetchingNextPage, posts, arranging]);
 
   if (posts.isLoading) return <Spinner label="Loading your posts…" />;
 
@@ -114,19 +172,80 @@ function PostsTab() {
     );
   }
 
+  const startArranging = () => { setArranged(items); setArranging(true); };
+  const cancelArranging = () => { setArranging(false); setArranged([]); dragFrom.current = null; setDragOver(null); };
+  const saveArranging = () => {
+    reorder.mutate(arranged.map((p) => p.id), { onSuccess: () => { setArranging(false); setArranged([]); } });
+  };
+
+  const move = (from: number, to: number) => {
+    if (from === to) return;
+    setArranged((cur) => {
+      const next = [...cur];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+
+  const grid = arranging ? arranged : items;
+
   return (
     <>
-      <div className="blk-head rise d1" style={{ marginTop: 16 }}>
-        <h2>Your posts</h2>
-        <span className="muted" style={{ fontSize: 12 }}>{count} post{count === 1 ? '' : 's'}{posts.hasNextPage ? '+' : ''}</span>
+      <div className="blk-head rise d1" style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <h2 style={{ margin: 0 }}>Your posts</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {!arranging ? (
+            <>
+              <span className="muted" style={{ fontSize: 12 }}>{count} post{count === 1 ? '' : 's'}{posts.hasNextPage ? '+' : ''}</span>
+              {count > 1 && <Button variant="line" size="sm" onClick={startArranging}>↕ Rearrange</Button>}
+            </>
+          ) : (
+            <>
+              <span className="muted" style={{ fontSize: 12 }}>Drag posts to reorder</span>
+              <Button variant="line" size="sm" onClick={cancelArranging} disabled={reorder.isPending}>Cancel</Button>
+              <Button variant="accent" size="sm" onClick={saveArranging} disabled={reorder.isPending}>{reorder.isPending ? 'Saving…' : 'Save order'}</Button>
+            </>
+          )}
+        </div>
       </div>
+
+      {arranging && posts.hasNextPage && (
+        <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>
+          Arranging the {count} loaded posts. Scroll to load all posts before rearranging if you want to move older ones.
+        </p>
+      )}
+
       <div className="rise d1" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
-        {items.map((p) => (
-          <Link key={p.id} to="/social/feed" style={{ position: 'relative', display: 'block' }}><PostTile p={p} /></Link>
+        {grid.map((p, i) => (
+          arranging ? (
+            <div
+              key={p.id}
+              draggable
+              onDragStart={() => { dragFrom.current = i; }}
+              onDragOver={(e) => { e.preventDefault(); if (dragOver !== i) setDragOver(i); }}
+              onDrop={(e) => { e.preventDefault(); if (dragFrom.current !== null) move(dragFrom.current, i); dragFrom.current = null; setDragOver(null); }}
+              onDragEnd={() => { dragFrom.current = null; setDragOver(null); }}
+              style={{
+                position: 'relative', cursor: 'grab', touchAction: 'none',
+                outline: dragOver === i ? '2px solid var(--accent)' : 'none', outlineOffset: 2, borderRadius: 8,
+                opacity: dragFrom.current === i ? 0.5 : 1,
+              }}
+            >
+              <PostTile p={p} />
+              <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 14, color: '#fff', background: 'rgba(0,0,0,.5)', borderRadius: 6, padding: '0 6px', lineHeight: 1.6 }}>⠿</span>
+            </div>
+          ) : (
+            <button key={p.id} type="button" onClick={() => setOpenPost(p)}
+              style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', font: 'inherit' }}>
+              <PostTile p={p} />
+            </button>
+          )
         ))}
       </div>
-      <div ref={sentinel} style={{ height: 1 }} />
-      {posts.isFetchingNextPage && <div style={{ padding: 16 }}><Spinner /></div>}
+      {!arranging && <div ref={sentinel} style={{ height: 1 }} />}
+      {!arranging && posts.isFetchingNextPage && <div style={{ padding: 16 }}><Spinner /></div>}
+      {openPost && <PostLightbox post={openPost} onClose={() => setOpenPost(null)} />}
     </>
   );
 }

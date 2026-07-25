@@ -42,6 +42,8 @@ export const myProfileApi = {
     api.get<{ items: PersonResult[] }>('/profile/people/search', { params: { q } }).then((r) => r.data.items),
   publicProfile: (handle: string) =>
     api.get<PublicProfile>(`/profile/user/${encodeURIComponent(handle)}`).then((r) => r.data),
+  reorderPosts: (order: string[]) =>
+    api.patch<{ ok: boolean; ordered: number }>('/profile/posts/order', { order }).then((r) => r.data),
 };
 
 const ME_KEY = ['profile', 'me'] as const;
@@ -70,6 +72,14 @@ export function useMyPosts() {
     queryFn: ({ pageParam }) => myProfileApi.posts(pageParam as string | undefined),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
+  });
+}
+
+export function useReorderMyPosts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (order: string[]) => myProfileApi.reorderPosts(order),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['profile', 'posts'] }),
   });
 }
 

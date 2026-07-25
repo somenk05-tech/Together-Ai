@@ -92,6 +92,12 @@ export class ProfileController {
     return this.profile.myPosts(user.sub, cursor, limit ? Number(limit) : undefined);
   }
 
+  // Save the author's custom drag-to-arrange order for their profile grid.
+  @Patch('posts/order')
+  reorderPosts(@CurrentUser() user: JwtUser, @Body() body: { order?: string[] }) {
+    return this.profile.reorderPosts(user.sub, body?.order ?? []);
+  }
+
   // ── People (typed search by handle/name) + view a citizen's public profile ──
   @Get('people/search')
   search(@CurrentUser() user: JwtUser, @Query('q') q: string) {

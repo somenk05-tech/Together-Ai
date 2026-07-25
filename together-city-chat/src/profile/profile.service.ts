@@ -254,7 +254,13 @@ export class ProfileService {
     const take = Math.min(Math.max(limit, 1), 50);
     const rows = await this.prisma.post.findMany({
       where: { authorId: userId },
-      orderBy: { createdAt: 'desc' },
+      // Author's custom profile arrangement first (sortIndex 0,1,2…), then any
+      // un-arranged posts newest-first. New posts (null sortIndex) surface at top
+      // of the un-arranged group.
+      orderBy: [
+        { sortIndex: { sort: 'asc', nulls: 'last' } },
+        { createdAt: 'desc' },
+      ] as never,
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: { media: true, _count: { select: { likes: true, comments: true } } },
@@ -274,6 +280,27 @@ export class ProfileService {
       })),
       nextCursor: hasMore ? page[page.length - 1].id : null,
     };
+  }
+
+  /** Save the author's custom order for their profile grid. `order` is the full
+   *  list of post ids in the desired top-to-bottom order; each gets sortIndex =
+   *  its position. Ids that aren't the caller's posts are ignored. */
+  async reorderPosts(userId: string, order: string[]) {
+    const ids = Array.isArray(order) ? order.filter((x) => typeof x === 'string') : [];
+    if (!ids.length) return { ok: true, ordered: 0 };
+    // Only reindex posts that actually belong to the caller.
+    const owned = await this.prisma.post.findMany({
+      where: { id: { in: ids }, authorId: userId },
+      select: { id: true },
+    });
+    const ownedSet = new Set(owned.map((p) => p.id));
+    const updates = ids
+      .filter((id) => ownedSet.has(id))
+      .map((id, index) =>
+        this.prisma.post.update({ where: { id }, data: { sortIndex: index } as never }),
+      );
+    await this.prisma.$transaction(updates);
+    return { ok: true, ordered: updates.length };
   }
 
   private relationshipOf(status: string | undefined, requestedById: string | undefined, viewerId: string): Relationship {
