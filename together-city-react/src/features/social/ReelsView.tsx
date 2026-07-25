@@ -147,12 +147,14 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
 
   return (
     <div style={{ height: '100%', scrollSnapAlign: 'start', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-      {/* video card — portrait window, black bg, letterboxes any aspect */}
-      <div style={{ position: 'relative', height: 'min(78dvh, 78vh)', aspectRatio: '9 / 16', maxWidth: '68vw', background: '#000', borderRadius: 14, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+      {/* video card — sizes to the video's OWN aspect ratio (no letterboxing);
+          capped by max height/width so it always fits the screen with room for
+          the side rail and nav arrows. */}
+      <div style={{ position: 'relative', width: 'fit-content', height: 'fit-content', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)', background: '#000', borderRadius: 14, overflow: 'hidden', lineHeight: 0 }}>
         {video && (
           <video ref={vref} src={video.url} poster={video.thumbUrl ?? undefined} muted={hasMusic ? true : muted} loop playsInline preload="metadata"
             onClick={togglePlay}
-            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
+            style={{ display: 'block', width: 'auto', height: 'auto', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)' }} />
         )}
         {hasMusic && <audio ref={aref} src={post.musicUrl ?? undefined} loop muted={muted} preload="auto" />}
 
