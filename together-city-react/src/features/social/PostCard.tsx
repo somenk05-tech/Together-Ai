@@ -80,14 +80,15 @@ function CommentsPanel({ postId }: { postId: string }) {
 /** A single feed image. When it's the only image, the frame adapts to the
  *  photo's orientation (16:9 landscape or 9:16 vertical); in a grid it stays 16:9. */
 function ImgCell({ url, adaptive, overlay, alt }: { url: string; adaptive: boolean; overlay?: ReactNode; alt: string }) {
-  // Frame to the image's REAL aspect (clamped) so portrait photos show tall and
-  // aren't cropped to 16:9. Clamp keeps ultra-tall/wide images sane.
+  // Frame to the image's TRUE aspect ratio (any ratio) — nothing is cropped.
+  // `contain` guarantees the whole image shows; a tall/wide image just gets a
+  // taller/wider frame (capped so it never dominates the screen).
   const [ar, setAr] = useState(16 / 9); // width / height
-  const shown = adaptive ? Math.min(Math.max(ar, 0.6), 1.78) : 16 / 9;
+  const shown = adaptive ? ar : 16 / 9;
   return (
-    <div style={{ position: 'relative', aspectRatio: String(shown), maxHeight: adaptive ? 640 : undefined, background: '#000' }}>
+    <div style={{ position: 'relative', aspectRatio: String(shown), maxHeight: adaptive ? 720 : undefined, background: '#000' }}>
       <img src={url} alt={alt} onLoad={(e) => { if (adaptive) setAr(e.currentTarget.naturalWidth / Math.max(1, e.currentTarget.naturalHeight)); }}
-        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
       {overlay}
     </div>
   );
@@ -97,8 +98,8 @@ function ImgCell({ url, adaptive, overlay, alt }: { url: string; adaptive: boole
  *  reachable (no more +N cutoff), with dot indicators and a counter. */
 function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName: string }) {
   const [idx, setIdx] = useState(0);
-  const [ar, setAr] = useState(16 / 9); // frame shape from the first image
-  const shown = Math.min(Math.max(ar, 0.6), 1.78);
+  const [ar, setAr] = useState(16 / 9); // true shape from the first image (any ratio)
+  const shown = ar;
   const ref = useRef<HTMLDivElement>(null);
   const onScroll = () => {
     const el = ref.current;
@@ -134,7 +135,7 @@ function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName
  *  `autoInView` makes it autoplay (muted) while scrolled into view and pause when
  *  it leaves — used by the "Videos" feed section. */
 function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: boolean; vref?: Ref<HTMLVideoElement>; autoInView?: boolean }) {
-  const [portrait, setPortrait] = useState(false);
+  const [ar, setAr] = useState(16 / 9); // real width / height
   const localRef = useRef<HTMLVideoElement | null>(null);
   const setRefs = useCallback((el: HTMLVideoElement | null) => {
     localRef.current = el;
@@ -155,8 +156,8 @@ function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: bool
   }, [autoInView]);
   return (
     <video ref={setRefs} src={url} controls playsInline autoPlay={isNew} muted={isNew || autoInView} loop={isNew || autoInView}
-      onLoadedMetadata={(e) => setPortrait(e.currentTarget.videoHeight > e.currentTarget.videoWidth)}
-      style={{ width: '100%', aspectRatio: portrait ? '9 / 16' : '16 / 9', maxHeight: 560, objectFit: 'cover', borderRadius: 14, marginTop: 12, background: '#000', display: 'block' }} />
+      onLoadedMetadata={(e) => setAr((e.currentTarget.videoWidth || 16) / Math.max(1, e.currentTarget.videoHeight || 9))}
+      style={{ width: '100%', aspectRatio: String(ar), maxHeight: 720, objectFit: 'contain', borderRadius: 14, marginTop: 12, background: '#000', display: 'block' }} />
   );
 }
 
