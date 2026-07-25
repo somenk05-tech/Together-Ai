@@ -30,9 +30,16 @@ export const CreatePostSchema = z
     lng: z.number().min(-180).max(180).optional(),
     audience: z.enum(['public', 'friends', 'family', 'private']).optional(),
     category: z.enum(['work', 'personal']).optional(),
-    // Attached royalty-free soundtrack (library track). Plain strings, NOT
-    // httpsUrl — library tracks are served as relative app paths (/music/x.mp3).
-    musicUrl: z.string().max(500).optional(),
+    // Attached soundtrack — MUST be a cleared, royalty-free track from the
+    // built-in library, served as a relative app path (/music/<file>.mp3).
+    // Copyright protection: only these library paths are accepted, so a client
+    // can NEVER attach an arbitrary/external (potentially copyrighted) audio
+    // URL. Anything else is rejected here at the API boundary.
+    musicUrl: z
+      .string()
+      .max(500)
+      .regex(/^\/music\/[\w.-]+\.(mp3|m4a|ogg|wav)$/i, 'only cleared royalty-free library tracks are allowed')
+      .optional(),
     musicTitle: z.string().max(120).optional(),
     placeName: z.string().max(120).optional(),
     tagged: z.array(z.object({

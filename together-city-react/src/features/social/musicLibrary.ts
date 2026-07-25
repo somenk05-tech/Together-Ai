@@ -19,15 +19,20 @@ export interface Track {
   url: string;
   /** Rough mood tag for grouping in the picker. */
   mood?: string;
+  /** Copyright status. Every library track is cleared/royalty-free — there is
+   *  no way to add copyrighted music (users can't upload their own audio, and
+   *  the API only accepts these library paths). */
+  license?: string;
 }
 
+const CLEARED = 'Royalty-free';
 export const MUSIC_LIBRARY: Track[] = [
-  { id: 'uplift',   title: 'Uplift',            artist: 'Together City', url: '/music/uplift.mp3',   mood: 'Upbeat' },
-  { id: 'sunrise',  title: 'Sunrise Drive',     artist: 'Together City', url: '/music/sunrise.mp3',  mood: 'Chill' },
-  { id: 'citylife', title: 'City Life',         artist: 'Together City', url: '/music/citylife.mp3', mood: 'Lo-fi' },
-  { id: 'dreamy',   title: 'Dreamy Nights',     artist: 'Together City', url: '/music/dreamy.mp3',   mood: 'Ambient' },
-  { id: 'energy',   title: 'Energy Boost',      artist: 'Together City', url: '/music/energy.mp3',   mood: 'Workout' },
-  { id: 'acoustic', title: 'Acoustic Morning',  artist: 'Together City', url: '/music/acoustic.mp3', mood: 'Acoustic' },
+  { id: 'uplift',   title: 'Uplift',            artist: 'Together City', url: '/music/uplift.mp3',   mood: 'Upbeat',   license: CLEARED },
+  { id: 'sunrise',  title: 'Sunrise Drive',     artist: 'Together City', url: '/music/sunrise.mp3',  mood: 'Chill',    license: CLEARED },
+  { id: 'citylife', title: 'City Life',         artist: 'Together City', url: '/music/citylife.mp3', mood: 'Lo-fi',    license: CLEARED },
+  { id: 'dreamy',   title: 'Dreamy Nights',     artist: 'Together City', url: '/music/dreamy.mp3',   mood: 'Ambient',  license: CLEARED },
+  { id: 'energy',   title: 'Energy Boost',      artist: 'Together City', url: '/music/energy.mp3',   mood: 'Workout',  license: CLEARED },
+  { id: 'acoustic', title: 'Acoustic Morning',  artist: 'Together City', url: '/music/acoustic.mp3', mood: 'Acoustic', license: CLEARED },
 ];
 
 export function trackByUrl(url?: string | null): Track | undefined {

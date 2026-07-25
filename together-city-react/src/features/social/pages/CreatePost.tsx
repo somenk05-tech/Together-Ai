@@ -286,6 +286,10 @@ function MusicPicker({ selected, onSelect }: { selected: Track | null; onSelect:
     <div style={{ marginTop: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
         <span className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>🎵 Music:</span>
+        <span title="Every track is royalty-free and cleared for use. Uploading your own (possibly copyrighted) audio is not allowed."
+          style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(34,197,94,.14)', color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          🛡 Copyright-safe · Royalty-free
+        </span>
         <button type="button" onClick={() => { stop(); onSelect(null); }}
           style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
             border: `1.5px solid ${!selected ? 'var(--accent)' : 'var(--line)'}`,
@@ -309,7 +313,7 @@ function MusicPicker({ selected, onSelect }: { selected: Track | null; onSelect:
               <button type="button" onClick={() => { onSelect(active ? null : t); }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)', fontFamily: 'inherit' }}>
                 <div style={{ fontSize: 13, fontWeight: 700 }}>{t.title}</div>
-                <div className="muted" style={{ fontSize: 11 }}>{t.mood ?? t.artist ?? 'Track'}</div>
+                <div className="muted" style={{ fontSize: 11 }}>{t.mood ?? t.artist ?? 'Track'}{t.license ? ` · ${t.license}` : ''}</div>
               </button>
               {active && <span style={{ fontSize: 13, color: 'var(--accent)' }}>✓</span>}
             </div>
