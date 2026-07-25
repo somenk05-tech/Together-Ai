@@ -194,7 +194,7 @@ function SafetyActions({ id, handle, onBlocked }: { id: string; handle: string; 
   );
 }
 
-function PublicProfileModal({ handle, onClose }: { handle: string; onClose: () => void }) {
+export function PublicProfileModal({ handle, onClose }: { handle: string; onClose: () => void }) {
   const q = usePublicProfile(handle);
   const p = q.data as PublicProfile | undefined;
   return (

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { ShareModal } from '@/features/chat/share';
+import { PublicProfileModal } from './Profile';
 import type { ShareCard } from '@/types';
 import {
   useAddComment, useComments, useCreatePost, useFeed, useToggleLike, useDeletePost, useUpdatePost, type Post,
@@ -177,6 +178,7 @@ function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
   const [showComments, setShowComments] = useState(false);
   const [saved, setSaved] = useState(() => savedIds().has(post.id));
   const [shareOpen, setShareOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const actionStyle = (on = false): React.CSSProperties => ({
     background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit',
     color: on ? 'var(--accent)' : 'var(--muted)', fontWeight: on ? 700 : 400, padding: 0,
@@ -200,10 +202,16 @@ function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
   return (
     <article className="card" style={{ marginBottom: 16, ...(isNew ? { boxShadow: '0 0 0 2px var(--accent)', animation: 'tc-pop .3s ease-out' } : {}) }}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <Avatar name={post.author.name} src={post.author.profileImage} />
+        <button type="button" onClick={() => setProfileOpen(true)} aria-label={`View ${post.author.name}'s profile`}
+          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', flexShrink: 0 }}>
+          <Avatar name={post.author.name} src={post.author.profileImage} />
+        </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 14 }}>
-            {post.author.name}
+            <button type="button" onClick={() => setProfileOpen(true)}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontWeight: 600, color: 'inherit' }}>
+              {post.author.name}
+            </button>
             <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}> @{post.author.handle}</span>
             {aud && <span title={post.audience} style={{ fontSize: 12, marginLeft: 6 }}>{aud}</span>}
             {isNew && <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#fff', background: 'var(--accent)', borderRadius: 999, padding: '2px 8px', marginLeft: 8 }}>New</span>}
@@ -288,6 +296,7 @@ function PostCard({ post, isNew = false }: { post: Post; isNew?: boolean }) {
 
       {showComments && <CommentsPanel postId={post.id} />}
       {shareOpen && <ShareModal item={shareCard} onClose={() => setShareOpen(false)} />}
+      {profileOpen && <PublicProfileModal handle={post.author.handle} onClose={() => setProfileOpen(false)} />}
     </article>
   );
 }
