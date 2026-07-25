@@ -150,6 +150,8 @@ export function useDeletePost() {
         mapFeedPosts(data, (items) => items.filter((p) => p.id !== postId)));
       void qc.invalidateQueries({ queryKey: ['social', 'map'] });
       void qc.invalidateQueries({ queryKey: ['profile', 'me'] });
+      // Keep the profile grid in sync — a delete from either place removes it here too.
+      void qc.invalidateQueries({ queryKey: ['profile', 'posts'] });
     },
   });
 }
@@ -160,6 +162,7 @@ export function useUpdatePost() {
     onSuccess: (updated) => {
       qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) =>
         mapFeedPosts(data, (items) => items.map((p) => (p.id === updated.id ? { ...p, ...updated } : p))));
+      void qc.invalidateQueries({ queryKey: ['profile', 'posts'] });
     },
   });
 }
@@ -175,6 +178,7 @@ export function useToggleLike() {
       qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) =>
         mapFeedPosts(data, (items) =>
           items.map((p) => (p.id === res.postId ? { ...p, likedByMe: res.liked, likes: res.likes } : p))));
+      void qc.invalidateQueries({ queryKey: ['profile', 'posts'] });
     },
   });
 }
@@ -195,6 +199,7 @@ export function useAddComment() {
       // (which reloaded/reordered the feed and lost the reader's scroll).
       qc.setQueriesData<FeedInfinite>({ queryKey: FEED_KEY }, (data) =>
         mapFeedPosts(data, (items) => items.map((p) => (p.id === v.postId ? { ...p, comments: p.comments + 1 } : p))));
+      void qc.invalidateQueries({ queryKey: ['profile', 'posts'] });
     },
   });
 }

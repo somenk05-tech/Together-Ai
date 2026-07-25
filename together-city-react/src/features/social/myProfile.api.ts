@@ -21,6 +21,12 @@ export interface ProfilePostMedia { url: string; kind: string; thumbUrl: string 
 export interface ProfilePost {
   id: string; text: string | null; feeling: string | null; createdAt: string;
   outdoor: boolean; media: ProfilePostMedia[]; likeCount: number; commentCount: number;
+  // Full-card fields (so the profile can render the same PostCard as the feed).
+  author?: { id: string; handle: string; name: string; profileImage: string | null };
+  audience?: string;
+  placeName?: string | null;
+  tagged?: Array<{ id: string; name: string; handle: string }>;
+  likedByMe?: boolean;
 }
 export interface ProfilePostsPage { items: ProfilePost[]; nextCursor: string | null }
 

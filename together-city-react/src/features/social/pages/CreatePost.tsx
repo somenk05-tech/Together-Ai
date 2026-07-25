@@ -6,7 +6,35 @@ import { useCreatePost } from '../api';
 
 // `file` is kept for media that uploads to storage (video) — the `src` is only a
 // local preview; the real post URL comes from the R2 upload on share.
-interface MediaItem { type: 'image' | 'video'; src: string; file?: File; dur?: number; portrait?: boolean }
+interface MediaItem { type: 'image' | 'video'; src: string; file?: File; dur?: number; portrait?: boolean; poster?: File }
+
+/** Grab a still frame from a video as a JPEG File, to upload as its poster —
+ *  so feed/profile grids show a real thumbnail and never fetch the video just
+ *  to render a frame. Best-effort: resolves null if the browser can't decode. */
+function genPoster(file: File): Promise<File | null> {
+  return new Promise((resolve) => {
+    try {
+      const url = URL.createObjectURL(file);
+      const v = document.createElement('video');
+      v.preload = 'metadata'; v.muted = true; (v as HTMLVideoElement).playsInline = true; v.src = url;
+      const done = (f: File | null) => { URL.revokeObjectURL(url); resolve(f); };
+      v.onloadedmetadata = () => { try { v.currentTime = Math.min(0.1, (v.duration || 1) / 2); } catch { done(null); } };
+      v.onseeked = () => {
+        try {
+          const w = v.videoWidth, h = v.videoHeight;
+          if (!w || !h) return done(null);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return done(null);
+          ctx.drawImage(v, 0, 0, w, h);
+          canvas.toBlob((blob) => done(blob ? new File([blob], 'poster.jpg', { type: 'image/jpeg' }) : null), 'image/jpeg', 0.8);
+        } catch { done(null); }
+      };
+      v.onerror = () => done(null);
+    } catch { resolve(null); }
+  });
+}
 /** Frame ratio: 9:16 for vertical media, 16:9 for landscape. */
 const frameRatio = (portrait?: boolean) => (portrait ? '9 / 16' : '16 / 9');
 
@@ -159,6 +187,9 @@ export function CreatePost() {
             setMedia((prev) => [...prev]);
           };
           v.src = src;
+          // Capture a permanent poster frame now (from the local file — no CORS),
+          // so the grid shows a stored thumbnail forever and never fetches the video.
+          void genPoster(f).then((poster) => { if (poster) { item.poster = poster; setMedia((prev) => [...prev]); } });
           setMedia((prev) => [...prev, item].slice(0, 10));
         } else {
           // Photos are downscaled + re-encoded so they always post as small JPEGs.
@@ -212,10 +243,16 @@ export function CreatePost() {
     setErrMsg(null);
     setPhase('sharing');
     // Upload any file-backed media (video) to storage; images stay inline.
-    let uploaded: { url: string; kind: 'image' | 'video' }[];
+    let uploaded: { url: string; kind: 'image' | 'video'; thumbUrl?: string }[];
     try {
       uploaded = await Promise.all(
-        media.map(async (m) => (m.file ? { url: await mediaApi.upload(m.file), kind: m.type } : { url: m.src, kind: m.type })),
+        media.map(async (m) => {
+          if (!m.file) return { url: m.src, kind: m.type };
+          const url = await mediaApi.upload(m.file);
+          // Upload the captured poster too (best-effort) → stored as thumbUrl forever.
+          const thumbUrl = m.poster ? await mediaApi.upload(m.poster).catch(() => undefined) : undefined;
+          return { url, kind: m.type, ...(thumbUrl ? { thumbUrl } : {}) };
+        }),
       );
     } catch (e) {
       setErrMsg(uploadErrorMessage(e));

@@ -10,7 +10,8 @@ import {
   useMyProfile, useMyPosts, usePeopleSearch, usePublicProfile, useUpdateProfile, useReorderMyPosts,
   type MyProfile, type ProfilePost, type PersonResult, type PublicProfile, type Relationship,
 } from '../myProfile.api';
-import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useReport, type FollowPerson } from '../api';
+import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useReport, type FollowPerson, type Post } from '../api';
+import { PostCard } from '../PostCard';
 
 const money = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
 const PAY_PER_VIDEO = 100;
@@ -103,33 +104,39 @@ function PostTile({ p }: { p: ProfilePost }) {
   );
 }
 
-/** Opens a post in place ON the profile page (video plays here with controls),
- *  so viewing/playing a post never bounces the user to the city feed. */
-function PostLightbox({ post, onClose }: { post: ProfilePost; onClose: () => void }) {
-  const videos = post.media.filter((m) => m.kind === 'video');
-  const images = post.media.filter((m) => m.kind === 'image');
-  const when = new Date(post.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+/** Map the profile's ProfilePost into the full feed Post shape so the profile
+ *  can render the exact same PostCard (like / comment / share / save / play /
+ *  edit / delete) as the city feed. */
+function profilePostToPost(p: ProfilePost, me?: { id: string; handle: string; name: string; profileImage: string | null }): Post {
+  const author = p.author ?? me ?? { id: '', handle: '', name: 'You', profileImage: null };
+  return {
+    id: p.id,
+    text: p.text,
+    feeling: p.feeling,
+    audience: p.audience ?? 'public',
+    placeName: p.placeName ?? null,
+    tagged: p.tagged ?? [],
+    lat: null,
+    lng: null,
+    author,
+    media: p.media.map((m) => ({ id: `${p.id}:${m.url}`, url: m.url, kind: (m.kind === 'video' ? 'video' : 'image'), thumbUrl: m.thumbUrl })),
+    likes: p.likeCount,
+    comments: p.commentCount,
+    likedByMe: p.likedByMe ?? false,
+    createdAt: p.createdAt,
+  };
+}
+
+/** Opens a post in place ON the profile page as the full feed card (video plays
+ *  with controls, plus like/comment/share/save and Edit/Delete), so viewing or
+ *  managing a post never bounces the user to the city feed. */
+function PostLightbox({ post, onClose }: { post: Post; onClose: () => void }) {
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,16,.62)', display: 'grid', placeItems: 'center', padding: 16, zIndex: 70 }}>
-      <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(560px,96vw)', maxHeight: '90vh', overflow: 'auto', padding: 0 }}>
-        <div style={{ background: '#000' }}>
-          {videos.map((v) => (
-            <video key={v.url} src={v.url} poster={v.thumbUrl ?? undefined} controls autoPlay playsInline
-              style={{ width: '100%', maxHeight: '68vh', objectFit: 'contain', display: 'block', background: '#000' }} />
-          ))}
-          {videos.length === 0 && images.map((im) => (
-            <img key={im.url} src={im.url} alt={post.text ?? ''} style={{ width: '100%', maxHeight: '68vh', objectFit: 'contain', display: 'block' }} />
-          ))}
-        </div>
-        <div style={{ padding: '14px 16px' }}>
-          {post.feeling && <div className="muted" style={{ fontSize: 12.5, marginBottom: 4 }}>feeling {post.feeling}</div>}
-          {post.text && <p style={{ fontSize: 14.5, lineHeight: 1.55, margin: '0 0 10px', whiteSpace: 'pre-wrap' }}>{post.text}</p>}
-          <div className="muted" style={{ display: 'flex', gap: 14, fontSize: 12.5, alignItems: 'center' }}>
-            <span>{when}</span>
-            <span>❤️ {post.likeCount}</span>
-            <span>💬 {post.commentCount}</span>
-            <button type="button" onClick={onClose} className="btn btn-line btn-sm" style={{ marginLeft: 'auto' }}>Close</button>
-          </div>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,16,.62)', display: 'grid', placeItems: 'start center', padding: 16, zIndex: 70, overflow: 'auto' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(600px,96vw)', margin: 'auto 0' }}>
+        <PostCard post={post} manage />
+        <div style={{ textAlign: 'center' }}>
+          <button type="button" onClick={onClose} className="btn btn-line btn-sm">Close</button>
         </div>
       </div>
     </div>
@@ -139,7 +146,8 @@ function PostLightbox({ post, onClose }: { post: ProfilePost; onClose: () => voi
 function PostsTab() {
   const posts = useMyPosts();
   const reorder = useReorderMyPosts();
-  const [openPost, setOpenPost] = useState<ProfilePost | null>(null);
+  const me = useMyProfile();
+  const [openId, setOpenId] = useState<string | null>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   const items = useMemo(() => posts.data?.pages.flatMap((pg) => pg.items) ?? [], [posts.data]);
 
@@ -239,7 +247,7 @@ function PostsTab() {
               <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 14, color: '#fff', background: 'rgba(0,0,0,.5)', borderRadius: 6, padding: '0 6px', lineHeight: 1.6 }}>⠿</span>
             </div>
           ) : (
-            <button key={p.id} type="button" onClick={() => setOpenPost(p)}
+            <button key={p.id} type="button" onClick={() => setOpenId(p.id)}
               style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', font: 'inherit' }}>
               <PostTile p={p} />
             </button>
@@ -248,7 +256,12 @@ function PostsTab() {
       </div>
       {!arranging && <div ref={sentinel} style={{ height: 1 }} />}
       {!arranging && posts.isFetchingNextPage && <div style={{ padding: 16 }}><Spinner /></div>}
-      {openPost && <PostLightbox post={openPost} onClose={() => setOpenPost(null)} />}
+      {(() => {
+        const op = openId ? items.find((x) => x.id === openId) : null;
+        // Driven by live items: if the post is edited/deleted, the lightbox
+        // reflects it (and closes when the post is gone).
+        return op ? <PostLightbox post={profilePostToPost(op, me.data)} onClose={() => setOpenId(null)} /> : null;
+      })()}
     </>
   );
 }

@@ -263,21 +263,41 @@ export class ProfileService {
       ] as never,
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      include: { media: true, _count: { select: { likes: true, comments: true } } },
+      include: {
+        media: true,
+        _count: { select: { likes: true, comments: true } },
+        author: { select: { id: true, handle: true, name: true, profileImage: true } },
+        likes: { where: { userId }, select: { id: true } },
+      },
     });
     const hasMore = rows.length > take;
     const page = hasMore ? rows.slice(0, take) : rows;
     return {
-      items: page.map((p) => ({
-        id: p.id,
-        text: p.text ?? null,
-        feeling: p.feeling ?? null,
-        createdAt: p.createdAt.toISOString(),
-        outdoor: p.lat != null && p.lng != null,
-        media: (p.media ?? []).map((m) => ({ url: m.url, kind: m.kind, thumbUrl: m.thumbUrl ?? null })),
-        likeCount: (p as unknown as { _count: { likes: number } })._count.likes,
-        commentCount: (p as unknown as { _count: { comments: number } })._count.comments,
-      })),
+      items: page.map((p) => {
+        const px = p as unknown as {
+          audience?: string | null; placeName?: string | null; taggedJson?: string | null;
+          author: { id: string; handle: string; name: string; profileImage: string | null };
+          likes: unknown[]; _count: { likes: number; comments: number };
+        };
+        let tagged: Array<{ id: string; name: string; handle: string }> = [];
+        try { tagged = px.taggedJson ? JSON.parse(px.taggedJson) : []; } catch { tagged = []; }
+        return {
+          id: p.id,
+          text: p.text ?? null,
+          feeling: p.feeling ?? null,
+          createdAt: p.createdAt.toISOString(),
+          outdoor: p.lat != null && p.lng != null,
+          media: (p.media ?? []).map((m) => ({ url: m.url, kind: m.kind, thumbUrl: m.thumbUrl ?? null })),
+          likeCount: px._count.likes,
+          commentCount: px._count.comments,
+          // Full-card fields — so the profile can render the same PostCard as the feed.
+          author: px.author,
+          audience: px.audience ?? 'public',
+          placeName: px.placeName ?? null,
+          tagged,
+          likedByMe: px.likes.length > 0,
+        };
+      }),
       nextCursor: hasMore ? page[page.length - 1].id : null,
     };
   }
