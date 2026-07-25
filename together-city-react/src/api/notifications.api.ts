@@ -36,7 +36,22 @@ export function useMarkAllNotificationsRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => notificationsApi.markAllRead(),
-    onSuccess: () => {
+    // Optimistically zero the unread count (and clear the list highlights) so the
+    // header badge vanishes the instant the Alerts panel is opened, before the
+    // server round-trip. Rolls back on error.
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: COUNT_KEY });
+      const prevCount = qc.getQueryData<number>(COUNT_KEY);
+      const prevList = qc.getQueryData<NotificationItem[]>(LIST_KEY);
+      qc.setQueryData<number>(COUNT_KEY, 0);
+      if (prevList) qc.setQueryData<NotificationItem[]>(LIST_KEY, prevList.map((n) => ({ ...n, read: true })));
+      return { prevCount, prevList };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prevCount !== undefined) qc.setQueryData(COUNT_KEY, ctx.prevCount);
+      if (ctx?.prevList !== undefined) qc.setQueryData(LIST_KEY, ctx.prevList);
+    },
+    onSettled: () => {
       void qc.invalidateQueries({ queryKey: LIST_KEY });
       void qc.invalidateQueries({ queryKey: COUNT_KEY });
     },

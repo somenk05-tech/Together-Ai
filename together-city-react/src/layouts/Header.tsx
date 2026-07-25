@@ -59,10 +59,16 @@ function NotificationBell() {
     setOpen(false);
     if (href) nav(href);
   };
+  // Clicking the Alerts button clears the unread badge: opening the panel marks
+  // everything read (optimistically, so the number vanishes immediately).
+  const toggle = () => {
+    if (!open && (unread.data ?? 0) > 0) markAll.mutate();
+    setOpen((o) => !o);
+  };
 
   return (
     <div ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
-      <button type="button" aria-label="Notifications" onClick={() => setOpen((o) => !o)}
+      <button type="button" aria-label="Notifications" onClick={toggle}
         style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
           fontSize: 'var(--chip-fs)', letterSpacing: '.05em', fontWeight: 600, textTransform: 'uppercase', padding: 0,
           border: 'none', color: 'var(--ink)', background: 'transparent', cursor: 'pointer' }}>
