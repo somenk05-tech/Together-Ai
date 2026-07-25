@@ -239,13 +239,28 @@ export class SocialService {
     // Visible = your own posts (any audience) OR public/friends OR a family post
     // from a family connection. Others' private posts never match.
     const familyIds = [...(await this.familyIds(userId))];
-    const audienceWhere = {
-      OR: [
-        { authorId: userId },
-        { audience: { in: ['public', 'friends'] } },
-        { audience: 'family', authorId: { in: familyIds } },
-      ],
-    };
+    // The Videos (reels) tab is CITY-WIDE: it surfaces every user's PUBLIC video,
+    // not just your network — so the reels scroll runs through the whole city's
+    // uploads. Friends/family-audience posts still only come from your circle,
+    // and blocked users (either direction) are excluded.
+    const cityWide = filter === 'videos';
+    const blockedSet = cityWide ? [...(await this.blockedWith(userId))] : [];
+    const audienceWhere = cityWide
+      ? {
+          OR: [
+            { authorId: userId },
+            { audience: 'public' },
+            { audience: 'friends', authorId: { in: network } },
+            { audience: 'family', authorId: { in: familyIds } },
+          ],
+        }
+      : {
+          OR: [
+            { authorId: userId },
+            { audience: { in: ['public', 'friends'] } },
+            { audience: 'family', authorId: { in: familyIds } },
+          ],
+        };
     // Ignore a stale/deleted cursor instead of 500-ing on it.
     let cursorClause: { cursor: { id: string }; skip: number } | object = {};
     if (cursor) {
@@ -254,7 +269,10 @@ export class SocialService {
     }
     const posts = await this.prisma.post.findMany({
       where: {
-        authorId: { in: network },
+        // City-wide videos aren't bounded to your network; every other lens is.
+        ...(cityWide
+          ? (blockedSet.length ? { authorId: { notIn: blockedSet } } : {})
+          : { authorId: { in: network } }),
         ...(filter === 'nearby' ? { lat: { not: null } } : {}),
         ...(filter === 'trending' ? { createdAt: { gte: weekAgo } } : {}),
         // Photos / Videos sections: only posts carrying that media kind.

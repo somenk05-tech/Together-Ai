@@ -27,12 +27,11 @@ export interface Track {
 
 const CLEARED = 'Royalty-free';
 export const MUSIC_LIBRARY: Track[] = [
-  { id: 'uplift',   title: 'Uplift',            artist: 'Together City', url: '/music/uplift.mp3',   mood: 'Upbeat',   license: CLEARED },
-  { id: 'sunrise',  title: 'Sunrise Drive',     artist: 'Together City', url: '/music/sunrise.mp3',  mood: 'Chill',    license: CLEARED },
-  { id: 'citylife', title: 'City Life',         artist: 'Together City', url: '/music/citylife.mp3', mood: 'Lo-fi',    license: CLEARED },
-  { id: 'dreamy',   title: 'Dreamy Nights',     artist: 'Together City', url: '/music/dreamy.mp3',   mood: 'Ambient',  license: CLEARED },
-  { id: 'energy',   title: 'Energy Boost',      artist: 'Together City', url: '/music/energy.mp3',   mood: 'Workout',  license: CLEARED },
-  { id: 'acoustic', title: 'Acoustic Morning',  artist: 'Together City', url: '/music/acoustic.mp3', mood: 'Acoustic', license: CLEARED },
+  { id: 'concrete-horizon',   title: 'Concrete Horizon',   url: '/music/concrete-horizon.mp3',   mood: 'Cinematic', license: CLEARED },
+  { id: 'crosswalk-pulse',    title: 'Crosswalk Pulse',    url: '/music/crosswalk-pulse.mp3',    mood: 'Upbeat',    license: CLEARED },
+  { id: 'moonlit-adagio',     title: 'Moonlit Adagio',     url: '/music/moonlit-adagio.mp3',     mood: 'Chill',     license: CLEARED },
+  { id: 'rush-hour-canopy',   title: 'Rush Hour Canopy',   url: '/music/rush-hour-canopy.mp3',   mood: 'Energetic', license: CLEARED },
+  { id: 'sunlit-string-waltz', title: 'Sunlit String Waltz', url: '/music/sunlit-string-waltz.mp3', mood: 'Acoustic', license: CLEARED },
 ];
 
 export function trackByUrl(url?: string | null): Track | undefined {
