@@ -80,10 +80,13 @@ function CommentsPanel({ postId }: { postId: string }) {
 /** A single feed image. When it's the only image, the frame adapts to the
  *  photo's orientation (16:9 landscape or 9:16 vertical); in a grid it stays 16:9. */
 function ImgCell({ url, adaptive, overlay, alt }: { url: string; adaptive: boolean; overlay?: ReactNode; alt: string }) {
-  const [portrait, setPortrait] = useState(false);
+  // Frame to the image's REAL aspect (clamped) so portrait photos show tall and
+  // aren't cropped to 16:9. Clamp keeps ultra-tall/wide images sane.
+  const [ar, setAr] = useState(16 / 9); // width / height
+  const shown = adaptive ? Math.min(Math.max(ar, 0.6), 1.78) : 16 / 9;
   return (
-    <div style={{ position: 'relative', aspectRatio: adaptive && portrait ? '9 / 16' : '16 / 9', maxHeight: adaptive ? 560 : undefined, background: '#000' }}>
-      <img src={url} alt={alt} onLoad={(e) => { if (adaptive) setPortrait(e.currentTarget.naturalHeight > e.currentTarget.naturalWidth); }}
+    <div style={{ position: 'relative', aspectRatio: String(shown), maxHeight: adaptive ? 640 : undefined, background: '#000' }}>
+      <img src={url} alt={alt} onLoad={(e) => { if (adaptive) setAr(e.currentTarget.naturalWidth / Math.max(1, e.currentTarget.naturalHeight)); }}
         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       {overlay}
     </div>
@@ -94,6 +97,8 @@ function ImgCell({ url, adaptive, overlay, alt }: { url: string; adaptive: boole
  *  reachable (no more +N cutoff), with dot indicators and a counter. */
 function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName: string }) {
   const [idx, setIdx] = useState(0);
+  const [ar, setAr] = useState(16 / 9); // frame shape from the first image
+  const shown = Math.min(Math.max(ar, 0.6), 1.78);
   const ref = useRef<HTMLDivElement>(null);
   const onScroll = () => {
     const el = ref.current;
@@ -102,11 +107,14 @@ function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName
   return (
     <div style={{ position: 'relative', marginTop: 12 }}>
       <div ref={ref} onScroll={onScroll} className="tc-hscroll"
-        style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', borderRadius: 14, scrollbarWidth: 'none' }}>
-        {images.map((m) => (
-          <div key={m.id} style={{ flex: '0 0 100%', scrollSnapAlign: 'center', aspectRatio: '16 / 9', background: '#000' }}>
+        style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', borderRadius: 14, scrollbarWidth: 'none', aspectRatio: String(shown), maxHeight: 640, background: '#000' }}>
+        {images.map((m, i) => (
+          <div key={m.id} style={{ flex: '0 0 100%', scrollSnapAlign: 'center', height: '100%' }}>
+            {/* contain, so portrait photos are never cropped (letterboxed if the
+                slide's shape differs) */}
             <img src={m.url} alt={`Photo shared by ${authorName}`} loading="lazy"
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              onLoad={i === 0 ? (e) => setAr(e.currentTarget.naturalWidth / Math.max(1, e.currentTarget.naturalHeight)) : undefined}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
           </div>
         ))}
       </div>

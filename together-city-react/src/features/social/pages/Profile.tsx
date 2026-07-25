@@ -159,7 +159,7 @@ function PostsTab({ filter = 'all' }: { filter?: 'all' | 'photo' | 'video' }) {
     if (filter === 'photo') return hasImage && !hasVideo;
     return true;
   };
-  const canArrange = filter === 'all';
+  const canArrange = true; // rearrange works on Posts, Photos and Videos tabs
   const sentinel = useRef<HTMLDivElement>(null);
   const items = useMemo(() => posts.data?.pages.flatMap((pg) => pg.items) ?? [], [posts.data]);
 
@@ -195,10 +195,16 @@ function PostsTab({ filter = 'all' }: { filter?: 'all' | 'photo' | 'video' }) {
     );
   }
 
-  const startArranging = () => { setArranged(items); setArranging(true); };
+  const startArranging = () => { setArranged(items.filter(matchesFilter)); setArranging(true); };
   const cancelArranging = () => { setArranging(false); setArranged([]); dragFrom.current = null; setDragOver(null); };
   const saveArranging = () => {
-    reorder.mutate(arranged.map((p) => p.id), { onSuccess: () => { setArranging(false); setArranged([]); } });
+    // Weave the reordered (filtered) items back into the full post order, leaving
+    // posts outside this tab where they are — so rearranging Photos doesn't
+    // disturb videos/text posts in the "Posts" tab.
+    const newIds = arranged.map((p) => p.id);
+    let k = 0;
+    const fullOrder = items.map((p) => (matchesFilter(p) ? newIds[k++] : p.id));
+    reorder.mutate(fullOrder, { onSuccess: () => { setArranging(false); setArranged([]); } });
   };
 
   const move = (from: number, to: number) => {
