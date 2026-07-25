@@ -36,6 +36,98 @@ function genPoster(file: File): Promise<File | null> {
   });
 }
 
+/** Photo editor — Filters (one-tap looks) + Adjust (colour grading sliders).
+ *  Applies via the canvas `filter` and bakes the result into a new JPEG data
+ *  URL that replaces the image before posting. */
+function ImageEditor({ src, onClose, onApply }: { src: string; onClose: () => void; onApply: (dataUrl: string) => void }) {
+  const [pane, setPane] = useState<'filters' | 'adjust'>('filters');
+  const [extra, setExtra] = useState('');
+  const [b, setB] = useState(1);
+  const [c, setC] = useState(1);
+  const [s, setS] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const filter = `${extra} brightness(${b}) contrast(${c}) saturate(${s})`.trim();
+
+  const PRESETS: { name: string; extra: string; b: number; c: number; s: number }[] = [
+    { name: 'Original', extra: '', b: 1, c: 1, s: 1 },
+    { name: 'Vivid', extra: '', b: 1.03, c: 1.12, s: 1.4 },
+    { name: 'Warm', extra: 'sepia(0.25)', b: 1.03, c: 1.05, s: 1.2 },
+    { name: 'Cool', extra: 'hue-rotate(-12deg)', b: 1.03, c: 1.05, s: 1.1 },
+    { name: 'B&W', extra: 'grayscale(1)', b: 1, c: 1.1, s: 1 },
+    { name: 'Vintage', extra: 'sepia(0.4)', b: 1.05, c: 0.95, s: 1.2 },
+    { name: 'Fade', extra: '', b: 1.1, c: 0.9, s: 0.82 },
+    { name: 'Noir', extra: 'grayscale(1)', b: 0.95, c: 1.35, s: 1 },
+  ];
+  const usePreset = (p: (typeof PRESETS)[number]) => { setExtra(p.extra); setB(p.b); setC(p.c); setS(p.s); };
+
+  const apply = () => {
+    setBusy(true);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { onClose(); return; }
+        (ctx as CanvasRenderingContext2D & { filter: string }).filter = filter;
+        ctx.drawImage(img, 0, 0);
+        onApply(canvas.toDataURL('image/jpeg', 0.9));
+      } catch { onClose(); }
+    };
+    img.onerror = () => onClose();
+    img.src = src;
+  };
+
+  const slider = (label: string, val: number, set: (n: number) => void, min: number, max: number) => (
+    <label style={{ display: 'block', marginBottom: 12 }}>
+      <span style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 4 }}>
+        <span>{label}</span><span className="muted">{Math.round(val * 100)}%</span>
+      </span>
+      <input type="range" min={min} max={max} step={0.01} value={val} onChange={(e) => set(Number(e.target.value))} style={{ width: '100%' }} />
+    </label>
+  );
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 90, display: 'grid', placeItems: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(560px,96vw)', maxHeight: '92vh', overflow: 'auto' }}>
+        <h3 style={{ margin: '0 0 10px', fontSize: 17 }}>Edit photo</h3>
+        <div style={{ borderRadius: 12, overflow: 'hidden', background: '#000', marginBottom: 12 }}>
+          <img src={src} alt="" style={{ width: '100%', maxHeight: '46vh', objectFit: 'contain', display: 'block', filter }} />
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <button type="button" className={`pill ${pane === 'filters' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setPane('filters')}>Filters</button>
+          <button type="button" className={`pill ${pane === 'adjust' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setPane('adjust')}>Adjust</button>
+        </div>
+        {pane === 'filters' ? (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {PRESETS.map((p) => {
+              const pf = `${p.extra} brightness(${p.b}) contrast(${p.c}) saturate(${p.s})`.trim();
+              const active = pf === filter;
+              return (
+                <button key={p.name} type="button" onClick={() => usePreset(p)}
+                  style={{ cursor: 'pointer', border: `2px solid ${active ? 'var(--accent)' : 'var(--line)'}`, borderRadius: 10, padding: 0, background: 'none', overflow: 'hidden', width: 72 }}>
+                  <img src={src} alt="" style={{ width: 72, height: 54, objectFit: 'cover', display: 'block', filter: pf }} />
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 600, padding: '3px 0' }}>{p.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div>
+            {slider('Brightness', b, setB, 0.5, 1.5)}
+            {slider('Contrast', c, setC, 0.5, 1.5)}
+            {slider('Saturation', s, setS, 0, 2)}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          <button type="button" className="btn btn-accent btn-sm" disabled={busy} onClick={apply}>{busy ? 'Applying…' : 'Apply'}</button>
+          <button type="button" className="btn btn-line btn-sm" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Pick a custom cover frame for a video before posting. The video is a local
  *  file (data URL), so capturing the current frame to a canvas has no CORS
  *  issues. Returns a JPEG File used as the post's permanent poster (thumbUrl). */
@@ -194,6 +286,7 @@ export function CreatePost() {
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [coverPick, setCoverPick] = useState<number | null>(null);
+  const [editPick, setEditPick] = useState<number | null>(null);
   const busy = phase === 'sharing' || phase === 'success';
 
   const onFiles = async (files: FileList | null) => {
@@ -395,6 +488,12 @@ export function CreatePost() {
                       {m.poster ? '✓ Cover set' : '🖼 Choose cover'}
                     </button>
                   )}
+                  {m.type === 'image' && (
+                    <button type="button" onClick={() => setEditPick(i)}
+                      style={{ position: 'absolute', bottom: 6, right: 6, color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: 'rgba(0,0,0,.65)', border: 'none', cursor: 'pointer' }}>
+                      ✎ Edit
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -404,6 +503,11 @@ export function CreatePost() {
         {coverPick !== null && media[coverPick] && (
           <CoverPicker item={media[coverPick]} onClose={() => setCoverPick(null)}
             onPick={(poster) => { setMedia((prev) => prev.map((m, j) => (j === coverPick ? { ...m, poster } : m))); setCoverPick(null); }} />
+        )}
+
+        {editPick !== null && media[editPick]?.type === 'image' && (
+          <ImageEditor src={media[editPick].src} onClose={() => setEditPick(null)}
+            onApply={(dataUrl) => { setMedia((prev) => prev.map((m, j) => (j === editPick ? { ...m, src: dataUrl } : m))); setEditPick(null); }} />
         )}
 
         {hashtags.length > 0 && (
