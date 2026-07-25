@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { PostCard, Avatar } from '../PostCard';
+import { ReelsView } from '../ReelsView';
 import { PublicProfileModal } from './Profile';
 import { useCreatePost, useFeed, type Post } from '../api';
 
@@ -73,9 +74,6 @@ const FILTERS = [
   { key: 'photos', label: '📷 Photos' },
   { key: 'videos', label: '🎥 Videos' },
   { key: 'friends', label: 'Friends' },
-  { key: 'nearby', label: 'Nearby' },
-  { key: 'trending', label: 'Trending' },
-  { key: 'following', label: 'Following' },
 ] as const;
 
 const FALLBACK_TAGS = ['#Weekend', '#Coffee', '#Mumbai', '#Fitness'];
@@ -163,7 +161,7 @@ export function SocialFeed() {
 
       <div className="feed-grid" style={{ display: 'grid', gap: 24, alignItems: 'start' }}>
         <div>
-          <Composer />
+          {filter !== 'videos' && <Composer />}
 
           {/* Filters — wrap to fit instead of horizontal scrolling */}
           <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -178,27 +176,42 @@ export function SocialFeed() {
             ))}
           </div>
 
-          {feed.isLoading && <Spinner label="Loading the city feed…" />}
+          {feed.isLoading && <Spinner label={filter === 'videos' ? 'Loading videos…' : 'Loading the city feed…'} />}
           {feed.isError && <EmptyState title="Couldn't load the feed" hint="Reload in a moment." />}
-          {!feed.isLoading && !feed.isError && items.length === 0 && (
-            <EmptyState icon="🌆" title={filter === 'foryou' ? 'No moments yet' : 'Nothing here yet'}
-              hint={filter === 'nearby' ? 'Posts with a pinned location appear here.' : filter === 'following' ? 'Follow people to fill this lens.' : 'Be the first to share one.'} />
-          )}
-          {items.map((p) => <PostCard key={p.key ?? p.id} post={p} isNew={p.id === newPostId} onOpenAuthor={setAuthorHandle} autoplayVideo={filter === 'videos'} />)}
 
-          {feed.hasNextPage && (
-            <div style={{ display: 'grid', placeItems: 'center', margin: '18px 0 4px' }}>
-              <Button variant="line" size="sm" disabled={feed.isFetchingNextPage} onClick={() => void feed.fetchNextPage()}>
-                {feed.isFetchingNextPage ? 'Loading…' : 'Load more'}
-              </Button>
-            </div>
+          {filter === 'videos' ? (
+            <>
+              {!feed.isLoading && !feed.isError && items.length === 0 && (
+                <EmptyState icon="🎬" title="No videos yet" hint="Post a video and it'll play here, reels-style." />
+              )}
+              {items.length > 0 && (
+                <ReelsView items={items} onOpenAuthor={setAuthorHandle}
+                  hasNextPage={feed.hasNextPage} fetchNextPage={() => void feed.fetchNextPage()} isFetchingNextPage={feed.isFetchingNextPage} />
+              )}
+            </>
+          ) : (
+            <>
+              {!feed.isLoading && !feed.isError && items.length === 0 && (
+                <EmptyState icon="🌆" title={filter === 'foryou' ? 'No moments yet' : 'Nothing here yet'} hint="Be the first to share one." />
+              )}
+              {items.map((p) => <PostCard key={p.key ?? p.id} post={p} isNew={p.id === newPostId} onOpenAuthor={setAuthorHandle} />)}
+              {feed.hasNextPage && (
+                <div style={{ display: 'grid', placeItems: 'center', margin: '18px 0 4px' }}>
+                  <Button variant="line" size="sm" disabled={feed.isFetchingNextPage} onClick={() => void feed.fetchNextPage()}>
+                    {feed.isFetchingNextPage ? 'Loading…' : 'Load more'}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
-        {/* Right sidebar — desktop only (CSS media query) */}
-        <div className="feed-sidebar">
-          <Sidebar posts={items} />
-        </div>
+        {/* Right sidebar — desktop only, hidden in the reels view */}
+        {filter !== 'videos' && (
+          <div className="feed-sidebar">
+            <Sidebar posts={items} />
+          </div>
+        )}
       </div>
 
       {authorHandle && <PublicProfileModal handle={authorHandle} onClose={() => setAuthorHandle(null)} />}
