@@ -8,7 +8,6 @@ import type { LookupOption } from '@/api/lookups.api';
 import { useDatingProfile, useUpsertDatingProfile, useDeleteDatingProfile, type UpsertProfileInput, type Visibility, type ProfileCompletion } from '../api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
-import { PrivacyNote } from '@/features/privacy/PrivacyNote';
 
 const field: React.CSSProperties = {
   width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 10,
