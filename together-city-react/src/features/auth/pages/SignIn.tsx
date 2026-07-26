@@ -68,7 +68,9 @@ export function SignIn() {
     } finally { setBusy(false); }
   };
 
-  const field: React.CSSProperties = { width: '100%', padding: '13px 14px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, marginBottom: 10, fontFamily: 'inherit', boxSizing: 'border-box' };
+  const isRegister = mode === 'register';
+  // Dark-glass fields (white text) for the login/forgot/reset views.
+  const field: React.CSSProperties = { width: '100%', padding: '13px 14px', border: '1.5px solid rgba(255,255,255,.28)', borderRadius: 12, fontSize: 14, marginBottom: 10, fontFamily: 'inherit', boxSizing: 'border-box', background: 'rgba(255,255,255,.08)', color: '#fff' };
   const title = mode === 'login' ? 'Welcome to Together City' : mode === 'forgot' ? 'Recover your account' : 'Set a new password';
   const cta = busy ? 'One moment…' : mode === 'login' ? 'Sign in' : mode === 'forgot' ? (channel === 'sms' ? 'Text me a code' : 'Email me a code') : 'Reset password';
 
@@ -81,12 +83,25 @@ export function SignIn() {
         <source src="/assets/video/together-city-loop.webm" type="video/webm" />
         <source src="/assets/video/together-city-loop.mp4" type="video/mp4" />
       </video>
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(18,18,16,.30), rgba(18,18,16,.42))', zIndex: 0 }} />
-      <div className="card" style={{
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(18,18,16,.34), rgba(18,18,16,.5))', zIndex: 0 }} />
+      {/* Dark-glass card + white text for readability over the video. Register
+          keeps the light card (its fields/copy are built for a light surface). */}
+      <style>{`
+        .signin-glass, .signin-glass h1 { color: #fff; }
+        .signin-glass .muted { color: rgba(255,255,255,.74); }
+        .signin-glass .eyebrow { color: var(--gold-bright); }
+        .signin-glass input { color: #fff; }
+        .signin-glass input::placeholder { color: rgba(255,255,255,.6); }
+      `}</style>
+      <div className={isRegister ? 'card' : 'card signin-glass'} style={isRegister ? {
         position: 'relative', zIndex: 1, width: 'min(420px, 92vw)',
-        background: 'rgba(255,255,255,.52)',
-        backdropFilter: 'blur(24px) saturate(1.4)', WebkitBackdropFilter: 'blur(24px) saturate(1.4)',
-        border: '1px solid rgba(255,255,255,.65)', boxShadow: '0 28px 80px rgba(0,0,0,.38)',
+        background: 'rgba(255,255,255,.94)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+        border: '1px solid rgba(255,255,255,.7)', boxShadow: '0 28px 80px rgba(0,0,0,.4)',
+      } : {
+        position: 'relative', zIndex: 1, width: 'min(420px, 92vw)', color: '#fff',
+        background: 'rgba(15,16,18,.56)',
+        backdropFilter: 'blur(26px) saturate(1.35)', WebkitBackdropFilter: 'blur(26px) saturate(1.35)',
+        border: '1px solid rgba(255,255,255,.20)', boxShadow: '0 30px 90px rgba(0,0,0,.55)',
       }}>
         {mode === 'register' ? (
           <RegisterForm onBackToLogin={() => { setMode('login'); setError(null); setNotice(null); }} from={from} />
@@ -101,7 +116,7 @@ export function SignIn() {
             <form onSubmit={submit}>
               {mode === 'login' && (
                 <>
-                  <div className="tc-field" style={{ display: 'flex', alignItems: 'center', border: '1.5px solid var(--line)', borderRadius: 12, padding: '0 12px', marginBottom: 10 }}>
+                  <div className="tc-field" style={{ display: 'flex', alignItems: 'center', border: '1.5px solid rgba(255,255,255,.28)', borderRadius: 12, padding: '0 12px', marginBottom: 10, background: 'rgba(255,255,255,.08)' }}>
                     <span className="muted">@</span>
                     <input autoFocus required value={handle} placeholder="handle" name="username" autoComplete="username"
                       onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
@@ -120,7 +135,7 @@ export function SignIn() {
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                   {(['email', 'sms'] as const).map((c) => (
                     <button key={c} type="button" onClick={() => setChannel(c)}
-                      style={{ flex: 1, cursor: 'pointer', borderRadius: 10, padding: '9px 0', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${channel === c ? 'var(--accent)' : 'var(--line)'}`, background: channel === c ? 'var(--accent)' : 'transparent', color: channel === c ? '#fff' : 'var(--ink-soft)' }}>
+                      style={{ flex: 1, cursor: 'pointer', borderRadius: 10, padding: '9px 0', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${channel === c ? 'var(--accent)' : 'rgba(255,255,255,.3)'}`, background: channel === c ? 'var(--accent)' : 'rgba(255,255,255,.06)', color: channel === c ? '#fff' : 'rgba(255,255,255,.82)' }}>
                       {c === 'email' ? '📧 Email me a code' : '📱 Text me a code'}
                     </button>
                   ))}
