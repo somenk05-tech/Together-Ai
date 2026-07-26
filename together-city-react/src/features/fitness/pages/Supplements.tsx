@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, Hero, Tag } from '@/components/ui';
+import { Button, Tag } from '@/components/ui';
 
 type Priority = 'core' | 'goal' | 'opt';
 interface Supp { id: string; ic: string; hue: number; name: string; pri: Priority; price: number; why: string; dose: string }
@@ -51,8 +51,11 @@ export function Supplements() {
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '20px 16px 40px' }}>
-      <Hero image="/assets/img/supplements-hero.webp" objectPosition="center 18%" eyebrow="Fitness · 02" title="Supplements"
-        sub="Sports & recovery supplements matched to your training goal — protein to hit your target, plus the essentials for strength, recovery and daily health." />
+      <div style={{ marginBottom: 28 }}>
+        <div className="eyebrow">Fitness · 02</div>
+        <h1 style={{ fontSize: 'clamp(26px,3vw,42px)' }}>Supplements</h1>
+        <p className="lede" style={{ marginTop: 6 }}>Sports &amp; recovery supplements matched to your training goal — protein to hit your target, plus the essentials for strength, recovery and daily health.</p>
+      </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 26, flexWrap: 'wrap' }}>

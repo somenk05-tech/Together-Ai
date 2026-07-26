@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Hero } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { useAddWorkout } from '../api';
 import { useFoodPref } from '@/features/nutrition/hooks';
 
@@ -278,8 +278,11 @@ export function Workout() {
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '20px 16px 40px' }}>
-      <Hero image="/assets/img/fitness-family-hero.webp" objectPosition="center 32%" eyebrow="Together City · Hub 012" title="Your Workout"
-        sub="Your personalised home & gym plan for today — level & goal matched, with a live guided timer." />
+      <div style={{ marginBottom: 28 }}>
+        <div className="eyebrow">Together City · Hub 012</div>
+        <h1 style={{ fontSize: 'clamp(26px,3vw,42px)' }}>Your Workout</h1>
+        <p className="lede" style={{ marginTop: 6 }}>Your personalised home &amp; gym plan for today — level &amp; goal matched, with a live guided timer.</p>
+      </div>
 
       <div style={{ marginBottom: 14 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 13, padding: '6px 14px', borderRadius: 999, background: STATUS_STYLE[tStatus].bg, color: STATUS_STYLE[tStatus].c }}>
