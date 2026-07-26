@@ -225,7 +225,7 @@ function EngagedPanel({ chat }: { chat: DatingChatSummary | null }) {
 /** Curated Matches (romantic) / New Friends (platonic) — intentional-dating stack:
  *  a compatibility-band breakdown of the pool + your single strongest match. */
 export function DatingMatches() {
-  const [kind, setKind] = useState<MatchKind>('romantic');
+  const kind: MatchKind = 'romantic';
   const profile = useDatingProfile();
   const stack = useDatingStack(kind, Boolean(profile.data));
   const chats = useDatingChats();
@@ -254,27 +254,10 @@ export function DatingMatches() {
   return (
     <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
       <div className="eyebrow">Dating Hub</div>
-      <h1 style={{ fontSize: 26 }}>{kind === 'romantic' ? 'Curated Matches' : 'New Friends'}</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
+      <h1 style={{ fontSize: 26 }}>Curated Matches</h1>
+      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
         Curated, not endless — you meet your single strongest match, not an endless list. Below is how your whole match pool breaks down by compatibility.
       </p>
-
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
-        {(['romantic', 'platonic'] as MatchKind[]).map((k) => (
-          <button
-            key={k} type="button" onClick={() => setKind(k)}
-            className="pill"
-            style={{
-              cursor: 'pointer', borderRadius: 999, padding: '8px 18px', fontSize: 13, fontFamily: 'inherit',
-              border: '1px solid var(--line)',
-              background: kind === k ? 'var(--accent)' : 'transparent',
-              color: kind === k ? '#fff' : 'var(--ink-soft)', fontWeight: kind === k ? 700 : 400,
-            }}
-          >
-            {k === 'romantic' ? '♥ Curated Matches' : '☺ New Friends'}
-          </button>
-        ))}
-      </div>
 
       {stack.isLoading ? (
         <Spinner label="Scoring compatibility…" />
