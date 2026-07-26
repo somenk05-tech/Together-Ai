@@ -38,7 +38,7 @@ const MOD: Record<string, { label: string; bg: string; c: string }> = {
 interface DX {
   firstName?: string; country?: string; countryCode?: string; state?: string; stateCode?: string; city?: string;
   heightCm?: number | null; languages?: string[];
-  photos?: string[]; selfieVerified?: boolean;
+  photos?: string[]; selfieVerified?: boolean; selfiePhoto?: string; selfieVerifiedAt?: string;
   relationshipGoal?: string; diet?: string; smoking?: string; drinking?: string; fitnessLevel?: string; education?: string; profession?: string;
   personalityTraits?: string[]; values?: string[];
   prefAgeMin?: number | null; prefAgeMax?: number | null; prefDistanceKm?: number | null; prefHeight?: string;
@@ -138,6 +138,111 @@ function VisibilityCard({ visibility, minScore, onChange, onDelete, deleting }: 
           {deleting ? 'Deleting…' : 'Delete dating profile'}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Camera-only verification. The verified badge is EARNED by capturing a live
+ * selfie through the device camera — there is no checkbox and no way to mark
+ * yourself verified by uploading a photo. The captured selfie is stored so the
+ * backend can later run a real face-match against the profile photos.
+ */
+function SelfieVerify({ verified, onCapture, onClear }: {
+  verified: boolean; onCapture: (dataUrl: string) => void; onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const stop = () => { streamRef.current?.getTracks().forEach((t) => t.stop()); streamRef.current = null; };
+  useEffect(() => () => stop(), []);
+
+  const start = async () => {
+    setErr(null); setReady(false); setOpen(true);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setErr('Your browser or device doesn’t support camera capture, so verification isn’t available here.');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => undefined);
+        setReady(true);
+      }
+    } catch {
+      setErr('Camera access is required to get verified. Please allow the camera and try again.');
+    }
+  };
+
+  const capture = () => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) return;
+    setBusy(true);
+    const maxDim = 480;
+    const scale = Math.min(1, maxDim / Math.max(v.videoWidth, v.videoHeight));
+    const w = Math.round(v.videoWidth * scale), h = Math.round(v.videoHeight * scale);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    if (!ctx) { setBusy(false); return; }
+    ctx.drawImage(v, 0, 0, w, h);
+    onCapture(c.toDataURL('image/jpeg', 0.85));
+    setBusy(false); stop(); setOpen(false);
+  };
+
+  const close = () => { stop(); setOpen(false); };
+
+  const overlay: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(12,10,9,.62)', display: 'grid', placeItems: 'center', padding: 16 };
+  const sheet: React.CSSProperties = { width: '100%', maxWidth: 380, background: 'var(--card)', borderRadius: 18, padding: 18, boxShadow: 'var(--shadow)' };
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      {verified ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5, fontWeight: 700, color: '#2f9be6' }}>
+            <span style={{ display: 'inline-grid', placeItems: 'center', width: 18, height: 18, borderRadius: '50%', background: '#2f9be6', color: '#fff', fontSize: 11 }}>✓</span>
+            Camera verified
+          </span>
+          <button type="button" onClick={onClear} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>Redo</button>
+        </div>
+      ) : (
+        <button type="button" onClick={start}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13.5,
+            color: 'var(--accent)', background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 999, padding: '9px 16px' }}>
+          📷 Get verified with your camera
+        </button>
+      )}
+      <p className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>
+        Take a live selfie to earn the blue verified badge. Only camera-verified members are marked verified — you can’t verify by uploading a photo.
+      </p>
+
+      {open && (
+        <div role="dialog" aria-modal="true" style={overlay} onClick={close}>
+          <div style={sheet} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>Camera verification</h3>
+            <p className="muted" style={{ fontSize: 12.5, margin: '0 0 12px' }}>Center your face in the frame and capture a live selfie. This isn’t added to your photos.</p>
+            {err ? (
+              <div style={{ background: '#ffebee', color: '#c62828', borderRadius: 12, padding: '12px 14px', fontSize: 13 }}>{err}</div>
+            ) : (
+              <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', background: '#000', aspectRatio: '3 / 4' }}>
+                <video ref={videoRef} playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
+                {!ready && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 13 }}>Starting camera…</div>}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10, marginTop: 14, justifyContent: 'flex-end' }}>
+              <Button variant="line" size="sm" onClick={close}>Cancel</Button>
+              {err
+                ? <Button variant="accent" size="sm" onClick={start}>Try again</Button>
+                : <Button variant="accent" size="sm" disabled={!ready || busy} onClick={capture}>{busy ? 'Capturing…' : 'Capture selfie'}</Button>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -272,31 +377,32 @@ export function DatingProfilePage() {
 
   if (collapsed && saved) {
     const displayName = dx.firstName || 'Your profile';
-    const verified = Boolean(dx.selfieVerified);
+    // The verified badge is EARNED by a live camera selfie only — a self-ticked
+    // flag with no captured selfie never shows as verified.
+    const verified = Boolean(dx.selfieVerified && dx.selfiePhoto);
     const goal = dx.relationshipGoal || 'a connection';
     const location = [dx.city, dx.state, dx.country].filter(Boolean).join(', ');
     const sign = data?.sign ?? '—';
     const hero = photos[0];
     const rightPhotos = photos.slice(1, 3);
-    const visibilityLabel = VIS_OPTIONS.find((o) => o.key === visibility)?.label ?? 'Visible to everyone who matches';
-    const or = (s: string) => s || '—';
+    const age = form.birthDate && !isNaN(new Date(form.birthDate).getTime())
+      ? Math.floor((Date.now() - new Date(form.birthDate).getTime()) / (365.25 * 86_400_000)) : null;
 
-    const stats: [string, string, string][] = [
-      ['📏', 'Height', dx.heightCm ? `${dx.heightCm} cm` : '—'],
-      ['🌐', 'Languages', or((dx.languages ?? []).join(', '))],
-      ['✦', 'Zodiac Sign', sign],
-    ];
-    const cells: [string, string, string][] = [
-      ['🎬', 'Interests', or((form.interests ?? []).join(', '))],
-      ['📷', 'Photos', `${photos.length} ${photos.length === 1 ? 'photo' : 'photos'}`],
-      ['❤', 'Personality', or((dx.personalityTraits ?? []).join(', '))],
-      ['✎', 'Your sign', sign],
-      ['✦', 'Values', or((dx.values ?? []).join(', '))],
-      ['👁', 'Visibility', visibilityLabel],
-    ];
+    // The SAME fields a match sees on your profile detail (nothing private).
+    const facts = [
+      dx.profession, dx.education, dx.heightCm ? `${dx.heightCm} cm` : null,
+      [dx.city, dx.state].filter(Boolean).join(', ') || null,
+      (dx.languages ?? []).length ? (dx.languages ?? []).join(', ') : null,
+      sign !== '—' ? sign : null,
+    ].filter(Boolean) as string[];
+    const lifestyle = [dx.diet, dx.smoking && `${dx.smoking} smoker`, dx.drinking && `${dx.drinking} drinker`, dx.fitnessLevel].filter(Boolean) as string[];
+    const traitPills = [...(dx.values ?? []), ...(dx.personalityTraits ?? []), ...lifestyle];
+    const interests = form.interests ?? [];
 
     const photoBox: React.CSSProperties = { position: 'relative', borderRadius: 16, overflow: 'hidden', background: 'var(--paper)' };
     const cover: React.CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' };
+    const sectionH: React.CSSProperties = { margin: '18px 0 8px', fontSize: 15 };
+    const pill: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 999, padding: '5px 13px', fontSize: 12.5, background: 'var(--accent-soft)' };
 
     return (
       <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px 40px' }}>
@@ -304,8 +410,17 @@ export function DatingProfilePage() {
         <StatusBanner />
         {completion && !completion.complete && <CompletionCard completion={completion} />}
 
-        <div className="card" style={{ marginTop: 14, padding: 16, borderRadius: 22 }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        {/* Preview banner — this card is exactly what a match sees */}
+        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 14, padding: '11px 14px' }}>
+          <span aria-hidden style={{ fontSize: 16 }}>👁</span>
+          <span style={{ fontSize: 12.8, color: 'var(--ink)', lineHeight: 1.45 }}>
+            <strong>This is exactly how your matches see you.</strong> Private settings like your visibility and preferences are never shown here.
+          </span>
+        </div>
+
+        <div className="card" style={{ marginTop: 12, padding: 16, borderRadius: 22 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontFamily: 'var(--serif)', fontSize: 19 }}>Profile preview</h3>
             <button type="button" onClick={() => setCollapsed(false)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13.5,
                 color: 'var(--accent)', background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 999, padding: '9px 18px' }}>
@@ -322,8 +437,8 @@ export function DatingProfilePage() {
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12,10,9,.86) 0%, rgba(12,10,9,.22) 46%, transparent 72%)' }} />
               <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: '#fff' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--serif)', fontSize: 30, fontWeight: 700, lineHeight: 1.05, textShadow: '0 2px 14px rgba(0,0,0,.5)' }}>
-                  <span>{displayName}</span>
-                  {verified && <span aria-label="Verified" title="Verified" style={{ display: 'inline-grid', placeItems: 'center', width: 22, height: 22, borderRadius: '50%', background: '#2f9be6', color: '#fff', fontSize: 13, flex: 'none' }}>✓</span>}
+                  <span>{displayName}{age ? `, ${age}` : ''}</span>
+                  {verified && <span aria-label="Verified" title="Camera-verified" style={{ display: 'inline-grid', placeItems: 'center', width: 22, height: 22, borderRadius: '50%', background: '#2f9be6', color: '#fff', fontSize: 13, flex: 'none' }}>✓</span>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 14.5, marginTop: 4, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
                   Looking for <strong style={{ color: '#f4a9b2', fontWeight: 700 }}>{goal}</strong>
@@ -348,35 +463,50 @@ export function DatingProfilePage() {
             )}
           </div>
 
-          {/* Stat strip */}
-          <div style={{ marginTop: 14, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 16, padding: '14px 4px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
-            {stats.map(([icon, k, v], i) => (
-              <div key={k} style={{ padding: '2px 16px', borderLeft: i ? '1px solid var(--line)' : 'none' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--muted)', fontSize: 12.5 }}>
-                  <span aria-hidden style={{ color: 'var(--accent)' }}>{icon}</span>{k}
-                </div>
-                <div style={{ fontSize: 14, fontWeight: 700, marginTop: 5 }}>{v}</div>
-              </div>
-            ))}
+          {/* Verification status line (mirrors what a match sees on the tick) */}
+          <div style={{ marginTop: 12, fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 7 }}>
+            {verified
+              ? <><span style={{ display: 'inline-grid', placeItems: 'center', width: 16, height: 16, borderRadius: '50%', background: '#2f9be6', color: '#fff', fontSize: 10 }}>✓</span><span className="muted">Camera-verified — matches see the blue badge on your name.</span></>
+              : <span className="muted">Not verified yet — <button type="button" onClick={() => setCollapsed(false)} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5 }}>get the blue badge with a live camera selfie</button>.</span>}
           </div>
 
-          {/* Detail grid */}
-          <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
-            {cells.map(([icon, k, v], i) => (
-              <div key={k} style={{ display: 'flex', gap: 12, padding: '16px 2px', borderTop: i > 1 ? '1px solid var(--line)' : 'none' }}>
-                <span aria-hidden style={{ color: 'var(--accent)', fontSize: 16, marginTop: 1, flex: 'none' }}>{icon}</span>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{k}</div>
-                  <div className="muted" style={{ fontSize: 13, marginTop: 3, lineHeight: 1.45 }}>{v}</div>
-                </div>
+          {/* Facts line — same as the match-detail header */}
+          {facts.length > 0 && (
+            <p style={{ color: 'var(--ink-soft)', fontSize: 13.5, margin: '12px 0 0', lineHeight: 1.5 }}>{facts.join('  ·  ')}</p>
+          )}
+
+          {/* About / bio */}
+          {form.bio && form.bio.trim() && (
+            <>
+              <h4 style={sectionH}>About {displayName}</h4>
+              <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-soft)', margin: 0 }}>{form.bio}</p>
+            </>
+          )}
+
+          {/* Interests */}
+          {interests.length > 0 && (
+            <>
+              <h4 style={sectionH}>Interests</h4>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {interests.map((t) => <span key={t} className="tag">{t}</span>)}
               </div>
-            ))}
-          </div>
+            </>
+          )}
+
+          {/* Values & lifestyle */}
+          {traitPills.length > 0 && (
+            <>
+              <h4 style={sectionH}>Values &amp; lifestyle</h4>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {traitPills.map((vv, k) => <span key={`${vv}-${k}`} style={pill}>{vv}</span>)}
+              </div>
+            </>
+          )}
 
           {/* Footer */}
-          <div style={{ marginTop: 10, background: 'var(--accent-soft)', borderRadius: 14, padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 9, fontSize: 12.5 }}>
-            <span aria-hidden style={{ color: 'var(--accent)' }}>✦</span>
-            <span className="muted">This also appears on your <Link to="/profile" style={{ color: 'var(--accent)', fontWeight: 700 }}>main profile</Link>.</span>
+          <div style={{ marginTop: 18, background: 'var(--paper)', borderRadius: 14, padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 9, fontSize: 12.5 }}>
+            <span aria-hidden style={{ color: 'var(--accent)' }}>✨</span>
+            <span className="muted">Matches also see your live compatibility score with you. This profile also appears on your <Link to="/profile" style={{ color: 'var(--accent)', fontWeight: 700 }}>main profile</Link>.</span>
           </div>
         </div>
       </div>
@@ -457,10 +587,11 @@ export function DatingProfilePage() {
           </div>
           <p className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>{photos.length < 3 ? `Add at least ${3 - photos.length} more — a clear face photo first.` : 'First photo is your primary — make it a clear face photo.'}</p>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 13, cursor: 'pointer' }}>
-            <input type="checkbox" checked={!!dx.selfieVerified} onChange={(e) => setD({ selfieVerified: e.target.checked })} />
-            Selfie verification (optional) — confirm it’s really you
-          </label>
+          <SelfieVerify
+            verified={Boolean(dx.selfieVerified && dx.selfiePhoto)}
+            onCapture={(dataUrl) => setD({ selfieVerified: true, selfiePhoto: dataUrl, selfieVerifiedAt: new Date().toISOString() })}
+            onClear={() => setD({ selfieVerified: false, selfiePhoto: undefined, selfieVerifiedAt: undefined })}
+          />
         </div>
 
         {/* Phase 2 — About you */}

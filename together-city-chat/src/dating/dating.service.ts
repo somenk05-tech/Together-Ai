@@ -553,7 +553,7 @@ export class DatingService {
     const myD = this.parseDX((mine as { extras?: string | null }).extras);
     const candD = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & {
       firstName?: string; photos?: string[]; languages?: string[]; heightCm?: number | null;
-      education?: string; profession?: string; selfieVerified?: boolean;
+      education?: string; profession?: string; selfieVerified?: boolean; selfiePhoto?: string;
     };
     const theirAge = this.ageOf(cand.birthDate);
 
@@ -595,7 +595,7 @@ export class DatingService {
       relationshipGoal: candD.relationshipGoal ?? null,
       diet: candD.diet ?? null, smoking: candD.smoking ?? null, drinking: candD.drinking ?? null,
       fitnessLevel: candD.fitnessLevel ?? null, education: candD.education ?? null, occupation: candD.profession ?? null,
-      verified: Boolean(candD.selfieVerified),
+      verified: Boolean(candD.selfieVerified && candD.selfiePhoto), // camera-verified only
       yourSign: signA, theirSign: signB,
       score, breakdown,
       reasons: explain(breakdown, sharedItems(myInterests, theirInterests)),
