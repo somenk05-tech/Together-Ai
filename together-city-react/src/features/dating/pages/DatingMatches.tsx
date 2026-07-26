@@ -157,28 +157,47 @@ function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
 }
 
 /** One titled group of match cards — curated, recommended, or a discovery pool. */
-/** Compatibility-band histogram: how many potential matches sit in each band. */
-function Distribution({ bands, total }: { bands: CompatibilityBand[]; total: number }) {
-  const max = Math.max(1, ...bands.map((b) => b.count));
+/** A compatibility score's category (band + friendly name). */
+const BAND_NAMES: [number, number, string][] = [
+  [90, 100, 'Excellent match'], [80, 90, 'Great match'], [70, 80, 'Strong match'], [60, 70, 'Good match'],
+  [50, 60, 'Fair match'], [40, 50, 'Modest match'], [30, 40, 'Low match'], [20, 30, 'Faint match'],
+];
+function bandFor(score: number): { label: string; name: string } {
+  for (const [lo, hi, name] of BAND_NAMES) {
+    if (score >= lo && (score < hi || (hi === 100 && score <= 100))) return { label: `${lo}–${hi}%`, name };
+  }
+  return { label: `${score}%`, name: 'Match' };
+}
+
+/** Compatibility-band histogram — only rendered once there are real people, and
+ *  only for bands that actually contain someone. The top match's own band is
+ *  highlighted so the user sees which category they're being shown. */
+function Distribution({ bands, total, highlightScore }: { bands: CompatibilityBand[]; total: number; highlightScore?: number }) {
+  const rows = bands.filter((b) => b.count > 0);
+  if (rows.length === 0) return null;
+  const max = Math.max(1, ...rows.map((b) => b.count));
   return (
-    <div className="card" style={{ marginBottom: 18, padding: '16px 18px' }}>
+    <div className="card" style={{ marginTop: 22, padding: '16px 18px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
         <h2 style={{ fontSize: 16, margin: 0 }}>Your match pool</h2>
         <span className="muted" style={{ fontSize: 12.5 }}>{total} potential {total === 1 ? 'match' : 'matches'}</span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-        {bands.map((b) => (
-          <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ width: 52, fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', flex: 'none' }}>{b.label}%</span>
-            <div style={{ flex: 1, height: 16, borderRadius: 999, background: 'var(--paper)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${b.count ? Math.max(5, (b.count / max) * 100) : 0}%`, background: 'var(--accent)', opacity: 0.35 + 0.6 * (b.min / 100), borderRadius: 999 }} />
+        {rows.map((b) => {
+          const isTop = highlightScore != null && highlightScore >= b.min && highlightScore < (b.max === 100 ? 101 : b.max);
+          return (
+            <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 52, fontSize: 12, fontWeight: isTop ? 800 : 600, color: isTop ? 'var(--accent)' : 'var(--ink-soft)', flex: 'none' }}>{b.label}%</span>
+              <div style={{ flex: 1, height: 16, borderRadius: 999, background: 'var(--paper)', overflow: 'hidden', outline: isTop ? '1.5px solid var(--accent)' : 'none' }}>
+                <div style={{ height: '100%', width: `${Math.max(6, (b.count / max) * 100)}%`, background: 'var(--accent)', opacity: 0.4 + 0.55 * (b.min / 100), borderRadius: 999 }} />
+              </div>
+              <span style={{ width: 30, textAlign: 'right', fontSize: 12.5, fontWeight: 700, flex: 'none' }}>{b.count}</span>
             </div>
-            <span style={{ width: 30, textAlign: 'right', fontSize: 12.5, fontWeight: 700, flex: 'none' }}>{b.count}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <p className="muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.5 }}>
-        Intentional dating — you meet your single strongest match first. As more residents join, an even stronger match rises to the top.
+        Intentional dating — you meet your single strongest match first. Each person belongs to a compatibility category; as more residents join, an even stronger match rises to the top.
       </p>
     </div>
   );
@@ -261,25 +280,28 @@ export function DatingMatches() {
         <Spinner label="Scoring compatibility…" />
       ) : engaged ? (
         <EngagedPanel chat={activeChat} />
-      ) : (
+      ) : top ? (
         <>
-          {stack.data && <Distribution bands={stack.data.distribution} total={stack.data.totalCandidates} />}
-          {top ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 12px' }}>
-                <h2 style={{ fontSize: 18, margin: 0 }}>Your top match</h2>
-                <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: 999, padding: '2px 9px' }}>Strongest</span>
-              </div>
-              <MatchCard match={top} kind={kind} />
-            </>
-          ) : (
-            <EmptyState
-              icon="🌙"
-              title={kind === 'romantic' ? 'No one to show just yet' : 'No new friends to show yet'}
-              hint="Your city is just getting started here. As more residents join, your strongest match will appear — check back soon."
-            />
+          {/* Top match first */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 12px', flexWrap: 'wrap' }}>
+            <h2 style={{ fontSize: 18, margin: 0 }}>Your top match</h2>
+            <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: 999, padding: '3px 11px' }}>
+              {bandFor(top.score).name} · {top.score}%
+            </span>
+          </div>
+          <MatchCard match={top} kind={kind} />
+
+          {/* Division / breakdown below the card — only once there are real people */}
+          {stack.data && stack.data.totalCandidates > 0 && (
+            <Distribution bands={stack.data.distribution} total={stack.data.totalCandidates} highlightScore={top.score} />
           )}
         </>
+      ) : (
+        <EmptyState
+          icon="🌙"
+          title={kind === 'romantic' ? 'No one to show just yet' : 'No new friends to show yet'}
+          hint="Your city is just getting started here. As more residents join, your strongest match will appear — check back soon."
+        />
       )}
     </div>
   );
