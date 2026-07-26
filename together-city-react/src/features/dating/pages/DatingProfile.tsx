@@ -43,6 +43,8 @@ interface DX {
   personalityTraits?: string[]; values?: string[];
   prefAgeMin?: number | null; prefAgeMax?: number | null; prefDistanceKm?: number | null; prefHeight?: string;
   prefDiet?: string; prefSmoking?: string; prefDrinking?: string; wantsChildren?: string; religion?: string;
+  partnerLocationMode?: 'any' | 'specific';
+  partnerCountry?: string; partnerCountryCode?: string; partnerState?: string; partnerStateCode?: string; partnerCity?: string;
   dealBreakers?: string[];
   visibility?: Visibility; minMatchScore?: number;
 }
@@ -342,6 +344,10 @@ export function DatingProfilePage() {
             <div><span style={label}>Time of birth <span style={{ textTransform: 'none' }}>(optional)</span></span><input type="time" step={60} value={form.birthTime ?? ''} onChange={(e) => setForm({ ...form, birthTime: e.target.value })} style={field} /><p className="muted" style={{ fontSize: 11, margin: '4px 0 0' }}>Type or pick your exact time.</p></div>
             <div><span style={label}>Place of birth <span style={{ textTransform: 'none' }}>(optional)</span></span><input value={form.birthPlace ?? ''} placeholder="City" onChange={(e) => setForm({ ...form, birthPlace: e.target.value })} style={field} /></div>
 
+            <div style={{ gridColumn: '1 / -1', margin: '10px 0 -2px' }}>
+              <span style={{ ...label, margin: 0 }}>📍 Your current location</span>
+              <p className="muted" style={{ fontSize: 11.5, margin: '2px 0 0', textTransform: 'none', letterSpacing: 0 }}>Mention your current location — where you live right now.</p>
+            </div>
             <div><span style={label}>Country</span>
               <SearchSelect category="country" value={dx.country ?? 'India'} placeholder="Select country"
                 onChange={(o) => setD({ country: o?.label, countryCode: o?.code, state: undefined, stateCode: undefined, city: undefined })} />
@@ -433,6 +439,31 @@ export function DatingProfilePage() {
             <div><span style={label}>Drinking</span><SearchSelect category="alcohol" value={dx.prefDrinking ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ prefDrinking: o?.label })} /></div>
             <div><span style={label}>Religion <span style={{ textTransform: 'none' }}>(optional)</span></span><SearchSelect category="religion" value={dx.religion ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ religion: o?.label })} /></div>
           </div>
+
+          <span style={label}>Where to find your partner</span>
+          <p className="muted" style={{ fontSize: 11.5, margin: '0 0 8px', textTransform: 'none', letterSpacing: 0 }}>Choose the location you'd like your partner to be from. This can be anywhere.</p>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+            <Chip on={(dx.partnerLocationMode ?? 'any') === 'any'} onClick={() => setD({ partnerLocationMode: 'any' })}>🌍 Anywhere</Chip>
+            <Chip on={dx.partnerLocationMode === 'specific'} onClick={() => setD({ partnerLocationMode: 'specific' })}>📍 Specific location</Chip>
+          </div>
+          {dx.partnerLocationMode === 'specific' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px', marginTop: 8 }}>
+              <div><span style={label}>Country</span>
+                <SearchSelect category="country" value={dx.partnerCountry ?? ''} clearable clearLabel="Any" placeholder="Any country"
+                  onChange={(o) => setD({ partnerCountry: o?.label, partnerCountryCode: o?.code, partnerState: undefined, partnerStateCode: undefined, partnerCity: undefined })} />
+              </div>
+              <div><span style={label}>State</span>
+                <SearchSelect category="state" parent={dx.partnerCountryCode} value={dx.partnerState ?? ''} clearable clearLabel="Any" placeholder="Any state"
+                  onChange={(o) => setD({ partnerState: o?.label, partnerStateCode: o?.code, partnerCity: undefined })} />
+              </div>
+              <div><span style={label}>City</span>
+                <SearchSelect category="city" parent={dx.partnerStateCode} value={dx.partnerCity ?? ''} disabled={!dx.partnerStateCode} clearable clearLabel="Any"
+                  placeholder={dx.partnerStateCode ? 'Any city' : 'Pick a state first'}
+                  onChange={(o) => setD({ partnerCity: o?.label })} />
+              </div>
+            </div>
+          )}
+
           <span style={label}>Deal breakers (optional)</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{DEAL_BREAKERS.map((v) => <Chip key={v} on={(dx.dealBreakers ?? []).includes(v)} onClick={() => setD({ dealBreakers: capToggle(dx.dealBreakers, v, 5) })}>{v}</Chip>)}</div>
         </div>
