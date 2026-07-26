@@ -99,6 +99,9 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [saved, setSaved] = useState(() => savedIds().has(post.id));
   const toggleSave = () => setSaved(toggleSaved(post));
+  // Preload the video BEFORE it reaches the screen so playback starts instantly
+  // instead of buffering on arrival (the "lag"). Flips true ~1 screen ahead.
+  const [near, setNear] = useState(false);
 
   // Keep the music track in lock-step with the video: play/pause/seek together.
   const syncAudioPlay = () => {
@@ -121,6 +124,23 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
     io.observe(el);
     return () => { io.disconnect(); syncAudioPause(); };
   }, [hasMusic]);
+
+  // Warm the buffer ~1 screen before the reel scrolls into view.
+  useEffect(() => {
+    const el = vref.current;
+    if (!el || near) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) { setNear(true); io.disconnect(); }
+    }, { rootMargin: '120% 0px 120% 0px', threshold: 0 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near]);
+
+  // Once near, actively fetch the media (preload='auto' alone isn't always honored).
+  useEffect(() => {
+    const el = vref.current;
+    if (near && el && el.networkState === el.NETWORK_EMPTY) el.load();
+  }, [near]);
 
   const togglePlay = () => {
     const el = vref.current;
@@ -152,7 +172,7 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
           the side rail and nav arrows. */}
       <div style={{ position: 'relative', width: 'fit-content', height: 'fit-content', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)', background: '#000', borderRadius: 14, overflow: 'hidden', lineHeight: 0 }}>
         {video && (
-          <video ref={vref} src={video.url} poster={video.thumbUrl ?? undefined} muted={hasMusic ? true : muted} loop playsInline preload="metadata"
+          <video ref={vref} src={video.url} poster={video.thumbUrl ?? undefined} muted={hasMusic ? true : muted} loop playsInline preload={near ? 'auto' : 'metadata'}
             onClick={togglePlay}
             style={{ display: 'block', width: 'auto', height: 'auto', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)' }} />
         )}
