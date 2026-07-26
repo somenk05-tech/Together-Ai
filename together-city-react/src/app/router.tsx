@@ -114,6 +114,7 @@ const SocMap = lazy(() => import('@/features/social/pages/CityMap').then((m) => 
 const SocMessages = lazy(() => import('@/features/social/pages/Messages').then((m) => ({ default: m.Messages })));
 const SocNotifications = lazy(() => import('@/features/social/pages/Notifications').then((m) => ({ default: m.SocialNotifications })));
 const SocProfile = lazy(() => import('@/features/social/pages/Profile').then((m) => ({ default: m.SocialProfile })));
+const SocPublicProfile = lazy(() => import('@/features/social/pages/Profile').then((m) => ({ default: m.PublicProfilePage })));
 const SocSaved = lazy(() => import('@/features/social/pages/Saved').then((m) => ({ default: m.SocialSaved })));
 // Medical sub-pages
 const MedTests = lazy(() => import('@/features/medical/pages/Tests').then((m) => ({ default: m.Tests })));
@@ -258,6 +259,7 @@ export const router = createBrowserRouter([
       { path: '/social/messages', element: <RequireAuth>{wrap(<SocMessages />)}</RequireAuth> },
       { path: '/social/notifications', element: <RequireAuth>{wrap(<SocNotifications />)}</RequireAuth> },
       { path: '/social/profile', element: <RequireAuth>{wrap(<SocProfile />)}</RequireAuth> },
+      { path: '/social/u/:handle', element: <RequireAuth>{wrap(<SocPublicProfile />)}</RequireAuth> },
       { path: '/social/saved', element: <RequireAuth>{wrap(<SocSaved />)}</RequireAuth> },
     ],
   },

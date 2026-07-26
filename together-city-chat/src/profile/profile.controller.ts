@@ -108,4 +108,10 @@ export class ProfileController {
   publicProfile(@CurrentUser() user: JwtUser, @Param('handle') handle: string) {
     return this.profile.publicProfile(user.sub, handle);
   }
+
+  // Read-only grid of another citizen's posts (audience/block gated).
+  @Get('user/:handle/posts')
+  publicPosts(@CurrentUser() user: JwtUser, @Param('handle') handle: string, @Query('cursor') cursor?: string, @Query('limit') limit?: string) {
+    return this.profile.publicPosts(user.sub, handle, cursor, limit ? Number(limit) : undefined);
+  }
 }

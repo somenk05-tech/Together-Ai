@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Spinner } from '@/components/ui';
 import { chatApi } from '@/api';
@@ -8,7 +8,7 @@ import { profileApi } from '@/features/profile/api';
 import { useAuthStore } from '@/store/auth.store';
 import { initials } from '../shared';
 import {
-  useMyProfile, useMyPosts, usePeopleSearch, usePublicProfile, useUpdateProfile, useReorderMyPosts,
+  useMyProfile, useMyPosts, usePeopleSearch, usePublicProfile, usePublicPosts, useUpdateProfile, useReorderMyPosts,
   type MyProfile, type ProfilePost, type PersonResult, type PublicProfile, type Relationship,
 } from '../myProfile.api';
 import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useReport, useSetCover, useSetPostCategory, type FollowPerson, type Post } from '../api';
@@ -425,10 +425,164 @@ export function PublicProfileModal({ handle, onClose }: { handle: string; onClos
   );
 }
 
+/** Follow / Following toggle for another citizen's profile. */
+function FollowButton({ userId, handle, iFollow }: { userId: string; handle: string; iFollow: boolean }) {
+  const qc = useQueryClient();
+  const follow = useFollow();
+  const unfollow = useUnfollow();
+  const [following, setFollowing] = useState(iFollow);
+  useEffect(() => setFollowing(iFollow), [iFollow]);
+  const busy = follow.isPending || unfollow.isPending;
+  const bump = () => void qc.invalidateQueries({ queryKey: ['profile', 'user', handle.toLowerCase()] });
+  const toggle = () => {
+    if (busy) return;
+    if (following) { setFollowing(false); unfollow.mutate(userId, { onSuccess: bump, onError: () => setFollowing(true) }); }
+    else { setFollowing(true); follow.mutate({ userId }, { onSuccess: bump, onError: () => setFollowing(false) }); }
+  };
+  return (
+    <Button variant={following ? 'line' : 'accent'} size="sm" onClick={toggle} disabled={busy}>
+      {following ? 'Following' : 'Follow'}
+    </Button>
+  );
+}
+
+/** Read-only post viewer for a public profile (no edit/delete/sort). */
+function ReadOnlyLightbox({ post, onClose, onOpenAuthor }: { post: Post; onClose: () => void; onOpenAuthor: (handle: string) => void }) {
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,16,.62)', display: 'grid', placeItems: 'start center', padding: 16, zIndex: 70, overflow: 'auto' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(600px,96vw)', margin: 'auto 0' }}>
+        <PostCard post={post} onOpenAuthor={onOpenAuthor} />
+        <div style={{ textAlign: 'center' }}>
+          <button type="button" onClick={onClose} className="btn btn-line btn-sm">Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Read-only grid of another citizen's posts (Posts / Photos / Videos). */
+function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filter: 'all' | 'photo' | 'video'; onOpenAuthor: (handle: string) => void }) {
+  const posts = usePublicPosts(handle);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const sentinel = useRef<HTMLDivElement>(null);
+  const items = useMemo(() => posts.data?.pages.flatMap((pg) => pg.items) ?? [], [posts.data]);
+  const matchesFilter = (p: ProfilePost) => {
+    const hasVideo = p.media.some((m) => m.kind === 'video');
+    const hasImage = p.media.some((m) => m.kind === 'image');
+    if (filter === 'video') return hasVideo;
+    if (filter === 'photo') return hasImage && !hasVideo;
+    return true;
+  };
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el || !posts.hasNextPage) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !posts.isFetchingNextPage) void posts.fetchNextPage();
+    }, { rootMargin: '400px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [posts.hasNextPage, posts.isFetchingNextPage, posts]);
+
+  if (posts.isLoading) return <Spinner label="Loading posts…" />;
+  const view = items.filter(matchesFilter);
+  const noun = filter === 'photo' ? 'photo' : filter === 'video' ? 'video' : 'post';
+  if (view.length === 0) {
+    return (
+      <div className="blk rise d1" style={{ textAlign: 'center', padding: '44px 24px', marginTop: 16 }}>
+        <div style={{ fontSize: 32, marginBottom: 8 }}>{filter === 'video' ? '🎬' : filter === 'photo' ? '🖼' : '🌆'}</div>
+        <p className="muted" style={{ fontSize: 14, margin: 0 }}>No {noun}s to show.</p>
+      </div>
+    );
+  }
+  return (
+    <>
+      <div className="rise d1" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginTop: 16 }}>
+        {view.map((p) => (
+          <button key={p.id} type="button" onClick={() => setOpenId(p.id)}
+            style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', font: 'inherit' }}>
+            <PostTile p={p} />
+          </button>
+        ))}
+      </div>
+      <div ref={sentinel} style={{ height: 1 }} />
+      {posts.isFetchingNextPage && <div style={{ padding: 16 }}><Spinner /></div>}
+      {(() => {
+        const op = openId ? items.find((x) => x.id === openId) : null;
+        return op ? <ReadOnlyLightbox post={profilePostToPost(op)} onOpenAuthor={onOpenAuthor} onClose={() => setOpenId(null)} /> : null;
+      })()}
+    </>
+  );
+}
+
+/** Full read-only profile page for another citizen (route /social/u/:handle):
+ *  header, stats, Follow / Connect / Message + Block / Report, and their posts. */
+export function PublicProfilePage() {
+  const { handle } = useParams();
+  const navigate = useNavigate();
+  const q = usePublicProfile(handle ?? null);
+  const p = q.data as PublicProfile | undefined;
+  const [tab, setTab] = useState<'posts' | 'photos' | 'videos'>('posts');
+  const openAuthor = (h: string) => navigate(`/social/u/${encodeURIComponent(h)}`);
+
+  // If you land on your own handle, send you to your editable profile.
+  useEffect(() => { if (p?.isMe) navigate('/social/profile', { replace: true }); }, [p?.isMe, navigate]);
+
+  if (q.isLoading) return <div style={{ maxWidth: 980, margin: '0 auto', padding: 40 }}><Spinner label="Loading profile…" /></div>;
+  if (q.isError || !p) {
+    return (
+      <div style={{ maxWidth: 980, margin: '0 auto', padding: 40 }}>
+        <button type="button" className="btn btn-line btn-sm" onClick={() => navigate(-1)}>← Back</button>
+        <p className="muted" style={{ marginTop: 16 }}>Couldn't load that profile.</p>
+      </div>
+    );
+  }
+  const joined = new Date(p.memberSince).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+
+  return (
+    <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
+      <button type="button" className="btn btn-line btn-sm" style={{ marginBottom: 18 }} onClick={() => navigate(-1)}>← Back</button>
+
+      <div className="rise" style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+        <Avatar src={p.profileImage} name={p.name} size={96} />
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', gap: 7 }}>{p.name}{p.verified && <VerifiedBadge />}</h1>
+            <FollowButton userId={p.id} handle={p.handle} iFollow={p.iFollow} />
+            <ConnectButton id={p.id} handle={p.handle} relationship={p.relationship} />
+          </div>
+          <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>
+            <span style={{ fontFamily: 'monospace' }}>@{p.handle}</span> · Joined {joined}
+          </p>
+          {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 1 }}>📍 {p.city}</p>}
+          {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '8px 0 0', maxWidth: 560 }}>{p.bio}</p>}
+          {p.website && <p style={{ margin: '4px 0 0' }}><a href={p.website} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--accent)' }}>{p.website.replace(/^https?:\/\//, '')}</a></p>}
+          <div style={{ display: 'flex', gap: 22, margin: '12px 0 0', flexWrap: 'wrap' }}>
+            <StatCell n={p.stats.posts} label="posts" />
+            <StatCell n={p.stats.followers} label="followers" />
+            <StatCell n={p.stats.following} label="following" />
+            <StatCell n={p.stats.cityPoints} label="city points" />
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <SafetyActions id={p.id} handle={p.handle} onBlocked={() => navigate('/social/feed')} />
+          </div>
+        </div>
+      </div>
+
+      <div className="rise d1" style={{ display: 'flex', gap: 8, marginTop: 20, flexWrap: 'wrap' }}>
+        <button type="button" className={`pill ${tab === 'posts' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('posts')}>Posts</button>
+        <button type="button" className={`pill ${tab === 'photos' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('photos')}>Photos</button>
+        <button type="button" className={`pill ${tab === 'videos' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('videos')}>Videos</button>
+      </div>
+
+      <PublicPostsTab handle={p.handle} filter={tab === 'photos' ? 'photo' : tab === 'videos' ? 'video' : 'all'} onOpenAuthor={openAuthor} />
+    </div>
+  );
+}
+
 function PeopleTab() {
+  const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [dq, setDq] = useState('');
-  const [open, setOpen] = useState<string | null>(null);
   useEffect(() => { const t = setTimeout(() => setDq(q), 220); return () => clearTimeout(t); }, [q]);
   const search = usePeopleSearch(dq);
   const results = (search.data ?? []) as PersonResult[];
@@ -460,14 +614,13 @@ function PeopleTab() {
                     <span style={{ fontFamily: 'monospace' }}>@{r.handle}</span>{r.city ? ` · ${r.city}` : ''}
                   </div>
                 </div>
-                <Button variant="line" size="sm" onClick={() => setOpen(r.handle)}>View</Button>
+                <Button variant="line" size="sm" onClick={() => navigate(`/social/u/${encodeURIComponent(r.handle)}`)}>View</Button>
                 <ConnectButton id={r.id} handle={r.handle} relationship={r.relationship} />
               </div>
             ))}
           </div>
         )}
       </div>
-      {open && <PublicProfileModal handle={open} onClose={() => setOpen(null)} />}
     </div>
   );
 }
@@ -640,9 +793,9 @@ function FollowRow({ person, onView }: { person: FollowPerson; onView: () => voi
 }
 
 function FollowList({ kind }: { kind: 'followers' | 'following' }) {
+  const navigate = useNavigate();
   const followers = useFollowers();
   const following = useFollowing();
-  const [view, setView] = useState<string | null>(null);
   const q = kind === 'followers' ? followers : following;
   const people = q.data ?? [];
   if (q.isLoading) return <div style={{ marginTop: 16 }}><Spinner label={`Loading ${kind}…`} /></div>;
@@ -655,8 +808,7 @@ function FollowList({ kind }: { kind: 'followers' | 'following' }) {
   }
   return (
     <div className="rise d1" style={{ display: 'grid', gap: 8, marginTop: 16, maxWidth: 560 }}>
-      {people.map((person) => <FollowRow key={person.id} person={person} onView={() => setView(person.handle)} />)}
-      {view && <PublicProfileModal handle={view} onClose={() => setView(null)} />}
+      {people.map((person) => <FollowRow key={person.id} person={person} onView={() => navigate(`/social/u/${encodeURIComponent(person.handle)}`)} />)}
     </div>
   );
 }

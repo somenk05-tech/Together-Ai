@@ -15,6 +15,7 @@ export interface PublicProfile {
   id: string; handle: string; name: string; profileImage: string | null;
   bio: string | null; city: string | null; website: string | null;
   verified: boolean; memberSince: string; stats: ProfileStats; relationship: Relationship;
+  iFollow: boolean; isMe: boolean;
 }
 
 export interface ProfilePostMedia { url: string; kind: string; thumbUrl: string | null }
@@ -49,6 +50,8 @@ export const myProfileApi = {
     api.get<{ items: PersonResult[] }>('/profile/people/search', { params: { q } }).then((r) => r.data.items),
   publicProfile: (handle: string) =>
     api.get<PublicProfile>(`/profile/user/${encodeURIComponent(handle)}`).then((r) => r.data),
+  userPosts: (handle: string, cursor?: string) =>
+    api.get<ProfilePostsPage>(`/profile/user/${encodeURIComponent(handle)}/posts`, { params: { cursor, limit: 18 } }).then((r) => r.data),
   reorderPosts: (order: string[]) =>
     api.patch<{ ok: boolean; ordered: number }>('/profile/posts/order', { order }).then((r) => r.data),
 };
@@ -104,6 +107,16 @@ export function usePublicProfile(handle: string | null) {
   return useQuery({
     queryKey: ['profile', 'user', (handle ?? '').toLowerCase()],
     queryFn: () => myProfileApi.publicProfile(handle as string),
+    enabled: Boolean(handle),
+  });
+}
+
+export function usePublicPosts(handle: string | null) {
+  return useInfiniteQuery({
+    queryKey: ['profile', 'user-posts', (handle ?? '').toLowerCase()],
+    queryFn: ({ pageParam }) => myProfileApi.userPosts(handle as string, pageParam as string | undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: Boolean(handle),
   });
 }

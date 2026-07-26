@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Together City · Classy Color Schemes</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#eceae5;font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;color:#1a1815;padding:30px 18px 80px}
+  .wrap{max-width:1100px;margin:0 auto}
+  h1{font-family:Georgia,serif;font-size:30px;margin:0 0 4px}
+  .intro{color:#6a655c;font-size:15px;margin:0 0 26px;max-width:720px}
+
+  /* a palette "board" */
+  .board{border-radius:18px;overflow:hidden;margin-bottom:26px;border:1px solid rgba(0,0,0,.08);box-shadow:0 10px 40px rgba(0,0,0,.06)}
+  .board-head{padding:16px 22px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .board-head h2{font-family:Georgia,serif;font-size:22px;margin:0}
+  .board-head .desc{font-size:13.5px;opacity:.75}
+  .swatches{display:flex;flex-wrap:wrap;gap:0;padding:0 22px 14px}
+  .sw{flex:1 1 90px;min-width:90px;height:56px;display:flex;flex-direction:column;justify-content:flex-end;padding:6px 8px;border-radius:8px;margin:4px;font-size:10.5px;font-weight:600}
+  .sw small{display:block;opacity:.7;font-weight:500;font-size:9.5px}
+
+  /* the live mini-UI, themed per board via inline vars */
+  .demo{padding:22px}
+  .nav{display:flex;align-items:center;gap:18px;font-size:13px;font-weight:600;padding-bottom:16px;border-bottom:1px solid var(--line)}
+  .nav .brand{font-family:Georgia,serif;font-size:18px;font-weight:400;margin-right:auto}
+  .nav a{color:var(--muted);text-decoration:none}
+  .nav a.on{color:var(--accent)}
+  .grid{display:grid;grid-template-columns:1.4fr 1fr;gap:18px;margin-top:18px}
+  @media(max-width:720px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 6px}
+  .card h3{font-family:Georgia,serif;font-size:21px;margin:0 0 6px;color:var(--ink)}
+  .card p{font-size:14px;color:var(--muted);margin:0 0 16px;line-height:1.55}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .chip{font-size:12px;font-weight:600;color:var(--ink);background:var(--accent-soft);border:1px solid var(--line);border-radius:999px;padding:5px 12px}
+  .stat{display:flex;gap:26px;margin-bottom:4px}
+  .stat b{font-family:Georgia,serif;font-size:22px;color:var(--ink);font-weight:400}
+  .stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+
+  /* classy "polish" buttons, themed via vars */
+  .btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;font-size:12px;letter-spacing:.1em;font-weight:700;text-transform:uppercase;padding:13px 26px;cursor:pointer;border:none;color:#fff;transition:transform .14s cubic-bezier(.34,1.56,.64,1),box-shadow .22s,filter .2s}
+  .btn:hover{transform:translateY(-2px)}
+  .btn:active{transform:translateY(0) scale(.97);filter:brightness(.96)}
+  .btn-accent{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 88%,#fff),var(--accent));box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 32%,transparent)}
+  .btn-accent:hover{box-shadow:0 12px 28px color-mix(in srgb,var(--accent) 42%,transparent);filter:brightness(1.04)}
+  .btn-line{background:var(--card);color:var(--ink);border:1.5px solid var(--line)}
+  .btn-line:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 6px 16px rgba(0,0,0,.06)}
+  .btn-gold{background:linear-gradient(135deg,var(--gold-bright),var(--gold));box-shadow:0 6px 18px rgba(0,0,0,.14)}
+  .pill{font-size:12px;font-weight:600;padding:8px 16px;border-radius:999px;border:1.5px solid var(--accent);background:var(--accent);color:#fff}
+  .pill.off{background:var(--card);color:var(--ink);border-color:var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Classy color schemes</h1>
+  <p class="intro">Three refined palettes, each shown as swatches <em>and</em> applied to a live slice of the app (nav, card, chips, stats, buttons). All are restrained, neutral-led with one confident accent — the “quiet luxury” route. Your per-hub accent system stays; these set the shared base + a refined default accent.</p>
+
+  <!-- ========== 1 · IVORY & CHAMPAGNE ========== -->
+  <div class="board" style="background:#f6f4ef">
+    <div class="board-head" style="color:#1a1815">
+      <h2>1 · Ivory &amp; Champagne</h2>
+      <span class="desc">Warm editorial luxury — an evolution of today, softer &amp; more expensive-looking. Muted champagne gold instead of brassy.</span>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#f6f4ef;color:#1a1815;border:1px solid #e6e1d7">Ivory<small>#f6f4ef</small></div>
+      <div class="sw" style="background:#fffdf9;color:#1a1815;border:1px solid #e6e1d7">Card<small>#fffdf9</small></div>
+      <div class="sw" style="background:#1a1815;color:#fff">Ink<small>#1a1815</small></div>
+      <div class="sw" style="background:#7a7268;color:#fff">Muted<small>#7a7268</small></div>
+      <div class="sw" style="background:#e6e1d7;color:#1a1815">Line<small>#e6e1d7</small></div>
+      <div class="sw" style="background:#9a7b4f;color:#fff">Accent<small>#9a7b4f</small></div>
+      <div class="sw" style="background:#efe8dc;color:#1a1815">Accent soft<small>#efe8dc</small></div>
+    </div>
+    <div class="demo" style="--ink:#1a1815;--muted:#7a7268;--line:#e6e1d7;--card:#fffdf9;--accent:#9a7b4f;--accent-soft:#efe8dc;--gold:#9a7b4f;--gold-bright:#c2a066;background:#f6f4ef">
+      <div class="nav"><span class="brand" style="color:#1a1815">Together City</span><a class="on">City Feed</a><a>Create</a><a>Profile</a><button class="pill">Follow</button></div>
+      <div class="grid">
+        <div class="card">
+          <p class="eyebrow">Social Life</p>
+          <h3>What's happening around you</h3>
+          <p>A refined, warm base lets photography and content lead. The champagne accent whispers premium instead of shouting.</p>
+          <div class="chips"><span class="chip">Nearby</span><span class="chip">Trending</span><span class="chip">Following</span></div>
+          <div class="row"><button class="btn btn-accent">Purchase</button><button class="btn btn-line">Edit profile</button></div>
+        </div>
+        <div class="card">
+          <div class="stat"><div><b>1,240</b><br><span>Posts</span></div><div><b>18k</b><br><span>City points</span></div></div>
+          <p style="margin-top:14px">Quiet, confident, timeless.</p>
+          <button class="btn btn-gold">Go Premium</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 2 · SLATE & EMERALD ========== -->
+  <div class="board" style="background:#f3f5f3">
+    <div class="board-head" style="color:#16201b">
+      <h2>2 · Slate &amp; Emerald</h2>
+      <span class="desc">Heritage / private-club feel. Cool paper, near-black green-ink, deep emerald accent with a brass touch for premium moments.</span>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#f3f5f3;color:#16201b;border:1px solid #e1e6e1">Paper<small>#f3f5f3</small></div>
+      <div class="sw" style="background:#ffffff;color:#16201b;border:1px solid #e1e6e1">Card<small>#ffffff</small></div>
+      <div class="sw" style="background:#16201b;color:#fff">Ink<small>#16201b</small></div>
+      <div class="sw" style="background:#6d746e;color:#fff">Muted<small>#6d746e</small></div>
+      <div class="sw" style="background:#e1e6e1;color:#16201b">Line<small>#e1e6e1</small></div>
+      <div class="sw" style="background:#1f5c46;color:#fff">Accent<small>#1f5c46</small></div>
+      <div class="sw" style="background:#a98c53;color:#fff">Brass<small>#a98c53</small></div>
+    </div>
+    <div class="demo" style="--ink:#16201b;--muted:#6d746e;--line:#e1e6e1;--card:#ffffff;--accent:#1f5c46;--accent-soft:#e4ede8;--gold:#a98c53;--gold-bright:#c2a56c;background:#f3f5f3">
+      <div class="nav"><span class="brand">Together City</span><a class="on">City Feed</a><a>Create</a><a>Profile</a><button class="pill">Follow</button></div>
+      <div class="grid">
+        <div class="card">
+          <p class="eyebrow">Social Life</p>
+          <h3>What's happening around you</h3>
+          <p>Emerald reads established and trustworthy — great for a civic “city” brand. Brass is reserved for premium/paid touches.</p>
+          <div class="chips"><span class="chip">Nearby</span><span class="chip">Trending</span><span class="chip">Following</span></div>
+          <div class="row"><button class="btn btn-accent">Purchase</button><button class="btn btn-line">Edit profile</button></div>
+        </div>
+        <div class="card">
+          <div class="stat"><div><b>1,240</b><br><span>Posts</span></div><div><b>18k</b><br><span>City points</span></div></div>
+          <p style="margin-top:14px">Grown-up, grounded, credible.</p>
+          <button class="btn btn-gold">Go Premium</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 3 · GREIGE & BORDEAUX ========== -->
+  <div class="board" style="background:#f5f3f1">
+    <div class="board-head" style="color:#201a1a">
+      <h2>3 · Greige &amp; Bordeaux</h2>
+      <span class="desc">Moody elegance. Warm greige base, deep oxblood/bordeaux accent — distinctive and fashion-forward without being loud.</span>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#f5f3f1;color:#201a1a;border:1px solid #e7e1de">Greige<small>#f5f3f1</small></div>
+      <div class="sw" style="background:#fdfbfa;color:#201a1a;border:1px solid #e7e1de">Card<small>#fdfbfa</small></div>
+      <div class="sw" style="background:#201a1a;color:#fff">Ink<small>#201a1a</small></div>
+      <div class="sw" style="background:#7a706e;color:#fff">Muted<small>#7a706e</small></div>
+      <div class="sw" style="background:#e7e1de;color:#201a1a">Line<small>#e7e1de</small></div>
+      <div class="sw" style="background:#7c2f3a;color:#fff">Accent<small>#7c2f3a</small></div>
+      <div class="sw" style="background:#f0e4e5;color:#201a1a">Accent soft<small>#f0e4e5</small></div>
+    </div>
+    <div class="demo" style="--ink:#201a1a;--muted:#7a706e;--line:#e7e1de;--card:#fdfbfa;--accent:#7c2f3a;--accent-soft:#f0e4e5;--gold:#a9793f;--gold-bright:#c99a5c;background:#f5f3f1">
+      <div class="nav"><span class="brand">Together City</span><a class="on">City Feed</a><a>Create</a><a>Profile</a><button class="pill">Follow</button></div>
+      <div class="grid">
+        <div class="card">
+          <p class="eyebrow">Social Life</p>
+          <h3>What's happening around you</h3>
+          <p>Bordeaux is unusual for an app and instantly memorable — refined, a little editorial-fashion. Best if you want to stand apart.</p>
+          <div class="chips"><span class="chip">Nearby</span><span class="chip">Trending</span><span class="chip">Following</span></div>
+          <div class="row"><button class="btn btn-accent">Purchase</button><button class="btn btn-line">Edit profile</button></div>
+        </div>
+        <div class="card">
+          <div class="stat"><div><b>1,240</b><br><span>Posts</span></div><div><b>18k</b><br><span>City points</span></div></div>
+          <p style="margin-top:14px">Distinctive, elegant, bold-but-quiet.</p>
+          <button class="btn btn-gold">Go Premium</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="intro" style="margin-top:26px">Pick a number (1 / 2 / 3) — or mix, e.g. “Ivory base with the Emerald accent.” Once you choose, I’ll set it in <code>src/styles/tokens.css</code> so it flows through the whole app, and we can keep tuning from there. A dark “midnight-luxe” variant is also possible if you’d rather go dark.</p>
+</div>
+</body>
+</html>

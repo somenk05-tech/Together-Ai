@@ -24,6 +24,7 @@ export interface PublicProfile {
   id: string; handle: string; name: string; profileImage: string | null;
   bio: string | null; city: string | null; website: string | null;
   verified: boolean; memberSince: string; stats: ProfileStats; relationship: Relationship;
+  iFollow: boolean; isMe: boolean;
 }
 
 interface UserRow {
@@ -341,15 +342,88 @@ export class ProfileService {
     if (!u) throw new NotFoundException('No citizen with that handle.');
     const stats = await this.statsFor(u.id);
     let relationship: Relationship = 'none';
-    if (u.id !== viewerId) {
+    let iFollow = false;
+    const isMe = u.id === viewerId;
+    if (!isMe) {
       const { userOneId, userTwoId } = orderPair(viewerId, u.id);
-      const conn = await this.prisma.connection.findFirst({ where: { userOneId, userTwoId, connectionType: 'FRIEND' }, select: { status: true, requestedById: true } });
+      const [conn, follow] = await Promise.all([
+        this.prisma.connection.findFirst({ where: { userOneId, userTwoId, connectionType: 'FRIEND' }, select: { status: true, requestedById: true } }),
+        this.prisma.follow.findUnique({ where: { followerId_followeeId: { followerId: viewerId, followeeId: u.id } }, select: { followerId: true } }).catch(() => null),
+      ]);
       relationship = this.relationshipOf(conn?.status, conn?.requestedById, viewerId);
+      iFollow = Boolean(follow);
     }
     return {
       id: u.id, handle: u.handle, name: u.name, profileImage: u.profileImage,
       bio: u.bio, city: u.city, website: u.website,
-      verified: u.emailVerified, memberSince: u.createdAt.toISOString(), stats, relationship,
+      verified: u.emailVerified, memberSince: u.createdAt.toISOString(), stats, relationship, iFollow, isMe,
+    };
+  }
+
+  /** Read-only view of another citizen's posts (grid), respecting audience &
+   *  blocks. Strangers see only public posts; accepted friends also see
+   *  friends-audience posts. Never returns private/family posts of others. */
+  async publicPosts(viewerId: string, handleRaw: string, cursor?: string, limit = 18) {
+    const handle = (handleRaw ?? '').trim().replace(/^@/, '').toLowerCase();
+    const u = await this.prisma.user.findUnique({ where: { handle }, select: { id: true } });
+    if (!u) throw new NotFoundException('No citizen with that handle.');
+    // Blocked either way → nothing to show.
+    const block = await this.prisma.block
+      .findFirst({ where: { OR: [{ blockerId: viewerId, blockedId: u.id }, { blockerId: u.id, blockedId: viewerId }] }, select: { id: true } })
+      .catch(() => null);
+    if (block) return { items: [], nextCursor: null };
+    const isMe = u.id === viewerId;
+    let isFriend = isMe;
+    if (!isMe) {
+      const { userOneId, userTwoId } = orderPair(viewerId, u.id);
+      const conn = await this.prisma.connection.findFirst({ where: { userOneId, userTwoId, connectionType: 'FRIEND', status: 'ACCEPTED' }, select: { status: true } });
+      isFriend = Boolean(conn);
+    }
+    const audienceWhere = isFriend
+      ? { OR: [{ audience: { in: ['public', 'friends'] } }, { audience: null }] }
+      : { OR: [{ audience: 'public' }, { audience: null }] };
+    const take = Math.min(Math.max(limit, 1), 50);
+    const rows = await this.prisma.post.findMany({
+      where: { authorId: u.id, repostOfId: null, ...audienceWhere } as never,
+      orderBy: [{ sortIndex: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }] as never,
+      take: take + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      include: {
+        media: true,
+        _count: { select: { likes: true, comments: true } },
+        author: { select: { id: true, handle: true, name: true, profileImage: true } },
+        likes: { where: { userId: viewerId }, select: { id: true } },
+      },
+    });
+    const hasMore = rows.length > take;
+    const page = hasMore ? rows.slice(0, take) : rows;
+    return {
+      items: page.map((p) => {
+        const px = p as unknown as {
+          audience?: string | null; placeName?: string | null; taggedJson?: string | null; category?: string | null;
+          author: { id: string; handle: string; name: string; profileImage: string | null };
+          likes: unknown[]; _count: { likes: number; comments: number };
+        };
+        let tagged: Array<{ id: string; name: string; handle: string }> = [];
+        try { tagged = px.taggedJson ? JSON.parse(px.taggedJson) : []; } catch { tagged = []; }
+        return {
+          id: p.id,
+          text: p.text ?? null,
+          feeling: p.feeling ?? null,
+          createdAt: p.createdAt.toISOString(),
+          outdoor: p.lat != null && p.lng != null,
+          media: (p.media ?? []).map((m) => ({ url: m.url, kind: m.kind, thumbUrl: m.thumbUrl ?? null })),
+          likeCount: px._count.likes,
+          commentCount: px._count.comments,
+          author: px.author,
+          audience: px.audience ?? 'public',
+          placeName: px.placeName ?? null,
+          tagged,
+          likedByMe: px.likes.length > 0,
+          category: px.category ?? null,
+        };
+      }),
+      nextCursor: hasMore ? page[page.length - 1].id : null,
     };
   }
 

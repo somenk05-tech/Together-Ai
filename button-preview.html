@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Together City · Button UI/UX Upgrade Preview</title>
+<style>
+  :root{
+    --ink:#141412; --ink-soft:#45453f; --muted:#63635b;
+    --paper:#faf9f6; --card:#ffffff; --line:#e8e6df;
+    --gold:#b08d3e; --gold-bright:#d4af5e; --gold-soft:#f3ead6;
+    --green:#2e5c3f; --blue:#3a6ea5; --rose:#b76e79; --purple:#5b4b8a; --purple-soft:#efecf7;
+    --sans:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;
+    --serif:Georgia,"Times New Roman",serif;
+    --accent:var(--purple); /* Social hub accent */
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.5;padding:32px 20px 80px}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-family:var(--serif);font-size:30px;margin:0 0 4px}
+  .lede{color:var(--muted);font-size:15px;margin:0 0 8px}
+  .note{color:var(--muted);font-size:13px;margin:0 0 28px}
+  h2{font-family:var(--serif);font-size:21px;margin:34px 0 4px}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 22px 24px;margin-bottom:18px}
+  .row{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:6px 0}
+  .row + .lbl{margin-top:16px}
+  .lbl{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 2px}
+  .dark{background:#141412;border-radius:12px}
+  .tag{display:inline-block;font-size:11px;font-weight:700;color:var(--accent);background:var(--purple-soft);border-radius:999px;padding:3px 10px;margin-left:8px;vertical-align:middle}
+  .hubrow{display:flex;gap:12px;flex-wrap:wrap}
+  .swatchgroup{text-align:center}
+  .swatchgroup span{display:block;font-size:11px;color:var(--muted);margin-top:6px}
+
+  /* ============ CURRENT (exactly today's .btn) ============ */
+  .cur{display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:999px;font-size:12px;letter-spacing:.12em;font-weight:600;text-transform:uppercase;padding:15px 32px;transition:transform .12s ease-out,box-shadow .2s,background .2s,color .2s,filter .2s;cursor:pointer;border:none;user-select:none;color:#fff}
+  .cur:hover{transform:translateY(-2px)}
+  .cur:active{transform:translateY(0) scale(.98);filter:brightness(.97)}
+  .cur-accent{background:var(--accent)}
+  .cur-accent:hover{box-shadow:0 10px 28px rgba(20,20,18,.2);filter:brightness(1.06)}
+  .cur-gold{background:var(--gold)}
+  .cur-gold:hover{background:var(--gold-bright);box-shadow:0 10px 28px rgba(176,141,62,.35)}
+  .cur-line{border:1.5px solid var(--line);color:var(--ink);background:var(--card)}
+  .cur-line:hover{border-color:var(--accent);color:var(--accent)}
+  .cur-ghost{border:1.5px solid rgba(255,255,255,.55);color:#fff;background:transparent}
+  .cur-ghost:hover{background:rgba(255,255,255,.12)}
+  .cur-sm{padding:9px 20px;font-size:11px}
+  .cur:disabled{opacity:.55;cursor:not-allowed;transform:none;filter:none}
+
+  /* ============ A · POLISH (keep the luxury pill, add depth + states) ============ */
+  .a{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:999px;font-size:12px;letter-spacing:.11em;font-weight:700;text-transform:uppercase;padding:15px 32px;cursor:pointer;border:none;user-select:none;color:#fff;
+     transition:transform .14s cubic-bezier(.34,1.56,.64,1),box-shadow .22s,filter .2s}
+  .a:hover{transform:translateY(-2px)}
+  .a:active{transform:translateY(0) scale(.97);filter:brightness(.96)}
+  .a:focus-visible{outline:none;box-shadow:0 0 0 3px var(--purple-soft),0 0 0 5px var(--accent)}
+  .a-accent{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 92%,#fff),var(--accent));box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 34%,transparent)}
+  .a-accent:hover{box-shadow:0 12px 30px color-mix(in srgb,var(--accent) 42%,transparent);filter:brightness(1.05)}
+  .a-gold{background:linear-gradient(135deg,var(--gold-bright),var(--gold));box-shadow:0 6px 18px rgba(176,141,62,.35)}
+  .a-gold:hover{box-shadow:0 12px 30px rgba(176,141,62,.45)}
+  .a-line{background:var(--card);color:var(--ink);border:1.5px solid var(--line);box-shadow:0 1px 2px rgba(20,20,18,.04)}
+  .a-line:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 6px 16px rgba(20,20,18,.08)}
+  .a-sm{padding:9px 20px;font-size:11px}
+  .a:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;filter:none}
+  .a.loading{color:transparent;pointer-events:none}
+  .a.loading::after{content:"";position:absolute;width:15px;height:15px;border:2.2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+  .a-line.loading::after{border-color:color-mix(in srgb,var(--accent) 30%,transparent);border-top-color:var(--accent)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ============ B · MODERN SAAS (rounded-rect, sentence case) ============ */
+  .b{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:11px;font-size:14px;font-weight:600;letter-spacing:0;text-transform:none;padding:11px 18px;cursor:pointer;border:none;color:#fff;transition:background .12s,box-shadow .15s,transform .1s}
+  .b:hover{filter:brightness(1.05)}
+  .b:active{transform:translateY(1px)}
+  .b:focus-visible{outline:none;box-shadow:0 0 0 3px var(--purple-soft)}
+  .b-accent{background:var(--accent);box-shadow:0 1px 2px rgba(20,20,18,.16)}
+  .b-gold{background:var(--gold)}
+  .b-line{background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:0 1px 2px rgba(20,20,18,.05)}
+  .b-line:hover{background:var(--paper);filter:none}
+  .b-sm{padding:7px 13px;font-size:13px;border-radius:9px}
+  .b:disabled{opacity:.5;cursor:not-allowed}
+
+  /* ============ C · BOLD & PLAYFUL ============ */
+  .c{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:14px;font-size:15px;font-weight:800;letter-spacing:.01em;text-transform:none;padding:15px 30px;cursor:pointer;border:none;color:#fff;transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .22s,filter .2s}
+  .c:hover{transform:translateY(-3px)}
+  .c:active{transform:translateY(-1px) scale(.98)}
+  .c:focus-visible{outline:none;box-shadow:0 0 0 4px var(--purple-soft)}
+  .c-accent{background:linear-gradient(135deg,#7a67b3,var(--accent));box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 45%,transparent)}
+  .c-accent:hover{box-shadow:0 14px 34px color-mix(in srgb,var(--accent) 55%,transparent)}
+  .c-gold{background:linear-gradient(135deg,var(--gold-bright),var(--gold));box-shadow:0 8px 22px rgba(176,141,62,.45)}
+  .c-line{background:var(--card);color:var(--accent);border:2px solid var(--accent)}
+  .c-line:hover{background:var(--purple-soft)}
+  .c-sm{padding:10px 20px;font-size:13.5px;border-radius:11px}
+  .c:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+
+  /* ============ D · ACCESSIBILITY-FIRST ============ */
+  .d{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:44px;border-radius:12px;font-size:15px;font-weight:700;letter-spacing:0;text-transform:none;padding:11px 22px;cursor:pointer;border:2px solid transparent;color:#fff;transition:background .12s,box-shadow .15s}
+  .d:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+  .d-accent{background:#4a3d73}            /* darkened for AA contrast on white */
+  .d-accent:hover{background:#3c3160}
+  .d-line{background:var(--card);color:#3c3160;border-color:#3c3160}
+  .d-line:hover{background:var(--purple-soft)}
+  .d-sm{min-height:38px;font-size:14px;padding:8px 16px}
+  .d:disabled{opacity:.55;cursor:not-allowed}
+  @media (prefers-reduced-motion:reduce){.a,.b,.c,.d{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Button UI/UX — upgrade options</h1>
+  <p class="lede">Same buttons, your real colors &amp; fonts. Social-hub accent (purple) shown; the accent recolors per hub. Hover and click them — the states are live.</p>
+  <p class="note">Nothing in the app has changed. This is a preview so you can pick a direction.</p>
+
+  <!-- CURRENT -->
+  <h2>Where it is today <span class="tag">current</span></h2>
+  <p class="sub">Full-pill, uppercase, letter-spaced, hover-lift. Clean but flat — no depth, no loading state, focus ring is a thin outline.</p>
+  <div class="card">
+    <div class="row">
+      <button class="cur cur-accent">Purchase</button>
+      <button class="cur cur-gold">Purchase</button>
+      <button class="cur cur-line">Edit profile</button>
+      <button class="cur cur-accent cur-sm">New post</button>
+      <button class="cur cur-accent" disabled>Disabled</button>
+    </div>
+    <div class="row dark" style="padding:16px">
+      <button class="cur cur-ghost">Ghost (on dark)</button>
+    </div>
+  </div>
+
+  <!-- A -->
+  <h2>A · Polish the current style <span class="tag">lowest risk · on-brand</span></h2>
+  <p class="sub">Keeps the luxury pill. Adds gradient + soft shadow depth, a springy press, a proper loading spinner, and a ring focus state. Feels premium and tactile without changing the identity.</p>
+  <div class="card">
+    <div class="lbl">Variants</div>
+    <div class="row">
+      <button class="a a-accent">Purchase</button>
+      <button class="a a-gold">Purchase</button>
+      <button class="a a-line">Edit profile</button>
+      <button class="a a-accent a-sm">New post</button>
+    </div>
+    <div class="lbl">With icon &amp; states</div>
+    <div class="row">
+      <button class="a a-accent">＋&nbsp; New post</button>
+      <button class="a a-accent loading">Purchase</button>
+      <button class="a a-line loading">Saving</button>
+      <button class="a a-accent" disabled>Disabled</button>
+    </div>
+  </div>
+
+  <!-- B -->
+  <h2>B · Modern SaaS refresh <span class="tag">contemporary</span></h2>
+  <p class="sub">Softer rounded-rectangles, sentence-case labels, tighter type, subtle 1px depth and quick transitions — a Linear/Stripe-style app feel. Biggest visual departure from today.</p>
+  <div class="card">
+    <div class="row">
+      <button class="b b-accent">Purchase</button>
+      <button class="b b-gold">Purchase</button>
+      <button class="b b-line">Edit profile</button>
+      <button class="b b-accent b-sm">New post</button>
+      <button class="b b-accent" disabled>Disabled</button>
+    </div>
+  </div>
+
+  <!-- C -->
+  <h2>C · Bold &amp; playful <span class="tag">high energy</span></h2>
+  <p class="sub">Larger targets, gradient fills, glow shadows and bouncy motion. Reads more consumer-social — good for a feed/reels product, louder than the current luxury tone.</p>
+  <div class="card">
+    <div class="row">
+      <button class="c c-accent">Purchase</button>
+      <button class="c c-gold">Purchase</button>
+      <button class="c c-line">Edit profile</button>
+      <button class="c c-accent c-sm">New post</button>
+      <button class="c c-accent" disabled>Disabled</button>
+    </div>
+  </div>
+
+  <!-- D -->
+  <h2>D · Accessibility-first <span class="tag">layerable</span></h2>
+  <p class="sub">44px min hit targets, AA-contrast fills, thick visible focus outlines, respects reduce-motion. Can be combined with any look above — think of it as a rule set, not a separate style.</p>
+  <div class="card">
+    <div class="row">
+      <button class="d d-accent">Purchase</button>
+      <button class="d d-line">Edit profile</button>
+      <button class="d d-accent d-sm">New post</button>
+      <button class="d d-accent" disabled>Disabled</button>
+    </div>
+    <p class="sub" style="margin:12px 0 0">Tab to a button with your keyboard to see the focus ring.</p>
+  </div>
+
+  <!-- HUB ACCENTS -->
+  <h2>Same button, every hub accent</h2>
+  <p class="sub">The accent is a token that changes per hub, so one upgrade recolors everywhere. (Shown on option A.)</p>
+  <div class="card">
+    <div class="hubrow">
+      <div class="swatchgroup"><button class="a a-accent" style="--accent:#5b4b8a">Social</button><span>Social</span></div>
+      <div class="swatchgroup"><button class="a a-accent" style="--accent:#2e5c3f">Nutrition</button><span>Nutrition</span></div>
+      <div class="swatchgroup"><button class="a a-accent" style="--accent:#3a6ea5">Medical</button><span>Medical</span></div>
+      <div class="swatchgroup"><button class="a a-accent" style="--accent:#b76e79">Dating</button><span>Dating</span></div>
+      <div class="swatchgroup"><button class="a a-accent" style="--accent:#b08d3e">Financial</button><span>Financial</span></div>
+    </div>
+  </div>
+
+  <p class="note" style="margin-top:26px">Tell me which direction (A / B / C / D, or a mix — e.g. “A + D”) and I’ll roll it into the shared Button component and <code>.btn</code> tokens app-wide, then start swapping the hand-styled inline buttons over to it.</p>
+</div>
+</body>
+</html>

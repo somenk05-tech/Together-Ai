@@ -5,7 +5,6 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { PostCard } from '../PostCard';
 import { ReelsView } from '../ReelsView';
-import { PublicProfileModal } from './Profile';
 import { useFeed } from '../api';
 
 
@@ -26,7 +25,7 @@ export function SocialFeed() {
   const [filter, setFilter] = useState<string>('foryou');
   const feed = useFeed(filter);
   const items = feed.data?.pages.flatMap((p) => p.items) ?? [];
-  const [authorHandle, setAuthorHandle] = useState<string | null>(null);
+  const openAuthor = (h: string) => navigate(`/social/u/${encodeURIComponent(h)}`);
 
   // Post-share landing: highlight the new post, scroll to top, flash a toast.
   const navState = location.state as { newPostId?: string; justShared?: boolean } | null;
@@ -74,10 +73,9 @@ export function SocialFeed() {
           </div>
         )}
         {items.length > 0 && (
-          <ReelsView items={items} onOpenAuthor={setAuthorHandle} fullScreen
+          <ReelsView items={items} onOpenAuthor={openAuthor} fullScreen
             hasNextPage={feed.hasNextPage} fetchNextPage={() => void feed.fetchNextPage()} isFetchingNextPage={feed.isFetchingNextPage} />
         )}
-        {authorHandle && <PublicProfileModal handle={authorHandle} onClose={() => setAuthorHandle(null)} />}
       </div>,
       document.body,
     );
@@ -128,7 +126,7 @@ export function SocialFeed() {
                 <EmptyState icon="🎬" title="No videos yet" hint="Post a video and it'll play here, reels-style." />
               )}
               {items.length > 0 && (
-                <ReelsView items={items} onOpenAuthor={setAuthorHandle}
+                <ReelsView items={items} onOpenAuthor={openAuthor}
                   hasNextPage={feed.hasNextPage} fetchNextPage={() => void feed.fetchNextPage()} isFetchingNextPage={feed.isFetchingNextPage} />
               )}
             </>
@@ -137,7 +135,7 @@ export function SocialFeed() {
               {!feed.isLoading && !feed.isError && items.length === 0 && (
                 <EmptyState icon="🌆" title={filter === 'foryou' ? 'No moments yet' : 'Nothing here yet'} hint="Be the first to share one." />
               )}
-              {items.map((p) => <PostCard key={p.key ?? p.id} post={p} isNew={p.id === newPostId} onOpenAuthor={setAuthorHandle} />)}
+              {items.map((p) => <PostCard key={p.key ?? p.id} post={p} isNew={p.id === newPostId} onOpenAuthor={openAuthor} />)}
               {feed.hasNextPage && (
                 <div style={{ display: 'grid', placeItems: 'center', margin: '18px 0 4px' }}>
                   <Button variant="line" size="sm" disabled={feed.isFetchingNextPage} onClick={() => void feed.fetchNextPage()}>
@@ -149,8 +147,6 @@ export function SocialFeed() {
           )}
         </div>
       </div>
-
-      {authorHandle && <PublicProfileModal handle={authorHandle} onClose={() => setAuthorHandle(null)} />}
     </div>
   );
 }
