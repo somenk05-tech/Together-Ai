@@ -126,6 +126,7 @@ const MedFitness = lazy(() => import('@/features/medical/pages/Fitness').then((m
 // Dating sub-pages
 const DatingActivity = lazy(() => import('@/features/dating/pages/DatingActivity').then((m) => ({ default: m.DatingActivity })));
 const DatingChat = lazy(() => import('@/features/dating/pages/DatingChat').then((m) => ({ default: m.DatingChat })));
+const DatingChats = lazy(() => import('@/features/dating/pages/DatingChats').then((m) => ({ default: m.DatingChats })));
 const DatingMatchDetail = lazy(() => import('@/features/dating/pages/DatingMatchDetail').then((m) => ({ default: m.DatingMatchDetail })));
 // Nutrition sub-pages
 const NutOnboarding = lazy(() => import('@/features/nutrition/pages/Onboarding').then((m) => ({ default: m.Onboarding })));
@@ -265,6 +266,7 @@ export const router = createBrowserRouter([
       { path: '/dating/matches', element: <RequireAuth>{wrap(<DatingMatches />)}</RequireAuth> },
       { path: '/dating/friends', element: <RequireAuth>{wrap(<DatingMatches />)}</RequireAuth> },
       { path: '/dating/activity', element: <RequireAuth>{wrap(<DatingActivity />)}</RequireAuth> },
+      { path: '/dating/chats', element: <RequireAuth>{wrap(<DatingChats />)}</RequireAuth> },
       { path: '/dating/chat', element: <RequireAuth>{wrap(<DatingChat />)}</RequireAuth> },
       { path: '/dating/match', element: <RequireAuth>{wrap(<DatingMatchDetail />)}</RequireAuth> },
     ],

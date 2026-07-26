@@ -3,10 +3,8 @@ import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { AiSuggestions } from '@/components/AiSuggestions';
 import {
-  useDatingProfile, useLikeMatch, useUnlockChat, useDiscover, usePassMatch, type CuratedMatch, type MatchKind, type DiscoverSection,
+  useDatingProfile, useLikeMatch, useDiscover, usePassMatch, type CuratedMatch, type MatchKind, type DiscoverSection,
 } from '../api';
-import { payError, type PayMethod } from '@/features/financial/api';
-import { PaymentSheet } from '@/features/financial/PaymentSheet';
 
 function ScoreRing({ score }: { score: number }) {
   return (
@@ -73,13 +71,9 @@ function MatchGallery({ photos, name, age, theirSign, yourSign, score, href }: {
 function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
   const like = useLikeMatch(kind);
   const pass = usePassMatch(kind);
-  const unlock = useUnlockChat(kind);
   const [result, setResult] = useState<{ matched: boolean; conversationId: string | null } | null>(null);
-  const [unlocked, setUnlocked] = useState(false);
-  const [payOpen, setPayOpen] = useState(false);
 
   const matched = result?.matched || match.matched;
-  const chatOpen = unlocked || Boolean(match.conversationId);
   const photos = match.photos ?? [];
   const hasPhotos = photos.length > 0;
   const detailHref = `/dating/match?u=${match.user.id}&kind=${kind}`;
@@ -137,30 +131,12 @@ function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
 
       <div style={{ marginTop: 14 }}>
         {matched ? (
-          chatOpen ? (
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--accent)' }}>💫 It’s a match!</span>
-              <Link to="/chats"><Button variant="accent" size="sm">Open chat</Button></Link>
-            </div>
-          ) : (
-            <div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--accent)' }}>💫 It’s a match!</span>
-                <Button variant="accent" size="sm" onClick={() => setPayOpen(true)}>
-                  💬 Unlock chat · ₹199
-                </Button>
-              </div>
-              <PaymentSheet
-                open={payOpen}
-                amountInr={199}
-                label={`Unlock chat with ${match.user.name}`}
-                pending={unlock.isPending}
-                error={unlock.isError ? payError(unlock.error) : null}
-                onCancel={() => setPayOpen(false)}
-                onPay={(method: PayMethod) => unlock.mutate({ targetUserId: match.user.id, method }, { onSuccess: () => { setUnlocked(true); setPayOpen(false); } })}
-              />
-            </div>
-          )
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--accent)' }}>💫 It’s a match!</span>
+            {match.conversationId
+              ? <Link to={`/dating/chats?c=${match.conversationId}`}><Button variant="accent" size="sm">💬 Open chat</Button></Link>
+              : <Link to={detailHref}><Button variant="accent" size="sm">💬 Connect to Chat</Button></Link>}
+          </div>
         ) : (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <Button

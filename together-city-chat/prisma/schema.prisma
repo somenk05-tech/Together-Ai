@@ -739,6 +739,7 @@ model DatingProfile {
   moderation String   @default("approved") // approved | pending | rejected | review
   moderationJson String? // JSON: { decision, confidence, checks[], reasons[] }
   visible    Boolean  @default(true)
+  connectCount Int    @default(0) // dating chats this user has connected to (first 3 free)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -755,6 +756,8 @@ model DatingMatch {
   likedByTwo     Boolean  @default(false)
   passedByOne    Boolean  @default(false)
   passedByTwo    Boolean  @default(false)
+  revealByOne    Boolean  @default(false) // dating chat: userOne agreed to reveal identity
+  revealByTwo    Boolean  @default(false) // dating chat: userTwo agreed to reveal identity
   conversationId String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

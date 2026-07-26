@@ -115,10 +115,34 @@ export const datingApi = {
   like: (targetUserId: string, kind: MatchKind) =>
     api.post<{ matched: boolean; conversationId: string | null; chatLocked: boolean; matchId: string }>(`/dating/matches/${targetUserId}/like`, { kind }).then((r) => r.data),
   unlockChat: (targetUserId: string, kind: MatchKind, method: 'wallet' | 'card' = 'wallet') =>
-    api.post<{ conversationId: string; alreadyOpen: boolean }>(`/dating/matches/${targetUserId}/unlock-chat`, { kind, method }).then((r) => r.data),
+    api.post<{ conversationId: string; alreadyOpen: boolean; chargedInr?: number }>(`/dating/matches/${targetUserId}/unlock-chat`, { kind, method }).then((r) => r.data),
+  connect: (targetUserId: string, kind: MatchKind, method: 'wallet' | 'card' = 'wallet') =>
+    api.post<{ conversationId: string; alreadyOpen: boolean; chargedInr: number }>(`/dating/matches/${targetUserId}/connect`, { kind, method }).then((r) => r.data),
+  unmatch: (targetUserId: string, kind: MatchKind) =>
+    api.post<{ ok: boolean }>(`/dating/matches/${targetUserId}/unmatch`, { kind }).then((r) => r.data),
+  reveal: (targetUserId: string, kind: MatchKind) =>
+    api.post<{ revealed: boolean; myReveal: boolean }>(`/dating/matches/${targetUserId}/reveal`, { kind }).then((r) => r.data),
   pass: (targetUserId: string, kind: MatchKind) =>
     api.post<{ ok: boolean }>(`/dating/matches/${targetUserId}/pass`, { kind }).then((r) => r.data),
+  chats: () => api.get<DatingChatSummary[]>('/dating/chats').then((r) => r.data),
 };
+
+export interface DatingChatSummary {
+  conversationId: string;
+  otherUserId: string;
+  name: string;
+  photo: string | null;
+  sign: string | null;
+  age: number | null;
+  revealed: boolean;
+  myReveal: boolean;
+  otherReveal: boolean;
+  score: number | null;
+  lastMessageAt: string;
+  lastText: string | null;
+  lastFromMe: boolean;
+  unread: number;
+}
 
 // ─── Activity Dating ───
 export interface ActivityShape { id: string; text: string; category: string; date: string; time: string | null; groupSize: string; description: string | null; createdOn: string }
@@ -224,4 +248,36 @@ export function usePassMatch(kind: MatchKind) {
       void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
     },
   });
+}
+export function useConnectChat(kind: MatchKind) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { targetUserId: string; method: 'wallet' | 'card' }) => datingApi.connect(v.targetUserId, kind, v.method),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['dating', 'chats'] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
+      void qc.invalidateQueries({ queryKey: ['financial'] });
+    },
+  });
+}
+export function useUnmatch(kind: MatchKind) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (targetUserId: string) => datingApi.unmatch(targetUserId, kind),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['dating', 'chats'] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'match', kind] });
+    },
+  });
+}
+export function useRevealMatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (targetUserId: string) => datingApi.reveal(targetUserId, 'romantic'),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['dating', 'chats'] }),
+  });
+}
+export function useDatingChats() {
+  return useQuery({ queryKey: ['dating', 'chats'], queryFn: () => datingApi.chats(), refetchInterval: 15_000 });
 }

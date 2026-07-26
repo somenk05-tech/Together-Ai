@@ -68,7 +68,43 @@ export class DatingController {
   ) {
     const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
     const method = (body as { method?: 'wallet' | 'card' } | null)?.method;
-    return this.dating.unlockChat(user.sub, targetUserId, kind, method);
+    return this.dating.connect(user.sub, targetUserId, kind, method);
+  }
+
+  @Post('matches/:targetUserId/connect')
+  connect(
+    @CurrentUser() user: JwtUser,
+    @Param('targetUserId') targetUserId: string,
+    @Body() body: unknown,
+  ) {
+    const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
+    const method = (body as { method?: 'wallet' | 'card' } | null)?.method;
+    return this.dating.connect(user.sub, targetUserId, kind, method);
+  }
+
+  @Post('matches/:targetUserId/unmatch')
+  unmatch(
+    @CurrentUser() user: JwtUser,
+    @Param('targetUserId') targetUserId: string,
+    @Body() body: unknown,
+  ) {
+    const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
+    return this.dating.unmatch(user.sub, targetUserId, kind);
+  }
+
+  @Post('matches/:targetUserId/reveal')
+  reveal(
+    @CurrentUser() user: JwtUser,
+    @Param('targetUserId') targetUserId: string,
+    @Body() body: unknown,
+  ) {
+    const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
+    return this.dating.reveal(user.sub, targetUserId, kind);
+  }
+
+  @Get('chats')
+  chats(@CurrentUser() user: JwtUser) {
+    return this.dating.datingChats(user.sub);
   }
 
   @Post('matches/:targetUserId/pass')

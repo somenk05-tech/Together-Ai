@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { ConversationsService } from '../conversations/conversations.service';
@@ -673,30 +673,128 @@ export class DatingService {
   }
 
   /**
-   * Unlock chat with a match — charges the city wallet (Financial hub) at the
-   * current rate-card price, then opens the connection + conversation. All money
-   * flows through Financial; if the wallet can't cover it, charge() throws 400.
+   * Connect to Chat (intentional dating). Opens an ANONYMOUS dating-hub chat with
+   * a match — names hidden until both reveal. The chat lives only in the Dating
+   * Hub (never the main Chats). Rules:
+   *  • One person at a time — you must unmatch your current chat first.
+   *  • First 3 connections are free; after that ₹199 via the Financial hub.
+   *  • No People connection is created (dating chats stay private to the hub).
    */
-  async unlockChat(userId: string, targetUserId: string, kind: MatchKind, method?: 'wallet' | 'card') {
+  async connect(userId: string, targetUserId: string, kind: MatchKind, method?: 'wallet' | 'card') {
     const state = await this.upsertState(userId, targetUserId, kind);
-    if (state.status !== 'matched') throw new NotFoundException('no active match to unlock');
-    if (state.conversationId) return { conversationId: state.conversationId, alreadyOpen: true };
+    if (state.status !== 'matched') throw new NotFoundException('No active match to connect to.');
+    if (state.conversationId) return { conversationId: state.conversationId, alreadyOpen: true, chargedInr: 0 };
 
-    await this.financial.charge(userId, {
-      hub: 'Dating', category: 'dating', label: 'Chat unlock — new match',
-      amountInr: this.financial.rate('datingChatUnlock'), method,
+    // Intentional dating: at most one active dating chat at a time.
+    const active = await this.prisma.datingMatch.findFirst({
+      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null }, id: { not: state.id } } as never,
     });
+    if (active) throw new BadRequestException('You can chat with one person at a time. Unmatch your current chat to connect with someone new.');
 
-    const connectionType = kind === 'romantic' ? 'COUPLE' : 'FRIEND';
-    const [userOneId, userTwoId] = [state.userOneId, state.userTwoId];
-    await this.prisma.connection.upsert({
-      where: { userOneId_userTwoId_connectionType: { userOneId, userTwoId, connectionType } },
-      update: { status: 'ACCEPTED' },
-      create: { userOneId, userTwoId, connectionType, status: 'ACCEPTED', requestedById: userId },
+    // First 3 connections free, then the rate-card price.
+    const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
+    const count = (mine as { connectCount?: number } | null)?.connectCount ?? 0;
+    let chargedInr = 0;
+    if (count >= 3) {
+      const amountInr = this.financial.rate('datingChatUnlock');
+      await this.financial.charge(userId, { hub: 'Dating', category: 'dating', label: 'Connect to chat — new match', amountInr, method });
+      chargedInr = amountInr;
+    }
+
+    // Anonymous conversation (trust level 1 → the other person is a pseudonym).
+    const conversationId = await this.conversations.getOrCreateDirectByIds(userId, targetUserId, 1);
+    await this.prisma.datingMatch.update({ where: { id: state.id }, data: { conversationId } });
+    await this.prisma.datingProfile.update({ where: { userId }, data: { connectCount: count + 1 } as never }).catch(() => undefined);
+
+    void this.notifications.create({
+      userId: targetUserId, actorId: userId, kind: 'dating_match',
+      title: 'Someone connected to chat 💬', body: 'You have a new anonymous chat in the Dating Hub.', href: '/dating/chats',
     });
-    const conversation = await this.conversations.startDirect(userId, targetUserId);
-    await this.prisma.datingMatch.update({ where: { id: state.id }, data: { conversationId: conversation.id } });
-    return { conversationId: conversation.id, alreadyOpen: false };
+    return { conversationId, alreadyOpen: false, chargedInr };
+  }
+
+  /** Backward-compatible alias for the old paid "unlock chat" route. */
+  async unlockChat(userId: string, targetUserId: string, kind: MatchKind, method?: 'wallet' | 'card') {
+    return this.connect(userId, targetUserId, kind, method);
+  }
+
+  /** Unmatch — end the dating chat and free the "one at a time" slot for both
+   *  people. Keeps the conversation id on record so it stays hidden from the main
+   *  Chats list, but archives it so it leaves the Dating Hub chat list too. */
+  async unmatch(userId: string, targetUserId: string, kind: MatchKind) {
+    const [userOneId, userTwoId] = [userId, targetUserId].sort();
+    const state = await this.prisma.datingMatch.findFirst({
+      where: { OR: [{ userOneId, userTwoId }], kind } as never,
+    });
+    if (!state) return { ok: true as const };
+    if (state.conversationId) await this.conversations.archiveForAll(state.conversationId).catch(() => undefined);
+    await this.prisma.datingMatch.update({
+      where: { id: state.id },
+      data: { status: 'passed', passedByOne: true, passedByTwo: true, revealByOne: false, revealByTwo: false } as never,
+    });
+    return { ok: true as const };
+  }
+
+  /** Reveal identities in a dating chat — mutual: names show only once BOTH agree. */
+  async reveal(userId: string, targetUserId: string, kind: MatchKind) {
+    const [userOneId, userTwoId] = [userId, targetUserId].sort();
+    const state = await this.prisma.datingMatch.findFirst({ where: { OR: [{ userOneId, userTwoId }], kind } as never });
+    if (!state || !state.conversationId) throw new NotFoundException('No active chat to reveal.');
+    const meIsOne = state.userOneId === userId;
+    const updated = await this.prisma.datingMatch.update({
+      where: { id: state.id },
+      data: (meIsOne ? { revealByOne: true } : { revealByTwo: true }) as never,
+    });
+    const both = Boolean((updated as { revealByOne?: boolean; revealByTwo?: boolean }).revealByOne && (updated as { revealByOne?: boolean; revealByTwo?: boolean }).revealByTwo);
+    if (both) await this.conversations.setAnonymousTrust(state.conversationId, null);
+    else {
+      void this.notifications.create({
+        userId: targetUserId, actorId: userId, kind: 'dating_like',
+        title: 'Your match wants to reveal 👀', body: 'Reveal back to see each other in the Dating Hub chat.', href: '/dating/chats',
+      });
+    }
+    return { revealed: both, myReveal: true as const };
+  }
+
+  /** The user's active Dating Hub chats — anonymous match conversations, masked
+   *  until both reveal, with last-message + unread + compatibility. */
+  async datingChats(userId: string) {
+    const matches = await this.prisma.datingMatch.findMany({
+      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null } } as never,
+      orderBy: { updatedAt: 'desc' },
+    });
+    const out = [];
+    for (const m of matches) {
+      if (!m.conversationId) continue;
+      const otherId = m.userOneId === userId ? m.userTwoId : m.userOneId;
+      const meIsOne = m.userOneId === userId;
+      const r = m as { revealByOne?: boolean; revealByTwo?: boolean };
+      const myReveal = Boolean(meIsOne ? r.revealByOne : r.revealByTwo);
+      const otherReveal = Boolean(meIsOne ? r.revealByTwo : r.revealByOne);
+      const revealed = Boolean(r.revealByOne && r.revealByTwo);
+
+      const summary = await this.conversations.summaryFor(m.conversationId, userId);
+      const otherProfile = await this.prisma.datingProfile.findUnique({ where: { userId: otherId } });
+      const otherUser = await this.prisma.user.findUnique({ where: { id: otherId }, select: { name: true, profileImage: true } });
+      const candD = this.parseDX((otherProfile as { extras?: string | null } | null)?.extras) as DXProfile & { photos?: string[] };
+      const score = await this.readPairScore(userId, otherId);
+
+      out.push({
+        conversationId: m.conversationId,
+        otherUserId: otherId,
+        name: revealed ? (otherUser?.name ?? 'Member') : nickname(otherId),
+        photo: revealed ? ((candD.photos && candD.photos[0]) ?? otherUser?.profileImage ?? null) : null,
+        sign: otherProfile ? zodiacSign(otherProfile.birthDate).name : null,
+        age: otherProfile ? this.ageOf(otherProfile.birthDate) : null,
+        revealed, myReveal, otherReveal,
+        score: score ?? null,
+        lastMessageAt: summary.lastMessageAt,
+        lastText: summary.lastText,
+        lastFromMe: summary.lastSenderId === userId,
+        unread: summary.unread,
+      });
+    }
+    return out.sort((a, b) => (a.lastMessageAt < b.lastMessageAt ? 1 : -1));
   }
 
   async pass(userId: string, targetUserId: string, kind: MatchKind) {

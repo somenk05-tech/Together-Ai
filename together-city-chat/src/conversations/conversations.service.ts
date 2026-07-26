@@ -75,8 +75,22 @@ export class ConversationsService {
     return this.toDto(created.id, userId);
   }
 
-  /** Conversation list — newest first, each as the flat DTO the frontend consumes. */
+  /** Conversation ids that belong to the Dating Hub (anonymous match chats).
+   *  These live ONLY in the Dating Hub's own chat tab and are hidden from the
+   *  main Chats list. */
+  private async datingConversationIds(userId: string): Promise<Set<string>> {
+    const rows = await (this.prisma as unknown as { datingMatch: { findMany(a: unknown): Promise<Array<{ conversationId: string | null }>> } }).datingMatch
+      .findMany({ where: { OR: [{ userOneId: userId }, { userTwoId: userId }], conversationId: { not: null } }, select: { conversationId: true } })
+      .catch(() => [] as Array<{ conversationId: string | null }>);
+    const set = new Set<string>();
+    for (const r of rows) if (r.conversationId) set.add(r.conversationId);
+    return set;
+  }
+
+  /** Conversation list — newest first, each as the flat DTO the frontend consumes.
+   *  Dating Hub match chats are excluded — they surface only in the Dating Hub. */
   async listForUser(userId: string) {
+    const datingIds = await this.datingConversationIds(userId);
     const memberships = await this.prisma.conversationMember.findMany({
       where: { userId, archived: false },
       include: {
@@ -92,6 +106,7 @@ export class ConversationsService {
 
     const out = [];
     for (const m of memberships) {
+      if (datingIds.has(m.conversationId)) continue;
       const unread = await this.prisma.message.count({
         where: {
           conversationId: m.conversationId,
@@ -179,6 +194,36 @@ export class ConversationsService {
       data: { type: 'DIRECT', directKey, anonymousTrust: anonymousTrust ?? null, members: { create: [{ userId: aId }, { userId: bId }] } } as never,
     });
     return conv.id;
+  }
+
+  /** Last-message + unread summary for one conversation (used by the Dating Hub
+   *  chat list, which surfaces dating conversations outside the main chat list). */
+  async summaryFor(conversationId: string, userId: string): Promise<{ lastMessageAt: string; lastText: string | null; lastSenderId: string | null; unread: number }> {
+    const member = await this.prisma.conversationMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+    }).catch(() => null);
+    const last = await this.prisma.message.findFirst({
+      where: { conversationId, deleted: false },
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => null);
+    const unread = await this.prisma.message.count({
+      where: {
+        conversationId, deleted: false, senderId: { not: userId },
+        ...(member?.lastReadAt ? { createdAt: { gt: member.lastReadAt } } : {}),
+      },
+    }).catch(() => 0);
+    return {
+      lastMessageAt: (last?.createdAt ?? new Date(0)).toISOString(),
+      lastText: (last as { body?: string | null } | null)?.body ?? null,
+      lastSenderId: (last as { senderId?: string | null } | null)?.senderId ?? null,
+      unread,
+    };
+  }
+
+  /** Archive a conversation for every member (used when a dating match is
+   *  unmatched — the chat leaves both people's lists). */
+  async archiveForAll(conversationId: string): Promise<void> {
+    await this.prisma.conversationMember.updateMany({ where: { conversationId }, data: { archived: true } }).catch(() => undefined);
   }
 
   /** Advance/clear a dating conversation's anonymity (reveal at ≥2). */

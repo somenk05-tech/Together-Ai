@@ -118,6 +118,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/dating/profile', index: '01', label: 'My Dating Profile', sub: 'Birth details & interests' },
       { path: '/dating/matches', index: '02', label: 'Curated Matches', sub: 'Only real matches, ≥75%' },
       { path: '/dating/activity', index: '03', label: 'Activity Dating', sub: 'Meet by doing, not swiping' },
+      { path: '/dating/chats', index: '04', label: 'Dating Chats', sub: 'Anonymous, one at a time' },
     ],
   },
   entertainment: {
