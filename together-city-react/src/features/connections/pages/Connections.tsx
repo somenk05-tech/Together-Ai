@@ -6,7 +6,7 @@ import { useConnections, useRespondConnection, chatApi } from '@/api';
 import type { Connection } from '@/api/schemas';
 import { MemberFinder } from '../components/MemberFinder';
 import { useRemoveConnection, useUpdateModules } from '@/api/connections.api';
-import { DEFAULT_MODULES, RELATIONSHIPS, allowedModules } from '../modules';
+import { DEFAULT_MODULES, RELATIONSHIPS, allowedModules, optionalOf } from '../modules';
 import { ModuleChips, ModuleToggles } from '../components/ModuleToggles';
 
 function Avatar({ name }: { name: string }) {
@@ -22,7 +22,12 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-function Row({ c, actions, subtitle, children }: { c: Connection; actions?: React.ReactNode; subtitle?: string; children?: React.ReactNode }) {
+function Row({ c, actions, subtitle, children, collapsible, expanded, onToggle }: {
+  c: Connection; actions?: React.ReactNode; subtitle?: string; children?: React.ReactNode;
+  /** When set, the connected-hubs are collapsed by default and toggled by `onToggle`. */
+  collapsible?: boolean; expanded?: boolean; onToggle?: () => void;
+}) {
+  const hubCount = optionalOf(c.modules ?? DEFAULT_MODULES).length;
   return (
     <div style={{ padding: '12px 0', borderTop: '1px solid var(--line)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -30,7 +35,19 @@ function Row({ c, actions, subtitle, children }: { c: Connection; actions?: Reac
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 14 }}>{c.user.name}</div>
           <div className="muted" style={{ fontSize: 12 }}>@{c.user.handle}{subtitle ? ` · ${subtitle}` : ''}</div>
-          <ModuleChips modules={c.modules ?? DEFAULT_MODULES} />
+          {/* Collapsed: a compact "N hubs" toggle. Expanded (or non-collapsible): full chips. */}
+          {hubCount === 0 ? null : collapsible ? (
+            <>
+              <button type="button" onClick={onToggle} aria-expanded={expanded}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--accent)' }}>
+                <span aria-hidden style={{ display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>▸</span>
+                {expanded ? 'Hide' : `${hubCount} connected hub${hubCount > 1 ? 's' : ''}`}
+              </button>
+              {expanded && <ModuleChips modules={c.modules ?? DEFAULT_MODULES} />}
+            </>
+          ) : (
+            <ModuleChips modules={c.modules ?? DEFAULT_MODULES} />
+          )}
         </div>
         {actions}
       </div>
@@ -101,6 +118,8 @@ export function Connections() {
   const [opening, setOpening] = useState<string | null>(null);
   const [managing, setManaging] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleOne = (id: string) => setExpanded((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const openChat = async (h: string) => {
     setOpening(h);
@@ -160,12 +179,24 @@ export function Connections() {
       )}
 
       <div className="card">
-        <div className="eyebrow">Connected · {accepted.length}</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div className="eyebrow">Connected · {accepted.length}</div>
+          {accepted.length > 0 && (() => {
+            const allExpanded = accepted.every((c) => expanded.has(c.id));
+            return (
+              <button type="button" onClick={() => setExpanded(allExpanded ? new Set() : new Set(accepted.map((c) => c.id)))}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--accent)' }}>
+                {allExpanded ? 'Collapse all' : 'Expand all'}
+              </button>
+            );
+          })()}
+        </div>
         {accepted.length === 0 ? (
           <EmptyState icon="🤝" title="No connections yet" hint="Send a request by handle above." />
         ) : (
           accepted.map((c) => (
-            <Row key={c.id} c={c} subtitle={relLabel(c.relationship) ?? undefined} actions={
+            <Row key={c.id} c={c} subtitle={relLabel(c.relationship) ?? undefined}
+              collapsible expanded={expanded.has(c.id)} onToggle={() => toggleOne(c.id)} actions={
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button size="sm" variant="line" onClick={() => { setRemoving(null); setManaging(managing === c.id ? null : c.id); }}>
                   {managing === c.id ? 'Close' : 'Manage'}
