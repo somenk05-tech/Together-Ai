@@ -2,6 +2,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useHubTheme } from '@/hooks/useHubTheme';
 import { CityHeader } from '@/components/CityHeader';
 import { RecentPanel } from '@/components/RecentPanel';
+import { HUBS } from '@/config/hubs';
+import type { HubKey } from '@/types';
 
 /** A clickable building silhouette on the pavilion-city map. */
 interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: string; cx?: number; cy?: number; rx?: number; ry?: number; }
@@ -41,6 +43,30 @@ const PAVILIONS: Pavilion[] = [
 ];
 
 const FALLBACK = PAVILIONS.slice(0, 12);
+
+/**
+ * "Walk the districts" — the hub landing heroes laid out inline on the home
+ * page, full-bleed and stacked so you scroll through them one by one. Each
+ * panel links straight INTO the hub (its first inner page), not the hub
+ * landing, so the landing isn't shown twice. Copy comes from the hub config.
+ */
+interface Panel { key: HubKey | 'ecommerce'; img: string; }
+const PANELS: Panel[] = [
+  { key: 'travel', img: 'travel-hub.webp' },
+  { key: 'astrology', img: 'astrology-hub.webp' },
+  { key: 'nutrition', img: 'nutrition-and-groceies.webp' },
+  { key: 'social', img: 'social-life.webp' },
+  { key: 'dating', img: 'dating-hub.webp' },
+  { key: 'entertainment', img: 'entertainment.webp' },
+  { key: 'realestate', img: 'real-estate.webp' },
+  { key: 'jobs', img: 'jobs-hub.webp' },
+  { key: 'medical', img: 'medical-hub.webp' },
+  { key: 'beauty', img: 'beautymarket.webp' },
+  { key: 'fitness', img: 'fitness-hero.webp' },
+  { key: 'financial', img: 'financial-district.webp' },
+  { key: 'cars', img: 'cars-hub.webp' },
+  { key: 'ecommerce', img: 'e-commerce.webp' },
+];
 
 /** City home — the pavilion city, ported 1:1 from index.html. */
 export function Home() {
@@ -109,29 +135,40 @@ export function Home() {
 
         {/* ============ CONTINUE WHERE YOU LEFT OFF ============ */}
         <RecentPanel />
+      </div>
 
-        {/* ============ WALK THE DISTRICTS ============ */}
-        <section className="blk">
+      {/* ============ WALK THE DISTRICTS — full-bleed hub heroes, stacked ============ */}
+      <section aria-label="Walk the districts">
+        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '8px 32px 22px' }}>
           <div className="blk-head"><h2>Walk the districts</h2><Link className="more" to="/social/feed">Your city today →</Link></div>
-          <div className="grid3">
-            {PAVILIONS.map((p) => {
-              const inner = (
-                <>
-                  <div className="ph"><img src={img(p.img)} alt={`${p.title} pavilion`} /></div>
-                  <div className="pb">
-                    <h4>{p.title}{p.soon && <span className="tag soon" style={{ marginLeft: 8 }}>Coming soon</span>}</h4>
-                    <p className="meta">{p.meta}</p>
-                    <p className="muted" style={{ fontSize: 13 }}>{p.blurb}</p>
-                  </div>
-                </>
-              );
-              return p.soon
-                ? <div key={p.title} className="pcard" style={{ cursor: 'default' }}>{inner}</div>
-                : <Link key={p.to} className="pcard" to={p.to}>{inner}</Link>;
-            })}
-          </div>
-        </section>
+        </div>
+        {PANELS.map((p) => {
+          const panelStyle: React.CSSProperties = {
+            position: 'relative', display: 'flex', alignItems: 'flex-end',
+            minHeight: 'clamp(460px, 84vh, 900px)', color: '#fff', overflow: 'hidden', textDecoration: 'none',
+          };
+          const copy = (eyebrow: string, tag: string, label: string, soon: boolean) => (
+            <>
+              <img src={img(p.img)} alt="" loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(8,9,8,.84) 0%, rgba(8,9,8,.28) 42%, rgba(8,9,8,.08) 100%)' }} />
+              <div style={{ position: 'relative', zIndex: 2, padding: '0 clamp(24px,6vw,96px) clamp(44px,7vh,84px)', maxWidth: 1000 }}>
+                <div className="eyebrow" style={{ color: 'var(--gold-bright)' }}>{eyebrow}</div>
+                <h2 style={{ color: '#fff', fontSize: 'clamp(30px,4.6vw,58px)', lineHeight: 1.08, maxWidth: '16ch', margin: '6px 0 0', textShadow: '0 2px 24px rgba(0,0,0,.45)' }}>{tag}</h2>
+                <span className="btn btn-gold" style={{ marginTop: 26, display: 'inline-block' }}>{label}{soon ? '' : ' →'}</span>
+              </div>
+            </>
+          );
+          if (p.key === 'ecommerce') {
+            return <div key="ecommerce" style={{ ...panelStyle, cursor: 'default' }}>{copy('E-Commerce', 'Vetted products. Only the best.', 'Coming soon', true)}</div>;
+          }
+          const cfg = HUBS[p.key];
+          const soon = cfg.items.length === 0;              // cars (teaser) has no inner pages yet
+          const cta = cfg.items[0]?.path ?? cfg.backPath;   // straight into the hub, not its landing
+          return <Link key={p.key} to={cta} style={panelStyle}>{copy(cfg.name, cfg.tag, soon ? 'Coming soon' : 'Explore now', soon)}</Link>;
+        })}
+      </section>
 
+      <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '48px 32px 24px' }}>
         <div className="trust">
           <span>◈ One identity, every hub</span>
           <span>◈ Curated, never cluttered</span>
