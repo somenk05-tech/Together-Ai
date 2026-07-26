@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useRef, useState, type CSSProperties } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
 import { successToast } from '@/components/form-validation';
@@ -19,25 +19,54 @@ function matchLabel(score: number): { label: string; blurb: string } {
   return { label: 'Good Match', blurb: 'Some real things in common — see where it goes.' };
 }
 
-/** Photo collage: tall hero + up to two stacked on the right, with identity overlay. */
+/** Swipeable photo gallery — matched users can slide/scroll through every photo.
+ *  Swipe (touch), tap the left/right half, use the dots, or click a thumbnail. */
 function Collage({ d }: { d: MatchDetail }) {
   const photos = d.photos ?? [];
-  const hero = photos[0];
-  const right = photos.slice(1, 3);
+  const n = photos.length;
+  const [i, setI] = useState(0);
+  const touchX = useRef<number | null>(null);
+  const active = Math.min(i, Math.max(0, n - 1));
+  const go = (delta: number) => setI((x) => (n ? (x + delta + n) % n : 0));
   const goal = d.relationshipGoal || 'a connection';
   const location = [d.city, d.state].filter(Boolean).join(', ');
+
+  const onTouchStart = (e: React.TouchEvent) => { touchX.current = e.touches[0].clientX; };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchX.current == null) return;
+    const dx = e.changedTouches[0].clientX - touchX.current;
+    if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
+    touchX.current = null;
+  };
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: right.length ? '1.5fr 1fr' : '1fr', gap: 10 }}>
-      <div style={{ ...photoBox, aspectRatio: right.length ? '3 / 4' : '16 / 10' }}>
-        {hero
-          ? <img src={hero} alt={d.name} style={cover} />
+    <div>
+      <div style={{ ...photoBox, aspectRatio: '4 / 5', touchAction: 'pan-y' }} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        {photos[active]
+          ? <img src={photos[active]} alt={`${d.name} photo ${active + 1}`} style={cover} draggable={false} />
           : <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 64, color: 'var(--accent)', background: 'var(--accent-soft)', fontFamily: 'var(--serif)' }}>{d.name.slice(0, 1)}</div>}
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12,10,9,.86) 0%, rgba(12,10,9,.22) 46%, transparent 72%)' }} />
-        {/* Intentional Dating badge */}
-        <span style={{ position: 'absolute', top: 12, left: 12, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', fontSize: 11.5, fontWeight: 700, borderRadius: 999, padding: '6px 12px', boxShadow: '0 2px 8px rgba(0,0,0,.3)' }}>
+
+        {/* tap zones for prev/next */}
+        {n > 1 && <>
+          <button type="button" aria-label="Previous photo" onClick={() => go(-1)} style={{ position: 'absolute', inset: '0 62% 22% 0', border: 'none', background: 'transparent', cursor: 'pointer' }} />
+          <button type="button" aria-label="Next photo" onClick={() => go(1)} style={{ position: 'absolute', inset: '0 0 22% 62%', border: 'none', background: 'transparent', cursor: 'pointer' }} />
+        </>}
+
+        {/* progress dots */}
+        {n > 1 && (
+          <div style={{ position: 'absolute', top: 10, left: 12, right: 12, display: 'flex', gap: 4 }}>
+            {photos.map((_, k) => (
+              <button key={k} type="button" aria-label={`Photo ${k + 1}`} onClick={() => setI(k)}
+                style={{ flex: 1, height: 3, borderRadius: 2, border: 'none', padding: 0, cursor: 'pointer', background: k === active ? '#fff' : 'rgba(255,255,255,.42)' }} />
+            ))}
+          </div>
+        )}
+
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12,10,9,.86) 0%, rgba(12,10,9,.22) 46%, transparent 72%)', pointerEvents: 'none' }} />
+        <span style={{ position: 'absolute', top: 22, left: 12, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', fontSize: 11.5, fontWeight: 700, borderRadius: 999, padding: '6px 12px', boxShadow: '0 2px 8px rgba(0,0,0,.3)' }}>
           <span aria-hidden>✦</span> Intentional Dating
         </span>
-        <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: '#fff' }}>
+        <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: '#fff', pointerEvents: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--serif)', fontSize: 29, fontWeight: 700, lineHeight: 1.05, textShadow: '0 2px 14px rgba(0,0,0,.5)' }}>
             <span>{d.name}{d.age ? `, ${d.age}` : ''}</span>
             {d.verified && <span aria-label="Verified" title="Camera-verified" style={{ display: 'inline-grid', placeItems: 'center', width: 22, height: 22, borderRadius: '50%', background: '#2f9be6', color: '#fff', fontSize: 13, flex: 'none' }}>✓</span>}
@@ -53,9 +82,17 @@ function Collage({ d }: { d: MatchDetail }) {
           )}
         </div>
       </div>
-      {right.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateRows: right.length > 1 ? '1fr 1fr' : '1fr', gap: 10 }}>
-          {right.map((p, i) => <div key={i} style={{ ...photoBox, minHeight: 120 }}><img src={p} alt="" style={cover} /></div>)}
+
+      {/* Thumbnail strip — scroll/click through every photo */}
+      {n > 1 && (
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '10px 2px 2px', WebkitOverflowScrolling: 'touch' }}>
+          {photos.map((p, k) => (
+            <button key={k} type="button" onClick={() => setI(k)} aria-label={`Show photo ${k + 1}`}
+              style={{ flex: 'none', width: 58, height: 58, borderRadius: 10, overflow: 'hidden', padding: 0, cursor: 'pointer',
+                border: `2px solid ${k === active ? 'var(--accent)' : 'transparent'}`, opacity: k === active ? 1 : 0.75, background: 'none' }}>
+              <img src={p} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </button>
+          ))}
         </div>
       )}
     </div>

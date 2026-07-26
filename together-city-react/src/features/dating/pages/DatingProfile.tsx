@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
 import { useFormValidation, ValidationSummary, FieldError, successToast } from '@/components/form-validation';
 import { Button, Spinner } from '@/components/ui';
 import { SearchSelect } from '@/components/SearchSelect';
@@ -510,7 +509,7 @@ export function DatingProfilePage() {
           {/* Footer */}
           <div style={{ marginTop: 18, background: 'var(--paper)', borderRadius: 14, padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 9, fontSize: 12.5 }}>
             <span aria-hidden style={{ color: 'var(--accent)' }}>✨</span>
-            <span className="muted">Matches also see your live compatibility score with you. This profile also appears on your <Link to="/profile" style={{ color: 'var(--accent)', fontWeight: 700 }}>main profile</Link>.</span>
+            <span className="muted">Matches also see your live compatibility score with you.</span>
           </div>
         </div>
       </div>
