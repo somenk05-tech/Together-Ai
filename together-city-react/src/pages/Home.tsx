@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useHubTheme } from '@/hooks/useHubTheme';
 import { CityHeader } from '@/components/CityHeader';
@@ -75,18 +74,6 @@ export function Home() {
   const navigate = useNavigate();
   const img = (f: string) => `/assets/img/${f}`;
 
-  // Scroll-snap the "Walk the districts" panels one-per-screen, like the Webflow
-  // scroll-snap demo. Scoped to the home page (set on <html> here, cleared on
-  // unmount) with `proximity` so the hero/welcome above still scroll freely.
-  useEffect(() => {
-    const el = document.documentElement;
-    const prevType = el.style.scrollSnapType;
-    const prevPad = el.style.scrollPaddingTop;
-    el.style.scrollSnapType = 'y proximity';
-    el.style.scrollPaddingTop = 'calc(var(--header-h) + var(--safe-top))';
-    return () => { el.style.scrollSnapType = prevType; el.style.scrollPaddingTop = prevPad; };
-  }, []);
-
   return (
     <div>
       {/* ============ THE PAVILION CITY ============ */}
@@ -158,8 +145,7 @@ export function Home() {
         {PANELS.map((p) => {
           const panelStyle: React.CSSProperties = {
             position: 'relative', display: 'flex', alignItems: 'flex-end',
-            minHeight: 'calc(100vh - var(--header-h) - var(--safe-top))', color: '#fff', overflow: 'hidden', textDecoration: 'none',
-            scrollSnapAlign: 'start', scrollSnapStop: 'always',
+            minHeight: 'clamp(460px, 84vh, 900px)', color: '#fff', overflow: 'hidden', textDecoration: 'none',
           };
           const copy = (eyebrow: string, tag: string, label: string, soon: boolean) => (
             <>
