@@ -69,12 +69,25 @@ export function SignIn() {
   };
 
   const field: React.CSSProperties = { width: '100%', padding: '13px 14px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, marginBottom: 10, fontFamily: 'inherit', boxSizing: 'border-box' };
-  const title = mode === 'login' ? 'Welcome back' : mode === 'forgot' ? 'Recover your account' : 'Set a new password';
+  const title = mode === 'login' ? 'Welcome to Together City' : mode === 'forgot' ? 'Recover your account' : 'Set a new password';
   const cta = busy ? 'One moment…' : mode === 'login' ? 'Sign in' : mode === 'forgot' ? (channel === 'sms' ? 'Text me a code' : 'Email me a code') : 'Reset password';
 
   return (
-    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
-      <div className="card" style={{ width: 'min(420px, 92vw)' }}>
+    <div style={{ position: 'relative', minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, overflow: 'hidden' }}>
+      {/* Moving Together City backdrop behind the glass sign-in card. */}
+      <video autoPlay muted loop playsInline preload="auto" poster="/assets/img/final-homepage.webp"
+        aria-hidden="true"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}>
+        <source src="/assets/video/together-city-loop.webm" type="video/webm" />
+        <source src="/assets/video/together-city-loop.mp4" type="video/mp4" />
+      </video>
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(18,18,16,.30), rgba(18,18,16,.42))', zIndex: 0 }} />
+      <div className="card" style={{
+        position: 'relative', zIndex: 1, width: 'min(420px, 92vw)',
+        background: 'rgba(255,255,255,.52)',
+        backdropFilter: 'blur(24px) saturate(1.4)', WebkitBackdropFilter: 'blur(24px) saturate(1.4)',
+        border: '1px solid rgba(255,255,255,.65)', boxShadow: '0 28px 80px rgba(0,0,0,.38)',
+      }}>
         {mode === 'register' ? (
           <RegisterForm onBackToLogin={() => { setMode('login'); setError(null); setNotice(null); }} from={from} />
         ) : (
@@ -82,7 +95,7 @@ export function SignIn() {
             <div className="eyebrow" style={{ textAlign: 'center' }}>Together City</div>
             <h1 style={{ fontSize: 28, marginBottom: 6, textAlign: 'center' }}>{title}</h1>
             <p className="muted" style={{ fontSize: 13.5, marginBottom: 20, textAlign: 'center' }}>
-              {mode === 'forgot' || mode === 'reset' ? 'Recovery goes to your primary email or phone.' : 'One identity across every part of life.'}
+              {mode === 'forgot' || mode === 'reset' ? 'Recovery goes to your primary email or phone.' : 'The world’s largest digital city. Everything. Personalized.'}
             </p>
 
             <form onSubmit={submit}>

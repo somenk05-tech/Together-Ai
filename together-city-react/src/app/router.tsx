@@ -166,6 +166,7 @@ const SignIn = lazy(() => import('@/features/auth/pages/SignIn').then((m) => ({ 
 const Verify = lazy(() => import('@/features/auth/pages/Verify').then((m) => ({ default: m.Verify })));
 const PrivacySettings = lazy(() => import('@/features/privacy/pages/PrivacySettings').then((m) => ({ default: m.PrivacySettings })));
 const Info = lazy(() => import('@/pages/Info').then((m) => ({ default: m.Info })));
+const LegalCenter = lazy(() => import('@/features/legal/LegalCenter').then((m) => ({ default: m.LegalCenter })));
 
 // Every lazy page is wrapped so a stale code-split chunk (after a new deploy)
 // auto-recovers instead of leaving a blank page.
@@ -204,6 +205,8 @@ export const router = createBrowserRouter([
       { path: '/profile', element: <RequireAuth>{wrap(<Profile />)}</RequireAuth> },
       { path: '/settings', element: <RequireAuth>{wrap(<Settings />)}</RequireAuth> },
       { path: '/settings/privacy', element: <RequireAuth>{wrap(<PrivacySettings />)}</RequireAuth> },
+      { path: '/legal', element: wrap(<LegalCenter />) },
+      { path: '/legal/policy/:policyId', element: wrap(<LegalCenter />) },
       { path: '/legal/privacy', element: wrap(<Info slug="privacy" />) },
       { path: '/legal/terms', element: wrap(<Info slug="terms" />) },
       { path: '/about', element: wrap(<Info slug="about" />) },
