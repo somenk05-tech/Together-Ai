@@ -271,43 +271,113 @@ export function DatingProfilePage() {
   ) : null;
 
   if (collapsed && saved) {
-    const rows: [string, string][] = [
-      ['Name', dx.firstName || '—'],
-      ['Looking for', dx.relationshipGoal || '—'],
-      ['Location', [dx.city, dx.state, dx.country].filter(Boolean).join(', ') || '—'],
-      ['Height', dx.heightCm ? `${dx.heightCm} cm` : '—'],
-      ['Languages', (dx.languages ?? []).join(', ') || '—'],
-      ['Interests', (form.interests ?? []).join(', ') || '—'],
-      ['Personality', (dx.personalityTraits ?? []).join(', ') || '—'],
-      ['Values', (dx.values ?? []).join(', ') || '—'],
-      ['Photos', `${photos.length}`],
-      ['Your sign', data?.sign ?? '—'],
-      ['Visibility', VIS_OPTIONS.find((o) => o.key === visibility)?.label ?? 'Visible to everyone who matches'],
+    const displayName = dx.firstName || 'Your profile';
+    const verified = Boolean(dx.selfieVerified);
+    const goal = dx.relationshipGoal || 'a connection';
+    const location = [dx.city, dx.state, dx.country].filter(Boolean).join(', ');
+    const sign = data?.sign ?? '—';
+    const hero = photos[0];
+    const rightPhotos = photos.slice(1, 3);
+    const visibilityLabel = VIS_OPTIONS.find((o) => o.key === visibility)?.label ?? 'Visible to everyone who matches';
+    const or = (s: string) => s || '—';
+
+    const stats: [string, string, string][] = [
+      ['📏', 'Height', dx.heightCm ? `${dx.heightCm} cm` : '—'],
+      ['🌐', 'Languages', or((dx.languages ?? []).join(', '))],
+      ['✦', 'Zodiac Sign', sign],
     ];
+    const cells: [string, string, string][] = [
+      ['🎬', 'Interests', or((form.interests ?? []).join(', '))],
+      ['📷', 'Photos', `${photos.length} ${photos.length === 1 ? 'photo' : 'photos'}`],
+      ['❤', 'Personality', or((dx.personalityTraits ?? []).join(', '))],
+      ['✎', 'Your sign', sign],
+      ['✦', 'Values', or((dx.values ?? []).join(', '))],
+      ['👁', 'Visibility', visibilityLabel],
+    ];
+
+    const photoBox: React.CSSProperties = { position: 'relative', borderRadius: 16, overflow: 'hidden', background: 'var(--paper)' };
+    const cover: React.CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' };
+
     return (
-      <div style={{ maxWidth: 560, margin: '0 auto', padding: '28px 16px' }}>
-        <div className="eyebrow">Dating Hub · Your profile</div>
-        <h1 style={{ fontSize: 26 }}>Tell the stars about you</h1>
-        <PrivacyNote hub="dating" style={{ margin: '10px 0 14px' }} />
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px 40px' }}>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>Dating Hub · Your profile</div>
         <StatusBanner />
-        <CompletionCard completion={completion} />
-        <div className="card" style={{ marginTop: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ margin: 0 }}>Your dating profile</h3>
-            <Button variant="line" size="sm" onClick={() => setCollapsed(false)}>Edit Profile</Button>
+        {completion && !completion.complete && <CompletionCard completion={completion} />}
+
+        <div className="card" style={{ marginTop: 14, padding: 16, borderRadius: 22 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+            <button type="button" onClick={() => setCollapsed(false)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13.5,
+                color: 'var(--accent)', background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 999, padding: '9px 18px' }}>
+              Edit Profile <span aria-hidden>✎</span>
+            </button>
           </div>
-          {photos.length > 0 && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '12px 0' }}>
-              {photos.slice(0, 6).map((p, i) => <img key={i} src={p} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover' }} />)}
+
+          {/* Photo collage + identity overlay */}
+          <div style={{ display: 'grid', gridTemplateColumns: rightPhotos.length ? '1.5fr 1fr' : '1fr', gap: 10 }}>
+            <div style={{ ...photoBox, aspectRatio: rightPhotos.length ? '3 / 4' : '16 / 10' }}>
+              {hero
+                ? <img src={hero} alt={displayName} style={cover} />
+                : <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 64, color: 'var(--accent)', background: 'var(--accent-soft)', fontFamily: 'var(--serif)' }}>{displayName.slice(0, 1)}</div>}
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12,10,9,.86) 0%, rgba(12,10,9,.22) 46%, transparent 72%)' }} />
+              <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: '#fff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--serif)', fontSize: 30, fontWeight: 700, lineHeight: 1.05, textShadow: '0 2px 14px rgba(0,0,0,.5)' }}>
+                  <span>{displayName}</span>
+                  {verified && <span aria-label="Verified" title="Verified" style={{ display: 'inline-grid', placeItems: 'center', width: 22, height: 22, borderRadius: '50%', background: '#2f9be6', color: '#fff', fontSize: 13, flex: 'none' }}>✓</span>}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 14.5, marginTop: 4, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
+                  Looking for <strong style={{ color: '#f4a9b2', fontWeight: 700 }}>{goal}</strong>
+                  <span aria-hidden style={{ color: '#f4a9b2' }}>♥</span>
+                </div>
+                {location && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 600, marginTop: 7, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
+                    <span aria-hidden>📍</span>{location}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-          {rows.map(([k, v]) => (
-            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '9px 0', borderTop: '1px solid var(--line)' }}>
-              <span className="muted" style={{ fontSize: 12.5, flexShrink: 0 }}>{k}</span>
-              <span style={{ fontSize: 13, textAlign: 'right' }}>{v}</span>
-            </div>
-          ))}
-          <p className="muted" style={{ fontSize: 11.5, marginTop: 12 }}>This also appears on your <Link to="/profile" style={{ color: 'var(--accent)', fontWeight: 600 }}>main profile</Link>.</p>
+
+            {rightPhotos.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateRows: rightPhotos.length > 1 ? '1fr 1fr' : '1fr', gap: 10 }}>
+                {rightPhotos.map((p, i) => (
+                  <div key={i} style={{ ...photoBox, minHeight: 120 }}>
+                    <img src={p} alt="" style={cover} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Stat strip */}
+          <div style={{ marginTop: 14, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 16, padding: '14px 4px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
+            {stats.map(([icon, k, v], i) => (
+              <div key={k} style={{ padding: '2px 16px', borderLeft: i ? '1px solid var(--line)' : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--muted)', fontSize: 12.5 }}>
+                  <span aria-hidden style={{ color: 'var(--accent)' }}>{icon}</span>{k}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, marginTop: 5 }}>{v}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Detail grid */}
+          <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+            {cells.map(([icon, k, v], i) => (
+              <div key={k} style={{ display: 'flex', gap: 12, padding: '16px 2px', borderTop: i > 1 ? '1px solid var(--line)' : 'none' }}>
+                <span aria-hidden style={{ color: 'var(--accent)', fontSize: 16, marginTop: 1, flex: 'none' }}>{icon}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{k}</div>
+                  <div className="muted" style={{ fontSize: 13, marginTop: 3, lineHeight: 1.45 }}>{v}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Footer */}
+          <div style={{ marginTop: 10, background: 'var(--accent-soft)', borderRadius: 14, padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 9, fontSize: 12.5 }}>
+            <span aria-hidden style={{ color: 'var(--accent)' }}>✦</span>
+            <span className="muted">This also appears on your <Link to="/profile" style={{ color: 'var(--accent)', fontWeight: 700 }}>main profile</Link>.</span>
+          </div>
         </div>
       </div>
     );
