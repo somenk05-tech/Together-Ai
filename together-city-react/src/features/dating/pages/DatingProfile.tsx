@@ -246,7 +246,11 @@ function SelfieVerify({ verified, onCapture, onClear }: {
   );
 }
 
-function resizePhoto(file: File, maxDim = 720): Promise<string> {
+// Photos are shown large as the profile hero (and at 2× on retina screens), so
+// store them at a resolution that stays crisp when enlarged — not just as
+// thumbnails. 1080px @ q0.82 keeps the hero sharp while bounding payload size
+// (photos live base64-encoded inside the 2 MB extras blob).
+function resizePhoto(file: File, maxDim = 1080): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image(); const url = URL.createObjectURL(file);
     img.onload = () => {
@@ -254,8 +258,9 @@ function resizePhoto(file: File, maxDim = 720): Promise<string> {
       const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
       const c = document.createElement('canvas'); c.width = w; c.height = h;
       const ctx = c.getContext('2d'); if (!ctx) { reject(new Error('no canvas')); return; }
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, w, h); URL.revokeObjectURL(url);
-      resolve(c.toDataURL('image/jpeg', 0.8));
+      resolve(c.toDataURL('image/jpeg', 0.82));
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
     img.src = url;
