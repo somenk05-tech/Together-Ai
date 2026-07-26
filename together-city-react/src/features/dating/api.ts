@@ -125,7 +125,16 @@ export const datingApi = {
   pass: (targetUserId: string, kind: MatchKind) =>
     api.post<{ ok: boolean }>(`/dating/matches/${targetUserId}/pass`, { kind }).then((r) => r.data),
   chats: () => api.get<DatingChatSummary[]>('/dating/chats').then((r) => r.data),
+  stack: (kind: MatchKind) => api.get<DatingStack>('/dating/stack', { params: { kind } }).then((r) => r.data),
 };
+
+export interface CompatibilityBand { label: string; min: number; max: number; count: number }
+export interface DatingStack {
+  engaged: boolean;
+  distribution: CompatibilityBand[];
+  top: CuratedMatch | null;
+  totalCandidates: number;
+}
 
 export interface DatingChatSummary {
   conversationId: string;
@@ -225,6 +234,7 @@ export function useLikeMatch(kind: MatchKind) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] });
       void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'stack', kind] });
     },
   });
 }
@@ -246,6 +256,7 @@ export function usePassMatch(kind: MatchKind) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] });
       void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'stack', kind] });
     },
   });
 }
@@ -256,6 +267,7 @@ export function useConnectChat(kind: MatchKind) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['dating', 'chats'] });
       void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'stack', kind] });
       void qc.invalidateQueries({ queryKey: ['financial'] });
     },
   });
@@ -268,6 +280,7 @@ export function useUnmatch(kind: MatchKind) {
       void qc.invalidateQueries({ queryKey: ['dating', 'chats'] });
       void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
       void qc.invalidateQueries({ queryKey: ['dating', 'match', kind] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'stack', kind] });
     },
   });
 }
@@ -280,4 +293,7 @@ export function useRevealMatch() {
 }
 export function useDatingChats() {
   return useQuery({ queryKey: ['dating', 'chats'], queryFn: () => datingApi.chats(), refetchInterval: 15_000 });
+}
+export function useDatingStack(kind: MatchKind, enabled = true) {
+  return useQuery({ queryKey: ['dating', 'stack', kind], queryFn: () => datingApi.stack(kind), enabled, refetchInterval: 30_000 });
 }

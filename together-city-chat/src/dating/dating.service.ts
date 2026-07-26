@@ -526,6 +526,97 @@ export class DatingService {
     };
   }
 
+  /**
+   * Intentional-dating "stack" (audit / product): instead of an endless list, the
+   * user is shown only their SINGLE highest-compatibility match, plus a breakdown
+   * of how many potential matches sit in each compatibility band (90–100, 80–90 …
+   * 20–30). As more residents join, a stronger top match stacks up on top. The
+   * stack is meaningful only when the user is NOT already chatting with someone —
+   * `engaged` tells the client to hide it and focus the current conversation.
+   */
+  async stack(userId: string, kind: MatchKind) {
+    const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
+    if (!mine) throw new NotFoundException('create your dating profile first');
+
+    // Already chatting with someone? (one active dating conversation at a time)
+    const engagedRow = await this.prisma.datingMatch.findFirst({
+      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null } } as never,
+    });
+    const engaged = Boolean(engagedRow);
+
+    const candidates = await this.prisma.datingProfile.findMany({
+      where: { userId: { not: userId }, visible: true, moderation: 'approved' } as never,
+      include: { user: { select: { id: true, handle: true, name: true, profileImage: true } } },
+    });
+    const states = await this.prisma.datingMatch.findMany({
+      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], kind },
+    });
+    const stateFor = (otherId: string) => states.find((s) => s.userOneId === otherId || s.userTwoId === otherId);
+    const myD = this.parseDX((mine as { extras?: string | null }).extras);
+    const excluded = await this.connectionExclusions(userId);
+    const myInterests = this.splitInterests(mine.interests);
+
+    const cards: Array<Record<string, unknown> & { score: number }> = [];
+    for (const cand of candidates) {
+      if (excluded.has(cand.userId)) continue;
+      const state = stateFor(cand.userId);
+      if (state && this.passedBy(state, userId)) continue;
+      if (state?.status === 'matched') continue;
+
+      if (kind === 'romantic') {
+        const iWant = mine.seeking === 'any' || mine.seeking === cand.gender;
+        const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
+        if (!iWant || !theyWant) continue;
+        const theirAge = this.ageOf(cand.birthDate);
+        const theirD = this.parseDX((cand as { extras?: string | null }).extras);
+        if (hardFilterReason(myD, theirD, theirAge)) continue;
+      }
+
+      const { score: astro, signA, signB } = compatibilityScore(
+        { userId, birthDate: mine.birthDate, interests: myInterests },
+        { userId: cand.userId, birthDate: cand.birthDate, interests: this.splitInterests(cand.interests) },
+      );
+      const theirInterests = this.splitInterests(cand.interests);
+      const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & { photos?: string[] };
+      const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
+      const score = overallScore(breakdown);
+      if (score < 20) continue;
+      if (candDX.visibility === 'threshold' && score < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
+
+      const candPhotos = candDX.photos ?? [];
+      const photos = (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, 6);
+      cards.push({
+        matchId: state?.id ?? null,
+        user: cand.user,
+        bio: cand.bio,
+        interests: theirInterests,
+        photos,
+        age: this.ageOf(cand.birthDate),
+        yourSign: signA,
+        theirSign: signB,
+        score,
+        breakdown,
+        reasons: explain(breakdown, sharedItems(myInterests, theirInterests)),
+        likedByMe: state ? this.likedBy(state, userId) : false,
+        matched: false,
+        conversationId: state?.conversationId ?? null,
+      });
+    }
+
+    // Compatibility-band histogram: 90–100, 80–90 … 20–30 (highest first).
+    const bands = [[90, 101], [80, 90], [70, 80], [60, 70], [50, 60], [40, 50], [30, 40], [20, 30]];
+    const distribution = bands.map(([lo, hi]) => ({
+      label: `${lo}–${hi === 101 ? 100 : hi}`,
+      min: lo,
+      max: hi === 101 ? 100 : hi,
+      count: cards.filter((c) => c.score >= lo && c.score < hi).length,
+    }));
+
+    const top = cards.sort((a, b) => b.score - a.score)[0] ?? null;
+
+    return { engaged, distribution, top, totalCandidates: cards.length };
+  }
+
   private parseDX(extras: string | null | undefined): DXProfile {
     try { return extras ? (JSON.parse(extras) as DXProfile) : {}; } catch { return {}; }
   }

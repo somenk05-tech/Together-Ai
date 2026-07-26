@@ -44,6 +44,12 @@ export class DatingController {
     return this.dating.discover(user.sub, kind);
   }
 
+  @Get('stack')
+  stack(@CurrentUser() user: JwtUser, @Query() query: Record<string, unknown>) {
+    const { kind } = parseOrThrow(MatchesQuerySchema, query);
+    return this.dating.stack(user.sub, kind);
+  }
+
   @Get('matches/:targetUserId')
   matchDetail(@CurrentUser() user: JwtUser, @Param('targetUserId') targetUserId: string, @Query() query: Record<string, unknown>) {
     const { kind } = parseOrThrow(MatchesQuerySchema, query);

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { AiSuggestions } from '@/components/AiSuggestions';
 import {
-  useDatingProfile, useLikeMatch, useDiscover, usePassMatch, type CuratedMatch, type MatchKind, type DiscoverSection,
+  useDatingProfile, useLikeMatch, usePassMatch, useDatingStack, useDatingChats,
+  type CuratedMatch, type MatchKind, type CompatibilityBand, type DatingChatSummary,
 } from '../api';
 
 function ScoreRing({ score }: { score: number }) {
@@ -157,30 +157,59 @@ function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
 }
 
 /** One titled group of match cards — curated, recommended, or a discovery pool. */
-function MatchSection({ section, kind }: { section: DiscoverSection; kind: MatchKind }) {
-  const badge = section.tier === 'ideal' ? { text: '75%+', bg: 'var(--accent-soft)', fg: 'var(--accent)' }
-    : section.tier === 'recommended' ? { text: 'Early days', bg: '#faf3e0', fg: '#8a6a1f' }
-    : { text: 'Discover', bg: 'var(--paper)', fg: 'var(--muted)' };
+/** Compatibility-band histogram: how many potential matches sit in each band. */
+function Distribution({ bands, total }: { bands: CompatibilityBand[]; total: number }) {
+  const max = Math.max(1, ...bands.map((b) => b.count));
   return (
-    <section style={{ marginBottom: 26 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 4px' }}>
-        <h2 style={{ fontSize: 18, margin: 0 }}>{section.label}</h2>
-        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em',
-          background: badge.bg, color: badge.fg, borderRadius: 999, padding: '2px 9px' }}>{badge.text}</span>
-        <span className="muted" style={{ fontSize: 12, marginLeft: 'auto' }}>{section.matches.length}</span>
+    <div className="card" style={{ marginBottom: 18, padding: '16px 18px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+        <h2 style={{ fontSize: 16, margin: 0 }}>Your match pool</h2>
+        <span className="muted" style={{ fontSize: 12.5 }}>{total} potential {total === 1 ? 'match' : 'matches'}</span>
       </div>
-      <p className="muted" style={{ fontSize: 12.5, margin: '0 0 12px', lineHeight: 1.5 }}>{section.note}</p>
-      {section.matches.map((m) => <MatchCard key={m.user.id} match={m} kind={kind} />)}
-    </section>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {bands.map((b) => (
+          <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ width: 52, fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', flex: 'none' }}>{b.label}%</span>
+            <div style={{ flex: 1, height: 16, borderRadius: 999, background: 'var(--paper)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${b.count ? Math.max(5, (b.count / max) * 100) : 0}%`, background: 'var(--accent)', opacity: 0.35 + 0.6 * (b.min / 100), borderRadius: 999 }} />
+            </div>
+            <span style={{ width: 30, textAlign: 'right', fontSize: 12.5, fontWeight: 700, flex: 'none' }}>{b.count}</span>
+          </div>
+        ))}
+      </div>
+      <p className="muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.5 }}>
+        Intentional dating — you meet your single strongest match first. As more residents join, an even stronger match rises to the top.
+      </p>
+    </div>
   );
 }
 
-/** Curated Matches (romantic) / New Friends (platonic) — with a low-density
- *  discovery mode so a new market never opens to an empty hub (audit 6.1). */
+/** Shown while the user already has an active dating chat — the stack is hidden
+ *  so they focus on that one connection. */
+function EngagedPanel({ chat }: { chat: DatingChatSummary | null }) {
+  return (
+    <div className="card" style={{ padding: '22px 20px', textAlign: 'center' }}>
+      <div style={{ fontSize: 34 }}>💬</div>
+      <h2 style={{ fontSize: 18, margin: '6px 0 4px' }}>You’re getting to know {chat ? chat.name : 'someone'}</h2>
+      <p className="muted" style={{ fontSize: 13, margin: '0 auto 16px', maxWidth: 380, lineHeight: 1.55 }}>
+        Intentional dating means one conversation at a time. Your match stack is paused while you focus here — new matches will be waiting when you’re ready.
+      </p>
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <Link to={chat ? `/dating/chats?c=${chat.conversationId}` : '/dating/chats'}><Button variant="accent">Open your chat</Button></Link>
+        <Link to="/dating/chats"><Button variant="line">Dating chats</Button></Link>
+      </div>
+      <p className="muted" style={{ fontSize: 11.5, marginTop: 14 }}>To meet someone new, unmatch your current chat first.</p>
+    </div>
+  );
+}
+
+/** Curated Matches (romantic) / New Friends (platonic) — intentional-dating stack:
+ *  a compatibility-band breakdown of the pool + your single strongest match. */
 export function DatingMatches() {
   const [kind, setKind] = useState<MatchKind>('romantic');
   const profile = useDatingProfile();
-  const discover = useDiscover(kind, Boolean(profile.data));
+  const stack = useDatingStack(kind, Boolean(profile.data));
+  const chats = useDatingChats();
 
   if (profile.isLoading) return <Spinner label="Consulting the stars…" />;
 
@@ -199,17 +228,17 @@ export function DatingMatches() {
     );
   }
 
+  const engaged = (stack.data?.engaged ?? false) || (chats.data?.length ?? 0) > 0;
+  const activeChat = chats.data?.[0] ?? null;
+  const top = stack.data?.top ?? null;
+
   return (
     <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
       <div className="eyebrow">Dating Hub</div>
       <h1 style={{ fontSize: 26 }}>{kind === 'romantic' ? 'Curated Matches' : 'New Friends'}</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
-        {discover.data?.lowDensity
-          ? 'Curated, not endless. Your city is still growing, so alongside any strong matches we surface recommended and nearby residents to discover — clearly labelled, never padded as perfect matches.'
-          : 'Curated, not endless — the AI shows only genuine matches (75%+), ranked by compatibility. Pass or match, and the list stays current.'}
+        Curated, not endless — you meet your single strongest match, not an endless list. Below is how your whole match pool breaks down by compatibility.
       </p>
-
-      <AiSuggestions kind="astrology" />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
         {(['romantic', 'platonic'] as MatchKind[]).map((k) => (
@@ -228,15 +257,30 @@ export function DatingMatches() {
         ))}
       </div>
 
-      {discover.isLoading && <Spinner label="Scoring compatibility…" />}
-      {discover.data && discover.data.sections.length === 0 && (
-        <EmptyState
-          icon="🌙"
-          title={kind === 'romantic' ? 'No one to show just yet' : 'No new friends to show yet'}
-          hint="Your city is just getting started here. As more residents join, matches and people to discover will appear — check back soon."
-        />
+      {stack.isLoading ? (
+        <Spinner label="Scoring compatibility…" />
+      ) : engaged ? (
+        <EngagedPanel chat={activeChat} />
+      ) : (
+        <>
+          {stack.data && <Distribution bands={stack.data.distribution} total={stack.data.totalCandidates} />}
+          {top ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 12px' }}>
+                <h2 style={{ fontSize: 18, margin: 0 }}>Your top match</h2>
+                <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: 999, padding: '2px 9px' }}>Strongest</span>
+              </div>
+              <MatchCard match={top} kind={kind} />
+            </>
+          ) : (
+            <EmptyState
+              icon="🌙"
+              title={kind === 'romantic' ? 'No one to show just yet' : 'No new friends to show yet'}
+              hint="Your city is just getting started here. As more residents join, your strongest match will appear — check back soon."
+            />
+          )}
+        </>
       )}
-      {discover.data?.sections.map((s) => <MatchSection key={s.key} section={s} kind={kind} />)}
     </div>
   );
 }
