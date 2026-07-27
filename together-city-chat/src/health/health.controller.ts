@@ -13,6 +13,8 @@ export class HealthController {
       ok: true,
       aiEnabled: this.ai.enabled,          // true when an Anthropic key is configured
       photoAnalysis: this.ai.enabled ? 'live' : 'fallback (deterministic)',
+      // Bumped on deploys to confirm which backend build is live on Railway.
+      build: 'profile-visibility-2',
     };
   }
 }
