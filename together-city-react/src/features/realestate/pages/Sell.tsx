@@ -91,12 +91,16 @@ export function Sell() {
 
   const titleOk = !!fields[schema.titleKey]?.trim();
   const areaOk = !!fields.carpet?.trim();
+  // Homes (except plots) must carry a BHK configuration — the backend rejects bedroom-less
+  // apartment/villa listings, and a rejected listing never reaches Explore.
+  const bhkOk = kind !== 'house' || fields.ptype === 'Plot' || !!fields.config?.trim();
   const photoOk = photos.length >= schema.min;
   const priceOk = !!asking.trim();
   const currentStep = !titleOk || !areaOk ? 0 : !photoOk ? 1 : !priceOk ? 2 : 3;
 
   const addProperty = () => {
     if (!titleOk) { setWarn('Add the name / building first'); return; }
+    if (!bhkOk) { setWarn('Select the configuration (BHK) first'); return; }
     if (!photoOk) { setWarn(`Capture at least ${schema.min} live photos`); return; }
     if (!priceOk) { setWarn('Add an asking price'); return; }
     setWarn('');
@@ -150,10 +154,11 @@ export function Sell() {
 
   const checklist = useMemo(() => ([
     { ok: titleOk, txt: 'Name / building' },
+    ...(kind === 'house' ? [{ ok: bhkOk, txt: 'Configuration (BHK)' }] : []),
     { ok: areaOk, txt: 'Carpet area' },
     { ok: photoOk, txt: `${photos.length} / ${schema.min} live photos` },
     { ok: priceOk, txt: 'Asking price' },
-  ]), [titleOk, areaOk, photoOk, priceOk, photos.length, schema.min]);
+  ]), [titleOk, bhkOk, kind, areaOk, photoOk, priceOk, photos.length, schema.min]);
 
   return (
     <div style={{ maxWidth: 1040, margin: '0 auto', padding: '20px 16px 40px' }}>

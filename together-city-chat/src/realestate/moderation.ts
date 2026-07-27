@@ -24,7 +24,9 @@ export interface ListingInput {
   photos: Array<{ url: string; caption?: string }>;
 }
 
-const MIN_PHOTOS = 5;
+// Keep in sync with the Sell UI photo gate (schema.min = 3) — a listing the UI
+// accepts must never be auto-rejected for photo count, or nothing reaches Explore.
+const MIN_PHOTOS = 3;
 const NEEDS_ROOMS = ['apartment', 'villa', 'house', 'independent-house'];
 
 // Off-platform contact / OCR-style text that must not appear in a listing.
@@ -64,7 +66,8 @@ export function ruleChecks(input: ListingInput, opts: {
   // Required fields
   const missing: string[] = [];
   if (!input.title?.trim()) missing.push('title');
-  if (desc.length < 20) missing.push('a description (min 20 chars)');
+  // Description is optional (the Sell UI treats it as optional) — an empty or short
+  // description must not block publication, or UI-created listings never reach Explore.
   if (!input.city?.trim()) missing.push('city');
   if (!input.locality?.trim()) missing.push('locality');
   if (!input.priceInr || input.priceInr <= 0) missing.push('price');
