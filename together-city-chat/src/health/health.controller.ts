@@ -32,8 +32,12 @@ export class HealthController {
     try { out.total = await this.prisma.post.count({ where: { authorId: u.id } }); } catch (e) { out.totalErr = String(e); }
     try { out.nonRepost = await this.prisma.post.count({ where: { authorId: u.id, repostOfId: null } as never }); } catch (e) { out.nonRepostErr = String(e); }
     try {
-      const grouped = await this.prisma.post.groupBy({ by: ['audience'] as never, where: { authorId: u.id } as never, _count: true as never });
-      out.byAudience = grouped;
+      const all = (await this.prisma.post.findMany({ where: { authorId: u.id }, select: { audience: true, repostOfId: true } as never })) as unknown as Array<{ audience: string | null; repostOfId: string | null }>;
+      const byAudience: Record<string, number> = {};
+      let reposts = 0;
+      for (const p of all) { const a = p.audience ?? 'NULL'; byAudience[a] = (byAudience[a] ?? 0) + 1; if (p.repostOfId) reposts++; }
+      out.byAudience = byAudience;
+      out.repostCount = reposts;
     } catch (e) { out.byAudienceErr = String(e); }
     try {
       out.publicProfileQueryCount = await this.prisma.post.count({ where: { authorId: u.id, repostOfId: null, OR: [{ audience: { not: 'private' } }, { audience: null }] } as never });
