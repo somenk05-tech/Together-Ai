@@ -573,7 +573,7 @@ export function DatingProfilePage() {
           <span style={label}>Languages spoken</span>
           <MultiSelect category="language" values={dx.languages ?? []} onChange={(v) => setD({ languages: v })} placeholder="Add languages…" ariaLabel="Languages spoken" />
 
-          <span style={label}>Photos (3–10)</span>
+          <span style={label}>Photos (min 1 · 3+ recommended)</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             {photos.map((p, i) => (
               <div key={i} style={{ position: 'relative' }}>
@@ -588,7 +588,7 @@ export function DatingProfilePage() {
             )}
             <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => void onPhotos(e.target.files)} />
           </div>
-          <p className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>{photos.length < 3 ? `Add at least ${3 - photos.length} more — a clear face photo first.` : 'First photo is your primary — make it a clear face photo.'}</p>
+          <p className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>{photos.length < 1 ? 'Add at least 1 photo to go live — 3 or more is recommended for better matches (a clear face photo first).' : photos.length < 3 ? `You’re good to go live — add ${3 - photos.length} more to reach the recommended 3+ for better matches.` : 'First photo is your primary — make it a clear face photo.'}</p>
 
           <SelfieVerify
             verified={Boolean(dx.selfieVerified && dx.selfiePhoto)}

@@ -240,7 +240,17 @@ export class DatingService {
     const checks: Check[] = [];
 
     // Photos: 3–10, at least one.
-    checks.push({ name: 'photos', pass: photos.length >= 3 && photos.length <= 10, severity: 'hard', detail: `${photos.length} photos — upload 3 to 10 (at least one clear face photo).` });
+    // At least ONE photo to go live; 3+ is recommended for better matches (nudged in the UI, not enforced).
+    checks.push({
+      name: 'photos',
+      pass: photos.length >= 1 && photos.length <= 10,
+      severity: 'hard',
+      detail: photos.length < 1
+        ? 'Add at least 1 photo (a clear face photo). 3 or more is recommended for better matches.'
+        : photos.length > 10
+          ? 'Upload no more than 10 photos.'
+          : `${photos.length} photo${photos.length === 1 ? '' : 's'} — 3 or more is recommended for better matches.`,
+    });
 
     // Age ≥ 18.
     const dob = new Date(dto.birthDate + 'T00:00:00Z');
