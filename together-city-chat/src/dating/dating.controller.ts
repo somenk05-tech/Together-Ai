@@ -113,6 +113,11 @@ export class DatingController {
     return this.dating.datingChats(user.sub);
   }
 
+  @Get('admin/stats')
+  adminStats(@CurrentUser() user: JwtUser) {
+    return this.dating.adminStats(user.handle);
+  }
+
   @Post('matches/:targetUserId/pass')
   pass(
     @CurrentUser() user: JwtUser,

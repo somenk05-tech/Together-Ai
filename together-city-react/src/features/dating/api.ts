@@ -126,7 +126,22 @@ export const datingApi = {
     api.post<{ ok: boolean }>(`/dating/matches/${targetUserId}/pass`, { kind }).then((r) => r.data),
   chats: () => api.get<DatingChatSummary[]>('/dating/chats').then((r) => r.data),
   stack: (kind: MatchKind) => api.get<DatingStack>('/dating/stack', { params: { kind } }).then((r) => r.data),
+  adminStats: () => api.get<DatingAdminStats>('/dating/admin/stats').then((r) => r.data),
 };
+
+export interface DatingAdminStats {
+  totalProfiles: number;
+  approvedVisible: number;
+  pendingReview: number;
+  rejected: number;
+  pausedHidden: number;
+  gender: { male: number; female: number; nonbinary: number };
+  connectedMembers: number;
+  activeChats: number;
+  totalMatches: number;
+  mutualLikes: number;
+  generatedAt: string;
+}
 
 export interface CompatibilityBand { label: string; min: number; max: number; count: number }
 export interface DatingStack {
@@ -296,4 +311,7 @@ export function useDatingChats() {
 }
 export function useDatingStack(kind: MatchKind, enabled = true) {
   return useQuery({ queryKey: ['dating', 'stack', kind], queryFn: () => datingApi.stack(kind), enabled, refetchInterval: 30_000 });
+}
+export function useDatingAdminStats() {
+  return useQuery({ queryKey: ['dating', 'admin', 'stats'], queryFn: () => datingApi.adminStats(), retry: false });
 }

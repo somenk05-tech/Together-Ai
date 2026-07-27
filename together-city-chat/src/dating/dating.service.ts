@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { ConversationsService } from '../conversations/conversations.service';
@@ -14,6 +14,8 @@ import type { MatchKind, UpsertDatingProfileDto } from './dto/dating.dto';
 
 const MATCH_THRESHOLD = 75; // only curated matches ≥75% are ever shown (spec)
 const MATCH_LIMIT = 24;     // a full ranked list of real matches (not endless swiping)
+// Admins (by handle) allowed to read Dating Hub stats — same env as moderation.
+const ADMIN_HANDLES = (process.env.MODERATION_ADMINS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 
 /** Visibility mode (stored in the profile's extras JSON). */
 type Visibility = 'everyone' | 'threshold' | 'paused' | 'hidden';
@@ -807,6 +809,46 @@ export class DatingService {
   /** Backward-compatible alias for the old paid "unlock chat" route. */
   async unlockChat(userId: string, targetUserId: string, kind: MatchKind, method?: 'wallet' | 'card') {
     return this.connect(userId, targetUserId, kind, method);
+  }
+
+  /** Admin-only Dating Hub stats — registered profiles, the live matching pool,
+   *  moderation queue, gender split, and chat activity. Gated to MODERATION_ADMINS. */
+  async adminStats(handle?: string) {
+    if (!handle || !ADMIN_HANDLES.includes(handle.toLowerCase())) {
+      throw new ForbiddenException('Admin access required. Add your handle to MODERATION_ADMINS.');
+    }
+    const dp = this.prisma.datingProfile;
+    const dm = this.prisma.datingMatch;
+    const [
+      totalProfiles, approvedVisible, pendingReview, rejected, pausedHidden,
+      male, female, nonbinary, connectedMembers, activeChats, totalMatches, mutualLikes,
+    ] = await Promise.all([
+      dp.count(),
+      dp.count({ where: { visible: true, moderation: 'approved' } as never }),
+      dp.count({ where: { moderation: { in: ['pending', 'review'] } } as never }),
+      dp.count({ where: { moderation: 'rejected' } as never }),
+      dp.count({ where: { visible: false } as never }),
+      dp.count({ where: { gender: 'male' } as never }),
+      dp.count({ where: { gender: 'female' } as never }),
+      dp.count({ where: { gender: 'nonbinary' } as never }),
+      dp.count({ where: { connectCount: { gt: 0 } } as never }),
+      dm.count({ where: { status: 'matched', conversationId: { not: null } } as never }),
+      dm.count({ where: { status: 'matched' } as never }),
+      dm.count({ where: { status: 'matched' } as never }),
+    ]);
+    return {
+      totalProfiles,
+      approvedVisible,
+      pendingReview,
+      rejected,
+      pausedHidden,
+      gender: { male, female, nonbinary },
+      connectedMembers,   // members who have connected to at least one chat
+      activeChats,        // open anonymous dating conversations right now
+      totalMatches,       // mutual matches ever formed
+      mutualLikes,
+      generatedAt: new Date().toISOString(),
+    };
   }
 
   /** Unmatch — end the dating chat and free the "one at a time" slot for both
