@@ -372,16 +372,11 @@ export class ProfileService {
       .findFirst({ where: { OR: [{ blockerId: viewerId, blockedId: u.id }, { blockerId: u.id, blockedId: viewerId }] }, select: { id: true } })
       .catch(() => null);
     if (block) return { items: [], nextCursor: null };
-    const isMe = u.id === viewerId;
-    let isFriend = isMe;
-    if (!isMe) {
-      const { userOneId, userTwoId } = orderPair(viewerId, u.id);
-      const conn = await this.prisma.connection.findFirst({ where: { userOneId, userTwoId, connectionType: 'FRIEND', status: 'ACCEPTED' }, select: { status: true } });
-      isFriend = Boolean(conn);
-    }
-    const audienceWhere = isFriend
-      ? { OR: [{ audience: { in: ['public', 'friends'] } }, { audience: null }] }
-      : { OR: [{ audience: 'public' }, { audience: null }] };
+    // A citizen's profile is their public portfolio: show ALL of their posts to
+    // everyone, EXCEPT ones they explicitly marked "Only Me" (private). Null
+    // audience (legacy posts) counts as visible. This is why a stranger can now
+    // see the full grid the owner sees (minus private).
+    const audienceWhere = { OR: [{ audience: { not: 'private' } }, { audience: null }] };
     const take = Math.min(Math.max(limit, 1), 50);
     const rows = await this.prisma.post.findMany({
       where: { authorId: u.id, repostOfId: null, ...audienceWhere } as never,
