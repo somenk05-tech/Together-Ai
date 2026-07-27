@@ -23,8 +23,9 @@ export const PostPropertySchema = z.object({
   amenities: z.array(z.enum(AMENITIES)).max(AMENITIES.length).default([]),
   description: z.string().max(2000).optional(),
 
-  // PHOTOS ARE MANDATORY — a listing cannot be posted without at least one.
-  photos: z.array(PhotoSchema).min(1, 'At least one photo is required to post a property'),
+  // Photos are optional for now (product decision 2026-07-27) — listings can be
+  // posted without photos; the card/detail UIs render a "No photo" placeholder.
+  photos: z.array(PhotoSchema).default([]),
 
   // under-construction only
   projectName: z.string().max(120).optional(),

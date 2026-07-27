@@ -109,9 +109,7 @@ export class RealEstateService implements OnModuleInit {
   }
 
   async post(userId: string, dto: PostPropertyDto) {
-    if (!dto.photos || dto.photos.length === 0) {
-      throw new BadRequestException('At least one photo is required to post a property.');
-    }
+    // Photos are optional for now — no minimum enforced here or in moderation.
     // Rate-limit listing creation (anti-spam).
     const hourAgo = new Date(Date.now() - 3600_000);
     const recent = await this.prisma.property.count({ where: { sellerId: userId, createdAt: { gt: hourAgo } } });

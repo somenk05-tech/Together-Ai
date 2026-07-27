@@ -24,9 +24,10 @@ export interface ListingInput {
   photos: Array<{ url: string; caption?: string }>;
 }
 
-// Keep in sync with the Sell UI photo gate (schema.min = 3) — a listing the UI
-// accepts must never be auto-rejected for photo count, or nothing reaches Explore.
-const MIN_PHOTOS = 3;
+// Photos are OPTIONAL for now (product decision 2026-07-27) — set back to a
+// positive number to re-enable the minimum-photo hard check. Keep in sync with
+// the Sell UI photo gate — a listing the UI accepts must never be auto-rejected.
+const MIN_PHOTOS = 0;
 const NEEDS_ROOMS = ['apartment', 'villa', 'house', 'independent-house'];
 
 // Off-platform contact / OCR-style text that must not appear in a listing.
@@ -75,8 +76,10 @@ export function ruleChecks(input: ListingInput, opts: {
   if (NEEDS_ROOMS.includes(input.propertyType) && input.bedrooms <= 0) missing.push('bedrooms');
   checks.push({ name: 'required-fields', pass: missing.length === 0, severity: 'hard', detail: missing.length ? `Missing: ${missing.join(', ')}.` : 'All mandatory fields present.' });
 
-  // At least five genuine photos
-  checks.push({ name: 'min-photos', pass: input.photos.length >= MIN_PHOTOS, severity: 'hard', detail: `${input.photos.length}/${MIN_PHOTOS} photos provided.` });
+  // Minimum photo count — skipped entirely while MIN_PHOTOS is 0 (photos optional).
+  if (MIN_PHOTOS > 0) {
+    checks.push({ name: 'min-photos', pass: input.photos.length >= MIN_PHOTOS, severity: 'hard', detail: `${input.photos.length}/${MIN_PHOTOS} photos provided.` });
+  }
 
   // Contact info / off-platform routing (title, description, captions)
   const contacts = contactHits(input);

@@ -41,7 +41,7 @@ export function PostProperty() {
     e.target.value = '';
   };
 
-  const photosOk = photos.length >= 1;
+  const photosOk = true; // photos are optional for now (product decision 2026-07-27)
   const coreOk = f.title.trim() && f.city.trim() && f.locality.trim() && Number(f.priceInr) > 0 && Number(f.areaSqft) > 0;
   const ucOk = status === 'ready' || (uc.possessionDate.trim() && uc.progressPct !== '');
   const canPost = photosOk && coreOk && ucOk && !post.isPending;
@@ -75,7 +75,7 @@ export function PostProperty() {
       <div className="eyebrow">Real Estate · Post a Property</div>
       <h1 style={{ fontSize: 26 }}>List your property</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
-        Capture photos with your camera (required), add the details, and publish. Under-construction homes go to their own tab with plans and milestones.
+        Add the details and publish — photos are optional for now. Under-construction homes go to their own tab with plans and milestones.
       </p>
 
       <div className="card" style={{ marginBottom: 14 }}>
@@ -179,8 +179,7 @@ export function PostProperty() {
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <Button variant="accent" disabled={!canPost} onClick={submit}>{post.isPending ? 'Publishing…' : 'Publish listing'}</Button>
-        {!photosOk && <span style={{ fontSize: 12.5, color: '#c62828', fontWeight: 600 }}>Add at least one photo to publish.</span>}
-        {post.isError && <span style={{ fontSize: 12.5, color: '#c62828', fontWeight: 600 }}>Couldn't publish — check the required fields & photo.</span>}
+        {post.isError && <span style={{ fontSize: 12.5, color: '#c62828', fontWeight: 600 }}>Couldn't publish — check the required fields.</span>}
       </div>
     </div>
   );

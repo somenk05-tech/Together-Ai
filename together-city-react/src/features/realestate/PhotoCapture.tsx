@@ -4,8 +4,8 @@ import type { Photo } from './api';
 
 /**
  * PhotoCapture — capture property photos with the device camera (getUserMedia) or
- * pick from the gallery. Photos are downscaled to a data URL on-device. At least one
- * photo is required to post a listing, so this is the gate for the Post form.
+ * pick from the gallery. Photos are downscaled to a data URL on-device.
+ * Photos are optional for now (product decision 2026-07-27).
  * The camera stream never leaves the browser.
  */
 export function PhotoCapture({ photos, onChange }: { photos: Photo[]; onChange: (p: Photo[]) => void }) {
@@ -76,8 +76,8 @@ export function PhotoCapture({ photos, onChange }: { photos: Photo[]; onChange: 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <div className="eyebrow" style={{ margin: 0 }}>Photos <span style={{ color: '#c62828' }}>*</span></div>
-        <span className="muted" style={{ fontSize: 11.5 }}>required — a listing can’t be posted without at least one photo</span>
+        <div className="eyebrow" style={{ margin: 0 }}>Photos</div>
+        <span className="muted" style={{ fontSize: 11.5 }}>optional for now — listings with photos get more responses</span>
       </div>
 
       {camOn ? (

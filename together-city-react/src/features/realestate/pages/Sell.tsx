@@ -94,14 +94,13 @@ export function Sell() {
   // Homes (except plots) must carry a BHK configuration — the backend rejects bedroom-less
   // apartment/villa listings, and a rejected listing never reaches Explore.
   const bhkOk = kind !== 'house' || fields.ptype === 'Plot' || !!fields.config?.trim();
-  const photoOk = photos.length >= schema.min;
+  const photoOk = true; // photos are optional for now (product decision 2026-07-27)
   const priceOk = !!asking.trim();
   const currentStep = !titleOk || !areaOk ? 0 : !photoOk ? 1 : !priceOk ? 2 : 3;
 
   const addProperty = () => {
     if (!titleOk) { setWarn('Add the name / building first'); return; }
     if (!bhkOk) { setWarn('Select the configuration (BHK) first'); return; }
-    if (!photoOk) { setWarn(`Capture at least ${schema.min} live photos`); return; }
     if (!priceOk) { setWarn('Add an asking price'); return; }
     setWarn('');
     setList((a) => [...a, { id: 're' + Date.now(), kind, fields: { ...fields }, desc, asking, perSqft, photos: [...photos] }]);
@@ -156,7 +155,7 @@ export function Sell() {
     { ok: titleOk, txt: 'Name / building' },
     ...(kind === 'house' ? [{ ok: bhkOk, txt: 'Configuration (BHK)' }] : []),
     { ok: areaOk, txt: 'Carpet area' },
-    { ok: photoOk, txt: `${photos.length} / ${schema.min} live photos` },
+    { ok: photos.length > 0, txt: photos.length > 0 ? `${photos.length} live photo${photos.length === 1 ? '' : 's'}` : 'Live photos (optional)' },
     { ok: priceOk, txt: 'Asking price' },
   ]), [titleOk, bhkOk, kind, areaOk, photoOk, priceOk, photos.length, schema.min]);
 
@@ -211,8 +210,8 @@ export function Sell() {
           <div className="rule" />
 
           <h3 style={{ marginBottom: 6 }}>Capture live photos</h3>
-          <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>Capture at least <b>{schema.min}</b> live photos to list this property.</p>
-          <div className="card" style={{ marginBottom: 16, borderLeft: `4px solid ${photoOk ? 'var(--accent)' : '#c62828'}` }}>
+          <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>Photos are optional for now — listings with photos get far more interest.</p>
+          <div className="card" style={{ marginBottom: 16, borderLeft: '4px solid var(--accent)' }}>
             <PhotoCapture photos={photos} onChange={setPhotos} />
           </div>
 
@@ -246,14 +245,16 @@ export function Sell() {
               <p className="muted" style={{ fontSize: 12.5, marginBottom: 14 }}>Review your listings, then publish them all together.</p>
               {list.map((l) => (
                 <div key={l.id} className="card" style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 12 }}>
-                  <img className="thumb" src={l.photos[0]?.url} alt="" style={{ width: 74, height: 56, borderRadius: 9, objectFit: 'cover', flex: '0 0 auto', background: '#222' }} />
+                  {l.photos[0]?.url
+                    ? <img className="thumb" src={l.photos[0].url} alt="" style={{ width: 74, height: 56, borderRadius: 9, objectFit: 'cover', flex: '0 0 auto', background: '#222' }} />
+                    : <div style={{ width: 74, height: 56, borderRadius: 9, flex: '0 0 auto', background: 'var(--line)', display: 'grid', placeItems: 'center', fontSize: 18 }}>🏠</div>}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 3 }}>
                       <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', padding: '2px 8px', borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent)' }}>{l.kind}</span>
                       <b style={{ fontSize: 14 }}>{l.fields[SCHEMA[l.kind].titleKey] || KIND_LABEL[l.kind]}</b>
                     </div>
                     <div className="muted" style={{ fontSize: 12 }}>{summaryOf(l)}</div>
-                    <div style={{ fontSize: 12, marginTop: 3 }}>₹{l.asking || '—'} · <span style={{ color: '#2e9e57' }}>{l.photos.length} live photos ✓</span></div>
+                    <div style={{ fontSize: 12, marginTop: 3 }}>₹{l.asking || '—'}{l.photos.length > 0 && <span style={{ color: '#2e9e57' }}> · {l.photos.length} live photo{l.photos.length === 1 ? '' : 's'} ✓</span>}</div>
                   </div>
                   <Button variant="line" size="sm" onClick={() => setList((a) => a.filter((x) => x.id !== l.id))}>Remove</Button>
                 </div>

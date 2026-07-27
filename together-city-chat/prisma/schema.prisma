@@ -1157,7 +1157,7 @@ model JobApplication {
 }
 
 // ─────────────────────────── Real Estate Hub ───────────────────────────
-// Photos are mandatory to post (enforced in the DTO + service). Under-construction
+// Photos are optional for now (2026-07-27). Under-construction
 // listings carry RERA, possession, progress %, floor plans and payment milestones.
 // Audit trail for every moderation decision (automated + manual).
 model ModerationLog {
