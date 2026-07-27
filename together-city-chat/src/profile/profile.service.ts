@@ -373,13 +373,13 @@ export class ProfileService {
       .catch(() => null);
     if (block) return { items: [], nextCursor: null };
     // A citizen's profile is their public portfolio: show ALL of their posts to
-    // everyone, EXCEPT ones they explicitly marked "Only Me" (private). Null
-    // audience (legacy posts) counts as visible. This is why a stranger can now
-    // see the full grid the owner sees (minus private).
-    const audienceWhere = { OR: [{ audience: { not: 'private' } }, { audience: null }] };
+    // everyone, EXCEPT ones they explicitly marked "Only Me" (private).
+    // NOTE: `audience` is a NON-NULL column (default 'public'), so we must NOT
+    // add an `{ audience: null }` branch — Prisma rejects it ("Argument
+    // `audience` is missing"), which previously threw and returned an empty grid.
     const take = Math.min(Math.max(limit, 1), 50);
     const rows = await this.prisma.post.findMany({
-      where: { authorId: u.id, repostOfId: null, ...audienceWhere } as never,
+      where: { authorId: u.id, repostOfId: null, audience: { not: 'private' } } as never,
       orderBy: [{ sortIndex: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }] as never,
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
