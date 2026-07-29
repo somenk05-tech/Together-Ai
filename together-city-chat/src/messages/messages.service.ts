@@ -156,12 +156,17 @@ export class MessagesService {
       where: { messageId: { in: messageIds }, userId, status: DeliveryStatus.SENT },
       data: { status: DeliveryStatus.DELIVERED },
     });
-    for (const messageId of messageIds) {
-      const m = await this.prisma.message.findUnique({
-        where: { id: messageId },
-        select: { conversationId: true },
-      });
-      if (m) this.bus.publish({ kind: 'message.delivered', conversationId: m.conversationId, messageId, userId });
+    // The updateMany above is scoped to this user's own status rows, so nothing
+    // is written for a foreign id. The lookup wasn't scoped, though, which meant
+    // a caller could name any message id and have a "delivered" receipt
+    // broadcast into a conversation they aren't in. Restricting to conversations
+    // they're a member of makes the receipt unforgeable.
+    const mine = await this.prisma.message.findMany({
+      where: { id: { in: messageIds }, conversation: { members: { some: { userId } } } },
+      select: { id: true, conversationId: true },
+    });
+    for (const m of mine) {
+      this.bus.publish({ kind: 'message.delivered', conversationId: m.conversationId, messageId: m.id, userId });
     }
   }
 
@@ -172,8 +177,10 @@ export class MessagesService {
       where: { messageId: { in: messageIds }, userId, status: { not: DeliveryStatus.READ } },
       data: { status: DeliveryStatus.READ, readAt: now },
     });
+    // Membership-scoped for the same reason as markDelivered — an unscoped
+    // lookup let a non-participant emit a read receipt into someone else's chat.
     const rows = await this.prisma.message.findMany({
-      where: { id: { in: messageIds } },
+      where: { id: { in: messageIds }, conversation: { members: { some: { userId } } } },
       select: { id: true, conversationId: true },
     });
     const convoIds = Array.from(new Set(rows.map((r) => r.conversationId)));

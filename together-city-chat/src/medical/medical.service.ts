@@ -210,10 +210,24 @@ export class MedicalService implements OnModuleInit {
   /** Record a health document already uploaded to the PRIVATE vault. We store the
    *  object key only — never a public URL — so it's reachable solely via a
    *  short-lived signed link handed to the authenticated owner. */
+  /**
+   * The key comes from the client (it is handed out by the presign route), so
+   * it is checked against the caller's own vault prefix before any record is
+   * filed against it. Drive's confirm() has always done this; the health vault
+   * did not, which left a shape where a record could point at another
+   * citizen's document and the download and delete routes would honour it.
+   */
+  private assertOwnHealthKey(userId: string, fileKey: string): void {
+    if (!StorageProvider.isOwnHealthKey(userId, fileKey)) {
+      throw new BadRequestException('That upload does not belong to your health vault.');
+    }
+  }
+
   async addDocument(userId: string, dto: {
     kind: string; title: string; detail?: string; fileKey: string; mimeType?: string; sizeBytes: number;
   }) {
     await this.assertQuota(userId, dto.sizeBytes);
+    this.assertOwnHealthKey(userId, dto.fileKey);
     // Never file a record for a file that didn't actually land in the vault —
     // otherwise the record shows but the document is "missing" when opened.
     if (!(await this.storage.healthObjectExists(dto.fileKey))) {
@@ -248,6 +262,7 @@ export class MedicalService implements OnModuleInit {
     fileKey: string; mimeType: string; sizeBytes: number; title?: string;
   }) {
     await this.assertQuota(userId, dto.sizeBytes);
+    this.assertOwnHealthKey(userId, dto.fileKey);
     if (!(await this.storage.healthObjectExists(dto.fileKey))) {
       throw new BadRequestException('Your report didn’t finish uploading — please check your connection and try again.');
     }
@@ -388,6 +403,7 @@ export class MedicalService implements OnModuleInit {
     fileKey: string; mimeType: string; sizeBytes: number; title?: string; detail?: string;
   }) {
     await this.assertQuota(userId, dto.sizeBytes);
+    this.assertOwnHealthKey(userId, dto.fileKey);
     if (!(await this.storage.healthObjectExists(dto.fileKey))) {
       throw new BadRequestException('Your report didn’t finish uploading — please check your connection and try again.');
     }

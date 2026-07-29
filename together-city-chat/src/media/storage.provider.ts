@@ -220,6 +220,20 @@ export class StorageProvider implements OnModuleInit {
   }
 
   /**
+   * True when this key belongs to the given user's private health namespace.
+   *
+   * The health vault takes a client-supplied key on three routes, and until
+   * this existed there was no equivalent of the Drive check — filing a key
+   * from someone else's namespace would have created a record pointing at
+   * their document, which the download and delete routes then honoured.
+   * Reaching that needed the key, which is a randomUUID nothing discloses, but
+   * the sibling module guards the identical pattern and this one should too.
+   */
+  static isOwnHealthKey(userId: string, key: string): boolean {
+    return typeof key === 'string' && key.startsWith(`health/${userId}/`);
+  }
+
+  /**
    * A longer-lived signed GET link, for files handed to someone OUTSIDE the
    * city (e.g. a big attachment emailed as a download link rather than MIME).
    * Capped at 7 days — the maximum lifetime S3/R2 signatures allow.

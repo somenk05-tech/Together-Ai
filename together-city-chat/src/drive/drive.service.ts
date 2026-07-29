@@ -242,11 +242,46 @@ export class DriveService {
   async attach(userId: string, id: string, attachedType: string, attachedId: string) {
     const row = await this.files.findFirst({ where: { id, ownerId: userId } });
     if (!row) throw new NotFoundException('File not found.');
+    await this.assertOwnsAttachTarget(userId, attachedType, attachedId);
     const updated = await this.files.update({
       where: { id },
       data: { attachedType: this.clean(attachedType).slice(0, 40), attachedId: this.clean(attachedId).slice(0, 80) },
     });
     return this.shapeFile(updated);
+  }
+
+  /**
+   * A file may only be attached to something the caller actually holds.
+   *
+   * `attachedType`/`attachedId` were free-form strings written straight to the
+   * row, so a caller could attach their own file to any entity id at all. That
+   * matters most for mail, where thread membership is what gates attachment
+   * reads: attaching into a stranger's thread put a file where their
+   * participants could list and download it.
+   *
+   * Unknown types are refused rather than allowed. A new attachment target
+   * should have to say who owns it before files can hang off it.
+   */
+  private async assertOwnsAttachTarget(userId: string, type: string, id: string): Promise<void> {
+    const t = this.clean(type).slice(0, 40);
+    const targetId = this.clean(id).slice(0, 80);
+    if (!t || !targetId) throw new BadRequestException('Say what this file is being attached to.');
+
+    if (t === 'mail') {
+      const inThread = await (this.prisma as unknown as {
+        mailMessage: { findFirst(a: unknown): Promise<{ id: string } | null> };
+      }).mailMessage.findFirst({ where: { ownerId: userId, threadId: targetId }, select: { id: true } });
+      if (!inThread) throw new NotFoundException('That conversation is not yours.');
+      return;
+    }
+    if (t === 'medical') {
+      const own = await (this.prisma as unknown as {
+        medicalRecord: { findFirst(a: unknown): Promise<{ id: string } | null> };
+      }).medicalRecord.findFirst({ where: { id: targetId, userId }, select: { id: true } });
+      if (!own) throw new NotFoundException('That health record is not yours.');
+      return;
+    }
+    throw new BadRequestException(`Files can't be attached to "${t}".`);
   }
 
   /** Everything the user has attached to a given entity. */
