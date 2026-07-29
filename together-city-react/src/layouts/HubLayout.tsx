@@ -7,6 +7,7 @@ import { useHubTheme } from '@/hooks/useHubTheme';
 import { CookRoot } from '@/features/nutrition/components/CookMode';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { HubConsentGate } from '@/features/privacy/HubConsentGate';
+import { VerifyEmailBanner } from '@/features/auth/VerifyEmailBanner';
 
 /** Two-column layout (sidebar + content) used by every hub's inner pages. */
 export function HubLayout({ hub }: { hub: HubConfig }) {
@@ -14,6 +15,7 @@ export function HubLayout({ hub }: { hub: HubConfig }) {
   return (
     <>
       <Header />
+      <VerifyEmailBanner />
       <div className="tc-shell">
         <Sidebar hub={hub} />
         <main className="tc-main">

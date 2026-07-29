@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { VerifiedGuard } from '../auth/verified.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { z } from 'zod';
@@ -33,7 +34,9 @@ export class RealEstateController {
     return this.realestate.detail(id, user.sub);
   }
 
+  // Publishing a property listing is public-facing → requires a confirmed email.
   @Post('properties')
+  @UseGuards(VerifiedGuard)
   @UsePipes(new ZodValidationPipe(PostPropertySchema))
   post(@CurrentUser() user: JwtUser, @Body() dto: PostPropertyDto) {
     return this.realestate.post(user.sub, dto);

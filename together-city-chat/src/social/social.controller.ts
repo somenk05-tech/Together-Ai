@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { z } from 'zod';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { VerifiedGuard } from '../auth/verified.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
@@ -49,7 +50,9 @@ export class SocialController {
     return this.social.unfollow(user.sub, userId);
   }
 
+  // Publishing to the city feed is public-facing → requires a confirmed email.
   @Post('posts')
+  @UseGuards(VerifiedGuard)
   @UsePipes(new ZodValidationPipe(CreatePostSchema))
   create(@CurrentUser() user: JwtUser, @Body() dto: CreatePostDto) {
     return this.social.createPost(user.sub, dto);

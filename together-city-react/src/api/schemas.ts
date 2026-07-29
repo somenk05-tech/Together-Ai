@@ -9,6 +9,9 @@ export const UserSchema = z.object({
   lastSeen: z.string().nullable().optional(), // null for brand-new users (never seen yet)
   onlineStatus: z.boolean().optional(),
   createdAt: z.string().optional(),
+  // Own record only — drives the "verify your email" soft-gate banner.
+  email: z.string().nullable().optional(),
+  emailVerified: z.boolean().optional(),
 });
 export type User = z.infer<typeof UserSchema>;
 

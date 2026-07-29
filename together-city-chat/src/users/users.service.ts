@@ -13,9 +13,12 @@ export class UsersService {
   ) {}
 
   async me(userId: string) {
+    // `email` + `emailVerified` are included so the app can soft-gate: show a
+    // "verify your email" banner and block the few sensitive actions until the
+    // address is confirmed. (Own record only — never exposed for other users.)
     return this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, handle: true, name: true, profileImage: true, lastSeen: true },
+      select: { id: true, handle: true, name: true, profileImage: true, lastSeen: true, email: true, emailVerified: true },
     });
   }
 

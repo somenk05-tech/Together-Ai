@@ -15,6 +15,9 @@ export interface User {
   lastSeen?: string | null;
   onlineStatus?: boolean;
   createdAt?: string;
+  /** Own record only — drives the "verify your email" soft-gate banner. */
+  email?: string | null;
+  emailVerified?: boolean;
 }
 
 export interface AuthTokens {

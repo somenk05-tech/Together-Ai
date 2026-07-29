@@ -52,5 +52,8 @@ export const authApi = {
     apiPost('/auth/verify-email', { token }, TokenPairSchema),
   resendVerification: (email: string): Promise<{ ok: boolean; message: string }> =>
     apiPost('/auth/resend-verification', { email }, z.object({ ok: z.boolean(), message: z.string() })),
+  /** Re-send the verification link to the SIGNED-IN user (no email typing). */
+  sendVerification: (): Promise<{ ok?: boolean }> =>
+    apiPost('/auth/send-verification', {}, z.object({ ok: z.boolean().optional() }).passthrough()),
   me: (): Promise<User> => apiGet('/users/me', UserSchema),
 };

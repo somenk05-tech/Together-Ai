@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { VerifiedGuard } from '../auth/verified.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe, parseOrThrow } from '../shared/zod/zod-validation.pipe';
@@ -77,7 +78,9 @@ export class DatingController {
     return this.dating.connect(user.sub, targetUserId, kind, method);
   }
 
+  // Opening a chat with another citizen → requires a confirmed email.
   @Post('matches/:targetUserId/connect')
+  @UseGuards(VerifiedGuard)
   connect(
     @CurrentUser() user: JwtUser,
     @Param('targetUserId') targetUserId: string,
