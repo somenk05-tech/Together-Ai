@@ -594,9 +594,22 @@ function passesHard(r: RecipeWithIng, diet: Diet, ex: PrefExtras, allowed: Set<s
   if (!isPlannableMeal(r)) return false;                               // 2 · real meal (no condiments)
   if (!passesProtein(r, allowed)) return false;                       // 3 · preferred proteins/meats (the user's preference is honoured, even with a kidney condition — we advise, we don't override)
   if (!passesMedical(r, ex.healthConditions ?? [])) return false;     // 4 · medical conditions
+  if (!allergySafe(r, ex)) return false;                              // 5·6 · allergies + avoided foods
+  return true;
+}
+
+/**
+ * Allergies + foods the user won't eat. Split out of `passesHard` because this
+ * is the ONE rule that must survive every fallback: a slot with no candidates
+ * is an inconvenience, but an allergen on someone's plate is a safety incident.
+ */
+function allergySafe(r: RecipeWithIng, ex: PrefExtras): boolean {
+  const allergies = terms(ex.allergies);
+  const excluded = terms(ex.excluded);
+  if (!allergies.length && !excluded.length) return true;
   const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
-  if (terms(ex.allergies).some((a) => hay.includes(a))) return false; // 5 · allergies
-  if (terms(ex.excluded).some((a) => hay.includes(a))) return false;  // 6 · foods user won't eat
+  if (allergies.some((a) => hay.includes(a))) return false;
+  if (excluded.some((a) => hay.includes(a))) return false;
   return true;
 }
 
@@ -2915,10 +2928,42 @@ export class NutritionService implements OnModuleInit {
         goals, medicalAlerts,
         weeklyGroceryCostInr: weeklyGroceryCost,
         nutritionScore,
-        adherenceScore: dash.hasPlan ? Math.max(0, Math.min(100, nutritionScore ?? 0)) : null,
-        mealCompletion: dash.hasPlan ? 100 : 0,
+        // Real adherence: how many of the last 7 days the household actually
+        // logged plan meals. Previously this echoed nutritionScore (and
+        // mealCompletion was a flat 100 whenever a plan existed), which made a
+        // household that had eaten nothing look perfectly on track.
+        ...(await this.householdAdherence(userId, dash.hasPlan)),
         status: dash.familyStatus,
       },
+    };
+  }
+
+  /**
+   * Adherence measured from what was actually logged, not from having a plan.
+   * `adherenceScore` = % of the last 7 days with at least one logged plan meal;
+   * `mealCompletion` = logged plan meals vs the plan's slots over that window.
+   * Both are null when there's no plan to adhere to — an unmeasurable number is
+   * reported as unknown rather than invented.
+   */
+  private async householdAdherence(userId: string, hasPlan: boolean): Promise<{ adherenceScore: number | null; mealCompletion: number | null }> {
+    if (!hasPlan) return { adherenceScore: null, mealCompletion: null };
+    const days = 7;
+    const keys: string[] = [];
+    const today = new Date();
+    for (let i = 0; i < days; i++) {
+      const d = new Date(today.getTime() - i * 86_400_000);
+      keys.push(d.toISOString().slice(0, 10));
+    }
+    const entries = await this.prisma.calorieEntry
+      .findMany({ where: { userId, date: { in: keys } }, select: { date: true, type: true } })
+      .catch(() => [] as Array<{ date: string; type: string }>);
+    if (!entries.length) return { adherenceScore: 0, mealCompletion: 0 };
+    const planEntries = entries.filter((e) => e.type === 'Meal Plan');
+    const daysLogged = new Set(planEntries.map((e) => e.date)).size;
+    const expectedMeals = days * SLOTS.length;
+    return {
+      adherenceScore: Math.round((daysLogged / days) * 100),
+      mealCompletion: Math.min(100, Math.round((planEntries.length / Math.max(1, expectedMeals)) * 100)),
     };
   }
 
@@ -3403,8 +3448,13 @@ export class NutritionService implements OnModuleInit {
       if (!pool.length) pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed) && cuisineAllowed(r.country, mix) && mealAppropriate(r));
       if (!pool.length) pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed) && mealAppropriate(r));
       if (!pool.length) pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed));
-      if (!pool.length) pool = inSlot.filter((r) => dietAllows(dayDiet, r.diet as Diet) && isPlannableMeal(r));
-      if (!pool.length) pool = inSlot;
+      // Last-resort pools relax diet-fit and meal-fit, but NEVER allergies or
+      // avoided foods. If nothing is safe the slot is left empty on purpose —
+      // previously this fell back to the unfiltered slot and could plate an
+      // allergen for someone who had declared it.
+      if (!pool.length) pool = inSlot.filter((r) => dietAllows(dayDiet, r.diet as Diet) && isPlannableMeal(r) && allergySafe(r, ex));
+      if (!pool.length) pool = inSlot.filter((r) => dietAllows(dayDiet, r.diet as Diet) && allergySafe(r, ex));
+      if (!pool.length) pool = inSlot.filter((r) => allergySafe(r, ex));
       const byMode = rankByModes(pool as unknown as RecipeShape[], modes) as unknown as RecipeWithIng[];
       let ordered = cuisineBias(byMode, mix);
       // Breakfast & snack: PREFER the user's selected animal proteins (egg/
@@ -3433,11 +3483,41 @@ export class NutritionService implements OnModuleInit {
    * saved week is preserved as a permanent, editable record (spec: persistent
    * per-week plans, no overwriting other weeks).
    */
+  /** Union every family member's allergies/exclusions into the planning prefs. */
+  private async withHouseholdAllergies(userId: string, ex: PrefExtras): Promise<PrefExtras> {
+    const members = await this.prisma.familyMember
+      .findMany({ where: { ownerId: userId }, select: { extras: true } })
+      .catch(() => [] as Array<{ extras: string | null }>);
+    if (!members.length) return ex;
+    const allergies = new Set(terms(ex.allergies));
+    const excluded = new Set(terms(ex.excluded));
+    const conditions = new Set(ex.healthConditions ?? []);
+    for (const m of members) {
+      let mx: { allergies?: unknown; excluded?: unknown; healthConditions?: unknown } = {};
+      try { mx = m.extras ? JSON.parse(m.extras) : {}; } catch { mx = {}; }
+      const asList = (v: unknown): string[] =>
+        Array.isArray(v) ? v.map(String) : typeof v === 'string' ? v.split(',') : [];
+      for (const a of asList(mx.allergies)) { const t = a.trim().toLowerCase(); if (t) allergies.add(t); }
+      for (const a of asList(mx.excluded)) { const t = a.trim().toLowerCase(); if (t) excluded.add(t); }
+      for (const c of asList(mx.healthConditions)) { const t = c.trim(); if (t) conditions.add(t); }
+    }
+    return {
+      ...ex,
+      allergies: [...allergies].join(','),
+      excluded: [...excluded].join(','),
+      healthConditions: [...conditions],
+    };
+  }
+
   private async generatePlan(userId: string, mode: PlanMode, weekStart?: Date) {
     const ws = weekMonday(weekStart ?? new Date());
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const diet = (pref?.diet ?? 'everything') as Diet;
-    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    let ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    // FAMILY plans feed everyone from the same dishes, so the household's
+    // allergies and avoided foods must ALL apply — the owner's preferences
+    // alone would let a shared dish carry a child's allergen.
+    if (mode === 'family') ex = await this.withHouseholdAllergies(userId, ex);
     const allowed = allowedProteins(ex);
     // Cross-week variety (spec §18): remember the recipes in the plan we're about
     // to replace so the new week de-prioritises them — Week 2 shouldn't repeat
@@ -5306,9 +5386,14 @@ export class NutritionService implements OnModuleInit {
       const s = recipeServings(recipe);
       const factor = people / s;
       for (const ing of recipe.ingredients) {
-        const norm = ing.name.trim().toLowerCase().replace(/\s+/g, ' ');
+        // Canonicalise exactly like groceryPlan() does — strip prep words and
+        // apply synonyms — so the SAVED cart merges the same lines the displayed
+        // list merges. Raw lowercasing kept "Chicken Breast" and "Chicken" (and
+        // curd/dahi/yogurt) as separate rows the user then bought twice.
+        const canon = canonicalIngredient(ing.name);
+        const norm = canon.toLowerCase();
         if (!norm) continue;
-        const cur = totals.get(norm) ?? { name: NutritionService.prettyIngredient(ing.name), grams: 0, price: 0 };
+        const cur = totals.get(norm) ?? { name: canon, grams: 0, price: 0 };
         cur.grams += Math.max(1, Math.round(ing.grams * factor));
         cur.price += Math.round(ing.priceInr * factor);
         totals.set(norm, cur);
