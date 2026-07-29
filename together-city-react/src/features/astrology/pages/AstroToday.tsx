@@ -30,6 +30,9 @@ export function AstroToday() {
               {d.dasha && <Tag>🪐 {d.dasha.maha} Dasha</Tag>}
               <Tag>{new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</Tag>
             </div>
+            {d.greeting && (
+              <p style={{ fontFamily: 'var(--serif)', fontSize: 16, margin: '0 0 8px', color: 'var(--ink-soft)' }}>{d.greeting}</p>
+            )}
             <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(20px,2.4vw,26px)', marginBottom: 6 }}>{d.theme}</h2>
 
             {d.sections && d.sections.length > 0 ? (
@@ -67,7 +70,7 @@ export function AstroToday() {
             )}
 
             <p className="muted" style={{ fontSize: 11.5, marginTop: 18, fontStyle: 'italic' }}>
-              {d.framing ?? `Saved to your profile · written once for ${d.date} from your chart and today's actual planetary positions.`}
+              {d.framing ?? `Written for you once for ${d.date}, and saved to your profile.`}
             </p>
           </Card>
 

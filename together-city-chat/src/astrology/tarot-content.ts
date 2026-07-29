@@ -110,16 +110,30 @@ function shuffle(rng: () => number): TarotCard[] {
   return d;
 }
 
-/** Card + position → the sentence a reader would actually say. */
+/**
+ * Card + position → what it means for the person.
+ *
+ * The card stays visible: its name, keywords and orientation are all returned
+ * as structured data and shown on the card face. What changes is that the PROSE
+ * is about the reader rather than about the deck. "The Fool, upright, in Past —
+ * it speaks of beginnings" was exposition; "Looking at what brought this about,
+ * you may recognise beginnings" is the same reading, addressed to the person
+ * holding it.
+ *
+ * This is what a reader across a table actually does. They do not narrate the
+ * card to you; they tell you what they see in your situation, and the card is
+ * how they got there.
+ */
 function readInPosition(card: TarotCard, reversed: boolean, position: string, asks: string): string {
   const words = reversed ? card.rev : card.up;
   const list = words.length > 1
     ? `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
     : words[0];
-  const orient = reversed ? 'reversed' : 'upright';
-  const suitLine = card.suit ? ` This is ${SUIT_TRAIT[card.suit].line}.` : '';
-  return `${card.name}, ${orient}, in ${position} — which asks ${asks}. ` +
-    `It speaks of ${list}. ${card.theme}${suitLine}`;
+  const opener = reversed
+    ? `Looking at ${asks}, something here is turned inward or held back`
+    : `Looking at ${asks}`;
+  const suitLine = card.suit ? ` This sits with ${SUIT_TRAIT[card.suit].line}.` : '';
+  return `${opener} — you may recognise ${list}. ${card.theme}${suitLine}`;
 }
 
 /** One line drawing the spread together, from what actually came up. */
@@ -131,22 +145,27 @@ function summarise(kind: SpreadKind, cards: DrawnCard[], question?: string): str
     ? [...new Set(suits)].sort((a, b) => suits.filter((s) => s === b).length - suits.filter((s) => s === a).length)[0]
     : null;
 
+  // The counts still drive every branch below; none of them are stated as
+  // counts. "Majors dominate (3 of 5)" is a fact about the deck — true, and of
+  // no use to the person reading it. What they need is what it implies.
   const parts: string[] = [];
   if (kind === 'daily') {
-    parts.push(`One card for today${cards[0].reversed ? ', and it comes up reversed' : ''}.`);
+    parts.push(cards[0].reversed
+      ? `Today asks for a lighter hand than usual.`
+      : `Here is what today seems to be asking of you.`);
   } else {
-    parts.push(question ? `On the question you asked, ${cards.length} cards.` : `${cards.length} cards.`);
+    parts.push(question ? `On what you asked, a few things stand out.` : `A few things stand out here.`);
   }
   if (majors >= Math.ceil(cards.length / 2) && cards.length > 1) {
-    parts.push(`Majors dominate (${majors} of ${cards.length}) — this reads as a matter larger than the day-to-day, more decided than chosen.`);
+    parts.push(`This reads as a matter larger than the day-to-day — one that feels more decided than chosen, and where your part may be how you meet it rather than whether it happens.`);
   } else if (majors === 0 && cards.length > 1) {
-    parts.push('No Major Arcana — this sits in ordinary life, where your own choices carry it.');
+    parts.push('This sits squarely in ordinary life, which is good news: your own choices are what carry it.');
   }
   if (dominant && cards.length > 1) {
-    parts.push(`${SUIT_TRAIT[dominant as keyof typeof SUIT_TRAIT].element} runs through it: the weight is on ${SUIT_TRAIT[dominant as keyof typeof SUIT_TRAIT].domain}.`);
+    parts.push(`The weight of it falls on ${SUIT_TRAIT[dominant as keyof typeof SUIT_TRAIT].domain} — that is where your attention will do the most.`);
   }
   if (reversed > cards.length / 2 && cards.length > 1) {
-    parts.push('Most cards are reversed — read this as energy blocked or turned inward rather than as bad news.');
+    parts.push('Much of this is turned inward or held back at the moment. Read that as something blocked rather than something going wrong — blocked things tend to move once they are named.');
   }
   return parts.join(' ');
 }

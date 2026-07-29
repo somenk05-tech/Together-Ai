@@ -24,6 +24,9 @@ export interface GuidanceSection { key: string; title: string; icon: string; bod
 export interface LuckyElements { number: number; color: string; time: string; direction: string }
 export interface DailyReading {
   needsProfile: boolean; date: string; theme: string; text: string;
+  /** "Dear {First}," — every report opens as a letter. Optional: history rows
+   *  written before the voice change won't carry one. */
+  greeting?: string;
   moonPhase: string; sunSign: string; words: number;
   // Personal Guidance Engine (optional — older history rows won't have these).
   framing?: string;
@@ -36,6 +39,7 @@ export interface DailyReading {
 export interface MonthlySection { key: string; title: string; body: string }
 export interface MonthlyReading {
   needsProfile: boolean; month: string; title: string; sections: MonthlySection[];
+  greeting?: string;
   words: number; bestDates: number[]; cautionDates: number[];
   framing?: string;
   numerology?: { lifePath: number; personalYear: number; personalMonth: number };

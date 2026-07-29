@@ -13,6 +13,7 @@ import {
   julianDay, positionsAt, HARMONIOUS, CHALLENGING, AspectType,
 } from './astro-engine';
 import type { Numerology, Dasha } from './personal-factors';
+import { greetingFor } from './voice';
 
 // ───────────────────────── Seeded randomness ─────────────────────────
 
@@ -91,89 +92,19 @@ const ordinal = (n: number) => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100
 
 // ───────────────────────── Daily horoscope ─────────────────────────
 
-export interface DailyReading { date: string; theme: string; text: string; moonPhase: string; sunSign: SignName; words: number }
-
-export function composeDaily(chart: NatalChart, userSeed: string, date: Date): DailyReading {
-  const iso = date.toISOString().slice(0, 10);
-  const rng = mulberry32(hashSeed(userSeed + iso));
-  const jd = julianDay(new Date(date.getTime()));
-  const transits = positionsAt(jd);
-  const hits = hitsAgainstNatal(transits, chart);
-  const sun = T[chart.sun.sign];
-  const moonT = transits.find((t) => t.planet === 'Moon')!;
-  const mercury = transits.find((t) => t.planet === 'Mercury')!;
-  const venus = transits.find((t) => t.planet === 'Venus')!;
-  const mars = transits.find((t) => t.planet === 'Mars')!;
-  const phase = moonPhaseName(jd);
-
-  const parts: string[] = [];
-  const lead = hits[0];
-  let theme: string;
-  if (lead && lead.harmonious) {
-    theme = pick(rng, ['A day that works with you', 'Momentum comes easily today', 'A supportive sky', 'Green lights ahead']);
-    parts.push(pick(rng, [
-      `${lead.planet} ${ASPECT_TONE[lead.type]} your natal ${lead.target} today, which puts ${PLANET_DOMAIN[lead.planet]} firmly on your side.`,
-      `With ${lead.planet} in a flowing ${lead.type} to your ${lead.target}, ${PLANET_DOMAIN[lead.planet]} moves in your favour — use it deliberately rather than letting the day drift.`,
-    ]));
-  } else if (lead) {
-    theme = pick(rng, ['A day for steady hands', 'Patience pays today', 'Handle with care', 'Slow is smooth today']);
-    parts.push(pick(rng, [
-      `${lead.planet} ${ASPECT_TONE[lead.type]} your natal ${lead.target} today, so friction around ${PLANET_DOMAIN[lead.planet]} is possible — treat it as a test of pacing, not a verdict.`,
-      `A ${lead.type} from ${lead.planet} to your ${lead.target} can make ${PLANET_DOMAIN[lead.planet]} feel heavier than usual; keep decisions small and reversible.`,
-    ]));
-  } else {
-    theme = pick(rng, ['A quiet, clear day', 'An open sky', 'Your day to set the tone']);
-    parts.push(pick(rng, [
-      `No hard transits touch your chart today, which gives you an unusually clean slate — the day takes the shape you give it.`,
-      `The sky is quiet for you today; with nothing forcing your hand, your natural ${pick(rng, sun.keywords)} decides the tone.`,
-    ]));
-  }
-  parts.push(pick(rng, [
-    `The ${phase} Moon travels through ${moonT.sign}, tilting the emotional background toward ${fmtList(T[moonT.sign].keywords.slice(0, 2))}.`,
-    `Emotionally, the ${phase} in ${moonT.sign} colours the day — expect ${fmtList(T[moonT.sign].keywords.slice(0, 2))} to run underneath everything.`,
-  ]));
-  parts.push(mercury.retrograde
-    ? pick(rng, [
-      `Mercury is retrograde in ${mercury.sign}: re-read before you send, confirm timings twice, and favour finishing over launching.`,
-      `With Mercury retrograde in ${mercury.sign}, double-check messages and travel details — revisions, not launches, are favoured.`,
-    ])
-    : pick(rng, [
-      `Mercury moves direct through ${mercury.sign}, keeping conversations ${T[mercury.sign].element === 'air' ? 'quick and clear' : 'grounded and practical'} — a good window for the talk you have postponed.`,
-      `Communication flows well with Mercury in ${mercury.sign}; put the important conversation or email in today rather than next week.`,
-    ]));
-  parts.push(pick(rng, [
-    `In matters of the heart, Venus in ${venus.sign} favours a ${T[venus.sign].love} approach.`,
-    `Venus in ${venus.sign} softens relationships toward the ${T[venus.sign].love}; a small gesture lands better than a grand plan.`,
-  ]));
-  parts.push(pick(rng, [
-    `Mars in ${mars.sign} sets the day's drive — channel it into ${T[mars.sign].work} work and avoid spending it on arguments${mars.retrograde ? ', especially with Mars retrograde asking you to redo rather than push' : ''}.`,
-    `Your energy runs ${T[mars.sign].element === 'fire' ? 'hot' : T[mars.sign].element === 'earth' ? 'steady' : T[mars.sign].element === 'air' ? 'restless' : 'deep'} with Mars in ${mars.sign}${mars.retrograde ? ' (retrograde — pace it)' : ''}; one focused push beats five scattered ones.`,
-  ]));
-  parts.push(pick(rng, [
-    `Lean on ${sun.strength}, and watch for ${sun.watchout}.`,
-    `Your edge today is ${sun.strength}; the trap to sidestep is ${sun.watchout}.`,
-    `Play to ${sun.strength} — and if the day snags, it will most likely be through ${sun.watchout}.`,
-  ]));
-
-  let text = parts.join(' ');
-  if (wordCount(text) < 100) {
-    text += ' ' + pick(rng, [
-      'Keep money decisions boring today: steady beats spectacular, and anything urgent-sounding deserves a second look tomorrow.',
-      'Health-wise, honour the basics — water, a proper meal and twenty unhurried minutes outdoors will do more than any hack.',
-      'If a decision can wait a day, let it; if it cannot, choose the option you would still defend a month from now.',
-    ]);
-  }
-  return { date: iso, theme, text, moonPhase: phase, sunSign: chart.sun.sign, words: wordCount(text) };
-}
-
-// ───────────────────────── Monthly horoscope ─────────────────────────
-
-// ───────────────────────── Personal Guidance Engine (daily) ─────────────────────────
+// composeDaily() and its DailyReading type lived here: a short 100-200 word
+// horoscope superseded by composeGuidance below, kept only because a spec still
+// referenced it. It was written entirely in the vocabulary this hub no longer
+// uses — planets, signs and aspects named outright — so leaving it in place was
+// a loaded gun: the next person to need "a short daily" would have wired it up
+// and quietly reintroduced the voice everywhere else just lost. Deleted rather
+// than translated, since nothing in production called it.
 
 export interface GuidanceSection { key: string; title: string; icon: string; body: string }
 export interface LuckyElements { number: number; color: string; time: string; direction: string }
 export interface DailyGuidance {
   date: string;
+  greeting: string;              // "Dear {First}," — every report opens as a letter
   framing: string;               // honest "guidance, not prediction" note
   theme: string;
   moonPhase: string;
@@ -203,7 +134,9 @@ const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
  * service AI-polishes the wording without changing the facts. Nothing here is a
  * prediction — it's guidance to think with.
  */
-export function composeGuidance(chart: NatalChart, userSeed: string, date: Date, num: Numerology, dasha: Dasha): DailyGuidance {
+export function composeGuidance(
+  chart: NatalChart, userSeed: string, date: Date, num: Numerology, dasha: Dasha, firstName?: string | null,
+): DailyGuidance {
   const iso = date.toISOString().slice(0, 10);
   const rng = mulberry32(hashSeed(userSeed + iso + 'g3'));
   const jd = julianDay(new Date(date.getTime()));
@@ -221,21 +154,25 @@ export function composeGuidance(chart: NatalChart, userSeed: string, date: Date,
                        : pick(rng, ['A day for steady hands', 'Patience pays today', 'Slow is smooth today']))
     : pick(rng, ['A quiet, open day', 'Your day to set the tone', 'A clear sky']);
 
+  // Every sentence below is DRIVEN by the computation above and NAMES none of
+  // it. The trait vocabulary in T is already written as observations about a
+  // person rather than about a sky, so it carries over directly; what goes is
+  // the scaffolding that used to announce which planet supplied which adjective.
   const career = [
     mercury.retrograde
-      ? `With Mercury retrograde in ${mercury.sign}, today favours reviewing, finishing and double-checking over launching. If an important decision can wait a day, letting it may lead to a better outcome than reacting immediately.`
-      : `Mercury in ${mercury.sign} supports clear communication — a good window to have the conversation, or send the message, you've been putting off. Say it plainly and calmly.`,
-    `Your numerology cycle leans toward ${num.dayFocus}, so ${num.personalDay === 9 ? 'closing open loops before starting something new will feel especially satisfying' : num.personalDay === 1 ? 'a small, deliberate first step counts more than a grand plan' : 'steady, unhurried progress serves you better than pushing hard'}.`,
-    `In your longer ${dasha.maha} period — a season of ${dasha.theme} — effort tends to compound when it stays consistent rather than dramatic.`,
+      ? `Today leans toward reviewing, finishing and double-checking rather than launching. If an important decision can wait a day, letting it may serve you better than reacting immediately.`
+      : `This is a good window for saying the thing you have been putting off — a conversation or a message tends to land cleanly today. Say it plainly and calmly.`,
+    `You may find your attention naturally drawn toward ${num.dayFocus}, so ${num.personalDay === 9 ? 'closing open loops before starting something new will feel especially satisfying' : num.personalDay === 1 ? 'a small, deliberate first step counts more than a grand plan' : 'steady, unhurried progress serves you better than pushing hard'}.`,
+    `You are in a longer season of ${dasha.theme}, and effort of that kind tends to compound when it stays consistent rather than dramatic.`,
   ].join(' ');
 
-  const relationships = `Venus in ${venus.sign} favours a ${T[venus.sign].love} approach; a small, sincere gesture will likely land better than a grand one. The ${phase} Moon in ${moonT.sign} tilts the mood toward ${fmtList(T[moonT.sign].keywords.slice(0, 2))} — if a conversation matters today, listening carefully first may do more than reacting quickly.`;
+  const relationships = `Care tends to reach people best from you when it is ${T[venus.sign].love} — a small, sincere gesture will likely land better than a grand one. The mood around you today tilts toward ${fmtList(T[moonT.sign].keywords.slice(0, 2))}, so if a conversation matters, listening carefully first may do more than reacting quickly.`;
 
-  const health = `Your energy runs ${T[mars.sign].element === 'fire' ? 'hot' : T[mars.sign].element === 'earth' ? 'steady' : T[mars.sign].element === 'air' ? 'restless' : 'deep'} with Mars in ${mars.sign}${mars.retrograde ? ' (retrograde — pace yourself)' : ''}. ${cap(sun.health)} — so honour the basics: water, one proper meal, and twenty unhurried minutes of movement or fresh air will do more than any quick fix.`;
+  const health = `Your energy is running ${T[mars.sign].element === 'fire' ? 'hot' : T[mars.sign].element === 'earth' ? 'steady' : T[mars.sign].element === 'air' ? 'restless' : 'deep'} at the moment${mars.retrograde ? ', and it will reward pacing rather than pushing' : ''}. ${cap(sun.health)} — so honour the basics: water, one proper meal, and twenty unhurried minutes of movement or fresh air will do more than any quick fix.`;
 
-  const finance = `Money tends to reward ${T[venus.sign].money} choices right now. With a Personal Year themed around ${num.yearTheme}, a simple test helps before any spend or commitment: does this serve where you're actually heading this year? ${jupiter.retrograde ? 'Jupiter retrograde gently suggests consolidating what you have over chasing something new.' : `Jupiter in ${jupiter.sign} favours patient, considered growth over quick wins.`}`;
+  const finance = `Money tends to reward ${T[venus.sign].money} choices from you right now. You are in a year themed around ${num.yearTheme}, so a simple test helps before any spend or commitment: does this serve where you are actually heading? ${jupiter.retrograde ? 'Consolidating what you already have may serve you better than chasing something new.' : 'Patient, considered growth tends to outperform quick wins for you.'}`;
 
-  const growth = `Your Life Path ${num.lifePath} carries ${num.lifePathMeaning}; today asks for one honest, small step rather than a leap. The ${phase} is a natural moment to ${waxing ? 'set an intention and begin' : 'release something you\'ve outgrown'} — trust that quiet, repeated effort is doing more than it appears to.`;
+  const growth = `One strength that stands out in you is ${num.lifePathMeaning}; today asks for one honest, small step rather than a leap. It is a natural moment to ${waxing ? 'set an intention and begin' : 'let go of something you have outgrown'} — quiet, repeated effort is doing more than it appears to.`;
 
   const el = sun.element;
   const lucky: LuckyElements = {
@@ -251,7 +188,11 @@ export function composeGuidance(chart: NatalChart, userSeed: string, date: Date,
     `Take five minutes tonight to ask: what deserves a little more of my attention this week, and what deserves a little less? Let the answer be gentle.`,
   ]);
 
-  const framing = `Reflective guidance from your birth chart, today's transits and your numerology — offered to help you think, not to predict what will happen. You always hold the pen.`;
+  // Says what this IS for without saying what produced it. The honesty the old
+  // line was reaching for — this is reflection, not prophecy — matters and is
+  // kept; the inventory of inputs that followed it does not belong in front of
+  // the citizen.
+  const framing = `Written for you, to help you think — not to tell you what will happen. You always hold the pen.`;
 
   const sections: GuidanceSection[] = [
     { key: 'career', title: 'Career & Work', icon: '💼', body: career },
@@ -262,7 +203,7 @@ export function composeGuidance(chart: NatalChart, userSeed: string, date: Date,
   ];
   const text = sections.map((s) => s.body).join('\n\n');
   return {
-    date: iso, framing, theme, moonPhase: phase, sunSign: chart.sun.sign,
+    date: iso, greeting: greetingFor(firstName), framing, theme, moonPhase: phase, sunSign: chart.sun.sign,
     numerology: { lifePath: num.lifePath, personalYear: num.personalYear, personalMonth: num.personalMonth, personalDay: num.personalDay },
     dasha: { maha: dasha.maha, antar: dasha.antar },
     sections, lucky, reflection, text, words: wordCount(text),
@@ -271,7 +212,7 @@ export function composeGuidance(chart: NatalChart, userSeed: string, date: Date,
 
 export interface MonthlySection { key: string; title: string; body: string }
 export interface MonthlyReading {
-  month: string; title: string; sections: MonthlySection[]; words: number;
+  month: string; greeting: string; title: string; sections: MonthlySection[]; words: number;
   bestDates: number[]; cautionDates: number[];
   framing?: string;
   numerology?: { lifePath: number; personalYear: number; personalMonth: number };
@@ -280,7 +221,9 @@ export interface MonthlyReading {
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-export function composeMonthly(chart: NatalChart, userSeed: string, astro: MonthAstro, num?: Numerology, dasha?: Dasha): MonthlyReading {
+export function composeMonthly(
+  chart: NatalChart, userSeed: string, astro: MonthAstro, num?: Numerology, dasha?: Dasha, firstName?: string | null,
+): MonthlyReading {
   const monthName = `${MONTHS[astro.month - 1]} ${astro.year}`;
   const rng = mulberry32(hashSeed(userSeed + `${astro.year}-${astro.month}`));
   const sun = chart.sun.sign, moon = chart.moon.sign;
@@ -294,27 +237,29 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
   const para = (...ps: string[]) => ps.filter(Boolean).join('\n\n');
 
   const jupiter = tr('Jupiter'), saturn = tr('Saturn'), venus = tr('Venus'), mars = tr('Mars'), mercury = tr('Mercury');
+  // The lunation days still drive the Family section; only their description changes.
+  const lunationDays = astro.events.filter((e) => e.kind === 'lunation').map((e) => e.day);
 
   const sections: MonthlySection[] = [];
 
   sections.push({
     key: 'intro', title: `Your ${monthName} at a Glance`, body: para(
       P(
-        `${monthName} opens with your ${sun} Sun ${asc ? `and ${asc} rising ` : ''}meeting a sky that asks for ${tough.length > harm.length ? 'patience before ambition' : 'deliberate, confident movement'}.`,
-        `Jupiter spends the month in ${jupiter.sign}, expanding ${PLANET_DOMAIN.Jupiter} through the lens of ${fmtList(T[jupiter.sign].keywords.slice(0, 2))}, while Saturn in ${saturn.sign} keeps ${PLANET_DOMAIN.Saturn} honest.`,
-        `For a ${sun} — whose instinct is ${st.keywords[0]} — this combination rewards ${pick(rng, ['plans with structure behind them', 'commitments you can actually keep', 'a shorter list pursued harder', 'depth over breadth'])}.`,
+        `${monthName} asks you for ${tough.length > harm.length ? 'patience before ambition' : 'deliberate, confident movement'}.`,
+        `It is a month where growth tends to come through ${fmtList(T[jupiter.sign].keywords.slice(0, 2))}, and where the things you have committed to will quietly be tested for whether they hold.`,
+        `Your instinct is ${st.keywords[0]}, and that combination rewards ${pick(rng, ['plans with structure behind them', 'commitments you can actually keep', 'a shorter list pursued harder', 'depth over breadth'])}.`,
       ),
       P(
-        `Your Moon in ${moon} shapes how the month FEELS from the inside: expect your emotional weather to run through ${fmtList(mt.keywords)}.`,
-        harm.length ? `The strongest support this month comes from ${harm[0].planet}, which ${ASPECT_TONE[harm[0].type]} your natal ${harm[0].target} — lean into it around the dates listed at the end of this reading.` : `No single transit carries you this month, which is quietly good news: progress will be earned, and therefore keepable.`,
-        tough.length ? `The friction to respect comes from ${tough[0].planet} ${ASPECT_TONE[tough[0].type].replace(/s$/, '')}ing your ${tough[0].target}; the caution dates below mark when to keep stakes low.` : `Nothing in the sky actively works against you this month — your main opponent is ${st.watchout}.`,
+        `Inwardly, you may notice the month running through ${fmtList(mt.keywords)} — that is how it will FEEL from the inside, whatever it looks like from outside.`,
+        harm.length ? `You have real support available this month, and it concentrates around the strongest dates listed at the end — lean into those.` : `Nothing carries you this month, which is quietly good news: progress will be earned, and therefore keepable.`,
+        tough.length ? `There is friction to respect too; the caution dates below mark when to keep the stakes low.` : `Little works against you this month — your main opponent is ${st.watchout}.`,
       ),
       P(
         pick(rng, [
-          `Read the sections below as one connected story: what happens in your career this month is linked to how you manage energy, and both feed the quality of your closest relationships.`,
-          `Treat this month as a single project with several fronts — career, money, love, health — that all draw from the same reserve of ${st.keywords[1] ?? st.keywords[0]}.`,
+          `Read the sections below as one connected story: what happens in your work this month is linked to how you manage energy, and both feed the quality of your closest relationships.`,
+          `Treat this month as a single project with several fronts — work, money, love, health — that all draw from the same reserve of ${st.keywords[1] ?? st.keywords[0]}.`,
         ]),
-        `Where specific dates are named, they come from exact planetary geometry against your birth chart on the sidereal (Vedic) zodiac — Jyotish Shastra, not generic Western sign-only astrology.`,
+        `Where specific dates are named, they are worked out for you personally rather than copied from anything generic.`,
       ),
     ),
   });
@@ -323,13 +268,13 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
     sections.push({
       key: 'cycle', title: 'Your Cycle & Timing', body: para(
         P(
-          `Beyond the sky, your personal cycles set this month's tone. You're in a Personal Month ${num.personalMonth} inside a Personal Year ${num.personalYear} — a season emphasising ${num.yearTheme}.`,
-          `Numerologically, ${monthName} leans toward ${num.personalMonth === 9 || num.personalMonth === 4 ? 'completing, consolidating and tidying loose ends' : num.personalMonth === 1 || num.personalMonth === 5 ? 'initiating, adapting and trying the new' : 'steady, relational progress rather than dramatic moves'}.`,
+          `You are in a longer season emphasising ${num.yearTheme}, and ${monthName} sits inside it as a chapter of its own.`,
+          `This particular month leans toward ${num.personalMonth === 9 || num.personalMonth === 4 ? 'completing, consolidating and tidying loose ends' : num.personalMonth === 1 || num.personalMonth === 5 ? 'initiating, adapting and trying the new' : 'steady, relational progress rather than dramatic moves'}.`,
         ),
         P(
-          `In the longer arc, you're moving through a ${dasha.maha} Mahādasha (with a ${dasha.antar} sub-period) — a chapter themed around ${dasha.theme}. It helps to read the month's events through that lens: what supports that theme tends to flow, and what fights it tends to feel heavier than it should.`,
+          `Underneath both, you are moving through a longer chapter themed around ${dasha.theme}. It helps to read the month through that: what supports that theme tends to flow, and what fights it tends to feel heavier than it should.`,
         ),
-        P(`Hold all of this as guidance to think with — timing that points to where your effort is likeliest to pay, never a fixed prediction. The choices stay yours.`),
+        P(`Hold all of this as guidance to think with — a sense of where your effort is likeliest to pay, never a fixed prediction. The choices stay yours.`),
       ),
     });
   }
@@ -337,17 +282,17 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
   sections.push({
     key: 'career', title: 'Career & Business', body: para(
       P(
-        `Professionally, the month is defined by Saturn in ${saturn.sign} ${saturn.retrograde ? '(retrograde — old obligations resurface for proper completion)' : ''} and Mars in ${mars.sign}.`,
-        `Saturn asks a ${sun} to prove durability: ${pick(rng, ['document what you deliver', 'make one process actually repeatable', 'close the loop on the oldest open promise on your list', 'strengthen the foundations before adding another floor'])}.`,
-        `Mars supplies the push — its ${T[mars.sign].element}-sign drive suits ${T[mars.sign].work} efforts${mars.retrograde ? ', though retrograde motion means revision and rework will outperform brand-new launches' : ''}.`,
+        `Professionally, this is a month that asks you to prove durability${saturn.retrograde ? ', and old obligations may resurface wanting proper completion' : ''}.`,
+        `The most useful thing you can do: ${pick(rng, ['document what you deliver', 'make one process actually repeatable', 'close the loop on the oldest open promise on your list', 'strengthen the foundations before adding another floor'])}.`,
+        `You should find drive available for ${T[mars.sign].work} efforts${mars.retrograde ? ', though revision and rework will outperform brand-new launches this month' : ''}.`,
       ),
       P(
-        `Your natural working style is ${st.work}, and this month it meets ${tough.some((h) => h.planet === 'Saturn') ? 'testing conditions: expect at least one deadline, authority figure or structural limit to push back. The productive response is precision, not speed.' : 'reasonably open conditions: superiors and clients are more persuadable than usual, particularly in the window around the best dates below.'}`,
-        `If you run a business, ${pick(rng, ['review pricing before adding customers', 'tighten one recurring cost you have stopped noticing', 'formalise the handshake agreements — Saturn favours contracts', 'invest in the boring infrastructure that removes your most common emergency'])}.`,
+        `Your natural working style is ${st.work}, and this month it meets ${tough.some((h) => h.planet === 'Saturn') ? 'testing conditions: expect at least one deadline, authority figure or structural limit to push back. The productive response is precision, not speed.' : 'reasonably open conditions: the people you need to persuade are more persuadable than usual, particularly around the strongest dates below.'}`,
+        `If you run a business, ${pick(rng, ['review pricing before adding customers', 'tighten one recurring cost you have stopped noticing', 'formalise the handshake agreements — this is a month that favours things written down', 'invest in the boring infrastructure that removes your most common emergency'])}.`,
       ),
       P(
-        `In meetings and negotiations, Mercury in ${mercury.sign} ${mercury.retrograde ? 'is retrograde: schedule signings and final commitments after it stations direct, and treat mid-month misunderstandings as clerical rather than personal.' : `keeps your reasoning ${T[mercury.sign].element === 'air' ? 'sharp and persuasive' : 'concrete and credible'} — a strong month for interviews, pitches and difficult conversations handled early.`}`,
-        `The single best career habit for this month: ${pick(rng, ['finish visibly — completed work compounds under this sky', 'under-promise by ten percent and over-deliver quietly', 'protect two deep-work blocks a week as if they were client meetings', 'ask directly for the responsibility you want; the sky rewards the explicit'])}.`,
+        `In meetings and negotiations, ${mercury.retrograde ? 'give yourself room: schedule signings and final commitments for later in the month, and treat mid-month misunderstandings as clerical rather than personal.' : `your reasoning should come across ${T[mercury.sign].element === 'air' ? 'sharp and persuasive' : 'concrete and credible'} — a strong month for interviews, pitches and difficult conversations handled early.`}`,
+        `The single best working habit for this month: ${pick(rng, ['finish visibly — completed work compounds right now', 'under-promise by ten percent and over-deliver quietly', 'protect two deep-work blocks a week as if they were client meetings', 'ask directly for the responsibility you want; being explicit pays this month'])}.`,
       ),
     ),
   });
@@ -355,14 +300,13 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
   sections.push({
     key: 'money', title: 'Money', body: para(
       P(
-        `Financially, Venus in ${venus.sign} and Jupiter in ${jupiter.sign} set the tone.`,
-        `Venus governs what you are drawn to spend on, and in ${venus.sign} the pull is toward ${T[venus.sign].money} choices; Jupiter tempts expansion — worthwhile when it lands on assets, risky when it lands on lifestyle.`,
-        `Your baseline money style is ${st.money}, so this month specifically ${pick(rng, ['budget the enthusiasm: cap any single discretionary purchase', 'automate the saving you keep meaning to do', 'audit subscriptions and standing payments — Saturn loves a cancelled leak', 'move one lump from idle to earning'])}.`,
+        `Financially, you may notice the pull this month running toward ${T[venus.sign].money} choices, alongside a temptation to expand — worthwhile when it lands on assets, risky when it lands on lifestyle.`,
+        `Your baseline money style is ${st.money}, so this month specifically ${pick(rng, ['budget the enthusiasm: cap any single discretionary purchase', 'automate the saving you keep meaning to do', 'audit subscriptions and standing payments — a cancelled leak is free money', 'move one lump from idle to earning'])}.`,
       ),
       P(
-        tough.some((h) => h.planet === 'Mars') ? `With Mars aspecting your chart harshly, impatience is the expensive emotion this month — the deal that "cannot wait" is precisely the one that should.` : `Nothing in the sky pushes you toward rash spending this month, which makes it a genuinely good window for planned, researched purchases.`,
-        `Best financial windows fall on the dates listed below; keep large, irreversible commitments away from the caution dates.`,
-        `A practical rule for ${monthName}: ${pick(rng, ['decide investments on paper a day before you execute them', 'let any windfall sit for seventy-two hours before it is assigned', 'review one insurance or protection gap — Saturn rewards it', 'track every rupee for one week; the data will surprise you once, then pay you monthly'])}.`,
+        tough.some((h) => h.planet === 'Mars') ? `Impatience is the expensive emotion this month — the deal that "cannot wait" is precisely the one that should.` : `Little is pushing you toward rash spending this month, which makes it a genuinely good window for planned, researched purchases.`,
+        `Your best financial windows fall on the dates listed below; keep large, irreversible commitments away from the caution dates.`,
+        `A practical rule for ${monthName}: ${pick(rng, ['decide investments on paper a day before you execute them', 'let any windfall sit for seventy-two hours before it is assigned', 'review one insurance or protection gap', 'track every rupee for one week; the data will surprise you once, then pay you monthly'])}.`,
       ),
     ),
   });
@@ -370,16 +314,16 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
   sections.push({
     key: 'love', title: 'Love & Relationships', body: para(
       P(
-        `Venus spends the month in ${venus.sign}, giving affection a ${T[venus.sign].love} flavour.`,
-        `Your own style — ${st.love}, with a ${moon}-Moon inner life that needs ${fmtList(mt.keywords.slice(0, 2))} — ${['fire', 'air'].includes(T[venus.sign].element) === ['fire', 'air'].includes(st.element) ? 'moves in step with this sky, so expressing what you actually feel comes easier than usual' : 'runs slightly against this sky, so translate: say the practical thing if your partner needs it, even when you feel the poetic one'}.`,
+        `Affection this month takes on a ${T[venus.sign].love} flavour.`,
+        `Your own style is ${st.love}, with an inner life that needs ${fmtList(mt.keywords.slice(0, 2))} — and this month that ${['fire', 'air'].includes(T[venus.sign].element) === ['fire', 'air'].includes(st.element) ? 'moves in step with what is around you, so expressing what you actually feel comes easier than usual' : 'runs slightly against what is around you, so translate: say the practical thing if your partner needs it, even when you feel the poetic one'}.`,
       ),
       P(
-        `For couples: ${pick(rng, ['plan one unhurried evening with phones elsewhere — the transits do the rest', 'the recurring argument softens if raised BEFORE it flares; pick a calm hour', 'shared logistics (money, family, home) benefit from one honest working session this month', 'novelty is the medicine — one new place or ritual resets the dynamic'])}`,
-        `For singles: ${harm.some((h) => h.planet === 'Venus' || h.planet === 'Jupiter') ? 'this is an above-average month to be visible — accept the invitation you would normally decline, especially near the best dates.' : 'connection this month favours depth over volume; one real conversation outperforms ten exchanges of pleasantries.'}`,
+        `For couples: ${pick(rng, ['plan one unhurried evening with phones elsewhere — the rest takes care of itself', 'the recurring argument softens if raised BEFORE it flares; pick a calm hour', 'shared logistics (money, family, home) benefit from one honest working session this month', 'novelty is the medicine — one new place or ritual resets the dynamic'])}`,
+        `For singles: ${harm.some((h) => h.planet === 'Venus' || h.planet === 'Jupiter') ? 'this is an above-average month to be visible — accept the invitation you would normally decline, especially near the strongest dates.' : 'connection this month favours depth over volume; one real conversation outperforms ten exchanges of pleasantries.'}`,
       ),
       P(
-        `Watch for ${st.watchout} in close quarters — under this sky it is the most likely source of unnecessary hurt.`,
-        `The relationship habit that pays all month: ${pick(rng, ['appreciate specifically — name the thing, not just the person', 'repair fast; under Saturn, resentment compounds like interest', 'ask one more question before offering the solution', 'protect your own recovery time so you bring a full self to the table'])}.`,
+        `Watch for ${st.watchout} in close quarters — for you it is the most likely source of unnecessary hurt.`,
+        `The relationship habit that pays all month: ${pick(rng, ['appreciate specifically — name the thing, not just the person', 'repair fast; resentment compounds like interest', 'ask one more question before offering the solution', 'protect your own recovery time so you bring a full self to the table'])}.`,
       ),
     ),
   });
@@ -387,11 +331,11 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
   sections.push({
     key: 'health', title: 'Health', body: para(
       P(
-        `Vitality this month follows Mars in ${mars.sign}: energy runs ${T[mars.sign].element === 'fire' ? 'high and fast-burning — brilliant for training, hazardous for sleep if unspent' : T[mars.sign].element === 'earth' ? 'steady — ideal for building a routine that survives busy weeks' : T[mars.sign].element === 'air' ? 'in bursts — pair movement with something social or mental to sustain it' : 'deep but tidal — respect the low days instead of overriding them'}.`,
-        `As a ${sun}, ${st.health}; your ${moon} Moon adds that ${mt.health}.`,
+        `Your energy this month runs ${T[mars.sign].element === 'fire' ? 'high and fast-burning — brilliant for training, hazardous for sleep if unspent' : T[mars.sign].element === 'earth' ? 'steady — ideal for building a routine that survives busy weeks' : T[mars.sign].element === 'air' ? 'in bursts — pair movement with something social or mental to sustain it' : 'deep but tidal — respect the low days instead of overriding them'}.`,
+        `You tend to find that ${st.health}, and that ${mt.health}.`,
       ),
       P(
-        tough.length ? `Because the month carries real friction (${tough[0].planet} against your ${tough[0].target}), stress will look for a physical exit — give it a scheduled one: ${pick(rng, ['three honest workouts a week', 'a daily walk that is not negotiable', 'one screen-free hour before bed', 'breathwork or stretching on the caution dates especially'])}.` : `With no harsh transits pressing on your chart, this is a consolidation month: the routine you establish now sticks unusually well.`,
+        tough.length ? `Because the month carries real friction, stress will look for a physical exit — give it a scheduled one: ${pick(rng, ['three honest workouts a week', 'a daily walk that is not negotiable', 'one screen-free hour before bed', 'breathwork or stretching on the caution dates especially'])}.` : `With little pressing on you, this is a consolidation month: the routine you establish now sticks unusually well.`,
         `Small clinical housekeeping — ${pick(rng, ['the postponed dental or eye check', 'a basic blood panel if it has been over a year', 'posture and workstation setup', 'hydration before caffeine each morning'])} — done this month prevents a nuisance later.`,
       ),
     ),
@@ -400,12 +344,12 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
   sections.push({
     key: 'family', title: 'Family', body: para(
       P(
-        `The Moon rules your family sphere, and its lunations this month — ${astro.events.filter((e) => e.kind === 'lunation').map((e) => `the ${e.text} on the ${ordinal(e.day)}`).join(' and ') || 'a quiet lunar month'} — mark the emotional turning points at home.`,
-        `A new moon favours beginnings (conversations, moves, plans); a full moon brings things to light — expect feelings already present to become visible, not new ones to be invented.`,
+        `${lunationDays.length ? `Two points in the month — around the ${fmtList(lunationDays.map(ordinal))} — tend to mark the emotional turning points at home.` : `This is an emotionally even month at home, without a single obvious turning point.`}`,
+        `Early in a month like this, beginnings go well: conversations, moves, plans. Later, things already present tend to become visible — expect feelings that were there all along to surface, rather than new ones to appear.`,
       ),
       P(
-        `With your Moon in ${moon}, you are the family's ${pick(rng, ['emotional barometer', 'quiet anchor', 'organising memory', 'first responder'])}; this month, ${pick(rng, ['let someone else hold the logistics for one weekend', 'say the appreciative thing out loud — assumed gratitude reads as absence', 'one call to the relative you keep postponing settles more than you expect', 'set one gentle boundary and keep it warmly'])}.`,
-        `Elders and children both respond well to routine under Saturn in ${saturn.sign} — shared meals at fixed times do invisible good.`,
+        `Within your family you are the ${pick(rng, ['emotional barometer', 'quiet anchor', 'organising memory', 'first responder'])}; this month, ${pick(rng, ['let someone else hold the logistics for one weekend', 'say the appreciative thing out loud — assumed gratitude reads as absence', 'one call to the relative you keep postponing settles more than you expect', 'set one gentle boundary and keep it warmly'])}.`,
+        `Elders and children both respond well to routine right now — shared meals at fixed times do invisible good.`,
       ),
     ),
   });
@@ -413,26 +357,36 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
   sections.push({
     key: 'travel', title: 'Travel', body: para(
       P(
-        `Travel is Mercury and Jupiter's territory. Mercury in ${mercury.sign} ${mercury.retrograde ? 'is retrograde for part of the month — build slack into itineraries, screenshot every confirmation, and prefer refundable fares' : 'is direct and cooperative — bookings, visas and paperwork move smoothly, particularly early in the month'}.`,
-        `Jupiter in ${jupiter.sign} favours journeys with a purpose of ${['fire', 'air'].includes(T[jupiter.sign].element) ? 'discovery — new places over familiar ones' : 'consolidation — the family visit, the pilgrimage, the trip that completes something'}.`,
+        `${mercury.retrograde ? 'Arrangements need more slack than usual this month — build margin into itineraries, screenshot every confirmation, and prefer refundable fares.' : 'Arrangements should move smoothly this month — bookings, visas and paperwork tend to go through cleanly, particularly early on.'}`,
+        `Journeys with a purpose of ${['fire', 'air'].includes(T[jupiter.sign].element) ? 'discovery suit you better right now — new places over familiar ones' : 'consolidation suit you better right now — the family visit, the pilgrimage, the trip that completes something'}.`,
       ),
       P(
-        `Best travel windows align with the favourable dates below; if a journey must fall on a caution date, keep connections generous and documents duplicated.`,
+        `Your best travel windows align with the favourable dates below; if a journey must fall on a caution date, keep connections generous and documents duplicated.`,
         pick(rng, [
           `Short trips outperform grand tours this month — two days well-planned will restore more than ten days improvised.`,
           `If a foreign matter (visa, admission, posting) is pending, advance it in the first half of the month and follow up in writing.`,
-          `Pack lighter than feels safe; under this sky the freed attention is worth more than the third pair of options.`,
+          `Pack lighter than feels safe; the freed attention is worth more than the third pair of options.`,
         ]),
       ),
     ),
   });
 
-  const evLines = astro.events.slice(0, 10).map((e) => `On the ${ordinal(e.day)}, ${e.text.toLowerCase().startsWith('new') || e.text.toLowerCase().startsWith('full') ? e.text.replace(/^(\w)/, (c) => c.toLowerCase()) : e.text} ${e.kind === 'ingress' ? 'shifts the collective focus toward ' + fmtList(T[(e.text.split(' enters ')[1] as SignName)]?.keywords?.slice(0, 2) ?? ['new priorities']) : e.kind === 'retrograde' ? '— adjust plans in that planet\'s domain accordingly' : 'marks an emotional pivot for the month'}.`);
+  // The turning-point dates are still computed exactly as before; what changes
+  // is that they are presented as days that matter FOR THIS PERSON rather than
+  // as an itemised list of what the sky is doing.
+  const shiftLines = astro.events.slice(0, 8).map((e) => {
+    const focus = e.kind === 'ingress'
+      ? `attention tends to move toward ${fmtList(T[(e.text.split(' enters ')[1] as SignName)]?.keywords?.slice(0, 2) ?? ['new priorities'])}`
+      : e.kind === 'retrograde'
+        ? `it is worth revisiting plans rather than pressing them forward`
+        : `something already building tends to come into the open`;
+    return `Around the ${ordinal(e.day)}, ${focus}.`;
+  });
   sections.push({
-    key: 'events', title: 'Important Planetary Events', body: para(
-      `These are the sky's actual headlines for ${monthName}, computed from planetary motion rather than copied from a generic calendar:`,
-      evLines.length ? evLines.join('\n\n') : 'A rare quiet month: no sign changes or stations occur — momentum carries, uninterrupted.',
-      `Events involving ${pick(rng, ['Mercury touch your paperwork and conversations first', 'Venus touch your relationships and finances first', 'Mars touch your energy and deadlines first'])}; note how each lands relative to your ${sun} Sun and plan the adjacent days with a little extra margin.`,
+    key: 'events', title: 'Turning Points This Month', body: para(
+      `A few days in ${monthName} carry more weight than the rest for you:`,
+      shiftLines.length ? shiftLines.join('\n\n') : 'This is an unusually even month — no single day stands out, so momentum carries uninterrupted.',
+      `None of these are deadlines. Treat them as days worth a little extra margin, and notice what they bring up.`,
     ),
   });
 
@@ -440,11 +394,11 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
     key: 'best', title: 'Best Dates This Month', body: para(
       astro.bestDates.length
         ? P(
-          `Your strongest dates are ${fmtList(astro.bestDates.map(ordinal))} — days when supportive geometry (Venus, Jupiter or the Sun in flowing aspect to your natal chart) is exact or near-exact.`,
+          `Your strongest dates this month are ${fmtList(astro.bestDates.map(ordinal))} — days when things are likeliest to move in your favour.`,
           `Use them for what matters most: ${pick(rng, ['the pitch, the proposal, the launch', 'first meetings and important asks', 'signing, submitting, publishing', 'the conversation that needs its best odds'])}.`,
         )
-        : `No standout supportive alignments peak this month — treat it as evenly weighted and let preparation, not timing, create your advantage.`,
-      `A best date is a tailwind, not a guarantee: it improves the odds of the work you bring to it.`,
+        : `No days stand out as especially favourable this month — treat it as evenly weighted and let preparation, not timing, create your advantage.`,
+      `A strong date is a tailwind, not a guarantee: it improves the odds of the work you bring to it.`,
     ),
   });
 
@@ -452,10 +406,10 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
     key: 'caution', title: 'Dates to Be Cautious', body: para(
       astro.cautionDates.length
         ? P(
-          `Handle ${fmtList(astro.cautionDates.map(ordinal))} with extra care — Mars or Saturn presses on your natal Sun or Moon around these days.`,
+          `Handle ${fmtList(astro.cautionDates.map(ordinal))} with extra care — you may find your patience shorter and your judgement pressed around these days.`,
           `Nothing about them is dangerous; they are simply poor value for launches, confrontations and irreversible signatures. Schedule maintenance, routine work and rest there instead.`,
         )
-        : `No harsh alignments peak against your chart this month — an uncommonly clean slate. Ordinary prudence is enough.`,
+        : `No days this month press on you particularly hard — an uncommonly clean slate. Ordinary prudence is enough.`,
       `If something unavoidable falls on a caution date, slow the tempo: confirm twice, leave earlier, and keep your ${st.watchout} on a short leash.`,
     ),
   });
@@ -463,17 +417,17 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
   sections.push({
     key: 'summary', title: 'Monthly Summary', body: para(
       P(
-        `${monthName} asks your ${sun} nature to ${tough.length > harm.length ? 'trade speed for durability' : 'move while the moving is good'}.`,
-        `Career rewards ${saturn.retrograde ? 'completion of old business' : 'structured ambition'}; money favours ${T[venus.sign].money} choices; love deepens through the ${T[venus.sign].love}; health follows whatever routine you actually keep.`,
+        `${monthName} asks you to ${tough.length > harm.length ? 'trade speed for durability' : 'move while the moving is good'}.`,
+        `Work rewards ${saturn.retrograde ? 'completion of old business' : 'structured ambition'}; money favours ${T[venus.sign].money} choices; love deepens through the ${T[venus.sign].love}; health follows whatever routine you actually keep.`,
       ),
       P(
-        `Circle the best dates, respect the caution dates, and remember the month's one-line brief: ${pick(rng, [
+        `Circle the strongest dates, respect the caution dates, and remember the month's one-line brief: ${pick(rng, [
           `let ${st.strength} lead, and keep ${st.watchout} in the passenger seat.`,
           `fewer promises, fuller delivery.`,
           `build in private, announce when finished.`,
           `protect the mornings and the month protects you.`,
         ])}`,
-        `Next month's sky shifts again — decisions made with this one's grain will still be standing when it does.`,
+        `Conditions shift again next month — decisions made with this one's grain will still be standing when they do.`,
       ),
     ),
   });
@@ -481,44 +435,49 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
   // Guarantee the premium length target (2,000–4,000 words) deterministically.
   const RESERVE: Array<[string, string[]]> = [
     ['career', [
-      `A note on colleagues: under this configuration, the quiet contributor in your circle carries more useful information than the loud one — one coffee with the right person this month replaces five meetings.`,
-      `If a role change is on your mind, use this month for positioning rather than leaping: update the document, have the exploratory conversation, and let the decision ripen toward the best dates.`,
+      `A note on colleagues: the quiet contributor in your circle carries more useful information than the loud one — one coffee with the right person this month replaces five meetings.`,
+      `If a role change is on your mind, use this month for positioning rather than leaping: update the document, have the exploratory conversation, and let the decision ripen toward your strongest dates.`,
     ]],
     ['money', [
-      `On lending and borrowing between friends or family: Saturn's position makes informal arrangements sticky this month — if it must happen, write it down kindly.`,
+      `On lending and borrowing between friends or family: informal arrangements turn sticky this month — if it must happen, write it down kindly.`,
       `Recurring income deserves one deliberate look: a small fee renegotiated or a rate corrected now compounds quietly for the rest of the year.`,
     ]],
     ['love', [
-      `Family opinions and partnerships intersect this month; hear them fully, then decide from your own chart, not the room's weather.`,
-      `Old connections may resurface${mercury.retrograde ? ' — classic retrograde behaviour' : ''}; nostalgia is information about what you value, not necessarily an instruction to go back.`,
+      `Family opinions and partnerships intersect this month; hear them fully, then decide from what you actually want, not from the mood of the room.`,
+      `Old connections may resurface${mercury.retrograde ? ', which is typical of a month like this' : ''}; nostalgia is information about what you value, not necessarily an instruction to go back.`,
     ]],
     ['health', [
       `Sleep is the multiplier on everything else this month: a fixed wake time, even on weekends, will do more for mood and focus than any supplement.`,
-      `Watch the caffeine-to-water ratio on high-pressure days; the ${T[mars.sign].element}-sign Mars burns clean fuel best.`,
+      `Watch the caffeine-to-water ratio on high-pressure days; your energy burns cleanest on simple fuel.`,
     ]],
     ['family', [
-      `A household repair or upgrade postponed for months fits beautifully under Saturn's influence — fix the thing, and notice how much mental bandwidth it returns.`,
+      `A household repair or upgrade postponed for months fits this month beautifully — fix the thing, and notice how much mental bandwidth it returns.`,
       `Children and younger relatives mirror your pace this month more than your words; the calm you model is the lesson that lands.`,
     ]],
     ['travel', [
       `Local exploration counts: one unfamiliar neighbourhood, market or trail this month refreshes the mind at a fraction of the cost of a flight.`,
-      `If documents or renewals (passport, licence, permits) are within six months of expiry, process them now while Mercury's conditions are known.`,
+      `If documents or renewals (passport, licence, permits) are within six months of expiry, process them now while the conditions are known.`,
     ]],
   ];
-  // Second wave: sign-personalised depth paragraphs, appended only as needed.
+  // Second wave: personalised depth paragraphs, appended only as needed. Driven
+  // by the same computed values as everything above, phrased about the person.
   const DEPTH: Array<[string, string]> = [
-    ['intro', `A word on how to use this reading. Astrology at its best is a weather report, not a script: the transits above describe prevailing winds for a ${sun} with a ${moon} Moon, and every recommendation that follows assumes you remain the pilot. Where the forecast says friction, budget extra time; where it says flow, raise your ambition a notch — the sky rewards those who adjust their sails deliberately.`],
-    ['career', `Zooming out to the quarter: Saturn's slow passage through ${saturn.sign} is a multi-month chapter, not a weekly mood, and its lesson for your ${sun} Sun is cumulative — every deadline honoured this month is a brick in a reputation that pays compounding dividends when faster, flashier colleagues run out of momentum. Think of ${monthName} as one disciplined lap in a much longer race you are quietly winning.`],
-    ['career', `If you manage others, the ${T[mars.sign].element}-sign Mars asks you to match assignments to energy: give the urgent, visible task to your sprinters and the structural work to your marathoners, and resist the urge to do both yourself — delegation is this month's hidden productivity transit.`],
-    ['money', `For long-horizon wealth, remember that Jupiter's year in ${jupiter.sign} expands whatever it touches — including mistakes. The classical remedy is position sizing: let no single enthusiasm, however starry, hold more of your capital than you could lose with a shrug. Expansion plus discipline is the rare combination this sky actually rewards.`],
-    ['money', `Household economics deserve one honest hour this month: the ${moon} Moon in your chart ties financial peace to emotional peace more tightly than you may admit, and a written budget — even an imperfect one — quiets both at once.`],
-    ['love', `A deeper note for the ${moon} Moon: your emotional needs in close relationships run toward ${fmtList(mt.keywords)}, and months like this one test whether you ASK for those needs or merely hope they are guessed. The partner, friend or family member who hears the explicit version of you will meet it far more often than the one left to decode silences.`],
-    ['love', `Venus retrogrades and returns, but the chart's constant is this: a ${sun} loves most sustainably when ${st.love.split(' and ')[0]} feeling is paired with everyday reliability — the good-morning message, the kept promise, the remembered small thing. This month, let consistency be the romance.`],
-    ['health', `The mind-body link runs through your ${moon} Moon: unprocessed ${mt.keywords[0]} shows up physically before it shows up verbally, usually as ${mt.health.toLowerCase()}. Ten minutes of honest journaling on difficult evenings is cheap preventive medicine this month.`],
-    ['health', `Energy management beats time management under this sky: identify your two strongest hours of the day and defend them for what matters; the ${T[mars.sign].element} Mars will happily spend them on trivia if you let it.`],
-    ['family', `Where generations disagree this month, translate rather than judge: Saturn in ${saturn.sign} makes elders value ${T[saturn.sign].keywords[0]} while younger voices push for ${T[jupiter.sign].keywords[0]} — both are right about different time horizons, and naming that aloud usually ends the argument.`],
-    ['travel', `For those weighing relocation or a long posting: Jupiter's sign speaks to WHERE growth concentrates this year, and ${jupiter.sign}'s flavour favours places and roles rich in ${fmtList(T[jupiter.sign].keywords.slice(0, 2))}. Visit before you commit; the chart advises informed leaps, not blind ones.`],
-    ['summary', `Finally, hold the month lightly. Charts incline, they do not compel — and the same transit that tests one ${sun} into frustration matures another into ${st.keywords[2] ?? st.keywords[0]}. The difference is never the sky; it is the daily choices made under it. Choose like the second person, and ${monthName} will read, in hindsight, as the month things quietly turned.`],
+    ['intro', `A word on how to use this. None of it is a script — it describes the prevailing conditions and the tendencies you bring to them, and every suggestion assumes you remain the one steering. Where it points to friction, budget extra time; where it points to flow, raise your ambition a notch. The difference is made by adjusting deliberately rather than drifting.`],
+    ['career', `Zooming out past this month: what you are being asked to prove right now is cumulative, not weekly. Every deadline honoured this month is a brick in a reputation that pays compounding dividends later, when faster and flashier people around you run out of momentum. Think of ${monthName} as one disciplined lap in a much longer race you are quietly winning.`],
+    ['career', `If you manage others, match assignments to energy this month: give the urgent, visible task to your sprinters and the structural work to your marathoners, and resist the urge to do both yourself. Delegation is this month's hidden productivity gain.`],
+    ['money', `For long-horizon wealth, remember that a season of expansion expands whatever it touches — including mistakes. The remedy is position sizing: let no single enthusiasm, however exciting, hold more of your capital than you could lose with a shrug. Expansion paired with discipline is the rare combination that actually pays.`],
+    ['money', `Household economics deserve one honest hour this month. You tend to tie financial peace to emotional peace more tightly than you may admit, and a written budget — even an imperfect one — quiets both at once.`],
+    ['love', `A deeper note on your emotional needs in close relationships: they run toward ${fmtList(mt.keywords)}, and months like this one test whether you ASK for them or merely hope they are guessed. The partner, friend or family member who hears the explicit version of you will meet you far more often than the one left to decode silences.`],
+    ['love', `One constant worth holding on to: you love most sustainably when ${st.love.split(' and ')[0]} feeling is paired with everyday reliability — the good-morning message, the kept promise, the remembered small thing. This month, let consistency be the romance.`],
+    ['health', `The mind-body link is real for you: unprocessed ${mt.keywords[0]} tends to show up physically before it shows up in words, usually as ${mt.health.toLowerCase()}. Ten minutes of honest journaling on difficult evenings is cheap preventive medicine this month.`],
+    ['health', `Energy management beats time management right now: identify your two strongest hours of the day and defend them for what matters. Left unguarded, they get spent on trivia.`],
+    ['family', `Where generations disagree this month, translate rather than judge. Elders in your circle are likely valuing ${T[saturn.sign].keywords[0]} while younger voices push for ${T[jupiter.sign].keywords[0]} — both are right about different time horizons, and naming that aloud usually ends the argument.`],
+    ['travel', `If you are weighing relocation or a long posting, growth this year concentrates in places and roles rich in ${fmtList(T[jupiter.sign].keywords.slice(0, 2))}. Visit before you commit — an informed leap, never a blind one.`],
+    ['intro', `One more thing worth naming before the detail. ${cap(st.strength)} is the quality you can rely on this month, and it is genuinely uncommon — you may underrate it precisely because it costs you so little effort. The counterweight is ${st.watchout}, which tends to appear when you are tired rather than when you are challenged. Watching your own energy is therefore the most efficient way to manage your own weaknesses this month.`],
+    ['career', `If work feels slower than your ambition this month, that gap is worth reading carefully rather than fighting. You are ${st.work} by nature, and the conditions right now reward exactly that when it is applied narrowly and resisted when it is spread thin. The practical translation: pick the two things that would matter in a year, and let the rest be done adequately rather than beautifully.`],
+    ['love', `Where a relationship has been quietly stuck, the useful question this month is not who is right but what each of you is protecting. You may find that what looks like a disagreement about a decision is really a difference in what makes each of you feel safe. Naming that out loud tends to dissolve arguments that logic could not.`],
+    ['family', `If you carry more of the household's invisible work than you have admitted, this is a good month to say so plainly and without accusation. You tend to absorb rather than ask, and the people around you are far likelier to be unaware than unwilling. One specific request usually works better than a general appeal.`],
+    ['summary', `Finally, hold all of this lightly. Conditions incline, they do not compel — the same month that tests one person into frustration matures another into ${st.keywords[2] ?? st.keywords[0]}. The difference is never the circumstances; it is the daily choices made inside them. Choose like the second person, and ${monthName} will read, in hindsight, as the month things quietly turned.`],
   ];
   let total = sections.reduce((n, s) => n + wordCount(s.body), 0);
   for (const [key, extras] of RESERVE) {
@@ -539,12 +498,16 @@ export function composeMonthly(chart: NatalChart, userSeed: string, astro: Month
 
   return {
     month: monthName,
-    title: `${monthName} — ${sun} ${asc ? `(with ${asc} Rising)` : ''}`.trim(),
+    greeting: greetingFor(firstName),
+    // The title is the month, not a classification of the reader. The chart
+    // itself is still shown — as its own labelled panel, where it reads as data
+    // rather than as the voice of the letter.
+    title: `Your ${monthName}`,
     sections,
     words: sections.reduce((n, s) => n + wordCount(s.body), 0),
     bestDates: astro.bestDates,
     cautionDates: astro.cautionDates,
-    framing: 'This monthly guidance blends your Vedic chart, transits, Dasha period and numerology — offered as reflection and timing, not fixed prediction.',
+    framing: 'Written for you, as reflection and a sense of timing — never a fixed prediction. The choices stay yours.',
     ...(num ? { numerology: { lifePath: num.lifePath, personalYear: num.personalYear, personalMonth: num.personalMonth } } : {}),
     ...(dasha ? { dasha: { maha: dasha.maha, antar: dasha.antar } } : {}),
   };
@@ -561,62 +524,88 @@ const TOPIC_PLANETS: Record<string, string[]> = {
 
 export function composeAnswer(
   chart: NatalChart, userSeed: string, topic: string, question: string, now: Date, monthAstro: MonthAstro,
+  firstName?: string | null,
 ): string {
   const rng = mulberry32(hashSeed(userSeed + topic + question.slice(0, 64)));
   const key = Object.keys(TOPIC_PLANETS).find((k) => topic.toLowerCase().includes(k)) ?? 'career';
   const rulers = TOPIC_PLANETS[key];
   const transits = positionsAt(julianDay(now));
-  const sun = chart.sun.sign, moonS = chart.moon.sign, asc = chart.ascendant?.sign ?? null;
-  const st = T[sun];
+  const sun = chart.sun.sign, moonS = chart.moon.sign;
+  const st = T[sun], mt = T[moonS];
+  const subject = topic.toLowerCase();
+  const name = (firstName ?? '').trim();
   const paras: string[] = [];
 
+  // What this means for them. The chart still selects every adjective; it is
+  // simply never named, and the reply never becomes about the one writing it.
   paras.push(
-    `Thank you for trusting me with this question. Reading your chart — Sun in ${sun}${asc ? `, ${asc} rising` : ''}, Moon in ${moonS} — the matter of ${topic.toLowerCase()} sits primarily with ${fmtList(rulers)}, and your birth positions give a clear starting point: your ${sun} Sun brings ${st.keywords[0]} to how you pursue it, while the ${moonS} Moon means your inner needs here run toward ${fmtList(T[moonS].keywords.slice(0, 2))}. Any honest answer has to satisfy both layers, not just the visible one.`,
+    `${name ? `${name}, this` : 'This'} is a question you are asking from two places at once, and it is worth separating them. ` +
+    `Outwardly, you bring ${st.keywords[0]} to how you pursue ${subject} — that is your real advantage here. ` +
+    `Inwardly, what you need from it runs toward ${fmtList(mt.keywords.slice(0, 2))}, and that need is quieter but far less negotiable. ` +
+    `Any answer that satisfies only the first layer tends to get re-decided within a year.`,
   );
 
-  const readings = rulers.map((r) => {
+  // Why it is relevant right now. Same computation as before — the aspect
+  // between each ruling factor and its natal place — described as conditions
+  // the person is moving through rather than as planetary geometry.
+  const conditions = rulers.map((r) => {
     const t = transits.find((x) => x.planet === r)!;
     const natal = chart.planets.find((x) => x.planet === r);
     const asp = natal ? aspectBetween(t.lon, natal.lon) : null;
-    const state = `${r} currently moves through ${t.sign}${t.retrograde ? ' (retrograde)' : ''}`;
-    const tone = asp
-      ? `and stands in ${asp.type} to its place in your birth chart — ${HARMONIOUS.includes(asp.type) ? 'a supportive signature that tends to open doors in this area with less resistance than usual' : asp.type === 'conjunction' ? 'a fresh-cycle signature: what you begin now in this area sets the pattern for a long stretch ahead' : 'a testing signature: progress is available, but it will ask for revision, patience and proof'}`
-      : `— ${t.retrograde ? 'its retrograde motion advises reworking existing ground before breaking new' : 'its steady motion supports gradual, visible progress'}`;
-    return `${state} ${tone}.`;
+    if (!asp) {
+      return t.retrograde
+        ? `there is a pull toward reworking ground you have already covered before breaking new`
+        : `conditions favour gradual, visible progress rather than a single decisive move`;
+    }
+    if (HARMONIOUS.includes(asp.type)) return `this area is opening with less resistance than usual — doors that were stuck tend to give now`;
+    if (asp.type === 'conjunction') return `you are at the start of a cycle here: what you begin now sets a pattern that runs for a long stretch`;
+    return `this area is being tested rather than blocked — progress is available, but it will ask for revision, patience and proof`;
   });
-  paras.push(`Here is what the sky is actually doing in your ${topic.toLowerCase()} houses right now. ${readings.join(' ')}`);
-
   paras.push(
-    `Concretely, for the coming weeks: ${astro(monthAstro)}` +
-    ` ${pick(rng, [
-      `Move the significant step toward the favourable dates and keep the caution dates for preparation only.`,
-      `Let paperwork, commitments and public moves cluster on the favourable dates; use the caution dates to refine rather than launch.`,
-    ])}`,
+    `As for why it feels live right now: ${fmtList([...new Set(conditions)])}. ` +
+    `You may notice that reflected in how much effort the same action costs you this month compared to a few months ago.`,
   );
-  function astro(m: MonthAstro): string {
-    const best = m.bestDates.length ? `your supportive dates are ${fmtList(m.bestDates.map(ordinal))} of this month` : 'this month carries no standout supportive peak, so preparation matters more than timing';
+
+  const dateLine = (m: MonthAstro): string => {
+    const best = m.bestDates.length
+      ? `your strongest days this month are ${fmtList(m.bestDates.map(ordinal))}`
+      : `no days this month stand out as especially favourable, so preparation will matter more than timing`;
     const caution = m.cautionDates.length ? `, while ${fmtList(m.cautionDates.map(ordinal))} deserve a slower hand` : '';
     return best + caution + '.';
-  }
+  };
 
+  // What they can practically do with it.
   paras.push(
-    `There is also an inner dimension your question touches. Your ${moonS} Moon means that whatever the outward outcome, you will only FEEL settled about ${topic.toLowerCase()} when it also delivers ${fmtList(T[moonS].keywords.slice(0, 2))} — so as you weigh options, test each one against that private standard, not only against the visible metrics. ${pick(rng, [
-      `Choices that look right on paper but starve the ${moonS} Moon tend to be re-decided within a year; choices that feed it tend to stick.`,
-      `In my experience, a ${moonS}-Moon person who honours this need makes the outward decision almost effortlessly afterwards.`,
+    `Concretely, for the coming weeks: ${dateLine(monthAstro)}` +
+    ` ${pick(rng, [
+      `Move the significant step toward the stronger days and keep the slower ones for preparation only.`,
+      `Let paperwork, commitments and public moves cluster on the stronger days; use the slower ones to refine rather than launch.`,
     ])}`,
   );
 
-  paras.push(pick(rng, [
-    `On the practical plane — and a good astrologer always ends here — the chart advises: ${st.strength} is your instrument in this matter; ${st.watchout} is the one way you could undermine it. `,
-    `Practically speaking: your strongest asset in this matter is ${st.strength}, and the single risk worth naming is ${st.watchout}. `,
-  ]) + pick(rng, [
-    `Take one concrete step within seven days, however small — charts reward motion, and the sky above cannot act on a decision that has not been made.`,
-    `Write the outcome you want in one sentence and act on its first step this week; timing multiplies effort, it never replaces it.`,
-    `Revisit this question after the next New Moon: compare what changed, and you will see the transit's fingerprints yourself.`,
-  ]));
+  paras.push(
+    `There is an inner test worth applying as you weigh the options. Whatever the outward result, you are unlikely to feel settled about ${subject} unless it also delivers ${fmtList(mt.keywords.slice(0, 2))}. ` +
+    `So hold each option against that private standard as well as the visible metrics. ` +
+    `${pick(rng, [
+      `Options that look right on paper but starve that need tend to come back around; the ones that feed it tend to stick.`,
+      `People who honour that need first usually find the outward decision makes itself afterwards.`,
+    ])}`,
+  );
 
   paras.push(
-    `May the coming cycle treat you kindly. Your question and this reading are saved under My Questions, so you can return to it as events unfold — and if the situation changes shape, ask again with the new detail and I will read the updated sky against your chart.`,
+    `${pick(rng, [
+      `Your strongest asset in this matter is ${st.strength}, and the single risk worth naming is ${st.watchout}. `,
+      `One strength that stands out here: ${st.strength}. The one way you could undermine it is ${st.watchout}. `,
+    ])}` +
+    `${pick(rng, [
+      `Take one concrete step within seven days, however small — a decision that has not been made cannot be helped along by good timing.`,
+      `Write the outcome you want in one sentence and act on its first step this week; timing multiplies effort, it never replaces it.`,
+      `Revisit this question in a month and compare what actually changed — you will learn more from that than from any single answer.`,
+    ])}`,
+  );
+
+  paras.push(
+    `This is saved under My Questions, so you can come back to it as things unfold. If the situation changes shape, ask again with the new detail and the answer will change with it.`,
   );
 
   return paras.join('\n\n');

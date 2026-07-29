@@ -8,6 +8,7 @@ import {
 } from './astro-engine';
 import { composeAnswer, composeGuidance, composeMonthly, wordCount, type DailyGuidance } from './astro-content';
 import { computeNumerology, vimshottariDasha } from './personal-factors';
+import { CHAT_RULES, VOICE_RULES, acceptOrFallback, firstNameOf, inVoice } from './voice';
 
 export interface SaveAstroProfileDto {
   birthDate: string;          // YYYY-MM-DD
@@ -72,9 +73,17 @@ export class AstrologyService {
   /** One saved reading per user per period (daily flips at the user's midnight,
    *  monthly is fixed from the 1st). Deterministic composers mean the lazy
    *  write stores exactly what a scheduled batch would have produced. */
-  /** Reading engine version — bumped to v2 with the Vedic (sidereal) switch so
-   *  cached tropical readings regenerate instead of being served stale. */
-  private static readonly READING_VER = 'v3';
+  /**
+   * Reading engine version. Bumped whenever the OUTPUT changes shape or voice,
+   * because readings are cached per period — without a bump, everyone who has
+   * already opened today's reading keeps being served the old one until
+   * tomorrow, and this month's until the 1st.
+   *
+   * v2: the Vedic (sidereal) switch. v3: guidance sections. v4: the voice — no
+   * reading may name a planet, sign, number or period any more, so every cached
+   * v3 reading is now non-compliant and must regenerate.
+   */
+  private static readonly READING_VER = 'v4';
 
   private async cachedReading<T extends object>(
     userId: string, kind: 'daily' | 'monthly', periodKey: string, compute: () => T | Promise<T>,
@@ -226,6 +235,14 @@ export class AstrologyService {
     return new Date(now.getTime() + tzOffsetMinutes(row.timeZone, now) * 60000);
   }
 
+  /** The name to address someone by, or '' if we don't have a usable one. */
+  private async firstName(userId: string): Promise<string> {
+    const u = await this.prisma.user
+      .findUnique({ where: { id: userId }, select: { name: true } })
+      .catch(() => null);
+    return firstNameOf(u?.name);
+  }
+
   // ───────────────────────── Tab 01 · Today's Horoscope ─────────────────────────
 
   async daily(userId: string) {
@@ -248,35 +265,38 @@ export class AstrologyService {
     const chart = this.chartOf(row);
     const num = computeNumerology(row.birthDate, local);
     const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
-    const g = composeGuidance(chart, userId, local, num, dasha);
+    const g = composeGuidance(chart, userId, local, num, dasha, await this.firstName(userId));
 
-    const facts =
-      `Sun ${chart.sun.sign}, Moon ${chart.moon.sign}, Ascendant ${chart.ascendant?.sign ?? 'unknown'}. ` +
-      `Moon phase: ${g.moonPhase}. Running Dasha: ${dasha.maha} (${dasha.antar} sub-period). ` +
-      `Numerology — Life Path ${num.lifePath}, Personal Year ${num.personalYear}, Personal Month ${num.personalMonth}, Personal Day ${num.personalDay}.`;
     const draft = g.sections.map((s) => `${s.title}: ${s.body}`).join('\n') + `\nReflection: ${g.reflection}`;
 
     const fallback = {
       career: g.sections[0].body, relationships: g.sections[1].body, health: g.sections[2].body,
       finance: g.sections[3].body, growth: g.sections[4].body, reflection: g.reflection,
     };
+    // The AI is given the INTERPRETATION, never the inputs. It used to receive
+    // "Sun Taurus, Moon Pisces, Life Path 7, Jupiter Mahādasha" as facts to
+    // stay faithful to — which is precisely the vocabulary that must never
+    // reach the citizen, and handing it over was an invitation to repeat it.
+    // The deterministic draft already encodes every one of those factors in
+    // ordinary language, so nothing is lost by withholding their names.
     const ai = await this.ai.json<typeof fallback>(
-      'You write PERSONAL daily guidance for one person — warm, emotionally intelligent, supportive, practical and honest. ' +
-      'Rewrite each section in a natural, encouraging voice. HARD RULES: never predict specific events or guarantee outcomes; ' +
-      'frame everything as reflection, possibility and practical suggestion (use "may", "consider", "a good day to…"); ' +
-      'use ONLY the facts provided — never invent planets, transits, dates or events; 2–3 sentences per section, no headers inside the text. ' +
+      `${VOICE_RULES}\n\n` +
+      'Rewrite each section below in a natural, encouraging voice, 2-3 sentences each, no headers inside the text. ' +
+      'Keep the meaning and every observation exactly as given — you are warming the wording, not changing the reading. ' +
       'Return JSON {"career","relationships","health","finance","growth","reflection"}.',
-      `Facts (do not contradict these):\n${facts}\n\nDraft to warm up (keep the meaning + all facts):\n${draft}`,
+      `Draft to warm up (do not contradict it, do not add to it):\n${draft}`,
       fallback,
       1400,
     );
-    const use = (v: string | undefined, fb: string) => (v && v.trim().length > 40 ? v.trim() : fb);
-    g.sections[0].body = use(ai.career, fallback.career);
-    g.sections[1].body = use(ai.relationships, fallback.relationships);
-    g.sections[2].body = use(ai.health, fallback.health);
-    g.sections[3].body = use(ai.finance, fallback.finance);
-    g.sections[4].body = use(ai.growth, fallback.growth);
-    g.reflection = use(ai.reflection, fallback.reflection);
+    // acceptOrFallback discards any rewrite that drifts back into naming the
+    // machinery. The deterministic text is verified in voice by the spec, so a
+    // rejection costs warmth, never correctness.
+    g.sections[0].body = acceptOrFallback(ai.career, fallback.career);
+    g.sections[1].body = acceptOrFallback(ai.relationships, fallback.relationships);
+    g.sections[2].body = acceptOrFallback(ai.health, fallback.health);
+    g.sections[3].body = acceptOrFallback(ai.finance, fallback.finance);
+    g.sections[4].body = acceptOrFallback(ai.growth, fallback.growth);
+    g.reflection = acceptOrFallback(ai.reflection, fallback.reflection);
     g.text = g.sections.map((s) => s.body).join('\n\n');
     g.words = wordCount(g.text);
     return g;
@@ -300,12 +320,13 @@ export class AstrologyService {
     if (!row) return { needsProfile: true as const }; // only for stored birth details
     const local = this.userNow(row);
     const monthKey = local.toISOString().slice(0, 7); // one per user per calendar month
+    const firstName = await this.firstName(userId);
     const reading = await this.cachedReading(userId, 'monthly', monthKey, () => {
       const chart = this.chartOf(row);
       const astro = scanMonth(chart, local.getUTCFullYear(), local.getUTCMonth() + 1);
       const num = computeNumerology(row.birthDate, local);
       const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
-      return composeMonthly(chart, userId, astro, num, dasha);
+      return composeMonthly(chart, userId, astro, num, dasha, firstName);
     });
     return { needsProfile: false as const, ...reading };
   }
@@ -326,23 +347,47 @@ export class AstrologyService {
     // answer, once there is something to charge for.
     await this.financial.assertCanPay(userId, ASK_PRICE_INR, dto.method);
 
-    // Deterministic, chart-based answer is the guaranteed floor; AI (when
-    // configured) rewrites it with the same facts for a more natural voice.
-    const fallback = composeAnswer(chart, userId, dto.topic, dto.question, new Date(), astro);
-    const transitFacts = astro.transits.map((t) => `${t.planet} in ${t.sign}${t.retrograde ? ' (retro)' : ''}`).join('; ');
+    // Deterministic answer is the guaranteed floor; AI (when configured)
+    // rewrites it in a more natural voice without changing what it says.
+    const firstName = await this.firstName(userId);
+    const fallback = composeAnswer(chart, userId, dto.topic, dto.question, new Date(), astro, firstName);
+
+    // Continuity. The principles ask that a reply draw on everything already
+    // known about this person, and what they have asked before is the most
+    // directly relevant of that — someone returning to the same worry a third
+    // time should not be answered as a stranger. Only the questions are sent,
+    // not the previous answers: the point is to know what has been on their
+    // mind, and replaying old prose invites the model to repeat itself.
+    const priorQuestions = await this.db.astroQuestion
+      .findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 5, select: { topic: true, question: true } })
+      .catch(() => [] as AstroQuestionRow[]);
+    const history = priorQuestions.length
+      ? `\n\nThey have asked about this before. Earlier questions, most recent first:\n` +
+        priorQuestions.map((q) => `- (${q.topic}) ${q.question}`).join('\n') +
+        `\nIf this question continues a thread, acknowledge that naturally — never mechanically, and never by quoting it back.`
+      : '';
+
     const ai = await this.ai.json<{ answer?: string }>(
-      'You are a warm, experienced Vedic-Western hybrid astrologer writing a paid consultation reply. ' +
-      'Use ONLY the chart facts provided — never invent planetary positions. 350-550 words, flowing prose, ' +
-      'specific to the question, ending with one concrete next step. Return {"answer": "..."}.',
-      `Question (topic: ${dto.topic}): ${dto.question}\n\n` +
-      `Natal: Sun ${chart.sun.sign}, Moon ${chart.moon.sign}, Ascendant ${chart.ascendant?.sign ?? 'unknown'}.\n` +
-      `Current transits: ${transitFacts}.\nFavourable dates this month: ${astro.bestDates.join(', ') || 'none'}. ` +
-      `Caution dates: ${astro.cautionDates.join(', ') || 'none'}.\n\n` +
-      `Reference draft (rewrite, keep all facts):\n${fallback}`,
+      `${CHAT_RULES}\n\n` +
+      '350-550 words of flowing prose, specific to what they asked, ending with one concrete next step. ' +
+      'Keep every observation from the draft — you are rewriting its voice, not its content. ' +
+      'Return {"answer": "..."}.',
+      `${firstName ? `Their name is ${firstName}. Use it once, naturally, where it adds warmth — not more.\n\n` : ''}` +
+      `Their question (topic: ${dto.topic}): ${dto.question}${history}\n\n` +
+      `Draft reply to rewrite (do not contradict it, do not add facts to it):\n${fallback}`,
       { answer: fallback },
       1600,
     );
-    const answer = (ai.answer && ai.answer.trim().length > 200) ? ai.answer.trim() : fallback;
+    const candidate = (ai.answer ?? '').trim();
+    // Same guard as the daily. A paid consultation is the WORST place to leak
+    // the machinery, since it is the longest piece of prose in the hub and the
+    // one a citizen is most likely to read closely and share.
+    let answer = fallback;
+    if (candidate.length > 200 && inVoice(candidate)) {
+      answer = candidate;
+    } else if (candidate.length > 200) {
+      this.logger.warn(`Discarded an out-of-voice consultation rewrite for ${userId} · ${dto.topic}`);
+    }
 
     // Charge and save together, AFTER the answer exists. The AI call could not
     // go inside a transaction — it holds a connection open across the network —

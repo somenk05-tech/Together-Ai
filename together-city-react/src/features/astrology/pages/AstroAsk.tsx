@@ -35,7 +35,7 @@ export function AstroAsk() {
 
   return (
     <div>
-      <AstroHeader title="Ask the Astrologer" lede={`A private consultation read against your own birth chart — ₹${PRICE} per question, saved forever under My Questions.`} />
+      <AstroHeader title="Ask the Astrologer" lede={`A private, personal consultation — ₹${PRICE} per question, answered for your situation and saved forever under My Questions.`} />
       {profile.isLoading && <Spinner label="Loading…" />}
       {needsProfile && <NeedsProfileCard />}
       {profile.data?.complete && (
@@ -64,7 +64,7 @@ export function AstroAsk() {
             {error && <p style={{ color: '#c0392b', fontSize: 13, margin: '10px 0 0' }}>{error}</p>}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
               <Button variant="accent" disabled={question.trim().length < 10 || ask.isPending} onClick={submit}>
-                {ask.isPending ? 'Consulting the chart…' : `Pay ₹${PRICE} & Ask`}
+                {ask.isPending ? 'Writing your answer…' : `Pay ₹${PRICE} & Ask`}
               </Button>
               <span className="muted" style={{ fontSize: 12 }}>Charged to your city wallet · the full reading is saved to My Questions.</span>
             </div>

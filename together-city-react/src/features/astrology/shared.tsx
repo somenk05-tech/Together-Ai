@@ -8,7 +8,7 @@ export function NeedsProfileCard() {
       <div style={{ fontSize: 34, marginBottom: 10 }}>🔭</div>
       <h2 style={{ fontFamily: 'var(--serif)', marginBottom: 10 }}>Complete Your Birth Details</h2>
       <p className="muted" style={{ fontSize: 14, lineHeight: 1.65, marginBottom: 18 }}>
-        To generate your personalized horoscope, compatibility reports, and birth chart, please add your
+        To write your personalised daily and monthly guidance, please add your
         birth details. This information is saved once in your Master Profile and automatically used
         across Together AI.
       </p>
