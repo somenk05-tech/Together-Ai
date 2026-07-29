@@ -160,11 +160,26 @@ trend view.
 
 ## Still unbuilt
 
-Avatar creation has a model and a migration but no routes and no generation
-provider. It is the last of the brief's items with nothing a citizen can use.
+Nothing on the brief. The last two — calls and avatars — landed on 2026-07-29,
+alongside beauty routines, the makeup-photo decode, and gems and remedies with
+a real catalogue.
 
-Everything else on this list has since been built: beauty routines and the
-makeup-photo decode, gems and remedies with a real catalogue, and calls.
+Two of them ship with a stated limit rather than a hidden one, and both limits
+are money decisions somebody should make deliberately:
+
+### Avatars are drawn, not generated
+
+There is no image model behind avatar creation. A deterministic renderer draws
+an SVG portrait from the citizen's catalogue choices — free, instant, nothing
+to queue and nothing to moderate. It is a real avatar, and every response says
+`generatedBy: 'deterministic'` so no screen can imply otherwise.
+
+Adding a hosted model means one class implementing AvatarProvider and one line
+in avatars.module.ts. What it also means is a per-image bill and a moderation
+question that the closed catalogue currently answers for free: there is no
+free-text input anywhere in the feature, so there is no prompt to abuse. A
+model that accepts a photo or a description reopens that, and the answer would
+have to be a real one before it ships.
 
 ### The one decision calls still need: a TURN relay
 

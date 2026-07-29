@@ -43,6 +43,7 @@ import { PrivacyModule } from './privacy/privacy.module';
 import { ThoughtsModule } from './thoughts/thoughts.module';
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 import { CallsModule } from './calls/calls.module';
+import { AvatarsModule } from './avatars/avatars.module';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { CallsModule } from './calls/calls.module';
     ThoughtsModule,
     PrescriptionsModule,
     CallsModule,
+    AvatarsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

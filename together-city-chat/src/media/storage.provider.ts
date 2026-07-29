@@ -249,6 +249,28 @@ export class StorageProvider implements OnModuleInit {
     }
   }
 
+  /**
+   * Server-side write into the private vault, for bytes this API produced
+   * itself (an avatar it drew, say) rather than bytes a browser uploaded.
+   *
+   * Returns the object key, or null when storage isn't configured — null rather
+   * than a plausible-looking key, so a caller cannot file a row pointing at a
+   * file that was never written.
+   */
+  async putPrivateObject(prefix: string, userId: string, body: Buffer, contentType: string, ext: string): Promise<string | null> {
+    if (!this.s3) return null;
+    const safePrefix = (prefix || 'misc').replace(/[^a-z0-9-]/gi, '').slice(0, 24) || 'misc';
+    const safeExt = (ext || 'bin').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
+    const key = `${safePrefix}/${userId}/${randomUUID()}.${safeExt}`;
+    try {
+      await this.s3.send(new PutObjectCommand({ Bucket: this.healthBucket, Key: key, Body: body, ContentType: contentType }));
+      return key;
+    } catch (e) {
+      this.logger.warn(`putPrivateObject failed for ${key}: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
   /** Short-lived signed GET URL for a private health document (owner-only, handed
    *  out by the authenticated backend). Returns null when storage isn't configured. */
   async presignHealthDownload(key: string): Promise<string | null> {
