@@ -111,7 +111,7 @@ export class ConversationsService {
       // A conversation this citizen deleted stays gone until someone writes to
       // it again. `messages` is the single newest message (take: 1, desc), so
       // "nothing since I cleared it" is exactly what keeps it out of the panel.
-      const clearedAt = (m as { clearedAt?: Date | null }).clearedAt ?? null;
+      const clearedAt = m.clearedAt;
       if (clearedAt) {
         const newest = m.conversation.messages[0];
         if (!newest || newest.createdAt <= clearedAt) continue;
@@ -283,7 +283,7 @@ export class ConversationsService {
       where: { conversationId, userId },
       // archived is cleared deliberately: deleting a chat that was archived
       // should not leave it sitting in the archive.
-      data: { clearedAt: new Date(), archived: false } as never,
+      data: { clearedAt: new Date(), archived: false },
     });
     return { ok: true };
   }

@@ -258,7 +258,7 @@ export class MessagesService {
     const member = await this.prisma.conversationMember.findUnique({
       where: { conversationId_userId: { conversationId, userId } },
     });
-    return (member as { clearedAt?: Date | null } | null)?.clearedAt ?? null;
+    return member?.clearedAt ?? null;
   }
 
   private async assertMember(userId: string, conversationId: string): Promise<void> {
