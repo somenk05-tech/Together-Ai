@@ -6398,27 +6398,36 @@ export class NutritionService implements OnModuleInit {
     if (!quote) throw new NotFoundException('Unknown store.');
     if (!quote.availableCount) throw new BadRequestException(`${quote.provider.name} has none of your items in stock right now.`);
 
-    await this.financial.charge(userId, {
-      hub: 'Nutrition', category: 'nutrition',
-      label: `Quick commerce · ${quote.provider.name} (${quote.availableCount} items)`,
-      amountInr: quote.totalInr, method,
-    });
     const FRESH = new Set(['produce', 'fruit', 'meat', 'dairy']);
-    const order = await this.prisma.nutritionOrder.create({
-      data: {
-        userId,
-        totalInr: quote.totalInr,
-        qcJson: '',
-        items: {
-          create: quote.items.filter((i) => i.available).map((i) => ({
-            name: i.name, category: FRESH.has(groceryAisle(i.name)) ? 'fresh' : 'pantry', qty: 1, priceInr: i.priceInr,
-          })),
-        },
-      } as never,
-      include: { items: true, deliveries: true },
-    });
-    const meta = buildQcMeta(quote, order.id);
-    await this.prisma.nutritionOrder.update({ where: { id: order.id }, data: { qcJson: JSON.stringify(meta) } as never });
+    // Charge, order, and the tracking metadata that references the order id all
+    // in one transaction. buildQcMeta needs the id, so it runs inside — it is
+    // pure computation, no network, which is the only thing that belongs here.
+    const { order, meta } = await this.financial.paid(
+      userId,
+      {
+        hub: 'Nutrition', category: 'nutrition',
+        label: `Quick commerce · ${quote.provider.name} (${quote.availableCount} items)`,
+        amountInr: quote.totalInr, method,
+      },
+      async (tx) => {
+        const created = await tx.nutritionOrder.create({
+          data: {
+            userId,
+            totalInr: quote.totalInr,
+            qcJson: '',
+            items: {
+              create: quote.items.filter((i) => i.available).map((i) => ({
+                name: i.name, category: FRESH.has(groceryAisle(i.name)) ? 'fresh' : 'pantry', qty: 1, priceInr: i.priceInr,
+              })),
+            },
+          } as never,
+          include: { items: true, deliveries: true },
+        });
+        const qcMeta = buildQcMeta(quote, created.id);
+        await tx.nutritionOrder.update({ where: { id: created.id }, data: { qcJson: JSON.stringify(qcMeta) } as never });
+        return { order: created, meta: qcMeta };
+      },
+    );
     await this.stockPantryFromItems(userId, quote.items.filter((i) => i.available).map((i) => ({ name: i.name, grams: i.grams }))).catch(() => undefined);
     return { ...this.shapeOrder(order), qc: { ...meta, tracking: trackFromMeta(meta) } };
   }

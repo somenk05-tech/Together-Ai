@@ -320,10 +320,11 @@ export class AstrologyService {
     const astro = scanMonth(chart, local.getUTCFullYear(), local.getUTCMonth() + 1);
 
     // Charge FIRST (throws 400 on insufficient balance — nothing is stored).
-    const payment = await this.financial.charge(userId, {
-      hub: 'Astrology', category: 'astrology', label: `Ask the Astrologer · ${dto.topic}`,
-      amountInr: ASK_PRICE_INR, method: dto.method,
-    });
+    // Pre-flight only: confirm the wallet can cover this BEFORE spending an AI
+    // call on it, so someone short of balance is told immediately rather than
+    // after a 1,600-token generation. The real charge happens below, with the
+    // answer, once there is something to charge for.
+    await this.financial.assertCanPay(userId, ASK_PRICE_INR, dto.method);
 
     // Deterministic, chart-based answer is the guaranteed floor; AI (when
     // configured) rewrites it with the same facts for a more natural voice.
@@ -343,9 +344,26 @@ export class AstrologyService {
     );
     const answer = (ai.answer && ai.answer.trim().length > 200) ? ai.answer.trim() : fallback;
 
-    const saved = await this.db.astroQuestion.create({
-      data: { userId, topic: dto.topic, question: dto.question, answer, priceInr: ASK_PRICE_INR },
-    });
+    // Charge and save together, AFTER the answer exists. The AI call could not
+    // go inside a transaction — it holds a connection open across the network —
+    // and charging before it meant a failure anywhere in generation left the
+    // citizen billed ₹75 for a consultation they never received. Ordered this
+    // way the worst case is that we absorb the cost of a generation nobody paid
+    // for, which is ours to lose rather than theirs.
+    const { saved, payment } = await this.financial.paid(
+      userId,
+      {
+        hub: 'Astrology', category: 'astrology', label: `Ask the Astrologer · ${dto.topic}`,
+        amountInr: ASK_PRICE_INR, method: dto.method,
+      },
+      async (tx) => {
+        const row = await tx.astroQuestion.create({
+          data: { userId, topic: dto.topic, question: dto.question, answer, priceInr: ASK_PRICE_INR },
+        });
+        const wallet = await tx.cityWallet.findUnique({ where: { userId }, select: { balanceInr: true } });
+        return { saved: row, payment: { method: dto.method === 'card' ? 'card' : 'wallet', balanceInr: wallet?.balanceInr ?? 0 } };
+      },
+    );
     this.logger.log(`Astrology consultation for ${userId} · ${dto.topic} · ₹${ASK_PRICE_INR}`);
     return {
       needsProfile: false as const,

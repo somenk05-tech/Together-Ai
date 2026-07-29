@@ -81,6 +81,27 @@ export class FinancialService {
     });
   }
 
+  /**
+   * Can this citizen pay this amount right now? Throws the same 400 charge()
+   * would, without taking anything.
+   *
+   * For flows that spend something expensive — an AI generation, a third-party
+   * lookup — before there is anything to charge for. Check first, do the work,
+   * then charge with paid(). Two callers can still race past this and only one
+   * succeed at the real charge, which is correct: this is a courtesy check, not
+   * a reservation.
+   */
+  async assertCanPay(userId: string, amountInr: number, method?: PayMethod): Promise<void> {
+    const wallet = await this.ensureWallet(userId);
+    if (method === 'card') {
+      if (!wallet.cardLast4) throw new BadRequestException('No card linked. Link a card or pay from your wallet.');
+      return;
+    }
+    if (wallet.balanceInr < amountInr) {
+      throw new BadRequestException(`Insufficient wallet balance. Top up ₹${amountInr - wallet.balanceInr} more, or pay by card.`);
+    }
+  }
+
   private async chargeOn(db: PrismaTx, userId: string, input: ChargeInput) {
     const wallet = await this.ensureWalletOn(db, userId);
     const method: PayMethod = input.method === 'card' ? 'card' : 'wallet';
