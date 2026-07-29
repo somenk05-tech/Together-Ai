@@ -42,6 +42,13 @@ export interface TarotReadingOut {
   disclaimer: string;
   /** Reproducibility: the same seed always yields this exact draw. */
   seed: string;
+  /**
+   * The IANA zone the draw was made in. Only set on a Card of the Day, where it
+   * decides when "today" ends — see TarotService.dailyCard. Recorded on the
+   * reading rather than in a column so that a card carries its own provenance:
+   * a period of '2026-07-29' means nothing without knowing whose day that was.
+   */
+  tz?: string;
 }
 
 /**

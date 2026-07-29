@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ClockService } from '../shared/clock/clock.service';
 import { FinancialService } from '../financial/financial.service';
 import { composeTarot, spreadSize, SPREAD_NAME, DISCLAIMER, type SpreadKind, type TarotReadingOut } from './tarot-content';
 
@@ -40,6 +41,7 @@ export class TarotService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly clock: ClockService,
     private readonly financial: FinancialService,
   ) {}
 
@@ -48,54 +50,86 @@ export class TarotService {
     return this.prisma as unknown as {
       tarotReading: {
         findUnique: (a: unknown) => Promise<TarotRow | null>;
+        findFirst: (a: unknown) => Promise<TarotRow | null>;
         findMany: (a: unknown) => Promise<TarotRow[]>;
-        create: (a: unknown) => Promise<TarotRow>;
+        upsert: (a: unknown) => Promise<TarotRow>;
       };
-      masterProfile: { findUnique: (a: unknown) => Promise<{ timeZone: string | null } | null> };
     };
   }
 
-  /** The citizen's own calendar day — a Card of the Day should turn over at
-   *  THEIR midnight, not the server's. */
-  private async todayFor(userId: string): Promise<string> {
-    const row = await this.db.masterProfile
-      .findUnique({ where: { userId }, select: { timeZone: true } })
-      .catch(() => null);
-    const tz = row?.timeZone;
-    try {
-      if (tz) {
-        return new Intl.DateTimeFormat('en-CA', {
-          timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
-        }).format(new Date());
-      }
-    } catch { /* unparseable zone — fall through to the server day */ }
-    return new Date().toISOString().slice(0, 10);
+  /** A stored row's reading, or null if the JSON is unreadable. */
+  private static parseRow(row: TarotRow): TarotReadingOut | null {
+    try { return JSON.parse(row.readingJson) as TarotReadingOut; } catch { return null; }
   }
 
   /**
-   * Card of the Day — free, and the same card all day.
+   * Card of the Day — free, one per citizen per day, and not re-drawable.
    *
-   * Seeded from the citizen and the date, so it is stable across reloads and
-   * devices without needing to be stored first. The row is written for history;
-   * losing it would not change tomorrow's card, only the record of today's.
+   * `@@unique([userId, kind, period])` already makes a second row for the same
+   * day impossible. The work here is making sure `period` names the same day on
+   * every request, because a unique key is only as stable as the value you put
+   * in it. Three things could previously shift it and hand out a fresh card:
+   *
+   *  - a failed timezone lookup fell back to the SERVER's day, which for a
+   *    citizen in Asia/Kolkata is a different date for five and a half hours out
+   *    of every twenty-four. Reloading in that window dealt a second card. The
+   *    ClockService fallback is the city's own zone, so a transient database
+   *    error can no longer change which day it is;
+   *  - editing the timezone on your profile re-dated today and dealt again. Now
+   *    the card records the zone it was drawn in and stays current until the day
+   *    ends THERE, so changing zones (or flying somewhere) never re-deals;
+   *  - two simultaneous requests both missed the read and both inserted. The
+   *    write is now a single upsert, so the loser gets the winner's row back
+   *    instead of an error that was being swallowed.
+   *
+   * The seed is derived from the citizen and the period, so a card is stable
+   * across reloads and devices even before it is stored — the row records which
+   * day was drawn, it doesn't decide what the card is.
    */
   async dailyCard(userId: string): Promise<TarotReadingOut & { saved: boolean; priceInr: number }> {
-    const period = await this.todayFor(userId);
-    const seed = `tarot:daily:${userId}:${period}`;
+    const tz = await this.clock.timezoneFor(userId);
+    const period = this.clock.todayIn(tz);
 
+    // Today's card, if it has already been dealt.
     const hit = await this.db.tarotReading
       .findUnique({ where: { userId_kind_period: { userId, kind: 'daily', period } } })
       .catch(() => null);
     if (hit) {
-      try { return { ...(JSON.parse(hit.readingJson) as TarotReadingOut), saved: true, priceInr: 0 }; }
-      catch { /* unreadable row — recompose below, the seed makes it identical */ }
+      const stored = TarotService.parseRow(hit);
+      if (stored) return { ...stored, saved: true, priceInr: 0 };
+      // Unreadable row — recompose. Same period, same seed, same card.
     }
 
-    const reading = composeTarot('daily', seed);
-    await this.db.tarotReading.create({
-      data: { userId, kind: 'daily', period, seed, readingJson: JSON.stringify(reading), priceInr: 0 },
-    }).catch(() => undefined); // history is nice to have; the reading stands without it
-    return { ...reading, saved: false, priceInr: 0 };
+    // No row under today's date. That does NOT mean a new day: the citizen may
+    // have changed timezone since drawing, which re-dates "today" underneath
+    // them. Ask the last card whether its own day has actually ended, measured
+    // in the zone it was drawn in.
+    if (!hit) {
+      const last = await this.db.tarotReading
+        .findFirst({ where: { userId, kind: 'daily' }, orderBy: { createdAt: 'desc' } })
+        .catch(() => null);
+      const prev = last ? TarotService.parseRow(last) : null;
+      if (last?.period && prev?.tz && this.clock.todayIn(prev.tz) === last.period) {
+        return { ...prev, saved: true, priceInr: 0 };
+      }
+    }
+
+    const seed = `tarot:daily:${userId}:${period}`;
+    const reading: TarotReadingOut = { ...composeTarot('daily', seed), tz };
+
+    // Upsert, not create: two requests racing for the first card of the day both
+    // succeed, and both end up looking at the same row. `update: {}` is
+    // deliberate — a card that has been dealt is never rewritten.
+    const saved = await this.db.tarotReading.upsert({
+      where: { userId_kind_period: { userId, kind: 'daily', period } },
+      create: { userId, kind: 'daily', period, seed, readingJson: JSON.stringify(reading), priceInr: 0 },
+      update: {},
+    }).catch(() => null); // history is nice to have; the reading stands without it
+
+    // Whoever won the race owns the card. Same period means the same seed and
+    // therefore the same draw, so this only matters for the recorded zone.
+    const stored = saved ? TarotService.parseRow(saved) : null;
+    return { ...(stored ?? reading), saved: !!saved, priceInr: 0 };
   }
 
   /**
