@@ -118,9 +118,20 @@ export class NutritionController {
   }
 
   // ── Composite meal engine (Meal-Planning-Engine-Spec) ──
+  /**
+   * `scope=household` composes the plan the household actually cooks: the same
+   * dishes, but with every member's allergies, exclusions and conditions applied.
+   * It is the plan the family grocery list already shops from, so asking for it
+   * here is what lets the family planner show the food the basket buys.
+   * Anything else composes the citizen's own plan, unchanged.
+   */
   @Get('plan/composed')
-  composed(@CurrentUser() user: JwtUser, @Query('mode') mode?: string) {
-    return this.nutrition.composedPlan(user.sub, mode === 'optimal' ? 'optimal' : 'preferred');
+  composed(@CurrentUser() user: JwtUser, @Query('mode') mode?: string, @Query('scope') scope?: string) {
+    return this.nutrition.composedPlan(
+      user.sub,
+      mode === 'optimal' ? 'optimal' : 'preferred',
+      { household: scope === 'household' },
+    );
   }
 
   @Get('meal-settings')

@@ -2999,8 +2999,19 @@ export class NutritionService implements OnModuleInit {
       return { id: m.id, name: m.name, role: m.role, diet: m.diet as Diet, isSelf: m.isSelf, dayKcal: t.kcal, perMeal: t.perMeal, conditions };
     });
 
+    const roster = members.map((m) => ({ id: m.id, name: m.name, role: m.role, dayKcal: m.dayKcal }));
+
+    // Prefer the household COMPOSED plan — the same source the family grocery
+    // list shops from. Until this, portions were computed from the stored family
+    // plan while the basket was built from the composed one, so the card could
+    // describe a meal nobody was buying ingredients for. Falls back to the
+    // stored plan when there's no composed plan to read, mirroring how
+    // composedMealsForShopping falls back.
+    const composedMeals = await this.composedFamilyPortions(userId, dayIndex, members).catch(() => null);
+    if (composedMeals?.length) return { members: roster, meals: composedMeals };
+
     const latest = await this.prisma.mealPlan.findFirst({ where: { userId, mode: 'family' }, orderBy: { createdAt: 'desc' } });
-    if (!latest) return { members: members.map((m) => ({ id: m.id, name: m.name, role: m.role, dayKcal: m.dayKcal })), meals: [] };
+    if (!latest) return { members: roster, meals: [] };
 
     const day = await this.prisma.mealPlanDay.findFirst({
       where: { dayIndex, plan: { key: latest.key } },
@@ -3053,6 +3064,80 @@ export class NutritionService implements OnModuleInit {
       });
 
     return { members: members.map((m) => ({ id: m.id, name: m.name, role: m.role, dayKcal: m.dayKcal })), meals };
+  }
+
+  /**
+   * Per-member portions for one day of the HOUSEHOLD COMPOSED plan.
+   *
+   * Same output shape as the stored-plan version above, so the Family Portions
+   * card doesn't care which engine answered — but sourced from the plan the
+   * family grocery list already shops from, which is what makes the two agree.
+   *
+   * A composed meal is N components rather than one recipe, so the mapping is:
+   * the meal's own totals give the reference calories, the components' grams sum
+   * to the shared serving, and the dish's effective diet is the strictest of its
+   * components — one chicken component makes the whole plate non-veg for a
+   * vegetarian member, which is exactly when the protein swap should fire.
+   */
+  private async composedFamilyPortions(
+    userId: string,
+    dayIndex: number,
+    members: Array<{ id: string; name: string; role: string; diet: Diet; perMeal: Record<string, { kcal: number }>; conditions: string[] }>,
+  ): Promise<Array<{ slot: string; slotName: string; name: string; sharedBase: boolean; refKcal: number; perMember: unknown[] }> | null> {
+    type Comp = { name: string; grams: number; kcal: number; protein: number; diet?: string; ingredients?: Array<{ name: string }> };
+    type CMeal = { slot: string; title: string; totals?: { kcal: number; protein: number }; components?: Comp[] };
+    const plan = (await this.composedPlan(userId, 'preferred', { household: true }).catch(() => null)) as unknown as
+      { needsProfile?: boolean; days?: Array<{ dayIndex: number; meals: CMeal[] }> } | null;
+    const day = plan?.days?.find((d) => d.dayIndex === dayIndex);
+    if (!plan || plan.needsProfile || !day?.meals?.length) return null;
+
+    const SLOT_NAME: Record<string, string> = { b: 'Breakfast', l: 'Lunch', s: 'Snack', d: 'Dinner' };
+    // Strictest-first: the eater a dish demands. A plate is only vegetarian-safe
+    // if every component is.
+    const DIET_RANK: Record<string, number> = {
+      jainvegan: 0, jain: 0, vegan: 1, veg: 2, egg: 3, pesc: 4, nonveg: 5, everything: 5,
+    };
+    const plantFor = (d: Diet): string => (d === 'vegan' || d === 'jainvegan') ? 'Tofu' : d === 'pesc' ? 'Fish' : 'Paneer';
+
+    return day.meals.map((meal) => {
+      const comps = meal.components ?? [];
+      const refKcal = Math.max(1, Math.round(meal.totals?.kcal ?? comps.reduce((s, c) => s + (c.kcal || 0), 0)));
+      const baseGrams = Math.max(1, Math.round(comps.reduce((s, c) => s + (c.grams || 0), 0)));
+      const baseProtein = Math.round(meal.totals?.protein ?? comps.reduce((s, c) => s + (c.protein || 0), 0));
+      const dishDiet = (comps
+        .map((c) => (c.diet ?? 'veg').toLowerCase())
+        .sort((a, b) => (DIET_RANK[b] ?? 2) - (DIET_RANK[a] ?? 2))[0] ?? 'veg') as Diet;
+      // Protein detection reads names + ingredients, exactly as the stored path
+      // does — assembled here from every component rather than one recipe row.
+      const pseudo = {
+        name: `${meal.title} ${comps.map((c) => c.name).join(' ')}`,
+        ingredients: comps.flatMap((c) => c.ingredients ?? []),
+      } as unknown as RecipeWithIng;
+      const dishProteins = detectProteins(pseudo);
+      const dishAnimal = [...dishProteins].find((t) => ANIMAL_PROTEINS.has(t));
+      const dishSwap = dishAnimal ?? (dishProteins.has('paneer') ? 'paneer' : null);
+
+      const perMember = members.map((mem) => {
+        const memSlotKcal = mem.perMeal[meal.slot]?.kcal ?? refKcal;
+        const factor = Math.min(1.8, Math.max(0.45, memSlotKcal / refKcal));
+        const canEat = dietAllows(mem.diet, dishDiet);
+        const swap = (!canEat && dishSwap) ? { from: PROTEIN_LABEL_DISPLAY[dishSwap] ?? dishSwap, to: plantFor(mem.diet) } : null;
+        const c = mem.conditions.map((x) => x.toLowerCase());
+        const hasC = (...k: string[]) => k.some((x) => c.some((v) => v.includes(x)));
+        const note = hasC('kidney', 'renal', 'ckd') ? 'low sodium · lighter protein'
+          : hasC('hypertension', 'blood pressure') ? 'low sodium'
+            : hasC('diabetes') ? 'less rice, more veg' : null;
+        return {
+          memberId: mem.id, name: mem.name, role: mem.role, factor: Math.round(factor * 100) / 100,
+          grams: Math.round(baseGrams * factor), kcal: Math.round(refKcal * factor),
+          protein: Math.round(baseProtein * factor), swap, note,
+        };
+      });
+      return {
+        slot: meal.slot, slotName: SLOT_NAME[meal.slot] ?? meal.slot, name: meal.title,
+        sharedBase: perMember.some((p) => p.swap), refKcal, perMember,
+      };
+    });
   }
 
   /**

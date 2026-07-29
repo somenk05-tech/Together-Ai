@@ -85,14 +85,28 @@ export interface MealSettings {
 }
 
 export type PlanMode = 'preferred' | 'optimal';
+
+/**
+ * Whose safety rules the plan is composed under.
+ *  · 'self'      — the citizen's own plan (default, unchanged)
+ *  · 'household' — the same dishes, but with every household member's allergies,
+ *                  exclusions and conditions applied. This is the plan the family
+ *                  grocery list already shops from, so it's what the family
+ *                  planner must show if the food and the basket are to agree.
+ */
+export type PlanScope = 'self' | 'household';
+
 export const composedApi = {
-  plan: (mode: PlanMode = 'preferred') => api.get<ComposedWeek>('/nutrition/plan/composed', { params: { mode } }).then((r) => r.data),
+  plan: (mode: PlanMode = 'preferred', scope: PlanScope = 'self') =>
+    api.get<ComposedWeek>('/nutrition/plan/composed', { params: { mode, scope } }).then((r) => r.data),
   settings: () => api.get<MealSettings>('/nutrition/meal-settings').then((r) => r.data),
   saveSettings: (patch: Partial<MealSettings>) => api.patch<MealSettings>('/nutrition/meal-settings', patch).then((r) => r.data),
 };
 
-export function useComposedPlan(mode: PlanMode = 'preferred') {
-  return useQuery({ queryKey: ['nutrition', 'composed', mode], queryFn: () => composedApi.plan(mode) });
+export function useComposedPlan(mode: PlanMode = 'preferred', scope: PlanScope = 'self') {
+  // Scope is part of the key: a household plan and a personal plan are different
+  // food and must never share a cache entry.
+  return useQuery({ queryKey: ['nutrition', 'composed', mode, scope], queryFn: () => composedApi.plan(mode, scope) });
 }
 export function useMealSettings() {
   return useQuery({ queryKey: ['nutrition', 'meal-settings'], queryFn: () => composedApi.settings() });
@@ -113,7 +127,15 @@ function useComposedMutation<V>(path: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: V) => api.post<ComposedWeek>(path, body).then((r) => r.data),
-    onSuccess: (wk) => { qc.setQueryData(['nutrition', 'composed', wk.mode ?? 'preferred'], wk); void qc.invalidateQueries({ queryKey: ['nutrition', 'composed'] }); },
+    onSuccess: (wk) => {
+      // These mutations always act on the citizen's OWN plan, so the optimistic
+      // write goes to the 'self' scope. The key gained a scope segment when the
+      // household plan arrived; writing the old 3-part key would have silently
+      // updated a cache entry nothing reads. The prefix invalidate below then
+      // refreshes any household view that derives from the same preferences.
+      qc.setQueryData(['nutrition', 'composed', wk.mode ?? 'preferred', 'self'], wk);
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'composed'] });
+    },
   });
 }
 export function useRefreshMeal() { return useComposedMutation<{ day: number; slot: string }>('/nutrition/plan/composed/refresh'); }
