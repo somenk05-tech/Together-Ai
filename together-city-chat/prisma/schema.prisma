@@ -380,6 +380,9 @@ model RecipeIngredient {
   recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
   @@index([recipeId])
+  /// Ingredient search hits this — without it, "recipes containing tomato"
+  /// was a full-table scan, which is why search was capped to a 300-row slice.
+  @@index([name])
 }
 
 model MealPlan {

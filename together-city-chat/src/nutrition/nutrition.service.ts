@@ -1851,7 +1851,14 @@ export class NutritionService implements OnModuleInit {
     const JUNK_TITLES = ['Chili', 'Chilli', 'Chicken', 'Curry', 'Dal', 'Rice', 'Soup', 'Salad', 'Sauce', 'Bread', 'Cake', 'Fish', 'Beef', 'Pork', 'Lamb', 'Snack', 'Drink', 'Dessert', 'Gravy', 'Stew'];
     where.NOT = { name: { in: JUNK_TITLES } };
     if (q.cuisine) where.country = q.cuisine;
-    if (q.search) where.name = { contains: q.search, mode: 'insensitive' };
+    // Search matches a recipe's NAME or its INGREDIENTS, so "paneer" finds
+    // dishes made with paneer, not only ones with it in the title.
+    if (q.search) {
+      where.OR = [
+        { name: { contains: q.search, mode: 'insensitive' } },
+        { ingredients: { some: { name: { contains: q.search, mode: 'insensitive' } } } },
+      ];
+    }
     if (q.mealType) {
       const slot = ({ breakfast: 'b', lunch: 'l', dinner: 'd', snack: 's' } as Record<string, string>)[q.mealType];
       if (slot) where.slot = slot;
@@ -5341,19 +5348,64 @@ export class NutritionService implements OnModuleInit {
     const effDiet = ((diet && diet !== 'everything') ? diet : (pref?.diet ?? 'everything')) as Diet;
     const clean = searchTerms.map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 12);
 
-    const rows = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true } } }, take: 300 })) as unknown as Array<RecipeWithIng & Record<string, unknown>>;
+    // Expand each term with its known aliases, BOTH directions, so "yogurt"
+    // also finds curd/dahi and "cilantro" finds coriander. Previously search was
+    // a raw substring test over an arbitrary 300-recipe slice of an ~11k
+    // library, so most recipes were simply unreachable and synonyms never hit.
+    const expand = (term: string): string[] => {
+      const t = term.toLowerCase().trim();
+      const out = new Set<string>([t]);
+      const canon = canonicalIngredient(t).toLowerCase();
+      if (canon) out.add(canon);
+      for (const [alias, target] of Object.entries(INGREDIENT_SYNONYM)) {
+        const tgt = target.toLowerCase();
+        if (alias === t || tgt === t || tgt === canon) { out.add(alias); out.add(tgt); }
+      }
+      return [...out].filter(Boolean);
+    };
+    const expanded = clean.map((t) => ({ term: t, variants: expand(t) }));
+
+    // Ask the DATABASE which recipes contain these ingredients (indexed), instead
+    // of pulling a slice of the library into memory and scanning it.
+    let rows: Array<RecipeWithIng & Record<string, unknown>>;
+    if (expanded.length) {
+      const hits = await this.prisma.recipeIngredient.findMany({
+        where: { OR: expanded.flatMap((e) => e.variants.map((v) => ({ name: { contains: v, mode: 'insensitive' as const } }))) },
+        select: { recipeId: true },
+        take: 8000,
+      }).catch(() => [] as Array<{ recipeId: string }>);
+      const ids = [...new Set(hits.map((h) => h.recipeId))].slice(0, 1200);
+      if (!ids.length) return [];
+      rows = (await this.prisma.recipe.findMany({
+        where: { id: { in: ids } },
+        include: { ingredients: { select: { name: true } } },
+      })) as unknown as Array<RecipeWithIng & Record<string, unknown>>;
+    } else {
+      rows = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true } } }, take: 300 })) as unknown as Array<RecipeWithIng & Record<string, unknown>>;
+    }
+
     let pool = filterByPrefs(rows, effDiet, ex);
     if (!pool.length) pool = rows.filter((r) => dietAllows(effDiet, r.diet as Diet));
 
     const scored = pool.map((r) => {
       const names = r.ingredients.map((i) => i.name.toLowerCase());
-      const matches = clean.length ? clean.filter((t) => names.some((n) => n.includes(t))).length : 0;
-      return { r, matches };
+      const canonNames = names.map((n) => canonicalIngredient(n).toLowerCase());
+      // A term matches if ANY of its aliases appears in the raw or canonical
+      // ingredient names.
+      const matched = expanded.filter((e) =>
+        e.variants.some((v) => names.some((n) => n.includes(v)) || canonNames.some((n) => n.includes(v))));
+      const matches = matched.length;
+      // What the cook would still need to buy — the useful second sort key.
+      const missing = Math.max(0, expanded.length - matches);
+      return { r, matches, missing };
     });
-    const chosen = (clean.length ? scored.filter((s) => s.matches > 0) : scored)
-      .sort((a, b) => b.matches - a.matches || a.r.name.localeCompare(b.r.name))
+    const chosen = (expanded.length ? scored.filter((s) => s.matches > 0) : scored)
+      .sort((a, b) => b.matches - a.matches || a.missing - b.missing || a.r.name.localeCompare(b.r.name))
       .slice(0, 60);
-    return chosen.map(({ r, matches }) => ({ ...this.recipeShape(r as unknown as Parameters<NutritionService['recipeShape']>[0]), matches }));
+    return chosen.map(({ r, matches, missing }) => ({
+      ...this.recipeShape(r as unknown as Parameters<NutritionService['recipeShape']>[0]),
+      matches, missingCount: missing,
+    }));
   }
 
   // ─────────────── grocery cart ───────────────
