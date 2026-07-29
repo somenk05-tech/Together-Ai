@@ -268,6 +268,15 @@ export function useRecipeVariants(id: string | undefined, type: string | null) {
   });
 }
 
+/** Advance-prep alerts — dishes that must be started early (soak/ferment). */
+export function usePrepAlerts(mode: 'individual' | 'family' = 'individual') {
+  return useQuery({
+    queryKey: ['nutrition', 'prep-alerts', mode],
+    queryFn: () => nutritionApi.prepAlerts(mode),
+    staleTime: 5 * 60_000,
+  });
+}
+
 /** Supermarket-style grocery plan (Grocery Planner redesign) — aisles + recipe view. */
 export function useGroceryPlan(mode: 'individual' | 'family' = 'individual', days = 7, startDate?: string) {
   return useQuery({

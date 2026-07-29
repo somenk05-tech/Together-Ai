@@ -86,6 +86,9 @@ export const nutritionApi = {
   groceryPlan: (mode: 'individual' | 'family' = 'individual', days = 7, startDate?: string) =>
     api.get<GroceryPlan>('/nutrition/grocery/plan', { params: { mode, days, ...(startDate ? { startDate } : {}) } }).then((r) => r.data),
   cart: () => api.get<GroceryCart>('/nutrition/cart').then((r) => r.data),
+  prepAlerts: (mode: 'individual' | 'family' = 'individual') =>
+    api.get<{ alerts: Array<{ mealKey: string; title: string; what: string; startBy: string; notified: boolean }> }>(
+      '/nutrition/prep-alerts', { params: { mode } }).then((r) => r.data),
   setDeliveryTime: (time: string) =>
     api.patch<{ ok: boolean; deliveryTime: string }>('/nutrition/delivery-time', { time }).then((r) => r.data),
   buildCart: (opts?: { planKey?: string; recipeIds?: string[]; people?: number; mode?: 'individual' | 'family' }) =>

@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'fs';
 import { gunzipSync } from 'zlib';
 import { join } from 'path';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
@@ -1306,6 +1307,7 @@ export class NutritionService implements OnModuleInit {
     private readonly financial: FinancialService,
     private readonly ai: AiService,
     private readonly connections: ConnectionsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -2626,6 +2628,9 @@ export class NutritionService implements OnModuleInit {
    */
   async pantryList(ownerId: string) {
     await this.settleElapsedDays(ownerId).catch(() => undefined);
+    // Same visit, look ahead: anything that must be soaked/fermented/marinated
+    // in advance gets its notification while there's still time to act.
+    void this.prepAlerts(ownerId).catch(() => undefined);
     return this.pantryListRaw(ownerId);
   }
 
@@ -2822,6 +2827,108 @@ export class NutritionService implements OnModuleInit {
     }
     await this.mergeExtras(ownerId, { pantrySettledThrough: yesterday }).catch(() => undefined);
     return { settledDays, settledMeals };
+  }
+
+  /**
+   * ADVANCE-PREP ALERTS.
+   *
+   * Some dishes can't be started at mealtime: idli/dosa batter ferments
+   * overnight, rajma soaks 8 hours, biryani meat marinates. If breakfast is at
+   * 09:00 and the batter needed to be down by 21:00 the night before, telling
+   * the citizen at 09:00 is useless. This looks ahead at the plan and tells them
+   * while there's still time to act.
+   *
+   * Lead time is read from the recipe's own words, so it's honest about what a
+   * dish actually needs rather than guessing a flat number.
+   */
+  private static prepLeadHours(text: string): { hours: number; what: string } | null {
+    const t = (text || '').toLowerCase();
+    // Longest/most specific first — "overnight" beats a bare "soak".
+    if (/\bferment(ing|ed|ation)?\b.*\bovernight\b|\bovernight\b.*\bferment/.test(t)) return { hours: 12, what: 'ferment overnight' };
+    if (/\bovernight\b/.test(t)) return { hours: 12, what: 'prep overnight' };
+    if (/\bferment/.test(t)) return { hours: 8, what: 'ferment' };
+    if (/\bsoak(ing|ed)?\b/.test(t)) {
+      const m = t.match(/soak[^.]{0,40}?(\d{1,2})\s*(hour|hr)/);
+      const h = m ? Math.min(24, Math.max(1, Number(m[1]))) : 8;
+      return { hours: h, what: `soak ${h}h` };
+    }
+    if (/\bmarinat/.test(t)) {
+      const m = t.match(/marinat[^.]{0,40}?(\d{1,2})\s*(hour|hr)/);
+      const h = m ? Math.min(24, Math.max(1, Number(m[1]))) : 2;
+      return { hours: h, what: `marinate ${h}h` };
+    }
+    if (/\bsprout(ing|ed)?\b/.test(t)) return { hours: 12, what: 'sprout' };
+    if (/\bproof(ing|ed)?\b|\brise\b.*\bdough\b|\bdough\b.*\brise\b/.test(t)) return { hours: 3, what: 'prove the dough' };
+    if (/\bchill\b.*\b(\d{1,2})\s*(hour|hr)|\brefrigerate\b.*\bovernight\b/.test(t)) return { hours: 4, what: 'chill' };
+    return null;
+  }
+
+  /**
+   * Look ahead over the next ~2 days of the plan and notify about anything that
+   * must be started in advance. Fires while there is still time (at the latest
+   * moment that still works), and only once per meal — the notification's
+   * entityId is the meal key, so re-opening the app never re-notifies.
+   *
+   * Works for both individual and family plans: family mode says who it feeds.
+   */
+  async prepAlerts(userId: string, mode: PlanMode = 'individual'): Promise<{ alerts: Array<{ mealKey: string; title: string; what: string; startBy: string; notified: boolean }> }> {
+    const plan = (await this.composedPlan(userId).catch(() => null)) as unknown as {
+      needsProfile?: boolean; planStartDate?: string;
+      days?: Array<{ dayIndex: number; meals: Array<{ slot: string; title: string; label: string; scheduledTime?: string; components: Array<{ name: string; steps?: string[]; ingredients?: Array<{ name: string }> }> }> }>;
+    } | null;
+    if (!plan?.days?.length || plan.needsProfile) return { alerts: [] };
+
+    const startISO = plan.planStartDate && /^\d{4}-\d{2}-\d{2}$/.test(plan.planStartDate) ? plan.planStartDate : todayISO();
+    const now = Date.now();
+    const horizon = now + 60 * 3600 * 1000;      // look ~2.5 days ahead
+    const householdSize = mode === 'family'
+      ? Math.max(1, (await this.prisma.familyMember.count({ where: { ownerId: userId } }).catch(() => 0)) || 1)
+      : 1;
+
+    const out: Array<{ mealKey: string; title: string; what: string; startBy: string; notified: boolean }> = [];
+    for (const d of plan.days) {
+      const dayISO = addDaysISO(startISO, d.dayIndex);
+      for (const m of d.meals) {
+        // When this meal is served (falls back to a sensible hour per slot).
+        const time = /^\d{2}:\d{2}$/.test(m.scheduledTime ?? '')
+          ? (m.scheduledTime as string)
+          : ({ b: '09:00', l: '13:00', s: '17:00', d: '20:00' } as Record<string, string>)[m.slot] ?? '12:00';
+        const servedAt = Date.parse(`${dayISO}T${time}:00`);
+        if (!Number.isFinite(servedAt) || servedAt < now || servedAt > horizon) continue;
+
+        // Does anything in this meal need a head start?
+        const hay = m.components.map((c) => `${c.name} ${(c.steps ?? []).join(' ')} ${(c.ingredients ?? []).map((i) => i.name).join(' ')}`).join(' ');
+        const lead = NutritionService.prepLeadHours(hay);
+        if (!lead) continue;
+
+        const startBy = new Date(servedAt - lead.hours * 3600 * 1000);
+        // Only worth saying while they can still act on it.
+        if (startBy.getTime() < now - 3600 * 1000) continue;
+
+        const mealKey = `${dayISO}:${m.slot}`;
+        const when = startBy.toLocaleString('en-IN', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+        const forWhom = mode === 'family' && householdSize > 1 ? ` for ${householdSize} people` : '';
+        const notified = await this.notifyOnce(userId, {
+          kind: 'meal_prep',
+          entityId: `prep:${mealKey}`,
+          title: `Start ${m.title} by ${when}`,
+          body: `${m.label} on ${new Date(`${dayISO}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })} needs to ${lead.what}${forWhom}. Get it going and it'll be ready on time.`,
+          href: '/nutrition/daily',
+        });
+        out.push({ mealKey, title: m.title, what: lead.what, startBy: startBy.toISOString(), notified });
+      }
+    }
+    return { alerts: out };
+  }
+
+  /** Create a notification only if one with this entityId doesn't already exist. */
+  private async notifyOnce(userId: string, input: { kind: string; entityId: string; title: string; body: string; href: string }): Promise<boolean> {
+    const existing = await (this.prisma as unknown as {
+      notification: { findFirst(a: unknown): Promise<{ id: string } | null> };
+    }).notification.findFirst({ where: { userId, entityId: input.entityId } }).catch(() => null);
+    if (existing) return false;
+    await this.notifications.create({ userId, kind: input.kind, title: input.title, body: input.body, href: input.href, entityId: input.entityId }).catch(() => undefined);
+    return true;
   }
 
   /** Recent pantry draw-downs (what the household actually got through). */

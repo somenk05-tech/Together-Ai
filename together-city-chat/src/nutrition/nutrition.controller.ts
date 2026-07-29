@@ -313,6 +313,12 @@ export class NutritionController {
     });
   }
 
+  /** Advance-prep alerts: what must be started early (soak/ferment/marinate). */
+  @Get('prep-alerts')
+  prepAlerts(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode) {
+    return this.nutrition.prepAlerts(user.sub, mode ?? 'individual');
+  }
+
   /** Force an end-of-day settlement pass (normally automatic on pantry read). */
   @Post('pantry/settle')
   settlePantry(@CurrentUser() user: JwtUser) {

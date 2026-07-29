@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Spinner } from '@/components/ui';
-import { usePantry, usePantryMutations } from '../hooks';
+import { usePantry, usePantryMutations, usePrepAlerts } from '../hooks';
 import { useComposedPlan } from '../composed.api';
 import type { PantryItemView } from '../api';
 
@@ -50,6 +50,37 @@ function TodaysCooking() {
               onClick={() => cooked.mutate({ mealKey: key, label: m.title }, { onSuccess: () => setDone((c) => ({ ...c, [key]: true })) })}>
               {isDone ? '✓ Cooked' : 'Cooked'}
             </Button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Dishes that can't be started at mealtime — batter that ferments overnight,
+ * pulses that soak, meat that marinates. Shown while there's still time to act.
+ */
+function PrepAhead() {
+  const q = usePrepAlerts();
+  const alerts = q.data?.alerts ?? [];
+  if (!alerts.length) return null;
+  return (
+    <div className="card" style={{ marginBottom: 14, borderColor: 'rgba(58,110,165,.45)' }}>
+      <strong style={{ fontSize: 13.5 }}>⏰ Start these ahead of time</strong>
+      <p className="muted" style={{ fontSize: 12, margin: '2px 0 10px' }}>
+        These need a head start — you'll also get a notification in time.
+      </p>
+      {alerts.map((a) => {
+        const by = new Date(a.startBy);
+        const late = by.getTime() < Date.now();
+        return (
+          <div key={a.mealKey} style={{ display: 'flex', gap: 10, alignItems: 'baseline', padding: '7px 0', borderTop: '1px solid var(--line)' }}>
+            <span style={{ fontSize: 13.5, fontWeight: 600, flex: 1, minWidth: 0 }}>{a.title}</span>
+            <span className="muted" style={{ fontSize: 12 }}>{a.what}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: late ? '#c0392b' : '#3a6ea5', whiteSpace: 'nowrap' }}>
+              {late ? 'start now' : `by ${by.toLocaleString('en-IN', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}`}
+            </span>
           </div>
         );
       })}
@@ -135,6 +166,8 @@ export function Pantry() {
           {stock.isPending ? 'Stocking…' : '🛒 Stock from grocery list'}
         </Button>
       </div>
+
+      <PrepAhead />
 
       <TodaysCooking />
 
