@@ -10,6 +10,8 @@ import { EventsModule } from './shared/events/events.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { AdminModule } from './auth/admin.module';
+import { ClockModule } from './shared/clock/clock.module';
+import { TasksModule } from './tasks/tasks.module';
 import { UsersModule } from './users/users.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { ConversationsModule } from './conversations/conversations.module';
@@ -51,6 +53,8 @@ import { PrivacyModule } from './privacy/privacy.module';
     AiModule,
     AuthModule,
     AdminModule,
+    ClockModule,
+    TasksModule,
     UsersModule,
     ConnectionsModule,
     ConversationsModule,
