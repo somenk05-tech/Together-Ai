@@ -1569,7 +1569,11 @@ export class NutritionService implements OnModuleInit {
    * to their own calorie target — same dishes/times, portions + grocery scaled,
    * read-only. Everyone else gets their own composition.
    */
-  async composedPlan(userId: string, mode: 'preferred' | 'optimal' = 'preferred') {
+  async composedPlan(
+    userId: string,
+    mode: 'preferred' | 'optimal' = 'preferred',
+    opts: { household?: boolean } = {},
+  ) {
     // Food Preference Profile is the master source of truth — never generate a
     // plan until it's saved. Members of a family with shared planning inherit the
     // owner's saved profile, so they're allowed through.
@@ -1587,7 +1591,7 @@ export class NutritionService implements OnModuleInit {
       // planner would blank. Cap the personalised build; on timeout OR error we
       // fall through to the fast, pure fallback below.
       return await Promise.race([
-        this.buildComposedPlan(userId, mode),
+        this.buildComposedPlan(userId, mode, opts),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('composed-plan timeout (8s)')), 8000)),
       ]);
     } catch (e) {
@@ -1616,7 +1620,11 @@ export class NutritionService implements OnModuleInit {
     }
   }
 
-  private async buildComposedPlan(userId: string, mode: 'preferred' | 'optimal' = 'preferred') {
+  private async buildComposedPlan(
+    userId: string,
+    mode: 'preferred' | 'optimal' = 'preferred',
+    opts: { household?: boolean } = {},
+  ) {
     const ctx = await this.familyContext(userId).catch(() => null);
     if (ctx && ctx.role === 'member' && ctx.familyMealPlanning) {
       const mpref = await this.prisma.foodPref.findUnique({ where: { userId } });
@@ -1663,12 +1671,23 @@ export class NutritionService implements OnModuleInit {
         : mClinical ? 'your medical needs' : 'your dietary preference';
       return { ...own, personalizedForMember: true, personalizedReason: reason };
     }
-    return this.composeFor(userId, mode);
+    return this.composeFor(userId, mode, opts);
   }
 
-  private async composeFor(userId: string, mode: 'preferred' | 'optimal' = 'preferred') {
+  private async composeFor(
+    userId: string,
+    mode: 'preferred' | 'optimal' = 'preferred',
+    opts: { household?: boolean } = {},
+  ) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    let ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    // HOUSEHOLD SAFETY. When this plan is being composed to feed a household —
+    // today that means the family grocery list, which shops off the composed
+    // plan — every member's allergies, exclusions and conditions must apply,
+    // exactly as generatePlan() already does for the stored family plan. The
+    // owner's own preferences alone would let a shared dish carry a child's
+    // allergen, and the family basket would then buy the ingredient for it.
+    if (opts.household) ex = await this.withHouseholdAllergies(userId, ex);
     // 3-week plan anchor: day 0 = the day the user started this plan. Lazily set on
     // first generation so the plan progresses day-by-day and can prompt a review
     // once its three weeks are up.
@@ -5640,13 +5659,18 @@ export class NutritionService implements OnModuleInit {
    * fails), we fall back to the stored weekly MealPlan so the basket still
    * builds rather than coming back empty.
    */
-  private async composedMealsForShopping(userId: string, days: number, fromISO?: string): Promise<{
+  private async composedMealsForShopping(
+    userId: string,
+    days: number,
+    fromISO?: string,
+    household = false,
+  ): Promise<{
     dayCount: number;
     meals: Array<{ slot: string; recipeName: string; dayISO?: string; ingredients: Array<{ name: string; grams: number }> }>;
   }> {
     const empty = { dayCount: 0, meals: [] as Array<{ slot: string; recipeName: string; dayISO?: string; ingredients: Array<{ name: string; grams: number }> }> };
     try {
-      const plan = (await this.composedPlan(userId)) as unknown as {
+      const plan = (await this.composedPlan(userId, 'preferred', { household })) as unknown as {
         needsProfile?: boolean;
         planStartDate?: string;
         days?: Array<{ dayIndex: number; meals: Array<{ slot: string; title: string; components: Array<{ name: string; ingredients?: Array<{ name: string; grams: number; toTaste?: boolean; pantry?: boolean }> }> }> }>;
@@ -5737,7 +5761,10 @@ export class NutritionService implements OnModuleInit {
     // to the stored weekly plan only if the composed plan can't be produced.
     const window = Math.max(1, Math.min(28, Math.round(days)));
     const fromISO = this.resolveStartDate(startDate);
-    const composed = await this.composedMealsForShopping(userId, window, fromISO);
+    // mode==='family' composes with every household member's allergies and
+    // exclusions applied, so the basket can never buy an ingredient for a dish
+    // one of them can't eat.
+    const composed = await this.composedMealsForShopping(userId, window, fromISO, mode === 'family');
 
     // Household scaling factor. Individual = 1. Family = the SUM of each member's
     // portion multiplier (their daily calorie target ÷ a 2,000-kcal standard
@@ -5928,7 +5955,12 @@ export class NutritionService implements OnModuleInit {
       // is actually shown. Composed grams are already one portion, so scale by
       // headcount only; price is the same per-aisle estimate groceryPlan uses,
       // so the saved cart and the on-screen list agree on both items and cost.
-      const composed = await this.composedMealsForShopping(userId, Math.max(1, Math.min(28, Math.round(opts.days ?? 7))), this.resolveStartDate(opts.startDate));
+      const composed = await this.composedMealsForShopping(
+        userId,
+        Math.max(1, Math.min(28, Math.round(opts.days ?? 7))),
+        this.resolveStartDate(opts.startDate),
+        opts.mode === 'family',   // saved cart mirrors the displayed family list
+      );
       if (composed.meals.length) {
         for (const meal of composed.meals) {
           for (const ing of meal.ingredients) {
