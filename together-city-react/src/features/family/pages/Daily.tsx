@@ -1,21 +1,16 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { PageHeader, Button, Spinner, EmptyState } from '@/components/ui';
-import { MealCard } from '@/features/nutrition/components/MealCard';
+import { PageHeader, Button, Spinner, EmptyState, Chip } from '@/components/ui';
+import { ComposedMealCard } from '@/features/nutrition/components/ComposedMealCard';
 import { GroceryPlanner } from '@/features/nutrition/components/GroceryPlanner';
-import { Chip } from '@/components/ui';
 import { ProfileIncomplete } from '@/features/nutrition/components/ProfileIncomplete';
-import { DailySummary } from '@/features/nutrition/components/DailySummary';
-import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRecipes, useBuildCart } from '@/features/nutrition/hooks';
-import { nutritionApi } from '@/features/nutrition/api';
-import { useMealSwapHistory } from '@/features/nutrition/mealHistory';
-import type { WeekPlan } from '@/features/nutrition/types';
+import { PlanModeToggle } from '@/features/nutrition/components/PlanModeToggle';
+import { useComposedPlan, type PlanMode } from '@/features/nutrition/composed.api';
+import { useRecipes } from '@/features/nutrition/hooks';
+import { planDates, planDayOffset, weekdayFull } from '@/features/nutrition/planDates';
 import { useFamily, headcount } from '../members';
 import { FamilySnacks } from '../components/FamilySnacks';
-
-/** Monday-indexed weekday (Mon=0 … Sun=6). */
-const todayIndex = (): number => (new Date().getDay() + 6) % 7;
+import { FamilyPortions } from '../components/FamilyPortions';
 
 const chipStyle: React.CSSProperties = {
   fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase',
@@ -24,42 +19,58 @@ const chipStyle: React.CSSProperties = {
 };
 
 /**
- * Daily Meal Planner — Family (family-daily.html).
- * Today's plate sliced live from the shared family weekly plan.
+ * Daily Meal Planner — Family. Today's plate, sliced from the household's
+ * composed plan.
+ *
+ * "Today" is derived from the plan's own anchor date rather than the weekday.
+ * The composed plan runs three weeks from the day it was started, so day 0 is
+ * planStartDate — the Monday-indexed assumption the older engine relied on
+ * would land on the wrong meals here.
  */
 export function FamilyDaily() {
   const [tab, setTab] = useState<'plan' | 'grocery'>('plan');
-  const dayIndex = todayIndex();
-  const plan = useWeeklyPlan('family');
-  const targets = useNutritionTargets();
-  const summary = useDaySummary(plan.data?.key, dayIndex);
+  const [mode, setMode] = useState<PlanMode>('preferred');
+  const plan = useComposedPlan(mode, 'household');
   const recipes = useRecipes();
-  const buildCart = useBuildCart();
   const navigate = useNavigate();
   const { state } = useFamily();
-  const qc = useQueryClient();
   const N = headcount(state);
-  const mutate = async (fn: Promise<WeekPlan>) => {
-    const next = await fn;
-    qc.setQueryData(['nutrition', 'weekly', 'family'], next);
-  };
-  const swaps = useMealSwapHistory(plan.data?.key ?? '', dayIndex, mutate);
 
   if (plan.isLoading) return <Spinner label="Plating today…" />;
   if (plan.isError || !plan.data) {
-    return <EmptyState icon="🍽️" title="Couldn't load today's plate" hint="Start the backend, then reload." />;
+    return <EmptyState icon="🍽️" title="Couldn't load today's plate" hint="Reload the page to try again." />;
   }
-  if (plan.data.incomplete) return <ProfileIncomplete missing={plan.data.missing} />;
+  if (plan.data.needsProfile) return <ProfileIncomplete missing={[{ key: 'profile', label: 'Food Preference Profile' }]} />;
 
   const week = plan.data;
-  const day = week.days[dayIndex];
+  const days = week.days ?? [];
+  if (!days.length) {
+    return (
+      <div style={{ maxWidth: 520, margin: '40px auto', textAlign: 'center', padding: '0 16px' }}>
+        <div style={{ fontSize: 40 }}>🗓️</div>
+        <h2 style={{ fontSize: 22, margin: '10px 0 6px' }}>No household plan yet</h2>
+        <p className="muted" style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
+          Save your Nutrition preferences and the household plan appears here.
+        </p>
+        <Link to="/family/weekly"><Button variant="accent">Open the weekly planner →</Button></Link>
+      </div>
+    );
+  }
+
+  // Which day of the plan today is — clamped so a plan that has run past its
+  // window still shows its last day rather than nothing.
+  const dayIndex = Math.max(0, Math.min(days.length - 1, planDayOffset(week.planStartDate)));
+  const day = days[dayIndex];
+  const date = planDates(week.planStartDate, days.length)[dayIndex];
   const mains = day.meals.filter((m) => m.slot !== 's');
 
   return (
     <div>
       <PageHeader eyebrow="Family Nutrition · 03"
         title="Daily Meal Planner"
-        sub="Today's plate, dish by dish, personalised per member." />
+        sub="Today's plate, dish by dish — shared mains, personal snacks." />
+
+      <PlanModeToggle mode={mode} onChange={setMode} busy={plan.isFetching} />
 
       <div style={{ display: 'flex', gap: 6, margin: '14px 0 16px' }}>
         {(['plan', 'grocery'] as const).map((t) => (
@@ -70,8 +81,8 @@ export function FamilyDaily() {
       {tab === 'grocery' && <GroceryPlanner mode="family" />}
 
       {tab === 'plan' && (<>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
-        <h2>Today's Family Plan</h2>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
+        <h2>Today's Family Plan · {weekdayFull(date)}</h2>
         <span className="meta">Cooking for {N} {N === 1 ? 'person' : 'people'} · shared mains + personal snacks</span>
       </div>
 
@@ -79,11 +90,7 @@ export function FamilyDaily() {
         {mains.map((m) => (
           <div key={m.slot}>
             <span style={chipStyle}>Family · cook together</span>
-            <MealCard meal={m} people={N}
-              onSwap={() => swaps.onSwap(m.slot, m.recipe.id)}
-              onSkip={() => void mutate(nutritionApi.skipMeal(week.key, dayIndex, m.slot, !m.skipped))}
-              canGoBack={swaps.canGoBack(m.slot)}
-              onBack={() => swaps.onBack(m.slot)} />
+            <ComposedMealCard meal={m} dayIndex={dayIndex} people={N} readOnly={week.readOnly} />
           </div>
         ))}
         <FamilySnacks recipes={recipes.data ?? []} family={state} dayIndex={dayIndex} />
@@ -93,21 +100,21 @@ export function FamilyDaily() {
         <div className="card">
           <h4>Why this plan works</h4>
           <p className="meta" style={{ display: 'block', margin: '10px 0' }}>
-            One family plan for today — the mains are cooked together for the whole family and recipe quantities scale to the number of connected members. Snacks are personalised to each member's health need.
+            One household plan for today. The mains are cooked together, and every member's allergies and avoided
+            foods are applied to the shared dishes — so nothing on the table is unsafe for anyone at it. Snacks stay
+            personal to each member's health need.
           </p>
-          {summary.data
-            ? <DailySummary day={day.day} summary={summary.data} targets={targets.data} />
-            : <Spinner />}
+          <p className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+            Day {dayIndex + 1} of {days.length} · {Math.round(day.totals.kcal)} kcal per plate
+            {day.totals.protein ? ` · ${Math.round(day.totals.protein)} g protein` : ''}
+          </p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="stat"><div className="lab">Today · shared mains</div><div className="val">{day.day}</div><div className="delta">Day {dayIndex + 1} of 7</div></div>
+          <FamilyPortions dayIndex={dayIndex} />
           <Link to="/family/weekly"><Button variant="line" style={{ width: '100%', justifyContent: 'center' }}>Open the full week</Button></Link>
-          <Button variant="gold" disabled={buildCart.isPending} style={{ width: '100%', justifyContent: 'center' }}
-            onClick={() => buildCart.mutate(
-              { recipeIds: day.meals.filter((m) => !m.skipped).map((m) => m.recipe.id), people: N },
-              { onSuccess: () => navigate('/family/grocery') },
-            )}>
-            {buildCart.isPending ? 'Building…' : '🛒 Generate grocery list →'}
+          <Button variant="gold" style={{ width: '100%', justifyContent: 'center' }}
+            onClick={() => navigate('/family/grocery')}>
+            🛒 Grocery list →
           </Button>
         </div>
       </div>

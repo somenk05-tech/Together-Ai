@@ -1,49 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Card, Spinner, EmptyState, Button, Chip, Modal } from '@/components/ui';
 import { GroceryPlanner } from '../components/GroceryPlanner';
 import {
   useComposedPlan, useMealSettings, useSaveMealSettings,
-  useRefreshMeal, useSkipMeal, useRestoreSkips, useRefreshComponent, useSkipComponent, useRenewPlan,
-  type ComposedMeal, type MealComponent, type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard,
+  useRestoreSkips, useRenewPlan,
+  type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard,
 } from '../composed.api';
-import { VegMark, mealKind } from '../components/VegMark';
-import { ShareIconButton } from '@/components/share/ShareButton';
-import { encodeMeal } from '../shareMeal';
-import type { ShareCard } from '@/api';
-
-/** Build a rich, shareable recipe card from a meal — its headline dish photo,
- *  the meal's name, calories and macros, deep-linked to the recipe page. Reused
- *  by the same UniversalShareSheet every hub uses. */
-function mealShareCard(meal: ComposedMeal, master: MealComponent | null): ShareCard {
-  const t = meal.totals;
-  const macros = [
-    `${Math.round(t.kcal)} kcal`,
-    `P ${Math.round(t.protein)}g`,
-    `C ${Math.round(t.carbs)}g`,
-    `F ${Math.round(t.fat)}g`,
-  ];
-  // The whole meal, encoded into the deep link, so tapping the shared card opens a
-  // full-page read-only view of the ENTIRE meal (photo, name, macros, every dish),
-  // where each dish links to its detailed recipe — no server lookup needed.
-  const token = encodeMeal({
-    t: meal.title,
-    l: meal.label,
-    i: master?.imageUrl ?? null,
-    k: Math.round(t.kcal),
-    m: macros.slice(1), // P/C/F only — kcal is rendered separately from `k`
-    d: meal.components.map((c) => [c.name, c.recipeId, Math.round(c.kcal)] as [string, string, number]),
-  });
-  return {
-    kind: 'recipe',
-    title: meal.title,
-    subtitle: `${meal.label} · ${meal.components.length} ${meal.components.length === 1 ? 'dish' : 'dishes'}`,
-    image: master?.imageUrl ?? null,
-    meta: macros,
-    items: meal.components.map((c) => `${c.name} · ${Math.round(c.kcal)} kcal`),
-    deepLink: `/nutrition/shared-meal?d=${token}`,
-  };
-}
+import { ComposedMealCard } from '../components/ComposedMealCard';
+import { NIc } from '../components/NIcon';
 
 /** Master-source-of-truth gate: no plan until the Food Preference Profile is saved. */
 function ProfileGate() {
@@ -147,17 +112,6 @@ const BUCKETS: { key: CuisineBucket; label: string }[] = [
   { key: 'dinner', label: 'Dinner' }, { key: 'snack', label: 'Snacks' },
 ];
 
-/** Deterministic warm food-toned gradient for a recipe without a photo (always a
- *  gradient — the real photo is layered on top via <img> so a missing/404 image
- *  reveals this instead of a blank box). */
-function photoBg(c?: MealComponent): string {
-  const key = `${c?.recipeId ?? ''}${c?.name ?? 'meal'}`;
-  let h = 0;
-  for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  const hue = h % 360;               // spread across the wheel
-  const hue2 = (hue + 28) % 360;
-  return `linear-gradient(135deg, hsl(${hue} 55% 62%), hsl(${hue2} 60% 45%))`;
-}
 
 /* ─────────────────────── Premium day view (weekly + daily redesign) ─────────────────────── */
 const WEEKDAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -181,114 +135,6 @@ const weekdayFull = (d: Date) => WEEKDAY_FULL[d.getDay()];
 const shortDate = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase();
 const longDate = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-const NPATH: Record<string, string> = {
-  flame: 'M13 3c0 3 3 4 3 8a4 4 0 1 1-8 0c0-2 2-3 2-5 0 0 3 1 3-3z', leaf: 'M5 20c7 1 14-4 15-16C11 3 4 9 5 20zM9 16c2-4 5-6 8-7',
-  wheat: 'M12 21V8M12 10c-2-1-4-1-5 1 2 1 4 1 5-1zM12 10c2-1 4-1 5 1-2 1-4 1-5-1zM12 15c-2-1-4-1-5 1 2 1 4 1 5-1zM12 15c2-1 4-1 5 1-2 1-4 1-5-1z',
-  drop: 'M12 3s6 6 6 10a6 6 0 1 1-12 0c0-4 6-10 6-10z', sprout: 'M12 21v-7M12 14c0-3-2-5-5-5 0 3 2 5 5 5zM12 14c0-3 2-5 5-5 0 3-2 5-5 5z',
-  bulb: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10c1 1 1 2 1 3h6c0-1 0-2 1-3a6 6 0 0 0-4-10z', check: 'M20 6L9 17l-5-5',
-  clock: 'M12 7v5l3 2M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z', chevL: 'M15 6l-6 6 6 6', chevR: 'M9 6l6 6-6 6',
-  heart: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z',
-  refresh: 'M20 11a8 8 0 0 0-14-4M4 5v3h3M4 13a8 8 0 0 0 14 4M20 19v-3h-3', skip: 'M6 6l12 12M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z',
-};
-function NIc({ name, size = 18, stroke = 1.7, style }: { name: string; size?: number; stroke?: number; style?: React.CSSProperties }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', ...style }} aria-hidden><path d={NPATH[name] ?? NPATH.leaf} /></svg>;
-}
-
-const mainOf = (m: ComposedMeal) => m.components.find((c) => c.role === 'main') ?? m.components.find((c) => c.role === 'dal') ?? m.components.find((c) => c.role === 'breakfast') ?? m.components[0];
-/** The card headline ("master") — always a real main/protein WITH a photo when
- *  possible: a photographed main → any photographed dish → the main (gradient). */
-const photoOf = (m: ComposedMeal) =>
-  m.components.find((c) => (c.role === 'main' || c.role === 'dal' || c.role === 'breakfast') && c.imageUrl)
-  ?? m.components.find((c) => c.imageUrl)
-  ?? mainOf(m);
-/** A single meal column card (banner · 16:9 photo · title · dish links · prep/kcal). */
-function MealColumn({ meal, dayIndex, readOnly }: { meal: ComposedMeal; dayIndex: number; readOnly?: boolean }) {
-  const navigate = useNavigate(); const location = useLocation();
-  const [err, setErr] = useState(false);
-  const refresh = useRefreshMeal(); const skip = useSkipMeal();
-  const refreshComp = useRefreshComponent(); const skipComp = useSkipComponent();
-  const lineBusy = refreshComp.isPending || skipComp.isPending;
-  const busy = refresh.isPending || skip.isPending || lineBusy;
-  // Per-line Refresh/Skip only on the composite lunch & dinner plates.
-  const lineControls = !readOnly && (meal.slot === 'l' || meal.slot === 'd');
-  const photo = photoOf(meal);          // the "master" headline dish (a main with a photo when possible)
-  const img = photo?.imageUrl && !err ? photo.imageUrl : null;
-  const open = () => { const id = photo?.recipeId; if (id) navigate(`/nutrition/recipes/${id}`, { state: { from: location.pathname + location.search } }); };
-  return (
-    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 20, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow)', opacity: busy ? 0.55 : 1 }}>
-      <div style={{ padding: '14px 14px 0' }}>
-        <span style={{ display: 'inline-block', background: 'var(--ink)', color: '#fff', fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: 8 }}>{meal.label}</span>
-      </div>
-      <div style={{ position: 'relative', margin: '12px 14px 0', width: 'calc(100% - 28px)' }}>
-        <button type="button" onClick={open} aria-label={`Open ${meal.title}`} style={{ border: 'none', padding: 0, background: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'block', width: '100%' }}>
-          <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: 14, overflow: 'hidden', background: photoBg(photo) }}>
-            {img && <img src={img} alt={meal.title} loading="lazy" onError={() => setErr(true)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-            {!img && (
-              <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '22px 12px 10px', background: 'linear-gradient(transparent, rgba(0,0,0,.6))', color: '#fff', fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, textAlign: 'left', textShadow: '0 1px 4px rgba(0,0,0,.35)' }}>
-                {(photo?.name ?? meal.title)}
-              </span>
-            )}
-          </div>
-        </button>
-        {/* Veg/non-veg mark + Send — siblings of the open-button so no button nests inside another. */}
-        <span style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(255,255,255,.92)', borderRadius: 5, padding: 2, lineHeight: 0, boxShadow: '0 1px 3px rgba(0,0,0,.22)', pointerEvents: 'none' }}>
-          <VegMark diet={mealKind(meal.components.map((c) => c.diet))} size={16} />
-        </span>
-        <span style={{ position: 'absolute', top: 8, right: 8 }}>
-          <ShareIconButton
-            card={mealShareCard(meal, photo)}
-            label={`Send ${photo?.name ?? meal.title}`}
-            variant="overlay"
-            size={32}
-          />
-        </span>
-      </div>
-      <div style={{ padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <h3 style={{ fontSize: 15.5, margin: '0 0 8px', lineHeight: 1.3, letterSpacing: '-.01em' }}>{meal.title}</h3>
-        {/* Every dish links to its own recipe page; on lunch/dinner each dish also
-            carries a Refresh (swap like-for-like) and Skip (remove) control. */}
-        <div style={{ display: 'flex', flexDirection: 'column', margin: '0 0 12px' }}>
-          {meal.components.map((c, i) => (
-            <div key={c.recipeId + c.role} style={{ display: 'flex', alignItems: 'center', gap: 2, borderTop: i ? '1px solid var(--line)' : 'none' }}>
-              <button type="button"
-                onClick={() => c.recipeId && navigate(`/nutrition/recipes/${c.recipeId}`, { state: { from: location.pathname + location.search } })}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', padding: '7px 0', cursor: 'pointer', fontFamily: 'inherit' }}>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>{c.name}</span>
-                <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{c.kcal} kcal</span>
-                {!lineControls && <NIc name="chevR" size={13} style={{ color: 'var(--accent)' }} />}
-              </button>
-              {lineControls && (
-                <>
-                  <button type="button" disabled={busy} aria-label={`Swap ${c.name} for another ${c.role}`} title="Swap for another (same type)"
-                    onClick={() => refreshComp.mutate({ day: dayIndex, slot: meal.slot, role: c.role })}
-                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: 'none', border: '1px solid var(--line)', color: 'var(--muted)', cursor: 'pointer', flex: '0 0 auto', padding: 0 }}>
-                    <NIc name="refresh" size={13} />
-                  </button>
-                  <button type="button" disabled={busy} aria-label={`Skip ${c.name}`} title="Remove this dish"
-                    onClick={() => skipComp.mutate({ day: dayIndex, slot: meal.slot, role: c.role, skipped: true })}
-                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: 'none', border: '1px solid var(--line)', color: 'var(--muted)', cursor: 'pointer', flex: '0 0 auto', padding: 0 }}>
-                    <NIc name="skip" size={13} />
-                  </button>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: 'var(--muted)', borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><NIc name="clock" size={14} /> Prep: {meal.minutes} min</span>
-          <span style={{ width: 1, height: 12, background: 'var(--line)' }} />
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><NIc name="flame" size={14} /> {Math.round(meal.totals.kcal)} kcal</span>
-        </div>
-        {!readOnly && (
-          <div style={{ display: 'flex', gap: 16, marginTop: 11 }}>
-            <button type="button" disabled={busy} onClick={() => refresh.mutate({ day: dayIndex, slot: meal.slot })} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}><NIc name="refresh" size={13} /> {refresh.isPending ? '…' : 'Refresh'}</button>
-            <button type="button" disabled={busy} onClick={() => skip.mutate({ day: dayIndex, slot: meal.slot, skipped: true })} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}><NIc name="skip" size={13} /> {skip.isPending ? '…' : 'Skip'}</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 /** Left rail — day name, date, daily overview stats, balance note. */
 function DailyOverviewPanel({ d, date, note }: { d: ComposedDay; date: Date; note: string }) {
@@ -353,7 +199,7 @@ function DayView({ wk, d, dayIndex, date, readOnly }: { wk: ComposedWeek; d: Com
       <div>
         {d.fasting && <p className="muted" style={{ fontSize: 12.5, margin: '0 0 12px' }}>Eating window {d.window.start}–{d.window.end}</p>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(215px, 1fr))', gap: 16 }} className="tc-mealgrid2">
-          {d.meals.map((m) => <MealColumn key={m.slot} meal={m} dayIndex={dayIndex} readOnly={readOnly} />)}
+          {d.meals.map((m) => <ComposedMealCard key={m.slot} meal={m} dayIndex={dayIndex} readOnly={readOnly} />)}
         </div>
       </div>
 
