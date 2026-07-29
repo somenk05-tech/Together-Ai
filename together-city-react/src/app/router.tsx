@@ -130,9 +130,9 @@ const MedInsurance = lazy(() => import('@/features/medical/pages/Insurance').the
 const MedFitness = lazy(() => import('@/features/medical/pages/Fitness').then((m) => ({ default: m.Fitness })));
 // Dating sub-pages
 const DatingActivity = lazy(() => import('@/features/dating/pages/DatingActivity').then((m) => ({ default: m.DatingActivity })));
-const DatingChat = lazy(() => import('@/features/dating/pages/DatingChat').then((m) => ({ default: m.DatingChat })));
 const DatingChats = lazy(() => import('@/features/dating/pages/DatingChats').then((m) => ({ default: m.DatingChats })));
 const Thoughts = lazy(() => import('@/features/thoughts/pages/Thoughts').then((m) => ({ default: m.Thoughts })));
+const Avatars = lazy(() => import('@/features/avatars/pages/Avatars').then((m) => ({ default: m.Avatars })));
 const Medicines = lazy(() => import('@/features/medicines/pages/Medicines').then((m) => ({ default: m.Medicines })));
 const DatingAdminStats = lazy(() => import('@/features/dating/pages/DatingAdminStats').then((m) => ({ default: m.DatingAdminStats })));
 const DatingMatchDetail = lazy(() => import('@/features/dating/pages/DatingMatchDetail').then((m) => ({ default: m.DatingMatchDetail })));
@@ -278,9 +278,12 @@ export const router = createBrowserRouter([
       { path: '/dating/activity', element: <RequireAuth>{wrap(<DatingActivity />)}</RequireAuth> },
       { path: '/dating/chats', element: <RequireAuth>{wrap(<DatingChats />)}</RequireAuth> },
       { path: '/thoughts', element: <RequireAuth>{wrap(<Thoughts />)}</RequireAuth> },
+      { path: '/profile/avatar', element: <RequireAuth>{wrap(<Avatars />)}</RequireAuth> },
       { path: '/medical/medicines', element: <RequireAuth>{wrap(<Medicines />)}</RequireAuth> },
       { path: '/dating/admin', element: <RequireAuth>{wrap(<DatingAdminStats />)}</RequireAuth> },
-      { path: '/dating/chat', element: <RequireAuth>{wrap(<DatingChat />)}</RequireAuth> },
+      // '/dating/chat' (singular) removed — it served a hardcoded conversation
+      // with scripted replies. The real one is '/dating/chats'.
+      { path: '/dating/chat', element: <Navigate to="/dating/chats" replace /> },
       { path: '/dating/match', element: <RequireAuth>{wrap(<DatingMatchDetail />)}</RequireAuth> },
     ],
   },

@@ -155,6 +155,33 @@ describe('making an avatar', () => {
   });
 });
 
+describe('previewing', () => {
+  it('keeps nothing and costs nothing', async () => {
+    const { svc, rows } = harness();
+    const shown = svc.preview({ hairStyle: 'afro', background: 'plum' });
+    expect(shown.dataUrl.startsWith('data:image/svg+xml;base64,')).toBe(true);
+    expect(rows).toHaveLength(0);
+    // ...so it cannot eat the daily allowance either.
+    expect((await svc.list('me')).length).toBe(0);
+  });
+
+  it('shows the same picture the citizen will get if they commit', async () => {
+    const { svc } = harness();
+    const shown = svc.preview({ hairStyle: 'braids', skinTone: 'deep' });
+    const made = await svc.create('me', { hairStyle: 'braids', skinTone: 'deep' });
+    const asset = await svc.asset('me', made.id);
+    // The stored one comes back as a signed link, so compare the drawing itself.
+    const drawn = renderAvatarSvg(normaliseInputs({ hairStyle: 'braids', skinTone: 'deep' }));
+    expect(Buffer.from(shown.dataUrl.split(',')[1], 'base64').toString('utf8')).toBe(drawn);
+    expect(asset.generatedBy).toBe('deterministic');
+  });
+
+  it('is advertised in the options so the picker does not assume it', () => {
+    const { svc } = harness();
+    expect(svc.options().previewable).toBe(true);
+  });
+});
+
 describe('an avatar belongs to one citizen', () => {
   it('answers 404 for somebody else’s rather than confirming it exists', async () => {
     const { svc } = harness();

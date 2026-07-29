@@ -15,6 +15,11 @@ export const WS = {
   HEARTBEAT: 'heartbeat',
   CHAT_NOTIFICATION: 'chat_notification',
   ERROR: 'error_event',
+  // Calls. RINGING/UPDATED are broadcasts about a call; SIGNAL carries one
+  // piece of the WebRTC handshake and is the only event the client also emits.
+  CALL_RINGING: 'call_ringing',
+  CALL_UPDATED: 'call_updated',
+  CALL_SIGNAL: 'call_signal',
   CONNECTIONS_CHANGED: 'connections:changed',
   NOTIFICATION_NEW: 'notification:new',
   NOTIFICATION_COUNT: 'notification:count',

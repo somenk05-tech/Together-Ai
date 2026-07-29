@@ -76,7 +76,41 @@ export class AvatarsService {
   }
 
   options() {
-    return { ...catalogue(), generatedBy: this.providerKind(), provider: this.provider.name };
+    return {
+      ...catalogue(),
+      generatedBy: this.providerKind(),
+      provider: this.provider.name,
+      // Whether the picker may show a live preview as the citizen clicks.
+      previewable: this.previewable(),
+    };
+  }
+
+  /**
+   * A preview is free only because the renderer is deterministic — no database
+   * write, no object storage, no queue, no bill. That stops being true the day
+   * a hosted model is bound, so the picker asks rather than assumes: a UI that
+   * previews on every click would be pleasant now and expensive later, and the
+   * day it became expensive nobody would remember why.
+   */
+  previewable(): boolean {
+    return this.providerKind() === 'deterministic';
+  }
+
+  /**
+   * Draw the choices without keeping anything.
+   *
+   * Nothing is stored, nothing counts against the daily cap, and no id comes
+   * back — this is a picture, not an avatar. Committing to one is `create`.
+   */
+  preview(dto: CreateAvatarDto): { dataUrl: string; generatedBy: string } {
+    if (!this.previewable()) {
+      throw new BadRequestException('Previews are not available with the current avatar provider.');
+    }
+    const svg = renderAvatarSvg(normaliseInputs(dto));
+    return {
+      dataUrl: `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`,
+      generatedBy: 'deterministic',
+    };
   }
 
   private providerKind(): 'ai' | 'deterministic' {

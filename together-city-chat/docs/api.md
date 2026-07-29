@@ -4,7 +4,7 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **390 routes** across
+Every path below is prefixed with `/api`. **391 routes** across
 **34 controllers**; **17** are reachable without a token.
 
 ## Conventions
@@ -106,6 +106,7 @@ _avatars/avatars.controller.ts_
 | GET | `/api/avatars` | 🔒 |
 | GET | `/api/avatars/options` | token |
 | POST | `/api/avatars` | 🔒 |
+| POST | `/api/avatars/preview` | token |
 
 ## /beauty
 

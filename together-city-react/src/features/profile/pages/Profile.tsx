@@ -208,7 +208,7 @@ function NotificationsTab() {
             </p>
           </div>
           {push.permission !== 'granted' && push.permission !== 'denied' && (
-            <Button variant="accent" size="sm" disabled={push.busy} onClick={push.enable}>{push.busy ? 'Enabling…' : 'Enable'}</Button>
+            <Button variant="accent" size="sm" disabled={push.busy} onClick={() => void push.enable()}>{push.busy ? 'Enabling…' : 'Enable'}</Button>
           )}
           {push.permission === 'granted' && <span className="tag" style={{ alignSelf: 'center' }}>Enabled</span>}
         </Card>
@@ -312,7 +312,7 @@ export function Profile() {
       {/* Identity */}
       <Card style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => changePhoto(e.target.files?.[0])} />
+          <input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => void changePhoto(e.target.files?.[0])} />
           <button type="button" onClick={() => photoRef.current?.click()} disabled={photoBusy}
             aria-label="Change profile picture" title="Change profile picture"
             style={{ position: 'relative', border: 'none', background: 'none', padding: 0, cursor: photoBusy ? 'wait' : 'pointer', borderRadius: '50%', flexShrink: 0 }}>
@@ -357,6 +357,16 @@ export function Profile() {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 15 }}>Astrology Profile</div>
           <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>Birth date, time and place — entered once, used by horoscopes, matchmaking and compatibility.</p>
+        </div>
+        <span style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
+      </Link>
+
+      {/* Avatar picker — a drawn face for people who would rather not use a photo. */}
+      <Link to="/profile/avatar" className="card lift" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, textDecoration: 'none', color: 'inherit' }}>
+        <span style={{ fontSize: 22 }}>🙂</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 15 }}>Avatar</div>
+          <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>A drawn face to use beside your name and in calls, if you would rather not use a photo.</p>
         </div>
         <span style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
       </Link>

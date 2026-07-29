@@ -7,6 +7,7 @@ import { MessageThread } from '../components/MessageThread';
 import { Composer } from '../components/Composer';
 import { ChatStarter } from '../components/ChatStarter';
 import { Spinner, EmptyState } from '@/components/ui';
+import { CallButtons } from '@/features/calls/CallButtons';
 import { useAuth } from '@/hooks/useAuth';
 import type { Message } from '@/types';
 
@@ -140,6 +141,14 @@ export function Chats() {
       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
         {activeId ? (
           <>
+            {/* A slim thread header. It exists mainly to give calling a home —
+                the thread itself had no bar to hang anything on. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
+              <div style={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: 14.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {list.find((c) => c.id === activeId)?.title || 'Conversation'}
+              </div>
+              <CallButtons conversationId={activeId} compact />
+            </div>
             {history.isLoading
               ? <Spinner />
               : <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping} onDelete={deleteMessage} onEdit={editMessage} />}

@@ -32,6 +32,16 @@ export class AvatarsController {
     return this.avatars.create(user.sub, dto);
   }
 
+  /**
+   * POST /api/avatars/preview — draw the choices without keeping anything.
+   * Declared before ':id' for the same reason 'options' is.
+   */
+  @Post('preview')
+  @UsePipes(new ZodValidationPipe(CreateAvatarSchema))
+  preview(@Body() dto: CreateAvatarDto) {
+    return this.avatars.preview(dto);
+  }
+
   /** Stop using any avatar and go back to your photo. */
   @Post('deselect')
   deselect(@CurrentUser() user: JwtUser) {

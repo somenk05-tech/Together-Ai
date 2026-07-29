@@ -6,6 +6,7 @@ import { chatApi, useMessages, useChatRealtime } from '@/api';
 import type { Message } from '@/api/schemas';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDatingChats, useRevealMatch, useUnmatch, type DatingChatSummary } from '../api';
+import { CallButtons } from '@/features/calls/CallButtons';
 
 /** Initials for the masked/real avatar. */
 function initials(name: string): string {
@@ -133,6 +134,9 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
           </div>
         </div>
         {chat.score != null && <span className="tag" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 700 }}>{chat.score}%</span>}
+        {/* A call here carries no more identity than the chat does: the avatar
+            and name above are already whatever each person chose to show. */}
+        <CallButtons conversationId={chat.conversationId} compact />
       </div>
 
       {/* identity / unmatch bar — YOUR name is your decision, taken here */}
