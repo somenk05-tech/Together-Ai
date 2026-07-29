@@ -160,20 +160,70 @@ describe('account recovery (OTP)', () => {
 
 /* AuthService.forgot/reset — the 6-digit code flow behind the "Forgot password?" tab. */
 describe('forgot / reset (recovery code)', () => {
+  /**
+   * Stand-in for the PasswordReset table.
+   *
+   * This double had drifted behind the service in three separate ways at once,
+   * and each one hid the next: forgot() called updateMany(), which did not
+   * exist; reset() stopped passing `code` to findFirst() once codes were stored
+   * argon2-hashed, so matching on code equality could never hit; and the
+   * attempt counter is written as Prisma's atomic `{ increment: 1 }`, which a
+   * plain Object.assign would store as an object and silently break the lockout.
+   *
+   * Kept deliberately close to the real query shapes rather than convenient
+   * ones — a double that only answers the questions the tests happen to ask is
+   * how all three of these got through.
+   */
   class ResetTable {
     rows: Row[] = [];
     private seq = 1;
-    create({ data }: { data: Row }) { const r = { id: `pr_${this.seq++}`, usedAt: null, createdAt: new Date(), ...data }; this.rows.push(r); return Promise.resolve(r); }
+
+    create({ data }: { data: Row }) {
+      const r = { id: `pr_${this.seq++}`, usedAt: null, attempts: 0, createdAt: new Date(), ...data };
+      this.rows.push(r);
+      return Promise.resolve(r);
+    }
+
+    /** The service asks for the NEWEST live code for a citizen — no code in the
+     *  filter, because it is hashed and has to be verified rather than matched. */
     findFirst({ where }: { where: Row }) {
       const now = Date.now();
       const exp = where.expiresAt as { gt?: Date } | undefined;
       const found = this.rows
-        .filter((r) => r.userId === where.userId && r.code === where.code && r.usedAt == null && (!exp?.gt || new Date(r.expiresAt as Date).getTime() > now))
+        .filter((r) =>
+          r.userId === where.userId
+          && (where.usedAt !== null || r.usedAt == null)
+          && (!exp?.gt || new Date(r.expiresAt as Date).getTime() > now))
         .sort((a, b) => new Date(b.createdAt as Date).getTime() - new Date(a.createdAt as Date).getTime())[0];
       return Promise.resolve(found ?? null);
     }
-    update({ where, data }: { where: Row; data: Row }) { const r = this.rows.find((x) => x.id === where.id)!; Object.assign(r, data); return Promise.resolve(r); }
+
+    update({ where, data }: { where: Row; data: Row }) {
+      const r = this.rows.find((x) => x.id === where.id)!;
+      Object.assign(r, ResetTable.applyOps(r, data));
+      return Promise.resolve(r);
+    }
+
+    /** Retiring every outstanding code the moment a new one is requested. Runs
+     *  BEFORE the new row is created, so the fresh code is never caught by it. */
+    updateMany({ where, data }: { where: Row; data: Row }) {
+      const matches = this.rows.filter((r) =>
+        r.userId === where.userId && (where.usedAt === null ? r.usedAt == null : true));
+      for (const r of matches) Object.assign(r, ResetTable.applyOps(r, data));
+      return Promise.resolve({ count: matches.length });
+    }
+
+    /** Resolve Prisma's atomic number operators against the current row. */
+    private static applyOps(row: Row, data: Row): Row {
+      const out: Row = {};
+      for (const [k, v] of Object.entries(data)) {
+        const inc = (v as { increment?: number } | null)?.increment;
+        out[k] = typeof inc === 'number' ? ((row[k] as number) ?? 0) + inc : v;
+      }
+      return out;
+    }
   }
+
   const build = (configured = true) => {
     const prisma = { user: new Table(), passwordReset: new ResetTable() };
     const mail = { lastBody: '', deliverSystem: (_u: string, r: { body: string }) => { (mail as { lastBody: string }).lastBody = r.body; return Promise.resolve({}); }, deliveryConfigured: () => configured };
@@ -210,6 +260,28 @@ describe('forgot / reset (recovery code)', () => {
     expect(miss.sent).toBe(true);
     // Wrong code → rejected.
     await expect(svc.reset({ identifier: 'sam@e.com', code: '000000', newPassword: STRONG } as never)).rejects.toThrow(/invalid or has expired/i);
+  });
+
+  it('retires every outstanding code as soon as a new one is requested', async () => {
+    // A code read over someone's shoulder, or left sitting in an old inbox,
+    // must stop working the moment the citizen asks for another. This rule was
+    // shipped with no coverage at all, which is how it broke the suite unnoticed.
+    const { prisma, mail, svc } = build();
+    const argon2 = await import('argon2');
+    prisma.user.rows.push({ id: 'u1', handle: 'sam', email: 'sam@e.com', passwordHash: await argon2.hash('OldPassw0rd!!') });
+
+    await svc.forgot({ identifier: 'sam@e.com', channel: 'email' } as never);
+    const stolen = otpFrom(mail.lastBody);
+
+    await svc.forgot({ identifier: 'sam@e.com', channel: 'email' } as never);
+    const current = otpFrom(mail.lastBody);
+    expect(current).not.toBe(stolen);
+
+    await expect(svc.reset({ identifier: 'sam@e.com', code: stolen, newPassword: STRONG } as never))
+      .rejects.toThrow(/invalid or has expired/i);
+    // ...and the code they actually hold still works.
+    await expect(svc.reset({ identifier: 'sam@e.com', code: current, newPassword: STRONG } as never))
+      .resolves.toMatchObject({ ok: true });
   });
 
   it('reset enforces the password policy (no weak-password backdoor)', async () => {
