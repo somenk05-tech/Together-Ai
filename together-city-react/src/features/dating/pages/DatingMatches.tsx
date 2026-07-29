@@ -138,17 +138,43 @@ function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
               : <Link to={detailHref}><Button variant="accent" size="sm">💬 Connect to Chat</Button></Link>}
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <Button
-              variant="accent" size="sm" disabled={like.isPending}
-              onClick={() => like.mutate(match.user.id, { onSuccess: (r) => setResult(r) })}
-            >
-              {like.isPending ? '…' : kind === 'romantic' ? '♥ Like' : '＋ Connect'}
-            </Button>
-            <Button variant="line" size="sm" disabled={pass.isPending} onClick={() => pass.mutate(match.user.id)}>
-              Pass
-            </Button>
-          </div>
+          <>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Button
+                variant="accent" size="sm" disabled={like.isPending}
+                onClick={() => like.mutate(match.user.id, { onSuccess: (r) => setResult(r) })}
+              >
+                {like.isPending ? '…' : kind === 'romantic' ? '♥ Like' : '＋ Connect'}
+              </Button>
+              {/* "Skip", not "Pass" — the match detail page has always said Skip,
+                  and the same action on two screens should not have two names. */}
+              <Button variant="line" size="sm" disabled={pass.isPending} onClick={() => pass.mutate(match.user.id)}>
+                ✕ Skip
+              </Button>
+              {/* Chat is shown here, always, so it is obvious that it exists and
+                  what opens it — but it stays disabled until both people have
+                  chosen each other. A dating hub where a stranger can open a
+                  thread you never agreed to is a harassment surface, and the
+                  whole flow (anonymous, one at a time) is built the other way.
+                  Disabled-with-a-reason beats hidden: hidden looks broken. */}
+              <Button
+                variant="line"
+                size="sm"
+                disabled
+                title={match.likedByMe
+                  ? 'Waiting for them to like you back — chat opens the moment they do.'
+                  : 'Chat opens once you both like each other.'}
+                style={{ opacity: 0.5, cursor: 'not-allowed' }}
+              >
+                💬 Chat
+              </Button>
+            </div>
+            <p className="muted" style={{ fontSize: 11.5, margin: '10px 0 0', textAlign: 'center' }}>
+              {match.likedByMe
+                ? 'You’ve liked them. They’re notified only if you both like each other — chat opens the moment they do.'
+                : 'They’re notified only if you both like each other. Chat opens then, in Dating Chats.'}
+            </p>
+          </>
         )}
       </div>
       </div>
@@ -255,9 +281,20 @@ export function DatingMatches() {
     <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
       <div className="eyebrow">Dating Hub</div>
       <h1 style={{ fontSize: 26 }}>Curated Matches</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
+      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px' }}>
         Curated, not endless — you meet your single strongest match, not an endless list. Below is how your whole match pool breaks down by compatibility.
       </p>
+
+      {/* The same notice the match detail page carries, shown ONCE for the page
+          rather than repeated under every card — it is a rule about how this hub
+          works, not a property of any one person. */}
+      <div style={{ marginBottom: 18, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 14, padding: '13px 16px' }}>
+        <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid #caa94a', color: 'var(--muted)', flex: 'none' }}>🔒</span>
+        <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+          <strong>We believe in intentional dating.</strong> You can chat with one person at a time.
+          If you feel the conversation isn’t going anywhere, <strong>unmatch</strong> and move forward.
+        </div>
+      </div>
 
       {stack.isLoading ? (
         <Spinner label="Scoring compatibility…" />
