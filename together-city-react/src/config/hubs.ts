@@ -192,6 +192,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/mail/sent', index: '03', label: 'Sent', sub: 'Messages you sent' },
       { path: '/mail/starred', index: '04', label: 'Starred', sub: 'Flagged for later' },
       { path: '/mail/trash', index: '05', label: 'Trash', sub: 'Deleted mail' },
+      { path: '/mail/drive', index: '06', label: 'Drive', sub: 'Upload & attach your files' },
     ],
   },
   financial: {

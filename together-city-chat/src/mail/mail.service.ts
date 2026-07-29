@@ -20,7 +20,7 @@ const MIME_BUDGET_BYTES = 20 * 1024 * 1024;          // safely under provider ca
 const MAX_OUTBOUND_TOTAL_BYTES = 1024 * 1024 * 1024; // 1 GB across attachments
 const SHARE_LINK_TTL_SEC = 7 * 24 * 3600;            // 7 days (S3/R2 maximum)
 import {
-  MAIL_DOMAIN, QUOTA_BYTES, addressFor, handleFromAddress, snippetOf, sizeOf, welcomeMail, humanBytes,
+  MAIL_DOMAIN, CITY_DOMAINS, QUOTA_BYTES, addressFor, handleFromAddress, snippetOf, sizeOf, welcomeMail, humanBytes,
 } from './mail.constants';
 import { createMessagingProvider, messagingConfigured, type Channel } from './messaging-provider';
 import type { FlagDto, FolderQueryDto, SendMailDto } from './dto/mail.dto';
@@ -139,7 +139,22 @@ export class MailService {
   /** Ensure the user has a mailbox (address + welcome mail). Idempotent. */
   private async ensureAccount(userId: string) {
     let acct = await this.prisma.mailAccount.findUnique({ where: { userId } });
-    if (acct) return acct;
+    if (acct) {
+      // Mailboxes minted before the domain change still carry the LEGACY
+      // address (…@togethercity.tech), so the header showed one domain while
+      // the rest of the app advertised another. Move them to the current
+      // domain on read — the legacy domain still routes inbound, so nothing
+      // already sent to the old address breaks.
+      const local = acct.address.split('@')[0];
+      const domain = acct.address.split('@')[1];
+      if (local && domain && domain !== MAIL_DOMAIN && CITY_DOMAINS.includes(domain)) {
+        const moved = await this.prisma.mailAccount
+          .update({ where: { userId }, data: { address: `${local}@${MAIL_DOMAIN}` } })
+          .catch(() => null);
+        if (moved) return moved;
+      }
+      return acct;
+    }
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { handle: true, name: true } });
     if (!user) throw new NotFoundException('user not found');
     const address = addressFor(user.handle);

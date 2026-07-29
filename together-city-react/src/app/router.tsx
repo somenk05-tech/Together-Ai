@@ -440,6 +440,7 @@ export const router = createBrowserRouter([
       { path: '/mail/compose', element: <RequireAuth>{wrap(<MailCompose />)}</RequireAuth> },
       { path: '/mail/sent', element: <RequireAuth>{wrap(<MailSent />)}</RequireAuth> },
       { path: '/mail/starred', element: <RequireAuth>{wrap(<MailStarred />)}</RequireAuth> },
+      { path: '/mail/drive', element: <RequireAuth>{wrap(<DrivePage />)}</RequireAuth> },
       { path: '/mail/trash', element: <RequireAuth>{wrap(<MailTrash />)}</RequireAuth> },
       { path: '/mail/message/:id', element: <RequireAuth>{wrap(<MailMessage />)}</RequireAuth> },
     ],
