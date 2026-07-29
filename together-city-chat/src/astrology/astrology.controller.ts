@@ -81,6 +81,18 @@ export class AstrologyController {
 
   // ─────────────── Tarot ───────────────
   /** What each spread deals and costs — drives the picker. */
+  /** GET /api/astrology/gems — the stone for this period, and one supporting it. */
+  @Get('gems')
+  gems(@CurrentUser() user: JwtUser) {
+    return this.astrology.gems(user.sub);
+  }
+
+  /** GET /api/astrology/remedies — practices for this period, health-filtered. */
+  @Get('remedies')
+  remedies(@CurrentUser() user: JwtUser) {
+    return this.astrology.remedies(user.sub);
+  }
+
   @Get('tarot/spreads')
   tarotSpreads() {
     return this.tarot.spreads();

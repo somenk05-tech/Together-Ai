@@ -8,6 +8,8 @@ import {
 } from './astro-engine';
 import { composeAnswer, composeGuidance, composeMonthly, wordCount, type DailyGuidance } from './astro-content';
 import { computeNumerology, vimshottariDasha } from './personal-factors';
+import { buildGemGuidance, buildRemedies } from './gem-remedy-content';
+import { healthFlagsFor } from './health-flags';
 import { CHAT_RULES, VOICE_RULES, acceptOrFallback, firstNameOf, inVoice } from './voice';
 
 export interface SaveAstroProfileDto {
@@ -314,6 +316,39 @@ export class AstrologyService {
   }
 
   // ───────────────────────── Tab 02 · Monthly Horoscope ─────────────────────────
+
+  /**
+   * Gemstones for the current period.
+   *
+   * Structured data — stone, metal, finger, day, and the lord it is linked to —
+   * beside prose that never explains where it came from, per the zone's voice
+   * rule. Needs the birth details, because the period is what chooses the stone.
+   */
+  async gems(userId: string) {
+    const row = await this.requireProfile(userId);
+    if (!row) return { needsProfile: true as const };
+    const local = this.userNow(row);
+    const chart = this.chartOf(row);
+    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
+    return { needsProfile: false as const, ...buildGemGuidance({ maha: dasha.maha, antar: dasha.antar }) };
+  }
+
+  /**
+   * Practices for the current period, filtered by what the citizen has told us
+   * about their health.
+   *
+   * `withheld` is returned rather than the list silently being shorter, so the
+   * surface can say that something was held back and why.
+   */
+  async remedies(userId: string) {
+    const row = await this.requireProfile(userId);
+    if (!row) return { needsProfile: true as const };
+    const local = this.userNow(row);
+    const chart = this.chartOf(row);
+    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
+    const flags = await healthFlagsFor(this.prisma, userId);
+    return { needsProfile: false as const, ...buildRemedies({ maha: dasha.maha, antar: dasha.antar }, flags) };
+  }
 
   async monthly(userId: string) {
     const row = await this.requireProfile(userId);
