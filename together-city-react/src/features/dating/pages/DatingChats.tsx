@@ -58,8 +58,34 @@ function ChatRow({ c, active, onClick }: { c: DatingChatSummary; active: boolean
 
 const bubbleBase: CSSProperties = { maxWidth: '76%', padding: '9px 13px', borderRadius: 14, fontSize: 13.5, lineHeight: 1.4, wordBreak: 'break-word' };
 
+/** A mutual match whose chat has not been opened yet. */
+function PendingRow({ c }: { c: DatingChatSummary }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+      padding: '12px 12px', borderRadius: 14, border: '1px solid var(--line)', marginBottom: 8, background: 'var(--card)',
+    }}>
+      <Avatar name={c.name} photo={c.photo} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ fontWeight: 700, fontSize: 14.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+          <span className="tag" style={{ fontSize: 10, background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 700 }}>💫 Matched</span>
+        </div>
+        <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>You both liked each other — start the conversation.</div>
+      </div>
+      <Link to={`/dating/match?u=${c.otherUserId}`} style={{ flex: 'none' }}>
+        <Button size="sm" variant="accent">Connect to chat</Button>
+      </Link>
+    </div>
+  );
+}
+
 /** The open conversation thread — anonymous until both reveal. */
-function Thread({ chat, meId, onBack }: { chat: DatingChatSummary; meId: string; onBack: () => void }) {
+/** Only ever rendered for a chat that has actually been opened, so the
+ *  conversation id is non-null by construction rather than by assertion. */
+type OpenChat = DatingChatSummary & { conversationId: string };
+
+function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: () => void }) {
   const qc = useQueryClient();
   const reveal = useRevealMatch();
   const unmatch = useUnmatch('romantic');
@@ -173,7 +199,9 @@ export function DatingChats() {
   const openId = params.get('c');
 
   const list = chats.data ?? [];
-  const active = list.find((c) => c.conversationId === openId) ?? null;
+  const active = list.find(
+    (c): c is OpenChat => c.conversationId !== null && c.conversationId === openId,
+  ) ?? null;
 
   const open = (id: string) => setParams((p) => { p.set('c', id); return p; });
   const back = () => setParams((p) => { p.delete('c'); return p; }, { replace: true });
@@ -183,7 +211,7 @@ export function DatingChats() {
       <div className="eyebrow">Dating Hub · Chats</div>
       <h1 style={{ fontSize: 26 }}>Your dating chats</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
-        Intentional dating — one conversation at a time, anonymous until you both choose to reveal. These chats live only here, never in your main Chats.
+        Intentional dating — one conversation at a time. You choose whether to chat under your own name or a pseudonym, and so do they. These chats live only here, never in your main Chats.
       </p>
 
       {active ? (
@@ -198,7 +226,14 @@ export function DatingChats() {
           </div>
         </>
       ) : (
-        list.map((c) => <ChatRow key={c.conversationId} c={c} active={false} onClick={() => open(c.conversationId)} />)
+        list.map((c) => (
+          c.conversationId
+            ? <ChatRow key={c.conversationId} c={c} active={false} onClick={() => open(c.conversationId as string)} />
+            // A match with no chat yet. It belongs on this page — it is the
+            // reason the citizen came here — but it opens the connect step
+            // rather than a thread that does not exist.
+            : <PendingRow key={c.otherUserId} c={c} />
+        ))
       )}
     </div>
   );

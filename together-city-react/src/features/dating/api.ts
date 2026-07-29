@@ -155,7 +155,10 @@ export interface DatingStack {
 }
 
 export interface DatingChatSummary {
-  conversationId: string;
+  /** Null until Connect to Chat opens the conversation. */
+  conversationId: string | null;
+  /** A mutual match whose chat has not been opened yet. */
+  pending: boolean;
   otherUserId: string;
   name: string;
   photo: string | null;

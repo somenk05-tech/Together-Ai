@@ -956,13 +956,19 @@ export class DatingService {
   /** The user's active Dating Hub chats — anonymous match conversations, masked
    *  until both reveal, with last-message + unread + compatibility. */
   async datingChats(userId: string) {
+    // Every mutual match, INCLUDING the ones with no conversation yet.
+    //
+    // This used to require `conversationId: { not: null }`. But a mutual like
+    // does not open a chat — Connect to Chat does, separately — so a citizen who
+    // had just matched came to this page and was told "No dating chats yet",
+    // with their match nowhere on it. The one screen named after their matches
+    // was the one screen that denied having any.
     const matches = await this.prisma.datingMatch.findMany({
-      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null } } as never,
+      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched' } as never,
       orderBy: { updatedAt: 'desc' },
     });
     const out = [];
     for (const m of matches) {
-      if (!m.conversationId) continue;
       const otherId = m.userOneId === userId ? m.userTwoId : m.userOneId;
       const meIsOne = m.userOneId === userId;
       const r = m as { revealByOne?: boolean; revealByTwo?: boolean };
@@ -970,7 +976,11 @@ export class DatingService {
       const otherReveal = Boolean(meIsOne ? r.revealByTwo : r.revealByOne);
       const revealed = Boolean(r.revealByOne && r.revealByTwo);
 
-      const summary = await this.conversations.summaryFor(m.conversationId, userId);
+      // No conversation yet → nothing to summarise. Sorted by when the match
+      // happened so a fresh match still lands at the top of the list.
+      const summary = m.conversationId
+        ? await this.conversations.summaryFor(m.conversationId, userId)
+        : { lastMessageAt: m.updatedAt.toISOString(), lastText: null, lastSenderId: null, unread: 0 };
       const otherProfile = await this.prisma.datingProfile.findUnique({ where: { userId: otherId } });
       const otherUser = await this.prisma.user.findUnique({ where: { id: otherId }, select: { name: true, profileImage: true } });
       const candD = this.parseDX((otherProfile as { extras?: string | null } | null)?.extras) as DXProfile & { photos?: string[] };
@@ -978,6 +988,8 @@ export class DatingService {
 
       out.push({
         conversationId: m.conversationId,
+        /** True while the match exists but the chat has not been opened yet. */
+        pending: !m.conversationId,
         otherUserId: otherId,
         // Their choice alone decides whether you see their name — not a mutual
         // agreement, and never your own flag.
