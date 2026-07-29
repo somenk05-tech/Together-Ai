@@ -106,6 +106,21 @@ export class MailService {
     return { attachments, linkFooter };
   }
 
+  /**
+   * Which thread a send belongs to. A caller may only continue a thread they
+   * already hold a message in; anything else starts a fresh trail rather than
+   * joining someone else's. Thread membership is what gates attachment reads,
+   * so this is a security boundary, not just tidiness.
+   */
+  private async resolveThreadId(userId: string, requested?: string | null): Promise<string> {
+    if (!requested) return randomUUID();
+    const owns = await this.prisma.mailMessage.findFirst({
+      where: { ownerId: userId, threadId: requested },
+      select: { id: true },
+    });
+    return owns ? requested : randomUUID();
+  }
+
   /** Attachments on a thread the caller is a participant of. */
   async threadAttachments(userId: string, threadId: string) {
     const owns = await this.prisma.mailMessage.findFirst({ where: { ownerId: userId, threadId }, select: { id: true } });
@@ -127,10 +142,17 @@ export class MailService {
     const owns = await this.prisma.mailMessage.findFirst({ where: { ownerId: userId, threadId }, select: { id: true } });
     if (!owns) throw new NotFoundException('Message not found.');
     const drive = (this.prisma as unknown as {
-      driveFile: { findFirst(a: unknown): Promise<{ storageKey: string; name: string; mimeType: string | null } | null> };
+      driveFile: { findFirst(a: unknown): Promise<{ ownerId: string; storageKey: string; name: string; mimeType: string | null } | null> };
     }).driveFile;
     const f = await drive.findFirst({ where: { id: fileId, attachedType: 'mail', attachedId: threadId } });
     if (!f) throw new NotFoundException('Attachment not found.');
+    // Belt and braces on top of the participant check above: the file must have
+    // been attached by someone who is themselves in this thread. A stray or
+    // mis-attached DriveFile row can't be turned into a signed download.
+    const attacherInThread = f.ownerId === userId || await this.prisma.mailMessage.findFirst({
+      where: { ownerId: f.ownerId, threadId }, select: { id: true },
+    });
+    if (!attacherInThread) throw new NotFoundException('Attachment not found.');
     const url = await this.storage.presignHealthDownload(f.storageKey);
     if (!url) throw new NotFoundException('File storage is not available right now.');
     return { url, name: f.name, mimeType: f.mimeType };
@@ -271,15 +293,7 @@ export class MailService {
 
     // Reply → reuse the parent thread (only if the sender actually owns a message
     // in it, so threads can't be spoofed); otherwise start a new trail.
-    let threadId: string = randomUUID();
-    const requestedThread = dto.threadId;
-    if (requestedThread) {
-      const owns = await this.prisma.mailMessage.findFirst({
-        where: { ownerId: userId, threadId: requestedThread },
-        select: { id: true },
-      });
-      if (owns) threadId = requestedThread;
-    }
+    const threadId = await this.resolveThreadId(userId, dto.threadId);
     const toAddr = addressFor(recipient.handle);
     const base = {
       fromAddr: sender.address, fromName: me.name, toAddr, toName: recipient.name,
@@ -304,7 +318,11 @@ export class MailService {
     const used = await this.usedBytes(userId);
     if (used + size > QUOTA_BYTES) throw new BadRequestException('Your 10 GB mailbox is full. Delete some mail and try again.');
 
-    const threadId = dto.threadId ?? randomUUID();
+    // Same anti-spoof rule as the internal path. This used to be a bare
+    // `dto.threadId ?? randomUUID()`, which let one external mail carrying a
+    // stranger's threadId mint an owned row in their thread — enough to pass the
+    // participant check on the attachment routes and presign their Drive files.
+    const threadId = await this.resolveThreadId(userId, dto.threadId);
     // Sender's Sent copy (the city ledger).
     await this.prisma.mailMessage.create({
       data: {

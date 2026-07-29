@@ -29,6 +29,11 @@ export class PushController {
   async subscribe(@CurrentUser() user: JwtUser, @Body() body: { subscription: unknown }) {
     if (!body?.subscription) return { ok: false };
     const token = JSON.stringify(body.subscription);
+    // DeviceToken.token is globally unique, so an upsert keyed on the token alone
+    // would silently re-point someone else's live subscription at this account.
+    // Claim it only when it is unclaimed or already ours.
+    const existing = await this.prisma.deviceToken.findUnique({ where: { token }, select: { userId: true } });
+    if (existing && existing.userId !== user.sub) return { ok: false };
     await this.prisma.deviceToken.upsert({
       where: { token },
       create: { userId: user.sub, token, platform: 'webpush' },
@@ -42,9 +47,13 @@ export class PushController {
   @UsePipes(new ZodValidationPipe(z.object({
     subscription: z.object({ endpoint: z.string().max(2048) }).passthrough().optional(),
   })))
-  async unsubscribe(@CurrentUser() _user: JwtUser, @Body() body: { subscription?: unknown }) {
+  async unsubscribe(@CurrentUser() user: JwtUser, @Body() body: { subscription?: unknown }) {
     if (body?.subscription) {
-      await this.prisma.deviceToken.deleteMany({ where: { token: JSON.stringify(body.subscription) } });
+      // Scoped to the caller: unscoped, this let any signed-in citizen delete
+      // another citizen's push subscription by replaying their token string.
+      await this.prisma.deviceToken.deleteMany({
+        where: { token: JSON.stringify(body.subscription), userId: user.sub },
+      });
     }
     return { ok: true };
   }

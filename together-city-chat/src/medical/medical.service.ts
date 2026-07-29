@@ -350,7 +350,13 @@ export class MedicalService implements OnModuleInit {
     });
     // Link the source document to this panel so both surfaces reference one record.
     if (input.recordId) {
-      await this.prisma.medicalRecord.update({ where: { id: input.recordId }, data: { bloodTestId: test.id } as never }).catch(() => undefined);
+      // updateMany + userId, never update-by-id: the ownership read above only
+      // decides the update-in-place branch, so a recordId belonging to someone
+      // else falls through to here. Scoping the write means a foreign id
+      // matches nothing instead of stamping this panel onto their record.
+      await this.prisma.medicalRecord
+        .updateMany({ where: { id: input.recordId, userId }, data: { bloodTestId: test.id } as never })
+        .catch(() => undefined);
     }
     // Pre-warm the AI health summary so Blood Test Analysis opens instantly.
     void this.healthSummary(userId).catch(() => undefined);

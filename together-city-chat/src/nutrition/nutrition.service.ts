@@ -5951,8 +5951,12 @@ export class NutritionService implements OnModuleInit {
       planKey = latest?.key;
     }
     if (planKey) {
-      const plan = await this.prisma.mealPlan.findUnique({
-        where: { key: planKey },
+      // planKey can arrive straight off the request body, so it is scoped to the
+      // caller here the way every other plan-key route scopes it via
+      // assertOwnsPlan. Without this, another citizen's key copied their whole
+      // week's ingredients into this cart and handed them back in the response.
+      const plan = await this.prisma.mealPlan.findFirst({
+        where: { key: planKey, userId },
         include: { days: { include: { meals: { include: { recipe: { include: { ingredients: true } } } } } } },
       });
       if (plan) for (const day of plan.days) for (const m of day.meals) { if (!m.skipped) addRecipe(m.recipe); }
