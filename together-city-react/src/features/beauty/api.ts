@@ -64,6 +64,29 @@ export interface ProductsResponse {
   personalisedBy: { concerns: string[]; labs: boolean; assessment: boolean };
   matchedCount: number;
 }
+/**
+ * A product-backed routine step — distinct from the lightweight RoutineStep
+ * above, which comes from the photo assessment and names an ingredient rather
+ * than something you can actually buy and apply in order.
+ */
+export interface ProductRoutineStep {
+  order: number; step: string; productId: string; name: string; brand: string;
+  category: string; keyIngredient: string; priceInr: number;
+  instructions: string; frequency: string; warnings: string[];
+}
+export interface ProductRoutine {
+  timeOfDay: 'morning' | 'evening' | 'weekly';
+  title: string;
+  steps: ProductRoutineStep[];
+  notes: string[];
+}
+export interface RoutineResponse {
+  routines: ProductRoutine[];
+  personalisedBy: { concerns: string[]; labs: boolean; assessment: boolean };
+  productCount: number;
+  disclaimer: string;
+}
+
 export interface BeautyOrder {
   id: string; totalInr: number; status: string;
   items: { id: string; name: string; priceInr: number; qty: number }[]; createdAt: string;
@@ -96,6 +119,7 @@ export const beautyApi = {
   conditionSuggestions: () => api.get<ConditionSuggestions>('/medical/conditions/suggested').then((r) => r.data),
   insights: () => api.get<InsightsResponse>('/beauty/insights').then((r) => r.data),
   products: () => api.get<ProductsResponse>('/beauty/products').then((r) => r.data),
+  routine: () => api.get<RoutineResponse>('/beauty/routine').then((r) => r.data),
   orders: () => api.get<BeautyOrder[]>('/beauty/orders').then((r) => r.data),
   placeOrder: (items: { id: string; name: string; priceInr: number; qty: number }[], method: 'wallet' | 'card' = 'wallet') =>
     api.post<{ orderId: string; orders: BeautyOrder[] }>('/beauty/orders', { items, method }).then((r) => r.data),
@@ -147,6 +171,11 @@ export function useBeautyInsights() {
 }
 export function useBeautyProducts() {
   return useQuery({ queryKey: ['beauty', 'products'], queryFn: () => beautyApi.products() });
+}
+/** Morning, evening and weekly — derived from the same recommendation the market
+ *  shows, so the shelf and the routine can never disagree. */
+export function useBeautyRoutine() {
+  return useQuery({ queryKey: ['beauty', 'routine'], queryFn: () => beautyApi.routine() });
 }
 export function useBeautyOrders() {
   return useQuery({ queryKey: ['beauty', 'orders'], queryFn: () => beautyApi.orders() });
