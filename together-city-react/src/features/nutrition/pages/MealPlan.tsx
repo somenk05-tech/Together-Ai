@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Card, Spinner, EmptyState, Button, Chip, Modal } from '@/components/ui';
+import { GroceryPlanner } from '../components/GroceryPlanner';
 import {
   useComposedPlan, useMealSettings, useSaveMealSettings,
   useRefreshMeal, useSkipMeal, useRestoreSkips, useRefreshComponent, useSkipComponent, useRenewPlan,
@@ -682,7 +683,11 @@ export function MealPlan() {
  * anchored to the 3-week plan's start date.
  */
 export function MealPlanToday() {
-  const plan = useComposedPlan();
+  // Same two controls as the weekly planner: the plan MODE (preferences vs the
+  // clinically optimal plan) and the Meal Plan / Grocery List switch.
+  const [mode, setMode] = useState<'preferred' | 'optimal'>('preferred');
+  const [tab, setTab] = useState<'plan' | 'grocery'>('plan');
+  const plan = useComposedPlan(mode);
   const [showSettings, setShowSettings] = useState(false);
 
   if (plan.isLoading) return <Spinner label="Plating today…" />;
@@ -707,15 +712,32 @@ export function MealPlanToday() {
           <Link to="/nutrition/weekly"><Button variant="line" size="sm">Full week →</Button></Link>
         </div>
       </div>
-      <p className="muted" style={{ fontSize: 13, margin: '0 0 16px' }}>
+      {/* Two modes: My Preferences (default) vs Optimal Health. */}
+      <div role="tablist" aria-label="Meal plan mode" style={{ display: 'inline-flex', gap: 4, background: 'var(--line)', borderRadius: 999, padding: 4, margin: '4px 0 8px' }}>
+        {([['preferred', 'My Preferences'], ['optimal', 'Optimal Health']] as const).map(([m, label]) => (
+          <button key={m} role="tab" aria-selected={mode === m} type="button" onClick={() => setMode(m)}
+            style={{ border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '7px 16px', borderRadius: 999,
+              background: mode === m ? 'var(--card)' : 'transparent', color: mode === m ? 'var(--ink)' : 'var(--muted)', boxShadow: mode === m ? '0 1px 4px rgba(0,0,0,.12)' : 'none' }}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}>
         Your meals for today, on schedule.{wk.fasting ? ` Fasting: ${wk.protocol} (${d.window.start}–${d.window.end}).` : ''}
       </p>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+        {(['plan', 'grocery'] as const).map((t) => (
+          <Chip key={t} selected={tab === t} onClick={() => setTab(t)}>{t === 'plan' ? 'Meal Plan' : 'Grocery List'}</Chip>
+        ))}
+      </div>
       {wk.blocked && (
         <div role="alert" style={{ background: '#fdecec', border: '1px solid #e0a0a0', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 12.5 }}>
           <strong>⚠ This plan could not be fully certified against your medical limits.</strong> Please review with your clinician or dietitian before following it.
         </div>
       )}
-      <DayView wk={wk} d={d} dayIndex={dailyIdx} date={date} readOnly={wk.readOnly} />
+      {tab === 'plan'
+        ? <DayView wk={wk} d={d} dayIndex={dailyIdx} date={date} readOnly={wk.readOnly} />
+        : <GroceryPlanner mode="individual" />}
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );

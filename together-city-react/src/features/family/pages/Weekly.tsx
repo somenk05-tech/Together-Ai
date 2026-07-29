@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader, Button, Spinner, EmptyState } from '@/components/ui';
 import { DayTabs } from '@/features/nutrition/components/DayTabs';
+import { GroceryPlanner } from '@/features/nutrition/components/GroceryPlanner';
+import { Chip } from '@/components/ui';
 import { MealCard } from '@/features/nutrition/components/MealCard';
 import { ProfileIncomplete } from '@/features/nutrition/components/ProfileIncomplete';
 import { useNavigate } from 'react-router-dom';
@@ -27,6 +29,8 @@ const chipStyle: React.CSSProperties = {
  */
 export function FamilyWeekly() {
   const [dayIndex, setDayIndex] = useState(0);
+  // Same Meal Plan / Grocery List switch as the individual planner.
+  const [tab, setTab] = useState<'plan' | 'grocery'>('plan');
   const plan = useWeeklyPlan('family');
   const regenerate = useRegenerateWeek('family');
   const buildCart = useBuildFamilyCart();
@@ -62,6 +66,15 @@ export function FamilyWeekly() {
         This is your <b>family meal plan</b> — the same for everyone. <b>Mains are cooked together for the whole family ({N} {N === 1 ? 'person' : 'people'})</b> and recipe quantities scale to {N}. <b>Snacks are personalised</b> per member’s health need once you add family members.
       </p>
 
+      <div style={{ display: 'flex', gap: 6, margin: '18px 0 4px' }}>
+        {(['plan', 'grocery'] as const).map((t) => (
+          <Chip key={t} selected={tab === t} onClick={() => setTab(t)}>{t === 'plan' ? 'Meal Plan' : 'Grocery List'}</Chip>
+        ))}
+      </div>
+
+      {tab === 'grocery' && <GroceryPlanner mode="family" />}
+
+      {tab === 'plan' && (
       <div style={{ display: 'grid', gridTemplateColumns: '2.3fr 1fr', gap: 28, alignItems: 'start', marginTop: 22 }} className="tc-dashgrid">
         <div>
           <DayTabs days={week.days.map((d) => d.day)} current={dayIndex} onSelect={setDayIndex} />
@@ -119,6 +132,7 @@ export function FamilyWeekly() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

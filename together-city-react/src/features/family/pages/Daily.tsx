@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader, Button, Spinner, EmptyState } from '@/components/ui';
 import { MealCard } from '@/features/nutrition/components/MealCard';
+import { GroceryPlanner } from '@/features/nutrition/components/GroceryPlanner';
+import { Chip } from '@/components/ui';
 import { ProfileIncomplete } from '@/features/nutrition/components/ProfileIncomplete';
 import { DailySummary } from '@/features/nutrition/components/DailySummary';
 import { useWeeklyPlan, useNutritionTargets, useDaySummary, useRecipes, useBuildCart } from '@/features/nutrition/hooks';
@@ -25,6 +28,7 @@ const chipStyle: React.CSSProperties = {
  * Today's plate sliced live from the shared family weekly plan.
  */
 export function FamilyDaily() {
+  const [tab, setTab] = useState<'plan' | 'grocery'>('plan');
   const dayIndex = todayIndex();
   const plan = useWeeklyPlan('family');
   const targets = useNutritionTargets();
@@ -57,6 +61,15 @@ export function FamilyDaily() {
         title="Daily Meal Planner"
         sub="Today's plate, dish by dish, personalised per member." />
 
+      <div style={{ display: 'flex', gap: 6, margin: '14px 0 16px' }}>
+        {(['plan', 'grocery'] as const).map((t) => (
+          <Chip key={t} selected={tab === t} onClick={() => setTab(t)}>{t === 'plan' ? 'Meal Plan' : 'Grocery List'}</Chip>
+        ))}
+      </div>
+
+      {tab === 'grocery' && <GroceryPlanner mode="family" />}
+
+      {tab === 'plan' && (<>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
         <h2>Today's Family Plan</h2>
         <span className="meta">Cooking for {N} {N === 1 ? 'person' : 'people'} · shared mains + personal snacks</span>
@@ -98,6 +111,7 @@ export function FamilyDaily() {
           </Button>
         </div>
       </div>
+      </>)}
     </div>
   );
 }
