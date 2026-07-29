@@ -155,13 +155,27 @@ export function WeeklyPlanner() {
       )}
 
       {/* Saved plans never regenerate on their own — offer an explicit refresh when
-          preferences changed (current week only). */}
+          preferences changed (current week only). If the citizen has edited this
+          plan, regenerating discards their work, so say so and make them confirm
+          rather than handing them a one-tap button that quietly undoes it. */}
       {!week.readOnly && onCurrentWeek && week.stale && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', margin: '0 0 16px', background: '#fff8e1', border: '1px solid #f0d68a', borderRadius: 12 }}>
           <span style={{ fontSize: 18 }}>✳️</span>
-          <span style={{ fontSize: 13, flex: 1, minWidth: 200 }}>Your food preferences changed since this week was generated. Your saved plan is unchanged — regenerate it to apply your new preferences.</span>
-          <Button variant="accent" size="sm" disabled={regenerate.isPending} onClick={() => regenerate.mutate()}>
-            {regenerate.isPending ? 'Refreshing…' : 'Regenerate to apply'}
+          <span style={{ fontSize: 13, flex: 1, minWidth: 200 }}>
+            {week.locked
+              ? 'Your food preferences changed since this week was generated. This plan has your own changes in it, so it stays exactly as you left it — regenerating would replace your edits with a fresh plan.'
+              : 'Your food preferences changed since this week was generated. Your saved plan is unchanged — regenerate it to apply your new preferences.'}
+          </span>
+          <Button
+            variant="accent"
+            size="sm"
+            disabled={regenerate.isPending}
+            onClick={() => {
+              if (week.locked && !window.confirm('Regenerating builds a new week from your current preferences and discards the changes you made to this plan. Continue?')) return;
+              regenerate.mutate();
+            }}
+          >
+            {regenerate.isPending ? 'Refreshing…' : week.locked ? 'Replace my edits' : 'Regenerate to apply'}
           </Button>
         </div>
       )}

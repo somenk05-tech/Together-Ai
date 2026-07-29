@@ -408,6 +408,11 @@ model MealPlan {
   mode      String    @default("individual") // individual | family
   weekStart DateTime? // Monday of the calendar week this plan is FOR (null = legacy → derive from createdAt)
   createdAt DateTime  @default(now())
+  /// When the citizen last changed this plan themselves — a swap, a skip, a
+  /// portion. Once set, the plan is their decision rather than the generator's:
+  /// it loads exactly as they left it on every login, and anything that would
+  /// replace it has to say so first. Null means untouched since generation.
+  editedAt  DateTime?
 
   user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   days MealPlanDay[]

@@ -39,6 +39,17 @@ import { stats, unscopedSignatures } from './query-inventory';
  *   - jobs' JobApplication queries look unscoped but each is preceded by an
  *     explicit `app.userId !== userId` or `job.postedById !== userId` throw.
  *
+ * Changed 2026-07-29, when the v2 dataset adoption stopped deleting plans:
+ *
+ *   - MealPlan.deleteMany went 2 → 1. The one that left was
+ *     `deleteMany({})` — every citizen's saved plans, wiped at boot. The
+ *     survivor deletes one user's own same-week plans and is scoped by a
+ *     preceding findMany on userId.
+ *   - MealPlan.count x2 is new: the before/after totals logged by that
+ *     migration, so a run that loses plans says so in the log. Counts, no rows.
+ *   - MealPlan.update went 2 → 3 with markEdited, which stamps editedAt by the
+ *     plan's own key. Every caller passes through assertOwnsPlan first.
+ *
  * Adding to this list means a reviewer decided a query needs no owner. That is
  * sometimes right. It should never be accidental.
  */
@@ -62,10 +73,11 @@ const REVIEWED_UNSCOPED = [
   'notifications/web-push.provider.ts  DeviceToken.deleteMany x1',
   'nutrition/nutrition.service.ts  Dietitian.count x1',
   'nutrition/nutrition.service.ts  Dietitian.findUnique x1',
-  'nutrition/nutrition.service.ts  MealPlan.deleteMany x2',
+  'nutrition/nutrition.service.ts  MealPlan.count x2',
+  'nutrition/nutrition.service.ts  MealPlan.deleteMany x1',
   'nutrition/nutrition.service.ts  MealPlan.findFirst x1',
   'nutrition/nutrition.service.ts  MealPlan.findUnique x6',
-  'nutrition/nutrition.service.ts  MealPlan.update x2',
+  'nutrition/nutrition.service.ts  MealPlan.update x3',
   'nutrition/nutrition.service.ts  NutritionOrder.update x1',
   'restaurants/restaurants.service.ts  DiningOrder.groupBy x1',
   'restaurants/restaurants.service.ts  Reservation.groupBy x1',

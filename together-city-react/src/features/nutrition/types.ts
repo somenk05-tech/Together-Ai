@@ -92,6 +92,8 @@ export interface WeekPlan {
   missing?: { key: string; label: string }[];    // what to complete before planning
   needsPlan?: boolean;                           // read-only view (Daily) with no saved plan yet
   stale?: boolean;                               // preferences changed since the plan was saved
+  locked?: boolean;                              // the citizen edited this plan — it is theirs, not the generator's
+  editedAt?: string | null;                      // when they last changed it
   isCurrentWeek?: boolean;                       // whether the loaded plan is this calendar week
   familyMode?: boolean;                          // this plan is derived from the household master plan
   readOnly?: boolean;                            // member view — can't regenerate in Family Mode

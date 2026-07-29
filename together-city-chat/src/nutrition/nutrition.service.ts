@@ -3657,10 +3657,21 @@ export class NutritionService implements OnModuleInit {
     }
 
     // The current week is a saved DOCUMENT: load it as-is, never auto-regenerate.
+    //
+    // `locked` says the citizen changed this plan themselves, so what loads here
+    // is their version and regenerating would throw it away. The client uses it
+    // to turn the "preferences changed" nudge into a warning — the plan is still
+    // replaceable, but only deliberately and only after being told what is lost.
+    const editedAt = (current as { editedAt?: Date | null }).editedAt ?? null;
     const stale = Boolean(pref && current.createdAt < pref.updatedAt);
     const plan = await this.shapePlan(current.key);
     const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-    return { ...plan, stale, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
+    return {
+      ...plan, stale, isCurrentWeek: true,
+      locked: Boolean(editedAt),
+      editedAt: editedAt ? editedAt.toISOString() : null,
+      guidance, advisories: adv.advisories, healthScore: adv.healthScore,
+    };
   }
 
   /** Explicit regeneration — replaces the CURRENT week only (Regenerate / Start Fresh). */
@@ -4672,6 +4683,7 @@ export class NutritionService implements OnModuleInit {
         } as never,
       }).catch(() => undefined);
     }));
+    await this.markEdited(planKey);
     const valid = ev.score <= 0;
     let limiting: { nutrient: string; side: string; achieved: number; target: number } | null = null;
     if (!valid) {
@@ -4727,6 +4739,21 @@ export class NutritionService implements OnModuleInit {
   }
 
   /** Ownership guard — a meal plan may only be read/mutated by the user it belongs to. */
+  /**
+   * Record that the citizen changed this plan themselves.
+   *
+   * From here on the plan is their decision, not the generator's: it loads
+   * exactly as they left it on every login, and the "your preferences changed"
+   * prompt turns into a warning that regenerating discards their edits rather
+   * than a nudge to do it. Best-effort — failing to mark a plan as edited must
+   * never fail the edit the citizen actually asked for.
+   */
+  private async markEdited(planKey: string): Promise<void> {
+    await this.prisma.mealPlan
+      .update({ where: { key: planKey }, data: { editedAt: new Date() } as never })
+      .catch(() => undefined);
+  }
+
   private async assertOwnsPlan(planKey: string, userId: string): Promise<void> {
     const plan = await this.prisma.mealPlan.findUnique({ where: { key: planKey }, select: { userId: true } });
     if (!plan) throw new NotFoundException('plan not found');
@@ -5146,6 +5173,7 @@ export class NutritionService implements OnModuleInit {
       if (!target || target.slot !== slot) throw new BadRequestException('That recipe cannot be restored for this slot.');
       await this.prisma.meal.update({ where: { id: meal.id }, data: { recipeId: target.id, skipped: false } });
       await this.rebalanceDay(planKey, dayIndex);
+      await this.markEdited(planKey);
       return this.shapePlan(planKey);
     }
 
@@ -5188,6 +5216,7 @@ export class NutritionService implements OnModuleInit {
     // A refresh changes the day's macro mix — rebalance every portion so the
     // daily totals stay on target.
     await this.rebalanceDay(planKey, dayIndex);
+    await this.markEdited(planKey);
     return this.shapePlan(planKey);
   }
 
@@ -5199,6 +5228,7 @@ export class NutritionService implements OnModuleInit {
     // Skipping frees calories — the remaining meals grow (portions up to 180%)
     // to recover the day's targets; un-skipping shrinks them back.
     await this.rebalanceDay(planKey, dayIndex);
+    await this.markEdited(planKey);
     return this.shapePlan(planKey);
   }
 
@@ -5209,6 +5239,7 @@ export class NutritionService implements OnModuleInit {
       where: { id: meal.id },
       data: { sidesRice: sides.rice, sidesRoti: sides.roti, sidesCurd: sides.curd, sidesSalad: sides.salad },
     });
+    await this.markEdited(planKey);
     return this.shapePlan(planKey);
   }
 
@@ -7565,30 +7596,74 @@ export class NutritionService implements OnModuleInit {
       const data = JSON.parse(gunzipSync(readFileSync(path)).toString('utf8')) as Array<Record<string, unknown>>;
       if (!Array.isArray(data) || !data.length || data[0].servings == null) return; // not a v2 file
 
-      this.logger.log(`Adopting v2 recipe dataset (${data.length} per-serving recipes) — replacing existing rows…`);
-      // Meal plans reference recipes; drop them (they regenerate) so the FK clears.
-      await this.prisma.mealPlan.deleteMany({});
-      await this.prisma.recipe.deleteMany({});
+      const plansBefore = await this.prisma.mealPlan.count();
+      this.logger.log(`Adopting v2 recipe dataset (${data.length} per-serving recipes); ${plansBefore} saved meal plans will be kept…`);
 
-      const RB = 500;
-      for (let i = 0; i < data.length; i += RB) {
-        const batch = data.slice(i, i + RB).map((r) => ({
-          id: r.id, recipeNo: r.no, name: r.name, country: r.country, slot: r.slot, diet: r.diet,
-          kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat, fiber: r.fiber,
-          minutes: r.minutes, gramsPerServing: r.gramsPerServing,
-          servings: r.servings ?? 1, healthGrade: r.healthGrade ?? null, healthPercent: r.healthPercent ?? 0,
-          steps: JSON.stringify(r.steps ?? []),
+      // This used to open with `mealPlan.deleteMany({})` — every citizen's saved
+      // plans, deleted unattended at boot, on the reasoning that they would
+      // regenerate. A plan a citizen edited does not regenerate: their swaps,
+      // skips and portions are gone, and nothing recorded that they existed.
+      //
+      // The wipe was only ever there to clear the foreign key: Meal.recipeId has
+      // no onDelete, so Postgres refuses to delete a recipe a saved plan points
+      // at. That is a constraint on RECIPE rows, not a reason to delete PLANS.
+      //
+      // So recipes still in use are updated in place, keeping their ids and
+      // therefore every plan that references them, while everything unreferenced
+      // is swapped wholesale as before. No meal plan is touched.
+      const removed = await this.prisma.recipe.deleteMany({ where: { meals: { none: {} } } });
+      const pinnedRows = await this.prisma.recipe.findMany({ select: { id: true } });
+      const pinned = new Set(pinnedRows.map((r) => r.id));
+      this.logger.log(`Recipes: ${removed.count} unreferenced replaced, ${pinned.size} kept in place because saved plans use them.`);
+
+      const shape = (r: Record<string, unknown>) => ({
+        recipeNo: r.no, name: r.name, country: r.country, slot: r.slot, diet: r.diet,
+        kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat, fiber: r.fiber,
+        minutes: r.minutes, gramsPerServing: r.gramsPerServing,
+        servings: r.servings ?? 1, healthGrade: r.healthGrade ?? null, healthPercent: r.healthPercent ?? 0,
+        steps: JSON.stringify(r.steps ?? []),
+      });
+      const ingredientsOf = (r: Record<string, unknown>) =>
+        ((r.ingredients as Array<{ name: string; grams: number; priceInr?: number }>) ?? []).map((i) => ({
+          recipeId: r.id as string, name: i.name, grams: i.grams, priceInr: i.priceInr ?? 0,
         }));
+
+      // Rows nothing points at: bulk insert, exactly as before.
+      const fresh = data.filter((r) => !pinned.has(r.id as string));
+      const RB = 500;
+      for (let i = 0; i < fresh.length; i += RB) {
+        const batch = fresh.slice(i, i + RB).map((r) => ({ id: r.id, ...shape(r) }));
         await this.prisma.recipe.createMany({ data: batch as never, skipDuplicates: true });
       }
-      const ing = data.flatMap((r) => ((r.ingredients as Array<{ name: string; grams: number; priceInr?: number }>) ?? []).map((i) => ({
-        recipeId: r.id as string, name: i.name, grams: i.grams, priceInr: i.priceInr ?? 0,
-      })));
+      const ing = fresh.flatMap(ingredientsOf);
       const IB = 2000;
       for (let i = 0; i < ing.length; i += IB) {
         await this.prisma.recipeIngredient.createMany({ data: ing.slice(i, i + IB), skipDuplicates: true });
       }
-      this.logger.log(`v2 dataset adopted: ${await this.prisma.recipe.count()} recipes in Postgres.`);
+
+      // Rows a saved plan points at: update in place and replace their
+      // ingredients, so the plan keeps resolving and still gets v2 numbers. A
+      // pinned recipe absent from the new dataset keeps its old row rather than
+      // being deleted — an outdated meal is better than a plan that cannot load.
+      const inUse = data.filter((r) => pinned.has(r.id as string));
+      let refreshed = 0;
+      for (const r of inUse) {
+        try {
+          await this.prisma.recipe.update({ where: { id: r.id as string }, data: shape(r) as never });
+          await this.prisma.recipeIngredient.deleteMany({ where: { recipeId: r.id as string } });
+          const rows = ingredientsOf(r);
+          if (rows.length) await this.prisma.recipeIngredient.createMany({ data: rows });
+          refreshed++;
+        } catch {
+          // One stubborn row must not abandon the migration half-done.
+        }
+      }
+
+      const plansAfter = await this.prisma.mealPlan.count();
+      this.logger.log(
+        `v2 dataset adopted: ${await this.prisma.recipe.count()} recipes, ${refreshed}/${inUse.length} in-use rows refreshed, ` +
+        `meal plans ${plansBefore} → ${plansAfter}.`,
+      );
     } catch (e) {
       this.logger.warn(`v2 dataset adoption skipped: ${(e as Error).message}`);
     }
