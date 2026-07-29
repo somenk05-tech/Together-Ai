@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
 import { directKeyOf } from './conversation.util';
@@ -107,17 +107,38 @@ export class ConversationsService {
     const out = [];
     for (const m of memberships) {
       if (datingIds.has(m.conversationId)) continue;
+
+      // A conversation this citizen deleted stays gone until someone writes to
+      // it again. `messages` is the single newest message (take: 1, desc), so
+      // "nothing since I cleared it" is exactly what keeps it out of the panel.
+      const clearedAt = (m as { clearedAt?: Date | null }).clearedAt ?? null;
+      if (clearedAt) {
+        const newest = m.conversation.messages[0];
+        if (!newest || newest.createdAt <= clearedAt) continue;
+      }
+
+      // Unread counts from whichever came later: the last read, or the clear.
+      // Without this a cleared thread reappears claiming every old message is
+      // unread.
+      const since = this.laterOf(m.lastReadAt, clearedAt);
       const unread = await this.prisma.message.count({
         where: {
           conversationId: m.conversationId,
           deleted: false,
           senderId: { not: userId },
-          ...(m.lastReadAt ? { createdAt: { gt: m.lastReadAt } } : {}),
+          ...(since ? { createdAt: { gt: since } } : {}),
         },
       });
       out.push(this.shape(m.conversation, userId, unread));
     }
     return out;
+  }
+
+  /** The later of two optional instants — null only when both are null. */
+  private laterOf(a: Date | null | undefined, b: Date | null | undefined): Date | null {
+    if (!a) return b ?? null;
+    if (!b) return a;
+    return a > b ? a : b;
   }
 
   /** Load one conversation (with members + last message + unread) as the flat DTO. */
@@ -229,6 +250,52 @@ export class ConversationsService {
   /** Advance/clear a dating conversation's anonymity (reveal at ≥2). */
   async setAnonymousTrust(conversationId: string, trust: number | null): Promise<void> {
     await this.prisma.conversation.update({ where: { id: conversationId }, data: { anonymousTrust: trust } as never }).catch(() => undefined);
+  }
+
+  /**
+   * Membership check that answers 404 rather than 403.
+   *
+   * assertMember() below says "you are not a member", which confirms the
+   * conversation exists to anyone holding an id. For the panel operations a
+   * non-participant should not be able to tell an id apart from a typo, so
+   * these answer NotFound. Existing callers keep the 403 they were written
+   * against.
+   */
+  private async assertParticipant(userId: string, conversationId: string): Promise<void> {
+    const member = await this.prisma.conversationMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+    });
+    if (!member) throw new NotFoundException('No such conversation.');
+  }
+
+  /**
+   * Delete a conversation from THIS citizen's left panel.
+   *
+   * Never removes the conversation or its messages: the other participants
+   * still have their copy, and in a group one person leaving the thread behind
+   * cannot be allowed to erase everyone's history. It records the instant the
+   * citizen cleared it — everything up to that point stops being theirs to see,
+   * and the thread leaves their list until somebody writes to it again.
+   */
+  async clearForUser(userId: string, conversationId: string): Promise<{ ok: true }> {
+    await this.assertParticipant(userId, conversationId);
+    await this.prisma.conversationMember.updateMany({
+      where: { conversationId, userId },
+      // archived is cleared deliberately: deleting a chat that was archived
+      // should not leave it sitting in the archive.
+      data: { clearedAt: new Date(), archived: false } as never,
+    });
+    return { ok: true };
+  }
+
+  /** Move a conversation in or out of this citizen's archive. Reversible. */
+  async setArchived(userId: string, conversationId: string, archived: boolean): Promise<{ ok: true }> {
+    await this.assertParticipant(userId, conversationId);
+    await this.prisma.conversationMember.updateMany({
+      where: { conversationId, userId },
+      data: { archived },
+    });
+    return { ok: true };
   }
 
   async assertMember(userId: string, conversationId: string): Promise<void> {

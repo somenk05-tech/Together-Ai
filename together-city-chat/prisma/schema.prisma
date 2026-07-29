@@ -241,6 +241,12 @@ model ConversationMember {
   muted          Boolean    @default(false)
   archived       Boolean    @default(false)
   pinned         Boolean    @default(false)
+  /// Per-participant chat deletion. Deleting a chat from the left panel is not
+  /// a shared act — the other person keeps their copy — so it records a moment
+  /// rather than removing rows: messages at or before this instant are hidden
+  /// from THIS member, and the conversation leaves their list until someone
+  /// writes to it again. Null means nothing has been cleared.
+  clearedAt      DateTime?
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)

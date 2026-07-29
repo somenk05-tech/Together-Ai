@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -39,6 +39,30 @@ export class ConversationsController {
   @Post(':id/read')
   markRead(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.conversations.markRead(user.sub, id);
+  }
+
+  /**
+   * DELETE /api/chat/:id — remove this conversation from MY left panel.
+   *
+   * Per-participant by design: the other people in the thread keep it. A
+   * non-participant gets 404 rather than 403, so conversation ids cannot be
+   * probed for existence.
+   */
+  @Delete(':id')
+  remove(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.conversations.clearForUser(user.sub, id);
+  }
+
+  // POST /api/chat/:id/archive — hide from the panel, keep the history.
+  @Post(':id/archive')
+  archive(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.conversations.setArchived(user.sub, id, true);
+  }
+
+  // POST /api/chat/:id/unarchive
+  @Post(':id/unarchive')
+  unarchive(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.conversations.setArchived(user.sub, id, false);
   }
 
   // GET /api/chat/contacts — city directory for starting chats / groups

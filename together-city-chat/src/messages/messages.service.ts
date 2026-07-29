@@ -75,8 +75,15 @@ export class MessagesService {
   async list(userId: string, dto: ListMessagesDto) {
     await this.assertMember(userId, dto.conversationId);
     const take = dto.limit ?? this.config.get<number>('policy.pageSize') ?? 30;
+    // History a citizen deleted from their panel is theirs to have deleted:
+    // the rows survive for the other participants, but this reader never sees
+    // anything from at or before the moment they cleared it.
+    const clearedAt = await this.clearedAtFor(userId, dto.conversationId);
     const messages = await this.prisma.message.findMany({
-      where: { conversationId: dto.conversationId },
+      where: {
+        conversationId: dto.conversationId,
+        ...(clearedAt ? { createdAt: { gt: clearedAt } } : {}),
+      },
       include: messageInclude,
       orderBy: { createdAt: 'desc' },
       take: take + 1,
@@ -244,6 +251,14 @@ export class MessagesService {
       select: { userId: true },
     });
     return members.map((m) => m.userId);
+  }
+
+  /** When this citizen last cleared the conversation, if ever. */
+  private async clearedAtFor(userId: string, conversationId: string): Promise<Date | null> {
+    const member = await this.prisma.conversationMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+    });
+    return (member as { clearedAt?: Date | null } | null)?.clearedAt ?? null;
   }
 
   private async assertMember(userId: string, conversationId: string): Promise<void> {
