@@ -26,6 +26,7 @@ const NutritionHistory = lazy(() =>
   import('@/features/nutrition/pages/NutritionHistory').then((m) => ({ default: m.NutritionHistory })),
 );
 const Profile = lazy(() => import('@/features/profile/pages/Profile').then((m) => ({ default: m.Profile })));
+const DrivePage = lazy(() => import('@/features/drive/pages/Drive').then((m) => ({ default: m.Drive })));
 const SocialFeed = lazy(() => import('@/features/social/pages/SocialFeed').then((m) => ({ default: m.SocialFeed })));
 const RecipeLibrary = lazy(() => import('@/features/nutrition/pages/RecipeLibrary').then((m) => ({ default: m.RecipeLibrary })));
 const RecipeDetail = lazy(() => import('@/features/nutrition/pages/RecipeDetail').then((m) => ({ default: m.RecipeDetail })));
@@ -206,6 +207,7 @@ export const router = createBrowserRouter([
       { path: '/cars', element: <CarsComingSoon /> },
       { path: '/profile', element: <RequireAuth>{wrap(<Profile />)}</RequireAuth> },
       { path: '/settings', element: <RequireAuth>{wrap(<Settings />)}</RequireAuth> },
+      { path: '/drive', element: <RequireAuth>{wrap(<DrivePage />)}</RequireAuth> },
       { path: '/settings/privacy', element: <RequireAuth>{wrap(<PrivacySettings />)}</RequireAuth> },
       { path: '/legal', element: wrap(<LegalCenter />) },
       { path: '/legal/policy/:policyId', element: wrap(<LegalCenter />) },

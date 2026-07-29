@@ -173,6 +173,7 @@ export function Settings() {
       <Card style={{ marginTop: 18 }}>
         <SectionTitle eyebrow="Subscription" title="Together+ & account" />
         <Row title="Together+" desc="Priority bookings, no-fee splits, curated perks" right={<span className="tag">Free member</span>} />
+        <Row title="Your drive" desc="Private cloud storage for your documents and media" right={<Link to="/drive" className="tag">Open</Link>} />
         <Row title="Export data" desc="Full archive of your city, downloadable anytime" right={<Link to="/profile" className="tag">Request</Link>} />
         <Row title="Security & 2FA" desc="Password, biometrics, two-factor" right={<span className="tag">Coming soon</span>} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 0', borderTop: '1px solid var(--line)' }}>
