@@ -9,6 +9,7 @@ import {
   beautyInsights, recommendProducts, BEAUTY_PRODUCTS, CONCERN_TAGS,
   type BeautyInsight,
 } from './beauty-engine';
+import { buildRoutines } from './routine-engine';
 import { assessBeauty, type BeautyProfileInput, type BeautyAssessment } from './beauty-analysis';
 import { buildMakeupLook, type FaceAttrs } from './makeup-engine';
 import type { PlaceBeautyOrderDto } from './dto/beauty.dto';
@@ -349,6 +350,28 @@ export class BeautyService {
       products,
       personalisedBy: { concerns: profile.concerns, labs: usedLabs, assessment: readings.length > 0 },
       matchedCount: products.filter((p) => p.matched).length,
+    };
+  }
+
+  /**
+   * The routine, not just the shelf.
+   *
+   * Derived from the same recommendation the products page returns, so the two
+   * can never disagree about what this person should be using — and so a change
+   * to the beauty profile changes the routine on the next read, with nothing to
+   * regenerate or invalidate.
+   */
+  async routine(userId: string) {
+    const { products, personalisedBy } = await this.products(userId);
+    const routines = buildRoutines(products);
+    return {
+      routines,
+      personalisedBy,
+      /** Products the routine actually uses, for a basket or a shopping list. */
+      productCount: new Set(routines.flatMap((r) => r.steps.map((s) => s.productId))).size,
+      disclaimer:
+        'Cosmetic guidance based on your saved skin and hair profile — not medical advice. ' +
+        'Stop anything that stings or reddens, and see a dermatologist for a condition that persists.',
     };
   }
 

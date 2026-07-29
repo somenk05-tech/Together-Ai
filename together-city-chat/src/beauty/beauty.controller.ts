@@ -67,6 +67,12 @@ export class BeautyController {
     return this.beauty.makeupLook(user.sub, occasion);
   }
 
+  /** GET /api/beauty/routine — morning, evening and weekly, in order. */
+  @Get('routine')
+  routine(@CurrentUser() user: JwtUser) {
+    return this.beauty.routine(user.sub);
+  }
+
   @Get('products')
   products(@CurrentUser() user: JwtUser) {
     return this.beauty.products(user.sub);
