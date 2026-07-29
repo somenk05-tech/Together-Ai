@@ -4,7 +4,7 @@ import { StorageProvider } from '../media/storage.provider';
 
 /** One 10 GB vault per account, shared across mail + health documents + drive. */
 const QUOTA_BYTES = 10 * 1024 * 1024 * 1024;
-const MAX_FILE_BYTES = 512 * 1024 * 1024; // 512 MB per file
+const MAX_FILE_BYTES = 1024 * 1024 * 1024; // 1 GB per file (matches the mail attachment ceiling)
 const MAX_NAME = 180;
 
 interface FolderRow { id: string; ownerId: string; name: string; parentId: string | null; createdAt: Date; updatedAt: Date }
@@ -176,7 +176,7 @@ export class DriveService {
   async presign(userId: string, input: { mimeType?: string; ext?: string; sizeBytes: number }) {
     if (!Number.isFinite(input.sizeBytes) || input.sizeBytes <= 0) throw new BadRequestException('Missing file size.');
     if (input.sizeBytes > MAX_FILE_BYTES) {
-      throw new BadRequestException(`That file is larger than the ${Math.round(MAX_FILE_BYTES / 1024 / 1024)} MB per-file limit.`);
+      throw new BadRequestException(`That file is larger than the ${Math.round(MAX_FILE_BYTES / 1024 / 1024 / 1024)} GB per-file limit.`);
     }
     const { remainingBytes } = await this.usage(userId);
     if (input.sizeBytes > remainingBytes) {

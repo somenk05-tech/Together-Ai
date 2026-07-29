@@ -4,10 +4,23 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { StorageProvider } from '../media/storage.provider';
 import type { OutboundAttachment } from './messaging-provider';
 
-/** Conservative ceiling for outbound email attachments (providers cap ~40 MB). */
-const MAX_OUTBOUND_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+/**
+ * Outbound attachment sizing.
+ *
+ * Email itself cannot carry large files: providers (Resend included) reject a
+ * message over roughly 40 MB, and base64-loading a huge file into memory would
+ * take the API process down. So we split by size:
+ *  - up to MIME_BUDGET total → real MIME attachments, arriving in the
+ *    recipient's mail client exactly as they'd expect;
+ *  - anything beyond that, up to TOTAL_CEILING → a secure, expiring download
+ *    link in the message body (the same hand-off Gmail does to Drive).
+ * The citizen just picks files; which path each takes is decided here.
+ */
+const MIME_BUDGET_BYTES = 20 * 1024 * 1024;          // safely under provider caps
+const MAX_OUTBOUND_TOTAL_BYTES = 1024 * 1024 * 1024; // 1 GB across attachments
+const SHARE_LINK_TTL_SEC = 7 * 24 * 3600;            // 7 days (S3/R2 maximum)
 import {
-  MAIL_DOMAIN, QUOTA_BYTES, addressFor, handleFromAddress, snippetOf, sizeOf, welcomeMail,
+  MAIL_DOMAIN, QUOTA_BYTES, addressFor, handleFromAddress, snippetOf, sizeOf, welcomeMail, humanBytes,
 } from './mail.constants';
 import { createMessagingProvider, messagingConfigured, type Channel } from './messaging-provider';
 import type { FlagDto, FolderQueryDto, SendMailDto } from './dto/mail.dto';
@@ -39,28 +52,58 @@ export class MailService {
    * cap total message size (Resend ~40 MB), so we enforce a conservative
    * ceiling and fail with a message that says exactly what to do.
    */
-  private async loadOutboundAttachments(userId: string, fileIds?: string[]): Promise<OutboundAttachment[]> {
-    if (!fileIds?.length) return [];
+  private async loadOutboundAttachments(
+    userId: string, fileIds?: string[],
+  ): Promise<{ attachments: OutboundAttachment[]; linkFooter: string }> {
+    const none = { attachments: [] as OutboundAttachment[], linkFooter: '' };
+    if (!fileIds?.length) return none;
     const drive = (this.prisma as unknown as {
       driveFile: { findMany(a: unknown): Promise<Array<{ id: string; name: string; mimeType: string | null; sizeBytes: number; storageKey: string }>> };
     }).driveFile;
     const files = await drive.findMany({
       where: { id: { in: fileIds.slice(0, 10) }, ownerId: userId },
     }).catch(() => []);
-    if (!files.length) return [];
+    if (!files.length) return none;
+
     const total = files.reduce((n, f) => n + (f.sizeBytes ?? 0), 0);
-    if (total > MAX_OUTBOUND_ATTACHMENT_BYTES) {
+    if (total > MAX_OUTBOUND_TOTAL_BYTES) {
       throw new BadRequestException(
-        `Those attachments total ${Math.round(total / 1024 / 1024)} MB — email providers cap a message at about ${Math.round(MAX_OUTBOUND_ATTACHMENT_BYTES / 1024 / 1024)} MB. Send fewer or smaller files, or share them from your Drive instead.`,
+        `Those attachments total ${(total / 1024 / 1024 / 1024).toFixed(2)} GB — the limit for one message is 1 GB. Send fewer files, or share them from your Drive instead.`,
       );
     }
-    const out: OutboundAttachment[] = [];
-    for (const f of files) {
-      const obj = await this.storage.getHealthObjectBase64(f.storageKey).catch(() => null);
-      if (!obj) continue; // unreadable object → skip rather than fail the whole send
-      out.push({ filename: f.name, contentBase64: obj.base64, contentType: f.mimeType ?? obj.contentType });
+
+    // Smallest first, so as many files as possible arrive as true attachments
+    // and only the big ones fall back to a link.
+    const ordered = [...files].sort((a, b) => (a.sizeBytes ?? 0) - (b.sizeBytes ?? 0));
+    const attachments: OutboundAttachment[] = [];
+    const linked: Array<{ name: string; sizeBytes: number; url: string }> = [];
+    let budget = MIME_BUDGET_BYTES;
+
+    for (const f of ordered) {
+      const size = f.sizeBytes ?? 0;
+      if (size <= budget) {
+        const obj = await this.storage.getHealthObjectBase64(f.storageKey).catch(() => null);
+        if (obj) {
+          attachments.push({ filename: f.name, contentBase64: obj.base64, contentType: f.mimeType ?? obj.contentType });
+          budget -= size;
+          continue;
+        }
+        // Unreadable inline → fall through and try a link instead of dropping it.
+      }
+      const url = await this.storage.presignShareLink(f.storageKey, SHARE_LINK_TTL_SEC).catch(() => null);
+      if (url) linked.push({ name: f.name, sizeBytes: size, url });
     }
-    return out;
+
+    const linkFooter = linked.length
+      ? [
+          '',
+          '─'.repeat(28),
+          `${linked.length} large file${linked.length === 1 ? '' : 's'} shared as a secure download link (expires in 7 days):`,
+          ...linked.map((l) => `• ${l.name} (${humanBytes(l.sizeBytes)})\n  ${l.url}`),
+        ].join('\n')
+      : '';
+
+    return { attachments, linkFooter };
   }
 
   /** Attachments on a thread the caller is a participant of. */
@@ -261,9 +304,9 @@ export class MailService {
     const footer = `\n\n${'─'.repeat(28)}\nSent by ${fromName} (${fromAddr}) via Together City Mail.`;
     const provider = createMessagingProvider('email');
     // Real MIME attachments so external recipients get the actual files.
-    const attachments = await this.loadOutboundAttachments(userId, dto.attachmentFileIds);
+    const { attachments, linkFooter } = await this.loadOutboundAttachments(userId, dto.attachmentFileIds);
     const res = await provider
-      .send({ channel: 'email', to: toEmail, subject, body: dto.body + footer, kind: 'mail', ...(attachments.length ? { attachments } : {}) })
+      .send({ channel: 'email', to: toEmail, subject, body: dto.body + linkFooter + footer, kind: 'mail', ...(attachments.length ? { attachments } : {}) })
       .catch(() => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const }));
     await this.prisma.emailDelivery.create({
       data: {

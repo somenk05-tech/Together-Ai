@@ -219,6 +219,22 @@ export class StorageProvider implements OnModuleInit {
     return typeof key === 'string' && key.startsWith(`drive/${userId}/`);
   }
 
+  /**
+   * A longer-lived signed GET link, for files handed to someone OUTSIDE the
+   * city (e.g. a big attachment emailed as a download link rather than MIME).
+   * Capped at 7 days — the maximum lifetime S3/R2 signatures allow.
+   */
+  async presignShareLink(key: string, ttlSec = 7 * 24 * 3600): Promise<string | null> {
+    if (!this.s3 || !key) return null;
+    const expiresIn = Math.min(Math.max(60, ttlSec), 7 * 24 * 3600);
+    try {
+      return await getSignedUrl(this.s3, new GetObjectCommand({ Bucket: this.healthBucket, Key: key }), { expiresIn });
+    } catch (e) {
+      this.logger.warn(`presignShareLink failed for ${key}: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
   /** Short-lived signed GET URL for a private health document (owner-only, handed
    *  out by the authenticated backend). Returns null when storage isn't configured. */
   async presignHealthDownload(key: string): Promise<string | null> {
