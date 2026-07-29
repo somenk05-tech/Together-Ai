@@ -16,6 +16,46 @@ import {
   SkipSchema, type SkipDto, CalorieSchema, type CalorieDto,
 } from './dto/nutrition.dto';
 
+/**
+ * Household PHI-sharing switches — exactly the four the service stores
+ * (HouseholdSharing in nutrition.service.ts). This endpoint decides which of a
+ * citizen's health facts their household can see, and it used to accept an
+ * untyped Record<string, boolean> straight from the request: any key, any
+ * value. Keys are listed rather than open so a toggle nobody declared can't be
+ * set, and .strict() rejects unknown ones loudly instead of storing them.
+ */
+const HouseholdSharingSchema = z.object({
+  targets: z.boolean().optional(),
+  conditions: z.boolean().optional(),
+  weight: z.boolean().optional(),
+  bloodTests: z.boolean().optional(),
+}).strict();
+
+/**
+ * Editable fields on a household member, matching memberData() in the service.
+ * Previously Record<string, unknown>. The service already clamps the numbers,
+ * so this is about refusing junk at the door rather than re-implementing that.
+ */
+const FamilyMemberPatchSchema = z.object({
+  name: z.string().min(1).max(60).optional(),
+  role: z.string().max(20).optional(),
+  // Left as bounded strings rather than enums: memberData() already
+  // normalises both (anything not 'female' becomes 'male'; an unknown goal
+  // becomes 'maintain'), so an enum here would only turn a future UI option
+  // into a 422 without making the stored value any safer.
+  sex: z.string().max(20).optional(),
+  age: z.number().min(1).max(110).optional(),
+  heightCm: z.number().min(60).max(230).optional(),
+  weightKg: z.number().min(8).max(250).optional(),
+  activity: z.number().min(1.2).max(1.9).optional(),
+  goal: z.string().max(20).optional(),
+  diet: z.string().max(40).optional(),
+  proteins: z.array(z.string().max(40)).max(30).optional(),
+  cuisines: z.array(z.string().max(40)).max(30).optional(),
+  allergies: z.string().max(500).optional(),
+  healthConditions: z.array(z.string().max(60)).max(30).optional(),
+}).strict();
+
 @Controller('nutrition')
 @UseGuards(JwtAuthGuard)
 export class NutritionController {
@@ -72,6 +112,7 @@ export class NutritionController {
 
   /** Preferred daily delivery time for fresh items ("HH:MM", 24h). */
   @Patch('delivery-time')
+  @UsePipes(new ZodValidationPipe(z.object({ time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM, 24-hour') })))
   setDeliveryTime(@CurrentUser() user: JwtUser, @Body() body: { time?: string }) {
     return this.nutrition.setDeliveryTime(user.sub, String(body?.time ?? ''));
   }
@@ -210,6 +251,7 @@ export class NutritionController {
 
   // Send a Household invite (owner only) — private to Nutrition Hub.
   @Post('family/invite')
+  @UsePipes(new ZodValidationPipe(z.object({ userRef: z.string().min(1).max(80), role: z.string().max(40).optional() })))
   inviteHousehold(@CurrentUser() user: JwtUser, @Body() dto: { userRef?: string; role?: string }) {
     return this.nutrition.inviteHousehold(user.sub, dto?.userRef ?? '', dto?.role);
   }
@@ -222,12 +264,14 @@ export class NutritionController {
 
   // Accept / decline a household invitation (invitee only).
   @Post('family/invites/:id/respond')
+  @UsePipes(new ZodValidationPipe(z.object({ accept: z.boolean() })))
   respondHouseholdInvite(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: { accept?: boolean }) {
     return this.nutrition.respondHouseholdInvite(user.sub, id, Boolean(dto?.accept));
   }
 
   // Edit a member profile (the owner's own; real members edit their own).
   @Patch('family/members/:id')
+  @UsePipes(new ZodValidationPipe(FamilyMemberPatchSchema))
   updateFamilyMember(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: Record<string, unknown>) {
     return this.nutrition.updateFamilyMember(user.sub, id, dto);
   }
@@ -277,6 +321,7 @@ export class NutritionController {
   }
 
   @Patch('family/meal-planning')
+  @UsePipes(new ZodValidationPipe(z.object({ on: z.boolean() })))
   setFamilyMealPlanning(@CurrentUser() user: JwtUser, @Body() dto: { on?: boolean }) {
     return this.nutrition.setFamilyMealPlanning(user.sub, Boolean(dto?.on));
   }
@@ -288,6 +333,7 @@ export class NutritionController {
   }
 
   @Patch('family/sharing')
+  @UsePipes(new ZodValidationPipe(HouseholdSharingSchema))
   setSharing(@CurrentUser() user: JwtUser, @Body() dto: Record<string, boolean>) {
     return this.nutrition.setHouseholdSharing(user.sub, dto);
   }
@@ -299,12 +345,14 @@ export class NutritionController {
   }
 
   @Post('family/pantry')
+  @UsePipes(new ZodValidationPipe(z.object({ name: z.string().min(1).max(80), grams: z.number().int().min(0).max(1_000_000).optional() })))
   addPantry(@CurrentUser() user: JwtUser, @Body() dto: { name?: string; grams?: number }) {
     return this.nutrition.addPantryItem(user.sub, dto?.name ?? '', dto?.grams);
   }
 
   /** Cooking a meal draws its ingredients down from the pantry (idempotent). */
   @Post('pantry/cooked')
+  @UsePipes(new ZodValidationPipe(z.object({ mealKey: z.string().min(1).max(64), label: z.string().max(140).optional(), people: z.number().int().min(1).max(30).optional() })))
   markCooked(@CurrentUser() user: JwtUser, @Body() body: { mealKey?: string; label?: string; people?: number }) {
     return this.nutrition.markMealCooked(user.sub, {
       mealKey: String(body?.mealKey ?? ''),
@@ -337,6 +385,7 @@ export class NutritionController {
   }
 
   @Patch('family/pantry/:id')
+  @UsePipes(new ZodValidationPipe(z.object({ grams: z.number().int().min(0).max(1_000_000) })))
   updatePantry(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: { grams?: number }) {
     return this.nutrition.updatePantryItem(user.sub, id, Number(dto?.grams ?? 0));
   }
@@ -531,6 +580,7 @@ export class NutritionController {
   }
 
   @Post('orders')
+  @UsePipes(new ZodValidationPipe(z.object({ method: z.enum(['wallet', 'card']).optional() })))
   placeOrder(@CurrentUser() user: JwtUser, @Body() body: { method?: 'wallet' | 'card' }) {
     return this.nutrition.placeOrder(user.sub, body?.method);
   }
