@@ -27,6 +27,17 @@ export class ProfileController {
     return this.masterProfile.completion(user.sub);
   }
 
+  /**
+   * GET /api/profile/health-score — a wellness summary of recorded measurements.
+   *
+   * Returns `computed`, `incomplete` or `unavailable` — never a fabricated
+   * number, and never zero because something was not filled in.
+   */
+  @Get('health-score')
+  healthScore(@CurrentUser() user: JwtUser) {
+    return this.masterProfile.healthScore(user.sub);
+  }
+
   /** Update shared fields — propagates to every hub that duplicates them. */
   @Patch('master')
   @UsePipes(new ZodValidationPipe(z.object({

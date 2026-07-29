@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { computeHealthScore, type HealthScoreResult } from './health-score';
 
 /**
  * Master Profile — the single source of truth for shared user information.
@@ -95,6 +96,52 @@ interface MasterRow extends SharedFields { id: string; userId: string; updatedAt
 export class MasterProfileService {
   private readonly logger = new Logger('MasterProfile');
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * A wellness summary from what the citizen has actually recorded.
+   *
+   * Gathers the measurements from wherever they already live — body from the
+   * fitness or food profile or the master record, movement from the workout log,
+   * markers from the latest blood analysis — and hands them to a pure scorer.
+   * Reads the tables directly rather than depending on the fitness, nutrition and
+   * medical modules, all three of which would otherwise have to be imported here.
+   *
+   * Anything absent stays absent. The scorer drops a missing component from the
+   * average instead of counting a zero into it, which is the whole point.
+   */
+  async healthScore(userId: string): Promise<HealthScoreResult> {
+    const db = this.prisma as unknown as {
+      fitnessProfile: { findUnique(a: unknown): Promise<{ heightCm: number | null; weightKg: number | null } | null> };
+      foodPref: { findUnique(a: unknown): Promise<{ heightCm: number | null; weightKg: number | null } | null> };
+      workoutLog: { findMany(a: unknown): Promise<Array<{ minutes: number }>> };
+      bloodAnalysis: { findFirst(a: unknown): Promise<{ payload: string } | null> };
+    };
+
+    const since = new Date(Date.now() - 30 * 24 * 3600 * 1000);
+    const [fitness, food, master, workouts, analysis] = await Promise.all([
+      db.fitnessProfile.findUnique({ where: { userId } }).catch(() => null),
+      db.foodPref.findUnique({ where: { userId } }).catch(() => null),
+      this.master.findUnique({ where: { userId } }).catch(() => null),
+      db.workoutLog.findMany({ where: { userId, doneAt: { gte: since } }, select: { minutes: true }, take: 500 }).catch(() => []),
+      db.bloodAnalysis.findFirst({ where: { userId }, orderBy: { analyzedAt: 'desc' } }).catch(() => null),
+    ]);
+
+    // First source that actually has the measurement wins.
+    const heightCm = fitness?.heightCm ?? food?.heightCm ?? (master as { heightCm?: number | null } | null)?.heightCm ?? null;
+    const weightKg = fitness?.weightKg ?? food?.weightKg ?? (master as { weightKg?: number | null } | null)?.weightKg ?? null;
+
+    // A citizen who has never logged a workout has no movement data — which is
+    // different from having logged zero minutes, so it stays null rather than 0.
+    const hasWorkoutHistory = workouts.length > 0;
+
+    return computeHealthScore({
+      heightCm,
+      weightKg,
+      workoutsLast30: hasWorkoutHistory ? workouts.length : null,
+      workoutMinutesLast30: hasWorkoutHistory ? workouts.reduce((n, w) => n + (w.minutes || 0), 0) : null,
+      markersInRange: markerShare(analysis?.payload),
+    });
+  }
 
   /** New table reaches the generated client on deploy (db push at boot). */
   private get master() {
@@ -289,5 +336,25 @@ export class MasterProfileService {
     const nextUp = sections.filter((s) => !s.complete).sort((a, b) => a.percent - b.percent).slice(0, 4).map((s) => ({ key: s.key, label: s.label, href: s.href }));
 
     return { percent, complete: percent >= 100, sections, nextUp };
+  }
+}
+
+/**
+ * The share of the latest panel's markers that came back in range.
+ *
+ * Reads the stored analysis rather than recomputing it, and returns null on
+ * anything unreadable — a component that cannot be established must be missing,
+ * never zero.
+ */
+function markerShare(payload?: string | null): number | null {
+  if (!payload) return null;
+  try {
+    const parsed = JSON.parse(payload) as { markers?: Array<{ status?: string }> };
+    const markers = parsed.markers ?? [];
+    if (markers.length === 0) return null;
+    const inRange = markers.filter((m) => (m.status ?? '').toLowerCase() === 'normal').length;
+    return inRange / markers.length;
+  } catch {
+    return null;
   }
 }
