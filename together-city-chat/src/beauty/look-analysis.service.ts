@@ -1,0 +1,154 @@
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../shared/prisma/prisma.service';
+import { AiService } from '../ai/ai.service';
+import { BEAUTY_PRODUCTS } from './beauty-engine';
+import {
+  matchProducts, normaliseAttributes, stepsFor, NEUTRAL_ATTRIBUTES,
+  type LookAttributes, type ShelfProduct,
+} from './look-decode';
+
+interface LookRow {
+  id: string; userId: string; fileKey: string | null; mimeType: string | null;
+  status: string; readBy: string; attributes: string | null; steps: string | null;
+  productMatches: string | null; confidence: number; error: string | null; createdAt: Date;
+}
+
+/**
+ * Makeup reference photos — brief item 23.
+ *
+ * A citizen uploads a look they want and gets back the steps to recreate it,
+ * matched to products they can actually buy. The vision read and the makeup
+ * advice are separate on purpose (see look-decode.ts): the steps are testable
+ * without a model, and swapping the reader cannot change the advice.
+ *
+ * Honest about what read the photo. `readBy: 'ai'` with a real confidence when a
+ * model was available; `'fallback'` with confidence 0 when it was not, and the
+ * response says the photo was not actually read rather than presenting a generic
+ * routine as if it came from the image.
+ */
+@Injectable()
+export class LookAnalysisService {
+  private readonly logger = new Logger(LookAnalysisService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ai: AiService,
+  ) {}
+
+  /** The generated client may lag the schema; one narrow accessor. */
+  private get table() {
+    return (this.prisma as unknown as {
+      lookAnalysis: {
+        create(a: unknown): Promise<LookRow>;
+        update(a: unknown): Promise<LookRow>;
+        findFirst(a: unknown): Promise<LookRow | null>;
+        findMany(a: unknown): Promise<LookRow[]>;
+        updateMany(a: unknown): Promise<{ count: number }>;
+      };
+    }).lookAnalysis;
+  }
+
+  private shelf(): ShelfProduct[] {
+    return BEAUTY_PRODUCTS.map((p) => ({
+      id: p.id, name: p.name, category: p.category,
+      suitableSkin: p.suitableSkin, actives: p.actives,
+    }));
+  }
+
+  /**
+   * Read a reference photo and store what it implies.
+   *
+   * The image itself is passed to the model and NOT retained beyond the object
+   * key the citizen already uploaded — the derived steps are what this feature
+   * is for, and keeping a face around longer than needed is a liability.
+   */
+  async analyze(
+    userId: string,
+    input: { fileKey?: string; mimeType?: string; base64?: string },
+    prefs: { allergies?: string[]; skinType?: string } = {},
+  ) {
+    const row = await this.table.create({
+      data: { userId, fileKey: input.fileKey ?? null, mimeType: input.mimeType ?? null, status: 'processing' },
+    });
+
+    let attributes: LookAttributes = NEUTRAL_ATTRIBUTES;
+    let readBy = 'fallback';
+    let confidence = 0;
+    let error: string | null = null;
+
+    if (this.ai.enabled && input.base64) {
+      try {
+        const seen = await this.ai.reviewSkinPhotos([
+          { base64: input.base64, mediaType: input.mimeType || 'image/jpeg' },
+        ]);
+        const { attributes: a, confident } = normaliseAttributes(seen.face);
+        attributes = a;
+        if (confident) { readBy = 'ai'; confidence = 0.8; }
+      } catch (e) {
+        // A reader that fails is a state the citizen can act on, not a 500.
+        error = (e as Error).message.slice(0, 200);
+        this.logger.warn(`look analysis ${row.id} could not be read`);
+      }
+    }
+
+    const steps = stepsFor(attributes);
+    const matches = matchProducts(steps, this.shelf(), prefs);
+
+    const saved = await this.table.update({
+      where: { id: row.id },
+      data: {
+        status: 'ready',
+        readBy,
+        confidence,
+        error,
+        attributes: JSON.stringify(attributes),
+        steps: JSON.stringify(steps),
+        productMatches: JSON.stringify(matches),
+      },
+    });
+    return this.shape(saved);
+  }
+
+  async list(userId: string) {
+    const rows = await this.table.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 50 });
+    return rows.map((r) => this.shape(r));
+  }
+
+  async get(userId: string, id: string) {
+    const row = await this.table.findFirst({ where: { id, userId } });
+    if (!row) throw new NotFoundException('No such look.');
+    return this.shape(row);
+  }
+
+  /** Delete the look and detach the photo. */
+  async remove(userId: string, id: string): Promise<{ ok: true }> {
+    const res = await this.table.updateMany({
+      where: { id, userId },
+      data: { status: 'deleted', fileKey: null, attributes: null, steps: null, productMatches: null },
+    });
+    if (res.count === 0) throw new NotFoundException('No such look.');
+    return { ok: true };
+  }
+
+  private shape(r: LookRow) {
+    const parse = <T>(raw: string | null, fallback: T): T => {
+      if (!raw) return fallback;
+      try { return JSON.parse(raw) as T; } catch { return fallback; }
+    };
+    return {
+      id: r.id,
+      status: r.status,
+      readBy: r.readBy,
+      confidence: r.confidence,
+      error: r.error,
+      createdAt: r.createdAt.toISOString(),
+      attributes: parse<LookAttributes>(r.attributes, NEUTRAL_ATTRIBUTES),
+      steps: parse(r.steps, []),
+      productMatches: parse(r.productMatches, []),
+      /** Said plainly, because a generic routine presented as a reading is a lie. */
+      note: r.readBy === 'ai'
+        ? 'Read from your photo.'
+        : 'Your photo could not be read automatically, so these are general steps for this kind of look rather than a reading of your image.',
+    };
+  }
+}

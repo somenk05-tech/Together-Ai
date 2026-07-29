@@ -10,6 +10,7 @@ import {
   type BeautyInsight,
 } from './beauty-engine';
 import { buildRoutines } from './routine-engine';
+import { LookAnalysisService } from './look-analysis.service';
 import { assessBeauty, type BeautyProfileInput, type BeautyAssessment } from './beauty-analysis';
 import { buildMakeupLook, type FaceAttrs } from './makeup-engine';
 import type { PlaceBeautyOrderDto } from './dto/beauty.dto';
@@ -51,6 +52,7 @@ export class BeautyService {
     private readonly financial: FinancialService,
     private readonly ai: AiService,
     private readonly masterProfile: MasterProfileService,
+    private readonly looks: LookAnalysisService,
   ) {}
 
   /** Overlay the Master Profile's shared demographics onto the beauty profile
@@ -351,6 +353,19 @@ export class BeautyService {
       personalisedBy: { concerns: profile.concerns, labs: usedLabs, assessment: readings.length > 0 },
       matchedCount: products.filter((p) => p.matched).length,
     };
+  }
+
+  /**
+   * Read a reference photo, using the citizen's own allergies and skin type so
+   * the products matched to the steps are ones they can actually use.
+   */
+  async analyzeLook(userId: string, input: { fileKey?: string; mimeType?: string; base64?: string }) {
+    const profile = await this.getProfile(userId);
+    const extras = profile.profile as { skinType?: string; allergies?: string[] };
+    return this.looks.analyze(userId, input, {
+      allergies: extras.allergies,
+      skinType: String(extras.skinType ?? profile.skinType ?? ''),
+    });
   }
 
   /**

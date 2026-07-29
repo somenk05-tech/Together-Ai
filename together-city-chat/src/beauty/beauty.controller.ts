@@ -1,16 +1,19 @@
-import { Body, Controller, Delete, Get, Post, Put, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Put, Query, UseGuards, UsePipes, Param } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { BeautyService } from './beauty.service';
+import { LookAnalysisService } from './look-analysis.service';
 import { PlaceBeautyOrderSchema, type PlaceBeautyOrderDto } from './dto/beauty.dto';
 
 @Controller('beauty')
 @UseGuards(JwtAuthGuard)
 export class BeautyController {
-  constructor(private readonly beauty: BeautyService) {}
+  constructor(private readonly beauty: BeautyService,
+    private readonly looks: LookAnalysisService,
+  ) {}
 
   @Get('profile')
   profile(@CurrentUser() user: JwtUser) {
@@ -71,6 +74,34 @@ export class BeautyController {
   @Get('routine')
   routine(@CurrentUser() user: JwtUser) {
     return this.beauty.routine(user.sub);
+  }
+
+  // ─────────────── Makeup reference decode (brief item 23) ───────────────
+
+  /** POST /api/beauty/looks — read a reference photo into steps you can follow. */
+  @Post('looks')
+  @UsePipes(new ZodValidationPipe(z.object({
+    fileKey: z.string().max(300).optional(),
+    mimeType: z.string().max(60).regex(/^image\//).optional(),
+    base64: z.string().min(16).max(4_000_000).optional(),
+  })))
+  analyzeLook(@CurrentUser() user: JwtUser, @Body() dto: { fileKey?: string; mimeType?: string; base64?: string }) {
+    return this.beauty.analyzeLook(user.sub, dto);
+  }
+
+  @Get('looks')
+  listLooks(@CurrentUser() user: JwtUser) {
+    return this.looks.list(user.sub);
+  }
+
+  @Get('looks/:id')
+  look(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.looks.get(user.sub, id);
+  }
+
+  @Delete('looks/:id')
+  removeLook(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.looks.remove(user.sub, id);
   }
 
   @Get('products')

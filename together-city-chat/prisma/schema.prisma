@@ -161,6 +161,10 @@ model User {
   medicines            Medicine[]
   medicineSchedules    MedicineSchedule[]
   thoughts             Thought[]
+  lookAnalyses         LookAnalysis[]
+  avatars              Avatar[]
+  callsCreated         CallSession[]
+  callParticipations   CallParticipant[]
 
   @@index([onlineStatus])
 }
@@ -232,6 +236,7 @@ model Conversation {
 
   members  ConversationMember[]
   messages Message[]
+  calls    CallSession[]
 
   @@index([type])
 }
@@ -1894,4 +1899,100 @@ model Thought {
 
   @@index([userId, createdAt])
   @@index([userId, deletedAt])
+}
+
+/// ───────────────────── Makeup reference decode ─────────────────────
+/// A photo of a look somebody wants, turned into steps they can follow.
+/// The photo is theirs and private; only the derived analysis is kept once
+/// the image has been read.
+model LookAnalysis {
+  id       String @id @default(uuid())
+  userId   String
+  /// Object key in the private vault. Cleared when the citizen deletes the photo.
+  fileKey  String?
+  mimeType String?
+  /// processing | ready | failed
+  status   String @default("processing")
+  /// Whether a real vision model read it, or the deterministic reader did.
+  readBy   String @default("fallback")
+  /// JSON — what the look appears to be: finish, intensity, palette, focus.
+  attributes String?
+  /// JSON — ordered steps to recreate it.
+  steps      String?
+  /// JSON — product ids from the beauty shelf matched to those steps.
+  productMatches String?
+  confidence Float   @default(0)
+  error      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// ──────────────────────────── Avatars ────────────────────────────
+model Avatar {
+  id            String  @id @default(uuid())
+  userId        String
+  /// JSON of the inputs the citizen chose, so a result can be reproduced.
+  inputs        String
+  /// queued | ready | failed
+  status        String  @default("queued")
+  providerJobId String?
+  /// Object key of the generated asset in the private vault.
+  assetKey      String?
+  /// Exactly one avatar per citizen may be selected.
+  isSelected    Boolean @default(false)
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, isSelected])
+}
+
+/// ───────────────────────────── Calls ─────────────────────────────
+/// A call belongs to a conversation: who may join is decided by chat
+/// membership, never by holding the call id.
+model CallSession {
+  id             String    @id @default(uuid())
+  conversationId String
+  createdById    String
+  /// audio | video | avatar
+  type           String    @default("audio")
+  /// ringing | active | ended
+  status         String    @default("ringing")
+  /// Set when an avatar call is bound to a generated avatar.
+  avatarId       String?
+  startedAt      DateTime?
+  endedAt        DateTime?
+  /// Why it ended: completed | declined | missed | cancelled
+  endedReason    String?
+  createdAt      DateTime  @default(now())
+
+  createdBy    User              @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  conversation Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  participants CallParticipant[]
+
+  @@index([conversationId, createdAt])
+  @@index([status])
+}
+
+model CallParticipant {
+  id       String    @id @default(uuid())
+  callId   String
+  userId   String
+  joinedAt DateTime?
+  leftAt   DateTime?
+  /// caller | callee
+  role     String    @default("callee")
+
+  call CallSession @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, userId])
+  @@index([userId])
 }
