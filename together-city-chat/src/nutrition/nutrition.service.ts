@@ -2337,11 +2337,41 @@ export class NutritionService implements OnModuleInit {
     ]);
     const imageOf = new Map(users.map((u) => [u.id, u.profileImage]));
     const sharingOf = new Map((prefs as { userId: string; extras?: string | null }[]).map((p) => [p.userId, parseSharing(parseExtras(p.extras).householdSharing)]));
-    return rows.map((m) => ({
-      row: m,
-      image: m.memberUserId ? imageOf.get(m.memberUserId) ?? null : null,
-      sharing: m.memberUserId ? sharingOf.get(m.memberUserId) ?? DEFAULT_SHARING : DEFAULT_SHARING,
+
+    // The other direction: what the OWNER may see of each member.
+    //
+    // A member's own householdSharing flags say what they are willing to share;
+    // the connection says whether that channel is open at all. Both must agree.
+    // Blood tests are checked against `medical` rather than `nutrition`, because
+    // that is what they are — a blood panel does not become nutrition data by
+    // being displayed on a household screen.
+    const access = new Map<string, { nutrition: boolean; medical: boolean }>();
+    await Promise.all(userIds.map(async (uid) => {
+      if (uid === ownerId) return;
+      const [nutrition, medical] = await Promise.all([
+        this.connections.canAccessHub(ownerId, uid, 'nutrition').catch(() => false),
+        this.connections.canAccessHub(ownerId, uid, 'medical').catch(() => false),
+      ]);
+      access.set(uid, { nutrition, medical });
     }));
+
+    return rows.map((m) => {
+      const uid = m.memberUserId;
+      const stated = uid ? sharingOf.get(uid) ?? DEFAULT_SHARING : DEFAULT_SHARING;
+      // Self and non-user rows (household members with no account of their own)
+      // are the owner's own records — no connection exists to consult.
+      if (m.isSelf || !uid) {
+        return { row: m, image: uid ? imageOf.get(uid) ?? null : null, sharing: stated };
+      }
+      const a = access.get(uid) ?? { nutrition: false, medical: false };
+      const sharing: HouseholdSharing = {
+        targets: stated.targets && a.nutrition,
+        conditions: stated.conditions && a.medical,
+        weight: stated.weight && a.nutrition,
+        bloodTests: stated.bloodTests && a.medical,
+      };
+      return { row: m, image: imageOf.get(uid) ?? null, sharing };
+    });
   }
 
   async familyMembers(ownerId: string) {
@@ -2586,9 +2616,26 @@ export class NutritionService implements OnModuleInit {
   }
 
   /** The household owner this user is an ACCEPTED member of (or null). */
+  /**
+   * The household this citizen belongs to — IF they still have Nutrition access.
+   *
+   * The accepted household link alone used to be enough, which meant the hub
+   * permission on the People page was decorative in the direction that matters:
+   * an owner could switch Nutrition off for someone and that person would carry
+   * on being served the owner's meal plan, portions and shopping list. The
+   * removal path already called revokeModuleForPair() to keep People in sync
+   * with the hub; nothing kept the hub in sync with People.
+   *
+   * Losing access degrades to `solo`, so the member simply gets their own plan
+   * back rather than an error. Nothing they need disappears.
+   */
   private async householdOwnerFor(memberUserId: string): Promise<string | null> {
     const link = await this.household.findFirst({ where: { memberUserId, status: 'accepted' } }).catch(() => null);
-    return link?.ownerId ?? null;
+    if (!link?.ownerId) return null;
+    const allowed = await this.connections
+      .canAccessHub(memberUserId, link.ownerId, 'nutrition')
+      .catch(() => false);
+    return allowed ? link.ownerId : null;
   }
 
   /**

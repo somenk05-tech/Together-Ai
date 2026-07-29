@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ConnectionsService } from '../connections/connections.service';
 import { isReservedAdminHandle } from '../auth/admin';
 import { orderPair } from '../connections/connection.util';
 import { MasterProfileService } from './master-profile.service';
@@ -43,6 +44,7 @@ export class ProfileService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly masterProfile: MasterProfileService,
+    private readonly connections: ConnectionsService,
   ) {}
 
   async summary(userId: string): Promise<ProfileSummary> {
@@ -388,34 +390,15 @@ export class ProfileService {
       .catch(() => null);
     if (block) return { items: [], nextCursor: null };
 
-    // Which audiences this viewer is entitled to, mirroring SocialService's
-    // assertCanView. This used to be a flat `audience: { not: 'private' }`,
-    // which meant a post marked "friends" or "family" was visible to every
-    // signed-in citizen from the profile grid even though the feed and the
-    // post detail correctly refused it. An audience setting that holds in one
-    // place and not another is worse than not offering the setting.
+    // The audience rule lives in ConnectionsService — see visibleAudiences().
+    // It used to be duplicated here and in SocialService, and the two copies had
+    // already drifted apart once: a "friends" post was visible in this grid to
+    // any signed-in citizen while the feed correctly refused it.
     //
     // NOTE: `audience` is a NON-NULL column (default 'public'), so there must
     // be no `{ audience: null }` branch — Prisma rejects it ("Argument
     // `audience` is missing"), which previously threw and returned an empty grid.
-    const allowed: string[] = ['public'];
-    if (viewerId === u.id) {
-      allowed.push('friends', 'family', 'private');
-    } else {
-      type ConnRow = { userOneId: string; userTwoId: string; relationship?: string | null };
-      const [follows, connsRaw] = await Promise.all([
-        this.prisma.follow
-          .findUnique({ where: { followerId_followeeId: { followerId: viewerId, followeeId: u.id } } })
-          .catch(() => null),
-        this.prisma.connection
-          .findMany({ where: { status: 'ACCEPTED' as never, OR: [{ userOneId: u.id }, { userTwoId: u.id }] } })
-          .catch(() => []),
-      ]);
-      const conns = connsRaw as unknown as ConnRow[];
-      const conn = conns.find((r: ConnRow) => (r.userOneId === u.id ? r.userTwoId : r.userOneId) === viewerId);
-      if (follows || conn) allowed.push('friends');
-      if (conn && (conn.relationship ?? '') === 'family') allowed.push('family');
-    }
+    const allowed = await this.connections.visibleAudiences(viewerId, u.id);
 
     const take = Math.min(Math.max(limit, 1), 50);
     const rows = await this.prisma.post.findMany({

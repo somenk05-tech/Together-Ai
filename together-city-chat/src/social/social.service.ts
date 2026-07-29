@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ConnectionsService } from '../connections/connections.service';
 import { RECORD_CAP } from '../shared/paging';
 import { SocialGateway } from './social.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -16,6 +17,7 @@ export class SocialService {
     private readonly gateway: SocialGateway,
     private readonly notifications: NotificationsService,
     private readonly storage: StorageProvider,
+    private readonly connections: ConnectionsService,
   ) {}
 
   /** Set a video post's cover: extract the frame at `timeSec` with ffmpeg from
@@ -592,21 +594,10 @@ export class SocialService {
     const aud = post.audience ?? 'public';
     if (aud === 'public') return; // public posts are viewable by any citizen
     if (aud === 'private') throw new ForbiddenException('This post is private.');
-    const [follows, conns] = await Promise.all([
-      this.prisma.follow
-        .findUnique({ where: { followerId_followeeId: { followerId: userId, followeeId: post.authorId } } })
-        .catch(() => null),
-      this.prisma.connection.findMany({
-        where: { status: 'ACCEPTED' as never, OR: [{ userOneId: post.authorId }, { userTwoId: post.authorId }] },
-      }),
-    ]);
-    const conn = conns.find((r) => (r.userOneId === post.authorId ? r.userTwoId : r.userOneId) === userId);
-    if (aud === 'family') {
-      if (conn && ((conn as unknown as { relationship?: string | null }).relationship ?? '') === 'family') return;
-      throw new ForbiddenException('This post is for family only.');
-    }
-    // friends: a follow OR any accepted connection puts you in the circle
-    if (follows || conn) return;
+    // Same rule the profile grid uses — see ConnectionsService.visibleAudiences.
+    const allowed = await this.connections.visibleAudiences(userId, post.authorId);
+    if (allowed.includes(aud)) return;
+    if (aud === 'family') throw new ForbiddenException('This post is for family only.');
     throw new ForbiddenException('You do not have access to this post.');
   }
 

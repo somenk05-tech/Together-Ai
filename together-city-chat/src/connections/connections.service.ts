@@ -281,6 +281,47 @@ export class ConnectionsService {
     }
   }
 
+  /**
+   * Which post audiences `viewer` is entitled to see of `owner`'s posts.
+   *
+   * ONE implementation, because there used to be two. The profile grid and the
+   * feed each carried their own copy of this rule, and they had already drifted
+   * once — a "friends" post was visible in the grid to any signed-in citizen
+   * while the feed correctly refused it. An audience setting that holds in one
+   * place and not another is worse than not offering the setting at all, and
+   * two copies of a rule will always drift again.
+   *
+   * A connection now counts only while Social is granted on it. That checkbox
+   * is what a citizen believes controls exactly this, and until now it did
+   * nothing: switching Social off left the other person still inside the
+   * friends circle. Following is untouched — choosing to follow someone is its
+   * own consent, and is not something the followee's hub toggles revoke.
+   */
+  async visibleAudiences(viewer: string, owner: string): Promise<string[]> {
+    if (viewer === owner) return ['public', 'friends', 'family', 'private'];
+
+    const { userOneId, userTwoId } = orderPair(viewer, owner);
+    const [follows, conn] = await Promise.all([
+      this.prisma.follow
+        .findUnique({ where: { followerId_followeeId: { followerId: viewer, followeeId: owner } }, select: { id: true } })
+        .catch(() => null),
+      this.prisma.connection
+        .findFirst({ where: { userOneId, userTwoId, status: ConnectionStatus.ACCEPTED } })
+        .catch(() => null),
+    ]);
+
+    const social = conn
+      ? parseModules((conn as { modulesJson?: string | null }).modulesJson).includes('social')
+      : false;
+
+    const allowed = ['public'];
+    if (follows || social) allowed.push('friends');
+    if (social && ((conn as { relationship?: string | null } | null)?.relationship ?? '') === 'family') {
+      allowed.push('family');
+    }
+    return allowed;
+  }
+
   /** Two-way sync (hub → People): a hub removing a member for `module` clears
    *  that module on the shared connection record, so the People view never drifts
    *  from what the hub shows. Universal modules are never touched. Safe to call
