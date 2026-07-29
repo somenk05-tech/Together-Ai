@@ -6201,7 +6201,7 @@ export class NutritionService implements OnModuleInit {
   async qcCompare(userId: string, mode: PlanMode = 'individual', lat?: number, lon?: number) {
     const items = await this.qcListItems(userId, mode);
     if (!items.length) return { itemCount: 0, live: false, liveEnabled: this.qcClient.enabled, quotes: [], note: 'Generate a meal plan first — the grocery list drives the comparison.' };
-    const quotes = compareStores(items);
+    const quotes = compareStores(items, new Date(), this.qcClient.enabled);
     const live = await this.qcLiveOverlay(
       quotes, items, lat ?? NutritionService.QC_DEFAULT_LAT, lon ?? NutritionService.QC_DEFAULT_LON,
     ).catch(() => false);
@@ -6214,6 +6214,11 @@ export class NutritionService implements OnModuleInit {
       liveNote: live && items.length > maxLive
         ? `Live prices applied to your ${maxLive} biggest items to conserve API credits; the rest use estimates. Raise QC_LIVE_MAX_ITEMS to widen coverage.`
         : undefined,
+      // Without a live feed there is nothing to compare against, and we will not
+      // print invented prices under other retailers' names.
+      comparisonNote: this.qcClient.enabled
+        ? undefined
+        : 'Store-by-store price comparison needs a live pricing provider. Until one is connected, only Together City fulfilment is quoted.',
       quotes: quotes.map((q) => ({
         ...q,
         items: undefined,
@@ -6263,7 +6268,7 @@ export class NutritionService implements OnModuleInit {
   async qcOrder(userId: string, providerKey: string, mode: PlanMode = 'individual', method?: 'wallet' | 'card') {
     const items = await this.qcListItems(userId, mode);
     if (!items.length) throw new NotFoundException('Generate a meal plan first — your grocery list is empty.');
-    const quotes = compareStores(items);
+    const quotes = compareStores(items, new Date(), this.qcClient.enabled);
     await this.qcLiveOverlay(quotes, items, NutritionService.QC_DEFAULT_LAT, NutritionService.QC_DEFAULT_LON).catch(() => false);
     const quote = quotes.find((x) => x.provider.key === providerKey);
     if (!quote) throw new NotFoundException('Unknown store.');

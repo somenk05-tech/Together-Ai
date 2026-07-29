@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { demoDataEnabled } from '../shared/demo-data';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { FinancialService } from '../financial/financial.service';
@@ -26,6 +27,8 @@ const code = () => 'TC-' + randomBytes(3).toString('hex').toUpperCase();
 
 @Injectable()
 export class RestaurantsService implements OnModuleInit {
+  private readonly logger = new Logger('RestaurantsService');
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly financial: FinancialService, // food orders flow through the one city wallet
@@ -679,6 +682,21 @@ export class RestaurantsService implements OnModuleInit {
   }
 
   private async ensureSeeds(): Promise<void> {
+    // RESTAURANT_SEEDS place invented restaurants at real Bengaluru localities,
+    // with invented star ratings and priced menus, and `reserve()` hands out a
+    // table-booking code for them. A citizen following one turns up at an
+    // address where no such restaurant exists.
+    if (!demoDataEnabled()) {
+      const ids = RESTAURANT_SEEDS.map((s) => s.id);
+      const gone = await this.prisma.restaurant.deleteMany({ where: { id: { in: ids } } })
+        .catch(() => null);
+      if (gone === null) {
+        this.logger.warn(
+          `Could not remove seeded restaurants (${ids.join(', ')}) — most likely a real order or reservation references one. Resolve those, then restart.`,
+        );
+      }
+      return;
+    }
     try {
       if ((await this.prisma.restaurant.count()) > 0) return;
     } catch { return; }

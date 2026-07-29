@@ -121,9 +121,20 @@ export function applyBadges(quotes: QcStoreQuote[]): QcStoreQuote[] {
   return quotes.sort((a, b) => a.totalInr - b.totalInr);
 }
 
-/** Compare the list across every store; badge cheapest/fastest/best-stocked. */
-export function compareStores(items: QcListItem[], now = new Date()): QcStoreQuote[] {
-  const quotes = QC_PROVIDERS.map((p) => quoteStore(p, items, now));
+/**
+ * Compare the list across every store; badge cheapest/fastest/best-stocked.
+ *
+ * `includePartners` must be false unless a live pricing provider is connected.
+ * The partner rows carry the names of real companies — Blinkit, Zepto, Swiggy
+ * Instamart, BigBasket, JioMart — and without a live feed their prices, delivery
+ * fees and ETAs are all derived from `priceFactor` constants in this file. A
+ * simulated number shown under a real retailer's name is a price claim about
+ * that retailer that nobody checked, so simulation mode quotes only Together
+ * City's own fulfilment and the caller tells the citizen the comparison is off.
+ */
+export function compareStores(items: QcListItem[], now = new Date(), includePartners = false): QcStoreQuote[] {
+  const providers = includePartners ? QC_PROVIDERS : QC_PROVIDERS.filter((p) => p.key === 'tc-express');
+  const quotes = providers.map((p) => quoteStore(p, items, now));
   if (!items.length) return quotes;
   return applyBadges(quotes);
 }

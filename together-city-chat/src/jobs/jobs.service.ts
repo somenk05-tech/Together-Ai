@@ -1,4 +1,5 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { demoDataEnabled } from '../shared/demo-data';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { parseResume, matchJobs, labelFor, JOB_SEEDS, type ParsedResume, type JobLike } from './jobs-engine';
@@ -6,6 +7,8 @@ import type { UploadResumeDto, SaveJobProfileDto, ApplyDto, PostJobDto } from '.
 
 @Injectable()
 export class JobsService implements OnModuleInit {
+  private readonly logger = new Logger('JobsService');
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly masterProfile: MasterProfileService,
@@ -228,6 +231,28 @@ export class JobsService implements OnModuleInit {
   }
 
   private async ensureSeedJobs(): Promise<void> {
+    // JOB_SEEDS are postings from companies that do not exist, upserted on every
+    // boot, and real citizens can apply to them. Off a demo deployment they are
+    // removed — but only the ones nobody applied to, because a JobApplication is
+    // a real person's real submission and is not ours to delete.
+    if (!demoDataEnabled()) {
+      const ids = JOB_SEEDS.map((j) => j.id);
+      const withApplicants = await this.prisma.jobApplication
+        .findMany({ where: { jobId: { in: ids } }, select: { jobId: true }, distinct: ['jobId'] })
+        .then((rows: Array<{ jobId: string }>) => rows.map((r) => r.jobId))
+        .catch(() => ids);   // on error, touch nothing
+      const removable = ids.filter((id) => !withApplicants.includes(id));
+      if (removable.length) {
+        await this.prisma.job.deleteMany({ where: { id: { in: removable }, postedById: null } })
+          .catch(() => undefined);
+      }
+      if (withApplicants.length) {
+        this.logger.warn(
+          `Seeded job postings still live because citizens have applied to them: ${withApplicants.join(', ')}. Their applications need answering or withdrawing before the postings can go.`,
+        );
+      }
+      return;
+    }
     try {
       for (const j of JOB_SEEDS) {
         await this.prisma.job.upsert({

@@ -107,7 +107,14 @@ export class WeatherService {
     } else if (opts.profileCity) {
       const g = await this.geocodeCity(opts.profileCity);
       if (g) { lat = g.lat; lng = g.lng; city = g.name; region = g.region; source = 'profile'; }
-      else { lat = DEFAULT_CITY.lat; lng = DEFAULT_CITY.lng; city = opts.profileCity; source = 'profile'; }
+      else {
+        // Geocoding the saved city failed. Fetching the DEFAULT city's weather
+        // and labelling it with the user's own city name produced a reading that
+        // was real, correct, and about the wrong place — indistinguishable from
+        // the truth. Fall back to the default city under its own name instead,
+        // so the label always matches the coordinates the reading came from.
+        lat = DEFAULT_CITY.lat; lng = DEFAULT_CITY.lng; city = DEFAULT_CITY.name; region = null; source = 'default';
+      }
     } else {
       lat = DEFAULT_CITY.lat; lng = DEFAULT_CITY.lng; city = DEFAULT_CITY.name; source = 'default';
     }

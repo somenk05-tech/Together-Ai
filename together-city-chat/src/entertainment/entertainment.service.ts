@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { demoDataEnabled } from '../shared/demo-data';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { FinancialService } from '../financial/financial.service';
@@ -20,7 +21,31 @@ export interface WatchItem {
 const parseTiers = (json: string): Tier[] => { try { return JSON.parse(json) as Tier[]; } catch { return []; } };
 
 @Injectable()
-export class EntertainmentService {
+export class EntertainmentService implements OnModuleInit {
+  private readonly logger = new Logger('EntertainmentService');
+
+  /** Ids the deleted EVENT_SEEDS constant used to create. See entertainment.constants.ts. */
+  private static readonly RETIRED_SEED_EVENT_IDS = [
+    'ev_arijit', 'ev_dune', 'ev_zakir', 'ev_mughal', 'ev_rcbmi', 'ev_hotair', 'ev_indie', 'ev_kunal',
+  ];
+
+  /**
+   * Clear invented events left by an earlier deploy. The seed constant is gone,
+   * but rows it created would still be listed and still bookable — real money
+   * for a concert that was never scheduled. Bookings block the delete, and that
+   * is the case an operator most needs to hear about, so it is logged loudly.
+   */
+  async onModuleInit(): Promise<void> {
+    if (demoDataEnabled()) return;
+    const ids = EntertainmentService.RETIRED_SEED_EVENT_IDS;
+    const gone = await this.prisma.event.deleteMany({ where: { id: { in: ids } } }).catch(() => null);
+    if (gone === null) {
+      this.logger.warn(
+        `Could not remove retired seed events (${ids.join(', ')}) — a citizen has almost certainly booked one. Those tickets are for events that do not exist and need refunding.`,
+      );
+    }
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly financial: FinancialService, // ticket payments flow through the one city wallet

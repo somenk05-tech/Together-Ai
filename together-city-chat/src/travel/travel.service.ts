@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { demoDataEnabled, DEMO_DISABLED_REASON } from '../shared/demo-data';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { FinancialService } from '../financial/financial.service';
@@ -14,6 +15,8 @@ const code = () => 'TC-' + randomBytes(3).toString('hex').toUpperCase();
 
 @Injectable()
 export class TravelService implements OnModuleInit {
+  private readonly logger = new Logger('TravelService');
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly financial: FinancialService, // bookings pay through the one city wallet
@@ -71,11 +74,23 @@ export class TravelService implements OnModuleInit {
 
   flightSearch(dto: FlightSearchDto) {
     const input: SearchInput = { from: dto.from.toUpperCase(), to: dto.to.toUpperCase(), date: dto.date, pax: dto.pax, cabin: dto.cabin };
+    // searchFlights synthesises schedules and fares and attributes them to real
+    // carriers. Without a booking provider behind it, the honest answer is that
+    // there are no flights to show — not a plausible-looking list.
+    if (!demoDataEnabled()) {
+      return {
+        from: input.from, to: input.to, date: dto.date, pax: dto.pax, cabin: dto.cabin,
+        count: 0, flights: [], available: false, reason: DEMO_DISABLED_REASON,
+      };
+    }
     const { flights, from, to } = searchFlights(input);
-    return { from, to, date: dto.date, pax: dto.pax, cabin: dto.cabin, count: flights.length, flights };
+    return { from, to, date: dto.date, pax: dto.pax, cabin: dto.cabin, count: flights.length, flights, available: true };
   }
 
   async bookFlight(userId: string, dto: BookFlightDto) {
+    if (!demoDataEnabled()) {
+      throw new BadRequestException('Flight booking is not available — no airline provider is connected.');
+    }
     const input: SearchInput = { from: dto.from.toUpperCase(), to: dto.to.toUpperCase(), date: dto.date, pax: dto.pax, cabin: dto.cabin };
     const flight = findFlight(input, dto.flightId);
     if (!flight) throw new BadRequestException('flight no longer available — search again');
@@ -105,6 +120,20 @@ export class TravelService implements OnModuleInit {
   }
 
   private async ensureSeeds(): Promise<void> {
+    // PACKAGE_SEEDS are invented tours — full itineraries and three price tiers,
+    // bookable at up to ₹148,000 a head, with an emailed receipt. Off a demo
+    // deployment they must not exist, and any left by an earlier deploy go too.
+    if (!demoDataEnabled()) {
+      const ids = PACKAGE_SEEDS.map((s) => s.id);
+      const gone = await this.prisma.travelPackage.deleteMany({ where: { id: { in: ids } } })
+        .catch(() => null);
+      if (gone === null) {
+        this.logger.warn(
+          `Could not remove seeded travel packages (${ids.join(', ')}) — most likely a real booking references one. Resolve those bookings, then restart.`,
+        );
+      }
+      return;
+    }
     try { if ((await this.prisma.travelPackage.count()) > 0) return; } catch { return; }
     for (const s of PACKAGE_SEEDS) {
       const hue = CATEGORY_META[s.category]?.hue ?? 0;
