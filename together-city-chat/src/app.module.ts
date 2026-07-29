@@ -40,6 +40,7 @@ import { AiModule } from './ai/ai.module';
 import { HealthModule } from './health/health.module';
 import { AstrologyModule } from './astrology/astrology.module';
 import { PrivacyModule } from './privacy/privacy.module';
+import { ThoughtsModule } from './thoughts/thoughts.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { PrivacyModule } from './privacy/privacy.module';
     MailModule,
     CityModule,
     PrivacyModule,
+    ThoughtsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

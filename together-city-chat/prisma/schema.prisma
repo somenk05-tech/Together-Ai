@@ -160,6 +160,7 @@ model User {
   prescriptions        Prescription[]
   medicines            Medicine[]
   medicineSchedules    MedicineSchedule[]
+  thoughts             Thought[]
 
   @@index([onlineStatus])
 }
@@ -1861,4 +1862,36 @@ model DoseLog {
 
   @@unique([scheduleId, scheduledAtUtc])
   @@index([userId, scheduledAtUtc])
+}
+
+/// ────────────────────────────── Thoughts ──────────────────────────────
+/// A private journal. Not a post: nothing here reaches the social feed, no one
+/// else can read it, and it has no likes, comments or audience. The only thing
+/// it shares with a Post is that a person wrote it down.
+model Thought {
+  id     String  @id @default(uuid())
+  userId String
+  title  String?
+  body   String
+  /// A single word the citizen picks for how they felt. Free text on purpose —
+  /// a fixed list of moods tells people which feelings are allowed.
+  mood   String?
+  /// Comma-separated, matching how interests and diet tags are stored elsewhere
+  /// in this schema rather than introducing a second convention.
+  tags   String?
+  /// private — the only value today. The column exists so that sharing, if it is
+  /// ever built, is a migration of data rather than of meaning.
+  visibility String @default("private")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  /// Soft delete: a deleted thought leaves the citizen's lists immediately and
+  /// stays recoverable, because "I deleted the wrong one" is a thing people say
+  /// about a journal more than about almost anything else.
+  deletedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, deletedAt])
 }
