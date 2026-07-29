@@ -92,8 +92,8 @@ function InsightBadge({ insight, listingType }: { insight: PriceInsight; listing
 }
 
 const KIND_ICON: Record<string, string> = { metro: '🚇', school: '🏫', hospital: '🏥', mall: '🛍', market: '🛒' };
-function Neighbourhood({ points, score }: { points: NearbyPoint[]; score: number }) {
-  const band = score >= 80 ? 'Excellent' : score >= 65 ? 'Very good' : score >= 50 ? 'Good' : 'Fair';
+function Neighbourhood({ points, score, basis }: { points: NearbyPoint[]; score: number; basis?: string }) {
+  const band = score >= 80 ? 'Well served' : score >= 65 ? 'Good provision' : score >= 50 ? 'Some provision' : 'Sparse';
   return (
     <div className="card" style={{ marginTop: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -102,6 +102,8 @@ function Neighbourhood({ points, score }: { points: NearbyPoint[]; score: number
           <strong style={{ fontSize: 18, color: score >= 65 ? '#2e7d32' : '#e65100' }}>{score}</strong><span className="muted">/100 · {band}</span>
         </span>
       </div>
+      {/* What the number counted — otherwise it reads as a rating of the area. */}
+      {basis && <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, margin: '8px 0 0' }}>{basis}</p>}
       {points.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8, marginTop: 10 }}>
           {points.map((n) => (
@@ -203,7 +205,7 @@ export function PropertyDetail() {
       )}
 
       {/* Neighbourhood & livability */}
-      <Neighbourhood points={p.neighbourhood} score={p.livabilityScore} />
+      <Neighbourhood points={p.neighbourhood} score={p.livabilityScore} basis={p.livabilityBasis} />
 
       {uc && (
         <div className="card" style={{ marginTop: 14, borderLeft: '4px solid #e65100' }}>

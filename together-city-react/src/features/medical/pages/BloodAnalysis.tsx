@@ -308,6 +308,14 @@ export function BloodAnalysis() {
               </div>
             </div>
 
+            {/* A score with no stated basis is a claim. This says what the number
+                counts, so nobody reads it as a clinical index. */}
+            {sum.score != null && sum.scoreBasis && (
+              <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, marginTop: 10 }}>
+                <b style={{ fontWeight: 700 }}>What this number is:</b> {sum.scoreBasis}
+              </p>
+            )}
+
             {sum.interpretation.length > 0 && (
               <div style={{ marginTop: 16 }}>
                 <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>What your results may mean</div>

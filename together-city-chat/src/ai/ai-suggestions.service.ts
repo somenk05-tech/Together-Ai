@@ -90,18 +90,43 @@ export class AiSuggestionsService {
     const sign = sunSign(profile.birthDate);
     const compatible = COMPAT[sign] ?? [];
 
-    const fallback: Suggestion[] = compatible.map((c) => ({
-      title: `${sign} + ${c.sign}`,
-      detail: c.why,
-      tag: `${c.score}% match`,
-    }));
+    /**
+     * The pairings are traditional; the percentage was not.
+     *
+     * These numbers are hand-written in COMPAT above — 92 for Aries/Leo, 84 for
+     * Aries/Gemini — and rendering them as "92% match" told citizens a
+     * computation had happened. Nothing was computed, and there is nothing to
+     * compute: sun-sign compatibility is folk tradition, and a percentage claims
+     * a precision it cannot have. Two people deciding whether to meet deserve to
+     * know which of those they are reading.
+     *
+     * The ordering the numbers encode is real and worth keeping, so they still
+     * rank the list — they are just shown as strength of tradition rather than
+     * as a measurement.
+     */
+    const strengthOf = (score: number) => score >= 90 ? 'Classic pairing' : score >= 85 ? 'Strong pairing' : 'Easy pairing';
+
+    const fallback: Suggestion[] = [...compatible]
+      .sort((a, b) => b.score - a.score)
+      .map((c) => ({
+        title: `${sign} + ${c.sign}`,
+        detail: c.why,
+        tag: strengthOf(c.score),
+      }));
 
     const items = await this.ai.json<Suggestion[]>(
-      'You write fun, warm astrology dating compatibility content. Keep it light entertainment, never deterministic claims.',
-      `The user is a ${sign}. Write 4 compatibility notes for their most compatible signs — for each: which sign, a playful reason they click, and a rough match %. ` +
-        `Return JSON array of {"title","detail","tag"} (tag = "NN% match").`,
+      'You write warm, light astrology dating content. Entertainment, never a deterministic claim about anyone.',
+      `The user is a ${sign}. Write 4 compatibility notes for their most compatible signs — for each: which sign, and a playful reason they click. ` +
+        `Return JSON array of {"title","detail","tag"}. The tag MUST be exactly one of "Classic pairing", "Strong pairing" or "Easy pairing" — ` +
+        `never a percentage or any other number, because no percentage is being calculated here.`,
       fallback,
     );
+
+    // A model asked about compatibility will reach for a percentage anyway.
+    const TAGS = new Set(['Classic pairing', 'Strong pairing', 'Easy pairing']);
+    for (const [i, item] of items.entries()) {
+      if (!TAGS.has(item.tag ?? '')) item.tag = fallback[i]?.tag ?? 'Strong pairing';
+    }
 
     return {
       aiPowered: this.ai.enabled,

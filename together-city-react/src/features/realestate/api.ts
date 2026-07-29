@@ -33,6 +33,8 @@ export interface PropertyDetail extends PropertyCard {
   photos: Photo[]; floor: number | null; totalFloors: number | null; description: string | null;
   amenities: Amenity[]; reraId: string | null; floorPlans: FloorPlan[]; milestones: Milestone[];
   insight: PriceInsight; neighbourhood: NearbyPoint[]; livabilityScore: number;
+  /** What livabilityScore counted. Optional — older cached responses lack it. */
+  livabilityBasis?: string;
 }
 
 export interface PostPropertyInput {

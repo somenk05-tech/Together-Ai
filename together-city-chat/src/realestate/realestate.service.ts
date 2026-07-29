@@ -3,7 +3,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
 import { AdminService } from '../auth/admin';
 import { AiService } from '../ai/ai.service';
-import { AMENITY_LABEL, livabilityScore } from './realestate.constants';
+import { AMENITY_LABEL, livabilityScore, livabilityBasis } from './realestate.constants';
 import { ruleChecks, decide, normalizeDesc, type ListingInput, type ModerationResult } from './moderation';
 import type { PostPropertyDto, ListingQueryDto } from './dto/realestate.dto';
 
@@ -85,6 +85,7 @@ export class RealEstateService implements OnModuleInit {
       insight: await this.insightFor(p),
       neighbourhood,
       livabilityScore: livabilityScore(p.amenities, neighbourhood),
+      livabilityBasis: livabilityBasis(p.amenities, neighbourhood),
     };
   }
 

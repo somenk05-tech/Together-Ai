@@ -200,7 +200,7 @@ export function Records() {
               <div style={{ marginTop: 14, padding: '12px 14px', background: 'var(--accent-soft)', borderRadius: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   {summary.data.score != null && (
-                    <span style={{ fontSize: 20, fontWeight: 800 }}>{summary.data.score}<span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>/100 · {summary.data.band}</span></span>
+                    <span style={{ fontSize: 20, fontWeight: 800 }} title={summary.data.scoreBasis ?? undefined}>{summary.data.score}<span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>/100 · {summary.data.band}</span></span>
                   )}
                   <span className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em' }}>AI health summary</span>
                 </div>

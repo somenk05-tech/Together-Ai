@@ -30,6 +30,9 @@ export interface SupplementPlan {
 
 export interface HealthSummary {
   hasPanel: boolean; name: string; score: number | null; band: string | null;
+  /** What `score` is actually counting. Optional: analyses stored before v2
+   *  have no basis recorded, and a missing one must not blank the page. */
+  scoreBasis?: string | null;
   priorities: string[]; greeting: string; interpretation: string[]; relationships: string[];
   discuss: string[]; encouragement: string; aiEnabled: boolean;
   takenOn: string | null; lab: string | null; disclaimer: string;

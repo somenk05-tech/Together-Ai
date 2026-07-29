@@ -18,6 +18,7 @@ import {
 import type { SaveBloodTestDto } from './dto/medical.dto';
 import { BIOMARKER_SECTIONS, biomarkerDef } from './biomarker-catalog';
 import { parseReportText } from './report-parser';
+import { panelBand, panelScore, panelScoreBasis } from './panel-score';
 import { normalizeReportImage } from './image-normalize';
 
 const cite = (ids: string[]) => ids.map((id) => CITATIONS[id]).filter(Boolean);
@@ -30,6 +31,9 @@ interface StoredAnalysis {
   reportHash: string;
   analyzedAt: string;
   healthScore: number;
+  /** Plain-English statement of what healthScore actually counts. Shown to the
+   *  citizen next to the number — a score with no stated basis is a claim. */
+  scoreBasis: string;
   band: string;
   confidence: string;
   priorities: string[];
@@ -767,13 +771,13 @@ export class MedicalService implements OnModuleInit {
     const first = (user?.name ?? 'there').split(' ')[0];
     const test = await this.prisma.medicalBloodTest.findFirst({ where: { userId }, orderBy: { takenOn: 'desc' }, include: { biomarkers: true } });
     if (!test) {
-      return { hasPanel: false, name: first, score: null, band: null, priorities: [], greeting: `Dear ${first},`, interpretation: [], relationships: [], discuss: [], encouragement: '', aiEnabled: this.ai.enabled, takenOn: null, lab: null, disclaimer };
+      return { hasPanel: false, name: first, score: null, scoreBasis: null, band: null, priorities: [], greeting: `Dear ${first},`, interpretation: [], relationships: [], discuss: [], encouragement: '', aiEnabled: this.ai.enabled, takenOn: null, lab: null, disclaimer };
     }
     // Read the ONE stored analysis for this test at the current version (runs the
     // AI only if it doesn't exist yet — never on a plain page load).
     const a = await this.getOrCreateAnalysis(userId, test, user?.name ?? 'there');
     return {
-      hasPanel: true, name: first, score: a.healthScore, band: a.band, priorities: a.priorities,
+      hasPanel: true, name: first, score: a.healthScore, scoreBasis: a.scoreBasis, band: a.band, priorities: a.priorities,
       greeting: a.greeting, interpretation: a.interpretation, relationships: a.relationships,
       discuss: a.discuss, encouragement: a.encouragement,
       aiEnabled: this.ai.enabled, analysisVersion: a.analysisVersion,
@@ -783,7 +787,13 @@ export class MedicalService implements OnModuleInit {
 
   /** Bump when the medical prompt or model changes → forces one re-analysis and
    *  a new stored version, keeping older versions for history. */
-  private static readonly ANALYSIS_VERSION = 'v1';
+  /**
+   * Bumped whenever the analysis CHANGES, because results are stored and served
+   * back rather than recomputed. v2: the health score became a weighted share of
+   * in-range markers instead of a count of abnormal ones, so every v1 score was
+   * computed on a scale that punished thorough panels.
+   */
+  private static readonly ANALYSIS_VERSION = 'v2';
 
   /** SHA-256 of the biomarker values — identical reports produce the same hash,
    *  so a re-upload of the same data reuses an existing analysis. */
@@ -847,17 +857,18 @@ export class MedicalService implements OnModuleInit {
     const alerts = criticalAlerts(values);
     const conditions = triggeredConditions(flags).map((c) => ({ key: c.key, name: c.name }));
 
-    let score = 100 - abnormal.length * 8;
-    for (const al of alerts) score -= al.urgent ? 18 : 12;
-    score = Math.max(5, Math.min(100, Math.round(score)));
-    const band = score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 55 ? 'Fair' : 'Needs attention';
-
     const PRI: Record<string, { label: string; w: number }> = {
       hb: { label: 'Address low hemoglobin', w: 9 }, hba1c: { label: 'Optimise blood sugar control', w: 9 },
       trig: { label: 'Lower triglycerides', w: 8 }, ldl: { label: 'Lower LDL cholesterol', w: 7 },
       crp: { label: 'Reduce inflammation', w: 7 }, ferritin: { label: 'Rebuild iron stores', w: 6 },
       b12: { label: 'Correct low B12', w: 5 }, folate: { label: 'Increase folate', w: 5 }, vitd: { label: 'Improve vitamin D status', w: 4 },
     };
+
+    // The score, its band and its stated basis all live in panel-score.ts —
+    // pure, testable, and documented there rather than buried in this method.
+    const score = panelScore(markers, alerts);
+    const band = panelBand(score);
+    const scoreBasis = panelScoreBasis(markers, alerts);
     const priorities = abnormal
       .map((m) => ({ label: PRI[m.key]?.label ?? `Review ${m.label}`, w: (PRI[m.key]?.w ?? 3) + (m.status === 'high' ? 1 : 0) }))
       .sort((a, b) => b.w - a.w).slice(0, 5).map((p) => p.label);
@@ -876,7 +887,7 @@ export class MedicalService implements OnModuleInit {
       + markers.map((m) => `- ${m.label}: ${m.value} ${m.unit} (ref ${m.range}) → ${m.status.toUpperCase()}`).join('\n')
       + (alerts.length ? `\nCritical alerts: ${alerts.map((al) => `${al.label} ${al.value}`).join('; ')}` : '')
       + (conditions.length ? `\nCondition patterns detected: ${conditions.map((c) => c.name).join(', ')}` : '')
-      + `\nComputed overall score: ${score}/100 (${band}).`;
+      + `\nSummary figure for this panel: ${score}/100 (${band}) — the weighted share of markers in range. Do not describe it as a health score or an overall measure of health.`;
     const ai = await this.ai.clinicalInterpretation(prompt, fullName);
 
     const interpretation = ai.interpretation.length
@@ -893,7 +904,7 @@ export class MedicalService implements OnModuleInit {
       model: this.ai.enabled ? this.ai.bloodModelId : 'deterministic',
       reportHash: hash,
       analyzedAt: new Date().toISOString(),
-      healthScore: score, band, confidence: alerts.length ? 'Review with a doctor' : abnormal.length ? 'High' : 'High',
+      healthScore: score, scoreBasis, band, confidence: alerts.length ? 'Review with a doctor' : abnormal.length ? 'High' : 'High',
       priorities, markers, conditions, mealRestrictions,
       greeting: ai.greeting || `Dear ${first},`,
       interpretation, relationships: ai.relationships,
