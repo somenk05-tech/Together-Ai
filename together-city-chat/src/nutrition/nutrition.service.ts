@@ -6215,13 +6215,17 @@ export class NutritionService implements OnModuleInit {
 
     const total = cart.items.reduce((s, i) => s + i.priceInr, 0);
     // Unified payment: charge the one city wallet via the Financial hub.
-    await this.financial.charge(userId, { hub: 'Nutrition', category: 'nutrition', label: 'Grocery & meal order', amountInr: total, method });
-
     const freshTotal = cart.items.filter((i) => i.category === 'fresh').reduce((s, i) => s + i.priceInr, 0);
     const perDay = Math.round(freshTotal / 7);
     const today = new Date();
 
-    const order = await this.prisma.nutritionOrder.create({
+    // Charge and order in one transaction. The order carries its line items and
+    // seven delivery rows as nested writes, so a failure part-way used to be
+    // able to leave the wallet debited against nothing at all.
+    const order = await this.financial.paid(
+      userId,
+      { hub: 'Nutrition', category: 'nutrition', label: 'Grocery & meal order', amountInr: total, method },
+      (tx) => tx.nutritionOrder.create({
       data: {
         userId,
         totalInr: total,
@@ -6237,8 +6241,11 @@ export class NutritionService implements OnModuleInit {
         },
       },
       include: { items: true, deliveries: { orderBy: { dayIndex: 'asc' } } },
-    });
-    // Ordered groceries flow into the shared household pantry.
+      }),
+    );
+    // Pantry stocking stays outside the transaction: it's a best-effort side
+    // effect that already swallows its own errors, and it must never be the
+    // reason a paid-for order rolls back.
     await this.stockPantryFromItems(userId, cart.items.map((i) => ({ name: i.name, grams: (i as { grams?: number }).grams ?? 0 }))).catch(() => undefined);
     return this.shapeOrder(order);
   }

@@ -1020,15 +1020,26 @@ export class MedicalService implements OnModuleInit {
       create: { userOneId, userTwoId, connectionType: 'DOCTOR_PATIENT', status: 'ACCEPTED', requestedById: userId },
     });
     // Unified payment: charge the consult fee to the one city wallet.
-    await this.financial.charge(userId, { hub: 'Medical', category: 'medical', label: `Consult — ${doctor.specialty.split(' ·')[0]}`, amountInr: doctor.priceInr, method: dto.method });
+    // The conversation is opened BEFORE the charge, deliberately. startDirect is
+    // get-or-create and lives in another service that isn't transaction-aware,
+    // so it can't run inside the transaction — and of the two orderings, a
+    // conversation with no consult is a harmless empty chat, whereas a charge
+    // with no consult is a citizen billed for care they can't reach.
     const conversation = await this.conversations.startDirect(userId, doctor.userId);
-    const consult = await this.prisma.consult.create({
-      data: {
-        userId, doctorId: doctor.id, reason: dto.reason ?? null,
-        scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null, conversationId: conversation.id,
+    const consultId = await this.financial.paid<string>(
+      userId,
+      { hub: 'Medical', category: 'medical', label: `Consult — ${doctor.specialty.split(' ·')[0]}`, amountInr: doctor.priceInr, method: dto.method },
+      async (tx) => {
+        const created = await tx.consult.create({
+          data: {
+            userId, doctorId: doctor.id, reason: dto.reason ?? null,
+            scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null, conversationId: conversation.id,
+          },
+        });
+        return created.id;
       },
-    });
-    return { consultId: consult.id, conversationId: conversation.id };
+    );
+    return { consultId, conversationId: conversation.id };
   }
 
   // ─────────────── consent core ───────────────

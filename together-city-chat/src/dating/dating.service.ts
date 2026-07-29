@@ -798,17 +798,31 @@ export class DatingService {
     // First 3 connections free, then the rate-card price.
     const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
     const count = (mine as { connectCount?: number } | null)?.connectCount ?? 0;
+    // Anonymous conversation (trust level 1 → the other person is a pseudonym).
+    // Opened before the charge: getOrCreateDirectByIds isn't transaction-aware,
+    // and an unused anonymous chat is a far smaller problem than taking ₹199 and
+    // not opening one.
+    const conversationId = await this.conversations.getOrCreateDirectByIds(userId, targetUserId, 1);
+
     let chargedInr = 0;
     if (count >= 3) {
       const amountInr = this.financial.rate('datingChatUnlock');
-      await this.financial.charge(userId, { hub: 'Dating', category: 'dating', label: 'Connect to chat — new match', amountInr, method });
+      // Charge, link the match to the chat, and bump the connect count together —
+      // the count is what decides whether the NEXT connect is free, so a charge
+      // that landed without it would quietly give away a paid unlock.
+      await this.financial.paid(
+        userId,
+        { hub: 'Dating', category: 'dating', label: 'Connect to chat — new match', amountInr, method },
+        async (tx) => {
+          await tx.datingMatch.update({ where: { id: state.id }, data: { conversationId } });
+          await tx.datingProfile.update({ where: { userId }, data: { connectCount: count + 1 } as never });
+        },
+      );
       chargedInr = amountInr;
+    } else {
+      await this.prisma.datingMatch.update({ where: { id: state.id }, data: { conversationId } });
+      await this.prisma.datingProfile.update({ where: { userId }, data: { connectCount: count + 1 } as never }).catch(() => undefined);
     }
-
-    // Anonymous conversation (trust level 1 → the other person is a pseudonym).
-    const conversationId = await this.conversations.getOrCreateDirectByIds(userId, targetUserId, 1);
-    await this.prisma.datingMatch.update({ where: { id: state.id }, data: { conversationId } });
-    await this.prisma.datingProfile.update({ where: { userId }, data: { connectCount: count + 1 } as never }).catch(() => undefined);
 
     void this.notifications.create({
       userId: targetUserId, actorId: userId, kind: 'dating_match',
