@@ -7,7 +7,7 @@ import {
   PrescriptionExtractor, needsReview, type ExtractedItem,
 } from './prescription-extractor';
 import type {
-  ConfirmPrescriptionDto, DoseActionDto, LogsQueryDto, ReviewItemDto, UploadPrescriptionDto,
+  AddItemDto, ConfirmPrescriptionDto, DoseActionDto, LogsQueryDto, ReviewItemDto, UploadPrescriptionDto,
 } from './dto/prescriptions.dto';
 
 /** How far ahead reminders are materialised. The nightly job keeps this topped up. */
@@ -175,6 +175,59 @@ export class PrescriptionsService {
   }
 
   // ─────────────────────────────── review ───────────────────────────────
+
+  /**
+   * Add a line by hand.
+   *
+   * Not an edge case — it is the MAIN path while no OCR provider is configured,
+   * since the default extractor deliberately reads nothing. Without this a
+   * citizen could upload a prescription, receive an empty review, and never be
+   * able to confirm it.
+   *
+   * Everything typed here is certain by definition, so the line does not need
+   * review: a person read the paper.
+   */
+  async addItem(userId: string, prescriptionId: string, dto: AddItemDto) {
+    const owned = await this.prisma.prescription.findFirst({
+      where: { id: prescriptionId, userId },
+      select: { id: true, status: true },
+    });
+    if (!owned) throw new NotFoundException('No such prescription.');
+    if (owned.status === 'confirmed') {
+      throw new BadRequestException('This prescription is already confirmed. Start a new one to add a medicine.');
+    }
+
+    const times = dto.timesLocal?.length ? normaliseTimes(dto.timesLocal) : timesFromFrequency(dto.frequency);
+    await this.prisma.prescriptionItem.create({
+      data: {
+        prescriptionId,
+        medicineName: dto.medicineName,
+        dosage: dto.dosage,
+        frequency: dto.frequency,
+        durationDays: dto.durationDays ?? null,
+        instructions: dto.instructions ?? null,
+        timesLocal: times.length ? JSON.stringify(times) : null,
+        confidence: JSON.stringify({ medicineName: 1, dosage: 1, frequency: 1 }),
+        needsReview: false,
+      },
+    });
+
+    // An upload that failed to read becomes reviewable again once a human adds
+    // a line to it.
+    if (owned.status === 'failed') {
+      await this.prisma.prescription.update({ where: { id: prescriptionId }, data: { status: 'review_required', error: null } });
+    }
+    return this.get(userId, prescriptionId);
+  }
+
+  /** Remove a line before confirming — a misread the citizen would rather drop. */
+  async removeItem(userId: string, prescriptionId: string, itemId: string) {
+    const owned = await this.prisma.prescription.findFirst({ where: { id: prescriptionId, userId }, select: { id: true } });
+    if (!owned) throw new NotFoundException('No such prescription.');
+    const res = await this.prisma.prescriptionItem.deleteMany({ where: { id: itemId, prescriptionId } });
+    if (res.count === 0) throw new NotFoundException('No such prescription item.');
+    return this.get(userId, prescriptionId);
+  }
 
   /** Correct one extracted line. What the citizen types is taken as certain. */
   async reviewItem(userId: string, prescriptionId: string, itemId: string, dto: ReviewItemDto) {

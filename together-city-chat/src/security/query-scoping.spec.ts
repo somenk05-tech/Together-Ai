@@ -79,6 +79,10 @@ const REVIEWED_UNSCOPED = [
   'nutrition/nutrition.service.ts  MealPlan.findUnique x6',
   'nutrition/nutrition.service.ts  MealPlan.update x3',
   'nutrition/nutrition.service.ts  NutritionOrder.update x1',
+  // upload(), addItem() and confirm() write by an id either created in the same
+  // call or read a line earlier via findFirst({ id, userId }). Request-path, so
+  // it counts against the size budget below — unlike the cron queries.
+  'prescriptions/prescriptions.service.ts  Prescription.update x4',
   'restaurants/restaurants.service.ts  DiningOrder.groupBy x1',
   'restaurants/restaurants.service.ts  Reservation.groupBy x1',
   'social/social.service.ts  Like.count x1',
@@ -111,9 +115,6 @@ const BACKGROUND_JOB_QUERIES = [
   'prescriptions/prescriptions.service.ts  MedicineSchedule.findUnique x1',
   // markMissed() — checks whether a dose already has a log before writing one.
   'prescriptions/prescriptions.service.ts  DoseLog.findUnique x1',
-  // upload() and confirm() write by an id created in the same call, or read a
-  // line earlier via findFirst({ id, userId }).
-  'prescriptions/prescriptions.service.ts  Prescription.update x3',
 ].sort();
 
 const ALL_REVIEWED = [...REVIEWED_UNSCOPED, ...BACKGROUND_JOB_QUERIES].sort();

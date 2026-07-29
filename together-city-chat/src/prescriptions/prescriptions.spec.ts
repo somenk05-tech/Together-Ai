@@ -104,3 +104,66 @@ describe('confirming a prescription', () => {
     await expect(svc.confirm('me', 'p1', {})).rejects.toThrow(/dose times/i);
   });
 });
+
+describe('adding a line by hand', () => {
+  // The main path while no OCR is configured: the default extractor reads
+  // nothing, so without this a citizen could upload a prescription, get an
+  // empty review, and never be able to confirm it.
+  function serviceWith(prescription: Record<string, unknown> | null) {
+    const { PrescriptionsService } = require('./prescriptions.service') as typeof import('./prescriptions.service');
+    const created: Array<Record<string, unknown>> = [];
+    const prisma = {
+      prescription: {
+        findFirst: jest.fn(async () => prescription),
+        update: jest.fn(async () => ({})),
+      },
+      prescriptionItem: {
+        create: jest.fn(async ({ data }: any) => { created.push(data); return data; }),
+        deleteMany: jest.fn(async () => ({ count: 1 })),
+      },
+    };
+    const svc = new PrescriptionsService(prisma as never, {} as never, {} as never, {} as never);
+    (svc as unknown as { get: () => Promise<unknown> }).get = jest.fn(async () => ({ ok: true }));
+    return { svc, created, prisma };
+  }
+
+  it('marks a typed line as needing no review — a person read the paper', async () => {
+    const { svc, created } = serviceWith({ id: 'p1', status: 'review_required' });
+    await svc.addItem('me', 'p1', { medicineName: 'Metformin', dosage: '500mg', frequency: '1-0-1' });
+    expect(created[0].needsReview).toBe(false);
+    expect(JSON.parse(created[0].confidence as string)).toEqual({ medicineName: 1, dosage: 1, frequency: 1 });
+  });
+
+  it('derives dose times from the frequency when none were given', async () => {
+    const { svc, created } = serviceWith({ id: 'p1', status: 'review_required' });
+    await svc.addItem('me', 'p1', { medicineName: 'Metformin', dosage: '500mg', frequency: '1-0-1' });
+    expect(JSON.parse(created[0].timesLocal as string)).toEqual(['09:00', '21:00']);
+  });
+
+  it('prefers the times the citizen typed over the frequency', async () => {
+    const { svc, created } = serviceWith({ id: 'p1', status: 'review_required' });
+    await svc.addItem('me', 'p1', { medicineName: 'X', dosage: '1 tab', frequency: '1-0-1', timesLocal: ['07:30'] });
+    expect(JSON.parse(created[0].timesLocal as string)).toEqual(['07:30']);
+  });
+
+  it('reopens a failed upload once a human adds a line to it', async () => {
+    const { svc, prisma } = serviceWith({ id: 'p1', status: 'failed' });
+    await svc.addItem('me', 'p1', { medicineName: 'X', dosage: '1 tab', frequency: 'daily' });
+    expect(prisma.prescription.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: 'review_required', error: null } }),
+    );
+  });
+
+  it('refuses to add to an already-confirmed prescription', async () => {
+    // Its schedules and alarms already exist; a new line would not reach them.
+    const { svc } = serviceWith({ id: 'p1', status: 'confirmed' });
+    await expect(svc.addItem('me', 'p1', { medicineName: 'X', dosage: '1', frequency: 'daily' }))
+      .rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('refuses to touch a prescription that is not yours', async () => {
+    const { svc, created } = serviceWith(null);
+    await expect(svc.addItem('me', 'p1', { medicineName: 'X', dosage: '1', frequency: 'daily' })).rejects.toThrow();
+    expect(created).toEqual([]);
+  });
+});

@@ -1,12 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { PrescriptionsService } from './prescriptions.service';
 import {
-  ConfirmPrescriptionSchema, DoseActionSchema, LogsQuerySchema, ReviewItemSchema, UploadPrescriptionSchema,
-  type ConfirmPrescriptionDto, type DoseActionDto, type LogsQueryDto, type ReviewItemDto, type UploadPrescriptionDto,
+  AddItemSchema, ConfirmPrescriptionSchema, DoseActionSchema, LogsQuerySchema, ReviewItemSchema, UploadPrescriptionSchema,
+  type AddItemDto, type ConfirmPrescriptionDto, type DoseActionDto, type LogsQueryDto, type ReviewItemDto, type UploadPrescriptionDto,
 } from './dto/prescriptions.dto';
 
 @Controller('prescriptions')
@@ -29,6 +29,18 @@ export class PrescriptionsController {
   @Get(':id')
   get(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.prescriptions.get(user.sub, id);
+  }
+
+  /** Add a line by hand — the main path while no OCR provider is configured. */
+  @Post(':id/items')
+  @UsePipes(new ZodValidationPipe(AddItemSchema))
+  addItem(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: AddItemDto) {
+    return this.prescriptions.addItem(user.sub, id, dto);
+  }
+
+  @Delete(':id/items/:itemId')
+  removeItem(@CurrentUser() user: JwtUser, @Param('id') id: string, @Param('itemId') itemId: string) {
+    return this.prescriptions.removeItem(user.sub, id, itemId);
   }
 
   /** Correct one extracted line before it can become a schedule. */

@@ -19,6 +19,16 @@ export const ReviewItemSchema = z.object({
   timesLocal: Times.optional(),
 }).strict();
 
+/** A line the citizen types themselves — from an unreadable photo, or no photo. */
+export const AddItemSchema = z.object({
+  medicineName: z.string().trim().min(1).max(120),
+  dosage: z.string().trim().min(1).max(80),
+  frequency: z.string().trim().min(1).max(80),
+  durationDays: z.number().int().min(1).max(365).optional(),
+  instructions: z.string().trim().max(500).optional(),
+  timesLocal: Times.optional(),
+}).strict();
+
 export const ConfirmPrescriptionSchema = z.object({
   /** IANA zone the schedules run in. Falls back to the citizen's saved zone. */
   timezone: z.string().max(64).optional(),
@@ -41,6 +51,7 @@ export const LogsQuerySchema = z.object({
 }).strict();
 
 export type UploadPrescriptionDto = z.infer<typeof UploadPrescriptionSchema>;
+export type AddItemDto = z.infer<typeof AddItemSchema>;
 export type ReviewItemDto = z.infer<typeof ReviewItemSchema>;
 export type ConfirmPrescriptionDto = z.infer<typeof ConfirmPrescriptionSchema>;
 export type DoseActionDto = z.infer<typeof DoseActionSchema>;
