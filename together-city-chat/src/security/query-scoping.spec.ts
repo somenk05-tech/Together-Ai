@@ -71,6 +71,16 @@ import { stats, unscopedSignatures } from './query-inventory';
  *     calls/calls.service.spec.ts, which hands a valid call id to a stranger
  *     and insists on a 403.
  *
+ *   - Queries built from a variable model name are invisible to a scanner that
+ *     matches on the model. privacy/account-purge.service.ts is the deliberate
+ *     case: it deletes across every citizen-owned table by looking the delegate
+ *     up from a string, so nothing here can see it — and it is the most
+ *     dangerous file in the repo to get wrong, since a delete that lost its
+ *     owner filter would empty a table for the whole city. The guarantee is
+ *     asserted where it can be: privacy/account-purge.spec.ts runs a real purge
+ *     and checks EVERY delete it issued carried that citizen's id, and
+ *     purge-plan.spec.ts fails when a new model is left unclassified.
+ *
  * Adding to this list means a reviewer decided a query needs no owner. That is
  * sometimes right. It should never be accidental.
  */

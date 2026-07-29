@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { AccountPurgeService } from '../privacy/account-purge.service';
 
 /** How long a spent or expired credential is kept before it is swept. */
 const GRACE_DAYS = 7;
@@ -28,7 +29,38 @@ const GRACE_DAYS = 7;
 export class RetentionService {
   private readonly logger = new Logger('RetentionService');
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly purge: AccountPurgeService,
+  ) {}
+
+  /**
+   * Destroy the data of accounts deleted more than thirty days ago.
+   *
+   * Runs an hour after the credential sweep rather than beside it, so the two
+   * jobs never contend and so a night's log reads in the order things happened.
+   * Everything it deletes is decided in src/privacy/purge-plan.ts.
+   *
+   * Errors are caught here for the same reason they are caught below: a purge
+   * that throws must not take down the process that is also sending medicine
+   * reminders. Anything that failed is already logged by name.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_4AM)
+  async purgeDeletedAccounts(): Promise<void> {
+    try {
+      const reports = await this.purge.sweep();
+      if (!reports.length) return;
+      const rows = reports.reduce((n, r) => n + r.rowsDeleted, 0);
+      const files = reports.reduce((n, r) => n + r.objectsDeleted, 0);
+      const incomplete = reports.filter((r) => r.stuck.length).length;
+      this.logger.log(
+        `account purge: ${reports.length} account(s), ${rows} rows, ${files} files` +
+          (incomplete ? `, ${incomplete} INCOMPLETE — see errors above` : ''),
+      );
+    } catch (e) {
+      this.logger.error(`account purge failed: ${(e as Error).message}`);
+    }
+  }
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async sweepExpiredCredentials(): Promise<void> {

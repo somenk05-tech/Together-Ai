@@ -4,6 +4,7 @@ import { RetentionService } from './retention.service';
 import { MedicineRemindersService } from './medicine-reminders.service';
 import { PrescriptionsModule } from '../prescriptions/prescriptions.module';
 import { CallsModule } from '../calls/calls.module';
+import { PrivacyModule } from '../privacy/privacy.module';
 import { StaleCallsService } from './stale-calls.service';
 
 /**
@@ -15,7 +16,7 @@ import { StaleCallsService } from './stale-calls.service';
  * leaving state half-finished.
  */
 @Module({
-  imports: [ScheduleModule.forRoot(), PrescriptionsModule, CallsModule],
+  imports: [ScheduleModule.forRoot(), PrescriptionsModule, CallsModule, PrivacyModule],
   providers: [RetentionService, MedicineRemindersService, StaleCallsService],
 })
 export class TasksModule {}

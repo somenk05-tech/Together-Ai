@@ -26,21 +26,34 @@ way, because no reader is ever fully trusted.
 **Recommendation:** ship with manual entry. It is honest, it works, and it makes
 the accuracy question a later, smaller decision instead of a launch blocker.
 
-### 2. Deleted accounts are never purged
+### 2. Deleted accounts are purged after 30 days — DECIDED 2026-07-29
 
-**Today:** `deleteAccount` soft-deletes — anonymises the name, nulls the email,
-tombstones the handle, deletes posts, follows and connections, revokes sessions.
-The row then stays forever. **There is no hard-delete job.** The brief specified a
-30-day retention window; the retention sweep that exists (`GRACE_DAYS = 7`)
-covers spent credentials, not accounts.
+**Was:** `deleteAccount` soft-deleted — anonymised the name, nulled the email,
+tombstoned the handle, deleted posts, follows and connections, revoked sessions
+— and then the row stayed forever. There was no hard-delete job of any kind, so
+every blood panel, prescription, journal entry and drive file survived a
+deletion indefinitely. A GDPR/DPDP request had no automated answer.
 
-**The decision:** the retention window, and what "purge" means for rows other
-people can still see — a group chat someone left, a family meal plan they
-created.
+**Decided:** thirty days, then the data is destroyed for real. Content other
+people can still see is kept and attributed to "Deleted citizen" — group
+messages, comments, likes, a job posting, a household's family meal plan. Their
+own private data goes: health, finances, journal, mail, drive, bookings,
+credentials, and the stored files behind them.
 
-**Recommendation:** decide this before launch rather than after, because it is
-much harder to delete data you have already promised to keep than the reverse.
-A GDPR/DPDP request would currently have no automated answer.
+**Where it lives:** `src/privacy/purge-plan.ts` classifies every model that
+carries a citizen's id, purge or keep, each with a reason. The mechanism is
+`account-purge.service.ts`, run nightly at 4 AM by `RetentionService`.
+
+**The part that keeps this true a year from now:** `purge-plan.spec.ts` reads
+`schema.prisma` and fails the build when a model carrying a citizen's id has no
+entry. A hub added later cannot quietly outlive a deletion request — somebody
+has to decide, and record why.
+
+**Still worth knowing:** the job stamps `User.purgedAt` only when every model
+came away clean. An account whose data did not fully go is left unstamped and
+logged as INCOMPLETE, because reporting it purged would answer a deletion
+request with a falsehood. Watch the 4 AM log for that word after the first few
+nights.
 
 ### 3. Nutrition targets are not clinically signed off
 

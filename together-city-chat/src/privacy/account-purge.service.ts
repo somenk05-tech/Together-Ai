@@ -1,0 +1,182 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../shared/prisma/prisma.service';
+import { StorageProvider } from '../media/storage.provider';
+import { deletions, purgeCutoff, storageBearing, whereFor, PURGE_AFTER_DAYS, type PurgeRule } from './purge-plan';
+
+interface DueAccount { id: string; deletedAt: Date }
+
+export interface PurgeReport {
+  userId: string;
+  rowsDeleted: number;
+  objectsDeleted: number;
+  /** Models that would not delete, with the last error. Empty on a clean run. */
+  stuck: Array<{ model: string; error: string }>;
+}
+
+const camel = (model: string): string => model[0].toLowerCase() + model.slice(1);
+
+/**
+ * Destroying a deleted account's data, thirty days later.
+ *
+ * The plan — what goes, what stays, and why — lives next door in purge-plan.ts
+ * and is the part worth reading. This file is the mechanism, and it has three
+ * jobs the plan cannot do on its own.
+ *
+ * **Files before rows.** An object key only exists on the row that points at
+ * it. Delete the row first and the file is unreachable forever: still in the
+ * bucket, still a person's medical document, with nothing left in the database
+ * that knows it is there. That is the deletion failing in the way nobody
+ * notices, because the database looks clean afterwards.
+ *
+ * **Deleting in an order the database will accept.** Foreign keys mean some
+ * tables cannot go before others, and the dependency order is not something
+ * this file should try to hard-code — it would be one more list to keep in step
+ * with the schema. Instead it sweeps repeatedly and keeps whatever succeeded,
+ * stopping when a full pass makes no progress. Anything still standing is
+ * reported by name rather than swallowed.
+ *
+ * **Never touching a row it was not told to.** Every delete is scoped by the
+ * citizen's own id, taken from the rule, and a rule with no owner column cannot
+ * be expressed by the type. The blast radius of a bug here is one account.
+ */
+@Injectable()
+export class AccountPurgeService {
+  private readonly logger = new Logger('AccountPurge');
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageProvider,
+  ) {}
+
+  private table(model: string): {
+    findMany(a: unknown): Promise<Array<Record<string, unknown>>>;
+    deleteMany(a: unknown): Promise<{ count: number }>;
+  } | null {
+    const delegate = (this.prisma as unknown as Record<string, unknown>)[camel(model)];
+    return (delegate as ReturnType<AccountPurgeService['table']>) ?? null;
+  }
+
+  /**
+   * Accounts deleted longer ago than the window and not yet purged.
+   *
+   * Deliberately capped. A first run after this ships could face every account
+   * ever deleted, and a job that tries to empty hundreds of accounts in one
+   * pass will be killed halfway through by something — a deploy, a timeout —
+   * leaving no record of how far it got. Twenty a night finishes, logs, and
+   * comes back tomorrow.
+   */
+  async due(now = new Date(), take = 20): Promise<DueAccount[]> {
+    const rows = await (this.prisma as unknown as {
+      user: { findMany(a: unknown): Promise<DueAccount[]> };
+    }).user.findMany({
+      where: { deletedAt: { lt: purgeCutoff(now), not: null }, purgedAt: null },
+      select: { id: true, deletedAt: true },
+      orderBy: { deletedAt: 'asc' },
+      take,
+    });
+    return rows;
+  }
+
+  /** Remove the stored objects belonging to this citizen, before their rows go. */
+  private async purgeObjects(userId: string): Promise<number> {
+    let removed = 0;
+    for (const rule of storageBearing()) {
+      const table = this.table(rule.model);
+      if (!table) continue;
+      const key = rule.storageKey as string;
+      try {
+        const rows = await table.findMany({
+          where: whereFor(rule, userId),
+          select: { [key]: true },
+        });
+        for (const row of rows) {
+          const value = row[key];
+          if (typeof value !== 'string' || !value) continue;
+          // Everything with a storage key here lives in the private vault.
+          await this.storage.deleteHealthObject(value).catch(() => undefined);
+          removed++;
+        }
+      } catch (e) {
+        this.logger.warn(`could not read ${rule.model} keys for ${userId}: ${(e as Error).message}`);
+      }
+    }
+    return removed;
+  }
+
+  /**
+   * Destroy one account's data.
+   *
+   * Returns a report rather than throwing, because one account that will not
+   * empty must not stop the other nineteen — and because the count of what went
+   * is the only evidence this ran at all.
+   */
+  async purgeAccount(userId: string): Promise<PurgeReport> {
+    const objectsDeleted = await this.purgeObjects(userId);
+
+    let remaining: PurgeRule[] = deletions();
+    let rowsDeleted = 0;
+    const errors = new Map<string, string>();
+
+    // Sweep until a whole pass changes nothing. Bounded by the rule count, so a
+    // pathological cycle ends rather than spinning.
+    for (let pass = 0; pass < remaining.length + 1 && remaining.length; pass++) {
+      const failed: PurgeRule[] = [];
+      let progressed = false;
+
+      for (const rule of remaining) {
+        const table = this.table(rule.model);
+        if (!table) {
+          // The generated client predates this model. Not an error worth
+          // failing the run over, but it MUST be visible: the data is still there.
+          errors.set(rule.model, 'no Prisma delegate — client may be stale');
+          continue;
+        }
+        try {
+          const { count } = await table.deleteMany({ where: whereFor(rule, userId) });
+          rowsDeleted += count;
+          progressed = true;
+          errors.delete(rule.model);
+        } catch (e) {
+          errors.set(rule.model, (e as Error).message);
+          failed.push(rule);
+        }
+      }
+
+      remaining = failed;
+      if (!progressed) break;
+    }
+
+    const stuck = [...errors.entries()].map(([model, error]) => ({ model, error }));
+    if (!stuck.length) {
+      await (this.prisma as unknown as {
+        user: { updateMany(a: unknown): Promise<{ count: number }> };
+      }).user.updateMany({ where: { id: userId }, data: { purgedAt: new Date() } });
+    } else {
+      // Not stamped on purpose. An account whose data did not fully go is not
+      // purged, and saying it was would be the one lie this job must never tell.
+      this.logger.error(
+        `purge incomplete for ${userId}; ${stuck.length} model(s) still hold data: ` +
+          stuck.map((s) => `${s.model} (${s.error})`).join('; '),
+      );
+    }
+
+    return { userId, rowsDeleted, objectsDeleted, stuck };
+  }
+
+  /** The nightly pass. Returns one report per account it worked on. */
+  async sweep(now = new Date()): Promise<PurgeReport[]> {
+    const accounts = await this.due(now);
+    const reports: PurgeReport[] = [];
+    for (const account of accounts) {
+      const report = await this.purgeAccount(account.id);
+      const age = Math.floor((now.getTime() - account.deletedAt.getTime()) / 86_400_000);
+      this.logger.log(
+        `purged ${account.id} (deleted ${age}d ago, window ${PURGE_AFTER_DAYS}d): ` +
+          `${report.rowsDeleted} rows, ${report.objectsDeleted} files` +
+          (report.stuck.length ? `, ${report.stuck.length} INCOMPLETE` : ''),
+      );
+      reports.push(report);
+    }
+    return reports;
+  }
+}

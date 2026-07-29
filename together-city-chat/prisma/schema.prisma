@@ -94,6 +94,9 @@ model User {
   // deleting would corrupt their conversations. Once set, the account can't
   // log in and is excluded from search, profiles, feeds and matching.
   deletedAt    DateTime?
+  /// When this account's data was actually destroyed (30 days after deletedAt).
+  /// Null means the purge has not run for them yet. See src/privacy/purge-plan.ts.
+  purgedAt  DateTime?
 
   connectionsInitiated Connection[]         @relation("ConnectionUserOne")
   connectionsReceived  Connection[]         @relation("ConnectionUserTwo")
