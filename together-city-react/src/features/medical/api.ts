@@ -107,6 +107,7 @@ export const medicalApi = {
   extractBlood: (input: { fileKey: string; mimeType: string; sizeBytes: number; title?: string }) =>
     api.post<ExtractResult>('/medical/blood-tests/extract', input, { timeout: 180000 }).then((r) => r.data),
   recordFile: (id: string) => api.get<{ url: string | null; expiresInSec: number }>(`/medical/records/${id}/file`).then((r) => r.data),
+  deleteBloodTest: (id: string) => api.delete<{ ok: true }>(`/medical/blood-tests/${id}`).then((r) => r.data),
 };
 
 export function useStorageUsage() {
@@ -116,7 +117,25 @@ export function useDeleteRecord() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => medicalApi.deleteRecord(id),
-    onSuccess: (recs) => { qc.setQueryData(['medical', 'records'], recs); void qc.invalidateQueries({ queryKey: ['medical', 'storage'] }); },
+    onSuccess: (recs) => {
+      qc.setQueryData(['medical', 'records'], recs);
+      // Deleting a report can delete the blood panel it produced, so every
+      // surface that reads a panel has to be refetched — not just the record
+      // list and the storage bar. Without this, Blood Test Analysis kept
+      // rendering the deleted panel's markers and kept counting it in "your
+      // health over time", for a full five minutes in the case of trends,
+      // which is that query's staleTime.
+      syncPanelQueries(qc);
+    },
+  });
+}
+
+/** Delete a blood panel directly (the source document, if any, is kept). */
+export function useDeleteBloodTest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => medicalApi.deleteBloodTest(id),
+    onSuccess: () => syncPanelQueries(qc),
   });
 }
 

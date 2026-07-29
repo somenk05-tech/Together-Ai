@@ -63,6 +63,12 @@ export class MedicalController {
   }
 
   // Manual-entry biomarker catalog (sections + reference ranges + hub tags).
+  /** DELETE /api/medical/blood-tests/:id — remove a panel and its markers. */
+  @Delete('blood-tests/:id')
+  deleteBloodTest(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.medical.deleteBloodTest(user.sub, id);
+  }
+
   @Get('biomarkers/catalog')
   biomarkerCatalog() {
     return this.medical.biomarkerCatalog();

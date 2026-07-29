@@ -303,14 +303,62 @@ export class MedicalService implements OnModuleInit {
   }
 
   /** Delete a health record + its stored object, freeing vault space. */
+  /**
+   * Delete a health document — and, when that document produced a blood panel,
+   * the panel with it.
+   *
+   * The panel used to survive. Uploading a report creates exactly one
+   * MedicalBloodTest (see upsertPanelAndAnalyze), and the ONLY way to remove a
+   * report was this method, which deleted the document and the stored file and
+   * left the panel behind. So a citizen who deleted a blood report still saw its
+   * markers in Blood Test Analysis and still had it counted in "your health over
+   * time" — with no document left anywhere in the app to explain where the
+   * numbers came from, and no route by which they could ever be removed.
+   *
+   * Deleting the panel takes its biomarkers and cached analyses with it: both
+   * cascade from MedicalBloodTest.
+   */
   async deleteRecord(userId: string, id: string) {
     const rec = await this.prisma.medicalRecord.findFirst({ where: { id, userId } }) as
-      ({ id: string; fileKey: string | null; fileUrl: string | null } | null);
+      ({ id: string; fileKey: string | null; fileUrl: string | null; bloodTestId: string | null } | null);
     if (!rec) throw new NotFoundException('record not found');
     if (rec.fileKey) await this.storage.deleteHealthObject(rec.fileKey);
     else if (rec.fileUrl) await this.storage.deleteObject(this.storage.keyFromUrl(rec.fileUrl));
-    await this.prisma.medicalRecord.delete({ where: { id } });
+
+    // One transaction: a document without its panel, or a panel without its
+    // document, are both worse than either deletion not happening at all.
+    await this.prisma.$transaction(async (tx) => {
+      await tx.medicalRecord.delete({ where: { id } });
+      if (rec.bloodTestId) {
+        // deleteMany, scoped by userId, so ownership is enforced by the query
+        // rather than assumed from the document that pointed at it.
+        await tx.medicalBloodTest.deleteMany({ where: { id: rec.bloodTestId, userId } });
+      }
+    });
     return this.records(userId);
+  }
+
+  /**
+   * Delete a blood panel directly.
+   *
+   * Panels typed in by hand never had a source document, so before this there
+   * was no way to remove one at all — the only delete in the hub was the
+   * document delete above. The source document, if there is one, is kept and
+   * simply detached: the citizen asked to remove the numbers, not the report
+   * they came from.
+   */
+  async deleteBloodTest(userId: string, id: string): Promise<{ ok: true }> {
+    const owned = await this.prisma.medicalBloodTest.findFirst({
+      where: { id, userId },
+      select: { id: true },
+    });
+    if (!owned) throw new NotFoundException('blood test not found');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.medicalRecord.updateMany({ where: { userId, bloodTestId: id }, data: { bloodTestId: null } });
+      await tx.medicalBloodTest.delete({ where: { id } });
+    });
+    return { ok: true };
   }
 
   async onModuleInit(): Promise<void> {

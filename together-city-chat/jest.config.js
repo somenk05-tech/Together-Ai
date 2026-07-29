@@ -4,5 +4,6 @@ module.exports = {
   testEnvironment: 'node',
   testRegex: '(test|src)/.*\\.spec\\.ts$',
   transform: { '^.+\\.(t|j)s$': 'ts-jest' },
+  setupFiles: ['<rootDir>/test/jest-globals.js'],
   collectCoverageFrom: ['src/**/*.ts'],
 };
