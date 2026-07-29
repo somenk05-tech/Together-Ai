@@ -50,6 +50,26 @@ export interface AskResult extends AstroQuestion {
   payment?: { method: string; balanceInr: number };
 }
 
+/* ─────────────────────────── Tarot ─────────────────────────── */
+export type SpreadKind = 'daily' | 'three' | 'celtic';
+export interface TarotDrawnCard {
+  cardId: string; name: string; arcana: 'major' | 'minor'; suit?: string;
+  reversed: boolean; position: string; positionMeaning: string;
+  reading: string; keywords: string[];
+}
+export interface TarotReading {
+  kind: SpreadKind; spreadName: string; question?: string;
+  cards: TarotDrawnCard[]; summary: string; disclaimer: string; seed: string;
+}
+export interface TarotDaily extends TarotReading { saved: boolean; priceInr: number }
+export interface TarotSpreadResult extends TarotReading { id: string; priceInr: number }
+export interface TarotSpreadOption { kind: SpreadKind; name: string; cards: number; priceInr: number }
+export interface TarotHistoryItem {
+  id: string; kind: string; spreadName: string; question: string | null;
+  priceInr: number; createdAt: string; seed: string;
+  cards: TarotDrawnCard[]; summary: string; disclaimer: string;
+}
+
 export const astrologyApi = {
   profile: () => api.get<AstroProfileView>('/astrology/profile').then((r) => r.data),
   saveProfile: (dto: SaveAstroProfileInput) =>
@@ -60,4 +80,10 @@ export const astrologyApi = {
   ask: (dto: { topic: string; question: string; method?: 'wallet' | 'card' }) =>
     api.post<AskResult>('/astrology/ask', dto).then((r) => r.data),
   questions: () => api.get<AstroQuestion[]>('/astrology/questions').then((r) => r.data),
+
+  tarotSpreads: () => api.get<{ disclaimer: string; spreads: TarotSpreadOption[] }>('/astrology/tarot/spreads').then((r) => r.data),
+  tarotDaily: () => api.get<TarotDaily>('/astrology/tarot/daily').then((r) => r.data),
+  tarotDraw: (dto: { kind: 'three' | 'celtic'; question: string; method?: 'wallet' | 'card' }) =>
+    api.post<TarotSpreadResult>('/astrology/tarot/draw', dto).then((r) => r.data),
+  tarotHistory: () => api.get<TarotHistoryItem[]>('/astrology/tarot/history').then((r) => r.data),
 };

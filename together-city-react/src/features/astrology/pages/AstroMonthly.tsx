@@ -1,6 +1,6 @@
 import { Card, EmptyState, Spinner, Tag } from '@/components/ui';
 import { useAstroMonthly } from '../hooks';
-import { AstroHeader, AstroTabs, NeedsProfileCard } from '../shared';
+import { AstroHeader, NeedsProfileCard } from '../shared';
 
 /** Tab 02 — Monthly Horoscope. A premium magazine-style reading (2,000–4,000
  *  words) written once per user per month from their chart and the month's
@@ -10,9 +10,8 @@ export function AstroMonthly() {
   const m = monthly.data;
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <AstroHeader title="Monthly Horoscope" lede="Your month ahead — career, money, love, health, family and travel, written from your Vedic (sidereal) birth chart like a premium astrology magazine." />
-      <AstroTabs />
       {monthly.isLoading && <Spinner label="Composing your month…" />}
       {monthly.isError && <EmptyState title="Couldn't load the monthly reading" hint="Reload in a moment." />}
       {m && m.needsProfile && <NeedsProfileCard />}

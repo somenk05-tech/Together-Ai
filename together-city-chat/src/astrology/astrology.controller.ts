@@ -5,6 +5,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { AstrologyService, AskDto, SaveAstroProfileDto } from './astrology.service';
+import { TarotService, type DrawSpreadDto } from './tarot.service';
 
 const SaveProfileSchema = z.object({
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD'),
@@ -13,6 +14,12 @@ const SaveProfileSchema = z.object({
   birthState: z.string().max(60).optional().nullable(),
   birthCity: z.string().min(1).max(80),
   timeZone: z.string().min(3).max(60),
+});
+
+const DrawSpreadSchema = z.object({
+  kind: z.enum(['three', 'celtic']),
+  question: z.string().min(5).max(300),
+  method: z.enum(['wallet', 'card']).optional(),
 });
 
 const AskSchema = z.object({
@@ -24,7 +31,10 @@ const AskSchema = z.object({
 @Controller('astrology')
 @UseGuards(JwtAuthGuard)
 export class AstrologyController {
-  constructor(private readonly astrology: AstrologyService) {}
+  constructor(
+    private readonly astrology: AstrologyService,
+    private readonly tarot: TarotService,
+  ) {}
 
   /** Shared birth profile (auto-seeded from dating details when present). */
   @Get('profile')
@@ -67,5 +77,31 @@ export class AstrologyController {
   @Get('questions')
   questions(@CurrentUser() user: JwtUser) {
     return this.astrology.questions(user.sub);
+  }
+
+  // ─────────────── Tarot ───────────────
+  /** What each spread deals and costs — drives the picker. */
+  @Get('tarot/spreads')
+  tarotSpreads() {
+    return this.tarot.spreads();
+  }
+
+  /** Card of the Day — free, one card, stable for the citizen's whole day. */
+  @Get('tarot/daily')
+  tarotDaily(@CurrentUser() user: JwtUser) {
+    return this.tarot.dailyCard(user.sub);
+  }
+
+  /** A paid spread drawn against a question. */
+  @Post('tarot/draw')
+  @UsePipes(new ZodValidationPipe(DrawSpreadSchema))
+  tarotDraw(@CurrentUser() user: JwtUser, @Body() dto: DrawSpreadDto) {
+    return this.tarot.drawSpread(user.sub, dto);
+  }
+
+  /** Past readings, newest first. */
+  @Get('tarot/history')
+  tarotHistory(@CurrentUser() user: JwtUser) {
+    return this.tarot.history(user.sub);
   }
 }

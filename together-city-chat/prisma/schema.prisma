@@ -128,6 +128,7 @@ model User {
   astroProfile         AstroProfile?
   astroQuestions       AstroQuestion[]
   astroReadings        AstroReading[]
+  tarotReadings        TarotReading[]
   budgets              Budget[]
   jobProfile           JobProfile?
   jobsPosted           Job[]
@@ -1576,6 +1577,30 @@ model AstroReading {
 
   @@unique([userId, kind, period])
   @@index([userId, kind, createdAt])
+}
+
+/// A tarot draw. `seed` is what makes a reading REPRODUCIBLE — the same seed
+/// always deals the same cards in the same order and orientation, so a reading
+/// can be regenerated and checked long after the fact. Without it a "random"
+/// draw is unverifiable.
+model TarotReading {
+  id          String   @id @default(uuid())
+  userId      String
+  kind        String // 'daily' | 'three' | 'celtic'
+  /// Set for the free daily card (YYYY-MM-DD in the citizen's own timezone) so
+  /// one card stands for the whole day. NULL for paid spreads — Postgres treats
+  /// NULLs as distinct, so a citizen may draw as many spreads as they pay for.
+  period      String?
+  question    String?
+  seed        String
+  readingJson String
+  priceInr    Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, period])
+  @@index([userId, createdAt])
 }
 
 // ─────────────────────── Master Profile ───────────────────────

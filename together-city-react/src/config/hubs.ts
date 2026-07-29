@@ -70,7 +70,8 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/astrology/today', index: '01', label: "Today's Horoscope", sub: 'Your day, from your chart' },
       { path: '/astrology/monthly', index: '02', label: 'Monthly Horoscope', sub: 'Premium month-ahead reading' },
       { path: '/astrology/ask', index: '03', label: 'Ask the Astrologer', sub: '₹75 · personal consultation' },
-      { path: '/profile/astrology', index: '04', label: 'Astrology Profile', sub: 'Birth details, entered once' },
+      { path: '/astrology/tarot', index: '04', label: 'Tarot', sub: 'Free daily card · paid spreads' },
+      { path: '/profile/astrology', index: '05', label: 'Astrology Profile', sub: 'Birth details, entered once' },
     ],
   },
   nutrition: {

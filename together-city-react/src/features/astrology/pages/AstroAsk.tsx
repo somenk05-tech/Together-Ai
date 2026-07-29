@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button, Card, EmptyState, Spinner, Tag } from '@/components/ui';
 import { useAskAstrologer, useAstroProfile, useAstroQuestions } from '../hooks';
-import { AstroHeader, AstroTabs, NeedsProfileCard } from '../shared';
+import { AstroHeader, NeedsProfileCard } from '../shared';
 
 const TOPICS = [
   'Career', 'Marriage', 'Relationships', 'Business', 'Investments', 'Education',
@@ -34,9 +34,8 @@ export function AstroAsk() {
   const needsProfile = profile.data && !profile.data.complete;
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <AstroHeader title="Ask the Astrologer" lede={`A private consultation read against your own birth chart — ₹${PRICE} per question, saved forever under My Questions.`} />
-      <AstroTabs />
       {profile.isLoading && <Spinner label="Loading…" />}
       {needsProfile && <NeedsProfileCard />}
       {profile.data?.complete && (

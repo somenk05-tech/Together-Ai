@@ -12,6 +12,7 @@ import { AstroToday } from '@/features/astrology/pages/AstroToday';
 import { AstroMonthly } from '@/features/astrology/pages/AstroMonthly';
 import { AstroAsk } from '@/features/astrology/pages/AstroAsk';
 import { AstroProfilePage } from '@/features/astrology/pages/AstroProfilePage';
+import { AstroTarot } from '@/features/astrology/pages/AstroTarot';
 import { RequireAuth } from '@/features/auth/AuthGate';
 import { NotFound } from '@/pages/NotFound';
 
@@ -190,10 +191,6 @@ export const router = createBrowserRouter([
       { path: '/travel', element: <HubLanding hub="travel" /> },
       { path: '/restaurants', element: <RequireAuth>{wrap(<RestHome />)}</RequireAuth> },
       { path: '/astrology', element: <HubLanding hub="astrology" /> },
-      { path: '/astrology/today', element: <RequireAuth>{wrap(<AstroToday />)}</RequireAuth> },
-      { path: '/astrology/monthly', element: <RequireAuth>{wrap(<AstroMonthly />)}</RequireAuth> },
-      { path: '/astrology/ask', element: <RequireAuth>{wrap(<AstroAsk />)}</RequireAuth> },
-      { path: '/profile/astrology', element: <RequireAuth>{wrap(<AstroProfilePage />)}</RequireAuth> },
       { path: '/mail', element: <HubLanding hub="mail" /> },
       { path: '/nutrition', element: <HubLanding hub="nutrition" /> },
       { path: '/entertainment', element: <HubLanding hub="entertainment" /> },
@@ -352,6 +349,19 @@ export const router = createBrowserRouter([
       { path: '/family/orders', element: <RequireAuth>{wrap(<FamOrders />)}</RequireAuth> },
       { path: '/family/search', element: <RequireAuth>{wrap(<FamSearch />)}</RequireAuth> },
       { path: '/family/pantry', element: <RequireAuth>{wrap(<FamPantry />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Astrology Zone inner pages — same hub sidebar every other section uses.
+    // These used to sit directly under AppShell with their own tab bar, which
+    // made the one section that looked unlike the rest of the app.
+    element: <HubLayout hub={HUBS.astrology} />,
+    children: [
+      { path: '/astrology/today', element: <RequireAuth>{wrap(<AstroToday />)}</RequireAuth> },
+      { path: '/astrology/monthly', element: <RequireAuth>{wrap(<AstroMonthly />)}</RequireAuth> },
+      { path: '/astrology/ask', element: <RequireAuth>{wrap(<AstroAsk />)}</RequireAuth> },
+      { path: '/astrology/tarot', element: <RequireAuth>{wrap(<AstroTarot />)}</RequireAuth> },
+      { path: '/profile/astrology', element: <RequireAuth>{wrap(<AstroProfilePage />)}</RequireAuth> },
     ],
   },
   {

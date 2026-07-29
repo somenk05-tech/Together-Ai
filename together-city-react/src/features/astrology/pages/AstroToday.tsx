@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, EmptyState, Spinner, Tag } from '@/components/ui';
 import { useAstroDaily, useAstroDailyHistory } from '../hooks';
-import { AstroHeader, AstroTabs, NeedsProfileCard } from '../shared';
+import { AstroHeader, NeedsProfileCard } from '../shared';
 
 /** Tab 01 — Today's Horoscope. One saved prediction per user per day, written
  *  from the birth chart + today's transits; a new one begins at the user's
@@ -14,9 +14,8 @@ export function AstroToday() {
   const past = (history.data ?? []).filter((h) => h.date !== d?.date).slice(0, 7);
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <AstroHeader title="Today's Guidance" lede="Personal guidance from your Vedic birth chart, today's transits, your Dasha period and numerology — practical reflection and encouragement, offered as guidance rather than fixed prediction." />
-      <AstroTabs />
       {daily.isLoading && <Spinner label="Reading today's sky…" />}
       {daily.isError && <EmptyState title="Couldn't reach the stars" hint="Reload in a moment." />}
       {d && d.needsProfile && <NeedsProfileCard />}
