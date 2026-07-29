@@ -25,25 +25,43 @@ export function offsetMsAt(tz: string, at: Date): number {
   return shown - at.getTime();
 }
 
+/** What a zone's clock reads at an instant, as "HH:MM". */
+export function wallTimeIn(tz: string, at: Date): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(at);
+}
+
 /**
  * The UTC instant at which `tz` reads `day` `hhmm`.
  *
- * Two passes, not one. The offset has to be sampled at the answer, but the
- * answer is what we are solving for — so the first pass samples at the naive
- * instant and the second re-samples at the result. Without the second pass every
- * dose in the hours around a transition is off by the size of the change.
+ * Two candidates, then a round-trip check. The offset has to be sampled at the
+ * answer, but the answer is what we are solving for: the first candidate samples
+ * at the naive instant, the second re-samples at the first. Whichever actually
+ * reads back as the requested wall time is the right one — checking rather than
+ * trusting the second pass is what makes the transition days correct instead of
+ * merely close.
  *
- * The unrepresentable case is deliberate: on a spring-forward day 02:30 does not
- * exist, and this returns the instant the clock actually reads once it has
- * jumped (03:30 local). A dose is better taken an hour late than skipped for the
- * day, and the alternative — refusing to schedule — would silently drop a dose.
+ * When NEITHER reads back, the requested time does not exist: on a
+ * spring-forward day the clock jumps 02:00 -> 03:00 and 02:30 never happens. The
+ * later instant is taken, which puts the dose just after the jump. That is
+ * deliberate — the two honest options are an hour early or an hour late, and for
+ * a medicine an hour late is the safer error, since firing early can bunch two
+ * doses closer together than they were prescribed to be. Skipping the day
+ * outright, which is what throwing would amount to, is not an option at all.
  */
 export function instantAt(tz: string, day: string, hhmm: string): Date {
-  const naive = Date.parse(`${day}T${hhmm.length === 5 ? hhmm : hhmm.slice(0, 5)}:00Z`);
+  const want = hhmm.length === 5 ? hhmm : hhmm.slice(0, 5);
+  const naive = Date.parse(`${day}T${want}:00Z`);
   if (Number.isNaN(naive)) throw new RangeError(`Unparseable local time: ${day} ${hhmm}`);
-  const firstPass = naive - offsetMsAt(tz, new Date(naive));
-  const refined = naive - offsetMsAt(tz, new Date(firstPass));
-  return new Date(refined);
+
+  const first = naive - offsetMsAt(tz, new Date(naive));
+  const second = naive - offsetMsAt(tz, new Date(first));
+
+  for (const candidate of [second, first]) {
+    if (wallTimeIn(tz, new Date(candidate)) === want) return new Date(candidate);
+  }
+  return new Date(Math.max(first, second));
 }
 
 /** A calendar day string shifted by whole days. Pure string/UTC math. */

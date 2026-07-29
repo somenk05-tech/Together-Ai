@@ -1,5 +1,5 @@
 import { expandDoses, normaliseTimes, notifyAtFor, NOTIFY_LEAD_MS, ScheduleSpec } from './dose-schedule';
-import { instantAt, offsetMsAt, addDays, weekdayOf } from '../shared/clock/zone-time';
+import { instantAt, offsetMsAt, addDays, weekdayOf, wallTimeIn } from '../shared/clock/zone-time';
 
 /**
  * When a citizen is told to take a medicine.
@@ -19,7 +19,7 @@ const spec = (over: Partial<ScheduleSpec> = {}): ScheduleSpec => ({
 
 const iso = (d: Date) => d.toISOString();
 
-describe('local wall-clock → instant', () => {
+describe('local wall-clock -> instant', () => {
   it('resolves a time in a half-hour-offset zone', () => {
     // Asia/Kolkata is UTC+05:30 year round: 08:00 local is 02:30 UTC.
     expect(iso(instantAt('Asia/Kolkata', '2026-03-10', '08:00'))).toBe('2026-03-10T02:30:00.000Z');
@@ -47,14 +47,25 @@ describe('local wall-clock → instant', () => {
     expect(offsetMsAt('America/New_York', new Date('2026-07-15T12:00:00Z'))).toBe(-4 * 3600_000);
   });
 
-  it('lands a nonexistent spring-forward time on the clock the citizen will see', () => {
-    // 02:30 never happens on 2026-03-08 in New York; the clock jumps 02:00→03:00.
-    // Skipping the dose would be worse than moving it, so it resolves to 03:30 local.
+  it('puts a nonexistent spring-forward time AFTER the jump, never before it', () => {
+    // 02:30 never happens on 2026-03-08 in New York; the clock jumps 02:00->03:00.
+    // Skipping the dose is not an option, so it has to move — and it must move
+    // forwards. Landing at 01:30 would fire an hour EARLY, bunching this dose
+    // against the previous one; 03:30 is an hour late, which is the safer error.
     const at = instantAt('America/New_York', '2026-03-08', '02:30');
-    const localHour = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false,
-    }).format(at);
-    expect(localHour).toBe('03:30');
+    expect(wallTimeIn('America/New_York', at)).toBe('03:30');
+    expect(at.getTime()).toBeGreaterThan(Date.parse('2026-03-08T02:30:00Z'));
+  });
+
+  it('round-trips every hour of a transition day', () => {
+    // The guarantee that matters: except inside the gap itself, asking for a
+    // wall time always gives back an instant that reads as that wall time.
+    for (let h = 0; h < 24; h++) {
+      const hhmm = `${String(h).padStart(2, '0')}:15`;
+      if (h === 2) continue; // 02:15 is the gap on this date
+      const at = instantAt('America/New_York', '2026-03-08', hhmm);
+      expect(wallTimeIn('America/New_York', at)).toBe(hhmm);
+    }
   });
 });
 
@@ -77,7 +88,6 @@ describe('expanding a schedule into doses', () => {
       new Date('2026-03-09T00:00:00Z'),
       new Date('2026-03-11T00:00:00Z'),
     );
-    // 09th 08:00 & 20:00, 10th 08:00 & 20:00, then 11th 08:00 is 02:30Z — inside.
     expect(doses.map(iso)).toEqual([
       '2026-03-09T02:30:00.000Z',
       '2026-03-09T14:30:00.000Z',
@@ -92,11 +102,7 @@ describe('expanding a schedule into doses', () => {
       new Date('2026-03-06T00:00:00Z'),
       new Date('2026-03-11T00:00:00Z'),
     );
-    const localTimes = doses.map((d) =>
-      new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false,
-      }).format(d),
-    );
+    const localTimes = doses.map((d) => wallTimeIn('America/New_York', d));
     expect(localTimes).toEqual(['08:00', '08:00', '08:00', '08:00', '08:00']);
     // ...even though the UTC instant moved by an hour partway through.
     expect(iso(doses[0])).toBe('2026-03-06T13:00:00.000Z');
@@ -142,8 +148,9 @@ describe('expanding a schedule into doses', () => {
     const doses = expandDoses(
       spec({ timesLocal: ['08:00'], startDate: '2026-03-30' }),
       new Date('2026-03-30T00:00:00Z'),
-      new Date('2026-04-02T00:00:00Z'),
+      new Date('2026-04-02T23:59:59Z'),
     );
+    // 08:00 Kolkata is 02:30 UTC, so each dose lands on the same UTC date here.
     expect(doses.map((d) => d.toISOString().slice(0, 10))).toEqual(
       ['2026-03-30', '2026-03-31', '2026-04-01', '2026-04-02'],
     );
