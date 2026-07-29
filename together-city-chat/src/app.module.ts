@@ -41,6 +41,7 @@ import { HealthModule } from './health/health.module';
 import { AstrologyModule } from './astrology/astrology.module';
 import { PrivacyModule } from './privacy/privacy.module';
 import { ThoughtsModule } from './thoughts/thoughts.module';
+import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { ThoughtsModule } from './thoughts/thoughts.module';
     CityModule,
     PrivacyModule,
     ThoughtsModule,
+    PrescriptionsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

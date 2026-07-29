@@ -30,28 +30,6 @@ interface ThoughtRow {
 export class ThoughtsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * The generated Prisma client in this checkout predates Thought — `prisma
-   * generate` needs network access that the build environment does not have —
-   * so the delegate is reached through one narrow accessor instead of a cast at
-   * every call site.
-   *
-   * Delete this and use `this.prisma.thought` directly once the client is
-   * regenerated. It is worth doing promptly: while these queries go through a
-   * cast, the query-scoping guard in src/security cannot see them, so the
-   * userId filters below are checked by review rather than by the suite.
-   */
-  private get table() {
-    return (this.prisma as unknown as {
-      thought: {
-        findMany(a: unknown): Promise<ThoughtRow[]>;
-        findFirst(a: unknown): Promise<ThoughtRow | null>;
-        create(a: unknown): Promise<ThoughtRow>;
-        updateMany(a: unknown): Promise<{ count: number }>;
-      };
-    }).thought;
-  }
-
   private shape(t: ThoughtRow) {
     return {
       id: t.id,
@@ -73,7 +51,7 @@ export class ThoughtsService {
   /** Newest first, cursor-paginated. A journal only grows, so it is never unbounded. */
   async list(userId: string, dto: ListThoughtsDto) {
     const take = dto.limit ?? 20;
-    const rows = await this.table.findMany({
+    const rows = await this.prisma.thought.findMany({
       where: {
         userId,
         deletedAt: null,
@@ -94,13 +72,13 @@ export class ThoughtsService {
   }
 
   async get(userId: string, id: string) {
-    const t = await this.table.findFirst({ where: { id, userId, deletedAt: null } });
+    const t = await this.prisma.thought.findFirst({ where: { id, userId, deletedAt: null } });
     if (!t) throw new NotFoundException('No such thought.');
     return this.shape(t);
   }
 
   async create(userId: string, dto: CreateThoughtDto) {
-    const t = await this.table.create({
+    const t = await this.prisma.thought.create({
       data: {
         userId,
         title: dto.title ?? null,
@@ -115,7 +93,7 @@ export class ThoughtsService {
   async update(userId: string, id: string, dto: UpdateThoughtDto) {
     // updateMany scoped by userId, so ownership is enforced by the query rather
     // than by a check that a later edit could forget to keep.
-    const res = await this.table.updateMany({
+    const res = await this.prisma.thought.updateMany({
       where: { id, userId, deletedAt: null },
       data: {
         ...(dto.title !== undefined ? { title: dto.title } : {}),
@@ -130,7 +108,7 @@ export class ThoughtsService {
 
   /** Soft delete — it leaves every list at once and stays recoverable. */
   async remove(userId: string, id: string): Promise<{ ok: true }> {
-    const res = await this.table.updateMany({
+    const res = await this.prisma.thought.updateMany({
       where: { id, userId, deletedAt: null },
       data: { deletedAt: new Date() },
     });
