@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { AdminService } from '../auth/admin';
 import { AiService } from '../ai/ai.service';
 import { AMENITY_LABEL, livabilityScore } from './realestate.constants';
 import { ruleChecks, decide, normalizeDesc, type ListingInput, type ModerationResult } from './moderation';
@@ -15,14 +16,17 @@ type PropRow = {
   progressPct: number | null; floorPlansJson: string | null; milestonesJson: string | null; createdAt: Date;
 };
 
-const ADMIN_HANDLES = (process.env.MODERATION_ADMINS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 const MAX_LISTINGS_PER_HOUR = 8;
 
 const parse = <T>(json: string | null, fallback: T): T => { try { return json ? JSON.parse(json) as T : fallback; } catch { return fallback; } };
 
 @Injectable()
 export class RealEstateService implements OnModuleInit {
-  constructor(private readonly prisma: PrismaService, private readonly ai: AiService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ai: AiService,
+    private readonly admin: AdminService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     // One-time cleanup: remove the old demo listings (platform-seeded ids).
@@ -253,14 +257,14 @@ export class RealEstateService implements OnModuleInit {
   }
 
   // ─────────────── admin moderation ───────────────
-  private assertAdmin(handle?: string) {
-    if (!handle || !ADMIN_HANDLES.includes(handle.toLowerCase())) {
-      throw new ForbiddenException('Moderator access required.');
-    }
+  /** Moderator authorisation reads User.role — see AdminService. A handle is
+   *  renameable by its owner and was never safe to authorise against. */
+  private assertAdmin(userId?: string) {
+    return this.admin.assertAdmin(userId);
   }
 
-  async moderationQueue(handle?: string) {
-    this.assertAdmin(handle);
+  async moderationQueue(userId?: string) {
+    await this.assertAdmin(userId);
     const rows = await this.prisma.property.findMany({
       where: { moderation: { in: ['pending', 'review'] } } as never,
       orderBy: { createdAt: 'desc' }, take: 100,
@@ -272,8 +276,8 @@ export class RealEstateService implements OnModuleInit {
     }));
   }
 
-  async moderationDecide(handle: string | undefined, id: string, decision: 'approved' | 'rejected', reason: string) {
-    this.assertAdmin(handle);
+  async moderationDecide(userId: string | undefined, id: string, decision: 'approved' | 'rejected', reason: string) {
+    await this.assertAdmin(userId);
     const p = await this.prisma.property.findUnique({ where: { id } }) as PropRow | null;
     if (!p) throw new NotFoundException('listing not found');
     const prev = parse<ModerationResult | null>(p.moderationJson ?? null, null);
@@ -282,7 +286,7 @@ export class RealEstateService implements OnModuleInit {
       reasons: reason ? [reason] : (decision === 'rejected' ? (prev?.reasons ?? []) : []), decidedAt: new Date().toISOString(),
     };
     await this.prisma.property.update({ where: { id }, data: { moderation: decision, moderationJson: JSON.stringify(next) } as never });
-    await this.logModeration(id, handle ?? 'moderator', decision, reason);
+    await this.logModeration(id, userId ?? 'moderator', decision, reason);
     return { id, moderation: decision };
   }
 

@@ -9,6 +9,7 @@ import { RedisModule } from './shared/redis/redis.module';
 import { EventsModule } from './shared/events/events.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { AdminModule } from './auth/admin.module';
 import { UsersModule } from './users/users.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { ConversationsModule } from './conversations/conversations.module';
@@ -49,6 +50,7 @@ import { PrivacyModule } from './privacy/privacy.module';
     EventsModule,
     AiModule,
     AuthModule,
+    AdminModule,
     UsersModule,
     ConnectionsModule,
     ConversationsModule,

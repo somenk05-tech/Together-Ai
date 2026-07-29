@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { isReservedAdminHandle } from '../auth/admin';
 import { orderPair } from '../connections/connection.util';
 import { MasterProfileService } from './master-profile.service';
 
@@ -227,6 +228,11 @@ export class ProfileService {
     if (dto.handle !== undefined) {
       const handle = dto.handle.trim().replace(/^@/, '').toLowerCase();
       if (!/^[a-z0-9_.]{3,30}$/.test(handle)) throw new BadRequestException('Handle must be 3–30 chars: letters, numbers, _ or .');
+      // Moderator handles can't be renamed into. Authorisation reads User.role
+      // now, so taking the name grants nothing — but leaving it claimable
+      // invites impersonation of a moderator, which is its own problem.
+      const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { handle: true } });
+      if (isReservedAdminHandle(handle, me?.handle)) throw new ConflictException('That handle is already taken.');
       const clash = await this.prisma.user.findUnique({ where: { handle } });
       if (clash && clash.id !== userId) throw new ConflictException('That handle is already taken.');
       data.handle = handle;

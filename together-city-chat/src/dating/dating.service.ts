@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { AdminService } from '../auth/admin';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
@@ -15,7 +16,6 @@ import type { MatchKind, UpsertDatingProfileDto } from './dto/dating.dto';
 const MATCH_THRESHOLD = 75; // only curated matches ≥75% are ever shown (spec)
 const MATCH_LIMIT = 24;     // a full ranked list of real matches (not endless swiping)
 // Admins (by handle) allowed to read Dating Hub stats — same env as moderation.
-const ADMIN_HANDLES = (process.env.MODERATION_ADMINS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 
 /** Visibility mode (stored in the profile's extras JSON). */
 type Visibility = 'everyone' | 'threshold' | 'paused' | 'hidden';
@@ -35,6 +35,7 @@ export class DatingService {
     private readonly financial: FinancialService,
     private readonly ai: AiService,
     private readonly notifications: NotificationsService,
+    private readonly admin: AdminService,
   ) {}
 
   // ─────────────── profile ───────────────
@@ -823,10 +824,10 @@ export class DatingService {
 
   /** Admin-only Dating Hub stats — registered profiles, the live matching pool,
    *  moderation queue, gender split, and chat activity. Gated to MODERATION_ADMINS. */
-  async adminStats(handle?: string) {
-    if (!handle || !ADMIN_HANDLES.includes(handle.toLowerCase())) {
-      throw new ForbiddenException('Admin access required. Add your handle to MODERATION_ADMINS.');
-    }
+  async adminStats(userId?: string) {
+    // Resolved from User.role, not from the caller's handle: a handle is
+    // renameable by its owner, so it was never an authorisation fact.
+    await this.admin.assertAdmin(userId, 'Admin access required.');
     const dp = this.prisma.datingProfile;
     const dm = this.prisma.datingMatch;
     const [

@@ -12,6 +12,7 @@ import { TokenService, TokenPair, SessionMeta } from './token.service';
 import { assertStrongPassword } from './recovery.service';
 import { VerificationService } from './verification.service';
 import { isCityAddress } from '../mail/mail.constants';
+import { isReservedAdminHandle } from './admin';
 
 /** Wrong guesses allowed against one recovery code before it is burned. */
 const MAX_RESET_ATTEMPTS = 5;
@@ -40,6 +41,9 @@ export class AuthService {
   async register(dto: RegisterDto, meta: SessionMeta = {}): Promise<TokenPair & { userId: string }> {
     // Open registration — Together City is no longer invite-only.
     assertStrongPassword(dto.password);
+    // Same generic message for a taken handle and a reserved moderator handle,
+    // so registration doesn't reveal which names are privileged.
+    if (isReservedAdminHandle(dto.handle)) throw new ConflictException('That handle is already taken.');
     const existing = await this.prisma.user.findUnique({ where: { handle: dto.handle.toLowerCase() } });
     if (existing) throw new ConflictException('That handle is already taken.');
     if (dto.email) {

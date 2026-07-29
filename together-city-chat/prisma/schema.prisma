@@ -69,6 +69,11 @@ enum DeliveryStatus {
 model User {
   id           String   @id @default(uuid())
   handle       String   @unique
+  /// "citizen" | "admin". Moderation used to be decided by comparing the JWT's
+  /// handle against MODERATION_ADMINS, while handles were freely renameable —
+  /// so claiming a listed name granted moderation. Authorisation now reads this
+  /// column, which a rename cannot change. Granted at boot from MODERATION_ADMINS.
+  role         String   @default("citizen")
   name         String
   email           String? // primary (external) email — from sign-up; receipts & recovery go here
   emailVerified   Boolean   @default(false)

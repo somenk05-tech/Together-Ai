@@ -45,7 +45,7 @@ export class RealEstateController {
   // ─── moderation (admin only; gated by MODERATION_ADMINS handles) ───
   @Get('moderation/queue')
   moderationQueue(@CurrentUser() user: JwtUser) {
-    return this.realestate.moderationQueue(user.handle);
+    return this.realestate.moderationQueue(user.sub);
   }
 
   @Post('moderation/:id/decision')
@@ -54,6 +54,6 @@ export class RealEstateController {
     reason: z.string().max(500).optional(),
   })))
   moderationDecide(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: { decision: 'approved' | 'rejected'; reason?: string }) {
-    return this.realestate.moderationDecide(user.handle, id, body.decision === 'rejected' ? 'rejected' : 'approved', (body.reason ?? '').slice(0, 500));
+    return this.realestate.moderationDecide(user.sub, id, body.decision === 'rejected' ? 'rejected' : 'approved', (body.reason ?? '').slice(0, 500));
   }
 }
