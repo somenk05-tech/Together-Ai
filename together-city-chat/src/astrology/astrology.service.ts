@@ -155,7 +155,7 @@ export class AstrologyService {
             complete: false,
             profile: null,
             prefill: {
-              birthDate: dating.birthDate.toISOString().slice(0, 10),
+              birthDate: dating.birthDate.toISOString().slice(0, 10), // date-only column
               birthTime: dating.birthTime ?? '',
               birthCity, birthCountry,
               birthState: place.length > 2 ? place[1] : '',
@@ -204,7 +204,7 @@ export class AstrologyService {
   private shape(row: AstroProfileRow) {
     const chart = this.chartOf(row);
     return {
-      birthDate: row.birthDate.toISOString().slice(0, 10),
+      birthDate: row.birthDate.toISOString().slice(0, 10), // date-only column
       birthTime: row.birthTime,
       timeKnown: !!row.birthTime,
       birthCountry: row.birthCountry,

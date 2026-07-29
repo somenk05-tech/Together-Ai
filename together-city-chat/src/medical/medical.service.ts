@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundEx
 import { createHash, randomBytes } from 'crypto';
 import { PDFParse } from 'pdf-parse';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ClockService } from '../shared/clock/clock.service';
 import { RECORD_CAP , ORDER_HISTORY_CAP } from '../shared/paging';
 import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
@@ -91,6 +92,7 @@ export class MedicalService implements OnModuleInit {
     private readonly financial: FinancialService,
     private readonly ai: AiService,
     private readonly storage: StorageProvider,
+    private readonly clock: ClockService,
   ) {}
 
   private readonly logger = new Logger(MedicalService.name);
@@ -359,7 +361,11 @@ export class MedicalService implements OnModuleInit {
     const test = await this.prisma.medicalBloodTest.create({
       data: {
         userId,
-        takenOn: input.takenOn ?? new Date(),
+        // The day the sample was drawn, not the instant this row was written.
+        // Defaulting to `new Date()` stored an instant, so a panel saved at
+        // 01:00 in Asia/Kolkata was filed under the previous day — and the
+        // column then meant two different things depending on the row.
+        takenOn: input.takenOn ?? await this.clock.dateOnlyFor(userId),
         lab: input.lab ?? null,
         biomarkers: { create: biomarkers },
       },
@@ -541,6 +547,10 @@ export class MedicalService implements OnModuleInit {
     const aggValues: Record<string, number> = {};
     for (const [k, arr] of series) aggValues[k] = arr[arr.length - 1].value;
     const crp = aggValues.crp;
+    // takenOn is date-only (midnight UTC, see the create above), so it reads
+    // back the same calendar day in every zone. Rendering it through a local
+    // zone would shift it BACKWARDS a day for negative offsets — the exact bug
+    // this sweep is fixing, in reverse. Leave it on toISOString().
     const iso = (d: Date) => d.toISOString().slice(0, 10);
 
     const markers = [...series.entries()].map(([key, arr]) => {
@@ -673,7 +683,7 @@ export class MedicalService implements OnModuleInit {
       };
     }
 
-    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const iso = (d: Date) => d.toISOString().slice(0, 10); // date-only column — see above
     const timeline = tests.map((t, i) => ({
       id: t.id, takenOn: iso(t.takenOn), lab: t.lab, markerCount: t.biomarkers.length,
       isLatest: i === tests.length - 1,
@@ -956,6 +966,9 @@ export class MedicalService implements OnModuleInit {
     const rows = await this.prisma.medicalRecord.findMany({
       where: { userId }, orderBy: { recordedOn: 'desc' }, take: RECORD_CAP,
     });
+    // recordedOn is when the document was FILED — an instant, so which day it
+    // falls on depends on the citizen's zone, not the server's.
+    const tz = await this.clock.timezoneFor(userId);
     return rows.map((r) => {
       const rr = r as typeof r & { fileKey?: string | null; mimeType?: string | null; sizeBytes?: number | null; bloodTestId?: string | null };
       return {
@@ -968,7 +981,7 @@ export class MedicalService implements OnModuleInit {
         // Health Records can jump straight to the same analysis shown on Blood Test Analysis.
         bloodTestId: rr.bloodTestId ?? null,
         analyzed: Boolean(rr.bloodTestId),
-        recordedOn: r.recordedOn.toISOString().slice(0, 10),
+        recordedOn: this.clock.dayIn(tz, r.recordedOn),
       };
     });
   }

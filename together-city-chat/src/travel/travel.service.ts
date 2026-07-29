@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleIni
 import { demoDataEnabled, DEMO_DISABLED_REASON } from '../shared/demo-data';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ClockService } from '../shared/clock/clock.service';
 import { ORDER_HISTORY_CAP } from '../shared/paging';
 import { FinancialService } from '../financial/financial.service';
 import { MailService } from '../mail/mail.service';
@@ -22,6 +23,7 @@ export class TravelService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly financial: FinancialService, // bookings pay through the one city wallet
     private readonly mail: MailService,            // confirmations land in the city inbox + primary email
+    private readonly clock: ClockService,
   ) {}
 
   async onModuleInit(): Promise<void> { await this.ensureSeeds(); }
@@ -120,11 +122,12 @@ export class TravelService implements OnModuleInit {
   // ─────────────── my trips ───────────────
   async myTrips(userId: string) {
     const rows = await this.prisma.tripBooking.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP });
+    const tz = await this.clock.timezoneFor(userId);
     return rows.map((t) => ({
       id: t.id, kind: t.kind, title: t.title, subtitle: t.subtitle, tier: t.tier, pax: t.pax,
       totalInr: t.totalInr, code: t.code, status: t.status,
       icon: t.kind === 'flight' ? '✈️' : CATEGORY_META[t.category]?.icon ?? '🧳',
-      detail: parse<Record<string, unknown>>(t.detailJson, {}), bookedOn: t.createdAt.toISOString().slice(0, 10),
+      detail: parse<Record<string, unknown>>(t.detailJson, {}), bookedOn: this.clock.dayIn(tz, t.createdAt),
     }));
   }
 

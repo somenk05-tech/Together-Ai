@@ -120,6 +120,8 @@ export class TmdbService {
         this.get<TmdbList>('/movie/now_playing', { region: REGION, page: '1' }),
         this.get<TmdbList>('/movie/upcoming', { region: REGION, page: '1' }),
       ]);
+      // A catalogue query about what is in cinemas globally, not about any one
+      // citizen's day — UTC is the right frame here and needs no zone.
       const today = new Date().toISOString().slice(0, 10);
       const twoWeeksAgo = new Date(Date.now() - 14 * 86400_000).toISOString().slice(0, 10);
       const nowPlaying = now.results.filter((m) => m.poster_path).map((m) => this.shape(m));

@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
 import { AdminService } from '../auth/admin';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { ConversationsService } from '../conversations/conversations.service';
@@ -36,6 +37,7 @@ export class DatingService {
     private readonly ai: AiService,
     private readonly notifications: NotificationsService,
     private readonly admin: AdminService,
+    private readonly clock: ClockService,
   ) {}
 
   // ─────────────── profile ───────────────
@@ -60,6 +62,8 @@ export class DatingService {
     const iso = (d: Date | string | null | undefined) => {
       if (!d) return null;
       const dt = typeof d === 'string' ? new Date(d) : d;
+      // Date-only values (birth date, and dates the citizen typed as YYYY-MM-DD).
+      // These mean one calendar day everywhere — deliberately NOT zone-shifted.
       return isNaN(dt.getTime()) ? null : dt.toISOString().slice(0, 10);
     };
     return {
@@ -992,8 +996,10 @@ export class DatingService {
   private get activities(): ActivityDelegate { return (this.prisma as unknown as { datingActivity: ActivityDelegate }).datingActivity; }
   private get invites(): InviteDelegate { return (this.prisma as unknown as { activityInvite: InviteDelegate }).activityInvite; }
 
-  private shapeActivity(a: ActivityRow) {
-    return { id: a.id, text: a.text, category: a.category, date: a.date, time: a.time, groupSize: a.groupSize, description: a.description, createdOn: a.createdAt.toISOString().slice(0, 10) };
+  /** `tz` is the viewer's zone — see shapeCard in the property hub for why this
+   *  defaults to the city's zone rather than UTC. */
+  private shapeActivity(a: ActivityRow, tz: string = DEFAULT_TIMEZONE) {
+    return { id: a.id, text: a.text, category: a.category, date: a.date, time: a.time, groupSize: a.groupSize, description: a.description, createdOn: this.clock.dayIn(tz, a.createdAt) };
   }
   private ageOf(birthDate: Date): number { return Math.floor((Date.now() - new Date(birthDate).getTime()) / (365.25 * 86_400_000)); }
 
@@ -1150,7 +1156,7 @@ export class DatingService {
       gender: p.gender,
       seeking: p.seeking,
       bio: p.bio,
-      birthDate: p.birthDate.toISOString().slice(0, 10),
+      birthDate: p.birthDate.toISOString().slice(0, 10), // date-only column
       birthTime: p.birthTime,
       birthPlace: p.birthPlace,
       interests,

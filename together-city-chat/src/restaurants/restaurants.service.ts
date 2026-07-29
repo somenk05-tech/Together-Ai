@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleIni
 import { demoDataEnabled } from '../shared/demo-data';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ClockService } from '../shared/clock/clock.service';
 import { ORDER_HISTORY_CAP } from '../shared/paging';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
@@ -36,6 +37,7 @@ export class RestaurantsService implements OnModuleInit {
     private readonly mail: MailService,            // confirmations land in the city inbox + primary email
     private readonly places: PlacesService,        // live Google Places discovery (cached)
     private readonly ai: AiService,                // AI editorial overviews (with deterministic fallback)
+    private readonly clock: ClockService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -652,11 +654,14 @@ export class RestaurantsService implements OnModuleInit {
 
   async myOrders(userId: string) {
     const rows = await this.prisma.diningOrder.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP });
+    // An order placed just after midnight locally falls on the PREVIOUS day in
+    // UTC — the citizen would not recognise the date on their own order.
+    const tz = await this.clock.timezoneFor(userId);
     return rows.map((o) => ({
       id: o.id, restaurantId: o.restaurantId, restaurantName: o.restaurantName, area: o.area, mode: o.mode,
       items: (() => { try { return JSON.parse(o.itemsJson) as unknown[]; } catch { return []; } })(),
       subtotalInr: o.subtotalInr, packingInr: o.packingInr, taxInr: o.taxInr, totalInr: o.totalInr,
-      code: o.code, status: o.status, placedOn: o.createdAt.toISOString().slice(0, 10),
+      code: o.code, status: o.status, placedOn: this.clock.dayIn(tz, o.createdAt),
     }));
   }
 

@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
 import { AdminService } from '../auth/admin';
 import { AiService } from '../ai/ai.service';
 import { AMENITY_LABEL, livabilityScore } from './realestate.constants';
@@ -26,6 +27,7 @@ export class RealEstateService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
     private readonly admin: AdminService,
+    private readonly clock: ClockService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -35,7 +37,13 @@ export class RealEstateService implements OnModuleInit {
     }).catch(() => undefined);
   }
 
-  private shapeCard(p: PropRow) {
+  /**
+   * `tz` is the VIEWER's zone, because "posted on" is a date being shown to
+   * whoever is looking. It defaults to the city's own zone rather than UTC:
+   * a listing posted at 01:00 in Delhi should not read as the previous day for
+   * a viewer we happen not to have a zone for.
+   */
+  private shapeCard(p: PropRow, tz: string = DEFAULT_TIMEZONE) {
     const photos = parse<{ url: string; caption?: string }[]>(p.photosJson, []);
     return {
       id: p.id, listingType: p.listingType, propertyType: p.propertyType, status: p.status,
@@ -45,7 +53,7 @@ export class RealEstateService implements OnModuleInit {
       pricePerSqft: p.areaSqft ? Math.round(p.priceInr / p.areaSqft) : 0,
       verified: { rera: Boolean(p.reraId), photo: photos.length > 0, listedBy: p.sellerId ? 'owner' : 'platform' },
       projectName: p.projectName, developer: p.developer, possessionDate: p.possessionDate, progressPct: p.progressPct,
-      postedByYou: false, createdOn: p.createdAt.toISOString().slice(0, 10),
+      postedByYou: false, createdOn: this.clock.dayIn(tz, p.createdAt),
       moderation: p.moderation ?? 'approved',
       moderationReasons: parse<ModerationResult | null>(p.moderationJson ?? null, null)?.reasons ?? [],
     };
@@ -63,11 +71,11 @@ export class RealEstateService implements OnModuleInit {
     return { pricePerSqft: pps, areaAvgPerSqft: avg, deltaPct: avg ? Math.round(((pps - avg) / avg) * 100) : 0, sampleSize: valid.length };
   }
 
-  private async shapeDetail(p: PropRow, userId?: string) {
+  private async shapeDetail(p: PropRow, userId?: string, tz: string = DEFAULT_TIMEZONE) {
     const amenities = (p.amenities ? p.amenities.split(',').filter(Boolean) : []).map((k) => ({ key: k, label: AMENITY_LABEL[k] ?? k }));
     const neighbourhood = this.neighbourhoodFor(p);
     return {
-      ...this.shapeCard(p),
+      ...this.shapeCard(p, tz),
       postedByYou: Boolean(userId && p.sellerId === userId),
       photos: parse<{ url: string; caption?: string }[]>(p.photosJson, []),
       floor: p.floor, totalFloors: p.totalFloors, description: p.description, amenities,
@@ -90,13 +98,15 @@ export class RealEstateService implements OnModuleInit {
       (query.minBedrooms == null || p.bedrooms >= query.minBedrooms) &&
       (query.maxPriceInr == null || p.priceInr <= query.maxPriceInr),
     );
-    return filtered.map((p) => ({ ...this.shapeCard(p), postedByYou: Boolean(userId && p.sellerId === userId) }));
+    const tz = userId ? await this.clock.timezoneFor(userId) : DEFAULT_TIMEZONE;
+    return filtered.map((p) => ({ ...this.shapeCard(p, tz), postedByYou: Boolean(userId && p.sellerId === userId) }));
   }
 
   async underConstruction(userId?: string) {
     const rows = await this.prisma.property.findMany({ where: { status: 'under_construction', moderation: 'approved' } as never, orderBy: { createdAt: 'desc' } }) as PropRow[];
+    const tz = userId ? await this.clock.timezoneFor(userId) : DEFAULT_TIMEZONE;
     return Promise.all(rows.map(async (p) => {
-      const d = await this.shapeDetail(p, userId);
+      const d = await this.shapeDetail(p, userId, tz);
       return { ...d, floorPlanCount: d.floorPlans.length };
     }));
   }
@@ -115,12 +125,13 @@ export class RealEstateService implements OnModuleInit {
     if (!own && (p.moderation ?? 'approved') !== 'approved') {
       throw new NotFoundException('property not found');
     }
-    return this.shapeDetail(p, userId);
+    return this.shapeDetail(p, userId, userId ? await this.clock.timezoneFor(userId) : DEFAULT_TIMEZONE);
   }
 
   async myListings(userId: string) {
     const rows = await this.prisma.property.findMany({ where: { sellerId: userId }, orderBy: { createdAt: 'desc' } }) as PropRow[];
-    return rows.map((p) => ({ ...this.shapeCard(p), postedByYou: true }));
+    const tz = await this.clock.timezoneFor(userId);
+    return rows.map((p) => ({ ...this.shapeCard(p, tz), postedByYou: true }));
   }
 
   async post(userId: string, dto: PostPropertyDto) {

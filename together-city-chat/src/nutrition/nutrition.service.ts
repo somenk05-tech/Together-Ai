@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'fs';
 import { gunzipSync } from 'zlib';
 import { join } from 'path';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ClockService } from '../shared/clock/clock.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { ConversationsService } from '../conversations/conversations.service';
@@ -314,7 +315,10 @@ function parseExtras(extras: string | null | undefined): PrefExtras {
 /** The meal plan spans three weeks (21 days), generated in one go; the user is
  *  prompted to review/adjust after it ends. */
 const PLAN_DAYS = 21;
-const todayISO = (): string => new Date().toISOString().slice(0, 10);
+// todayISO() lived here and returned the UTC day. Removed rather than fixed:
+// "today" is not a property of the server, it is a property of the citizen, and
+// a module-level function has no way to know whose day it is asking about. Use
+// this.today(userId). addDaysISO stays — ISO date arithmetic is zone-free.
 const addDaysISO = (iso: string, n: number): string => {
   const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
@@ -1308,7 +1312,21 @@ export class NutritionService implements OnModuleInit {
     private readonly ai: AiService,
     private readonly connections: ConnectionsService,
     private readonly notifications: NotificationsService,
+    private readonly clock: ClockService,
   ) {}
+
+  /**
+   * The citizen's own calendar day.
+   *
+   * Everything below that needs "today" goes through here. It used to be a
+   * module-level todayISO() returning the UTC day, which for a citizen in
+   * Asia/Kolkata names YESTERDAY for the five and a half hours after midnight —
+   * long enough that someone generating a plan late at night anchored its
+   * entire three weeks one day behind where they actually were.
+   */
+  private today(userId: string): Promise<string> {
+    return this.clock.todayFor(userId);
+  }
 
   async onModuleInit(): Promise<void> {
     await this.ensureRecipes();
@@ -1693,7 +1711,7 @@ export class NutritionService implements OnModuleInit {
     // once its three weeks are up.
     let planStartDate = (typeof ex.planStartDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ex.planStartDate)) ? ex.planStartDate : '';
     const planSeedBump = Number(ex.planSeedBump) || 0;
-    if (!planStartDate) { planStartDate = todayISO(); await this.mergeExtras(userId, { planStartDate }); }
+    if (!planStartDate) { planStartDate = await this.today(userId); await this.mergeExtras(userId, { planStartDate }); }
     const bvals = await this.bloodValues(userId);
     // Declared conditions + conditions DERIVED from abnormal blood values (QA H5).
     const conditions = [...new Set([...(ex.healthConditions ?? []), ...conditionsFromBlood(bvals)])];
@@ -2012,7 +2030,7 @@ export class NutritionService implements OnModuleInit {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     await this.mergeExtras(userId, {
-      planStartDate: todayISO(),
+      planStartDate: await this.today(userId),
       planSeedBump: (Number(ex.planSeedBump) || 0) + 1,
       composedBumps: {},
       composedSkips: [],
@@ -2811,15 +2829,9 @@ export class NutritionService implements OnModuleInit {
 
     // "Today" in the citizen's timezone — a day is only settled once THEIR day
     // has ended, not the server's.
-    const tz = await this.prisma.masterProfile
-      .findUnique({ where: { userId: ownerId }, select: { timeZone: true } })
-      .then((m) => (m as { timeZone?: string | null } | null)?.timeZone ?? null)
-      .catch(() => null);
-    let todayLocal = todayISO();
-    if (tz) {
-      try { todayLocal = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
-      catch { /* bad tz string → server day */ }
-    }
+    // This was one of only two places in the codebase that resolved the
+    // citizen's zone properly, hand-rolled inline. Same behaviour, one owner.
+    const todayLocal = await this.today(ownerId);
     const yesterday = addDaysISO(todayLocal, -1);
     if (ex.pantrySettledThrough && ex.pantrySettledThrough >= yesterday) return none; // already done
 
@@ -2897,7 +2909,7 @@ export class NutritionService implements OnModuleInit {
     } | null;
     if (!plan?.days?.length || plan.needsProfile) return { alerts: [] };
 
-    const startISO = plan.planStartDate && /^\d{4}-\d{2}-\d{2}$/.test(plan.planStartDate) ? plan.planStartDate : todayISO();
+    const startISO = plan.planStartDate && /^\d{4}-\d{2}-\d{2}$/.test(plan.planStartDate) ? plan.planStartDate : await this.today(userId);
     const now = Date.now();
     const horizon = now + 60 * 3600 * 1000;      // look ~2.5 days ahead
     const householdSize = mode === 'family'
@@ -3345,12 +3357,13 @@ export class NutritionService implements OnModuleInit {
   private async householdAdherence(userId: string, hasPlan: boolean): Promise<{ adherenceScore: number | null; mealCompletion: number | null }> {
     if (!hasPlan) return { adherenceScore: null, mealCompletion: null };
     const days = 7;
+    // These keys are matched against CalorieEntry.date, which the client writes
+    // as the citizen's OWN calendar date. Building them from the UTC day meant
+    // the seven-day window was shifted for anyone east of UTC during the hours
+    // after their midnight — comparing local rows against server days.
+    const todayLocal = await this.today(userId);
     const keys: string[] = [];
-    const today = new Date();
-    for (let i = 0; i < days; i++) {
-      const d = new Date(today.getTime() - i * 86_400_000);
-      keys.push(d.toISOString().slice(0, 10));
-    }
+    for (let i = 0; i < days; i++) keys.push(addDaysISO(todayLocal, -i));
     const entries = await this.prisma.calorieEntry
       .findMany({ where: { userId, date: { in: keys } }, select: { date: true, type: true } })
       .catch(() => [] as Array<{ date: string; type: string }>);
@@ -5766,7 +5779,7 @@ export class NutritionService implements OnModuleInit {
       // which is always the LIVE date or later (today / tomorrow / a chosen
       // future day), never a day that has already passed.
       let offset = 0;
-      const wanted = fromISO && /^\d{4}-\d{2}-\d{2}$/.test(fromISO) ? fromISO : todayISO();
+      const wanted = fromISO && /^\d{4}-\d{2}-\d{2}$/.test(fromISO) ? fromISO : await this.today(userId);
       if (plan.planStartDate && /^\d{4}-\d{2}-\d{2}$/.test(plan.planStartDate)) {
         const start = Date.parse(`${plan.planStartDate}T00:00:00Z`);
         const target = Date.parse(`${wanted}T00:00:00Z`);
@@ -5776,7 +5789,7 @@ export class NutritionService implements OnModuleInit {
       }
       const slice = plan.days.filter((d) => d.dayIndex >= offset).slice(0, days);
       const use = slice.length ? slice : plan.days.slice(0, days);
-      const startISO = plan.planStartDate && /^\d{4}-\d{2}-\d{2}$/.test(plan.planStartDate) ? plan.planStartDate : todayISO();
+      const startISO = plan.planStartDate && /^\d{4}-\d{2}-\d{2}$/.test(plan.planStartDate) ? plan.planStartDate : await this.today(userId);
       const meals = use.flatMap((d) => d.meals.flatMap((m) => m.components.map((c) => ({
         slot: m.slot,
         recipeName: c.name || m.title,
@@ -5823,8 +5836,8 @@ export class NutritionService implements OnModuleInit {
    * You can shop for today or any future day; a date already gone is snapped
    * forward to today, because you can't buy groceries for yesterday.
    */
-  private resolveStartDate(startDate?: string): string {
-    const today = todayISO();
+  private async resolveStartDate(userId: string, startDate?: string): Promise<string> {
+    const today = await this.today(userId);
     if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return today;
     return startDate < today ? today : startDate;
   }
@@ -5845,7 +5858,7 @@ export class NutritionService implements OnModuleInit {
     // the basket could be built from meals the user was never shown. Falls back
     // to the stored weekly plan only if the composed plan can't be produced.
     const window = Math.max(1, Math.min(28, Math.round(days)));
-    const fromISO = this.resolveStartDate(startDate);
+    const fromISO = await this.resolveStartDate(userId, startDate);
     // mode==='family' composes with every household member's allergies and
     // exclusions applied, so the basket can never buy an ingredient for a dish
     // one of them can't eat.
@@ -6043,7 +6056,7 @@ export class NutritionService implements OnModuleInit {
       const composed = await this.composedMealsForShopping(
         userId,
         Math.max(1, Math.min(28, Math.round(opts.days ?? 7))),
-        this.resolveStartDate(opts.startDate),
+        await this.resolveStartDate(userId, opts.startDate),
         opts.mode === 'family',   // saved cart mirrors the displayed family list
       );
       if (composed.meals.length) {

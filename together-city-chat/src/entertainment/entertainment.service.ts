@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleIni
 import { demoDataEnabled } from '../shared/demo-data';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ClockService } from '../shared/clock/clock.service';
 import { ORDER_HISTORY_CAP } from '../shared/paging';
 import { FinancialService } from '../financial/financial.service';
 import { MailService } from '../mail/mail.service';
@@ -51,6 +52,7 @@ export class EntertainmentService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly financial: FinancialService, // ticket payments flow through the one city wallet
     private readonly mail: MailService,            // confirmations land in the city inbox + primary email
+    private readonly clock: ClockService,
   ) {}
 
   categories() {
@@ -124,10 +126,11 @@ export class EntertainmentService implements OnModuleInit {
 
   async myTickets(userId: string) {
     const rows = await this.prisma.ticketBooking.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP });
+    const tz = await this.clock.timezoneFor(userId);
     return rows.map((t) => ({
       id: t.id, eventId: t.eventId, title: t.title, tier: t.tier, qty: t.qty, totalInr: t.totalInr, code: t.code, status: t.status,
       date: t.eventDate, time: t.eventTime, venue: t.venue, city: t.city,
-      icon: CATEGORY_META[t.category]?.icon ?? '🎟', bookedOn: t.createdAt.toISOString().slice(0, 10),
+      icon: CATEGORY_META[t.category]?.icon ?? '🎟', bookedOn: this.clock.dayIn(tz, t.createdAt),
     }));
   }
 

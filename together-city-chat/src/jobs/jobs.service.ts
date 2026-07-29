@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { demoDataEnabled } from '../shared/demo-data';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ClockService } from '../shared/clock/clock.service';
 import { ORDER_HISTORY_CAP } from '../shared/paging';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { parseResume, matchJobs, labelFor, JOB_SEEDS, type ParsedResume, type JobLike } from './jobs-engine';
@@ -13,6 +14,7 @@ export class JobsService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly masterProfile: MasterProfileService,
+    private readonly clock: ClockService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -139,7 +141,11 @@ export class JobsService implements OnModuleInit {
 
   async applications(userId: string) {
     const rows = await this.prisma.jobApplication.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP });
-    return rows.map((a) => ({ id: a.id, jobId: a.jobId, title: a.title, company: a.company, status: a.status, coverNote: a.coverNote, appliedOn: a.createdAt.toISOString().slice(0, 10) }));
+    // createdAt is an instant, so the date it falls on depends on who is
+    // looking. Applying at 01:00 in Asia/Kolkata is 19:30 the previous day in
+    // UTC — the citizen would see a date they did not apply on.
+    const tz = await this.clock.timezoneFor(userId);
+    return rows.map((a) => ({ id: a.id, jobId: a.jobId, title: a.title, company: a.company, status: a.status, coverNote: a.coverNote, appliedOn: this.clock.dayIn(tz, a.createdAt) }));
   }
 
   // ─────────────── employer side (post a job, see applicants) ───────────────
@@ -195,11 +201,12 @@ export class JobsService implements OnModuleInit {
     const rows = await this.prisma.job.findMany({ where: { postedById: userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP });
     const counts = await this.prisma.jobApplication.groupBy({ by: ['jobId'], where: { jobId: { in: rows.map((r) => r.id) } }, _count: { jobId: true } });
     const countBy = new Map(counts.map((c) => [c.jobId, c._count.jobId]));
+    const tz = await this.clock.timezoneFor(userId);
     return rows.map((r) => ({
       id: r.id, title: r.title, company: r.company, location: r.location, remote: r.remote,
       salaryLpa: r.salaryLpa, minYears: r.minYears, seniority: r.seniority, blurb: r.blurb,
       skills: (r.skills ? r.skills.split(',').filter(Boolean) : []).map((k) => ({ key: k, label: labelFor(k) })),
-      applicantCount: countBy.get(r.id) ?? 0, postedOn: r.createdAt.toISOString().slice(0, 10),
+      applicantCount: countBy.get(r.id) ?? 0, postedOn: this.clock.dayIn(tz, r.createdAt),
     }));
   }
 
@@ -216,6 +223,8 @@ export class JobsService implements OnModuleInit {
     ]);
     const userBy = new Map(users.map((u) => [u.id, u]));
     const profBy = new Map(profs.map((p) => [p.userId, p]));
+    // The recruiter's zone: these dates are being shown to THEM.
+    const tz = await this.clock.timezoneFor(userId);
     const out = apps.map((a) => {
       const applicant = userBy.get(a.userId);
       const prof = profBy.get(a.userId);
@@ -225,7 +234,7 @@ export class JobsService implements OnModuleInit {
         id: a.id, name: applicant?.name ?? 'Candidate', handle: applicant?.handle ?? '',
         headline: prof?.headline ?? '', experienceYears: prof?.experienceYears ?? 0,
         matchedSkills: matched.map((k) => labelFor(k)), coverNote: a.coverNote, status: a.status,
-        appliedOn: a.createdAt.toISOString().slice(0, 10),
+        appliedOn: this.clock.dayIn(tz, a.createdAt),
       };
     });
     return { job: { id: job.id, title: job.title, company: job.company }, applicants: out };

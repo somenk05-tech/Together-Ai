@@ -57,7 +57,22 @@ const hash32 = (s: string): number => {
 /** Deterministic 0..1 from a seed string — stable for the whole day. */
 const roll = (seed: string): number => hash32(seed) / 4294967296;
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
+/**
+ * The day that seeds price jitter and stock availability.
+ *
+ * Asia/Kolkata rather than UTC, matching isPeakNow() below — this whole module
+ * models an Indian quick-commerce market. On UTC the seed rolled over at 05:30
+ * local, so prices and stock visibly changed mid-morning instead of overnight.
+ */
+const todayKey = (at: Date = new Date()): string => {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(at);
+  } catch {
+    return at.toISOString().slice(0, 10);
+  }
+};
 
 /** Is now a delivery peak (lunch/dinner rush, IST)? Drives ETA + surge. */
 export function isPeakNow(now = new Date()): boolean {

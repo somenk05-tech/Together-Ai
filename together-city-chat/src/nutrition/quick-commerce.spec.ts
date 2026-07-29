@@ -36,8 +36,21 @@ describe('quick-commerce engine', () => {
     expect(big.totalInr).toBe(big.itemsTotalInr + big.deliveryFeeInr + big.surgeInr);
   });
 
-  it('compareStores badges cheapest/fastest/recommended and sorts by total', () => {
+  /**
+   * Named partner stores are quoted ONLY when a live provider is connected.
+   * Without one, showing Zepto and Blinkit prices next to a real basket invents
+   * a market that isn't there — the citizen would be comparing made-up numbers
+   * against named companies. This spec asserted the pre-gating behaviour and
+   * was left behind when that landed.
+   */
+  it('quotes only the own store until a live partner is connected', () => {
     const quotes = compareStores(LIST);
+    expect(quotes).toHaveLength(1);
+    expect(quotes[0].provider.key).toBe('tc-express');
+  });
+
+  it('compareStores badges cheapest/fastest/recommended and sorts by total', () => {
+    const quotes = compareStores(LIST, new Date(), true);
     expect(quotes).toHaveLength(QC_PROVIDERS.length);
     const all = quotes.flatMap((q) => q.badges);
     expect(all).toContain('cheapest');
