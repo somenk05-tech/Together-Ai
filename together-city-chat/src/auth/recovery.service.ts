@@ -5,6 +5,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { recoveryOtpEmail, passwordChangedEmail } from '../mail/email-templates';
 import { TokenService } from './token.service';
+import { isCityAddress, stripCityDomain } from '../mail/mail.constants';
 
 const GENERIC = "If an account matching your information exists, we've sent a verification code.";
 const OTP_TTL_MS = 10 * 60 * 1000;   // 10 minutes
@@ -67,9 +68,9 @@ export class RecoveryService {
 
   private async findUser(identifierRaw: string) {
     const id = identifierRaw.trim().toLowerCase();
-    if (id.includes('@') && !id.endsWith('@togethercity.tech')) return this.prisma.user.findFirst({ where: { email: id } });
+    if (id.includes('@') && !isCityAddress(id)) return this.prisma.user.findFirst({ where: { email: id } });
     if (/^[+0-9][0-9\s-]{5,}$/.test(id)) return this.prisma.user.findFirst({ where: { phone: identifierRaw.trim() } });
-    return this.prisma.user.findUnique({ where: { handle: id.replace(/@togethercity\.tech$/, '') } });
+    return this.prisma.user.findUnique({ where: { handle: stripCityDomain(id) } });
   }
 
   /** STEP 1–3: identify the user, generate + hash a 6-digit OTP, send it, and

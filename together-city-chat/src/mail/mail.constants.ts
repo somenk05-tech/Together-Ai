@@ -1,16 +1,32 @@
 /** Together City Mail — constants. */
 
-export const MAIL_DOMAIN = 'togethercity.tech';
+export const MAIL_DOMAIN = 'togethercity.app';
+/** Previously issued city domain — still routed internally so addresses that
+ *  were already shared (and mail already in inboxes) keep working. */
+export const LEGACY_MAIL_DOMAINS = ['togethercity.tech'] as const;
+export const CITY_DOMAINS: readonly string[] = [MAIL_DOMAIN, ...LEGACY_MAIL_DOMAINS];
 export const QUOTA_BYTES = 10 * 1024 * 1024 * 1024; // 10 GB per citizen
 
 export const addressFor = (handle: string): string => `${handle}@${MAIL_DOMAIN}`;
-/** Parse a "handle@togethercity.tech" (or bare handle) into a city handle, or null if off-domain. */
+/** True for any address on a city domain (current or legacy). */
+export const isCityAddress = (raw: string): boolean => {
+  const domain = (raw || '').trim().toLowerCase().split('@')[1];
+  return Boolean(domain) && CITY_DOMAINS.includes(domain);
+};
+/** Strip a city domain off an address, leaving the bare handle. */
+export const stripCityDomain = (raw: string): string => {
+  const v = (raw || '').trim().toLowerCase();
+  const [local, domain] = v.split('@');
+  return domain && CITY_DOMAINS.includes(domain) ? local : v;
+};
+/** Parse a "handle@togethercity.app" (or legacy .tech, or bare handle) into a
+ *  city handle, or null if the address is off-domain (i.e. truly external). */
 export const handleFromAddress = (raw: string): string | null => {
   const v = (raw || '').trim().toLowerCase();
   if (!v) return null;
   if (!v.includes('@')) return v.replace(/[^a-z0-9._-]/g, '') || null;
   const [local, domain] = v.split('@');
-  if (domain !== MAIL_DOMAIN) return null;
+  if (!CITY_DOMAINS.includes(domain)) return null;
   return local.replace(/[^a-z0-9._-]/g, '') || null;
 };
 

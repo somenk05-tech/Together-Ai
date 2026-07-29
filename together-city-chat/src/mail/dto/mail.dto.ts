@@ -10,6 +10,8 @@ export const SendMailSchema = z.object({
   subject: z.string().max(200).default('(no subject)'),
   body: z.string().max(50000).default(''),
   threadId: z.string().max(64).optional(), // reply → append to this trail
+  /** Drive files (owned by the sender) to attach to this message. */
+  attachmentFileIds: z.array(z.string().uuid()).max(10).optional(),
 });
 export type SendMailDto = z.infer<typeof SendMailSchema>;
 

@@ -3,8 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import { useDirectory, useSendMail, useMailAccount, type DirectoryEntry } from '../api';
 import { payError } from '@/features/financial/api';
+import { DrivePicker } from '../DrivePicker';
+import { fmtBytes, fileIcon, type DriveFile } from '@/features/drive/api';
 
-/** Compose — write to any @togethercity.tech citizen (directory autocomplete)
+/** Compose — write to any @togethercity.app citizen (directory autocomplete)
  *  OR any external/global email address (delivered via the email provider). */
 export function Compose() {
   const [params] = useSearchParams();
@@ -17,6 +19,8 @@ export function Compose() {
   const [subject, setSubject] = useState(params.get('subject') ?? '');
   const [body, setBody] = useState('');
   const [showSug, setShowSug] = useState(false);
+  const [attachments, setAttachments] = useState<DriveFile[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const threadId = params.get('threadId') ?? undefined; // set when replying → append to trail
 
   const suggestions = useMemo(() => {
@@ -41,7 +45,7 @@ export function Compose() {
         <div style={{ position: 'relative' }}>
           <label style={{ fontSize: 12 }} className="muted">To</label>
           <input value={to} onChange={(e) => { setTo(e.target.value); setShowSug(true); }} onFocus={() => setShowSug(true)}
-            placeholder="handle@togethercity.tech · or any email address" style={inp} autoComplete="off" />
+            placeholder="handle@togethercity.app · or any email address" style={inp} autoComplete="off" />
           {showSug && suggestions.length > 0 && (
             <div className="card" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, padding: 4, marginTop: 4, maxHeight: 240, overflow: 'auto' }}>
               {suggestions.map((d) => (
@@ -63,12 +67,38 @@ export function Compose() {
           <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={12} placeholder="Write your message…" style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }} />
         </div>
 
+        {/* Attachments from the citizen's Drive */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <Button variant="line" size="sm" onClick={() => setPickerOpen(true)}>📎 Attach from Drive</Button>
+            {attachments.length > 0 && (
+              <span className="muted" style={{ fontSize: 12 }}>
+                {attachments.length} file{attachments.length === 1 ? '' : 's'} · {fmtBytes(attachments.reduce((s2, f) => s2 + f.sizeBytes, 0))}
+              </span>
+            )}
+          </div>
+          {attachments.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+              {attachments.map((f) => (
+                <span key={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '1px solid var(--line)', borderRadius: 999, padding: '6px 10px 6px 12px', fontSize: 12.5, background: 'var(--paper)' }}>
+                  <span>{fileIcon(f)}</span>
+                  <span style={{ maxWidth: 190, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                  <span className="muted" style={{ fontSize: 11 }}>{fmtBytes(f.sizeBytes)}</span>
+                  <button type="button" aria-label={`Remove ${f.name}`}
+                    onClick={() => setAttachments((cur) => cur.filter((x) => x.id !== f.id))}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, lineHeight: 1, color: 'var(--muted)' }}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
         {send.isError && <div style={{ fontSize: 13, color: '#c62828', background: '#fdecec', borderRadius: 8, padding: '8px 12px' }}>{payError(send.error)}</div>}
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Button variant="accent" disabled={!canSend}
             onClick={() => send.mutate(
-              { to, subject: subject || '(no subject)', body, threadId },
+              { to, subject: subject || '(no subject)', body, threadId, attachmentFileIds: attachments.map((f) => f.id) },
               { onSuccess: () => { if (threadId) nav(-1); else nav('/mail/sent'); } },
             )}>
             {send.isPending ? 'Sending…' : threadId ? 'Send reply' : 'Send'}
@@ -77,6 +107,14 @@ export function Compose() {
           <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>Delivers to citizens and external emails</span>
         </div>
       </div>
+
+      {pickerOpen && (
+        <DrivePicker
+          alreadyPicked={attachments.map((f) => f.id)}
+          onClose={() => setPickerOpen(false)}
+          onPick={(files) => setAttachments((cur) => [...cur, ...files.filter((f) => !cur.some((c) => c.id === f.id))])}
+        />
+      )}
     </div>
   );
 }

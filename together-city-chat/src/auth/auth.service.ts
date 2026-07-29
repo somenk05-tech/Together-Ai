@@ -11,6 +11,7 @@ import { ForgotDto, LoginDto, RegisterDto, ResetDto } from './dto/auth.dto';
 import { TokenService, TokenPair, SessionMeta } from './token.service';
 import { assertStrongPassword } from './recovery.service';
 import { VerificationService } from './verification.service';
+import { isCityAddress } from '../mail/mail.constants';
 
 @Injectable()
 export class AuthService {
@@ -93,7 +94,7 @@ export class AuthService {
   private async findByIdentifier(identifier: string) {
     const raw = identifier.trim();
     const id = raw.toLowerCase();
-    if (id.includes('@') && !id.endsWith('@togethercity.tech')) {
+    if (id.includes('@') && !isCityAddress(id)) {
       return this.prisma.user.findFirst({ where: { email: id } });
     }
     if (/^[+0-9][0-9\s-]{5,}$/.test(id)) {

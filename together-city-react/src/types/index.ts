@@ -9,7 +9,7 @@ export type AuthProvider = 'email' | 'google' | 'phone';
 
 export interface User {
   id: string;
-  handle: string;            // unique — also surfaced as <handle>@togethercity.tech
+  handle: string;            // unique — also surfaced as <handle>@togethercity.app
   name: string;
   profileImage?: string | null;
   lastSeen?: string | null;

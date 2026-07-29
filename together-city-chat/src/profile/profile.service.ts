@@ -83,7 +83,7 @@ export class ProfileService {
     const sections: ProfileSection[] = [
       { key: 'name', label: 'Name', value: user?.name ?? null },
       { key: 'handle', label: 'Handle', value: user ? `@${user.handle}` : null },
-      { key: 'email', label: 'City email', value: user ? `${user.handle}@togethercity.tech` : null },
+      { key: 'email', label: 'City email', value: user ? `${user.handle}@togethercity.app` : null },
       { key: 'primaryEmail', label: 'Primary email', value: user?.email ?? null },
       { key: 'phone', label: 'Phone', value: user?.phone ?? null },
       ...this.nutritionSections(foodPref),

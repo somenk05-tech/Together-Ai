@@ -53,6 +53,18 @@ export class MailController {
     return this.mail.send(user.sub, dto);
   }
 
+  /** Files attached to a thread (any participant may list them). */
+  @Get('thread/:threadId/attachments')
+  threadAttachments(@CurrentUser() user: JwtUser, @Param('threadId') threadId: string) {
+    return this.mail.threadAttachments(user.sub, threadId);
+  }
+
+  /** Short-lived signed download URL for one attachment. */
+  @Get('thread/:threadId/attachments/:fileId/url')
+  attachmentUrl(@CurrentUser() user: JwtUser, @Param('threadId') threadId: string, @Param('fileId') fileId: string) {
+    return this.mail.attachmentUrl(user.sub, threadId, fileId);
+  }
+
   @Get(':id')
   get(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.mail.get(user.sub, id);

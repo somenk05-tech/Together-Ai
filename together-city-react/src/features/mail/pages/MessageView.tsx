@@ -1,9 +1,49 @@
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
+import { mailApi } from '../api';
+import { fmtBytes, fileIcon } from '@/features/drive/api';
 import {
   useMailMessage, useMailThread, useMailAccount, useFlagMail, useRemoveMail,
   humanBytes, initials, avatarHue, type MailMessage,
 } from '../api';
+
+/** Files attached to this trail, pulled from the sender's Drive. Any participant
+ *  may download them via a short-lived signed URL. */
+function ThreadAttachments({ threadId }: { threadId?: string | null }) {
+  const q = useQuery({
+    queryKey: ['mail', 'attachments', threadId],
+    queryFn: () => mailApi.threadAttachments(threadId as string),
+    enabled: Boolean(threadId),
+  });
+  const items = q.data?.items ?? [];
+  if (!threadId || items.length === 0) return null;
+  const open = async (fileId: string) => {
+    try {
+      const { url } = await mailApi.attachmentUrl(threadId, fileId);
+      window.open(url, '_blank', 'noopener');
+    } catch { /* surfaced by the empty state below */ }
+  };
+  return (
+    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginTop: 4 }}>
+      <div className="muted" style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+        📎 {items.length} attachment{items.length === 1 ? '' : 's'}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {items.map((f) => (
+          <button key={f.id} type="button" onClick={() => void open(f.id)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: '1px solid var(--line)', borderRadius: 10, padding: '8px 12px', background: 'var(--paper)', cursor: 'pointer', fontFamily: 'inherit', color: 'var(--ink)' }}>
+            <span style={{ fontSize: 17 }}>{fileIcon(f)}</span>
+            <span style={{ textAlign: 'left' }}>
+              <span style={{ display: 'block', fontSize: 13, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+              <span className="muted" style={{ fontSize: 11 }}>{fmtBytes(f.sizeBytes)} · Download</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /** One message inside a trail. */
 function TrailMessage({ m, mine }: { m: MailMessage; mine: boolean }) {
@@ -77,6 +117,7 @@ export function MessageView() {
           <span className="muted" style={{ marginLeft: 'auto', fontSize: 11 }}>{humanBytes(totalBytes)}</span>
         </div>
         {trail.map((x) => <TrailMessage key={x.id} m={x} mine={x.fromAddr === myAddr} />)}
+        <ThreadAttachments threadId={m.threadId} />
       </div>
 
       {!m.system && (

@@ -184,7 +184,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   mail: {
-    key: 'mail', name: 'Together City Mail', tag: 'Your @togethercity.tech inbox', backPath: '/mail',
+    key: 'mail', name: 'Together City Mail', tag: 'Your @togethercity.app inbox', backPath: '/mail',
     items: [
       { path: '/mail/inbox', index: '01', label: 'Inbox', sub: 'Mail from around the city' },
       { path: '/mail/compose', index: '02', label: 'Compose', sub: 'Write a new message' },

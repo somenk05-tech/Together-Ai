@@ -26,7 +26,11 @@ export const mailApi = {
   list: (folder: Folder) => api.get<MailItem[]>('/mail', { params: { folder } }).then((r) => r.data),
   get: (id: string) => api.get<MailMessage>(`/mail/${id}`).then((r) => r.data),
   thread: (threadId: string) => api.get<MailMessage[]>(`/mail/thread/${threadId}`).then((r) => r.data),
-  send: (input: { to: string; subject: string; body: string; threadId?: string }) => api.post<MailItem[]>('/mail/send', input).then((r) => r.data),
+  send: (input: { to: string; subject: string; body: string; threadId?: string; attachmentFileIds?: string[] }) => api.post<MailItem[]>('/mail/send', input).then((r) => r.data),
+  threadAttachments: (threadId: string) =>
+    api.get<{ items: Array<{ id: string; name: string; mimeType: string | null; sizeBytes: number }> }>(`/mail/thread/${threadId}/attachments`).then((r) => r.data),
+  attachmentUrl: (threadId: string, fileId: string) =>
+    api.get<{ url: string; name: string }>(`/mail/thread/${threadId}/attachments/${fileId}/url`).then((r) => r.data),
   flag: (id: string, input: { starred?: boolean; read?: boolean }) => api.post(`/mail/${id}/flag`, input).then((r) => r.data),
   remove: (id: string) => api.delete(`/mail/${id}`).then((r) => r.data),
   outbox: () => api.get<OutboxEntry[]>('/mail/outbox').then((r) => r.data),
@@ -65,7 +69,7 @@ export function useMailThread(threadId?: string | null) {
 export function useSendMail() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { to: string; subject: string; body: string; threadId?: string }) => mailApi.send(v),
+    mutationFn: (v: { to: string; subject: string; body: string; threadId?: string; attachmentFileIds?: string[] }) => mailApi.send(v),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['mail'] }); },
   });
 }

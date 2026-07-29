@@ -269,7 +269,7 @@ export function Profile() {
           <div style={{ flex: 1, minWidth: 180 }}>
             <h3 style={{ margin: 0 }}>{name}</h3>
             <p className="muted" style={{ fontSize: 13 }}>
-              @{user?.handle ?? '—'}{user?.handle ? ` · ${user.handle}@togethercity.tech` : ''}
+              @{user?.handle ?? '—'}{user?.handle ? ` · ${user.handle}@togethercity.app` : ''}
             </p>
             <p className="muted" style={{ fontSize: 12 }}>
               {data ? `Member since ${new Date(data.memberSince).toLocaleDateString()}` : 'Your Together City identity'}

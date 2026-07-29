@@ -431,7 +431,7 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    // Together City Mail — webmail inbox (@togethercity.tech), 10 GB per citizen.
+    // Together City Mail — webmail inbox (@togethercity.app), 10 GB per citizen.
     element: <HubLayout hub={HUBS.mail} />,
     children: [
       { path: '/mail/inbox', element: <RequireAuth>{wrap(<MailInbox />)}</RequireAuth> },

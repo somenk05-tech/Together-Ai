@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { StorageProvider } from '../media/storage.provider';
 import {
   MAIL_DOMAIN, QUOTA_BYTES, addressFor, handleFromAddress, snippetOf, sizeOf, welcomeMail,
 } from './mail.constants';
@@ -9,7 +10,54 @@ import type { FlagDto, FolderQueryDto, SendMailDto } from './dto/mail.dto';
 
 @Injectable()
 export class MailService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageProvider,
+  ) {}
+
+  /** Drive files the sender chose are linked to the THREAD, so both the Sent and
+   *  Inbox copies resolve the same attachments. Only files the sender actually
+   *  owns can be attached. */
+  private async linkAttachments(userId: string, threadId: string, fileIds?: string[]): Promise<void> {
+    if (!fileIds?.length) return;
+    const drive = (this.prisma as unknown as {
+      driveFile: { updateMany(a: unknown): Promise<{ count: number }> };
+    }).driveFile;
+    await drive.updateMany({
+      where: { id: { in: fileIds.slice(0, 10) }, ownerId: userId },
+      data: { attachedType: 'mail', attachedId: threadId },
+    }).catch(() => undefined);
+  }
+
+  /** Attachments on a thread the caller is a participant of. */
+  async threadAttachments(userId: string, threadId: string) {
+    const owns = await this.prisma.mailMessage.findFirst({ where: { ownerId: userId, threadId }, select: { id: true } });
+    if (!owns) throw new NotFoundException('Message not found.');
+    const drive = (this.prisma as unknown as {
+      driveFile: { findMany(a: unknown): Promise<Array<{ id: string; name: string; mimeType: string | null; sizeBytes: number }>> };
+    }).driveFile;
+    const items = await drive.findMany({
+      where: { attachedType: 'mail', attachedId: threadId },
+      select: { id: true, name: true, mimeType: true, sizeBytes: true },
+      orderBy: { createdAt: 'asc' },
+    }).catch(() => []);
+    return { items };
+  }
+
+  /** Short-lived download URL for an attachment — allowed for ANY participant of
+   *  the thread (not just the file's owner), which is what makes mail work. */
+  async attachmentUrl(userId: string, threadId: string, fileId: string) {
+    const owns = await this.prisma.mailMessage.findFirst({ where: { ownerId: userId, threadId }, select: { id: true } });
+    if (!owns) throw new NotFoundException('Message not found.');
+    const drive = (this.prisma as unknown as {
+      driveFile: { findFirst(a: unknown): Promise<{ storageKey: string; name: string; mimeType: string | null } | null> };
+    }).driveFile;
+    const f = await drive.findFirst({ where: { id: fileId, attachedType: 'mail', attachedId: threadId } });
+    if (!f) throw new NotFoundException('Attachment not found.');
+    const url = await this.storage.presignHealthDownload(f.storageKey);
+    if (!url) throw new NotFoundException('File storage is not available right now.');
+    return { url, name: f.name, mimeType: f.mimeType };
+  }
 
   /** Ensure the user has a mailbox (address + welcome mail). Idempotent. */
   private async ensureAccount(userId: string) {
@@ -152,6 +200,7 @@ export class MailService {
       await this.prisma.mailAccount.findUnique({ where: { userId: recipient.id } }).then((a) => a ?? this.ensureAccount(recipient.id));
       await this.prisma.mailMessage.create({ data: { ...base, ownerId: recipient.id, boxUserId: recipient.id, folder: 'inbox', read: false } });
     }
+    await this.linkAttachments(userId, threadId, dto.attachmentFileIds);
     return this.list(userId, { folder: 'sent' });
   }
 
