@@ -55,7 +55,9 @@ export class FinancialService {
    */
   async charge(userId: string, input: ChargeInput, tx?: PrismaTx) {
     if (tx) return this.chargeOn(tx, userId, input);
-    return this.prisma.$transaction((t: PrismaTx) => this.chargeOn(t, userId, input));
+    // No annotation on `t` — let TypeScript infer Prisma's own callback type.
+    // Naming a hand-written one here is what broke the build before.
+    return this.prisma.$transaction((t) => this.chargeOn(t, userId, input));
   }
 
   /**
@@ -73,7 +75,7 @@ export class FinancialService {
    * resolves, where a failure costs a receipt rather than an order.
    */
   async paid<T>(userId: string, input: ChargeInput, work: (tx: PrismaTx) => Promise<T>): Promise<T> {
-    return this.prisma.$transaction(async (tx: PrismaTx) => {
+    return this.prisma.$transaction(async (tx) => {
       await this.chargeOn(tx, userId, input);
       return work(tx);
     });
