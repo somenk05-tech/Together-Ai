@@ -406,11 +406,21 @@ export class BeautyService {
   async placeOrder(userId: string, dto: PlaceBeautyOrderDto) {
     const totalInr = dto.items.reduce((s, i) => s + i.priceInr * i.qty, 0);
     // Unified payment: pay from the one city wallet via the Financial hub.
-    await this.financial.charge(userId, { hub: 'Beauty', category: 'beauty', label: 'Beauty market order', amountInr: totalInr, method: dto.method });
-    const order = await this.prisma.beautyOrder.create({
-      data: { userId, itemsJson: JSON.stringify(dto.items), totalInr, status: 'placed' },
-    });
-    return this.orders(userId).then((list) => ({ orderId: order.id, orders: list }));
+    // Charge and record the order together — a failure after the debit used to
+    // leave the citizen paid-up with no order to show for it.
+    // Returns the id explicitly rather than the row, so the call site doesn't
+    // depend on generic inference through the transaction callback.
+    const orderId = await this.financial.paid<string>(
+      userId,
+      { hub: 'Beauty', category: 'beauty', label: 'Beauty market order', amountInr: totalInr, method: dto.method },
+      async (tx) => {
+        const created = await tx.beautyOrder.create({
+          data: { userId, itemsJson: JSON.stringify(dto.items), totalInr, status: 'placed' },
+        });
+        return created.id;
+      },
+    );
+    return this.orders(userId).then((list) => ({ orderId, orders: list }));
   }
 
   async orders(userId: string) {

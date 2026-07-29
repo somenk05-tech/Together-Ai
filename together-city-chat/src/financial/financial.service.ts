@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import type { PrismaTx } from '../shared/prisma/prisma-tx';
 import { LEDGER_CAP } from '../shared/paging';
 import type { SetBudgetDto } from './dto/financial.dto';
 
@@ -35,30 +36,62 @@ const monthKey = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
 export class FinancialService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async ensureWalletOn(db: PrismaTx, userId: string) {
+    return db.cityWallet.upsert({ where: { userId }, update: {}, create: { userId, balanceInr: 0 } });
+  }
+
   private async ensureWallet(userId: string) {
-    return this.prisma.cityWallet.upsert({ where: { userId }, update: {}, create: { userId, balanceInr: 0 } });
+    return this.ensureWalletOn(this.prisma, userId);
   }
 
   /**
-   * The unified payment rail. Every hub's checkout calls this to pay from the one
-   * city wallet — it enforces balance, deducts, and records a single payment in the
-   * central ledger. Throws 400 if the wallet can't cover it (→ top up).
+   * The unified payment rail. Every hub's checkout pays from the one city wallet
+   * through here — it enforces balance, deducts, and records a single payment in
+   * the central ledger. Throws 400 if the wallet can't cover it (→ top up).
+   *
+   * Pass `tx` to charge INSIDE a caller's transaction, so that taking the money
+   * and recording what it bought either both happen or neither does. Without it
+   * the charge is still atomic in itself, just not with whatever follows.
    */
-  async charge(userId: string, input: ChargeInput) {
-    const wallet = await this.ensureWallet(userId);
+  async charge(userId: string, input: ChargeInput, tx?: PrismaTx) {
+    if (tx) return this.chargeOn(tx, userId, input);
+    return this.prisma.$transaction((t: PrismaTx) => this.chargeOn(t, userId, input));
+  }
+
+  /**
+   * Charge + whatever the purchase creates, in ONE transaction.
+   *
+   * Every checkout in the city used to charge the wallet and then create its
+   * order row as a separate write. If that second write failed — a constraint, a
+   * dropped connection, a bad payload — the money was gone and the order did not
+   * exist, with nothing to reconcile it against and no refund path. This closes
+   * that window.
+   *
+   * `work` must do database work ONLY. Sending mail or calling an AI provider
+   * inside a transaction holds a connection open across a network call and will
+   * trip Prisma's transaction timeout under any real load; do that after this
+   * resolves, where a failure costs a receipt rather than an order.
+   */
+  async paid<T>(userId: string, input: ChargeInput, work: (tx: PrismaTx) => Promise<T>): Promise<T> {
+    return this.prisma.$transaction(async (tx: PrismaTx) => {
+      await this.chargeOn(tx, userId, input);
+      return work(tx);
+    });
+  }
+
+  private async chargeOn(db: PrismaTx, userId: string, input: ChargeInput) {
+    const wallet = await this.ensureWalletOn(db, userId);
     const method: PayMethod = input.method === 'card' ? 'card' : 'wallet';
     if (method === 'card') {
       if (!wallet.cardLast4) throw new BadRequestException('No card linked. Link a card or pay from your wallet.');
-      await this.prisma.walletTxn.create({ data: { userId, kind: 'payment', amountInr: input.amountInr, hub: input.hub, category: input.category, label: `${input.label} · card ••${wallet.cardLast4}` } });
+      await db.walletTxn.create({ data: { userId, kind: 'payment', amountInr: input.amountInr, hub: input.hub, category: input.category, label: `${input.label} · card ••${wallet.cardLast4}` } });
       return { paid: true, balanceInr: wallet.balanceInr, method };
     }
     if (wallet.balanceInr < input.amountInr) {
       throw new BadRequestException(`Insufficient wallet balance. Top up ₹${input.amountInr - wallet.balanceInr} more, or pay by card.`);
     }
-    const [, updated] = await this.prisma.$transaction([
-      this.prisma.walletTxn.create({ data: { userId, kind: 'payment', amountInr: input.amountInr, hub: input.hub, category: input.category, label: input.label } }),
-      this.prisma.cityWallet.update({ where: { userId }, data: { balanceInr: { decrement: input.amountInr } } }),
-    ]);
+    await db.walletTxn.create({ data: { userId, kind: 'payment', amountInr: input.amountInr, hub: input.hub, category: input.category, label: input.label } });
+    const updated = await db.cityWallet.update({ where: { userId }, data: { balanceInr: { decrement: input.amountInr } } });
     return { paid: true, balanceInr: updated.balanceInr, method };
   }
 

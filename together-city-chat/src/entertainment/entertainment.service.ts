@@ -87,13 +87,37 @@ export class EntertainmentService implements OnModuleInit {
     if (tier.available < dto.qty) throw new BadRequestException('not enough tickets in that tier');
 
     const totalInr = tier.priceInr * dto.qty;
-    // Unified payment via the Financial hub (wallet or linked card).
-    await this.financial.charge(userId, { hub: 'Entertainment', category: 'entertainment', label: `${e.title} · ${dto.tier} ×${dto.qty}`, amountInr: totalInr, method: dto.method });
-
     const code = 'TC-' + randomBytes(3).toString('hex').toUpperCase();
-    await this.prisma.ticketBooking.create({
-      data: { userId, eventId, title: e.title, tier: dto.tier, qty: dto.qty, totalInr, code, status: 'confirmed', eventDate: e.date, eventTime: e.time, venue: e.venue, city: e.city, category: e.category },
-    });
+
+    // Charge and issue the pass together. Previously the wallet was debited and
+    // the booking written as a separate call, so a failure in between left a
+    // citizen paid-up with no ticket and nothing to reconcile against.
+    await this.financial.paid(
+      userId,
+      { hub: 'Entertainment', category: 'entertainment', label: `${e.title} · ${dto.tier} ×${dto.qty}`, amountInr: totalInr, method: dto.method },
+      async (tx) => {
+        // Seats are decremented inside the same transaction, and the tier is
+        // re-read here rather than trusted from the check above: two people
+        // buying the last four seats at the same moment both passed that check,
+        // and nothing afterwards ever reduced availability — the tier count was
+        // decorative, so an event could be sold indefinitely.
+        const fresh = await tx.event.findUnique({ where: { id: eventId }, select: { tiersJson: true } });
+        const tiers = parseTiers(fresh?.tiersJson ?? e.tiersJson);
+        const seat = tiers.find((t) => t.name === dto.tier);
+        if (!seat || seat.available < dto.qty) {
+          throw new BadRequestException('Those seats just went — try a different tier.');
+        }
+        seat.available -= dto.qty;
+        await tx.event.update({ where: { id: eventId }, data: { tiersJson: JSON.stringify(tiers) } });
+        await tx.ticketBooking.create({
+          data: { userId, eventId, title: e.title, tier: dto.tier, qty: dto.qty, totalInr, code, status: 'confirmed', eventDate: e.date, eventTime: e.time, venue: e.venue, city: e.city, category: e.category },
+        });
+      },
+    );
+
+    // Receipt AFTER the transaction: a mail provider call inside one holds a
+    // database connection open across the network, and a failed receipt should
+    // never undo a confirmed booking.
     await this.mail.deliverSystem(userId, ticketReceipt({ title: e.title, tier: dto.tier, qty: dto.qty, totalInr, venue: e.venue, city: e.city, date: e.date, time: e.time, code })).catch(() => undefined);
     return this.myTickets(userId);
   }

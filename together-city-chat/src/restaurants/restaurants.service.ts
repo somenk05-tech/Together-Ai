@@ -632,17 +632,20 @@ export class RestaurantsService implements OnModuleInit {
     const taxInr = Math.round(subtotal * 0.05); // 5% GST
     const totalInr = subtotal + packingInr + taxInr;
 
-    // Unified payment via the Financial hub (wallet or linked card).
-    await this.financial.charge(userId, { hub: 'Restaurants', category: 'dining', label: `${r.name} · ${lines.length} item(s)`, amountInr: totalInr, method: dto.method });
-
     const orderCode = code();
-    await this.prisma.diningOrder.create({
-      data: {
-        userId, restaurantId, restaurantName: r.name, area: r.area, mode: dto.mode,
-        itemsJson: JSON.stringify(lines), subtotalInr: subtotal, packingInr, taxInr, totalInr,
-        code: orderCode, status: 'confirmed',
-      },
-    });
+    // Payment and order in one transaction: a failure between them used to bill
+    // the citizen for food no restaurant had been told about.
+    await this.financial.paid(
+      userId,
+      { hub: 'Restaurants', category: 'dining', label: `${r.name} · ${lines.length} item(s)`, amountInr: totalInr, method: dto.method },
+      (tx) => tx.diningOrder.create({
+        data: {
+          userId, restaurantId, restaurantName: r.name, area: r.area, mode: dto.mode,
+          itemsJson: JSON.stringify(lines), subtotalInr: subtotal, packingInr, taxInr, totalInr,
+          code: orderCode, status: 'confirmed',
+        },
+      }),
+    );
     await this.mail.deliverSystem(userId, orderReceipt({ restaurantName: r.name, area: r.area, mode: dto.mode, items: lines.map((l) => ({ name: l.name, qty: l.qty, lineInr: l.lineInr })), subtotalInr: subtotal, packingInr, taxInr, totalInr, code: orderCode })).catch(() => undefined);
     return this.myOrders(userId);
   }

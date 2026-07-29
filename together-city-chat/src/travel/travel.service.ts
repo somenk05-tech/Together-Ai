@@ -57,15 +57,20 @@ export class TravelService implements OnModuleInit {
     const tier = parse<{ name: string; priceInr: number }[]>(p.tiersJson, []).find((t) => t.name === dto.tier);
     if (!tier) throw new BadRequestException('unknown tier');
     const totalInr = tier.priceInr * dto.pax;
-    await this.financial.charge(userId, { hub: 'Travel', category: 'travel', label: `${p.title} · ${dto.tier} ×${dto.pax}`, amountInr: totalInr, method: dto.method });
     const bookingCode = code();
-    await this.prisma.tripBooking.create({
-      data: {
-        userId, kind: 'package', title: p.title, subtitle: `${p.nights}N/${p.days}D · ${p.destination}`, tier: dto.tier, pax: dto.pax,
-        totalInr, code: bookingCode, status: 'confirmed', category: p.category,
-        detailJson: JSON.stringify({ destination: p.destination, startDate: dto.startDate ?? null, nights: p.nights }),
-      },
-    });
+    // Charge and booking in one transaction — a failure between them used to
+    // take the money and leave no trip.
+    await this.financial.paid(
+      userId,
+      { hub: 'Travel', category: 'travel', label: `${p.title} · ${dto.tier} ×${dto.pax}`, amountInr: totalInr, method: dto.method },
+      (tx) => tx.tripBooking.create({
+        data: {
+          userId, kind: 'package', title: p.title, subtitle: `${p.nights}N/${p.days}D · ${p.destination}`, tier: dto.tier, pax: dto.pax,
+          totalInr, code: bookingCode, status: 'confirmed', category: p.category,
+          detailJson: JSON.stringify({ destination: p.destination, startDate: dto.startDate ?? null, nights: p.nights }),
+        },
+      }),
+    );
     await this.mail.deliverSystem(userId, packageReceipt({ title: p.title, destination: p.destination, nights: p.nights, days: p.days, tier: dto.tier, pax: dto.pax, totalInr, code: bookingCode, startDate: dto.startDate ?? null })).catch(() => undefined);
     return this.myTrips(userId);
   }
@@ -96,15 +101,18 @@ export class TravelService implements OnModuleInit {
     const flight = findFlight(input, dto.flightId);
     if (!flight) throw new BadRequestException('flight no longer available — search again');
     const totalInr = flight.priceInr * dto.pax;
-    await this.financial.charge(userId, { hub: 'Travel', category: 'travel', label: `Flight ${flight.from}→${flight.to} · ${flight.airline} ×${dto.pax}`, amountInr: totalInr, method: dto.method });
     const bookingCode = code();
-    await this.prisma.tripBooking.create({
-      data: {
-        userId, kind: 'flight', title: `${flight.from} → ${flight.to}`, subtitle: `${flight.airline} ${flight.flightNo} · ${dto.date}`, tier: flight.cabin, pax: dto.pax,
-        totalInr, code: bookingCode, status: 'confirmed', category: 'flight',
-        detailJson: JSON.stringify({ airline: flight.airline, flightNo: flight.flightNo, departTime: flight.departTime, arriveTime: flight.arriveTime, durationLabel: flight.durationLabel, stopLabel: flight.stopLabel, date: dto.date }),
-      },
-    });
+    await this.financial.paid(
+      userId,
+      { hub: 'Travel', category: 'travel', label: `Flight ${flight.from}→${flight.to} · ${flight.airline} ×${dto.pax}`, amountInr: totalInr, method: dto.method },
+      (tx) => tx.tripBooking.create({
+        data: {
+          userId, kind: 'flight', title: `${flight.from} → ${flight.to}`, subtitle: `${flight.airline} ${flight.flightNo} · ${dto.date}`, tier: flight.cabin, pax: dto.pax,
+          totalInr, code: bookingCode, status: 'confirmed', category: 'flight',
+          detailJson: JSON.stringify({ airline: flight.airline, flightNo: flight.flightNo, departTime: flight.departTime, arriveTime: flight.arriveTime, durationLabel: flight.durationLabel, stopLabel: flight.stopLabel, date: dto.date }),
+        },
+      }),
+    );
     await this.mail.deliverSystem(userId, flightReceipt({ from: flight.from, to: flight.to, airline: flight.airline, flightNo: flight.flightNo, departTime: flight.departTime, arriveTime: flight.arriveTime, durationLabel: flight.durationLabel, stopLabel: flight.stopLabel, cabin: flight.cabin, date: dto.date, pax: dto.pax, totalInr, code: bookingCode })).catch(() => undefined);
     return this.myTrips(userId);
   }
