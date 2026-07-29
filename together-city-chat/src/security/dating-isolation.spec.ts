@@ -14,7 +14,7 @@ import { datingContext, datingConversationIds } from '../shared/dating-conversat
  *      to a lock screen.
  */
 
-type MatchRow = { conversationId: string | null; revealByOne: boolean; revealByTwo: boolean };
+type MatchRow = { conversationId: string | null; userOneId: string; userTwoId: string; revealByOne: boolean; revealByTwo: boolean };
 
 function prismaWith(rows: MatchRow[]) {
   return {
@@ -25,7 +25,8 @@ function prismaWith(rows: MatchRow[]) {
   } as never;
 }
 
-const row = (id: string, one = false, two = false): MatchRow => ({ conversationId: id, revealByOne: one, revealByTwo: two });
+const row = (id: string, one = false, two = false): MatchRow =>
+  ({ conversationId: id, userOneId: 'one', userTwoId: 'two', revealByOne: one, revealByTwo: two });
 
 describe('dating conversations are identifiable everywhere', () => {
   it('lists every dating conversation for a citizen', async () => {
@@ -34,24 +35,42 @@ describe('dating conversations are identifiable everywhere', () => {
   });
 
   it('ignores matches that never opened a chat', async () => {
-    const ids = await datingConversationIds(prismaWith([{ conversationId: null, revealByOne: false, revealByTwo: false }]), 'me');
+    const ids = await datingConversationIds(prismaWith([{ conversationId: null, userOneId: 'one', userTwoId: 'two', revealByOne: false, revealByTwo: false }]), 'me');
     expect(ids.size).toBe(0);
   });
 
   it('never claims an ordinary conversation is a dating one', async () => {
     const ctx = await datingContext(prismaWith([row('c1')]), 'ordinary-conversation');
-    expect(ctx).toEqual({ dating: false, revealed: false });
+    expect(ctx).toEqual({ dating: false, revealed: false, senderRevealed: false });
   });
 
-  it('treats a dating chat as anonymous until BOTH sides reveal', async () => {
-    // One-sided reveal is not consent from the other person.
-    expect(await datingContext(prismaWith([row('c1', false, false)]), 'c1')).toEqual({ dating: true, revealed: false });
-    expect(await datingContext(prismaWith([row('c1', true, false)]), 'c1')).toEqual({ dating: true, revealed: false });
-    expect(await datingContext(prismaWith([row('c1', false, true)]), 'c1')).toEqual({ dating: true, revealed: false });
+  it('reports "both revealed" only when both have chosen their real name', async () => {
+    const both = async (a: boolean, b: boolean) => (await datingContext(prismaWith([row('c1', a, b)]), 'c1')).revealed;
+    expect(await both(false, false)).toBe(false);
+    expect(await both(true, false)).toBe(false);
+    expect(await both(false, true)).toBe(false);
+    expect(await both(true, true)).toBe(true);
   });
 
-  it('drops anonymity only when both have agreed', async () => {
-    expect(await datingContext(prismaWith([row('c1', true, true)]), 'c1')).toEqual({ dating: true, revealed: true });
+  it('names a sender by THEIR own choice, not by a mutual one', async () => {
+    // The point of the whole feature: choosing to be yourself works immediately
+    // and does not wait for the other person to decide the same.
+    const ctx = await datingContext(prismaWith([row('c1', true, false)]), 'c1', 'one');
+    expect(ctx.senderRevealed).toBe(true);
+    expect(ctx.revealed).toBe(false); // ...while the pair is still not mutual
+  });
+
+  it('keeps a sender anonymous while they have not chosen', async () => {
+    const ctx = await datingContext(prismaWith([row('c1', true, false)]), 'c1', 'two');
+    expect(ctx.senderRevealed).toBe(false);
+  });
+
+  it('never reveals a sender it was not asked about', async () => {
+    // No subject named → the safe answer, not a guess.
+    const ctx = await datingContext(prismaWith([row('c1', true, true)]), 'c1');
+    expect(ctx.senderRevealed).toBe(false);
+    const stranger = await datingContext(prismaWith([row('c1', true, true)]), 'c1', 'somebody-else');
+    expect(stranger.senderRevealed).toBe(false);
   });
 
   it('degrades to "ordinary" if the lookup fails, which is a known trade-off', async () => {
@@ -68,7 +87,7 @@ describe('dating conversations are identifiable everywhere', () => {
         findFirst: jest.fn(async () => { throw new Error('db down'); }),
       },
     } as never;
-    await expect(datingContext(broken, 'c1')).resolves.toEqual({ dating: false, revealed: false });
+    await expect(datingContext(broken, 'c1', 'one')).resolves.toEqual({ dating: false, revealed: false, senderRevealed: false });
     await expect(datingConversationIds(broken, 'me')).resolves.toEqual(new Set());
   });
 });

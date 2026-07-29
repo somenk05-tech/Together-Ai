@@ -914,24 +914,43 @@ export class DatingService {
   }
 
   /** Reveal identities in a dating chat — mutual: names show only once BOTH agree. */
-  async reveal(userId: string, targetUserId: string, kind: MatchKind) {
+  /**
+   * Choose which name you chat under: your real one, or your pseudonym.
+   *
+   * The flag is YOURS and governs only how YOU appear. It used to take both
+   * flags to change anything — one person revealing showed nobody anything and
+   * merely sent a "reveal back" nudge — which meant a citizen could not simply
+   * decide to be themselves. Now setting it shows your name to your match
+   * straight away, and seeing THEIR name still depends entirely on their own
+   * choice. You can present yourself; you can never unmask anyone else.
+   *
+   * Reversible: switching back to the pseudonym hides your name and photo from
+   * here on. It cannot un-see what they have already read, and the caller says
+   * so before letting anyone flip it.
+   */
+  async reveal(userId: string, targetUserId: string, kind: MatchKind, show = true) {
     const [userOneId, userTwoId] = [userId, targetUserId].sort();
     const state = await this.prisma.datingMatch.findFirst({ where: { OR: [{ userOneId, userTwoId }], kind } as never });
     if (!state || !state.conversationId) throw new NotFoundException('No active chat to reveal.');
     const meIsOne = state.userOneId === userId;
     const updated = await this.prisma.datingMatch.update({
       where: { id: state.id },
-      data: (meIsOne ? { revealByOne: true } : { revealByTwo: true }) as never,
+      data: (meIsOne ? { revealByOne: show } : { revealByTwo: show }) as never,
     });
-    const both = Boolean((updated as { revealByOne?: boolean; revealByTwo?: boolean }).revealByOne && (updated as { revealByOne?: boolean; revealByTwo?: boolean }).revealByTwo);
-    if (both) await this.conversations.setAnonymousTrust(state.conversationId, null);
-    else {
+    const flags = updated as { revealByOne?: boolean; revealByTwo?: boolean };
+    const both = Boolean(flags.revealByOne && flags.revealByTwo);
+    // anonymousTrust drops only when NEITHER side is hidden any more — it marks
+    // the conversation as no longer anonymous at all.
+    await this.conversations.setAnonymousTrust(state.conversationId, both ? null : 1);
+    if (show && !both) {
       void this.notifications.create({
         userId: targetUserId, actorId: userId, kind: 'dating_like',
-        title: 'Your match wants to reveal 👀', body: 'Reveal back to see each other in the Dating Hub chat.', href: '/dating/chats',
+        title: 'Your match shared their name 👀',
+        body: 'They’re chatting as themselves now. Share yours back whenever you’re ready.',
+        href: '/dating/chats',
       });
     }
-    return { revealed: both, myReveal: true as const };
+    return { revealed: both, myReveal: show };
   }
 
   /** The user's active Dating Hub chats — anonymous match conversations, masked
@@ -960,8 +979,13 @@ export class DatingService {
       out.push({
         conversationId: m.conversationId,
         otherUserId: otherId,
-        name: revealed ? (otherUser?.name ?? 'Member') : nickname(otherId),
-        photo: revealed ? ((candD.photos && candD.photos[0]) ?? otherUser?.profileImage ?? null) : null,
+        // Their choice alone decides whether you see their name — not a mutual
+        // agreement, and never your own flag.
+        name: otherReveal ? (otherUser?.name ?? 'Member') : nickname(otherId),
+        photo: otherReveal ? ((candD.photos && candD.photos[0]) ?? otherUser?.profileImage ?? null) : null,
+        /** Which name YOU are chatting under, so the UI can offer the switch. */
+        myIdentity: (myReveal ? 'real' : 'anonymous') as 'real' | 'anonymous',
+        myNickname: nickname(userId),
         sign: otherProfile ? zodiacSign(otherProfile.birthDate).name : null,
         age: otherProfile ? this.ageOf(otherProfile.birthDate) : null,
         revealed, myReveal, otherReveal,

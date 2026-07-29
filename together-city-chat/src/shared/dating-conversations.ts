@@ -17,7 +17,7 @@ import type { PrismaService } from './prisma/prisma.service';
  * injected, and ConversationsModule already depends on parts of both.
  */
 
-type MatchRow = { conversationId: string | null; revealByOne: boolean; revealByTwo: boolean };
+type MatchRow = { conversationId: string | null; userOneId: string; userTwoId: string; revealByOne: boolean; revealByTwo: boolean };
 
 function datingMatch(prisma: PrismaService) {
   return (prisma as unknown as {
@@ -44,15 +44,40 @@ export async function datingConversationIds(prisma: PrismaService, userId: strin
 export interface DatingContext {
   /** Does this conversation belong to the Dating Hub at all? */
   dating: boolean;
-  /** Have BOTH people agreed to drop anonymity? One side is not enough. */
+  /** Have BOTH people chosen to chat under their real name? */
   revealed: boolean;
+  /**
+   * Has the person asked about chosen to show THEIR name?
+   *
+   * This is the one that decides what a notification may say. Identity in a
+   * dating chat is each person's own choice — showing your name reveals you and
+   * nobody else — so a notification about a message from X may use X's real
+   * name exactly when X has chosen to use it. Using the mutual flag here would
+   * keep a citizen who had already chosen to be themselves hidden behind a
+   * pseudonym until their match happened to decide too.
+   *
+   * False whenever no subject was named, which is the safe default.
+   */
+  senderRevealed: boolean;
 }
 
-/** What a conversation is, from its id alone. */
-export async function datingContext(prisma: PrismaService, conversationId: string): Promise<DatingContext> {
+/** What a conversation is, and how `subjectUserId` has chosen to appear in it. */
+export async function datingContext(
+  prisma: PrismaService,
+  conversationId: string,
+  subjectUserId?: string,
+): Promise<DatingContext> {
   const row = await datingMatch(prisma)
-    .findFirst({ where: { conversationId }, select: { revealByOne: true, revealByTwo: true, conversationId: true } })
+    .findFirst({
+      where: { conversationId },
+      select: { revealByOne: true, revealByTwo: true, conversationId: true, userOneId: true, userTwoId: true },
+    })
     .catch(() => null);
-  if (!row) return { dating: false, revealed: false };
-  return { dating: true, revealed: Boolean(row.revealByOne && row.revealByTwo) };
+  if (!row) return { dating: false, revealed: false, senderRevealed: false };
+
+  const revealed = Boolean(row.revealByOne && row.revealByTwo);
+  const senderRevealed = subjectUserId === row.userOneId ? Boolean(row.revealByOne)
+    : subjectUserId === row.userTwoId ? Boolean(row.revealByTwo)
+    : false;
+  return { dating: true, revealed, senderRevealed };
 }

@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { z } from 'zod';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { VerifiedGuard } from '../auth/verified.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -109,7 +110,10 @@ export class DatingController {
     @Body() body: unknown,
   ) {
     const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
-    return this.dating.reveal(user.sub, targetUserId, kind);
+    // `show` is optional and defaults to true, so an older client that sends
+    // only { kind } keeps revealing exactly as it did.
+    const show = parseOrThrow(z.boolean().optional().default(true), (body as { show?: boolean } | null)?.show);
+    return this.dating.reveal(user.sub, targetUserId, kind, show);
   }
 
   @Get('chats')

@@ -120,8 +120,8 @@ export const datingApi = {
     api.post<{ conversationId: string; alreadyOpen: boolean; chargedInr: number }>(`/dating/matches/${targetUserId}/connect`, { kind, method }).then((r) => r.data),
   unmatch: (targetUserId: string, kind: MatchKind) =>
     api.post<{ ok: boolean }>(`/dating/matches/${targetUserId}/unmatch`, { kind }).then((r) => r.data),
-  reveal: (targetUserId: string, kind: MatchKind) =>
-    api.post<{ revealed: boolean; myReveal: boolean }>(`/dating/matches/${targetUserId}/reveal`, { kind }).then((r) => r.data),
+  reveal: (targetUserId: string, kind: MatchKind, show = true) =>
+    api.post<{ revealed: boolean; myReveal: boolean }>(`/dating/matches/${targetUserId}/reveal`, { kind, show }).then((r) => r.data),
   pass: (targetUserId: string, kind: MatchKind) =>
     api.post<{ ok: boolean }>(`/dating/matches/${targetUserId}/pass`, { kind }).then((r) => r.data),
   chats: () => api.get<DatingChatSummary[]>('/dating/chats').then((r) => r.data),
@@ -162,8 +162,12 @@ export interface DatingChatSummary {
   sign: string | null;
   age: number | null;
   revealed: boolean;
+  /** Whether YOU are chatting under your real name. Your choice alone. */
   myReveal: boolean;
+  /** Whether THEY are. Their choice alone — you can never flip this. */
   otherReveal: boolean;
+  myIdentity: 'real' | 'anonymous';
+  myNickname: string;
   score: number | null;
   lastMessageAt: string;
   lastText: string | null;
@@ -302,10 +306,14 @@ export function useUnmatch(kind: MatchKind) {
     },
   });
 }
+/** Choose the name you chat under. `show: false` goes back to the pseudonym. */
 export function useRevealMatch() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (targetUserId: string) => datingApi.reveal(targetUserId, 'romantic'),
+    mutationFn: (v: string | { targetUserId: string; show: boolean }) =>
+      typeof v === 'string'
+        ? datingApi.reveal(v, 'romantic')
+        : datingApi.reveal(v.targetUserId, 'romantic', v.show),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['dating', 'chats'] }),
   });
 }

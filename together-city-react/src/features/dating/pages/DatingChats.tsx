@@ -90,7 +90,9 @@ function Thread({ chat, meId, onBack }: { chat: DatingChatSummary; meId: string;
     } catch { setDraft(body); } finally { setSending(false); }
   };
 
-  const revealState = chat.revealed ? 'both' : chat.myReveal ? 'mine' : chat.otherReveal ? 'theirs' : 'none';
+  // Two independent facts now, not one shared state: how THEY appear to you
+  // (their choice) and how YOU appear to them (yours).
+  const iAmReal = chat.myIdentity === 'real';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'min(72vh, 640px)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden', background: 'var(--card)' }}>
@@ -99,24 +101,33 @@ function Thread({ chat, meId, onBack }: { chat: DatingChatSummary; meId: string;
         <button type="button" onClick={onBack} aria-label="Back" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-soft)', display: 'none' }} className="tc-chat-back">←</button>
         <Avatar name={chat.name} photo={chat.photo} size={40} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14.5 }}>{chat.name}{chat.revealed && chat.sign ? ` · ${chat.sign}` : ''}</div>
-          <div className="muted" style={{ fontSize: 11.5 }}>{chat.revealed ? 'Identities revealed' : 'Identity hidden until you both reveal'}</div>
+          <div style={{ fontWeight: 700, fontSize: 14.5 }}>{chat.name}{chat.otherReveal && chat.sign ? ` · ${chat.sign}` : ''}</div>
+          <div className="muted" style={{ fontSize: 11.5 }}>
+            {chat.otherReveal ? 'Chatting as themselves' : 'Chatting anonymously — only they can share their name'}
+          </div>
         </div>
         {chat.score != null && <span className="tag" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 700 }}>{chat.score}%</span>}
       </div>
 
-      {/* reveal / unmatch bar */}
+      {/* identity / unmatch bar — YOUR name is your decision, taken here */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--paper)', borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
-        {chat.revealed ? (
-          <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>✓ You’re both revealed</span>
-        ) : revealState === 'mine' ? (
-          <span className="muted" style={{ fontSize: 12 }}>You asked to reveal — waiting for them…</span>
-        ) : (
-          <>
-            <span className="muted" style={{ fontSize: 12 }}>{revealState === 'theirs' ? 'They want to reveal 👀' : 'Anonymous chat'}</span>
-            <Button size="sm" variant="accent" disabled={reveal.isPending} onClick={() => reveal.mutate(chat.otherUserId)}>Reveal my identity</Button>
-          </>
-        )}
+        <span className="muted" style={{ fontSize: 12 }}>
+          You’re chatting as <strong style={{ color: 'var(--ink)' }}>{iAmReal ? 'yourself' : chat.myNickname}</strong>
+        </span>
+        <Button
+          size="sm"
+          variant={iAmReal ? 'line' : 'accent'}
+          disabled={reveal.isPending}
+          onClick={() => {
+            // Going back to the pseudonym cannot un-send what they already saw,
+            // so say that plainly instead of implying it can be undone.
+            if (iAmReal && !window.confirm('Chat as “' + chat.myNickname + '” from now on? They won’t see your name or photo going forward, but this can’t unsend what they’ve already seen.')) return;
+            reveal.mutate({ targetUserId: chat.otherUserId, show: !iAmReal });
+          }}
+        >
+          {reveal.isPending ? '…' : iAmReal ? `Switch to ${chat.myNickname}` : 'Use my real name'}
+        </Button>
+        {chat.revealed && <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>✓ You both use your real names</span>}
         <Button size="sm" variant="line" style={{ marginLeft: 'auto', color: '#c62828', borderColor: '#f0b0b0' }}
           disabled={unmatch.isPending}
           onClick={() => { if (window.confirm('Unmatch and end this chat? This frees you to connect with someone new.')) unmatch.mutate(chat.otherUserId, { onSuccess: onBack }); }}>

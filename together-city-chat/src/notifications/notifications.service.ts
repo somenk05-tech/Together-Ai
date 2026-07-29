@@ -150,8 +150,10 @@ export class NotificationsService {
     // name, their photo, and a link into the main Chats screen — so a match who
     // had revealed nothing arrived on a lock screen by name and face, pointing
     // at a list their conversation is deliberately absent from.
-    const dating = await datingContext(this.prisma, params.conversationId);
-    const anonymous = dating.dating && !dating.revealed;
+    const dating = await datingContext(this.prisma, params.conversationId, params.senderId);
+    // The SENDER's own choice decides how they are named here. Waiting for a
+    // mutual reveal would hide a citizen who had already chosen to be themselves.
+    const anonymous = dating.dating && !dating.senderRevealed;
     const displayName = anonymous ? nickname(params.senderId) : sender.name;
     const displayPhoto = anonymous ? undefined : (sender.profileImage ?? undefined);
     const href = dating.dating ? `/dating/chats?c=${params.conversationId}` : `/chats?c=${params.conversationId}`;
