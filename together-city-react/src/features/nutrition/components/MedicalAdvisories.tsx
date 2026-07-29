@@ -23,9 +23,18 @@ export function MedicalAdvisories({ advisories, healthScore }: { advisories?: Me
       {healthScore && (
         <div className="card" style={{ padding: '14px 16px' }}>
           <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center' }}>
-            <ScorePill label="Preference match" value={healthScore.preferenceMatch} />
+            {/* A score is shown only when the plan could actually be measured —
+                an unscorable plan says so rather than showing a filler number. */}
+            {typeof healthScore.nutritionalHealth === 'number' && (
+              <ScorePill label="Nutrition vs targets" value={healthScore.nutritionalHealth} />
+            )}
+            {typeof healthScore.preferenceMatch === 'number' && (
+              <ScorePill label="Preference match" value={healthScore.preferenceMatch} />
+            )}
             <ScorePill label="Medical optimisation" value={healthScore.medicalOptimisation} />
-            <ScorePill label="Overall nutrition" value={healthScore.overall} strong />
+            {typeof healthScore.overall === 'number'
+              ? <ScorePill label="Overall nutrition" value={healthScore.overall} strong />
+              : <span className="muted" style={{ fontSize: 12 }}>Overall score available once a plan is generated.</span>}
           </div>
           <p className="muted" style={{ fontSize: 12, margin: '10px 0 0', lineHeight: 1.5 }}>{healthScore.note}</p>
         </div>

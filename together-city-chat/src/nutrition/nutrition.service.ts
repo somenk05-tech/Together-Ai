@@ -3476,6 +3476,24 @@ export class NutritionService implements OnModuleInit {
    * with an "Update Food Preferences" / "Keep Current" decision left to the user.
    * Levels: 1 Informational · 2 Recommended · 3 Safety alert (safety-only).
    */
+  /**
+   * Score the citizen's CURRENT composed plan with the real scorer — averaged
+   * day totals measured against their targets and clinical caps. Returns null
+   * when there's no plan to score, so callers can say "not yet" instead of
+   * printing a made-up number.
+   */
+  private async scorePlanForUser(userId: string): Promise<{ health: number; preference: number } | null> {
+    const plan = (await this.composedPlan(userId)) as unknown as {
+      needsProfile?: boolean;
+      scorecard?: { health?: number; preference?: number };
+    };
+    if (plan?.needsProfile) return null;
+    const h = plan?.scorecard?.health;
+    const p = plan?.scorecard?.preference;
+    if (typeof h !== 'number' || typeof p !== 'number') return null;
+    return { health: Math.max(0, Math.min(100, Math.round(h))), preference: Math.max(0, Math.min(100, Math.round(p))) };
+  }
+
   private async advisoriesFor(userId: string) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
@@ -3524,18 +3542,28 @@ export class NutritionService implements OnModuleInit {
       message: 'A higher-protein, high-fibre diet with lower-glycaemic carbohydrates may improve insulin sensitivity and hormone balance.',
       actionable: false });
 
-    // Health-score impact (§21): preferences are always honoured (100%); medical
-    // optimisation reflects how well those choices align with the conditions.
-    const preferenceMatch = 100;
+    // Health-score impact (§21). `medicalOptimisation` reflects how well the
+    // plan's choices align with declared conditions.
     let medicalOptimisation = 100;
     for (const a of A) medicalOptimisation -= a.actionable ? (a.level === 2 ? 16 : 8) : (a.level === 2 ? 6 : 3);
     medicalOptimisation = Math.max(50, medicalOptimisation);
-    const overall = Math.round(preferenceMatch * 0.45 + medicalOptimisation * 0.55);
+
+    // `preferenceMatch` used to be the constant 100 — so this score never looked
+    // at the food at all and could not fall below ~72 no matter how badly the
+    // plan missed the citizen's targets. Score the ACTUAL plan with the real
+    // scorer (the same one the composed plan's scorecard uses). If the plan
+    // can't be scored we report null rather than inventing a number.
+    const scored = await this.scorePlanForUser(userId).catch(() => null);
+    const preferenceMatch = scored?.preference ?? null;
+    const nutritionalHealth = scored?.health ?? null;
+    const overall = scored
+      ? Math.round((scored.health * 0.35) + (scored.preference * 0.25) + (medicalOptimisation * 0.40))
+      : null;
     const misaligned = A.filter((a) => a.actionable);
     const note = misaligned.length
       ? `Your meal plan fully matches your food preferences. However, based on your ${misaligned.map((a) => a.condition.toLowerCase()).join(' & ')}, a more plant-forward diet may further improve long-term outcomes.`
       : 'Your meal plan matches both your food preferences and your medical profile.';
-    return { advisories: A, healthScore: { preferenceMatch, medicalOptimisation, overall, note } };
+    return { advisories: A, healthScore: { preferenceMatch, medicalOptimisation, nutritionalHealth, overall, note } };
   }
 
   /** Build a slot→recipes map honouring the user's diet, allergies, avoided

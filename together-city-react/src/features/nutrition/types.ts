@@ -69,9 +69,12 @@ export interface MedicalAdvisory {
 }
 
 export interface HealthScore {
-  preferenceMatch: number;        // % — always 100 (preferences are honoured)
+  /** % — how well the plan matches the citizen's tastes. null when unscorable. */
+  preferenceMatch: number | null;
   medicalOptimisation: number;    // % — how well choices align with conditions
-  overall: number;                // % — blended
+  /** % — the plan's nutrition vs targets/caps (real scorer). null when unscorable. */
+  nutritionalHealth?: number | null;
+  overall: number | null;         // % — blended; null when there's no plan to score
   note: string;
 }
 
