@@ -2614,7 +2614,18 @@ export class NutritionService implements OnModuleInit {
       .filter((a) => (grouped.get(a.key) ?? []).length)
       .map((a) => ({
         key: a.key, icon: a.icon, title: a.title,
-        items: (grouped.get(a.key) ?? []).map((r) => ({ id: r.id, name: r.name, grams: r.grams, qtyLabel: r.qtyLabel || standardQty(r.name, r.grams, r.aisle).label, unit: r.unit, updatedAt: r.updatedAt })),
+        items: (grouped.get(a.key) ?? []).map((r) => {
+          const start = Math.max((r as unknown as { startGrams?: number }).startGrams ?? 0, r.grams);
+          const remainingPct = start > 0 ? Math.max(0, Math.min(100, Math.round((r.grams / start) * 100))) : 0;
+          return {
+            id: r.id, name: r.name, grams: r.grams, startGrams: start,
+            // Drives the depletion bar: 100 = a full jar, falling as meals cook.
+            remainingPct,
+            startQtyLabel: standardQty(r.name, start, r.aisle).label,
+            qtyLabel: r.qtyLabel || standardQty(r.name, r.grams, r.aisle).label,
+            unit: r.unit, updatedAt: r.updatedAt,
+          };
+        }),
       }));
     return { aisles, itemCount: rows.length };
   }
@@ -2628,10 +2639,12 @@ export class NutritionService implements OnModuleInit {
     const existing = await this.pantry.findFirst({ where: { ownerId, name } }).catch(() => null);
     if (existing) {
       const total = existing.grams + grams;
-      await this.pantry.update({ where: { id: existing.id }, data: { grams: total, qtyLabel: standardQty(name, total, aisle).label, unit: standardQty(name, total, aisle).unit } as never });
+      // Re-stocking raises the "full" mark so the depletion bar refills.
+      const start = Math.max(total, (existing as { startGrams?: number }).startGrams ?? 0);
+      await this.pantry.update({ where: { id: existing.id }, data: { grams: total, startGrams: start, qtyLabel: standardQty(name, total, aisle).label, unit: standardQty(name, total, aisle).unit } as never });
     } else {
       const q = standardQty(name, grams || 1, aisle);
-      await this.pantry.create({ data: { ownerId, name, aisle, grams, unit: q.unit, qtyLabel: q.label } as never });
+      await this.pantry.create({ data: { ownerId, name, aisle, grams, startGrams: grams, unit: q.unit, qtyLabel: q.label } as never });
     }
     return this.pantryList(ownerId);
   }
@@ -2642,7 +2655,10 @@ export class NutritionService implements OnModuleInit {
     if (!existing) throw new NotFoundException('pantry item not found');
     const g = Math.max(0, Math.round(Number(grams) || 0));
     if (g <= 0) await this.pantry.delete({ where: { id } });
-    else await this.pantry.update({ where: { id }, data: { grams: g, qtyLabel: standardQty(existing.name, g, existing.aisle).label } as never });
+    else {
+      const start = Math.max(g, (existing as { startGrams?: number }).startGrams ?? 0);
+      await this.pantry.update({ where: { id }, data: { grams: g, startGrams: start, qtyLabel: standardQty(existing.name, g, existing.aisle).label } as never });
+    }
     return this.pantryList(ownerId);
   }
 
@@ -2651,6 +2667,94 @@ export class NutritionService implements OnModuleInit {
     if (!existing) throw new NotFoundException('pantry item not found');
     await this.pantry.delete({ where: { id } });
     return this.pantryList(ownerId);
+  }
+
+  /**
+   * COOKED — draw a meal's ingredients down from the pantry.
+   *
+   * This closes the loop the pantry was missing: stock only ever went up, so
+   * "products remaining" was never true. `mealKey` (e.g. "2026-07-29:l") makes
+   * the draw idempotent — cooking the same meal twice deducts once, so a double
+   * tap or a retry can't empty the shelves.
+   *
+   * Ingredients come from the composed plan (the plan the citizen is shown), and
+   * are matched to pantry rows on the SAME canonical key the grocery list uses,
+   * so "Chicken Breast" draws down "Chicken".
+   */
+  async markMealCooked(ownerId: string, input: { mealKey: string; label?: string; people?: number }) {
+    const mealKey = (input.mealKey ?? '').trim().slice(0, 64);
+    if (!mealKey) throw new BadRequestException('Which meal was cooked?');
+    const log = (this.prisma as unknown as {
+      pantryConsumption: {
+        findFirst(a: unknown): Promise<{ id: string } | null>;
+        create(a: unknown): Promise<unknown>;
+        findMany(a: unknown): Promise<Array<{ mealKey: string; itemsJson: string; createdAt: Date; label: string }>>;
+      };
+    }).pantryConsumption;
+
+    const already = await log.findFirst({ where: { ownerId, mealKey } }).catch(() => null);
+    if (already) return { ...(await this.pantryList(ownerId)), alreadyCooked: true };
+
+    // Find the meal in the composed plan by "<YYYY-MM-DD>:<slot>".
+    const [dateISO, slot] = mealKey.split(':');
+    const composed = await this.composedMealsForShopping(ownerId, 28).catch(() => ({ dayCount: 0, meals: [] as Array<{ slot: string; recipeName: string; dayISO?: string; ingredients: Array<{ name: string; grams: number }> }> }));
+    const meals = (composed.meals as Array<{ slot: string; recipeName: string; dayISO?: string; ingredients: Array<{ name: string; grams: number }> }>)
+      .filter((m) => (m.dayISO ? m.dayISO === dateISO : true) && (slot ? m.slot === slot : true));
+    if (!meals.length) throw new NotFoundException('That meal is not in your current plan.');
+
+    const people = Math.max(1, Math.min(30, Math.round(input.people ?? 1)));
+    // Sum what this meal needs, canonicalised like the grocery list.
+    const need = new Map<string, number>();
+    for (const m of meals) {
+      for (const ing of m.ingredients) {
+        if (skipGroceryIngredient(ing.name)) continue;
+        const canon = canonicalIngredient(ing.name);
+        if (!canon) continue;
+        const grams = Math.max(0, Math.round(ing.grams * people));
+        if (grams <= 0) continue;
+        need.set(canon, (need.get(canon) ?? 0) + grams);
+      }
+    }
+    if (!need.size) throw new BadRequestException('That meal has nothing to draw from the pantry.');
+
+    // Deduct what we actually hold; never go below zero, and keep the row (at 0)
+    // so the citizen can see it ran out rather than having it vanish.
+    const rows = await this.pantry.findMany({ where: { ownerId } }).catch(() => [] as PantryItemRow[]);
+    const byKey = new Map(rows.map((r) => [canonicalIngredient(r.name).toLowerCase(), r]));
+    const deducted: Array<{ name: string; grams: number }> = [];
+    for (const [name, grams] of need) {
+      const row = byKey.get(name.toLowerCase());
+      if (!row) continue;                       // not stocked — nothing to draw
+      const take = Math.min(row.grams, grams);
+      if (take <= 0) continue;
+      const left = row.grams - take;
+      await this.pantry.update({
+        where: { id: row.id },
+        data: { grams: left, qtyLabel: standardQty(row.name, left, row.aisle).label } as never,
+      }).catch(() => undefined);
+      deducted.push({ name: row.name, grams: take });
+    }
+
+    await log.create({
+      data: { ownerId, mealKey, label: (input.label ?? '').slice(0, 120), itemsJson: JSON.stringify(deducted) },
+    }).catch(() => undefined);
+
+    return { ...(await this.pantryList(ownerId)), cooked: true, deducted };
+  }
+
+  /** Recent pantry draw-downs (what the household actually got through). */
+  async pantryHistory(ownerId: string, limit = 30) {
+    const log = (this.prisma as unknown as {
+      pantryConsumption: { findMany(a: unknown): Promise<Array<{ mealKey: string; label: string; itemsJson: string; createdAt: Date }>> };
+    }).pantryConsumption;
+    const rows = await log.findMany({ where: { ownerId }, orderBy: { createdAt: 'desc' }, take: Math.min(100, limit) }).catch(() => []);
+    return {
+      items: rows.map((r) => {
+        let items: Array<{ name: string; grams: number }> = [];
+        try { items = JSON.parse(r.itemsJson) as Array<{ name: string; grams: number }>; } catch { items = []; }
+        return { mealKey: r.mealKey, label: r.label, items, at: r.createdAt.toISOString() };
+      }),
+    };
   }
 
   /** Stock the pantry from the current grocery list (the "groceries ordered" event). */
@@ -5276,9 +5380,9 @@ export class NutritionService implements OnModuleInit {
    */
   private async composedMealsForShopping(userId: string, days: number): Promise<{
     dayCount: number;
-    meals: Array<{ slot: string; recipeName: string; ingredients: Array<{ name: string; grams: number }> }>;
+    meals: Array<{ slot: string; recipeName: string; dayISO?: string; ingredients: Array<{ name: string; grams: number }> }>;
   }> {
-    const empty = { dayCount: 0, meals: [] as Array<{ slot: string; recipeName: string; ingredients: Array<{ name: string; grams: number }> }> };
+    const empty = { dayCount: 0, meals: [] as Array<{ slot: string; recipeName: string; dayISO?: string; ingredients: Array<{ name: string; grams: number }> }> };
     try {
       const plan = (await this.composedPlan(userId)) as unknown as {
         needsProfile?: boolean;
@@ -5298,9 +5402,12 @@ export class NutritionService implements OnModuleInit {
       }
       const slice = plan.days.filter((d) => d.dayIndex >= offset).slice(0, days);
       const use = slice.length ? slice : plan.days.slice(0, days);
+      const startISO = plan.planStartDate && /^\d{4}-\d{2}-\d{2}$/.test(plan.planStartDate) ? plan.planStartDate : todayISO();
       const meals = use.flatMap((d) => d.meals.flatMap((m) => m.components.map((c) => ({
         slot: m.slot,
         recipeName: c.name || m.title,
+        // Calendar date of this plan day — the key cooking uses to draw down.
+        dayISO: addDaysISO(startISO, d.dayIndex),
         ingredients: (c.ingredients ?? [])
           .filter((i) => !i.toTaste && (i.grams ?? 0) > 0)
           .map((i) => ({ name: i.name, grams: i.grams })),
@@ -5395,6 +5502,13 @@ export class NutritionService implements OnModuleInit {
     const AISLES = GROCERY_AISLES;
     const grouped = new Map<string, Array<Record<string, unknown>>>();
     let requiredG = 0, packG = 0, estCostInr = 0;
+    // What the household ALREADY has — so the list shows what's actually left
+    // to buy instead of asking them to re-buy a full jar of rice every week.
+    const onHand = new Map<string, number>();
+    for (const row of await this.pantry.findMany({ where: { ownerId: userId } }).catch(() => [] as PantryItemRow[])) {
+      const k = canonicalIngredient(row.name).toLowerCase();
+      if (k) onHand.set(k, (onHand.get(k) ?? 0) + row.grams);
+    }
     for (const it of items.values()) {
       const cat = groceryAisle(it.name);
       const q = standardQty(it.name, it.grams, cat);
@@ -5402,8 +5516,15 @@ export class NutritionService implements OnModuleInit {
       const shelf = SHELF_INFO[cat] ?? { life: '', tip: '' };
       requiredG += it.grams; packG += Math.max(pack.grams, it.grams);
       estCostInr += ((COST_PER_KG[cat] ?? 90) * Math.max(pack.grams, it.grams)) / 1000;
+      const have = Math.min(it.grams, onHand.get(it.name.toLowerCase()) ?? 0);
+      const toBuy = Math.max(0, it.grams - have);
       const entry = {
         name: it.name, aisle: cat, qtyLabel: q.label, unit: q.unit, grams: it.grams,
+        // Pantry-aware split: needed vs already owned vs still to buy.
+        haveGrams: have, toBuyGrams: toBuy,
+        haveQtyLabel: have > 0 ? standardQty(it.name, have, cat).label : '',
+        toBuyQtyLabel: standardQty(it.name, toBuy, cat).label,
+        inPantry: have > 0,
         pack: pack.label,                       // recommended purchase (retail pack)
         shelfLife: shelf.life, storageTip: shelf.tip,
         usedIn: [...it.usedIn.entries()].sort((a, b) => b[1] - a[1]).map(([recipe, g]) => ({ recipe, qtyLabel: standardQty(it.name, g, cat).label })),

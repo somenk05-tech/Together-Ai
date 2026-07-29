@@ -297,6 +297,22 @@ export class NutritionController {
     return this.nutrition.addPantryItem(user.sub, dto?.name ?? '', dto?.grams);
   }
 
+  /** Cooking a meal draws its ingredients down from the pantry (idempotent). */
+  @Post('pantry/cooked')
+  markCooked(@CurrentUser() user: JwtUser, @Body() body: { mealKey?: string; label?: string; people?: number }) {
+    return this.nutrition.markMealCooked(user.sub, {
+      mealKey: String(body?.mealKey ?? ''),
+      label: body?.label ? String(body.label) : undefined,
+      people: Number(body?.people) || 1,
+    });
+  }
+
+  /** Recent pantry draw-downs. */
+  @Get('pantry/history')
+  pantryHistory(@CurrentUser() user: JwtUser) {
+    return this.nutrition.pantryHistory(user.sub);
+  }
+
   @Post('family/pantry/stock')
   stockPantry(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode) {
     return this.nutrition.stockPantryFromGrocery(user.sub, mode ?? 'family');

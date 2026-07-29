@@ -157,7 +157,13 @@ export function usePantryMutations() {
   const stock = useMutation({ mutationFn: () => nutritionApi.stockPantry(), onSuccess: set });
   const update = useMutation({ mutationFn: (v: { id: string; grams: number }) => nutritionApi.updatePantryItem(v.id, v.grams), onSuccess: set });
   const remove = useMutation({ mutationFn: (id: string) => nutritionApi.removePantryItem(id), onSuccess: set });
-  return { add, stock, update, remove };
+  // Cooking a meal draws its ingredients down — refresh the pantry AND the
+  // grocery list, which now only asks for what's still missing.
+  const cooked = useMutation({
+    mutationFn: (v: { mealKey: string; label?: string; people?: number }) => nutritionApi.markCooked(v.mealKey, v.label, v.people),
+    onSuccess: (r) => { set(r); qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); qc.invalidateQueries({ queryKey: ['nutrition', 'cart'] }); },
+  });
+  return { add, stock, update, remove, cooked };
 }
 
 /** Household invite flow (Nutrition Hub only — separate from social graph). */

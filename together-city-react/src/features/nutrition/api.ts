@@ -27,6 +27,10 @@ export const nutritionApi = {
   stockPantry: () => api.post<PantryView>('/nutrition/family/pantry/stock', {}).then((r) => r.data),
   updatePantryItem: (id: string, grams: number) => api.patch<PantryView>(`/nutrition/family/pantry/${id}`, { grams }).then((r) => r.data),
   removePantryItem: (id: string) => api.delete<PantryView>(`/nutrition/family/pantry/${id}`).then((r) => r.data),
+  /** Cooking a meal draws its ingredients down from the pantry (idempotent). */
+  markCooked: (mealKey: string, label?: string, people?: number) =>
+    api.post<PantryView & { cooked?: boolean; alreadyCooked?: boolean; deducted?: Array<{ name: string; grams: number }> }>(
+      '/nutrition/pantry/cooked', { mealKey, label, people }).then((r) => r.data),
   updateFamilyMember: (id: string, dto: FamilyMemberInput) => api.patch<FamilyMemberProfile[]>(`/nutrition/family/members/${id}`, dto).then((r) => r.data),
   removeFamilyMember: (id: string) => api.delete<FamilyMemberProfile[]>(`/nutrition/family/members/${id}`).then((r) => r.data),
   familyPortions: (dayIndex: number) => api.get<FamilyPortions>(`/nutrition/family/portions/${dayIndex}`).then((r) => r.data),
@@ -151,7 +155,11 @@ export interface FamilyHealth {
   };
   members: FamilyHealthMember[];
 }
-export interface PantryItemView { id: string; name: string; grams: number; qtyLabel: string; unit: string; updatedAt: string }
+export interface PantryItemView {
+  id: string; name: string; grams: number; qtyLabel: string; unit: string; updatedAt: string;
+  /** Depletion bar: how full this item is vs the last time it was stocked. */
+  startGrams?: number; remainingPct?: number; startQtyLabel?: string;
+}
 export interface PantryAisle { key: string; icon: string; title: string; items: PantryItemView[] }
 export interface PantryView { aisles: PantryAisle[]; itemCount: number }
 export interface FamilyMemberInput {

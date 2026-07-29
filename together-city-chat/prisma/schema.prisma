@@ -489,12 +489,32 @@ model PantryItem {
   name      String // canonical shopping item, e.g. "Tomatoes"
   aisle     String   @default("pantry") // supermarket aisle key
   grams     Int      @default(0) // on-hand quantity in grams / ml
+  /// The high-water mark this item was last stocked to. It is the DENOMINATOR
+  /// for the depletion bar ("how full is this jar"), so cooking can visibly
+  /// draw it down and re-stocking refills it.
+  startGrams Int     @default(0)
   unit      String   @default("g") // display unit class: g | kg | ml | l | pc | bunch
   qtyLabel  String   @default("") // human-readable amount, e.g. "1.8 kg"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([ownerId])
+}
+
+/// One cooked meal's draw-down on the pantry. Exists so cooking the same meal
+/// twice can't double-deduct (idempotency) and so "what did we get through this
+/// week" is answerable.
+model PantryConsumption {
+  id        String   @id @default(uuid())
+  ownerId   String
+  /// Stable key for the cooked meal: "<planDayISO>:<slot>" — one draw per meal.
+  mealKey   String
+  label     String   @default("")
+  itemsJson String   @default("[]") // [{name, grams}] actually deducted
+  createdAt DateTime @default(now())
+
+  @@unique([ownerId, mealKey])
+  @@index([ownerId, createdAt])
 }
 
 // A Household Connection between two real Together City users — PRIVATE to the
