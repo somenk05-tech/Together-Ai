@@ -17,3 +17,9 @@ export function useMasterProfile() {
 export function useProfileCompletion() {
   return useQuery({ queryKey: ['profile', 'completion'], queryFn: () => profileApi.completion(), staleTime: 15_000 });
 }
+
+/** A wellness summary of what has actually been recorded. Never a fabricated
+ *  number: `incomplete` and `unavailable` are real states, not errors. */
+export function useHealthScore() {
+  return useQuery({ queryKey: ['profile', 'health-score'], queryFn: () => profileApi.healthScore(), staleTime: 60_000 });
+}

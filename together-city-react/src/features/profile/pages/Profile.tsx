@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/auth.store';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
-import { useProfileSummary, useProfileCompletion } from '../hooks';
+import { useProfileSummary, useProfileCompletion, useHealthScore } from '../hooks';
 import { profileApi } from '../api';
 import { useWebPush } from '@/hooks/useWebPush';
 import { useConnections, useRespondConnection, useUnreadChatCount, useIncomingRequestCount } from '@/api';
@@ -19,6 +19,61 @@ function Avatar({ src, name, size = 56 }: { src?: string | null; name: string; s
     <div className="tc-avatar" style={{ width: size, height: size, fontSize: size / 3, flexShrink: 0 }}>
       {(name || 'You').slice(0, 2).toUpperCase()}
     </div>
+  );
+}
+
+/**
+ * A wellness summary of recorded measurements.
+ *
+ * Renders the three states honestly rather than flattening them into a number:
+ * `computed` shows the score, `incomplete` says what is missing and shows none,
+ * and `unavailable` says nothing has been recorded yet. A component the citizen
+ * has not filled in is listed as not counted — never as a zero dragging the
+ * total down.
+ */
+function HealthScoreCard() {
+  const q = useHealthScore();
+  const d = q.data;
+  if (!d) return null;
+
+  const pct = d.score ?? 0;
+  const ring = `conic-gradient(var(--accent) ${pct * 3.6}deg, var(--line) 0deg)`;
+
+  return (
+    <Card style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        {d.state === 'computed' ? (
+          <div style={{ position: 'relative', width: 68, height: 68, flex: 'none', borderRadius: '50%', background: ring, display: 'grid', placeItems: 'center' }}>
+            <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', fontSize: 16, fontWeight: 800 }}>{d.score}</div>
+          </div>
+        ) : (
+          <div style={{ width: 68, height: 68, flex: 'none', borderRadius: '50%', border: '2px dashed var(--line)', display: 'grid', placeItems: 'center', fontSize: 22 }}>—</div>
+        )}
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <h3 style={{ margin: 0, fontSize: 16 }}>
+            Wellness summary{d.band ? ` · ${d.band}` : ''}
+          </h3>
+          <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0', lineHeight: 1.55 }}>{d.basis}</p>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(190px,1fr))', gap: '10px 16px', marginTop: 16 }}>
+        {d.components.map((c) => (
+          <div key={c.key}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 4 }}>
+              <span style={{ fontWeight: 600 }}>{c.label}</span>
+              <span className="muted">{c.state === 'computed' ? c.value : 'not counted'}</span>
+            </div>
+            <div style={{ height: 5, borderRadius: 999, background: 'var(--line)' }}>
+              <div style={{ height: 5, borderRadius: 999, width: `${c.state === 'computed' ? (c.value ?? 0) : 0}%`, background: c.state === 'computed' ? 'var(--accent)' : 'transparent' }} />
+            </div>
+            <div className="muted" style={{ fontSize: 11, marginTop: 4, lineHeight: 1.5 }}>{c.detail}</div>
+          </div>
+        ))}
+      </div>
+
+      <p className="muted" style={{ fontSize: 11, lineHeight: 1.55, marginTop: 14 }}>{d.disclaimer}</p>
+    </Card>
   );
 }
 
@@ -283,6 +338,7 @@ export function Profile() {
 
       {/* One completion score across every hub profile */}
       <ProfileCompletionCard />
+      <HealthScoreCard />
 
       {/* Quick access — Calendar lives here now (moved out of the top bar) */}
       <Link to="/calendar" className="card lift" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12, textDecoration: 'none', color: 'inherit' }}>
