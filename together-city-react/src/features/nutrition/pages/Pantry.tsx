@@ -33,7 +33,8 @@ function TodaysCooking() {
     <div className="card" style={{ marginBottom: 14 }}>
       <strong style={{ fontSize: 13.5 }}>🍳 Today's meals</strong>
       <p className="muted" style={{ fontSize: 12, margin: '2px 0 10px' }}>
-        Mark a meal cooked and its ingredients come off your shelves.
+        These come off your shelves automatically once today is over — mark one now if you've
+        already cooked it.
       </p>
       {day.meals.map((m) => {
         const key = `${today}:${m.slot}`;
@@ -114,8 +115,9 @@ export function Pantry() {
       <div className="eyebrow">Nutrition · Pantry</div>
       <h1 style={{ fontSize: 26, margin: '0 0 4px' }}>🫙 Your pantry</h1>
       <p className="lede" style={{ marginBottom: 18 }}>
-        What's on your shelves right now. Each line empties as the meals that use it get cooked,
-        and your grocery list only asks for what's actually missing.
+        What's on your shelves right now. Each line empties as the meals that use it get cooked —
+        automatically at the end of each day, or the moment you mark a meal cooked. Your grocery
+        list only asks for what's actually missing.
       </p>
 
       {/* Add / restock */}

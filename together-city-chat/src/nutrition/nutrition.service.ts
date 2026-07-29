@@ -285,6 +285,8 @@ interface PrefExtras {
   includePantry?: boolean;
   /** Preferred daily delivery time for fresh items, 'HH:MM' (24h). */
   deliveryTime?: string;
+  /** Last date whose meals were auto-deducted from the pantry (YYYY-MM-DD). */
+  pantrySettledThrough?: string;
   /** Composed-plan per-meal overrides (Refresh/Skip). Keys "d{index}:{slotCode}". */
   composedSkips?: string[];
   composedBumps?: Record<string, number>;
@@ -2615,7 +2617,20 @@ export class NutritionService implements OnModuleInit {
 
   // ─────────────── shared pantry (one per household) ───────────────
   /** The household pantry, grouped into supermarket aisles with on-hand amounts. */
+  /**
+   * Read the pantry, first settling any day that has fully elapsed.
+   *
+   * NOTE: settlement calls markMealCooked, which returns the pantry — so it must
+   * use pantryListRaw, never this method, or the two would call each other
+   * forever.
+   */
   async pantryList(ownerId: string) {
+    await this.settleElapsedDays(ownerId).catch(() => undefined);
+    return this.pantryListRaw(ownerId);
+  }
+
+  /** The pantry exactly as stored — no settlement pass (re-entrancy safe). */
+  private async pantryListRaw(ownerId: string) {
     const rows = await this.pantry.findMany({ where: { ownerId }, orderBy: { name: 'asc' } }).catch(() => [] as PantryItemRow[]);
     const grouped = new Map<string, PantryItemRow[]>();
     for (const r of rows) { const arr = grouped.get(r.aisle) ?? []; arr.push(r); grouped.set(r.aisle, arr); }
@@ -2702,7 +2717,7 @@ export class NutritionService implements OnModuleInit {
     }).pantryConsumption;
 
     const already = await log.findFirst({ where: { ownerId, mealKey } }).catch(() => null);
-    if (already) return { ...(await this.pantryList(ownerId)), alreadyCooked: true };
+    if (already) return { ...(await this.pantryListRaw(ownerId)), alreadyCooked: true };
 
     // Find the meal in the composed plan by "<YYYY-MM-DD>:<slot>".
     const [dateISO, slot] = mealKey.split(':');
@@ -2748,7 +2763,65 @@ export class NutritionService implements OnModuleInit {
       data: { ownerId, mealKey, label: (input.label ?? '').slice(0, 120), itemsJson: JSON.stringify(deducted) },
     }).catch(() => undefined);
 
-    return { ...(await this.pantryList(ownerId)), cooked: true, deducted };
+    return { ...(await this.pantryListRaw(ownerId)), cooked: true, deducted };
+  }
+
+  /**
+   * END-OF-DAY SETTLEMENT.
+   *
+   * A day's meals shouldn't need a button press to leave the pantry — once the
+   * day is over, what was planned is treated as eaten. This settles every day
+   * that has fully elapsed in the citizen's own timezone and hasn't been
+   * settled yet, so stock reflects reality even if they never opened Cook Mode.
+   *
+   * Idempotent twice over: each meal is logged under a unique
+   * "<date>:<slot>" key (so a meal already marked cooked isn't deducted again),
+   * and `pantrySettledThrough` short-circuits the whole pass once a day is done.
+   * Bounded to the last 14 days so a long-dormant account can't drain its
+   * shelves in one go.
+   */
+  async settleElapsedDays(ownerId: string): Promise<{ settledDays: number; settledMeals: number }> {
+    const none = { settledDays: 0, settledMeals: 0 };
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(() => null);
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+
+    // "Today" in the citizen's timezone — a day is only settled once THEIR day
+    // has ended, not the server's.
+    const tz = await this.prisma.masterProfile
+      .findUnique({ where: { userId: ownerId }, select: { timeZone: true } })
+      .then((m) => (m as { timeZone?: string | null } | null)?.timeZone ?? null)
+      .catch(() => null);
+    let todayLocal = todayISO();
+    if (tz) {
+      try { todayLocal = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+      catch { /* bad tz string → server day */ }
+    }
+    const yesterday = addDaysISO(todayLocal, -1);
+    if (ex.pantrySettledThrough && ex.pantrySettledThrough >= yesterday) return none; // already done
+
+    const plan = (await this.composedPlan(ownerId).catch(() => null)) as unknown as {
+      needsProfile?: boolean; planStartDate?: string;
+      days?: Array<{ dayIndex: number; meals: Array<{ slot: string; title: string; components: Array<{ name: string; ingredients?: Array<{ name: string; grams: number; toTaste?: boolean }> }> }> }>;
+    } | null;
+    if (!plan?.days?.length || plan.needsProfile) return none;
+
+    const startISO = plan.planStartDate && /^\d{4}-\d{2}-\d{2}$/.test(plan.planStartDate) ? plan.planStartDate : todayLocal;
+    const floor = addDaysISO(todayLocal, -14);
+    let settledDays = 0, settledMeals = 0;
+    for (const d of plan.days) {
+      const dayISO = addDaysISO(startISO, d.dayIndex);
+      if (dayISO >= todayLocal) continue;   // today isn't over yet
+      if (dayISO < floor) continue;         // don't reach back further than 14 days
+      let touched = false;
+      for (const m of d.meals) {
+        const res = await this.markMealCooked(ownerId, { mealKey: `${dayISO}:${m.slot}`, label: m.title })
+          .catch(() => null);
+        if (res && (res as { cooked?: boolean }).cooked) { settledMeals++; touched = true; }
+      }
+      if (touched) settledDays++;
+    }
+    await this.mergeExtras(ownerId, { pantrySettledThrough: yesterday }).catch(() => undefined);
+    return { settledDays, settledMeals };
   }
 
   /** Recent pantry draw-downs (what the household actually got through). */

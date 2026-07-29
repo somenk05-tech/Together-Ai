@@ -313,6 +313,12 @@ export class NutritionController {
     });
   }
 
+  /** Force an end-of-day settlement pass (normally automatic on pantry read). */
+  @Post('pantry/settle')
+  settlePantry(@CurrentUser() user: JwtUser) {
+    return this.nutrition.settleElapsedDays(user.sub);
+  }
+
   /** Recent pantry draw-downs. */
   @Get('pantry/history')
   pantryHistory(@CurrentUser() user: JwtUser) {
