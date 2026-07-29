@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { datingContext } from '../shared/dating-conversations';
+import { nickname } from '../shared/nickname';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { RedisService } from '../shared/redis/redis.service';
 import { PresenceService } from '../users/presence.service';
@@ -107,13 +109,13 @@ export class NotificationsService {
    * per message). Titled with the sender's name; emitting it drives the live
    * bell + the corner toast.
    */
-  private async upsertMessageNotification(recipientId: string, conversationId: string, title: string, preview: string): Promise<void> {
+  private async upsertMessageNotification(recipientId: string, conversationId: string, title: string, preview: string, href: string): Promise<void> {
     try {
       const existing = await this.notif.findFirst({
         where: { userId: recipientId, kind: 'message', entityId: conversationId, read: false },
         orderBy: { createdAt: 'desc' },
       });
-      const data = { title, body: preview, href: `/chats?c=${conversationId}` };
+      const data = { title, body: preview, href };
       const row = existing
         ? await this.notif.update({ where: { id: existing.id }, data: { ...data, createdAt: new Date() } })
         : await this.notif.create({ data: { userId: recipientId, kind: 'message', entityId: conversationId, ...data } });
@@ -143,6 +145,20 @@ export class NotificationsService {
     });
     if (!sender) return;
 
+    // A dating chat is anonymous until BOTH people reveal, and it lives only in
+    // the Dating Hub. Every notification here used to carry the sender's real
+    // name, their photo, and a link into the main Chats screen — so a match who
+    // had revealed nothing arrived on a lock screen by name and face, pointing
+    // at a list their conversation is deliberately absent from.
+    const dating = await datingContext(this.prisma, params.conversationId);
+    const anonymous = dating.dating && !dating.revealed;
+    const displayName = anonymous ? nickname(params.senderId) : sender.name;
+    const displayPhoto = anonymous ? undefined : (sender.profileImage ?? undefined);
+    const href = dating.dating ? `/dating/chats?c=${params.conversationId}` : `/chats?c=${params.conversationId}`;
+    const deepLink = dating.dating
+      ? `togethercity://dating/chat/${params.conversationId}`
+      : `togethercity://chat/${params.conversationId}`;
+
     for (const recipientId of params.recipientIds) {
       const online = await this.presence.isOnline(recipientId);
       const openConvo = await this.redis.getOpenConversation(recipientId);
@@ -156,7 +172,7 @@ export class NotificationsService {
 
       // In-app bell notification (grouped per chat) + live toast, titled with
       // the sender's name.
-      await this.upsertMessageNotification(recipientId, params.conversationId, sender.name, params.preview);
+      await this.upsertMessageNotification(recipientId, params.conversationId, displayName, params.preview, href);
 
       const devices = await this.prisma.deviceToken.findMany({
         where: { userId: recipientId },
@@ -166,19 +182,19 @@ export class NotificationsService {
       const webTokens = devices.filter((d) => d.platform === 'webpush').map((d) => d.token);
 
       await this.fcm.send(fcmTokens, {
-        title: sender.name,
+        title: displayName,
         body: params.preview,
-        imageUrl: sender.profileImage ?? undefined,
-        deepLink: `togethercity://chat/${params.conversationId}`,
+        imageUrl: displayPhoto,
+        deepLink,
         data: { conversationId: params.conversationId },
       });
 
       // Browser / PWA push — reaches the recipient even with the app fully closed.
       await this.webpush.send(webTokens, {
-        title: sender.name,
+        title: displayName,
         body: params.preview,
         conversationId: params.conversationId,
-        icon: sender.profileImage ?? undefined,
+        icon: displayPhoto,
       });
     }
   }

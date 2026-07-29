@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { DeliveryStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { datingConversationIds } from '../shared/dating-conversations';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
 import { ChatEventBus } from '../shared/events/chat-events';
 import {
@@ -219,7 +220,13 @@ export class MessagesService {
       where: { userId },
       select: { conversationId: true },
     });
-    const allowed = memberships.map((m) => m.conversationId);
+    // Dating chats live only in the Dating Hub. Search ran over every
+    // membership, so a search in the main Chats screen returned messages from
+    // an anonymous dating thread — the one place they were never meant to
+    // surface. Excluded here rather than filtered afterwards, so the rows are
+    // never read at all.
+    const datingIds = await datingConversationIds(this.prisma, userId);
+    const allowed = memberships.map((m) => m.conversationId).filter((id) => !datingIds.has(id));
     const where: Prisma.MessageWhereInput = {
       conversationId: dto.conversationId
         ? dto.conversationId // membership re-checked below
@@ -233,6 +240,8 @@ export class MessagesService {
         : {}),
     };
     if (dto.conversationId && !allowed.includes(dto.conversationId)) {
+      // Includes the dating case: a member of a dating chat still cannot reach
+      // it from here, because this endpoint is the main Chats search.
       throw new ForbiddenException('Not a member of this conversation');
     }
     const messages = await this.prisma.message.findMany({

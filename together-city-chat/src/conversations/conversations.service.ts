@@ -3,6 +3,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
 import { directKeyOf } from './conversation.util';
 import { nickname } from '../shared/nickname';
+import { datingConversationIds } from '../shared/dating-conversations';
 import { CreateGroupDto } from './dto/conversations.dto';
 
 @Injectable()
@@ -77,14 +78,9 @@ export class ConversationsService {
 
   /** Conversation ids that belong to the Dating Hub (anonymous match chats).
    *  These live ONLY in the Dating Hub's own chat tab and are hidden from the
-   *  main Chats list. */
-  private async datingConversationIds(userId: string): Promise<Set<string>> {
-    const rows = await (this.prisma as unknown as { datingMatch: { findMany(a: unknown): Promise<Array<{ conversationId: string | null }>> } }).datingMatch
-      .findMany({ where: { OR: [{ userOneId: userId }, { userTwoId: userId }], conversationId: { not: null } }, select: { conversationId: true } })
-      .catch(() => [] as Array<{ conversationId: string | null }>);
-    const set = new Set<string>();
-    for (const r of rows) if (r.conversationId) set.add(r.conversationId);
-    return set;
+   *  main Chats list. Shared with messages + notifications so all three agree. */
+  private datingConversationIds(userId: string): Promise<Set<string>> {
+    return datingConversationIds(this.prisma, userId);
   }
 
   /** Conversation list — newest first, each as the flat DTO the frontend consumes.
