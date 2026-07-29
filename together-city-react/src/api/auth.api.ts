@@ -55,5 +55,8 @@ export const authApi = {
   /** Re-send the verification link to the SIGNED-IN user (no email typing). */
   sendVerification: (): Promise<{ ok?: boolean }> =>
     apiPost('/auth/send-verification', {}, z.object({ ok: z.boolean().optional() }).passthrough()),
+  /** Permanently delete the signed-in account (password re-auth required). */
+  deleteAccount: (password: string): Promise<{ ok: boolean }> =>
+    apiPost('/auth/delete-account', { password }, z.object({ ok: z.boolean() })),
   me: (): Promise<User> => apiGet('/users/me', UserSchema),
 };

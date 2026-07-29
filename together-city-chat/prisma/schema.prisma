@@ -84,6 +84,11 @@ model User {
   onlineStatus Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  // Account deletion is a SOFT delete + anonymisation: other citizens' chat
+  // history references this row (Message.sender has no cascade), so hard
+  // deleting would corrupt their conversations. Once set, the account can't
+  // log in and is excluded from search, profiles, feeds and matching.
+  deletedAt    DateTime?
 
   connectionsInitiated Connection[]         @relation("ConnectionUserOne")
   connectionsReceived  Connection[]         @relation("ConnectionUserTwo")

@@ -338,8 +338,17 @@ export class ProfileService {
   /** View another citizen's public profile by handle (never exposes email). */
   async publicProfile(viewerId: string, handleRaw: string): Promise<PublicProfile> {
     const handle = (handleRaw ?? '').trim().replace(/^@/, '').toLowerCase();
-    const u = (await this.prisma.user.findUnique({ where: { handle }, select: this.userSelect })) as unknown as UserRow | null;
-    if (!u) throw new NotFoundException('No citizen with that handle.');
+    const u = (await this.prisma.user.findUnique({
+      where: { handle },
+      select: {
+        id: true, handle: true, name: true, email: true, profileImage: true,
+        emailVerified: true, createdAt: true, bio: true, city: true, website: true,
+        deletedAt: true,
+      } as never,
+    })) as unknown as (UserRow & { deletedAt?: Date | null }) | null;
+    // A deleted account has no public profile — it reads exactly like a handle
+    // that never existed.
+    if (!u || u.deletedAt) throw new NotFoundException('No citizen with that handle.');
     const stats = await this.statsFor(u.id);
     let relationship: Relationship = 'none';
     let iFollow = false;
@@ -434,11 +443,12 @@ export class ProfileService {
     const rows = (await this.prisma.user.findMany({
       where: {
         id: { not: viewerId },
+        deletedAt: null, // deleted accounts are never discoverable
         OR: [
           { handle: { startsWith: handleQ } },
           { name: { contains: q, mode: 'insensitive' } },
         ],
-      },
+      } as never,
       select: { id: true, handle: true, name: true, profileImage: true, city: true, emailVerified: true } as never,
       take: 12,
     })) as unknown as Array<{ id: string; handle: string; name: string; profileImage: string | null; city: string | null; emailVerified: boolean }>;

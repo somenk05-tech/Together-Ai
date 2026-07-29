@@ -152,6 +152,23 @@ export class AuthController {
     return token ? this.auth.logout(token) : this.auth.logoutAll(user.sub);
   }
 
+  /**
+   * Permanently delete the signed-in citizen's account. Destructive, so it
+   * re-authenticates with the account password and then signs out every device.
+   */
+  @Throttle({ default: { limit: 5, ttl: 300_000 } })
+  @Post('delete-account')
+  @UseGuards(JwtAuthGuard)
+  async deleteAccount(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: { password?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const out = await this.auth.deleteAccount(user.sub, dto?.password ?? '');
+    clearRefreshCookie(res);
+    return out;
+  }
+
   // ── Multi-device session management ──
   @Get('sessions')
   @UseGuards(JwtAuthGuard)

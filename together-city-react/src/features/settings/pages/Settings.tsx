@@ -123,7 +123,9 @@ export function Settings() {
   const [socialMute, setSocialMute] = useState(false);
 
   const [confirmText, setConfirmText] = useState('');
-  const [deleteNote, setDeleteNote] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const pushOn = push.permission === 'granted';
 
   return (
@@ -186,25 +188,46 @@ export function Settings() {
       <Card style={{ marginTop: 18, borderColor: 'rgba(224,52,43,.4)' }}>
         <SectionTitle title="Delete account" />
         <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>
-          This permanently removes your Together City identity and all hub data. To continue, type <strong>DELETE</strong> below.
+          This permanently removes your Together City identity: your posts, photos, listings and
+          social connections are erased, your profile stops existing for other citizens, and every
+          device is signed out. It cannot be undone. Type <strong>DELETE</strong> and confirm your
+          password to continue.
         </p>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
           <input
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             placeholder="Type DELETE to confirm"
-            style={{ flex: 1, minWidth: 200, padding: '9px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'inherit', fontSize: 14 }}
+            style={{ flex: 1, minWidth: 170, padding: '9px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'inherit', fontSize: 14 }}
           />
-          <Button size="sm" variant="line" disabled={confirmText !== 'DELETE'}
-            style={confirmText === 'DELETE' ? { borderColor: '#e0342b', color: '#e0342b' } : undefined}
-            onClick={() => setDeleteNote(true)}>
-            Delete my account
+          <input
+            type="password" value={deletePassword} autoComplete="current-password"
+            onChange={(e) => setDeletePassword(e.target.value)}
+            placeholder="Your password"
+            style={{ flex: 1, minWidth: 170, padding: '9px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'inherit', fontSize: 14 }}
+          />
+          <Button size="sm" variant="line" disabled={confirmText !== 'DELETE' || !deletePassword || deleting}
+            style={confirmText === 'DELETE' && deletePassword ? { borderColor: '#e0342b', color: '#e0342b' } : undefined}
+            onClick={async () => {
+              if (!window.confirm('Permanently delete your Together City account? This cannot be undone.')) return;
+              setDeleting(true); setDeleteError(null);
+              try {
+                await authApi.deleteAccount(deletePassword);
+                // Session is already revoked server-side; clear the client and
+                // land on a clean sign-in screen.
+                signOut();
+                window.location.assign('/sign-in');
+              } catch (err) {
+                const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                setDeleteError(msg ?? "Couldn't delete the account just now — please try again.");
+                setDeleting(false);
+              }
+            }}>
+            {deleting ? 'Deleting…' : 'Delete my account'}
           </Button>
         </div>
-        {deleteNote && (
-          <p className="muted" style={{ fontSize: 12.5, marginTop: 10, color: '#e0342b' }}>
-            To protect against mistakes, deletion is finalised by support — email connect@togethercity.tech from your account and we'll erase everything within 24 hours.
-          </p>
+        {deleteError && (
+          <p role="alert" style={{ fontSize: 12.5, marginTop: 10, color: '#e0342b' }}>{deleteError}</p>
         )}
       </Card>
     </div>

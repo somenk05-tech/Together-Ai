@@ -154,8 +154,70 @@ export class AuthService {
     if (!user || !(await argon2.verify(user.passwordHash, dto.password))) {
       throw new UnauthorizedException('Invalid credentials');
     }
+    // A deleted account can never be signed into again (same generic message,
+    // so the endpoint doesn't reveal which handles once existed).
+    if ((user as unknown as { deletedAt?: Date | null }).deletedAt) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
     const pair = await this.tokens.issuePair({ sub: user.id, handle: user.handle }, meta);
     return { ...pair, userId: user.id };
+  }
+
+  /**
+   * Delete the signed-in citizen's account.
+   *
+   * SOFT delete + anonymisation, deliberately:
+   *  - Other citizens' conversations reference this user (Message.sender has no
+   *    cascade), so a hard delete would corrupt their chat history.
+   *  - Everything that is purely this user's own public presence is removed
+   *    outright (posts + media cascade, follows, social graph), so nothing of
+   *    theirs keeps appearing around the city.
+   *  - Remaining references are anonymised: the row survives only as
+   *    "Deleted citizen" with no personal data attached.
+   *
+   * Requires the account password (re-authentication for a destructive action).
+   * All sessions/refresh tokens are revoked, so every device is signed out.
+   */
+  async deleteAccount(userId: string, password: string): Promise<{ ok: true }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Account not found.');
+    if ((user as unknown as { deletedAt?: Date | null }).deletedAt) return { ok: true }; // already gone — idempotent
+    if (!password || !(await argon2.verify(user.passwordHash, password).catch(() => false))) {
+      throw new UnauthorizedException('That password is incorrect.');
+    }
+
+    // 1) Remove this citizen's own public presence. Post media/likes/comments
+    //    cascade from Post; reposts of their posts cascade too.
+    await this.prisma.post.deleteMany({ where: { authorId: userId } }).catch(() => undefined);
+    await this.prisma.follow.deleteMany({ where: { OR: [{ followerId: userId }, { followeeId: userId }] } }).catch(() => undefined);
+    await this.prisma.connection.deleteMany({ where: { OR: [{ userOneId: userId }, { userTwoId: userId }] } }).catch(() => undefined);
+
+    // 2) Anonymise the surviving row. The handle is released in a form that can
+    //    never collide with a real one, and the password is replaced with an
+    //    unusable value so the account cannot be signed into again.
+    const tombstone = `deleted_${userId.replace(/-/g, '').slice(0, 12)}`;
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt: new Date(),
+        handle: tombstone,
+        name: 'Deleted citizen',
+        email: null,
+        phone: null,
+        profileImage: null,
+        bio: null,
+        city: null,
+        website: null,
+        emailVerified: false,
+        emailVerifiedAt: null,
+        onlineStatus: false,
+        passwordHash: await argon2.hash(randomInt(1_000_000, 9_999_999).toString() + userId + Date.now()),
+      } as never,
+    });
+
+    // 3) Sign out everywhere — every refresh token/session is revoked.
+    await this.tokens.revokeAll(userId).catch(() => undefined);
+    return { ok: true };
   }
 
   async refresh(refreshToken: string, meta: SessionMeta = {}): Promise<TokenPair> {
