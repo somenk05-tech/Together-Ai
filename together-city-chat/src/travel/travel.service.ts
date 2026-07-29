@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleIni
 import { demoDataEnabled, DEMO_DISABLED_REASON } from '../shared/demo-data';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ORDER_HISTORY_CAP } from '../shared/paging';
 import { FinancialService } from '../financial/financial.service';
 import { MailService } from '../mail/mail.service';
 import { packageReceipt, flightReceipt } from '../mail/receipts';
@@ -110,7 +111,7 @@ export class TravelService implements OnModuleInit {
 
   // ─────────────── my trips ───────────────
   async myTrips(userId: string) {
-    const rows = await this.prisma.tripBooking.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+    const rows = await this.prisma.tripBooking.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP });
     return rows.map((t) => ({
       id: t.id, kind: t.kind, title: t.title, subtitle: t.subtitle, tier: t.tier, pax: t.pax,
       totalInr: t.totalInr, code: t.code, status: t.status,

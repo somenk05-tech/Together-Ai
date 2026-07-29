@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { RECORD_CAP } from '../shared/paging';
 import { SocialGateway } from './social.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StorageProvider } from '../media/storage.provider';
@@ -453,6 +454,7 @@ export class SocialService {
     const rows = await this.prisma.comment.findMany({
       where: { postId },
       orderBy: { createdAt: 'asc' },
+      take: RECORD_CAP,
       include: { author: { select: AUTHOR_SELECT } },
     });
     return rows.map((c) => ({

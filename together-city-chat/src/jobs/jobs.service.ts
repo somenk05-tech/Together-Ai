@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { demoDataEnabled } from '../shared/demo-data';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ORDER_HISTORY_CAP } from '../shared/paging';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { parseResume, matchJobs, labelFor, JOB_SEEDS, type ParsedResume, type JobLike } from './jobs-engine';
 import type { UploadResumeDto, SaveJobProfileDto, ApplyDto, PostJobDto } from './dto/jobs.dto';
@@ -137,7 +138,7 @@ export class JobsService implements OnModuleInit {
   }
 
   async applications(userId: string) {
-    const rows = await this.prisma.jobApplication.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+    const rows = await this.prisma.jobApplication.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP });
     return rows.map((a) => ({ id: a.id, jobId: a.jobId, title: a.title, company: a.company, status: a.status, coverNote: a.coverNote, appliedOn: a.createdAt.toISOString().slice(0, 10) }));
   }
 
@@ -191,7 +192,7 @@ export class JobsService implements OnModuleInit {
   }
 
   async myPostings(userId: string) {
-    const rows = await this.prisma.job.findMany({ where: { postedById: userId }, orderBy: { createdAt: 'desc' } });
+    const rows = await this.prisma.job.findMany({ where: { postedById: userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP });
     const counts = await this.prisma.jobApplication.groupBy({ by: ['jobId'], where: { jobId: { in: rows.map((r) => r.id) } }, _count: { jobId: true } });
     const countBy = new Map(counts.map((c) => [c.jobId, c._count.jobId]));
     return rows.map((r) => ({

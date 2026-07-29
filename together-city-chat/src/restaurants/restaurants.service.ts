@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleIni
 import { demoDataEnabled } from '../shared/demo-data';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ORDER_HISTORY_CAP } from '../shared/paging';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import { MailService } from '../mail/mail.service';
@@ -647,7 +648,7 @@ export class RestaurantsService implements OnModuleInit {
   }
 
   async myOrders(userId: string) {
-    const rows = await this.prisma.diningOrder.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+    const rows = await this.prisma.diningOrder.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP });
     return rows.map((o) => ({
       id: o.id, restaurantId: o.restaurantId, restaurantName: o.restaurantName, area: o.area, mode: o.mode,
       items: (() => { try { return JSON.parse(o.itemsJson) as unknown[]; } catch { return []; } })(),
@@ -673,7 +674,7 @@ export class RestaurantsService implements OnModuleInit {
   }
 
   async myReservations(userId: string) {
-    const rows = await this.prisma.reservation.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+    const rows = await this.prisma.reservation.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP });
     return rows.map((v) => ({
       id: v.id, restaurantId: v.restaurantId, restaurantName: v.restaurantName, area: v.area,
       date: v.date, time: v.time, partySize: v.partySize, guestName: v.guestName, notes: v.notes,

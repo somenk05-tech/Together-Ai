@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { ORDER_HISTORY_CAP } from '../shared/paging';
 import { MedicalService } from '../medical/medical.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
@@ -414,7 +415,7 @@ export class BeautyService {
 
   async orders(userId: string) {
     const rows = await this.prisma.beautyOrder.findMany({
-      where: { userId }, orderBy: { createdAt: 'desc' },
+      where: { userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP,
     });
     return rows.map((o) => ({
       id: o.id, totalInr: o.totalInr, status: o.status,

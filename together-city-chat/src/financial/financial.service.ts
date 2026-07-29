@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { LEDGER_CAP } from '../shared/paging';
 import type { SetBudgetDto } from './dto/financial.dto';
 
 /** Spend categories — one per commerce-producing hub. */
@@ -81,9 +82,18 @@ export class FinancialService {
     return { ok: true };
   }
 
-  /** All ledger entries as a unified feed (payments = debit, top-ups = credit). */
-  private async ledger(userId: string): Promise<Txn[]> {
-    const txns = await this.prisma.walletTxn.findMany({ where: { userId } });
+  /**
+   * Ledger entries as a unified feed (payments = debit, top-ups = credit).
+   *
+   * `limit` caps the STATEMENT view only. The month and spending calculations
+   * deliberately read the whole ledger: capping there would quietly under-report
+   * what someone has spent, and a wrong number is worse than a slow query.
+   */
+  private async ledger(userId: string, limit?: number): Promise<Txn[]> {
+    const txns = await this.prisma.walletTxn.findMany({
+      where: { userId },
+      ...(limit ? { orderBy: { createdAt: 'desc' as const }, take: limit } : {}),
+    });
     return txns.map((t) => ({
       id: t.id, date: t.createdAt.toISOString(),
       hub: t.hub ?? 'Wallet', category: t.category ?? 'wallet',
@@ -95,7 +105,7 @@ export class FinancialService {
   private debits(all: Txn[]) { return all.filter((t) => t.direction === 'debit'); }
 
   async transactions(userId: string): Promise<Txn[]> {
-    return (await this.ledger(userId)).sort((a, b) => (a.date < b.date ? 1 : -1));
+    return (await this.ledger(userId, LEDGER_CAP)).sort((a, b) => (a.date < b.date ? 1 : -1));
   }
 
   async wallet(userId: string) {

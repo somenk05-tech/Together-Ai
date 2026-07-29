@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundEx
 import { createHash, randomBytes } from 'crypto';
 import { PDFParse } from 'pdf-parse';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { RECORD_CAP , ORDER_HISTORY_CAP } from '../shared/paging';
 import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
@@ -953,7 +954,7 @@ export class MedicalService implements OnModuleInit {
   // ─────────────── medical records ───────────────
   async records(userId: string) {
     const rows = await this.prisma.medicalRecord.findMany({
-      where: { userId }, orderBy: { recordedOn: 'desc' },
+      where: { userId }, orderBy: { recordedOn: 'desc' }, take: RECORD_CAP,
     });
     return rows.map((r) => {
       const rr = r as typeof r & { fileKey?: string | null; mimeType?: string | null; sizeBytes?: number | null; bloodTestId?: string | null };
@@ -997,7 +998,7 @@ export class MedicalService implements OnModuleInit {
 
   async consults(userId: string) {
     const rows = await this.prisma.consult.findMany({
-      where: { userId }, orderBy: { createdAt: 'desc' },
+      where: { userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP,
       include: { doctor: { include: { user: { select: { name: true } } } } },
     });
     return rows.map((c) => ({

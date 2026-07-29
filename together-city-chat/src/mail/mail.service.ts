@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { FEED_CAP } from '../shared/paging';
 import { StorageProvider } from '../media/storage.provider';
 import type { OutboundAttachment } from './messaging-provider';
 
@@ -256,7 +257,9 @@ export class MailService {
       : q.folder === 'inbox' ? { ownerId: userId, folder: 'inbox' }
       : q.folder === 'sent' ? { ownerId: userId, folder: 'sent' }
       : { ownerId: userId, folder: 'trash' };
-    const rows = await this.prisma.mailMessage.findMany({ where, orderBy: { createdAt: 'desc' } });
+    // A mailbox only grows. Capped rather than paginated so the response shape
+    // is unchanged; the cap is far above any current inbox.
+    const rows = await this.prisma.mailMessage.findMany({ where, orderBy: { createdAt: 'desc' }, take: FEED_CAP });
     return rows.map((m) => this.shape(m));
   }
 
