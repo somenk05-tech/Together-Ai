@@ -5264,14 +5264,86 @@ export class NutritionService implements OnModuleInit {
    * shopping items, quantities merged in real units, grouped into supermarket
    * aisles, with a per-recipe "used in" breakdown and a recipe view. Not stored.
    */
-  async groceryPlan(userId: string, mode: PlanMode = 'individual') {
-    const latest = await this.prisma.mealPlan.findFirst({ where: { userId, mode }, orderBy: { createdAt: 'desc' } });
-    if (!latest) return { aisles: [], recipes: [], itemCount: 0 };
+  /**
+   * The meals to shop for: the NEXT `days` days of the citizen's composed plan,
+   * starting from where they are in it today — because that's the plan the app
+   * actually shows them. Each returned ingredient's grams are one person's
+   * portion (the composer has already scaled components).
+   *
+   * If the composed plan is unavailable (no saved food profile, or generation
+   * fails), we fall back to the stored weekly MealPlan so the basket still
+   * builds rather than coming back empty.
+   */
+  private async composedMealsForShopping(userId: string, days: number): Promise<{
+    dayCount: number;
+    meals: Array<{ slot: string; recipeName: string; ingredients: Array<{ name: string; grams: number }> }>;
+  }> {
+    const empty = { dayCount: 0, meals: [] as Array<{ slot: string; recipeName: string; ingredients: Array<{ name: string; grams: number }> }> };
+    try {
+      const plan = (await this.composedPlan(userId)) as unknown as {
+        needsProfile?: boolean;
+        planStartDate?: string;
+        days?: Array<{ dayIndex: number; meals: Array<{ slot: string; title: string; components: Array<{ name: string; ingredients?: Array<{ name: string; grams: number; toTaste?: boolean; pantry?: boolean }> }> }> }>;
+      };
+      if (plan?.needsProfile || !plan?.days?.length) return await this.storedPlanMealsForShopping(userId, days);
+
+      // Day 0 of the plan is planStartDate; shop from today forward.
+      let offset = 0;
+      if (plan.planStartDate && /^\d{4}-\d{2}-\d{2}$/.test(plan.planStartDate)) {
+        const start = Date.parse(`${plan.planStartDate}T00:00:00Z`);
+        const today = Date.parse(`${todayISO()}T00:00:00Z`);
+        if (Number.isFinite(start) && Number.isFinite(today)) {
+          offset = Math.max(0, Math.round((today - start) / 86_400_000));
+        }
+      }
+      const slice = plan.days.filter((d) => d.dayIndex >= offset).slice(0, days);
+      const use = slice.length ? slice : plan.days.slice(0, days);
+      const meals = use.flatMap((d) => d.meals.flatMap((m) => m.components.map((c) => ({
+        slot: m.slot,
+        recipeName: c.name || m.title,
+        ingredients: (c.ingredients ?? [])
+          .filter((i) => !i.toTaste && (i.grams ?? 0) > 0)
+          .map((i) => ({ name: i.name, grams: i.grams })),
+      }))));
+      if (!meals.length) return await this.storedPlanMealsForShopping(userId, days);
+      return { dayCount: use.length, meals };
+    } catch {
+      return await this.storedPlanMealsForShopping(userId, days).catch(() => empty);
+    }
+  }
+
+  /** Fallback source: the stored weekly MealPlan (per-serving grams → one portion). */
+  private async storedPlanMealsForShopping(userId: string, days: number) {
+    const latest = await this.prisma.mealPlan.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' } });
+    if (!latest) return { dayCount: 0, meals: [] };
     const plan = await this.prisma.mealPlan.findUnique({
       where: { key: latest.key },
       include: { days: { include: { meals: { include: { recipe: { include: { ingredients: true } } } } } } },
     });
-    if (!plan) return { aisles: [], recipes: [], itemCount: 0 };
+    if (!plan) return { dayCount: 0, meals: [] };
+    const use = plan.days.slice(0, days);
+    const meals = use.flatMap((d) => d.meals
+      .filter((m) => !m.skipped)
+      .map((m) => {
+        const servings = recipeServings(m.recipe);
+        return {
+          slot: m.slot,
+          recipeName: m.recipe.name,
+          // Stored recipes are whole-batch → divide to one portion so both
+          // sources feed the aggregator in the same units.
+          ingredients: m.recipe.ingredients.map((i) => ({ name: i.name, grams: i.grams / servings })),
+        };
+      }));
+    return { dayCount: use.length, meals };
+  }
+
+  async groceryPlan(userId: string, mode: PlanMode = 'individual', days = 7) {
+    // SOURCE OF TRUTH: the COMPOSED plan — the same plan the Meal Plan page
+    // shows. Previously this read the separately-generated MealPlan rows, so
+    // the basket could be built from meals the user was never shown. Falls back
+    // to the stored weekly plan only if the composed plan can't be produced.
+    const window = Math.max(1, Math.min(28, Math.round(days)));
+    const composed = await this.composedMealsForShopping(userId, window);
 
     // Household scaling factor. Individual = 1. Family = the SUM of each member's
     // portion multiplier (their daily calorie target ÷ a 2,000-kcal standard
@@ -5295,27 +5367,26 @@ export class NutritionService implements OnModuleInit {
     const recipeView = new Map<string, Map<string, number>>(); // recipeName → canonical → grams
     // Meal counts for the shopping summary.
     const slotCounts: Record<string, number> = { b: 0, l: 0, s: 0, d: 0 };
-    const activeDays = plan.days.length;
+    const activeDays = composed.dayCount;
     const headcount = mode === 'family' ? Math.max(1, memberScales.length) : 1;
-    for (const day of plan.days) {
-      for (const meal of day.meals) {
-        if (meal.skipped) continue;
-        slotCounts[meal.slot] = (slotCounts[meal.slot] ?? 0) + headcount;   // meals served = per-slot × people
-        const s = recipeServings(meal.recipe);
-        const rname = cleanRecipeName(meal.recipe.name);
-        for (const ing of meal.recipe.ingredients) {
-          if (skipGroceryIngredient(ing.name)) continue;      // drop water/salt/to-taste/garnish…
-          const canon = canonicalIngredient(ing.name);
-          if (!canon) continue;
-          const grams = Math.max(0, Math.round((ing.grams / s) * scale));   // per-serving × household portions
-          if (grams <= 0) continue;
-          const key = canon.toLowerCase();
-          const cur = items.get(key) ?? { name: canon, grams: 0, usedIn: new Map() };
-          cur.grams += grams; cur.usedIn.set(rname, (cur.usedIn.get(rname) ?? 0) + grams);
-          items.set(key, cur);
-          const rv = recipeView.get(rname) ?? new Map();
-          rv.set(canon, (rv.get(canon) ?? 0) + grams); recipeView.set(rname, rv);
-        }
+    if (!composed.meals.length) return { aisles: [], recipes: [], itemCount: 0 };
+    for (const meal of composed.meals) {
+      slotCounts[meal.slot] = (slotCounts[meal.slot] ?? 0) + headcount;   // meals served = per-slot × people
+      const rname = cleanRecipeName(meal.recipeName);
+      for (const ing of meal.ingredients) {
+        if (skipGroceryIngredient(ing.name)) continue;        // drop water/salt/to-taste/garnish…
+        const canon = canonicalIngredient(ing.name);
+        if (!canon) continue;
+        // Composed-plan grams are ALREADY one person's portion, so we only
+        // apply the household multiplier (no per-serving division).
+        const grams = Math.max(0, Math.round(ing.grams * scale));
+        if (grams <= 0) continue;
+        const key = canon.toLowerCase();
+        const cur = items.get(key) ?? { name: canon, grams: 0, usedIn: new Map() };
+        cur.grams += grams; cur.usedIn.set(rname, (cur.usedIn.get(rname) ?? 0) + grams);
+        items.set(key, cur);
+        const rv = recipeView.get(rname) ?? new Map();
+        rv.set(canon, (rv.get(canon) ?? 0) + grams); recipeView.set(rname, rv);
       }
     }
 
@@ -5404,6 +5475,28 @@ export class NutritionService implements OnModuleInit {
     // (individual vs family), so the family basket never pulls the solo plan.
     let planKey = opts.planKey;
     if (!planKey && !opts.recipeIds?.length) {
+      // Same source of truth as the displayed list: the COMPOSED plan the user
+      // is actually shown. Composed grams are already one portion, so scale by
+      // headcount only; price is the same per-aisle estimate groceryPlan uses,
+      // so the saved cart and the on-screen list agree on both items and cost.
+      const composed = await this.composedMealsForShopping(userId, 7);
+      if (composed.meals.length) {
+        for (const meal of composed.meals) {
+          for (const ing of meal.ingredients) {
+            if (skipGroceryIngredient(ing.name)) continue;
+            const canon = canonicalIngredient(ing.name);
+            if (!canon) continue;
+            const grams = Math.max(1, Math.round(ing.grams * people));
+            const key = canon.toLowerCase();
+            const cur = totals.get(key) ?? { name: canon, grams: 0, price: 0 };
+            cur.grams += grams;
+            cur.price += Math.round(((COST_PER_KG[groceryAisle(canon)] ?? 90) * grams) / 1000);
+            totals.set(key, cur);
+          }
+        }
+        if (totals.size) return this.writeCart(userId, totals);
+      }
+      // Composed plan unavailable → fall back to the stored weekly plan.
       const where = opts.mode ? { userId, mode: opts.mode } : { userId };
       const latest = await this.prisma.mealPlan.findFirst({ where, orderBy: { createdAt: 'desc' } });
       planKey = latest?.key;
