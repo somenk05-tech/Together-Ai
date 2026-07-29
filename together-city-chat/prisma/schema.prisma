@@ -92,6 +92,8 @@ model User {
 
   connectionsInitiated Connection[]         @relation("ConnectionUserOne")
   connectionsReceived  Connection[]         @relation("ConnectionUserTwo")
+  driveFolders         DriveFolder[]
+  driveFiles           DriveFile[]
   memberships          ConversationMember[]
   messages             Message[]            @relation("MessageSender")
   messageStatuses      MessageStatus[]
@@ -1590,4 +1592,47 @@ model Notification {
 
   @@index([userId, read])
   @@index([userId, createdAt])
+}
+
+/// ─────────────────────────── User Drive ───────────────────────────
+/// A citizen's private online drive: folders + files stored in the SAME
+/// private vault as mail and health documents, so one account has ONE 10 GB
+/// allowance across everything. Files live in object storage under
+/// `drive/<userId>/…`; these rows are the metadata/ownership record.
+model DriveFolder {
+  id        String   @id @default(uuid())
+  ownerId   String
+  name      String
+  parentId  String? // null = drive root
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner    User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  parent   DriveFolder?  @relation("DriveFolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children DriveFolder[] @relation("DriveFolderTree")
+  files    DriveFile[]
+
+  @@index([ownerId, parentId])
+}
+
+model DriveFile {
+  id         String   @id @default(uuid())
+  ownerId    String
+  folderId   String? // null = drive root
+  name       String
+  mimeType   String?
+  sizeBytes  Int      @default(0)
+  storageKey String   @unique // drive/<ownerId>/<uuid>.<ext>
+  checksum   String?
+  /// What this file is attached to, if anything (e.g. "message", "listing").
+  attachedType String?
+  attachedId   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  owner  User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  folder DriveFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, folderId])
+  @@index([attachedType, attachedId])
 }

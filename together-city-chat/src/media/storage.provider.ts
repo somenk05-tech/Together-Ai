@@ -195,6 +195,30 @@ export class StorageProvider implements OnModuleInit {
     return { uploadUrl, key, expiresInSec: this.expiresInSec };
   }
 
+  /**
+   * Presign an upload into the user's private DRIVE space. Same private bucket
+   * as the health vault (one 10 GB vault per citizen), namespaced under
+   * `drive/<userId>/` so ownership is provable from the key itself.
+   */
+  async presignDriveUpload(userId: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    const safeExt = (ext || 'bin').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
+    const key = `drive/${userId}/${randomUUID()}.${safeExt}`;
+    if (!this.s3) {
+      return { uploadUrl: `${this.publicBase}/__presigned__/${key}`, key, expiresInSec: this.expiresInSec };
+    }
+    const uploadUrl = await getSignedUrl(
+      this.s3,
+      new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType }),
+      { expiresIn: this.expiresInSec },
+    );
+    return { uploadUrl, key, expiresInSec: this.expiresInSec };
+  }
+
+  /** True when this key belongs to the given user's private drive namespace. */
+  static isOwnDriveKey(userId: string, key: string): boolean {
+    return typeof key === 'string' && key.startsWith(`drive/${userId}/`);
+  }
+
   /** Short-lived signed GET URL for a private health document (owner-only, handed
    *  out by the authenticated backend). Returns null when storage isn't configured. */
   async presignHealthDownload(key: string): Promise<string | null> {

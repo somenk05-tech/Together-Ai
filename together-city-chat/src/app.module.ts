@@ -13,6 +13,7 @@ import { ConversationsModule } from './conversations/conversations.module';
 import { MessagesModule } from './messages/messages.module';
 import { ChatModule } from './chat/chat.module';
 import { MediaModule } from './media/media.module';
+import { DriveModule } from './drive/drive.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ProfileModule } from './profile/profile.module';
 import { LookupsModule } from './lookups/lookups.module';
@@ -52,6 +53,7 @@ import { PrivacyModule } from './privacy/privacy.module';
     MessagesModule,
     NotificationsModule,
     MediaModule,
+    DriveModule,
     ChatModule,
     ProfileModule,
     LookupsModule,

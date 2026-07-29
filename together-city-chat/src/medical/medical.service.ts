@@ -176,18 +176,25 @@ export class MedicalService implements OnModuleInit {
   private readonly quotaBytes = 10 * 1024 * 1024 * 1024;
 
   async storageUsage(userId: string) {
-    const [mail, docs] = await Promise.all([
+    // ONE 10 GB vault per account — mail + health documents + drive files all
+    // draw from the same allowance, so this must count drive usage too.
+    const [mail, docs, drive] = await Promise.all([
       this.prisma.mailMessage.findMany({ where: { ownerId: userId }, select: { sizeBytes: true } }),
       this.prisma.medicalRecord.findMany({ where: { userId }, select: { sizeBytes: true } as never }) as Promise<Array<{ sizeBytes: number }>>,
+      ((this.prisma as unknown as {
+        driveFile: { aggregate(a: unknown): Promise<{ _sum: { sizeBytes: number | null } }> };
+      }).driveFile.aggregate({ where: { ownerId: userId }, _sum: { sizeBytes: true } })).catch(() => ({ _sum: { sizeBytes: 0 } })),
     ]);
     const mailBytes = mail.reduce((s, m) => s + (m.sizeBytes ?? 0), 0);
     const healthBytes = docs.reduce((s, d) => s + (d.sizeBytes ?? 0), 0);
-    const usedBytes = mailBytes + healthBytes;
+    const driveBytes = drive._sum.sizeBytes ?? 0;
+    const usedBytes = mailBytes + healthBytes + driveBytes;
     return {
       quotaBytes: this.quotaBytes,
       usedBytes,
       mailBytes,
       healthBytes,
+      driveBytes,
       usedPct: Math.min(100, +((usedBytes / this.quotaBytes) * 100).toFixed(2)),
       remainingBytes: Math.max(0, this.quotaBytes - usedBytes),
     };
