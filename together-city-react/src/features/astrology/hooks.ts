@@ -65,3 +65,10 @@ export function useDrawTarot() {
     },
   });
 }
+
+export function useAstroGems() {
+  return useQuery({ queryKey: ['astrology', 'gems'], queryFn: () => astrologyApi.gems() });
+}
+export function useAstroRemedies() {
+  return useQuery({ queryKey: ['astrology', 'remedies'], queryFn: () => astrologyApi.remedies() });
+}

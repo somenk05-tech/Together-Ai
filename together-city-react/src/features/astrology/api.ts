@@ -74,6 +74,27 @@ export interface TarotHistoryItem {
   cards: TarotDrawnCard[]; summary: string; disclaimer: string;
 }
 
+/** Labelled data — the panel may name the machinery; the prose beside it may not. */
+export interface GemEntry {
+  lord: string; stone: string; alternatives: string[]; metal: string; finger: string;
+  beginOn: string; intention: string; caution: string;
+}
+export interface GemGuidance {
+  needsProfile: false; primary: GemEntry; supporting: GemEntry; disclaimer: string;
+}
+export interface RemedyTemplate {
+  key: string; title: string; practice: string; kind: 'observance' | 'giving' | 'practice';
+}
+export interface RemedyGuidance {
+  needsProfile: false;
+  remedies: RemedyTemplate[];
+  /** Practices held back because of declared health flags. */
+  withheld: Array<{ title: string; reason: string }>;
+  disclaimer: string;
+}
+export type GemResponse = GemGuidance | { needsProfile: true };
+export type RemedyResponse = RemedyGuidance | { needsProfile: true };
+
 export const astrologyApi = {
   profile: () => api.get<AstroProfileView>('/astrology/profile').then((r) => r.data),
   saveProfile: (dto: SaveAstroProfileInput) =>
@@ -90,4 +111,7 @@ export const astrologyApi = {
   tarotDraw: (dto: { kind: 'three' | 'celtic'; question: string; method?: 'wallet' | 'card' }) =>
     api.post<TarotSpreadResult>('/astrology/tarot/draw', dto).then((r) => r.data),
   tarotHistory: () => api.get<TarotHistoryItem[]>('/astrology/tarot/history').then((r) => r.data),
+
+  gems: () => api.get<GemResponse>('/astrology/gems').then((r) => r.data),
+  remedies: () => api.get<RemedyResponse>('/astrology/remedies').then((r) => r.data),
 };
