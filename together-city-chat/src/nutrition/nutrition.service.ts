@@ -5430,7 +5430,7 @@ export class NutritionService implements OnModuleInit {
    * fails), we fall back to the stored weekly MealPlan so the basket still
    * builds rather than coming back empty.
    */
-  private async composedMealsForShopping(userId: string, days: number): Promise<{
+  private async composedMealsForShopping(userId: string, days: number, fromISO?: string): Promise<{
     dayCount: number;
     meals: Array<{ slot: string; recipeName: string; dayISO?: string; ingredients: Array<{ name: string; grams: number }> }>;
   }> {
@@ -5443,13 +5443,16 @@ export class NutritionService implements OnModuleInit {
       };
       if (plan?.needsProfile || !plan?.days?.length) return await this.storedPlanMealsForShopping(userId, days);
 
-      // Day 0 of the plan is planStartDate; shop from today forward.
+      // Day 0 of the plan is planStartDate. Shop from the requested day —
+      // which is always the LIVE date or later (today / tomorrow / a chosen
+      // future day), never a day that has already passed.
       let offset = 0;
+      const wanted = fromISO && /^\d{4}-\d{2}-\d{2}$/.test(fromISO) ? fromISO : todayISO();
       if (plan.planStartDate && /^\d{4}-\d{2}-\d{2}$/.test(plan.planStartDate)) {
         const start = Date.parse(`${plan.planStartDate}T00:00:00Z`);
-        const today = Date.parse(`${todayISO()}T00:00:00Z`);
-        if (Number.isFinite(start) && Number.isFinite(today)) {
-          offset = Math.max(0, Math.round((today - start) / 86_400_000));
+        const target = Date.parse(`${wanted}T00:00:00Z`);
+        if (Number.isFinite(start) && Number.isFinite(target)) {
+          offset = Math.max(0, Math.round((target - start) / 86_400_000));
         }
       }
       const slice = plan.days.filter((d) => d.dayIndex >= offset).slice(0, days);
@@ -5496,13 +5499,25 @@ export class NutritionService implements OnModuleInit {
     return { dayCount: use.length, meals };
   }
 
-  async groceryPlan(userId: string, mode: PlanMode = 'individual', days = 7) {
+  /**
+   * Normalise a requested shopping start date against the LIVE date.
+   * You can shop for today or any future day; a date already gone is snapped
+   * forward to today, because you can't buy groceries for yesterday.
+   */
+  private resolveStartDate(startDate?: string): string {
+    const today = todayISO();
+    if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return today;
+    return startDate < today ? today : startDate;
+  }
+
+  async groceryPlan(userId: string, mode: PlanMode = 'individual', days = 7, startDate?: string) {
     // SOURCE OF TRUTH: the COMPOSED plan — the same plan the Meal Plan page
     // shows. Previously this read the separately-generated MealPlan rows, so
     // the basket could be built from meals the user was never shown. Falls back
     // to the stored weekly plan only if the composed plan can't be produced.
     const window = Math.max(1, Math.min(28, Math.round(days)));
-    const composed = await this.composedMealsForShopping(userId, window);
+    const fromISO = this.resolveStartDate(startDate);
+    const composed = await this.composedMealsForShopping(userId, window, fromISO);
 
     // Household scaling factor. Individual = 1. Family = the SUM of each member's
     // portion multiplier (their daily calorie target ÷ a 2,000-kcal standard
@@ -5593,7 +5608,10 @@ export class NutritionService implements OnModuleInit {
     }));
 
     const wastePct = packG > 0 ? Math.round(((packG - requiredG) / packG) * 1000) / 10 : 0;
+    const windowEndISO = addDaysISO(fromISO, Math.max(0, activeDays - 1));
     const summary = {
+      // The exact dates this basket covers, so the UI can say what it's for.
+      startDate: fromISO, endDate: windowEndISO,
       householdSize: headcount,
       days: activeDays,
       meals: { breakfast: slotCounts.b, lunch: slotCounts.l, dinner: slotCounts.d, snacks: slotCounts.s },
@@ -5617,7 +5635,7 @@ export class NutritionService implements OnModuleInit {
   /** Build a grocery list from a meal plan and/or a set of recipes, replacing
    *  the current list. Used by the weekly/daily/family planners and by recipe
    *  search / recipe detail ("generate grocery list"). */
-  async buildCart(userId: string, opts: { planKey?: string; recipeIds?: string[]; people?: number; mode?: PlanMode }) {
+  async buildCart(userId: string, opts: { planKey?: string; recipeIds?: string[]; people?: number; mode?: PlanMode; days?: number; startDate?: string }) {
     // Keyed by NORMALISED name so "Tomato" and "tomato" merge into one line
     // (spec: duplicate ingredients must always be merged into a single total).
     const totals = new Map<string, { name: string; grams: number; price: number }>();
@@ -5652,7 +5670,7 @@ export class NutritionService implements OnModuleInit {
       // is actually shown. Composed grams are already one portion, so scale by
       // headcount only; price is the same per-aisle estimate groceryPlan uses,
       // so the saved cart and the on-screen list agree on both items and cost.
-      const composed = await this.composedMealsForShopping(userId, 7);
+      const composed = await this.composedMealsForShopping(userId, Math.max(1, Math.min(28, Math.round(opts.days ?? 7))), this.resolveStartDate(opts.startDate));
       if (composed.meals.length) {
         for (const meal of composed.meals) {
           for (const ing of meal.ingredients) {

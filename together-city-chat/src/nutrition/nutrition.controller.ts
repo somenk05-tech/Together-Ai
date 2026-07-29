@@ -330,8 +330,15 @@ export class NutritionController {
 
   // Supermarket-style grocery list (Grocery Planner redesign). mode: individual|family.
   @Get('grocery/plan')
-  groceryPlan(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode) {
-    return this.nutrition.groceryPlan(user.sub, mode ?? 'individual');
+  groceryPlan(
+    @CurrentUser() user: JwtUser,
+    @Query('mode') mode?: PlanMode,
+    @Query('days') days?: string,
+    @Query('startDate') startDate?: string,
+  ) {
+    // days: 1 | 2 | 5 | 7 (any 1–28); startDate: YYYY-MM-DD, today or later.
+    const n = Number(days);
+    return this.nutrition.groceryPlan(user.sub, mode ?? 'individual', Number.isFinite(n) && n > 0 ? n : 7, startDate);
   }
 
   @Get('history/:id')

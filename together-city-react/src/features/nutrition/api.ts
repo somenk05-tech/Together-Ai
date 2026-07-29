@@ -83,8 +83,8 @@ export const nutritionApi = {
     api.post<{ saved: boolean; ids: string[] }>(`/nutrition/recipes/${id}/save`, { saved }).then((r) => r.data),
   recipeVariants: (id: string, type: string) =>
     api.get<{ type: string; label: string; note: string; items: Recipe[] }>(`/nutrition/recipes/${id}/variants`, { params: { type } }).then((r) => r.data),
-  groceryPlan: (mode: 'individual' | 'family' = 'individual') =>
-    api.get<GroceryPlan>('/nutrition/grocery/plan', { params: { mode } }).then((r) => r.data),
+  groceryPlan: (mode: 'individual' | 'family' = 'individual', days = 7, startDate?: string) =>
+    api.get<GroceryPlan>('/nutrition/grocery/plan', { params: { mode, days, ...(startDate ? { startDate } : {}) } }).then((r) => r.data),
   cart: () => api.get<GroceryCart>('/nutrition/cart').then((r) => r.data),
   buildCart: (opts?: { planKey?: string; recipeIds?: string[]; people?: number; mode?: 'individual' | 'family' }) =>
     api.post<GroceryCart>('/nutrition/cart', opts ?? {}).then((r) => r.data),
@@ -254,6 +254,8 @@ export interface GroceryCart { id: string | null; items: GroceryItem[]; createdA
 export interface GroceryUsedIn { recipe: string; qtyLabel: string }
 export interface GroceryPlanItem {
   name: string; aisle: string; qtyLabel: string; unit: string; grams: number;
+  /** Pantry-aware split: what you already have vs what's still to buy. */
+  haveGrams?: number; toBuyGrams?: number; haveQtyLabel?: string; toBuyQtyLabel?: string; inPantry?: boolean;
   pack: string;                    // recommended retail pack to buy
   shelfLife: string; storageTip: string; usedIn: GroceryUsedIn[];
 }
@@ -263,6 +265,8 @@ export interface GroceryAisle {
 export interface GroceryRecipeView { recipe: string; items: { name: string; qtyLabel: string }[] }
 export interface GroceryScaleMember { name: string; dailyKcal: number; multiplier: number }
 export interface GrocerySummary {
+  /** The exact dates this basket covers (always today or later). */
+  startDate?: string; endDate?: string;
   householdSize: number; days: number;
   meals: { breakfast: number; lunch: number; dinner: number; snacks: number };
   estimatedCostInr: number; wastePct: number; scale: number; members: GroceryScaleMember[];

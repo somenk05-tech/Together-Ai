@@ -269,10 +269,10 @@ export function useRecipeVariants(id: string | undefined, type: string | null) {
 }
 
 /** Supermarket-style grocery plan (Grocery Planner redesign) — aisles + recipe view. */
-export function useGroceryPlan(mode: 'individual' | 'family' = 'individual') {
+export function useGroceryPlan(mode: 'individual' | 'family' = 'individual', days = 7, startDate?: string) {
   return useQuery({
-    queryKey: ['nutrition', 'grocery-plan', mode],
-    queryFn: () => nutritionApi.groceryPlan(mode),
+    queryKey: ['nutrition', 'grocery-plan', mode, days, startDate ?? 'today'],
+    queryFn: () => nutritionApi.groceryPlan(mode, days, startDate),
   });
 }
 
