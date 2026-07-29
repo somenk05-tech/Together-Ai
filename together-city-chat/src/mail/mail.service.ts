@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { ConnectionStatus } from '@prisma/client';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { FEED_CAP } from '../shared/paging';
 import { StorageProvider } from '../media/storage.provider';
@@ -289,6 +290,14 @@ export class MailService {
     const recipient = await this.prisma.user.findUnique({ where: { handle: recipientHandle }, select: { id: true, handle: true, name: true } });
     if (!recipient) throw new BadRequestException(`No such city mailbox: ${addressFor(recipientHandle)}`);
 
+    // The directory only offers connections; enforce the same rule here, or the
+    // restriction is decoration that anyone can step around by typing a handle.
+    if (!(await this.isConnected(userId, recipient.id))) {
+      throw new ForbiddenException(
+        `You can only write to citizens you're connected with. Send ${recipient.name} a connection request first.`,
+      );
+    }
+
     const subject = dto.subject?.trim() || '(no subject)';
     const size = sizeOf(subject, dto.body);
     const used = await this.usedBytes(userId);
@@ -435,12 +444,56 @@ export class MailService {
     }));
   }
 
-  /** City directory — everyone you can write to. */
+  /**
+   * The citizens this person is actually connected to.
+   *
+   * Mail is a Universal hub, so an accepted connection is enough — no per-hub
+   * permission is required to write to someone. But the connection itself IS
+   * required: the city is not a phone book, and every signed-up account being
+   * addressable by every other is how a small city becomes a spam problem.
+   *
+   * Only ACCEPTED counts. A pending request is not a relationship yet, and
+   * BLOCKED/REMOVED is the opposite of one.
+   */
+  private async connectedIds(userId: string): Promise<string[]> {
+    const rows = await this.prisma.connection.findMany({
+      where: {
+        status: ConnectionStatus.ACCEPTED,
+        OR: [{ userOneId: userId }, { userTwoId: userId }],
+      },
+      select: { userOneId: true, userTwoId: true },
+    });
+    const ids = new Set<string>();
+    for (const r of rows) ids.add(r.userOneId === userId ? r.userTwoId : r.userOneId);
+    ids.delete(userId);
+    return [...ids];
+  }
+
+  /** Are these two connected? Used to stop a hand-typed address from reaching
+   *  someone the directory would never have offered. */
+  private async isConnected(userId: string, otherId: string): Promise<boolean> {
+    if (userId === otherId) return true; // a note to yourself is always allowed
+    const hit = await this.prisma.connection.findFirst({
+      where: {
+        status: ConnectionStatus.ACCEPTED,
+        OR: [
+          { userOneId: userId, userTwoId: otherId },
+          { userOneId: otherId, userTwoId: userId },
+        ],
+      },
+      select: { id: true },
+    });
+    return !!hit;
+  }
+
+  /** Your address book — the citizens you're connected to, not the whole city. */
   async directory(userId: string) {
-    // Only fellow citizens — exclude service providers (doctors/dietitians are Users
-    // so bookings can open a chat, but they are not people you email.)
+    const ids = await this.connectedIds(userId);
+    if (!ids.length) return [];
+    // Service providers are excluded even when connected: doctors/dietitians are
+    // Users so a booking can open a chat, but they are not people you email.
     const rows = await this.prisma.user.findMany({
-      where: { NOT: { id: userId }, doctorProfile: { is: null }, dietitianProfile: { is: null } },
+      where: { id: { in: ids }, doctorProfile: { is: null }, dietitianProfile: { is: null } },
       select: { handle: true, name: true }, orderBy: { name: 'asc' }, take: 200,
     });
     return rows.map((u) => ({ handle: u.handle, name: u.name, address: addressFor(u.handle) }));

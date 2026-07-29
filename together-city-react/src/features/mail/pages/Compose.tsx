@@ -6,8 +6,9 @@ import { payError } from '@/features/financial/api';
 import { DrivePicker } from '../DrivePicker';
 import { fmtBytes, fileIcon, type DriveFile } from '@/features/drive/api';
 
-/** Compose — write to any @togethercity.app citizen (directory autocomplete)
- *  OR any external/global email address (delivered via the email provider). */
+/** Compose — write to a connected citizen (directory autocomplete, which only
+ *  lists your connections) OR any external/global email address (delivered via
+ *  the email provider). City mail to a stranger is refused by the API. */
 export function Compose() {
   const [params] = useSearchParams();
   const nav = useNavigate();
@@ -45,7 +46,13 @@ export function Compose() {
         <div style={{ position: 'relative' }}>
           <label style={{ fontSize: 12 }} className="muted">To</label>
           <input value={to} onChange={(e) => { setTo(e.target.value); setShowSug(true); }} onFocus={() => setShowSug(true)}
-            placeholder="handle@togethercity.app · or any email address" style={inp} autoComplete="off" />
+            placeholder="a connection's @togethercity.app handle · or any email address" style={inp} autoComplete="off" />
+          {dir.isSuccess && (dir.data?.length ?? 0) === 0 && (
+            <div className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
+              You're not connected to anyone yet — city mail goes to your connections.
+              You can still write to any external email address.
+            </div>
+          )}
           {showSug && suggestions.length > 0 && (
             <div className="card" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, padding: 4, marginTop: 4, maxHeight: 240, overflow: 'auto' }}>
               {suggestions.map((d) => (
