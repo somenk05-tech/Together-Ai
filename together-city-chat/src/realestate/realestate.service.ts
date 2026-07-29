@@ -100,6 +100,17 @@ export class RealEstateService implements OnModuleInit {
   async detail(id: string, userId?: string) {
     const p = await this.prisma.property.findUnique({ where: { id } }) as PropRow | null;
     if (!p) throw new NotFoundException('property not found');
+    // The list routes both require `moderation: 'approved'`; this one required
+    // nothing, so a pending, rejected or removed listing was readable by any
+    // citizen who knew its id — including the private rejection reasons that
+    // shapeCard emits. Owners still see their own listing in every state, which
+    // is what the "preview your pending listing" case actually needs.
+    // `?? 'approved'` matches shapeCard's default, so pre-moderation rows keep
+    // behaving exactly as they do everywhere else.
+    const own = Boolean(userId && p.sellerId === userId);
+    if (!own && (p.moderation ?? 'approved') !== 'approved') {
+      throw new NotFoundException('property not found');
+    }
     return this.shapeDetail(p, userId);
   }
 

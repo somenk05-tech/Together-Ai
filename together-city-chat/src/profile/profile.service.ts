@@ -381,14 +381,39 @@ export class ProfileService {
       .findFirst({ where: { OR: [{ blockerId: viewerId, blockedId: u.id }, { blockerId: u.id, blockedId: viewerId }] }, select: { id: true } })
       .catch(() => null);
     if (block) return { items: [], nextCursor: null };
-    // A citizen's profile is their public portfolio: show ALL of their posts to
-    // everyone, EXCEPT ones they explicitly marked "Only Me" (private).
-    // NOTE: `audience` is a NON-NULL column (default 'public'), so we must NOT
-    // add an `{ audience: null }` branch — Prisma rejects it ("Argument
+
+    // Which audiences this viewer is entitled to, mirroring SocialService's
+    // assertCanView. This used to be a flat `audience: { not: 'private' }`,
+    // which meant a post marked "friends" or "family" was visible to every
+    // signed-in citizen from the profile grid even though the feed and the
+    // post detail correctly refused it. An audience setting that holds in one
+    // place and not another is worse than not offering the setting.
+    //
+    // NOTE: `audience` is a NON-NULL column (default 'public'), so there must
+    // be no `{ audience: null }` branch — Prisma rejects it ("Argument
     // `audience` is missing"), which previously threw and returned an empty grid.
+    const allowed: string[] = ['public'];
+    if (viewerId === u.id) {
+      allowed.push('friends', 'family', 'private');
+    } else {
+      type ConnRow = { userOneId: string; userTwoId: string; relationship?: string | null };
+      const [follows, connsRaw] = await Promise.all([
+        this.prisma.follow
+          .findUnique({ where: { followerId_followeeId: { followerId: viewerId, followeeId: u.id } } })
+          .catch(() => null),
+        this.prisma.connection
+          .findMany({ where: { status: 'ACCEPTED' as never, OR: [{ userOneId: u.id }, { userTwoId: u.id }] } })
+          .catch(() => []),
+      ]);
+      const conns = connsRaw as unknown as ConnRow[];
+      const conn = conns.find((r: ConnRow) => (r.userOneId === u.id ? r.userTwoId : r.userOneId) === viewerId);
+      if (follows || conn) allowed.push('friends');
+      if (conn && (conn.relationship ?? '') === 'family') allowed.push('family');
+    }
+
     const take = Math.min(Math.max(limit, 1), 50);
     const rows = await this.prisma.post.findMany({
-      where: { authorId: u.id, repostOfId: null, audience: { not: 'private' } } as never,
+      where: { authorId: u.id, repostOfId: null, audience: { in: allowed } } as never,
       orderBy: [{ sortIndex: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }] as never,
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),

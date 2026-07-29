@@ -58,6 +58,7 @@ export class SocialController {
     return this.social.createPost(user.sub, dto);
   }
 
+  @UseGuards(VerifiedGuard)
   @Patch('posts/:id')
   update(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
     // Same cap as create (2200) — an edit must not exceed the create limit.
@@ -83,6 +84,7 @@ export class SocialController {
     return this.social.comments(user.sub, id);
   }
 
+  @UseGuards(VerifiedGuard)
   @Post('posts/:id/comments')
   comment(
     @CurrentUser() user: JwtUser,
@@ -99,6 +101,7 @@ export class SocialController {
   }
 
   // Repost (share to feed) — appears at the top of the reposter's network feed.
+  @UseGuards(VerifiedGuard)
   @Post('posts/:id/repost')
   repost(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.social.repost(user.sub, id);

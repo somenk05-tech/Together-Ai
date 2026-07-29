@@ -67,6 +67,7 @@ export class DatingController {
     return this.dating.like(user.sub, targetUserId, kind);
   }
 
+  @UseGuards(VerifiedGuard)
   @Post('matches/:targetUserId/unlock-chat')
   unlockChat(
     @CurrentUser() user: JwtUser,

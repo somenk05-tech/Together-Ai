@@ -1443,9 +1443,14 @@ model EmailDelivery {
 model PasswordReset {
   id        String   @id @default(uuid())
   userId    String
+  /// argon2 hash of the 6-digit code — never the code itself. A leaked backup
+  /// or a stray query result must not be enough to take over an account.
   code      String
   expiresAt DateTime
   usedAt    DateTime?
+  /// Wrong guesses against this code. A 6-digit code is 1e6 wide, which is
+  /// brute-forceable without a ceiling; the code is burned at MAX_RESET_ATTEMPTS.
+  attempts  Int      @default(0)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -13,6 +13,9 @@ import { assertStrongPassword } from './recovery.service';
 import { VerificationService } from './verification.service';
 import { isCityAddress } from '../mail/mail.constants';
 
+/** Wrong guesses allowed against one recovery code before it is burned. */
+const MAX_RESET_ATTEMPTS = 5;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -115,7 +118,19 @@ export class AuthService {
       // Fall back to email if SMS was asked for but there's no phone on file.
       const sendChannel = dto.channel === 'sms' && user.phone ? 'sms' : 'email';
       const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
-      await this.prisma.passwordReset.create({ data: { userId: user.id, code, expiresAt: new Date(Date.now() + 30 * 60 * 1000) } });
+      // Requesting a new code invalidates every outstanding one, so a code read
+      // over someone's shoulder or left in an old inbox stops working the moment
+      // the citizen asks for another.
+      await this.prisma.passwordReset.updateMany({
+        where: { userId: user.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      // Stored hashed. This row used to hold the live code in plaintext, so
+      // anyone who could read the table — a backup, a log, a stray query —
+      // could take over any account that had ever asked for a reset.
+      await this.prisma.passwordReset.create({
+        data: { userId: user.id, code: await argon2.hash(code), expiresAt: new Date(Date.now() + 30 * 60 * 1000) },
+      });
       const body = sendChannel === 'sms'
         ? `Together City recovery code: ${code}. Expires in 30 minutes. Didn't request it? Ignore this message.`
         : [
@@ -135,11 +150,27 @@ export class AuthService {
     assertStrongPassword(dto.newPassword);
     const user = await this.findByIdentifier(dto.identifier);
     if (!user) throw new UnauthorizedException('That code is invalid or has expired.');
+    // The code is hashed, so it can't be looked up directly: take the newest
+    // live code for this citizen and verify against it. Only one is ever live —
+    // requesting a new one retires the rest.
     const reset = await this.prisma.passwordReset.findFirst({
-      where: { userId: user.id, code: dto.code, usedAt: null, expiresAt: { gt: new Date() } },
+      where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: 'desc' },
     });
-    if (!reset) throw new UnauthorizedException('That code is invalid or has expired.');
+    // One message for every failure mode — no code, wrong code, expired code,
+    // burned code — so this never becomes an oracle for which accounts exist or
+    // which of them have a reset in flight.
+    const invalid = new UnauthorizedException('That code is invalid or has expired.');
+    if (!reset) throw invalid;
+    if (reset.attempts >= MAX_RESET_ATTEMPTS) {
+      // Burn it rather than leave a half-guessed code alive for the full 30 min.
+      await this.prisma.passwordReset.update({ where: { id: reset.id }, data: { usedAt: new Date() } });
+      throw invalid;
+    }
+    if (!(await argon2.verify(reset.code, dto.code).catch(() => false))) {
+      await this.prisma.passwordReset.update({ where: { id: reset.id }, data: { attempts: { increment: 1 } } });
+      throw invalid;
+    }
     await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: await argon2.hash(dto.newPassword) } });
     await this.prisma.passwordReset.update({ where: { id: reset.id }, data: { usedAt: new Date() } });
     await this.tokens.revokeAll(user.id); // sign out everywhere after a reset
