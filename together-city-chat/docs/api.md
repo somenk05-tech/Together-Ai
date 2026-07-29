@@ -4,8 +4,8 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **371 routes** across
-**32 controllers**; **17** are reachable without a token.
+Every path below is prefixed with `/api`. **382 routes** across
+**33 controllers**; **17** are reachable without a token.
 
 ## Conventions
 
@@ -101,6 +101,10 @@ _beauty/beauty.controller.ts_
 | DELETE | `/api/beauty/assessments/latest` | 🔒 |
 | GET | `/api/beauty/history` | 🔒 |
 | GET | `/api/beauty/insights` | 🔒 |
+| DELETE | `/api/beauty/looks/:id` | 🔒 |
+| GET | `/api/beauty/looks/:id` | 🔒 |
+| GET | `/api/beauty/looks` | 🔒 |
+| POST | `/api/beauty/looks` | 🔒 |
 | GET | `/api/beauty/makeup` | 🔒 |
 | GET | `/api/beauty/orders` | 🔒 |
 | POST | `/api/beauty/orders` | 🔒 |
@@ -109,6 +113,20 @@ _beauty/beauty.controller.ts_
 | GET | `/api/beauty/profile` | 🔒 |
 | PUT | `/api/beauty/profile` | 🔒 |
 | GET | `/api/beauty/routine` | 🔒 |
+
+## /calls
+
+_calls/calls.controller.ts_
+
+| Method | Path | Auth |
+|---|---|---|
+| POST | `/api/calls/:id/end` | 🔒 |
+| POST | `/api/calls/:id/join` | 🔒 |
+| POST | `/api/calls/:id/leave` | 🔒 |
+| GET | `/api/calls/:id` | 🔒 |
+| GET | `/api/calls` | 🔒 |
+| GET | `/api/calls/ice` | token |
+| POST | `/api/calls` | 🔒 |
 
 ## /chat
 

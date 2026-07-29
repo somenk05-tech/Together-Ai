@@ -328,7 +328,9 @@ export class MedicalService implements OnModuleInit {
     // One transaction: a document without its panel, or a panel without its
     // document, are both worse than either deletion not happening at all.
     await this.prisma.$transaction(async (tx) => {
-      await tx.medicalRecord.delete({ where: { id } });
+      // deleteMany with the owner in the query, not delete by id: the row was
+      // read scoped a few lines up, and saying so again costs nothing.
+      await tx.medicalRecord.deleteMany({ where: { id, userId } });
       if (rec.bloodTestId) {
         // deleteMany, scoped by userId, so ownership is enforced by the query
         // rather than assumed from the document that pointed at it.
@@ -356,7 +358,7 @@ export class MedicalService implements OnModuleInit {
 
     await this.prisma.$transaction(async (tx) => {
       await tx.medicalRecord.updateMany({ where: { userId, bloodTestId: id }, data: { bloodTestId: null } });
-      await tx.medicalBloodTest.delete({ where: { id } });
+      await tx.medicalBloodTest.deleteMany({ where: { id, userId } });
     });
     return { ok: true };
   }
@@ -405,7 +407,7 @@ export class MedicalService implements OnModuleInit {
         },
       });
       await (this.prisma as unknown as { bloodAnalysis: { deleteMany: (a: unknown) => Promise<unknown> } })
-        .bloodAnalysis.deleteMany({ where: { bloodTestId: existingTestId } }).catch(() => undefined);
+        .bloodAnalysis.deleteMany({ where: { bloodTestId: existingTestId, userId } }).catch(() => undefined);
       void this.healthSummary(userId).catch(() => undefined);
       return existingTestId;
     }

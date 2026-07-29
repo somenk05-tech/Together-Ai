@@ -16,6 +16,7 @@ import { PresenceService } from '../users/presence.service';
 import { MessagesService } from '../messages/messages.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
+import { CallsService } from '../calls/calls.service';
 import { RedisService } from '../shared/redis/redis.service';
 import { ChatEventBus, ChatEvent } from '../shared/events/chat-events';
 import { parseOrThrow } from '../shared/zod/zod-validation.pipe';
@@ -29,6 +30,7 @@ import {
   SocketSendSchema,
   TypingSchema,
 } from './dto/socket.dto';
+import { CallSignalSchema } from '../calls/dto/calls.dto';
 
 interface AuthedSocket extends Socket {
   userId: string;
@@ -56,6 +58,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     private readonly messages: MessagesService,
     private readonly notifications: NotificationsService,
     private readonly permission: ConnectionPermissionService,
+    private readonly calls: CallsService,
     private readonly redis: RedisService,
     private readonly bus: ChatEventBus,
     private readonly config: ConfigService,
@@ -176,6 +179,29 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     });
   }
 
+  // ── calls ──────────────────────────────────────────────
+  /**
+   * Relay one piece of the WebRTC handshake to one other participant.
+   *
+   * The server reads none of it and stores none of it — an offer, an answer and
+   * a trickle of ICE candidates pass through opaque. What it does do, on every
+   * single frame, is re-ask whether these two people are on the same live call.
+   * Authorising once at join and trusting the socket afterwards would let a
+   * participant who has been removed from the conversation keep talking, and
+   * would let anyone holding a call id address a stranger by user id.
+   */
+  @SubscribeMessage(WS.CALL_SIGNAL)
+  async onCallSignal(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: unknown): Promise<void> {
+    const dto = parseOrThrow(CallSignalSchema, body);
+    await this.calls.assertMaySignal(client.userId, dto.callId, dto.to);
+    this.server.to(room.user(dto.to)).emit(WS.CALL_SIGNAL, {
+      callId: dto.callId,
+      from: client.userId,
+      kind: dto.kind,
+      payload: dto.payload,
+    });
+  }
+
   // ── presence heartbeat ─────────────────────────────────
   @SubscribeMessage(WS.HEARTBEAT)
   async onHeartbeat(@ConnectedSocket() client: AuthedSocket): Promise<void> {
@@ -232,6 +258,18 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         this.server
           .to(room.user(event.userId))
           .emit(event.online ? WS.USER_ONLINE : WS.USER_OFFLINE, { userId: event.userId });
+        break;
+      case 'call.ringing':
+        for (const rid of event.recipientIds) {
+          this.server.to(room.user(rid)).emit(WS.CALL_RINGING, event.call);
+        }
+        break;
+      case 'call.updated':
+        // Everyone on the roster, including whoever just left, so their own UI
+        // agrees with everybody else's about how the call finished.
+        for (const rid of event.recipientIds) {
+          this.server.to(room.user(rid)).emit(WS.CALL_UPDATED, { event: event.event, call: event.call });
+        }
         break;
     }
   }

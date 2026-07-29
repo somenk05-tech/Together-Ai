@@ -160,9 +160,26 @@ trend view.
 
 ## Still unbuilt
 
-Calls (audio/web/video-avatar) and avatar creation have no models, routes or
-providers. Both need infrastructure decisions before code: calls need STUN/TURN
-servers, avatars need a generation provider and a moderation policy for inputs
-and outputs. Beauty routines and the makeup-photo decode are partial — profile
-and analysis entry points exist, the routine/product models do not. Gems and
-remedies are static content with no catalogue or saved history.
+Avatar creation has a model and a migration but no routes and no generation
+provider. It is the last of the brief's items with nothing a citizen can use.
+
+Everything else on this list has since been built: beauty routines and the
+makeup-photo decode, gems and remedies with a real catalogue, and calls.
+
+### The one decision calls still need: a TURN relay
+
+Calls are built and work, with one honest caveat that is an infrastructure
+decision rather than a code one. The API relays the WebRTC handshake and the
+media goes peer to peer, so it never touches this server — which is why calling
+is cheap to run. STUN alone (the free public server is the default) is enough
+for most home networks. It is not enough for symmetric NAT: some office wifi and
+some mobile carriers. Those calls will ring, connect, and stay silent.
+
+Fixing that means paying for a TURN relay — a hosted one (Twilio, Cloudflare,
+Metered) or coturn on a small box — and setting `TURN_URL`, `TURN_USERNAME` and
+`TURN_CREDENTIAL`. Until then `GET /api/calls/ice` returns `relayAvailable:
+false` with a plain-language note, so the frontend can warn a citizen up front
+instead of leaving them saying "hello?" into a call that was never going to
+connect. That is the decision: pay for a relay, or ship with a stated gap. What
+is not acceptable is shipping the gap silently, which is the default every
+WebRTC tutorial hands you.

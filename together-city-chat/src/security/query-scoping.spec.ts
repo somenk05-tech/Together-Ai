@@ -39,6 +39,16 @@ import { stats, unscopedSignatures } from './query-inventory';
  *   - jobs' JobApplication queries look unscoped but each is preceded by an
  *     explicit `app.userId !== userId` or `job.postedById !== userId` throw.
  *
+ * Shrunk 2026-07-29, when calls arrived and pushed the count past its budget.
+ * The budget exists to force exactly this, so three medical deletes were scoped
+ * rather than the ceiling raised. All three already checked ownership a line or
+ * two earlier; now they say so in the query too, and a future edit that moves
+ * the check cannot silently widen the delete:
+ *
+ *   - MedicalRecord.delete → deleteMany({ id, userId })
+ *   - MedicalBloodTest.delete → deleteMany({ id, userId })
+ *   - BloodAnalysis.deleteMany gained the userId beside its bloodTestId
+ *
  * Changed 2026-07-29, when the v2 dataset adoption stopped deleting plans:
  *
  *   - MealPlan.deleteMany went 2 → 1. The one that left was
@@ -50,11 +60,28 @@ import { stats, unscopedSignatures } from './query-inventory';
  *   - MealPlan.update went 2 → 3 with markEdited, which stamps editedAt by the
  *     plan's own key. Every caller passes through assertOwnsPlan first.
  *
+ * What this scanner does NOT see, recorded so the gap is a known one:
+ *
+ *   - Models with no userId column are outside its reach by construction.
+ *     CallSession is the live example — it belongs to a conversation, not to a
+ *     citizen, so "whose row is this" is the wrong question and "who is in that
+ *     chat" is the right one. That check cannot be spotted by looking at a
+ *     query, so it is asserted in code (CallsService.loadAuthorised routes
+ *     every read and write through ConnectionPermissionService) and proven in
+ *     calls/calls.service.spec.ts, which hands a valid call id to a stranger
+ *     and insists on a 403.
+ *
  * Adding to this list means a reviewer decided a query needs no owner. That is
  * sometimes right. It should never be accidental.
  */
 const REVIEWED_UNSCOPED = [
   'auth/auth.service.ts  PasswordReset.update x3',
+  // close() — ending a call ends it for everyone on it, which is the one write
+  // here that is *meant* to touch other citizens' rows. The callId comes from a
+  // session already authorised against the conversation, and the write only
+  // stamps leftAt. Scoping it by userId would leave the other participants
+  // marked present on a call that is over.
+  'calls/calls.service.ts  CallParticipant.updateMany x1',
   'auth/token.service.ts  RefreshToken.findUnique x1',
   'auth/token.service.ts  RefreshToken.update x1',
   'auth/token.service.ts  RefreshToken.updateMany x1',
@@ -64,12 +91,9 @@ const REVIEWED_UNSCOPED = [
   'jobs/jobs.service.ts  JobApplication.findUnique x2',
   'jobs/jobs.service.ts  JobApplication.groupBy x1',
   'jobs/jobs.service.ts  JobApplication.update x1',
-  'medical/medical.service.ts  BloodAnalysis.deleteMany x1',
   'medical/medical.service.ts  Doctor.count x1',
   'medical/medical.service.ts  Doctor.findUnique x1',
-  'medical/medical.service.ts  MedicalBloodTest.delete x1',
   'medical/medical.service.ts  MedicalBloodTest.update x1',
-  'medical/medical.service.ts  MedicalRecord.delete x1',
   'notifications/web-push.provider.ts  DeviceToken.deleteMany x1',
   'nutrition/nutrition.service.ts  Dietitian.count x1',
   'nutrition/nutrition.service.ts  Dietitian.findUnique x1',

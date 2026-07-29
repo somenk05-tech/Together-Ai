@@ -13,7 +13,19 @@ export type ChatEvent =
   | { kind: 'message.deleted'; conversationId: string; messageId: string }
   | { kind: 'message.delivered'; conversationId: string; messageId: string; userId: string }
   | { kind: 'message.read'; conversationId: string; messageId: string; userId: string }
-  | { kind: 'presence.changed'; userId: string; online: boolean };
+  | { kind: 'presence.changed'; userId: string; online: boolean }
+  // Calls. The gateway fans these to per-user rooms rather than the
+  // conversation room: a call has to reach someone who is not looking at the
+  // chat, which is the entire point of a phone ringing.
+  | { kind: 'call.ringing'; callId: string; conversationId: string; recipientIds: string[]; call: unknown }
+  | {
+      kind: 'call.updated';
+      callId: string;
+      conversationId: string;
+      recipientIds: string[];
+      event: 'joined' | 'left' | 'ended';
+      call: unknown;
+    };
 
 @Injectable()
 export class ChatEventBus {

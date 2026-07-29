@@ -3,6 +3,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { RetentionService } from './retention.service';
 import { MedicineRemindersService } from './medicine-reminders.service';
 import { PrescriptionsModule } from '../prescriptions/prescriptions.module';
+import { CallsModule } from '../calls/calls.module';
+import { StaleCallsService } from './stale-calls.service';
 
 /**
  * Scheduled background work.
@@ -13,7 +15,7 @@ import { PrescriptionsModule } from '../prescriptions/prescriptions.module';
  * leaving state half-finished.
  */
 @Module({
-  imports: [ScheduleModule.forRoot(), PrescriptionsModule],
-  providers: [RetentionService, MedicineRemindersService],
+  imports: [ScheduleModule.forRoot(), PrescriptionsModule, CallsModule],
+  providers: [RetentionService, MedicineRemindersService, StaleCallsService],
 })
 export class TasksModule {}

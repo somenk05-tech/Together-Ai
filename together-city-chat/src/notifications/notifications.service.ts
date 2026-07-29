@@ -133,31 +133,115 @@ export class NotificationsService {
     this.gateway.emitCount(userId, await this.unreadCount(userId));
   }
 
+  /**
+   * How one citizen may be named to another, in this conversation.
+   *
+   * A dating chat is anonymous until each person chooses otherwise, and it
+   * lives only in the Dating Hub. Anything that reaches a lock screen has to go
+   * through here or the anonymity is decorative: a notification carrying a real
+   * name and face is a reveal nobody consented to, and it happens at the moment
+   * the recipient is least able to stop it.
+   *
+   * The SENDER's own choice decides. Waiting for a mutual reveal would keep
+   * hiding someone who had already decided to be themselves.
+   */
+  private async identityIn(
+    conversationId: string,
+    senderId: string,
+  ): Promise<{ displayName: string; displayPhoto?: string; dating: boolean } | null> {
+    const sender = await this.prisma.user.findUnique({
+      where: { id: senderId },
+      select: { name: true, profileImage: true },
+    });
+    if (!sender) return null;
+    const ctx = await datingContext(this.prisma, conversationId, senderId);
+    const anonymous = ctx.dating && !ctx.senderRevealed;
+    return {
+      displayName: anonymous ? nickname(senderId) : sender.name,
+      displayPhoto: anonymous ? undefined : (sender.profileImage ?? undefined),
+      dating: ctx.dating,
+    };
+  }
+
+  /**
+   * Somebody is calling.
+   *
+   * Deliberately unlike a message notification in two ways. It is never
+   * suppressed for a recipient who has the chat open — the socket ring and this
+   * are different channels and a phone that stays silent because you were
+   * typing is a missed call. And it never groups: every call is its own row,
+   * because "3 missed calls" collapsed into one line loses the thing a citizen
+   * actually wants to know.
+   *
+   * Best-effort throughout. A push that fails must not fail the call.
+   */
+  async notifyIncomingCall(params: {
+    conversationId: string;
+    callerId: string;
+    recipientIds: string[];
+    callId: string;
+    type: string;
+  }): Promise<void> {
+    try {
+      const identity = await this.identityIn(params.conversationId, params.callerId);
+      if (!identity) return;
+      const { displayName, displayPhoto, dating } = identity;
+      const kindWord = params.type === 'audio' ? 'call' : `${params.type} call`;
+      const href = dating
+        ? `/dating/chats?c=${params.conversationId}&call=${params.callId}`
+        : `/chats?c=${params.conversationId}&call=${params.callId}`;
+      const deepLink = `togethercity://call/${params.callId}`;
+
+      for (const recipientId of params.recipientIds) {
+        // Muting a chat mutes its messages. It does not mute a ringing phone —
+        // that is a different promise, and one nobody made.
+        await this.create({
+          userId: recipientId,
+          kind: 'call_incoming',
+          title: `Incoming ${kindWord}`,
+          body: `${displayName} is calling you.`,
+          href,
+          actorId: params.callerId,
+          entityId: params.callId,
+        });
+
+        const devices = await this.prisma.deviceToken.findMany({
+          where: { userId: recipientId },
+          select: { token: true, platform: true },
+        });
+        const fcmTokens = devices.filter((d) => d.platform !== 'webpush').map((d) => d.token);
+        const webTokens = devices.filter((d) => d.platform === 'webpush').map((d) => d.token);
+
+        await this.fcm.send(fcmTokens, {
+          title: `Incoming ${kindWord}`,
+          body: `${displayName} is calling you.`,
+          imageUrl: displayPhoto,
+          deepLink,
+          data: { conversationId: params.conversationId, callId: params.callId },
+        });
+        await this.webpush.send(webTokens, {
+          title: `Incoming ${kindWord}`,
+          body: `${displayName} is calling you.`,
+          conversationId: params.conversationId,
+          icon: displayPhoto,
+        });
+      }
+    } catch (e) {
+      this.log.warn(`call notification failed: ${(e as Error).message}`);
+    }
+  }
+
   async notifyNewMessage(params: {
     conversationId: string;
     senderId: string;
     recipientIds: string[];
     preview: string;
   }): Promise<void> {
-    const sender = await this.prisma.user.findUnique({
-      where: { id: params.senderId },
-      select: { name: true, profileImage: true },
-    });
-    if (!sender) return;
-
-    // A dating chat is anonymous until BOTH people reveal, and it lives only in
-    // the Dating Hub. Every notification here used to carry the sender's real
-    // name, their photo, and a link into the main Chats screen — so a match who
-    // had revealed nothing arrived on a lock screen by name and face, pointing
-    // at a list their conversation is deliberately absent from.
-    const dating = await datingContext(this.prisma, params.conversationId, params.senderId);
-    // The SENDER's own choice decides how they are named here. Waiting for a
-    // mutual reveal would hide a citizen who had already chosen to be themselves.
-    const anonymous = dating.dating && !dating.senderRevealed;
-    const displayName = anonymous ? nickname(params.senderId) : sender.name;
-    const displayPhoto = anonymous ? undefined : (sender.profileImage ?? undefined);
-    const href = dating.dating ? `/dating/chats?c=${params.conversationId}` : `/chats?c=${params.conversationId}`;
-    const deepLink = dating.dating
+    const identity = await this.identityIn(params.conversationId, params.senderId);
+    if (!identity) return;
+    const { displayName, displayPhoto, dating } = identity;
+    const href = dating ? `/dating/chats?c=${params.conversationId}` : `/chats?c=${params.conversationId}`;
+    const deepLink = dating
       ? `togethercity://dating/chat/${params.conversationId}`
       : `togethercity://chat/${params.conversationId}`;
 

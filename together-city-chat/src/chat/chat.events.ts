@@ -23,6 +23,10 @@ export const WS = {
   // per-user push: a new message arrived in ANY of your conversations (even ones
   // you're not currently viewing) — drives the instant unread badge.
   CHAT_NOTIFICATION: 'chat_notification',
+  // calls — setup/teardown broadcasts plus the relayed WebRTC handshake.
+  CALL_RINGING: 'call_ringing',
+  CALL_UPDATED: 'call_updated',
+  CALL_SIGNAL: 'call_signal',
   // errors
   ERROR: 'error_event',
 } as const;
