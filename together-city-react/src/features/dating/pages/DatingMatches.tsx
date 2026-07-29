@@ -276,6 +276,7 @@ export function DatingMatches() {
   const engaged = (stack.data?.engaged ?? false) || (chats.data?.length ?? 0) > 0;
   const activeChat = chats.data?.[0] ?? null;
   const top = stack.data?.top ?? null;
+  const matched = stack.data?.matched ?? [];
 
   return (
     <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
@@ -295,6 +296,23 @@ export function DatingMatches() {
           If you feel the conversation isn’t going anywhere, <strong>unmatch</strong> and move forward.
         </div>
       </div>
+
+      {/* Mutual matches lead the page, always — before the engaged panel and
+          before the next candidate. Matching is the thing this hub is for; the
+          person you matched with should not have to be hunted for. Each card
+          carries its own "Open chat" or "Connect to Chat", so this is also how
+          you reach the Dating Chats section for that person. */}
+      {matched.length > 0 && (
+        <section style={{ marginBottom: 26 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 12px', flexWrap: 'wrap' }}>
+            <h2 style={{ fontSize: 18, margin: 0 }}>{matched.length === 1 ? 'Your match' : 'Your matches'}</h2>
+            <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: 999, padding: '3px 11px' }}>
+              💫 You both liked each other
+            </span>
+          </div>
+          {matched.map((m) => <MatchCard key={m.user.id} match={m} kind={kind} />)}
+        </section>
+      )}
 
       {stack.isLoading ? (
         <Spinner label="Scoring compatibility…" />

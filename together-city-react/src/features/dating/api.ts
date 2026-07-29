@@ -148,6 +148,9 @@ export interface DatingStack {
   engaged: boolean;
   distribution: CompatibilityBand[];
   top: CuratedMatch | null;
+  /** People you have mutually liked. They stay on the Curated Matches page —
+   *  a match is the point of the hub, not something to disappear on you. */
+  matched: CuratedMatch[];
   totalCandidates: number;
 }
 

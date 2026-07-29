@@ -574,13 +574,23 @@ export class DatingService {
     const myInterests = this.splitInterests(mine.interests);
 
     const cards: Array<Record<string, unknown> & { score: number }> = [];
+    // People you have MUTUALLY liked. They used to be dropped here with a bare
+    // `continue`, which meant that the moment a match happened the person
+    // vanished from this page — and since a mutual like does not open a chat
+    // (that is a separate, paid step), they were nowhere at all. The
+    // notification said "open Dating to say hi" and linked to a page that no
+    // longer showed them.
+    const matchedCards: Array<Record<string, unknown> & { score: number }> = [];
     for (const cand of candidates) {
       if (excluded.has(cand.userId)) continue;
       const state = stateFor(cand.userId);
       if (state && this.passedBy(state, userId)) continue;
-      if (state?.status === 'matched') continue;
+      const isMatched = state?.status === 'matched';
 
-      if (kind === 'romantic') {
+      // Discovery filters decide who you are SHOWN. They must not un-show
+      // someone you already chose: a preference edit after matching would
+      // otherwise silently delete an existing match from the page.
+      if (kind === 'romantic' && !isMatched) {
         const iWant = mine.seeking === 'any' || mine.seeking === cand.gender;
         const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
         if (!iWant || !theyWant) continue;
@@ -597,12 +607,12 @@ export class DatingService {
       const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & { photos?: string[] };
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
       const score = overallScore(breakdown);
-      if (score < 20) continue;
-      if (candDX.visibility === 'threshold' && score < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
+      if (!isMatched && score < 20) continue;
+      if (!isMatched && candDX.visibility === 'threshold' && score < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
 
       const candPhotos = candDX.photos ?? [];
       const photos = (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, 6);
-      cards.push({
+      (isMatched ? matchedCards : cards).push({
         matchId: state?.id ?? null,
         user: cand.user,
         bio: cand.bio,
@@ -615,8 +625,11 @@ export class DatingService {
         breakdown,
         reasons: explain(breakdown, sharedItems(myInterests, theirInterests)),
         likedByMe: state ? this.likedBy(state, userId) : false,
-        matched: false,
+        matched: isMatched,
+        // Null until Connect to Chat opens the conversation — the card reads it
+        // to offer "Open chat" versus "Connect to Chat".
         conversationId: state?.conversationId ?? null,
+        chatLocked: isMatched && !state?.conversationId,
       });
     }
 
@@ -631,7 +644,10 @@ export class DatingService {
 
     const top = cards.sort((a, b) => b.score - a.score)[0] ?? null;
 
-    return { engaged, distribution, top, totalCandidates: cards.length };
+    // Newest match first, so the person you just matched with leads the page.
+    const matched = matchedCards.sort((a, b) => b.score - a.score);
+
+    return { engaged, distribution, top, matched, totalCandidates: cards.length };
   }
 
   private parseDX(extras: string | null | undefined): DXProfile {
