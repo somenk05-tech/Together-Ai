@@ -12,11 +12,30 @@ const LIST = [
 
 describe('quick-commerce engine', () => {
   it('quotes are deterministic for the same day and differ across providers', () => {
-    const a = quoteItem(QC_PROVIDERS[1], LIST[0]);
-    const b = quoteItem(QC_PROVIDERS[1], LIST[0]);
+    // Pinned day. This used to quote "today" and compare two named providers,
+    // which passed on most dates and failed on the ones where that item's daily
+    // jitter happened to land those two on the same rupee — a test that goes red
+    // by calendar teaches people to re-run it rather than read it.
+    const DAY = '2026-07-29';
+    const a = quoteItem(QC_PROVIDERS[1], LIST[0], DAY);
+    const b = quoteItem(QC_PROVIDERS[1], LIST[0], DAY);
     expect(a.priceInr).toBe(b.priceInr);
-    const other = quoteItem(QC_PROVIDERS[4], LIST[0]);
-    expect(a.priceInr).not.toBe(other.priceInr); // different price factor + jitter
+
+    // The real claim is that providers are priced independently, not that any
+    // particular pair differs on any particular day.
+    const spread = new Set(QC_PROVIDERS.map((p) => quoteItem(p, LIST[0], DAY).priceInr));
+    expect(spread.size).toBeGreaterThan(1);
+  });
+
+  it('prices the same basket differently at a cheap store and a dear one', () => {
+    // Price factor has to actually move the total, which one item's jitter can
+    // mask but a whole list cannot.
+    const DAY = '2026-07-29';
+    const total = (p: (typeof QC_PROVIDERS)[number]) =>
+      LIST.reduce((s, it) => s + quoteItem(p, it, DAY).priceInr, 0);
+    const cheapest = [...QC_PROVIDERS].sort((x, y) => x.priceFactor - y.priceFactor)[0];
+    const dearest = [...QC_PROVIDERS].sort((x, y) => y.priceFactor - x.priceFactor)[0];
+    expect(total(dearest)).toBeGreaterThan(total(cheapest));
   });
 
   it('own store (TC Express) always has full availability', () => {

@@ -71,8 +71,26 @@ field name.
 ## What this does NOT prove
 
 These are source-level checks. They prove a query names an owner; they do not
-execute it. A runtime isolation suite — user A creating a full data set, user B
-asserting 403/404 on every resource — needs a test database, factories and a
-transactional harness that this repo does not yet have. Its absence remains the
-largest untested guarantee in the backend, and the guards here are a floor under
-that gap, not a substitute for it.
+execute it.
+
+That gap now has a suite of its own: `src/security/runtime-isolation.spec.ts`
+boots the real application against a real Postgres, registers two unrelated
+citizens, has the first create resources, and has the second try to read,
+change and delete every one of them by id. It also proves the first citizen's
+data is still there afterwards, so a DELETE that answered 403 and deleted
+anyway cannot pass.
+
+    TEST_DATABASE_URL=postgres://…/together_city_test npm run test:isolation
+
+Without that variable the live half skips and says so on the console, because a
+suite that quietly skips reports green while checking nothing. The structural
+half always runs, and the assertion worth knowing about is this one: every
+controller with a route that takes an id from the caller must be either probed
+by the harness or listed in UNPROBED with a reason. Adding a hub with a `:id`
+route fails the build until somebody decides which it is.
+
+What it still does not prove: the UNPROBED list is long. Most entries are
+resources that cannot be created from a bare account without an upload, a
+connection, or a paid provider — real reasons the harness is hard to extend,
+and not reasons those routes are safe. The static guards remain the only
+coverage there.
