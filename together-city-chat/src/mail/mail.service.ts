@@ -2,6 +2,10 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { StorageProvider } from '../media/storage.provider';
+import type { OutboundAttachment } from './messaging-provider';
+
+/** Conservative ceiling for outbound email attachments (providers cap ~40 MB). */
+const MAX_OUTBOUND_ATTACHMENT_BYTES = 20 * 1024 * 1024;
 import {
   MAIL_DOMAIN, QUOTA_BYTES, addressFor, handleFromAddress, snippetOf, sizeOf, welcomeMail,
 } from './mail.constants';
@@ -27,6 +31,36 @@ export class MailService {
       where: { id: { in: fileIds.slice(0, 10) }, ownerId: userId },
       data: { attachedType: 'mail', attachedId: threadId },
     }).catch(() => undefined);
+  }
+
+  /**
+   * Load the sender's chosen Drive files as real MIME attachments (base64) for
+   * an OUTBOUND external email. Only files the sender owns are read. Providers
+   * cap total message size (Resend ~40 MB), so we enforce a conservative
+   * ceiling and fail with a message that says exactly what to do.
+   */
+  private async loadOutboundAttachments(userId: string, fileIds?: string[]): Promise<OutboundAttachment[]> {
+    if (!fileIds?.length) return [];
+    const drive = (this.prisma as unknown as {
+      driveFile: { findMany(a: unknown): Promise<Array<{ id: string; name: string; mimeType: string | null; sizeBytes: number; storageKey: string }>> };
+    }).driveFile;
+    const files = await drive.findMany({
+      where: { id: { in: fileIds.slice(0, 10) }, ownerId: userId },
+    }).catch(() => []);
+    if (!files.length) return [];
+    const total = files.reduce((n, f) => n + (f.sizeBytes ?? 0), 0);
+    if (total > MAX_OUTBOUND_ATTACHMENT_BYTES) {
+      throw new BadRequestException(
+        `Those attachments total ${Math.round(total / 1024 / 1024)} MB — email providers cap a message at about ${Math.round(MAX_OUTBOUND_ATTACHMENT_BYTES / 1024 / 1024)} MB. Send fewer or smaller files, or share them from your Drive instead.`,
+      );
+    }
+    const out: OutboundAttachment[] = [];
+    for (const f of files) {
+      const obj = await this.storage.getHealthObjectBase64(f.storageKey).catch(() => null);
+      if (!obj) continue; // unreadable object → skip rather than fail the whole send
+      out.push({ filename: f.name, contentBase64: obj.base64, contentType: f.mimeType ?? obj.contentType });
+    }
+    return out;
   }
 
   /** Attachments on a thread the caller is a participant of. */
@@ -226,8 +260,10 @@ export class MailService {
     // sender; the sender's city identity is noted in the body footer.
     const footer = `\n\n${'─'.repeat(28)}\nSent by ${fromName} (${fromAddr}) via Together City Mail.`;
     const provider = createMessagingProvider('email');
+    // Real MIME attachments so external recipients get the actual files.
+    const attachments = await this.loadOutboundAttachments(userId, dto.attachmentFileIds);
     const res = await provider
-      .send({ channel: 'email', to: toEmail, subject, body: dto.body + footer, kind: 'mail' })
+      .send({ channel: 'email', to: toEmail, subject, body: dto.body + footer, kind: 'mail', ...(attachments.length ? { attachments } : {}) })
       .catch(() => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const }));
     await this.prisma.emailDelivery.create({
       data: {
@@ -241,6 +277,8 @@ export class MailService {
     if (res.status === 'failed' && messagingConfigured('email')) {
       throw new BadRequestException(`Couldn't deliver to ${toEmail} right now — please try again.`);
     }
+    // Keep the attachments visible on the Sent copy too.
+    await this.linkAttachments(userId, threadId, dto.attachmentFileIds);
     return this.list(userId, { folder: 'sent' });
   }
 

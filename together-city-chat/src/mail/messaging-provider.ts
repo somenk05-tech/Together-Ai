@@ -12,6 +12,13 @@ import { Resend } from 'resend';
 
 export type Channel = 'email' | 'sms';
 
+/** A real file to send with an email (base64 content, as vendors expect). */
+export interface OutboundAttachment {
+  filename: string;
+  contentBase64: string;
+  contentType?: string;
+}
+
 export interface OutboundMessage {
   channel: Channel;
   to: string;          // email address or E.164 phone
@@ -19,6 +26,7 @@ export interface OutboundMessage {
   body: string;        // plain-text (SMS body, or the email text fallback)
   html?: string;       // email only — rich HTML body (falls back to `body`)
   kind: string;        // receipt | recovery | security | welcome
+  attachments?: OutboundAttachment[]; // email only — real MIME attachments
 }
 
 export interface ProviderResult {
@@ -86,6 +94,16 @@ export class ResendEmailProvider implements MessagingProvider {
       // Send both: HTML for clients that render it, plain text as the fallback.
       ...(msg.html ? { html: msg.html } : {}),
       text: msg.body,
+      // Real MIME attachments (Resend takes base64 content per file).
+      ...(msg.attachments?.length
+        ? {
+            attachments: msg.attachments.map((a) => ({
+              filename: a.filename,
+              content: a.contentBase64,
+              ...(a.contentType ? { contentType: a.contentType } : {}),
+            })),
+          }
+        : {}),
     });
     if (error) {
       return { provider: 'resend', providerMessageId: '', status: 'failed' };

@@ -104,7 +104,7 @@ export function Compose() {
             {send.isPending ? 'Sending…' : threadId ? 'Send reply' : 'Send'}
           </Button>
           <Button variant="line" onClick={() => nav(-1)}>Cancel</Button>
-          <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>Delivers to citizens and external emails</span>
+          <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>Delivers to citizens and external emails · attachments included</span>
         </div>
       </div>
 
