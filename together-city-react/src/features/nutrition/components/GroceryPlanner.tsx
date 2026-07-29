@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { EmptyState, Spinner } from '@/components/ui';
 import { useGroceryPlan } from '../hooks';
+import { nutritionApi } from '../api';
+import { useQueryClient } from '@tanstack/react-query';
 import type { GroceryAisle, GroceryPlanItem } from '../api';
 
 type View = 'grocery' | 'recipe';
@@ -122,6 +124,8 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
   const [days, setDays] = useState<number>(7);
   const startDate = isoDay(startOffset);
   const plan = useGroceryPlan(mode, days, startDate);
+  const qc = useQueryClient();
+  const schedule = plan.data?.deliverySchedule;
   const [view, setView] = useState<View>('grocery');
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const toggle = (n: string) => setChecked((s) => { const next = new Set(s); next.has(n) ? next.delete(n) : next.add(n); return next; });
@@ -190,9 +194,58 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
     );
   }
 
+  const fmtDay = (iso: string) =>
+    new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+
+  const deliveryCard = schedule && (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+        <h3 style={{ margin: 0, fontSize: 16 }}>🚚 Delivery schedule</h3>
+        <span className="muted" style={{ fontSize: 12 }}>fresh items arrive the day you cook them</span>
+        <label style={{ marginLeft: 'auto', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="muted">Preferred time</span>
+          <input type="time" defaultValue={schedule.preferredTime}
+            onChange={(e) => {
+              const t = e.target.value;
+              if (/^\d{2}:\d{2}$/.test(t)) {
+                void nutritionApi.setDeliveryTime(t).then(() => qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }));
+              }
+            }}
+            style={{ border: '1.5px solid var(--line)', borderRadius: 8, padding: '5px 8px', fontFamily: 'inherit', fontSize: 12.5 }} />
+        </label>
+      </div>
+
+      <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+          <strong style={{ fontSize: 13.5 }}>Now · {fmtDay(schedule.first.date)}</strong>
+          <span className="muted" style={{ fontSize: 12 }}>
+            {schedule.first.itemCount} item{schedule.first.itemCount === 1 ? '' : 's'} · pantry staples + today's fresh
+          </span>
+        </div>
+        {schedule.first.items.length > 0 && (
+          <p className="muted" style={{ fontSize: 11.5, margin: '4px 0 0' }}>{schedule.first.items.slice(0, 14).join(' · ')}{schedule.first.items.length > 14 ? ' …' : ''}</p>
+        )}
+      </div>
+
+      {schedule.daily.map((d) => (
+        <div key={d.date} style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+            <strong style={{ fontSize: 13.5 }}>{fmtDay(d.date)} · {d.time}</strong>
+            <span className="muted" style={{ fontSize: 12 }}>{d.itemCount} fresh item{d.itemCount === 1 ? '' : 's'}</span>
+          </div>
+          <p className="muted" style={{ fontSize: 11.5, margin: '4px 0 0' }}>{d.items.slice(0, 14).join(' · ')}{d.items.length > 14 ? ' …' : ''}</p>
+        </div>
+      ))}
+      {schedule.daily.length === 0 && (
+        <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>Everything in this basket can arrive in the first delivery.</p>
+      )}
+    </div>
+  );
+
   return (
     <div>
       {windowPicker}
+      {deliveryCard}
       {/* Shopping summary — household scaling + estimated cost & waste (family) */}
       {mode === 'family' && summary && summary.householdSize > 1 && (
         <div className="card" style={{ marginBottom: 16 }}>

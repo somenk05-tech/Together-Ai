@@ -283,6 +283,8 @@ interface PrefExtras {
   fasting?: { enabled?: boolean; protocol?: string; window?: { start: string; end: string }; mealTimes?: Record<string, string> };
   /** Grocery pantry-staple toggle (Rule 10). Default excludes pantry items. */
   includePantry?: boolean;
+  /** Preferred daily delivery time for fresh items, 'HH:MM' (24h). */
+  deliveryTime?: string;
   /** Composed-plan per-meal overrides (Refresh/Skip). Keys "d{index}:{slotCode}". */
   composedSkips?: string[];
   composedBumps?: Record<string, number>;
@@ -5538,6 +5540,16 @@ export class NutritionService implements OnModuleInit {
     return startDate < today ? today : startDate;
   }
 
+  /** Save the citizen's preferred fresh-delivery time ("HH:MM", 24h). */
+  async setDeliveryTime(userId: string, timeRaw: string) {
+    const time = (timeRaw || '').trim();
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+      throw new BadRequestException('Enter a time as HH:MM, e.g. 08:00.');
+    }
+    await this.mergeExtras(userId, { deliveryTime: time });
+    return { ok: true, deliveryTime: time };
+  }
+
   async groceryPlan(userId: string, mode: PlanMode = 'individual', days = 7, startDate?: string) {
     // SOURCE OF TRUTH: the COMPOSED plan — the same plan the Meal Plan page
     // shows. Previously this read the separately-generated MealPlan rows, so
@@ -5564,7 +5576,7 @@ export class NutritionService implements OnModuleInit {
       scale = Math.max(1, memberScales.reduce((s, m) => s + m.multiplier, 0));
     }
 
-    type Acc = { name: string; grams: number; usedIn: Map<string, number> };
+    type Acc = { name: string; grams: number; usedIn: Map<string, number>; neededOn?: string };
     const items = new Map<string, Acc>();               // canonicalKey → merged item
     const recipeView = new Map<string, Map<string, number>>(); // recipeName → canonical → grams
     // Meal counts for the shopping summary.
@@ -5575,6 +5587,7 @@ export class NutritionService implements OnModuleInit {
     for (const meal of composed.meals) {
       slotCounts[meal.slot] = (slotCounts[meal.slot] ?? 0) + headcount;   // meals served = per-slot × people
       const rname = cleanRecipeName(meal.recipeName);
+      const mealDay = meal.dayISO;
       for (const ing of meal.ingredients) {
         if (skipGroceryIngredient(ing.name)) continue;        // drop water/salt/to-taste/garnish…
         const canon = canonicalIngredient(ing.name);
@@ -5584,8 +5597,11 @@ export class NutritionService implements OnModuleInit {
         const grams = Math.max(0, Math.round(ing.grams * scale));
         if (grams <= 0) continue;
         const key = canon.toLowerCase();
-        const cur = items.get(key) ?? { name: canon, grams: 0, usedIn: new Map() };
+        const cur: Acc = items.get(key) ?? { name: canon, grams: 0, usedIn: new Map<string, number>() };
         cur.grams += grams; cur.usedIn.set(rname, (cur.usedIn.get(rname) ?? 0) + grams);
+        // Earliest day this ingredient is actually cooked — what a fresh item's
+        // delivery should be scheduled against.
+        if (mealDay && (!cur.neededOn || mealDay < cur.neededOn)) cur.neededOn = mealDay;
         items.set(key, cur);
         const rv = recipeView.get(rname) ?? new Map();
         rv.set(canon, (rv.get(canon) ?? 0) + grams); recipeView.set(rname, rv);
@@ -5613,8 +5629,14 @@ export class NutritionService implements OnModuleInit {
       estCostInr += ((COST_PER_KG[cat] ?? 90) * Math.max(pack.grams, it.grams)) / 1000;
       const have = Math.min(it.grams, onHand.get(it.name.toLowerCase()) ?? 0);
       const toBuy = Math.max(0, it.grams - have);
+      const shelfBucket = classifyShelf(it.name);   // pantry | weekly | daily
       const entry = {
         name: it.name, aisle: cat, qtyLabel: q.label, unit: q.unit, grams: it.grams,
+        // Perishability + when it's first needed, so delivery can be scheduled
+        // per item instead of dumping the whole basket on day one.
+        shelf: shelfBucket,
+        perishable: shelfBucket !== 'pantry',
+        neededOn: it.neededOn ?? fromISO,
         // Pantry-aware split: needed vs already owned vs still to buy.
         haveGrams: have, toBuyGrams: toBuy,
         haveQtyLabel: have > 0 ? standardQty(it.name, have, cat).label : '',
@@ -5637,6 +5659,32 @@ export class NutritionService implements OnModuleInit {
 
     const wastePct = packG > 0 ? Math.round(((packG - requiredG) / packG) * 1000) / 10 : 0;
     const windowEndISO = addDaysISO(fromISO, Math.max(0, activeDays - 1));
+
+    // ── Delivery schedule (spec) ───────────────────────────────────────────
+    // Non-perishables + anything fresh needed on day one travel in the FIRST
+    // drop. Everything else fresh is scheduled on the day it's actually cooked,
+    // at the citizen's preferred time — so herbs for Friday arrive Friday
+    // instead of wilting in the fridge since Monday.
+    const prefRow = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null);
+    const prefEx = parseExtras((prefRow as { extras?: string | null } | null)?.extras);
+    const deliveryTime = /^\d{2}:\d{2}$/.test(prefEx.deliveryTime ?? '') ? (prefEx.deliveryTime as string) : '08:00';
+    const flatItems = aisles.flatMap((a) => a.items as Array<Record<string, unknown>>);
+    const firstDrop: Array<Record<string, unknown>> = [];
+    const laterByDay = new Map<string, Array<Record<string, unknown>>>();
+    for (const it of flatItems) {
+      const perishable = Boolean(it.perishable);
+      const need = String(it.neededOn ?? fromISO);
+      if (!perishable || need <= fromISO) firstDrop.push(it);
+      else { const arr = laterByDay.get(need) ?? []; arr.push(it); laterByDay.set(need, arr); }
+    }
+    const deliverySchedule = {
+      preferredTime: deliveryTime,
+      // Pantry staples + day-one fresh — can go out straight away.
+      first: { date: fromISO, time: deliveryTime, itemCount: firstDrop.length, items: firstDrop.map((i) => i.name) },
+      // Future fresh, one drop per cooking day.
+      daily: [...laterByDay.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([date, list]) => ({ date, time: deliveryTime, itemCount: list.length, items: list.map((i) => i.name) })),
+    };
     const summary = {
       // The exact dates this basket covers, so the UI can say what it's for.
       startDate: fromISO, endDate: windowEndISO,
@@ -5647,9 +5695,11 @@ export class NutritionService implements OnModuleInit {
       wastePct,                                  // overage from rounding to retail packs
       scale: Math.round(scale * 100) / 100,      // total household portions per serving
       members: memberScales,                     // per-member portion multipliers
+      perishableCount: flatItems.filter((i) => i.perishable).length,
+      pantryCount: flatItems.filter((i) => !i.perishable).length,
     };
 
-    return { aisles, recipes, itemCount: items.size, summary };
+    return { aisles, recipes, itemCount: items.size, summary, deliverySchedule };
   }
 
   async getCart(userId: string) {

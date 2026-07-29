@@ -86,6 +86,8 @@ export const nutritionApi = {
   groceryPlan: (mode: 'individual' | 'family' = 'individual', days = 7, startDate?: string) =>
     api.get<GroceryPlan>('/nutrition/grocery/plan', { params: { mode, days, ...(startDate ? { startDate } : {}) } }).then((r) => r.data),
   cart: () => api.get<GroceryCart>('/nutrition/cart').then((r) => r.data),
+  setDeliveryTime: (time: string) =>
+    api.patch<{ ok: boolean; deliveryTime: string }>('/nutrition/delivery-time', { time }).then((r) => r.data),
   buildCart: (opts?: { planKey?: string; recipeIds?: string[]; people?: number; mode?: 'individual' | 'family' }) =>
     api.post<GroceryCart>('/nutrition/cart', opts ?? {}).then((r) => r.data),
   blood: () => api.get<BloodPanel>('/nutrition/blood').then((r) => r.data),
@@ -258,6 +260,8 @@ export interface GroceryPlanItem {
   haveGrams?: number; toBuyGrams?: number; haveQtyLabel?: string; toBuyQtyLabel?: string; inPantry?: boolean;
   pack: string;                    // recommended retail pack to buy
   shelfLife: string; storageTip: string; usedIn: GroceryUsedIn[];
+  /** Perishability + the day it's first cooked (drives delivery scheduling). */
+  shelf?: 'pantry' | 'weekly' | 'daily'; perishable?: boolean; neededOn?: string;
 }
 export interface GroceryAisle {
   key: string; icon: string; title: string; note: string; items: GroceryPlanItem[];
@@ -270,9 +274,14 @@ export interface GrocerySummary {
   householdSize: number; days: number;
   meals: { breakfast: number; lunch: number; dinner: number; snacks: number };
   estimatedCostInr: number; wastePct: number; scale: number; members: GroceryScaleMember[];
+  perishableCount?: number; pantryCount?: number;
 }
+/** When each part of the basket should actually arrive. */
+export interface DeliveryDrop { date: string; time: string; itemCount: number; items: string[] }
+export interface DeliverySchedule { preferredTime: string; first: DeliveryDrop; daily: DeliveryDrop[] }
 export interface GroceryPlan {
   aisles: GroceryAisle[]; recipes: GroceryRecipeView[]; itemCount: number; summary?: GrocerySummary;
+  deliverySchedule?: DeliverySchedule;
 }
 
 export interface Citation { id: string; label: string; ref: string }

@@ -70,6 +70,12 @@ export class NutritionController {
     return this.nutrition.upsertFoodPref(user.sub, dto);
   }
 
+  /** Preferred daily delivery time for fresh items ("HH:MM", 24h). */
+  @Patch('delivery-time')
+  setDeliveryTime(@CurrentUser() user: JwtUser, @Body() body: { time?: string }) {
+    return this.nutrition.setDeliveryTime(user.sub, String(body?.time ?? ''));
+  }
+
   // ── Composite meal engine (Meal-Planning-Engine-Spec) ──
   @Get('plan/composed')
   composed(@CurrentUser() user: JwtUser, @Query('mode') mode?: string) {
