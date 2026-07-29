@@ -6641,6 +6641,9 @@ export class NutritionService implements OnModuleInit {
   // ─────────────── expert care (dietitians → real chat) ───────────────
   async dietitians() {
     const rows = await this.prisma.dietitian.findMany({
+      // Same rule as the doctor directory: a deleted account is not a
+      // practitioner you can book.
+      where: { user: { deletedAt: null } },
       include: { user: { select: { id: true, handle: true, name: true, profileImage: true } } },
     });
     return rows.map((d) => ({
@@ -6651,7 +6654,9 @@ export class NutritionService implements OnModuleInit {
 
   /** Booking creates an ACCEPTED NUTRITIONIST_CLIENT connection and opens the chat. */
   async bookDietitian(userId: string, dietitianId: string) {
-    const dietitian = await this.prisma.dietitian.findUnique({ where: { id: dietitianId } });
+    const dietitian = await this.prisma.dietitian.findFirst({
+      where: { id: dietitianId, user: { deletedAt: null } },
+    });
     if (!dietitian) throw new NotFoundException('dietitian not found');
     const [userOneId, userTwoId] = [userId, dietitian.userId].sort();
     await this.prisma.connection.upsert({

@@ -1062,6 +1062,10 @@ export class MedicalService implements OnModuleInit {
   // ─────────────── consults (book a doctor → real chat) ───────────────
   async doctors() {
     const rows = await this.prisma.doctor.findMany({
+      // A doctor who deleted their account is not practising here. Without this
+      // they stayed in the directory as "Deleted citizen" — with a specialty, a
+      // price and a Book button that opened a chat with nobody.
+      where: { user: { deletedAt: null } },
       include: { user: { select: { id: true, handle: true, name: true, profileImage: true } } },
     });
     return rows.map((d) => ({
@@ -1085,7 +1089,12 @@ export class MedicalService implements OnModuleInit {
 
   /** Booking creates an ACCEPTED DOCTOR_PATIENT connection and opens the chat. */
   async bookConsult(userId: string, dto: { doctorId: string; reason?: string; scheduledAt?: string; method?: 'wallet' | 'card' }) {
-    const doctor = await this.prisma.doctor.findUnique({ where: { id: dto.doctorId } });
+    // findFirst, not findUnique, so the deleted check is part of the query
+    // rather than a line after it — booking by id must fail the same way
+    // browsing does.
+    const doctor = await this.prisma.doctor.findFirst({
+      where: { id: dto.doctorId, user: { deletedAt: null } },
+    });
     if (!doctor) throw new NotFoundException('doctor not found');
     const [userOneId, userTwoId] = [userId, doctor.userId].sort();
     await this.prisma.connection.upsert({

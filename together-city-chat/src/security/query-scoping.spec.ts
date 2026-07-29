@@ -39,6 +39,14 @@ import { stats, unscopedSignatures } from './query-inventory';
  *   - jobs' JobApplication queries look unscoped but each is preceded by an
  *     explicit `app.userId !== userId` or `job.postedById !== userId` throw.
  *
+ * Shrunk again 2026-07-29, when the account-purge work turned up a live bug:
+ * the doctor and dietitian directories never checked whether the practitioner
+ * had deleted their account, so a deleted one stayed listed as "Deleted
+ * citizen" with a specialty, a price and a Book button. Both lookups are now
+ * findFirst scoped by `user: { deletedAt: null }` — the check is part of the
+ * query rather than a line after it — which also removed their two entries
+ * from this list.
+ *
  * Shrunk 2026-07-29, when calls arrived and pushed the count past its budget.
  * The budget exists to force exactly this, so three medical deletes were scoped
  * rather than the ceiling raised. All three already checked ownership a line or
@@ -102,11 +110,9 @@ const REVIEWED_UNSCOPED = [
   'jobs/jobs.service.ts  JobApplication.groupBy x1',
   'jobs/jobs.service.ts  JobApplication.update x1',
   'medical/medical.service.ts  Doctor.count x1',
-  'medical/medical.service.ts  Doctor.findUnique x1',
   'medical/medical.service.ts  MedicalBloodTest.update x1',
   'notifications/web-push.provider.ts  DeviceToken.deleteMany x1',
   'nutrition/nutrition.service.ts  Dietitian.count x1',
-  'nutrition/nutrition.service.ts  Dietitian.findUnique x1',
   'nutrition/nutrition.service.ts  MealPlan.count x2',
   'nutrition/nutrition.service.ts  MealPlan.deleteMany x1',
   'nutrition/nutrition.service.ts  MealPlan.findFirst x1',
