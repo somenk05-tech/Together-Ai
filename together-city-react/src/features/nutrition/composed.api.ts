@@ -60,7 +60,9 @@ export interface ComposedWeek {
   readOnly?: boolean;
 }
 
-export interface ComplianceConcern { key: string; label: string; message: string; direction: 'over' | 'under'; deltaPct: number; severity: 'info' | 'warn' }
+/** Concerns arrive worst-first: the server ranks them by clinical severity, so
+ *  concerns[0] is the one most worth telling the citizen about. */
+export interface ComplianceConcern { key: string; label: string; message: string; direction: 'over' | 'under'; deltaPct: number; severity: 'info' | 'warn'; weight: number }
 export interface ComplianceReport { score: number; concerns: ComplianceConcern[]; swaps: string[]; summary: string }
 
 export interface ScoreNote { key: string; label: string; detail: string; severity: 'ok' | 'info' | 'warn' }

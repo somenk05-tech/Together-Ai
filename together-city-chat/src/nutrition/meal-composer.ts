@@ -39,6 +39,11 @@ export interface ComposerPrefs {
 /** "Inform, don't force" — how the user's preferred plan compares to the clinical ideal. */
 export interface ComplianceConcern {
   key: string; label: string; message: string; direction: 'over' | 'under'; deltaPct: number; severity: 'info' | 'warn';
+  /** How clinically serious this nutrient is for THIS profile — the same weight
+   *  its penalty carries. Concerns are returned worst-first by it, because the
+   *  UI shows concerns[0] and the first thing a citizen reads should be the
+   *  thing most likely to hurt them. */
+  weight: number;
 }
 export interface ComplianceReport {
   score: number;                       // 0–100 alignment with the ideal clinical plan
@@ -883,22 +888,22 @@ export function complianceReport(days: ComposedDay[], targets: DayTargets, caps:
     if (!cap) return;
     const deltaPct = Math.round(((value - cap) / cap) * 100);
     if (deltaPct > 8) {
-      concerns.push({ key, label, direction: 'over', deltaPct, severity: deltaPct > 25 ? 'warn' : 'info', message: `${label} is ${deltaPct}% above the target (${Math.round(value)} vs ${Math.round(cap)} ${unit}).` });
+      concerns.push({ key, label, direction: 'over', deltaPct, severity: deltaPct > 25 ? 'warn' : 'info', weight, message: `${label} is ${deltaPct}% above the target (${Math.round(value)} vs ${Math.round(cap)} ${unit}).` });
       penalty += Math.min(24, deltaPct * 0.6) * weight;
       if (swap) swaps.push(swap);
     }
   };
-  const underTarget = (key: string, label: string, value: number, target: number, unit: string, swap: string) => {
+  const underTarget = (key: string, label: string, value: number, target: number, unit: string, swap: string, weight = 0.6) => {
     const deltaPct = Math.round(((target - value) / target) * 100);
     if (deltaPct > 8) {
-      concerns.push({ key, label, direction: 'under', deltaPct, severity: deltaPct > 25 ? 'warn' : 'info', message: `${label} is ${Math.round(target - value)} ${unit} below your target (${Math.round(value)} vs ${Math.round(target)}).` });
+      concerns.push({ key, label, direction: 'under', deltaPct, severity: deltaPct > 25 ? 'warn' : 'info', weight, message: `${label} is ${Math.round(target - value)} ${unit} below your target (${Math.round(value)} vs ${Math.round(target)}).` });
       penalty += Math.min(20, deltaPct * 0.5);
       if (swap) swaps.push(swap);
     }
   };
 
   const kcalDev = Math.abs(avg.kcal - targets.kcal) / Math.max(1, targets.kcal);
-  if (kcalDev > 0.10) { const p = Math.round(kcalDev * 100); concerns.push({ key: 'kcal', label: 'Calories', direction: avg.kcal > targets.kcal ? 'over' : 'under', deltaPct: p, severity: kcalDev > 0.2 ? 'warn' : 'info', message: `Calories are ${p}% ${avg.kcal > targets.kcal ? 'above' : 'below'} your target (${Math.round(avg.kcal)} vs ${Math.round(targets.kcal)} kcal).` }); penalty += Math.min(15, p * 0.3); }
+  if (kcalDev > 0.10) { const p = Math.round(kcalDev * 100); concerns.push({ key: 'kcal', label: 'Calories', direction: avg.kcal > targets.kcal ? 'over' : 'under', deltaPct: p, severity: kcalDev > 0.2 ? 'warn' : 'info', weight: 0.6, message: `Calories are ${p}% ${avg.kcal > targets.kcal ? 'above' : 'below'} your target (${Math.round(avg.kcal)} vs ${Math.round(targets.kcal)} kcal).` }); penalty += Math.min(15, p * 0.3); }
   underTarget('protein', 'Protein', avg.protein, targets.protein, 'g', 'Add a protein side (paneer, egg, dal, tofu or fish) to hit your protein target.');
   underTarget('fiber', 'Fibre', avg.fiber, targets.fiber, 'g', 'Add a salad or a whole grain to raise fibre.');
   overCap('sodium', 'Sodium', avg.sodiumMg, caps?.sodiumMg, 'mg', 1, 'Cook with less salt and skip pickle/papad/processed items to cut sodium.');
@@ -909,8 +914,16 @@ export function complianceReport(days: ComposedDay[], targets: DayTargets, caps:
   if (isDiab) {
     const carbTarget = targets.carbs;
     const deltaPct = Math.round(((avg.carbs - carbTarget) / Math.max(1, carbTarget)) * 100);
-    if (deltaPct > 12) { concerns.push({ key: 'carbs', label: 'Carbohydrates', direction: 'over', deltaPct, severity: deltaPct > 30 ? 'warn' : 'info', message: `Carbohydrates are ${deltaPct}% above the diabetes-friendly target (${Math.round(avg.carbs)} vs ${Math.round(carbTarget)} g) — this raises glycemic load.` }); penalty += Math.min(20, deltaPct * 0.5); swaps.push('Swap some white rice for millet or extra vegetables to lower glycemic load.'); }
+    if (deltaPct > 12) { concerns.push({ key: 'carbs', label: 'Carbohydrates', direction: 'over', deltaPct, severity: deltaPct > 30 ? 'warn' : 'info', weight: 1, message: `Carbohydrates are ${deltaPct}% above the diabetes-friendly target (${Math.round(avg.carbs)} vs ${Math.round(carbTarget)} g) — this raises glycemic load.` }); penalty += Math.min(20, deltaPct * 0.5); swaps.push('Swap some white rice for millet or extra vegetables to lower glycemic load.'); }
   }
+
+  // Worst first. The banner and the plate note both read concerns[0], and until
+  // now that was whichever check happened to run first — sodium, because it sits
+  // above potassium in the list. So a renal plan 12% over on sodium and 133%
+  // over on potassium told the citizen about the sodium. Ranking by severity
+  // then by weighted overshoot puts the dangerous one where it is read.
+  const rank = (c: ComplianceConcern) => (c.severity === 'warn' ? 1e6 : 0) + c.deltaPct * c.weight;
+  concerns.sort((a, b) => rank(b) - rank(a));
 
   const score = Math.max(0, Math.min(100, Math.round(100 - penalty)));
   const summary = concerns.length

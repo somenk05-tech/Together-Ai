@@ -401,8 +401,13 @@ export function MealPlan() {
       {/* Medical-guidance banner (preferred mode) — inform, offer the healthier plan, never force. */}
       {mode === 'preferred' && wk.compliance && wk.compliance.concerns.length > 0 && (
         <div style={{ background: '#f4f8f4', border: '1px solid #cfe3cf', borderRadius: 10, padding: '11px 14px', marginBottom: 12, fontSize: 12.5 }}>
-          <strong>Medical guidance:</strong> your preferred plan is {wk.compliance.score}% aligned with the clinical ideal.
-          {' '}{wk.compliance.concerns[0].message} You can keep your preferences, or
+          {/* Deliberately no percentage here. The scorecard directly above already
+              shows the health score, and this banner used to print a SECOND,
+              separately-computed number for the same idea — 0/100 in the circle
+              and "2% aligned" one line below it. Two numbers answering one
+              question, disagreeing, is worse than either alone. This says what
+              is wrong and what to do about it; the scorecard says how far off. */}
+          <strong>Medical guidance:</strong> {wk.compliance.concerns[0].message} You can keep your preferences, or
           {' '}<button type="button" onClick={() => setMode('optimal')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5 }}>see the Optimal Health plan →</button>
         </div>
       )}
