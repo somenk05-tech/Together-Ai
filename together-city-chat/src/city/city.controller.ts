@@ -1,5 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { WeatherService } from './weather.service';
+import { Public } from '../shared/public.decorator';
 
 /**
  * PUBLIC city header — location + live weather for the home strip. No auth so it
@@ -11,6 +12,7 @@ import { WeatherService } from './weather.service';
 export class CityController {
   constructor(private readonly weather: WeatherService) {}
 
+  @Public()
   @Get('header')
   header(@Query('lat') lat?: string, @Query('lng') lng?: string, @Query('city') city?: string) {
     const latN = lat != null && lat !== '' ? Number(lat) : undefined;

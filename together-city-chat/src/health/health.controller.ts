@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
+import { Public } from '../shared/public.decorator';
 
 /** Public health/status endpoint. Exposes only non-sensitive booleans — used to
  *  verify the deployment (e.g. whether AI features are configured). No secrets. */
@@ -7,6 +8,7 @@ import { AiService } from '../ai/ai.service';
 export class HealthController {
   constructor(private readonly ai: AiService) {}
 
+  @Public()
   @Get()
   status() {
     return {

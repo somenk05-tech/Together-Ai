@@ -23,6 +23,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getResponse()
         : { message: 'Internal server error' };
     if (status >= 500) this.logger.error(exception);
+    // Error bodies can carry citizen data (validation echoes, not-found detail)
+    // and a 401 must never be cached against a URL a signed-in user will retry.
+    // The NoStoreInterceptor doesn't run on the exception path, so set it here.
+    res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+    res.setHeader('Vary', 'Authorization, Cookie, Origin');
     res.status(status).json(typeof payload === 'string' ? { message: payload } : payload);
   }
 }

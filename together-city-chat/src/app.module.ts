@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { NoStoreInterceptor } from './shared/interceptors/no-store.interceptor';
 import configuration from './shared/config/configuration';
 import { PrismaModule } from './shared/prisma/prisma.module';
 import { RedisModule } from './shared/redis/redis.module';
 import { EventsModule } from './shared/events/events.module';
 import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { UsersModule } from './users/users.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { ConversationsModule } from './conversations/conversations.module';
@@ -73,6 +75,15 @@ import { PrivacyModule } from './privacy/privacy.module';
     CityModule,
     PrivacyModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Authentication is the default for the whole API. Previously JwtAuthGuard
+    // was declared per controller, so a controller that forgot it was silently
+    // public — the wrong way round for a guard. Routes that genuinely need to
+    // be reachable without a token carry @Public().
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // No authenticated response is ever cacheable by a browser, proxy or CDN.
+    { provide: APP_INTERCEPTOR, useClass: NoStoreInterceptor },
+  ],
 })
 export class AppModule {}
