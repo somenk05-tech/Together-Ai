@@ -222,11 +222,11 @@ export class MasterProfileService {
   async completion(userId: string) {
     const m = await this.get(userId);
     const px = this.prisma as unknown as {
-      foodPref: { findUnique(a: unknown): Promise<{ diet?: string | null; weightKg?: number | null } | null> };
-      fitnessProfile: { findUnique(a: unknown): Promise<{ goal?: string | null; level?: string | null } | null> };
+      foodPref: { findUnique(a: unknown): Promise<{ diet?: string | null; weightKg?: number | null; heightCm?: number | null; extras?: string | null } | null> };
+      fitnessProfile: { findUnique(a: unknown): Promise<{ goal?: string | null; level?: string | null; heightCm?: number | null; weightKg?: number | null; conditions?: string | null } | null> };
       beautyProfile: { findUnique(a: unknown): Promise<{ extras?: string | null } | null> };
       datingProfile: { findUnique(a: unknown): Promise<{ bio?: string | null; interests?: string | null; extras?: string | null } | null> };
-      jobProfile: { findUnique(a: unknown): Promise<{ headline?: string | null } | null> };
+      jobProfile: { findUnique(a: unknown): Promise<{ headline?: string | null; skills?: string | null } | null> };
       user: { findUnique(a: unknown): Promise<{ bio?: string | null } | null> };
     };
     const [food, fitness, beauty, dating, jobs, user] = await Promise.all([
@@ -256,20 +256,26 @@ export class MasterProfileService {
       section('astrology', 'Astrology', '/profile/astrology', [
         has(m.dateOfBirth), has(m.timeOfBirth), has(m.birthCity ?? m.city),
       ]),
+      // NOTE: hub rows (FoodPref/FitnessProfile/BeautyProfile) are auto-seeded
+      // empty at signup AND carry column defaults (diet='everything',
+      // fitness goal='general', level='beginner'). So "row exists" and those
+      // defaulted columns are NOT evidence the user entered anything — counting
+      // them made a brand-new account read as partly (Fitness: fully) complete.
+      // Every check below is a field that only becomes set by real user input.
       section('nutrition', 'Nutrition', '/nutrition/preferences', [
-        Boolean(food), has(food?.diet), has(food?.weightKg),
+        has(food?.weightKg), has(food?.heightCm), Object.keys(json(food?.extras)).length > 0,
       ]),
       section('fitness', 'Fitness', '/fitness/profile', [
-        Boolean(fitness), has(fitness?.goal), has(fitness?.level),
+        has(fitness?.heightCm), has(fitness?.weightKg), has(fitness?.conditions),
       ]),
       section('beauty', 'Beauty', '/beauty/profile', [
-        Boolean(beauty), arr(beautyEx.photos).length > 0, arr(beautyEx.goals).length > 0 || has(beautyEx.goal),
+        arr(beautyEx.photos).length > 0, arr(beautyEx.goals).length > 0 || has(beautyEx.goal),
       ]),
       section('dating', 'Dating', '/dating/profile', [
-        Boolean(dating), has(dating?.bio), (dating?.interests ?? '').split(',').filter(Boolean).length >= 3, arr(datingEx.photos).length >= 3,
+        has(dating?.bio), (dating?.interests ?? '').split(',').filter(Boolean).length >= 3, arr(datingEx.photos).length >= 3,
       ]),
       section('jobs', 'Jobs', '/jobs/profile', [
-        Boolean(jobs), has(jobs?.headline),
+        has(jobs?.headline), has(jobs?.skills),
       ]),
       section('social', 'Social', '/social/profile', [
         has(user?.bio),

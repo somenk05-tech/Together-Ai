@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AuthTokens, User } from '@/types';
 import { authApi } from '@/api';
+import { resetClientState } from '@/api/session-reset';
 
 /** Read a JWT's `exp` (no verification) to tell if it's already expired, so the
  *  app can refresh or log out cleanly BEFORE firing a burst of doomed requests. */
@@ -40,12 +41,16 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: () => Boolean(get().tokens?.accessToken && get().user),
 
       login: async (handle, password) => {
+        // Wipe any prior user's cached/persisted state BEFORE establishing the
+        // new session, so this login can't inherit the previous user's data.
+        resetClientState();
         const { accessToken, refreshToken } = await authApi.login({ handle, password });
         set({ tokens: { accessToken, refreshToken } });
         set({ user: await authApi.me() });
       },
 
       register: async (handle, name, password, contact) => {
+        resetClientState();
         const { accessToken, refreshToken } = await authApi.register({ handle, name, password, email: contact.email, phone: contact.phone || undefined });
         set({ tokens: { accessToken, refreshToken } });
         set({ user: await authApi.me() });
@@ -82,6 +87,10 @@ export const useAuthStore = create<AuthState>()(
         const t = get().tokens;
         if (t?.accessToken && !isTokenExpired(t.accessToken)) void authApi.logout().catch(() => undefined);
         set({ user: null, tokens: null });
+        // Drop the query cache + every per-user persisted store so the next user
+        // on this browser starts clean (no inherited data). In-memory-only stores
+        // are wiped by the reload the login screen triggers.
+        resetClientState();
       },
 
       hydrate: async () => {

@@ -37,6 +37,12 @@ function getSocket(): Socket {
 export const socketClient = {
   connect(): void { const s = getSocket(); if (!s.connected) s.connect(); },
   disconnect(): void { socket?.disconnect(); },
+  /** Tear the socket down completely on a user switch, so the next user gets a
+   *  fresh connection (new token, no inherited room subscriptions). */
+  reset(): void {
+    try { socket?.removeAllListeners(); socket?.disconnect(); } catch { /* noop */ }
+    socket = null;
+  },
   connected(): boolean { return Boolean(socket?.connected); },
   emit(event: WsEvent, payload: unknown): void { getSocket().emit(event, payload); },
   on<T>(event: WsEvent, handler: (payload: T) => void): () => void {
