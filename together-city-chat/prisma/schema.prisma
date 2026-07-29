@@ -157,6 +157,10 @@ model User {
   datingMatchesOne     DatingMatch[]        @relation("DatingUserOne")
   datingMatchesTwo     DatingMatch[]        @relation("DatingUserTwo")
 
+  prescriptions        Prescription[]
+  medicines            Medicine[]
+  medicineSchedules    MedicineSchedule[]
+
   @@index([onlineStatus])
 }
 
@@ -1699,4 +1703,157 @@ model DriveFile {
 
   @@index([ownerId, folderId])
   @@index([attachedType, attachedId])
+}
+
+
+/// ────────────────────── Prescriptions & medicines ──────────────────────
+/// A handwritten prescription becomes a digital one, and a confirmed digital
+/// one becomes alarms that fire five minutes before each dose.
+///
+/// The chain is deliberately four tables rather than one. What a doctor wrote
+/// (Prescription/PrescriptionItem) is a document and never changes after the
+/// citizen confirms it; what they are actually meant to take and when
+/// (Medicine/MedicineSchedule) is editable and outlives the paper it came from;
+/// and what happened at each dose (MedicineReminder/DoseLog) is an append-only
+/// record. Collapsing them would mean editing a schedule rewrites history.
+
+/// An uploaded or hand-entered prescription, plus whatever extraction made of it.
+model Prescription {
+  id            String    @id @default(uuid())
+  userId        String
+  /// upload | manual
+  source        String    @default("upload")
+  /// processing | review_required | confirmed | failed
+  ///
+  /// review_required is the honest default for anything read off handwriting.
+  /// A prescription is never allowed to become a schedule until a human has
+  /// looked at it, because a misread dosage is the one error here that hurts.
+  status        String    @default("processing")
+  fileKey       String?
+  fileUrl       String?
+  mimeType      String?
+  providerJobId String?
+  /// The extractor's raw response, kept verbatim so a bad read can be audited
+  /// against what the provider actually returned.
+  rawExtraction String?
+  error         String?
+  confirmedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items PrescriptionItem[]
+
+  @@index([userId, createdAt])
+}
+
+/// One medicine line as extracted, with per-field confidence.
+model PrescriptionItem {
+  id             String   @id @default(uuid())
+  prescriptionId String
+  medicineName   String
+  dosage         String?
+  frequency      String?
+  durationDays   Int?
+  instructions   String?
+  /// JSON array of "HH:MM" local times this line implies.
+  timesLocal     String?
+  /// JSON map of field → 0..1. Anything under the review threshold, or missing
+  /// altogether, forces needsReview.
+  confidence     String?
+  needsReview    Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  @@index([prescriptionId])
+}
+
+/// A medicine this citizen actually takes. Survives the prescription it came from.
+model Medicine {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  form      String?
+  strength  String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schedules MedicineSchedule[]
+
+  @@index([userId, name])
+}
+
+/// When to take it. Times are LOCAL wall-clock plus the zone they were set in,
+/// never UTC instants — "08:00 every day" has to stay 08:00 across a DST change,
+/// which a stored instant cannot do.
+model MedicineSchedule {
+  id                 String    @id @default(uuid())
+  userId             String
+  medicineId         String
+  prescriptionItemId String?
+  /// JSON array of "HH:MM" in `timezone`.
+  timesLocal         String
+  /// JSON array of weekday numbers (0=Sunday). Null means every day.
+  daysOfWeek         String?
+  /// Date-only (midnight UTC), meaning a calendar day in `timezone`.
+  startDate          DateTime
+  endDate            DateTime?
+  timezone           String
+  dosage             String?
+  instructions       String?
+  active             Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medicine  Medicine           @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  reminders MedicineReminder[]
+  doseLogs  DoseLog[]
+
+  @@index([userId, active])
+  @@index([medicineId])
+}
+
+/// One expanded, dispatchable alarm. The unique key on (schedule, dose instant)
+/// is what makes the every-minute dispatcher safe to run twice.
+model MedicineReminder {
+  id             String    @id @default(uuid())
+  scheduleId     String
+  userId         String
+  scheduledAtUtc DateTime
+  /// Always scheduledAtUtc minus five minutes.
+  notifyAtUtc    DateTime
+  /// pending | sent | failed
+  status         String    @default("pending")
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  schedule MedicineSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, scheduledAtUtc])
+  @@index([status, notifyAtUtc])
+  @@index([userId])
+}
+
+/// What happened at a dose. One row per dose, ever — a double "mark taken"
+/// updates rather than appends.
+model DoseLog {
+  id             String    @id @default(uuid())
+  scheduleId     String
+  userId         String
+  scheduledAtUtc DateTime
+  /// taken | skipped | missed
+  action         String
+  actedAtUtc     DateTime?
+  dosageTaken    String?
+  note           String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  schedule MedicineSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, scheduledAtUtc])
+  @@index([userId, scheduledAtUtc])
 }
