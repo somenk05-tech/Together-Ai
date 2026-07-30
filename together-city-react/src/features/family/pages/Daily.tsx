@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { HouseholdPlanNotice } from '../components/HouseholdPlanNotice';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader, Button, Spinner, EmptyState, Chip } from '@/components/ui';
 import { ComposedMealCard } from '@/features/nutrition/components/ComposedMealCard';
@@ -69,6 +70,8 @@ export function FamilyDaily() {
       <PageHeader eyebrow="Family Nutrition · 03"
         title="Daily Meal Planner"
         sub="Today's plate, dish by dish — shared mains, personal snacks." />
+
+      <HouseholdPlanNotice people={N} />
 
       <PlanModeToggle mode={mode} onChange={setMode} busy={plan.isFetching} />
 

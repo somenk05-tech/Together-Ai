@@ -10,6 +10,7 @@ import { useComposedPlan, useRenewPlan, type PlanMode } from '@/features/nutriti
 import { useRecipes, useBuildCart } from '@/features/nutrition/hooks';
 import { useFamily, headcount, MEMBERS } from '../members';
 import { FamilySnacks } from '../components/FamilySnacks';
+import { HouseholdPlanNotice } from '../components/HouseholdPlanNotice';
 import { FamilyPortions } from '../components/FamilyPortions';
 import { planDates, weekdayFull } from '@/features/nutrition/planDates';
 
@@ -75,11 +76,7 @@ export function FamilyWeekly() {
         title="Weekly Meal Planner"
         sub="The household's plan, composed from every member's needs — refresh or skip any meal." />
 
-      <p className="note">
-        This is your <b>family meal plan</b> — the same for everyone. <b>Mains are cooked together for the whole
-        family ({N} {N === 1 ? 'person' : 'people'})</b>, and every member's allergies and avoided foods are applied
-        to the shared dishes. <b>Snacks are personalised</b> per member's health need.
-      </p>
+      <HouseholdPlanNotice people={N} />
 
       <PlanModeToggle mode={mode} onChange={setMode} busy={plan.isFetching} />
 
