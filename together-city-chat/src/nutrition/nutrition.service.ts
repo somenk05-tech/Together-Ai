@@ -1922,6 +1922,10 @@ export class NutritionService implements OnModuleInit {
     // Inform-and-recommend: how THIS plan compares to the clinical ideal (both modes).
     const compliance = isClinical ? complianceReport(week.days, targets, fullCaps, condText) : undefined;
     const safety = ex.fasting?.enabled ? fastingSafety(conditions.join(' ')) : { level: 'ok' as const, notes: [] };
+    // Record what was in force today, so tomorrow's history is about today
+    // rather than about whatever the equation says next week. Fire-and-forget:
+    // the plan is the answer, the snapshot is a note in the margin.
+    void this.snapshotTargets(userId, t);
     return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], scorecard, planStartDate, reviewDate: addDaysISO(planStartDate, PLAN_DAYS), planDays: PLAN_DAYS, ...(compliance ? { compliance } : {}) };
   }
 
@@ -1981,6 +1985,75 @@ export class NutritionService implements OnModuleInit {
    * Recipe Library — the complete, searchable recipe database for browsing
    * (Netflix-style): pick a cuisine → every recipe in it, filterable and paged.
    */
+  /**
+   * Record the targets that were in force on this citizen's day (BE-7.4).
+   *
+   * Without this, yesterday's intake is scored against today's target. The plan
+   * is regenerated, a profile field changes, the equation itself gets corrected
+   * — the deficit cap and the per-sex floor moved every number in the app this
+   * week — and history quietly shows progress or failure that never happened.
+   *
+   * TODAY'S ROW IS REPLACED; A PAST DAY IS NEVER TOUCHED. If somebody corrects
+   * their weight at noon, the target in force today genuinely changed and the
+   * row should say so. Last Tuesday's did not change, and rewriting it would be
+   * the same failure this table exists to prevent, only later.
+   *
+   * Written on read rather than on a schedule: a day the citizen never opened
+   * the app has no target worth recording, and a cron would manufacture rows
+   * for people who were not there.
+   *
+   * Never throws. A snapshot is a record of what happened, not part of what
+   * happens — failing to write one must not cost somebody their meal plan.
+   */
+  async snapshotTargets(
+    userId: string,
+    targets: { kcal: number; protein: number; carb: number; fat: number; fiber: number; personalised?: boolean },
+  ): Promise<void> {
+    try {
+      const timezone = await this.clock.timezoneFor(userId);
+      const day = this.clock.todayIn(timezone);
+      const row = {
+        kcal: Math.round(targets.kcal), protein: Math.round(targets.protein),
+        carb: Math.round(targets.carb), fat: Math.round(targets.fat), fiber: Math.round(targets.fiber),
+        payload: JSON.stringify(targets),
+        personalised: targets.personalised !== false,
+        timezone,
+      };
+      await (this.prisma as unknown as {
+        dailyTargetSnapshot: { upsert: (a: unknown) => Promise<unknown> };
+      }).dailyTargetSnapshot.upsert({
+        where: { userId_day: { userId, day } },
+        create: { userId, day, ...row },
+        update: row,
+      });
+    } catch (e) {
+      this.logger.warn(`target snapshot failed: ${(e as Error).message}`);
+    }
+  }
+
+  /**
+   * The targets that were in force, most recent first.
+   *
+   * Only days that were actually recorded. There is deliberately no gap-filling:
+   * a day with no row is a day this person did not open the app, and drawing a
+   * line through it would invent a target they were never shown.
+   */
+  async targetHistory(userId: string, days = 30) {
+    const rows = await (this.prisma as unknown as {
+      dailyTargetSnapshot: { findMany: (a: unknown) => Promise<Array<{ day: string; timezone: string; kcal: number; protein: number; carb: number; fat: number; fiber: number; personalised: boolean; computedAt: Date }>> };
+    }).dailyTargetSnapshot.findMany({
+      where: { userId },
+      orderBy: { day: 'desc' },
+      take: Math.min(365, Math.max(1, days)),
+    });
+    return rows.map((r) => ({
+      day: r.day, timezone: r.timezone,
+      kcal: r.kcal, protein: r.protein, carb: r.carb, fat: r.fat, fiber: r.fiber,
+      personalised: r.personalised,
+      computedAt: r.computedAt.toISOString(),
+    }));
+  }
+
   async recipeLibrary(q: { search?: string; cuisine?: string; mealType?: string; diet?: string; sort?: string; page?: number; pageSize?: number }) {
     const page = Math.max(1, q.page ?? 1);
     const pageSize = Math.min(60, Math.max(12, q.pageSize ?? 24));

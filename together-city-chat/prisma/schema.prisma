@@ -181,6 +181,7 @@ model User {
   callParticipations   CallParticipant[]
 
   @@index([onlineStatus])
+  dailyTargets      DailyTargetSnapshot[]
 }
 
 model RefreshToken {
@@ -478,6 +479,43 @@ model Meal {
 
   @@index([dayId])
   @@index([recipeId])
+}
+
+/// The daily targets that were actually in force on one calendar day (BE-7.4).
+///
+/// The plan is regenerated, the profile changes, the equation itself gets fixed
+/// — and without this, yesterday's intake is scored against today's target.
+/// That reads as progress or failure that never happened.
+///
+/// `day` is the CITIZEN'S calendar day, not a UTC one. Immutable once the day
+/// has passed; today's row is replaced when the target genuinely changes,
+/// because the target in force today did change. Nothing rewrites a past day.
+model DailyTargetSnapshot {
+  id     String @id @default(uuid())
+  userId String
+  /// YYYY-MM-DD in the citizen's timezone, which is stored with it so a later
+  /// reader knows which day this was without guessing.
+  day      String
+  timezone String
+  kcal    Int
+  protein Int
+  carb    Int
+  fat     Int
+  fiber   Int
+  /// JSON: the whole prescription, so a past day can be explained and not just
+  /// compared. Same convention as NutritionHistory.targets.
+  payload String
+  /// False when the target was built on substituted inputs — a snapshot of a
+  /// number that was never really theirs, kept so history does not silently
+  /// treat it as if it were.
+  personalised Boolean  @default(true)
+  computedAt   DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day])
+  @@index([userId, day])
 }
 
 /// Permanent, versioned snapshot of a generated weekly meal plan — nutrition

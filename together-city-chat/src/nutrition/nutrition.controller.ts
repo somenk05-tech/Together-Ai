@@ -148,6 +148,13 @@ export class NutritionController {
     return this.nutrition.refreshComposedMeal(user.sub, dto.day, dto.slot);
   }
 
+  /** GET /api/nutrition/targets/history — the targets that were in force, by day. */
+  @Get('targets/history')
+  targetHistory(@CurrentUser() user: JwtUser, @Query('days') days?: string) {
+    const n = Number(days);
+    return this.nutrition.targetHistory(user.sub, Number.isFinite(n) && n > 0 ? Math.floor(n) : 30);
+  }
+
   @Post('plan/composed/skip')
   @UsePipes(new ZodValidationPipe(z.object({ day: z.number().int().min(0).max(6), slot: z.string().min(1).max(3), skipped: z.boolean() })))
   skipComposedMeal(@CurrentUser() user: JwtUser, @Body() dto: { day: number; slot: string; skipped: boolean }) {
