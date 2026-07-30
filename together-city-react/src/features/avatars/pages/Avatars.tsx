@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Button, EmptyState, PageHeader, Spinner } from '@/components/ui';
 import {
   useAvatarAsset, useAvatarOptions, useAvatarPreview, useAvatars,
@@ -15,28 +15,76 @@ function optionLabel(value: string): string {
   return value.replace(/([A-Z])/g, ' $1').toLowerCase();
 }
 
+/** An avatar in words, for anyone not looking at the picture. */
+function describeAvatar(i: AvatarInputs): string {
+  const hair = i.hairStyle === 'bald' ? 'bald' : `${optionLabel(i.hairColour ?? '')} ${optionLabel(i.hairStyle ?? '')} hair`;
+  return `${optionLabel(i.skinTone ?? '')} skin, ${hair}, ${optionLabel(i.expression ?? '')} expression`;
+}
+
 const CHOICE_KEYS = [
   'skinTone', 'hairStyle', 'hairColour', 'eyeColour',
   'facialHair', 'accessory', 'expression', 'background',
 ] as const;
 
+/**
+ * One row of choices — a radio group, not a row of toggles.
+ *
+ * These look like chips, so the easy thing is `aria-pressed`, which describes
+ * eight independent switches. They are not: exactly one is chosen, and a
+ * screen reader should say "hair colour, auburn, 4 of 8" rather than
+ * "auburn, pressed". So the group carries its own label and the chips are
+ * radios.
+ *
+ * That brings the keyboard convention with it. Only the chosen chip is
+ * tabbable and the arrow keys move between them — without that, reaching the
+ * Save button means tabbing through sixty-odd chips, which is the kind of
+ * accessible-on-paper that nobody can actually use.
+ */
 function Choice({
   name, values, current, onPick,
 }: { name: string; values: string[]; current: string; onPick: (v: string) => void }) {
+  const groupId = `avatar-choice-${name}`;
+
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const keys = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'];
+    if (!keys.includes(e.key)) return;
+    e.preventDefault();
+    const i = Math.max(0, values.indexOf(current));
+    const next =
+      e.key === 'Home' ? 0
+        : e.key === 'End' ? values.length - 1
+          : e.key === 'ArrowRight' || e.key === 'ArrowDown'
+            ? (i + 1) % values.length
+            : (i - 1 + values.length) % values.length;
+    onPick(values[next]);
+    // Follow the selection with focus, which is what a radio group does.
+    const el = document.querySelector<HTMLElement>(`#${groupId} [data-value="${values[next]}"]`);
+    el?.focus();
+  };
+
   return (
     <div style={{ marginBottom: 14 }}>
-      <div className="muted" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 6 }}>
+      <div id={`${groupId}-label`} className="muted" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 6 }}>
         {label(name)}
       </div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div
+        id={groupId}
+        role="radiogroup"
+        aria-labelledby={`${groupId}-label`}
+        onKeyDown={onKeyDown}
+        style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}
+      >
         {values.map((v) => {
           const active = v === current;
           return (
             <button
               key={v}
               type="button"
+              role="radio"
+              aria-checked={active}
+              data-value={v}
+              tabIndex={active ? 0 : -1}
               onClick={() => onPick(v)}
-              aria-pressed={active}
               style={{
                 border: `1px solid ${active ? 'var(--accent, #4a6fa5)' : 'var(--line)'}`,
                 background: active ? 'var(--accent, #4a6fa5)' : 'transparent',
@@ -69,8 +117,16 @@ function SavedAvatar({
     >
       <div style={{ width: 96, height: 96, margin: '0 auto 8px' }}>
         {asset.data
-          ? <img src={asset.data.url} alt="" width={96} height={96} style={{ borderRadius: '50%' }} />
-          : <div style={{ width: 96, height: 96, borderRadius: '50%', background: 'var(--line)' }} />}
+          ? (
+            <img
+              src={asset.data.url}
+              // Not decorative: these are the things being chosen between, so
+              // each needs to be distinguishable without seeing it.
+              alt={`Avatar: ${describeAvatar(avatar.inputs)}`}
+              width={96} height={96} style={{ borderRadius: '50%' }}
+            />
+          )
+          : <div style={{ width: 96, height: 96, borderRadius: '50%', background: 'var(--line)' }} role="presentation" />}
       </div>
       {avatar.isSelected && (
         <div style={{ fontSize: 11.5, marginBottom: 6, color: 'var(--accent, #4a6fa5)' }}>In use</div>
@@ -137,7 +193,7 @@ export function Avatars() {
         <div className="card" style={{ padding: 18, textAlign: 'center', position: 'sticky', top: 12 }}>
           <div style={{ width: 160, height: 160, margin: '0 auto' }}>
             {preview.data
-              ? <img src={preview.data.dataUrl} alt="Avatar preview" width={160} height={160} />
+              ? <img src={preview.data.dataUrl} alt={`Preview: ${describeAvatar(current)}`} width={160} height={160} />
               : <div style={{ width: 160, height: 160, borderRadius: '50%', background: 'var(--line)' }} />}
           </div>
 

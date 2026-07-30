@@ -15,5 +15,31 @@ module.exports = {
     'react-hooks/exhaustive-deps': 'warn',
     'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
   },
-  ignorePatterns: ['dist', '.eslintrc.cjs', 'vite.config.ts', 'tailwind.config.ts'],
+  overrides: [
+    {
+      /**
+       * Test doubles and tests.
+       *
+       * A fake of a browser API exists precisely to stand in for types the app
+       * does not control, and forcing it to satisfy the same strictness as
+       * application code produces elaborate type gymnastics that make the
+       * double harder to read than the thing it replaces. The rules relaxed
+       * here are all about `any`; nothing that catches a real mistake is
+       * turned off, and everything outside these files is unchanged.
+       */
+      files: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/**/fake-*.ts'],
+      rules: {
+        '@typescript-eslint/no-explicit-any': 'off',
+        '@typescript-eslint/no-unsafe-any': 'off',
+        '@typescript-eslint/no-unsafe-call': 'off',
+        '@typescript-eslint/no-unsafe-member-access': 'off',
+        '@typescript-eslint/no-unsafe-assignment': 'off',
+        '@typescript-eslint/no-unsafe-argument': 'off',
+        '@typescript-eslint/no-unsafe-return': 'off',
+        '@typescript-eslint/require-await': 'off',
+        '@typescript-eslint/no-non-null-assertion': 'off',
+      },
+    },
+  ],
+  ignorePatterns: ['dist', '.eslintrc.cjs', 'vite.config.ts', 'vitest.config.ts', 'tailwind.config.ts'],
 };
