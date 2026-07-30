@@ -344,6 +344,12 @@ model Attachment {
 // (Recipe.diet: 'veg'|'nonveg'|'pesc'|'egg'|'vegan'|'jain'|'everything', Slot: b|l|s|d).
 
 model FoodPref {
+  /// When the citizen actually answered — NULL means this row holds nothing but
+  /// column defaults, created at registration. Anything reading these values as
+  /// the citizen's own must check this first: the defaults read like answers
+  /// ("everything", "maintain", age 35) and cannot be told apart from real ones
+  /// by inspecting them.
+  answeredAt DateTime?
   id        String   @id @default(uuid())
   userId    String   @unique
   diet      String   @default("everything")
@@ -1065,6 +1071,12 @@ model PrivacySetting {
 // Beauty personalises skin/hair from the user's stated profile and — with
 // consent — from the biomarkers the Medical Hub owns (see MedicalConsent).
 model BeautyProfile {
+  /// When the citizen actually answered — NULL means this row holds nothing but
+  /// column defaults, created at registration. Anything reading these values as
+  /// the citizen's own must check this first: the defaults read like answers
+  /// ("everything", "maintain", age 35) and cannot be told apart from real ones
+  /// by inspecting them.
+  answeredAt DateTime?
   id           String   @id @default(uuid())
   userId       String   @unique
   skinType     String   @default("normal") // dry | oily | combination | normal | sensitive
@@ -1099,6 +1111,12 @@ model BeautyOrder {
 // Age- and condition-differentiated training. Reads biomarkers (iron, glucose,
 // inflammation) from the Medical Hub via consent, like Beauty.
 model FitnessProfile {
+  /// When the citizen actually answered — NULL means this row holds nothing but
+  /// column defaults, created at registration. Anything reading these values as
+  /// the citizen's own must check this first: the defaults read like answers
+  /// ("everything", "maintain", age 35) and cannot be told apart from real ones
+  /// by inspecting them.
+  answeredAt DateTime?
   id         String   @id @default(uuid())
   userId     String   @unique
   age        Int      @default(35)

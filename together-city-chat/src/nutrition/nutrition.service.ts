@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { answeredNow } from '../shared/prisma/answered-at';
 import { randomBytes } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { gunzipSync } from 'zlib';
@@ -813,13 +814,36 @@ export interface TargetInput {
  * declared conditions + blood flags, then a per-meal split. Pure, so it serves
  * both the account holder and every admin-managed family member (Family §).
  */
+/**
+ * The stand-in body used when a citizen has told us nothing.
+ *
+ * These numbers have to exist — Mifflin-St Jeor cannot run on nulls — but a
+ * target computed from them is a target for a fictional person: a 70 kg,
+ * 172 cm, 30-year-old male. Presenting that as "your daily calories" is the
+ * review's golden rule broken in the most consequential place in the app,
+ * because unlike a wrong label it is a number somebody may actually eat to.
+ *
+ * So the fallbacks are named, and every one that gets used is reported back in
+ * `assumed`. The arithmetic is unchanged — this commit moves no number — but a
+ * caller can now tell "this is your target" apart from "this is the average
+ * adult's target, until you tell us about yourself", and say so.
+ */
+export const REFERENCE_BODY = { weightKg: 70, heightCm: 172, age: 30, sex: 'male', activity: 1.4, goal: 'maintain' } as const;
+
 export function computeTargets(inp: TargetInput) {
-  const weight = inp.weightKg || 70;
-  const height = inp.heightCm || 172;
-  const age = inp.age || 30;
-  const sex = inp.sex || 'male';
-  const activity = inp.activity || 1.4;
-  const goal = inp.goal || 'maintain';
+  // Recorded before use, so the list cannot drift out of step with the values.
+  const assumed: string[] = [];
+  const fallback = <T>(given: T | undefined | null, key: string, ref: T): T => {
+    if (given) return given;
+    assumed.push(key);
+    return ref;
+  };
+  const weight = fallback(inp.weightKg, 'weightKg', REFERENCE_BODY.weightKg);
+  const height = fallback(inp.heightCm, 'heightCm', REFERENCE_BODY.heightCm);
+  const age = fallback(inp.age, 'age', REFERENCE_BODY.age);
+  const sex = fallback(inp.sex, 'sex', REFERENCE_BODY.sex as string);
+  const activity = fallback(inp.activity, 'activity', REFERENCE_BODY.activity);
+  const goal = fallback(inp.goal, 'goal', REFERENCE_BODY.goal as string);
   const flags = inp.flags ?? {};
 
   // Life-stage groups (QA H4 fix): pregnancy, lactation and pediatrics change
@@ -941,6 +965,13 @@ export function computeTargets(inp: TargetInput) {
     ...(micro.folateMcgMin ? { folateMcgMin: micro.folateMcgMin } : {}),
     ...(micro.calciumMgMin ? { calciumMgMin: micro.calciumMgMin } : {}),
     perMeal, adjustments,
+    /**
+     * Inputs that came from REFERENCE_BODY rather than from the citizen. Empty
+     * means every number here is genuinely theirs. Non-empty means the UI must
+     * not call this "your target" without saying what it was based on.
+     */
+    assumed,
+    personalised: assumed.length === 0,
   };
 }
 
@@ -1447,9 +1478,17 @@ export class NutritionService implements OnModuleInit {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     const flags = flagsFor(await this.bloodValues(userId));
+    // Nullables passed through rather than pre-substituted. This used to fill in
+    // 70 kg / 172 cm / 30 / male here AND again inside computeTargets, so the
+    // fact that nothing was known about the citizen was erased twice before any
+    // arithmetic ran, and the result was indistinguishable from a real one.
     return computeTargets({
-      weightKg: pref?.weightKg ?? 70, heightCm: pref?.heightCm ?? 172, age: pref?.age ?? 30,
-      sex: pref?.sex ?? 'male', activity: pref?.activity ?? 1.4, goal: pref?.goal ?? 'maintain',
+      weightKg: pref?.weightKg ?? undefined,
+      heightCm: pref?.heightCm ?? undefined,
+      age: pref?.age ?? undefined,
+      sex: pref?.sex ?? undefined,
+      activity: pref?.activity ?? undefined,
+      goal: pref?.goal ?? undefined,
       conditions: ex.healthConditions ?? [], flags,
     });
   }
@@ -2042,10 +2081,12 @@ export class NutritionService implements OnModuleInit {
     // `extras` exists on Railway's freshly-generated client; cast for the local
     // (offline) client which can't be regenerated here.
     const data = dto as Record<string, unknown>;
+    // The citizen saved their food preferences, so this row now holds real
+    // answers rather than the defaults registration put there.
     const saved = await this.prisma.foodPref.upsert({
       where: { userId },
-      update: data,
-      create: { userId, ...data },
+      update: answeredNow(data),
+      create: { userId, ...answeredNow(data) },
     } as Parameters<typeof this.prisma.foodPref.upsert>[0]);
     // Master Profile sync — body metrics are shared fields (spec: no duplicates).
     await this.masterProfile.syncShared(userId, {
@@ -2593,7 +2634,7 @@ export class NutritionService implements OnModuleInit {
     const extras = parseExtras((pref as { extras?: string | null }).extras);
     const next = parseSharing({ ...(extras.householdSharing ?? {}), ...patch });
     extras.householdSharing = next;
-    await this.prisma.foodPref.update({ where: { userId }, data: { extras: JSON.stringify(extras) } as never });
+    await this.prisma.foodPref.update({ where: { userId }, data: answeredNow({ extras: JSON.stringify(extras) }) as never });
     return next;
   }
 
@@ -2611,7 +2652,7 @@ export class NutritionService implements OnModuleInit {
     if (!pref) throw new NotFoundException('Set up your Nutrition profile first.');
     const extras = parseExtras((pref as { extras?: string | null }).extras);
     extras.familyMealPlanning = !!on;
-    await this.prisma.foodPref.update({ where: { userId: ownerId }, data: { extras: JSON.stringify(extras) } as never });
+    await this.prisma.foodPref.update({ where: { userId: ownerId }, data: answeredNow({ extras: JSON.stringify(extras) }) as never });
     return { familyMealPlanning: !!on };
   }
 

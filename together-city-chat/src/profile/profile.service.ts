@@ -82,16 +82,42 @@ export class ProfileService {
       ]);
 
     const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+
+    /**
+     * Has the citizen actually answered, or is this a row of column defaults?
+     *
+     * Registration creates FoodPref, BeautyProfile and FitnessProfile before the
+     * citizen has said anything, and their defaults read exactly like answers —
+     * "everything", "maintain", "normal", "straight", "beginner", and an age of
+     * 35. Reporting those as the citizen's own is what the review photographed
+     * on p1: a brand-new account describing a person who did not exist.
+     *
+     * The check is the explicit column, not a comparison against the defaults,
+     * because "everything" and "maintain" are also perfectly good real answers.
+     *
+     * Takes `unknown` and reads the column defensively, the same loose-accessor
+     * pattern the rest of this codebase uses for freshly-migrated fields: the
+     * generated Prisma client only knows about `answeredAt` after the next
+     * `prisma generate`, and a service should not fail to compile on the order
+     * in which two build steps happen to run.
+     */
+    const answered = (row: unknown): boolean =>
+      Boolean((row as { answeredAt?: Date | null } | null)?.answeredAt);
+
     const hubs: HubContribution[] = [];
-    if (foodPref) hubs.push({ hub: 'nutrition', label: 'Nutrition', summary: `Diet: ${foodPref.diet} · Goal: ${foodPref.goal}`, href: '/nutrition/preferences' });
+    if (answered(foodPref)) hubs.push({ hub: 'nutrition', label: 'Nutrition', summary: `Diet: ${foodPref!.diet} · Goal: ${foodPref!.goal}`, href: '/nutrition/preferences' });
     if (plans) hubs.push({ hub: 'meal-plans', label: 'Meal plans', summary: `${plans} saved plan${plans > 1 ? 's' : ''}`, href: '/nutrition/weekly' });
     if (bloodTests) hubs.push({ hub: 'medical', label: 'Medical', summary: `${bloodTests} blood test${bloodTests > 1 ? 's' : ''} on file`, href: '/medical/records' });
-    if (fitness) hubs.push({ hub: 'fitness', label: 'Fitness', summary: `${fitness.level} · goal: ${fitness.goal}`, href: '/fitness/plan' });
+    if (answered(fitness)) hubs.push({ hub: 'fitness', label: 'Fitness', summary: `${fitness!.level} · goal: ${fitness!.goal}`, href: '/fitness/plan' });
     if (dating) hubs.push({ hub: 'dating', label: 'Dating', summary: dating.visible ? 'Profile visible' : 'Profile hidden', href: '/dating/profile' });
-    if (beauty) hubs.push({ hub: 'beauty', label: 'Beauty', summary: `Skin: ${beauty.skinType} · Hair: ${beauty.hairType}`, href: '/beauty/profile' });
+    if (answered(beauty)) hubs.push({ hub: 'beauty', label: 'Beauty', summary: `Skin: ${beauty!.skinType} · Hair: ${beauty!.hairType}`, href: '/beauty/profile' });
     if (wallet) hubs.push({ hub: 'financial', label: 'Financial', summary: `Wallet ${inr(wallet.balanceInr)}`, href: '/financial' });
-    hubs.push({ hub: 'social', label: 'Social', summary: `${followers} followers · ${following} following · ${posts} posts`, href: '/social/profile' });
-    hubs.push({ hub: 'connections', label: 'Connections', summary: `${connected} connected`, href: '/connections' });
+    // Only once there is something to count. Zero followers, zero following and
+    // zero posts is a true statement and a pointless one — and on a new account
+    // it was the whole of "Your data across Together City", which is an empty
+    // state dressed as a dashboard.
+    if (followers || following || posts) hubs.push({ hub: 'social', label: 'Social', summary: `${followers} followers · ${following} following · ${posts} posts`, href: '/social/profile' });
+    if (connected) hubs.push({ hub: 'connections', label: 'Connections', summary: `${connected} connected`, href: '/connections' });
     if (mail) hubs.push({ hub: 'mail', label: 'Mail', summary: mail.address, href: '/mail/inbox' });
 
     const sections: ProfileSection[] = [

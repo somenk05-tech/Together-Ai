@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { computeHealthScore, type HealthScoreResult } from './health-score';
 
@@ -252,8 +253,8 @@ export class MasterProfileService {
     await Promise.all([
       Object.keys(plan.astro).length ? p.astroProfile.updateMany({ where: { userId }, data: plan.astro }).catch(() => undefined) : null,
       Object.keys(plan.dating).length ? p.datingProfile.updateMany({ where: { userId }, data: plan.dating }).catch(() => undefined) : null,
-      Object.keys(plan.food).length ? p.foodPref.updateMany({ where: { userId }, data: plan.food }).catch(() => undefined) : null,
-      Object.keys(plan.fitness).length ? p.fitnessProfile.updateMany({ where: { userId }, data: plan.fitness }).catch(() => undefined) : null,
+      Object.keys(plan.food).length ? p.foodPref.updateMany({ where: { userId }, data: answeredNow(plan.food) }).catch(() => undefined) : null,
+      Object.keys(plan.fitness).length ? p.fitnessProfile.updateMany({ where: { userId }, data: answeredNow(plan.fitness) }).catch(() => undefined) : null,
     ]);
     this.logger.log(`shared fields synced from ${source}: ${Object.keys(clean).join(', ')}`);
     return { synced: true, fields: Object.keys(clean) };

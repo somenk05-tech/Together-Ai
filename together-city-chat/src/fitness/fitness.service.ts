@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
+import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { MedicalService } from '../medical/medical.service';
@@ -68,7 +69,8 @@ export class FitnessService {
       age: dto.age, sex: dto.sex, level: dto.level, mode: dto.mode, goal: dto.goal,
       conditions: dto.conditions.join(','), heightCm: dto.heightCm ?? null, weightKg: dto.weightKg ?? null, bodyGoal: dto.bodyGoal,
     };
-    await this.prisma.fitnessProfile.upsert({ where: { userId }, update: data, create: { userId, ...data } });
+    // The citizen saved their training profile — this row is no longer defaults.
+    await this.prisma.fitnessProfile.upsert({ where: { userId }, update: answeredNow(data), create: { userId, ...answeredNow(data) } } as never);
     // Master Profile sync — height/weight/gender are shared fields.
     await this.masterProfile.syncShared(userId, {
       heightCm: dto.heightCm ?? undefined, weightKg: dto.weightKg ?? undefined,
