@@ -41,5 +41,11 @@ module.exports = {
       },
     },
   ],
-  ignorePatterns: ['dist', '.eslintrc.cjs', 'vite.config.ts', 'vitest.config.ts', 'tailwind.config.ts'],
+  // postcss.config.js and public/sw.js are not in tsconfig.json, so the
+  // type-aware parser refuses them outright — two "errors" that were never
+  // about the code. scripts/ is tooling, not app source.
+  ignorePatterns: [
+    'dist', '.eslintrc.cjs', 'vite.config.ts', 'vitest.config.ts',
+    'tailwind.config.ts', 'postcss.config.js', 'public/**', 'scripts/**',
+  ],
 };

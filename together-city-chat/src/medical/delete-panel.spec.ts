@@ -17,13 +17,15 @@ function serviceWith(records: Rec[], panels: Array<{ id: string; userId: string 
   const deleted = { records: [] as string[], panels: [] as unknown[], detached: [] as unknown[] };
 
   const tx = {
+    // deleteMany, not delete, on both — the service scopes every delete by owner
+    // now, so the mock has to offer the method the service actually calls. It
+    // did not, and the whole suite threw until CI ran it.
     medicalRecord: {
-      delete: jest.fn(async ({ where }: any) => { deleted.records.push(where.id); return {}; }),
+      deleteMany: jest.fn(async ({ where }: any) => { deleted.records.push(where.id); return { count: 1 }; }),
       updateMany: jest.fn(async (args: any) => { deleted.detached.push(args); return { count: 1 }; }),
     },
     medicalBloodTest: {
       deleteMany: jest.fn(async ({ where }: any) => { deleted.panels.push(where); return { count: 1 }; }),
-      delete: jest.fn(async ({ where }: any) => { deleted.panels.push(where); return {}; }),
     },
   };
 
@@ -121,7 +123,8 @@ describe('deleting a blood panel directly', () => {
       [{ id: 'bt1', userId: 'a' }],
     );
     await expect(svc.deleteBloodTest('a', 'bt1')).resolves.toEqual({ ok: true });
-    expect(deleted.panels).toEqual([{ id: 'bt1' }]);
+    // userId in the WHERE clause, not just checked beforehand.
+    expect(deleted.panels).toEqual([{ id: 'bt1', userId: 'a' }]);
     expect(deleted.records).toEqual([]); // the report itself survives
     expect(deleted.detached[0]).toMatchObject({
       where: { userId: 'a', bloodTestId: 'bt1' },

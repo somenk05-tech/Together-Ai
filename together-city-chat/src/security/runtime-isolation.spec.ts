@@ -189,7 +189,11 @@ describeLive('one citizen cannot touch another citizen’s rows', () => {
       handle,
       name: `Isolation ${label}`,
       email: `${handle}@isolation.test`,
-      password: 'correct-horse-battery-staple-9',
+      // Must satisfy the real policy (recovery.service.ts assertStrongPassword):
+      // 12+ chars, upper, lower, digit, symbol. The first CI run failed here,
+      // which is the harness working — it went through the actual endpoint and
+      // got the actual validator rather than a mock that would have agreed.
+      password: 'Correct-Horse-Battery-9!',
     });
     if (res.status >= 300) throw new Error(`could not register ${label}: ${res.status} ${res.text}`);
     const json = JSON.parse(res.text) as { accessToken: string; user: { id: string } };

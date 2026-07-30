@@ -5,8 +5,9 @@ nobody looks at it, which means the script gives no signal: a new error lands in
 a sea of old ones and nothing tells anybody. This records where it stands, what
 was cleared, and what each remaining category actually costs.
 
-**150 errors across 41 files → 106 across 33.** Not green. The rest is real
-typing work, not a sweep.
+**150 errors across 41 files → 104 across 31.** Not green. The rest is real
+typing work, not a sweep — and it is now held to a ceiling so it cannot grow
+(see the last section).
 
 ## Cleared
 
@@ -57,21 +58,36 @@ Worst offenders: `features/fitness/pages/Trainer.tsx` (45 before this pass),
 `features/nutrition/hooks.ts`, `features/nutrition/pages/Onboarding.tsx`,
 `components/CityHeader.tsx`.
 
-### Two parse errors, not code problems
+### Two parse errors — fixed
 
-`postcss.config.js` and `public/sw.js` are linted but not in `tsconfig.json`,
-so the type-aware parser refuses them. Either add them to the ESLint
-`ignorePatterns` or give them their own non-type-checked override. One line
-either way; left alone here because it changes lint configuration rather than
-code.
+`postcss.config.js` and `public/sw.js` were being linted while not in
+`tsconfig.json`, so the type-aware parser refused them outright: two "errors"
+that were never about the code. Both are in `ignorePatterns` now, along with
+`scripts/`.
 
-## The thing worth doing first
+## The ceiling — do this before any of the above
 
-None of the above, actually: **make the script mean something again.** While it
-reports 106 errors, fixing 40 of them changes nothing about whether anybody runs
-it. The cheap move is to freeze the current count as a ceiling in CI — a lint
-run that fails only when the number goes UP — so new code is held to zero while
-the backlog is paid down whenever a file is touched for other reasons.
+Fixing forty more errors changes nothing about whether anybody runs the script
+while it still reports a hundred. So the count is frozen as a ceiling that CI
+enforces:
 
-That is the same shape as the guards in `src/security/`: a frozen list nobody
-may quietly grow.
+    npm run lint:ceiling
+
+It fails when the number goes **up**, which holds new code to zero — any error
+a change introduces pushes the count past the ceiling — while leaving the
+backlog to be paid down whenever somebody is in one of those files anyway.
+
+It also fails when the number goes **down** without the ceiling being lowered.
+That looks pedantic and is the entire mechanism: a ceiling nobody ratchets is
+just a high number that drifts back up to meet it. When you fix some, run
+
+    node scripts/lint-ceiling.mjs --update
+
+and commit `scripts/lint-ceiling.json`.
+
+Wiring plain `npm run lint` into CI instead would fail every run, which does not
+fix anything — it teaches people that a red pipeline is normal, and that is a
+worse position than having no pipeline at all.
+
+Same shape as the frozen lists in the API's `src/security/`: a number nobody may
+quietly grow.

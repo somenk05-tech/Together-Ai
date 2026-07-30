@@ -1,0 +1,4 @@
+{
+  "comment": "Maximum ESLint errors allowed in together-city-react. Lower it whenever you fix some — see scripts/lint-ceiling.mjs and together-city-chat/docs/frontend-lint-debt.md. Never raise it.",
+  "errors": 104
+}
