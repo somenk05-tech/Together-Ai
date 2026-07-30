@@ -1,7 +1,7 @@
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useJobProfile, useUploadResume, SAMPLE_RESUME } from '../api';
+import { useJobProfile, useUploadResume } from '../api';
 
 const MAX_CV_MB = 5;
 const MAX_CV_BYTES = MAX_CV_MB * 1024 * 1024;
@@ -116,10 +116,13 @@ export function Profile() {
           style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
           {pasteOpen ? '− Hide paste box' : '✎ Paste text instead'}
         </button>
-        <button type="button" onClick={() => { setText(SAMPLE_RESUME); setPasteOpen(true); setFileName('sample_resume.txt'); }}
-          style={{ background: 'none', border: 'none', color: 'var(--muted)', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
-          Use a sample
-        </button>
+        {/* "Use a sample" used to sit here and fill this box with an invented
+            person's CV, which then became the citizen's own profile and drove
+            their job matches. A hint about what to include does the same job
+            without putting somebody else's career in their account. */}
+        <span className="muted" style={{ fontSize: 12.5 }}>
+          Name, role, city, years of experience, skills.
+        </span>
       </div>
 
       {pasteOpen && (

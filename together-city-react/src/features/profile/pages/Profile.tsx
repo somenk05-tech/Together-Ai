@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/auth.store';
-import { Card, Button, Spinner, EmptyState } from '@/components/ui';
+import { Card, Button, Spinner, EmptyState, ValueOrEmpty } from '@/components/ui';
 import { useProfileSummary, useProfileCompletion, useHealthScore } from '../hooks';
 import { profileApi } from '../api';
 import { useWebPush } from '@/hooks/useWebPush';
@@ -412,7 +412,9 @@ export function Profile() {
               {data.sections.map((s) => (
                 <div key={s.key} style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 0', borderTop: '1px solid var(--line)' }}>
                   <span className="muted" style={{ fontSize: 13 }}>{s.label}</span>
-                  <span style={{ fontSize: 13.5, color: s.value ? 'var(--ink)' : 'var(--muted)' }}>{s.value ?? 'Not set'}</span>
+                  <span style={{ fontSize: 13.5, color: s.value ? 'var(--ink)' : 'var(--muted)' }}>
+                    <ValueOrEmpty value={s.value} label={s.label} />
+                  </span>
                 </div>
               ))}
             </Card>

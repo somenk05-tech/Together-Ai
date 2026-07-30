@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Three checks the §1 acceptance criteria ask for, run against source.
+ * Four checks, run against source: three from §1's acceptance criteria and one
+ * from §3's ("ban hardcoded sample text in components via lint rule").
  *
  *   1. No page module is left unreachable. Removing a route without removing
  *      its component leaves a file that still contains the retired copy and
@@ -11,6 +12,9 @@
  *   3. Every internal <Link to="/…"> and navigate('/…') in the app resolves to
  *      a route the router actually declares — either a live one or one of the
  *      deliberate redirects.
+ *   4. No component ships invented sample data. The API's own
+ *      route-exposure.spec.ts has enforced this server-side for a while; the
+ *      client had no equivalent, which is where the review found most of it.
  *
  * Source rather than the built bundle, on purpose: the bundle is minified but
  * string literals survive minification, so a source scan finds the same
@@ -131,6 +135,39 @@ for (const file of files) {
       const path = m[1];
       if (path === '/' || path.includes('${')) continue;
       if (!resolves(path)) problems.push(`${rel}:${i + 1}  link to undeclared route ${path}`);
+    }
+  });
+}
+
+// ── 4. no invented sample data in components (§3, FE-3.2) ───────────────
+// Two shapes, because they fail differently.
+//
+// An identifier named for fake data — `const mockUser`, `function dummyPlan()` —
+// is the same rule the API enforces in route-exposure.spec.ts. Matching the
+// declaration rather than the bare word is deliberate: "fake" appears in honest
+// comments and in the WebRTC test doubles, and a guard that fires on those
+// teaches people to switch it off.
+const FAKE_IDENTIFIER = /\b(?:const|let|var|function|class)\s+\w*(?:mock|dummy|fake|placeholder|sample)\w*/i;
+
+// A person who does not exist, rendered as though they do. This is the client's
+// version of the "Diet: everything · Goal: maintain" problem the review
+// photographed — a screen filled in on the citizen's behalf.
+const INVENTED_PERSON = /john doe|jane doe|lorem ipsum|@example\.(com|org)|555-01\d\d/i;
+
+for (const file of files) {
+  if (deadSet.has(file)) continue;
+  const rel = relative(SRC, file);
+  if (/\/fake-|\.stories\./.test(rel)) continue;   // declared test doubles
+  source.get(file).split('\n').forEach((line, i) => {
+    const code = line.split('//')[0];
+    if (FAKE_IDENTIFIER.test(code)) {
+      problems.push(`${rel}:${i + 1}  identifier named for invented data`);
+    }
+    // `placeholder="you@example.com"` is a hint about what to type, not a value
+    // rendered as the citizen's. Ghost text is the one place a fake address is
+    // the honest choice.
+    if (INVENTED_PERSON.test(code) && !/placeholder\s*=/.test(code)) {
+      problems.push(`${rel}:${i + 1}  invented sample data rendered as real`);
     }
   });
 }

@@ -113,9 +113,10 @@ export function useUpdateApplicationStatus(jobId: string) {
   });
 }
 
-export const SAMPLE_RESUME = `Priya Sharma — Senior Frontend Engineer
-Bengaluru · 7 years experience
+// SAMPLE_RESUME lived here: a fabricated CV for "Priya Sharma", offered behind
+// a "Use a sample" button that wrote it into the citizen's OWN jobs profile.
+// Clicking it made their profile hers — seven years in Bengaluru, a fintech
+// design system — and "Jobs for you" then ranked real vacancies against a person
+// who does not exist. Removed under §3: no screen invents data, and the spec's
+// BE-3.3 names this shape exactly ("fixture data imported by app code").
 
-Summary: Senior frontend engineer who led a team building large-scale SaaS web apps.
-Skills: JavaScript, TypeScript, React, GraphQL, Node.js, some AWS and Docker.
-Experience: Led the design system and core web app at a fintech; mentored 4 engineers.`;
