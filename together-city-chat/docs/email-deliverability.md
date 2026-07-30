@@ -12,6 +12,42 @@ records, and it takes a day or two to warm up.
 This is the runbook for that. It is written to be followed once, by whoever owns
 the domain.
 
+## The week nothing was delivered (2026-07-23 → 2026-07-30)
+
+Recorded because the diagnosis was slow and the cause was one character.
+
+`EMAIL_FROM` was set to:
+
+```
+Together City <hello@togethercity.app
+```
+
+No closing `>`. That is not a valid RFC 5322 sender, so Resend refused every
+message with `422 validation_error` — thirteen consecutive rejections over seven
+days, including every password-recovery code anybody asked for.
+
+Three things kept it hidden, and all three are now fixed:
+
+1. **The provider threw the reason away.** `ResendEmailProvider` destructured
+   `{ data, error }` and returned `status: 'failed'` without ever reading
+   `error`. Resend explained the problem thirteen times and the code discarded
+   the explanation every time, so every failure looked identical from inside the
+   application. It now logs the reason, the configured sender, and the
+   recipient's *domain* — not their address, because an error log should not
+   become a list of people's email addresses.
+2. **Nothing validated the sender.** A malformed `EMAIL_FROM` cannot work and is
+   knowable at boot, so `describeFromAddress()` now checks it when the provider
+   is constructed and logs loudly if it will never send. `messaging-provider.spec.ts`
+   pins the exact broken value as a regression case.
+3. **"Configured" was mistaken for "working".** `POST /auth/forgot` reports
+   `delivery: 'live'`, which means a real provider is wired — not that it can
+   deliver. That check passed throughout the outage. It is still the right first
+   probe; it is not the last one.
+
+The lesson worth keeping: an outbound integration needs a failure path that is
+noisier than its success path. This one had a success path that logged and a
+failure path that was silent.
+
 ## Setting it on Railway
 
 The API reads these at boot. Set them in the Railway dashboard on the API

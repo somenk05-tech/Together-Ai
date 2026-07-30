@@ -33,6 +33,8 @@ export interface ProviderResult {
   provider: string;
   providerMessageId: string;
   status: 'queued' | 'sent' | 'failed';
+  /** Why it failed, when it did. Present only on status: 'failed'. */
+  error?: string;
 }
 
 export interface MessagingProvider {
@@ -68,6 +70,49 @@ export class StubMessagingProvider implements MessagingProvider {
  * <no-reply@togethercity.app>"). SendGrid is a drop-in alternative behind the
  * same interface — implement SendgridEmailProvider and add a case below.
  */
+/**
+ * Is this a sender address a mail provider will accept?
+ *
+ * Two legal shapes, and only two: a bare address, or a display name followed by
+ * the address in angle brackets. Checked at construction rather than trusted,
+ * because the failure it catches is silent, total and indistinguishable from a
+ * delivery problem — one missing ">" in an environment variable rejects every
+ * message the application ever sends, and the only evidence is a 422 in the
+ * provider's dashboard that nobody thinks to open.
+ *
+ * That is not hypothetical. EMAIL_FROM was set to
+ * "Together City <hello@togethercity.app" — no closing bracket — and every send
+ * for a week was refused.
+ */
+export function describeFromAddress(from: string): { ok: boolean; reason?: string } {
+  const v = (from ?? '').trim();
+  if (!v) {
+    return {
+      ok: false,
+      reason: 'EMAIL_FROM is empty. Use either "user@domain" or "Display Name <user@domain>".',
+    };
+  }
+
+  const bracketed = /^[^<>]*<([^<>\s]+@[^<>\s]+\.[^<>\s]+)>$/.exec(v);
+  if (bracketed) return { ok: true };
+
+  if (v.includes('<') || v.includes('>')) {
+    return {
+      ok: false,
+      reason: `EMAIL_FROM has unbalanced angle brackets: ${JSON.stringify(v)}. `
+        + 'Use either "user@domain" or "Display Name <user@domain>".',
+    };
+  }
+
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return { ok: true };
+
+  return {
+    ok: false,
+    reason: `EMAIL_FROM is not a valid sender: ${JSON.stringify(v)}. `
+      + 'Use either "user@domain" or "Display Name <user@domain>".',
+  };
+}
+
 export class ResendEmailProvider implements MessagingProvider {
   readonly name = 'resend';
   private readonly client: Resend;
@@ -81,6 +126,14 @@ export class ResendEmailProvider implements MessagingProvider {
   ) {
     this.client = new Resend(apiKey);
     this.from = from;
+
+    // Loud, once, at construction. A sender that cannot work should say so when
+    // the app starts, not on the first verification code somebody waits for.
+    const verdict = describeFromAddress(from);
+    if (!verdict.ok) {
+      // eslint-disable-next-line no-console
+      console.error(`[messaging:resend] REFUSING TO START CLEANLY — ${verdict.reason} Every send will be rejected until this is fixed.`);
+    }
   }
 
   async send(msg: OutboundMessage): Promise<ProviderResult> {
@@ -106,7 +159,19 @@ export class ResendEmailProvider implements MessagingProvider {
         : {}),
     });
     if (error) {
-      return { provider: 'resend', providerMessageId: '', status: 'failed' };
+      // Resend says exactly what was wrong — a rejected sender, a malformed
+      // address, a field it would not accept. This used to destructure `error`
+      // and then discard it, so every failure looked identical from the inside
+      // and thirteen consecutive 422s went unnoticed for a week. The one thing
+      // a failed send must not do is fail silently.
+      const reason = `${error.name ?? 'error'}: ${error.message ?? 'no detail'}`;
+      // The recipient's domain, not their address: enough to tell "every send to
+      // this domain fails" from "this one address is malformed", without turning
+      // an error log into a list of people's email addresses.
+      const domain = msg.to.includes('@') ? msg.to.split('@').pop() : 'unknown';
+      // eslint-disable-next-line no-console
+      console.error(`[messaging:resend] send REJECTED — ${reason} (from: ${this.from}, to domain: ${domain}, kind: ${msg.kind})`);
+      return { provider: 'resend', providerMessageId: '', status: 'failed', error: reason };
     }
     return { provider: 'resend', providerMessageId: data?.id ?? '', status: 'queued' };
   }
@@ -157,7 +222,7 @@ export class TwilioSmsProvider implements MessagingProvider {
         // phone numbers, which is the last thing an incident channel needs.
         // eslint-disable-next-line no-console
         console.error(`[messaging:twilio] send failed (${res.status}): ${json.message ?? 'no detail'}`);
-        return { provider: 'twilio', providerMessageId: json.sid ?? '', status: 'failed' };
+        return { provider: 'twilio', providerMessageId: json.sid ?? '', status: 'failed', error: `${res.status}: ${json.message ?? 'no detail'}` };
       }
       // Twilio's own vocabulary: queued | accepted | sending | sent | failed.
       // Anything that is not an outright failure is 'queued' here, because the
@@ -168,7 +233,7 @@ export class TwilioSmsProvider implements MessagingProvider {
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error(`[messaging:twilio] send threw: ${(e as Error).message}`);
-      return { provider: 'twilio', providerMessageId: '', status: 'failed' };
+      return { provider: 'twilio', providerMessageId: '', status: 'failed', error: (e as Error).message };
     }
   }
 }

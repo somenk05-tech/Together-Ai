@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { ConnectionStatus } from '@prisma/client';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -29,6 +29,8 @@ import type { FlagDto, FolderQueryDto, SendMailDto } from './dto/mail.dto';
 
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger('Mail');
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageProvider,
@@ -456,7 +458,14 @@ export class MailService {
     const provider = createMessagingProvider(channel);
     const res = await provider
       .send({ channel, to: target, subject: r.subject, body: r.body, ...(channel === 'email' && r.html ? { html: r.html } : {}), kind })
-      .catch(() => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const }));
+      .catch((e: Error) => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const, error: e.message }));
+    if (res.status === 'failed') {
+      // Loud, and at the point of dispatch. The provider logs its own reason;
+      // this says which flow lost a message, which is what tells you a citizen
+      // is sitting on a verification screen waiting for a code that is not
+      // coming.
+      this.logger.error(`delivery FAILED user=${userId} channel=${channel} kind=${kind} — ${'error' in res ? res.error : 'no reason reported'}`);
+    }
     await this.prisma.emailDelivery.create({
       data: {
         userId, channel,
