@@ -116,7 +116,7 @@ export class AiSuggestionsService {
 
     const items = await this.ai.json<Suggestion[]>(
       'You write warm, light astrology dating content. Entertainment, never a deterministic claim about anyone.',
-      `The user is a ${sign}. Write 4 compatibility notes for their most compatible signs — for each: which sign, and a playful reason they click. ` +
+      `You are writing to one person, in the second person. They are a ${sign}. Write 4 compatibility notes for their most compatible signs — for each: which sign, and a playful reason they click. ` +
         `Return JSON array of {"title","detail","tag"}. The tag MUST be exactly one of "Classic pairing", "Strong pairing" or "Easy pairing" — ` +
         `never a percentage or any other number, because no percentage is being calculated here.`,
       fallback,
