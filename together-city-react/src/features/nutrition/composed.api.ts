@@ -26,6 +26,37 @@ export interface ComposedDay {
   capBreaches?: string[];
 }
 export interface GroceryItem { name: string; grams: number; unit: string; pantry: boolean; fromRecipes: string[] }
+/**
+ * One step of the working, as the engine returns it. FE-7.1 asks the UI to be
+ * able to show "why the number is what it is", and this is what it reads —
+ * the app does not re-derive anything for display.
+ */
+export interface TraceStep { label: string; value: string }
+
+export interface MissingField { field: string; label: string; why: string; href: string }
+
+/**
+ * Whether these numbers should be shown as this person's at all (BE-7.4).
+ *
+ * `ok: false` with an empty `missing` is its own case, not an oversight: the
+ * profile is complete and the equation still cannot use the answer given for
+ * sex at birth. Nothing to go and fill in.
+ */
+export type Readiness =
+  | { ok: true }
+  | { ok: false; missing: MissingField[]; headline: string; body: string };
+
+export interface Prescription {
+  kcal: number; protein: number; carb: number; fat: number; fiber: number;
+  sodiumMaxMg?: number;
+  assumed?: string[];
+  personalised?: boolean;
+  readiness?: Readiness;
+  energyTrace?: { equation: string; inputs: Record<string, string | number>; steps: TraceStep[]; notes: string[] };
+  energyFloored?: boolean;
+  deficitCapped?: boolean;
+}
+
 export interface ComposedWeek {
   days: ComposedDay[];
   grocery: GroceryItem[];
@@ -54,7 +85,7 @@ export interface ComposedWeek {
   /** Dual score for this plan + the counterpart mode, so each tab shows both
    *  scores and the difference between the two plans. */
   scorecard?: Scorecard;
-  prescription: { kcal: number; protein: number; carb: number; fat: number; fiber: number; sodiumMaxMg?: number };
+  prescription: Prescription;
   fastingSafety: { level: 'ok' | 'warn' | 'block'; notes: string[] };
   basedOnFamily?: { ownerName: string; factor: number };
   readOnly?: boolean;

@@ -7,6 +7,7 @@ import {
   type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard,
 } from '../composed.api';
 import { ComposedMealCard, SkippedMealCard, skippedSlotsFor } from '../components/ComposedMealCard';
+import { TargetsDisclosure } from '../components/TargetsDisclosure';
 import { NIc } from '../components/NIcon';
 
 /** Master-source-of-truth gate: no plan until the Food Preference Profile is saved. */
@@ -422,6 +423,12 @@ export function MealPlan() {
         Complete meals from your prescription ({wk.prescription.kcal} kcal · {wk.prescription.protein} g protein).
         {wk.fasting ? ` Intermittent fasting: ${wk.protocol}.` : ''}
       </p>
+
+      {/* FE-7.1. Directly under the number it explains, because a disclosure
+          somewhere else on the page is one nobody connects to the figure they
+          are doubting. It also carries the refusal when the profile is missing
+          something the equation needs. */}
+      <TargetsDisclosure p={wk.prescription} />
 
       {/* 3-week plan window + review prompt (planned in one go; adjust after it ends). */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: planEnded ? '#faf3e0' : 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12.5 }}>
