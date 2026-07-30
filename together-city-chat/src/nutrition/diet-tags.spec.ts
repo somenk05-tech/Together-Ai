@@ -77,6 +77,18 @@ describe('the things a careless match gets wrong', () => {
     expect(tagsForIngredient('Ginger')).toEqual(['contains-root-vegetable']);
   });
 
+  it('reads a dish that names what it leaves out', () => {
+    // This corpus ships "Carrot Peas-Free Pulao" and "Carrot Beans-Free
+    // Poriyal" — Jain variants titled by their omission. Where the name is the
+    // only signal (a row whose ingredients read "Vegetables"), it is screened
+    // too, so "-free" has to be understood rather than matched.
+    expect(tagsForIngredient('Onion-free gravy')).toEqual([]);
+    expect(tagsForIngredient('Potato free curry')).toEqual([]);
+    expect(tagsForIngredient('Root-free sabzi')).toEqual([]);
+    // And the thing itself still fires.
+    expect(tagsForIngredient('Peas-Free Pulao with Carrot')).toEqual(['contains-root-vegetable']);
+  });
+
   it('worcestershire sauce is fish, which is the point of listing it', () => {
     expect(tagsForIngredient('Worcestershire sauce')).toEqual(['contains-fish']);
   });

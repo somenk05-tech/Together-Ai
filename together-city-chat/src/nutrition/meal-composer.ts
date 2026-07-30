@@ -3,6 +3,25 @@ import {
   resolveSchedule, type FastingPrefs, type DaySchedule,
 } from './meal-engine';
 import { COMPONENT_SEEDS, componentId, componentSteps, isPantryStaple, type ComponentSeed } from './component-recipes';
+import { screenRecipe } from './diet-tags';
+
+/**
+ * Is this dish allowed on this diet? Memoised on (dish id, diet).
+ *
+ * A plan re-screens the same pool thousands of times, and the verdict for one
+ * dish under one diet is fixed. The cache is module-level and unbounded, which
+ * is fine: the key space is the corpus times the seven diets, and the corpus is
+ * loaded once per process.
+ */
+const ALLOWED_CACHE = new Map<string, boolean>();
+function dishAllowed(r: PoolRecipe, diet: string): boolean {
+  const key = `${r.id}|${diet}`;
+  const hit = ALLOWED_CACHE.get(key);
+  if (hit !== undefined) return hit;
+  const ok = screenRecipe(diet, r.ingredients.map((i) => i.name)).ok;
+  ALLOWED_CACHE.set(key, ok);
+  return ok;
+}
 import { computeNutrients, isSalt } from './ingredient-nutrients';
 
 /** Clinically-capped nutrients tracked on every recipe/meal/day (Workstream A). */
@@ -264,6 +283,15 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
     if (respectBan && role === 'main' && ctx.banMain && r.id === ctx.banMain) return false;
     if (!r.categories.some((c) => slotCats.includes(c))) return false;
     if (!dietOk(r.diet, userDiet)) return false;
+    // Belt as well as braces. dietOk reads the dish's LABEL; this reads the
+    // dish. They agree across every shipped corpus — diet-integrity.spec.ts
+    // holds them to it — so this costs nothing today and is what stands between
+    // a citizen and a mislabelled row that arrives later.
+    //
+    // Cached per (dish, diet) because this is the composer's inner loop: the
+    // same few thousand dishes are re-screened on every pick of every slot of
+    // every day. The answer cannot change within a run.
+    if (!dishAllowed(r, userDiet)) return false;
     // Clinical profiles: only build from food whose capped nutrients are known.
     if (prefs.clinical && !r.nutrientComplete) return false;
     if (renal && (r.nutrients.potassiumMg > kCeil || r.nutrients.phosphorusMg > pCeil)) return false;

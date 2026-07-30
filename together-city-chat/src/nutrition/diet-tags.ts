@@ -119,7 +119,9 @@ const RULES: TagRule[] = [
     match: /\b(potato|potatoes|aloo|alu|batata|sweet potato|shakarkand|shakarkandi|yam|suran|jimikand|arbi|arvi|colocasia|taro|carrot|carrots|gajar|radish|mooli|muli|daikon|beetroot|beet|beets|chukandar|turnip|shalgam|rutabaga|parsnip|celeriac|cassava|mushroom|mushrooms|ginger|adrak|horseradish|jerusalem artichoke)\b/i,
     // Powdered/dried spices from rhizomes are not the root vegetable, and
     // "ginger garlic paste" is caught by the onion-garlic rule regardless.
-    except: /\b(ginger|turmeric) (powder|dried)\b|\bdry ginger\b|\bsonth\b|\bpotato[- ]free\b/i,
+    // "<thing>-free" covers the Jain variants this corpus actually ships —
+    // "Carrot Peas-Free Pulao" and friends name what they leave OUT.
+    except: /\b(ginger|turmeric) (powder|dried)\b|\bdry ginger\b|\bsonth\b|\b(potato|carrot|radish|beetroot|mushroom|ginger|onion|garlic|root)[- ]free\b/i,
   },
   {
     tag: 'contains-dairy',
@@ -134,15 +136,29 @@ const RULES: TagRule[] = [
   },
 ];
 
+/**
+ * Memoised by name, because this runs in the meal composer's inner loop.
+ *
+ * `passes()` screens every candidate dish on every pick, and the shipped corpus
+ * has 118,232 ingredient rows drawn from only 4,776 distinct names — so without
+ * a cache the same fourteen regexes run against "onion" tens of thousands of
+ * times per plan. The function is pure, so caching it is free of consequence
+ * beyond memory, and the key space is bounded by the corpus.
+ */
+const TAG_CACHE = new Map<string, DietTag[]>();
+
 /** Everything this ingredient name says about itself. */
 export function tagsForIngredient(name: string): DietTag[] {
   const n = (name ?? '').toLowerCase().trim();
   if (!n) return [];
+  const hit = TAG_CACHE.get(n);
+  if (hit) return hit;
   const out: DietTag[] = [];
   for (const r of RULES) {
     if (r.except?.test(n)) continue;
     if (r.match.test(n)) out.push(r.tag);
   }
+  TAG_CACHE.set(n, out);
   return out;
 }
 
@@ -214,3 +230,23 @@ export function explainScreen(screen: DietScreen): string {
   };
   return `contains ${what[first.tag]} (${first.ingredient})`;
 }
+
+
+/**
+ * The Jain exclusions as plain substrings, for the composer's generic
+ * ingredient-exclusion mechanism.
+ *
+ * That mechanism takes a list of strings and drops any dish whose name or
+ * ingredients contain one — it predates this module and is shared with
+ * allergies and clinical avoid-lists, so it stays. What changes is where the
+ * list comes from: it was written out by hand inside composeFor(), and a second
+ * hand-written copy lived in recipeVariants(). The RULES above remain the
+ * authority; this is the same intent expressed in the form that mechanism eats,
+ * kept here so the two cannot drift apart again.
+ */
+export const JAIN_EXCLUSION_HINTS: readonly string[] = [
+  'onion', 'garlic', 'pyaz', 'lehsun', 'shallot', 'leek', 'chive',
+  'potato', 'aloo', 'batata', 'yam', 'suran', 'arbi', 'colocasia', 'taro',
+  'carrot', 'gajar', 'radish', 'mooli', 'beetroot', 'turnip', 'cassava',
+  'mushroom', 'ginger', 'adrak',
+];

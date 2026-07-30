@@ -27,6 +27,7 @@ import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, mntAvoidKeywords, type MntRule } from './clinical-mnt';
 import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
+import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe } from './diet-tags';
 import { scoreDual, buildScorecard, guidelineCaps } from './plan-score';
 import { recipeImageUrl } from './recipe-image-set';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
@@ -1518,7 +1519,14 @@ export class NutritionService implements OnModuleInit {
     const x = (d || '').toLowerCase();
     if (x === 'vegan' || x === 'jainvegan') return 'vegan';
     if (x === 'egg' || x === 'eggetarian') return 'eggetarian';
-    if (x === 'veg' || x === 'vegetarian') return 'vegetarian';
+    // 'jain' belongs here and was missing, so it fell through to the default
+    // and every Jain recipe in the dataset was loaded as NON-VEG. A Jain dish
+    // is vegetarian by construction — it may contain dairy, never meat — so the
+    // 715 dishes built for Jain diners were the one group that could not be
+    // served them, while non-veg diners could. Vegetarians and vegans lost them
+    // too. The fall-through default is why: an unrecognised diet string became
+    // the most permissive answer instead of the safest one.
+    if (x === 'veg' || x === 'vegetarian' || x === 'jain') return 'vegetarian';
     return 'nonveg';
   }
 
@@ -1765,7 +1773,7 @@ export class NutritionService implements OnModuleInit {
     const rawDiet = ((pref?.diet as string) ?? 'vegetarian').toLowerCase();
     const isJain = rawDiet === 'jain';
     const composerDiet: ComposerDiet = mapUserDiet(rawDiet);
-    const jainExcludes = isJain ? ['onion', 'garlic', 'potato', 'carrot', 'radish', 'beetroot', 'mushroom', 'ginger'] : [];
+    const jainExcludes = isJain ? [...JAIN_EXCLUSION_HINTS] : [];
     // MNT hard-avoid lists (QA M8): organ/processed meat for gout & CKD, alcohol
     // for fatty liver, etc. — now actually applied to the composed plan.
     const mntAvoids = mntAvoidKeywords(activeMntRules({ conditions, flags: flags as Record<string, string>, age: pref?.age ?? 30, sex: pref?.sex ?? 'male' }));
@@ -1955,8 +1963,33 @@ export class NutritionService implements OnModuleInit {
       this.prisma.recipe.findMany({ where, orderBy, skip: (page - 1) * pageSize, take: pageSize, include: { ingredients: { select: { name: true, grams: true } } } } as never) as unknown as Promise<Parameters<NutritionService['recipeCard']>[0][]>,
       this.prisma.recipe.count({ where } as never),
     ]);
+    /**
+     * The column said it was fine; check the dish.
+     *
+     * `where.diet` above is the ONLY diet filter this endpoint had, and it reads
+     * a label. diet-integrity.spec.ts now holds every shipped corpus to that
+     * label, so in normal operation this drops nothing — which is exactly why a
+     * drop is worth shouting about. It means a row reached the database that the
+     * build-time guard never saw: a re-import, a runtime-authored recipe, an
+     * AI-written one. Serving it would put onion in front of somebody who told
+     * us they do not eat it.
+     *
+     * A dropped row makes this page slightly shorter than `total` promises. That
+     * is the right way round: a page of 23 is a cosmetic problem and the
+     * alternative is not.
+     */
+    const safe = q.diet
+      ? rows.filter((r) => {
+        const screen = screenRecipe(q.diet as string, (r.ingredients ?? []).map((i) => i.name));
+        if (!screen.ok) {
+          this.logger.warn(`recipe "${r.name}" is labelled ${r.diet} but ${explainScreen(screen)} — withheld from a ${q.diet} search`);
+        }
+        return screen.ok;
+      })
+      : rows;
+
     return {
-      items: rows.map((r) => this.recipeCard(r)),
+      items: safe.map((r) => this.recipeCard(r)),
       total, page, pageSize, pages: Math.ceil(total / pageSize),
       cuisines: page === 1 ? await this.cuisineFacet() : [],
     };
@@ -5516,7 +5549,6 @@ export class NutritionService implements OnModuleInit {
     };
     const inDiet = ladder[cur.diet] ?? ladder.nonveg;
     const glutenRe = /wheat|maida|\bflour\b|bread|\broti\b|phulka|paratha|naan|pasta|noodle|semolina|rava|barley|seitan|bulgur|couscous|macaroni|spaghetti/i;
-    const jainRe = /onion|garlic|potato|carrot|radish|beetroot|mushroom|ginger/i;
     const hay = (r: PoolRecipe) => `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
     const sameKind = (r: PoolRecipe) => r.role === cur.role || r.categories.some((c) => cur.categories.includes(c));
 
@@ -5525,7 +5557,11 @@ export class NutritionService implements OnModuleInit {
     switch (type) {
       case 'vegetarian': cands = cands.filter((r) => ['vegan', 'vegetarian'].includes(r.diet)); break;
       case 'vegan': cands = cands.filter((r) => r.diet === 'vegan'); break;
-      case 'jain': cands = cands.filter((r) => ['vegan', 'vegetarian'].includes(r.diet) && !jainRe.test(hay(r))); break;
+      // The NAME is screened alongside the ingredients here, which the regex
+      // this replaced also did. A dataset row whose ingredients read
+      // "Vegetables" can still say "Aloo" in its title, and that is the only
+      // signal there is.
+      case 'jain': cands = cands.filter((r) => screenRecipe('jain', [r.name, ...r.ingredients.map((i) => i.name)]).ok); break;
       case 'gluten_free': cands = cands.filter((r) => keepDiet(r) && !glutenRe.test(hay(r))); break;
       case 'higher_protein': cands = cands.filter((r) => keepDiet(r) && r.protein >= cur.protein * 1.12 + 2); break;
       case 'reduce_calories': cands = cands.filter((r) => keepDiet(r) && r.kcal <= cur.kcal * 0.85); break;
@@ -6913,7 +6949,7 @@ export class NutritionService implements OnModuleInit {
       R('Tofu Scramble', 'USA', 'b', 290, 20, 16, 16, 5, 15, 230, 'vegan', [['Tofu', 150, 40], ['Bell pepper', 50, 12], ['Turmeric', 3, 3]]),
       R('Shakshuka', 'Lebanon', 'b', 340, 18, 22, 20, 6, 22, 260, 'egg', [['Egg', 100, 24], ['Tomato', 150, 18], ['Bell pepper', 60, 14]]),
       R('Paneer Bhurji', 'India', 'b', 360, 22, 14, 24, 3, 15, 230, 'veg', [['Paneer', 120, 70], ['Onion tomato', 70, 14]]),
-      R('Sabudana Khichdi', 'India', 'b', 340, 6, 58, 12, 3, 20, 250, 'jain', [['Sago', 90, 20], ['Peanuts', 25, 15], ['Potato', 50, 8]]),
+      R('Sabudana Khichdi', 'India', 'b', 340, 6, 58, 12, 3, 20, 250, 'vegan', [['Sago', 90, 20], ['Peanuts', 25, 15], ['Potato', 50, 8]]),
       R('Congee & Greens', 'China', 'b', 260, 8, 48, 4, 4, 25, 300, 'vegan', [['Rice', 70, 12], ['Greens', 80, 16], ['Ginger', 8, 4]]),
       R('Peanut Butter Banana Toast', 'USA', 'b', 360, 12, 44, 16, 6, 8, 200, 'vegan', [['Whole-grain bread', 70, 20], ['Peanut butter', 30, 22], ['Banana', 60, 8]]),
       R('Rajgira Porridge', 'India', 'b', 280, 8, 46, 7, 6, 15, 240, 'jain', [['Amaranth', 50, 18], ['Milk', 150, 12], ['Jaggery', 12, 5]]),
@@ -7036,13 +7072,13 @@ export class NutritionService implements OnModuleInit {
       R('Vegetable Pulao (Light)', 'India', 'l', 490, 9, 84, 13, 7, 30, 380, 'vegan', [['Basmati rice', 150, 28], ['Mixed vegetables', 120, 22], ['Oil whole spices', 10, 9]]),
       R('Sabudana Fruit Bowl', 'India', 's', 260, 3, 52, 5, 3, 20, 240, 'jain', [['Sago', 60, 13], ['Fruit', 100, 18], ['Coconut', 10, 4]]),
       R('Rice Sevai with Coconut', 'India', 'd', 430, 7, 74, 12, 5, 25, 340, 'vegan', [['Rice vermicelli', 100, 18], ['Coconut', 25, 10], ['Vegetables', 70, 12], ['Oil', 8, 7]]),
-      R('Honey Fruit Chaat', 'India', 's', 190, 2, 44, 1, 5, 10, 220, 'vegan', [['Seasonal fruit', 220, 40], ['Honey', 12, 6], ['Lemon chaat masala', 5, 3]]),
+      R('Honey Fruit Chaat', 'India', 's', 190, 2, 44, 1, 5, 10, 220, 'veg', [['Seasonal fruit', 220, 40], ['Honey', 12, 6], ['Lemon chaat masala', 5, 3]]),
 
       // ───────── Low-protein library (100 recipes) — makes kidney-moderated
       // prescriptions (protein ≤0.9 g/kg) satisfiable at full calories. Protein
       // density ≤ ~4 g/100 kcal; macros computed from ingredient weights. ─────────
       R('Lemon Sevai Upma', 'India', 'b', 382, 7, 69, 9, 3, 20, 168, 'vegan', [['Rice vermicelli', 80, 14], ['Vegetables', 60, 10], ['Lemon', 15, 3], ['Oil', 8, 7], ['Spices', 5, 4]]),
-      R('Sweet Poha with Coconut', 'India', 'b', 414, 5, 74, 11, 2, 20, 108, 'vegan', [['Poha', 70, 14], ['Jaggery', 18, 7], ['Coconut', 15, 6], ['Ghee', 5, 5]]),
+      R('Sweet Poha with Coconut', 'India', 'b', 414, 5, 74, 11, 2, 20, 108, 'veg', [['Poha', 70, 14], ['Jaggery', 18, 7], ['Coconut', 15, 6], ['Ghee', 5, 5]]),
       R('Aloo Poha', 'India', 'b', 405, 7, 72, 10, 3, 20, 204, 'vegan', [['Poha', 70, 14], ['Potato', 80, 9], ['Onion', 40, 6], ['Oil', 9, 8], ['Spices', 5, 4]]),
       R('Sabudana Kheer', 'India', 'b', 370, 6, 71, 7, 0, 20, 268, 'veg', [['Sago', 50, 11], ['Milk', 200, 15], ['Sugar', 18, 7]]),
       R('Vegetable Semiya', 'India', 'b', 379, 7, 66, 10, 3, 20, 174, 'vegan', [['Rice vermicelli', 75, 13], ['Carrot', 50, 9], ['Capsicum', 40, 8], ['Oil', 9, 8]]),
@@ -7065,7 +7101,7 @@ export class NutritionService implements OnModuleInit {
       R('Banana Coconut Smoothie Bowl', 'India', 'b', 296, 6, 46, 9, 4, 20, 292, 'veg', [['Banana', 120, 14], ['Milk', 150, 11], ['Coconut', 12, 5], ['Honey', 10, 5]]),
       R('Toast with Tomato & Olive Oil', 'Italy', 'b', 324, 8, 43, 13, 4, 20, 170, 'vegan', [['Bread', 80, 20], ['Tomato', 80, 12], ['Oil', 10, 9]]),
       R('Congee with Vegetables', 'China', 'b', 245, 6, 54, 1, 3, 20, 145, 'vegan', [['Rice', 60, 10], ['Vegetables', 80, 14], ['Spices', 5, 4]]),
-      R('Fruit Couscous Breakfast Bowl', 'Lebanon', 'b', 287, 7, 62, 1, 4, 20, 155, 'vegan', [['Couscous', 55, 14], ['Mixed fruit', 90, 16], ['Honey', 10, 5]]),
+      R('Fruit Couscous Breakfast Bowl', 'Lebanon', 'b', 287, 7, 62, 1, 4, 20, 155, 'veg', [['Couscous', 55, 14], ['Mixed fruit', 90, 16], ['Honey', 10, 5]]),
       R('Lemon Rice with Vegetables', 'India', 'l', 440, 8, 77, 11, 3, 30, 191, 'vegan', [['Rice', 90, 15], ['Vegetables', 70, 12], ['Lemon', 15, 3], ['Oil', 10, 9], ['Spices', 6, 5]]),
       R('Tamarind Rice (Puliyodarai)', 'India', 'l', 431, 7, 72, 13, 2, 30, 130, 'vegan', [['Rice', 90, 15], ['Tamarind', 20, 5], ['Oil', 12, 11], ['Spices', 8, 6]]),
       R('Vegetable Pulao (Kidney-Light)', 'India', 'l', 461, 8, 82, 11, 4, 30, 201, 'vegan', [['Rice', 95, 16], ['Vegetables', 90, 16], ['Oil', 10, 9], ['Spices', 6, 5]]),
@@ -7087,7 +7123,7 @@ export class NutritionService implements OnModuleInit {
       R('Tinda Masala with Rice', 'India', 'l', 441, 9, 79, 10, 5, 30, 274, 'vegan', [['Rice', 85, 14], ['Bottle gourd', 130, 17], ['Tomato', 50, 8], ['Oil', 9, 8]]),
       R('Mushroom Rice (Light)', 'China', 'l', 422, 9, 74, 10, 2, 30, 193, 'vegan', [['Rice', 90, 15], ['Mushroom', 90, 20], ['Oil', 9, 8], ['Spices', 4, 3]]),
       R('Vegetable Paella (Light)', 'Continental', 'l', 448, 8, 79, 11, 4, 30, 205, 'vegan', [['Rice', 90, 15], ['Vegetables', 100, 17], ['Oil', 10, 9], ['Spices', 5, 4]]),
-      R('Carrot Peas-Free Pulao', 'India', 'l', 448, 8, 81, 10, 4, 30, 190, 'jain', [['Rice', 95, 16], ['Carrot', 80, 14], ['Oil', 9, 8], ['Spices', 6, 5]]),
+      R('Carrot Peas-Free Pulao', 'India', 'l', 448, 8, 81, 10, 4, 30, 190, 'vegan', [['Rice', 95, 16], ['Carrot', 80, 14], ['Oil', 9, 8], ['Spices', 6, 5]]),
       R('Ash Gourd Stew with Rice', 'India', 'l', 479, 9, 79, 14, 6, 30, 240, 'vegan', [['Rice', 85, 14], ['Bottle gourd', 130, 17], ['Coconut', 18, 7], ['Oil', 7, 6]]),
       R('Capsicum Masala Rice', 'India', 'l', 435, 8, 78, 10, 4, 30, 195, 'vegan', [['Rice', 90, 15], ['Capsicum', 90, 18], ['Oil', 9, 8], ['Spices', 6, 5]]),
       R('Sweet Potato Coconut Curry & Rice', 'India', 'l', 499, 9, 86, 14, 5, 30, 225, 'vegan', [['Rice', 80, 13], ['Sweet potato', 120, 16], ['Coconut', 18, 7], ['Oil', 7, 6]]),
@@ -7101,7 +7137,7 @@ export class NutritionService implements OnModuleInit {
       R('Potato Leek-Style Soup & Toast', 'Continental', 'd', 385, 12, 60, 11, 5, 30, 316, 'veg', [['Potato', 150, 16], ['Milk', 100, 8], ['Bread', 60, 15], ['Butter', 6, 6]]),
       R('Vegetable Stew with Appam', 'India', 'd', 382, 8, 68, 8, 6, 30, 272, 'vegan', [['Idli batter', 150, 22], ['Vegetables', 100, 17], ['Coconut', 22, 9]]),
       R('Cabbage Poriyal & Rice', 'India', 'd', 440, 9, 74, 12, 5, 30, 224, 'vegan', [['Rice', 85, 14], ['Cabbage', 120, 18], ['Coconut', 12, 5], ['Oil', 7, 6]]),
-      R('Carrot Beans-Free Poriyal & Rice', 'India', 'd', 448, 8, 77, 12, 5, 30, 214, 'jain', [['Rice', 85, 14], ['Carrot', 110, 19], ['Coconut', 12, 5], ['Oil', 7, 6]]),
+      R('Carrot Beans-Free Poriyal & Rice', 'India', 'd', 448, 8, 77, 12, 5, 30, 214, 'vegan', [['Rice', 85, 14], ['Carrot', 110, 19], ['Coconut', 12, 5], ['Oil', 7, 6]]),
       R('Turai Sabzi with Phulka', 'India', 'd', 335, 9, 53, 10, 8, 30, 203, 'vegan', [['Wheat flour', 60, 10], ['Bottle gourd', 130, 17], ['Oil', 8, 7], ['Spices', 5, 4]]),
       R('Vegetable Daliya (Light)', 'India', 'd', 339, 8, 54, 10, 8, 30, 173, 'vegan', [['Semolina', 65, 13], ['Vegetables', 100, 17], ['Oil', 8, 7]]),
       R('Baingan Bharta (Light) & Phulka', 'India', 'd', 349, 9, 54, 11, 8, 30, 215, 'vegan', [['Wheat flour', 60, 10], ['Vegetables', 140, 24], ['Oil', 9, 8], ['Spices', 6, 5]]),
@@ -7117,25 +7153,25 @@ export class NutritionService implements OnModuleInit {
       R('Light Tomato Khow Suey (Veg)', 'Thailand', 'd', 429, 11, 63, 15, 5, 30, 185, 'vegan', [['Noodles', 80, 19], ['Coconut', 18, 7], ['Tomato', 80, 12], ['Oil', 7, 6]]),
       R('Jain Vegetable Pulao (Dinner)', 'India', 'd', 455, 9, 82, 10, 4, 30, 224, 'jain', [['Rice', 95, 16], ['Capsicum', 60, 12], ['Cabbage', 60, 9], ['Oil', 9, 8]]),
       R('Fruit Chaat (Low-Protein)', 'India', 's', 124, 2, 28, 1, 5, 15, 213, 'vegan', [['Mixed fruit', 200, 35], ['Lemon', 10, 2], ['Spices', 3, 2]]),
-      R('Boiled Sweet Corn Cup', 'India', 's', 206, 5, 32, 6, 4, 15, 163, 'vegan', [['Corn', 150, 25], ['Butter', 5, 5], ['Lemon', 8, 2]]),
+      R('Boiled Sweet Corn Cup', 'India', 's', 206, 5, 32, 6, 4, 15, 163, 'veg', [['Corn', 150, 25], ['Butter', 5, 5], ['Lemon', 8, 2]]),
       R('Baked Sweet Potato Wedges', 'India', 's', 181, 3, 26, 7, 3, 15, 161, 'vegan', [['Sweet potato', 150, 20], ['Oil', 7, 6], ['Spices', 4, 3]]),
       R('Cucumber Tomato Sandwich', 'India', 's', 268, 8, 41, 8, 5, 15, 156, 'veg', [['Bread', 70, 17], ['Vegetables', 80, 14], ['Butter', 6, 6]]),
       R('Murmura Bhel (Light)', 'India', 's', 177, 4, 40, 0, 2, 15, 118, 'vegan', [['Murmura', 40, 8], ['Onion', 30, 5], ['Tomato', 40, 6], ['Lemon', 8, 2]]),
       R('Tomato Soup with Croutons', 'Continental', 's', 178, 4, 23, 8, 4, 15, 236, 'vegan', [['Tomato', 200, 30], ['Bread', 30, 8], ['Oil', 6, 5]]),
       R('Vegetable Clear Soup', 'China', 's', 66, 3, 12, 1, 4, 15, 155, 'vegan', [['Vegetables', 150, 26], ['Spices', 5, 4]]),
-      R('Banana with Honey', 'India', 's', 166, 1, 39, 0, 3, 15, 132, 'vegan', [['Banana', 120, 14], ['Honey', 12, 6]]),
-      R('Apple Slices with Cinnamon', 'India', 's', 138, 1, 32, 1, 4, 15, 188, 'vegan', [['Apple', 180, 32], ['Honey', 8, 4]]),
+      R('Banana with Honey', 'India', 's', 166, 1, 39, 0, 3, 15, 132, 'veg', [['Banana', 120, 14], ['Honey', 12, 6]]),
+      R('Apple Slices with Cinnamon', 'India', 's', 138, 1, 32, 1, 4, 15, 188, 'veg', [['Apple', 180, 32], ['Honey', 8, 4]]),
       R('Lemon Sago Pearls', 'India', 's', 207, 0, 52, 0, 0, 15, 67, 'vegan', [['Sago', 45, 10], ['Lemon', 10, 2], ['Sugar', 12, 5]]),
-      R('Rice Cakes with Fruit', 'India', 's', 225, 3, 52, 0, 3, 15, 143, 'vegan', [['Murmura', 35, 7], ['Mixed fruit', 100, 18], ['Honey', 8, 4]]),
+      R('Rice Cakes with Fruit', 'India', 's', 225, 3, 52, 0, 3, 15, 143, 'veg', [['Murmura', 35, 7], ['Mixed fruit', 100, 18], ['Honey', 8, 4]]),
       R('Roasted Makhana (Small Bowl)', 'India', 's', 124, 2, 19, 4, 2, 15, 29, 'jain', [['Makhana', 25, 19], ['Ghee', 4, 4]]),
       R('Mango Slices Plate', 'India', 's', 138, 1, 32, 1, 4, 15, 200, 'vegan', [['Mango', 200, 36]]),
       R('Steamed Corn & Capsicum Cup', 'India', 's', 134, 4, 25, 2, 4, 15, 158, 'vegan', [['Corn', 100, 17], ['Capsicum', 50, 10], ['Lemon', 8, 2]]),
       R('Sabudana Fruit Pudding', 'India', 's', 301, 4, 61, 4, 2, 15, 250, 'veg', [['Sago', 40, 9], ['Milk', 120, 9], ['Mixed fruit', 80, 14], ['Sugar', 10, 4]]),
-      R('Grilled Pineapple-Style Fruit Skewers', 'Continental', 's', 146, 1, 34, 1, 4, 15, 190, 'vegan', [['Mixed fruit', 180, 32], ['Honey', 10, 5]]),
+      R('Grilled Pineapple-Style Fruit Skewers', 'Continental', 's', 146, 1, 34, 1, 4, 15, 190, 'veg', [['Mixed fruit', 180, 32], ['Honey', 10, 5]]),
       R('Veg Suji Toast (Small)', 'India', 's', 325, 9, 52, 9, 6, 15, 141, 'veg', [['Bread', 60, 15], ['Semolina', 25, 5], ['Vegetables', 50, 9], ['Oil', 6, 5]]),
       R('Carrot Cucumber Sticks with Lemon', 'India', 's', 78, 3, 15, 1, 5, 15, 190, 'vegan', [['Carrot', 100, 17], ['Vegetables', 80, 14], ['Lemon', 10, 2]]),
       R('Watermelon-Style Fruit Bowl', 'India', 's', 149, 2, 34, 1, 6, 15, 250, 'vegan', [['Mixed fruit', 250, 44]]),
-      R('Honey Lemon Rice Flakes', 'India', 's', 206, 3, 47, 0, 1, 15, 65, 'vegan', [['Poha', 45, 9], ['Honey', 12, 6], ['Lemon', 8, 2]]),
+      R('Honey Lemon Rice Flakes', 'India', 's', 206, 3, 47, 0, 1, 15, 65, 'veg', [['Poha', 45, 9], ['Honey', 12, 6], ['Lemon', 8, 2]]),
       R('Baked Potato Smiley Plate', 'India', 's', 249, 4, 39, 8, 3, 15, 168, 'vegan', [['Potato', 140, 15], ['Poha', 20, 4], ['Oil', 8, 7]]),
       R('Coconut Water Fruit Cup', 'India', 's', 126, 1, 22, 4, 5, 15, 160, 'vegan', [['Mixed fruit', 150, 26], ['Coconut', 10, 4]]),
       R('Tomato Bruschetta (Light)', 'Italy', 's', 254, 6, 34, 11, 3, 15, 158, 'vegan', [['Bread', 60, 15], ['Tomato', 90, 14], ['Oil', 8, 7]]),
@@ -7152,7 +7188,7 @@ export class NutritionService implements OnModuleInit {
       R('Double Dosa with Potato Masala', 'India', 'b', 635, 12, 114, 14, 5, 25, 389, 'vegan', [['Idli batter', 240, 34], ['Potato', 130, 14], ['Oil', 13, 11], ['Spices', 6, 5]]),
       R('Idli Trio with Coconut Chutney', 'India', 'b', 678, 12, 111, 20, 6, 25, 324, 'vegan', [['Idli batter', 280, 40], ['Coconut', 30, 12], ['Oil', 9, 8], ['Spices', 5, 4]]),
       R('Banana Jaggery Pancake Stack', 'India', 'b', 617, 11, 112, 14, 10, 25, 235, 'veg', [['Wheat flour', 85, 14], ['Banana', 110, 13], ['Jaggery', 28, 10], ['Ghee', 12, 12]]),
-      R('Sweet Coconut Poha Bowl (Large)', 'India', 'b', 646, 8, 115, 17, 4, 25, 168, 'vegan', [['Poha', 105, 19], ['Jaggery', 30, 11], ['Coconut', 25, 10], ['Ghee', 8, 8]]),
+      R('Sweet Coconut Poha Bowl (Large)', 'India', 'b', 646, 8, 115, 17, 4, 25, 168, 'veg', [['Poha', 105, 19], ['Jaggery', 30, 11], ['Coconut', 25, 10], ['Ghee', 8, 8]]),
       R('Fruit & Sago Breakfast Pudding', 'India', 'b', 578, 8, 119, 8, 3, 25, 426, 'veg', [['Sago', 80, 17], ['Milk', 220, 17], ['Sugar', 26, 10], ['Mixed fruit', 100, 18]]),
       R('French Toast with Honey (Eggless)', 'Continental', 'b', 556, 14, 84, 18, 4, 25, 266, 'veg', [['Bread', 110, 27], ['Milk', 120, 9], ['Honey', 24, 12], ['Butter', 12, 12]]),
       R('Vegetable Semiya Feast', 'India', 'b', 567, 10, 98, 15, 4, 25, 225, 'vegan', [['Rice vermicelli', 115, 20], ['Vegetables', 90, 16], ['Oil', 14, 12], ['Spices', 6, 5]]),
@@ -7196,7 +7232,7 @@ export class NutritionService implements OnModuleInit {
       R('Corn Capsicum Rice (Full)', 'India', 'd', 706, 14, 130, 15, 6, 35, 307, 'vegan', [['Rice', 135, 23], ['Corn', 90, 15], ['Capsicum', 70, 14], ['Oil', 12, 10]]),
       R('Veg Khow Suey (Hearty)', 'Thailand', 'd', 699, 18, 105, 23, 8, 35, 270, 'vegan', [['Noodles', 135, 32], ['Coconut', 30, 11], ['Tomato', 95, 15], ['Oil', 10, 10]]),
       R('Sweet Potato Dinner Platter', 'India', 'd', 676, 12, 110, 21, 8, 35, 420, 'vegan', [['Sweet potato', 320, 43], ['Poha', 70, 14], ['Oil', 20, 18], ['Spices', 10, 8]]),
-      R('Fruit Chaat Grande', 'India', 's', 309, 3, 72, 1, 10, 15, 415, 'vegan', [['Mixed fruit', 380, 67], ['Honey', 20, 9], ['Lemon', 15, 3]]),
+      R('Fruit Chaat Grande', 'India', 's', 309, 3, 72, 1, 10, 15, 415, 'veg', [['Mixed fruit', 380, 67], ['Honey', 20, 9], ['Lemon', 15, 3]]),
       R('Sweet Potato Wedges (Big Bowl)', 'India', 's', 289, 5, 44, 10, 5, 15, 270, 'vegan', [['Sweet potato', 255, 34], ['Oil', 10, 10], ['Spices', 5, 5]]),
       R('Corn Butter Cup (Large)', 'India', 's', 298, 7, 42, 11, 5, 15, 218, 'veg', [['Corn', 200, 34], ['Butter', 10, 10], ['Lemon', 8, 2]]),
       R('Banana Date Bowl', 'India', 's', 385, 8, 73, 7, 6, 15, 360, 'veg', [['Banana', 140, 16], ['Milk', 180, 14], ['Dates', 30, 12], ['Honey', 10, 5]]),
@@ -7204,8 +7240,8 @@ export class NutritionService implements OnModuleInit {
       R('Sago Fruit Pudding (Large)', 'India', 's', 424, 6, 87, 6, 3, 15, 334, 'veg', [['Sago', 60, 13], ['Milk', 160, 12], ['Mixed fruit', 100, 18], ['Sugar', 14, 6]]),
       R('Suji Ladoo Plate (3 pc)', 'India', 's', 445, 6, 67, 17, 5, 15, 101, 'veg', [['Semolina', 60, 12], ['Sugar', 26, 10], ['Ghee', 15, 15]]),
       R('Honey Toast Plate', 'Continental', 's', 383, 8, 62, 12, 3, 15, 115, 'veg', [['Bread', 85, 21], ['Honey', 20, 10], ['Butter', 10, 10]]),
-      R('Mango Coconut Cup (Large)', 'India', 's', 306, 2, 58, 7, 7, 15, 310, 'vegan', [['Mango', 280, 51], ['Coconut', 20, 8], ['Honey', 10, 5]]),
-      R('Baked Potato Chaat Bowl', 'India', 's', 306, 10, 60, 3, 7, 15, 430, 'vegan', [['Potato', 315, 35], ['Curd', 80, 13], ['Tamarind', 25, 6], ['Spices', 10, 8]]),
+      R('Mango Coconut Cup (Large)', 'India', 's', 306, 2, 58, 7, 7, 15, 310, 'veg', [['Mango', 280, 51], ['Coconut', 20, 8], ['Honey', 10, 5]]),
+      R('Baked Potato Chaat Bowl', 'India', 's', 306, 10, 60, 3, 7, 15, 430, 'veg', [['Potato', 315, 35], ['Curd', 80, 13], ['Tamarind', 25, 6], ['Spices', 10, 8]]),
     ];
 
     // "LowProtein 300 (new)" — 150 high-calorie low-protein mains + 150 snack

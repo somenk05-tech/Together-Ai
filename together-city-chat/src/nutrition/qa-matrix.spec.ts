@@ -18,7 +18,7 @@ function mapDiet(d: string): Diet {
   const x = (d || '').toLowerCase();
   if (x === 'vegan' || x === 'jainvegan') return 'vegan';
   if (x === 'egg' || x === 'eggetarian') return 'eggetarian';
-  if (x === 'veg' || x === 'vegetarian') return 'vegetarian';
+  if (x === 'veg' || x === 'vegetarian' || x === 'jain') return 'vegetarian';   // mirrors mapDiet()
   return 'nonveg';
 }
 function roleFor(cats: MealCategory[]): string | null {
