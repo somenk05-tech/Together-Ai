@@ -182,6 +182,7 @@ model User {
 
   @@index([onlineStatus])
   dailyTargets      DailyTargetSnapshot[]
+  groceryList       GroceryListItem[]
 }
 
 model RefreshToken {
@@ -650,6 +651,41 @@ model GroceryItem {
   cart GroceryCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
 
   @@index([cartId])
+}
+
+/// One line on a citizen's shopping list, and whether it is in the basket yet
+/// (BE-11.1).
+///
+/// Check state used to live in a React useState, so it survived exactly as long
+/// as the page did. Somebody halfway round a supermarket who switched apps or
+/// let the screen lock came back to a list with nothing ticked. This is a list
+/// people use while standing up and holding something else.
+///
+/// Keyed by (user, key) where key is the canonical item name, so REGENERATING
+/// THE PLAN MERGES rather than replaces: a line that is still needed keeps its
+/// tick, a line that is no longer needed drops out, and anything added by hand
+/// stays because nothing generated it in the first place.
+model GroceryListItem {
+  id     String @id @default(uuid())
+  userId String
+  /// Canonical item name, lower-cased — the merge key.
+  key      String
+  /// What to show. May change wording between regenerations; `key` may not.
+  label    String
+  aisle    String  @default("")
+  qtyLabel String  @default("")
+  checked  Boolean @default(false)
+  /// plan | manual. A manual line is never removed by a regeneration; the
+  /// citizen put it there and the planner does not know why.
+  source    String   @default("plan")
+  checkedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId, checked])
 }
 
 model WalletLedger {

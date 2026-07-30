@@ -93,6 +93,7 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'Thought', by: 'userId', action: 'purge', reason: 'A private journal. If anything here is purged, this is.' },
   { model: 'MasterProfile', by: 'userId', action: 'purge', reason: 'The cross-hub profile — birth details, body, preferences.' },
   { model: 'ProfileChange', by: 'userId', action: 'purge', reason: 'Audit trail of profile edits — holds the old and new values of health data, so it is the citizen\'s data too, not just a record that they had some.' },
+  { model: 'GroceryListItem', by: 'userId', action: 'purge', reason: 'Their shopping list, including anything they added by hand. Small, and theirs.' },
   { model: 'DailyTargetSnapshot', by: 'userId', action: 'purge', reason: 'The calorie and macro targets in force on each of their days — derived from their weight, height, age, sex and medical conditions, and holding the whole prescription as JSON. A record of somebody\'s body over time.' },
   { model: 'VerificationCode', by: 'userId', action: 'purge', reason: 'Six-digit codes with the email address or phone number they were sent to. Spent or not, it is contact data.' },
   { model: 'AstroProfile', by: 'userId', action: 'purge', reason: 'Birth date, time and place.' },
