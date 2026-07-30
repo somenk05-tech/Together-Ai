@@ -30,7 +30,7 @@ function WeekRow({ w }: { w: NutritionHistoryWeek }) {
 
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 12 }}>
-      <button type="button" onClick={toggle}
+      <button type="button" onClick={() => void toggle()}
         style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: 'transparent', border: 'none', padding: '16px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, fontFamily: 'inherit' }}>
         <span>
           <span style={{ display: 'block', fontFamily: 'var(--serif)', fontSize: 17 }}>Week {w.weekNumber} · {w.weekLabel}</span>

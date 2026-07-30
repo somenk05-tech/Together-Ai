@@ -350,11 +350,11 @@ function ConnectButton({ id, handle, relationship }: { id: string; handle: strin
     } catch { /* connected users only */ } finally { setBusy(false); }
   };
 
-  if (rel === 'accepted') return <Button variant="accent" size="sm" disabled={busy} onClick={message}>{busy ? '…' : 'Message'}</Button>;
+  if (rel === 'accepted') return <Button variant="accent" size="sm" disabled={busy} onClick={() => void message()}>{busy ? '…' : 'Message'}</Button>;
   if (rel === 'pending_out') return <Button variant="line" size="sm" disabled>Requested</Button>;
-  if (rel === 'pending_in') return <Button variant="accent" size="sm" disabled={respondConn.isPending} onClick={accept}>Accept</Button>;
+  if (rel === 'pending_in') return <Button variant="accent" size="sm" disabled={respondConn.isPending} onClick={() => void accept()}>Accept</Button>;
   if (rel === 'blocked') return <Button variant="line" size="sm" disabled>Unavailable</Button>;
-  return <Button variant="accent" size="sm" disabled={requestConn.isPending} onClick={connect}>Connect</Button>;
+  return <Button variant="accent" size="sm" disabled={requestConn.isPending} onClick={() => void connect()}>Connect</Button>;
 }
 
 /** Block / Report safety actions for a person, shown in their profile modal. */
@@ -675,7 +675,7 @@ function EditProfileModal({ me, onClose }: { me: MyProfile; onClose: () => void 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8 }}>
           <Avatar src={photo} name={name} size={64} />
           <div>
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => void onFile(e.target.files?.[0])} />
             <Button variant="line" size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>Change photo</Button>
             <p className="muted" style={{ fontSize: 11, margin: '6px 0 0' }}>Square JPG/PNG, saved instantly.</p>
           </div>
@@ -704,7 +704,7 @@ function EditProfileModal({ me, onClose }: { me: MyProfile; onClose: () => void 
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
           <Button variant="line" size="sm" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button variant="accent" size="sm" onClick={save} disabled={busy || !name.trim() || handle.length < 3}>{busy ? 'Saving…' : 'Save changes'}</Button>
+          <Button variant="accent" size="sm" onClick={() => void save()} disabled={busy || !name.trim() || handle.length < 3}>{busy ? 'Saving…' : 'Save changes'}</Button>
         </div>
       </div>
     </div>

@@ -92,7 +92,7 @@ export function PhotoCapture({ photos, onChange }: { photos: Photo[]; onChange: 
         </div>
       ) : (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-          <Button variant="accent" size="sm" onClick={startCamera}>📷 Use camera</Button>
+          <Button variant="accent" size="sm" onClick={() => void startCamera()}>📷 Use camera</Button>
           <Button variant="line" size="sm" onClick={() => fileRef.current?.click()}>🖼 Upload from gallery</Button>
           <input ref={fileRef} type="file" accept="image/*" multiple capture="environment" onChange={onFiles} style={{ display: 'none' }} />
         </div>

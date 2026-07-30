@@ -83,7 +83,7 @@ export function RecipeLibrary() {
   const errorState = (
     <div style={{ textAlign: 'center' }}>
       <EmptyState title="Couldn't load recipes" hint="Something went wrong reaching the recipe library. Check your connection and try again." />
-      <Button variant="line" size="sm" onClick={() => lib.refetch()}>Try again</Button>
+      <Button variant="line" size="sm" onClick={() => void lib.refetch()}>Try again</Button>
     </div>
   );
 

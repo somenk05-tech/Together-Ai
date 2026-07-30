@@ -243,7 +243,7 @@ export function Records() {
         </div>
       )}
 
-      <form onSubmit={submit} className="card" style={{ marginTop: 18 }}>
+      <form onSubmit={(e) => void submit(e)} className="card" style={{ marginTop: 18 }}>
         <div className="eyebrow">Add to your record</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '4px 0 12px' }}>
           {KINDS.map((k) => (

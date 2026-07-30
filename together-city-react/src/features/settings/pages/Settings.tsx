@@ -128,6 +128,24 @@ export function Settings() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const pushOn = push.permission === 'granted';
 
+  /** Extracted from the button: an async onClick returns a promise React
+   *  never looks at, so a failure here would have been silent. */
+  const deleteAccount = async () => {
+    if (!window.confirm('Permanently delete your Together City account? This cannot be undone.')) return;
+    setDeleting(true); setDeleteError(null);
+    try {
+      await authApi.deleteAccount(deletePassword);
+      // Session is already revoked server-side; clear the client and
+      // land on a clean sign-in screen.
+      signOut();
+      window.location.assign('/sign-in');
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setDeleteError(msg ?? "Couldn't delete the account just now — please try again.");
+      setDeleting(false);
+    }
+  };
+
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '36px 20px 90px' }}>
       <div className="eyebrow">Together City</div>
@@ -157,7 +175,7 @@ export function Settings() {
               : 'Get notified of new messages even when Together City is closed.'}
             right={pushOn ? <span className="tag">Enabled</span>
               : push.permission === 'denied' ? <span className="tag">Blocked</span>
-              : <Button size="sm" variant="accent" disabled={push.busy} onClick={push.enable}>{push.busy ? 'Enabling…' : 'Enable'}</Button>}
+              : <Button size="sm" variant="accent" disabled={push.busy} onClick={() => void push.enable()}>{push.busy ? 'Enabling…' : 'Enable'}</Button>}
           />
         )}
         <Row title="Digest bundling" desc="Group order updates into one notification" right={<Switch on={digest} onChange={setDigest} />} />
@@ -209,21 +227,7 @@ export function Settings() {
           />
           <Button size="sm" variant="line" disabled={confirmText !== 'DELETE' || !deletePassword || deleting}
             style={confirmText === 'DELETE' && deletePassword ? { borderColor: '#e0342b', color: '#e0342b' } : undefined}
-            onClick={async () => {
-              if (!window.confirm('Permanently delete your Together City account? This cannot be undone.')) return;
-              setDeleting(true); setDeleteError(null);
-              try {
-                await authApi.deleteAccount(deletePassword);
-                // Session is already revoked server-side; clear the client and
-                // land on a clean sign-in screen.
-                signOut();
-                window.location.assign('/sign-in');
-              } catch (err) {
-                const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-                setDeleteError(msg ?? "Couldn't delete the account just now — please try again.");
-                setDeleting(false);
-              }
-            }}>
+            onClick={() => void deleteAccount()}>
             {deleting ? 'Deleting…' : 'Delete my account'}
           </Button>
         </div>

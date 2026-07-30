@@ -88,7 +88,7 @@ export function AddHubMemberDialog({
           <button onClick={onClose} aria-label="Close" style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--muted)', lineHeight: 1 }}>×</button>
         </div>
 
-        <form onSubmit={search} style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <form onSubmit={(e) => void search(e)} style={{ display: 'flex', gap: 8, marginTop: 16 }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', border: '1.5px solid var(--line)', borderRadius: 12, padding: '0 12px' }}>
             <span className="muted">@</span>
             <input value={query} autoCapitalize="off" autoCorrect="off" spellCheck={false}
@@ -113,7 +113,7 @@ export function AddHubMemberDialog({
                 <div className="muted" style={{ fontSize: 12, fontFamily: 'monospace' }}>@{result.handle}</div>
               </div>
               {result.relationship === 'pending_out' && <Button variant="line" size="sm" disabled>Requested</Button>}
-              {result.relationship === 'pending_in' && <Button variant="accent" size="sm" disabled={respondConn.isPending} onClick={accept}>Accept request</Button>}
+              {result.relationship === 'pending_in' && <Button variant="accent" size="sm" disabled={respondConn.isPending} onClick={() => void accept()}>Accept request</Button>}
               {result.relationship === 'accepted' && <span style={{ fontSize: 12.5, color: '#2e7d4f', fontWeight: 700 }}>✓ Connected</span>}
               {result.relationship === 'blocked' && <Button variant="line" size="sm" disabled>Unavailable</Button>}
             </div>
@@ -139,7 +139,7 @@ export function AddHubMemberDialog({
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{def.emoji} {def.label}</span>
                   <span className="muted" style={{ fontSize: 11.5 }}>will be connected · Chat & Mail are always on</span>
                 </div>
-                <Button variant="accent" onClick={connect} disabled={requestConn.isPending} style={{ width: '100%' }}>
+                <Button variant="accent" onClick={() => void connect()} disabled={requestConn.isPending} style={{ width: '100%' }}>
                   {requestConn.isPending ? 'Sending…' : `Send request →`}
                 </Button>
               </div>

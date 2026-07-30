@@ -5,9 +5,9 @@ nobody looks at it, which means the script gives no signal: a new error lands in
 a sea of old ones and nothing tells anybody. This records where it stands, what
 was cleared, and what each remaining category actually costs.
 
-**150 errors across 41 files → 104 across 31.** Not green. The rest is real
-typing work, not a sweep — and it is now held to a ceiling so it cannot grow
-(see the last section).
+**150 errors across 41 files → 68.** Not green. What remains is real typing
+work rather than a sweep, and it is held to a ceiling so it cannot grow (see
+the last section).
 
 ## Cleared
 
@@ -30,19 +30,28 @@ codebase already did, so the deliberate ones are visibly deliberate.
 
 ## Remaining, and what it would take
 
-### `no-misused-promises` (36) — an afternoon, mechanical, low risk
+### `no-misused-promises` (36) — done
 
 Async functions passed where a void return is expected: `onClick={submit}`,
-`onSubmit={handler}`. A rejection in one of these becomes an unhandled promise
+`onSubmit={handler}`. A rejection in one of those becomes an unhandled promise
 rejection — nothing crashes, and the person sees a button that did nothing and
-said nothing.
+said nothing about it.
 
-The fix per site is `onClick={() => void submit()}`, with care where the handler
-takes the event. Deliberately not swept automatically: the transform differs
-depending on whether the handler takes arguments, and a wrong one type-checks
-while silently dropping the event.
+Every site was checked before it was changed, because the transform depends on
+the handler's own signature and the wrong one type-checks while silently
+dropping the event:
 
-### The `no-unsafe-*` family (57) — the real work
+  - zero-argument handlers → `onClick={() => void submit()}`
+  - form handlers taking a `FormEvent` → `onSubmit={(e) => void submit(e)}`,
+    which is the case where a careless sweep would have broken
+    `preventDefault()` and started reloading the page on every submit
+  - two inline async blocks (the account-delete button in Settings, the
+    handle-availability debounce in RegisterForm) were extracted and named,
+    because a `setTimeout(async () => …)` is a promise nobody is watching
+  - `useMealSwapHistory` was being handed an async `mutate` where it declares
+    `(fn) => void`
+
+### The `no-unsafe-*` family (57) — the real work, and now the whole remainder
 
 `no-unsafe-member-access` (34), `no-unsafe-assignment` (14),
 `no-unsafe-argument` (6), `no-unsafe-return` (3), `no-unsafe-call` (3), plus

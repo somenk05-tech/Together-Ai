@@ -66,7 +66,7 @@ function chime() {
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5);
       o.start(t0); o.stop(t0 + 0.52);
     });
-    setTimeout(() => ctx.close().catch(() => undefined), 1400);
+    setTimeout(() => void ctx.close().catch(() => undefined), 1400);
   } catch { /* ignore */ }
 }
 

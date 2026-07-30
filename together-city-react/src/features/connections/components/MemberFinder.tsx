@@ -86,7 +86,7 @@ export function MemberFinder() {
         Enter someone’s exact @handle to connect. Profiles aren’t listed publicly — you need their handle.
       </p>
 
-      <form onSubmit={search} style={{ display: 'flex', gap: 8, marginBottom: result || error || (searched && !busy) ? 14 : 0 }}>
+      <form onSubmit={(e) => void search(e)} style={{ display: 'flex', gap: 8, marginBottom: result || error || (searched && !busy) ? 14 : 0 }}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', border: '1.5px solid var(--line)', borderRadius: 12, padding: '0 12px' }}>
           <span className="muted">@</span>
           <input value={query} autoCapitalize="off" autoCorrect="off" spellCheck={false}
@@ -122,10 +122,10 @@ export function MemberFinder() {
             <Button variant="line" size="sm" disabled>Requested</Button>
           )}
           {result.relationship === 'pending_in' && (
-            <Button variant="accent" size="sm" disabled={respondConn.isPending} onClick={accept}>Accept request</Button>
+            <Button variant="accent" size="sm" disabled={respondConn.isPending} onClick={() => void accept()}>Accept request</Button>
           )}
           {result.relationship === 'accepted' && (
-            <Button variant="accent" size="sm" disabled={opening} onClick={message}>{opening ? '…' : 'Message'}</Button>
+            <Button variant="accent" size="sm" disabled={opening} onClick={() => void message()}>{opening ? '…' : 'Message'}</Button>
           )}
           {result.relationship === 'blocked' && (
             <Button variant="line" size="sm" disabled>Unavailable</Button>
@@ -151,7 +151,7 @@ export function MemberFinder() {
           <p style={{ fontSize: 12.5, fontWeight: 700, margin: '0 0 8px' }}>Connect modules</p>
           <ModuleToggles relationship={relationship} selected={modules} onChange={setModules} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
-            <Button variant="accent" size="sm" disabled={requestConn.isPending || modules.length === 0} onClick={connect}>
+            <Button variant="accent" size="sm" disabled={requestConn.isPending || modules.length === 0} onClick={() => void connect()}>
               {requestConn.isPending ? 'Sending…' : 'Send Connection Request'}
             </Button>
             <span className="muted" style={{ fontSize: 11.5 }}>

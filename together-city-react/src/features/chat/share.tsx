@@ -161,7 +161,7 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'center' }}>
-              <Button variant="accent" disabled={!target || busy} onClick={send}>{busy ? 'Sending…' : target ? `Send to ${target.label}` : 'Pick a chat'}</Button>
+              <Button variant="accent" disabled={!target || busy} onClick={() => void send()}>{busy ? 'Sending…' : target ? `Send to ${target.label}` : 'Pick a chat'}</Button>
               <Button variant="line" onClick={onClose}>Cancel</Button>
             </div>
             {error && (

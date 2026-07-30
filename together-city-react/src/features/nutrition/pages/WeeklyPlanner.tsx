@@ -102,7 +102,7 @@ export function WeeklyPlanner() {
       }
     } catch { /* surfaced by the query error boundary; keep the UI responsive */ }
   };
-  const swaps = useMealSwapHistory(activeKey ?? '', dayIndex, mutate);
+  const swaps = useMealSwapHistory(activeKey ?? '', dayIndex, (fn) => void mutate(fn));
 
   if (planQ.isLoading) return <Spinner label="Building your week…" />;
   if (planQ.isError || !planQ.data) {

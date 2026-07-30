@@ -91,7 +91,7 @@ function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; o
         {error && <p style={{ color: '#c0392b', fontSize: 12.5, marginTop: 10 }}>{error}</p>}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-          <Button variant="accent" disabled={busy || !picked.length} onClick={submit}>
+          <Button variant="accent" disabled={busy || !picked.length} onClick={() => void submit()}>
             {busy ? 'Creating…' : mode === 'group' ? `Create group (${picked.length})` : 'Start chat'}
           </Button>
           <Button variant="line" onClick={onClose}>Cancel</Button>

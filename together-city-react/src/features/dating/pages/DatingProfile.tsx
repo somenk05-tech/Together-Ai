@@ -209,7 +209,7 @@ function SelfieVerify({ verified, onCapture, onClear }: {
           <button type="button" onClick={onClear} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>Redo</button>
         </div>
       ) : (
-        <button type="button" onClick={start}
+        <button type="button" onClick={() => void start()}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13.5,
             color: 'var(--accent)', background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 999, padding: '9px 16px' }}>
           📷 Get verified with your camera
@@ -235,7 +235,7 @@ function SelfieVerify({ verified, onCapture, onClear }: {
             <div style={{ display: 'flex', gap: 10, marginTop: 14, justifyContent: 'flex-end' }}>
               <Button variant="line" size="sm" onClick={close}>Cancel</Button>
               {err
-                ? <Button variant="accent" size="sm" onClick={start}>Try again</Button>
+                ? <Button variant="accent" size="sm" onClick={() => void start()}>Try again</Button>
                 : <Button variant="accent" size="sm" disabled={!ready || busy} onClick={capture}>{busy ? 'Capturing…' : 'Capture selfie'}</Button>}
             </div>
           </div>

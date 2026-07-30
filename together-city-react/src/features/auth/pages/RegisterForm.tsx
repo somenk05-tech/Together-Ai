@@ -57,14 +57,17 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
     if (!/^[a-z0-9_.]{3,30}$/.test(h)) { setHStatus('invalid'); setSuggestions([]); return; }
     setHStatus('checking');
     const seq = ++hSeq.current;
-    const t = setTimeout(async () => {
+    // Named, then explicitly not-awaited. setTimeout wants a void return, and
+    // handing it an async function makes a rejection here an unhandled one.
+    const check = async () => {
       try {
         const r = await authApi.handleAvailable(h);
         if (seq !== hSeq.current) return;
         setHStatus(r.available ? 'ok' : 'taken');
         setSuggestions(r.available ? [] : r.suggestions);
       } catch { if (seq === hSeq.current) setHStatus('idle'); }
-    }, 380);
+    };
+    const t = setTimeout(() => void check(), 380);
     return () => clearTimeout(t);
   }, [handle]);
 
@@ -110,7 +113,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
       <h1 style={{ fontSize: 28, marginBottom: 6, textAlign: 'center' }}>Join the City</h1>
       <p className="muted" style={{ fontSize: 13.5, marginBottom: 20, textAlign: 'center' }}>The world’s largest digital city. Create your account in seconds.</p>
 
-      <form onSubmit={submit} className="tc-riser" noValidate>
+      <form onSubmit={(e) => void submit(e)} className="tc-riser" noValidate>
         {/* Handle */}
         <div>
           <div className="tc-field" style={{ display: 'flex', alignItems: 'center', border: `1.5px solid ${hStatus === 'taken' || hStatus === 'invalid' ? '#c0392b' : hStatus === 'ok' ? '#2e7d4f' : 'var(--line)'}`, borderRadius: 12, padding: '0 12px', background: 'var(--card)' }}>

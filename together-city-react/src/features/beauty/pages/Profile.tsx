@@ -651,7 +651,7 @@ export function Profile() {
               <p style={{ fontSize: 12.5, color: '#b0503e', fontWeight: 600, margin: '10px 0 0' }}>⚠️ {warning}</p>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
-              <Button variant="accent" disabled={analyze.isPending || !photosComplete || !profileComplete || (profile.data?.uploads?.remaining === 0)} onClick={runAnalysis}>
+              <Button variant="accent" disabled={analyze.isPending || !photosComplete || !profileComplete || (profile.data?.uploads?.remaining === 0)} onClick={() => void runAnalysis()}>
                 {analyze.isPending ? 'Analysing…' : `Analyse & save${progress.length ? ' this week' : ''}`}
               </Button>
               {!photosComplete && picsCount > 0 && <span className="muted" style={{ fontSize: 11.5 }}>Add {6 - picsCount} more photo{6 - picsCount > 1 ? 's' : ''} to continue</span>}

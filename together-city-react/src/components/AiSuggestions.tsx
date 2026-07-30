@@ -29,7 +29,7 @@ export function AiSuggestions({ kind }: { kind: AiKind }) {
         </div>
         {q.data?.aiPowered && open && <span className="tag" style={{ alignSelf: 'flex-start' }}>✨ AI</span>}
         {!open && <Button variant="accent" size="sm" onClick={() => setOpen(true)}>{meta.cta}</Button>}
-        {open && <Button variant="line" size="sm" disabled={q.isFetching} onClick={() => q.refetch()}>{q.isFetching ? '…' : '↻'}</Button>}
+        {open && <Button variant="line" size="sm" disabled={q.isFetching} onClick={() => void q.refetch()}>{q.isFetching ? '…' : '↻'}</Button>}
       </div>
 
       {open && (

@@ -53,7 +53,7 @@ export function Verify() {
             <input value={resendEmail} onChange={(e) => setResendEmail(e.target.value)} type="email" placeholder="Your email"
               style={{ width: '100%', padding: '12px 14px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, marginBottom: 10, boxSizing: 'border-box', fontFamily: 'inherit' }} />
             <Button variant="accent" style={{ width: '100%', justifyContent: 'center' }} disabled={!resendEmail.trim() || resent}
-              onClick={() => authApi.resendVerification(resendEmail.trim()).then(() => setResent(true)).catch(() => setResent(true))}>
+              onClick={() => void authApi.resendVerification(resendEmail.trim()).then(() => setResent(true)).catch(() => setResent(true))}>
               {resent ? 'If it exists, a new link is on its way' : 'Resend verification link'}
             </Button>
             <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>

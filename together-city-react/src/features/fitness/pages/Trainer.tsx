@@ -227,7 +227,7 @@ export function Trainer() {
             <li>Camera and pose analysis run entirely on your device.</li>
           </ul>
         </div>
-        <Button variant="accent" onClick={start} disabled={status === 'starting'}>
+        <Button variant="accent" onClick={() => void start()} disabled={status === 'starting'}>
           {status === 'starting' ? 'Requesting camera…' : `🎥 Start ${exercise.label} session`}
         </Button>
       </div>

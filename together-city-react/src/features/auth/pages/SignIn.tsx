@@ -136,7 +136,7 @@ export function SignIn() {
                 : <>The world's largest digital city. Everything. <span style={{ color: 'var(--gold-bright)', fontWeight: 700 }}>Personalized.</span></>}
             </p>
 
-            <form onSubmit={submit}>
+            <form onSubmit={(e) => void submit(e)}>
               {mode === 'login' && (
                 <>
                   <div style={wrap}>

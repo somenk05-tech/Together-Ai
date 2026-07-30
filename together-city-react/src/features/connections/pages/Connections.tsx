@@ -205,7 +205,7 @@ export function Connections() {
                   Remove
                 </Button>
                 <Button size="sm" variant="accent" disabled={opening === c.user.handle}
-                  onClick={() => openChat(c.user.handle)}>
+                  onClick={() => void openChat(c.user.handle)}>
                   {opening === c.user.handle ? '…' : 'Message'}
                 </Button>
               </div>

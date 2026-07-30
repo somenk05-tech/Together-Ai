@@ -246,7 +246,7 @@ export function RecipeDetail() {
             style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line)', background: saved ? 'var(--green-soft)' : 'var(--card)', color: saved ? 'var(--green)' : 'var(--ink-soft)' }}>
             <Ic name="bookmark" size={16} style={saved ? { fill: 'var(--green)' } : undefined} /> {saved ? 'Saved' : 'Save Recipe'}
           </button>
-          <button type="button" onClick={share} aria-label="Share recipe"
+          <button type="button" onClick={() => void share()} aria-label="Share recipe"
             style={{ display: 'grid', placeItems: 'center', width: 38, height: 38, cursor: 'pointer', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)' }}>
             <Ic name="share" size={16} />
           </button>

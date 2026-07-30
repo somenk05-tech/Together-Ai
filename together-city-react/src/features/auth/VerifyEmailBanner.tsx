@@ -51,7 +51,7 @@ export function VerifyEmailBanner() {
             : <>Confirm your email{user?.email ? <> (<strong>{user.email}</strong>)</> : ''} to publish posts, list property and connect in Dating.</>}
       </span>
       {state !== 'sent' && (
-        <button type="button" onClick={resend} disabled={state === 'sending'}
+        <button type="button" onClick={() => void resend()} disabled={state === 'sending'}
           style={{
             cursor: state === 'sending' ? 'default' : 'pointer', fontFamily: 'inherit',
             fontSize: 12, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase',

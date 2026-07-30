@@ -39,7 +39,7 @@ export function Daily() {
       syncPlanCaches(qc, mode, next);
     } catch { /* e.g. a member editing the read-only family plan — ignore, keep UI responsive */ }
   };
-  const swaps = useMealSwapHistory(plan.data?.key ?? '', dayIndex, mutate);
+  const swaps = useMealSwapHistory(plan.data?.key ?? '', dayIndex, (fn) => void mutate(fn));
 
   if (plan.isLoading) return <Spinner label="Plating today…" />;
   if (plan.isError || !plan.data) {

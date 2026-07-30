@@ -758,7 +758,7 @@ export function CreatePost() {
         {!busy && (
           <Link className="btn btn-line" to="/social/feed" style={{ flex: 1, justifyContent: 'center' }}>Cancel</Link>
         )}
-        <button type="button" onClick={share} disabled={busy || !canShare}
+        <button type="button" onClick={() => void share()} disabled={busy || !canShare}
           className="btn"
           style={{
             flex: busy ? 'none' : 2, width: busy ? 150 : undefined, justifyContent: 'center',
