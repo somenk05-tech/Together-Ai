@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui';
 import { useAddWorkout } from '../api';
 import { say, sayOnce, stopSpeaking, speechSupported } from '../voice';
+import type { PoseLandmark, PoseLandmarker, VisionModule } from '../mediapipe';
 
 /* ────────────────────────────────────────────────────────────────────────
    Trainer Mode — a live, camera-based AI form coach.
@@ -34,14 +35,14 @@ const MP_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSIO
 const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
 
 // angle at point B (degrees) given three landmarks A-B-C
-function angle(a: any, b: any, c: any): number {
+function angle(a: PoseLandmark, b: PoseLandmark, c: PoseLandmark): number {
   const abx = a.x - b.x, aby = a.y - b.y, cbx = c.x - b.x, cby = c.y - b.y;
   const dot = abx * cbx + aby * cby;
   const mag = Math.hypot(abx, aby) * Math.hypot(cbx, cby) || 1e-6;
   return (Math.acos(Math.max(-1, Math.min(1, dot / mag))) * 180) / Math.PI;
 }
 // torso lean from vertical (shoulder→hip), degrees
-function torsoLean(lm: any[]): number {
+function torsoLean(lm: PoseLandmark[]): number {
   const sh = lm[12], hip = lm[24];
   if (!sh || !hip) return 0;
   return (Math.atan2(Math.abs(sh.x - hip.x), Math.abs(sh.y - hip.y)) * 180) / Math.PI;
@@ -55,7 +56,7 @@ const SKELETON: [number, number][] = [
 export function Trainer() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const landmarkerRef = useRef<any>(null);
+  const landmarkerRef = useRef<PoseLandmarker | null>(null);
   const rafRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
   const repState = useRef<'up' | 'down'>('up');
@@ -96,7 +97,9 @@ export function Trainer() {
 
   const loadPose = useCallback(async () => {
     try {
-      const vision: any = await import(/* @vite-ignore */ MP_URL);
+      // Typed against the local declaration, not against the real module —
+      // see ../mediapipe.ts for why that is a promise rather than a fact.
+      const vision = (await import(/* @vite-ignore */ MP_URL)) as VisionModule;
       const fileset = await vision.FilesetResolver.forVisionTasks(`${MP_URL}/wasm`);
       landmarkerRef.current = await vision.PoseLandmarker.createFromOptions(fileset, {
         baseOptions: { modelAssetPath: MODEL_URL, delegate: 'GPU' },
@@ -129,7 +132,7 @@ export function Trainer() {
     rafRef.current = requestAnimationFrame(loop);
   }, []);
 
-  const analyse = (lm: any[]) => {
+  const analyse = (lm: PoseLandmark[]) => {
     const ex = exerciseRef.current;
     const [a, b, c] = ex.joints;
     if (!lm[a] || !lm[b] || !lm[c]) return;
@@ -154,7 +157,7 @@ export function Trainer() {
 
   const setFeedbackSpoken = (t: string) => { setFeedback(t); speak(t, true); };
 
-  const drawPose = (ctx: CanvasRenderingContext2D, lm: any[], w: number, h: number) => {
+  const drawPose = (ctx: CanvasRenderingContext2D, lm: PoseLandmark[], w: number, h: number) => {
     ctx.strokeStyle = 'rgba(140,32,60,.9)'; ctx.lineWidth = 4;
     for (const [i, j] of SKELETON) {
       if (lm[i] && lm[j]) { ctx.beginPath(); ctx.moveTo(lm[i].x * w, lm[i].y * h); ctx.lineTo(lm[j].x * w, lm[j].y * h); ctx.stroke(); }
