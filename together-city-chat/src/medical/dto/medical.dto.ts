@@ -12,5 +12,10 @@ export const SaveBloodTestSchema = z.object({
   // keys are dropped by the service; at least one real value is required.
   values: z.record(z.string(), z.number().nonnegative().max(1_000_000))
     .refine((v) => Object.values(v).some((n) => typeof n === 'number'), { message: 'enter at least one marker' }),
+  // The unit each value was printed in, keyed by the same marker code. Optional
+  // and optional per marker: absent means the unit the form was labelled with,
+  // which is what every client sent before this existed. A unit the marker does
+  // not accept is refused by the service rather than ignored — see units.ts.
+  units: z.record(z.string(), z.string().trim().max(24)).optional(),
 });
 export type SaveBloodTestDto = z.infer<typeof SaveBloodTestSchema>;

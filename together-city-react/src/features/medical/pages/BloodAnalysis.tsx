@@ -2,7 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
-import { useBloodHistory, useLatestPanel, useSaveBloodTest, useIngestBlood, useHealthSummary, useBloodTrends, useBiomarkerCatalog, type Citation, type TrendKind, type TrendPick, type BiomarkerSection } from '../api';
+import { useBloodHistory, useLatestPanel, useSaveBloodTest, useIngestBlood, useHealthSummary, useBloodTrends, useBiomarkerCatalog, type Citation, type TrendKind, type TrendPick, type BiomarkerSection, type UnitChoice } from '../api';
 import { PrivacyNote } from '@/features/privacy/PrivacyNote';
 
 /** Deterministic 0–100 wellness score ring. */
@@ -129,18 +129,32 @@ const FIELD_STATUS = {
   high: { c: '#e65100', bg: '#fff3e0', label: 'HIGH' },
   normal: { c: '#2e7d32', bg: '#e8f5e9', label: 'OK' },
 } as const;
-function fieldStatus(def: { min: number; max: number }, raw: string | undefined): keyof typeof FIELD_STATUS | null {
+/**
+ * The typed value put into the unit the reference range is stated in.
+ *
+ * Without this the badge beside the field and the flag the server stores
+ * disagree the moment somebody picks their lab's unit: 30 nmol/L of vitamin D
+ * would show OK here (it clears a 20–100 ng/mL range as a bare 30) and save as
+ * LOW (it is 12 ng/mL). The factor is the API's, not ours — see UnitChoice.
+ */
+function inRangeUnits(raw: string | undefined, u?: UnitChoice): number | null {
   if (raw == null || raw === '') return null;
   const n = parseFloat(raw);
   if (Number.isNaN(n)) return null;
+  return u ? Math.round((n * u.factor + (u.offset ?? 0)) * 10000) / 10000 : n;
+}
+function fieldStatus(def: { min: number; max: number }, raw: string | undefined, u?: UnitChoice): keyof typeof FIELD_STATUS | null {
+  const n = inRangeUnits(raw, u);
+  if (n == null) return null;
   return n < def.min ? 'low' : n > def.max ? 'high' : 'normal';
 }
 
 /** Comprehensive manual entry — collapsible sections from the biomarker catalog,
  *  each field showing its reference range + live colour status. Supports
  *  high-precision decimals (step="any"); values display exactly as typed. */
-function BiomarkerFields({ sections, form, setForm }: {
+function BiomarkerFields({ sections, form, setForm, units, setUnits }: {
   sections: BiomarkerSection[]; form: Record<string, string>; setForm: (f: Record<string, string>) => void;
+  units: Record<string, string>; setUnits: (u: Record<string, string>) => void;
 }) {
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     sections.reduce((a, s, i) => ({ ...a, [s.key]: i === 0 }), {}));
@@ -169,18 +183,37 @@ function BiomarkerFields({ sections, form, setForm }: {
             {isOpen && (
               <div style={{ padding: '2px 14px 14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(155px,1fr))', gap: '4px 14px' }}>
                 {sec.markers.map((m) => {
-                  const st = fieldStatus(m, form[m.key]);
+                  const choices = m.units ?? [];
+                  const picked = units[m.key] ?? m.unit;
+                  const choice = choices.find((c) => c.unit === picked);
+                  const st = fieldStatus(m, form[m.key], choice);
                   const sc = st ? FIELD_STATUS[st] : null;
+                  const inRange = choice && !choice.canonical ? inRangeUnits(form[m.key], choice) : null;
                   return (
                     <div key={m.key} style={{ margin: '10px 0 0' }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                         <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.03em', color: 'var(--muted)' }}>{m.label}</span>
                         {sc && <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, color: sc.c, background: sc.bg, borderRadius: 999, padding: '1px 7px' }}>{sc.label}</span>}
                       </div>
-                      <input type="number" step="any" min="0" inputMode="decimal" placeholder={m.optional ? 'optional' : ''}
-                        value={form[m.key] ?? ''} onChange={(e) => setForm({ ...form, [m.key]: e.target.value })}
-                        style={{ width: '100%', padding: '9px 11px', border: `1.5px solid ${sc ? sc.c + '88' : 'var(--line)'}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', marginTop: 3, boxSizing: 'border-box' }} />
-                      <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>Ref {m.min}–{m.max} {m.unit}</div>
+                      <div style={{ display: 'flex', gap: 5, marginTop: 3 }}>
+                        <input type="number" step="any" min="0" inputMode="decimal" placeholder={m.optional ? 'optional' : ''}
+                          value={form[m.key] ?? ''} onChange={(e) => setForm({ ...form, [m.key]: e.target.value })}
+                          style={{ flex: 1, minWidth: 0, padding: '9px 11px', border: `1.5px solid ${sc ? sc.c + '88' : 'var(--line)'}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+                        {choices.length > 1 && (
+                          <select value={picked} onChange={(e) => setUnits({ ...units, [m.key]: e.target.value })}
+                            aria-label={`Unit for ${m.label}`}
+                            style={{ padding: '9px 6px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 12, fontFamily: 'inherit', background: 'var(--paper)', outline: 'none', maxWidth: 118 }}>
+                            {choices.map((c) => <option key={c.unit} value={c.unit}>{c.unit || '—'}</option>)}
+                          </select>
+                        )}
+                      </div>
+                      <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>
+                        Ref {m.min}–{m.max} {m.unit}
+                        {/* Show the arithmetic. A number quietly changed on the
+                            way to the database is not the citizen's record. */}
+                        {inRange != null && <> · your {form[m.key]} {picked} = <strong>{inRange}</strong> {m.unit}</>}
+                      </div>
+                      {choice?.note && <div className="muted" style={{ fontSize: 9.5, marginTop: 1 }}>{choice.note}</div>}
                     </div>
                   );
                 })}
@@ -196,6 +229,10 @@ function BiomarkerFields({ sections, form, setForm }: {
 /** Blood Test Analysis — Medical Hub owns the record; the cited engine reads it. */
 export function BloodAnalysis() {
   const catalog = useBiomarkerCatalog();
+  // The unit each field is being entered in. Only markers the person actually
+  // changed appear here; everything else means "the unit the form is labelled
+  // with", which is what the API assumes when a marker is absent.
+  const [units, setUnits] = useState<Record<string, string>>({});
   const latest = useLatestPanel();
   const history = useBloodHistory();
   const summary = useHealthSummary();
@@ -251,11 +288,19 @@ export function BloodAnalysis() {
     e.preventDefault();
     const values: Record<string, number> = {};
     for (const [k, v] of Object.entries(form)) { const n = parseFloat(v); if (!Number.isNaN(n) && n >= 0) values[k] = n; }
+    // Send the raw number and the unit it was printed in; the server converts.
+    // Sending our converted value instead would make the client the authority
+    // on a clinical number, and a stale tab the authority on an old factor.
+    const sent: Record<string, string> = {};
+    for (const k of Object.keys(values)) if (units[k]) sent[k] = units[k];
     // Pass recordId so a manual entry / correction updates the SAME uploaded
     // report's panel instead of creating a duplicate.
     if (Object.keys(values).length) save.mutate(
-      { lab: lab || undefined, takenOn: testDate ? new Date(testDate).toISOString() : undefined, values, recordId: savedFile?.id },
-      { onSuccess: () => { setForm({}); setLab(''); setTestDate(''); setSavedFile(null); setExtractNote(null); setExpanded(false); } },
+      {
+        lab: lab || undefined, takenOn: testDate ? new Date(testDate).toISOString() : undefined,
+        values, ...(Object.keys(sent).length ? { units: sent } : {}), recordId: savedFile?.id,
+      },
+      { onSuccess: () => { setForm({}); setUnits({}); setLab(''); setTestDate(''); setSavedFile(null); setExtractNote(null); setExpanded(false); } },
     );
   };
 
@@ -381,11 +426,16 @@ export function BloodAnalysis() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 12 }}>
           <input value={lab} onChange={(e) => setLab(e.target.value)} placeholder="Lab name (optional)"
             style={{ width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
-          <input type="date" value={testDate} onChange={(e) => setTestDate(e.target.value)} aria-label="Test date"
+          {/* max = today. A sample cannot have been drawn in the future, and a
+              future-dated panel sorts to the top and becomes "your latest" —
+              which drives the health summary and the blood flags behind the
+              nutrition targets. The server refuses it too; this stops the
+              mistake being made rather than reporting it afterwards. */}
+          <input type="date" value={testDate} max={todayISO()} onChange={(e) => setTestDate(e.target.value)} aria-label="Test date"
             style={{ width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
         </div>
         {catalog.data?.sections
-          ? <BiomarkerFields sections={catalog.data.sections} form={form} setForm={setForm} />
+          ? <BiomarkerFields sections={catalog.data.sections} form={form} setForm={setForm} units={units} setUnits={setUnits} />
           : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '4px 14px' }}>
               {FIELDS.map((f) => (
@@ -480,4 +530,11 @@ export function BloodAnalysis() {
       {data?.disclaimer && <p className="muted" style={{ fontSize: 11.5, marginTop: 16 }}>{data.disclaimer}</p>}
     </div>
   );
+}
+
+/** Today where the citizen is, formatted for <input type="date">. */
+function todayISO(): string {
+  const d = new Date();
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
 }

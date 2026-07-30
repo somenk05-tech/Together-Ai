@@ -980,7 +980,17 @@ model MedicalBiomarker {
   id          String @id @default(uuid())
   bloodTestId String
   key         String // hb | ferritin | vitd | b12 | folate | hba1c | ldl | trig | crp | ...
+  /// The value in the unit this marker's reference range is stated in
+  /// (biomarker-catalog.ts). DERIVED, when enteredUnit is something else.
   value       Float
+  /// What the citizen's own report actually printed. `value` above is this put
+  /// into the catalog's unit, so the record stays theirs and the comparison
+  /// stays ours — and if a conversion factor is ever found wrong, the affected
+  /// rows can be recomputed instead of being lost. Null on every row written
+  /// before units were asked for: those genuinely do not know, and saying so
+  /// is better than backfilling a unit nobody chose.
+  enteredValue Float?
+  enteredUnit  String?
 
   bloodTest MedicalBloodTest @relation(fields: [bloodTestId], references: [id], onDelete: Cascade)
 

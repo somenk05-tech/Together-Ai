@@ -1,4 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { checkCollectionDate } from './collection-date';
+import { toCanonical, unitChoices } from './units';
 import { informalName, salutation } from '../shared/salutation';
 import { demoDataEnabled } from '../shared/demo-data';
 import { createHash, randomBytes } from 'crypto';
@@ -380,11 +382,53 @@ export class MedicalService implements OnModuleInit {
    */
   private async upsertPanelAndAnalyze(
     userId: string,
-    input: { values: Record<string, number>; lab?: string | null; takenOn?: Date; recordId?: string | null },
+    input: {
+      values: Record<string, number>;
+      /** The unit each value was printed in, where it is not the catalog's. */
+      units?: Record<string, string> | null;
+      lab?: string | null; takenOn?: Date; recordId?: string | null;
+    },
   ): Promise<string> {
-    const biomarkers = Object.entries(input.values)
-      .filter(([, v]) => typeof v === 'number' && !Number.isNaN(v))
-      .map(([key, value]) => ({ key, value: value as number }));
+    /**
+     * Convert to the unit the reference range is stated in, and keep what was
+     * printed.
+     *
+     * Before this, a value was stored bare and compared against a range in a
+     * unit nobody had confirmed. A report in SI units — most of the world — was
+     * read as if it were in the catalog's unit, so vitamin D of 30 nmol/L
+     * (deficient, 12 ng/mL) came back normal and a fasting glucose of 7 mmol/L
+     * (diabetic, 126 mg/dL) came back low. Those values reach the flags, the
+     * health score, the narrative, and the nutrition targets.
+     *
+     * A unit we cannot read stops the save. Storing the number and hoping is
+     * the failure above with an extra step.
+     */
+    const biomarkers: { key: string; value: number; enteredValue: number; enteredUnit: string }[] = [];
+    for (const [key, raw] of Object.entries(input.values)) {
+      if (typeof raw !== 'number' || Number.isNaN(raw)) continue;
+      const printed = input.units?.[key];
+      const conv = toCanonical(key, raw, printed);
+      if (!conv.ok) {
+        throw new BadRequestException(`${biomarkerDef(key)?.label ?? key}: ${conv.reason}`);
+      }
+      biomarkers.push({
+        key,
+        value: conv.value,
+        // Kept whether or not a conversion happened, so a row can always say
+        // what it was given rather than only when the answer was interesting.
+        enteredValue: raw,
+        enteredUnit: printed?.trim() || conv.unit,
+      });
+    }
+
+    // A sample cannot have been drawn in the future. Checked server-side against
+    // the CITIZEN'S today, because panels are ordered by collection date and a
+    // future-dated one becomes "your latest" — which drives the health summary,
+    // the marker flags, and through those the nutrition targets.
+    const today = await this.clock.dateOnlyFor(userId);
+    const when = checkCollectionDate(input.takenOn, today);
+    if (!when.ok) throw new BadRequestException(when.reason);
+    const takenOn = when.value;
 
     // Does the source document already have a panel? If so, update that one.
     let existingTestId: string | null = null;
@@ -404,7 +448,7 @@ export class MedicalService implements OnModuleInit {
         where: { id: existingTestId },
         data: {
           lab: input.lab ?? undefined,
-          takenOn: input.takenOn ?? undefined,
+          takenOn,
           biomarkers: { deleteMany: {}, create: biomarkers },
         },
       });
@@ -421,7 +465,7 @@ export class MedicalService implements OnModuleInit {
         // Defaulting to `new Date()` stored an instant, so a panel saved at
         // 01:00 in Asia/Kolkata was filed under the previous day — and the
         // column then meant two different things depending on the row.
-        takenOn: input.takenOn ?? await this.clock.dateOnlyFor(userId),
+        takenOn,
         lab: input.lab ?? null,
         biomarkers: { create: biomarkers },
       },
@@ -446,7 +490,7 @@ export class MedicalService implements OnModuleInit {
       Object.entries(dto.values).filter(([k, v]) => typeof v === 'number' && !Number.isNaN(v) && biomarkerDef(k)),
     ) as Record<string, number>;
     const testId = await this.upsertPanelAndAnalyze(userId, {
-      values, lab: dto.lab ?? null,
+      values, units: dto.units ?? null, lab: dto.lab ?? null,
       takenOn: dto.takenOn ? new Date(dto.takenOn) : undefined,
       recordId: dto.recordId ?? null,
     });
@@ -643,9 +687,23 @@ export class MedicalService implements OnModuleInit {
     };
   }
 
-  /** The manual-entry biomarker catalog — sections, ranges, units, hub tags. */
+  /**
+   * The manual-entry biomarker catalog — sections, ranges, hub tags, and the
+   * units each marker accepts with the factor to convert them.
+   *
+   * The factors go to the client on purpose. The entry form colours each field
+   * against the reference range while somebody types, so it has to convert too,
+   * and the only thing worse than one unit table is two of them drifting apart.
+   * The server converts again for itself when the panel is saved: what the
+   * client computes is a preview, never the record.
+   */
   biomarkerCatalog() {
-    return { sections: BIOMARKER_SECTIONS };
+    return {
+      sections: BIOMARKER_SECTIONS.map((s) => ({
+        ...s,
+        markers: s.markers.map((m) => ({ ...m, units: unitChoices(m.key) })),
+      })),
+    };
   }
 
   /**

@@ -60,7 +60,17 @@ export interface MedicalRecord { id: string; kind: string; title: string; detail
 export interface StorageUsage { quotaBytes: number; usedBytes: number; mailBytes: number; healthBytes: number; usedPct: number; remainingBytes: number }
 export interface ExtractResult { recordId: string; aiEnabled: boolean; extracted: Record<string, number>; markerCount: number; lab: string | null; takenOn: string | null; note: string }
 /** Manual-entry biomarker catalog (comprehensive form). */
-export interface BiomarkerDef { key: string; label: string; unit: string; min: number; max: number; hubs: string[]; optional?: boolean; higherBetter?: boolean }
+/**
+ * One entry in a marker's unit selector, with the arithmetic to apply it.
+ *
+ * The factor comes from the API rather than being restated here. The form
+ * colours each field against the reference range while somebody types, so it
+ * has to convert — and two copies of a conversion table is how the badge and
+ * the stored flag end up disagreeing. canonical is the unit the range is
+ * stated in; converted = value * factor + offset.
+ */
+export interface UnitChoice { unit: string; factor: number; offset: number; canonical: boolean; note?: string }
+export interface BiomarkerDef { key: string; label: string; unit: string; min: number; max: number; hubs: string[]; optional?: boolean; higherBetter?: boolean; units?: UnitChoice[] }
 export interface BiomarkerSection { key: string; label: string; hint?: string; markers: BiomarkerDef[] }
 export interface BiomarkerCatalog { sections: BiomarkerSection[] }
 /** Upload → auto-analyse result: the report is filed AND (when readable) analysed in one call. */
@@ -84,7 +94,7 @@ export const medicalApi = {
   consents: () => api.get<ConsentRow[]>('/medical/consents').then((r) => r.data),
   setConsent: (hub: string, granted: boolean) =>
     api.patch<ConsentRow[]>('/medical/consents', { hub, granted }).then((r) => r.data),
-  saveBloodTest: (input: { lab?: string; takenOn?: string; values: Record<string, number>; recordId?: string }) =>
+  saveBloodTest: (input: { lab?: string; takenOn?: string; values: Record<string, number>; units?: Record<string, string>; recordId?: string }) =>
     api.post<BloodAnalysis>('/medical/blood-tests', input).then((r) => r.data),
   ingestBlood: (input: { fileKey: string; mimeType: string; sizeBytes: number; title?: string; detail?: string }) =>
     // Reading a report runs AI extraction (with vision fallback) server-side —
@@ -160,7 +170,7 @@ function syncPanelQueries(qc: ReturnType<typeof useQueryClient>) {
 export function useSaveBloodTest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { lab?: string; takenOn?: string; values: Record<string, number>; recordId?: string }) => medicalApi.saveBloodTest(input),
+    mutationFn: (input: { lab?: string; takenOn?: string; values: Record<string, number>; units?: Record<string, string>; recordId?: string }) => medicalApi.saveBloodTest(input),
     onSuccess: (analysis) => {
       qc.setQueryData(['medical', 'latest'], analysis);
       syncPanelQueries(qc);
