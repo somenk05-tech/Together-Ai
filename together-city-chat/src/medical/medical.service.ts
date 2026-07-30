@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { informalName, salutation } from '../shared/salutation';
 import { demoDataEnabled } from '../shared/demo-data';
 import { createHash, randomBytes } from 'crypto';
 import { PDFParse } from 'pdf-parse';
@@ -819,10 +820,13 @@ export class MedicalService implements OnModuleInit {
   async healthSummary(userId: string) {
     const disclaimer = 'An educational summary grounded in established clinical-nutrition guidance — not a diagnosis. Please review any flagged findings with your doctor.';
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
-    const first = (user?.name ?? 'there').split(' ')[0];
+    // Was `(user?.name ?? 'there').split(' ')[0]` — ?? does not catch an empty
+    // string, so a citizen with no name on file was greeted "Dear ," above
+    // their own lab results.
+    const first = informalName(user?.name);
     const test = await this.prisma.medicalBloodTest.findFirst({ where: { userId }, orderBy: { takenOn: 'desc' }, include: { biomarkers: true } });
     if (!test) {
-      return { hasPanel: false, name: first, score: null, scoreBasis: null, band: null, priorities: [], greeting: `Dear ${first},`, interpretation: [], relationships: [], discuss: [], encouragement: '', aiEnabled: this.ai.enabled, takenOn: null, lab: null, disclaimer };
+      return { hasPanel: false, name: first, score: null, scoreBasis: null, band: null, priorities: [], greeting: salutation(user?.name), interpretation: [], relationships: [], discuss: [], encouragement: '', aiEnabled: this.ai.enabled, takenOn: null, lab: null, disclaimer };
     }
     // Read the ONE stored analysis for this test at the current version (runs the
     // AI only if it doesn't exist yet — never on a plain page load).
@@ -897,7 +901,7 @@ export class MedicalService implements OnModuleInit {
   /** The single, complete analysis of one panel: deterministic score/priorities/
    *  markers/conditions/restrictions + the AI narrative. Runs the AI exactly once. */
   private async computeAnalysis(values: Record<string, number>, fullName: string, hash: string): Promise<StoredAnalysis> {
-    const first = fullName.split(' ')[0];
+    const first = informalName(fullName);
     const crp = values.crp;
     const flags = flagsFor(values);
     const markers = MARKER_RULES.filter((r) => r.key in values).map((rule) => {

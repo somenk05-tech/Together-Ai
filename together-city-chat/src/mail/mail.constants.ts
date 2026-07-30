@@ -1,3 +1,4 @@
+import { informalName } from '../shared/salutation';
 /** Together City Mail — constants. */
 
 export const MAIL_DOMAIN = 'togethercity.app';
@@ -50,9 +51,9 @@ export const humanBytes = (n: number): string => {
 /** The welcome mail every new mailbox is seeded with. */
 export const welcomeMail = (name: string, address: string) => ({
   fromAddr: `city@${MAIL_DOMAIN}`, fromName: 'Together City',
-  subject: `Welcome to Together City Mail, ${name.split(' ')[0]}!`,
+  subject: `Welcome to Together City Mail, ${informalName(name)}!`,
   body: [
-    `Hi ${name.split(' ')[0]},`,
+    `Hi ${informalName(name)},`,
     ``,
     `Your city inbox is live. Your address is ${address} — share it with anyone in Together City and they can reach you here.`,
     ``,

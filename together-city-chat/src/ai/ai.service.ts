@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { informalName, salutation } from '../shared/salutation';
 import Anthropic from '@anthropic-ai/sdk';
 
 /**
@@ -238,8 +239,8 @@ export class AiService {
    * blood (Opus) model. Empty arrays on fallback.
    */
   async clinicalInterpretation(payload: string, name: string): Promise<{ greeting: string; interpretation: string[]; relationships: string[]; discuss: string[]; encouragement: string }> {
-    const first = (name || 'there').split(' ')[0];
-    const fallback = { greeting: `Dear ${first},`, interpretation: [] as string[], relationships: [] as string[], discuss: [] as string[], encouragement: '' };
+    const first = informalName(name);
+    const fallback = { greeting: salutation(name), interpretation: [] as string[], relationships: [] as string[], discuss: [] as string[], encouragement: '' };
     if (!this.client) return fallback;
     const system =
       `You are a warm, encouraging clinical-nutrition educator writing a personal report for ${first}. ` +
@@ -265,7 +266,7 @@ export class AiService {
       const arr = (x: unknown): string[] => (Array.isArray(x) ? x.filter((s): s is string => typeof s === 'string').slice(0, 8) : []);
       const str = (x: unknown, d: string): string => (typeof x === 'string' && x.trim() ? x : d);
       return {
-        greeting: str(p.greeting, `Dear ${first},`),
+        greeting: str(p.greeting, salutation(name)),
         interpretation: arr(p.interpretation),
         relationships: arr(p.relationships),
         discuss: arr(p.discuss),

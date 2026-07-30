@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { firstName as fromName } from '@/lib/salutation';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { NAV } from '@/config/hubs';
 import { useUiStore } from '@/store/ui.store';
@@ -112,7 +113,7 @@ function NotificationBell() {
 export function Header() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const { user } = useAuth();
-  const firstName = (user?.name ?? '').trim().split(' ')[0] || 'Profile';
+  const firstName = fromName(user?.name) ?? 'Profile';
   const tabs = NAV.filter((n) => n.key !== 'mail'); // Mail lives in the actions, not the tab row
   useTrackRecent(); // remember where we've been — powers Recently Viewed + breadcrumbs
   return (

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { firstName } from '@/lib/salutation';
 import { VerifyChannel } from '../components/VerifyChannel';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -102,7 +103,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
         <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 30, margin: '0 auto 16px' }}>✓</div>
         <h1 style={{ fontSize: 26, marginBottom: 6 }}>Welcome to Together City</h1>
         <p className="muted" style={{ fontSize: 13.5, marginBottom: 16 }}>
-          Your account is ready, {name.split(' ')[0] || handle}. One more step —
+          Your account is ready, {firstName(name) ?? handle}. One more step —
           confirm <strong>{email}</strong> so we can reach you if you lose your password.
         </p>
 

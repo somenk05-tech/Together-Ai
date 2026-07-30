@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { informalName } from '@/lib/salutation';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
@@ -92,7 +93,7 @@ export function SocialFeed() {
       )}
       <div className="eyebrow">Social Life</div>
       <h1 style={{ fontSize: 26, marginBottom: 4 }}>
-        {user ? `What's happening, ${user.name.split(' ')[0]}` : 'The city feed'}
+        {user ? `What's happening, ${informalName(user.name)}` : 'The city feed'}
       </h1>
       <p className="lede" style={{ marginBottom: 16 }}>Discover what's happening around you.</p>
 

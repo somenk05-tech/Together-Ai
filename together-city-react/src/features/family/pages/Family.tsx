@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { informalName } from '@/lib/salutation';
 import { LABELS } from '@/config/labels';
 import { useAuth } from '@/hooks/useAuth';
 import { useFamily, headcount } from '../members';
@@ -26,7 +27,7 @@ export function Family() {
   const { state } = useFamily();
   const N = headcount(state);
   const youName = user?.name ?? 'You';
-  const firstName = youName.split(' ')[0];
+  const firstName = informalName(youName);
 
   return (
     <div>
