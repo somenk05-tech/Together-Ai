@@ -155,6 +155,7 @@ model User {
   emailDeliveries      EmailDelivery[]
   passwordResets       PasswordReset[]
   verificationCodes    VerificationCode[]
+  profileChanges       ProfileChange[]
   dietitianProfile     Dietitian?
   dietitianBookings    DietitianBooking[]
 
@@ -1528,6 +1529,30 @@ model PasswordReset {
 /// The code itself is never stored. `codeHash` is an argon2 hash, the same
 /// treatment a password gets, because a six-digit secret in a leaked backup is
 /// worth exactly as much as the account it unlocks.
+/// Who changed what, when — the audit trail for health data (§3 BE-3.1).
+///
+/// One row per FIELD, not per request: the question is "when did my weight
+/// change and where did it come from", not "what did that request contain".
+model ProfileChange {
+  id          String   @id @default(uuid())
+  userId      String
+  field       String
+  oldValue    String?
+  newValue    String?
+  /// The surface that wrote it — 'master-profile-page', 'nutrition', 'dating'…
+  source      String
+  /// Normally the citizen. Different when a household owner edits a dependent's
+  /// record (§12); the column exists before that can happen so the history is
+  /// answerable from day one.
+  changedById String?
+  changedAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, changedAt])
+  @@index([userId, field, changedAt])
+}
+
 model VerificationCode {
   id         String    @id @default(uuid())
   userId     String
@@ -1711,6 +1736,9 @@ model MasterProfile {
   genderIdentity      String?
   /// Free text, used when genderIdentity is "other".
   genderIdentityOther String?
+  /// Bumped on every write. A client may send its expected version and be told
+  /// the profile moved under it, instead of silently overwriting.
+  version      Int       @default(0)
   dateOfBirth  DateTime?
   timeOfBirth  String? // HH:MM · null = unknown
   birthCountry String?

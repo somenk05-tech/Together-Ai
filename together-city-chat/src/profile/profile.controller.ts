@@ -47,6 +47,10 @@ export class ProfileController {
     sexAtBirth: z.enum(['male', 'female', 'intersex', 'preferNotToSay']).nullable().optional(),
     genderIdentity: z.enum(['male', 'female', 'nonBinary', 'other']).nullable().optional(),
     genderIdentityOther: z.string().trim().max(40).nullable().optional(),
+    /** The version the client believes it is editing. Optional — the hub
+     *  services write shared fields without ever having read the profile, and
+     *  refusing them would break saving from Nutrition, Fitness and the rest. */
+    expectedVersion: z.number().int().nonnegative().optional(),
     dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
     timeOfBirth: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
     birthCountry: z.string().max(60).nullable().optional(),
@@ -67,7 +71,8 @@ export class ProfileController {
       ...body,
       dateOfBirth: typeof body.dateOfBirth === 'string' ? new Date(body.dateOfBirth + 'T00:00:00.000Z') : (body.dateOfBirth as null | undefined),
     } as SharedFields;
-    await this.masterProfile.syncShared(user.sub, patch, 'master-profile-page');
+    const { expectedVersion, ...fields } = patch as typeof patch & { expectedVersion?: number };
+    await this.masterProfile.syncShared(user.sub, fields, 'master-profile-page', { expectedVersion });
     return this.masterProfile.get(user.sub);
   }
 

@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ConflictException } from '@nestjs/common';
 import { clinicalSex } from './sex-and-gender';
+import { diffProfile, versionConflict } from './profile-change';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { computeHealthScore, type HealthScoreResult } from './health-score';
@@ -257,15 +258,44 @@ export class MasterProfileService {
    * then propagate into the hub tables that duplicate the field (only rows
    * that already exist — a hub's own profile is still created by that hub).
    */
-  async syncShared(userId: string, patch: SharedFields, source: string) {
+  async syncShared(userId: string, patch: SharedFields, source: string, opts: { expectedVersion?: number | null; changedById?: string } = {}) {
     const clean = Object.fromEntries(
       Object.entries(patch).filter(([k, v]) => SHARED_KEYS.includes(k as keyof SharedFields) && v !== undefined),
     ) as SharedFields;
     if (!Object.keys(clean).length) return { synced: false };
 
+    // Read before writing, for two reasons: the audit trail needs the old
+    // values, and a caller that stated which version it was editing needs to be
+    // told if the profile moved underneath it.
+    const before = await this.master.findUnique({ where: { userId } }).catch(() => null);
+    const current = (before as { version?: number } | null)?.version ?? 0;
+    if (versionConflict(current, opts.expectedVersion)) {
+      throw new ConflictException(
+        'This profile was changed somewhere else while you were editing. Reload and try again.',
+      );
+    }
+
+    const changes = diffProfile(before as Record<string, unknown> | null, clean as Record<string, unknown>);
+
     await this.master.upsert({
-      where: { userId }, update: clean, create: { userId, ...clean },
+      where: { userId },
+      // The version moves only when something actually changed. A save that
+      // re-sends what is already there should not invalidate somebody else's
+      // in-flight edit.
+      update: { ...clean, ...(changes.length ? { version: current + 1 } : {}) },
+      create: { userId, ...clean },
     }).catch((e: Error) => this.logger.warn(`master upsert failed (${source}): ${e.message}`));
+
+    // Health data: height, weight, sex at birth, date of birth. The record of
+    // what it used to be is part of what "who changed what, when" means, and
+    // until now the only trace was a log line — which is not a record.
+    if (changes.length) {
+      await (this.prisma as unknown as {
+        profileChange: { createMany: (a: unknown) => Promise<unknown> };
+      }).profileChange.createMany({
+        data: changes.map((c) => ({ ...c, userId, source, changedById: opts.changedById ?? userId })),
+      }).catch((e: Error) => this.logger.warn(`profile change log failed (${source}): ${e.message}`));
+    }
 
     const plan = propagationPlan(clean);
     const p = this.prisma as unknown as Record<string, { updateMany: (a: unknown) => Promise<unknown> }>;
@@ -277,8 +307,8 @@ export class MasterProfileService {
       Object.keys(plan.food).length ? p.foodPref.updateMany({ where: { userId }, data: answeredNow(plan.food) }).catch(() => undefined) : null,
       Object.keys(plan.fitness).length ? p.fitnessProfile.updateMany({ where: { userId }, data: answeredNow(plan.fitness) }).catch(() => undefined) : null,
     ]);
-    this.logger.log(`shared fields synced from ${source}: ${Object.keys(clean).join(', ')}`);
-    return { synced: true, fields: Object.keys(clean) };
+    this.logger.log(`shared fields synced from ${source}: ${Object.keys(clean).join(', ')} (${changes.length} changed)`);
+    return { synced: true, fields: Object.keys(clean), changed: changes.map((c) => c.field) };
   }
 
   /**
