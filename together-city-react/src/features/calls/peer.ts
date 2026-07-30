@@ -47,6 +47,18 @@ export class CallPeer {
   private closed = false;
   /** Candidates that arrived before the remote description did. */
   private pending: RTCIceCandidateInit[] = [];
+  /**
+   * Signals that arrived before there was a connection to give them to.
+   *
+   * `start()` awaits getUserMedia, which can sit on a browser permission prompt
+   * for as long as the person takes to click Allow — and CallCenter hands this
+   * object to the socket the moment it is constructed, well before that. The
+   * caller's offer and first candidates routinely arrive inside that window.
+   * Dropped, they are never resent: the call rings, both sides believe they
+   * connected, and nobody hears anything, with no error raised anywhere. So
+   * they wait here and replay in order as soon as the connection is up.
+   */
+  private beforeStart: Array<{ kind: SignalKind; payload: unknown }> = [];
 
   constructor(private readonly opts: PeerOptions) {}
 
@@ -111,12 +123,22 @@ export class CallPeer {
         this.makingOffer = false;
       }
     };
+
+    // Anything that arrived while the permission prompt was open.
+    for (const queued of this.beforeStart.splice(0)) {
+      await this.receive(queued.kind, queued.payload);
+    }
   }
 
   /** Handle one piece of the handshake from the other side. */
   async receive(kind: SignalKind, payload: unknown): Promise<void> {
+    if (this.closed) return;
     const pc = this.pc;
-    if (!pc || this.closed) return;
+    if (!pc) {
+      // Not connected yet — see `beforeStart`. Held, never dropped.
+      this.beforeStart.push({ kind, payload });
+      return;
+    }
 
     if (kind === 'ice') {
       const candidate = payload as RTCIceCandidateInit;
@@ -175,6 +197,7 @@ export class CallPeer {
    */
   close(): void {
     this.closed = true;
+    this.beforeStart = [];
     this.local?.getTracks().forEach((t) => t.stop());
     this.local = null;
     try {
