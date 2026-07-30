@@ -267,6 +267,17 @@ function resizePhoto(file: File, maxDim = 1080): Promise<string> {
 }
 
 /** Dating Profile — 4-phase onboarding. Passes moderation before it's visible. */
+/**
+ * The Master Profile's gender identity, in the three values a dating profile
+ * uses. `other` and an unset value map to nothing rather than to a guess — the
+ * citizen picks, and the form waits.
+ */
+function masterGender(identity?: string | null): 'male' | 'female' | 'nonbinary' | null {
+  if (identity === 'male' || identity === 'female') return identity;
+  if (identity === 'nonBinary') return 'nonbinary';
+  return null;
+}
+
 export function DatingProfilePage() {
   const existing = useDatingProfile();
   const upsert = useUpsertDatingProfile();
@@ -275,7 +286,9 @@ export function DatingProfilePage() {
   const dobLocked = Boolean(master.data?.dateOfBirth);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState<UpsertProfileInput>({ gender: 'male', seeking: 'any', bio: '', birthDate: '', birthTime: '', birthPlace: '', interests: [] });
+  // Empty, not 'male' (p1, FE-15.1). A preselected gender is a value nobody
+  // chose, recorded as though they had.
+  const [form, setForm] = useState<UpsertProfileInput>({ gender: '', seeking: 'any', bio: '', birthDate: '', birthTime: '', birthPlace: '', interests: [] });
   const [dx, setDx] = useState<DX>({});
   const [collapsed, setCollapsed] = useState(false);
 
@@ -284,7 +297,9 @@ export function DatingProfilePage() {
     if (!d) return;
     const isSaved = (d as { saved?: boolean }).saved !== false; // prefill objects carry saved:false
     setForm({
-      gender: d.gender ?? 'male',
+      // Falls back to the Master Profile's gender identity rather than to a
+      // guess — the citizen has already answered this once (p22, p23).
+      gender: (d.gender ?? masterGender(master.data?.genderIdentity) ?? '') as UpsertProfileInput['gender'],
       seeking: d.seeking ?? 'any',
       bio: d.bio ?? '', birthDate: d.birthDate ?? '', birthTime: d.birthTime ?? '',
       birthPlace: d.birthPlace ?? '', interests: d.interests ?? [],
@@ -321,6 +336,9 @@ export function DatingProfilePage() {
   // Global validation standard — the match engine needs these to work at all.
   // NOTE: must be called before any early return — hooks can't be conditional.
   const v = useFormValidation([
+    // Now that the field starts empty, saving without choosing has to be
+    // caught here rather than silently recording the old default.
+    { key: 'gender', label: 'Gender', valid: () => Boolean(form.gender), message: 'Choose your Gender.' },
     { key: 'birthDate', label: 'Date of birth', valid: () => Boolean(form.birthDate), message: 'Enter your Date of birth.' },
     { key: 'bio', label: 'Bio', valid: () => (form.bio ?? '').trim().length >= 20, message: 'Write a short Bio (at least 20 characters).' },
     { key: 'interests', label: 'Interests', valid: () => (form.interests ?? []).length >= 3, message: 'Pick at least 3 Interests.' },
@@ -533,10 +551,12 @@ export function DatingProfilePage() {
         <div className="card">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
             <div><span style={label}>First name</span><input value={dx.firstName ?? ''} onChange={(e) => setD({ firstName: e.target.value })} style={field} /></div>
-            <div><span style={label}>Gender</span>
+            <div ref={v.reg('gender')}><span style={label}>Gender</span>
               <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value as UpsertProfileInput['gender'] })} style={field}>
+                <option value="">Select…</option>
                 <option value="male">Male</option><option value="female">Female</option><option value="nonbinary">Non-binary</option>
               </select>
+              <FieldError msg={v.errors.gender} />
             </div>
             <div><span style={label}>Looking for</span>
               <select value={form.seeking} onChange={(e) => setForm({ ...form, seeking: e.target.value as UpsertProfileInput['seeking'] })} style={field}>

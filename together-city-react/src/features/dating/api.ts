@@ -95,7 +95,12 @@ export interface DiscoverResult {
 }
 
 export interface UpsertProfileInput {
-  gender: DatingProfile['gender'];
+  /**
+   * Empty until the citizen chooses (p1, FE-15.1: "no fake or sample values
+   * anywhere"). The form used to open with 'male' preselected, so anyone who
+   * saved without touching it had a gender recorded that they never picked.
+   */
+  gender: DatingProfile['gender'] | '';
   seeking: DatingProfile['seeking'];
   bio?: string;
   birthDate: string;
