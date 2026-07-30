@@ -102,7 +102,7 @@ function mapFeedPosts(data: FeedInfinite | undefined, fn: (items: Post[]) => Pos
 export function useFeed(filter = 'foryou') {
   return useInfiniteQuery({
     queryKey: [...FEED_KEY, filter],
-    queryFn: ({ pageParam }) => socialApi.feed(pageParam as string | undefined, filter),
+    queryFn: ({ pageParam }) => socialApi.feed(pageParam, filter),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });

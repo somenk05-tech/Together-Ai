@@ -76,11 +76,11 @@ export function useDecideMedicalRec() {
   return useMutation({
     mutationFn: (v: { condition: string; choice: 'apply' | 'keep' }) => nutritionApi.decideMedicalRec(v.condition, v.choice),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['nutrition', 'medical-recs'] });
-      qc.invalidateQueries({ queryKey: ['nutrition', 'preferences'] });
-      qc.invalidateQueries({ queryKey: ['nutrition', 'weekly'] });
-      qc.invalidateQueries({ queryKey: ['nutrition', 'targets'] });
-      qc.invalidateQueries({ queryKey: ['nutrition', 'advice'] });
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'medical-recs'] });
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'preferences'] });
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'weekly'] });
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'targets'] });
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'advice'] });
     },
   });
 }
@@ -112,7 +112,7 @@ export function useFamilyHealth() {
 }
 export function useFamilyMemberMutations() {
   const qc = useQueryClient();
-  const set = (data: import('./api').FamilyMemberProfile[]) => { qc.setQueryData(FAM_KEY, data); qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); };
+  const set = (data: import('./api').FamilyMemberProfile[]) => { qc.setQueryData(FAM_KEY, data); void qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); };
   const update = useMutation({ mutationFn: (v: { id: string; dto: import('./api').FamilyMemberInput }) => nutritionApi.updateFamilyMember(v.id, v.dto), onSuccess: set });
   const remove = useMutation({ mutationFn: (id: string) => nutritionApi.removeFamilyMember(id), onSuccess: set });
   return { update, remove };
@@ -124,7 +124,7 @@ export function useHouseholdSharing() {
   const query = useQuery({ queryKey: ['nutrition', 'family', 'sharing'], queryFn: () => nutritionApi.householdSharing() });
   const update = useMutation({
     mutationFn: (patch: Partial<import('./api').HouseholdSharing>) => nutritionApi.setHouseholdSharing(patch),
-    onSuccess: (s) => { qc.setQueryData(['nutrition', 'family', 'sharing'], s); qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); },
+    onSuccess: (s) => { qc.setQueryData(['nutrition', 'family', 'sharing'], s); void qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); },
   });
   return { query, update };
 }
@@ -161,7 +161,7 @@ export function usePantryMutations() {
   // grocery list, which now only asks for what's still missing.
   const cooked = useMutation({
     mutationFn: (v: { mealKey: string; label?: string; people?: number }) => nutritionApi.markCooked(v.mealKey, v.label, v.people),
-    onSuccess: (r) => { set(r); qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); qc.invalidateQueries({ queryKey: ['nutrition', 'cart'] }); },
+    onSuccess: (r) => { set(r); void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); void qc.invalidateQueries({ queryKey: ['nutrition', 'cart'] }); },
   });
   return { add, stock, update, remove, cooked };
 }
@@ -174,14 +174,14 @@ export function useInviteHousehold() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { userRef: string; role: import('./api').HouseholdRole }) => nutritionApi.inviteHousehold(v.userRef, v.role),
-    onSuccess: (r) => { qc.setQueryData(FAM_KEY, r.household); qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); },
+    onSuccess: (r) => { qc.setQueryData(FAM_KEY, r.household); void qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); },
   });
 }
 export function useRespondHouseholdInvite() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { id: string; accept: boolean }) => nutritionApi.respondHouseholdInvite(v.id, v.accept),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); },
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); },
   });
 }
 
@@ -192,10 +192,10 @@ export function useRepairDay() {
   return useMutation({
     mutationFn: (v: { planKey: string; dayIndex: number }) => nutritionApi.repairDay(v.planKey, v.dayIndex),
     onSuccess: (_r, v) => {
-      qc.invalidateQueries({ queryKey: ['nutrition', 'summary', v.planKey, v.dayIndex] });
-      qc.invalidateQueries({ queryKey: ['nutrition', 'week-summary'] });
-      qc.invalidateQueries({ queryKey: ['nutrition', 'weekly'] });
-      qc.invalidateQueries({ queryKey: ['nutrition', 'daily'] });
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'summary', v.planKey, v.dayIndex] });
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'week-summary'] });
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'weekly'] });
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'daily'] });
     },
   });
 }

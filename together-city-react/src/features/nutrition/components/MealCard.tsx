@@ -16,11 +16,11 @@ export function MealCard({ meal, onSwap, onSkip, people = 1, onBack, canGoBack =
   // actually eat) with the serving size named in plate language. The recipe
   // page keeps per-full-plate values; the base is shown here for reference.
   const tuned = portionPct != null && portionPct !== 100 && !plate;
-  const pf = tuned ? portionPct! / 100 : 1;
+  const pf = tuned ? portionPct / 100 : 1;
   const PORTION_TEXT: Record<number, string> = {
     50: 'Half plate', 75: '¾ plate', 125: '1¼ plates', 150: '1½ plates',
   };
-  const portionText = tuned ? PORTION_TEXT[portionPct!] ?? `${Math.round(pf * 100)}% of a plate` : null;
+  const portionText = tuned ? PORTION_TEXT[portionPct] ?? `${Math.round(pf * 100)}% of a plate` : null;
   const baseKcal = tuned ? Math.round(r.kcal / pf) : r.kcal;
   const addonsKcal = addons.reduce((s, a) => s + a.kcal, 0);
   const [imgOk, setImgOk] = useState(true);

@@ -17,7 +17,7 @@ function genPoster(file: File): Promise<File | null> {
     try {
       const url = URL.createObjectURL(file);
       const v = document.createElement('video');
-      v.preload = 'metadata'; v.muted = true; (v as HTMLVideoElement).playsInline = true; v.src = url;
+      v.preload = 'metadata'; v.muted = true; v.playsInline = true; v.src = url;
       const done = (f: File | null) => { URL.revokeObjectURL(url); resolve(f); };
       v.onloadedmetadata = () => { try { v.currentTime = Math.min(0.1, (v.duration || 1) / 2); } catch { done(null); } };
       v.onseeked = () => {
@@ -59,7 +59,9 @@ function ImageEditor({ src, onClose, onApply }: { src: string; onClose: () => vo
     { name: 'Fade', extra: '', b: 1.1, c: 0.9, s: 0.82 },
     { name: 'Noir', extra: 'grayscale(1)', b: 0.95, c: 1.35, s: 1 },
   ];
-  const usePreset = (p: (typeof PRESETS)[number]) => { setExtra(p.extra); setB(p.b); setC(p.c); setS(p.s); };
+  // Named applyPreset, not usePreset: it is a plain handler, and a `use`
+  // prefix tells both React's lint rule and the next reader that it is a hook.
+  const applyPreset = (p: (typeof PRESETS)[number]) => { setExtra(p.extra); setB(p.b); setC(p.c); setS(p.s); };
 
   const apply = () => {
     setBusy(true);
@@ -105,7 +107,7 @@ function ImageEditor({ src, onClose, onApply }: { src: string; onClose: () => vo
               const pf = `${p.extra} brightness(${p.b}) contrast(${p.c}) saturate(${p.s})`.trim();
               const active = pf === filter;
               return (
-                <button key={p.name} type="button" onClick={() => usePreset(p)}
+                <button key={p.name} type="button" onClick={() => applyPreset(p)}
                   style={{ cursor: 'pointer', border: `2px solid ${active ? 'var(--accent)' : 'var(--line)'}`, borderRadius: 10, padding: 0, background: 'none', overflow: 'hidden', width: 72 }}>
                   <img src={src} alt="" style={{ width: 72, height: 54, objectFit: 'cover', display: 'block', filter: pf }} />
                   <span style={{ display: 'block', fontSize: 11, fontWeight: 600, padding: '3px 0' }}>{p.name}</span>
@@ -615,7 +617,7 @@ export function CreatePost() {
               </button>
             )}
             {suggestions.mood && (
-              <button type="button" onClick={() => setFeeling(suggestions.mood!)}
+              <button type="button" onClick={() => setFeeling(suggestions.mood)}
                 style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)' }}>
                 {suggestions.mood}
               </button>
@@ -654,9 +656,9 @@ export function CreatePost() {
         </p>
 
         <input ref={photoPicker} type="file" accept="image/*" multiple style={{ display: 'none' }}
-          onChange={(e) => { onFiles(e.target.files); e.target.value = ''; }} />
+          onChange={(e) => { void onFiles(e.target.files); e.target.value = ''; }} />
         <input ref={videoPicker} type="file" accept="video/*" multiple style={{ display: 'none' }}
-          onChange={(e) => { onFiles(e.target.files); e.target.value = ''; }} />
+          onChange={(e) => { void onFiles(e.target.files); e.target.value = ''; }} />
 
         {open === 'location' && (
           <div style={{ marginTop: 12, padding: 14, borderRadius: 12, background: 'var(--accent-soft)' }}>

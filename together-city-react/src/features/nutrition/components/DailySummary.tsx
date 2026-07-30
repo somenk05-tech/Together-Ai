@@ -126,7 +126,7 @@ function AutoBalance({ summary, targets, planKey, dayIndex }: {
   useEffect(() => {
     if (out && canFix && !attempted.current.has(key) && !repair.isPending) {
       attempted.current.add(key);
-      repair.mutate({ planKey: planKey as string, dayIndex: dayIndex as number });
+      repair.mutate({ planKey: planKey as string, dayIndex });
     }
   }, [out, canFix, key, planKey, dayIndex, repair]);
 
@@ -218,7 +218,7 @@ export function DailySummary({ day, summary, targets, planKey, dayIndex }: {
         {targets ? (
           <>
             {hasWeek
-              ? <WeekProgress week={week.data as WeekNutritionSummary} dayIndex={dayIndex as number} />
+              ? <WeekProgress week={week.data as WeekNutritionSummary} dayIndex={dayIndex} />
               : (
                 <>
                   <NutrientRow label="Calories" consumed={summary.kcal} target={targets.kcal} unit="kcal" />

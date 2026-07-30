@@ -60,7 +60,7 @@ export function CityHeader() {
   const hasWeather = data?.temperatureC != null;
 
   return (
-    <div aria-label={`${data?.city ?? 'Your city'}, ${day} ${date}${hasWeather ? `, ${data!.temperatureC} degrees` : ''}`}>
+    <div aria-label={`${data?.city ?? 'Your city'}, ${day} ${date}${hasWeather ? `, ${data.temperatureC} degrees` : ''}`}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', lineHeight: 1 }}>
         {data?.city && (
           <>
@@ -74,11 +74,11 @@ export function CityHeader() {
         {hasWeather && (
           <>
             {dot}
-            <span aria-hidden style={{ fontSize: 13 }}>{data!.icon}</span>
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: ink }}>{data!.temperatureC}°C</span>
-            {data!.description && <span style={{ fontSize: 11, color: soft }}>{data!.description}</span>}
-            {data!.feelsLikeC != null && data!.feelsLikeC !== data!.temperatureC && (
-              <>{dot}<span style={{ fontSize: 11, color: soft }}>feels {data!.feelsLikeC}°</span></>
+            <span aria-hidden style={{ fontSize: 13 }}>{data.icon}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: ink }}>{data.temperatureC}°C</span>
+            {data.description && <span style={{ fontSize: 11, color: soft }}>{data.description}</span>}
+            {data.feelsLikeC != null && data.feelsLikeC !== data.temperatureC && (
+              <>{dot}<span style={{ fontSize: 11, color: soft }}>feels {data.feelsLikeC}°</span></>
             )}
           </>
         )}

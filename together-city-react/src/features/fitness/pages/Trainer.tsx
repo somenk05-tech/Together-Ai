@@ -172,7 +172,7 @@ export function Trainer() {
       startTs.current = performance.now();
       setStatus('live'); setElapsed(0); setReps(0); setPhase('warmup');
       speak(`Starting your ${SESSION_MIN}-minute session. ${PHASES[0].cue} We'll begin with ${exerciseRef.current.label}s.`);
-      loadPose();
+      void loadPose();
       rafRef.current = requestAnimationFrame(loop);
     } catch {
       setStatus('denied');

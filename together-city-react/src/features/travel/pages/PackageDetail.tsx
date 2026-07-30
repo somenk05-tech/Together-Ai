@@ -110,7 +110,7 @@ export function PackageDetail() {
         open={payOpen} amountInr={total} label={`${p.title} · ${chosen?.name} · ${pax} traveller${pax > 1 ? 's' : ''}`}
         pending={book.isPending} error={book.isError ? payError(book.error) : null}
         onCancel={() => setPayOpen(false)}
-        onPay={(method: PayMethod) => book.mutate({ id: p.id, tier: chosen!.name, pax, method }, { onSuccess: () => { setBooked(true); setPayOpen(false); } })}
+        onPay={(method: PayMethod) => book.mutate({ id: p.id, tier: chosen.name, pax, method }, { onSuccess: () => { setBooked(true); setPayOpen(false); } })}
       />
     </div>
   );

@@ -79,7 +79,7 @@ export function useUpdateProfile() {
 export function useMyPosts() {
   return useInfiniteQuery({
     queryKey: ['profile', 'posts'],
-    queryFn: ({ pageParam }) => myProfileApi.posts(pageParam as string | undefined),
+    queryFn: ({ pageParam }) => myProfileApi.posts(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
@@ -114,7 +114,7 @@ export function usePublicProfile(handle: string | null) {
 export function usePublicPosts(handle: string | null) {
   return useInfiniteQuery({
     queryKey: ['profile', 'user-posts', (handle ?? '').toLowerCase()],
-    queryFn: ({ pageParam }) => myProfileApi.userPosts(handle as string, pageParam as string | undefined),
+    queryFn: ({ pageParam }) => myProfileApi.userPosts(handle as string, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: Boolean(handle),

@@ -284,8 +284,8 @@ export function DatingProfilePage() {
     if (!d) return;
     const isSaved = (d as { saved?: boolean }).saved !== false; // prefill objects carry saved:false
     setForm({
-      gender: (d.gender as UpsertProfileInput['gender']) ?? 'male',
-      seeking: (d.seeking as UpsertProfileInput['seeking']) ?? 'any',
+      gender: d.gender ?? 'male',
+      seeking: d.seeking ?? 'any',
       bio: d.bio ?? '', birthDate: d.birthDate ?? '', birthTime: d.birthTime ?? '',
       birthPlace: d.birthPlace ?? '', interests: d.interests ?? [],
     });

@@ -176,7 +176,7 @@ export function Recipes() {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
         {TABS.map((t) => {
-          const meta = t.key !== 'everything' ? DIET_META[t.key as Exclude<DietKey, 'everything'>] : null;
+          const meta = t.key !== 'everything' ? DIET_META[t.key] : null;
           const active = diet === t.key;
           return (
             <button
