@@ -12,16 +12,52 @@ records, and it takes a day or two to warm up.
 This is the runbook for that. It is written to be followed once, by whoever owns
 the domain.
 
+## Setting it on Railway
+
+The API reads these at boot. Set them in the Railway dashboard on the API
+service → **Variables**, then redeploy — Railway restarts the container on a
+variable change, and nothing is read until it does.
+
+| Variable | Value |
+|---|---|
+| `EMAIL_PROVIDER` | `resend` |
+| `RESEND_API_KEY` | from Resend → API Keys |
+| `EMAIL_FROM` | `Together City <no-reply@togethercity.app>` |
+| `WEB_APP_URL` | `https://togethercity.app` |
+
+Two of those are easy to get subtly wrong.
+
+**`EMAIL_FROM` must sit on the domain Resend shows as Verified.** That is
+`togethercity.app` — the apex, verified 2026-07-23. Resend rejects an
+unverified sender at the API rather than downgrading it, so a wrong value here
+fails every send with an error visible only in the log.
+
+This value is also the code's default, so strictly it can be left unset. Set it
+anyway: a default that happens to be correct is indistinguishable from a
+configuration that was thought about, right up until someone changes the
+default.
+
+**`WEB_APP_URL` is not cosmetic.** Unset, it falls back to the raw
+`together-ai-five.vercel.app` hostname, and links in your email point at a
+domain that does not match the brand, the sender or the site. Recipients read
+that as phishing and so do spam filters.
+
+Leave `SMS_PROVIDER` unset for now. Unset means the stub, phone verification
+says "no SMS provider is configured on this environment" rather than pretending,
+and nothing else is affected.
+
 ## The short version
 
 | Setting | Value |
 |---|---|
-| Sending subdomain | `mail.togethercity.app` |
+| Sending domain | `togethercity.app` (apex, verified) |
+| Envelope sender | `send.togethercity.app` (Resend's own subdomain) |
 | `EMAIL_PROVIDER` | `resend` |
-| `EMAIL_FROM` | `Together City <no-reply@mail.togethercity.app>` |
+| `EMAIL_FROM` | `Together City <no-reply@togethercity.app>` |
 | `RESEND_API_KEY` | from the Resend dashboard |
-| `SMS_PROVIDER` | `twilio` |
-| `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` | from the Twilio console |
+| `WEB_APP_URL` | `https://togethercity.app` |
+| `SMS_PROVIDER` | unset for now — see §2's open items |
+| `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` | from the Twilio console, when SMS is turned on |
 | `TWILIO_MESSAGING_SERVICE_SID` | preferred over `TWILIO_FROM` in India |
 
 Until `EMAIL_PROVIDER` is set, the stub provider runs, logs every message and
@@ -29,22 +65,70 @@ delivers none — and the app says so rather than pretending: the verification
 screen shows "no provider is configured on this environment" instead of "check
 your inbox".
 
-## Why a subdomain and not the apex
+## What is actually set up (verified 2026-07-23)
 
-Send from `mail.togethercity.app`, not from `togethercity.app`.
+The domain is **`togethercity.app`**, the apex, and it is Verified in Resend
+with sending and receiving both enabled.
 
-Reputation attaches to the sending domain. If transactional mail goes out from
-the apex and something later goes wrong — a compromised form, a bulk send to a
-stale list, a spike of complaints — the damage lands on the domain that also
-serves the website and any future business correspondence. A subdomain is a
-firebreak. It also means the apex's own SPF record (which may need to list a
-CRM, a helpdesk, an invoicing tool) does not have to share a ten-lookup budget
-with the transactional stream.
+This document originally recommended a `mail.` subdomain, and the apex is a
+defensible different choice — but the reason for the recommendation is worth
+knowing, because it decides what to do if reputation ever goes wrong.
+Reputation attaches to the sending domain, so mail from the apex shares a fate
+with anything else that ever sends as `togethercity.app`. A subdomain is a
+firebreak. On a young domain with one transactional stream, there is nothing to
+firebreak from yet; the moment a second stream exists — a newsletter, a CRM, an
+invoicing tool — split it onto its own subdomain rather than adding it here.
 
-## The four records
+Resend has already done part of that split without being asked. Look at the
+records: SPF and the feedback MX are on **`send.togethercity.app`**, not on the
+apex. That subdomain is the envelope sender (the `Return-Path`), so bounce
+handling and the SPF lookup budget are already isolated, while the `From:`
+header the recipient reads stays `togethercity.app`.
 
-Add these to the DNS for `togethercity.app`. Resend's dashboard generates the
-exact values for the first two; the shapes are below so you can check them.
+That arrangement is also why DMARC will pass. Alignment is checked between the
+`From:` domain and the authenticated one:
+
+- **DKIM** signs with `d=togethercity.app` — the same domain, so it aligns
+  strictly.
+- **SPF** authenticates `send.togethercity.app` — a subdomain, which aligns in
+  *relaxed* mode because the organisational domain matches.
+
+DMARC passes if *either* aligns, and here both do.
+
+The records currently in place:
+
+| Record | Name | Purpose | Status |
+|---|---|---|---|
+| TXT | `resend._domainkey` | DKIM public key | Verified |
+| MX | `send` | bounce & complaint feedback | Verified |
+| TXT | `send` | SPF for the envelope sender | Verified |
+| TXT | `_dmarc` | `v=DMARC1; p=none;` | set |
+| MX | `@` | inbound receiving | Verified |
+
+Two notes on those.
+
+**SPF ends in `~all`, which is correct for now.** Softfail rather than hardfail
+while the domain is new: a `-all` on a record with a mistake in it does not
+degrade delivery, it stops it. Tighten to `-all` once the DMARC reports show
+only your own sources.
+
+**DMARC is at `p=none` with no `rua`.** `p=none` is the right starting policy —
+it publishes the intent without changing how anything is delivered. But with no
+`rua=mailto:` there is nowhere for the reports to go, which means the one thing
+`p=none` is *for* is currently switched off. Add
+`rua=mailto:dmarc@togethercity.app` to that record; the reports are what tell
+you whether moving to `p=quarantine` is safe, and without them the policy will
+sit at `none` indefinitely because nobody will ever have evidence to raise it.
+
+**The apex MX points at Resend inbound.** That is real email to
+`@togethercity.app` arriving at Resend — worth being aware of alongside the
+in-app Together City Mail feature, which is a separate thing that does not use
+these records. §14 is where that distinction has to be settled.
+
+## The records in detail
+
+Already in place — kept here so the shapes can be checked, and so a rebuild on
+another domain does not start from nothing.
 
 **1. SPF** — says which servers may send as this domain.
 
