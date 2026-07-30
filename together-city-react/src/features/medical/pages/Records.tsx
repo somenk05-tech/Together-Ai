@@ -129,10 +129,55 @@ export function Records() {
     ...KINDS.map((k) => ({ key: k.key, label: k.label, icon: k.icon, items: (records.data ?? []).filter((r) => r.kind === k.key) })),
     { key: '__other', label: 'Other', icon: '📁', items: (records.data ?? []).filter((r) => !known.has(r.kind)) },
   ].filter((g) => g.items.length);
-  // Health timeline — blood panels + records merged chronologically (newest first).
+  // Health timeline — one entry per thing that happened, newest first.
+  //
+  // Review p5: "the lower two blood tests were never added, but still shows some
+  // random names". They had been added. Uploading a report creates the document
+  // AND a parsed panel linked to it (MedicalRecord.bloodTestId), and this list
+  // rendered both — so each test appeared twice, once under the name the citizen
+  // gave it and once as "Blood panel · Redcliffe Lifetech Pvt. Ltd." dated to the
+  // collection date printed inside the PDF.
+  //
+  // Nothing was invented. The lab names and dates were read from their own
+  // reports. But two entries for one test, under a name they never typed and a
+  // date they did not recognise, is indistinguishable from invented data — and a
+  // record of your own health that appears to contain things you did not put
+  // there is worse than one that is merely cluttered.
+  //
+  // So a record that produced a panel is shown ONCE, keeping the title the
+  // citizen chose and gaining what the panel knows: the collection date, the
+  // marker count, the flags.
+  const panels = history.data ?? [];
+  const panelById = new Map(panels.map((t) => [t.id, t]));
+  const claimedPanels = new Set(
+    (records.data ?? []).map((r) => r.bloodTestId).filter((id): id is string => Boolean(id && panelById.has(id))),
+  );
+
   const timeline = [
-    ...(history.data ?? []).map((t) => ({ date: t.takenOn, icon: '🩸', title: `Blood panel${t.lab ? ` · ${t.lab}` : ''}`, sub: `${t.markerCount} markers${t.flagged.length ? ` · ${t.flagged.length} flagged` : ''}` })),
-    ...(records.data ?? []).map((r) => ({ date: r.recordedOn, icon: iconFor(r.kind), title: r.title, sub: labelFor(r.kind) })),
+    // Panels with no document behind them — entered by hand rather than uploaded.
+    ...panels
+      .filter((t) => !claimedPanels.has(t.id))
+      .map((t) => ({
+        date: t.takenOn, icon: '🩸',
+        title: `Blood panel${t.lab ? ` · ${t.lab}` : ''}`,
+        sub: `${t.markerCount} markers${t.flagged.length ? ` · ${t.flagged.length} flagged` : ''}`,
+      })),
+    ...(records.data ?? []).map((r) => {
+      const panel = r.bloodTestId ? panelById.get(r.bloodTestId) : undefined;
+      if (!panel) return { date: r.recordedOn, icon: iconFor(r.kind), title: r.title, sub: labelFor(r.kind) };
+      return {
+        // The collection date, not the upload date. A report uploaded today
+        // about a sample drawn in May belongs in May on a health timeline.
+        date: panel.takenOn,
+        icon: '🩸',
+        title: r.title,
+        sub: [
+          panel.lab,
+          `${panel.markerCount} markers`,
+          panel.flagged.length ? `${panel.flagged.length} flagged` : null,
+        ].filter(Boolean).join(' · '),
+      };
+    }),
   ].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 25);
 
   return (
