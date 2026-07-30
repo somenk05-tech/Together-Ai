@@ -25,7 +25,6 @@ interface AuthState {
   isAuthenticated: () => boolean;
   login: (handle: string, password: string) => Promise<void>;
   register: (handle: string, name: string, password: string, contact: { email: string; phone?: string }) => Promise<void>;
-  verifyEmail: (token: string) => Promise<void>;
   refresh: () => Promise<string | null>;
   signOut: () => void;
   hydrate: () => Promise<void>;
@@ -56,11 +55,6 @@ export const useAuthStore = create<AuthState>()(
         set({ user: await authApi.me() });
       },
 
-      verifyEmail: async (token: string) => {
-        const { accessToken, refreshToken } = await authApi.verifyEmail(token);
-        set({ tokens: { accessToken, refreshToken } });
-        set({ user: await authApi.me() });
-      },
 
       refresh: async () => {
         // Persistent login runs on the refresh token in localStorage (no cookie).

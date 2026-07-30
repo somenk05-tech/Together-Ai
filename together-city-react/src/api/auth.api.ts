@@ -83,13 +83,6 @@ export const authApi = {
     apiPost('/auth/forgot', { identifier, channel }, OkSent),
   reset: (input: { identifier: string; code: string; newPassword: string }): Promise<{ ok: boolean }> =>
     apiPost<{ ok: boolean }>('/auth/reset', input, OkReset),
-  verifyEmail: (token: string): Promise<TokenPair> =>
-    apiPost('/auth/verify-email', { token }, TokenPairSchema),
-  resendVerification: (email: string): Promise<{ ok: boolean; message: string }> =>
-    apiPost('/auth/resend-verification', { email }, z.object({ ok: z.boolean(), message: z.string() })),
-  /** Re-send the verification link to the SIGNED-IN user (no email typing). */
-  sendVerification: (): Promise<{ ok?: boolean }> =>
-    apiPost('/auth/send-verification', {}, z.object({ ok: z.boolean().optional() }).passthrough()),
   /**
    * Ask for a six-digit code. `target` is optional for email (defaults to the
    * address on the account) and is how you change either channel: supplying a

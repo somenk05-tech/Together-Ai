@@ -34,12 +34,6 @@ const PUBLIC_ALLOWLIST = [
   'auth POST refresh',
   'auth POST forgot',
   'auth POST reset',
-  'auth POST verify-email',
-  'auth POST resend-verification',
-  'auth POST recovery/request',
-  'auth POST recovery/verify',
-  'auth POST recovery/resend',
-  'auth POST recovery/reset',
   'city GET header',
   'health GET',
 ].sort();

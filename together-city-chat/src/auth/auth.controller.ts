@@ -7,10 +7,8 @@ import { JwtUser } from '../shared/types';
 import { Public } from '../shared/public.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService } from './auth.service';
-import { VerificationService } from './verification.service';
 import { VerificationCodeService } from './verification-code.service';
 import type { Channel } from './verification-policy';
-import { RecoveryService } from './recovery.service';
 import type { SessionMeta } from './token.service';
 import {
   ForgotDto,
@@ -75,9 +73,7 @@ function metaFrom(req: Request): SessionMeta {
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
-    private readonly verification: VerificationService,
     private readonly codes: VerificationCodeService,
-    private readonly recovery: RecoveryService,
   ) {}
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
@@ -208,28 +204,6 @@ export class AuthController {
     return this.auth.logoutAll(user.sub);
   }
 
-  // ── Email verification ──
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  @Public()
-  @Post('verify-email')
-  verifyEmail(@Body() dto: { token?: string }) {
-    return this.verification.verify(dto?.token ?? '');
-  }
-
-  @Throttle({ default: { limit: 3, ttl: 300_000 } })
-  @Public()
-  @Post('resend-verification')
-  resendVerification(@Body() dto: { email?: string }) {
-    return this.verification.resend(dto?.email ?? '');
-  }
-
-  @Throttle({ default: { limit: 3, ttl: 300_000 } })
-  @Post('send-verification')
-  @UseGuards(JwtAuthGuard)
-  sendVerification(@CurrentUser() user: JwtUser) {
-    return this.verification.send(user.sub);
-  }
-
   // ── Six-digit verification of a real email address and phone (p2, p3, p19) ──
   //
   // Signed-in only, all three. Verification proves that the person holding this
@@ -264,34 +238,6 @@ export class AuthController {
     return this.codes.status(user.sub);
   }
 
-  // ── OTP account recovery (production forgot-password) ──
-  @Throttle({ default: { limit: 4, ttl: 300_000 } })
-  @Public()
-  @Post('recovery/request')
-  recoveryRequest(@Body() dto: { identifier?: string; channel?: 'email' | 'sms' }, @Req() req: Request) {
-    return this.recovery.request(dto?.identifier ?? '', dto?.channel === 'sms' ? 'sms' : 'email', req.ip, req.headers['user-agent']);
-  }
-
-  @Throttle({ default: { limit: 8, ttl: 300_000 } })
-  @Public()
-  @Post('recovery/verify')
-  recoveryVerify(@Body() dto: { recoveryToken?: string; otp?: string }) {
-    return this.recovery.verify(dto?.recoveryToken ?? '', dto?.otp ?? '');
-  }
-
-  @Throttle({ default: { limit: 3, ttl: 300_000 } })
-  @Public()
-  @Post('recovery/resend')
-  recoveryResend(@Body() dto: { recoveryToken?: string }) {
-    return this.recovery.resend(dto?.recoveryToken ?? '');
-  }
-
-  @Throttle({ default: { limit: 5, ttl: 300_000 } })
-  @Public()
-  @Post('recovery/reset')
-  recoveryReset(@Body() dto: { resetToken?: string; newPassword?: string }) {
-    return this.recovery.reset(dto?.resetToken ?? '', dto?.newPassword ?? '');
-  }
 }
 
 /** Only two channels exist; anything else is a client bug, not a new feature. */

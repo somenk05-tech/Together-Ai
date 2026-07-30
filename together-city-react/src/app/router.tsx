@@ -160,7 +160,6 @@ const Chats = lazy(() => import('@/features/chat/pages/Chats').then((m) => ({ de
 const Settings = lazy(() => import('@/features/settings/pages/Settings').then((m) => ({ default: m.Settings })));
 const Calendar = lazy(() => import('@/features/calendar/pages/Calendar').then((m) => ({ default: m.Calendar })));
 const SignIn = lazy(() => import('@/features/auth/pages/SignIn').then((m) => ({ default: m.SignIn })));
-const Verify = lazy(() => import('@/features/auth/pages/Verify').then((m) => ({ default: m.Verify })));
 const PrivacySettings = lazy(() => import('@/features/privacy/pages/PrivacySettings').then((m) => ({ default: m.PrivacySettings })));
 const Info = lazy(() => import('@/pages/Info').then((m) => ({ default: m.Info })));
 const LegalCenter = lazy(() => import('@/features/legal/LegalCenter').then((m) => ({ default: m.LegalCenter })));
@@ -446,7 +445,6 @@ export const router = createBrowserRouter([
   },
   { path: '/sign-in', element: wrap(<SignIn />) },
   { path: '/signin', element: <Navigate to="/sign-in" replace /> },
-  { path: '/verify', element: wrap(<Verify />) },
   { path: '/index.html', element: <Navigate to="/" replace /> },
 
   // Destinations the review removed. They keep resolving for one release so

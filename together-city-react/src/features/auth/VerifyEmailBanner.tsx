@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { authApi } from '@/api/auth.api';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 
 const DISMISS_KEY = 'tc:verify-banner-dismissed';
@@ -7,27 +7,30 @@ const DISMISS_KEY = 'tc:verify-banner-dismissed';
 /**
  * Soft-gate banner: the app stays usable while an email is unconfirmed, but a
  * few public-facing actions (posting to the city feed, listing a property,
- * connecting in dating) are blocked server-side by VerifiedGuard. This tells
- * the user why, and lets them re-send the link without leaving the page.
+ * connecting in dating) are blocked server-side by VerifiedGuard. This says why.
+ *
+ * It used to carry a "Resend link" button that mailed a 24-hour verification
+ * link. That flow is gone — the link was filed in the citizen's own in-app
+ * inbox, so it could be clicked by anyone holding a session, without ever
+ * having access to the mailbox it was addressed to. Verification that can be
+ * completed without reading the email verifies nothing.
+ *
+ * So the banner now points at the six-digit flow on the profile instead of
+ * doing anything itself. A banner that starts a process it cannot finish — send
+ * a link, then leave the person to go and find it — was always the weaker half
+ * of this anyway.
  *
  * Hidden when: signed out, no email on file (phone-only accounts have nothing
  * to confirm), already verified, or dismissed for this session.
  */
 export function VerifyEmailBanner() {
   const user = useAuthStore((s) => s.user);
-  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [hidden, setHidden] = useState(() => {
     try { return sessionStorage.getItem(DISMISS_KEY) === '1'; } catch { return false; }
   });
 
   const needsVerify = Boolean(user?.email) && user?.emailVerified === false;
   if (!needsVerify || hidden) return null;
-
-  const resend = async () => {
-    setState('sending');
-    try { await authApi.sendVerification(); setState('sent'); }
-    catch { setState('error'); }
-  };
 
   const dismiss = () => {
     setHidden(true);
@@ -44,23 +47,19 @@ export function VerifyEmailBanner() {
     }}>
       <span aria-hidden style={{ fontSize: 15 }}>✉️</span>
       <span style={{ flex: 1, minWidth: 220 }}>
-        {state === 'sent'
-          ? <>Verification link sent to <strong>{user?.email}</strong>. Open it to confirm your address.</>
-          : state === 'error'
-            ? <>Couldn't send the verification email just now — please try again in a moment.</>
-            : <>Confirm your email{user?.email ? <> (<strong>{user.email}</strong>)</> : ''} to publish posts, list property and connect in Dating.</>}
+        Confirm your email{user?.email ? <> (<strong>{user.email}</strong>)</> : ''} to publish posts,
+        list property and connect in Dating.
       </span>
-      {state !== 'sent' && (
-        <button type="button" onClick={() => void resend()} disabled={state === 'sending'}
-          style={{
-            cursor: state === 'sending' ? 'default' : 'pointer', fontFamily: 'inherit',
-            fontSize: 12, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase',
-            padding: '7px 14px', borderRadius: 999, border: 'none',
-            background: 'var(--gold)', color: '#fff', opacity: state === 'sending' ? 0.7 : 1,
-          }}>
-          {state === 'sending' ? 'Sending…' : 'Resend link'}
-        </button>
-      )}
+      <Link
+        to="/profile"
+        style={{
+          fontSize: 12, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase',
+          padding: '7px 14px', borderRadius: 999, textDecoration: 'none',
+          background: 'var(--gold)', color: '#fff',
+        }}
+      >
+        Verify now
+      </Link>
       <button type="button" onClick={dismiss} aria-label="Dismiss"
         style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, color: 'var(--muted)', padding: '0 2px' }}>
         ×

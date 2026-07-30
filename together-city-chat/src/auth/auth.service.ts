@@ -9,8 +9,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { ForgotDto, LoginDto, RegisterDto, ResetDto } from './dto/auth.dto';
 import { TokenService, TokenPair, SessionMeta } from './token.service';
-import { assertStrongPassword } from './recovery.service';
-import { VerificationService } from './verification.service';
+import { assertStrongPassword } from './password-policy';
 import { isCityAddress } from '../mail/mail.constants';
 import { isReservedAdminHandle } from './admin';
 
@@ -23,7 +22,6 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
     private readonly mail: MailService,
-    private readonly verification: VerificationService,
   ) {}
 
   /** Every new account is fully initialised on sign-up — no lazy gaps. Seeds the
@@ -61,7 +59,13 @@ export class AuthService {
       },
     });
     await this.initializeAccount(user.id);            // fully-initialised account
-    await this.verification.send(user.id).catch(() => undefined); // send verification link
+    // No verification email is sent here any more. Sign-up now finishes on a
+    // six-digit code screen (VerifyChannel), which asks for the code the person
+    // is about to receive rather than mailing a link they have to go and find.
+    // Firing both meant two emails for one action, and the link half was the
+    // unsound one: it was filed in the citizen's in-app inbox, so a link
+    // proving control of an external mailbox could be clicked by anyone
+    // holding a session. Removed in 20260730160000_retire_verification_links.
     const pair = await this.tokens.issuePair({ sub: user.id, handle: user.handle }, meta);
     return { ...pair, userId: user.id };
   }
@@ -111,11 +115,17 @@ export class AuthService {
   }
 
   /** Forgot password — send a recovery OTP to the citizen's primary email or phone (and their city inbox). */
-  async forgot(dto: ForgotDto): Promise<{ sent: true; delivery: 'live' | 'unconfigured' }> {
+  async forgot(dto: ForgotDto): Promise<{ sent: true; delivery: 'live' | 'unconfigured'; channel: 'email' | 'sms' }> {
     const channel = dto.channel === 'sms' ? 'sms' : 'email';
     // System-wide fact (same for every request) — so the client can warn when
     // external delivery isn't wired instead of the code silently going nowhere.
     const delivery = this.mail.deliveryConfigured(channel) ? 'live' : 'unconfigured';
+    // `channel` is the channel that was REQUESTED, echoed back — never the one
+    // actually used. Those differ when SMS is asked for and the account has no
+    // phone, and reporting the real one would answer "does this account have a
+    // phone number?" for any address a stranger cares to type. The whole
+    // response is identical for a hit and a miss; this field must not be the
+    // thing that breaks that.
     const user = await this.findByIdentifier(dto.identifier);
     // Always respond the same way — never leak whether an account exists.
     if (user) {
@@ -142,9 +152,22 @@ export class AuthService {
             ``, `Your recovery code is: ${code}`, `It expires in 30 minutes.`, ``,
             `Enter it on the reset screen along with a new password. If you didn't request this, you can ignore this message — your password stays unchanged.`,
           ].join('\n');
-      await this.mail.deliverSystem(user.id, { subject: '🔐 Your Together City recovery code', body }, 'recovery', sendChannel).catch(() => undefined);
+      // deliverTo, NOT deliverSystem. deliverSystem files a copy of every
+      // message in the citizen's own in-app Together City inbox — which put the
+      // password-reset code somewhere any holder of a session could read it,
+      // and a reset code readable from inside a session is an escalation from
+      // "borrowed a logged-in laptop" to "owns the account and can lock you
+      // out". Same defect as the verification link removed alongside this.
+      //
+      // The "password was changed" notice below stays on deliverSystem: that is
+      // correspondence, not a secret, and belongs in the inbox.
+      const target = sendChannel === 'sms' ? user.phone : user.email;
+      if (target) {
+        await this.mail.deliverTo(user.id, sendChannel, target,
+          { subject: '🔐 Your Together City recovery code', body }, 'recovery').catch(() => undefined);
+      }
     }
-    return { sent: true, delivery };
+    return { sent: true, delivery, channel };
   }
 
   /** Reset password with the recovery code; emails a security confirmation. */

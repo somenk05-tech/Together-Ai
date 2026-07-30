@@ -1,6 +1,5 @@
 import { AuthService } from './auth.service';
-import { RecoveryService, assertStrongPassword } from './recovery.service';
-import { VerificationService } from './verification.service';
+import { assertStrongPassword } from './password-policy';
 
 /* ── in-memory fakes (no DB, no network) ── */
 type Row = Record<string, unknown>;
@@ -20,7 +19,24 @@ class Table {
 
 function makeFakes() {
   const prisma = { user: new Table({ emailVerified: false }), foodPref: new Table(), recoveryCode: new Table({ attempts: 0, resends: 0 }), verificationToken: new Table() };
-  const mail = { lastBody: '', deliverSystem: (_u: string, r: { body: string }) => { (mail as { lastBody: string }).lastBody = r.body; return Promise.resolve({}); } };
+  // Both dispatch methods, because the difference between them is now load-
+  // bearing: deliverSystem files a copy in the citizen's in-app inbox, deliverTo
+  // does not, and secrets must use deliverTo. `lastTo` records which one carried
+  // what, so a change that quietly moves a code back into the inbox fails here.
+  const mail = {
+    lastBody: '',
+    lastVia: '' as '' | 'system' | 'to',
+    lastTo: '' as string,
+    deliverSystem: (_u: string, r: { body: string }) => {
+      Object.assign(mail, { lastBody: r.body, lastVia: 'system', lastTo: '' });
+      return Promise.resolve({});
+    },
+    deliverTo: (_u: string, _c: string, target: string, r: { body: string }) => {
+      Object.assign(mail, { lastBody: r.body, lastVia: 'to', lastTo: target });
+      return Promise.resolve({ ok: true, provider: 'fake', status: 'queued' });
+    },
+    deliveryConfigured: () => true,
+  };
   const tokens = { revokedAll: [] as string[], issuePair: () => Promise.resolve({ accessToken: 'a', refreshToken: 'r' }), revokeAll: (id: string) => { tokens.revokedAll.push(id); return Promise.resolve(); } };
   return { prisma, mail, tokens };
 }
@@ -36,7 +52,7 @@ describe('password policy', () => {
 });
 
 describe('registration', () => {
-  const build = () => { const f = makeFakes(); const v = new VerificationService(f.prisma as never, f.mail as never, f.tokens as never); return { f, svc: new AuthService(f.prisma as never, f.tokens as never, f.mail as never, v) }; };
+  const build = () => { const f = makeFakes(); return { f, svc: new AuthService(f.prisma as never, f.tokens as never, f.mail as never) }; };
 
   it('creates a fully-initialised, verification-pending account', async () => {
     const { f, svc } = build();
@@ -47,7 +63,11 @@ describe('registration', () => {
     expect(u.email).toBe('john@mail.com');   // lowercased
     expect(u.emailVerified).toBe(false);
     expect(f.prisma.foodPref.rows.length).toBe(1);          // master init
-    expect(f.prisma.verificationToken.rows.length).toBe(1); // verification sent
+    // Registration deliberately mints NO verification token. Sign-up finishes on
+    // the six-digit code screen; the 24-hour link flow was removed because its
+    // email was filed in the citizen's in-app inbox, where any session holder
+    // could click it.
+    expect(f.prisma.verificationToken.rows.length).toBe(0);
   });
   it('rejects a weak password', async () => {
     const { svc } = build();
@@ -81,82 +101,6 @@ describe('registration', () => {
   });
 });
 
-describe('email verification', () => {
-  it('verifies a valid token, signs in, and is idempotent-safe', async () => {
-    const f = makeFakes();
-    const v = new VerificationService(f.prisma as never, f.mail as never, f.tokens as never);
-    f.prisma.user.rows.push({ id: 'u1', handle: 'u', email: 'u@e.com', name: 'U', emailVerified: false });
-    await v.send('u1');
-    const raw = f.mail.lastBody.match(/token=([a-f0-9]+)/)![1];
-    const res = await v.verify(raw);
-    expect(res.ok).toBe(true);
-    expect(res.accessToken).toBeTruthy();
-    expect(f.prisma.user.rows[0].emailVerified).toBe(true);
-    await expect(v.verify(raw)).rejects.toThrow(/invalid|used/i); // reuse blocked
-  });
-  it('rejects an unknown token', async () => {
-    const f = makeFakes();
-    const v = new VerificationService(f.prisma as never, f.mail as never, f.tokens as never);
-    await expect(v.verify('deadbeef')).rejects.toThrow();
-  });
-});
-
-describe('account recovery (OTP)', () => {
-  const build = () => { const f = makeFakes(); return { f, svc: new RecoveryService(f.prisma as never, f.mail as never, f.tokens as never) }; };
-
-  it('is anti-enumeration: returns a token whether or not the account exists', async () => {
-    const { f, svc } = build();
-    f.prisma.user.rows.push({ id: 'u1', handle: 'sam', email: 'sam@e.com', passwordHash: 'x' });
-    const hit = await svc.request('sam@e.com', 'email');
-    const miss = await svc.request('nobody@e.com', 'email');
-    expect(hit.recoveryToken).toBeTruthy();
-    expect(miss.recoveryToken).toBeTruthy();
-    expect(hit.message).toBe(miss.message);
-    expect(f.prisma.recoveryCode.rows.length).toBe(1); // only the real one stored
-  });
-
-  it('verifies a correct OTP → resetToken, and resets the password + revokes sessions', async () => {
-    const { f, svc } = build();
-    const argon2 = await import('argon2');
-    f.prisma.user.rows.push({ id: 'u1', handle: 'sam', email: 'sam@e.com', passwordHash: await argon2.hash('OldPassw0rd!!') });
-    const { recoveryToken } = await svc.request('sam@e.com', 'email');
-    const otp = otpFrom(f.mail.lastBody);
-    const { resetToken } = await svc.verify(recoveryToken, otp);
-    expect(resetToken).toBeTruthy();
-    const out = await svc.reset(resetToken, STRONG);
-    expect(out.ok).toBe(true);
-    expect(f.tokens.revokedAll).toContain('u1');           // signed out everywhere
-    expect(await argon2.verify(f.prisma.user.rows[0].passwordHash as string, STRONG)).toBe(true);
-  });
-
-  it('locks after 5 wrong attempts', async () => {
-    const { f, svc } = build();
-    f.prisma.user.rows.push({ id: 'u1', handle: 'sam', email: 'sam@e.com', passwordHash: 'x' });
-    const { recoveryToken } = await svc.request('sam@e.com', 'email');
-    for (let i = 0; i < 4; i++) await expect(svc.verify(recoveryToken, '000000')).rejects.toThrow(/incorrect/i);
-    await expect(svc.verify(recoveryToken, '000000')).rejects.toThrow(/locked/i);
-    // even the correct code is now locked out
-    await expect(svc.verify(recoveryToken, otpFrom(f.mail.lastBody))).rejects.toThrow(/locked/i);
-  });
-
-  it('enforces the resend limit (3)', async () => {
-    const { f, svc } = build();
-    f.prisma.user.rows.push({ id: 'u1', handle: 'sam', email: 'sam@e.com', passwordHash: 'x' });
-    const { recoveryToken } = await svc.request('sam@e.com', 'email');
-    for (let i = 0; i < 3; i++) await svc.resend(recoveryToken);
-    await expect(svc.resend(recoveryToken)).rejects.toThrow(/too many/i);
-  });
-
-  it('reset rejects a weak or reused password', async () => {
-    const { f, svc } = build();
-    const argon2 = await import('argon2');
-    f.prisma.user.rows.push({ id: 'u1', handle: 'sam', email: 'sam@e.com', passwordHash: await argon2.hash(STRONG) });
-    const { recoveryToken } = await svc.request('sam@e.com', 'email');
-    const { resetToken } = await svc.verify(recoveryToken, otpFrom(f.mail.lastBody));
-    await expect(svc.reset(resetToken, 'weak')).rejects.toThrow();          // policy
-    await expect(svc.reset(resetToken, STRONG)).rejects.toThrow(/before/i); // same as current
-  });
-});
 
 /* AuthService.forgot/reset — the 6-digit code flow behind the "Forgot password?" tab. */
 describe('forgot / reset (recovery code)', () => {
@@ -226,11 +170,42 @@ describe('forgot / reset (recovery code)', () => {
 
   const build = (configured = true) => {
     const prisma = { user: new Table(), passwordReset: new ResetTable() };
-    const mail = { lastBody: '', deliverSystem: (_u: string, r: { body: string }) => { (mail as { lastBody: string }).lastBody = r.body; return Promise.resolve({}); }, deliveryConfigured: () => configured };
+    // deliverTo alongside deliverSystem, and lastVia records which one ran. The
+    // recovery code MUST go via deliverTo: deliverSystem files a copy in the
+    // citizen's in-app inbox, which is readable by anyone holding a session, and
+    // a reset code readable from inside a session is an account takeover.
+    const mail = {
+      lastBody: '',
+      lastVia: '' as '' | 'system' | 'to',
+      lastTo: '',
+      deliverSystem: (_u: string, r: { body: string }) => {
+        Object.assign(mail, { lastBody: r.body, lastVia: 'system', lastTo: '' });
+        return Promise.resolve({});
+      },
+      deliverTo: (_u: string, _c: string, target: string, r: { body: string }) => {
+        Object.assign(mail, { lastBody: r.body, lastVia: 'to', lastTo: target });
+        return Promise.resolve({ ok: true, provider: 'fake', status: 'queued' });
+      },
+      deliveryConfigured: () => configured,
+    };
     const tokens = { revokedAll: [] as string[], revokeAll: (id: string) => { tokens.revokedAll.push(id); return Promise.resolve(); } };
-    const svc = new AuthService(prisma as never, tokens as never, mail as never, {} as never);
+    const svc = new AuthService(prisma as never, tokens as never, mail as never);
     return { prisma, mail, tokens, svc };
   };
+
+  it('never files the recovery code in the in-app inbox', async () => {
+    // The regression that mattered. deliverSystem writes a copy into the
+    // citizen's own Together City inbox; a reset code sitting there can be read
+    // by anyone holding a session and used to take the account over. If someone
+    // switches this back to deliverSystem for convenience, this fails.
+    const { prisma, mail, svc } = build();
+    const argon2 = await import('argon2');
+    prisma.user.rows.push({ id: 'u9', handle: 'ash', email: 'ash@e.com', passwordHash: await argon2.hash('OldPassw0rd!!') });
+    await svc.forgot({ identifier: 'ash@e.com', channel: 'email' } as never);
+    expect(mail.lastVia).toBe('to');
+    expect(mail.lastTo).toBe('ash@e.com');
+    expect(mail.lastBody).toMatch(/\b\d{6}\b/); // it really was the code
+  });
 
   it('lets a user who recovered by PHONE actually reset by phone (regression)', async () => {
     const { prisma, mail, svc } = build();

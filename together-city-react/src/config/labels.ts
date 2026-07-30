@@ -39,4 +39,8 @@ export const REMOVED_ROUTES: Readonly<Record<string, string>> = {
   '/nutrition/supplements': '/fitness/supplements',
   '/nutrition/dietitian': '/medical/consults',
   '/social/map': '/social/feed',
+  // The 24-hour verification link is gone — every outstanding token was consumed
+  // by 20260730160000_retire_verification_links. Anyone who follows an old link
+  // from their inbox lands on the profile, where the six-digit flow lives.
+  '/verify': '/profile',
 };

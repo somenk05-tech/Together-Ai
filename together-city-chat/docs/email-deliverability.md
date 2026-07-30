@@ -12,6 +12,92 @@ records, and it takes a day or two to warm up.
 This is the runbook for that. It is written to be followed once, by whoever owns
 the domain.
 
+## Secrets never go in the in-app inbox (2026-07-30)
+
+`MailService.deliverSystem` files a copy of every message in the citizen's own
+in-app Together City inbox as well as dispatching it externally. That is right
+for correspondence — a receipt, a "your password was changed" notice — and wrong
+for anything that is a secret, because the in-app inbox is readable by anyone
+holding a session.
+
+Two flows were doing it, and both are fixed:
+
+- the **24-hour email verification link** (removed entirely — see below)
+- the **password-recovery code**, which is worse: a reset code readable from
+  inside a session escalates "borrowed a logged-in laptop" into "owns the
+  account and can lock the owner out"
+
+Both now use `deliverTo`, which dispatches to a specific address and touches
+nothing else. The six-digit verification flow has always used it.
+
+**The rule:** if a message contains something that proves identity, it goes
+through `deliverTo`. If it is telling somebody what happened, `deliverSystem` is
+correct. The "password was changed" notice stays in the inbox deliberately.
+
+### Two dead implementations went with them
+
+Both discoveries came from asking why a duplicate existed rather than assuming
+it was intentional:
+
+- `VerificationService` — the link flow. Three routes, two public.
+- `RecoveryService` — a **complete second implementation of account recovery**,
+  four public endpoints, entirely unreachable from the app. The frontend uses
+  `/auth/forgot` and `/auth/reset` in `AuthService`. This was the most
+  security-sensitive surface in the API, published, duplicated, and exercised by
+  nobody.
+
+Six public endpoints removed. The password rule they shared
+(`assertStrongPassword`) moved to `auth/password-policy.ts` first, so deleting a
+recovery implementation could not take the rule guarding every password with it.
+
+### One thing deliberately not "fixed"
+
+The recovery response reports the channel that was **requested**, never the one
+used. They differ when SMS is asked for and the account has no phone — and
+reporting the truth there would answer "does this account have a phone number?"
+for any address a stranger cares to type. The whole response is identical for a
+hit and a miss; that field must not be what breaks it.
+
+So the honesty fix went into the copy instead. The screen used to say "we've
+texted a code to its primary phone", which was false whenever the fallback ran.
+It now says the code went to the phone on the account, or its email if there
+isn't one — which covers both and asserts neither.
+
+## The 24-hour link flow was removed (2026-07-30)
+
+Found while answering "what is this email?" about a message sitting in the
+in-app Together City inbox.
+
+Registration used to fire a second, older verification: a 24-hour link, sent via
+`MailService.deliverSystem` — which files a copy of every message **in the
+citizen's own in-app inbox** as well as emailing it.
+
+So the link that proves you control an external mailbox was readable by anyone
+holding a session. Sign up with somebody else's address, open Together City
+Mail, click the link: the account now shows a verified email for an address you
+have never had access to. `VerifiedGuard` gates posting to the city feed,
+listing property and connecting in Dating on exactly that flag.
+
+Verification that can be completed without reading the email verifies nothing,
+and this one was worse than nothing because the rest of the app believed it.
+
+What changed:
+
+- Registration no longer issues a link. Sign-up finishes on the six-digit code
+  screen, which sends to the typed address and files nothing anywhere readable.
+- `POST /auth/verify-email`, `/auth/resend-verification` and
+  `/auth/send-verification` are gone. Two of them were public.
+- Every outstanding token was consumed by
+  `20260730160000_retire_verification_links` — links already in inboxes are dead
+  rather than dying quietly over the next day.
+- `/verify` redirects to the profile, where the code flow lives.
+- The soft-gate banner points at that flow instead of mailing a link and leaving
+  the person to go and find it.
+
+The code flow has never used `deliverSystem`, for exactly this reason — see the
+comment on `MailService.deliverTo`. The bug was in the older path that nobody
+had revisited.
+
 ## The week nothing was delivered (2026-07-23 → 2026-07-30)
 
 Recorded because the diagnosis was slow and the cause was one character.

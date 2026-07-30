@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { CodeInput } from '@/components/ui';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/api/auth.api';
@@ -56,8 +57,13 @@ export function SignIn() {
             ? `SMS delivery isn't set up on this server yet, so no text can be sent. Ask the Together City team to enable SMS, then try again.`
             : `Email delivery isn't set up on this server yet, so the recovery code can't be emailed. Ask the Together City team to enable email (Resend), then try again.`);
         } else {
+          // The SMS line used to promise a text. It could not keep that promise:
+          // when the account has no phone on file the server sends an email
+          // instead, and it cannot tell us which it did — saying so would answer
+          // "does this account have a phone?" for any address a stranger types.
+          // So the copy covers both, which is the only true thing available.
           setNotice(channel === 'sms'
-            ? `If an account matches, we've texted a 6-digit code to its primary phone. Enter it below.`
+            ? `If an account matches, we've sent a 6-digit code to the phone on it — or to its email if there is no phone. Enter the code below.`
             : `If an account matches, we've emailed a 6-digit recovery code to its primary email. Enter it below.`);
           setMode('reset');
         }
@@ -176,8 +182,14 @@ export function SignIn() {
               )}
               {mode === 'reset' && (
                 <>
-                  <div style={wrap}>
-                    <input required autoFocus inputMode="numeric" value={code} placeholder="6-digit recovery code" onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))} style={inp} />
+                  <div style={{ margin: '0 0 14px' }}>
+                    <CodeInput
+                      value={code}
+                      onChange={setCode}
+                      autoFocus
+                      tone="dark"
+                      label="6-digit recovery code"
+                    />
                   </div>
                   <div style={wrap}>
                     <span style={iconWrap}><LockIcon /></span>

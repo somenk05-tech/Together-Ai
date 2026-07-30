@@ -11,6 +11,9 @@ export interface CodeInputProps {
   invalid?: boolean;
   autoFocus?: boolean;
   label?: string;
+  /** 'dark' for the sign-in overlay, which sits on its own palette rather than
+   *  the app's surface tokens. */
+  tone?: 'default' | 'dark';
 }
 
 /**
@@ -41,6 +44,7 @@ export function CodeInput({
   invalid,
   autoFocus,
   label = 'Verification code',
+  tone = 'default',
 }: CodeInputProps) {
   const ref = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
@@ -57,6 +61,11 @@ export function CodeInput({
     }
     if (value.length < length) fired.current = null;
   }, [value, length, onComplete]);
+
+  const dark = tone === 'dark';
+  const palette = dark
+    ? { idle: 'rgba(255,255,255,.22)', active: 'var(--gold-bright, #d9b871)', bg: 'rgba(255,255,255,.05)', ink: '#fff', caret: 'var(--gold-bright, #d9b871)' }
+    : { idle: 'var(--line)', active: 'var(--accent)', bg: 'var(--card)', ink: 'var(--ink)', caret: 'var(--accent)' };
 
   const digits = Array.from({ length }, (_, i) => value[i] ?? '');
   // The active box is the next empty one, or the last while it is full.
@@ -97,13 +106,13 @@ export function CodeInput({
                 width: 44, height: 56, display: 'grid', placeItems: 'center',
                 fontSize: 24, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
                 borderRadius: 12,
-                border: `1.5px solid ${invalid ? 'var(--red, #c0392b)' : isActive ? 'var(--accent)' : 'var(--line)'}`,
-                background: disabled ? 'var(--line)' : 'var(--card)',
-                color: invalid ? 'var(--red, #c0392b)' : 'var(--ink)',
+                border: `1.5px solid ${invalid ? 'var(--red, #c0392b)' : isActive ? palette.active : palette.idle}`,
+                background: disabled ? palette.idle : palette.bg,
+                color: invalid ? 'var(--red, #c0392b)' : palette.ink,
                 transition: 'border-color .12s ease',
               }}
             >
-              {d || (isActive ? <span className="tc-caret" style={{ width: 2, height: 26, background: 'var(--accent)', borderRadius: 2 }} /> : '')}
+              {d || (isActive ? <span className="tc-caret" style={{ width: 2, height: 26, background: palette.caret, borderRadius: 2 }} /> : '')}
             </div>
           );
         })}
