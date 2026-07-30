@@ -10,6 +10,7 @@ import { useWebPush } from '@/hooks/useWebPush';
 import { useConnections, useRespondConnection, useUnreadChatCount, useIncomingRequestCount } from '@/api';
 import { useMailAccount } from '@/features/mail/api';
 import { VerificationCard } from '@/features/auth/components/VerificationCard';
+import { SexAndGenderCard } from '../components/SexAndGenderCard';
 
 type Tab = 'overview' | 'photo' | 'notifications';
 
@@ -407,6 +408,7 @@ export function Profile() {
               that has something to DO. The rows below restate the same two
               values; here is where they get fixed. */}
           <VerificationCard />
+          <SexAndGenderCard />
           {data && data.sections.length > 0 && (
             <Card>
               {data.sections.map((s) => (

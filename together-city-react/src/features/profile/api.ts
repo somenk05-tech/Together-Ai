@@ -3,7 +3,14 @@ import type { ProfileSummary } from './types';
 
 export interface MasterProfileView {
   name: string; email: string; photo: string | null;
-  gender?: string | null; dateOfBirth?: string | null; timeOfBirth?: string | null;
+  /** Pre-split single field. Read-only fallback; the app writes the two below. */
+  gender?: string | null;
+  /** Clinical only — never shown to another citizen. See the card's copy. */
+  sexAtBirth?: 'male' | 'female' | 'intersex' | 'preferNotToSay' | null;
+  /** Social only — never enters a health calculation. */
+  genderIdentity?: 'male' | 'female' | 'nonBinary' | 'other' | null;
+  genderIdentityOther?: string | null;
+  dateOfBirth?: string | null; timeOfBirth?: string | null;
   birthCountry?: string | null; birthState?: string | null; birthCity?: string | null;
   country?: string | null; state?: string | null; city?: string | null;
   timeZone?: string | null; languages?: string | null; heightCm?: number | null;

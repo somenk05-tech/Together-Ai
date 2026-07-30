@@ -228,7 +228,15 @@ export class MasterProfileService {
     // age stored by hubs that never collect a DOB (Nutrition / Fitness) — so a
     // user who only filled Nutrition still gets their age everywhere.
     const rawFoodAge = (food as { age?: number | null } | null)?.age;
-    const rawFitAge = (fitness as { age?: number | null } | null)?.age;
+    // FitnessProfile.age is NOT NULL with a default of 35, written by
+    // registration before anybody was asked anything — so reading it
+    // unconditionally reported every brand-new citizen as 35 years old. That is
+    // review p7 ("section shows fake age/sex") arriving through the back door,
+    // in the one place whose job is to be the single source of truth.
+    //
+    // FoodPref.age is nullable and needs no such guard; absent means absent.
+    const fitnessRow = fitness as { age?: number | null; answeredAt?: Date | null } | null;
+    const rawFitAge = fitnessRow?.answeredAt ? fitnessRow.age : undefined;
     const age = computeAge(merged.dateOfBirth ?? null)
       ?? (typeof rawFoodAge === 'number' ? rawFoodAge : null)
       ?? (typeof rawFitAge === 'number' ? rawFitAge : null)
