@@ -59,6 +59,12 @@ export class ConnectionPermissionService {
    * Gate for group/direct conversations: the sender must be a member AND, for
    * DIRECT conversations, be connected to the other member. For GROUP, membership
    * is sufficient (group creation itself checks connections of invitees).
+   *
+   * A group is left alone on purpose. Ejecting somebody from a shared group the
+   * moment one member blocks them would tell every other person in that group
+   * that a block had happened, which is the one thing a block must not
+   * broadcast. A block stops the direct line; it is not a way to remove
+   * somebody from a room full of other people.
    */
   async assertCanPostToConversation(userId: string, conversationId: string): Promise<void> {
     const convo = await this.prisma.conversation.findUnique({
@@ -71,11 +77,16 @@ export class ConnectionPermissionService {
       throw new ForbiddenException('You are not a member of this conversation.');
     }
     if (convo.type === 'DIRECT') {
-      // Dating-match chats (anonymousTrust set) are authorised by the match
-      // itself — the two people aren't a connection until they become friends.
-      if ((convo as { anonymousTrust?: number | null }).anonymousTrust != null) return;
       const other = memberIds.find((id) => id !== userId);
       if (!other) throw new ForbiddenException('Invalid direct conversation.');
+      // Dating-match chats (anonymousTrust set) are authorised by the match
+      // itself — the two people aren't a connection until they become friends —
+      // but a block still holds. This branch used to return before any check at
+      // all, so blocking somebody you had matched with hid them from Discover
+      // and left the chat you already had with them wide open: the one line
+      // where they were still certain to be able to reach you.
+      await this.blocking.assertNotBlocked(userId, other);
+      if ((convo as { anonymousTrust?: number | null }).anonymousTrust != null) return;
       await this.assertCanCommunicate(userId, other);
     }
   }

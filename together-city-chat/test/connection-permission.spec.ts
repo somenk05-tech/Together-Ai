@@ -13,7 +13,9 @@ interface Blk { blockerId: string; blockedId: string }
  * was precisely that the two knew nothing about each other, so a test that
  * faked the seam would have passed while the app leaked messages.
  */
-function prismaStub(connections: Conn[], blocks: Blk[] = []) {
+interface Convo { id: string; type: 'DIRECT' | 'GROUP'; anonymousTrust?: number | null; members: { userId: string }[] }
+
+function prismaStub(connections: Conn[], blocks: Blk[] = [], convos: Convo[] = []) {
   const involves = (where: any, one: string, two: string) =>
     (where.OR ?? []).some((c: any) => c[one] !== undefined ? c[one] === where.__me : c[two] === where.__me);
   void involves;
@@ -36,12 +38,14 @@ function prismaStub(connections: Conn[], blocks: Blk[] = []) {
         return blocks.filter((b) => b.blockerId === me || b.blockedId === me);
       },
     },
-    conversation: { findUnique: async () => null },
+    conversation: {
+      findUnique: async ({ where }: any) => convos.find((c) => c.id === where.id) ?? null,
+    },
   } as any;
 }
 
-const gate = (connections: Conn[], blocks: Blk[] = []) => {
-  const prisma = prismaStub(connections, blocks);
+const gate = (connections: Conn[], blocks: Blk[] = [], convos: Convo[] = []) => {
+  const prisma = prismaStub(connections, blocks, convos);
   return new ConnectionPermissionService(prisma, new BlockingService(prisma));
 };
 
@@ -103,6 +107,49 @@ describe('ConnectionPermissionService', () => {
       expect(await svc.isBlocked('a', 'b')).toBe(true);
       expect(await svc.isBlocked('b', 'a')).toBe(true);
       expect(await svc.canCommunicate('a', 'b')).toBe(false);
+    });
+  });
+
+  describe('a dating-match chat is still a direct line (BE-13.3)', () => {
+    const match: Convo = {
+      id: 'c-match', type: 'DIRECT', anonymousTrust: 1,
+      members: [{ userId: 'a' }, { userId: 'b' }],
+    };
+
+    it('lets a matched pair talk without being connected — that is the point of it', async () => {
+      const svc = gate([], [], [match]);
+      await expect(svc.assertCanPostToConversation('a', 'c-match')).resolves.toBeUndefined();
+    });
+
+    it('but a block closes it, in either direction', async () => {
+      const mine = gate([], [{ blockerId: 'a', blockedId: 'b' }], [match]);
+      await expect(mine.assertCanPostToConversation('a', 'c-match')).rejects.toThrow(/You have blocked/);
+
+      const theirs = gate([], [{ blockerId: 'a', blockedId: 'b' }], [match]);
+      await expect(theirs.assertCanPostToConversation('b', 'c-match')).rejects.toThrow(/not accepting messages/);
+    });
+
+    it('and a plain direct chat needs both the connection and the absence of a block', async () => {
+      const direct: Convo = { id: 'c-dm', type: 'DIRECT', anonymousTrust: null, members: [{ userId: 'a' }, { userId: 'b' }] };
+      await expect(gate([accepted], [], [direct]).assertCanPostToConversation('a', 'c-dm')).resolves.toBeUndefined();
+      await expect(gate([], [], [direct]).assertCanPostToConversation('a', 'c-dm')).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        gate([accepted], [{ blockerId: 'b', blockedId: 'a' }], [direct]).assertCanPostToConversation('a', 'c-dm'),
+      ).rejects.toThrow(/not accepting messages/);
+    });
+
+    it('leaves a group alone — removing someone would announce the block to the room', async () => {
+      const group: Convo = {
+        id: 'c-grp', type: 'GROUP', anonymousTrust: null,
+        members: [{ userId: 'a' }, { userId: 'b' }, { userId: 'c' }],
+      };
+      const svc = gate([], [{ blockerId: 'a', blockedId: 'b' }], [group]);
+      await expect(svc.assertCanPostToConversation('b', 'c-grp')).resolves.toBeUndefined();
+    });
+
+    it('still refuses anyone who is not in the conversation at all', async () => {
+      const svc = gate([], [], [match]);
+      await expect(svc.assertCanPostToConversation('z', 'c-match')).rejects.toThrow(/not a member/);
     });
   });
 });

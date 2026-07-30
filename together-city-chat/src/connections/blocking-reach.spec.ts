@@ -57,6 +57,12 @@ const REACH = [
     mustCall: 'this.blocking.isBlocked(',
   },
   {
+    what: 'a dating-match chat, which needs no connection to exist',
+    file: 'connections/connection-permission.service.ts',
+    method: 'async assertCanPostToConversation(',
+    mustCall: 'this.blocking.assertNotBlocked(',
+  },
+  {
     what: 'a connection request landing in someone’s list',
     file: 'connections/connections.service.ts',
     method: 'async request(',
@@ -119,6 +125,8 @@ describe('blocking reaches every surface', () => {
 
   it('the gate itself refuses to be the thing that decides', () => {
     // connection-permission.service.ts must not grow its own block query back.
+    // (The dating-match branch is the one that used to return early with no
+    //  check at all, which is why it has its own entry in REACH above.)
     const gate = read('connections/connection-permission.service.ts');
     expect(gate).not.toMatch(/status:\s*ConnectionStatus\.BLOCKED/);
     expect(gate).toContain('this.blocking.');
