@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -41,9 +41,14 @@ export class MedicalController {
     return this.medical.ingestBloodReport(user.sub, dto);
   }
 
+  /** GET /api/medical/blood-tests?cursor=&limit= — newest first, a page at a time. */
   @Get('blood-tests')
-  history(@CurrentUser() user: JwtUser) {
-    return this.medical.bloodTests(user.sub);
+  history(
+    @CurrentUser() user: JwtUser,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.medical.bloodTests(user.sub, { cursor: cursor ?? null, limit });
   }
 
   @Get('blood-tests/latest')

@@ -4,6 +4,7 @@ import { Button, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useBloodHistory, useLatestPanel, useSaveBloodTest, useIngestBlood, useHealthSummary, useBloodTrends, useBiomarkerCatalog, type Citation, type TrendKind, type TrendPick, type BiomarkerSection, type UnitChoice } from '../api';
 import { PrivacyNote } from '@/features/privacy/PrivacyNote';
+import { TrendSparkline } from '../components/TrendSparkline';
 
 /** Deterministic 0–100 wellness score ring. */
 function ScoreRing({ score, band }: { score: number; band: string }) {
@@ -109,7 +110,12 @@ function TrendsSection() {
                 {m.direction === 'up' ? '▲' : m.direction === 'down' ? '▼' : '▬'} {m.trendLabel} · {m.deltaLabel}
               </span>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6, fontSize: 12 }}>
+            <div style={{ marginTop: 8 }}>
+              <TrendSparkline points={m.points} min={m.min} max={m.max} label={m.label} unit={m.unit} />
+            </div>
+            {/* The values stay. The chart carries shape and distance from the
+                range; the numbers are what somebody reads out to a doctor. */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4, fontSize: 12 }}>
               {m.points.map((p, i) => (
                 <span key={i}>
                   <span className="muted">{p.date.slice(5)}</span> <b style={{ color: pointColor(p.status) }}>{p.value}</b>{i < m.points.length - 1 ? <span className="muted"> →</span> : null}
@@ -510,10 +516,10 @@ export function BloodAnalysis() {
         </div>
       )}
 
-      {history.data && history.data.length > 1 && (
+      {history.data && history.data.total > 1 && (
         <div className="card" style={{ marginTop: 18 }}>
-          <div className="eyebrow">History · {history.data.length} panels</div>
-          {history.data.map((t) => (
+          <div className="eyebrow">History · {history.data.total} panels</div>
+          {history.data.items.map((t) => (
             <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderTop: '1px solid var(--line)', fontSize: 13 }}>
               <strong style={{ minWidth: 92 }}>{t.takenOn}</strong>
               <span className="muted" style={{ fontSize: 12 }}>{t.lab ?? '—'} · {t.markerCount} markers</span>

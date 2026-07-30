@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { checkCollectionDate } from './collection-date';
+import { pageLimit } from '../shared/paging';
 import { toCanonical, unitChoices } from './units';
 import { informalName, salutation } from '../shared/salutation';
 import { demoDataEnabled } from '../shared/demo-data';
@@ -54,7 +55,7 @@ interface StoredAnalysis {
 /** Longitudinal biomarker trend across ≥2 dated panels. */
 export type Trend = 'improving' | 'worsening' | 'stable' | 'newly-abnormal' | 'returned-normal';
 export interface MarkerTrend {
-  key: string; label: string; unit: string; range: string;
+  key: string; label: string; unit: string; range: string; min: number; max: number;
   points: { date: string; value: number; status: string }[];
   first: number; latest: number; deltaAbs: number; deltaLabel: string;
   direction: 'up' | 'down' | 'flat'; trend: Trend; trendLabel: string;
@@ -561,11 +562,42 @@ export class MedicalService implements OnModuleInit {
   }
 
   /** History of panels (newest first) with a compact summary of each. */
-  async bloodTests(userId: string) {
-    const tests = await this.prisma.medicalBloodTest.findMany({
-      where: { userId }, orderBy: { takenOn: 'desc' }, include: { biomarkers: true },
-    });
-    return tests.map((t) => {
+  /**
+   * The citizen's panels, newest first, a page at a time (BE-5.2).
+   *
+   * This was an unbounded findMany that also pulled every biomarker on every
+   * panel — so the response grew with the person's medical history and had no
+   * point at which it stopped. shared/paging.ts already named this endpoint as
+   * one that wanted real pagination rather than a ceiling; this is that.
+   *
+   * Ordered by [takenOn desc, id desc], and the second key is not decoration.
+   * A cursor needs a total order to sit in: with takenOn alone, two panels
+   * collected on the same day tie, and rows either repeat across pages or
+   * vanish between them depending on how the database breaks the tie that time.
+   * Two panels on one day is not an edge case — it is what a full blood workup
+   * split across two labs looks like.
+   *
+   * `total` is returned because the count is read as a fact elsewhere ("12
+   * panels", the timeline, the records header). Without it those would quietly
+   * start reporting the size of the first page instead of the size of the
+   * history, which is the kind of silently-wrong number this whole review is
+   * about.
+   */
+  async bloodTests(userId: string, opts?: { cursor?: string | null; limit?: unknown }) {
+    const take = pageLimit(opts?.limit, 25, 100);
+    const [rows, total] = await Promise.all([
+      this.prisma.medicalBloodTest.findMany({
+        where: { userId },
+        orderBy: [{ takenOn: 'desc' }, { id: 'desc' }],
+        take: take + 1, // one extra: its existence is what says there is a next page
+        ...(opts?.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
+        include: { biomarkers: true },
+      }),
+      this.prisma.medicalBloodTest.count({ where: { userId } }),
+    ]);
+    const hasMore = rows.length > take;
+    const tests = hasMore ? rows.slice(0, take) : rows;
+    const items = tests.map((t) => {
       const values = Object.fromEntries(t.biomarkers.map((b) => [b.key, b.value]));
       const flags = flagsFor(values);
       const abnormal = Object.entries(flags).filter(([, s]) => s !== 'normal');
@@ -576,6 +608,7 @@ export class MedicalService implements OnModuleInit {
         alertCount: criticalAlerts(values).length,
       };
     });
+    return { items, total, nextCursor: hasMore ? tests[tests.length - 1].id : null };
   }
 
   /** Full cited analysis of one panel + trend vs the previous panel. */
@@ -831,6 +864,12 @@ export class MedicalService implements OnModuleInit {
         : 'Stable';
       markers.push({
         key, label: rule.label, unit: rule.unit, range: `${rule.min}–${rule.max}`,
+        // The same bounds as numbers. `range` is a display string, and a chart
+        // that has to parse "20–100" to draw its reference band breaks silently
+        // the day that string is formatted differently — with an en dash, a
+        // locale separator, or a one-sided rule. The band is the part of the
+        // chart that says whether a line going up is good news.
+        min: rule.min, max: rule.max,
         points, first: first.value, latest: last.value, deltaAbs,
         deltaLabel: `${deltaAbs > 0 ? '+' : ''}${deltaAbs} ${rule.unit}`,
         direction: deltaAbs > 0 ? 'up' : deltaAbs < 0 ? 'down' : 'flat',

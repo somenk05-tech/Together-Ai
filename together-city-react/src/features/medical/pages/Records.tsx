@@ -116,7 +116,9 @@ export function Records() {
   const hasPanel = Boolean(panel && panel.markers.length);
   const flagged = (panel?.markers ?? []).filter((m) => m.status !== 'normal');
   const reportDocs = (records.data ?? []).filter((r) => r.kind === 'report').length;
-  const panelCount = history.data?.length ?? (hasPanel ? 1 : 0);
+  // total, not items.length: the list is paged, and a count that quietly means
+  // "as many as this page happened to hold" is worse than no count.
+  const panelCount = history.data?.total ?? (hasPanel ? 1 : 0);
   const tile = (value: string | number, label: string, alert = false) => (
     <div style={{ textAlign: 'center', padding: '10px 6px', border: '1px solid var(--line)', borderRadius: 12 }}>
       <div style={{ fontSize: 20, fontWeight: 700, color: alert ? '#c0392b' : 'var(--ink)' }}>{value}</div>
@@ -147,7 +149,7 @@ export function Records() {
   // So a record that produced a panel is shown ONCE, keeping the title the
   // citizen chose and gaining what the panel knows: the collection date, the
   // marker count, the flags.
-  const panels = history.data ?? [];
+  const panels = history.data?.items ?? [];
   const panelById = new Map(panels.map((t) => [t.id, t]));
   const claimedPanels = new Set(
     (records.data ?? []).map((r) => r.bloodTestId).filter((id): id is string => Boolean(id && panelById.has(id))),
@@ -368,7 +370,26 @@ export function Records() {
         </div>
       )}
 
-      {/* Health Timeline — panels + records, most recent first */}
+      {/*
+        Health Timeline — panels + records, most recent first.
+
+        When it is empty it now says so (FE-5.2). Before, the whole block simply
+        did not render, so a citizen who had added nothing yet saw a page that
+        stopped, with no statement that the history was empty rather than still
+        loading and no way onward from where they were looking.
+      */}
+      {!history.isLoading && !records.isLoading && timeline.length === 0 && (
+        <div className="card" style={{ marginTop: 18 }}>
+          <div className="eyebrow">Health timeline</div>
+          <EmptyState
+            icon="🩸"
+            title="No blood tests added yet"
+            hint="Upload a lab report and we will read the values off it, or type them in yourself. Everything stays in your private vault."
+            action={<Link to="/medical/blood"><Button>Add a blood test</Button></Link>}
+          />
+        </div>
+      )}
+
       {timeline.length > 0 && (
         <div className="card" style={{ marginTop: 18 }}>
           <div className="eyebrow">Health timeline</div>

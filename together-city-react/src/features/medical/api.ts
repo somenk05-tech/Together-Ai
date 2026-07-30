@@ -41,7 +41,10 @@ export interface HealthSummary {
 export type TrendKind = 'improving' | 'worsening' | 'stable' | 'newly-abnormal' | 'returned-normal';
 export interface TrendPoint { date: string; value: number; status: 'low' | 'normal' | 'high' }
 export interface MarkerTrend {
-  key: string; label: string; unit: string; range: string; points: TrendPoint[];
+  key: string; label: string; unit: string; range: string;
+  /** The same bounds as numbers, so the chart never parses the display string. */
+  min: number; max: number;
+  points: TrendPoint[];
   first: number; latest: number; deltaAbs: number; deltaLabel: string;
   direction: 'up' | 'down' | 'flat'; trend: TrendKind; trendLabel: string;
   latestStatus: 'low' | 'normal' | 'high'; severityChange: number;
@@ -73,6 +76,12 @@ export interface UnitChoice { unit: string; factor: number; offset: number; cano
 export interface BiomarkerDef { key: string; label: string; unit: string; min: number; max: number; hubs: string[]; optional?: boolean; higherBetter?: boolean; units?: UnitChoice[] }
 export interface BiomarkerSection { key: string; label: string; hint?: string; markers: BiomarkerDef[] }
 export interface BiomarkerCatalog { sections: BiomarkerSection[] }
+/**
+ * One page of panels. `total` is the size of the whole history, not the page —
+ * every count a citizen reads ("12 panels") must come from it, or the number
+ * silently becomes "as many as we happened to fetch".
+ */
+export interface BloodTestPage { items: BloodTestSummary[]; total: number; nextCursor: string | null }
 /** Upload → auto-analyse result: the report is filed AND (when readable) analysed in one call. */
 export interface IngestResult {
   recordId: string; bloodTestId: string | null; aiEnabled: boolean;
@@ -101,7 +110,21 @@ export const medicalApi = {
     // far longer than the client's default 20s timeout. Without this override
     // the browser gave up mid-read and showed "Could not reach the server".
     api.post<IngestResult>('/medical/blood-tests/ingest', input, { timeout: 180000 }).then((r) => r.data),
-  history: () => api.get<BloodTestSummary[]>('/medical/blood-tests').then((r) => r.data),
+  /**
+   * Panels, newest first, a page at a time.
+   *
+   * Tolerates the old bare-array shape on purpose. The web app and the API
+   * deploy to different providers and finish at different times, so after every
+   * push there is a window where this bundle is live and the API serving it is
+   * still the previous release. Accepting both shapes costs one line and turns
+   * that window from a broken history list into nothing at all. It can come out
+   * once the paged API has been live for a release.
+   */
+  history: (limit?: number) => api
+    .get<BloodTestPage | BloodTestSummary[]>('/medical/blood-tests', limit ? { params: { limit } } : undefined)
+    .then((r) => (Array.isArray(r.data)
+      ? { items: r.data, total: r.data.length, nextCursor: null }
+      : r.data)),
   latest: () => api.get<BloodAnalysis>('/medical/blood-tests/latest').then((r) => r.data),
   trends: () => api.get<BloodTrends>('/medical/blood-tests/trends').then((r) => r.data),
   analyze: (id: string) => api.get<BloodAnalysis>(`/medical/blood-tests/${id}`).then((r) => r.data),
@@ -156,8 +179,8 @@ export function useLatestPanel() {
 export function useBloodTrends() {
   return useQuery({ queryKey: ['medical', 'trends'], queryFn: () => medicalApi.trends(), staleTime: 5 * 60 * 1000 });
 }
-export function useBloodHistory() {
-  return useQuery({ queryKey: ['medical', 'history'], queryFn: () => medicalApi.history() });
+export function useBloodHistory(limit?: number) {
+  return useQuery({ queryKey: ['medical', 'history', limit ?? 'default'], queryFn: () => medicalApi.history(limit) });
 }
 /** After any panel change, refresh every surface that reads the panel so Blood
  *  Test Analysis and Health Records stay in lockstep (shared query cache). */

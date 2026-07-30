@@ -210,7 +210,9 @@ export function Preferences() {
   // user picks." Blood-derived picks are merged on top of anything already saved.
   useEffect(() => {
     if (detectedMerged.current || !exLoaded) return;
-    const t = (bloodHistory.data ?? []).slice().sort((a, b) => (a.takenOn < b.takenOn ? 1 : -1));
+    // .items, and still correct after pagination: the API returns newest first,
+    // so the latest panel is always on the first page.
+    const t = (bloodHistory.data?.items ?? []).slice().sort((a, b) => (a.takenOn < b.takenOn ? 1 : -1));
     if (!t.length) return; // wait for panels to load
     detectedMerged.current = true;
     const fl = t[0].flagged ?? [];
@@ -257,7 +259,7 @@ export function Preferences() {
     setEx({ ...ex, [key]: toggleMulti(ex[key], v) });
 
   // Blood test status (from the Medical hub).
-  const tests = (bloodHistory.data ?? []).slice().sort((a, b) => (a.takenOn < b.takenOn ? 1 : -1));
+  const tests = (bloodHistory.data?.items ?? []).slice().sort((a, b) => (a.takenOn < b.takenOn ? 1 : -1));
   const bloodConnected = tests.length > 0;
   const flagged = tests[0]?.flagged ?? [];
   const detectedConditions = uniq(flagged.map((f) => COND_FROM_MARKER[f.key]).filter((x): x is string => !!x));

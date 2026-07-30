@@ -39,7 +39,7 @@ export function Timeline() {
       if (!d) continue;
       out.push({ date: d, icon: '📄', label: label(d), title: r.title || r.kind, note: r.detail || undefined });
     }
-    for (const b of blood.data ?? []) {
+    for (const b of blood.data?.items ?? []) {
       const d = fmt(b.takenOn);
       if (!d) continue;
       const flags = b.alertCount > 0 ? `${b.alertCount} flagged` : b.flagged?.length ? `${b.flagged.length} to watch` : 'all in range';
