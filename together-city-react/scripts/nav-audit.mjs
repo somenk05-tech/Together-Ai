@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Four checks, run against source: three from §1's acceptance criteria and one
- * from §3's ("ban hardcoded sample text in components via lint rule").
+ * Five checks, run against source: three from §1's acceptance criteria, one from
+ * §3's ("ban hardcoded sample text in components via lint rule"), and one
+ * holding the client's copy to the same voice the API enforces.
  *
  *   1. No page module is left unreachable. Removing a route without removing
  *      its component leaves a file that still contains the retired copy and
@@ -15,6 +16,9 @@
  *   4. No component ships invented sample data. The API's own
  *      route-exposure.spec.ts has enforced this server-side for a while; the
  *      client had no equivalent, which is where the review found most of it.
+ *   5. No component says something the voice forbids. Mirrors
+ *      together-city-chat/src/shared/voice.ts — most of what a citizen reads
+ *      lives here, so enforcing it only on the API left the larger half open.
  *
  * Source rather than the built bundle, on purpose: the bundle is minified but
  * string literals survive minification, so a source scan finds the same
@@ -168,6 +172,55 @@ for (const file of files) {
     // the honest choice.
     if (INVENTED_PERSON.test(code) && !/placeholder\s*=/.test(code)) {
       problems.push(`${rel}:${i + 1}  invented sample data rendered as real`);
+    }
+  });
+}
+
+// ── 5. the copy obeys the city voice (mirrors the API's shared/voice.ts) ──
+// Two codebases, no shared package, so the rules are stated twice. If either
+// moves, both should.
+//
+// Whole lines with comments stripped, rather than string literals: JSX text is
+// bare (`<p>Don't worry</p>`), so a literal-only scan would miss most of the
+// copy on a page. Every pattern below is a multi-word phrase, which is why
+// scanning code alongside prose produces no false positives — identifiers do
+// not contain spaces.
+const VOICE = [
+  // The assistant as subject. It is not a character in this.
+  [/\bas an? (?:AI|language model|assistant|chatbot)\b/i, 'speaks as an assistant'],
+  [/\bI(?:'m| am) (?:just )?(?:an?|here|sorry|unable|afraid|happy to)\b/i, 'makes the assistant the subject'],
+  [/\b(?:I'd|I would) (?:recommend|suggest|advise)\b/i, 'makes the assistant the recommender'],
+  // The reader in the third person. It is one citizen, and we are talking to them.
+  // Not followed by a capital: "the User Content Licence" is a document title
+  // in the terms of service and is correctly written. "the user should" is not.
+  // No `i` flag: with it, [A-Z] in the lookahead matches lowercase too and the
+  // exception swallows every case, leaving the rule never firing.
+  [/\b[Tt]he (?:[Uu]ser|[Pp]atient|[Ii]ndividual)\b(?!\s+[A-Z])/, 'refers to the reader in the third person'],
+  [/\busers (?:should|can|may|must|will)\b/i, 'addresses a category, not a person'],
+  // Comfort the app is not entitled to give. Warmth may change how something is
+  // said, never what is said — a friendly sentence making a quiet clinical claim
+  // is worse than a cold one that does not.
+  [/\b(?:nothing|no reason) to (?:worry|be concerned|be alarmed)\b/i, 'a reassurance the app cannot make'],
+  [/\b(?:don't|do not) worry\b/i, 'dismisses a feeling instead of acknowledging it'],
+  [/\byou(?:'re| are) (?:completely |totally |perfectly )?(?:fine|healthy|okay)\b/i, 'a clinical claim about the reader'],
+  [/\bthis is (?:completely |perfectly |totally )?normal\b/i, 'reassurance stated as fact'],
+  // Filler that reads as machine.
+  [/\bit(?:'s| is) important to (?:note|remember|understand)\b/i, 'stock filler'],
+  [/\bplease note that\b/i, 'stock filler'],
+  [/\bin conclusion\b/i, 'essay scaffolding'],
+];
+
+for (const file of files) {
+  if (deadSet.has(file)) continue;
+  const rel = relative(SRC, file);
+  const text = source.get(file)
+    .replace(/\/\*[\s\S]*?\*\//g, ' ');       // block comments
+  text.split('\n').forEach((raw, i) => {
+    // Line comments too: "the user can edit this" is an engineer talking to an
+    // engineer and is correct there. The voice governs what a citizen reads.
+    const line = raw.replace(/\/\/.*$/, '');
+    for (const [re, why] of VOICE) {
+      if (re.test(line)) problems.push(`${rel}:${i + 1}  voice — ${why}`);
     }
   });
 }

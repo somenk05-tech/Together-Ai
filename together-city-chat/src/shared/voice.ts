@@ -49,7 +49,16 @@ const BANNED: Rule[] = [
   // list until the scan ran over the codebase and found "Be the voice of the
   // customer" in a job-posting blurb — where the customer is the employer's,
   // not the reader. A guard that fires on correct writing gets switched off.
-  { re: /\bthe (?:user|patient|individual)\b/i, why: 'refers to the reader in the third person' },
+  // Not followed by a capital. "the User Content Licence" is a document title
+  // in the terms of service, correctly written; "the user should" is not. This
+  // is the second time this rule has been narrowed by contact with real copy,
+  // which is the right direction — a guard that fires on good writing is one
+  // somebody turns off.
+  // No `i` flag, deliberately: with it, [A-Z] in the lookahead also matches
+  // lowercase, so the exception swallowed every case and the rule stopped
+  // firing at all. My own tests caught that, which is the argument for having
+  // written them for a regex.
+  { re: /\b[Tt]he (?:[Uu]ser|[Pp]atient|[Ii]ndividual)\b(?!\s+[A-Z])/, why: 'refers to the reader in the third person' },
   { re: /\busers (?:should|can|may|must|will)\b/i, why: 'addresses a category, not a person' },
   { re: /\bone (?:should|might|may|could) (?:consider|note|find)\b/i, why: 'impersonal construction' },
 
