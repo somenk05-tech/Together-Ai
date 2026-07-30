@@ -128,7 +128,7 @@ export function MessageThread({ messages, currentUserId, typing, onDelete, onEdi
                   onKeyDown={(e) => { if (e.key === 'Enter') void saveEdit(m); if (e.key === 'Escape') setEditingId(null); }}
                   style={{ border: '1.5px solid var(--accent)', borderRadius: 12, padding: '8px 12px', fontSize: 14, fontFamily: 'inherit', minWidth: 220 }} />
                 <button type="button" className="btn btn-accent btn-sm" onClick={() => void saveEdit(m)}>Save</button>
-                <button type="button" className="btn btn-line btn-sm" onClick={() => setEditingId(null)}>✕</button>
+                <button type="button" className="btn btn-line btn-sm" aria-label="Cancel editing" onClick={() => setEditingId(null)}>✕</button>
               </div>
             ) : (
               <>

@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { BlockingService } from '../connections/blocking.service';
 import { ConnectionsService } from '../connections/connections.service';
 import { isReservedAdminHandle } from '../auth/admin';
 import { orderPair } from '../connections/connection.util';
@@ -45,6 +46,7 @@ export class ProfileService {
     private readonly prisma: PrismaService,
     private readonly masterProfile: MasterProfileService,
     private readonly connections: ConnectionsService,
+    private readonly blocking: BlockingService,
   ) {}
 
   async summary(userId: string): Promise<ProfileSummary> {
@@ -425,11 +427,10 @@ export class ProfileService {
     const handle = (handleRaw ?? '').trim().replace(/^@/, '').toLowerCase();
     const u = await this.prisma.user.findUnique({ where: { handle }, select: { id: true } });
     if (!u) throw new NotFoundException('No citizen with that handle.');
-    // Blocked either way → nothing to show.
-    const block = await this.prisma.block
-      .findFirst({ where: { OR: [{ blockerId: viewerId, blockedId: u.id }, { blockerId: u.id, blockedId: viewerId }] }, select: { id: true } })
-      .catch(() => null);
-    if (block) return { items: [], nextCursor: null };
+    // Blocked either way → nothing to show. This used to read the Block table
+    // directly and so missed a connection-level block; connections/blocking.ts
+    // is now the one place that knows what blocked means.
+    if (await this.blocking.isBlocked(viewerId, u.id)) return { items: [], nextCursor: null };
 
     // The audience rule lives in ConnectionsService — see visibleAudiences().
     // It used to be duplicated here and in SocialService, and the two copies had

@@ -129,7 +129,7 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <h2 style={{ fontSize: 18, margin: 0 }}>Share to a chat</h2>
-              <button type="button" onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-soft)' }}>×</button>
+              <button type="button" onClick={onClose} aria-label="Close" style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-soft)' }}>×</button>
             </div>
             <div style={{ margin: '12px 0' }}><ShareCardView card={item} compact /></div>
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Add a note (optional)…"

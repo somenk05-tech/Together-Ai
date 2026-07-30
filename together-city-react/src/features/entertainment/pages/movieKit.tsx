@@ -226,7 +226,7 @@ function PersonSheet({ id, onClose, onOpenTitle }: { id: number; onClose: () => 
                 <div style={{ flex: 1, minWidth: 220 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                     <h2 style={{ margin: 0, fontSize: 22 }}>{p.name}</h2>
-                    <button type="button" onClick={onClose} style={{ border: 'none', background: 'var(--paper)', borderRadius: 999, width: 30, height: 30, cursor: 'pointer' }}>✕</button>
+                    <button type="button" onClick={onClose} aria-label="Close" style={{ border: 'none', background: 'var(--paper)', borderRadius: 999, width: 30, height: 30, cursor: 'pointer' }}>✕</button>
                   </div>
                   <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
                     {[p.department, p.birthday ? `b. ${prettyDate(p.birthday)}` : null, p.placeOfBirth].filter(Boolean).join(' · ')}
@@ -278,7 +278,7 @@ export function TitleSheet({ sel, onClose, onOpen, autoplay = false }: { sel: Ti
                   {m?.trailerKey && <button type="button" className="play" onClick={() => setPlaying(true)} title="Watch trailer">▶</button>}
                 </>
               )}
-            <button type="button" className="x" onClick={onClose}>✕</button>
+            <button type="button" className="x" onClick={onClose} aria-label="Close">✕</button>
           </div>
           <div style={{ padding: '20px 24px 24px' }}>
             {q.isLoading && <p className="muted" style={{ fontSize: 13 }}>Loading details…</p>}

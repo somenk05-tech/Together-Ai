@@ -700,7 +700,7 @@ export function Profile() {
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 14, padding: '12px 14px', background: '#e8f5e9', border: '1px solid #c8e6c9', borderRadius: 12, fontSize: 13 }}>
               <span>✅</span>
               <span>Photos uploaded successfully. Now complete your Skin &amp; Hair Profile to generate your personalised AI assessment.</span>
-              <button type="button" onClick={() => setPhotoBanner(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#2e7d32' }}>✕</button>
+              <button type="button" onClick={() => setPhotoBanner(false)} aria-label="Dismiss this message" style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#2e7d32' }}>✕</button>
             </div>
           )}
           <OnboardingProgress />

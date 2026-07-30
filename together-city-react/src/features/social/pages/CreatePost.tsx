@@ -560,6 +560,7 @@ export function CreatePost() {
                     </span>
                   )}
                   <button type="button" onClick={() => setMedia((prev) => prev.filter((_, j) => j !== i))}
+                    aria-label={`Remove this ${m.type === 'video' ? 'video' : 'photo'}`}
                     style={{ position: 'absolute', top: 5, right: 5, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,.65)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>
                     ✕
                   </button>
@@ -595,7 +596,7 @@ export function CreatePost() {
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
             {hashtags.map((h) => (
               <span key={h} style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft)', padding: '3px 10px', borderRadius: 999 }}>
-                {h} <button type="button" onClick={() => setHashtags((x) => x.filter((y) => y !== h))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', padding: 0, marginLeft: 2 }}>✕</button>
+                {h} <button type="button" onClick={() => setHashtags((x) => x.filter((y) => y !== h))} aria-label={`Remove ${h}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', padding: 0, marginLeft: 2 }}>✕</button>
               </span>
             ))}
           </div>
@@ -701,7 +702,7 @@ export function CreatePost() {
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                 {tagged.map((t) => (
                   <span key={t.id} style={{ fontSize: 12, fontWeight: 600, background: 'var(--accent-soft)', color: 'var(--accent)', padding: '3px 10px', borderRadius: 999 }}>
-                    {t.name} <button type="button" onClick={() => setTagged((x) => x.filter((y) => y.id !== t.id))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}>✕</button>
+                    {t.name} <button type="button" onClick={() => setTagged((x) => x.filter((y) => y.id !== t.id))} aria-label={`Remove ${t.name}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}>✕</button>
                   </span>
                 ))}
               </div>

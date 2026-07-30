@@ -30,7 +30,7 @@ export function DrivePicker({ onClose, onPick, alreadyPicked }: {
         style={{ width: 'min(560px, 96vw)', maxHeight: '82vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <strong style={{ fontSize: 15 }}>📎 Attach from Drive</strong>
-          <button type="button" onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--muted)' }}>×</button>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--muted)' }}>×</button>
         </div>
 
         {/* breadcrumb */}

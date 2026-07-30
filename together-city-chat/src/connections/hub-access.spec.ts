@@ -1,4 +1,5 @@
 import { ConnectionsService } from './connections.service';
+import { BlockingService } from './blocking.service';
 
 /**
  * The gate that wasn't.
@@ -22,7 +23,8 @@ function serviceWith(conn: Record<string, unknown> | null, follow: { id: string 
     },
     follow: { findUnique: jest.fn().mockResolvedValue(follow) },
   };
-  return new ConnectionsService(prisma as never, { permissionsChanged: jest.fn() } as never, {} as never);
+  return new ConnectionsService(prisma as never, { permissionsChanged: jest.fn() } as never, {} as never,
+    new BlockingService(prisma as never));
 }
 
 const connWith = (modules: string[], relationship: string | null = null) => ({

@@ -11,6 +11,7 @@
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
     "lint:ceiling": "node scripts/lint-ceiling.mjs",
     "nav:audit": "node scripts/nav-audit.mjs",
+    "a11y:audit": "node scripts/a11y-audit.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

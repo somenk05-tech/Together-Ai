@@ -4,6 +4,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { orderPair } from './connection.util';
 import { RequestConnectionDto, RespondConnectionDto, UpdateModulesDto } from './dto/connections.dto';
 import { UNIVERSAL_SLUGS, PERMISSIONED_SLUGS, isHub, isUniversalHub } from './hubs.registry';
+import { BlockingService } from './blocking.service';
 import { ConnectionsGateway } from './connections.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -49,6 +50,7 @@ export class ConnectionsService {
     private readonly prisma: PrismaService,
     private readonly gateway: ConnectionsGateway,
     private readonly notifications: NotificationsService,
+    private readonly blocking: BlockingService,
   ) {}
 
   /** Broadcast a permission change to BOTH members so every open page (People +
@@ -71,6 +73,9 @@ export class ConnectionsService {
     const target = await this.prisma.user.findUnique({ where: { handle } });
     if (!target) throw new NotFoundException('No citizen with that handle.');
     if (target.id === requesterId) throw new BadRequestException('You can’t connect with yourself.');
+    // A block has to stop the request itself, not just the messages that would
+    // follow it. Arriving in someone's requests list is contact.
+    await this.blocking.assertNotBlocked(requesterId, target.id);
 
     const { userOneId, userTwoId } = orderPair(requesterId, target.id);
     const conn = await this.prisma.connection.upsert({

@@ -236,7 +236,7 @@ function ReelComments({ postId, onClose }: { postId: string; onClose: () => void
       <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxHeight: '70%', background: 'var(--card,#fff)', borderRadius: '16px 16px 0 0', padding: '14px 16px', overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
           <strong style={{ fontSize: 14 }}>Comments</strong>
-          <button type="button" onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-soft)' }}>×</button>
+          <button type="button" onClick={onClose} aria-label="Close comments" style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-soft)' }}>×</button>
         </div>
         {comments.isLoading && <Spinner />}
         {(comments.data ?? []).map((c) => (

@@ -1,4 +1,5 @@
 import { DatingService } from './dating.service';
+import { BlockingService } from '../connections/blocking.service';
 
 /**
  * A match must not disappear.
@@ -39,6 +40,7 @@ function serviceWith(candidates: Array<Record<string, unknown>>, states: Array<R
   const svc = new DatingService(
     prisma as never, {} as never, {} as never, {} as never,
     {} as never, {} as never, {} as never, {} as never,
+    new BlockingService(prisma as never),
   );
   return { svc, prisma };
 }

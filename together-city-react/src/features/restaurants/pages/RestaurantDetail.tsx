@@ -42,9 +42,9 @@ function DishRow({ d, qty, onAdd, onSub }: { d: Dish; qty: number; onAdd: () => 
           ? <Button variant="line" size="sm" onClick={onAdd}>Add</Button>
           : (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, border: '1.5px solid var(--accent)', borderRadius: 10, padding: '4px 10px' }}>
-              <button type="button" onClick={onSub} style={{ cursor: 'pointer', border: 'none', background: 'none', fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>−</button>
+              <button type="button" onClick={onSub} aria-label="Decrease quantity" style={{ cursor: 'pointer', border: 'none', background: 'none', fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>−</button>
               <span style={{ fontWeight: 700, minWidth: 14, textAlign: 'center' }}>{qty}</span>
-              <button type="button" onClick={onAdd} style={{ cursor: 'pointer', border: 'none', background: 'none', fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>+</button>
+              <button type="button" onClick={onAdd} aria-label="Increase quantity" style={{ cursor: 'pointer', border: 'none', background: 'none', fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>+</button>
             </div>
           )}
       </div>

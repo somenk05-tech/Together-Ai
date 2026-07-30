@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import axios from 'axios';
 import { apiPost } from './http';
+import { scrubImage, UnreadableImageError } from '@/lib/scrub-image';
 
 /** Presigned-upload flow (S3/R2) — matches POST /media/upload. */
 export const PresignInput = z.object({
@@ -34,6 +35,7 @@ export interface UploadedFile {
  *  - otherwise a generic connection hint.
  */
 export function uploadErrorMessage(err: unknown): string {
+  if (err instanceof UnreadableImageError) return err.message;
   const e = err as { response?: { status?: number }; message?: string; config?: { url?: string } };
   const url = e?.config?.url ?? '';
   const status = e?.response?.status;
@@ -47,30 +49,46 @@ export function uploadErrorMessage(err: unknown): string {
   return 'Could not reach the server — check your connection and try again.';
 }
 
+/**
+ * Every upload in the app comes through here, which is the reason the location
+ * strip lives here and not in the screens. A photo taken on a phone carries the
+ * coordinates it was taken at; the bytes go straight from the browser to R2, so
+ * this is the last moment anyone can do anything about that. Putting it in one
+ * place means a screen added next year cannot forget — see lib/scrub-image.ts.
+ *
+ * The scrub happens BEFORE the presign, not after: stripping changes the size,
+ * and re-encoding can change the type, and the pre-signed URL is issued against
+ * both.
+ */
 export const mediaApi = {
   presign: (file: File): Promise<PresignResult> =>
     apiPost('/media/upload', { mimeType: file.type, sizeBytes: file.size }, PresignResult),
 
   /** Upload the bytes directly to R2 and return the public URL. */
   async upload(file: File): Promise<string> {
-    const { uploadUrl, publicUrl } = await this.presign(file);
-    await axios.put(uploadUrl, file, { headers: { 'Content-Type': file.type } });
+    const { file: safe } = await scrubImage(file, 'public');
+    const { uploadUrl, publicUrl } = await this.presign(safe);
+    await axios.put(uploadUrl, safe, { headers: { 'Content-Type': safe.type } });
     return publicUrl;
   },
 
   /** Upload and return full metadata (url + key + size) for a public document. */
   async uploadDoc(file: File): Promise<UploadedFile> {
-    const { uploadUrl, publicUrl, key } = await this.presign(file);
-    await axios.put(uploadUrl, file, { headers: { 'Content-Type': file.type } });
-    return { fileUrl: publicUrl, fileKey: key, mimeType: file.type, sizeBytes: file.size };
+    const { file: safe } = await scrubImage(file, 'public');
+    const { uploadUrl, publicUrl, key } = await this.presign(safe);
+    await axios.put(uploadUrl, safe, { headers: { 'Content-Type': safe.type } });
+    return { fileUrl: publicUrl, fileKey: key, mimeType: safe.type, sizeBytes: safe.size };
   },
 
   /** Upload to the PRIVATE health vault — returns the key only (no public URL).
-   *  The file is viewable later solely via a short-lived signed link. */
+   *  The file is viewable later solely via a short-lived signed link.
+   *  A scan we cannot take apart still goes: nobody should be unable to file
+   *  their own medical record because of a format we do not parse. */
   async uploadPrivate(file: File): Promise<{ fileKey: string; mimeType: string; sizeBytes: number }> {
-    const res = await apiPost('/media/upload-private', { mimeType: file.type, sizeBytes: file.size },
+    const { file: safe } = await scrubImage(file, 'private');
+    const res = await apiPost('/media/upload-private', { mimeType: safe.type, sizeBytes: safe.size },
       z.object({ uploadUrl: z.string(), key: z.string(), expiresInSec: z.number().optional() }));
-    await axios.put(res.uploadUrl, file, { headers: { 'Content-Type': file.type } });
-    return { fileKey: res.key, mimeType: file.type, sizeBytes: file.size };
+    await axios.put(res.uploadUrl, safe, { headers: { 'Content-Type': safe.type } });
+    return { fileKey: res.key, mimeType: safe.type, sizeBytes: safe.size };
   },
 };

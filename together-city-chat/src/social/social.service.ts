@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { BlockingService } from '../connections/blocking.service';
 import { ConnectionsService } from '../connections/connections.service';
 import { RECORD_CAP } from '../shared/paging';
 import { SocialGateway } from './social.gateway';
@@ -18,6 +19,7 @@ export class SocialService {
     private readonly notifications: NotificationsService,
     private readonly storage: StorageProvider,
     private readonly connections: ConnectionsService,
+    private readonly blocking: BlockingService,
   ) {}
 
   /** Set a video post's cover: extract the frame at `timeSec` with ffmpeg from
@@ -77,14 +79,12 @@ export class SocialService {
     return [...ids];
   }
 
-  /** All userIds in a block relationship with this user (either direction). */
+  /** All userIds in a block relationship with this user (either direction).
+   *  Reads BOTH the Block table and connection-level blocks — this used to read
+   *  only the first, so someone blocked on their connection record still had
+   *  their posts in the feed. See connections/blocking.ts. */
   private async blockedWith(userId: string): Promise<Set<string>> {
-    const rows = await this.prisma.block
-      .findMany({ where: { OR: [{ blockerId: userId }, { blockedId: userId }] }, select: { blockerId: true, blockedId: true } })
-      .catch(() => [] as { blockerId: string; blockedId: string }[]);
-    const set = new Set<string>();
-    for (const r of rows) set.add(r.blockerId === userId ? r.blockedId : r.blockerId);
-    return set;
+    return this.blocking.blockedWith(userId);
   }
 
   /** Strip HTML tags from free text (defense-in-depth against stored XSS). */

@@ -1,4 +1,5 @@
 import { DatingService } from './dating.service';
+import { BlockingService } from '../connections/blocking.service';
 
 /**
  * A match belongs on the page named after it.
@@ -27,6 +28,7 @@ function serviceWith(matches: Array<Record<string, unknown>>) {
   const svc = new DatingService(
     prisma as never, {} as never, conversations as never, {} as never,
     {} as never, {} as never, {} as never, {} as never,
+    new BlockingService(prisma as never),
   );
   return { svc, conversations };
 }

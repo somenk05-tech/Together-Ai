@@ -59,7 +59,7 @@ function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; o
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(440px, 96vw)', maxHeight: '88vh', overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <h2 style={{ fontSize: 18, margin: 0 }}>{mode === 'group' ? 'New group' : 'New chat'}</h2>
-          <button type="button" onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-soft)' }}>×</button>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-soft)' }}>×</button>
         </div>
 
         {mode === 'group' && (

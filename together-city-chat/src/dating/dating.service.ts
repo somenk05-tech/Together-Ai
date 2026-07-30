@@ -3,6 +3,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
 import { AdminService } from '../auth/admin';
 import { MasterProfileService } from '../profile/master-profile.service';
+import { BlockingService } from '../connections/blocking.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
@@ -38,6 +39,7 @@ export class DatingService {
     private readonly notifications: NotificationsService,
     private readonly admin: AdminService,
     private readonly clock: ClockService,
+    private readonly blocking: BlockingService,
   ) {}
 
   // ─────────────── profile ───────────────
@@ -738,11 +740,17 @@ export class DatingService {
    * therefore never discover the member's dating profile.
    */
   private async connectionExclusions(userId: string): Promise<Set<string>> {
-    const conns = await this.prisma.connection.findMany({
-      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: { in: ['ACCEPTED', 'BLOCKED'] } } as never,
-      select: { userOneId: true, userTwoId: true },
-    });
-    const set = new Set<string>();
+    const [conns, blocked] = await Promise.all([
+      this.prisma.connection.findMany({
+        where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: { in: ['ACCEPTED', 'BLOCKED'] } } as never,
+        select: { userOneId: true, userTwoId: true },
+      }),
+      // Blocking someone in the Social hub writes a different table, which this
+      // did not read — so a blocked citizen kept turning up in Discover and
+      // could still be matched with. See connections/blocking.ts.
+      this.blocking.blockedWith(userId),
+    ]);
+    const set = new Set<string>(blocked);
     for (const c of conns) set.add(c.userOneId === userId ? c.userTwoId : c.userOneId);
     return set;
   }

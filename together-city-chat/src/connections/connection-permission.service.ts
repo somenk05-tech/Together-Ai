@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { ConnectionStatus } from '@prisma/client';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { orderPair } from './connection.util';
+import { BlockingService } from './blocking.service';
 
 /**
  * THE GATE.
@@ -11,11 +12,24 @@ import { orderPair } from './connection.util';
  */
 @Injectable()
 export class ConnectionPermissionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly blocking: BlockingService,
+  ) {}
 
-  /** Returns true iff an ACCEPTED connection exists between the two users. */
+  /**
+   * True iff an ACCEPTED connection exists AND neither has blocked the other.
+   *
+   * The block half used to be missing, and the consequence was not small: a
+   * citizen who blocked someone from the Social hub had their posts hidden and
+   * carried on receiving their messages, because this gate only ever looked at
+   * the connection record and the Social hub writes to a different table. See
+   * blocking.ts. Every message, call and new conversation comes through here,
+   * so this one line is where the block becomes real everywhere at once.
+   */
   async canCommunicate(a: string, b: string): Promise<boolean> {
     if (a === b) return false;
+    if (await this.blocking.isBlocked(a, b)) return false;
     const { userOneId, userTwoId } = orderPair(a, b);
     const conn = await this.prisma.connection.findFirst({
       where: { userOneId, userTwoId, status: ConnectionStatus.ACCEPTED },
@@ -24,21 +38,21 @@ export class ConnectionPermissionService {
     return conn !== null;
   }
 
-  /** Throws 403 unless the two users share an ACCEPTED connection. */
+  /**
+   * Throws 403 unless the two may communicate. A block and a missing connection
+   * are refused separately so the wording can differ: only the person who made
+   * a block is told a block exists.
+   */
   async assertCanCommunicate(a: string, b: string): Promise<void> {
+    await this.blocking.assertNotBlocked(a, b);
     if (!(await this.canCommunicate(a, b))) {
       throw new ForbiddenException('You can only message connected members.');
     }
   }
 
-  /** True if either user has BLOCKED the other on any connection. */
+  /** True if either user has blocked the other, by any of the ways to do it. */
   async isBlocked(a: string, b: string): Promise<boolean> {
-    const { userOneId, userTwoId } = orderPair(a, b);
-    const blocked = await this.prisma.connection.findFirst({
-      where: { userOneId, userTwoId, status: ConnectionStatus.BLOCKED },
-      select: { id: true },
-    });
-    return blocked !== null;
+    return this.blocking.isBlocked(a, b);
   }
 
   /**

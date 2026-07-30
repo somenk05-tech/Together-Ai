@@ -603,7 +603,7 @@ export function DatingProfilePage() {
               </div>
             ))}
             {photos.length < 10 && (
-              <button type="button" onClick={() => fileRef.current?.click()}
+              <button type="button" onClick={() => fileRef.current?.click()} aria-label="Add a photo"
                 style={{ width: 72, height: 72, borderRadius: 10, border: '1.5px dashed var(--line)', background: 'transparent', cursor: 'pointer', fontSize: 22, color: 'var(--muted)' }}>＋</button>
             )}
             <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => void onPhotos(e.target.files)} />
