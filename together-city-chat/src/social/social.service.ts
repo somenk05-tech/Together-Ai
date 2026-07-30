@@ -262,12 +262,30 @@ export class SocialService {
     // not just your network — so the reels scroll runs through the whole city's
     // uploads. Friends/family-audience posts still only come from your circle,
     // and blocked users (either direction) are excluded.
-    const cityWide = filter === 'videos';
+    /**
+     * p17: "the feed must show all content other users tagged Public."
+     *
+     * It did not. Every lens except Videos was bounded by
+     * `authorId: { in: network }`, so a post somebody deliberately marked
+     * Public was invisible to anyone who did not already follow them or share a
+     * connection. A city feed that only shows you people you already know is an
+     * address book.
+     *
+     * For You is now city-wide for PUBLIC posts, and still bounded for the rest:
+     * friends-audience posts come from your connections and family-audience
+     * posts from your family, exactly as before. Marking something Public is the
+     * citizen saying they want it seen; this is the app finally doing that.
+     *
+     * Friends and Following stay bounded, because that is what they are for.
+     */
+    const cityWide = filter === 'videos' || filter === 'foryou' || filter === 'trending' || filter === 'nearby';
     const blockedSet = cityWide ? [...(await this.blockedWith(userId))] : [];
     const audienceWhere = cityWide
       ? {
           OR: [
             { authorId: userId },
+            // Public means public. No network bound on this branch — that was
+            // the bug.
             { audience: 'public' },
             { audience: 'friends', authorId: { in: network } },
             { audience: 'family', authorId: { in: familyIds } },
