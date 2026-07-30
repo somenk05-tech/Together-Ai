@@ -1,0 +1,118 @@
+# Together City — the gate that did not exist.
+#
+# Until this file, nothing ran the test suites before a deploy. Render and
+# Vercel both build on push, and a build failing on a type error was the only
+# thing standing between a broken commit and production. Every guard in
+# src/security/ — the frozen public-route list, the query-scoping budget, the
+# account-purge classification — protected nothing unless a person remembered
+# to run jest, which is not a control.
+#
+# The Postgres service below matters more than it looks. It is what finally
+# makes src/security/runtime-isolation.spec.ts real: that suite boots the whole
+# API against a live database and has a second citizen try to read, change and
+# delete everything the first one made. On a laptop it skips for want of a
+# database. Here it runs on every push, which is what it was written for.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch makes the first run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API — types, tests, isolation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: together-city-chat
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: city
+          POSTGRES_PASSWORD: city
+          POSTGRES_DB: together_city_test
+        ports: ['5432:5432']
+        # Without the health check the first migration races the database's
+        # own startup and fails perhaps one run in five, which is worse than
+        # failing every run: an intermittently red pipeline gets ignored.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://city:city@localhost:5432/together_city_test
+      TEST_DATABASE_URL: postgres://city:city@localhost:5432/together_city_test
+      # Real values, not defaults: configuration.ts refuses to boot in
+      # production with the dev secrets, and the isolation suite boots the app.
+      JWT_ACCESS_SECRET: ci-access-secret-that-is-at-least-32-chars
+      JWT_REFRESH_SECRET: ci-refresh-secret-that-is-at-least-32-chars
+      ALLOW_STUB_MESSAGING: 'true'
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: together-city-chat/package-lock.json
+
+      - run: npm ci
+      - run: npx prisma generate
+
+      # migrate deploy rather than db push: the committed migrations are what
+      # production runs, so this also proves they apply to an empty database.
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      # The whole suite, including the runtime isolation tests, which are only
+      # skipped when TEST_DATABASE_URL is unset — and here it is set.
+      - name: Test
+        run: npx jest --ci --runInBand
+
+      - name: API docs are current
+        run: |
+          npm run docs:api
+          git diff --exit-code docs/api.md \
+            || (echo "::error::docs/api.md is stale — run 'npm run docs:api' and commit it." && exit 1)
+
+  web:
+    name: Web — types, tests, lint ceiling
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: together-city-react
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: together-city-react/package-lock.json
+
+      - run: npm ci
+      - name: Type-check
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npx vite build
+      # Not `npm run lint` — that has been red for a long time and would fail
+      # every run, which teaches people to ignore the pipeline. See
+      # scripts/lint-ceiling.mjs.
+      - name: Lint must not get worse
+        run: node scripts/lint-ceiling.mjs
