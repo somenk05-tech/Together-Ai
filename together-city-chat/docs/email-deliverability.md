@@ -39,6 +39,15 @@ Three things kept it hidden, and all three are now fixed:
    knowable at boot, so `describeFromAddress()` now checks it when the provider
    is constructed and logs loudly if it will never send. `messaging-provider.spec.ts`
    pins the exact broken value as a regression case.
+
+   It also **repairs** that one shape rather than only refusing it — an opening
+   `<`, a valid address, no closing `>`. Railway's variable editor was observed
+   dropping that character, which makes it a fault the configuration UI can
+   inflict on you rather than one you can avoid by typing carefully, and
+   refusing to send in that situation punishes the operator for someone else's
+   bug. The repair is logged every time and is deliberately narrow: if what
+   follows `<` is not an address, the value could have meant more than one
+   thing, and it is refused instead of guessed.
 3. **"Configured" was mistaken for "working".** `POST /auth/forgot` reports
    `delivery: 'live'`, which means a real provider is wired — not that it can
    deliver. That check passed throughout the outage. It is still the right first

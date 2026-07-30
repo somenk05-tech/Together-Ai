@@ -71,46 +71,58 @@ export class StubMessagingProvider implements MessagingProvider {
  * same interface — implement SendgridEmailProvider and add a case below.
  */
 /**
- * Is this a sender address a mail provider will accept?
+ * Is this a sender address a mail provider will accept — and if not, can it be
+ * salvaged without guessing?
  *
  * Two legal shapes, and only two: a bare address, or a display name followed by
- * the address in angle brackets. Checked at construction rather than trusted,
- * because the failure it catches is silent, total and indistinguishable from a
- * delivery problem — one missing ">" in an environment variable rejects every
- * message the application ever sends, and the only evidence is a 422 in the
- * provider's dashboard that nobody thinks to open.
+ * the address in angle brackets. Checked rather than trusted, because the
+ * failure it catches is silent, total and indistinguishable from a delivery
+ * problem — one missing ">" in an environment variable rejects every message the
+ * application ever sends, and the only evidence is a 422 in a dashboard nobody
+ * thinks to open. That is not hypothetical: EMAIL_FROM was set to
+ * "Together City <hello@togethercity.app" and every send for a week was refused.
  *
- * That is not hypothetical. EMAIL_FROM was set to
- * "Together City <hello@togethercity.app" — no closing bracket — and every send
- * for a week was refused.
+ * ONE malformation is repaired rather than merely reported: an opening "<" with
+ * a valid address after it and no closing ">". There is exactly one thing that
+ * can mean, so repairing it is not a guess — and Railway's variable editor has
+ * been observed dropping that character on save, which makes this a defect the
+ * configuration UI can inflict on you rather than one you can avoid by being
+ * careful. A repair is logged every time. Anything else is refused, because a
+ * "helpful" fix to an ambiguous value is how you end up sending as the wrong
+ * domain and never finding out.
  */
-export function describeFromAddress(from: string): { ok: boolean; reason?: string } {
+export interface FromAddressCheck {
+  ok: boolean;
+  /** The address to actually use. Present when ok. */
+  value?: string;
+  /** True when `value` differs from the input because we repaired it. */
+  repaired?: boolean;
+  reason?: string;
+}
+
+const SHAPE_HELP = 'Use either "user@domain" or "Display Name <user@domain>".';
+const ADDR = /^[^<>\s@]+@[^<>\s@]+\.[^<>\s@]+$/;
+
+export function describeFromAddress(from: string): FromAddressCheck {
   const v = (from ?? '').trim();
-  if (!v) {
-    return {
-      ok: false,
-      reason: 'EMAIL_FROM is empty. Use either "user@domain" or "Display Name <user@domain>".',
-    };
+  if (!v) return { ok: false, reason: `EMAIL_FROM is empty. ${SHAPE_HELP}` };
+
+  const bracketed = /^([^<>]*)<([^<>]+)>$/.exec(v);
+  if (bracketed && ADDR.test(bracketed[2].trim())) return { ok: true, value: v };
+
+  // The repairable case: "Display Name <user@domain" — opening bracket, valid
+  // address, nothing closing it.
+  const truncated = /^([^<>]*)<([^<>]+)$/.exec(v);
+  if (truncated && ADDR.test(truncated[2].trim())) {
+    return { ok: true, value: `${truncated[1]}<${truncated[2].trim()}>`, repaired: true };
   }
 
-  const bracketed = /^[^<>]*<([^<>\s]+@[^<>\s]+\.[^<>\s]+)>$/.exec(v);
-  if (bracketed) return { ok: true };
+  if (ADDR.test(v)) return { ok: true, value: v };
 
   if (v.includes('<') || v.includes('>')) {
-    return {
-      ok: false,
-      reason: `EMAIL_FROM has unbalanced angle brackets: ${JSON.stringify(v)}. `
-        + 'Use either "user@domain" or "Display Name <user@domain>".',
-    };
+    return { ok: false, reason: `EMAIL_FROM has unbalanced or empty angle brackets: ${JSON.stringify(v)}. ${SHAPE_HELP}` };
   }
-
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return { ok: true };
-
-  return {
-    ok: false,
-    reason: `EMAIL_FROM is not a valid sender: ${JSON.stringify(v)}. `
-      + 'Use either "user@domain" or "Display Name <user@domain>".',
-  };
+  return { ok: false, reason: `EMAIL_FROM is not a valid sender: ${JSON.stringify(v)}. ${SHAPE_HELP}` };
 }
 
 export class ResendEmailProvider implements MessagingProvider {
@@ -133,6 +145,10 @@ export class ResendEmailProvider implements MessagingProvider {
     if (!verdict.ok) {
       // eslint-disable-next-line no-console
       console.error(`[messaging:resend] REFUSING TO START CLEANLY — ${verdict.reason} Every send will be rejected until this is fixed.`);
+    } else if (verdict.repaired) {
+      // eslint-disable-next-line no-console
+      console.warn(`[messaging:resend] EMAIL_FROM was missing its closing ">" and has been repaired to ${JSON.stringify(verdict.value)}. Fix the variable — this repair is a safety net, not the intended configuration.`);
+      this.from = verdict.value as string;
     }
   }
 
