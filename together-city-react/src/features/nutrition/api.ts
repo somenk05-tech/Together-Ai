@@ -83,6 +83,12 @@ export const nutritionApi = {
     api.post<{ saved: boolean; ids: string[] }>(`/nutrition/recipes/${id}/save`, { saved }).then((r) => r.data),
   recipeVariants: (id: string, type: string) =>
     api.get<{ type: string; label: string; note: string; items: Recipe[] }>(`/nutrition/recipes/${id}/variants`, { params: { type } }).then((r) => r.data),
+  groceryCheck: (key: string, checked: boolean) =>
+    api.post<{ ok: true; key: string; checked: boolean }>('/nutrition/grocery/check', { key, checked }).then((r) => r.data),
+  groceryAddItem: (label: string) =>
+    api.post<{ ok: true; key: string }>('/nutrition/grocery/item', { label }).then((r) => r.data),
+  groceryClearChecked: () =>
+    api.post<{ ok: true; cleared: number }>('/nutrition/grocery/clear-checked', {}).then((r) => r.data),
   groceryPlan: (mode: 'individual' | 'family' = 'individual', days = 7, startDate?: string) =>
     api.get<GroceryPlan>('/nutrition/grocery/plan', { params: { mode, days, ...(startDate ? { startDate } : {}) } }).then((r) => r.data),
   cart: () => api.get<GroceryCart>('/nutrition/cart').then((r) => r.data),
@@ -259,6 +265,10 @@ export interface GroceryCart { id: string | null; items: GroceryItem[]; createdA
 export interface GroceryUsedIn { recipe: string; qtyLabel: string }
 export interface GroceryPlanItem {
   name: string; aisle: string; qtyLabel: string; unit: string; grams: number;
+  /** Persisted (BE-11.1) — a tick survives the page closing, which is the point. */
+  checked?: boolean;
+  /** plan | manual. A manual line is never removed by a regeneration. */
+  source?: string;
   /** Pantry-aware split: what you already have vs what's still to buy. */
   haveGrams?: number; toBuyGrams?: number; haveQtyLabel?: string; toBuyQtyLabel?: string; inPantry?: boolean;
   pack: string;                    // recommended retail pack to buy

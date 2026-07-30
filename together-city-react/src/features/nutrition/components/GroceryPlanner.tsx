@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { EmptyState, Spinner } from '@/components/ui';
 import { useGroceryPlan } from '../hooks';
 import { nutritionApi } from '../api';
@@ -127,10 +127,47 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
   const qc = useQueryClient();
   const schedule = plan.data?.deliverySchedule;
   const [view, setView] = useState<View>('grocery');
+  /**
+   * The ticks come from the server now (BE-11.1).
+   *
+   * They used to live only in this useState, so they survived exactly as long
+   * as the page did — somebody halfway round a shop who switched apps or let
+   * the screen lock came back to a list with nothing ticked.
+   *
+   * Kept in local state as well, and updated FIRST: a checkbox that waits for a
+   * round trip feels broken in a supermarket aisle, where the signal is bad and
+   * the phone is in one hand. The write follows; if it fails the tick is rolled
+   * back and the list says so, because a tick that silently did not save is
+   * worse than one that visibly failed.
+   */
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const toggle = (n: string) => setChecked((s) => { const next = new Set(s); next.has(n) ? next.delete(n) : next.add(n); return next; });
+  const [saveFailed, setSaveFailed] = useState(false);
+
+  // Seed from the server whenever the plan arrives, without discarding a tick
+  // made in the last second.
+  useEffect(() => {
+    const fromServer = (plan.data?.aisles ?? []).flatMap((a) => a.items).filter((i) => i.checked).map((i) => i.name);
+    if (fromServer.length) setChecked((s) => new Set([...s, ...fromServer]));
+  }, [plan.data]);
+
+  const toggle = (n: string) => {
+    const next = new Set(checked);
+    const nowChecked = !next.has(n);
+    if (nowChecked) next.add(n); else next.delete(n);
+    setChecked(next);
+    setSaveFailed(false);
+    void nutritionApi.groceryCheck(n, nowChecked)
+      .then(() => { void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery'] }); })
+      .catch(() => {
+        setChecked((s) => { const back = new Set(s); if (nowChecked) back.delete(n); else back.add(n); return back; });
+        setSaveFailed(true);
+      });
+  };
 
   const aisles = plan.data?.aisles ?? [];
+  const failedNote = saveFailed
+    ? 'That tick didn’t save — check your connection and tap it again.'
+    : '';
   const recipes = plan.data?.recipes ?? [];
   const itemCount = plan.data?.itemCount ?? 0;
   const summary = plan.data?.summary;
@@ -304,6 +341,11 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
 
       {view === 'grocery' ? (
         <>
+          {/* A tick that silently did not save is worse than one that visibly
+              failed — in a shop you act on what the list says. */}
+          {failedNote && (
+            <p style={{ fontSize: 12.5, color: '#c62828', margin: '0 0 10px' }}>{failedNote}</p>
+          )}
           {aisles.map((a) => <Aisle key={a.key} aisle={a} checked={checked} toggle={toggle} />)}
         </>
       ) : (

@@ -29,6 +29,7 @@ import { activeMntRules, mntRecipeBias, mntAvoidKeywords, type MntRule } from '.
 import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe } from './diet-tags';
 import { energyTarget } from './energy';
+import { itemKey, mergeGroceryList } from './grocery-merge';
 import { targetReadiness } from './target-readiness';
 import { scoreDual, buildScorecard, guidelineCaps } from './plan-score';
 import { recipeImageUrl } from './recipe-image-set';
@@ -2052,6 +2053,101 @@ export class NutritionService implements OnModuleInit {
       personalised: r.personalised,
       computedAt: r.computedAt.toISOString(),
     }));
+  }
+
+  /** The stored grocery rows — check state, manual additions, provenance. */
+  private get groceryRows() {
+    return (this.prisma as unknown as {
+      groceryListItem: {
+        findMany: (a: unknown) => Promise<Array<{ key: string; label: string; aisle: string; qtyLabel: string; checked: boolean; source: string }>>;
+        upsert: (a: unknown) => Promise<unknown>;
+        deleteMany: (a: unknown) => Promise<{ count: number }>;
+      };
+    }).groceryListItem;
+  }
+
+  /**
+   * Fold the freshly generated list into the one the citizen is shopping from
+   * (BE-11.1), and persist the result.
+   *
+   * The rules live in grocery-merge.ts and are tested without a database. This
+   * does the I/O and nothing else.
+   *
+   * Never throws. If the merge cannot be persisted the citizen still gets their
+   * list — losing the ticks is bad, losing the list is worse.
+   */
+  async syncGroceryList(
+    userId: string,
+    generated: Array<{ name: string; aisle: string; qtyLabel: string }>,
+  ): Promise<Map<string, { checked: boolean; source: string; label: string; aisle: string; qtyLabel: string }>> {
+    const state = new Map<string, { checked: boolean; source: string; label: string; aisle: string; qtyLabel: string }>();
+    try {
+      const existing = (await this.groceryRows.findMany({ where: { userId }, take: 500 }))
+        .map((r) => ({
+          key: r.key, label: r.label, aisle: r.aisle, qtyLabel: r.qtyLabel,
+          checked: r.checked, source: r.source === 'manual' ? 'manual' as const : 'plan' as const,
+        }));
+      const merged = mergeGroceryList(existing, generated.map((g) => ({
+        key: itemKey(g.name), label: g.name, aisle: g.aisle, qtyLabel: g.qtyLabel,
+      })));
+
+      for (const it of merged.items) {
+        state.set(it.key, { checked: it.checked, source: it.source, label: it.label, aisle: it.aisle, qtyLabel: it.qtyLabel });
+        await this.groceryRows.upsert({
+          where: { userId_key: { userId, key: it.key } },
+          create: { userId, key: it.key, label: it.label, aisle: it.aisle, qtyLabel: it.qtyLabel, checked: it.checked, source: it.source },
+          update: { label: it.label, aisle: it.aisle, qtyLabel: it.qtyLabel, source: it.source },
+        }).catch(() => undefined);
+      }
+      if (merged.removed.length) {
+        await this.groceryRows.deleteMany({ where: { userId, key: { in: merged.removed.slice(0, 200) } } }).catch(() => undefined);
+      }
+    } catch (e) {
+      this.logger.warn(`grocery list merge failed: ${(e as Error).message}`);
+    }
+    return state;
+  }
+
+  /** Tick or untick one line. Idempotent. */
+  async setGroceryChecked(userId: string, key: string, checked: boolean) {
+    const k = itemKey(key);
+    if (!k) throw new BadRequestException('Which item?');
+    await this.groceryRows.upsert({
+      where: { userId_key: { userId, key: k } },
+      // A tick on a line the merge has not written yet still sticks, rather
+      // than being dropped because the row happened not to exist.
+      create: { userId, key: k, label: key, checked, source: 'plan', checkedAt: checked ? new Date() : null },
+      update: { checked, checkedAt: checked ? new Date() : null },
+    });
+    return { ok: true as const, key: k, checked };
+  }
+
+  /** Add something the meal plan does not know about. */
+  async addGroceryItem(userId: string, label: string) {
+    const clean = (label ?? '').trim().slice(0, 80);
+    if (!clean) throw new BadRequestException('Give the item a name.');
+    const k = itemKey(clean);
+    if (!k) throw new BadRequestException('Give the item a name.');
+    await this.groceryRows.upsert({
+      where: { userId_key: { userId, key: k } },
+      create: { userId, key: k, label: clean, aisle: 'yours', qtyLabel: '', checked: false, source: 'manual' },
+      // Already on the list from the plan — mark it the citizen's so a
+      // regeneration can never remove it.
+      update: { source: 'manual' },
+    });
+    return { ok: true as const, key: k };
+  }
+
+  /**
+   * Clear what is already in the trolley.
+   *
+   * Removes the ticked lines rather than unticking them: this is the "done
+   * shopping" action, and leaving fifty unticked lines behind would be a list
+   * nobody wants to see next week.
+   */
+  async clearCheckedGrocery(userId: string) {
+    const res = await this.groceryRows.deleteMany({ where: { userId, checked: true } });
+    return { ok: true as const, cleared: res.count };
   }
 
   async recipeLibrary(q: { search?: string; cuisine?: string; mealType?: string; diet?: string; sort?: string; page?: number; pageSize?: number }) {
@@ -6233,6 +6329,31 @@ export class NutritionService implements OnModuleInit {
     const aisles = AISLES
       .filter((a) => (grouped.get(a.key) ?? []).length)
       .map((a) => ({ key: a.key, icon: a.icon, title: a.title, note: a.note, items: (grouped.get(a.key) ?? []).sort((x, y) => String(x.name).localeCompare(String(y.name))) }));
+
+    /**
+     * Fold in what the citizen has already ticked, and anything they added by
+     * hand (BE-11.1). Done here rather than in the client because the check
+     * state has to survive a page that closes — which is the whole point.
+     */
+    const state = await this.syncGroceryList(userId, aisles.flatMap((a) => (a.items as Array<{ name: string; qtyLabel?: string }>).map((it) => ({
+      name: it.name, aisle: a.key, qtyLabel: it.qtyLabel ?? '',
+    }))));
+    for (const a of aisles) {
+      for (const it of a.items as Array<Record<string, unknown>>) {
+        const hit = state.get(itemKey(String(it.name)));
+        it.checked = hit?.checked ?? false;
+        it.source = hit?.source ?? 'plan';
+      }
+    }
+    // Anything the plan does not know about gets its own aisle rather than
+    // being hidden among the generated lines.
+    const yours = [...state.entries()]
+      .filter(([, v]) => v.source === 'manual')
+      .filter(([k]) => !aisles.some((a) => (a.items as Array<{ name: string }>).some((it) => itemKey(it.name) === k)))
+      .map(([, v]) => ({ name: v.label, aisle: 'yours', qtyLabel: v.qtyLabel, unit: '', grams: 0, pack: '', shelfLife: '', storageTip: '', usedIn: [], checked: v.checked, source: 'manual' }));
+    if (yours.length) {
+      aisles.push({ key: 'yours', icon: '✍️', title: 'Added by you', note: 'Kept when the plan changes', items: yours } as unknown as typeof aisles[number]);
+    }
 
     const recipes = [...recipeView.entries()].map(([recipe, ings]) => ({
       recipe,

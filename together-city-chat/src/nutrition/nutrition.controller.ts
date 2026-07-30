@@ -420,6 +420,26 @@ export class NutritionController {
   }
 
   // Supermarket-style grocery list (Grocery Planner redesign). mode: individual|family.
+  /** POST /api/nutrition/grocery/check — tick or untick one line, and mean it. */
+  @Post('grocery/check')
+  @UsePipes(new ZodValidationPipe(z.object({ key: z.string().min(1).max(120), checked: z.boolean() })))
+  groceryCheck(@CurrentUser() user: JwtUser, @Body() dto: { key: string; checked: boolean }) {
+    return this.nutrition.setGroceryChecked(user.sub, dto.key, dto.checked);
+  }
+
+  /** POST /api/nutrition/grocery/item — add something the plan does not know about. */
+  @Post('grocery/item')
+  @UsePipes(new ZodValidationPipe(z.object({ label: z.string().min(1).max(80) })))
+  groceryAdd(@CurrentUser() user: JwtUser, @Body() dto: { label: string }) {
+    return this.nutrition.addGroceryItem(user.sub, dto.label);
+  }
+
+  /** POST /api/nutrition/grocery/clear-checked — done shopping. */
+  @Post('grocery/clear-checked')
+  groceryClearChecked(@CurrentUser() user: JwtUser) {
+    return this.nutrition.clearCheckedGrocery(user.sub);
+  }
+
   @Get('grocery/plan')
   groceryPlan(
     @CurrentUser() user: JwtUser,
