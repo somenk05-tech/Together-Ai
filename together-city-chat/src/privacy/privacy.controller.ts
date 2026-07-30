@@ -16,6 +16,18 @@ export class PrivacyController {
     return this.privacy.get(user.sub);
   }
 
+  /**
+   * GET /api/privacy/export — everything this citizen can take with them.
+   *
+   * Returned as JSON rather than a generated archive: it is the same data
+   * either way, and a file the browser saves is one less place for a copy of
+   * somebody's medical history to sit on a server waiting to be collected.
+   */
+  @Get('export')
+  exportData(@CurrentUser() user: JwtUser) {
+    return this.privacy.exportForCitizen(user.sub);
+  }
+
   @Patch()
   @UsePipes(new ZodValidationPipe(PrivacySetSchema))
   set(@CurrentUser() user: JwtUser, @Body() dto: PrivacySetDto) {
