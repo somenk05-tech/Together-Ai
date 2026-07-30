@@ -79,7 +79,7 @@ describe('readiness travels with the numbers', () => {
     expect(t.readiness.ok).toBe(false);
     if (!t.readiness.ok) {
       expect(t.readiness.missing.map((m) => m.field)).toEqual(['weightKg']);
-      expect(t.readiness.missing[0].href).toBe('/nutrition/preferences');
+      expect(t.readiness.missing[0].href).toBe('/profile/master#body');
     }
     expect(t.kcal).toBeGreaterThan(0);
     expect(t.assumed).toContain('weightKg');

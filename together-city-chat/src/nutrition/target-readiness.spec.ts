@@ -11,7 +11,12 @@ describe('every link goes somewhere that can take the answer', () => {
     // anchor existed, and that page does not hold height, weight, age or sex at
     // all — the links would have sent people somewhere they could not do the
     // thing being asked of them. This test is why that cannot come back.
-    expect(r.missing.map((m) => m.href)).toEqual(Array(4).fill('/nutrition/preferences'));
+    // FE-3.1 built the screen these fields are actually owned by, and each
+    // link now carries the section anchor as well as the page.
+    expect(r.missing.map((m) => m.href)).toEqual([
+      '/profile/master#body', '/profile/master#body',
+      '/profile/master#identity', '/profile/master#identity',
+    ]);
   });
 });
 
@@ -34,9 +39,7 @@ describe('when it cannot', () => {
     if (r.ok) return;
     expect(r.missing).toHaveLength(1);
     expect(r.missing[0].field).toBe('weightKg');
-    // The one screen that can actually take the answer today. Not /profile —
-    // that page does not hold these fields at all.
-    expect(r.missing[0].href).toBe('/nutrition/preferences');
+    expect(r.missing[0].href).toBe('/profile/master#body');
     expect(r.missing[0].why.length).toBeGreaterThan(20);
   });
 

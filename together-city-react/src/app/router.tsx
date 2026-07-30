@@ -23,6 +23,7 @@ const MealPlan = lazy(() =>
   import('@/features/nutrition/pages/MealPlan').then((m) => ({ default: m.MealPlan })),
 );
 const Profile = lazy(() => import('@/features/profile/pages/Profile').then((m) => ({ default: m.Profile })));
+const MasterProfile = lazy(() => import('@/features/profile/pages/MasterProfile').then((m) => ({ default: m.MasterProfile })));
 const DrivePage = lazy(() => import('@/features/drive/pages/Drive').then((m) => ({ default: m.Drive })));
 const SocialFeed = lazy(() => import('@/features/social/pages/SocialFeed').then((m) => ({ default: m.SocialFeed })));
 const RecipeLibrary = lazy(() => import('@/features/nutrition/pages/RecipeLibrary').then((m) => ({ default: m.RecipeLibrary })));
@@ -196,6 +197,7 @@ export const router = createBrowserRouter([
       { path: '/fitness', element: <HubLanding hub="fitness" /> },
       { path: '/cars', element: <CarsComingSoon /> },
       { path: '/profile', element: <RequireAuth>{wrap(<Profile />)}</RequireAuth> },
+      { path: '/profile/master', element: <RequireAuth>{wrap(<MasterProfile />)}</RequireAuth> },
       { path: '/settings', element: <RequireAuth>{wrap(<Settings />)}</RequireAuth> },
       { path: '/drive', element: <RequireAuth>{wrap(<DrivePage />)}</RequireAuth> },
       { path: '/settings/privacy', element: <RequireAuth>{wrap(<PrivacySettings />)}</RequireAuth> },

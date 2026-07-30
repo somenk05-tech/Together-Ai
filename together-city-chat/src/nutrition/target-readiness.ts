@@ -46,43 +46,42 @@ export interface MissingField {
 }
 
 /**
- * Every href points at /nutrition/preferences, which is the ONE screen where a
- * citizen can actually set these four today.
+ * The Master Profile screen, which is now where these four are owned.
  *
- * That is not where they belong. §3's whole complaint is that identity and body
- * data live in whichever hub happened to need them first, and a nutrition page
- * owning somebody's sex and age is exactly that. A master profile API already
- * exists — GET/PATCH /profile/master, read by five hubs — with no screen to edit
- * it. FE-3.1 is that screen, and when it exists these links move with it, from
- * here, once.
+ * This link has moved twice and the history is the point. It began at
+ * /profile#body and /profile#identity — anchors that did not exist, on a page
+ * that does not hold these fields at all, so it would have sent somebody
+ * somewhere they could not answer. It then pointed at /nutrition/preferences,
+ * which was truthful and ugly: a nutrition page owning a citizen's sex and date
+ * of birth is precisely the thing §3 is about.
  *
- * The first version of this file pointed at /profile#body and /profile#identity.
- * Neither anchor existed, and worse, that page does not hold height, weight, age
- * or sex at all — so the links would have sent people somewhere they could not
- * do the thing being asked of them. Tidier, and useless.
+ * FE-3.1 built the screen the master profile API had been missing, so the link
+ * finally points at the place that owns the field. One constant, so the next
+ * move is one line.
  */
-const EDIT_HREF = '/nutrition/preferences';
+const EDIT_HREF = '/profile/master';
+const anchorFor = (section: 'identity' | 'body') => `${EDIT_HREF}#${section}`;
 
 const FIELDS: Record<RequiredField, Omit<MissingField, 'field'>> = {
   heightCm: {
     label: 'Height',
     why: 'The energy equation uses it directly — without it there is no resting-energy figure to start from.',
-    href: EDIT_HREF,
+    href: anchorFor('body'),
   },
   weightKg: {
     label: 'Weight',
     why: 'Everything scales from it: your energy, your protein, and how much water to aim for.',
-    href: EDIT_HREF,
+    href: anchorFor('body'),
   },
   age: {
     label: 'Age',
     why: 'Energy needs fall with age, and several nutrient targets are set by age band.',
-    href: EDIT_HREF,
+    href: anchorFor('identity'),
   },
   sexAtBirth: {
     label: 'Sex at birth',
     why: 'It changes the equation by a fixed amount and sets the lowest safe calorie floor. Asked separately from how you identify.',
-    href: EDIT_HREF,
+    href: anchorFor('identity'),
   },
 };
 
