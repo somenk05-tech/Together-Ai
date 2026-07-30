@@ -28,6 +28,8 @@ import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, mntAvoidKeywords, type MntRule } from './clinical-mnt';
 import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe } from './diet-tags';
+import { energyTarget } from './energy';
+import { targetReadiness } from './target-readiness';
 import { scoreDual, buildScorecard, guidelineCaps } from './plan-score';
 import { recipeImageUrl } from './recipe-image-set';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
@@ -859,15 +861,38 @@ export function computeTargets(inp: TargetInput) {
   const h = height / 100;
   const bmi = h > 0 ? weight / (h * h) : 22;
   const overweight = bmi >= 27;
-  const bmr = 10 * weight + 6.25 * height - 5 * age + (sex === 'male' ? 5 : -161);
-  const tdee = bmr * activity;
   const adj0 = goal === 'lose' ? -0.18 : goal === 'gain' ? (overweight ? 0 : 0.10) : 0;
   // No calorie deficit during pregnancy, lactation or childhood/adolescence.
   const adj = (pregnant || lactating || pediatric) ? Math.max(0, adj0) : adj0;
   let energyExtra = 0;
   if (pregnant) energyExtra += trimester >= 3 ? 450 : trimester === 1 ? 0 : 340; // ACOG/IOM by trimester
   if (lactating) energyExtra += 400;
-  const kcal = Math.max(1400, Math.round(tdee * (1 + adj)) + energyExtra);
+
+  /**
+   * The equation moved to energy.ts (BE-7.1), and two things changed with it.
+   *
+   * The deficit is now CAPPED IN ABSOLUTE TERMS at 550 kcal/day — 0.5 kg a week,
+   * derived from the rate rather than picked. A flat −18% is a percentage of a
+   * number that varies enormously: 432 kcal on a 2,400 maintenance, 648 on a
+   * 3,600. The larger the person, the steeper their deficit became, which is
+   * backwards from how a percentage reads.
+   *
+   * And the floor is per sex, 1,200 ♀ / 1,500 ♂, instead of a single 1,400 that
+   * sat between the two and was therefore wrong for everybody. `floored` and
+   * `deltaCapped` come back so a screen can say the target was held rather than
+   * silently clamping it.
+   *
+   * The trace is what FE-7.1's "How we calculated this" reads.
+   */
+  const energy = energyTarget({
+    weightKg: weight, heightCm: height, age,
+    sex: sex === 'female' ? 'female' : 'male',
+    activity, goal: goal as 'lose' | 'maintain' | 'gain',
+    deltaPct: adj, extraKcal: energyExtra,
+  });
+  const bmr = energy.bmr;
+  const tdee = energy.tdee;
+  const kcal = energy.kcal;
 
   const refWeight = bmi >= 27 ? Math.round(25 * h * h) : weight;
   // Evidence-based protein prescription (g/kg/day):
@@ -974,6 +999,29 @@ export function computeTargets(inp: TargetInput) {
      */
     assumed,
     personalised: assumed.length === 0,
+    /**
+     * Whether these numbers should be shown as this person's at all (BE-7.4).
+     *
+     * `assumed[]` says which inputs were substituted. `readiness` says whether
+     * substituting them was acceptable, and the ticket's answer is no: refuse,
+     * and say what is missing.
+     *
+     * Returned ALONGSIDE the numbers rather than in place of them, deliberately.
+     * Eight surfaces read a target, and flipping them all to a refusal in the
+     * same commit that changes the equation would leave no way to tell which
+     * change broke what. They adopt `readiness` one at a time; when the last one
+     * has, the fallback to REFERENCE_BODY comes out and this returns nothing to
+     * fall back to. Until then a screen that checks it is honest and one that
+     * does not is exactly as wrong as it was yesterday.
+     */
+    readiness: targetReadiness({
+      heightCm: inp.heightCm ?? null, weightKg: inp.weightKg ?? null,
+      age: inp.age ?? null, sexAtBirth: inp.sex ?? null,
+    }),
+    /** The working, for FE-7.1's "How we calculated this". */
+    energyTrace: energy.trace,
+    energyFloored: energy.floored,
+    deficitCapped: energy.deltaCapped,
   };
 }
 
