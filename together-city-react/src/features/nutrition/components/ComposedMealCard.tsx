@@ -73,12 +73,70 @@ const photoOf = (m: ComposedMeal) =>
   ?? mainOf(m);
 
 /** A single meal column card (banner · 16:9 photo · title · dish links · prep/kcal). */
-export function ComposedMealCard({ meal, dayIndex, readOnly, people = 1 }: {
+/**
+ * Skip is a TOGGLE (p11, BE-9.2/FE-9.1).
+ *
+ * The API has always taken `skipped: boolean` and has always accepted false.
+ * Both buttons on this card sent a hardcoded `true`, and the only way back was
+ * a "Restore all" banner that undid every skip in the week at once. So saying
+ * "not this one tonight" was a one-way door, and correcting a mis-tap cost you
+ * every other choice you had made.
+ *
+ * The skipped keys already arrive with the plan — `skips: ['d0:l', 'd2:d:dal']`
+ * — so the way back was one call away the whole time.
+ *
+ * A skipped DISH renders in place, dimmed and struck through, with the button
+ * now reading "Add back". A skipped MEAL is not in `days[].meals` at all (the
+ * composer builds the week without it), so the parent renders a placeholder in
+ * its slot instead of leaving a hole. Rendering the real dish greyed out would
+ * be better and needs the composer to return skipped items rather than omit
+ * them — a service change, noted rather than faked.
+ */
+const SLOT_LABEL: Record<string, string> = { b: 'Breakfast', l: 'Lunch', s: 'Snack', d: 'Dinner' };
+
+export function skippedRolesFor(skips: string[], dayIndex: number, slot: string): Set<string> {
+  const prefix = `d${dayIndex}:${slot}:`;
+  return new Set(skips.filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length)));
+}
+
+export function skippedSlotsFor(skips: string[], dayIndex: number): string[] {
+  const prefix = `d${dayIndex}:`;
+  return skips
+    .filter((k) => k.startsWith(prefix) && !k.slice(prefix.length).includes(':'))
+    .map((k) => k.slice(prefix.length));
+}
+
+/** The placeholder that holds a skipped meal's place in the day. */
+export function SkippedMealCard({ dayIndex, slot }: { dayIndex: number; slot: string }) {
+  const skip = useSkipMeal();
+  return (
+    <div style={{
+      background: 'var(--card)', border: '1px dashed var(--line)', borderRadius: 20,
+      padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 10,
+      alignItems: 'flex-start', justifyContent: 'center', minHeight: 140,
+    }}>
+      <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+        {SLOT_LABEL[slot] ?? slot}
+      </span>
+      <span className="muted" style={{ fontSize: 13 }}>Skipped — not counted in today&rsquo;s totals or your grocery list.</span>
+      <button type="button" disabled={skip.isPending}
+        onClick={() => skip.mutate({ day: dayIndex, slot, skipped: false })}
+        style={{ minHeight: 40, padding: '0 14px', borderRadius: 10, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
+        {skip.isPending ? 'Adding back…' : 'Add back'}
+      </button>
+    </div>
+  );
+}
+
+/** A single meal column card (banner · 16:9 photo · title · dish links · prep/kcal). */
+export function ComposedMealCard({ meal, dayIndex, readOnly, people = 1, skips = [] }: {
   meal: ComposedMeal;
   dayIndex: number;
   readOnly?: boolean;
   /** Household headcount. >1 shows what the shared dish yields for the table. */
   people?: number;
+  /** Skip keys for the whole week, as the plan returns them. */
+  skips?: string[];
 }) {
   const navigate = useNavigate(); const location = useLocation();
   const [err, setErr] = useState(false);
@@ -88,6 +146,7 @@ export function ComposedMealCard({ meal, dayIndex, readOnly, people = 1 }: {
   const busy = refresh.isPending || skip.isPending || lineBusy;
   // Per-line Refresh/Skip only on the composite lunch & dinner plates.
   const lineControls = !readOnly && (meal.slot === 'l' || meal.slot === 'd');
+  const skippedRoles = skippedRolesFor(skips, dayIndex, meal.slot);
   const photo = photoOf(meal);          // the "master" headline dish (a main with a photo when possible)
   const img = photo?.imageUrl && !err ? photo.imageUrl : null;
   const open = () => { const id = photo?.recipeId; if (id) navigate(`/nutrition/recipes/${id}`, { state: { from: location.pathname + location.search } }); };
@@ -125,13 +184,15 @@ export function ComposedMealCard({ meal, dayIndex, readOnly, people = 1 }: {
         {/* Every dish links to its own recipe page; on lunch/dinner each dish also
             carries a Refresh (swap like-for-like) and Skip (remove) control. */}
         <div style={{ display: 'flex', flexDirection: 'column', margin: '0 0 12px' }}>
-          {meal.components.map((c, i) => (
-            <div key={c.recipeId + c.role} style={{ display: 'flex', alignItems: 'center', gap: 2, borderTop: i ? '1px solid var(--line)' : 'none' }}>
+          {meal.components.map((c, i) => {
+            const off = skippedRoles.has(c.role);
+            return (
+            <div key={c.recipeId + c.role} style={{ display: 'flex', alignItems: 'center', gap: 2, borderTop: i ? '1px solid var(--line)' : 'none', opacity: off ? 0.5 : 1 }}>
               <button type="button"
                 onClick={() => c.recipeId && navigate(`/nutrition/recipes/${c.recipeId}`, { state: { from: location.pathname + location.search } })}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', padding: '7px 0', cursor: 'pointer', fontFamily: 'inherit' }}>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>{c.name}</span>
-                <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{c.kcal} kcal</span>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--ink)', fontWeight: 500, textDecoration: off ? 'line-through' : 'none' }}>{c.name}</span>
+                <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', textDecoration: off ? 'line-through' : 'none' }}>{c.kcal} kcal</span>
                 {!lineControls && <NIc name="chevR" size={13} style={{ color: 'var(--accent)' }} />}
               </button>
               {lineControls && (
@@ -141,15 +202,18 @@ export function ComposedMealCard({ meal, dayIndex, readOnly, people = 1 }: {
                     style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: 'none', border: '1px solid var(--line)', color: 'var(--muted)', cursor: 'pointer', flex: '0 0 auto', padding: 0 }}>
                     <NIc name="refresh" size={13} />
                   </button>
-                  <button type="button" disabled={busy} aria-label={`Skip ${c.name}`} title="Remove this dish"
-                    onClick={() => skipComp.mutate({ day: dayIndex, slot: meal.slot, role: c.role, skipped: true })}
-                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: 'none', border: '1px solid var(--line)', color: 'var(--muted)', cursor: 'pointer', flex: '0 0 auto', padding: 0 }}>
-                    <NIc name="skip" size={13} />
+                  <button type="button" disabled={busy}
+                    aria-label={off ? `Add ${c.name} back` : `Skip ${c.name}`}
+                    title={off ? 'Add this dish back' : 'Skip this dish'}
+                    onClick={() => skipComp.mutate({ day: dayIndex, slot: meal.slot, role: c.role, skipped: !off })}
+                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: 'none', border: `1px solid ${off ? 'var(--accent)' : 'var(--line)'}`, color: off ? 'var(--accent)' : 'var(--muted)', cursor: 'pointer', flex: '0 0 auto', padding: 0 }}>
+                    <NIc name={off ? 'refresh' : 'skip'} size={13} />
                   </button>
                 </>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
         <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: 'var(--muted)', borderTop: '1px solid var(--line)', paddingTop: 12 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><NIc name="clock" size={14} /> Prep: {meal.minutes} min</span>

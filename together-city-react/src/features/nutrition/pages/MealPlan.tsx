@@ -6,7 +6,7 @@ import {
   useRestoreSkips, useRenewPlan,
   type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard,
 } from '../composed.api';
-import { ComposedMealCard } from '../components/ComposedMealCard';
+import { ComposedMealCard, SkippedMealCard, skippedSlotsFor } from '../components/ComposedMealCard';
 import { NIc } from '../components/NIcon';
 
 /** Master-source-of-truth gate: no plan until the Food Preference Profile is saved. */
@@ -189,6 +189,7 @@ function DayView({ wk, d, dayIndex, date, readOnly }: { wk: ComposedWeek; d: Com
   const note = wk.compliance
     ? (wk.compliance.score >= 80 ? 'Great balance of protein, carbs & healthy fats!' : (wk.compliance.concerns[0]?.message ?? 'A balanced plate for your goals.'))
     : 'A balanced plate for your goals.';
+  const skips = wk.skips ?? [];
   const card: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, padding: '16px 18px', boxShadow: 'var(--shadow)' };
   const capTitle: React.CSSProperties = { fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginBottom: 12 };
   return (
@@ -198,7 +199,13 @@ function DayView({ wk, d, dayIndex, date, readOnly }: { wk: ComposedWeek; d: Com
       <div>
         {d.fasting && <p className="muted" style={{ fontSize: 12.5, margin: '0 0 12px' }}>Eating window {d.window.start}–{d.window.end}</p>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(215px, 1fr))', gap: 16 }} className="tc-mealgrid2">
-          {d.meals.map((m) => <ComposedMealCard key={m.slot} meal={m} dayIndex={dayIndex} readOnly={readOnly} />)}
+          {d.meals.map((m) => <ComposedMealCard key={m.slot} meal={m} dayIndex={dayIndex} readOnly={readOnly} skips={skips} />)}
+          {/* A skipped meal leaves the composer's output entirely, so without
+              this its slot is simply a gap and the only way back is the
+              restore-everything banner. The placeholder holds its place. */}
+          {!readOnly && skippedSlotsFor(skips, dayIndex).map((slot) => (
+            <SkippedMealCard key={`skipped-${slot}`} dayIndex={dayIndex} slot={slot} />
+          ))}
         </div>
       </div>
 
