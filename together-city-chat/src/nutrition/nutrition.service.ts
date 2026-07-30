@@ -27,7 +27,8 @@ import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntRecipeBias, mntAvoidKeywords, type MntRule } from './clinical-mnt';
 import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
-import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe } from './diet-tags';
+import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from './diet-tags';
+import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
 import { energyTarget } from './energy';
 import { itemKey, mergeGroceryList } from './grocery-merge';
 import { targetReadiness } from './target-readiness';
@@ -45,6 +46,16 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 const SLOTS: Slot[] = ['b', 'l', 's', 'd'];
 
 /** Diet compatibility — which recipe diets a preference may be served. */
+/**
+ * Can someone on `pref` eat a dish tagged `recipe`?
+ *
+ * The map is keyed by every diet the column can hold, not just the four the
+ * `Diet` type names — the type has always been narrower than the data. An
+ * unknown key used to index to `undefined` and throw on `.includes`, taking the
+ * whole plan down; it now reads as `veg`, which is the safe direction: refusing
+ * a dish somebody could have eaten costs them variety, and the other mistake
+ * costs them their diet.
+ */
 function dietAllows(pref: Diet, recipe: Diet): boolean {
   const map: Record<Diet, Diet[]> = {
     everything: ['everything', 'veg', 'nonveg', 'pesc', 'egg', 'vegan', 'jain', 'jainvegan'],
@@ -56,7 +67,7 @@ function dietAllows(pref: Diet, recipe: Diet): boolean {
     jain: ['jain', 'jainvegan'],         // Jain sees Jain dishes + Jain-safe vegan (never onion/garlic)
     jainvegan: ['jainvegan', 'vegan', 'jain'], // internal; never a user pref
   };
-  return map[pref].includes(recipe);
+  return (map[pref] ?? map.veg).includes(recipe);
 }
 
 const SHORT_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -278,6 +289,17 @@ const CUISINE_BY_COUNTRY: Record<string, string> = {
   Lebanon: 'Middle Eastern', Turkey: 'Middle Eastern', 'Middle East': 'Middle Eastern',
   Greece: 'Mediterranean', France: 'Continental', UK: 'Continental', England: 'Continental',
 };
+
+export interface FamilyContext {
+  role: 'owner' | 'member' | 'solo';
+  ownerId: string;
+  familyMealPlanning: boolean;
+  hasFamily: boolean;
+  /** The diet the shared plan is built against — the union of the table's. */
+  householdDiet: DietKey;
+  /** Members whose diet made it stricter than the owner's. Empty when it did not. */
+  dietBecause: string[];
+}
 
 interface PrefExtras {
   cuisineMix?: Record<string, number>; cuisines?: string[]; proteins?: string[]; meats?: string[];
@@ -1802,7 +1824,12 @@ export class NutritionService implements OnModuleInit {
     // exactly as generatePlan() already does for the stored family plan. The
     // owner's own preferences alone would let a shared dish carry a child's
     // allergen, and the family basket would then buy the ingredient for it.
-    if (opts.household) ex = await this.withHouseholdAllergies(userId, ex);
+    let householdDiet: DietKey | null = null;
+    if (opts.household) {
+      const h = await this.withHouseholdConstraints(userId, ex, pref?.diet as string | undefined);
+      ex = h.ex;
+      householdDiet = h.diet;
+    }
     // 3-week plan anchor: day 0 = the day the user started this plan. Lazily set on
     // first generation so the plan progresses day-by-day and can prompt a review
     // once its three weeks are up.
@@ -1819,7 +1846,8 @@ export class NutritionService implements OnModuleInit {
       conditions, flags,
     });
     // Jain is vegetarian + automatic exclusion of onion, garlic and root vegetables.
-    const rawDiet = ((pref?.diet as string) ?? 'vegetarian').toLowerCase();
+    // Feeding a household? Then the diet is the table's, not the owner's.
+    const rawDiet = (householdDiet ?? (pref?.diet as string) ?? 'vegetarian').toLowerCase();
     const isJain = rawDiet === 'jain';
     const composerDiet: ComposerDiet = mapUserDiet(rawDiet);
     const jainExcludes = isJain ? [...JAIN_EXCLUSION_HINTS] : [];
@@ -2939,16 +2967,53 @@ export class NutritionService implements OnModuleInit {
    * members follow one master family plan (read-only personalised view); when
    * OFF, every member gets an independent AI plan while staying connected.
    */
-  async familyContext(userId: string): Promise<{ role: 'owner' | 'member' | 'solo'; ownerId: string; familyMealPlanning: boolean; hasFamily: boolean }> {
+  async familyContext(userId: string): Promise<FamilyContext> {
     const asOwner = await this.household.findFirst({ where: { ownerId: userId, memberUserId: { not: null }, status: 'accepted' } as never }).catch(() => null);
     if (asOwner) {
-      return { role: 'owner', ownerId: userId, familyMealPlanning: await this.getFamilyMealPlanning(userId), hasFamily: true };
+      return {
+        role: 'owner', ownerId: userId, hasFamily: true,
+        familyMealPlanning: await this.getFamilyMealPlanning(userId),
+        ...(await this.householdDietNotice(userId)),
+      };
     }
     const ownerId = await this.householdOwnerFor(userId);
     if (ownerId) {
-      return { role: 'member', ownerId, familyMealPlanning: await this.getFamilyMealPlanning(ownerId), hasFamily: true };
+      return {
+        role: 'member', ownerId, hasFamily: true,
+        familyMealPlanning: await this.getFamilyMealPlanning(ownerId),
+        ...(await this.householdDietNotice(ownerId)),
+      };
     }
-    return { role: 'solo', ownerId: userId, familyMealPlanning: true, hasFamily: false };
+    return {
+      role: 'solo', ownerId: userId, familyMealPlanning: true, hasFamily: false,
+      householdDiet: normaliseDietKey((await this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null))?.diet),
+      dietBecause: [],
+    };
+  }
+
+  /**
+   * The diet the household's shared plan is built against, and — only when it
+   * is stricter than the owner's own — who at the table made it so.
+   *
+   * The screen needs both halves. "This plan is vegetarian" without a reason
+   * reads like a bug to an owner who eats meat, and the reason is the thing
+   * that makes it obviously right instead: somebody they invited is
+   * vegetarian, and one table eats one set of dishes.
+   */
+  private async householdDietNotice(ownerId: string): Promise<{ householdDiet: DietKey; dietBecause: string[] }> {
+    const [pref, members] = await Promise.all([
+      this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(() => null),
+      this.prisma.familyMember
+        .findMany({ where: { ownerId }, select: { name: true, diet: true, isSelf: true } })
+        .catch(() => [] as Array<{ name: string; diet: string | null; isSelf: boolean }>),
+    ]);
+    const ownerDiet = pref?.diet as string | undefined;
+    // The owner's own row is not somebody else's dietary requirement.
+    const others = members.filter((m) => !m.isSelf).map((m) => ({ name: m.name, diet: m.diet }));
+    const stricter = stricterThanOwner(ownerDiet, others);
+    return stricter
+      ? { householdDiet: stricter.diet, dietBecause: stricter.because }
+      : { householdDiet: normaliseDietKey(ownerDiet), dietBecause: [] };
   }
 
   /**
@@ -4272,11 +4337,18 @@ export class NutritionService implements OnModuleInit {
    * per-week plans, no overwriting other weeks).
    */
   /** Union every family member's allergies/exclusions into the planning prefs. */
-  private async withHouseholdAllergies(userId: string, ex: PrefExtras): Promise<PrefExtras> {
+  private async withHouseholdConstraints(
+    userId: string, ex: PrefExtras, ownerDiet?: string | null,
+  ): Promise<{ ex: PrefExtras; diet: DietKey }> {
     const members = await this.prisma.familyMember
-      .findMany({ where: { ownerId: userId }, select: { extras: true } })
-      .catch(() => [] as Array<{ extras: string | null }>);
-    if (!members.length) return ex;
+      .findMany({ where: { ownerId: userId }, select: { extras: true, diet: true, isSelf: true } })
+      .catch(() => [] as Array<{ extras: string | null; diet: string | null; isSelf: boolean }>);
+    // The diet of the table: the union of what everyone in it forbids. The
+    // allergies below were already merged across the household; the diet never
+    // was, so a vegetarian member's "personalised" view of the family plan was
+    // the owner's chicken, scaled. See household-diet.ts.
+    const diet = strictestDiet([ownerDiet, ...members.map((m) => m.diet)]);
+    if (!members.length) return { ex, diet };
     const allergies = new Set(terms(ex.allergies));
     const excluded = new Set(terms(ex.excluded));
     const conditions = new Set(ex.healthConditions ?? []);
@@ -4290,22 +4362,30 @@ export class NutritionService implements OnModuleInit {
       for (const c of asList(mx.healthConditions)) { const t = c.trim(); if (t) conditions.add(t); }
     }
     return {
-      ...ex,
-      allergies: [...allergies].join(','),
-      excluded: [...excluded].join(','),
-      healthConditions: [...conditions],
+      ex: {
+        ...ex,
+        allergies: [...allergies].join(','),
+        excluded: [...excluded].join(','),
+        healthConditions: [...conditions],
+      },
+      diet,
     };
   }
 
   private async generatePlan(userId: string, mode: PlanMode, weekStart?: Date) {
     const ws = weekMonday(weekStart ?? new Date());
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-    const diet = (pref?.diet ?? 'everything') as Diet;
     let ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     // FAMILY plans feed everyone from the same dishes, so the household's
-    // allergies and avoided foods must ALL apply — the owner's preferences
-    // alone would let a shared dish carry a child's allergen.
-    if (mode === 'family') ex = await this.withHouseholdAllergies(userId, ex);
+    // allergies, avoided foods and DIET must ALL apply — the owner's
+    // preferences alone would let a shared dish carry a child's allergen, or
+    // put chicken in front of the one vegetarian at the table.
+    let diet = normaliseDietKey(pref?.diet) as unknown as Diet;
+    if (mode === 'family') {
+      const h = await this.withHouseholdConstraints(userId, ex, pref?.diet as string | undefined);
+      ex = h.ex;
+      diet = h.diet as unknown as Diet;
+    }
     const allowed = allowedProteins(ex);
     // Cross-week variety (spec §18): remember the recipes in the plan we're about
     // to replace so the new week de-prioritises them — Week 2 shouldn't repeat

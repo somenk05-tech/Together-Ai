@@ -138,12 +138,22 @@ export interface FamilyMemberProfile {
 }
 export interface HouseholdSharing { targets: boolean; conditions: boolean; weight: boolean; bloodTests: boolean }
 
+/** The diets a citizen can hold. `jainvegan` is never chosen — it is what a
+ *  vegan and a Jain in one household add up to. Mirrors the API's DietKey. */
+export type DietKey =
+  | 'everything' | 'nonveg' | 'pesc' | 'egg'
+  | 'veg' | 'vegetarian' | 'vegan' | 'jain' | 'jainvegan';
+
 /** Planner context for this user: their household role + the shared mode flag. */
 export interface FamilyMealPlanningContext {
   role: 'owner' | 'member' | 'solo';
   ownerId: string;
   familyMealPlanning: boolean;
   hasFamily: boolean;
+  /** The diet the shared plan is built against: the union of the table's. */
+  householdDiet: DietKey;
+  /** Members whose diet made it stricter than the owner's. Empty when it did not. */
+  dietBecause: string[];
 }
 
 /** Family Health command centre (Medical Hub → Family Profiles). */
