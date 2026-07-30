@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { demoDataEnabled } from '../shared/demo-data';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { randomBytes } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
@@ -6715,7 +6716,7 @@ export class NutritionService implements OnModuleInit {
   private async ensureDietitians(): Promise<void> {
     // Demo dietitians are fake people (real User accounts). Off by default so the
     // Expert Care list is empty until real providers are added. Set SEED_DEMO=true to restore.
-    if (process.env.SEED_DEMO !== 'true') return;
+    if (!demoDataEnabled()) return;
     try {
       const count = await this.prisma.dietitian.count();
       if (count > 0) return;
