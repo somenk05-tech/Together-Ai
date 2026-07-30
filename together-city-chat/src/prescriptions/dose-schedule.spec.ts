@@ -1,4 +1,4 @@
-import { expandDoses, normaliseTimes, notifyAtFor, NOTIFY_LEAD_MS, ScheduleSpec } from './dose-schedule';
+import { doseStatus, expandDoses, normaliseTimes, notifyAtFor, NOTIFY_LEAD_MS, ScheduleSpec } from './dose-schedule';
 import { instantAt, offsetMsAt, addDays, weekdayOf, wallTimeIn } from '../shared/clock/zone-time';
 
 /**
@@ -193,5 +193,42 @@ describe('day arithmetic', () => {
     expect(addDays('2026-03-31', 1)).toBe('2026-04-01');
     expect(addDays('2026-01-01', -1)).toBe('2025-12-31');
     expect(addDays('2028-02-28', 1)).toBe('2028-02-29'); // 2028 is a leap year
+  });
+});
+
+
+describe('where a dose stands, for the today view', () => {
+  const at = (iso: string) => new Date(iso);
+  const noon = at('2026-07-30T12:00:00Z');
+
+  it('is upcoming before its time', () => {
+    expect(doseStatus(at('2026-07-30T21:00:00Z'), noon, null)).toBe('upcoming');
+  });
+
+  it('is DUE once its time has passed, and never missed', () => {
+    // The one rule this function refuses to apply. Calling it missed here
+    // would disagree with the hourly sweep's two-hour grace window for two
+    // hours of every single dose — one answer on the page, another in the log.
+    expect(doseStatus(at('2026-07-30T08:00:00Z'), noon, null)).toBe('due');
+    expect(doseStatus(at('2026-07-25T08:00:00Z'), noon, null)).toBe('due');
+  });
+
+  it('is due at exactly its own minute', () => {
+    expect(doseStatus(noon, noon, null)).toBe('due');
+  });
+
+  it('shows what was logged, in preference to the clock', () => {
+    expect(doseStatus(at('2026-07-30T21:00:00Z'), noon, { action: 'taken' })).toBe('taken');
+    expect(doseStatus(at('2026-07-30T08:00:00Z'), noon, { action: 'skipped' })).toBe('skipped');
+  });
+
+  it('shows a swept "missed" rather than hiding it', () => {
+    // Hiding it would stop somebody correcting a dose they did take — and
+    // correcting it is the whole point, because recording upserts.
+    expect(doseStatus(at('2026-07-30T06:00:00Z'), noon, { action: 'missed' })).toBe('missed');
+  });
+
+  it('ignores an action it does not recognise rather than showing it', () => {
+    expect(doseStatus(at('2026-07-30T06:00:00Z'), noon, { action: 'snoozed' })).toBe('due');
   });
 });

@@ -2,7 +2,8 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService } from '../shared/clock/clock.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { expandDoses, notifyAtFor, normaliseTimes } from './dose-schedule';
+import { doseStatus, expandDoses, notifyAtFor, normaliseTimes } from './dose-schedule';
+import { addDays, instantAt, wallTimeIn } from '../shared/clock/zone-time';
 import {
   PrescriptionExtractor, needsReview, type ExtractedItem,
 } from './prescription-extractor';
@@ -488,6 +489,105 @@ export class PrescriptionsService {
       },
     });
     return { id: row.id, action: row.action, scheduledAtUtc: row.scheduledAtUtc.toISOString() };
+  }
+
+  /**
+   * Today's doses, in the citizen's own day (FE-6.2).
+   *
+   * This exists because until now there was NO WAY IN THE APP TO SAY YOU HAD
+   * TAKEN A MEDICINE. The endpoint to record it has been there, the model has
+   * been there, and `useRecordDose` has been sitting in the client unimported.
+   * Meanwhile a job runs every hour and writes `action: 'missed'` for any dose
+   * two hours past its time with no log against it. So the app reminded people
+   * to take their medicine, gave them no way to answer, and then filed a missed
+   * dose in their medical record — for every dose, forever, however faithfully
+   * they were actually taking it.
+   *
+   * Built here rather than in the client because the client would have to
+   * re-derive the dose instants to know what to send back, and a second copy of
+   * the expander is a second answer to "when is this dose". The expander that
+   * schedules the alarm is the one that lists the day.
+   *
+   * A dose stays in the list once its time has passed. It is the ones already
+   * behind you that you need to answer for, and recordDose upserts, so a dose
+   * the sweep already called missed can still be corrected to taken while the
+   * day is yours to correct.
+   */
+  async today(userId: string, at = this.clock.now()) {
+    const timezone = await this.clock.timezoneFor(userId);
+    const day = this.clock.todayIn(timezone, at);
+    const schedules = await this.prisma.medicineSchedule.findMany({
+      where: { userId, active: true },
+      include: { medicine: { select: { name: true, form: true, strength: true } } },
+      take: 200,
+    });
+
+    const doses: {
+      scheduleId: string; scheduledAtUtc: string; timeLocal: string;
+      medicine: string; form: string | null; strength: string | null;
+      dosage: string | null; instructions: string | null;
+      status: 'taken' | 'skipped' | 'missed' | 'due' | 'upcoming';
+      actedAtUtc: string | null;
+    }[] = [];
+
+    // The citizen's calendar day, bounded by its own local start and end — not
+    // by a UTC day, which for anywhere east of Greenwich is a different set of
+    // doses entirely.
+    const dayStart = instantAt(timezone, day, '00:00');
+    const dayEnd = new Date(instantAt(timezone, addDays(day, 1), '00:00').getTime() - 1);
+
+    for (const s of schedules) {
+      const instants = expandDoses({
+        timesLocal: this.parseTimes(s.timesLocal),
+        daysOfWeek: this.parseJson<number[]>(s.daysOfWeek),
+        startDate: s.startDate.toISOString().slice(0, 10),
+        endDate: s.endDate ? s.endDate.toISOString().slice(0, 10) : null,
+        // The schedule's own zone, not the profile's. Someone who set a course
+        // up in Delhi and is now in London still takes it on the clock the
+        // course was written against until they change it.
+        timezone: s.timezone,
+      }, dayStart, dayEnd);
+
+      for (const at of instants) {
+        doses.push({
+          scheduleId: s.id,
+          scheduledAtUtc: at.toISOString(),
+          timeLocal: wallTimeIn(s.timezone, at),
+          medicine: s.medicine.name,
+          form: s.medicine.form,
+          strength: s.medicine.strength,
+          dosage: s.dosage,
+          instructions: s.instructions,
+          status: 'upcoming',
+          actedAtUtc: null,
+        });
+      }
+    }
+    if (!doses.length) return { day, timezone, doses: [], answered: 0, total: 0 };
+
+    // One query for the whole day rather than one per dose.
+    const logs = await this.prisma.doseLog.findMany({
+      where: { userId, scheduledAtUtc: { gte: dayStart, lte: dayEnd } },
+      select: { scheduleId: true, scheduledAtUtc: true, action: true, actedAtUtc: true },
+    });
+    const logged = new Map(logs.map((l) => [`${l.scheduleId}@${l.scheduledAtUtc.toISOString()}`, l] as const));
+
+    for (const d of doses) {
+      const hit = logged.get(`${d.scheduleId}@${d.scheduledAtUtc}`);
+      d.status = doseStatus(new Date(d.scheduledAtUtc), at, hit);
+      d.actedAtUtc = hit?.actedAtUtc ? hit.actedAtUtc.toISOString() : null;
+    }
+    doses.sort((a, b) => a.scheduledAtUtc.localeCompare(b.scheduledAtUtc));
+
+    return {
+      day,
+      timezone,
+      doses,
+      // Answered BY THE CITIZEN. A dose the sweep called missed is not an
+      // answer, it is the absence of one.
+      answered: doses.filter((d) => d.actedAtUtc).length,
+      total: doses.length,
+    };
   }
 
   /** The medicine log: what was prescribed, when it was due, what happened. */

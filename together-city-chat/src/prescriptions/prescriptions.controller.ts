@@ -73,6 +73,12 @@ export class MedicinesController {
     return this.prescriptions.medicines(user.sub);
   }
 
+  /** GET /api/medicines/today — the doses in your own day, and where each stands. */
+  @Get('today')
+  today(@CurrentUser() user: JwtUser) {
+    return this.prescriptions.today(user.sub);
+  }
+
   /** Every dose: medicine, dosage, when it was due, when it was acted on. */
   @Get('logs')
   @UsePipes(new ZodValidationPipe(LogsQuerySchema))

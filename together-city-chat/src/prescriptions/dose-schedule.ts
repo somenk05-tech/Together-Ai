@@ -75,3 +75,32 @@ export function expandDoses(spec: ScheduleSpec, fromUtc: Date, toUtc: Date): Dat
   }
   return out.sort((a, b) => a.getTime() - b.getTime());
 }
+
+
+/** Where a dose stands right now, for the today view. */
+export type DoseStatus = 'taken' | 'skipped' | 'missed' | 'due' | 'upcoming';
+
+/**
+ * What to show against one dose.
+ *
+ * The rule worth writing down is the one this function REFUSES to apply: an
+ * unanswered dose whose time has passed is `due`, never `missed`. Deciding a
+ * dose was missed belongs to the hourly sweep, which has its own grace window;
+ * a second place allowed to reach that conclusion would disagree with the first
+ * for two hours of every dose, and the citizen would see one answer on the page
+ * and a different one in their log.
+ *
+ * A logged action always wins, including a `missed` the sweep wrote — that is a
+ * fact about the record, and hiding it would stop somebody correcting it.
+ */
+export function doseStatus(
+  scheduledAtUtc: Date,
+  now: Date,
+  logged?: { action: string } | null,
+): DoseStatus {
+  if (logged) {
+    const a = logged.action;
+    if (a === 'taken' || a === 'skipped' || a === 'missed') return a;
+  }
+  return scheduledAtUtc <= now ? 'due' : 'upcoming';
+}

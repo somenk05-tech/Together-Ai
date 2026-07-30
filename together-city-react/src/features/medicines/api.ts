@@ -38,6 +38,32 @@ export interface DoseLogRow {
   action: 'taken' | 'skipped' | 'missed'; note: string | null;
 }
 
+/**
+ * One dose in the citizen's own day.
+ *
+ * `status` is 'due' rather than 'missed' for anything unanswered whose time has
+ * passed — the API will not call a dose missed, because the hourly sweep owns
+ * that decision on its own grace window and two places allowed to reach it is
+ * how they start disagreeing.
+ */
+export interface TodayDose {
+  scheduleId: string;
+  scheduledAtUtc: string;
+  timeLocal: string;
+  medicine: string;
+  form: string | null;
+  strength: string | null;
+  dosage: string | null;
+  instructions: string | null;
+  status: 'taken' | 'skipped' | 'missed' | 'due' | 'upcoming';
+  actedAtUtc: string | null;
+}
+export interface TodayDoses {
+  day: string; timezone: string; doses: TodayDose[];
+  /** Answered BY THE CITIZEN. A dose the sweep called missed is not an answer. */
+  answered: number; total: number;
+}
+
 export interface AddItemInput {
   medicineName: string; dosage: string; frequency: string;
   durationDays?: number; instructions?: string; timesLocal?: string[];
@@ -50,6 +76,7 @@ export const medicinesApi = {
   removeItem: (id: string, itemId: string) => api.delete<Prescription>(`/prescriptions/${id}/items/${itemId}`).then((r) => r.data),
   confirm: (id: string) => api.post<Prescription>(`/prescriptions/${id}/confirm`, {}).then((r) => r.data),
   medicines: () => api.get<Medicine[]>('/medicines').then((r) => r.data),
+  today: () => api.get<TodayDoses>('/medicines/today').then((r) => r.data),
   logs: () => api.get<{ items: DoseLogRow[]; nextCursor: string | null }>('/medicines/logs').then((r) => r.data),
   recordDose: (v: { scheduleId: string; scheduledAtUtc: string; action: 'taken' | 'skipped' }) =>
     api.post<{ id: string; action: string; scheduledAtUtc: string }>('/medicines/doses', v).then((r) => r.data),
@@ -57,7 +84,7 @@ export const medicinesApi = {
 
 const KEY = ['medicines'];
 const invalidate = (qc: ReturnType<typeof useQueryClient>) => {
-  for (const k of ['prescriptions', 'list', 'logs']) void qc.invalidateQueries({ queryKey: [...KEY, k] });
+  for (const k of ['prescriptions', 'list', 'logs', 'today']) void qc.invalidateQueries({ queryKey: [...KEY, k] });
 };
 
 export function usePrescriptions() {
@@ -65,6 +92,11 @@ export function usePrescriptions() {
 }
 export function useMedicines() {
   return useQuery({ queryKey: [...KEY, 'list'], queryFn: () => medicinesApi.medicines() });
+}
+export function useToday() {
+  // Short staleTime rather than none: a dose becomes due on the clock, not on
+  // an event, so the page has to notice time passing without a refresh.
+  return useQuery({ queryKey: [...KEY, 'today'], queryFn: () => medicinesApi.today(), refetchInterval: 60_000 });
 }
 export function useDoseLogs() {
   return useQuery({ queryKey: [...KEY, 'logs'], queryFn: () => medicinesApi.logs() });

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import {
   useAddPrescriptionItem, useConfirmPrescription, useCreateManualPrescription, useDoseLogs,
-  useMedicines, usePrescriptions, useRemovePrescriptionItem,
-  type AddItemInput, type Prescription,
+  useMedicines, usePrescriptions, useRecordDose, useRemovePrescriptionItem, useToday,
+  type AddItemInput, type Prescription, type TodayDose,
 } from '../api';
 
 const fmtTime = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -45,6 +45,115 @@ function AddMedicine({ prescriptionId }: { prescriptionId: string }) {
         {add.isPending ? 'Adding…' : 'Add medicine'}
       </Button>
     </div>
+  );
+}
+
+/**
+ * Today's doses, with a way to answer them (FE-6.2).
+ *
+ * This is the half of the medicine loop that was missing, and its absence was
+ * not neutral. The endpoint to record a dose was live, the model was there, and
+ * `useRecordDose` sat in the client imported by nothing — while a job ran every
+ * hour writing `missed` against any dose more than two hours past its time with
+ * no log on it. The app reminded people to take their medicine, gave them no
+ * way to say they had, and then filed a missed dose in their medical record.
+ *
+ * Nothing here decides a dose was missed. The API reports 'due' for an
+ * unanswered dose whose time has passed, and the sweep keeps its own judgement
+ * on its own grace window.
+ *
+ * A dose stays on the list after its time. The ones behind you are the ones
+ * worth answering, and because recording upserts, a dose the sweep already
+ * called missed can still be corrected while the day is yours to correct.
+ *
+ * No Snooze button. Snoozing means moving a real alarm, which is BE-6.2's
+ * delivery work; a button that only changed this screen would be a promise the
+ * app does not keep.
+ */
+const DOSE_STATE: Record<string, { label: string; color: string; bg: string }> = {
+  taken: { label: 'Taken', color: '#2e7d32', bg: '#e8f5e9' },
+  skipped: { label: 'Skipped', color: '#6b6b6b', bg: '#f0f0ee' },
+  missed: { label: 'Not recorded', color: '#c0392b', bg: '#ffebee' },
+};
+
+function DoseRow({ d }: { d: TodayDose }) {
+  const record = useRecordDose();
+  const answered = d.status === 'taken' || d.status === 'skipped';
+  const state = DOSE_STATE[d.status];
+  const act = (action: 'taken' | 'skipped') =>
+    record.mutate({ scheduleId: d.scheduleId, scheduledAtUtc: d.scheduledAtUtc, action });
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+      padding: '12px 0', borderTop: '1px solid var(--line)',
+      opacity: d.status === 'upcoming' ? 0.72 : 1,
+    }}>
+      <strong style={{ fontSize: 15, minWidth: 52, fontVariantNumeric: 'tabular-nums' }}>{d.timeLocal}</strong>
+      <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600 }}>{d.medicine}</div>
+        <div className="muted" style={{ fontSize: 12 }}>
+          {[d.dosage, d.strength, d.instructions].filter(Boolean).join(' · ') || '—'}
+        </div>
+      </div>
+
+      {answered ? (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: state.color, background: state.bg, borderRadius: 999, padding: '3px 10px' }}>
+            {state.label}
+          </span>
+          {/* Answering is never final. People tap the wrong row. */}
+          <button
+            type="button" disabled={record.isPending}
+            onClick={() => act(d.status === 'taken' ? 'skipped' : 'taken')}
+            style={{ minHeight: 44, padding: '0 10px', background: 'none', border: 'none', color: 'var(--muted)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}
+          >
+            change
+          </button>
+        </span>
+      ) : (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
+          {d.status === 'missed' && (
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: state.color, background: state.bg, borderRadius: 999, padding: '3px 10px' }}>
+              {state.label}
+            </span>
+          )}
+          {/* 44px minimum, per FE-6.2 — this is tapped with one hand, often in
+              a hurry, and often by somebody older than the person building it. */}
+          <Button size="sm" variant="accent" disabled={record.isPending}
+            style={{ minHeight: 44, minWidth: 88 }} onClick={() => act('taken')}>
+            Taken
+          </Button>
+          <Button size="sm" variant="line" disabled={record.isPending}
+            style={{ minHeight: 44, minWidth: 72 }} onClick={() => act('skipped')}>
+            Skip
+          </Button>
+        </span>
+      )}
+    </div>
+  );
+}
+
+function TodayDoses() {
+  const today = useToday();
+  const d = today.data;
+  if (today.isLoading || !d) return null;
+
+  return (
+    <section className="card" style={{ padding: '16px 18px', marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+        <h2 style={{ fontSize: 16, margin: 0 }}>Today</h2>
+        {d.total > 0 && (
+          <span className="muted" style={{ marginLeft: 'auto', fontSize: 11.5 }}>
+            {d.answered} of {d.total} answered
+          </span>
+        )}
+      </div>
+
+      {d.total === 0
+        ? <p className="muted" style={{ fontSize: 13, margin: '10px 0 0' }}>Nothing due today.</p>
+        : d.doses.map((dose) => <DoseRow key={`${dose.scheduleId}-${dose.scheduledAtUtc}`} d={dose} />)}
+    </section>
   );
 }
 
@@ -139,6 +248,8 @@ export function Medicines() {
 
       {prescriptions.isLoading ? <Spinner label="Loading your medicines…" /> : (
         <>
+          {(medicines.data ?? []).length > 0 && <TodayDoses />}
+
           {pending.map((p) => <PrescriptionCard key={p.id} p={p} />)}
 
           <h2 style={{ fontSize: 18, margin: '26px 0 10px' }}>Your medicines</h2>
@@ -172,6 +283,17 @@ export function Medicines() {
               ))}
             </div>
           )}
+
+          {/* FE-6.3. At the foot of the page rather than in a dismissible
+              banner, because it has to be true of the page every time it is
+              read, not once. */}
+          <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 26, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
+            This is a reminder tool, not medical advice. Every medicine, dose and time here is
+            the one you entered from your own prescription — the app never suggests a dosage,
+            changes one, or tells you to start or stop a medicine. If something looks wrong,
+            the prescription is right and this is not. Talk to your doctor or pharmacist
+            before changing anything.
+          </p>
         </>
       )}
     </div>
