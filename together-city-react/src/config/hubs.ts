@@ -187,10 +187,11 @@ export const HUBS: Record<HubKey, HubConfig> = {
     items: [
       { path: '/mail/inbox', index: '01', label: 'Inbox', sub: 'Mail from around the city' },
       { path: '/mail/compose', index: '02', label: 'Compose', sub: 'Write a new message' },
-      { path: '/mail/sent', index: '03', label: 'Sent', sub: 'Messages you sent' },
-      { path: '/mail/starred', index: '04', label: 'Starred', sub: 'Flagged for later' },
-      { path: '/mail/trash', index: '05', label: 'Trash', sub: 'Deleted mail' },
-      { path: '/mail/drive', index: '06', label: 'Drive', sub: 'Upload & attach your files' },
+      { path: '/mail/sent', index: '03', label: 'Sent', sub: 'Messages that were accepted' },
+      { path: '/mail/failed', index: '04', label: 'Failed', sub: 'Rejected — see why and try again' },
+      { path: '/mail/starred', index: '05', label: 'Starred', sub: 'Flagged for later' },
+      { path: '/mail/trash', index: '06', label: 'Trash', sub: 'Deleted mail' },
+      { path: '/mail/drive', index: '07', label: 'Drive', sub: 'Upload & attach your files' },
     ],
   },
   financial: {

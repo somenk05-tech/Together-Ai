@@ -1468,7 +1468,13 @@ model MailMessage {
   id         String   @id @default(uuid())
   ownerId    String // whose mailbox this copy lives in
   boxUserId  String // duplicate of ownerId for indexing clarity
-  folder     String // inbox | sent | trash
+  /// inbox | sent | failed | trash
+  ///
+  /// `failed` exists because Sent used to mean "we tried". A message the
+  /// provider rejected was written to Sent BEFORE dispatch and left there when
+  /// dispatch failed, so the sender saw an error and a Sent copy of the same
+  /// message (p21). Sent now means accepted; failed means it was not.
+  folder     String
   fromAddr   String
   fromName   String
   toAddr     String
@@ -1481,6 +1487,16 @@ model MailMessage {
   starred    Boolean  @default(false)
   system     Boolean  @default(false)
   threadId   String?
+  /// Why the provider would not take it, in the provider's own words. Null on
+  /// everything that was accepted, which is every message in Sent.
+  failureReason String?
+  /// The provider's id for the accepted message, so a bounce webhook can find
+  /// this row later (BE-2.2 / BE-14.1).
+  providerMessageId String?
+  /// JSON array of Drive file ids, kept ONLY on a failed row so Retry can send
+  /// the same message with the same files. Without it a retry quietly went out
+  /// without the attachments — the message looked sent and arrived incomplete.
+  attachmentIds     String?
   createdAt  DateTime @default(now())
 
   owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)

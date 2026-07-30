@@ -1,12 +1,17 @@
 import { http as api } from '@/api/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-export type Folder = 'inbox' | 'sent' | 'starred' | 'trash';
+/**
+ * `failed` is new (p21, FE-14.1). Sent used to mean "we tried" — a message the
+ * provider refused was written to Sent before dispatch and left there, so the
+ * sender got an error and a Sent copy of the same message.
+ */
+export type Folder = 'inbox' | 'sent' | 'failed' | 'starred' | 'trash';
 
 export interface MailAccount {
   address: string; primaryEmail: string | null; phone: string | null;
   quotaBytes: number; usedBytes: number; usedPct: number;
-  counts: { inbox: number; inboxUnread: number; sent: number; starred: number; trash: number; emailed: number };
+  counts: { inbox: number; inboxUnread: number; sent: number; failed: number; starred: number; trash: number; emailed: number };
 }
 export interface OutboxEntry {
   id: string; channel: 'email' | 'sms'; to: string | null; kind: string; subject: string;
@@ -16,6 +21,8 @@ export interface MailItem {
   id: string; fromAddr: string; fromName: string; toAddr: string; toName: string;
   subject: string; snippet: string; sizeBytes: number; read: boolean; starred: boolean;
   system: boolean; folder: string; threadId?: string | null; createdAt: string;
+  /** Why the provider refused it, in its own words. Null on anything in Sent. */
+  failureReason?: string | null;
 }
 export interface MailMessage extends MailItem { body: string }
 export interface DirectoryEntry { handle: string; name: string; address: string }
@@ -27,6 +34,7 @@ export const mailApi = {
   get: (id: string) => api.get<MailMessage>(`/mail/${id}`).then((r) => r.data),
   thread: (threadId: string) => api.get<MailMessage[]>(`/mail/thread/${threadId}`).then((r) => r.data),
   send: (input: { to: string; subject: string; body: string; threadId?: string; attachmentFileIds?: string[] }) => api.post<MailItem[]>('/mail/send', input).then((r) => r.data),
+  retry: (id: string) => api.post<MailItem[]>(`/mail/${id}/retry`, {}).then((r) => r.data),
   threadAttachments: (threadId: string) =>
     api.get<{ items: Array<{ id: string; name: string; mimeType: string | null; sizeBytes: number }> }>(`/mail/thread/${threadId}/attachments`).then((r) => r.data),
   attachmentUrl: (threadId: string, fileId: string) =>
@@ -73,6 +81,16 @@ export function useSendMail() {
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['mail'] }); },
   });
 }
+export function useRetryMail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => mailApi.retry(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['mail'] });
+    },
+  });
+}
+
 export function useFlagMail() {
   const qc = useQueryClient();
   return useMutation({

@@ -150,6 +150,7 @@ const FamSearch = lazy(() => import('@/features/family/pages/Search').then((m) =
 const FamPantry = lazy(() => import('@/features/family/pages/Pantry').then((m) => ({ default: m.FamilyPantry })));
 const MailInbox = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Inbox })));
 const MailSent = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Sent })));
+const MailFailed = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Failed })));
 const MailStarred = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Starred })));
 const MailTrash = lazy(() => import('@/features/mail/pages/Folders').then((m) => ({ default: m.Trash })));
 const MailCompose = lazy(() => import('@/features/mail/pages/Compose').then((m) => ({ default: m.Compose })));
@@ -437,6 +438,7 @@ export const router = createBrowserRouter([
       { path: '/mail/inbox', element: <RequireAuth>{wrap(<MailInbox />)}</RequireAuth> },
       { path: '/mail/compose', element: <RequireAuth>{wrap(<MailCompose />)}</RequireAuth> },
       { path: '/mail/sent', element: <RequireAuth>{wrap(<MailSent />)}</RequireAuth> },
+      { path: '/mail/failed', element: <RequireAuth>{wrap(<MailFailed />)}</RequireAuth> },
       { path: '/mail/starred', element: <RequireAuth>{wrap(<MailStarred />)}</RequireAuth> },
       { path: '/mail/drive', element: <RequireAuth>{wrap(<DrivePage />)}</RequireAuth> },
       { path: '/mail/trash', element: <RequireAuth>{wrap(<MailTrash />)}</RequireAuth> },

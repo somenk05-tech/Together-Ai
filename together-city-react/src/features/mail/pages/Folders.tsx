@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import {
   useMailAccount, useMailList, useFlagMail, useRemoveMail, useSetPrimary, useOutbox,
-  humanBytes, mailTime, initials, avatarHue, type Folder, type MailItem,
+  humanBytes, mailTime, initials, avatarHue, useRetryMail, type Folder, type MailItem,
 } from '../api';
 
 /** Outbound delivery log — every email/SMS sent through the messaging provider. */
@@ -92,6 +92,7 @@ export function AccountBar() {
 const FOLDER_META: Record<Folder, { title: string; icon: string; eyebrow: string; empty: string }> = {
   inbox: { title: 'Inbox', icon: '📥', eyebrow: 'Mail · Inbox', empty: 'Your inbox is empty' },
   sent: { title: 'Sent', icon: '📤', eyebrow: 'Mail · Sent', empty: 'Nothing sent yet' },
+  failed: { title: 'Failed', icon: '⚠️', eyebrow: 'Mail · Failed', empty: 'Nothing has failed to send' },
   starred: { title: 'Starred', icon: '⭐', eyebrow: 'Mail · Starred', empty: 'No starred mail' },
   trash: { title: 'Trash', icon: '🗑', eyebrow: 'Mail · Trash', empty: 'Trash is empty' },
 };
@@ -100,7 +101,8 @@ function Row({ m, folder }: { m: MailItem; folder: Folder }) {
   const nav = useNavigate();
   const flag = useFlagMail();
   const remove = useRemoveMail();
-  const isSent = folder === 'sent';
+  const retry = useRetryMail();
+  const isSent = folder === 'sent' || folder === 'failed';
   const person = isSent ? { name: m.toName, addr: m.toAddr } : { name: m.fromName, addr: m.fromAddr };
   const hue = avatarHue(person.addr);
   return (
@@ -124,7 +126,21 @@ function Row({ m, folder }: { m: MailItem; folder: Folder }) {
           <span style={{ fontWeight: !m.read && folder === 'inbox' ? 700 : 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '42%' }}>{m.subject}</span>
           <span className="muted" style={{ fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>— {m.snippet}</span>
         </div>
+        {/* The provider's own words. A failure the citizen cannot read the
+            reason for is one they cannot do anything about. */}
+        {m.failureReason && (
+          <div style={{ fontSize: 11.5, color: '#c62828', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            ⚠ {m.failureReason}
+          </div>
+        )}
       </div>
+      {folder === 'failed' && (
+        <button type="button" disabled={retry.isPending} title="Try sending this again"
+          onClick={(e) => { e.stopPropagation(); retry.mutate(m.id); }}
+          style={{ minHeight: 40, padding: '0 12px', borderRadius: 9, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+          {retry.isPending ? 'Sending…' : 'Try again'}
+        </button>
+      )}
       <button type="button" title={folder === 'trash' ? 'Delete forever' : 'Move to trash'} onClick={(e) => { e.stopPropagation(); remove.mutate(m.id); }}
         style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, opacity: .6, flexShrink: 0 }}>🗑</button>
     </div>
@@ -150,5 +166,6 @@ function FolderView({ folder }: { folder: Folder }) {
 
 export function Inbox() { return <FolderView folder="inbox" />; }
 export function Sent() { return <FolderView folder="sent" />; }
+export function Failed() { return <FolderView folder="failed" />; }
 export function Starred() { return <FolderView folder="starred" />; }
 export function Trash() { return <FolderView folder="trash" />; }

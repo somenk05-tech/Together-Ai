@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const FolderQuerySchema = z.object({
-  folder: z.enum(['inbox', 'sent', 'starred', 'trash']).default('inbox'),
+  folder: z.enum(['inbox', 'sent', 'failed', 'starred', 'trash']).default('inbox'),
 });
 export type FolderQueryDto = z.infer<typeof FolderQuerySchema>;
 

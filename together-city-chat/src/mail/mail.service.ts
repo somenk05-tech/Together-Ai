@@ -207,10 +207,11 @@ export class MailService {
   async account(userId: string) {
     const acct = await this.ensureAccount(userId);
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, phone: true } });
-    const [inboxUnread, inbox, sent, starred, trash, used, emailed] = await Promise.all([
+    const [inboxUnread, inbox, sent, failed, starred, trash, used, emailed] = await Promise.all([
       this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'inbox', read: false } }),
       this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'inbox' } }),
       this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'sent' } }),
+      this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'failed' } }),
       this.prisma.mailMessage.count({ where: { ownerId: userId, starred: true, NOT: { folder: 'trash' } } }),
       this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'trash' } }),
       this.usedBytes(userId),
@@ -220,7 +221,7 @@ export class MailService {
       address: acct.address, primaryEmail: user?.email ?? null, phone: user?.phone ?? null,
       quotaBytes: QUOTA_BYTES, usedBytes: used,
       usedPct: Math.min(100, +((used / QUOTA_BYTES) * 100).toFixed(4)),
-      counts: { inbox, inboxUnread, sent, starred, trash, emailed },
+      counts: { inbox, inboxUnread, sent, failed, starred, trash, emailed },
     };
   }
 
@@ -236,13 +237,54 @@ export class MailService {
   private shape(m: {
     id: string; fromAddr: string; fromName: string; toAddr: string; toName: string; subject: string;
     snippet: string; sizeBytes: number; read: boolean; starred: boolean; system: boolean; folder: string;
-    threadId: string | null; createdAt: Date;
+    threadId: string | null; createdAt: Date; failureReason?: string | null;
   }) {
     return {
       id: m.id, fromAddr: m.fromAddr, fromName: m.fromName, toAddr: m.toAddr, toName: m.toName,
       subject: m.subject, snippet: m.snippet, sizeBytes: m.sizeBytes, read: m.read, starred: m.starred,
       system: m.system, folder: m.folder, threadId: m.threadId, createdAt: m.createdAt.toISOString(),
+      // Carried on every message so a list can show it without a second fetch.
+      // Null on everything in Sent, by construction.
+      failureReason: m.failureReason ?? null,
     };
+  }
+
+  /**
+   * Try a rejected message again (FE-14.1's Retry).
+   *
+   * Re-sends the saved body to the saved recipient and files the result the
+   * same way the first attempt was filed — accepted goes to Sent, refused stays
+   * in Failed with the new reason, because the reason usually changes and the
+   * old one is no longer why.
+   *
+   * The failed row is removed only once the retry has been ACCEPTED. Deleting
+   * it first would lose the citizen's writing if the second attempt failed too,
+   * which is exactly when they can least afford to lose it.
+   */
+  async retry(userId: string, id: string) {
+    const m = await this.prisma.mailMessage.findFirst({ where: { id, ownerId: userId, folder: 'failed' } });
+    if (!m) throw new NotFoundException('No failed message with that id.');
+
+    const attachmentFileIds = ((): string[] => {
+      const raw = (m as { attachmentIds?: string | null }).attachmentIds;
+      if (!raw) return [];
+      try { const j: unknown = JSON.parse(raw); return Array.isArray(j) ? j.map(String) : []; } catch { return []; }
+    })();
+
+    const before = await this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'sent' } });
+    await this.send(userId, {
+      to: m.toAddr, subject: m.subject, body: m.body,
+      ...(m.threadId ? { threadId: m.threadId } : {}),
+      ...(attachmentFileIds.length ? { attachmentFileIds } : {}),
+    });
+    const after = await this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'sent' } });
+
+    // send() throws on a configured-provider refusal, so reaching here means it
+    // did not fail — but the count check keeps this honest if that ever changes.
+    if (after > before) {
+      await this.prisma.mailMessage.deleteMany({ where: { id, ownerId: userId, folder: 'failed' } });
+    }
+    return this.list(userId, { folder: 'failed' });
   }
 
   /** The full trail for a thread in this user's mailbox (oldest → newest, with bodies). */
@@ -260,6 +302,7 @@ export class MailService {
       q.folder === 'starred' ? { ownerId: userId, starred: true, NOT: { folder: 'trash' } }
       : q.folder === 'inbox' ? { ownerId: userId, folder: 'inbox' }
       : q.folder === 'sent' ? { ownerId: userId, folder: 'sent' }
+      : q.folder === 'failed' ? { ownerId: userId, folder: 'failed' }
       : { ownerId: userId, folder: 'trash' };
     // A mailbox only grows. Capped rather than paginated so the response shape
     // is unchanged; the cap is far above any current inbox.
@@ -338,24 +381,23 @@ export class MailService {
     // stranger's threadId mint an owned row in their thread — enough to pass the
     // participant check on the attachment routes and presign their Drive files.
     const threadId = await this.resolveThreadId(userId, dto.threadId);
-    // Sender's Sent copy (the city ledger).
-    await this.prisma.mailMessage.create({
-      data: {
-        ownerId: userId, boxUserId: userId, folder: 'sent', read: true,
-        fromAddr, fromName, toAddr: toEmail, toName: toEmail,
-        subject, body: dto.body, snippet: snippetOf(dto.body), sizeBytes: size, system: false, threadId,
-      },
-    });
-
-    // External dispatch through the provider. From = the verified EMAIL_FROM
-    // sender; the sender's city identity is noted in the body footer.
+    // DISPATCH FIRST, then file it (p21, FE-14.1).
+    //
+    // The Sent copy used to be written here, before the provider was called,
+    // and it was never removed when the provider refused the message. So a
+    // failed send left the sender looking at an error AND a copy in Sent
+    // saying it had gone — two screens disagreeing about one fact, which is
+    // the class of bug this whole review is about. During the delivery outage
+    // earlier this week every rejection did exactly that.
+    //
+    // Sent now means the provider accepted it. Nothing else is ever in there.
     const footer = `\n\n${'─'.repeat(28)}\nSent by ${fromName} (${fromAddr}) via Together City Mail.`;
     const provider = createMessagingProvider('email');
     // Real MIME attachments so external recipients get the actual files.
     const { attachments, linkFooter } = await this.loadOutboundAttachments(userId, dto.attachmentFileIds);
     const res = await provider
       .send({ channel: 'email', to: toEmail, subject, body: dto.body + linkFooter + footer, kind: 'mail', ...(attachments.length ? { attachments } : {}) })
-      .catch(() => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const }));
+      .catch((e: Error) => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const, error: e.message }));
     await this.prisma.emailDelivery.create({
       data: {
         userId, channel: 'email', toEmail, kind: 'mail', subject, body: dto.body,
@@ -363,13 +405,39 @@ export class MailService {
       },
     }).catch(() => undefined);
 
-    // A real (configured) provider that failed should surface an error; the stub
-    // reports 'sent' so demo/dev never blocks.
-    if (res.status === 'failed' && messagingConfigured('email')) {
-      throw new BadRequestException(`Couldn't deliver to ${toEmail} right now — please try again.`);
-    }
-    // Keep the attachments visible on the Sent copy too.
+    // The stub provider reports 'sent' so demo and dev never block; only a
+    // CONFIGURED provider's refusal is a real failure.
+    const failed = res.status === 'failed' && messagingConfigured('email');
+    const reason = failed
+      ? ((res as { error?: string }).error ?? 'The mail provider would not accept this message.')
+      : null;
+
+    await this.prisma.mailMessage.create({
+      data: {
+        ownerId: userId, boxUserId: userId,
+        folder: failed ? 'failed' : 'sent',
+        read: true,
+        fromAddr, fromName, toAddr: toEmail, toName: toEmail,
+        subject, body: dto.body, snippet: snippetOf(dto.body), sizeBytes: size, system: false, threadId,
+        // The message is kept either way. A failed send that vanishes takes the
+        // citizen's writing with it, which is worse than a wrong folder.
+        ...(reason ? { failureReason: reason } : {}),
+        ...(res.providerMessageId ? { providerMessageId: res.providerMessageId } : {}),
+        // Only on a failure, and only so Retry can send the same files. A
+        // retry that quietly dropped the attachments would arrive incomplete,
+        // which is a worse outcome than the failure it was fixing.
+        ...(failed && dto.attachmentFileIds?.length ? { attachmentIds: JSON.stringify(dto.attachmentFileIds) } : {}),
+      } as never,
+    });
+
+    // Keep the attachments visible on whichever copy was written.
     await this.linkAttachments(userId, threadId, dto.attachmentFileIds);
+
+    if (failed) {
+      throw new BadRequestException(
+        `Couldn't deliver to ${toEmail}. It's saved in Failed — open it there to see why and try again.`,
+      );
+    }
     return this.list(userId, { folder: 'sent' });
   }
 

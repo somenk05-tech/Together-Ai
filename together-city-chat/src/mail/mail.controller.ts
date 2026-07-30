@@ -70,6 +70,12 @@ export class MailController {
     return this.mail.get(user.sub, id);
   }
 
+  /** POST /api/mail/:id/retry — send a rejected message again. */
+  @Post(':id/retry')
+  retry(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.mail.retry(user.sub, id);
+  }
+
   @Post(':id/flag')
   @UsePipes(new ZodValidationPipe(FlagSchema))
   flag(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: FlagDto) {
