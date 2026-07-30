@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { VerifyChannel } from '../components/VerifyChannel';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/api/auth.api';
@@ -100,9 +101,26 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
       <div className="tc-pop" style={{ textAlign: 'center' }}>
         <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 30, margin: '0 auto 16px' }}>✓</div>
         <h1 style={{ fontSize: 26, marginBottom: 6 }}>Welcome to Together City</h1>
-        <p className="muted" style={{ fontSize: 13.5, marginBottom: 8 }}>Your account is ready, {name.split(' ')[0] || handle}. We’ve sent a verification link to <strong>{email}</strong> — confirm it any time to secure your account.</p>
-        <p className="muted" style={{ fontSize: 12.5, marginBottom: 20 }}>Let’s personalise your experience.</p>
-        <Button variant="accent" style={{ width: '100%', justifyContent: 'center' }} onClick={() => navigate(from, { replace: true })}>Continue →</Button>
+        <p className="muted" style={{ fontSize: 13.5, marginBottom: 16 }}>
+          Your account is ready, {name.split(' ')[0] || handle}. One more step —
+          confirm <strong>{email}</strong> so we can reach you if you lose your password.
+        </p>
+
+        {/* Verifying here rather than sending them off to find an email later:
+            this is the one moment we know they are sitting in front of the
+            address they just typed. Skipping is still allowed — an unverified
+            account works, it just cannot be recovered. */}
+        <div style={{ textAlign: 'left', marginBottom: 16 }}>
+          <VerifyChannel
+            channel="email"
+            current={email}
+            onVerified={() => navigate(from, { replace: true })}
+          />
+        </div>
+
+        <Button variant="ghost" size="sm" style={{ width: '100%', justifyContent: 'center' }} onClick={() => navigate(from, { replace: true })}>
+          Skip for now
+        </Button>
       </div>
     );
   }

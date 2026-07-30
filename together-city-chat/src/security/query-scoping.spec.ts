@@ -89,11 +89,38 @@ import { stats, unscopedSignatures } from './query-inventory';
  *     and checks EVERY delete it issued carried that citizen's id, and
  *     purge-plan.spec.ts fails when a new model is left unclassified.
  *
+ * Added 2026-07-30, with verification codes. Five of the seven new queries came
+ * back scoped rather than listed, which is the guard doing its job: three
+ * writes were updating by id alone because the row had been loaded under the
+ * user's scope a few lines earlier, and saying so in the query costs nothing.
+ * One of those rewrites turned out to matter for more than tidiness — putting
+ * `consumedAt: null` in the WHERE made single-use a compare-and-set instead of
+ * a read-then-write, so two requests racing with the same correct code now
+ * produce one success and one "already used" rather than two successes.
+ *
+ * A fifth shape has appeared with them, and it is worth naming because it is
+ * not any of the four above:
+ *
+ *   5. A rate limit that counts across citizens on purpose. The verification
+ *      send-throttle asks "how many codes went to this address in the last
+ *      hour", and the answer has to include codes sent on behalf of other
+ *      accounts or the limit is trivially bypassed by signing up again. It
+ *      selects a timestamp column and nothing else.
+ *
  * Adding to this list means a reviewer decided a query needs no owner. That is
  * sometimes right. It should never be accidental.
  */
 const REVIEWED_UNSCOPED = [
   'auth/auth.service.ts  PasswordReset.update x3',
+  // The verification send-throttle. These two MUST span accounts: they count
+  // codes issued to one email address or from one IP, and the control they
+  // implement is "nobody can bury this address in codes" — which an attacker
+  // would sidestep in seconds by making a second account. Scoping them by
+  // userId would leave the query passing this guard and doing nothing useful.
+  //
+  // Neither returns a row: both select createdAt only, feeding a count. There
+  // is no citizen data in the result to leak.
+  'auth/verification-code.service.ts  VerificationCode.findMany x2',
   // close() — ending a call ends it for everyone on it, which is the one write
   // here that is *meant* to touch other citizens' rows. The callId comes from a
   // session already authorised against the conversation, and the write only

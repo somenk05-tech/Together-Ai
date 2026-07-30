@@ -16,6 +16,41 @@ export type RegisterInput = z.infer<typeof RegisterInput>;
 export type LoginInput = z.infer<typeof LoginInput>;
 
 const OkSent = z.object({ sent: z.boolean(), delivery: z.enum(['live', 'unconfigured']).optional() });
+
+/** Six-digit verification of a real email address or phone number (p2, p3, p19). */
+export const VerificationChannel = z.enum(['email', 'phone']);
+export type VerificationChannel = z.infer<typeof VerificationChannel>;
+
+const CodeSent = z.object({
+  sent: z.boolean(),
+  channel: VerificationChannel,
+  /** Masked — s****i@gbcapl.com. Enough to recognise, not enough to harvest. */
+  target: z.string(),
+  delivery: z.enum(['live', 'unconfigured']),
+  retryAfterMs: z.number(),
+});
+export type CodeSent = z.infer<typeof CodeSent>;
+
+const CodeConfirmed = z.object({
+  verified: z.literal(true),
+  channel: VerificationChannel,
+  target: z.string(),
+  verifiedAt: z.coerce.date(),
+});
+export type CodeConfirmed = z.infer<typeof CodeConfirmed>;
+
+const ChannelStatus = z.object({
+  target: z.string().nullable(),
+  verified: z.boolean(),
+  verifiedAt: z.coerce.date().nullable(),
+});
+const VerificationStatus = z.object({
+  email: ChannelStatus,
+  phone: ChannelStatus,
+  emailConfigured: z.boolean(),
+  smsConfigured: z.boolean(),
+});
+export type VerificationStatus = z.infer<typeof VerificationStatus>;
 const OkReset = z.object({ ok: z.boolean() });
 const Ok = z.object({ ok: z.boolean() });
 
@@ -55,6 +90,17 @@ export const authApi = {
   /** Re-send the verification link to the SIGNED-IN user (no email typing). */
   sendVerification: (): Promise<{ ok?: boolean }> =>
     apiPost('/auth/send-verification', {}, z.object({ ok: z.boolean().optional() }).passthrough()),
+  /**
+   * Ask for a six-digit code. `target` is optional for email (defaults to the
+   * address on the account) and is how you change either channel: supplying a
+   * new one writes it as unverified and sends the code there.
+   */
+  sendCode: (channel: VerificationChannel, target?: string): Promise<CodeSent> =>
+    apiPost('/auth/verification/send', { channel, ...(target ? { target } : {}) }, CodeSent),
+  confirmCode: (channel: VerificationChannel, code: string): Promise<CodeConfirmed> =>
+    apiPost('/auth/verification/confirm', { channel, code }, CodeConfirmed),
+  verificationStatus: (): Promise<VerificationStatus> =>
+    apiGet('/auth/verification/status', VerificationStatus),
   /** Permanently delete the signed-in account (password re-auth required). */
   deleteAccount: (password: string): Promise<{ ok: boolean }> =>
     apiPost('/auth/delete-account', { password }, z.object({ ok: z.boolean() })),

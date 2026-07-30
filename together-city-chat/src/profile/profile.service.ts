@@ -48,10 +48,21 @@ export class ProfileService {
   ) {}
 
   async summary(userId: string): Promise<ProfileSummary> {
-    const user = await this.prisma.user.findUnique({
+    // The three verification columns are new enough that a checked-out client
+    // may not have them yet, so the select is cast and the result is given the
+    // shape it actually has. Same reason the rest of the file uses UserRow.
+    const user = (await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { handle: true, name: true, email: true, phone: true, profileImage: true, createdAt: true },
-    });
+      select: {
+        handle: true, name: true, email: true, phone: true, profileImage: true, createdAt: true,
+        emailVerified: true, emailVerifiedAt: true, phoneE164: true, phoneVerifiedAt: true,
+      } as never,
+    })) as unknown as {
+      handle: string; name: string; email: string | null; phone: string | null;
+      profileImage: string | null; createdAt: Date;
+      emailVerified: boolean; emailVerifiedAt: Date | null;
+      phoneE164: string | null; phoneVerifiedAt: Date | null;
+    } | null;
 
     // Pull each sector's data in parallel; a hub with nothing contributes nothing.
     const [foodPref, fitness, dating, beauty, wallet, bloodTests, connected, followers, following, posts, mail, plans] =
@@ -87,8 +98,12 @@ export class ProfileService {
       { key: 'name', label: 'Name', value: user?.name ?? null },
       { key: 'handle', label: 'Handle', value: user ? `@${user.handle}` : null },
       { key: 'email', label: 'City email', value: user ? `${user.handle}@togethercity.app` : null },
-      { key: 'primaryEmail', label: 'Primary email', value: user?.email ?? null },
-      { key: 'phone', label: 'Phone', value: user?.phone ?? null },
+      // The verified marker is part of the VALUE, not a separate field, because
+      // the alternative — a bare address that may or may not be confirmed — is
+      // the thing the review objected to: a screen stating something it has not
+      // checked. An unverified address reads as unverified everywhere it shows.
+      { key: 'primaryEmail', label: 'Primary email', value: verifiedLabel(user?.email ?? null, !!user?.emailVerified) },
+      { key: 'phone', label: 'Phone', value: verifiedLabel(user?.phoneE164 ?? user?.phone ?? null, !!user?.phoneVerifiedAt) },
       ...this.nutritionSections(foodPref),
       ...this.datingSections(dating),
     ];
@@ -491,4 +506,17 @@ export class ProfileService {
       }),
     };
   }
+}
+
+/**
+ * Render a contact value with its verification state, or nothing at all.
+ *
+ * Returning null for an empty value rather than "Not set" is deliberate: the
+ * empty state belongs to the component that renders the row, and a service that
+ * invents display copy makes it impossible for the UI to tell "we have nothing"
+ * apart from "we have the string 'Not set'".
+ */
+function verifiedLabel(value: string | null, verified: boolean): string | null {
+  if (!value) return null;
+  return verified ? `${value} · verified` : `${value} · unverified`;
 }

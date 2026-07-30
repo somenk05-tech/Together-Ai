@@ -112,18 +112,66 @@ export class ResendEmailProvider implements MessagingProvider {
   }
 }
 
-/*
- * SMS (recovery OTP) — implement + enable via SMS_PROVIDER=twilio:
+/**
+ * Twilio SMS. Enable with SMS_PROVIDER=twilio and set TWILIO_ACCOUNT_SID,
+ * TWILIO_AUTH_TOKEN, and either TWILIO_FROM (a number you own) or
+ * TWILIO_MESSAGING_SERVICE_SID (a messaging service, which is what you want in
+ * India — it handles sender-ID and route selection for you).
  *
- * class TwilioSmsProvider implements MessagingProvider {
- *   readonly name = 'twilio';
- *   constructor(private sid = process.env.TWILIO_SID!, private token = process.env.TWILIO_TOKEN!, private from = process.env.TWILIO_FROM!) {}
- *   async send(msg: OutboundMessage): Promise<ProviderResult> {
- *     // POST https://api.twilio.com/2010-04-01/Accounts/<sid>/Messages.json  (Basic auth)
- *     // return { provider: 'twilio', providerMessageId: res.sid, status: res.status };
- *   }
- * }
+ * Written against the REST API with fetch rather than the twilio SDK: the whole
+ * call is one form POST, and the SDK is 40-odd transitive dependencies for it.
+ * The dependency audit already flags how much of the tree is reachable.
  */
+export class TwilioSmsProvider implements MessagingProvider {
+  readonly name = 'twilio';
+
+  constructor(
+    private readonly sid: string = process.env.TWILIO_ACCOUNT_SID ?? '',
+    private readonly token: string = process.env.TWILIO_AUTH_TOKEN ?? '',
+    private readonly from: string = process.env.TWILIO_FROM ?? '',
+    private readonly messagingServiceSid: string = process.env.TWILIO_MESSAGING_SERVICE_SID ?? '',
+  ) {}
+
+  async send(msg: OutboundMessage): Promise<ProviderResult> {
+    if (msg.channel !== 'sms') throw new Error('TwilioSmsProvider handles the sms channel only');
+
+    const body = new URLSearchParams({ To: msg.to, Body: msg.body });
+    if (this.messagingServiceSid) body.set('MessagingServiceSid', this.messagingServiceSid);
+    else body.set('From', this.from);
+
+    try {
+      const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${this.sid}/Messages.json`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${this.sid}:${this.token}`).toString('base64')}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body,
+        // An OTP the user is staring at is worthless after ten seconds of
+        // waiting. Fail fast and let them press resend.
+        signal: AbortSignal.timeout(10_000),
+      });
+      const json = (await res.json().catch(() => ({}))) as { sid?: string; status?: string; message?: string };
+      if (!res.ok) {
+        // Never log msg.to at error level: a failed-send log becomes a list of
+        // phone numbers, which is the last thing an incident channel needs.
+        // eslint-disable-next-line no-console
+        console.error(`[messaging:twilio] send failed (${res.status}): ${json.message ?? 'no detail'}`);
+        return { provider: 'twilio', providerMessageId: json.sid ?? '', status: 'failed' };
+      }
+      // Twilio's own vocabulary: queued | accepted | sending | sent | failed.
+      // Anything that is not an outright failure is 'queued' here, because the
+      // delivery state machine (BE-2.2) is what resolves it from the webhook —
+      // guessing "sent" at dispatch time is exactly the p21 bug.
+      const status = json.status === 'failed' || json.status === 'undelivered' ? 'failed' : 'queued';
+      return { provider: 'twilio', providerMessageId: json.sid ?? '', status };
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(`[messaging:twilio] send threw: ${(e as Error).message}`);
+      return { provider: 'twilio', providerMessageId: '', status: 'failed' };
+    }
+  }
+}
 
 /**
  * Factory — returns the configured provider per channel. Email defaults to
@@ -155,7 +203,8 @@ export function createMessagingProvider(channel: Channel): MessagingProvider {
 
   const smsProvider = (process.env.SMS_PROVIDER ?? process.env.MESSAGING_PROVIDER ?? 'stub').toLowerCase();
   switch (smsProvider) {
-    // case 'twilio': return new TwilioSmsProvider();
+    case 'twilio':
+      return new TwilioSmsProvider();
     case 'stub':
     default:
       return new StubMessagingProvider();

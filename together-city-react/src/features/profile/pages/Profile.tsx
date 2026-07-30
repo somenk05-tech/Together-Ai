@@ -9,6 +9,7 @@ import { profileApi } from '../api';
 import { useWebPush } from '@/hooks/useWebPush';
 import { useConnections, useRespondConnection, useUnreadChatCount, useIncomingRequestCount } from '@/api';
 import { useMailAccount } from '@/features/mail/api';
+import { VerificationCard } from '@/features/auth/components/VerificationCard';
 
 type Tab = 'overview' | 'photo' | 'notifications';
 
@@ -402,6 +403,10 @@ export function Profile() {
               ))}
             </div>
           )}
+          {/* Above the read-only rows, because it is the only part of this tab
+              that has something to DO. The rows below restate the same two
+              values; here is where they get fixed. */}
+          <VerificationCard />
           {data && data.sections.length > 0 && (
             <Card>
               {data.sections.map((s) => (

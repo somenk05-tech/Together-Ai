@@ -435,6 +435,44 @@ export class MailService {
     return { deliveredToInbox: true, dispatchedTo: target, channel };
   }
 
+  /**
+   * Dispatch to a specific address or number, rather than to whatever is on the
+   * user's record.
+   *
+   * Verification needs this and deliverSystem cannot provide it: the whole point
+   * of verifying a phone is that the number is not yet trusted enough to be the
+   * account's phone, so "send to user.phone" is the wrong instruction. It also
+   * skips the city inbox copy — a code is not correspondence, and filing six
+   * digits in a mailbox that a session hijacker can read would undo the reason
+   * for sending it.
+   */
+  async deliverTo(
+    userId: string,
+    channel: Channel,
+    target: string,
+    r: { subject: string; body: string; html?: string },
+    kind: 'receipt' | 'recovery' | 'security' | 'welcome' = 'security',
+  ): Promise<{ ok: boolean; provider: string; status: string }> {
+    const provider = createMessagingProvider(channel);
+    const res = await provider
+      .send({ channel, to: target, subject: r.subject, body: r.body, ...(channel === 'email' && r.html ? { html: r.html } : {}), kind })
+      .catch(() => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const }));
+    await this.prisma.emailDelivery.create({
+      data: {
+        userId, channel,
+        toEmail: channel === 'email' ? target : null,
+        toPhone: channel === 'sms' ? target : null,
+        // The body is deliberately NOT the code. This row is an audit trail of
+        // what we dispatched and whether it left; it is readable by anyone who
+        // can read the table, and a code sitting in it would be a second copy
+        // of the secret with none of the hashing.
+        kind, subject: r.subject, body: '(verification code redacted)',
+        provider: res.provider, providerMessageId: res.providerMessageId ?? undefined, status: res.status,
+      },
+    }).catch(() => undefined);
+    return { ok: res.status !== 'failed', provider: res.provider, status: res.status };
+  }
+
   /** The outbound-delivery log — every email/SMS dispatched through the provider. */
   async outbox(userId: string) {
     const rows = await this.prisma.emailDelivery.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 100 });

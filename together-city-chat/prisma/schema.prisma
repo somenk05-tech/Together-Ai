@@ -78,7 +78,16 @@ model User {
   email           String? // primary (external) email — from sign-up; receipts & recovery go here
   emailVerified   Boolean   @default(false)
   emailVerifiedAt DateTime?
-  phone        String? // primary phone
+  /// As typed by the citizen. Kept for display and for the recovery lookup that
+  /// predates E.164 storage; phoneE164 is the one to compare against.
+  phone        String?
+  /// The same number in E.164 (+countrycode + subscriber). Nullable because a
+  /// phone is optional at sign-up, and because a number typed before this
+  /// column existed may not parse. Unique among VERIFIED numbers only — see the
+  /// partial index in the migration, not here: two people may both have typed
+  /// the same wrong number, and only one of them can prove it.
+  phoneE164       String?
+  phoneVerifiedAt DateTime?
   profileImage String?
   bio          String? // short public profile bio
   city         String? // public home city shown on the social profile
@@ -145,6 +154,7 @@ model User {
   mailMessages         MailMessage[]
   emailDeliveries      EmailDelivery[]
   passwordResets       PasswordReset[]
+  verificationCodes    VerificationCode[]
   dietitianProfile     Dietitian?
   dietitianBookings    DietitianBooking[]
 
@@ -1490,6 +1500,42 @@ model PasswordReset {
 
 // Email-verification (and future purpose-scoped) tokens. The raw token is sent
 // in the link; only its sha256 is stored so it's lookup-able but not reversible.
+/// A 6-digit code proving control of one email address or one phone number.
+///
+/// Separate from VerificationToken (the 24-hour email link) rather than folded
+/// into it: a link and a code have different lifetimes, different brute-force
+/// exposure and different failure messages, and the one thing they share — a
+/// hash column — is not enough to justify a table that means two things.
+///
+/// The code itself is never stored. `codeHash` is an argon2 hash, the same
+/// treatment a password gets, because a six-digit secret in a leaked backup is
+/// worth exactly as much as the account it unlocks.
+model VerificationCode {
+  id         String    @id @default(uuid())
+  userId     String
+  /// "email" | "phone"
+  channel    String
+  /// The normalised address or E.164 number this code was sent to. Stored so a
+  /// code issued for one address cannot verify a different one after an edit.
+  target     String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  /// Requesting IP, for the per-connection send cap. Not shown to anyone.
+  ip         String?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The send-throttle query: "codes issued to this target in the last hour".
+  @@index([target, createdAt])
+  /// The verify query: "the newest live code for this user on this channel".
+  @@index([userId, channel, createdAt])
+  /// The per-IP cap.
+  @@index([ip, createdAt])
+}
+
 model VerificationToken {
   id        String    @id @default(uuid())
   userId    String

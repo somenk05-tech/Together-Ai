@@ -14,3 +14,5 @@ export { ActionBar } from './ActionBar';
 export { ProfileSummaryCard } from './ProfileSummaryCard';
 export type { SummaryField } from './ProfileSummaryCard';
 export { Spinner } from './Spinner';
+export { CodeInput } from './CodeInput';
+export type { CodeInputProps } from './CodeInput';

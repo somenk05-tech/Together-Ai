@@ -12,6 +12,12 @@ export const UserSchema = z.object({
   // Own record only — drives the "verify your email" soft-gate banner.
   email: z.string().nullable().optional(),
   emailVerified: z.boolean().optional(),
+  emailVerifiedAt: z.string().nullable().optional(),
+  // phoneE164 is the dialable form; `phone` is whatever was typed and may
+  // predate E.164 storage. Prefer phoneE164 when both are present.
+  phone: z.string().nullable().optional(),
+  phoneE164: z.string().nullable().optional(),
+  phoneVerifiedAt: z.string().nullable().optional(),
 });
 export type User = z.infer<typeof UserSchema>;
 

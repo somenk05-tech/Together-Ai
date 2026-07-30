@@ -8,6 +8,8 @@ import { Public } from '../shared/public.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService } from './auth.service';
 import { VerificationService } from './verification.service';
+import { VerificationCodeService } from './verification-code.service';
+import type { Channel } from './verification-policy';
 import { RecoveryService } from './recovery.service';
 import type { SessionMeta } from './token.service';
 import {
@@ -74,6 +76,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly verification: VerificationService,
+    private readonly codes: VerificationCodeService,
     private readonly recovery: RecoveryService,
   ) {}
 
@@ -227,6 +230,40 @@ export class AuthController {
     return this.verification.send(user.sub);
   }
 
+  // ── Six-digit verification of a real email address and phone (p2, p3, p19) ──
+  //
+  // Signed-in only, all three. Verification proves that the person holding this
+  // session controls that address — an anonymous endpoint would let anyone
+  // trigger codes to any address, which is a way to use us to send spam.
+  //
+  // The throttler here is the coarse outer limit; the real policy (60-second
+  // cooldown, five an hour per address, twenty an hour per connection) lives in
+  // verification-policy.ts, because it has to be per-target rather than
+  // per-route to mean anything.
+  @Throttle({ default: { limit: 10, ttl: 300_000 } })
+  @Post('verification/send')
+  @UseGuards(JwtAuthGuard)
+  sendCode(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: { channel?: string; target?: string },
+    @Req() req: Request,
+  ) {
+    return this.codes.send(user.sub, channelOf(dto?.channel), dto?.target?.trim() || undefined, clientIp(req));
+  }
+
+  @Throttle({ default: { limit: 20, ttl: 300_000 } })
+  @Post('verification/confirm')
+  @UseGuards(JwtAuthGuard)
+  confirmCode(@CurrentUser() user: JwtUser, @Body() dto: { channel?: string; code?: string }) {
+    return this.codes.confirm(user.sub, channelOf(dto?.channel), dto?.code ?? '');
+  }
+
+  @Get('verification/status')
+  @UseGuards(JwtAuthGuard)
+  verificationStatus(@CurrentUser() user: JwtUser) {
+    return this.codes.status(user.sub);
+  }
+
   // ── OTP account recovery (production forgot-password) ──
   @Throttle({ default: { limit: 4, ttl: 300_000 } })
   @Public()
@@ -255,4 +292,29 @@ export class AuthController {
   recoveryReset(@Body() dto: { resetToken?: string; newPassword?: string }) {
     return this.recovery.reset(dto?.resetToken ?? '', dto?.newPassword ?? '');
   }
+}
+
+/** Only two channels exist; anything else is a client bug, not a new feature. */
+function channelOf(raw?: string): Channel {
+  const c = (raw ?? '').toLowerCase();
+  if (c === 'phone' || c === 'sms') return 'phone';
+  return 'email';
+}
+
+/**
+ * The caller's IP, for the per-connection send cap.
+ *
+ * X-Forwarded-For is a list and only the LAST hop is trustworthy behind our own
+ * proxy — a client can put anything at the front of it. Express's req.ip already
+ * applies the trust-proxy setting, so it is preferred; the header is a fallback
+ * for a deployment where trust proxy is not configured, and even then we take
+ * the final entry rather than the first.
+ */
+function clientIp(req: Request): string | undefined {
+  if (req.ip) return req.ip;
+  const fwd = req.headers['x-forwarded-for'];
+  const raw = Array.isArray(fwd) ? fwd[fwd.length - 1] : fwd;
+  if (!raw) return req.socket?.remoteAddress ?? undefined;
+  const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
+  return parts[parts.length - 1] ?? undefined;
 }

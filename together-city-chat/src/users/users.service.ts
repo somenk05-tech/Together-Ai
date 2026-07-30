@@ -16,9 +16,17 @@ export class UsersService {
     // `email` + `emailVerified` are included so the app can soft-gate: show a
     // "verify your email" banner and block the few sensitive actions until the
     // address is confirmed. (Own record only — never exposed for other users.)
+    //
+    // The phone fields joined them with the six-digit flow (p2, p3). phoneE164
+    // is the one to show: `phone` is whatever was typed, which may predate E.164
+    // storage and may not be dialable.
     return this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, handle: true, name: true, profileImage: true, lastSeen: true, email: true, emailVerified: true },
+      select: {
+        id: true, handle: true, name: true, profileImage: true, lastSeen: true,
+        email: true, emailVerified: true, emailVerifiedAt: true,
+        phone: true, phoneE164: true, phoneVerifiedAt: true,
+      } as never,
     });
   }
 
