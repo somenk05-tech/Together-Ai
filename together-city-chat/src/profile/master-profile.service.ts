@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { clinicalSex } from './sex-and-gender';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { computeHealthScore, type HealthScoreResult } from './health-score';
@@ -20,6 +21,9 @@ import { computeHealthScore, type HealthScoreResult } from './health-score';
 
 export interface SharedFields {
   gender?: string | null;
+  sexAtBirth?: string | null;
+  genderIdentity?: string | null;
+  genderIdentityOther?: string | null;
   dateOfBirth?: Date | null;
   timeOfBirth?: string | null;
   birthCountry?: string | null;
@@ -37,7 +41,8 @@ export interface SharedFields {
 }
 
 const SHARED_KEYS: Array<keyof SharedFields> = [
-  'gender', 'dateOfBirth', 'timeOfBirth', 'birthCountry', 'birthState', 'birthCity',
+  'gender', 'sexAtBirth', 'genderIdentity', 'genderIdentityOther',
+  'dateOfBirth', 'timeOfBirth', 'birthCountry', 'birthState', 'birthCity',
   'country', 'state', 'city', 'timeZone', 'languages', 'heightCm', 'weightKg', 'occupation', 'phone',
 ];
 
@@ -73,7 +78,14 @@ export function propagationPlan(shared: SharedFields): {
 } {
   const def = (o: Record<string, unknown>) =>
     Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
-  const sexBinary = shared.gender === 'male' || shared.gender === 'female' ? shared.gender : undefined;
+  // Clinical consumers get sexAtBirth; social consumers get genderIdentity.
+  // This line used to be `gender === 'male' || 'female' ? gender : undefined`,
+  // which silently dropped a non-binary citizen's answer on the way to the two
+  // engines that compute their calories. clinicalSex() makes the same refusal
+  // where a formula needs a coefficient it does not have — but the citizen can
+  // now answer the clinical question separately and stop being refused.
+  const sexBinary = clinicalSex(shared);
+  const social = shared.genderIdentity ?? shared.gender ?? undefined;
   const age = shared.dateOfBirth !== undefined ? computeAge(shared.dateOfBirth) ?? undefined : undefined;
   const birthPlace = [shared.birthCity, shared.birthState, shared.birthCountry].filter(Boolean).join(', ') || undefined;
   return {
@@ -83,7 +95,8 @@ export function propagationPlan(shared: SharedFields): {
       birthCity: shared.birthCity ?? undefined, timeZone: shared.timeZone ?? undefined,
     }),
     dating: def({
-      gender: shared.gender ?? undefined, birthDate: shared.dateOfBirth ?? undefined,
+      // Dating is a social surface: identity, never the clinical answer.
+      gender: social, birthDate: shared.dateOfBirth ?? undefined,
       birthTime: shared.timeOfBirth, birthPlace,
     }),
     food: def({ heightCm: shared.heightCm, weightKg: shared.weightKg, sex: sexBinary, age }),
@@ -190,12 +203,12 @@ export class MasterProfileService {
         country: astroRow.birthCountry, state: astroRow.birthState, city: astroRow.birthCity,
       } : {},
       dating ? {
-        gender: dating.gender, dateOfBirth: dating.birthDate, timeOfBirth: dating.birthTime,
+        genderIdentity: dating.gender, dateOfBirth: dating.birthDate, timeOfBirth: dating.birthTime,
         birthCity: place[0], birthState: place.length > 2 ? place[1] : undefined,
         birthCountry: place.length > 1 ? place[place.length - 1] : undefined,
       } : {},
-      food ? { heightCm: food.heightCm, weightKg: food.weightKg, gender: food.sex } : {},
-      fitness ? { heightCm: fitness.heightCm, weightKg: fitness.weightKg, gender: fitness.sex === 'other' ? undefined : fitness.sex } : {},
+      food ? { heightCm: food.heightCm, weightKg: food.weightKg, sexAtBirth: food.sex } : {},
+      fitness ? { heightCm: fitness.heightCm, weightKg: fitness.weightKg, sexAtBirth: fitness.sex === 'other' ? undefined : fitness.sex } : {},
       { heightCm: beautyEx.heightCm, weightKg: beautyEx.weightKg, gender: beautyEx.gender, city: beautyEx.city, occupation: beautyEx.occupation },
     );
 

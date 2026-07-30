@@ -42,6 +42,11 @@ export class ProfileController {
   @Patch('master')
   @UsePipes(new ZodValidationPipe(z.object({
     gender: z.enum(['male', 'female', 'nonbinary', 'other']).nullable().optional(),
+    // Two questions, not one (p2). sexAtBirth is clinical and private;
+    // genderIdentity is social and shown. See profile/sex-and-gender.ts.
+    sexAtBirth: z.enum(['male', 'female', 'intersex', 'preferNotToSay']).nullable().optional(),
+    genderIdentity: z.enum(['male', 'female', 'nonBinary', 'other']).nullable().optional(),
+    genderIdentityOther: z.string().trim().max(40).nullable().optional(),
     dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
     timeOfBirth: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
     birthCountry: z.string().max(60).nullable().optional(),

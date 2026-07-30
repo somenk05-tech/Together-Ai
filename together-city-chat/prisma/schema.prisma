@@ -1700,7 +1700,17 @@ model TarotReading {
 model MasterProfile {
   id           String    @id @default(uuid())
   userId       String    @unique
+  /// SUPERSEDED by sexAtBirth + genderIdentity. Kept as the read fallback for
+  /// rows the 20260730200000 backfill did not reach; no longer written.
   gender       String? // male | female | nonbinary | other
+  /// Clinical only — BMR, reference intakes, lab ranges. Never shown to another
+  /// citizen. male | female | intersex | preferNotToSay
+  sexAtBirth   String?
+  /// Social only — how the app refers to them, what dating shows. Never enters
+  /// a formula. male | female | nonBinary | other
+  genderIdentity      String?
+  /// Free text, used when genderIdentity is "other".
+  genderIdentityOther String?
   dateOfBirth  DateTime?
   timeOfBirth  String? // HH:MM · null = unknown
   birthCountry String?
