@@ -5,6 +5,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { FEED_CAP } from '../shared/paging';
 import { StorageProvider } from '../media/storage.provider';
 import type { OutboundAttachment } from './messaging-provider';
+import { greetHtml, greetSms, greetText } from './greet';
 
 /**
  * Outbound attachment sizing.
@@ -411,11 +412,20 @@ export class MailService {
     const acct = await this.ensureAccount(userId);
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true, phone: true } });
     const subject = r.subject.trim() || '(no subject)';
+    // Every message opens by addressing the person. Applied here rather than in
+    // each of the eight callers and five receipt builders, because the rule is
+    // "always" and a rule enforced in thirteen places gets missed in the
+    // fourteenth. Anything that writes its own salutation is left alone.
+    const greeted = {
+      ...r,
+      body: (channel === 'sms' ? greetSms : greetText)(r.body, user?.name),
+      ...(r.html ? { html: greetHtml(r.html, user?.name) } : {}),
+    };
     const target = channel === 'sms' ? (user?.phone ?? null) : (user?.email ?? null);
     const footer = target
       ? `\n\n${'─'.repeat(28)}\n${channel === 'sms' ? '📱 Also sent by SMS to' : '📧 A copy was also emailed to your primary address:'} ${target}`
       : '';
-    const cityBody = `${r.body}${footer}`;
+    const cityBody = `${greeted.body}${footer}`;
     await this.prisma.mailMessage.create({
       data: {
         ownerId: userId, boxUserId: userId, folder: 'inbox',
@@ -426,7 +436,7 @@ export class MailService {
     // External dispatch through the messaging provider (stub by default).
     if (target) {
       const provider = createMessagingProvider(channel);
-      const res = await provider.send({ channel, to: target, subject, body: r.body, ...(channel === 'email' && r.html ? { html: r.html } : {}), kind }).catch(() => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const }));
+      const res = await provider.send({ channel, to: target, subject, body: greeted.body, ...(channel === 'email' && greeted.html ? { html: greeted.html } : {}), kind }).catch(() => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const }));
       await this.prisma.emailDelivery.create({
         data: {
           userId, channel, toEmail: channel === 'email' ? target : null, toPhone: channel === 'sms' ? target : null,
@@ -456,8 +466,13 @@ export class MailService {
     kind: 'receipt' | 'recovery' | 'security' | 'welcome' = 'security',
   ): Promise<{ ok: boolean; provider: string; status: string }> {
     const provider = createMessagingProvider(channel);
+    // Same rule as deliverSystem. A verification code that opens "Dear Somen,"
+    // reads as a message from somebody rather than from a system.
+    const who = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(() => null);
+    const body = (channel === 'sms' ? greetSms : greetText)(r.body, who?.name);
+    const html = r.html ? greetHtml(r.html, who?.name) : undefined;
     const res = await provider
-      .send({ channel, to: target, subject: r.subject, body: r.body, ...(channel === 'email' && r.html ? { html: r.html } : {}), kind })
+      .send({ channel, to: target, subject: r.subject, body, ...(channel === 'email' && html ? { html } : {}), kind })
       .catch((e: Error) => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const, error: e.message }));
     if (res.status === 'failed') {
       // Loud, and at the point of dispatch. The provider logs its own reason;

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { informalName, salutation } from '../shared/salutation';
+import { acceptOrFallback, cityVoice, inVoice, violations } from '../shared/voice';
 import Anthropic from '@anthropic-ai/sdk';
 
 /**
@@ -224,7 +225,11 @@ export class AiService {
         }
         if (Object.keys(face).length === 0) face = null;
       }
-      return { quality, findings, note: typeof parsed?.note === 'string' ? parsed.note : '', face };
+      // The one free-text field a photo review returns to the citizen, and it is
+      // about their own face — the last place to let through "you're perfectly
+      // fine" or a sentence about the assistant.
+      const note = acceptOrFallback(typeof parsed?.note === 'string' ? parsed.note : '', '', 0);
+      return { quality, findings, note, face };
     } catch (e) {
       this.logger.warn(`Skin photo review failed: ${(e as Error).message}`);
       return { quality: 'ok', findings: [], note: '', face: null };
@@ -243,14 +248,17 @@ export class AiService {
     const fallback = { greeting: salutation(name), interpretation: [] as string[], relationships: [] as string[], discuss: [] as string[], encouragement: '' };
     if (!this.client) return fallback;
     const system =
-      `You are a warm, encouraging clinical-nutrition educator writing a personal report for ${first}. ` +
+      // The city voice first, so the constraints that stop a model reassuring
+      // somebody about their own blood results are stated before the task is.
+      `${cityVoice(name)} ` +
+      `You are a clinical-nutrition educator writing a personal letter to ${first}. ` +
       'Given their blood markers (value, status vs reference range) and profile, return ONLY JSON: ' +
       '{"greeting": string, "interpretation": string[], "relationships": string[], "discuss": string[], "encouragement": string}. ' +
-      `greeting: a warm personal opening addressing them by name, e.g. "Dear ${first},". ` +
+      `greeting: the opening line, addressing them by name — "Dear ${first},". ` +
       'interpretation: 3–6 short plain-language bullets on what each abnormal result may indicate. ' +
       'relationships: 1–3 bullets on how the abnormal markers relate to one another (e.g. glucose + triglycerides). ' +
       'discuss: the findings worth raising with a healthcare professional. ' +
-      'encouragement: 2–3 warm, human sentences — supportive and motivating, acknowledging that these findings are actionable and that small consistent steps help, without minimising anything real or being falsely reassuring. ' +
+      'encouragement: 2–3 sentences that acknowledge how this might feel to read before saying what can be done. Name the difficulty rather than talking around it. Do not minimise anything real, and do not reassure beyond what the numbers support. ' +
       'Rules: educational ONLY, never a diagnosis, no medication names, no dosages, no treatment prescriptions. ' +
       'Be specific to the actual values. If all markers are normal, celebrate that warmly and keep the clinical arrays empty.';
     try {
@@ -263,14 +271,42 @@ export class AiService {
       const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('');
       const p = this.extractJson(text) as { greeting?: unknown; interpretation?: unknown; relationships?: unknown; discuss?: unknown; encouragement?: unknown } | null;
       if (!p) return fallback;
-      const arr = (x: unknown): string[] => (Array.isArray(x) ? x.filter((s): s is string => typeof s === 'string').slice(0, 8) : []);
+      /**
+       * Bullets that break the voice are dropped, one by one, and logged.
+       *
+       * Dropped rather than rewritten, and individually rather than wholesale:
+       * a bullet reading "your B12 is low but there is nothing to worry about"
+       * carries a real finding and a claim this app is not entitled to make, and
+       * losing the whole array would lose the other findings with it. The
+       * markers, their values and their reference ranges are rendered from the
+       * deterministic panel either way — this layer is the prose around them, so
+       * dropping a sentence costs warmth and never a result.
+       */
+      const arr = (x: unknown, field: string): string[] => {
+        if (!Array.isArray(x)) return [];
+        const kept: string[] = [];
+        for (const item of x) {
+          if (typeof item !== 'string') continue;
+          const bad = violations(item);
+          if (bad.length) {
+            this.logger.warn(`clinical ${field} bullet dropped — ${bad.map((b) => b.why).join('; ')}`);
+            continue;
+          }
+          kept.push(item);
+        }
+        return kept.slice(0, 8);
+      };
       const str = (x: unknown, d: string): string => (typeof x === 'string' && x.trim() ? x : d);
       return {
-        greeting: str(p.greeting, salutation(name)),
-        interpretation: arr(p.interpretation),
-        relationships: arr(p.relationships),
-        discuss: arr(p.discuss),
-        encouragement: str(p.encouragement, ''),
+        // Checked, not trusted. A prompt is a request; this is the guarantee.
+        // Anything that drifts falls back to the deterministic text, which
+        // costs warmth and never correctness.
+        greeting: inVoice(str(p.greeting, '')) ? str(p.greeting, salutation(name)) : salutation(name),
+        interpretation: arr(p.interpretation, 'interpretation'),
+        relationships: arr(p.relationships, 'relationships'),
+        discuss: arr(p.discuss, 'discuss'),
+        // The likeliest place for reassurance the numbers do not support.
+        encouragement: acceptOrFallback(str(p.encouragement, ''), '', 0),
       };
     } catch (e) {
       this.logger.warn(`Clinical interpretation failed: ${(e as Error).message}`);
