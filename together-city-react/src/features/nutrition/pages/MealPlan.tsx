@@ -6,6 +6,7 @@ import {
   useRestoreSkips, useRenewPlan,
   type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard,
 } from '../composed.api';
+import { useHealthScore } from '@/features/profile/hooks';
 import { ComposedMealCard, SkippedMealCard, skippedSlotsFor } from '../components/ComposedMealCard';
 import { TargetsDisclosure } from '../components/TargetsDisclosure';
 import { NIc } from '../components/NIcon';
@@ -337,6 +338,7 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
  * grocery list is derived strictly from the plan's recipes.
  */
 export function MealPlan() {
+  const health = useHealthScore();
   // Selected day + plan MODE live in the URL so returning from a recipe restores them.
   const [sp, setSp] = useSearchParams();
   const mode: 'preferred' | 'optimal' = sp.get('mode') === 'optimal' ? 'optimal' : 'preferred';
@@ -364,6 +366,9 @@ export function MealPlan() {
   if (plan.data.needsProfile) return <ProfileGate />;
 
   const wk = plan.data;
+  // FE-8.1's gate, decided server-side. `undefined` while the score loads —
+  // treated the same as unknown, so the plan is offered rather than hidden.
+  const gate = health.data?.optimalHealth;
   const start = planStart(wk.planStartDate);
   const dates = datesFrom(start, wk.days.length);
   const offset = dayOffset(start);
@@ -386,6 +391,22 @@ export function MealPlan() {
         {!wk.readOnly && <Button variant="line" size="sm" onClick={() => setShowSettings(true)}>Meal settings</Button>}
       </div>
 
+      {/*
+        FE-8.1 (p9): Optimal Health is offered only when there is something for
+        it to improve. Above the threshold the toggle collapses to one line
+        rather than presenting a second plan to somebody whose recorded markers
+        are already fine.
+
+        The gate is the SERVER'S — the threshold is config, not a literal here,
+        and it fails open: an unknown score shows the plan, because absence of
+        evidence is not evidence of health.
+      */}
+      {gate && !gate.show ? (
+        <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '0 0 14px', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 10 }}>
+          {gate.confirmation}
+        </p>
+      ) : (
+      <>
       {/* Two modes: My Preferences (default) vs Optimal Health — switch any time. */}
       <div role="tablist" aria-label="Meal plan mode" style={{ display: 'inline-flex', gap: 4, background: 'var(--line)', borderRadius: 999, padding: 4, margin: '12px 0 4px' }}>
         {([['preferred', 'My Preferences'], ['optimal', 'Optimal Health']] as const).map(([m, label]) => (
@@ -401,6 +422,8 @@ export function MealPlan() {
           ? 'Built from your saved Food Preference Profile — your chosen foods and protein sources, whatever your health profile.'
           : 'The clinically ideal plan for your health profile, blood results and conditions — within your diet and allergies.'}
       </p>
+      </>
+      )}
 
       {/* Both scores for THIS plan + the one-line difference vs the other mode. */}
       {wk.scorecard && <PlanScorecard sc={wk.scorecard} />}

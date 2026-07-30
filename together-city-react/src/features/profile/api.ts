@@ -44,6 +44,16 @@ export interface HealthScoreView {
   components: HealthScoreComponent[];
   missingFields: string[];
   disclaimer: string;
+  /**
+   * Whether to offer the Optimal Health plan (FE-8.1). Decided server-side so
+   * the threshold lives in config, not in a component — it is the number that
+   * decides whether somebody is shown clinical guidance at all.
+   */
+  optimalHealth?: {
+    show: boolean; threshold: number; score: number | null;
+    confirmation: string;
+    because: 'below-threshold' | 'at-or-above-threshold' | 'score-unknown';
+  };
 }
 
 export const profileApi = {

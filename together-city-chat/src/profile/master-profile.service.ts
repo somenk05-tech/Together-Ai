@@ -3,6 +3,7 @@ import { clinicalSex } from './sex-and-gender';
 import { diffProfile, versionConflict } from './profile-change';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
+import { optimalHealthGate, type OptimalHealthGate } from './health-gate';
 import { computeHealthScore, type HealthScoreResult } from './health-score';
 
 /**
@@ -124,7 +125,7 @@ export class MasterProfileService {
    * Anything absent stays absent. The scorer drops a missing component from the
    * average instead of counting a zero into it, which is the whole point.
    */
-  async healthScore(userId: string): Promise<HealthScoreResult> {
+  async healthScore(userId: string): Promise<HealthScoreResult & { optimalHealth: OptimalHealthGate }> {
     const db = this.prisma as unknown as {
       fitnessProfile: { findUnique(a: unknown): Promise<{ heightCm: number | null; weightKg: number | null } | null> };
       foodPref: { findUnique(a: unknown): Promise<{ heightCm: number | null; weightKg: number | null } | null> };
@@ -149,13 +150,18 @@ export class MasterProfileService {
     // different from having logged zero minutes, so it stays null rather than 0.
     const hasWorkoutHistory = workouts.length > 0;
 
-    return computeHealthScore({
+    const result = computeHealthScore({
       heightCm,
       weightKg,
       workoutsLast30: hasWorkoutHistory ? workouts.length : null,
       workoutMinutesLast30: hasWorkoutHistory ? workouts.reduce((n, w) => n + (w.minutes || 0), 0) : null,
       markersInRange: markerShare(analysis?.payload),
     });
+    // Whether to offer the Optimal Health plan travels WITH the score, so the
+    // client never has to know the threshold (FE-8.1). A number that decides
+    // whether somebody is shown clinical guidance does not belong in a
+    // component.
+    return { ...result, optimalHealth: optimalHealthGate(result) };
   }
 
   /** New table reaches the generated client on deploy (db push at boot). */
