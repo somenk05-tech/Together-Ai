@@ -7,6 +7,7 @@ import { JwtUser } from '../shared/types';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { NutritionService } from './nutrition.service';
+import { Deprecated } from '../shared/deprecated.decorator';
 import {
   AddToCartSchema, type AddToCartDto,
   BloodInputSchema, type BloodInputDto,
@@ -243,6 +244,11 @@ export class NutritionController {
 
   // Nutrition history (spec §19) — permanent, versioned weekly plan record.
   // Specific 'history' path declared before the parameterised 'plan/:key' routes.
+  // Behind a removed tab: the Nutrition History tab was removed by the review (p26).
+  @Deprecated({
+    since: '2026-07-30', sunset: '2026-08-30',
+    replacement: '/api/nutrition/plan',
+  })
   @Get('history')
   history(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode) {
     return this.nutrition.nutritionHistory(user.sub, mode);
@@ -534,21 +540,41 @@ export class NutritionController {
     return this.nutrition.saveBlood(user.sub, dto);
   }
 
+  // Behind a removed tab: supplements moved to the Fitness hub (p14).
+  @Deprecated({
+    since: '2026-07-30', sunset: '2026-08-30',
+    replacement: '/api/fitness/supplements',
+  })
   @Get('supplements')
   supplements(@CurrentUser() user: JwtUser) {
     return this.nutrition.supplements(user.sub);
   }
 
+  // Behind a removed tab: Expert Care was removed; consults are booked with a clinician (p26).
+  @Deprecated({
+    since: '2026-07-30', sunset: '2026-08-30',
+    replacement: '/api/medical/consults',
+  })
   @Get('dietitians')
   dietitians() {
     return this.nutrition.dietitians();
   }
 
+  // Behind a removed tab: Expert Care was removed; consults are booked with a clinician (p26).
+  @Deprecated({
+    since: '2026-07-30', sunset: '2026-08-30',
+    replacement: '/api/medical/consults',
+  })
   @Post('dietitians/:id/book')
   book(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.nutrition.bookDietitian(user.sub, id);
   }
 
+  // Behind a removed tab: the My Orders tab was removed by the review (p26).
+  @Deprecated({
+    since: '2026-07-30', sunset: '2026-08-30',
+    replacement: '/api/nutrition/grocery',
+  })
   @Get('orders')
   orders(@CurrentUser() user: JwtUser) {
     return this.nutrition.orders(user.sub);

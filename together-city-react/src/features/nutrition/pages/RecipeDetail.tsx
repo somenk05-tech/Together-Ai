@@ -469,11 +469,9 @@ export function RecipeDetail() {
 
       {/* MAKE IT YOURS — one-tap variants (real matching recipes) */}
       <section id="variants" style={{ ...sectionStyle, ...cardStyle, marginTop: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ display: 'grid', placeItems: 'center', width: 32, height: 32, borderRadius: 9, background: 'var(--green-soft)', color: 'var(--green)', flex: '0 0 auto' }}><Ic name="sparkle" size={18} /></span>
-          <div><h2 style={h2}>Make it yours</h2><div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>One tap finds real recipes that match — nutrition stays accurate.</div></div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
+        {/* p12: the "Make it yours" heading was removed by the review. The
+            chips below do the explaining on their own. */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {VARIANTS.map(([key, label]) => {
             const on = variant === key;
             return (
@@ -550,8 +548,9 @@ export function RecipeDetail() {
           </div>
         ) : (
           <div style={{ ...cardStyle, textAlign: 'center' }}>
+            {/* p12: heading removed by the review — the sentence below already
+                says what connecting a report gets you. */}
             <span style={{ display: 'inline-grid', placeItems: 'center', width: 44, height: 44, borderRadius: 12, background: 'var(--green-soft)', color: 'var(--green)', marginBottom: 10 }}><Ic name="pulse" size={22} /></span>
-            <h2 style={h2}>See how this affects your blood markers</h2>
             <p style={{ fontSize: 14, color: 'var(--muted)', margin: '8px 0 14px', maxWidth: 460, marginInline: 'auto', lineHeight: 1.55 }}>Connect a blood report and Together City shows how this recipe supports markers like blood sugar, cholesterol and kidney function.</p>
             <Link to="/nutrition/blood" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: 'var(--green)', textDecoration: 'none' }}>Connect blood report →</Link>
           </div>

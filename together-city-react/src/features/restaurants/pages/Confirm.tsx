@@ -36,7 +36,7 @@ export function Confirm() {
 
         <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginTop: 20 }}>
           <Link className="btn btn-gold" to="/restaurants">Back to Restaurants Hub</Link>
-          <Link className="btn btn-line" to="/nutrition/daily">View in Daily Planner</Link>
+          <Link className="btn btn-line" to="/nutrition/weekly">View in Meal Planner</Link>
           <Link className="btn btn-line" to="/restaurants/orders">My Orders</Link>
         </div>
       </div>

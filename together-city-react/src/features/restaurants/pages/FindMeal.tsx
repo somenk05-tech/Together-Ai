@@ -99,7 +99,7 @@ export function FindMeal() {
             <h4>Your Current Meal</h4>
             <p className="meta" style={{ display: 'block', margin: '8px 0 10px' }}>Grilled Chicken Bowl — from your Nutrition planner</p>
             <div className="macro" style={{ marginBottom: 12 }}><span className="kcal">550 kcal</span><span><b>35g</b> P</span><span><b>50g</b> C</span><span><b>18g</b> F</span></div>
-            <Link className="btn btn-line btn-sm" to="/nutrition/daily" style={{ width: '100%', justifyContent: 'center' }}>View Details</Link>
+            <Link className="btn btn-line btn-sm" to="/nutrition/weekly" style={{ width: '100%', justifyContent: 'center' }}>View Details</Link>
           </div>
           <div className="card">
             <h4>Top Rated · Free Delivery</h4>

@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Deprecated } from '../shared/deprecated.decorator';
 import { z } from 'zod';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { VerifiedGuard } from '../auth/verified.guard';
@@ -23,6 +24,11 @@ export class SocialController {
     return this.social.feed(user.sub, parseOrThrow(FeedQuerySchema, query));
   }
 
+  // Behind a removed tab: the City Map page was removed by the review (p18).
+  @Deprecated({
+    since: '2026-07-30', sunset: '2026-08-30',
+    replacement: '/api/social/feed',
+  })
   @Get('map')
   map(@CurrentUser() user: JwtUser) {
     return this.social.map(user.sub);

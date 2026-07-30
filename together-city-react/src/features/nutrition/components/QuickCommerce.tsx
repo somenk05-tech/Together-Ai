@@ -69,7 +69,7 @@ export function QuickCommercePanel({ mode = 'individual' }: { mode?: 'individual
     if (!chosen) return;
     setError(null);
     order.mutate({ provider: chosen.provider.key, mode }, {
-      onSuccess: () => navigate('/nutrition/orders'),
+      onSuccess: () => navigate('/nutrition/grocery'),
       onError: (e) => {
         const m = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
         setError(Array.isArray(m) ? m.join(' ') : m ?? 'Could not place the order.');

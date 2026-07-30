@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, Spinner, EmptyState, Button, Chip, Modal } from '@/components/ui';
-import { GroceryPlanner } from '../components/GroceryPlanner';
 import {
   useComposedPlan, useMealSettings, useSaveMealSettings,
   useRestoreSkips, useRenewPlan,
@@ -523,72 +522,6 @@ export function MealPlan() {
         </Card>
       )}
 
-      <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
-    </div>
-  );
-}
-
-/**
- * Daily Meal Planner — today's plate, sliced live from the composite plan
- * (same engine, no duplication). Shows the five scheduled meals for today,
- * anchored to the 3-week plan's start date.
- */
-export function MealPlanToday() {
-  // Same two controls as the weekly planner: the plan MODE (preferences vs the
-  // clinically optimal plan) and the Meal Plan / Grocery List switch.
-  const [mode, setMode] = useState<'preferred' | 'optimal'>('preferred');
-  const [tab, setTab] = useState<'plan' | 'grocery'>('plan');
-  const plan = useComposedPlan(mode);
-  const [showSettings, setShowSettings] = useState(false);
-
-  if (plan.isLoading) return <Spinner label="Plating today…" />;
-  if (plan.isError || !plan.data) return <EmptyState title="Couldn't load today's plate" hint="Add your food preferences, then reload." />;
-  if (plan.data.needsProfile) return <ProfileGate />;
-
-  const wk = plan.data;
-  const start = planStart(wk.planStartDate);
-  const dailyIdx = Math.max(0, Math.min(wk.days.length - 1, dayOffset(start)));
-  const d = wk.days[dailyIdx];
-  const date = datesFrom(start, wk.days.length)[dailyIdx];
-
-  return (
-    <div style={{ maxWidth: 1240, margin: '0 auto', padding: '20px 16px 60px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
-        <div>
-          <div className="eyebrow">Nutrition · Today</div>
-          <h1 style={{ fontSize: 26 }}>Today's plate</h1>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="line" size="sm" onClick={() => setShowSettings(true)}>Meal settings</Button>
-          <Link to="/nutrition/weekly"><Button variant="line" size="sm">Full week →</Button></Link>
-        </div>
-      </div>
-      {/* Two modes: My Preferences (default) vs Optimal Health. */}
-      <div role="tablist" aria-label="Meal plan mode" style={{ display: 'inline-flex', gap: 4, background: 'var(--line)', borderRadius: 999, padding: 4, margin: '4px 0 8px' }}>
-        {([['preferred', 'My Preferences'], ['optimal', 'Optimal Health']] as const).map(([m, label]) => (
-          <button key={m} role="tab" aria-selected={mode === m} type="button" onClick={() => setMode(m)}
-            style={{ border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '7px 16px', borderRadius: 999,
-              background: mode === m ? 'var(--card)' : 'transparent', color: mode === m ? 'var(--ink)' : 'var(--muted)', boxShadow: mode === m ? '0 1px 4px rgba(0,0,0,.12)' : 'none' }}>
-            {label}
-          </button>
-        ))}
-      </div>
-      <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}>
-        Your meals for today, on schedule.{wk.fasting ? ` Fasting: ${wk.protocol} (${d.window.start}–${d.window.end}).` : ''}
-      </p>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-        {(['plan', 'grocery'] as const).map((t) => (
-          <Chip key={t} selected={tab === t} onClick={() => setTab(t)}>{t === 'plan' ? 'Meal Plan' : 'Grocery List'}</Chip>
-        ))}
-      </div>
-      {wk.blocked && (
-        <div role="alert" style={{ background: '#fdecec', border: '1px solid #e0a0a0', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 12.5 }}>
-          <strong>⚠ This plan could not be fully certified against your medical limits.</strong> Please review with your clinician or dietitian before following it.
-        </div>
-      )}
-      {tab === 'plan'
-        ? <DayView wk={wk} d={d} dayIndex={dailyIdx} date={date} readOnly={wk.readOnly} />
-        : <GroceryPlanner mode="individual" />}
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );

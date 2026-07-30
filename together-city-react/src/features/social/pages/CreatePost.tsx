@@ -669,7 +669,7 @@ export function CreatePost() {
               <button type="button" className="btn btn-line btn-sm" onClick={useLocation}>📡 Pin my current location</button>
               {geoStat && <span className="muted" style={{ fontSize: 11.5 }}>{geoStat}</span>}
             </div>
-            <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>Pinned posts also appear on the City Map.</p>
+            <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>The location shows on your post so people nearby can find it.</p>
           </div>
         )}
         {open === 'feeling' && (

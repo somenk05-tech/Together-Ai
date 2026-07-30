@@ -1,4 +1,5 @@
 import type { HubKey } from '@/types';
+import { LABELS } from './labels';
 
 export interface NavItem { key: HubKey; label: string; path: string; }
 export interface SideItem { path: string; index: string; label: string; sub: string; }
@@ -77,18 +78,14 @@ export const HUBS: Record<HubKey, HubConfig> = {
   nutrition: {
     key: 'nutrition', name: 'Nutrition Hub', tag: 'Eat healthy, live better', backPath: '/nutrition',
     items: [
+      // Seven destinations were removed by the review (p14, p26) and two were
+      // renamed. The removed paths still resolve — see REMOVED_ROUTES — they
+      // just no longer have a way in from the menu.
       { path: '/nutrition/blood', index: '01', label: 'Connect with Blood Test', sub: 'Personalise from your labs' },
       { path: '/nutrition/preferences', index: '02', label: 'Food Preference Profile', sub: 'Your taste & goals' },
       { path: '/nutrition/weekly', index: '03', label: 'Weekly Meal Planner', sub: 'Personalised 7-day plan' },
-      { path: '/nutrition/history', index: '04', label: 'Nutrition History', sub: 'Saved dated weeks & timeline' },
-      { path: '/nutrition/daily', index: '05', label: 'Daily Meal Planner', sub: "Today's plate" },
-      { path: '/nutrition/grocery', index: '06', label: 'Grocery Store', sub: 'Pre-filled from your plan' },
-      { path: '/nutrition/pantry', index: '07', label: 'Pantry', sub: "What's left on your shelves" },
-      { path: '/nutrition/health', index: '08', label: 'My Health Profile', sub: 'Tracker, macros & journal' },
-      { path: '/nutrition/orders', index: '09', label: 'My Orders', sub: 'Deliveries & wallet' },
-      { path: '/nutrition/recipes', index: '10', label: 'Recipes', sub: '11,254-recipe world DB' },
-      { path: '/nutrition/supplements', index: '11', label: 'Supplements', sub: 'Goal-matched kit' },
-      { path: '/nutrition/dietitian', index: '12', label: 'Expert Care', sub: 'Talk to a dietitian' },
+      { path: '/nutrition/grocery', index: '04', label: LABELS.groceryLists, sub: 'Built from your plan' },
+      { path: '/nutrition/recipes', index: '05', label: LABELS.createYourOwnMealPlan, sub: 'Search, add, build your week' },
     ],
   },
   family: {
@@ -97,7 +94,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/family/connect', index: '01', label: 'Connect Members', sub: 'Roles & permissions' },
       { path: '/family/weekly', index: '02', label: 'Weekly Planner', sub: 'Portioned per member' },
       { path: '/family/daily', index: '03', label: 'Daily Planner', sub: "Today's plate for all" },
-      { path: '/family/grocery', index: '04', label: 'Grocery Store', sub: 'One combined basket' },
+      { path: '/family/grocery', index: '04', label: LABELS.groceryLists, sub: 'One combined list' },
       { path: '/family/cart', index: '05', label: 'Cart', sub: 'Review & checkout' },
       { path: '/family/orders', index: '06', label: 'My Orders', sub: 'Family-wide deliveries' },
       { path: '/family/pantry', index: '07', label: 'Shared Pantry', sub: 'One household pantry' },
@@ -107,11 +104,11 @@ export const HUBS: Record<HubKey, HubConfig> = {
   social: {
     key: 'social', name: 'Social Life', tag: 'Discover everything around you', backPath: '/social', dark: false,
     items: [
+      // The map page was removed by the review (p18) — it had never held a pin.
       { path: '/social/feed', index: '01', label: 'City Feed', sub: 'Moments from around you' },
       { path: '/social/create', index: '02', label: 'Create Post', sub: 'Share a photo, video or plan' },
-      { path: '/social/map', index: '03', label: 'City Map', sub: 'Outdoor posts pinned nearby' },
-      { path: '/social/profile', index: '04', label: 'My Profile', sub: 'Story, stats & Post & Earn' },
-      { path: '/social/saved', index: '05', label: 'Saved', sub: 'Bookmarked posts & places' },
+      { path: '/social/profile', index: '03', label: 'My Profile', sub: 'Story, stats & Post & Earn' },
+      { path: '/social/saved', index: '04', label: 'Saved', sub: 'Bookmarked posts & places' },
     ],
   },
   dating: {

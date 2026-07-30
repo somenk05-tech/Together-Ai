@@ -140,7 +140,7 @@ export function Scanner() {
           <div className="card">
             <h4>Tips to Balance</h4>
             <p className="meta" style={{ display: 'block', margin: '8px 0' }}>Add a side salad · drink a glass of water · a 20-minute walk after eating · choose grilled over fried next time.</p>
-            <Link className="btn btn-gold btn-sm" to="/nutrition/daily" style={{ width: '100%', justifyContent: 'center' }}>Save to Meal Plan →</Link>
+            <Link className="btn btn-gold btn-sm" to="/nutrition/weekly" style={{ width: '100%', justifyContent: 'center' }}>Save to Meal Plan →</Link>
           </div>
         </div>
       </div>

@@ -110,8 +110,8 @@ export function Confirm() {
       </div>
 
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 28, justifyContent: 'center' }}>
-        <Link to="/nutrition/orders"><Button variant="line">Back to My Orders</Button></Link>
-        <Link to="/nutrition/daily"><Button variant="accent">Continue to Daily Planner →</Button></Link>
+        <Link to="/nutrition/grocery"><Button variant="line">Back to Grocery Lists</Button></Link>
+        <Link to="/nutrition/weekly"><Button variant="accent">Continue to Meal Planner →</Button></Link>
       </div>
 
       <div className="trust">

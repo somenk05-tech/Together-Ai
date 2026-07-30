@@ -56,7 +56,7 @@ export function Cheat() {
       <p className="note rise">Portion control still matters on a cheat day — a recommended cheat buffer is <b>~120 to ~250 kcal per meal</b>, so pair richer dishes with a lighter side.</p>
 
       <div className="rise" style={{ textAlign: 'center', marginTop: 20 }}>
-        <Link className="btn btn-line" to="/nutrition/daily">View Full Nutrition Summary →</Link>
+        <Link className="btn btn-line" to="/nutrition/weekly">View Full Nutrition Summary →</Link>
       </div>
     </div>
   );

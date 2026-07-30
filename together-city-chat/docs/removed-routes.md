@@ -1,13 +1,23 @@
 # Removed routes
 
-**Nothing has been removed.**
+**Resolved 2026-07-30.** The pages are now named — the annotated site review
+lists them on p14, p18 and p26 — so this file is no longer a placeholder.
 
-Item 13 of the backend brief asks for obsolete pages and their endpoints to be
-retired, referring to slides 17, 19, 24 and 28 — which do not name the pages.
+The removals and the decision about their data are written up in
+[removed-tabs-retention.md](./removed-tabs-retention.md). Six routes are marked
+`@Deprecated(...)` with a sunset of 2026-08-30; no rows were deleted.
+
+The original note is kept below, because the procedure it describes is the one
+that was followed.
+
+---
+
+Item 13 of the backend brief asked for obsolete pages and their endpoints to be
+retired, referring to slides 17, 19, 24 and 28 — which did not name the pages.
 Removing a route on a guess is the one version of this task that can break a
-working screen, so nothing has been touched.
+working screen, so nothing was touched until the review named them.
 
-When the pages are named, the procedure is:
+The procedure is:
 
 1. Grep the client for calls to the endpoint (`together-city-react/src`). If any
    active route still calls it, stop — the page is not obsolete yet.

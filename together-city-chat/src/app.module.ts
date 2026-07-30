@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { NoStoreInterceptor } from './shared/interceptors/no-store.interceptor';
+import { DeprecationInterceptor } from './shared/interceptors/deprecation.interceptor';
 import configuration from './shared/config/configuration';
 import { PrismaModule } from './shared/prisma/prisma.module';
 import { RedisModule } from './shared/redis/redis.module';
@@ -98,6 +99,7 @@ import { AvatarsModule } from './avatars/avatars.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     // No authenticated response is ever cacheable by a browser, proxy or CDN.
     { provide: APP_INTERCEPTOR, useClass: NoStoreInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: DeprecationInterceptor },
   ],
 })
 export class AppModule {}

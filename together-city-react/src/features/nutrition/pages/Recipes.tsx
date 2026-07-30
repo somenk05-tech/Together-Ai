@@ -219,7 +219,7 @@ export function Recipes() {
       </div>
 
       <div style={{ textAlign: 'center', marginTop: 22 }}>
-        <Link to="/nutrition/daily" style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 14 }}>Go to Today’s Meal Plan →</Link>
+        <Link to="/nutrition/weekly" style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 14 }}>Go to Your Meal Plan →</Link>
       </div>
       <p className="muted" style={{ fontSize: 11.5, marginTop: 14, textAlign: 'center' }}>
         Personalised for you · Expert guidance · Quality you can trust · Better every day

@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppShell } from '@/layouts/AppShell';
 import { HubLayout } from '@/layouts/HubLayout';
 import { HUBS } from '@/config/hubs';
+import { REMOVED_ROUTES } from '@/config/labels';
 import { ChunkBoundary } from './ChunkBoundary';
 import { Home } from '@/pages/Home';
 import { HubLanding } from '@/pages/HubLanding';
@@ -21,25 +22,15 @@ import { NotFound } from '@/pages/NotFound';
 const MealPlan = lazy(() =>
   import('@/features/nutrition/pages/MealPlan').then((m) => ({ default: m.MealPlan })),
 );
-const MealPlanToday = lazy(() =>
-  import('@/features/nutrition/pages/MealPlan').then((m) => ({ default: m.MealPlanToday })),
-);
-const NutritionHistory = lazy(() =>
-  import('@/features/nutrition/pages/NutritionHistory').then((m) => ({ default: m.NutritionHistory })),
-);
 const Profile = lazy(() => import('@/features/profile/pages/Profile').then((m) => ({ default: m.Profile })));
 const DrivePage = lazy(() => import('@/features/drive/pages/Drive').then((m) => ({ default: m.Drive })));
 const SocialFeed = lazy(() => import('@/features/social/pages/SocialFeed').then((m) => ({ default: m.SocialFeed })));
 const RecipeLibrary = lazy(() => import('@/features/nutrition/pages/RecipeLibrary').then((m) => ({ default: m.RecipeLibrary })));
 const RecipeDetail = lazy(() => import('@/features/nutrition/pages/RecipeDetail').then((m) => ({ default: m.RecipeDetail })));
 const SharedMeal = lazy(() => import('@/features/nutrition/pages/SharedMeal').then((m) => ({ default: m.SharedMeal })));
-const PantryPage = lazy(() => import('@/features/nutrition/pages/Pantry').then((m) => ({ default: m.Pantry })));
 const Grocery = lazy(() => import('@/features/nutrition/pages/Grocery').then((m) => ({ default: m.Grocery })));
-const Orders = lazy(() => import('@/features/nutrition/pages/Orders').then((m) => ({ default: m.Orders })));
 const Preferences = lazy(() => import('@/features/nutrition/pages/Preferences').then((m) => ({ default: m.Preferences })));
 const Blood = lazy(() => import('@/features/nutrition/pages/Blood').then((m) => ({ default: m.Blood })));
-const Supplements = lazy(() => import('@/features/nutrition/pages/Supplements').then((m) => ({ default: m.Supplements })));
-const Dietitian = lazy(() => import('@/features/nutrition/pages/Dietitian').then((m) => ({ default: m.Dietitian })));
 const Connections = lazy(() => import('@/features/connections/pages/Connections').then((m) => ({ default: m.Connections })));
 const BloodAnalysis = lazy(() => import('@/features/medical/pages/BloodAnalysis').then((m) => ({ default: m.BloodAnalysis })));
 const MedSupplementPlan = lazy(() => import('@/features/medical/pages/SupplementPlan').then((m) => ({ default: m.SupplementPlan })));
@@ -114,7 +105,6 @@ const BeautyConfirm = lazy(() => import('@/features/beauty/pages/Confirm').then(
 const SocFeelings = lazy(() => import('@/features/social/pages/Feelings').then((m) => ({ default: m.Feelings })));
 const SocCircle = lazy(() => import('@/features/social/pages/Circle').then((m) => ({ default: m.SocialCircle })));
 const SocCreate = lazy(() => import('@/features/social/pages/CreatePost').then((m) => ({ default: m.CreatePost })));
-const SocMap = lazy(() => import('@/features/social/pages/CityMap').then((m) => ({ default: m.CityMap })));
 const SocMessages = lazy(() => import('@/features/social/pages/Messages').then((m) => ({ default: m.Messages })));
 const SocNotifications = lazy(() => import('@/features/social/pages/Notifications').then((m) => ({ default: m.SocialNotifications })));
 const SocProfile = lazy(() => import('@/features/social/pages/Profile').then((m) => ({ default: m.SocialProfile })));
@@ -138,7 +128,6 @@ const DatingAdminStats = lazy(() => import('@/features/dating/pages/DatingAdminS
 const DatingMatchDetail = lazy(() => import('@/features/dating/pages/DatingMatchDetail').then((m) => ({ default: m.DatingMatchDetail })));
 // Nutrition sub-pages
 const NutOnboarding = lazy(() => import('@/features/nutrition/pages/Onboarding').then((m) => ({ default: m.Onboarding })));
-const NutHealth = lazy(() => import('@/features/nutrition/pages/HealthProfile').then((m) => ({ default: m.HealthProfile })));
 const NutCart = lazy(() => import('@/features/nutrition/pages/Cart').then((m) => ({ default: m.Cart })));
 const NutCheckout = lazy(() => import('@/features/nutrition/pages/Checkout').then((m) => ({ default: m.Checkout })));
 const NutConfirm = lazy(() => import('@/features/nutrition/pages/Confirm').then((m) => ({ default: m.Confirm })));
@@ -230,23 +219,15 @@ export const router = createBrowserRouter([
       { path: '/nutrition/weekly', element: <RequireAuth>{wrap(<MealPlan />)}</RequireAuth> },
       { path: '/nutrition/plan', element: <RequireAuth>{wrap(<MealPlan />)}</RequireAuth> },
       { path: '/nutrition/weekly-classic', element: <Navigate to="/nutrition/weekly" replace /> },
-      { path: '/nutrition/history', element: <RequireAuth>{wrap(<NutritionHistory />)}</RequireAuth> },
-      { path: '/nutrition/daily', element: <RequireAuth>{wrap(<MealPlanToday />)}</RequireAuth> },
-      { path: '/nutrition/daily-classic', element: <Navigate to="/nutrition/daily" replace /> },
       { path: '/nutrition/blood', element: <RequireAuth>{wrap(<Blood />)}</RequireAuth> },
       { path: '/nutrition/preferences', element: <RequireAuth>{wrap(<Preferences />)}</RequireAuth> },
-      { path: '/nutrition/pantry', element: <RequireAuth>{wrap(<PantryPage />)}</RequireAuth> },
       { path: '/nutrition/grocery', element: <RequireAuth>{wrap(<Grocery />)}</RequireAuth> },
-      { path: '/nutrition/orders', element: <RequireAuth>{wrap(<Orders />)}</RequireAuth> },
       { path: '/nutrition/recipes', element: <RequireAuth>{wrap(<RecipeLibrary />)}</RequireAuth> },
       { path: '/nutrition/recipes-classic', element: <Navigate to="/nutrition/recipes" replace /> },
       { path: '/nutrition/library', element: <RequireAuth>{wrap(<RecipeLibrary />)}</RequireAuth> },
       { path: '/nutrition/recipes/:id', element: wrap(<RecipeDetail />) },
       { path: '/nutrition/shared-meal', element: wrap(<SharedMeal />) },
-      { path: '/nutrition/supplements', element: <RequireAuth>{wrap(<Supplements />)}</RequireAuth> },
-      { path: '/nutrition/dietitian', element: <RequireAuth>{wrap(<Dietitian />)}</RequireAuth> },
       { path: '/nutrition/onboarding', element: wrap(<NutOnboarding />) },
-      { path: '/nutrition/health', element: <RequireAuth>{wrap(<NutHealth />)}</RequireAuth> },
       { path: '/nutrition/cart', element: <RequireAuth>{wrap(<NutCart />)}</RequireAuth> },
       { path: '/nutrition/checkout', element: <RequireAuth>{wrap(<NutCheckout />)}</RequireAuth> },
       { path: '/nutrition/confirm', element: <RequireAuth>{wrap(<NutConfirm />)}</RequireAuth> },
@@ -260,7 +241,6 @@ export const router = createBrowserRouter([
       { path: '/social/feelings', element: <RequireAuth>{wrap(<SocFeelings />)}</RequireAuth> },
       { path: '/social/circle', element: <RequireAuth>{wrap(<SocCircle />)}</RequireAuth> },
       { path: '/social/create', element: <RequireAuth>{wrap(<SocCreate />)}</RequireAuth> },
-      { path: '/social/map', element: <RequireAuth>{wrap(<SocMap />)}</RequireAuth> },
       { path: '/social/messages', element: <RequireAuth>{wrap(<SocMessages />)}</RequireAuth> },
       { path: '/social/notifications', element: <RequireAuth>{wrap(<SocNotifications />)}</RequireAuth> },
       { path: '/social/profile', element: <RequireAuth>{wrap(<SocProfile />)}</RequireAuth> },
@@ -468,5 +448,16 @@ export const router = createBrowserRouter([
   { path: '/signin', element: <Navigate to="/sign-in" replace /> },
   { path: '/verify', element: wrap(<Verify />) },
   { path: '/index.html', element: <Navigate to="/" replace /> },
+
+  // Destinations the review removed. They keep resolving for one release so
+  // an old bookmark, an old email link or a mobile build that has not updated
+  // lands somewhere real instead of on a 404. Declared after the hub blocks so
+  // a surviving route always wins, and before the catch-all so these never
+  // reach NotFound.
+  ...Object.entries(REMOVED_ROUTES).map(([from, to]) => ({
+    path: from,
+    element: <Navigate to={to} replace />,
+  })),
+
   { path: '*', element: <NotFound /> },
 ]);

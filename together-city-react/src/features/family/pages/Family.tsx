@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { LABELS } from '@/config/labels';
 import { useAuth } from '@/hooks/useAuth';
 import { useFamily, headcount } from '../members';
 import { FamilyDashboard } from '../components/FamilyDashboard';
@@ -8,7 +9,7 @@ const FEATURES: FeatureCard[] = [
   { n: '01', title: 'Connect Family Members', blurb: 'Link Together IDs, manage roles & permissions.', cta: 'Connect →', to: '/family/connect' },
   { n: '02', title: 'Weekly Meal Planner', blurb: 'Seven days, portioned per member.', cta: 'Plan the week →', to: '/family/weekly' },
   { n: '03', title: 'Daily Meal Planner', blurb: "Today's plate for every member.", cta: 'See today →', to: '/family/daily' },
-  { n: '04', title: 'Grocery Store', blurb: 'One combined basket, no duplicates.', cta: 'Shop now →', to: '/family/grocery' },
+  { n: '04', title: LABELS.groceryLists, blurb: 'One combined list, no duplicates.', cta: 'Open the list →', to: '/family/grocery' },
   { n: '05', title: 'My Orders', blurb: 'Family-wide deliveries & spend.', cta: 'View orders →', to: '/family/orders' },
   { n: '06', title: 'Shared Pantry', blurb: 'One household pantry — staples everyone shares.', cta: 'Open pantry →', to: '/family/pantry' },
   { n: '07', title: 'Search by Ingredients', blurb: "Cook together from what's in the kitchen.", cta: 'Find recipes →', to: '/family/search' },
