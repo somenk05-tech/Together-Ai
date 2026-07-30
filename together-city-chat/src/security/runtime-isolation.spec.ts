@@ -196,8 +196,19 @@ describeLive('one citizen cannot touch another citizen’s rows', () => {
       password: 'Correct-Horse-Battery-9!',
     });
     if (res.status >= 300) throw new Error(`could not register ${label}: ${res.status} ${res.text}`);
-    const json = JSON.parse(res.text) as { accessToken: string; user: { id: string } };
-    return { token: json.accessToken, id: json.user.id, handle };
+    const { accessToken } = JSON.parse(res.text) as { accessToken: string };
+
+    // The id comes from asking the API who this token belongs to, rather than
+    // from reading the registration payload. Twice now this harness has been
+    // wrong about a response shape it guessed at, and there is no reason to
+    // guess: /users/me is the canonical answer and cannot drift out of step
+    // with itself. It also proves the freshly-issued token actually works
+    // before any of the isolation probes rely on it.
+    const me = await call(accessToken, 'GET', '/api/users/me');
+    if (me.status >= 300) throw new Error(`could not read /users/me for ${label}: ${me.status} ${me.text}`);
+    const { id } = JSON.parse(me.text) as { id: string };
+    if (!id) throw new Error(`/users/me returned no id for ${label}: ${me.text}`);
+    return { token: accessToken, id, handle };
   };
 
   beforeAll(async () => {
