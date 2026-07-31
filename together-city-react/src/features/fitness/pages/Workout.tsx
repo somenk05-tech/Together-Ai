@@ -397,7 +397,10 @@ export function Workout() {
       </section>
 
       <div className="trust">
-        <span>◈ Smartwatch Synced</span><span>◈ Nutrition-linked Goals</span><span>◈ Guided Live Timer</span><span>◈ Private by Default</span>
+        {/* "Smartwatch Synced" was here too. There is no wearable integration
+            anywhere in this codebase — FE-18.6 said so on the Sleep page and
+            missed this one. */}
+        <span>◈ Nutrition-linked Goals</span><span>◈ Guided Live Timer</span><span>◈ Private by Default</span>
       </div>
 
       {/* live timer overlay */}

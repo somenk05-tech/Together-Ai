@@ -56,7 +56,14 @@ export function Connections() {
       </section>
 
       <div className="trust">
-        <span>◈ Consent-Gated</span><span>◈ Revoke Anytime</span><span>◈ Encrypted at Rest</span>
+        {/* Two claims, both checkable in the code above: the consent rows gate
+            every hub's read, and setConsent takes effect immediately. A third
+            said "Encrypted at Rest". Nothing in this API encrypts anything —
+            it was written in FE-17.2 to replace "100% Encrypted", which was the
+            same fault, and swapping one unverified claim for another is not a
+            fix. Removed rather than reworded: there is no true version of it
+            to write yet. */}
+        <span>◈ Consent-Gated</span><span>◈ Revoke Anytime</span>
       </div>
     </>
   );
