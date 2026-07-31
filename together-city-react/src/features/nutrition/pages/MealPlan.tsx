@@ -10,6 +10,7 @@ import { useHealthScore } from '@/features/profile/hooks';
 import { ComposedMealCard, SkippedMealCard, skippedSlotsFor } from '../components/ComposedMealCard';
 import { TargetsDisclosure } from '../components/TargetsDisclosure';
 import { NIc } from '../components/NIcon';
+import { balanceNote, dayBalance } from '../dayBalance';
 
 /** Master-source-of-truth gate: no plan until the Food Preference Profile is saved. */
 function ProfileGate() {
@@ -188,9 +189,12 @@ function DayView({ wk, d, dayIndex, date, readOnly }: { wk: ComposedWeek; d: Com
   const cPct = Math.round((t.carbs * 4 / kcal) * 100);
   const fPct = Math.round((t.fat * 9 / kcal) * 100);
   const fibPct = Math.min(100, Math.round((t.fiber / Math.max(1, wk.prescription.fiber)) * 100));
-  const note = wk.compliance
-    ? (wk.compliance.score >= 80 ? 'Great balance of protein, carbs & healthy fats!' : (wk.compliance.concerns[0]?.message ?? 'A balanced plate for your goals.'))
-    : 'A balanced plate for your goals.';
+  // THIS day against the prescription, each macro on its own. It used to be the
+  // WEEK's single compliance score against 80 — so a day nothing like the week
+  // it came from was told "Great balance of protein, carbs & healthy fats!" on
+  // the strength of an average that protein had not contributed to. See
+  // dayBalance.ts for why the bands are not symmetric.
+  const note = balanceNote(dayBalance(t, wk.prescription, wk.prescription.assumed));
   const skips = wk.skips ?? [];
   const card: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, padding: '16px 18px', boxShadow: 'var(--shadow)' };
   const capTitle: React.CSSProperties = { fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginBottom: 12 };
