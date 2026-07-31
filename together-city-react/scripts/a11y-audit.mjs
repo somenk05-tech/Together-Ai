@@ -152,6 +152,14 @@ for (const path of files) {
       // Wrapped by a <label> that is still open at this point in the file.
       const before = src.slice(0, i);
       if (before.lastIndexOf('<label') > before.lastIndexOf('</label>')) continue;
+      // Wrapped by a component that takes the label as a prop —
+      // `<Field label="Goal"><select …>`. A source scan cannot follow the
+      // component to see that it renders a real <label>, and reporting these
+      // after somebody has gone and fixed Field is how a guard loses its
+      // credibility. The prop has to appear BEFORE the control on the line, so
+      // `label=` on the control's own attributes does not count.
+      const lineStart = src.lastIndexOf('\n', i) + 1;
+      if (/\blabel\s*=\s*["'{]/.test(src.slice(lineStart, i))) continue;
       const line = lineOf(src, i);
       add(file, line, `${tagName}-no-label`, at(line));
     }

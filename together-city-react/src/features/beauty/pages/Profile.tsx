@@ -321,7 +321,7 @@ function ProgressView({ entries }: { entries: BeautyProgressEntry[] }) {
   const delta = after.score - before.score;
   const Pane = ({ title, e, idx, set }: { title: string; e: BeautyProgressEntry; idx: number; set: (n: number) => void }) => (
     <div style={{ flex: 1, minWidth: 0 }}>
-      <select value={idx} onChange={(ev) => set(+ev.target.value)} style={{ width: '100%', border: '1px solid var(--line)', borderRadius: 8, padding: '5px 8px', fontSize: 11.5, background: 'var(--paper)', fontFamily: 'inherit', marginBottom: 6 }}>
+      <select aria-label={`${title} — choose a date to compare`} value={idx} onChange={(ev) => set(+ev.target.value)} style={{ width: '100%', border: '1px solid var(--line)', borderRadius: 8, padding: '5px 8px', fontSize: 11.5, background: 'var(--paper)', fontFamily: 'inherit', marginBottom: 6 }}>
         {sorted.map((s, i) => <option key={s.id} value={i}>{title}: {fmtDate(s.date)}</option>)}
       </select>
       <div style={{ aspectRatio: '1 / 1', borderRadius: 12, border: '1px solid var(--line)', background: e.thumb ? `center/cover no-repeat url(${e.thumb})` : 'var(--paper)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
@@ -724,7 +724,7 @@ export function Profile() {
             <div className="eyebrow" style={{ marginBottom: 10 }}>Basic profile</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 10 }}>
               <input style={{ ...fld, ...(ageLocked ? masterLockedStyle : {}) }} type="number" placeholder="Age" value={f.age ?? ''} disabled={ageLocked} title={ageLocked ? 'Set in your Master Profile' : undefined} onChange={(e) => set('age', e.target.value ? +e.target.value : undefined)} />
-              <select style={fld} value={f.gender ?? ''} onChange={(e) => set('gender', e.target.value || undefined)}><option value="">Gender</option><option>Female</option><option>Male</option><option>Other</option></select>
+              <select aria-label="Gender" style={fld} value={f.gender ?? ''} onChange={(e) => set('gender', e.target.value || undefined)}><option value="">Gender</option><option>Female</option><option>Male</option><option>Other</option></select>
               <input style={fld} type="number" placeholder="Height (cm)" value={f.heightCm ?? ''} onChange={(e) => set('heightCm', e.target.value ? +e.target.value : undefined)} />
               <input style={fld} type="number" placeholder="Weight (kg)" value={f.weightKg ?? ''} onChange={(e) => set('weightKg', e.target.value ? +e.target.value : undefined)} />
               <input style={fld} placeholder="City / climate" value={f.city ?? ''} onChange={(e) => set('city', e.target.value)} />

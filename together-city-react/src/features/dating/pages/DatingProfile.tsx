@@ -552,14 +552,14 @@ export function DatingProfilePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
             <div><span style={label}>First name</span><input value={dx.firstName ?? ''} onChange={(e) => setD({ firstName: e.target.value })} style={field} /></div>
             <div ref={v.reg('gender')}><span style={label}>Gender</span>
-              <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value as UpsertProfileInput['gender'] })} style={field}>
+              <select aria-label="Gender" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value as UpsertProfileInput['gender'] })} style={field}>
                 <option value="">Select…</option>
                 <option value="male">Male</option><option value="female">Female</option><option value="nonbinary">Non-binary</option>
               </select>
               <FieldError msg={v.errors.gender} />
             </div>
             <div><span style={label}>Looking for</span>
-              <select value={form.seeking} onChange={(e) => setForm({ ...form, seeking: e.target.value as UpsertProfileInput['seeking'] })} style={field}>
+              <select aria-label="Looking for" value={form.seeking} onChange={(e) => setForm({ ...form, seeking: e.target.value as UpsertProfileInput['seeking'] })} style={field}>
                 <option value="any">Anyone</option><option value="male">Men</option><option value="female">Women</option><option value="nonbinary">Non-binary people</option>
               </select>
             </div>

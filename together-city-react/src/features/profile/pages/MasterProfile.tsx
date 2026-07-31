@@ -177,7 +177,7 @@ export function MasterProfile() {
             are separate because they answer different questions and only one of
             them enters a formula. */}
         {field('sexAtBirth', 'Sex at birth',
-          <select value={v.sexAtBirth ?? ''} onChange={(e) => set('sexAtBirth', e.target.value || null)} onBlur={() => commit('sexAtBirth')} style={inputStyle}>
+          <select aria-label="Sex at birth" value={v.sexAtBirth ?? ''} onChange={(e) => set('sexAtBirth', e.target.value || null)} onBlur={() => commit('sexAtBirth')} style={inputStyle}>
             <option value="">Not set</option>
             <option value="female">Female</option>
             <option value="male">Male</option>
@@ -187,7 +187,7 @@ export function MasterProfile() {
           WHY_WE_ASK.sexAtBirth)}
 
         {field('genderIdentity', 'Gender',
-          <select value={v.genderIdentity ?? ''} onChange={(e) => set('genderIdentity', e.target.value || null)} onBlur={() => commit('genderIdentity')} style={inputStyle}>
+          <select aria-label="Gender" value={v.genderIdentity ?? ''} onChange={(e) => set('genderIdentity', e.target.value || null)} onBlur={() => commit('genderIdentity')} style={inputStyle}>
             <option value="">Not set</option>
             <option value="female">Woman</option>
             <option value="male">Man</option>

@@ -608,7 +608,7 @@ export function Preferences() {
             </div>
             <div ref={v.reg('sex')}>
               <span style={label}>Sex</span>
-              <select value={form.sex ?? ''} onChange={(e) => { setForm({ ...form, sex: (e.target.value || null) as FoodPref['sex'] }); v.clear('sex'); }} style={{ ...field, ...v.errStyle('sex') }}>
+              <select aria-label="Sex" value={form.sex ?? ''} onChange={(e) => { setForm({ ...form, sex: (e.target.value || null) as FoodPref['sex'] }); v.clear('sex'); }} style={{ ...field, ...v.errStyle('sex') }}>
                 <option value="">—</option>
                 <option value="female">Female</option>
                 <option value="male">Male</option>
@@ -630,7 +630,7 @@ export function Preferences() {
           </div>
 
           <span style={label}>Activity level</span>
-          <select value={form.activity} onChange={(e) => setForm({ ...form, activity: parseFloat(e.target.value) })} style={field}>
+          <select aria-label="Activity level" value={form.activity} onChange={(e) => setForm({ ...form, activity: parseFloat(e.target.value) })} style={field}>
             {ACTIVITY.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>
 
@@ -647,7 +647,7 @@ export function Preferences() {
           </div>
 
           <span style={label}>Nutrition pattern</span>
-          <select value={ex.pattern ?? 'Balanced'} onChange={(e) => setEx({ ...ex, pattern: e.target.value })} style={field}>
+          <select aria-label="Nutrition pattern" value={ex.pattern ?? 'Balanced'} onChange={(e) => setEx({ ...ex, pattern: e.target.value })} style={field}>
             {PATTERNS.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
 
@@ -671,7 +671,7 @@ export function Preferences() {
             </div>
             <div ref={v.reg('delivery')}>
               <span style={label}>Delivery schedule</span>
-              <select value={ex.delivery ?? ''} onChange={(e) => { setEx({ ...ex, delivery: e.target.value }); v.clear('delivery'); }} style={{ ...field, ...v.errStyle('delivery') }}>
+              <select aria-label="Delivery schedule" value={ex.delivery ?? ''} onChange={(e) => { setEx({ ...ex, delivery: e.target.value }); v.clear('delivery'); }} style={{ ...field, ...v.errStyle('delivery') }}>
                 <option value="">—</option>
                 {DELIVERY.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>

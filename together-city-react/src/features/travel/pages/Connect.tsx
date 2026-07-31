@@ -69,7 +69,7 @@ export function TravelConnect() {
         <div className="card">
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'end', marginBottom: 20 }}>
             <div><label style={flStyle}>Group name</label><input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Goa trip 2026" style={inputStyle} /></div>
-            <div><label style={flStyle}>Type</label><select value={type} onChange={(e) => setType(e.target.value)} style={inputStyle}>{TYPES.map((t) => <option key={t}>{t}</option>)}</select></div>
+            <div><label style={flStyle}>Type</label><select aria-label="Type" value={type} onChange={(e) => setType(e.target.value)} style={inputStyle}>{TYPES.map((t) => <option key={t}>{t}</option>)}</select></div>
             <button className="btn btn-gold" type="button" onClick={addGroup}>+ Create group</button>
           </div>
           <p className="muted" style={{ fontSize: 12 }}>Then tap members below to add them. Groups are private to you.</p>

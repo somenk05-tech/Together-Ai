@@ -200,7 +200,18 @@ function EditSelfForm({ initial, onSave, onCancel, saving }: { initial: FamilyMe
   const [f, setF] = useState<FamilyMemberInput>(initial);
   const set = (k: keyof FamilyMemberInput, v: unknown) => setF((s) => ({ ...s, [k]: v }));
   const toggleCond = (c: string) => set('healthConditions', f.healthConditions.includes(c) ? f.healthConditions.filter((x) => x !== c) : [...f.healthConditions, c]);
-  const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (<div><span style={lbl}>{label}</span>{children}</div>);
+  /**
+   * A <label> wrapping its control, rather than a <span> beside it.
+   *
+   * The text was always there to read; it was not attached to anything, so a
+   * screen reader announced seven of these as "combo box" and "spin button"
+   * with no clue which was Weight and which was Goal. Wrapping is used instead
+   * of htmlFor because it needs no id, and an id would have to be unique across
+   * every member card on the page.
+   */
+  const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <label style={{ display: 'block' }}><span style={lbl}>{label}</span>{children}</label>
+  );
   return (
     <div className="card" style={{ padding: 18, marginBottom: 16, border: '1px solid var(--accent)' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 12 }}>

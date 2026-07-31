@@ -220,14 +220,14 @@ export function Explore() {
 
           {showFilters && (
             <div className="card rise" style={{ marginTop: 10, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-              <select value={cuisine} onChange={(e) => setCuisine(e.target.value)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--line)', fontSize: 13 }}>
+              <select aria-label="Cuisine" value={cuisine} onChange={(e) => setCuisine(e.target.value)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--line)', fontSize: 13 }}>
                 <option value="">Any cuisine</option>
                 {(cuisines ?? []).map((c) => <option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
               </select>
-              <select value={minRating} onChange={(e) => setMinRating(Number(e.target.value))} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--line)', fontSize: 13 }}>
+              <select aria-label="Minimum rating" value={minRating} onChange={(e) => setMinRating(Number(e.target.value))} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--line)', fontSize: 13 }}>
                 <option value={0}>Any rating</option><option value={4}>4.0+ ★</option><option value={4.3}>4.3+ ★</option><option value={4.5}>4.5+ ★</option>
               </select>
-              <select value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--line)', fontSize: 13 }}>
+              <select aria-label="Distance" value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--line)', fontSize: 13 }}>
                 {[2, 3, 5, 8, 12, 20].map((k) => <option key={k} value={k}>{k} km</option>)}
               </select>
             </div>

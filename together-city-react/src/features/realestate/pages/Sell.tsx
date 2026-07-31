@@ -193,7 +193,7 @@ export function Sell() {
                 <label style={labelS}>{f.label}</label>
                 {f.type === 'select'
                   ? (
-                    <select value={fields[f.key] ?? ''} onChange={setField(f.key)} style={inputS}>
+                    <select aria-label={f.label} value={fields[f.key] ?? ''} onChange={setField(f.key)} style={inputS}>
                       <option value="">Select…</option>
                       {f.opts?.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
