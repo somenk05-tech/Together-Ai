@@ -5,7 +5,7 @@ interface Entry { to: string; icon: string; title: string; blurb: string; accent
 const ENTRIES: Entry[] = [
   { to: '/restaurants/explore', icon: '🔍', title: 'Explore Restaurants', blurb: 'The Top 25 food & café destinations near you — curated live from your location by quality, hygiene, value and menus. Not a directory.', accent: true },
   { to: '/restaurants/decide', icon: '🎯', title: 'Decide What to Eat', blurb: "Can't decide? Tell us you're hungry and Together City picks the perfect spot for you — tuned to your food profile.", accent: true },
-  { to: '/restaurants/book', icon: '🍽️', title: 'Book a Table', blurb: 'Reserve tonight at curated restaurants near you — confirmed instantly.' },
+  { to: '/restaurants/explore', icon: '🍽️', title: 'Book a Table', blurb: 'Find a place you like, then reserve from its page — your booking shows up under Reservations.' },
   { to: '/restaurants/orders', icon: '🛵', title: 'My Orders', blurb: 'Your food orders and city-wallet receipts, all in one place.' },
   { to: '/restaurants/reservations', icon: '📅', title: 'Reservations', blurb: 'Your upcoming table bookings and dining plans.' },
 ];

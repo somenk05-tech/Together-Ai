@@ -17,7 +17,7 @@ const PINNED = [
 ];
 
 const FEED = [
-  { av: 'RM', to: '/restaurants/reviews', t: 'Rohan Mehta rated Bombay Brasserie 5★', m: 'Yesterday, 9:40 PM' },
+  { av: 'RM', to: '/restaurants/explore', t: 'Rohan Mehta rated Bombay Brasserie 5★', m: 'Yesterday, 9:40 PM' },
   { av: 'PR', to: '/social/feed', t: 'Priya — "Just tried the new sushi place in Financial District"', m: '8:50 AM' },
   { av: 'RH', to: '/social/feed', t: 'Rahul shared a photo from the tasting menu night', m: '2 days ago' },
   { av: 'GS', to: '/social/feelings', t: 'The Gourmet Soul posted a guide: "5 hidden cafés in Bandra"', m: '3 days ago' },

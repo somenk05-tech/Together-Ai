@@ -79,7 +79,7 @@ export function Calendar() {
           <p className="lede" style={{ margin: 0 }}>Everything scheduled, one calendar.</p>
           <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>Flights, tables, tests, workouts and dates — every hub in one view.</p>
         </div>
-        <Link to="/restaurants/book"><Button variant="accent" size="sm">+ Add</Button></Link>
+        <Link to="/restaurants/explore"><Button variant="accent" size="sm">Book a table</Button></Link>
       </div>
 
       {/* View toggle + category filters */}

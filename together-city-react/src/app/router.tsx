@@ -80,18 +80,9 @@ const TravelDetail = lazy(() => import('@/features/travel/pages/Detail').then((m
 const TravelCheckout = lazy(() => import('@/features/travel/pages/Checkout').then((m) => ({ default: m.TravelCheckout })));
 const TravelConfirm = lazy(() => import('@/features/travel/pages/Confirm').then((m) => ({ default: m.TravelConfirm })));
 // Restaurants sub-pages
-const RestFindMeal = lazy(() => import('@/features/restaurants/pages/FindMeal').then((m) => ({ default: m.FindMeal })));
 const RestExplore = lazy(() => import('@/features/restaurants/pages/Explore').then((m) => ({ default: m.Explore })));
 const RestHome = lazy(() => import('@/features/restaurants/pages/RestaurantsHome').then((m) => ({ default: m.RestaurantsHome })));
 const RestDecide = lazy(() => import('@/features/restaurants/pages/Decide').then((m) => ({ default: m.Decide })));
-const RestBook = lazy(() => import('@/features/restaurants/pages/Book').then((m) => ({ default: m.Book })));
-const RestFavourites = lazy(() => import('@/features/restaurants/pages/Favourites').then((m) => ({ default: m.Favourites })));
-const RestReviews = lazy(() => import('@/features/restaurants/pages/Reviews').then((m) => ({ default: m.Reviews })));
-const RestScanner = lazy(() => import('@/features/restaurants/pages/Scanner').then((m) => ({ default: m.Scanner })));
-const RestCheat = lazy(() => import('@/features/restaurants/pages/Cheat').then((m) => ({ default: m.Cheat })));
-const RestCheckout = lazy(() => import('@/features/restaurants/pages/Checkout').then((m) => ({ default: m.Checkout })));
-const RestConfirm = lazy(() => import('@/features/restaurants/pages/Confirm').then((m) => ({ default: m.Confirm })));
-const RestFinal = lazy(() => import('@/features/restaurants/pages/Final').then((m) => ({ default: m.Final })));
 // Entertainment sub-pages
 const EntMovies = lazy(() => import('@/features/entertainment/pages/Movies').then((m) => ({ default: m.Movies })));
 const EntOtt = lazy(() => import('@/features/entertainment/pages/Ott').then((m) => ({ default: m.Ott })));
@@ -425,15 +416,6 @@ export const router = createBrowserRouter([
       { path: '/restaurants/discover', element: <RequireAuth>{wrap(<RestaurantsDiscover />)}</RequireAuth> },
       { path: '/restaurants/reservations', element: <RequireAuth>{wrap(<RestaurantsReservations />)}</RequireAuth> },
       { path: '/restaurants/orders', element: <RequireAuth>{wrap(<RestaurantsOrders />)}</RequireAuth> },
-      { path: '/restaurants/find-meal', element: <RequireAuth>{wrap(<RestFindMeal />)}</RequireAuth> },
-      { path: '/restaurants/book', element: <RequireAuth>{wrap(<RestBook />)}</RequireAuth> },
-      { path: '/restaurants/favourites', element: <RequireAuth>{wrap(<RestFavourites />)}</RequireAuth> },
-      { path: '/restaurants/reviews', element: <RequireAuth>{wrap(<RestReviews />)}</RequireAuth> },
-      { path: '/restaurants/scanner', element: <RequireAuth>{wrap(<RestScanner />)}</RequireAuth> },
-      { path: '/restaurants/cheat', element: <RequireAuth>{wrap(<RestCheat />)}</RequireAuth> },
-      { path: '/restaurants/checkout', element: <RequireAuth>{wrap(<RestCheckout />)}</RequireAuth> },
-      { path: '/restaurants/confirm', element: <RequireAuth>{wrap(<RestConfirm />)}</RequireAuth> },
-      { path: '/restaurants/final', element: <RequireAuth>{wrap(<RestFinal />)}</RequireAuth> },
       { path: '/restaurants/:id', element: <RequireAuth>{wrap(<RestaurantDetail />)}</RequireAuth> },
     ],
   },
