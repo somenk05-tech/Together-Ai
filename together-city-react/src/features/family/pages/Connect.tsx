@@ -195,8 +195,21 @@ function PrivacyCard() {
   );
 }
 
-/* ─────────────────────────── Edit self profile form ─────────────────────────── */
-function EditSelfForm({ initial, onSave, onCancel, saving }: { initial: FamilyMemberInput; onSave: (d: FamilyMemberInput) => void; onCancel: () => void; saving: boolean }) {
+/* ───────────────────────────── Edit member form ───────────────────────────── */
+/**
+ * Was EditSelfForm, and was only ever reachable from the owner's own row.
+ *
+ * The server has always allowed more than that: updateFamilyMember is scoped by
+ * ownerId and refuses only when the row belongs to a real invited user, because
+ * those people manage their own profile in their own hub. A member the owner
+ * typed in by hand has no such owner — it is household bookkeeping, and it was
+ * editable by the API and not by any button.
+ *
+ * Which mattered rather more once the previous commit made an unknown body
+ * visible: the card could say a member's targets could not be worked out, and
+ * the only way to act on it was to remove them and add them back.
+ */
+function EditMemberForm({ initial, isSelf, onSave, onCancel, saving }: { initial: FamilyMemberInput; isSelf: boolean; onSave: (d: FamilyMemberInput) => void; onCancel: () => void; saving: boolean }) {
   const [f, setF] = useState<FamilyMemberInput>(initial);
   const set = (k: keyof FamilyMemberInput, v: unknown) => setF((s) => ({ ...s, [k]: v }));
   const toggleCond = (c: string) => set('healthConditions', f.healthConditions.includes(c) ? f.healthConditions.filter((x) => x !== c) : [...f.healthConditions, c]);
@@ -247,7 +260,7 @@ function EditSelfForm({ initial, onSave, onCancel, saving }: { initial: FamilyMe
         <input style={fld} value={f.allergies ?? ''} placeholder="e.g. peanuts, shellfish" onChange={(e) => set('allergies', e.target.value)} />
       </div>
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-        <Button variant="accent" disabled={saving} onClick={() => onSave(f)}>{saving ? 'Saving…' : 'Save my profile'}</Button>
+        <Button variant="accent" disabled={saving} onClick={() => onSave(f)}>{saving ? 'Saving…' : isSelf ? 'Save my profile' : `Save ${initial.name.split(' ')[0]}’s details`}</Button>
         <Button variant="line" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
@@ -289,12 +302,17 @@ function MemberCard({ m, onEdit, onRemove }: { m: FamilyMemberProfile; onEdit: (
         // from a 30-year-old man of 170 cm and 65 kg, printed here as theirs, and
         // their plate portioned from it.
         //
-        // No button: Edit only appears on the owner's own row, so there is
-        // nothing on this card that would fix it, and offering one that does not
-        // exist is how this whole class of bug starts.
+        // Who can act on this differs, so the sentence does too. A member the
+        // owner typed in, they can fix — Edit is right there now. A real invited
+        // citizen owns their own profile and the owner cannot touch it, so
+        // telling them to go and add it would be telling them to do something
+        // the server will refuse.
         <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)', fontSize: 12.5, lineHeight: 1.6 }}>
           No targets for {m.name.split(' ')[0]} yet — {m.bodyUnknown.fields.join(', ').toLowerCase()} still to add.
-          <span className="muted"> Portions come from a body, and we would rather ask than use somebody else&rsquo;s.</span>
+          <span className="muted">
+            {' '}Portions come from a body, and we would rather ask than use somebody else&rsquo;s.
+            {m.userId !== null && !m.isSelf ? ` ${m.name.split(' ')[0]} adds this in their own Nutrition Hub.` : ''}
+          </span>
         </div>
       ) : (
         <div style={{ display: 'flex', gap: 18, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)', fontSize: 13 }}>
@@ -314,7 +332,12 @@ function MemberCard({ m, onEdit, onRemove }: { m: FamilyMemberProfile; onEdit: (
       )}
 
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        {m.isSelf && <Button variant="line" size="sm" onClick={onEdit}>Edit</Button>}
+        {/* Edit exactly where the server will accept one: your own row, and the
+            members you typed in yourself. `userId` is null for those and set for
+            a real invited citizen, who owns their profile in their own hub —
+            updateFamilyMember refuses that case and the button should not offer
+            what the API will refuse. */}
+        {(m.isSelf || m.userId === null) && <Button variant="line" size="sm" onClick={onEdit}>Edit</Button>}
         {!m.isSelf && <Button variant="line" size="sm" onClick={onRemove}>Remove</Button>}
       </div>
     </div>
@@ -357,7 +380,7 @@ export function FamilyConnect() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
             {members.data.map((m) => editing === m.id ? (
               <div key={m.id} style={{ gridColumn: '1 / -1' }}>
-                <EditSelfForm initial={toInput(m)} saving={update.isPending}
+                <EditMemberForm initial={toInput(m)} isSelf={m.isSelf} saving={update.isPending}
                   onSave={(d) => update.mutate({ id: m.id, dto: d }, { onSuccess: () => setEditing(null) })}
                   onCancel={() => setEditing(null)} />
               </div>
