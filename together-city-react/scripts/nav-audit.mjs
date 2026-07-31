@@ -158,6 +158,21 @@ const FAKE_IDENTIFIER = /\b(?:const|let|var|function|class)\s+\w*(?:mock|dummy|f
 // photographed — a screen filled in on the citizen's behalf.
 const INVENTED_PERSON = /john doe|jane doe|lorem ipsum|@example\.(com|org)|555-01\d\d/i;
 
+// A form field pre-filled with a literal.
+//
+// The blacklist above catches a fake person only if they are called John Doe.
+// It sailed past "Aarav Sharma", a Bandra delivery address, "•••• •••• ••••
+// 4821" and a check-in date of "Sun, 13 Jul 2026" — eight fields across the
+// Travel, Restaurants and Nutrition hubs, three of them on checkout screens
+// where the citizen is about to pay.
+//
+// The structural signal is better than any list of names: a default that is
+// REAL comes from data, so it arrives as an expression. `defaultValue="..."`
+// with prose inside it is a value invented at author time and rendered as the
+// citizen's own. A short literal ("0", "1", "INR") is a genuine default and
+// says nothing about anybody, so the rule needs a space before it fires.
+const INVENTED_FIELD = /\bdefaultValue\s*=\s*"[^"]*\s[^"]*"/;
+
 for (const file of files) {
   if (deadSet.has(file)) continue;
   const rel = relative(SRC, file);
@@ -172,6 +187,9 @@ for (const file of files) {
     // the honest choice.
     if (INVENTED_PERSON.test(code) && !/placeholder\s*=/.test(code)) {
       problems.push(`${rel}:${i + 1}  invented sample data rendered as real`);
+    }
+    if (INVENTED_FIELD.test(code)) {
+      problems.push(`${rel}:${i + 1}  form field pre-filled with an invented value — render it from the citizen's data or leave it empty with a placeholder`);
     }
   });
 }

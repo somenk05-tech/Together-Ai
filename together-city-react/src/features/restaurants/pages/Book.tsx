@@ -29,8 +29,11 @@ export function Book() {
 
       <div className="console rise" style={{ marginBottom: 44, marginTop: 24 }}>
         <div className="fields">
-          <div className="f"><label>Area or Restaurant</label><input defaultValue="Search top restaurants by area…" /></div>
-          <div className="f"><label>Sort by</label><input defaultValue="Popularity" /></div>
+          {/* The search box and the sort control were inputs with a hardcoded
+              value and no handler — neither filtered anything, and "Popularity"
+              was not a sort the app can do. Removed rather than faked; Explore
+              has search and filters that work. */}
+          <div className="f"><label>Find a table</label><input placeholder="Search by area or restaurant" /></div>
           <div className="go"><Link className="btn btn-gold" to="/restaurants/explore">Search</Link></div>
         </div>
       </div>

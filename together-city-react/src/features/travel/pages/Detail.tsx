@@ -65,13 +65,16 @@ export function TravelDetail() {
         </section>
 
         <aside style={{ position: 'sticky', top: 'calc(var(--header-h) + 20px)', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', padding: 24, boxShadow: 'var(--shadow-deep)' }}>
-          <div className="f" style={{ padding: '0 0 12px' }}><label>Check-in</label><input defaultValue="Sun, 13 Jul 2026" /></div>
-          <div className="f" style={{ padding: '0 0 12px', borderTop: '1px solid var(--line)' }}><label>Check-out</label><input defaultValue="Tue, 15 Jul 2026" /></div>
-          <div className="f" style={{ padding: '0 0 12px', borderTop: '1px solid var(--line)' }}><label>Guests</label><input defaultValue="1 Room, 2 Adults" /></div>
+          <div className="f" style={{ padding: '0 0 12px' }}><label>Check-in</label><input placeholder="Add dates" /></div>
+          <div className="f" style={{ padding: '0 0 12px', borderTop: '1px solid var(--line)' }}><label>Check-out</label><input placeholder="Add dates" /></div>
+          <div className="f" style={{ padding: '0 0 12px', borderTop: '1px solid var(--line)' }}><label>Guests</label><input placeholder="Rooms and guests" /></div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--ink-soft)', margin: '8px 0' }}><span>{room.name} × {NIGHTS} nights</span><span>{inr(subtotal)}</span></div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--ink-soft)', margin: '8px 0' }}><span>Taxes &amp; fees</span><span>{inr(TAXES)}</span></div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, fontSize: 16, borderTop: '1px solid var(--line)', paddingTop: 12, marginTop: 8 }}><span>Total</span><span>{inr(subtotal + TAXES)}</span></div>
-          <Link className="btn btn-gold" to="/travel/checkout" style={{ width: '100%', justifyContent: 'center', marginTop: 16 }}>Continue to checkout</Link>
+          <Link className="btn btn-line" to="/travel/checkout" style={{ width: '100%', justifyContent: 'center', marginTop: 16 }}>See the checkout preview</Link>
+          <p className="muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.5 }}>
+            A preview — it cannot take a booking. Book a real stay from Packages.
+          </p>
           <Link className="btn-discuss" to="/chats" style={{ width: '100%', justifyContent: 'center', marginTop: 10 }}>◈ Plan together — share in chat</Link>
         </aside>
       </div>
