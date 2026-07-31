@@ -2,7 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
-import { useBloodHistory, useLatestPanel, useSaveBloodTest, useIngestBlood, useHealthSummary, useBloodTrends, useBiomarkerCatalog, type Citation, type TrendKind, type TrendPick, type BiomarkerSection, type UnitChoice } from '../api';
+import { useBloodHistory, useLatestPanel, useSaveBloodTest, useIngestBlood, useHealthSummary, useBloodTrends, useBiomarkerCatalog, useDeleteBloodTest, type BloodTestSummary, type Citation, type TrendKind, type TrendPick, type BiomarkerSection, type UnitChoice } from '../api';
 import { PrivacyNote } from '@/features/privacy/PrivacyNote';
 import { TrendSparkline } from '../components/TrendSparkline';
 
@@ -519,21 +519,86 @@ export function BloodAnalysis() {
       {history.data && history.data.total > 1 && (
         <div className="card" style={{ marginTop: 18 }}>
           <div className="eyebrow">History · {history.data.total} panels</div>
-          {history.data.items.map((t) => (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderTop: '1px solid var(--line)', fontSize: 13 }}>
-              <strong style={{ minWidth: 92 }}>{t.takenOn}</strong>
-              <span className="muted" style={{ fontSize: 12 }}>{t.lab ?? '—'} · {t.markerCount} markers</span>
-              <span style={{ marginLeft: 'auto', display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                {t.flagged.length === 0
-                  ? <span style={{ fontSize: 11, color: '#2e7d32' }}>all in range</span>
-                  : t.flagged.map((f) => <span key={f.key} style={{ fontSize: 10.5, fontWeight: 600, color: '#c62828', background: '#ffebee', borderRadius: 999, padding: '1px 8px' }}>{f.label} {f.status}</span>)}
-              </span>
-            </div>
-          ))}
+          {history.data.items.map((t) => <PanelRow key={t.id} panel={t} />)}
+          <p className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>
+            Removing a panel deletes the readings it contributed — your trends, flags and any plan built on
+            them are recalculated without it. A report you uploaded stays in your records; it is the numbers
+            that go.
+          </p>
         </div>
       )}
 
       {data?.disclaimer && <p className="muted" style={{ fontSize: 11.5, marginTop: 16 }}>{data.disclaimer}</p>}
+    </div>
+  );
+}
+
+/**
+ * One panel in the history, and the way to remove it (FE-13.6).
+ *
+ * The Medical Hub could delete an uploaded REPORT, and deleting one takes its
+ * extracted panel with it — the API does both in a transaction, on the grounds
+ * that a document without its panel and a panel without its document are each
+ * worse than neither deletion happening. But a panel typed in by hand never had
+ * a document, so there was nothing to delete it from. useDeleteBloodTest was
+ * written for exactly this and no screen ever called it: a citizen could enter
+ * their own blood work and then not take it back, while it went on shaping
+ * their targets, their supplement plan and their meal plan.
+ *
+ * The confirm is deliberate and not a dialog. These are medical readings, the
+ * delete is real, and an accidental tap costs someone a lab visit to recover
+ * from — but a browser confirm() blocks the page and reads as a browser
+ * problem rather than a considered question, so the row asks in place.
+ */
+function PanelRow({ panel }: { panel: BloodTestSummary }) {
+  const del = useDeleteBloodTest();
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderTop: '1px solid var(--line)', fontSize: 13 }}>
+      <strong style={{ minWidth: 92 }}>{panel.takenOn}</strong>
+      <span className="muted" style={{ fontSize: 12 }}>{panel.lab ?? '—'} · {panel.markerCount} markers</span>
+
+      {confirming ? (
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="muted" style={{ fontSize: 12 }}>Remove this panel?</span>
+          <button
+            type="button"
+            onClick={() => del.mutate(panel.id)}
+            disabled={del.isPending}
+            style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: '#c62828', padding: '6px 4px' }}
+          >
+            {del.isPending ? 'Removing…' : 'Remove'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 12.5, color: 'var(--ink-soft)', padding: '6px 4px' }}
+          >
+            Keep
+          </button>
+        </span>
+      ) : (
+        <>
+          <span style={{ marginLeft: 'auto', display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            {panel.flagged.length === 0
+              ? <span style={{ fontSize: 11, color: '#2e7d32' }}>all in range</span>
+              : panel.flagged.map((f) => <span key={f.key} style={{ fontSize: 10.5, fontWeight: 600, color: '#c62828', background: '#ffebee', borderRadius: 999, padding: '1px 8px' }}>{f.label} {f.status}</span>)}
+          </span>
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            aria-label={`Remove the panel from ${panel.takenOn}`}
+            style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 12.5, color: 'var(--ink-soft)', padding: '6px 4px', flexShrink: 0 }}
+          >
+            Remove
+          </button>
+        </>
+      )}
+
+      {del.isError && (
+        <span className="muted" style={{ fontSize: 11.5, color: '#c62828' }}>Could not remove it just now.</span>
+      )}
     </div>
   );
 }
