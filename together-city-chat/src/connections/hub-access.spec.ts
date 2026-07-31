@@ -111,4 +111,53 @@ describe('hub access', () => {
         .resolves.toEqual(['public', 'friends']);
     });
   });
+
+  describe('the family-only rule, at the gate', () => {
+    // The registry has always carried `familyOnly: true` on Nutrition, Medical
+    // and Financial. Until hub-grants.ts, nothing read it — the only thing
+    // stopping a "friend" holding a Medical grant was which checkboxes the
+    // browser chose to draw. These pin the gate itself.
+
+    it('REFUSES a family-only hub on a connection stated as friend', async () => {
+      const svc = serviceWith(connWith(['social', 'medical', 'nutrition'], 'friend'));
+      await expect(svc.canAccessHub('a', 'b', 'medical')).resolves.toBe(false);
+      await expect(svc.canAccessHub('a', 'b', 'nutrition')).resolves.toBe(false);
+      // …while everything a friend may hold is untouched.
+      await expect(svc.canAccessHub('a', 'b', 'social')).resolves.toBe(true);
+    });
+
+    it('refuses them for every other stated relationship too', async () => {
+      for (const rel of ['colleague', 'partner', 'other']) {
+        const svc = serviceWith(connWith(['financial'], rel));
+        await expect(svc.canAccessHub('a', 'b', 'financial')).resolves.toBe(false);
+      }
+    });
+
+    it('allows them for family', async () => {
+      const svc = serviceWith(connWith(['medical', 'nutrition', 'financial'], 'family'));
+      await expect(svc.canAccessHub('a', 'b', 'medical')).resolves.toBe(true);
+      await expect(svc.canAccessHub('a', 'b', 'nutrition')).resolves.toBe(true);
+      await expect(svc.canAccessHub('a', 'b', 'financial')).resolves.toBe(true);
+    });
+
+    it('leaves rows that never stated a relationship alone', async () => {
+      // These predate the question being asked. A family sharing their nutrition
+      // hub today should not lose it because an older screen never asked them to
+      // name the relationship — the next write settles the row.
+      const svc = serviceWith(connWith(['nutrition', 'medical'], null));
+      await expect(svc.canAccessHub('a', 'b', 'nutrition')).resolves.toBe(true);
+      await expect(svc.canAccessHub('a', 'b', 'medical')).resolves.toBe(true);
+    });
+
+    it('still grants universal hubs to a friend — they are not family-only', async () => {
+      const svc = serviceWith(connWith(['medical'], 'friend'));
+      await expect(svc.canAccessHub('a', 'b', 'chat')).resolves.toBe(true);
+      await expect(svc.canAccessHub('a', 'b', 'mail')).resolves.toBe(true);
+    });
+
+    it('assertHubAccess refuses in the same shape', async () => {
+      const svc = serviceWith(connWith(['medical'], 'friend'));
+      await expect(svc.assertHubAccess('a', 'b', 'medical')).rejects.toThrow(/medical/);
+    });
+  });
 });

@@ -4,6 +4,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { orderPair } from './connection.util';
 import { RequestConnectionDto, RespondConnectionDto, UpdateModulesDto } from './dto/connections.dto';
 import { UNIVERSAL_SLUGS, PERMISSIONED_SLUGS, isHub, isUniversalHub } from './hubs.registry';
+import { isFamilyOnlyHub, mayReadHub, resolveGrants, withheldMessage } from './hub-grants';
 import { BlockingService } from './blocking.service';
 import { ConnectionsGateway } from './connections.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -27,6 +28,22 @@ const withUniversal = (mods: string[]): string[] => [...new Set([...UNIVERSAL_SL
 const parseModules = (raw: unknown): string[] => {
   try { const v = JSON.parse(String(raw ?? '')); return withUniversal(Array.isArray(v) ? v.filter((x) => typeof x === 'string') : DEFAULT_MODULES); }
   catch { return withUniversal(DEFAULT_MODULES); }
+};
+/**
+ * What is stored, minus anything this relationship may not hold.
+ *
+ * The registry has always said Nutrition, Medical and Financial are family-only,
+ * and nothing read it — the rule lived in a hand-written array in the browser.
+ * This is the one place the stored set becomes the set anybody is told about, so
+ * `shape()`, `broadcast()`, every hub's member list and the access gate cannot
+ * disagree about who can see what.
+ *
+ * `hub-grants.mayReadHub` deliberately leaves rows with no stated relationship
+ * alone; the reasoning is written down there.
+ */
+const effectiveModules = (conn: { modulesJson?: string | null; relationship?: string | null }): string[] => {
+  const rel = conn.relationship ?? null;
+  return parseModules(conn.modulesJson).filter((slug) => mayReadHub(slug, rel));
 };
 /** The single-source permission record as a hub→boolean map (universal hubs are
  *  always-on and therefore omitted, matching the People UI checkboxes). */
@@ -56,7 +73,7 @@ export class ConnectionsService {
   /** Broadcast a permission change to BOTH members so every open page (People +
    *  each hub) invalidates and re-reads the shared store — no manual refresh. */
   private broadcast(conn: Connection): void {
-    const modules = parseModules((conn as { modulesJson?: string | null }).modulesJson);
+    const modules = effectiveModules(conn as { modulesJson?: string | null; relationship?: string | null });
     this.gateway.permissionsChanged([conn.userOneId, conn.userTwoId], {
       connectionId: conn.id,
       status: STATUS_OUT[conn.status],
@@ -77,6 +94,14 @@ export class ConnectionsService {
     // follow it. Arriving in someone's requests list is contact.
     await this.blocking.assertNotBlocked(requesterId, target.id);
 
+    // The person SENDING the request picks the hubs the connection opens, so this
+    // is where a family-only hub could be opened to somebody marked "friend".
+    // Refuse it outright rather than storing it: there is no downgrade happening
+    // here, it is a fresh assertion, and quietly dropping it would show a chip
+    // for a hub that was never granted.
+    const grants = resolveGrants(dto.modules ?? DEFAULT_MODULES, dto.relationship);
+    if (grants.withheld.length) throw new BadRequestException(withheldMessage(grants.withheld));
+
     const { userOneId, userTwoId } = orderPair(requesterId, target.id);
     const conn = await this.prisma.connection.upsert({
       where: {
@@ -93,11 +118,11 @@ export class ConnectionsService {
         status: ConnectionStatus.PENDING,
         requestedById: requesterId,
         relationship: dto.relationship ?? null,
-        modulesJson: JSON.stringify(withUniversal(dto.modules ?? DEFAULT_MODULES)),
+        modulesJson: JSON.stringify(grants.modules),
       } as never,
       // Re-requesting refreshes the requested modules/relationship.
       update: dto.modules?.length || dto.relationship ? {
-        ...(dto.modules?.length ? { modulesJson: JSON.stringify(withUniversal(dto.modules)) } : {}),
+        ...(dto.modules?.length ? { modulesJson: JSON.stringify(grants.modules) } : {}),
         ...(dto.relationship ? { relationship: dto.relationship } : {}),
       } as never : {},
     });
@@ -109,7 +134,7 @@ export class ConnectionsService {
         data: {
           status: ConnectionStatus.PENDING, requestedById: requesterId,
           relationship: dto.relationship ?? null,
-          modulesJson: JSON.stringify(withUniversal(dto.modules ?? DEFAULT_MODULES)),
+          modulesJson: JSON.stringify(grants.modules),
         } as never,
       });
       this.broadcast(reopened);
@@ -217,7 +242,16 @@ export class ConnectionsService {
     if (!conn) throw new NotFoundException('Connection not found');
     if (conn.userOneId !== userId && conn.userTwoId !== userId) throw new ForbiddenException('Not your connection');
     const before = parseModules((conn as { modulesJson?: string | null }).modulesJson);
-    const modules = withUniversal(dto.modules);
+    // The relationship being asserted by THIS write, falling back to the stored
+    // one when the caller isn't changing it.
+    const relationship = dto.relationship ?? (conn as { relationship?: string | null }).relationship ?? null;
+    const { modules, withheld } = resolveGrants(dto.modules, relationship);
+    // Withholding something the connection ALREADY held is a revoke — that is the
+    // point of changing a relationship from Family to Friend, and it must happen
+    // quietly. Withholding something it did not hold is somebody trying to ADD a
+    // family-only hub to a connection that may not have it; that gets an answer.
+    const beingAdded = withheld.filter((slug) => !before.includes(slug));
+    if (beingAdded.length) throw new BadRequestException(withheldMessage(beingAdded));
     const updated = await this.prisma.connection.update({
       where: { id: conn.id },
       data: {
@@ -259,6 +293,15 @@ export class ConnectionsService {
   async setHubMember(userId: string, hub: string, connectionId: string, enabled: boolean): Promise<ShapedConnection> {
     if (!isHub(hub)) throw new BadRequestException('Unknown hub');
     if (isUniversalHub(hub)) throw new BadRequestException('Chat & Mail are universal and always on.');
+    // A hub's own "add member" button grants exactly one hub. Nothing is being
+    // downgraded, so a family-only hub on a connection that isn't family is
+    // unambiguous and gets a plain answer rather than a silent no-op.
+    if (enabled && isFamilyOnlyHub(hub)) {
+      const conn = await this.prisma.connection.findUnique({ where: { id: connectionId } });
+      if (!conn) throw new NotFoundException('Connection not found');
+      const { withheld } = resolveGrants([hub], (conn as { relationship?: string | null }).relationship ?? null);
+      if (withheld.length) throw new BadRequestException(withheldMessage(withheld));
+    }
     return this.setPermissions(userId, connectionId, { [hub]: enabled });
   }
 
@@ -276,7 +319,10 @@ export class ConnectionsService {
       where: { userOneId, userTwoId, status: ConnectionStatus.ACCEPTED },
     }).catch(() => null);
     if (!conn) return false;
-    return parseModules((conn as { modulesJson?: string | null }).modulesJson).includes(hub);
+    // effectiveModules, not parseModules: a stored grant is only honoured if the
+    // relationship on the connection may hold it. This is the gate the whole
+    // family-only rule was supposed to reach and never did.
+    return effectiveModules(conn as { modulesJson?: string | null; relationship?: string | null }).includes(hub);
   }
 
   /** Throws 403 unless `viewer` may access `owner`'s `hub` per the shared store. */
@@ -433,7 +479,7 @@ export class ConnectionsService {
   }
 
   private shape(conn: Connection, meId: string, other: User | null): ShapedConnection {
-    const modules = parseModules((conn as { modulesJson?: string | null }).modulesJson);
+    const modules = effectiveModules(conn as { modulesJson?: string | null; relationship?: string | null });
     return {
       id: conn.id,
       status: STATUS_OUT[conn.status],
