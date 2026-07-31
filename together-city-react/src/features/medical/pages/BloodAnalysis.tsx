@@ -355,7 +355,13 @@ export function BloodAnalysis() {
                   <ol style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 13.5, lineHeight: 1.6 }}>
                     {sum.priorities.map((p, i) => <li key={i}>{p}</li>)}
                   </ol>
-                ) : <p style={{ fontSize: 13, color: '#2e7d32', marginTop: 6 }}>No priority flags — every measured marker is in range.</p>}
+                ) : (
+                  // This used to assert every marker sat in range, naming a range
+                  // the citizen does not have. The panel says what they cleared.
+                  <p style={{ fontSize: 13, color: '#2e7d32', marginTop: 6 }}>
+                    No priority flags.{data?.inRangeLine ? ` ${data.inRangeLine}` : ''}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -482,7 +488,9 @@ export function BloodAnalysis() {
               <div key={m.key} style={{ padding: '12px 0', borderTop: '1px solid var(--line)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <strong style={{ fontSize: 14 }}>{m.label}</strong>
-                  <span className="muted" style={{ fontSize: 12 }}>{m.value} {m.unit} · ref {m.range}</span>
+                  <span className="muted" style={{ fontSize: 12 }} title={m.rangeBasis === 'own-report' ? 'The range printed on your own report' : 'One band we apply to every adult — not matched to you'}>
+                    {m.value} {m.unit} · ref {m.range}{m.rangeBasis === 'general-adult' ? '*' : ''}
+                  </span>
                   {m.trend && m.previous != null && (
                     <span title={m.previousDate ? `was ${m.previous} on ${m.previousDate}` : `was ${m.previous}`} style={{ fontSize: 11, color: m.trend === 'flat' ? 'var(--muted)' : (m.status === 'normal' ? '#2e7d32' : 'var(--accent)') }}>
                       {TREND[m.trend]} from {m.previous}{m.previousDate ? ` (${m.previousDate})` : ''}
@@ -497,6 +505,10 @@ export function BloodAnalysis() {
               </div>
             );
           })}
+          {/* What the asterisks mean. The bands are ours, not this citizen's, and
+              the panel is where that has to be said — it is the screen where a
+              status becomes a fact somebody acts on. */}
+          {data?.rangeNote && <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, marginTop: 12 }}>* {data.rangeNote}</p>}
           {data?.sharesWith && <p className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>🔒 {data.sharesWith}</p>}
         </div>
       )}

@@ -2,8 +2,13 @@ import { http as api } from '@/api/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export interface Citation { id: string; label: string; ref: string }
+/** Where a marker's reference range came from. 'general-adult' is one band applied
+ *  to every adult and is not matched to this citizen; 'own-report' is the range the
+ *  lab printed on their own report, which already accounts for sex, age and assay. */
+export type RangeBasis = 'general-adult' | 'own-report';
 export interface MedMarker {
   key: string; label: string; unit: string; value: number; range: string;
+  rangeBasis: RangeBasis;
   status: 'low' | 'normal' | 'high'; advice: string; caveat: string | null;
   citations: Citation[]; trend: 'up' | 'down' | 'flat' | null; previous: number | null;
   lastTested?: string; previousDate?: string | null;
@@ -13,6 +18,13 @@ export interface MedCondition { key: string; name: string; principles: string[];
 export interface BloodAnalysis {
   testId?: string; takenOn: string | null; lab?: string | null;
   markers: MedMarker[]; alerts: MedAlert[]; conditions: MedCondition[];
+  /** What the statuses above were measured against — null once every range on
+   *  the panel came from the citizen's own report. Server-computed, so the page
+   *  never has to work out its own version and disagree with the backend. */
+  rangeNote: string | null;
+  /** What the panel actually cleared, and whose band it cleared. Replaces the
+   *  unqualified all-clear the pages used to print. */
+  inRangeLine: string;
   disclaimer?: string; sharesWith?: string;
 }
 export interface BloodTestSummary {

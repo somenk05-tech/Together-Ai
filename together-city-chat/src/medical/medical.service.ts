@@ -24,6 +24,7 @@ import type { SaveBloodTestDto } from './dto/medical.dto';
 import { BIOMARKER_SECTIONS, biomarkerDef } from './biomarker-catalog';
 import { parseReportText } from './report-parser';
 import { panelBand, panelScore, panelScoreBasis } from './panel-score';
+import { CURRENT_BASIS, inRangeSummary, panelRangeNote } from './range-basis';
 import { normalizeReportImage } from './image-normalize';
 
 const cite = (ids: string[]) => ids.map((id) => CITATIONS[id]).filter(Boolean);
@@ -636,6 +637,7 @@ export class MedicalService implements OnModuleInit {
         : null;
       return {
         key: rule.key, label: rule.label, unit: rule.unit, value, range: `${rule.min}–${rule.max}`,
+        rangeBasis: CURRENT_BASIS,
         status: ev.status, advice: ev.advice, caveat: ev.caveat, citations: ev.citations,
         trend, previous: typeof before === 'number' ? before : null,
       };
@@ -645,6 +647,14 @@ export class MedicalService implements OnModuleInit {
     return {
       testId: test.id, takenOn: test.takenOn.toISOString().slice(0, 10), lab: test.lab,
       markers,
+      // What the statuses above were measured against. A band we wrote for every
+      // adult is not this citizen's band, and the panel says so rather than
+      // letting a green tick imply otherwise.
+      rangeNote: panelRangeNote(markers.map((m) => m.rangeBasis)),
+      inRangeLine: inRangeSummary({
+        bases: markers.map((m) => m.rangeBasis),
+        outOfRange: markers.filter((m) => m.status !== 'normal').length,
+      }),
       alerts: criticalAlerts(values),
       conditions: triggeredConditions(flags).map((c) => ({ key: c.key, name: c.name, principles: c.principles, citations: cite(c.citations) })),
       disclaimer: 'Medical Hub is the source of truth for your records. This analysis is educational, grounded in established clinical-nutrition guidance — not a diagnosis. Confirm with your doctor.',
@@ -665,7 +675,13 @@ export class MedicalService implements OnModuleInit {
     const tests = await this.prisma.medicalBloodTest.findMany({
       where: { userId }, orderBy: { takenOn: 'asc' }, include: { biomarkers: true },
     });
-    if (!tests.length) return { markers: [], alerts: [], conditions: [], takenOn: null, aggregated: true };
+    if (!tests.length) {
+      return {
+        markers: [], alerts: [], conditions: [], takenOn: null, aggregated: true,
+        rangeNote: panelRangeNote([]),
+        inRangeLine: inRangeSummary({ bases: [], outOfRange: 0 }),
+      };
+    }
 
     // Each biomarker's chronological (value, date) series across ALL panels.
     const series = new Map<string, { value: number; date: Date }[]>();
@@ -697,12 +713,12 @@ export class MedicalService implements OnModuleInit {
       const rule = ruleFor(key);
       if (rule) {
         const ev = evaluateMarker(rule, last.value, crp);
-        return { ...common, label: rule.label, unit: rule.unit, range: `${rule.min}–${rule.max}`, status: ev.status, advice: ev.advice, caveat: ev.caveat, citations: ev.citations };
+        return { ...common, label: rule.label, unit: rule.unit, range: `${rule.min}–${rule.max}`, rangeBasis: CURRENT_BASIS, status: ev.status, advice: ev.advice, caveat: ev.caveat, citations: ev.citations };
       }
       const def = biomarkerDef(key);
       if (!def) return null;
       const status = last.value < def.min ? 'low' : last.value > def.max ? 'high' : 'normal';
-      return { ...common, label: def.label, unit: def.unit, range: `${def.min}–${def.max}`, status, advice: '', caveat: null, citations: [] as { id: string; label: string; ref: string }[] };
+      return { ...common, label: def.label, unit: def.unit, range: `${def.min}–${def.max}`, rangeBasis: CURRENT_BASIS, status, advice: '', caveat: null, citations: [] as { id: string; label: string; ref: string }[] };
     }).filter((m): m is NonNullable<typeof m> => m != null);
     // Abnormal first, then alphabetical — the design (rows) is unchanged.
     markers.sort((a, b) => Number(a.status === 'normal') - Number(b.status === 'normal') || a.label.localeCompare(b.label));
@@ -713,6 +729,11 @@ export class MedicalService implements OnModuleInit {
       testId: latestTest.id, takenOn: iso(latestTest.takenOn), lab: latestTest.lab,
       aggregated: true,
       markers,
+      rangeNote: panelRangeNote(markers.map((m) => m.rangeBasis)),
+      inRangeLine: inRangeSummary({
+        bases: markers.map((m) => m.rangeBasis),
+        outOfRange: markers.filter((m) => m.status !== 'normal').length,
+      }),
       alerts: criticalAlerts(aggValues),
       conditions: triggeredConditions(flags).map((c) => ({ key: c.key, name: c.name, principles: c.principles, citations: cite(c.citations) })),
       disclaimer: 'Medical Hub is the source of truth for your records. This unified panel shows your most recent value for each biomarker across all reports. Educational, not a diagnosis — confirm with your doctor.',

@@ -233,7 +233,15 @@ export function Records() {
                 })}
               </div>
             ) : (
-              <p style={{ fontSize: 12.5, marginTop: 12, color: '#2e7d32' }}>✓ All measured markers are within range.</p>
+              // This line used to declare every marker in range full stop — a claim
+              // about the citizen made from a band that is not theirs. The server
+              // states what the markers actually cleared, and names the band.
+              // See range-basis.ts; the old wording is banned by its spec.
+              <p style={{ fontSize: 12.5, marginTop: 12, color: '#2e7d32' }}>✓ {panel.inRangeLine}</p>
+            )}
+
+            {panel.rangeNote && (
+              <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, marginTop: 8 }}>{panel.rangeNote}</p>
             )}
 
             {panel.conditions.length > 0 && (

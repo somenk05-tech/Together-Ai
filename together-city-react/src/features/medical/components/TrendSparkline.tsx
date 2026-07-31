@@ -96,7 +96,9 @@ export function TrendSparkline({ points, min, max, label, unit }: {
       height={H}
       role="img"
       // The chart is decoration to a screen reader unless it says what it shows.
-      aria-label={`${label} from ${first.value} to ${last.value} ${unit} between ${span}. Healthy range ${min} to ${max}.`}
+      // "Healthy range" named it as this person's. It is one band for every
+      // adult, and the only reader who cannot see the footnote is this one.
+      aria-label={`${label} from ${first.value} to ${last.value} ${unit} between ${span}. General adult range ${min} to ${max}.`}
       style={{ display: 'block', overflow: 'visible' }}
     >
       <rect
