@@ -1,7 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { z } from 'zod';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { VerifiedGuard } from '../auth/verified.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe, parseOrThrow } from '../shared/zod/zod-validation.pipe';
@@ -70,7 +69,6 @@ export class DatingController {
     return this.dating.like(user.sub, targetUserId, kind);
   }
 
-  @UseGuards(VerifiedGuard)
   @Post('matches/:targetUserId/unlock-chat')
   unlockChat(
     @CurrentUser() user: JwtUser,
@@ -82,9 +80,28 @@ export class DatingController {
     return this.dating.connect(user.sub, targetUserId, kind, method);
   }
 
-  // Opening a chat with another citizen → requires a confirmed email.
+  /**
+   * Opening a chat with somebody who has already matched you.
+   *
+   * This used to require a confirmed email and it was the wrong action to gate.
+   * VerifiedGuard exists so an unconfirmed address cannot be used to REACH other
+   * citizens — its own doc says "publishing content, listing property, entering
+   * the dating pool". A mutual match is not that: two people have each chosen the
+   * other, nobody is being broadcast at, and the second half of the consent is
+   * already on record before this endpoint is reached.
+   *
+   * Meanwhile nothing in this controller gates creating a dating profile, which
+   * IS the broadcast — an unconfirmed address becoming visible to everybody in
+   * the pool. So the guard was on the action that did not need it and absent
+   * from the one that arguably does.
+   *
+   * A guard is NOT being added there in the same breath. Verification e-mails
+   * are not reliably arriving right now, and moving a lockout from a place it
+   * does not belong to a place it does, while the way out of it is broken, just
+   * relocates the harm. That belongs in a commit made after delivery is
+   * confirmed working, on purpose, not as a side effect of this one.
+   */
   @Post('matches/:targetUserId/connect')
-  @UseGuards(VerifiedGuard)
   connect(
     @CurrentUser() user: JwtUser,
     @Param('targetUserId') targetUserId: string,
