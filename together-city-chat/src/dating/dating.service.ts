@@ -3,6 +3,7 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
 import { AdminService } from '../auth/admin';
 import { MasterProfileService } from '../profile/master-profile.service';
+import { datingGender } from '../profile/sex-and-gender';
 import { BlockingService } from '../connections/blocking.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
@@ -16,7 +17,34 @@ import { nickname } from '../shared/nickname';
 import type { MatchKind, UpsertDatingProfileDto } from './dto/dating.dto';
 
 const MATCH_THRESHOLD = 75; // only curated matches ≥75% are ever shown (spec)
-const MATCH_LIMIT = 24;     // a full ranked list of real matches (not endless swiping)
+
+/**
+ * How many profiles are scored per request.
+ *
+ * There is no longer a cap on how many results come BACK — §15.2 removed the
+ * 24-row `slice()`, because deciding who is worth talking to is the citizen's
+ * job and a silent truncation made that decision for them without saying so.
+ * Everyone who passes the hard filters is returned, ranked, with their
+ * percentage.
+ *
+ * This bound is different in kind: it is how much of the city we read in one
+ * query, and it exists so a growing city cannot turn one page load into a full
+ * table scan. It is reported to the citizen as `considered`, so "showing all
+ * 137 of the 500 people we looked at" is a sentence the page can say honestly.
+ * A silent bound is the thing this change is removing; a stated one is a fact.
+ */
+const SCORING_POOL = 500;
+
+/**
+ * Photos sent per card in a LIST.
+ *
+ * Photos live in the profile's extras JSON as base64 data URLs, so every one of
+ * them travels inline in the response. Six per card was already heavy at 24
+ * cards; with the cap gone it decides whether the page loads at all. The list
+ * sends the primary photo and the detail view sends the gallery — the same
+ * photos, fetched when somebody actually wants to look at them.
+ */
+const LIST_PHOTOS = 1;
 // Admins (by handle) allowed to read Dating Hub stats — same env as moderation.
 
 /** Visibility mode (stored in the profile's extras JSON). */
@@ -58,7 +86,7 @@ export class DatingService {
    *  name, gender, DOB, birth details, languages and current location. */
   private async prefillFromMaster(userId: string) {
     const m = await this.masterProfile.get(userId);
-    const hasAny = m.gender || m.dateOfBirth || m.languages || m.birthCity || m.city;
+    const hasAny = datingGender(m) || m.dateOfBirth || m.languages || m.birthCity || m.city;
     if (!hasAny) return null;
     const birthPlace = [m.birthCity, m.birthState, m.birthCountry].filter(Boolean).join(', ') || null;
     const iso = (d: Date | string | null | undefined) => {
@@ -72,7 +100,7 @@ export class DatingService {
       prefilled: true as const,
       saved: false as const,
       name: m.name ?? '',
-      gender: m.gender ?? null,
+      gender: datingGender(m) ?? null,
       seeking: null,
       birthDate: iso(m.dateOfBirth),
       birthTime: m.timeOfBirth ?? null,
@@ -121,7 +149,11 @@ export class DatingService {
     // single source of truth, which propagates to astrology/nutrition/fitness).
     const place = (dto.birthPlace ?? '').split(',').map((x) => x.trim()).filter(Boolean);
     await this.masterProfile.syncShared(userId, {
-      gender: dto.gender,
+      // The identity vocabulary, not Dating's own. Writing `gender` here put a
+      // value back into the column the split retired — which is how the dead
+      // column kept looking alive, and why only citizens who started on the
+      // Master Profile page were ever re-asked.
+      genderIdentity: dto.gender === 'nonbinary' ? 'nonBinary' : dto.gender,
       dateOfBirth: new Date(dto.birthDate + 'T00:00:00Z'),
       timeOfBirth: dto.birthTime ?? null,
       birthCity: place[0], birthState: place.length > 2 ? place[1] : undefined,
@@ -162,7 +194,7 @@ export class DatingService {
 
     const candidates = await this.prisma.datingProfile.findMany({
       where: { userId: { not: userId }, visible: true, moderation: 'approved' } as never,
-      take: 500,
+      take: SCORING_POOL,
     });
     // Connections/blocked users never get a "new match" alert about this member.
     const excluded = await this.connectionExclusions(userId);
@@ -368,7 +400,7 @@ export class DatingService {
       // Their uploaded gallery (first is primary). Falls back to the account
       // photo so a card is never empty. Only eligible viewers reach this point.
       const candPhotos = (candDX as { photos?: string[] }).photos ?? [];
-      const photos = (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, 6);
+      const photos = (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS);
       results.push({
         matchId: state?.id ?? null,
         user: cand.user,
@@ -386,8 +418,10 @@ export class DatingService {
         conversationId: state?.conversationId ?? null,
       });
     }
-    // A full ranked list of real matches (highest compatibility first).
-    return results.sort((a, b) => b.score - a.score).slice(0, MATCH_LIMIT);
+    // Everyone who passes the filters, best first. There is no slice here any
+    // more: choosing who is worth talking to is the citizen's decision, and a
+    // silent cut at 24 made it for them without ever saying it had.
+    return results.sort((a, b) => b.score - a.score);
   }
 
   /**
@@ -457,7 +491,7 @@ export class DatingService {
       if (candDX.visibility === 'threshold' && score < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
 
       const candPhotos = candDX.photos ?? [];
-      const photos = (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, 6);
+      const photos = (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS);
       scored.push({
         card: {
           matchId: state?.id ?? null,
@@ -499,18 +533,37 @@ export class DatingService {
     const ideal = scored.filter((s) => s.card.score >= MATCH_THRESHOLD).sort((a, b) => b.card.score - a.card.score);
     const recommended = scored.filter((s) => s.card.score >= 55 && s.card.score < MATCH_THRESHOLD).sort((a, b) => b.card.score - a.card.score);
 
+    // Everyone, in bands, with their percentage on every card (§15.2).
+    //
+    // Two caps used to sit here and neither was ever stated. `take(_, 24)` cut
+    // each band at 24, and the Recommended band appeared ONLY when the curated
+    // pool held fewer than six people — so in a city with seven strong matches,
+    // everybody between 55% and 75% was invisible, permanently, to a citizen who
+    // had never asked for that filter. Both are gone. The bands stay, because
+    // ranking is useful; the truncation goes, because deciding who is worth
+    // talking to is the citizen's call and 68% is a number they can read.
+    const rest = scored.filter((s) => s.card.score < 55).sort((a, b) => b.card.score - a.card.score);
+    const all = (arr: Scored[]) => take(arr, arr.length);
+
     if (ideal.length) {
-      sections.push({ key: 'curated', label: 'Curated Matches', note: 'Your strongest matches — 75%+ compatibility.', tier: 'ideal', matches: take(ideal, MATCH_LIMIT) });
+      sections.push({ key: 'curated', label: 'Curated Matches', note: 'Your strongest matches \u2014 75%+ compatibility.', tier: 'ideal', matches: all(ideal) });
     }
 
-    // Progressively relax the bar only when the ideal pool is thin.
-    if (ideal.length < 6 && recommended.length) {
-      const band = recommended.some((s) => s.card.score >= 65) ? 65 : 55;
-      const pool = recommended.filter((s) => s.card.score >= band);
+    if (recommended.length) {
       sections.push({
         key: 'recommended', label: 'Recommended Matches', tier: 'recommended',
-        note: `Early days in your city — these are your closest matches so far (${band}%+). As more residents join, stronger matches will appear.`,
-        matches: take(pool, MATCH_LIMIT),
+        note: ideal.length
+          ? 'Good matches just below the curated bar (55\u201374%). Worth a look \u2014 compatibility is a starting point, not a verdict.'
+          : 'Early days in your city \u2014 these are your closest matches so far. As more residents join, stronger matches will appear.',
+        matches: all(recommended),
+      });
+    }
+
+    if (rest.length) {
+      sections.push({
+        key: 'everyone', label: 'Everyone Else', tier: 'discovery',
+        note: 'Below 55% on our scoring. Shown because the score is our opinion and the choice is yours.',
+        matches: all(rest),
       });
     }
 
@@ -609,11 +662,13 @@ export class DatingService {
       const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & { photos?: string[] };
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
       const score = overallScore(breakdown);
-      if (!isMatched && score < 20) continue;
+      // No score floor. A 17% was dropped here silently, which is a judgement
+      // about who is worth meeting made by a weighting formula the citizen
+      // never saw. The number is shown on every card; they can disagree with it.
       if (!isMatched && candDX.visibility === 'threshold' && score < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
 
       const candPhotos = candDX.photos ?? [];
-      const photos = (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, 6);
+      const photos = (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS);
       (isMatched ? matchedCards : cards).push({
         matchId: state?.id ?? null,
         user: cand.user,
@@ -636,7 +691,7 @@ export class DatingService {
     }
 
     // Compatibility-band histogram: 90–100, 80–90 … 20–30 (highest first).
-    const bands = [[90, 101], [80, 90], [70, 80], [60, 70], [50, 60], [40, 50], [30, 40], [20, 30]];
+    const bands = [[90, 101], [80, 90], [70, 80], [60, 70], [50, 60], [40, 50], [30, 40], [20, 30], [0, 20]];
     const distribution = bands.map(([lo, hi]) => ({
       label: `${lo}–${hi === 101 ? 100 : hi}`,
       min: lo,
@@ -649,7 +704,10 @@ export class DatingService {
     // Newest match first, so the person you just matched with leads the page.
     const matched = matchedCards.sort((a, b) => b.score - a.score);
 
-    return { engaged, distribution, top, matched, totalCandidates: cards.length };
+    // `candidates` is the whole ranked list, not a page of it. `top` stays
+    // because the page leads with it, but it is now the first element of
+    // something the citizen can scroll rather than the only thing they get.
+    return { engaged, distribution, top, candidates: cards, matched, totalCandidates: cards.length };
   }
 
   private parseDX(extras: string | null | undefined): DXProfile {

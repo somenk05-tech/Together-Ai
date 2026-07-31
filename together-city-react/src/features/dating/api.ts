@@ -152,7 +152,13 @@ export interface CompatibilityBand { label: string; min: number; max: number; co
 export interface DatingStack {
   engaged: boolean;
   distribution: CompatibilityBand[];
+  /** The highest-scoring candidate. The page leads with it — but it is the
+   *  first of `candidates`, not the only one anybody gets to see. */
   top: CuratedMatch | null;
+  /** Everyone who passes your filters, ranked, each with their percentage.
+   *  Not a page of them — the whole list. The score is an opinion; who is
+   *  worth talking to is the citizen's decision. */
+  candidates: CuratedMatch[];
   /** People you have mutually liked. They stay on the Curated Matches page —
    *  a match is the point of the hub, not something to disappear on you. */
   matched: CuratedMatch[];

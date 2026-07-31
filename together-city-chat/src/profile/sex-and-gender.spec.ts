@@ -1,4 +1,8 @@
-import { clinicalSex, displayGender, isGenderIdentity, isSexAtBirth, WHY_WE_ASK } from './sex-and-gender';
+import {
+  clinicalSex, DATING_GENDER, datingGender, displayGender,
+  GENDER_IDENTITY, isGenderIdentity, isSexAtBirth, WHY_WE_ASK,
+} from './sex-and-gender';
+import { propagationPlan } from './master-profile.service';
 
 describe('sex at birth and gender identity are different questions', () => {
   describe('clinicalSex', () => {
@@ -65,6 +69,64 @@ describe('sex at birth and gender identity are different questions', () => {
 
     it('says nothing when nothing was answered', () => {
       expect(displayGender({})).toBeUndefined();
+    });
+  });
+
+  describe('datingGender — the boundary the split forgot', () => {
+    it('speaks the Dating Hub\u2019s lowercase vocabulary, not the identity one', () => {
+      expect(datingGender({ genderIdentity: 'nonBinary' })).toBe('nonbinary');
+      expect(datingGender({ genderIdentity: 'male' })).toBe('male');
+      expect(datingGender({ genderIdentity: 'female' })).toBe('female');
+    });
+
+    it('still reads a pre-split account', () => {
+      expect(datingGender({ gender: 'nonbinary' })).toBe('nonbinary');
+      expect(datingGender({ gender: 'female' })).toBe('female');
+    });
+
+    it('prefers the identity the citizen set over the superseded column', () => {
+      expect(datingGender({ genderIdentity: 'nonBinary', gender: 'male' })).toBe('nonbinary');
+    });
+
+    it('does not put anybody in a category they did not pick', () => {
+      // 'other' is a real answer with no dating equivalent. Flattening it into
+      // one of the three would show other people a claim the citizen never made.
+      expect(datingGender({ genderIdentity: 'other', genderIdentityOther: 'Agender' } as never)).toBeUndefined();
+      expect(datingGender({})).toBeUndefined();
+      expect(datingGender({ gender: null, genderIdentity: null })).toBeUndefined();
+    });
+
+    it('never returns a value the matching comparisons cannot match', () => {
+      // The whole defect in one assertion: every value this can produce has to
+      // be one that `seeking === cand.gender` can be true for.
+      for (const identity of [...GENDER_IDENTITY, 'nonbinary', 'other', '', null, undefined]) {
+        const out = datingGender({ genderIdentity: identity as string | null });
+        if (out !== undefined) expect(DATING_GENDER).toContain(out);
+      }
+    });
+  });
+
+  describe('propagationPlan cannot corrupt a dating profile', () => {
+    it('sends the Dating Hub only values it can compare', () => {
+      for (const identity of [...GENDER_IDENTITY, 'nonbinary', 'other', null]) {
+        const plan = propagationPlan({ genderIdentity: identity as string | null });
+        const sent = plan.dating.gender;
+        // Either we send nothing, or we send something matching can match.
+        if (sent !== undefined) expect(DATING_GENDER).toContain(sent as string);
+      }
+    });
+
+    it('specifically stops nonBinary reaching the column that stores nonbinary', () => {
+      // This is the regression. Before the fix this was 'nonBinary', which made
+      // the citizen invisible to everyone seeking non-binary people.
+      expect(propagationPlan({ genderIdentity: 'nonBinary' }).dating.gender).toBe('nonbinary');
+    });
+
+    it('leaves the clinical side alone — dating never receives sex at birth', () => {
+      const plan = propagationPlan({ sexAtBirth: 'female', genderIdentity: 'nonBinary' });
+      expect(plan.dating.gender).toBe('nonbinary');
+      expect(plan.food.sex).toBe('female');
+      expect(plan.fitness.sex).toBe('female');
     });
   });
 

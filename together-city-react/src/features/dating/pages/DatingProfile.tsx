@@ -267,16 +267,16 @@ function resizePhoto(file: File, maxDim = 1080): Promise<string> {
 }
 
 /** Dating Profile — 4-phase onboarding. Passes moderation before it's visible. */
-/**
- * The Master Profile's gender identity, in the three values a dating profile
- * uses. `other` and an unset value map to nothing rather than to a guess — the
- * citizen picks, and the form waits.
+/*
+ * `masterGender()` used to live here — the same identity→dating mapping the
+ * server needed, hand-rolled on the client because the server's prefill was
+ * returning null. That patched the symptom and hid the cause: the mapping was
+ * missing from `propagationPlan` too, where its absence was writing 'nonBinary'
+ * into a column every matching comparison reads with `===`.
+ *
+ * The rule now lives once, in profile/sex-and-gender.ts, and the prefill
+ * carries the answer. See §15.1.
  */
-function masterGender(identity?: string | null): 'male' | 'female' | 'nonbinary' | null {
-  if (identity === 'male' || identity === 'female') return identity;
-  if (identity === 'nonBinary') return 'nonbinary';
-  return null;
-}
 
 export function DatingProfilePage() {
   const existing = useDatingProfile();
@@ -297,9 +297,9 @@ export function DatingProfilePage() {
     if (!d) return;
     const isSaved = (d as { saved?: boolean }).saved !== false; // prefill objects carry saved:false
     setForm({
-      // Falls back to the Master Profile's gender identity rather than to a
-      // guess — the citizen has already answered this once (p22, p23).
-      gender: (d.gender ?? masterGender(master.data?.genderIdentity) ?? '') as UpsertProfileInput['gender'],
+      // The prefill already carries the Master Profile's answer, in this form's
+      // own vocabulary — the citizen answered this once (p22, p23).
+      gender: (d.gender ?? '') as UpsertProfileInput['gender'],
       seeking: d.seeking ?? 'any',
       bio: d.bio ?? '', birthDate: d.birthDate ?? '', birthTime: d.birthTime ?? '',
       birthPlace: d.birthPlace ?? '', interests: d.interests ?? [],

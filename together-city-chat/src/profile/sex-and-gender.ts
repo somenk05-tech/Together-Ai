@@ -85,6 +85,43 @@ export function displayGender(p: {
   return { male: 'Male', female: 'Female', nonbinary: 'Non-binary', other: 'Other' }[legacy] ?? legacy;
 }
 
+/** The three values a dating profile stores. Deliberately its own list: the
+ *  Dating Hub predates the split and its column is lowercase `nonbinary`. */
+export const DATING_GENDER = ['male', 'female', 'nonbinary'] as const;
+export type DatingGender = (typeof DATING_GENDER)[number];
+
+/**
+ * The citizen's gender in the vocabulary a dating profile speaks.
+ *
+ * This exists because the split shipped the two new columns and left this
+ * boundary unguarded. `propagationPlan` sent `genderIdentity` straight into
+ * `DatingProfile.gender`, so a citizen who chose Non-binary on the Master
+ * Profile page had `nonBinary` written into a column whose only readers compare
+ * it with `===` against `nonbinary`:
+ *
+ *     const iWant    = mine.seeking === 'any' || mine.seeking === cand.gender;
+ *     const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
+ *
+ * Six sites, all exact-match. One capital letter took them out of everyone
+ * else's results and took everyone else out of theirs, silently, with a profile
+ * that looked complete — and the Dating form's own select had no option that
+ * matched the stored value either, so the field opened blank next time.
+ *
+ * `other` returns undefined rather than being flattened into one of the three.
+ * A dating profile is shown to other people and matched on; putting somebody in
+ * a category they did not pick is not a rounding error. They choose on the form.
+ */
+export function datingGender(p: {
+  genderIdentity?: string | null;
+  /** The pre-split column. Read only when the above is empty. */
+  gender?: string | null;
+}): DatingGender | undefined {
+  const raw = p.genderIdentity ?? p.gender;
+  if (raw === 'male' || raw === 'female') return raw;
+  if (raw === 'nonBinary' || raw === 'nonbinary') return 'nonbinary';
+  return undefined;
+}
+
 /**
  * Why we ask, in the citizen's words. FE-3.1 requires this to sit next to the
  * fields; keeping the copy beside the rules stops the two drifting apart.

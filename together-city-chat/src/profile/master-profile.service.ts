@@ -1,5 +1,5 @@
 import { Injectable, Logger, ConflictException } from '@nestjs/common';
-import { clinicalSex } from './sex-and-gender';
+import { clinicalSex, datingGender } from './sex-and-gender';
 import { diffProfile, versionConflict } from './profile-change';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -88,7 +88,12 @@ export function propagationPlan(shared: SharedFields): {
   // where a formula needs a coefficient it does not have — but the citizen can
   // now answer the clinical question separately and stop being refused.
   const sexBinary = clinicalSex(shared);
-  const social = shared.genderIdentity ?? shared.gender ?? undefined;
+  // Dating stores 'nonbinary'; the identity vocabulary says 'nonBinary'. This
+  // line used to hand the raw identity over, and the six `seeking === gender`
+  // comparisons in dating.service.ts are exact — one capital letter removed a
+  // non-binary citizen from everybody's results and everybody from theirs.
+  // datingGender() is the only crossing point between the two vocabularies.
+  const social = datingGender(shared);
   const age = shared.dateOfBirth !== undefined ? computeAge(shared.dateOfBirth) ?? undefined : undefined;
   const birthPlace = [shared.birthCity, shared.birthState, shared.birthCountry].filter(Boolean).join(', ') || undefined;
   return {

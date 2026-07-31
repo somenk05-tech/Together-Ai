@@ -183,16 +183,38 @@ function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
 }
 
 /** One titled group of match cards — curated, recommended, or a discovery pool. */
-/** A compatibility score's category (band + friendly name). */
+/** A compatibility score's category (band + friendly name).
+ *
+ *  These are the categories the pool is counted in and the list is grouped by,
+ *  so there has to be one for every score a card can carry. The 0–20 row is new:
+ *  §15.2 removed the floor that used to drop those people before they reached
+ *  the page, and a card with no category would have fallen through to a nameless
+ *  "Match" while the histogram counted it somewhere the list did not. */
 const BAND_NAMES: [number, number, string][] = [
   [90, 100, 'Excellent match'], [80, 90, 'Great match'], [70, 80, 'Strong match'], [60, 70, 'Good match'],
   [50, 60, 'Fair match'], [40, 50, 'Modest match'], [30, 40, 'Low match'], [20, 30, 'Faint match'],
+  [0, 20, 'Little in common'],
 ];
 function bandFor(score: number): { label: string; name: string } {
   for (const [lo, hi, name] of BAND_NAMES) {
     if (score >= lo && (score < hi || (hi === 100 && score <= 100))) return { label: `${lo}–${hi}%`, name };
   }
   return { label: `${score}%`, name: 'Match' };
+}
+
+/** The candidates grouped into those categories, best first, empty ones dropped.
+ *  One pass over BAND_NAMES so the group headers, the counts in them and the
+ *  histogram can never disagree about which category somebody is in. */
+function byCategory(matches: CuratedMatch[]): { name: string; label: string; matches: CuratedMatch[] }[] {
+  return BAND_NAMES
+    .map(([lo, hi, name]) => ({
+      name,
+      label: `${lo}–${hi}%`,
+      matches: matches
+        .filter((m) => m.score >= lo && (m.score < hi || (hi === 100 && m.score <= 100)))
+        .sort((a, b) => b.score - a.score),
+    }))
+    .filter((g) => g.matches.length > 0);
 }
 
 /** Compatibility-band histogram — only rendered once there are real people, and
@@ -211,9 +233,16 @@ function Distribution({ bands, total, highlightScore }: { bands: CompatibilityBa
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
         {rows.map((b) => {
           const isTop = highlightScore != null && highlightScore >= b.min && highlightScore < (b.max === 100 ? 101 : b.max);
+          // The category's name, not just its numbers — "12 Great match" is a
+          // thing somebody can act on; "12 in 80–90" is a thing they have to
+          // decode. Same lookup the list groups by, so the two always agree.
+          const name = bandFor(b.min).name;
           return (
             <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 52, fontSize: 12, fontWeight: isTop ? 800 : 600, color: isTop ? 'var(--accent)' : 'var(--ink-soft)', flex: 'none' }}>{b.label}%</span>
+              <span style={{ width: 116, fontSize: 12, fontWeight: isTop ? 800 : 600, color: isTop ? 'var(--accent)' : 'var(--ink-soft)', flex: 'none' }}>
+                {name}
+                <span className="muted" style={{ display: 'block', fontSize: 10.5, fontWeight: 600 }}>{b.label}%</span>
+              </span>
               <div style={{ flex: 1, height: 16, borderRadius: 999, background: 'var(--paper)', overflow: 'hidden', outline: isTop ? '1.5px solid var(--accent)' : 'none' }}>
                 <div style={{ height: '100%', width: `${Math.max(6, (b.count / max) * 100)}%`, background: 'var(--accent)', opacity: 0.4 + 0.55 * (b.min / 100), borderRadius: 999 }} />
               </div>
@@ -223,7 +252,11 @@ function Distribution({ bands, total, highlightScore }: { bands: CompatibilityBa
         })}
       </div>
       <p className="muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.5 }}>
-        Intentional dating — you meet your single strongest match first. Each person belongs to a compatibility category; as more residents join, an even stronger match rises to the top.
+        {/* This used to say "you meet your single strongest match first", which
+            stopped being true the moment the page started showing everybody.  */}
+        Everyone here fits what you asked for. They are listed strongest first and grouped by
+        category, so you can start at the top or go looking — the percentage is our reading of
+        the two of you, and the choice is yours.
       </p>
     </div>
   );
@@ -277,6 +310,10 @@ export function DatingMatches() {
   const activeChat = chats.data?.[0] ?? null;
   const top = stack.data?.top ?? null;
   const matched = stack.data?.matched ?? [];
+  // Everyone below the top card. The page used to render `top` and nothing
+  // else — the whole ranked list was computed server-side and then thrown away
+  // at `cards[0]`. Compatibility is our opinion; who to talk to is theirs.
+  const rest = (stack.data?.candidates ?? []).filter((c) => c.user.id !== top?.user.id);
 
   return (
     <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
@@ -332,6 +369,41 @@ export function DatingMatches() {
           {/* Division / breakdown below the card — only once there are real people */}
           {stack.data && stack.data.totalCandidates > 0 && (
             <Distribution bands={stack.data.distribution} total={stack.data.totalCandidates} highlightScore={top.score} />
+          )}
+
+          {/* Everyone else, grouped by the same categories the pool is counted
+              in, each group best-first, each card carrying its own percentage. */}
+          {rest.length > 0 && (
+            <section style={{ marginTop: 26 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '0 0 6px', flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: 18, margin: 0 }}>Everyone else</h2>
+                <span className="muted" style={{ fontSize: 12 }}>
+                  {rest.length} more {rest.length === 1 ? 'person' : 'people'}
+                </span>
+              </div>
+              <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '0 0 18px' }}>
+                Every resident who fits what you asked for, strongest first, grouped by
+                compatibility. The percentage is our reading of the two of you — a starting
+                point, not a verdict — and who you reach out to is your call.
+              </p>
+              {byCategory(rest).map((group) => (
+                <section key={group.label} style={{ marginBottom: 22 }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
+                    margin: '0 0 10px', paddingBottom: 6, borderBottom: '1px solid var(--line)',
+                  }}>
+                    <h3 style={{ fontSize: 15, margin: 0 }}>{group.name}</h3>
+                    <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: 999, padding: '3px 10px' }}>
+                      {group.label}
+                    </span>
+                    <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>
+                      {group.matches.length} {group.matches.length === 1 ? 'person' : 'people'}
+                    </span>
+                  </div>
+                  {group.matches.map((m) => <MatchCard key={m.user.id} match={m} kind={kind} />)}
+                </section>
+              ))}
+            </section>
           )}
         </>
       ) : (
