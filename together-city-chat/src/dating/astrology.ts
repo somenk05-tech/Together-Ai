@@ -21,12 +21,37 @@ const SIGNS: { name: string; element: Element; from: [number, number] }[] = [
   { name: 'Sagittarius', element: 'fire', from: [11, 22] },
 ];
 
+/** Capricorn is the sign that wraps the year end — 22 December to 19 January. */
+const CAPRICORN = SIGNS[0];
+
+/**
+ * The same boundaries, in the order the calendar reaches them.
+ *
+ * `SIGNS` is written Capricorn-first because Capricorn opens the zodiac, but its
+ * boundary (12, 22) is the LAST one of the year. The previous version walked
+ * `SIGNS` in that order taking any sign whose boundary was not after the
+ * birthday, with no break — so for a December date, Sagittarius (11, 22) at the
+ * end of the array satisfied `m > 11` and overwrote the correct answer. Ten
+ * days, 22 to 31 December, came back Sagittarius.
+ *
+ * That is not a cosmetic mislabel. Capricorn is EARTH, Sagittarius is FIRE, the
+ * element is the whole of what `AFFINITY` scores, and astrology carries 50% of
+ * the match weight. Everyone born in the last ten days of December had every
+ * compatibility score computed from the wrong element — theirs, and everyone
+ * else's score for them. 1–19 January was right only by accident, by matching
+ * nothing and falling through to the initial value.
+ */
+const CALENDAR = [...SIGNS.slice(1), CAPRICORN];
+
 export function zodiacSign(birthDate: Date): { name: string; element: Element } {
   const m = birthDate.getUTCMonth() + 1;
   const d = birthDate.getUTCDate();
-  // Walk backwards through the year: last boundary that is <= (m, d).
-  let match = SIGNS[0];
-  for (const s of SIGNS) {
+  // The latest boundary the calendar has reached by this date. Capricorn is the
+  // answer at both ends of the year: explicitly from its own boundary on 22
+  // December, and by falling through for 1–19 January, which is before the
+  // year's first boundary. That wrap is the case the old walk could not express.
+  let match = CAPRICORN;
+  for (const s of CALENDAR) {
     const [sm, sd] = s.from;
     if (m > sm || (m === sm && d >= sd)) match = s;
   }
