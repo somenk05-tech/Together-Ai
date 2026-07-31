@@ -293,6 +293,71 @@ for (const m of hubs.matchAll(/\{\s*path:\s*'([^']+)'[^}]*?\bsub:\s*(?:'([^']*)'
   );
 }
 
+// ── 6. every declared route has a way in ─────────────────────────────────
+//
+// Check 3 asks whether every LINK resolves to a route. This asks the opposite,
+// and it is the half that was missing: whether every route has a link.
+//
+// It found /medical/medicines — prescription review, dose confirmation, reminder
+// scheduling and the allergy notice — listed in no menu and linked from nowhere,
+// reachable only by typing the URL or by following a reminder notification that
+// could not exist until somebody had already been there. Also /thoughts (the
+// journal), /beauty/routine (the thing the skin & hair profile is FOR), and
+// /nutrition/cart (checkout for the individual grocery flow).
+//
+// A route with nothing pointing at it is not dead code — it is worse. Dead code
+// is at least visibly unused. This is a finished feature, maintained, tested and
+// shipped, that no citizen can find.
+//
+// A REFERENCE IS MORE THAN A <Link>. deepLink: is in the list because
+// ComposedMealCard builds `/nutrition/shared-meal?d=...` and sends it through
+// chat — a route reachable only from a message somebody else received. Reading
+// that shape as "unlinked" would have deleted every shared meal link already
+// sent. Endpoint strings in api.ts are deliberately NOT read as references:
+// `api.get('/beauty/routine')` is the server's path, not a way in.
+const NAV_REF = /(?:to=|navigate\(|path:\s*|href:\s*|deepLink:\s*)["'`](\/[A-Za-z0-9/_-]*)/g;
+
+/** Routes with no way in, on purpose. Each needs a reason, not just a line. */
+const UNREACHABLE_ON_PURPOSE = new Map([
+  ['/profile/master', 'linked by the API — target-readiness.ts hands this href to the client in profile-completion nextUp, so no client-side link exists to find'],
+  ['/dating/admin', 'operator page, deliberately absent from every menu'],
+  ['/realestate/admin', 'operator page, deliberately absent from every menu'],
+  ['/dating/match', 'UNRESOLVED. The singular sibling of /dating/chat, which was removed for serving a hardcoded conversation. Nothing opens this one either. Decide: delete it, or link it from a match card.'],
+]);
+
+const referenced = new Set();
+for (const [full, text] of source) {
+  if (full.endsWith('app/router.tsx')) continue;
+  for (const m of text.matchAll(NAV_REF)) referenced.add(m[1].replace(/\/$/, ''));
+}
+
+const redirectOnly = new Set();
+for (const m of router.matchAll(/\{\s*path:\s*'([^']+)'\s*,\s*element:\s*<Navigate/g)) redirectOnly.add(m[1]);
+// REMOVED_ROUTES are declared by a spread and are redirects by construction.
+for (const m of labels.matchAll(/^\s*'(\/[^']+)':/gm)) redirectOnly.add(m[1]);
+
+for (const route of declared) {
+  if (!route.startsWith('/') || route === '/' || route.includes(':') || route.includes('*')) continue;
+  if (redirectOnly.has(route) || referenced.has(route)) continue;
+  if (UNREACHABLE_ON_PURPOSE.has(route)) continue;
+  problems.push(
+    `app/router.tsx  "${route}" is declared but nothing links to it — no menu entry, `
+    + 'no <Link>, no navigate(), no deepLink. A citizen can only reach it by typing '
+    + 'the URL. Add it to a hub menu, or delete the route, or add it to '
+    + 'UNREACHABLE_ON_PURPOSE with the reason.',
+  );
+}
+
+// A stale allowance is a hole waiting for the next regression.
+for (const [route] of UNREACHABLE_ON_PURPOSE) {
+  if (referenced.has(route)) {
+    problems.push(
+      `scripts/nav-audit.mjs  "${route}" is listed as deliberately unreachable but `
+      + 'something links to it now — remove it from UNREACHABLE_ON_PURPOSE.',
+    );
+  }
+}
+
 if (problems.length) {
   console.error(`nav-audit: ${problems.length} problem(s)\n`);
   for (const p of problems) console.error('  ' + p);

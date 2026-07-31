@@ -102,7 +102,6 @@ const Medicines = lazy(() => import('@/features/medicines/pages/Medicines').then
 const DatingAdminStats = lazy(() => import('@/features/dating/pages/DatingAdminStats').then((m) => ({ default: m.DatingAdminStats })));
 const DatingMatchDetail = lazy(() => import('@/features/dating/pages/DatingMatchDetail').then((m) => ({ default: m.DatingMatchDetail })));
 // Nutrition sub-pages
-const NutOnboarding = lazy(() => import('@/features/nutrition/pages/Onboarding').then((m) => ({ default: m.Onboarding })));
 const NutCart = lazy(() => import('@/features/nutrition/pages/Cart').then((m) => ({ default: m.Cart })));
 const NutCheckout = lazy(() => import('@/features/nutrition/pages/Checkout').then((m) => ({ default: m.Checkout })));
 const NutConfirm = lazy(() => import('@/features/nutrition/pages/Confirm').then((m) => ({ default: m.Confirm })));
@@ -196,7 +195,6 @@ export const router = createBrowserRouter([
     element: <HubLayout hub={HUBS.nutrition} />,
     children: [
       { path: '/nutrition/weekly', element: <RequireAuth>{wrap(<MealPlan />)}</RequireAuth> },
-      { path: '/nutrition/plan', element: <RequireAuth>{wrap(<MealPlan />)}</RequireAuth> },
       { path: '/nutrition/weekly-classic', element: <Navigate to="/nutrition/weekly" replace /> },
       { path: '/nutrition/blood', element: <RequireAuth>{wrap(<Blood />)}</RequireAuth> },
       { path: '/nutrition/preferences', element: <RequireAuth>{wrap(<Preferences />)}</RequireAuth> },
@@ -205,10 +203,8 @@ export const router = createBrowserRouter([
       // Before :id, or "own" is read as a recipe id.
       { path: '/nutrition/recipes/own', element: <RequireAuth>{wrap(<MyRecipes />)}</RequireAuth> },
       { path: '/nutrition/recipes-classic', element: <Navigate to="/nutrition/recipes" replace /> },
-      { path: '/nutrition/library', element: <RequireAuth>{wrap(<RecipeLibrary />)}</RequireAuth> },
       { path: '/nutrition/recipes/:id', element: wrap(<RecipeDetail />) },
       { path: '/nutrition/shared-meal', element: wrap(<SharedMeal />) },
-      { path: '/nutrition/onboarding', element: wrap(<NutOnboarding />) },
       { path: '/nutrition/cart', element: <RequireAuth>{wrap(<NutCart />)}</RequireAuth> },
       { path: '/nutrition/checkout', element: <RequireAuth>{wrap(<NutCheckout />)}</RequireAuth> },
       { path: '/nutrition/confirm', element: <RequireAuth>{wrap(<NutConfirm />)}</RequireAuth> },
@@ -232,7 +228,6 @@ export const router = createBrowserRouter([
     children: [
       { path: '/dating/profile', element: <RequireAuth>{wrap(<DatingProfilePage />)}</RequireAuth> },
       { path: '/dating/matches', element: <RequireAuth>{wrap(<DatingMatches />)}</RequireAuth> },
-      { path: '/dating/friends', element: <RequireAuth>{wrap(<DatingMatches />)}</RequireAuth> },
       { path: '/dating/activity', element: <RequireAuth>{wrap(<DatingActivity />)}</RequireAuth> },
       { path: '/dating/chats', element: <RequireAuth>{wrap(<DatingChats />)}</RequireAuth> },
       { path: '/thoughts', element: <RequireAuth>{wrap(<Thoughts />)}</RequireAuth> },

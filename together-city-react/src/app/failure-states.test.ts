@@ -50,7 +50,6 @@ const KNOWN_MISSING = [
   'features/family/pages/Connect.tsx',
   'features/mail/DrivePicker.tsx',
   'features/nutrition/components/QuickCommerce.tsx',
-  'features/nutrition/pages/Onboarding.tsx',
   'features/nutrition/pages/Preferences.tsx',
   'features/restaurants/pages/Decide.tsx',
   'features/restaurants/pages/Explore.tsx',

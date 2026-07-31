@@ -77,6 +77,9 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/nutrition/grocery', index: '04', label: LABELS.groceryLists, sub: 'Built from your plan' },
       { path: '/nutrition/recipes', index: '05', label: LABELS.createYourOwnMealPlan, sub: 'Search, add, build your list' },
       { path: '/nutrition/recipes/own', index: '06', label: 'Your Own Recipes', sub: 'Dishes you cook, in your plan' },
+      // The Family hub has always listed its Cart. This one did not, so the
+      // individual grocery flow had no visible way to check out.
+      { path: '/nutrition/cart', index: '07', label: 'Cart', sub: 'Review & checkout' },
     ],
   },
   family: {
@@ -100,6 +103,8 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/social/create', index: '02', label: 'Create Post', sub: 'Share a photo, video or plan' },
       { path: '/social/profile', index: '03', label: 'My Profile', sub: 'Story, stats & Post & Earn' },
       { path: '/social/saved', index: '04', label: 'Saved', sub: 'Bookmarked posts & places' },
+      // The journal. Built, tested, and listed nowhere.
+      { path: '/thoughts', index: '05', label: 'Thoughts', sub: 'Your private journal' },
     ],
   },
   dating: {
@@ -124,9 +129,13 @@ export const HUBS: Record<HubKey, HubConfig> = {
     key: 'beauty', name: 'Beauty Market', tag: 'Science-led, personally curated', backPath: '/beauty',
     items: [
       { path: '/beauty/profile', index: '01', label: 'Skin & Hair Profile', sub: 'Photos, AI assessment & goals' },
-      { path: '/beauty/market', index: '02', label: 'Beauty Market', sub: 'Curated, matched to you' },
-      { path: '/beauty/makeup', index: '03', label: 'Makeup Studio', sub: 'Your personal AI makeup artist' },
-      { path: '/beauty/orders', index: '04', label: 'My Orders', sub: 'Your beauty shelf' },
+      // Directly after the profile, because it is what the profile is FOR — the
+      // engine builds a routine from those answers and then nothing offered to
+      // show it to anybody.
+      { path: '/beauty/routine', index: '02', label: 'Your Routine', sub: 'Built from your profile, in order' },
+      { path: '/beauty/market', index: '03', label: 'Beauty Market', sub: 'Curated, matched to you' },
+      { path: '/beauty/makeup', index: '04', label: 'Makeup Studio', sub: 'Your personal AI makeup artist' },
+      { path: '/beauty/orders', index: '05', label: 'My Orders', sub: 'Your beauty shelf' },
     ],
   },
   medical: {
@@ -139,6 +148,11 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/medical/timeline', index: '05', label: 'Health Timeline', sub: 'Longitudinal history' },
       { path: '/medical/family', index: '06', label: 'Family Profiles', sub: 'Household health at a glance' },
       { path: '/medical/consent', index: '07', label: 'Privacy & Consent', sub: 'Consent controls' },
+      // Prescriptions, dose reminders and the allergies you have recorded. This
+      // menu has never listed it: the page was reachable only by typing the URL,
+      // or by following a reminder notification you could not receive without
+      // having been there first.
+      { path: '/medical/medicines', index: '08', label: 'Medicines & Reminders', sub: 'Prescriptions, doses & your allergies' },
     ],
   },
   realestate: {
