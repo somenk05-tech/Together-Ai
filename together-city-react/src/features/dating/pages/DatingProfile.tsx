@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, type FormEvent } from 'react';
 import { useFormValidation, ValidationSummary, FieldError, successToast } from '@/components/form-validation';
-import { Button, Spinner } from '@/components/ui';
+import { Button, EmptyState, Spinner } from '@/components/ui';
 import { SearchSelect } from '@/components/SearchSelect';
 import { MultiSelect } from '@/components/MultiSelect';
 import type { LookupOption } from '@/api/lookups.api';
@@ -355,6 +355,33 @@ export function DatingProfilePage() {
   ]);
 
   if (existing.isLoading) return <Spinner label="Loading your profile…" />;
+
+  /**
+   * NOT AN EMPTY FORM. The form state is seeded by a useEffect that begins
+   * `if (!d) return;`, so a failed read left every field at its initial blank
+   * value — and the submit button, which reads "Create profile" when nothing is
+   * saved, invited the citizen to fill it in.
+   *
+   * Which they reasonably would: a blank profile form is a clear instruction.
+   * And `upsert.mutate` does not merge. Their bio, their interests, their
+   * photos, replaced by whatever they retyped in the ten minutes after the app
+   * told them there was nothing there.
+   *
+   * That is the only failure state found in this sweep that DESTROYS something
+   * rather than misreporting it, and it is why a page whose form is prefilled
+   * from a read must refuse to render that form when the read failed.
+   */
+  if (existing.isError) {
+    return (
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 16px' }}>
+        <EmptyState
+          icon="⚠️"
+          title="We couldn’t load your dating profile"
+          hint="Nothing has been lost. We’re not showing you the form, because an empty one would look like a profile you never made — and saving it would replace the one you have. Try again in a moment."
+        />
+      </div>
+    );
+  }
 
   const setD = (patch: Partial<DX>) => setDx((prev) => ({ ...prev, ...patch }));
   const num = (v: string) => (v ? parseInt(v, 10) : null);

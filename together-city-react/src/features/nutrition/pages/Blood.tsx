@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Spinner } from '@/components/ui';
+import { Button, Spinner } from '@/components/ui';
 import { useConsents, useSetConsent, useLatestPanel } from '@/features/medical/api';
 
 /** Connect with Blood Test — a single consent toggle that mirrors the Medical Hub
@@ -14,6 +14,27 @@ export function Blood() {
 
   const nutrition = consents.data?.find((c) => c.hub === 'nutrition');
   const on = !!nutrition?.granted;
+  /**
+   * A SWITCH THAT CANNOT BE READ MUST NOT BE DRAWN.
+   *
+   * `on` is `!!consents.data?.find(…)?.granted`, so a failed read made it false
+   * and this page rendered the switch OFF — grey, with `aria-checked={false}`
+   * announced to a screen reader, under the sentence "Turn on to design recipes
+   * and plans around your biology."
+   *
+   * That is not an empty state getting a fact wrong. It is a PRIVACY CONTROL
+   * reporting the opposite of what may be true. The citizen it fails is the one
+   * who came here on purpose to check, or to revoke: they are told the
+   * connection to their blood panel is already off, so they close the page, and
+   * it is still on.
+   *
+   * There is no honest way to render a two-position switch for a state we do not
+   * know. Rendering it disabled would still show a position; `aria-checked` has
+   * no value that means "we couldn't check" for role="switch". So the switch is
+   * not drawn at all, and the card says what happened and where the same setting
+   * can be read from its source.
+   */
+  const consentUnknown = consents.isError || !consents.data;
   const hasPanel = (latest.data?.markers?.length ?? 0) > 0;
   const toggle = () => setConsent.mutate({ hub: 'nutrition', granted: !on });
 
@@ -34,6 +55,23 @@ export function Blood() {
 
       {/* The one toggle */}
       <div className="card" style={{ marginTop: 14 }}>
+        {consentUnknown ? (
+          <>
+            <strong style={{ fontSize: 15.5 }}>Connect to Medical Hub</strong>
+            <p className="muted" style={{ fontSize: 13, margin: '6px 0 0', lineHeight: 1.6 }}>
+              We couldn’t check whether this connection is on, so we’re not showing you a switch —
+              one that guessed would be worse than none. Nothing has changed either way.
+            </p>
+            <p className="muted" style={{ fontSize: 12.5, margin: '10px 0 0', lineHeight: 1.6 }}>
+              If you came here to turn it off, you can read and change the same setting in{' '}
+              <Link to="/medical/consent" style={{ color: 'var(--accent)', fontWeight: 600 }}>Medical Hub · Privacy &amp; Consent</Link>.
+            </p>
+            <div style={{ marginTop: 12 }}>
+              <Button variant="line" onClick={() => void consents.refetch()}>Try again</Button>
+            </div>
+          </>
+        ) : (
+          <>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <strong style={{ fontSize: 15.5 }}>Connect to Medical Hub</strong>
@@ -68,6 +106,8 @@ export function Blood() {
             Turn on to design recipes and plans around your biology. You can switch this off anytime — here or in{' '}
             <Link to="/medical/consent" style={{ color: 'var(--accent)', fontWeight: 600 }}>Medical Hub · Privacy &amp; Consent</Link>.
           </p>
+        )}
+          </>
         )}
       </div>
     </div>
