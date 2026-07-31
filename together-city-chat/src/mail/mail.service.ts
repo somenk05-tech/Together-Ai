@@ -357,13 +357,34 @@ export class MailService {
       fromAddr: sender.address, fromName: me.name, toAddr, toName: recipient.name,
       subject, body: dto.body, snippet: snippetOf(dto.body), sizeBytes: size, system: false, threadId,
     };
-    // sender's Sent copy
-    await this.prisma.mailMessage.create({ data: { ...base, ownerId: userId, boxUserId: userId, folder: 'sent', read: true } });
-    // recipient's Inbox copy (only if it's a different mailbox)
+    // BOTH COPIES OR NEITHER.
+    //
+    // sendExternal below carries a long note about why the Sent copy is written
+    // only after the provider accepts: a failed send that still files a Sent
+    // copy leaves the sender looking at an error AND a copy saying it had gone.
+    // The internal path had the same shape and nobody had said so. It wrote the
+    // sender's Sent row, then the recipient's Inbox row, as two separate
+    // statements — so if the second one failed, the sender kept a Sent copy of
+    // a message that had reached nobody, and there is no provider error on this
+    // path to contradict it. Silently, and permanently.
+    //
+    // For internal mail, Sent means it is in their mailbox. The array form of
+    // $transaction is the whole fix: two writes, no read between them, so there
+    // is no decision here to serialise — only atomicity, which is what was
+    // missing.
     if (recipient.id !== userId) {
+      // Outside the transaction on purpose: creating a mailbox is idempotent and
+      // harmless on its own, and it is not part of the claim being made.
       await this.prisma.mailAccount.findUnique({ where: { userId: recipient.id } }).then((a) => a ?? this.ensureAccount(recipient.id));
-      await this.prisma.mailMessage.create({ data: { ...base, ownerId: recipient.id, boxUserId: recipient.id, folder: 'inbox', read: false } });
     }
+    await this.prisma.$transaction([
+      // sender's Sent copy
+      this.prisma.mailMessage.create({ data: { ...base, ownerId: userId, boxUserId: userId, folder: 'sent', read: true } }),
+      // recipient's Inbox copy (only if it's a different mailbox)
+      ...(recipient.id !== userId
+        ? [this.prisma.mailMessage.create({ data: { ...base, ownerId: recipient.id, boxUserId: recipient.id, folder: 'inbox', read: false } })]
+        : []),
+    ]);
     await this.linkAttachments(userId, threadId, dto.attachmentFileIds);
     return this.list(userId, { folder: 'sent' });
   }
