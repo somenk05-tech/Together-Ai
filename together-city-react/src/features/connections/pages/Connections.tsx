@@ -5,7 +5,7 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useConnections, useRespondConnection, chatApi } from '@/api';
 import type { Connection } from '@/api/schemas';
 import { MemberFinder } from '../components/MemberFinder';
-import { useRemoveConnection, useUpdateModules } from '@/api/connections.api';
+import { useHubs, useRemoveConnection, useUpdateModules } from '@/api/connections.api';
 import { DEFAULT_MODULES, RELATIONSHIPS, allowedModules, optionalOf } from '../modules';
 import { ModuleChips, ModuleToggles } from '../components/ModuleToggles';
 
@@ -27,7 +27,9 @@ function Row({ c, actions, subtitle, children, collapsible, expanded, onToggle }
   /** When set, the connected-hubs are collapsed by default and toggled by `onToggle`. */
   collapsible?: boolean; expanded?: boolean; onToggle?: () => void;
 }) {
-  const hubCount = optionalOf(c.modules ?? DEFAULT_MODULES).length;
+  // The hub list comes from the server's registry, not from a copy kept here.
+  const { data: hubs } = useHubs();
+  const hubCount = optionalOf(hubs, c.modules ?? DEFAULT_MODULES).length;
   return (
     <div style={{ padding: '12px 0', borderTop: '1px solid var(--line)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -62,6 +64,7 @@ const relLabel = (r?: string | null) => RELATIONSHIPS.find((x) => x.key === r)?.
  *  The ONE record every hub queries updates everywhere immediately. */
 function ManagePanel({ c, onDone }: { c: Connection; onDone: () => void }) {
   const update = useUpdateModules();
+  const { data: hubs } = useHubs();
   const [rel, setRel] = useState<string>(c.relationship ?? 'friend');
   const [selected, setSelected] = useState<string[]>((c.modules ?? DEFAULT_MODULES));
   return (
@@ -69,7 +72,7 @@ function ManagePanel({ c, onDone }: { c: Connection; onDone: () => void }) {
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
         {RELATIONSHIPS.map((r) => (
           <button key={r.key} type="button"
-            onClick={() => { setRel(r.key); setSelected((m) => m.filter((k) => allowedModules(r.key).includes(k))); }}
+            onClick={() => { setRel(r.key); setSelected((m) => m.filter((k) => allowedModules(hubs, r.key).includes(k))); }}
             style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 14px',
               borderRadius: 9, border: `1.5px solid ${rel === r.key ? 'var(--accent)' : 'var(--line)'}`,
               background: rel === r.key ? 'var(--accent-soft)' : 'var(--card)', color: 'var(--ink)' }}>
@@ -77,7 +80,7 @@ function ManagePanel({ c, onDone }: { c: Connection; onDone: () => void }) {
           </button>
         ))}
       </div>
-      <ModuleToggles relationship={rel} selected={selected.filter((k) => allowedModules(rel).includes(k))} onChange={setSelected} />
+      <ModuleToggles relationship={rel} selected={selected.filter((k) => allowedModules(hubs, rel).includes(k))} onChange={setSelected} />
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
         <Button size="sm" variant="accent" disabled={update.isPending}
           onClick={() => update.mutate({ id: c.id, modules: selected, relationship: rel }, { onSuccess: onDone })}>

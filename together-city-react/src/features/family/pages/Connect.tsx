@@ -356,7 +356,6 @@ export function FamilyConnect() {
           moduleKey="nutrition"
           title="Add to Nutrition Family Hub"
           blurb="Add someone you cook for by their exact @handle."
-          familyOnly
           onClose={() => setInviting(false)}
         />
       )}

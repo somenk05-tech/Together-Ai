@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
 import { usersApi, useConnections, type LookupResult } from '@/api';
-import { useRequestConnection, useRespondConnection } from '@/api/connections.api';
+import { useHubs, useRequestConnection, useRespondConnection } from '@/api/connections.api';
 import { RELATIONSHIPS, moduleDef } from '../modules';
 
 /**
@@ -12,17 +12,18 @@ import { RELATIONSHIPS, moduleDef } from '../modules';
  * request in People; accepting connects the hub automatically (two-way sync keeps
  * the People permissions and the hub membership in lock-step).
  *
- * `moduleKey`   — the hub this dialog connects (e.g. 'nutrition').
- * `familyOnly`  — Nutrition / Medical / Financial are Family-only, so the
- *                 relationship is locked to Family; everyone else may pick.
+ * `moduleKey` — the hub this dialog connects (e.g. 'nutrition').
+ *
+ * Whether that hub is family-only is NOT a prop any more. It was, and each call
+ * site passed its own answer — a second copy of a rule the server already owns
+ * and now enforces (`connections/hub-grants.ts`). It is read from the registry.
  */
 export function AddHubMemberDialog({
-  moduleKey, title, blurb, familyOnly = false, onClose,
+  moduleKey, title, blurb, onClose,
 }: {
   moduleKey: string;
   title: string;
   blurb?: string;
-  familyOnly?: boolean;
   onClose: () => void;
 }) {
   const navigate = useNavigate();
@@ -30,13 +31,18 @@ export function AddHubMemberDialog({
   const requestConn = useRequestConnection();
   const respondConn = useRespondConnection();
 
-  const def = moduleDef(moduleKey);
+  const { data: hubs } = useHubs();
+  const def = moduleDef(hubs, moduleKey);
+  // Until the registry answers we do not claim a hub is family-only or that it
+  // isn't. Locking the relationship on a guess is how the wrong request gets
+  // sent; the server refuses it either way and says why.
+  const familyOnly = hubs?.find((h) => h.slug === moduleKey)?.familyOnly ?? false;
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [searched, setSearched] = useState(false);
   const [result, setResult] = useState<LookupResult>(null);
   const [error, setError] = useState<string | null>(null);
-  const [relationship, setRelationship] = useState<'family' | 'friend'>(familyOnly ? 'family' : 'friend');
+  const [relationship, setRelationship] = useState<'family' | 'friend'>('friend');
   const [done, setDone] = useState(false);
 
   const search = async (e: FormEvent) => {
@@ -58,7 +64,10 @@ export function AddHubMemberDialog({
       await requestConn.mutateAsync({ handle: result.handle, relationship: rel, modules });
       setDone(true);
       setResult({ ...result, relationship: 'pending_out' });
-    } catch { setError('Could not send the request — try again.'); }
+    } catch (e) {
+      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Could not send the request — try again.');
+    }
   };
 
   const accept = async () => {

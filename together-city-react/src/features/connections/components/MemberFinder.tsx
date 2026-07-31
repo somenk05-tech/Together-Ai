@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, Button, Spinner } from '@/components/ui';
 import { usersApi, chatApi, useConnections, type LookupResult } from '@/api';
-import { useRequestConnection, useRespondConnection } from '@/api/connections.api';
+import { useHubs, useRequestConnection, useRespondConnection } from '@/api/connections.api';
 import { DEFAULT_MODULES, RELATIONSHIPS, allowedModules } from '../modules';
 import { ModuleToggles } from './ModuleToggles';
 
@@ -18,6 +18,8 @@ export function MemberFinder() {
   const connections = useConnections();
   const requestConn = useRequestConnection();
   const respondConn = useRespondConnection();
+  // Which hubs exist, and which this relationship may hold, is the server's answer.
+  const { data: hubs } = useHubs();
 
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
@@ -44,11 +46,16 @@ export function MemberFinder() {
   const connect = async () => {
     if (!result) return;
     try {
-      const scoped = modules.filter((m) => allowedModules(relationship).includes(m));
+      const scoped = modules.filter((m) => allowedModules(hubs, relationship).includes(m));
       await requestConn.mutateAsync({ handle: result.handle, relationship, modules: scoped.length ? scoped : DEFAULT_MODULES });
       setConnecting(false);
       setResult({ ...result, relationship: 'pending_out' });
-    } catch { setError('Could not send the request — try again.'); }
+    } catch (e) {
+      // Surface what the server said. It refuses a family-only hub on a
+      // connection that isn't family, and the reason is the useful part.
+      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Could not send the request — try again.');
+    }
   };
 
   const accept = async () => {
@@ -140,7 +147,7 @@ export function MemberFinder() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             {RELATIONSHIPS.map((r) => (
               <button key={r.key} type="button"
-                onClick={() => { setRelationship(r.key); setModules((m) => m.filter((k) => allowedModules(r.key).includes(k))); }}
+                onClick={() => { setRelationship(r.key); setModules((m) => m.filter((k) => allowedModules(hubs, r.key).includes(k))); }}
                 style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '8px 16px',
                   borderRadius: 10, border: `1.5px solid ${relationship === r.key ? 'var(--accent)' : 'var(--line)'}`,
                   background: relationship === r.key ? 'var(--accent-soft)' : 'var(--card)', color: 'var(--ink)' }}>
