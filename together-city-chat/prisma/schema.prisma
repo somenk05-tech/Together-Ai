@@ -118,6 +118,7 @@ model User {
   deviceTokens         DeviceToken[]
 
   foodPref             FoodPref?
+  ownRecipes           Recipe[]             @relation("RecipeAuthor")
   mealPlans            MealPlan[]
   calorieEntries       CalorieEntry[]
   groceryCarts         GroceryCart[]
@@ -390,12 +391,25 @@ model Recipe {
   steps           String? // cached JSON array of cooking-method steps
   cookSteps       String? // cached JSON of structured cook steps [{text,durationSec,active}]
 
+  /// NULL = the vetted world corpus, visible to everyone. Set = one citizen's
+  /// own dish, visible only to them and only in their planning pool.
+  authorId        String?
+  /// 'computed' — worked out from the ingredient list by the same Atwater audit
+  /// the corpus gets. 'author' — typed by the citizen after seeing the computed
+  /// figures, and marked as theirs wherever the dish is shown.
+  nutritionSource String @default("computed")
+  /// 0–100: how much of the ingredient mass the nutrition table recognised.
+  /// Below 60 the numbers are an estimate and the app says so.
+  coveragePct     Int    @default(100)
+
   ingredients RecipeIngredient[]
   meals       Meal[]
+  author      User? @relation("RecipeAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([slot])
   @@index([diet])
   @@index([recipeNo])
+  @@index([authorId])
 }
 
 // A single logged food/drink item in the My Health Profile calorie tracker.
