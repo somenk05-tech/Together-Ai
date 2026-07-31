@@ -1,6 +1,26 @@
 import { http as api } from '@/api/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+/** An allergy the citizen filed under Medical → Records. Their words. */
+export interface RecordedAllergy {
+  id: string;
+  title: string;
+  detail: string | null;
+  recordedOn: string;
+}
+
+/**
+ * A NAME that appears both in a prescribed medicine and in something the
+ * citizen wrote down. Not a clinical finding, and the screen must not present
+ * it as one — the app does not know which drugs belong to which class.
+ */
+export interface AllergyMatch {
+  allergyId: string;
+  title: string;
+  matchedOn: string;
+  foundIn: 'title' | 'detail';
+}
+
 export interface PrescriptionItem {
   id: string;
   medicineName: string;
@@ -11,6 +31,7 @@ export interface PrescriptionItem {
   timesLocal: string[];
   confidence: Record<string, number>;
   needsReview: boolean;
+  allergyMatches: AllergyMatch[];
 }
 export interface Prescription {
   id: string;
@@ -20,6 +41,7 @@ export interface Prescription {
   confirmedAt: string | null;
   createdAt: string;
   needsReview: boolean;
+  recordedAllergies: RecordedAllergy[];
   items: PrescriptionItem[];
 }
 

@@ -1,3 +1,4 @@
+import { matchesFor, type RecordedAllergy } from './allergy-notice';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService } from '../shared/clock/clock.service';
@@ -117,22 +118,54 @@ export class PrescriptionsService {
   }
 
   async list(userId: string) {
-    const rows = await this.prisma.prescription.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-      include: { items: true },
-    });
-    return rows.map((p) => this.shape(p));
+    const [rows, allergies] = await Promise.all([
+      this.prisma.prescription.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+        include: { items: true },
+      }),
+      this.recordedAllergies(userId),
+    ]);
+    return rows.map((p) => this.shape(p, allergies));
   }
 
   async get(userId: string, id: string) {
-    const p = await this.prisma.prescription.findFirst({
-      where: { id, userId },
-      include: { items: true },
-    });
+    const [p, allergies] = await Promise.all([
+      this.prisma.prescription.findFirst({
+        where: { id, userId },
+        include: { items: true },
+      }),
+      this.recordedAllergies(userId),
+    ]);
     if (!p) throw new NotFoundException('No such prescription.');
-    return this.shape(p);
+    return this.shape(p, allergies);
+  }
+
+  /**
+   * The allergies this citizen filed under Medical → Records.
+   *
+   * Read straight from MedicalRecord rather than through the Medical Hub's
+   * consent gate, because that gate governs sharing sensitive data with ANOTHER
+   * hub's audience. Nothing is being shared here: these are the citizen's own
+   * records, shown back to the citizen, on their own prescription. Routing it
+   * through a consent prompt would ask them to authorise themselves.
+   *
+   * Failure is silent and empty on purpose — but note that an empty list is
+   * never rendered as reassurance. See allergy-notice.ts.
+   */
+  private async recordedAllergies(userId: string): Promise<RecordedAllergy[]> {
+    const rows = await this.prisma.medicalRecord.findMany({
+      where: { userId, kind: 'allergy' },
+      orderBy: { recordedOn: 'desc' },
+      take: 50,
+    }).catch(() => null);
+    return (rows ?? []).map((r) => ({
+      id: r.id,
+      title: r.title,
+      detail: r.detail ?? null,
+      recordedOn: r.recordedOn.toISOString(),
+    }));
   }
 
   private shape(p: {
@@ -143,7 +176,7 @@ export class PrescriptionsService {
       durationDays: number | null; instructions: string | null; timesLocal: string | null;
       confidence: string | null; needsReview: boolean;
     }>;
-  }) {
+  }, allergies: RecordedAllergy[] = []) {
     return {
       id: p.id,
       status: p.status,
@@ -152,6 +185,11 @@ export class PrescriptionsService {
       confirmedAt: p.confirmedAt ? p.confirmedAt.toISOString() : null,
       createdAt: p.createdAt.toISOString(),
       needsReview: p.items.some((i) => i.needsReview),
+      // Every allergy they recorded, sent whether or not anything matched. The
+      // screen shows them next to the medicines because the citizen filed them
+      // and nothing has ever looked at them since; matching is a bonus, not the
+      // feature. Absence of matches is never rendered as "no interactions".
+      recordedAllergies: allergies,
       items: p.items.map((i) => ({
         id: i.id,
         medicineName: i.medicineName,
@@ -162,6 +200,7 @@ export class PrescriptionsService {
         timesLocal: this.parseTimes(i.timesLocal),
         confidence: this.parseJson<Record<string, number>>(i.confidence) ?? {},
         needsReview: i.needsReview,
+        allergyMatches: matchesFor(i.medicineName, allergies),
       })),
     };
   }

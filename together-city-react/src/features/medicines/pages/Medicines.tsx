@@ -189,6 +189,14 @@ function PrescriptionCard({ p }: { p: Prescription }) {
                   {[i.dosage, i.frequency, i.timesLocal.join(', ')].filter(Boolean).join(' · ')}
                   {i.durationDays ? ` · ${i.durationDays} days` : ''}
                 </div>
+                {/* A name they wrote down, next to a name on their prescription.
+                    Deliberately not styled as an alarm: it is worth a look, and
+                    the app is not in a position to say more than that. */}
+                {i.allergyMatches.map((m) => (
+                  <div key={m.allergyId} style={{ fontSize: 12, lineHeight: 1.5, marginTop: 4, color: 'var(--accent)' }}>
+                    Matches an allergy you recorded — <strong>{m.title}</strong>. Worth checking before you confirm.
+                  </div>
+                ))}
               </div>
               {!confirmed && (
                 <Button size="sm" variant="line" disabled={removeItem.isPending}
@@ -197,6 +205,40 @@ function PrescriptionCard({ p }: { p: Prescription }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* ── Their own allergy records, put where the decision is ────────
+          Medical → Records has offered an "Allergies" category, with a warning
+          icon and the placeholder "Penicillin allergy", for as long as this hub
+          has been reading prescriptions and setting reminders. Nothing read it.
+          A category that looks like it does something is a promise. */}
+      {p.recordedAllergies.length > 0 && (
+        <section style={{ marginTop: 14, padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 10 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700 }}>Allergies you’ve recorded</div>
+          <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12.5, lineHeight: 1.7 }}>
+            {p.recordedAllergies.map((a) => (
+              <li key={a.id}>
+                {a.title}
+                {a.detail ? <span className="muted"> — {a.detail}</span> : null}
+              </li>
+            ))}
+          </ul>
+          {/* The sentence that keeps this honest. It is here in every state,
+              including when nothing matched, because an absent warning must
+              never be read as a clearance — the app cannot give one. */}
+          <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, margin: '10px 0 0' }}>
+            These are here because you wrote them down. We compare names only — we can’t tell
+            whether a medicine belongs to a family you react to, so nothing here means a
+            prescription is safe. Your doctor or pharmacist is the one who can say.
+          </p>
+        </section>
+      )}
+
+      {!confirmed && p.recordedAllergies.length === 0 && (
+        <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 12 }}>
+          If you have any drug allergies, recording them under Medical → Records means
+          they’ll show up here, next to what you’ve been prescribed.
+        </p>
       )}
 
       {!confirmed && (
