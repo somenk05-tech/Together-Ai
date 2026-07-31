@@ -89,7 +89,8 @@ export class FinancialService {
    * lookup — before there is anything to charge for. Check first, do the work,
    * then charge with paid(). Two callers can still race past this and only one
    * succeed at the real charge, which is correct: this is a courtesy check, not
-   * a reservation.
+   * a reservation. What makes that true is the conditional deduction in
+   * chargeOn — before it, both callers succeeded and the wallet went negative.
    */
   async assertCanPay(userId: string, amountInr: number, method?: PayMethod): Promise<void> {
     const wallet = await this.ensureWallet(userId);
@@ -102,6 +103,26 @@ export class FinancialService {
     }
   }
 
+  /**
+   * Take the money.
+   *
+   * THE DEDUCTION IS THE CHECK. It used to be two steps — read the balance,
+   * compare it, then decrement — and two steps are not one step, because
+   * Postgres runs at Read Committed and a transaction is not a lock. Two
+   * charges arriving together both read ₹500, both decide ₹500 covers ₹500,
+   * and both decrement: the citizen spends ₹1,000 and the column lands on
+   * −₹500, which nothing in the schema forbids. Two taps on Pay, or two tabs,
+   * is all it takes — and every checkout in the city (restaurants, travel,
+   * groceries, dating, astrology, entertainment) pays through this one method.
+   *
+   * `updateMany` with the balance in the WHERE is the whole fix: Postgres
+   * evaluates the condition and writes the row under the same lock, so a second
+   * charge matches no rows and takes nothing. `count` is then the answer to
+   * "did I get the money", and it is the only answer trusted here.
+   *
+   * The read above it stays, for the message. Knowing somebody is ₹80 short is
+   * worth a query; it is just not worth authorising a payment on.
+   */
   private async chargeOn(db: PrismaTx, userId: string, input: ChargeInput) {
     const wallet = await this.ensureWalletOn(db, userId);
     const method: PayMethod = input.method === 'card' ? 'card' : 'wallet';
@@ -110,12 +131,26 @@ export class FinancialService {
       await db.walletTxn.create({ data: { userId, kind: 'payment', amountInr: input.amountInr, hub: input.hub, category: input.category, label: `${input.label} · card ••${wallet.cardLast4}` } });
       return { paid: true, balanceInr: wallet.balanceInr, method };
     }
-    if (wallet.balanceInr < input.amountInr) {
-      throw new BadRequestException(`Insufficient wallet balance. Top up ₹${input.amountInr - wallet.balanceInr} more, or pay by card.`);
+
+    const short = input.amountInr - wallet.balanceInr;
+    if (short > 0) {
+      throw new BadRequestException(`Insufficient wallet balance. Top up ₹${short} more, or pay by card.`);
     }
+
+    const taken = await db.cityWallet.updateMany({
+      where: { userId, balanceInr: { gte: input.amountInr } },
+      data: { balanceInr: { decrement: input.amountInr } },
+    });
+    if (taken.count !== 1) {
+      // It covered the amount a moment ago and does not now: another payment
+      // landed in between. The same message as above, because from the
+      // citizen's side the two situations are the same one.
+      throw new BadRequestException('Insufficient wallet balance. Top up, or pay by card.');
+    }
+
     await db.walletTxn.create({ data: { userId, kind: 'payment', amountInr: input.amountInr, hub: input.hub, category: input.category, label: input.label } });
-    const updated = await db.cityWallet.update({ where: { userId }, data: { balanceInr: { decrement: input.amountInr } } });
-    return { paid: true, balanceInr: updated.balanceInr, method };
+    const after = await db.cityWallet.findUnique({ where: { userId }, select: { balanceInr: true } });
+    return { paid: true, balanceInr: after?.balanceInr ?? wallet.balanceInr - input.amountInr, method };
   }
 
   async getCard(userId: string) {
