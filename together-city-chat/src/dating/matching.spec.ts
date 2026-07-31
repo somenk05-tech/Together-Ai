@@ -1,4 +1,6 @@
-import { distanceNote, factorScores, type DXProfile } from './matching';
+import {
+  distanceNote, factorScores, matchAlertBody, matchAlertReason, type DXProfile,
+} from './matching';
 /** The whole module, so an assertion can read as a claim about the engine.
  *  Kept as the namespace import itself: aliasing it through `const NEW = ENGINE`
  *  makes NEW a VALUE, and `NEW.DXProfile` in type position then fails with
@@ -207,5 +209,34 @@ describe('when a place cannot be resolved, nothing is invented', () => {
     expect(distanceNote({ city: 'Nowhereville' }, { city: 'Pune' })).toBeNull();
     expect(distanceNote(at('Pune'), at('Pune'))).toBe('In your city.');
     expect(distanceNote(at('Mumbai'), at('Pune'))).toMatch(/^About 1[0-9]{2} km away/);
+  });
+});
+
+describe('why a match appeared', () => {
+  it('THE BUG: an edit is not an arrival', () => {
+    // reindexAfterChange fires on every save. The old copy said "A newly
+    // compatible member just joined your matches" whichever it was.
+    expect(matchAlertBody(matchAlertReason(68))).not.toMatch(/joined/i);
+    expect(matchAlertBody(matchAlertReason(68))).toContain('updated their profile');
+  });
+
+  it('says "new to your matches" when the pair was never scored', () => {
+    expect(matchAlertReason(null)).toBe('new-to-you');
+    expect(matchAlertReason(undefined)).toBe('new-to-you');
+    expect(matchAlertBody('new-to-you')).toContain('new to your matches');
+  });
+
+  it('treats a real previous score as a change, including zero', () => {
+    // 0 is a score. `prev == null` is the test, not falsiness — `!prev` would
+    // call a pair that scored 0 and now scores 80 a new arrival.
+    expect(matchAlertReason(0)).toBe('they-changed');
+    expect(matchAlertReason(74)).toBe('they-changed');
+  });
+
+  it('never claims to know WHY the pair was unscored', () => {
+    // New to the pool, previously hard-filtered, or simply never computed —
+    // the app cannot tell, so it says the one thing true of all three.
+    const body = matchAlertBody('new-to-you');
+    expect(body).not.toMatch(/joined|signed up|new member/i);
   });
 });

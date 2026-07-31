@@ -10,7 +10,9 @@ import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { compatibilityScore, zodiacSign } from './astrology';
-import { factorScores, overallScore, unreachableReason, explain, preferenceNotes, distanceNote, sharedItems, type DXProfile, type FactorBreakdown } from './matching';
+import {
+  distanceNote, explain, factorScores, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, type DXProfile, type FactorBreakdown, unreachableReason,
+} from './matching';
 import { profileCompletion } from './completion';
 import { decide, scanText, type Check, type ModerationResult } from '../realestate/moderation';
 import { nickname } from '../shared/nickname';
@@ -237,7 +239,9 @@ export class DatingService {
         userId: cand.userId,
         kind: 'dating_match',
         title: `You have a new ${score}% compatible match`,
-        body: 'A newly compatible member just joined your matches in the Dating Hub.',
+        // Not "just joined" — see matchAlertReason in matching.ts. This runs on
+        // every profile save, and a save is almost always somebody editing.
+        body: matchAlertBody(matchAlertReason(prev)),
         href: '/dating/matches',
         actorId: userId,
       }).catch(() => undefined);

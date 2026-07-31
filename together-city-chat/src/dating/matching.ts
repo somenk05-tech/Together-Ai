@@ -252,3 +252,39 @@ export function explain(
   if (sharedInterests.length) r.push(`Shared interests in ${sharedInterests.slice(0, 3).join(' and ')}.`);
   return r.slice(0, 5);
 }
+
+
+/**
+ * WHY A MATCH APPEARED — because "just joined" was not true most of the time.
+ *
+ * reindexAfterChange runs on EVERY profile save, and when a pair crosses the
+ * threshold it sent: "A newly compatible member just joined your matches in the
+ * Dating Hub." Saving a profile is overwhelmingly an existing member editing
+ * theirs — a new photo, a corrected height, a changed preference — so the app
+ * announced an arrival that had not happened. Somebody who reads that and goes
+ * looking for the new arrival finds a person who has been in the city for weeks.
+ *
+ * Two things are actually known at that moment, and only two:
+ *
+ *  · there was no cached score for this pair (`prev == null`) — the two have
+ *    never been scored together, because one is new to the pool, or a hard
+ *    filter used to rule them out, or nothing had computed it yet. "New to your
+ *    matches" is true of all three; "just joined" is true of only one.
+ *  · there WAS a score and it was below the line — an existing member changed
+ *    something and the pair now clears it.
+ *
+ * Nothing here guesses which of the first three it was, because the app cannot
+ * tell and does not need to: the citizen's question is "why is this person on my
+ * screen", and both answers below answer it.
+ */
+export type MatchAlertReason = 'new-to-you' | 'they-changed';
+
+export function matchAlertReason(prev: number | null | undefined): MatchAlertReason {
+  return prev == null ? 'new-to-you' : 'they-changed';
+}
+
+export function matchAlertBody(reason: MatchAlertReason): string {
+  return reason === 'new-to-you'
+    ? 'They’re new to your matches.'
+    : 'They updated their profile, and the two of you are a match now.';
+}
