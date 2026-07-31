@@ -362,7 +362,14 @@ export function MealPlan() {
   }, [dayKey, plan.data]);
 
   if (plan.isLoading) return <Spinner label="Composing your plan…" />;
-  if (plan.isError || !plan.data) return <EmptyState title="Couldn't build your plan" hint="Add your food preferences, then reload." />;
+  if (plan.isError || !plan.data) {
+    return (
+      <EmptyState
+        title="Couldn't build your plan"
+        hint="Either your food preferences aren't filled in yet, or building the week took longer than we allow. Reload to try again — if it keeps happening, tell us and we'll look."
+      />
+    );
+  }
   if (plan.data.needsProfile) return <ProfileGate />;
 
   const wk = plan.data;

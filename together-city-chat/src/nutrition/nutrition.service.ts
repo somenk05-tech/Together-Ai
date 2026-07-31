@@ -1458,7 +1458,10 @@ export class NutritionService implements OnModuleInit {
     void this.ensureRecipeLibrary()
       .then(() => this.adoptDatasetV2())
       .then(() => this.runNutritionQa())
-      .then(() => { this.warmDatasetPool(); })   // warm the composite pool at boot (load-issue fix)
+      // Warm both at boot. The corpus read is the first thing generatePlan does,
+      // so without this the first citizen to open the planner after a deploy
+      // pays for it — which on Railway is every deploy.
+      .then(() => { this.warmDatasetPool(); void this.recipeCorpus().catch(() => undefined); })
       .catch(() => undefined);
   }
 
@@ -1513,6 +1516,7 @@ export class NutritionService implements OnModuleInit {
             data.gramsPerServing = Math.round(res.fix.gramsPerServing);
           }
           await this.prisma.recipe.update({ where: { id: rec.id }, data: data as never }).catch(() => undefined);
+          this.invalidateRecipeCorpus();
         }));
       }
       this.qaReport = { at: new Date().toISOString(), scanned: pending.length, corrected, flagged, byIssue, samples };
@@ -1553,6 +1557,7 @@ export class NutritionService implements OnModuleInit {
         const batch = ids.slice(i, i + B);
         await this.prisma.meal.deleteMany({ where: { recipeId: { in: batch } } }).catch(() => undefined);
         const res = await this.prisma.recipe.deleteMany({ where: { id: { in: batch } } }).catch(() => ({ count: 0 }));
+        if (res.count) this.invalidateRecipeCorpus();
         removed += res.count;
       }
       if (removed) this.logger.log(`Recipe cleanup: removed ${removed} non-meal/duplicate rows (dataset cleaning).`);
@@ -1592,6 +1597,72 @@ export class NutritionService implements OnModuleInit {
   }
 
   private datasetPoolCache: PoolRecipe[] | null = null;
+
+  private recipeCorpusCache: RecipeWithIng[] | null = null;
+  private recipeCorpusPromise: Promise<RecipeWithIng[]> | null = null;
+  private recipeCorpusAt = 0;
+  /** Backstop for a write path that forgets to invalidate. Fifteen minutes of a
+   *  slightly stale corpus is survivable; a permanently stale one is not. */
+  private static readonly CORPUS_TTL_MS = 15 * 60_000;
+
+  /**
+   * The recipe corpus the planner ranks over — read once and kept.
+   *
+   * generatePlan used to open with an unbounded, uncached
+   * `recipe.findMany({ include: { ingredients } })`. That is every row of a
+   * 12,976-recipe dataset, with every ingredient, on every generation — and
+   * because it used `include` rather than `select`, it also pulled `steps` and
+   * `cookSteps`, two JSON text columns holding the full cooking instructions
+   * that the planner never reads. The weekly planner is a GET that generates
+   * when the current week has no plan, so a citizen opening it paid for all of
+   * that, in front of a spinner, against a client that gives up at twenty
+   * seconds.
+   *
+   * Two things are fixed here and neither changes a planning decision. The
+   * select lists exactly the fields RecipeWithIng declares, so the cook steps
+   * stay in the database. And the result is cached, because it is the same rows
+   * for every citizen — which the dataset pool a hundred lines down had already
+   * worked out for its own copy of this query.
+   *
+   * The in-flight promise is shared deliberately: two citizens opening the
+   * planner at the same moment on a cold instance used to run two full corpus
+   * reads against each other.
+   */
+  private async recipeCorpus(): Promise<RecipeWithIng[]> {
+    const fresh = Date.now() - this.recipeCorpusAt < NutritionService.CORPUS_TTL_MS;
+    if (this.recipeCorpusCache && fresh) return this.recipeCorpusCache;
+    if (!this.recipeCorpusPromise) {
+      const started = Date.now();
+      this.recipeCorpusPromise = this.prisma.recipe
+        .findMany({
+          select: {
+            id: true, slot: true, diet: true, name: true, country: true, minutes: true,
+            kcal: true, gramsPerServing: true, servings: true,
+            ingredients: { select: { name: true, priceInr: true, grams: true } },
+          },
+        })
+        .then((rows) => {
+          const out = rows as unknown as RecipeWithIng[];
+          this.recipeCorpusCache = out;
+          this.recipeCorpusAt = Date.now();
+          this.recipeCorpusPromise = null;
+          this.logger.log(`Recipe corpus: ${out.length} recipes loaded in ${Date.now() - started}ms.`);
+          return out;
+        })
+        .catch((e) => { this.recipeCorpusPromise = null; throw e; });
+    }
+    return this.recipeCorpusPromise;
+  }
+
+  /** Drop the corpus after anything that writes a field the planner ranks on.
+   *  `cookSteps` is not one of them — it is not in the select above — so the
+   *  AI cook-step cache does not need to call this. */
+  private invalidateRecipeCorpus(): void {
+    this.recipeCorpusCache = null;
+    this.recipeCorpusPromise = null;
+    this.recipeCorpusAt = 0;
+    this.datasetPoolCache = null;
+  }
 
   /** Normalise a dataset recipe's stored steps (JSON array or delimited text). */
   private parseSteps(raw?: string | null): string[] {
@@ -4457,7 +4528,7 @@ export class NutritionService implements OnModuleInit {
     });
     const recentIds = new Set<string>((prior?.days ?? []).flatMap((d) => d.meals.map((m) => m.recipeId)));
     // Load prices too, so the budget filter can work.
-    const recipes = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true, priceInr: true, grams: true } } } })) as unknown as RecipeWithIng[];
+    const recipes = await this.recipeCorpus();
 
     // Condition-aware selection: blood flags + goal switch on planning modes.
     const bloodFlags = flagsFor(await this.bloodValues(userId));
@@ -5044,7 +5115,7 @@ export class NutritionService implements OnModuleInit {
     let ev = evalNow();
     let changedRecipes = false;
     if (ev.score > 0) {
-      const recipes = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true, priceInr: true, grams: true } } } })) as unknown as RecipeWithIng[];
+      const recipes = await this.recipeCorpus();
       const modes = planningModes(flagsFor(await this.bloodValues(userId)), pref?.goal ?? 'maintain');
       const pools = this.rankedPools(recipes, diet, ex, modes);
       const tD = {
@@ -5615,7 +5686,9 @@ export class NutritionService implements OnModuleInit {
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     const effDiet: Diet = ex.weekly?.[SHORT_DAYS[dayIndex]] === 'veg' ? 'veg' : diet;
 
-    const recipes = (await this.prisma.recipe.findMany({ where: { slot }, include: { ingredients: { select: { name: true, priceInr: true, grams: true } } } })) as unknown as RecipeWithIng[];
+    // Filtered from the cached corpus rather than re-queried: the whole set is
+    // already in memory, and one slot of it is a predicate, not a round trip.
+    const recipes = (await this.recipeCorpus()).filter((r) => r.slot === slot);
     const allowed = allowedProteins(ex);
     const mix = ex.cuisineMix ?? (ex.cuisines?.length ? Object.fromEntries(ex.cuisines.map((c) => [c, 1])) : {});
     // Same hard + meal-type + cuisine constraints as the planner; relax only soft rules.
@@ -7985,6 +8058,7 @@ export class NutritionService implements OnModuleInit {
     const missing = seedAll.filter((s) => !existing.has(s.name));
     for (const r of missing) {
       await this.prisma.recipe.create({ data: r as never }).catch(() => undefined);
+      this.invalidateRecipeCorpus();
     }
     if (missing.length) this.logger.log(`Recipe library topped up: +${missing.length} (total ${existing.size + missing.length}).`);
 
@@ -7993,6 +8067,7 @@ export class NutritionService implements OnModuleInit {
     // mapping always applies on boot (matches even if a recipe already exists).
     for (const r of lowProtein300) {
       await this.prisma.recipe.updateMany({ where: { name: r.name }, data: { recipeNo: r.recipeNo } as never }).catch(() => undefined);
+      this.invalidateRecipeCorpus();
     }
     this.logger.log(`LowProtein 300: recipe numbers 11223–${11223 + lowProtein300.length - 1} assigned (${lowProtein300.length} recipes).`);
   }
@@ -8044,6 +8119,7 @@ export class NutritionService implements OnModuleInit {
             steps: JSON.stringify(r.steps ?? []),
           }));
           await this.prisma.recipe.createMany({ data: batch as never, skipDuplicates: true });
+          this.invalidateRecipeCorpus();
         }
         // 2) ingredients
         const ing = fresh.flatMap((r) => (r.ingredients ?? []).map((i) => ({
@@ -8119,6 +8195,7 @@ export class NutritionService implements OnModuleInit {
       // therefore every plan that references them, while everything unreferenced
       // is swapped wholesale as before. No meal plan is touched.
       const removed = await this.prisma.recipe.deleteMany({ where: { meals: { none: {} } } });
+      if (removed.count) this.invalidateRecipeCorpus();
       const pinnedRows = await this.prisma.recipe.findMany({ select: { id: true } });
       const pinned = new Set(pinnedRows.map((r) => r.id));
       this.logger.log(`Recipes: ${removed.count} unreferenced replaced, ${pinned.size} kept in place because saved plans use them.`);
@@ -8141,6 +8218,7 @@ export class NutritionService implements OnModuleInit {
       for (let i = 0; i < fresh.length; i += RB) {
         const batch = fresh.slice(i, i + RB).map((r) => ({ id: r.id, ...shape(r) }));
         await this.prisma.recipe.createMany({ data: batch as never, skipDuplicates: true });
+        this.invalidateRecipeCorpus();
       }
       const ing = fresh.flatMap(ingredientsOf);
       const IB = 2000;
@@ -8157,6 +8235,7 @@ export class NutritionService implements OnModuleInit {
       for (const r of inUse) {
         try {
           await this.prisma.recipe.update({ where: { id: r.id as string }, data: shape(r) as never });
+          this.invalidateRecipeCorpus();
           await this.prisma.recipeIngredient.deleteMany({ where: { recipeId: r.id as string } });
           const rows = ingredientsOf(r);
           if (rows.length) await this.prisma.recipeIngredient.createMany({ data: rows });

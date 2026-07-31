@@ -6,9 +6,16 @@ const KEY = (mode: string) => ['nutrition', 'weekly', mode] as const;
 const DAILY_KEY = (mode: string) => ['nutrition', 'daily', mode] as const;
 
 /** The Weekly planner — the master. Bootstraps a first plan when none exists;
- *  never auto-regenerates a saved plan. */
+ *  never auto-regenerates a saved plan.
+ *
+ *  retry is off for this one query, against the client-wide default of 1. This
+ *  GET is not a read: when the current week has no plan it composes one. A
+ *  timeout therefore does not mean "nothing happened and it is safe to ask
+ *  again" — the server is still building, and the retry starts a second
+ *  generation racing the first. It also doubled what the citizen sat through,
+ *  twenty seconds of spinner becoming forty before they were told anything. */
 export function useWeeklyPlan(mode: 'individual' | 'family' = 'individual') {
-  return useQuery({ queryKey: KEY(mode), queryFn: () => nutritionApi.weeklyPlan(mode) });
+  return useQuery({ queryKey: KEY(mode), queryFn: () => nutritionApi.weeklyPlan(mode), retry: false });
 }
 
 /** The Daily planner — a strictly read-only view of the SAME saved plan. Never
