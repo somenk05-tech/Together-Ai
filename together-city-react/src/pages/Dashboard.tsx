@@ -51,25 +51,73 @@ export function Dashboard() {
   if (completion.isLoading) return <Spinner label="Opening your city…" />;
 
   const c = completion.data;
+
+  /**
+   * A FAILED REQUEST IS NOT AN EMPTY CITY, AND THIS PAGE COULD NOT TELL THEM APART.
+   *
+   * There was no branch here at all. `isLoading` was the only state this screen
+   * knew about, so a profile request that failed fell straight through into the
+   * normal render with `c` undefined — and every downstream expression treated
+   * "we don't know" as "there isn't any".
+   *
+   * Returning early is the whole fix: past this line `c` exists, so the greeting
+   * and the completion meter stop being conditional on data that was never
+   * optional in the first place.
+   *
+   * NO SALUTATION HERE, DELIBERATELY. Every other message in the city opens with
+   * the citizen's name, and this is the one screen that must not: we are here
+   * precisely because the record holding their name did not arrive. `Dear ,` is
+   * what shared/salutation.ts exists to prevent, and a hardcoded fallback
+   * greeting is the same bug wearing a default value.
+   */
+  if (completion.isError || !c) {
+    return (
+      <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 16px 48px' }}>
+        <div className="eyebrow">Your city</div>
+        <h1 style={{ fontSize: 28, margin: '2px 0 0' }}>We couldn’t open your city just now</h1>
+        <p className="muted" style={{ fontSize: 14, lineHeight: 1.65, margin: '10px 0 0', maxWidth: '54ch' }}>
+          Your profile didn’t come back from the server, and everything on this page is
+          built out of it — so rather than draw you a city we’d be guessing at, we’ve
+          stopped here. Nothing has been lost or changed. This is ours, not yours.
+        </p>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
+          <button type="button" onClick={() => void completion.refetch()} style={{ ...startStyle, background: 'none', cursor: 'pointer' }}>
+            Try again
+          </button>
+          <Link to="/profile" style={startStyle}>Open your profile</Link>
+        </div>
+      </div>
+    );
+  }
+
   const today = plan.data?.days?.[0] ?? null;
   const meals = today?.meals ?? [];
   const flagged = (panel.data?.markers ?? []).filter((m) => m.status !== 'normal');
   const pendingChats = (datingChats.data ?? []).filter((x) => x.pending).length;
   const openChats = (datingChats.data ?? []).filter((x) => !x.pending).length;
+  const countsUnknown = datingChats.isError || notifications.isError;
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 16px 48px' }}>
       <div className="eyebrow">Your city</div>
-      {/* From the server's salutation(), the same one that opens a blood report. */}
-      <h1 style={{ fontSize: 28, margin: '2px 0 0' }}>{c?.greeting ?? 'Welcome,'}</h1>
+      {/* From the server's salutation(), the same one that opens a blood report.
+          This used to fall back to a bare “Welcome,” whenever `c` was undefined,
+          and that fallback is how an orphan comma reached a real screen: not an
+          empty name — a failed request, defaulted into a greeting addressed to
+          nobody. The early return above is what makes the fallback unnecessary. */}
+      <h1 style={{ fontSize: 28, margin: '2px 0 0' }}>{c.greeting}</h1>
       <p className="muted" style={{ fontSize: 14, lineHeight: 1.6, margin: '8px 0 0', maxWidth: '54ch' }}>
         Everything here is yours — what you’ve told us, what you’ve planned, what’s waiting.
         Nothing on this page is a sample.
       </p>
 
-      {/* ── Where you are ─────────────────────────────────────────── */}
-      {c && (
-        <section className="card" style={{ marginTop: 22, padding: '18px 20px' }}>
+      {/* ── Where you are ─────────────────────────────────────────────
+          Not conditional any more. This block is the spine of the page — the
+          header above calls it "the one thing that is always true and always
+          actionable" — and `{c && …}` quietly made it the first thing to
+          disappear when the request behind it failed, leaving a page whose whole
+          argument for existing had silently gone. */}
+      <section className="card" style={{ marginTop: 22, padding: '18px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <h2 style={{ fontSize: 17, margin: 0 }}>Your profile is {c.percent}% complete</h2>
             <Link to="/profile" style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 700, color: 'var(--accent)' }}>Open your profile →</Link>
@@ -98,8 +146,7 @@ export function Dashboard() {
               </div>
             </>
           )}
-        </section>
-      )}
+      </section>
 
       {/* ── Today's plan. Rendered only when a plan exists. ────────── */}
       {meals.length > 0 && (
@@ -142,10 +189,22 @@ export function Dashboard() {
         </section>
       )}
 
-      {/* ── Waiting for you. Only the counts that are real. ────────── */}
-      {(notifications.data || unreadChats > 0 || pendingChats > 0 || openChats > 0) ? (
+      {/* ── Waiting for you. Only the counts that are real. ──────────
+          A count that failed to load is not a count of zero. When one of these
+          requests falls over, the thing waiting for the citizen — a match who
+          reached out, an unread message — does not appear here and nothing says
+          why, so the page reads as "nobody wanted you" rather than "we couldn't
+          check". The line below is small, and it is the difference between those
+          two sentences. */}
+      {(notifications.data || unreadChats > 0 || pendingChats > 0 || openChats > 0 || countsUnknown) ? (
         <section style={{ marginTop: 22 }}>
           <h2 style={{ fontSize: 17, margin: '0 0 10px' }}>Waiting for you</h2>
+          {countsUnknown && (
+            <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '0 0 10px', maxWidth: '54ch' }}>
+              Some of these didn’t load just now, so this list may be short. Alerts and Dating
+              will have the real answer.
+            </p>
+          )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {unreadChats > 0 && <Waiting to="/chats" n={unreadChats} one="unread message" many="unread messages" />}
             {(notifications.data ?? 0) > 0 && <Waiting to="/social/notifications" n={notifications.data ?? 0} one="notification" many="notifications" />}
@@ -155,8 +214,19 @@ export function Dashboard() {
         </section>
       ) : null}
 
-      {/* ── The honest empty state, when there is genuinely nothing. ─ */}
-      {meals.length === 0 && flagged.length === 0 && !panel.data?.markers?.length && (
+      {/* ── The honest empty state, when there is genuinely nothing. ─
+          "GENUINELY" IS DOING ALL THE WORK IN THAT SENTENCE, AND IT WASN'T CHECKED.
+          The condition was absence alone — no meals, no flagged markers — which is
+          equally true when the plan and panel requests fail, and equally true while
+          they are still in flight. So a citizen with a full week planned and a blood
+          panel on file could be told, warmly and at length, "there's nothing here yet
+          because you haven't put anything here yet."
+
+          That is the golden rule inverted. The rule forbids inventing data; this was
+          the same failure with the sign flipped — asserting an ABSENCE we had not
+          established, about the citizen's own records, in the most reassuring voice
+          on the page. isSuccess is the difference between knowing and assuming. */}
+      {plan.isSuccess && panel.isSuccess && meals.length === 0 && flagged.length === 0 && !panel.data?.markers?.length && (
         <section className="card" style={{ marginTop: 22, padding: '20px' }}>
           <h2 style={{ fontSize: 16, margin: 0 }}>Your city is quiet so far</h2>
           <p className="muted" style={{ fontSize: 13, lineHeight: 1.65, margin: '8px 0 14px', maxWidth: '52ch' }}>
