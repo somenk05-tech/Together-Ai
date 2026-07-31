@@ -172,6 +172,8 @@ export interface DatingStack {
    *  a match is the point of the hub, not something to disappear on you. */
   matched: CuratedMatch[];
   totalCandidates: number;
+  /** H2. `learned: false` means the standard weights and `headline` says why. */
+  ranking?: { learned: boolean; headline: string; decisions: number; notes: string[] };
 }
 
 export interface DatingChatSummary {

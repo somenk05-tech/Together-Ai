@@ -13,6 +13,7 @@ import { compatibilityScore, zodiacSign } from './astrology';
 import {
   distanceNote, explain, factorScores, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, type DXProfile, type FactorBreakdown, unreachableReason,
 } from './matching';
+import { LEARNING_WINDOW, learnWeights, overallScoreWith, type Decision } from './learned-weights';
 import { profileCompletion } from './completion';
 import { decide, scanText, type Check, type ModerationResult } from '../realestate/moderation';
 import { nickname } from '../shared/nickname';
@@ -614,9 +615,75 @@ export class DatingService {
    * stack is meaningful only when the user is NOT already chatting with someone —
    * `engaged` tells the client to hide it and focus the current conversation.
    */
+  /**
+   * Every decision this citizen has made, with the factors behind it.
+   *
+   * No new collection: the like/pass is on DatingMatch and the seven factor
+   * scores for that pair are already in CompatibilityScore, so a decision and
+   * its reasons can be put back together exactly. A pair with no cached score is
+   * skipped rather than guessed at — a decision we cannot explain is not
+   * evidence, and filling it in with an average is the same mistake this
+   * codebase spent the week removing from everywhere else.
+   */
+  private async decisionsFor(userId: string): Promise<Decision[]> {
+    let rows: Array<Record<string, unknown>> = [];
+    try {
+      rows = await this.prisma.datingMatch.findMany({
+        where: { OR: [{ userOneId: userId }, { userTwoId: userId }] },
+        take: LEARNING_WINDOW,
+        orderBy: { updatedAt: 'desc' },
+      }) as unknown as Array<Record<string, unknown>>;
+    } catch { return []; }
+
+    const out: Decision[] = [];
+    for (const r0 of rows) {
+      const r = r0 as unknown as {
+        userOneId: string; userTwoId: string;
+        likedByOne: boolean; likedByTwo: boolean; passedByOne: boolean; passedByTwo: boolean;
+      };
+      const meIsOne = r.userOneId === userId;
+      const liked = meIsOne ? r.likedByOne : r.likedByTwo;
+      const passed = meIsOne ? r.passedByOne : r.passedByTwo;
+      // Only MY decision counts. Being liked by somebody says nothing about what
+      // I look for, and counting it would learn other people's taste as mine.
+      if (liked === passed) continue; // neither, or somehow both
+      const other = meIsOne ? r.userTwoId : r.userOneId;
+      const f = await this.readPairFactors(userId, other);
+      if (!f) continue;
+      out.push({ liked, factors: f });
+    }
+    return out;
+  }
+
+  /** The cached seven for a pair, or null when we never scored them. */
+  private async readPairFactors(a: string, b: string): Promise<FactorBreakdown | null> {
+    const [userA, userB] = [a, b].sort();
+    // try/catch around the WHOLE access, not just the promise. Reaching for
+    // `.findUnique` on a delegate that is not there throws synchronously, before
+    // there is a promise for `.catch` to attach to — and the correct behaviour
+    // when the evidence cannot be read is to learn nothing, not to take the
+    // matches page down with it.
+    let row: Record<string, number> | null = null;
+    try {
+      row = await (this.prisma as unknown as {
+        compatibilityScore: { findUnique(x: unknown): Promise<Record<string, number> | null> };
+      }).compatibilityScore.findUnique({ where: { userA_userB: { userA, userB } } });
+    } catch { return null; }
+    if (!row) return null;
+    return {
+      astrology: row.astrology, personality: row.personality,
+      relationshipGoals: row.relationshipGoal, values: row.values,
+      lifestyle: row.lifestyle, interests: row.interest, location: row.distance,
+    };
+  }
+
   async stack(userId: string, kind: MatchKind) {
     const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
     if (!mine) throw new NotFoundException('create your dating profile first');
+
+    // What this citizen's own choices have earned. Below the evidence bar this
+    // comes back as the standard weights and says so, and the page says so too.
+    const ranking = learnWeights(await this.decisionsFor(userId));
 
     // Already chatting with someone? (one active dating conversation at a time)
     const engagedRow = await this.prisma.datingMatch.findFirst({
@@ -671,11 +738,36 @@ export class DatingService {
       const theirInterests = this.splitInterests(cand.interests);
       const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility & { photos?: string[] };
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
-      const score = overallScore(breakdown);
+      // TWO SCORES, DELIBERATELY (H2).
+      //
+      // `standard` is the unlearned one — the same figure for both people — and
+      // it is what decides eligibility and what gets cached. `score` is scored
+      // against this citizen's own weights and is what they see and are sorted
+      // by.
+      //
+      // The split is the whole safety of the feature. If the threshold moved
+      // with the weights, somebody's own swiping would start removing people
+      // from their list, which is how a recommender narrows a world without
+      // anybody choosing to. And if the CACHE held the learned figure, the next
+      // round would learn from its own output.
+      // TWO SCORES, DELIBERATELY (H2).
+      //
+      // `standard` is the unlearned one — the same figure for both people. It is
+      // what a threshold-visibility citizen is judged against, because their
+      // "only show me to people I score above N with" is a statement about the
+      // pair, not about the viewer's swiping habits. `score` is scored against
+      // THIS citizen's own weights and is what they see and are sorted by.
+      //
+      // The split is the whole safety of the feature. If eligibility moved with
+      // the weights, somebody's own swiping would start removing people from
+      // their list, which is how a recommender narrows a world without anybody
+      // choosing to.
+      const standard = overallScore(breakdown);
+      const score = overallScoreWith(breakdown, ranking.weights);
       // No score floor. A 17% was dropped here silently, which is a judgement
       // about who is worth meeting made by a weighting formula the citizen
       // never saw. The number is shown on every card; they can disagree with it.
-      if (!isMatched && candDX.visibility === 'threshold' && score < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
+      if (!isMatched && candDX.visibility === 'threshold' && standard < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
 
       const candPhotos = candDX.photos ?? [];
       const photos = (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS);
@@ -717,7 +809,16 @@ export class DatingService {
     // `candidates` is the whole ranked list, not a page of it. `top` stays
     // because the page leads with it, but it is now the first element of
     // something the citizen can scroll rather than the only thing they get.
-    return { engaged, distribution, top, candidates: cards, matched, totalCandidates: cards.length };
+    return {
+      engaged, distribution, top, candidates: cards, matched, totalCandidates: cards.length,
+      // Rendered, not logged. Once the weights differ per person so does the
+      // percentage, and a screen showing the new number under the old sentence
+      // would be lying quietly.
+      ranking: {
+        learned: ranking.learned, headline: ranking.headline,
+        decisions: ranking.decisions, notes: ranking.notes.map((x) => x.note),
+      },
+    };
   }
 
   private parseDX(extras: string | null | undefined): DXProfile {

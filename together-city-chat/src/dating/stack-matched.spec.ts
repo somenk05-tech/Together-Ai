@@ -33,6 +33,10 @@ function serviceWith(candidates: Array<Record<string, unknown>>, states: Array<R
       findFirst: jest.fn(async () => null),   // not engaged in a chat
       findMany: jest.fn(async () => states),
     },
+    // The pair-score cache H2 learns from. It was absent, so the stub was
+    // modelling a database this app does not have; returning null here exercises
+    // the real "no cached score for this pair, so it is not evidence" path.
+    compatibilityScore: { findUnique: jest.fn(async () => null) },
     connection: { findMany: jest.fn(async () => []) },
     block: { findMany: jest.fn(async () => []) },
     follow: { findMany: jest.fn(async () => []) },

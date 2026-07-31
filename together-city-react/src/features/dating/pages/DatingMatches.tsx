@@ -375,6 +375,21 @@ export function DatingMatches() {
           </div>
           <MatchCard match={top} kind={kind} />
 
+          {/* HOW THIS LIST WAS ORDERED (H2).
+              Recommendations follow what you pick now, so the percentage is
+              about you as well as about them — and that has to be on the screen
+              showing it, not only in the commit that changed it. It renders
+              whether or not anything has been learned: "ranked the standard way,
+              six more decisions to go" is the same promise kept. */}
+          {stack.data?.ranking && (
+            <p className="muted" style={{ fontSize: 12, lineHeight: 1.55, margin: '10px 0 0' }}>
+              {stack.data.ranking.headline}
+              {stack.data.ranking.notes.length > 0 && (
+                <span style={{ display: 'block', marginTop: 4 }}>{stack.data.ranking.notes[0]}</span>
+              )}
+            </p>
+          )}
+
           {/* Division / breakdown below the card — only once there are real people */}
           {stack.data && stack.data.totalCandidates > 0 && (
             <Distribution bands={stack.data.distribution} total={stack.data.totalCandidates} highlightScore={top.score} />
