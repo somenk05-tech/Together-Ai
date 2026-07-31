@@ -111,6 +111,33 @@ export function Records() {
   };
 
   if (records.isLoading) return <Spinner label="Opening your records…" />;
+
+  /**
+   * "No records yet", to somebody whose vault holds their records.
+   *
+   * This page had no failure branch, so a failed read fell through with
+   * `records.data` undefined, `groups` empty, and an empty state that says the
+   * filing cabinet is bare. In a medical vault that is not a cosmetic bug: the
+   * first thought it produces is that something has been lost.
+   *
+   * Nothing is ever deleted by a failed GET, and the card says so in as many
+   * words, because that is the actual question in somebody's head.
+   */
+  if (records.isError) {
+    return (
+      <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 16px 48px' }}>
+        <div className="eyebrow">Medical</div>
+        <h1 style={{ fontSize: 26, margin: '2px 0 0' }}>We couldn’t open your records</h1>
+        <p className="muted" style={{ fontSize: 14, lineHeight: 1.65, margin: '10px 0 0', maxWidth: '56ch' }}>
+          Your vault is untouched — nothing has been deleted or changed. We simply couldn’t
+          read it just now, and we would rather say that than show you an empty shelf.
+        </p>
+        <div style={{ marginTop: 18 }}>
+          <Button onClick={() => void records.refetch()}>Try again</Button>
+        </div>
+      </div>
+    );
+  }
   const s = storage.data;
   const panel = latest.data;
   const hasPanel = Boolean(panel && panel.markers.length);
@@ -275,6 +302,12 @@ export function Records() {
               {reportDocs} report{reportDocs === 1 ? '' : 's'} on file · Educational, not a diagnosis.
             </p>
           </>
+        ) : latest.isError ? (
+          // Its own query, so the early return above does not cover it.
+          <p className="muted" style={{ fontSize: 13, margin: '6px 0 0' }}>
+            We couldn’t load your latest panel just now — which is not the same as there not
+            being one. Nothing has been lost; it’s worth another try in a moment.
+          </p>
         ) : (
           <p className="muted" style={{ fontSize: 13, margin: '6px 0 0' }}>
             No blood panels analysed yet. Upload a <strong>Blood Tests</strong> report below (or on <Link to="/medical/blood" style={{ color: 'var(--accent)', fontWeight: 600 }}>Blood Test Analysis</Link>) — it's read and analysed automatically, and your key markers, flags and trends appear here.
@@ -386,7 +419,7 @@ export function Records() {
         stopped, with no statement that the history was empty rather than still
         loading and no way onward from where they were looking.
       */}
-      {!history.isLoading && !records.isLoading && timeline.length === 0 && (
+      {!history.isLoading && !history.isError && !records.isLoading && timeline.length === 0 && (
         <div className="card" style={{ marginTop: 18 }}>
           <div className="eyebrow">Health timeline</div>
           <EmptyState

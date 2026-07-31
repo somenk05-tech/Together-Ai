@@ -304,6 +304,23 @@ export function DatingMatches() {
 
   if (profile.isLoading) return <Spinner label="Consulting the stars…" />;
 
+  // Before the !profile.data branch, which invites them to create the profile
+  // they may already have. A failed read is not a blank slate, and telling
+  // somebody to introduce themselves for a second time is the same insult the
+  // dashboard's "Welcome," was — an app that has forgotten them and says so
+  // brightly.
+  if (profile.isError) {
+    return (
+      <div style={{ maxWidth: 560, margin: '0 auto', padding: '40px 16px' }}>
+        <EmptyState
+          icon="⚠️"
+          title="We couldn’t open your dating profile"
+          hint="This is ours to fix, not yours to redo — nothing you’ve entered has been lost. Try again in a moment."
+        />
+      </div>
+    );
+  }
+
   if (!profile.data) {
     return (
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '40px 16px' }}>
@@ -371,6 +388,15 @@ export function DatingMatches() {
 
       {stack.isLoading ? (
         <Spinner label="Scoring compatibility…" />
+      ) : stack.isError ? (
+        // The branch this precedes ends in "No one to show just yet", with the
+        // hint that the city is still filling up. Said to somebody whose matches
+        // simply did not load, it is a small, plausible, disheartening lie.
+        <EmptyState
+          icon="⚠️"
+          title="We couldn’t score your matches"
+          hint="This didn’t reach us — it isn’t a verdict on who’s out there. Try again in a moment."
+        />
       ) : atCapacity ? (
         <EngagedPanel chat={activeChat} openChats={openChats} cap={chatCap} />
       ) : top ? (

@@ -248,6 +248,16 @@ export function DatingChats() {
         </>
       ) : chats.isLoading ? (
         <Spinner label="Loading your chats…" />
+      ) : chats.isError ? (
+        // "No dating chats yet" is the sentence that used to appear here when
+        // this request failed. Of everything in the app, it is the one worst
+        // suited to being said by mistake: somebody who has matched, and is
+        // waiting, being told by the city that nobody is there.
+        <EmptyState
+          icon="⚠️"
+          title="We couldn’t load your chats"
+          hint="That’s a problem on our side, not a sign there’s nobody there. Nothing has been lost — try again in a moment."
+        />
       ) : list.length === 0 ? (
         <>
           <EmptyState icon="💬" title="No dating chats yet" hint="When you connect with a match, your anonymous conversation appears here." />

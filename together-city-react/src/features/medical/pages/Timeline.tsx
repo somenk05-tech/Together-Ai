@@ -20,6 +20,11 @@ export function Timeline() {
   const blood = useBloodHistory();
 
   const loading = records.isLoading || consults.isLoading || blood.isLoading;
+  // Three queries feed one list, so ANY of them failing means the timeline on
+  // screen is not the citizen's timeline — it is a partial one with no way to
+  // tell. "Your timeline is empty" was rendered on absence alone, which is also
+  // true when all three fail at once.
+  const failed = records.isError || consults.isError || blood.isError;
 
   const items: TLItem[] = useMemo(() => {
     const out: TLItem[] = [];
@@ -62,7 +67,12 @@ export function Timeline() {
 
       {loading && <Spinner label="Building your timeline…" />}
 
-      {!loading && items.length === 0 && (
+      {!loading && failed && (
+        <EmptyState icon="⚠️" title="We couldn’t build your timeline"
+          hint="Some of it didn’t load, so anything shown below may be incomplete. Nothing has been lost — try again in a moment." />
+      )}
+
+      {!loading && !failed && items.length === 0 && (
         <EmptyState icon="🗓️" title="Your timeline is empty"
           hint="Book a doctor consult, save a record, or add a blood test and it will appear here automatically." />
       )}
