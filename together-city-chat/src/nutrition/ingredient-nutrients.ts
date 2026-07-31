@@ -586,3 +586,54 @@ export function computeNutrients(ingredients: Array<{ name: string; grams: numbe
     sug: Math.round(sug * 10) / 10, sfat: Math.round(sfat * 10) / 10, addedSug: Math.round(addedSug * 10) / 10, complete,
   };
 }
+
+/**
+ * Scale a whole-recipe ingredient list down to one plate (BE-8.5).
+ *
+ * The dataset mixes two conventions and says nothing about it. kcal, protein,
+ * carbs, fat and gramsPerServing are per serving. `ingredients[].grams` are for
+ * the whole recipe — the median row lists 1,520 g of ingredients against a
+ * 210 g stated serving, seven plates' worth. And every one of the 11,217 rows
+ * carries `servings: 1`, so the obvious correction, dividing by servings, does
+ * nothing at all: the sentinel reads as "authoritative: one serving" when it
+ * means "unstated".
+ *
+ * Left uncorrected, every nutrient computed from the ingredient list — sodium,
+ * potassium, phosphorus, saturated fat, sugar — comes out about seven times too
+ * high. Those are exactly the nutrients the clinical caps are written against,
+ * so a renal or hypertensive citizen's plan breaches its cap on arithmetic
+ * rather than on food.
+ *
+ * The 1.6 threshold leaves genuinely single-serving rows alone: a plate can
+ * legitimately weigh more raw than cooked, and 60% is more slack than
+ * evaporation accounts for while still catching a sevenfold batch.
+ *
+ * This lived inline in the production pool builder and nowhere else, which is
+ * how all three simulation harnesses came to measure a version of the engine
+ * that production does not run.
+ */
+export function perServingIngredients<T extends { name: string; grams: number }>(
+  ingredients: readonly T[],
+  gramsPerServing: number,
+): T[] {
+  const gps = gramsPerServing > 0 ? gramsPerServing : 200;
+  const total = ingredients.reduce((t, i) => t + (i.grams || 0), 0);
+  if (!total || total <= gps * 1.6) return [...ingredients];
+  const f = gps / total;
+  return ingredients.map((i) => ({ ...i, grams: Math.max(1, Math.round(i.grams * f)) }));
+}
+
+/**
+ * How many plates the ingredient list actually makes. 1 when it is already a
+ * single serving. Use this — not the dataset's `servings` — to turn a
+ * whole-recipe quantity or price into a per-plate one.
+ */
+export function ingredientBatchServings(
+  ingredients: readonly { grams: number }[],
+  gramsPerServing: number,
+): number {
+  const gps = gramsPerServing > 0 ? gramsPerServing : 200;
+  const total = ingredients.reduce((t, i) => t + (i.grams || 0), 0);
+  if (!total || total <= gps * 1.6) return 1;
+  return Math.max(1, Math.min(30, Math.round(total / gps)));
+}

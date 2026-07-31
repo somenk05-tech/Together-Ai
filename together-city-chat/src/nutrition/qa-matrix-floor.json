@@ -1,7 +1,7 @@
 {
-  "_": "The hardest population's numbers, ratcheted. See qa-matrix.spec.ts for what these mean and why they exist. Measured 30 Jul 2026.",
-  "calorieWithin10Pct": 66.4,
-  "proteinMetPct": 66.9,
-  "capBreachDays": 127,
+  "_": "The hardest population's numbers, ratcheted. See qa-matrix.spec.ts for what these mean. Re-measured 31 Jul 2026 after BE-8.5 stopped the harness feeding the engine whole-recipe ingredient quantities: calorie ±10% 66.4→83.8, cap-breach days 127→31, and protein 66.9→65.1 which is the one that moved the wrong way.",
+  "calorieWithin10Pct": 83.8,
+  "proteinMetPct": 65.1,
+  "capBreachDays": 31,
   "tolerancePoints": 2
 }

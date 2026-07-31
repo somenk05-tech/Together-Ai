@@ -36,7 +36,7 @@ import { targetReadiness } from './target-readiness';
 import { scoreDual, buildScorecard, guidelineCaps } from './plan-score';
 import { recipeImageUrl } from './recipe-image-set';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
-import { computeNutrients, computeMicros, isSalt } from './ingredient-nutrients';
+import { computeNutrients, computeMicros, ingredientBatchServings, isSalt, perServingIngredients } from './ingredient-nutrients';
 import {
   QC_PROVIDERS, buildQcMeta, compareStores, applyBadges, refreshTotals, quoteStore, trackFromMeta,
   type QcListItem, type QcMeta, type QcStoreQuote,
@@ -367,7 +367,7 @@ function mapUserDiet(raw?: string | null): ComposerDiet {
 function terms(s?: string): string[] {
   return (s ?? '').split(/[,;]/).map((t) => t.trim().toLowerCase()).filter(Boolean);
 }
-type RecipeWithIng = { id: string; slot: string; diet: string; name: string; country: string; minutes: number; kcal?: number; gramsPerServing?: number; servings?: number; ingredients: Array<{ name: string; priceInr?: number }> };
+type RecipeWithIng = { id: string; slot: string; diet: string; name: string; country: string; minutes: number; kcal?: number; gramsPerServing?: number; servings?: number; ingredients: Array<{ name: string; priceInr?: number; grams?: number }> };
 
 // ─────────── protein preferences as HARD constraints ───────────
 // Protein sources the planner can detect in a recipe from its name + ingredients.
@@ -541,10 +541,23 @@ function passesMedical(r: RecipeWithIng, conditions: string[]): boolean {
   }
   return true;
 }
+/**
+ * What one plate of this costs.
+ *
+ * The divisor used to be recipeServings(), which reads the dataset's `servings`
+ * column — and every row of that column is 1, so this returned the price of the
+ * whole recipe. The ingredient list is a whole recipe's worth, about seven
+ * plates, so a budget-conscious citizen was having dishes rejected at roughly
+ * seven times what a plate of them costs. See ingredientBatchServings.
+ */
 function perPlateCost(r: RecipeWithIng): number {
   const total = r.ingredients.reduce((s, i) => s + (i.priceInr ?? 0), 0);
   if (!total) return 0; // unknown → don't exclude on price
-  return Math.round(total / recipeServings({ slot: r.slot, kcal: r.kcal ?? 0, gramsPerServing: r.gramsPerServing ?? 0, servings: r.servings }));
+  const plates = ingredientBatchServings(
+    r.ingredients.map((i) => ({ grams: i.grams ?? 0 })),
+    r.gramsPerServing ?? 0,
+  );
+  return Math.round(total / plates);
 }
 
 /**
@@ -1643,16 +1656,10 @@ export class NutritionService implements OnModuleInit {
         .map((i) => ({ name: i.name, grams: Math.max(1, Math.round((i.grams ?? 0) / s)) }))
         .filter((i) => i.name && (i.grams ?? 0) > 0);
       if (!ingredients.length) continue;
-      // Batch-quantity normalisation: some dataset rows carry whole-batch ingredient
-      // weights with servings=1, which inflates the computed sodium/potassium/etc.
-      // (e.g. a "breakfast" reading 8,800 mg K). Scale the ingredient list down to
-      // the plate serving weight so the computed micronutrients are realistic.
-      const gps = per(r.gramsPerServing) || 200;
-      const totalW = ingredients.reduce((t, i) => t + i.grams, 0);
-      if (gps > 0 && totalW > gps * 1.6) {
-        const f = gps / totalW;
-        ingredients = ingredients.map((i) => ({ name: i.name, grams: Math.max(1, Math.round(i.grams * f)) }));
-      }
+      // Batch-quantity normalisation — now shared, because it was here and
+      // nowhere else, and the three simulation harnesses each built their own
+      // pool without it. See perServingIngredients in ingredient-nutrients.ts.
+      ingredients = perServingIngredients(ingredients, per(r.gramsPerServing) || 200);
       const n = computeNutrients(ingredients);
       out.push({
         id: r.id, name: r.name, cuisine: r.country, categories: cats, role,
@@ -4450,7 +4457,7 @@ export class NutritionService implements OnModuleInit {
     });
     const recentIds = new Set<string>((prior?.days ?? []).flatMap((d) => d.meals.map((m) => m.recipeId)));
     // Load prices too, so the budget filter can work.
-    const recipes = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true, priceInr: true } } } })) as unknown as RecipeWithIng[];
+    const recipes = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true, priceInr: true, grams: true } } } })) as unknown as RecipeWithIng[];
 
     // Condition-aware selection: blood flags + goal switch on planning modes.
     const bloodFlags = flagsFor(await this.bloodValues(userId));
@@ -5037,7 +5044,7 @@ export class NutritionService implements OnModuleInit {
     let ev = evalNow();
     let changedRecipes = false;
     if (ev.score > 0) {
-      const recipes = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true, priceInr: true } } } })) as unknown as RecipeWithIng[];
+      const recipes = (await this.prisma.recipe.findMany({ include: { ingredients: { select: { name: true, priceInr: true, grams: true } } } })) as unknown as RecipeWithIng[];
       const modes = planningModes(flagsFor(await this.bloodValues(userId)), pref?.goal ?? 'maintain');
       const pools = this.rankedPools(recipes, diet, ex, modes);
       const tD = {
@@ -5608,7 +5615,7 @@ export class NutritionService implements OnModuleInit {
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     const effDiet: Diet = ex.weekly?.[SHORT_DAYS[dayIndex]] === 'veg' ? 'veg' : diet;
 
-    const recipes = (await this.prisma.recipe.findMany({ where: { slot }, include: { ingredients: { select: { name: true, priceInr: true } } } })) as unknown as RecipeWithIng[];
+    const recipes = (await this.prisma.recipe.findMany({ where: { slot }, include: { ingredients: { select: { name: true, priceInr: true, grams: true } } } })) as unknown as RecipeWithIng[];
     const allowed = allowedProteins(ex);
     const mix = ex.cuisineMix ?? (ex.cuisines?.length ? Object.fromEntries(ex.cuisines.map((c) => [c, 1])) : {});
     // Same hard + meal-type + cuisine constraints as the planner; relax only soft rules.

@@ -5,7 +5,7 @@ import { join } from 'path';
 import { computeTargets } from './nutrition.service';
 import { composeWeek, type ComposerPrefs, type Diet, type PoolRecipe } from './meal-composer';
 import { categorizeRecipe, type MealCategory } from './meal-engine';
-import { computeNutrients } from './ingredient-nutrients';
+import { computeNutrients, perServingIngredients } from './ingredient-nutrients';
 
 /**
  * Round-2 large-matrix QA harness. Faithfully mirrors NutritionService.datasetPool
@@ -47,13 +47,18 @@ function buildDatasetPool(): PoolRecipe[] {
       .map((i) => ({ name: i.name, grams: Math.max(1, Math.round(((i.grams ?? 0)) / s)) }))
       .filter((i) => i.name && i.grams > 0);
     if (!ingredients.length) continue;
-    const n = computeNutrients(ingredients);
+    // Normalised the way production normalises it. Every one of these harnesses
+    // built its own pool and skipped this, so they measured an engine fed
+    // ingredient quantities about seven times life size — and the clinical cap
+    // breaches they reported were arithmetic rather than food.
+    const ingredientsPerServing = perServingIngredients(ingredients, per(r.gramsPerServing as number) || 200);
+    const n = computeNutrients(ingredientsPerServing);
     out.push({
       id: r.id as string, name: r.name as string, cuisine: r.country as string, categories: cats, role,
       kcal: per(r.kcal as number) || 200, protein: per(r.protein as number), carbs: per(r.carbs as number),
       fat: per(r.fat as number), fiber: per(r.fiber as number),
       minutes: (r.minutes as number) || 20, grams: per(r.gramsPerServing as number) || 200, diet: mapDiet(r.diet as string),
-      ingredients,
+      ingredients: ingredientsPerServing,
       nutrients: { sodiumMg: n.na, potassiumMg: n.k, phosphorusMg: n.p, sugarG: n.sug, addedSugarG: n.addedSug, satFatG: n.sfat },
       nutrientComplete: n.complete,
       steps: [], imageUrl: null,
@@ -167,6 +172,14 @@ describe('Nutrition Hub — Round-2 large matrix (real 11k pool)', () => {
         if (dev <= 0.10) m.kcalWithin10++;
         if (dev <= 0.20) m.kcalWithin20++;
         if (day.totals.protein >= targets.protein * 0.9) m.proteinMetDays++;
+        else if (process.env.PROTEIN_BREAKDOWN) {
+          const k = `${p.diet}|${p.goal}|${isClinical ? 'clinical' : 'healthy'}`;
+          (globalThis as never as Record<string, Map<string, number[]>>).__pb ??= new Map();
+          const pb = (globalThis as never as Record<string, Map<string, number[]>>).__pb;
+          const e = pb.get(k) ?? [0, 0, 0];
+          e[0] += 1; e[1] += day.totals.protein; e[2] += targets.protein;
+          pb.set(k, e);
+        }
 
         const slots = day.meals.map((mm) => mm.slot).join(',');
         if (!prefs.fasting && slots !== 'b,l,s,es,d') m.structureBad++;
@@ -241,6 +254,12 @@ describe('Nutrition Hub — Round-2 large matrix (real 11k pool)', () => {
     // eslint-disable-next-line no-console
     console.log(rep.join('\n'));
 
+    if (process.env.PROTEIN_BREAKDOWN) {
+      const pb = (globalThis as never as Record<string, Map<string, number[]>>).__pb ?? new Map();
+      // eslint-disable-next-line no-console
+      console.log('\n===PROTEIN MISSES===\n' + [...pb.entries()].sort((a, b) => b[1][0] - a[1][0])
+        .map(([k, [n, got, want]]) => `${String(n).padStart(4)} days  got ${Math.round(got / n)}g of ${Math.round(want / n)}g  ${k}`).join('\n'));
+    }
     expect(m.crashes).toBe(0);
     expect(m.days).toBeGreaterThan(1000);
 
