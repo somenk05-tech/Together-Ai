@@ -65,6 +65,17 @@ export function FamilyPantry() {
         </div>
 
         {pantry.isLoading && <Spinner label="Opening the pantry…" />}
+        {/* This one guarded on `data &&`, so a failed read rendered NOTHING —
+            no list, no empty state, no explanation, just the header and a gap.
+            Silent is better than a false claim and still not good enough: a
+            blank page is a screen with nothing to say for itself. */}
+        {pantry.isError && (
+          <EmptyState
+            icon="⚠️"
+            title="We couldn’t open the pantry"
+            hint="Nothing has been used up or removed — we just couldn’t read what’s in it. Try again in a moment."
+          />
+        )}
         {data && data.itemCount === 0 && (
           <EmptyState icon="🥫" title="Your pantry is empty" hint="Add staples above, or stock it from your grocery list in one tap." />
         )}

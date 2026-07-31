@@ -263,6 +263,17 @@ export function Thoughts() {
 
       {thoughts.isLoading ? (
         <Spinner label="Opening your journal…" />
+      ) : thoughts.isError ? (
+        // "Your journal is empty" is not a neutral sentence to read about your
+        // own journal. Like "No records yet" in the medical vault, the first
+        // thought it produces is not "the request failed" — it is that the
+        // writing is gone. So this says the opposite thing explicitly, because
+        // that is the question actually in somebody's head.
+        <EmptyState
+          icon="⚠️"
+          title="We couldn’t open your journal"
+          hint="Nothing has been lost — every entry is still there, we just couldn’t read them just now. Try again in a moment."
+        />
       ) : items.length === 0 ? (
         <EmptyState
           icon="📓"

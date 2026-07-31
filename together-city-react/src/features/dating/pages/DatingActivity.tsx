@@ -168,13 +168,20 @@ export function DatingActivity() {
 
       {tab === 'invites' && (
         invites.isLoading ? <Spinner /> :
-        (invites.data ?? []).length === 0 ? <EmptyState icon="✉️" title="No invitations yet" hint="When someone posts a plan you’re compatible with, it appears here." />
+        // Before the empty state, for the reason Dating Chats was fixed first:
+        // "No invitations yet" said to somebody who HAS been invited is the app
+        // confirming a fear rather than reporting a fact.
+        invites.isError ? <EmptyState icon="⚠️" title="We couldn’t load your invitations" hint="This didn’t reach us — it isn’t a count of who wants to see you. Try again in a moment." />
+        : (invites.data ?? []).length === 0 ? <EmptyState icon="✉️" title="No invitations yet" hint="When someone posts a plan you’re compatible with, it appears here." />
           : invites.data?.map((inv) => <InviteCard key={inv.id} inv={inv} />)
       )}
 
       {tab === 'mine' && (
         mine.isLoading ? <Spinner /> :
-        (mine.data ?? []).length === 0 ? <EmptyState icon="🗓" title="No plans yet" hint="Create an activity to get started." />
+        // "No plans yet" plus "Create an activity to get started" is an
+        // instruction to do again what they may already have done.
+        mine.isError ? <EmptyState icon="⚠️" title="We couldn’t load your plans" hint="Nothing has been cancelled or removed — we just couldn’t read them. Try again in a moment." />
+        : (mine.data ?? []).length === 0 ? <EmptyState icon="🗓" title="No plans yet" hint="Create an activity to get started." />
           : mine.data?.map((a) => (
             <div key={a.id} className="card" style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>

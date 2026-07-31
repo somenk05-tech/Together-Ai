@@ -126,7 +126,23 @@ export function Cart() {
         </div>
       </div>
 
-      {items.length === 0 && !cart.isLoading && (
+      {/* A cart is the one empty state with a bill attached.
+          This rendered on `items.length === 0 && !cart.isLoading`, so a failed
+          read showed an empty basket AND a button offering to build it again —
+          which is how somebody ends up ordering a second week of groceries they
+          already have. The error branch comes first, and it does not offer to
+          rebuild anything. */}
+      {cart.isError && (
+        <div style={{ marginTop: 18 }}>
+          <EmptyState
+            icon="⚠️"
+            title="We couldn’t load your basket"
+            hint="Anything you had in it is still there — don’t rebuild it from here, or you may end up with two. Try again in a moment."
+          />
+        </div>
+      )}
+
+      {items.length === 0 && !cart.isLoading && !cart.isError && (
         <div style={{ marginTop: 18 }}>
           <EmptyState icon="🧺" title="Nothing here yet" hint="Build a basket from your weekly meal plan first." />
           <div style={{ textAlign: 'center', marginTop: 12 }}>
