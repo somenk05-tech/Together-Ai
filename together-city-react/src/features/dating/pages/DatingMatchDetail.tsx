@@ -259,9 +259,26 @@ export function DatingMatchDetail() {
   }
   if (detail.isLoading) return <Spinner label="Opening the profile…" />;
   if (detail.isError || !detail.data) {
+    // L3. The server answers every reason with the same 404 on purpose — "they
+    // filtered you out" is not ours to disclose, and the reasoning is written
+    // where that decision lives. So this stays vague about THEM.
+    //
+    // What it stopped being vague about is the one cause on the citizen's own
+    // side. The old hint listed three possibilities — paused, hidden, no longer
+    // a match — all of them about the other person, none of them actionable,
+    // which is what made this a dead end rather than an answer. Narrowing your
+    // own preferences does exactly this, and saying so leaks nothing about
+    // anybody: it is a fact about your settings, and the link goes to them.
     return <div style={{ maxWidth: 560, margin: '40px auto', padding: '0 16px' }}>
-      <EmptyState icon="🌙" title="This profile isn’t available" hint="It may be paused, hidden, or no longer a match." />
-      <div style={{ textAlign: 'center', marginTop: 14 }}><Link to="/dating/matches"><Button variant="accent">Back to matches</Button></Link></div>
+      <EmptyState
+        icon="🌙"
+        title="This profile isn’t available"
+        hint="They may have paused or hidden their profile — or your own preferences have narrowed since you last saw them."
+      />
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 14 }}>
+        <Link to="/dating/matches"><Button variant="accent">Back to matches</Button></Link>
+        <Link to="/dating/profile"><Button variant="line">Check your preferences</Button></Link>
+      </div>
     </div>;
   }
   return <Detail d={detail.data} targetUserId={targetUserId} kind={kind} />;
