@@ -2,6 +2,7 @@ import {
   SLOTS, SLOT_BY_CODE, type SlotCode, type MealCategory,
   resolveSchedule, type FastingPrefs, type DaySchedule,
 } from './meal-engine';
+import { isAllergenSafe } from './allergens';
 import { COMPONENT_SEEDS, componentId, componentSteps, isPantryStaple, type ComponentSeed } from './component-recipes';
 import { screenRecipe } from './diet-tags';
 
@@ -191,36 +192,22 @@ function meatForwardPrefs(prefs: ComposerPrefs): boolean {
   return prefs.diet === 'nonveg' && favs.length > 0 && favs.every((f) => MEAT_TOKENS.test(f));
 }
 
-/** Allergen/exclusion synonym expansion (QA M2): a single term matches the whole
- *  family (e.g. "nuts" → almond/cashew/walnut…, "milk" → paneer/cheese/curd…). */
-const ALLERGEN_SYNONYMS: Record<string, string[]> = {
-  nut: ['almond', 'cashew', 'walnut', 'pistachio', 'hazelnut', 'pecan', 'nut'],
-  nuts: ['almond', 'cashew', 'walnut', 'pistachio', 'hazelnut', 'pecan', 'nut'],
-  treenut: ['almond', 'cashew', 'walnut', 'pistachio', 'hazelnut', 'pecan'],
-  peanut: ['peanut', 'groundnut'],
-  milk: ['milk', 'dairy', 'paneer', 'cheese', 'curd', 'yogurt', 'yoghurt', 'butter', 'ghee', 'cream', 'khoya', 'buttermilk'],
-  dairy: ['milk', 'dairy', 'paneer', 'cheese', 'curd', 'yogurt', 'yoghurt', 'butter', 'ghee', 'cream', 'khoya', 'buttermilk'],
-  lactose: ['milk', 'paneer', 'cheese', 'curd', 'yogurt', 'cream', 'khoya'],
-  gluten: ['wheat', 'maida', 'flour', 'bread', 'roti', 'phulka', 'paratha', 'pasta', 'noodle', 'semolina', 'rava', 'barley', 'seitan'],
-  wheat: ['wheat', 'maida', 'flour', 'bread', 'roti', 'phulka', 'paratha', 'semolina', 'rava'],
-  soy: ['soy', 'soya', 'tofu', 'edamame'],
-  soya: ['soy', 'soya', 'tofu', 'edamame'],
-  egg: ['egg'],
-  shellfish: ['prawn', 'shrimp', 'crab', 'lobster', 'shellfish'],
-  fish: ['fish', 'anchovy', 'sardine', 'tuna', 'salmon', 'mackerel'],
-  seafood: ['fish', 'prawn', 'shrimp', 'crab', 'lobster', 'anchovy', 'sardine', 'tuna', 'salmon', 'seafood'],
-  sesame: ['sesame', 'til', 'tahini'],
-};
-function expandExcluded(excluded: string[]): string[] {
-  const out = new Set<string>();
-  for (const e of excluded) {
-    const k = e.trim().toLowerCase();
-    if (!k) continue;
-    out.add(k);
-    for (const s of ALLERGEN_SYNONYMS[k] ?? []) out.add(s);
-  }
-  return [...out];
-}
+/**
+ * Allergen and avoided-food matching now lives in allergens.ts, shared with the
+ * weekly planner (BE-8.4).
+ *
+ * This file used to carry its own ALLERGEN_SYNONYMS table and expand a declared
+ * term into a list of substrings. nutrition.service.ts carried a different
+ * answer — no expansion at all — so the composed plan was safe and the weekly
+ * and family plans were not. Two tables meant two behaviours; one table means
+ * one, and the adversarial set in allergens.spec.ts is written against the food
+ * rather than against either implementation.
+ *
+ * The old table also matched on substrings, which cost more than it looks:
+ * "nut" caught coconut and nutmeg, "flour" caught besan and rice flour. A
+ * coeliac citizen lost most of what they can eat and a nut-allergic one lost
+ * every coconut dish in an Indian-first corpus.
+ */
 
 /** Canonical grocery key (QA M1): merges "Onion"/"Onions"/"chopped onion" etc. */
 function canonicalKey(name: string): string {
@@ -267,7 +254,7 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
   const allowedCuisines = mix ? Object.keys(mix).filter((k) => (mix[k] ?? 0) > 0).map(normCuisine) : null;
   const slotCats = SLOT_BY_CODE[slot].categories;
   const userDiet = prefs.diet ?? 'vegetarian';
-  const excluded = expandExcluded(prefs.excluded ?? []);
+  const excluded = prefs.excluded ?? [];
 
   // Renal ceilings: only genuinely low-potassium/phosphorus food may enter a
   // renal plate, per role (the last lever to meet the strict K/P cap).
@@ -309,8 +296,7 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
       // when unlocked it's merely down-weighted in pick().
       if (locked) return false;
     }
-    const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
-    if (excluded.some((e) => e && hay.includes(e))) return false;
+    if (!isAllergenSafe(r.name, r.ingredients.map((i) => i.name), excluded)) return false;
     return true;
   };
 

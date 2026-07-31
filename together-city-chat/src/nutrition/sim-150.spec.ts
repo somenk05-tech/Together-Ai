@@ -6,6 +6,7 @@ import { composeWeek, scaleComposedWeek, type ComposerPrefs, type Diet, type Poo
 import { categorizeRecipe, type MealCategory } from './meal-engine';
 import { computeNutrients } from './ingredient-nutrients';
 import { supplementKit, flagsFor } from './clinical-engine';
+import { isAllergenSafe } from './allergens';
 
 /**
  * Large-scale SIMULATED production test (150 virtual users) — Round-2 validation.
@@ -174,7 +175,10 @@ describe('Nutrition Hub — 150 virtual-user simulation', () => {
           const pr = pool().find((x) => x.id === c.recipeId);
           const ladder: Record<Diet, Diet[]> = { vegan: ['vegan'], vegetarian: ['vegan', 'vegetarian'], eggetarian: ['vegan', 'vegetarian', 'eggetarian'], nonveg: ['vegan', 'vegetarian', 'eggetarian', 'nonveg'] };
           if (pr && !ladder[u.diet].includes(pr.diet)) M.dietViol++;
-          if (u.excluded.length) { const hay = `${c.name} ${c.ingredients.map((i) => i.name).join(' ')}`.toLowerCase(); for (const ex of u.excluded) if (hay.includes(ex)) M.allergenLeak++; }
+          // Measured with the matcher, not with a copy of the filter's own
+          // substring test — see the note in qa-matrix.spec.ts. The matcher's
+          // own correctness is proven in allergens.spec.ts.
+          if (u.excluded.length && !isAllergenSafe(c.name, c.ingredients.map((i) => i.name), u.excluded)) M.allergenLeak++;
         }
         // clinical safety: any breach must be flagged blocked, never silently shipped
         const b = day.capBreaches ?? [];

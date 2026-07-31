@@ -29,6 +29,7 @@ import { activeMntRules, mntRecipeBias, mntAvoidKeywords, type MntRule } from '.
 import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from './diet-tags';
 import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
+import { isAllergenSafe } from './allergens';
 import { energyTarget } from './energy';
 import { itemKey, mergeGroceryList } from './grocery-merge';
 import { targetReadiness } from './target-readiness';
@@ -641,13 +642,14 @@ function passesHard(r: RecipeWithIng, diet: Diet, ex: PrefExtras, allowed: Set<s
  * is an inconvenience, but an allergen on someone's plate is a safety incident.
  */
 function allergySafe(r: RecipeWithIng, ex: PrefExtras): boolean {
-  const allergies = terms(ex.allergies);
-  const excluded = terms(ex.excluded);
-  if (!allergies.length && !excluded.length) return true;
-  const hay = `${r.name} ${r.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
-  if (allergies.some((a) => hay.includes(a))) return false;
-  if (excluded.some((a) => hay.includes(a))) return false;
-  return true;
+  const declared = [...terms(ex.allergies), ...terms(ex.excluded)];
+  if (!declared.length) return true;
+  // Was a substring test on the term as typed, which is how "milk" failed to
+  // find paneer. The weekly planner and — since BE-12.1 merged the household's
+  // allergies into it — the family plan were both screened with it. See
+  // allergens.ts; the composed plan has always used the expanding matcher, and
+  // now there is one matcher rather than two answers.
+  return isAllergenSafe(r.name, r.ingredients.map((i) => i.name), declared);
 }
 
 /** SOFT constraints — preferred, but relaxed if a slot would otherwise be empty. */

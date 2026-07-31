@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { gunzipSync } from 'zlib';
+import { isAllergenSafe } from './allergens';
 import { join } from 'path';
 import { computeTargets } from './nutrition.service';
 import { composeWeek, type ComposerPrefs, type Diet, type PoolRecipe } from './meal-composer';
@@ -178,7 +179,15 @@ describe('Nutrition Hub — Round-2 large matrix (real 11k pool)', () => {
             if (pr && !ladder[p.diet].includes(pr.diet)) { m.dietViolations++; if (dietExamples.length < 6) dietExamples.push(`${p.name}: ${pr.diet} "${c.name}"`); }
             if (p.excluded?.length) {
               const hay = `${c.name} ${c.ingredients.map((i) => i.name).join(' ')}`.toLowerCase();
-              for (const ex of p.excluded) if (hay.includes(ex.toLowerCase())) m.exclusionLeaks++;
+              // MEASURED WITH THE MATCHER, which is a narrower claim than this
+              // line used to make. It was a substring test — the very substring
+              // test the filter performed — so "leaks: 0" was one function
+              // agreeing with itself and could not have come out otherwise. It
+              // now says the planner honoured the allergen matcher. Whether the
+              // MATCHER is right is a separate question with a separate answer:
+              // allergens.spec.ts, an adversarial table written from what the
+              // foods are rather than from what the code does.
+              if (!isAllergenSafe(c.name, c.ingredients.map((i) => i.name), p.excluded)) m.exclusionLeaks++;
             }
             if (isClinical) {
               m.clinicalMealsChecked++;
