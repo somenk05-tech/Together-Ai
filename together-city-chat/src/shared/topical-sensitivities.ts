@@ -129,6 +129,30 @@ const TERM_TO_KEYS: Record<string, readonly SensitivityKey[]> = {
   'propylene glycol': ['propyleneGlycol'],
 };
 
+/**
+ * Words that name a FORMAT on a product, and a food in an ingredient list.
+ *
+ * "Ceramide Barrier Cream" is not dairy. Neither is a body butter, nor a
+ * cleansing milk. But the food allergen families quite correctly list cream,
+ * butter and milk as dairy, because in a recipe they are — and the moment food
+ * allergens started reaching Beauty, every dairy-allergic citizen lost most of
+ * the moisturisers on the shelf to the word on the label.
+ *
+ * The split is between the two kinds of text. A product NAME uses these words
+ * for what the thing is like; an INGREDIENT list names the substance — "milk
+ * protein", "lactose", "whey" — so it is matched untouched. A cleansing milk
+ * containing milk protein is still excluded, on the strength of the ingredient
+ * rather than the marketing.
+ *
+ * Only these three. "Coconut" and "wheat" stay matchable everywhere: coconut oil
+ * and hydrolysed wheat protein are real ingredients that go on real skin, and
+ * their appearance in a product name is not a figure of speech.
+ */
+const FORMAT_WORDS = ['cream', 'creme', 'butter', 'milk'];
+
+const withoutFormatWords = (name: string): string =>
+  FORMAT_WORDS.reduce((s, w) => s.replace(new RegExp(`(^| )${w}s?( |$)`, 'g'), ' '), name);
+
 const CACHE = new Map<string, Set<SensitivityKey>>();
 
 /** Every cosmetic sensitivity family named in this product or ingredient. */
@@ -190,16 +214,19 @@ export function findSensitivity(
   for (const term of terms) {
     const cosmetic = sensitivityFamilies(term);
     const food = allergenFamilies(term);
-    for (const raw of candidates) {
+    for (const [i, raw] of candidates.entries()) {
       const name = clean(raw);
       if (!name) continue;
+      const isProductName = i === 0;
       if (cosmetic.length) {
         const present = sensitivitiesIn(name);
         const hit = cosmetic.find((k) => present.has(k));
         if (hit) return { term, family: hit, found: raw };
       }
       if (food.length) {
-        const present = allergensIn(name);
+        // The PRODUCT NAME is stripped of format words before food matching;
+        // the ingredient list is not. See FORMAT_WORDS.
+        const present = allergensIn(isProductName ? withoutFormatWords(name) : name);
         const hit = food.find((k) => present.has(k));
         if (hit) return { term, family: hit, found: raw };
       }

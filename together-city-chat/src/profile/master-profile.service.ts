@@ -1,6 +1,7 @@
 import { Injectable, Logger, ConflictException } from '@nestjs/common';
 import { clinicalSex, datingGender, displayGender, genderIdentityFromBeauty } from './sex-and-gender';
 import { salutation } from '../shared/salutation';
+import { canonicaliseDeclared } from '../shared/allergens';
 import { diffProfile, versionConflict } from './profile-change';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -42,12 +43,16 @@ export interface SharedFields {
   occupation?: string | null;
   phone?: string | null;
   address?: string | null;
+  /** Declared food allergens, csv. Written by Nutrition; read by hubs that
+   *  never ask. See the schema comment for why it is words and not keys. */
+  foodAllergens?: string | null;
 }
 
 const SHARED_KEYS: Array<keyof SharedFields> = [
   'gender', 'sexAtBirth', 'genderIdentity', 'genderIdentityOther',
   'dateOfBirth', 'timeOfBirth', 'birthCountry', 'birthState', 'birthCity',
   'country', 'state', 'city', 'timeZone', 'languages', 'heightCm', 'weightKg', 'occupation', 'phone', 'address',
+  'foodAllergens',
 ];
 
 export const computeAge = (dob: Date | null | undefined): number | null => {
@@ -203,6 +208,17 @@ export class MasterProfileService {
     // inside an extras JSON blob — parse it so those fields count as a source.
     let beautyEx: { age?: number; gender?: string; heightCm?: number; weightKg?: number; city?: string; occupation?: string } = {};
     try { beautyEx = beauty?.extras ? JSON.parse(beauty.extras) : {}; } catch { beautyEx = {}; }
+    // Nutrition keeps the declared allergens inside its own extras blob. Parsing
+    // it here makes them a SOURCE, which is what back-fills foodAllergens for
+    // every citizen who declared one before the column existed — the same
+    // self-healing path every other shared field arrived by, rather than an SQL
+    // cast in the migration over a text column that may not hold valid JSON.
+    let foodEx: { allergies?: string } = {};
+    try {
+      const raw = (food as { extras?: string | null } | null)?.extras;
+      foodEx = raw ? JSON.parse(raw) : {};
+    } catch { foodEx = {}; }
+    const declaredFood = canonicaliseDeclared(String(foodEx.allergies ?? '').split(/[,;]/)).join(',') || undefined;
 
     const astroRow = astro as { birthDate?: Date; birthTime?: string | null; birthCountry?: string; birthState?: string | null; birthCity?: string; timeZone?: string } | null;
     const place = ((dating?.birthPlace as string | undefined) ?? '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -221,7 +237,7 @@ export class MasterProfileService {
         birthCity: place[0], birthState: place.length > 2 ? place[1] : undefined,
         birthCountry: place.length > 1 ? place[place.length - 1] : undefined,
       } : {},
-      food ? { heightCm: food.heightCm, weightKg: food.weightKg, sexAtBirth: food.sex } : {},
+      food ? { heightCm: food.heightCm, weightKg: food.weightKg, sexAtBirth: food.sex, foodAllergens: declaredFood } : {},
       fitness ? { heightCm: fitness.heightCm, weightKg: fitness.weightKg, sexAtBirth: fitness.sex === 'other' ? undefined : fitness.sex } : {},
       // Beauty stores its label capitalised ('Female'). Merging it raw put that
       // into a column whose readers compare lowercase, so the backfill was

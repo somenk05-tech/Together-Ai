@@ -1,0 +1,12 @@
+-- The citizen's declared food allergens, on the one record every hub reads.
+--
+-- Nullable and unbackfilled ON PURPOSE. MasterProfileService.get() already
+-- self-heals: it reads every hub as a source, merges, and persists whatever the
+-- canonical row was missing. Adding FoodPref.extras as a source for this column
+-- means an existing citizen's allergens arrive on their next read, parsed by the
+-- same JSON code that has always parsed that blob — rather than by an SQL cast
+-- over a free-text column that may not hold valid JSON at all.
+--
+-- Doing it in SQL would have been faster and would have failed silently on the
+-- rows where it mattered.
+ALTER TABLE "MasterProfile" ADD COLUMN "foodAllergens" TEXT;

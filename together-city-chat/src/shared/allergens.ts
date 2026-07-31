@@ -295,6 +295,24 @@ export function findAllergen(
   return null;
 }
 
+/**
+ * A declared list, canonicalised for storage on the Master Profile.
+ *
+ * Strips the wrapper ("nut allergy" → "nut"), drops blanks, de-duplicates and
+ * sorts, so the same answers produce the same string and the audit trail does
+ * not fill with reorderings of one list.
+ *
+ * IT DOES NOT RESOLVE TO FAMILY KEYS. Keys would be a smaller, tidier
+ * vocabulary, and converting to them would throw away every allergen these
+ * lists do not know — kiwi, mango, sulphites, a brand name. The resolution
+ * happens at match time in findAllergen(), which expands what it recognises and
+ * honours what it does not on whole words. Lossy at the storage layer is the one
+ * place it cannot be recovered from.
+ */
+export function canonicaliseDeclared(terms: readonly string[]): string[] {
+  return [...new Set(terms.map((t) => declaredTerm(t)).filter(Boolean))].sort();
+}
+
 /** The boolean the planners want. */
 export function isAllergenSafe(
   dishName: string,

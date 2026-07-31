@@ -78,6 +78,29 @@ export class BeautyService {
     return merged;
   }
 
+  /**
+   * Beauty's own sensitivities, plus the food allergens declared elsewhere.
+   *
+   * AT MATCH TIME, NOT IN THE PROFILE BLOB. The obvious place for this is
+   * withMasterDemographics(), which overlays shared fields onto the profile the
+   * form renders — and that is precisely why it must not go there. saveProfile()
+   * persists the dto it receives straight into BeautyProfile.extras, so anything
+   * this hub shows in its form comes back and is stored as Beauty's own. The
+   * citizen would then own two copies of their nut allergy, editable in two
+   * places, disagreeing the moment either changed. That is the problem §3
+   * exists to remove, recreated by the fix for it.
+   *
+   * So the union happens where a product is being chosen and nowhere else.
+   * Beauty displays, and stores, only what Beauty asked.
+   */
+  private async declaredSensitivities(userId: string, own: unknown): Promise<string[]> {
+    const mine = Array.isArray(own) ? own.map(String).map((s) => s.trim()).filter(Boolean) : [];
+    const m = await this.masterProfile.get(userId).catch(() => null);
+    const food = String((m as { foodAllergens?: string | null } | null)?.foodAllergens ?? '')
+      .split(',').map((s) => s.trim()).filter(Boolean);
+    return [...new Set([...mine, ...food])];
+  }
+
   private get beauty() {
     return (this.prisma as unknown as {
       beautyProfile: {
@@ -199,7 +222,12 @@ export class BeautyService {
     // it stays consistent; if none exists, stay neutral until photos arrive.
     void photoFindings;
     const hasExisting = Boolean(existing?.analysisJson);
-    const refreshed = hasExisting ? assessBeauty(p, [...new Set(photos.flatMap((x) => x.findings ?? []))]) : null;
+    const refreshed = hasExisting
+      ? assessBeauty(
+          { ...p, allergies: await this.declaredSensitivities(userId, (p as { allergies?: unknown }).allergies) },
+          [...new Set(photos.flatMap((x) => x.findings ?? []))],
+        )
+      : null;
     await this.beauty.upsert({
       where: { userId },
       update: { skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto),
@@ -282,7 +310,10 @@ export class BeautyService {
       ? { ...profile, ...est, aiEstimated: { ...((profile as { aiEstimated?: Record<string, boolean> }).aiEstimated ?? {}), ...Object.fromEntries(estKeys.map((k) => [k, true])) } } as BeautyProfileInput
       : profile;
 
-    const analysis = assessBeauty(profileForAssess, findings);
+    const analysis = assessBeauty(
+      { ...profileForAssess, allergies: await this.declaredSensitivities(userId, profileForAssess.allergies) },
+      findings,
+    );
     const issues = [...analysis.skin.issues, ...analysis.hair.issues];
     const photoRows = photos.map((p) => ({ slot: p.slot, analyzedAt: new Date().toISOString(), findings }));
     const now = new Date();
@@ -356,7 +387,10 @@ export class BeautyService {
     const products = recommendProducts({
       readings,
       concerns: profile.concerns,
-      profile: { skinType: String(extras.skinType ?? profile.skinType), budget: extras.budget, allergies: extras.allergies },
+      profile: {
+        skinType: String(extras.skinType ?? profile.skinType), budget: extras.budget,
+        allergies: await this.declaredSensitivities(userId, extras.allergies),
+      },
       insights,
     });
     return {
@@ -374,7 +408,7 @@ export class BeautyService {
     const profile = await this.getProfile(userId);
     const extras = profile.profile as { skinType?: string; allergies?: string[] };
     return this.looks.analyze(userId, input, {
-      allergies: extras.allergies,
+      allergies: await this.declaredSensitivities(userId, extras.allergies),
       skinType: String(extras.skinType ?? profile.skinType ?? ''),
     });
   }

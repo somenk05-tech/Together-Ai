@@ -11,6 +11,7 @@ import { orderReceipt, tableReceipt } from '../mail/receipts';
 import { CUISINES, CUISINE_META, DIET_ALLOW, DIET_LABEL, RESTAURANT_SEEDS, hero, type Dish } from './restaurants.constants';
 import { recipeServings } from '../nutrition/nutrition.service';
 import { findAllergen } from '../shared/allergens';
+import { MasterProfileService } from '../profile/master-profile.service';
 
 const SLOT_LABEL: Record<string, string> = { b: 'Breakfast', l: 'Lunch', s: 'Snack', d: 'Dinner' };
 import type { PlaceOrderDto, ReserveTableDto, RestaurantQueryDto, DiscoverDto } from './dto/restaurants.dto';
@@ -39,6 +40,8 @@ export class RestaurantsService implements OnModuleInit {
     private readonly places: PlacesService,        // live Google Places discovery (cached)
     private readonly ai: AiService,                // AI editorial overviews (with deterministic fallback)
     private readonly clock: ClockService,
+    // Allergens are declared in Nutrition and read here. See the union below.
+    private readonly masterProfile: MasterProfileService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -142,7 +145,20 @@ export class RestaurantsService implements OnModuleInit {
     let ex: { cuisineMix?: Record<string, number>; allergies?: string; excluded?: string; budgetInr?: number | null; healthGoals?: string[] } = {};
     try { ex = (pref as { extras?: string | null } | null)?.extras ? JSON.parse((pref as { extras?: string | null }).extras as string) : {}; } catch { ex = {}; }
     const terms = (s?: string) => (s ?? '').split(/[,;]/).map((t) => t.trim().toLowerCase()).filter(Boolean);
-    const allergens = terms(ex.allergies), avoid = terms(ex.excluded);
+    // FoodPref AND the master, unioned — not the master alone.
+    //
+    // Reading only the master would be the tidier §3 answer and would silently
+    // remove protection from every citizen who declared an allergen before the
+    // column existed, until the next time they happened to re-save their food
+    // preferences. get() back-fills them, but a read that fails or a row that
+    // has not been touched yet must not be the difference between a filtered
+    // menu and an unfiltered one.
+    const master = await this.masterProfile.get(userId).catch(() => null);
+    const allergens = [...new Set([
+      ...terms(ex.allergies),
+      ...terms((master as { foodAllergens?: string | null } | null)?.foodAllergens ?? ''),
+    ])];
+    const avoid = terms(ex.excluded);
     const budgetTwo = ex.budgetInr ? Math.round(ex.budgetInr * 2 * 1.5) : null;
     const mix = ex.cuisineMix ?? {};
     const mixTotal = Object.values(mix).reduce((a, b) => a + b, 0);

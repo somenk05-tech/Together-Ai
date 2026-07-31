@@ -29,7 +29,7 @@ import { activeMntRules, mntAvoidKeywords } from './clinical-mnt';
 import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from './diet-tags';
 import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
-import { findAllergen, isAllergenSafe } from '../shared/allergens';
+import { canonicaliseDeclared, findAllergen, isAllergenSafe } from '../shared/allergens';
 import { energyTarget } from './energy';
 import { itemKey, mergeGroceryList } from './grocery-merge';
 import { targetReadiness } from './target-readiness';
@@ -2473,10 +2473,24 @@ export class NutritionService implements OnModuleInit {
       create: { userId, ...answeredNow(data) },
     } as Parameters<typeof this.prisma.foodPref.upsert>[0]);
     // Master Profile sync — body metrics are shared fields (spec: no duplicates).
+    //
+    // AND THE ALLERGENS, WHICH ARE THE REASON THIS HUB IS THE ONE THAT ASKS.
+    // Nutrition is where a citizen declares what they cannot eat, and until now
+    // that answer stopped at FoodPref.extras. Beauty asked its own question and
+    // got its own answer; a nut allergy told to the meal planner did not reach
+    // the hub recommending things to put on somebody's skin.
+    //
+    // Sent only when the field was actually in the payload: `undefined` leaves
+    // the master alone, `''` clears it. A save that did not touch allergies must
+    // not erase them.
+    const declaredAllergies = (dto as { allergies?: unknown }).allergies;
     await this.masterProfile.syncShared(userId, {
       heightCm: (dto as { heightCm?: number }).heightCm,
       weightKg: (dto as { weightKg?: number }).weightKg,
       gender: (dto as { sex?: string }).sex,
+      foodAllergens: typeof declaredAllergies === 'string'
+        ? canonicaliseDeclared(declaredAllergies.split(/[,;]/)).join(',')
+        : undefined,
     }, 'nutrition').catch(() => undefined);
     return saved;
   }
