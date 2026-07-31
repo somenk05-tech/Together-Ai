@@ -40,12 +40,13 @@ export interface SharedFields {
   weightKg?: number | null;
   occupation?: string | null;
   phone?: string | null;
+  address?: string | null;
 }
 
 const SHARED_KEYS: Array<keyof SharedFields> = [
   'gender', 'sexAtBirth', 'genderIdentity', 'genderIdentityOther',
   'dateOfBirth', 'timeOfBirth', 'birthCountry', 'birthState', 'birthCity',
-  'country', 'state', 'city', 'timeZone', 'languages', 'heightCm', 'weightKg', 'occupation', 'phone',
+  'country', 'state', 'city', 'timeZone', 'languages', 'heightCm', 'weightKg', 'occupation', 'phone', 'address',
 ];
 
 export const computeAge = (dob: Date | null | undefined): number | null => {

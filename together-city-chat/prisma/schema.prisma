@@ -950,6 +950,10 @@ model NutritionOrder {
   deliveries FreshDelivery[]
 
   @@index([userId, createdAt])
+  /// Where this order is delivered. Nullable only because orders placed before
+  /// the field existed have none — the API requires it on every new order, and
+  /// the most recent one is offered back as the default next time.
+  deliveryAddress String?
 }
 
 model NutritionOrderItem {
@@ -1867,6 +1871,10 @@ model MasterProfile {
   weightKg     Int?
   occupation   String?
   phone        String?
+  /// Where deliveries go. Collected once, at the grocery checkout, and kept
+  /// here so no hub has to ask again — the Master Profile is the one record
+  /// every hub reads.
+  address      String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

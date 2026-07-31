@@ -111,7 +111,9 @@ export const nutritionApi = {
     api.patch<FoodPref>('/nutrition/preferences', input).then((r) => r.data),
   wallet: () => api.get<Wallet>('/nutrition/wallet').then((r) => r.data),
   orders: () => api.get<NutritionOrder[]>('/nutrition/orders').then((r) => r.data),
-  placeOrder: (method: 'wallet' | 'card' = 'wallet') => api.post<NutritionOrder>('/nutrition/orders', { method }).then((r) => r.data),
+  lastDeliveryAddress: () => api.get<{ deliveryAddress: string | null }>('/nutrition/orders/last-address').then((r) => r.data),
+  placeOrder: (method: 'wallet' | 'card' = 'wallet', deliveryAddress = '') =>
+    api.post<NutritionOrder>('/nutrition/orders', { method, deliveryAddress }).then((r) => r.data),
   qcCompare: (mode: 'individual' | 'family' = 'individual') =>
     api.get<QcCompare>('/nutrition/qc/compare', { params: { mode } }).then((r) => r.data),
   qcSearch: (q: string) => api.get<QcSearch>('/nutrition/qc/search', { params: { q } }).then((r) => r.data),

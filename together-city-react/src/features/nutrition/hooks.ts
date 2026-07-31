@@ -378,10 +378,20 @@ export function useOrders() {
   return useQuery({ queryKey: ['nutrition', 'orders'], queryFn: () => nutritionApi.orders() });
 }
 
+/** The address the last order went to, offered back at checkout. */
+export function useLastDeliveryAddress() {
+  return useQuery({
+    queryKey: ['nutrition', 'orders', 'last-address'],
+    queryFn: () => nutritionApi.lastDeliveryAddress(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function usePlaceOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (method: 'wallet' | 'card' = 'wallet') => nutritionApi.placeOrder(method),
+    mutationFn: (v: { method: 'wallet' | 'card'; deliveryAddress: string }) =>
+      nutritionApi.placeOrder(v.method, v.deliveryAddress),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['nutrition', 'orders'] });
       void qc.invalidateQueries({ queryKey: ['nutrition', 'wallet'] });

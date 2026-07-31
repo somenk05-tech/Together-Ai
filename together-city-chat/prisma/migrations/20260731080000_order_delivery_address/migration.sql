@@ -1,0 +1,12 @@
+-- Where the groceries actually go.
+--
+-- A NutritionOrder was charged and stored with no address anywhere in the
+-- system: placeOrder took a payment method and nothing else. The checkout
+-- screen carried an address field to make the step look complete, pre-filled
+-- with an invented flat in Bandra West — a value nobody typed, read by nothing,
+-- shown to the citizen as their own.
+--
+-- Nullable because every order written before this one has no address and
+-- inventing one for them would repeat the original mistake in the database.
+-- New orders require it at the API.
+ALTER TABLE "NutritionOrder" ADD COLUMN "deliveryAddress" TEXT;

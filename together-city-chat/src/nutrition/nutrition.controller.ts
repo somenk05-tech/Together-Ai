@@ -644,9 +644,19 @@ export class NutritionController {
   }
 
   @Post('orders')
-  @UsePipes(new ZodValidationPipe(z.object({ method: z.enum(['wallet', 'card']).optional() })))
-  placeOrder(@CurrentUser() user: JwtUser, @Body() body: { method?: 'wallet' | 'card' }) {
-    return this.nutrition.placeOrder(user.sub, body?.method);
+  @UsePipes(new ZodValidationPipe(z.object({
+    method: z.enum(['wallet', 'card']).optional(),
+    deliveryAddress: z.string().min(1).max(300),
+  })))
+  placeOrder(@CurrentUser() user: JwtUser, @Body() body: { method?: 'wallet' | 'card'; deliveryAddress: string }) {
+    return this.nutrition.placeOrder(user.sub, body?.method, body?.deliveryAddress);
+  }
+
+  /** The address this citizen last had an order sent to, for the checkout to
+   *  offer back. Null before their first one — the checkout then asks. */
+  @Get('orders/last-address')
+  lastDeliveryAddress(@CurrentUser() user: JwtUser) {
+    return this.nutrition.lastDeliveryAddress(user.sub).then((deliveryAddress) => ({ deliveryAddress }));
   }
 
   @Post('orders/:orderId/deliveries/:deliveryId/cancel')

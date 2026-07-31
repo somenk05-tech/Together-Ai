@@ -1,0 +1,11 @@
+-- The citizen's delivery address, on the one record every hub reads.
+--
+-- It is collected at the grocery checkout because that is the first place the
+-- app has a reason to ask, but it belongs to the person and not to the order:
+-- asking again in Restaurants, or in Travel, for something they have already
+-- told us would be the app forgetting.
+--
+-- The order keeps its own copy (NutritionOrder.deliveryAddress) on purpose. An
+-- address on the profile is where they live now; an address on an order is
+-- where that order went, and editing the first must not rewrite the second.
+ALTER TABLE "MasterProfile" ADD COLUMN "address" TEXT;

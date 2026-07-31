@@ -6758,11 +6758,48 @@ export class NutritionService implements OnModuleInit {
   // ─────────────── orders ───────────────
   /** Place an order from the latest grocery cart: pantry ships once, fresh splits
    *  into 7 daily deliveries; total is debited from the wallet. */
-  async placeOrder(userId: string, method?: 'wallet' | 'card') {
+  /**
+   * The address the citizen last had something delivered to, so the checkout can
+   * offer it back instead of asking again. Null before their first order.
+   */
+  async lastDeliveryAddress(userId: string): Promise<string | null> {
+    // The Master Profile first: it is the one record every hub reads, and an
+    // address belongs to the person rather than to any one order. The last
+    // order is the fallback for citizens who ordered before the profile field
+    // existed.
+    const profile = await this.prisma.masterProfile
+      .findUnique({ where: { userId }, select: { address: true } as never })
+      .catch(() => null);
+    const saved = (profile as { address?: string | null } | null)?.address;
+    if (saved) return saved;
+    const last = await this.prisma.nutritionOrder
+      .findFirst({ where: { userId, deliveryAddress: { not: null } } as never, orderBy: { createdAt: 'desc' }, select: { deliveryAddress: true } as never })
+      .catch(() => null);
+    return (last as { deliveryAddress?: string | null } | null)?.deliveryAddress ?? null;
+  }
+
+  async placeOrder(userId: string, method?: 'wallet' | 'card', deliveryAddress?: string) {
     const cart = await this.prisma.groceryCart.findFirst({
       where: { userId }, orderBy: { createdAt: 'desc' }, include: { items: true },
     });
     if (!cart || cart.items.length === 0) throw new NotFoundException('build a grocery cart first');
+
+    // An order that is going to be delivered needs somewhere to go. This used
+    // to be collected by a decorative input on the checkout, pre-filled with an
+    // address nobody typed and read by nothing — so every order in the table
+    // was charged, scheduled across seven days, and addressed nowhere.
+    const address = (deliveryAddress ?? '').trim().replace(/\s+/g, ' ');
+    if (address.length < 10) {
+      throw new BadRequestException('Where should this go? Add a delivery address before paying.');
+    }
+    if (address.length > 300) throw new BadRequestException('That address is too long — 300 characters is the limit.');
+
+    // Remember it on the Master Profile, so no other hub has to ask again.
+    // Best-effort: a citizen who has paid should not see their order fail
+    // because we could not write a convenience field.
+    await this.prisma.masterProfile
+      .upsert({ where: { userId }, update: { address } as never, create: { userId, address } as never })
+      .catch(() => undefined);
 
     const total = cart.items.reduce((s, i) => s + i.priceInr, 0);
     // Unified payment: charge the one city wallet via the Financial hub.
@@ -6780,6 +6817,11 @@ export class NutritionService implements OnModuleInit {
       data: {
         userId,
         totalInr: total,
+        // `as never` on the data object below: the generated client only learns
+        // about deliveryAddress after the next `prisma generate`, and a service
+        // should not fail to compile on the order two build steps happen to run
+        // in. Same loose-accessor pattern as the rest of this file.
+        deliveryAddress: address,
         items: {
           create: cart.items.map((i) => ({ name: i.name, category: i.category, qty: i.qty, priceInr: i.priceInr })),
         },
@@ -6790,7 +6832,7 @@ export class NutritionService implements OnModuleInit {
             amountInr: dayIndex === 6 ? freshTotal - perDay * 6 : perDay,
           })),
         },
-      },
+      } as never,
       include: { items: true, deliveries: { orderBy: { dayIndex: 'asc' } } },
       }),
     );
