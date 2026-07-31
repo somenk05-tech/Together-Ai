@@ -41,6 +41,15 @@ const ALLOW: Array<{ id: string; why: string }> = [
     why: 'The platform health probe. Railway calls it, no page ever will, and '
       + 'the day a browser needs it something has gone badly wrong.',
   },
+  ...(['astrology', 'beauty', 'fitness', 'recipes'] as const).map((kind) => ({
+    id: `ai/ai-suggestions.controller.ts  GET /ai/${kind}`,
+    why: 'Reached by api.get(`/ai/${kind}`) — one call site covering four literal '
+      + 'routes. Letting a variable segment in a CALL match a literal segment in a '
+      + 'ROUTE would clear these automatically and would also let /messages/${id} '
+      + 'clear /messages/read, /messages/search and /messages/delivered, which is '
+      + 'exactly the kind of route worth knowing about. Four named exceptions beat '
+      + 'a rule that quietly excuses a whole class.',
+  })),
   {
     id: 'media/media-status.controller.ts  GET /media/cors-status',
     why: 'A diagnostic for a human with curl, added when cross-origin media was '
@@ -70,10 +79,6 @@ const ALLOW: Array<{ id: string; why: string }> = [
  * reasons into ALLOW above would defeat the whole point of having ALLOW.
  */
 const KNOWN_UNREACHED: string[] = [
-  "ai/ai-suggestions.controller.ts  GET /ai/astrology",
-  "ai/ai-suggestions.controller.ts  GET /ai/beauty",
-  "ai/ai-suggestions.controller.ts  GET /ai/fitness",
-  "ai/ai-suggestions.controller.ts  GET /ai/recipes",
   "auth/auth.controller.ts  POST /auth/check-email",
   "auth/auth.controller.ts  POST /auth/check-handle",
   "beauty/beauty.controller.ts  DELETE /beauty/looks/*",
