@@ -7,6 +7,7 @@ import type { LookupOption } from '@/api/lookups.api';
 import { useDatingProfile, useUpsertDatingProfile, useDeleteDatingProfile, type UpsertProfileInput, type Visibility, type ProfileCompletion } from '../api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
+import { SelfieOnFile } from '../components/SelfieOnFile';
 
 const field: React.CSSProperties = {
   width: '100%', padding: '11px 13px', border: '1.5px solid var(--line)', borderRadius: 10,
@@ -141,10 +142,18 @@ function VisibilityCard({ visibility, minScore, onChange, onDelete, deleting }: 
 }
 
 /**
- * Camera-only verification. The verified badge is EARNED by capturing a live
- * selfie through the device camera — there is no checkbox and no way to mark
- * yourself verified by uploading a photo. The captured selfie is stored so the
- * backend can later run a real face-match against the profile photos.
+ * Take a selfie for the profile (H5).
+ *
+ * This used to say the badge was "EARNED" and that there was "no way to mark
+ * yourself verified by uploading a photo". Neither held. The camera-only rule
+ * lives entirely in this component; `upsertProfile` stores whatever `extras`
+ * JSON it receives, so a request made outside the app sets the flag with any
+ * image. And nothing anywhere compares the selfie to the profile photos — a
+ * real live selfie of somebody else earns exactly the same marker.
+ *
+ * The capture stays: it is the raw material a face match will need, and asking
+ * for it through the camera is still the right default. What changes is that
+ * nothing here claims the check has happened. See components/SelfieOnFile.tsx.
  */
 function SelfieVerify({ verified, onCapture, onClear }: {
   verified: boolean; onCapture: (dataUrl: string) => void; onClear: () => void;
@@ -162,7 +171,7 @@ function SelfieVerify({ verified, onCapture, onClear }: {
   const start = async () => {
     setErr(null); setReady(false); setOpen(true);
     if (!navigator.mediaDevices?.getUserMedia) {
-      setErr('Your browser or device doesn’t support camera capture, so verification isn’t available here.');
+      setErr('Your browser or device doesn’t support camera capture, so the selfie can’t be taken here.');
       return;
     }
     try {
@@ -174,7 +183,7 @@ function SelfieVerify({ verified, onCapture, onClear }: {
         setReady(true);
       }
     } catch {
-      setErr('Camera access is required to get verified. Please allow the camera and try again.');
+      setErr('Camera access is required to take the selfie. Please allow the camera and try again.');
     }
   };
 
@@ -202,9 +211,9 @@ function SelfieVerify({ verified, onCapture, onClear }: {
     <div style={{ marginTop: 12 }}>
       {verified ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5, fontWeight: 700, color: '#2f9be6' }}>
-            <span style={{ display: 'inline-grid', placeItems: 'center', width: 18, height: 18, borderRadius: '50%', background: '#2f9be6', color: '#fff', fontSize: 11 }}>✓</span>
-            Camera verified
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5, fontWeight: 700 }}>
+            <SelfieOnFile on />
+            Selfie on file
           </span>
           <button type="button" onClick={onClear} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>Redo</button>
         </div>
@@ -212,17 +221,18 @@ function SelfieVerify({ verified, onCapture, onClear }: {
         <button type="button" onClick={() => void start()}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 13.5,
             color: 'var(--accent)', background: 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 999, padding: '9px 16px' }}>
-          📷 Get verified with your camera
+          📷 Take a selfie with your camera
         </button>
       )}
       <p className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>
-        Take a live selfie to earn the blue verified badge. Only camera-verified members are marked verified — you can’t verify by uploading a photo.
+        Matches see that a selfie is on file. We keep it so we can check it against your photos once that
+        check is built — until then it isn’t proof of identity, and your matches are told exactly that.
       </p>
 
       {open && (
         <div role="dialog" aria-modal="true" style={overlay} onClick={close}>
           <div style={sheet} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>Camera verification</h3>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>Take your selfie</h3>
             <p className="muted" style={{ fontSize: 12.5, margin: '0 0 12px' }}>Center your face in the frame and capture a live selfie. This isn’t added to your photos.</p>
             {err ? (
               <div style={{ background: '#ffebee', color: '#c62828', borderRadius: 12, padding: '12px 14px', fontSize: 13 }}>{err}</div>
@@ -398,8 +408,8 @@ export function DatingProfilePage() {
 
   if (collapsed && saved) {
     const displayName = dx.firstName || 'Your profile';
-    // The verified badge is EARNED by a live camera selfie only — a self-ticked
-    // flag with no captured selfie never shows as verified.
+    // "Is a selfie stored" — the only part of this the server can actually see.
+    // Not identity: nothing compares it to the photos. See components/SelfieOnFile.
     const verified = Boolean(dx.selfieVerified && dx.selfiePhoto);
     const goal = dx.relationshipGoal || 'a connection';
     const location = [dx.city, dx.state, dx.country].filter(Boolean).join(', ');
@@ -459,7 +469,7 @@ export function DatingProfilePage() {
               <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: '#fff' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--serif)', fontSize: 30, fontWeight: 700, lineHeight: 1.05, textShadow: '0 2px 14px rgba(0,0,0,.5)' }}>
                   <span>{displayName}{age ? `, ${age}` : ''}</span>
-                  {verified && <span aria-label="Verified" title="Camera-verified" style={{ display: 'inline-grid', placeItems: 'center', width: 22, height: 22, borderRadius: '50%', background: '#2f9be6', color: '#fff', fontSize: 13, flex: 'none' }}>✓</span>}
+                  <SelfieOnFile on={verified} />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 14.5, marginTop: 4, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
                   Looking for <strong style={{ color: '#f4a9b2', fontWeight: 700 }}>{goal}</strong>
@@ -487,8 +497,8 @@ export function DatingProfilePage() {
           {/* Verification status line (mirrors what a match sees on the tick) */}
           <div style={{ marginTop: 12, fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 7 }}>
             {verified
-              ? <><span style={{ display: 'inline-grid', placeItems: 'center', width: 16, height: 16, borderRadius: '50%', background: '#2f9be6', color: '#fff', fontSize: 10 }}>✓</span><span className="muted">Camera-verified — matches see the blue badge on your name.</span></>
-              : <span className="muted">Not verified yet — <button type="button" onClick={() => setCollapsed(false)} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5 }}>get the blue badge with a live camera selfie</button>.</span>}
+              ? <><SelfieOnFile on size="sm" /><span className="muted">Selfie on file — matches see that, and that we haven’t checked it against your photos yet.</span></>
+              : <span className="muted">No selfie yet — <button type="button" onClick={() => setCollapsed(false)} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5 }}>take one with your camera</button>.</span>}
           </div>
 
           {/* Facts line — same as the match-detail header */}

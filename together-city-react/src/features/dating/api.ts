@@ -68,6 +68,11 @@ export interface MatchDetail {
   relationshipGoal: string | null;
   diet: string | null; smoking: string | null; drinking: string | null;
   fitnessLevel: string | null; education: string | null; occupation: string | null;
+  /** A selfie is stored on this profile. NOT identity: nothing compares it to
+   *  their photos, and the camera-only rule is enforced by the capture UI rather
+   *  than the server. Render it through components/SelfieOnFile, which says so.
+   *  The name stays for now because the API shape is stable; when a real face
+   *  match ships, this becomes two fields and one of them earns the word. */
   verified: boolean;
   yourSign: string; theirSign: string;
   score: number;

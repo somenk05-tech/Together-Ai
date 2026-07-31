@@ -7,6 +7,7 @@ import {
   useMatchDetail, useLikeMatch, usePassMatch, useConnectChat, useUnmatch,
   type MatchKind, type MatchDetail,
 } from '../api';
+import { SelfieOnFile, SELFIE_ON_FILE_NOTE } from '../components/SelfieOnFile';
 
 const photoBox: CSSProperties = { position: 'relative', borderRadius: 16, overflow: 'hidden', background: 'var(--paper)' };
 const cover: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' };
@@ -69,7 +70,7 @@ function Collage({ d }: { d: MatchDetail }) {
         <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: '#fff', pointerEvents: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--serif)', fontSize: 29, fontWeight: 700, lineHeight: 1.05, textShadow: '0 2px 14px rgba(0,0,0,.5)' }}>
             <span>{d.name}{d.age ? `, ${d.age}` : ''}</span>
-            {d.verified && <span aria-label="Verified" title="Camera-verified" style={{ display: 'inline-grid', placeItems: 'center', width: 22, height: 22, borderRadius: '50%', background: '#2f9be6', color: '#fff', fontSize: 13, flex: 'none' }}>✓</span>}
+            <SelfieOnFile on={d.verified} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 14, marginTop: 4, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
             Looking for <strong style={{ color: '#f4a9b2', fontWeight: 700 }}>{goal}</strong>
@@ -82,6 +83,15 @@ function Collage({ d }: { d: MatchDetail }) {
           )}
         </div>
       </div>
+
+      {/* The marker on the name, in words. This is the screen where somebody
+          decides whether to meet a stranger, so the limits of what we checked
+          belong here rather than in a tooltip nobody hovers. */}
+      {d.verified && (
+        <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, margin: '10px 2px 0' }}>
+          📷 {SELFIE_ON_FILE_NOTE}
+        </p>
+      )}
 
       {/* Thumbnail strip — scroll/click through every photo */}
       {n > 1 && (
