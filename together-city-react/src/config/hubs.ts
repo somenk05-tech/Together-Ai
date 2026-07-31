@@ -191,8 +191,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/financial/wallet', index: '01', label: 'City Wallet', sub: 'Balance & top-up' },
       { path: '/financial/spending', index: '02', label: 'Spending', sub: 'Where your money goes' },
       { path: '/financial/budgets', index: '03', label: 'Budgets', sub: 'Caps that track live' },
-      { path: '/financial/payments', index: '04', label: 'Payments', sub: 'Bills, EMIs & rent' },
-      { path: '/financial/transactions', index: '05', label: 'Transactions', sub: 'Every hub, one feed' },
+      { path: '/financial/transactions', index: '04', label: 'Transactions', sub: 'Every hub, one feed' },
     ],
   },
 };

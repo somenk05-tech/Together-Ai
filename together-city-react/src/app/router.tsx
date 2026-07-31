@@ -113,7 +113,6 @@ const RESell = lazy(() => import('@/features/realestate/pages/Sell').then((m) =>
 const FitWorkout = lazy(() => import('@/features/fitness/pages/Workout').then((m) => ({ default: m.Workout })));
 const FitSupplements = lazy(() => import('@/features/fitness/pages/Supplements').then((m) => ({ default: m.Supplements })));
 const FitSleep = lazy(() => import('@/features/fitness/pages/Sleep').then((m) => ({ default: m.Sleep })));
-const FinPayments = lazy(() => import('@/features/financial/pages/Payments').then((m) => ({ default: m.Payments })));
 const FamHome = lazy(() => import('@/features/family/pages/Family').then((m) => ({ default: m.Family })));
 const FamConnect = lazy(() => import('@/features/family/pages/Connect').then((m) => ({ default: m.FamilyConnect })));
 const FamWeekly = lazy(() => import('@/features/family/pages/Weekly').then((m) => ({ default: m.FamilyWeekly })));
@@ -295,7 +294,6 @@ export const router = createBrowserRouter([
       { path: '/financial/spending', element: <RequireAuth>{wrap(<FinSpending />)}</RequireAuth> },
       { path: '/financial/budgets', element: <RequireAuth>{wrap(<FinBudgets />)}</RequireAuth> },
       { path: '/financial/transactions', element: <RequireAuth>{wrap(<FinTransactions />)}</RequireAuth> },
-      { path: '/financial/payments', element: <RequireAuth>{wrap(<FinPayments />)}</RequireAuth> },
     ],
   },
   {

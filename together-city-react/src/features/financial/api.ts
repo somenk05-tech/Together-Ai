@@ -74,13 +74,15 @@ export function useRemoveCard() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['financial', 'wallet'] }),
   });
 }
-export function usePayBill() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: { hub?: string; category?: string; label: string; amountInr: number; method?: PayMethod }) => financialApi.pay(input),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['financial'] }),
-  });
-}
+/**
+ * usePayBill lived here. It took a label and an amount and charged the city
+ * wallet for whatever you named — which is fine as a primitive and was, in
+ * practice, only ever called by a Payments page whose bills were invented
+ * (FE-22.1). With that page gone the hook had no caller, and a hook that debits
+ * a wallet for an arbitrary string is not something to leave lying about
+ * waiting for a use. The endpoint it called, POST /financial/pay, is still
+ * there and still used by financial.charge's other callers.
+ */
 export function useSetBudget() {
   const qc = useQueryClient();
   return useMutation({
