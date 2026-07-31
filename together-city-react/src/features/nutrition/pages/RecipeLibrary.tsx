@@ -201,6 +201,10 @@ export function RecipeLibrary() {
           Search by name or by what is in your kitchen, add the dishes you like, and turn them into
           one grocery list. Or pick a cuisine and browse every recipe in it.
         </p>
+        <p style={{ fontSize: 13, margin: '0 0 14px' }}>
+          Cook something that isn’t in here? <Link to="/nutrition/recipes/own" style={{ color: 'var(--accent)', fontWeight: 600 }}>Add your own recipe →</Link>{' '}
+          <span className="muted">It stays private to you, and can appear in your weekly plan.</span>
+        </p>
         <form onSubmit={(e) => { e.preventDefault(); if (search) setCuisine(''); }} style={{ marginBottom: 18 }}>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="🔍 Search all recipes…" aria-label="Search recipes"
             style={{ width: '100%', padding: '12px 14px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', background: 'var(--card)', boxSizing: 'border-box' }} />

@@ -76,6 +76,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/nutrition/weekly', index: '03', label: 'Weekly Meal Planner', sub: 'Personalised 7-day plan' },
       { path: '/nutrition/grocery', index: '04', label: LABELS.groceryLists, sub: 'Built from your plan' },
       { path: '/nutrition/recipes', index: '05', label: LABELS.createYourOwnMealPlan, sub: 'Search, add, build your list' },
+      { path: '/nutrition/recipes/own', index: '06', label: 'Your Own Recipes', sub: 'Dishes you cook, in your plan' },
     ],
   },
   family: {
