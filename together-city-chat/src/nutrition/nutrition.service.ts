@@ -19,6 +19,8 @@ import {
   triggeredConditions, conditionsFromBlood, type MarkerStatus,
 } from './clinical-engine';
 import type { BloodInputDto, Diet, FoodPrefDto, PlanMode, Slot } from './dto/nutrition.dto';
+import type { OwnRecipeDto } from './dto/own-recipe.dto';
+import { buildOwnRecipe } from './own-recipe';
 import { assemblePlate, perMealTargets, type PlateOpts, type DayMealInput } from './plate';
 import { estimateDayMicros, type DayMealForMicros } from './micros-engine';
 import { assignDietPlans, dietPlanBias, planLabel, DIET_PLAN_CATALOG } from './diet-plans';
@@ -1635,6 +1637,10 @@ export class NutritionService implements OnModuleInit {
       const started = Date.now();
       this.recipeCorpusPromise = this.prisma.recipe
         .findMany({
+          // authorId null is the vetted world corpus. Citizens' own dishes are
+          // fetched per request in planningPool() — caching them here would put
+          // one person's recipe in everybody else's plan.
+          where: { authorId: null } as never,
           select: {
             id: true, slot: true, diet: true, name: true, country: true, minutes: true,
             kcal: true, gramsPerServing: true, servings: true,
@@ -1652,6 +1658,30 @@ export class NutritionService implements OnModuleInit {
         .catch((e) => { this.recipeCorpusPromise = null; throw e; });
     }
     return this.recipeCorpusPromise;
+  }
+
+  /**
+   * What this citizen's plan may be built from: the shared corpus plus their own
+   * recipes.
+   *
+   * Their own dishes are a separate, tiny query rather than part of the cache,
+   * which is what keeps BE-19.1's fix intact — the expensive read stays shared
+   * and is done once, and the per-citizen part is a handful of rows on an
+   * indexed column. Own recipes carry a derived diet label and real ingredient
+   * names, so every gate the planner already applies — allergens, diet screen,
+   * condition caps — sees them exactly as it sees a corpus row.
+   */
+  private async planningPool(userId: string): Promise<RecipeWithIng[]> {
+    const corpus = await this.recipeCorpus();
+    const own = (await this.prisma.recipe.findMany({
+      where: { authorId: userId } as never,
+      select: {
+        id: true, slot: true, diet: true, name: true, country: true, minutes: true,
+        kcal: true, gramsPerServing: true, servings: true,
+        ingredients: { select: { name: true, priceInr: true, grams: true } },
+      },
+    })) as unknown as RecipeWithIng[];
+    return own.length ? [...corpus, ...own] : corpus;
   }
 
   /** Drop the corpus after anything that writes a field the planner ranks on.
@@ -2258,7 +2288,7 @@ export class NutritionService implements OnModuleInit {
     return { ok: true as const, cleared: res.count };
   }
 
-  async recipeLibrary(q: { search?: string; cuisine?: string; mealType?: string; diet?: string; sort?: string; page?: number; pageSize?: number; ingredients?: string[] }) {
+  async recipeLibrary(q: { search?: string; cuisine?: string; mealType?: string; diet?: string; sort?: string; page?: number; pageSize?: number; ingredients?: string[]; userId?: string }) {
     const page = Math.max(1, q.page ?? 1);
     const pageSize = Math.min(60, Math.max(12, q.pageSize ?? 24));
     const where: Record<string, unknown> = {};
@@ -2284,11 +2314,17 @@ export class NutritionService implements OnModuleInit {
     // spinach is telling us what is in their kitchen, and a dish that uses only
     // one of the two does not answer that. Kept separate from `search` above,
     // which is a single OR across name-or-ingredient and means something else.
+    // Everything that has to hold at once goes in AND, because `search` above
+    // already owns the top-level OR and a second one would overwrite it.
+    const and: Record<string, unknown>[] = [];
+    // The corpus, plus this citizen's own dishes, and nobody else's.
+    and.push({ OR: [{ authorId: null }, ...(q.userId ? [{ authorId: q.userId }] : [])] });
     if (q.ingredients?.length) {
-      where.AND = q.ingredients.map((name) => ({
-        ingredients: { some: { name: { contains: name, mode: 'insensitive' } } },
-      }));
+      for (const name of q.ingredients) {
+        and.push({ ingredients: { some: { name: { contains: name, mode: 'insensitive' } } } });
+      }
     }
+    where.AND = and;
     const orderBy = (q.sort === 'rated' || q.sort === 'health' || q.sort === 'trending')
       ? [{ healthPercent: 'desc' as const }]
       : q.sort === 'name' ? [{ name: 'asc' as const }] : [{ recipeNo: 'desc' as const }];
@@ -4537,7 +4573,7 @@ export class NutritionService implements OnModuleInit {
     });
     const recentIds = new Set<string>((prior?.days ?? []).flatMap((d) => d.meals.map((m) => m.recipeId)));
     // Load prices too, so the budget filter can work.
-    const recipes = await this.recipeCorpus();
+    const recipes = await this.planningPool(userId);
 
     // Condition-aware selection: blood flags + goal switch on planning modes.
     const bloodFlags = flagsFor(await this.bloodValues(userId));
@@ -5124,7 +5160,7 @@ export class NutritionService implements OnModuleInit {
     let ev = evalNow();
     let changedRecipes = false;
     if (ev.score > 0) {
-      const recipes = await this.recipeCorpus();
+      const recipes = await this.planningPool(userId);
       const modes = planningModes(flagsFor(await this.bloodValues(userId)), pref?.goal ?? 'maintain');
       const pools = this.rankedPools(recipes, diet, ex, modes);
       const tD = {
@@ -5695,9 +5731,9 @@ export class NutritionService implements OnModuleInit {
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     const effDiet: Diet = ex.weekly?.[SHORT_DAYS[dayIndex]] === 'veg' ? 'veg' : diet;
 
-    // Filtered from the cached corpus rather than re-queried: the whole set is
-    // already in memory, and one slot of it is a predicate, not a round trip.
-    const recipes = (await this.recipeCorpus()).filter((r) => r.slot === slot);
+    // Filtered from the pool rather than re-queried: the corpus is already in
+    // memory, and one slot of it is a predicate, not a round trip.
+    const recipes = (await this.planningPool(plan?.userId ?? '')).filter((r) => r.slot === slot);
     const allowed = allowedProteins(ex);
     const mix = ex.cuisineMix ?? (ex.cuisines?.length ? Object.fromEntries(ex.cuisines.map((c) => [c, 1])) : {});
     // Same hard + meal-type + cuisine constraints as the planner; relax only soft rules.
@@ -5766,14 +5802,110 @@ export class NutritionService implements OnModuleInit {
   }
 
   // ─────────────── recipes ───────────────
-  async recipes(diet?: Diet) {
-    const where = diet && diet !== 'everything' ? { diet } : {};
-    const rows = await this.prisma.recipe.findMany({ where, orderBy: { name: 'asc' }, take: 200 });
+  async recipes(diet?: Diet, userId?: string) {
+    // Somebody else's own recipe is not part of the world database.
+    const visible = { OR: [{ authorId: null }, ...(userId ? [{ authorId: userId }] : [])] };
+    const where = diet && diet !== 'everything' ? { diet, ...visible } : visible;
+    const rows = await this.prisma.recipe.findMany({ where: where as never, orderBy: { name: 'asc' }, take: 200 });
     return rows.map((r) => this.recipeShape(r));
+  }
+
+  // ─────────────── a citizen's own recipes ───────────────
+
+  /**
+   * Save a dish somebody cooked. buildOwnRecipe decides what to believe — the
+   * diet from the ingredients, the nutrition from the ingredients unless they
+   * overrode it — and refuses rather than inventing when it cannot tell.
+   */
+  async createOwnRecipe(userId: string, dto: OwnRecipeDto) {
+    const built = buildOwnRecipe(dto);
+    if (!built.ok) throw new BadRequestException(built.reason);
+    const created = await this.prisma.recipe.create({
+      data: {
+        name: dto.name, country: dto.country, slot: dto.slot, minutes: dto.minutes,
+        diet: built.row.diet, kcal: built.row.kcal, protein: Math.round(built.row.protein),
+        carbs: Math.round(built.row.carbs), fat: Math.round(built.row.fat), fiber: Math.round(built.row.fiber),
+        servings: built.row.servings, gramsPerServing: built.row.gramsPerServing,
+        steps: JSON.stringify(dto.steps ?? []),
+        authorId: userId,
+        nutritionSource: built.row.nutritionSource,
+        coveragePct: built.row.coveragePct,
+        ingredients: { create: dto.ingredients.map((i) => ({ name: i.name, grams: i.grams })) },
+      } as never,
+      include: { ingredients: true },
+    });
+    // Their own dishes are not in the shared cache, so nothing to invalidate.
+    return { recipe: this.recipeShape(created), notes: built.notes, computed: built.computed };
+  }
+
+  /** Everything this citizen has added, newest first. */
+  async myRecipes(userId: string) {
+    const rows = await this.prisma.recipe.findMany({
+      where: { authorId: userId } as never,
+      orderBy: { id: 'desc' },
+      include: { ingredients: true },
+    });
+    return rows.map((r) => ({
+      ...this.recipeShape(r),
+      nutritionSource: (r as { nutritionSource?: string }).nutritionSource ?? 'computed',
+      coveragePct: (r as { coveragePct?: number }).coveragePct ?? 100,
+    }));
+  }
+
+  /** Rewrite one of their own. The ingredients are replaced wholesale, because
+   *  the nutrition and the diet label are both read off them — keeping a stale
+   *  ingredient row would leave the dish claiming something it is not. */
+  async updateOwnRecipe(userId: string, id: string, dto: OwnRecipeDto) {
+    const existing = await this.prisma.recipe.findUnique({ where: { id }, select: { id: true, authorId: true } as never }) as { id: string; authorId: string | null } | null;
+    if (!existing || existing.authorId !== userId) throw new NotFoundException('recipe not found');
+    const built = buildOwnRecipe(dto);
+    if (!built.ok) throw new BadRequestException(built.reason);
+    await this.prisma.recipeIngredient.deleteMany({ where: { recipeId: id } });
+    const updated = await this.prisma.recipe.update({
+      where: { id },
+      data: {
+        name: dto.name, country: dto.country, slot: dto.slot, minutes: dto.minutes,
+        diet: built.row.diet, kcal: built.row.kcal, protein: Math.round(built.row.protein),
+        carbs: Math.round(built.row.carbs), fat: Math.round(built.row.fat), fiber: Math.round(built.row.fiber),
+        servings: built.row.servings, gramsPerServing: built.row.gramsPerServing,
+        steps: JSON.stringify(dto.steps ?? []),
+        nutritionSource: built.row.nutritionSource,
+        coveragePct: built.row.coveragePct,
+        ingredients: { create: dto.ingredients.map((i) => ({ name: i.name, grams: i.grams })) },
+      } as never,
+      include: { ingredients: true },
+    });
+    return { recipe: this.recipeShape(updated), notes: built.notes, computed: built.computed };
+  }
+
+  /**
+   * Delete one of their own.
+   *
+   * Refused while a saved plan still uses it. Deleting the row would take the
+   * Meal rows with it and leave a hole in a week they may be part-way through,
+   * and a plan that quietly loses a Tuesday is worse than a recipe that will not
+   * go away — they are told which plan, so they can swap it out first.
+   */
+  async deleteOwnRecipe(userId: string, id: string) {
+    const existing = await this.prisma.recipe.findUnique({
+      where: { id }, select: { id: true, authorId: true, meals: { select: { id: true }, take: 1 } } as never,
+    }) as { id: string; authorId: string | null; meals: { id: string }[] } | null;
+    if (!existing || existing.authorId !== userId) throw new NotFoundException('recipe not found');
+    if (existing.meals.length) {
+      throw new BadRequestException('This dish is in one of your meal plans. Swap it out of the plan first, then delete it.');
+    }
+    await this.prisma.recipeIngredient.deleteMany({ where: { recipeId: id } });
+    await this.prisma.recipe.delete({ where: { id } });
+    return { deleted: true };
   }
 
   async recipe(id: string, userId?: string) {
     const r = await this.prisma.recipe.findUnique({ where: { id }, include: { ingredients: true } });
+    // An own recipe belongs to one person. Not-found rather than forbidden:
+    // "this recipe exists and is not yours" is itself something they should not
+    // learn from guessing an id.
+    const author = (r as { authorId?: string | null } | null)?.authorId ?? null;
+    if (r && author && author !== userId) throw new NotFoundException('recipe not found');
     if (!r) {
       // Curated component recipe (dal/curd/salad/snack) — not a dataset row, so it
       // has no DB record. Resolve it from the seed pool so it opens a real recipe

@@ -16,6 +16,7 @@ import {
   SidesSchema, type SidesDto, type Slot, SwapSchema, type SwapDto,
   SkipSchema, type SkipDto, CalorieSchema, type CalorieDto,
 } from './dto/nutrition.dto';
+import { OwnRecipeSchema, type OwnRecipeDto } from './dto/own-recipe.dto';
 
 /**
  * Household PHI-sharing switches — exactly the four the service stores
@@ -188,8 +189,10 @@ export class NutritionController {
 
   // Recipe Library — searchable/paginated recipe database (Netflix-style).
   @Get('recipes/library')
-  recipeLibrary(@Query() q: Record<string, string>) {
+  recipeLibrary(@CurrentUser() user: JwtUser, @Query() q: Record<string, string>) {
     return this.nutrition.recipeLibrary({
+      // The library shows the world corpus plus this citizen's own dishes.
+      userId: user.sub,
       search: q.search, cuisine: q.cuisine, mealType: q.mealType, diet: q.diet, sort: q.sort,
       // "I have paneer and spinach" — every named ingredient must be present,
       // which is a different question from the single free-text search above.
@@ -514,8 +517,33 @@ export class NutritionController {
   }
 
   @Get('recipes')
-  recipes(@Query('diet') diet?: Diet) {
-    return this.nutrition.recipes(diet);
+  recipes(@CurrentUser() user: JwtUser, @Query('diet') diet?: Diet) {
+    return this.nutrition.recipes(diet, user.sub);
+  }
+
+  // ── a citizen's own recipes ──────────────────────────────────────────
+  // Declared before `recipes/:id` so "own" is never read as an id.
+
+  @Get('recipes/own')
+  myRecipes(@CurrentUser() user: JwtUser) {
+    return this.nutrition.myRecipes(user.sub);
+  }
+
+  @Post('recipes/own')
+  @UsePipes(new ZodValidationPipe(OwnRecipeSchema))
+  createOwnRecipe(@CurrentUser() user: JwtUser, @Body() dto: OwnRecipeDto) {
+    return this.nutrition.createOwnRecipe(user.sub, dto);
+  }
+
+  @Patch('recipes/own/:id')
+  @UsePipes(new ZodValidationPipe(OwnRecipeSchema))
+  updateOwnRecipe(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: OwnRecipeDto) {
+    return this.nutrition.updateOwnRecipe(user.sub, id, dto);
+  }
+
+  @Delete('recipes/own/:id')
+  deleteOwnRecipe(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.nutrition.deleteOwnRecipe(user.sub, id);
   }
 
   // GET /api/nutrition/recipes/search?ingredients=paneer,spinach&diet=veg
