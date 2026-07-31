@@ -96,6 +96,57 @@ describe('MasterProfileService.completion', () => {
     expect(c.percent).toBeGreaterThan(40);
   });
 
+  describe('the Identity section counts what the Identity page writes', () => {
+    const identityOf = async (master: Record<string, unknown>) => {
+      const svc = serviceWith(prismaFor({}), master);
+      const c = await svc.completion('u1');
+      return c.sections.find((x) => x.key === 'identity')!;
+    };
+    /** Everything the Identity section asks for except the gender answer. */
+    const filled = {
+      name: 'Priya Sharma', dateOfBirth: new Date('1994-03-02'), heightCm: 165,
+      city: 'Pune', languages: 'Hindi,English', photo: 'https://example/p.jpg',
+    };
+
+    it('counts a citizen who answered on the Master Profile page', async () => {
+      // What FE-3.1's form actually saves: genderIdentity, never `gender`.
+      const s = await identityOf({ ...filled, genderIdentity: 'female' });
+      expect(s.done).toBe(s.total);
+      expect(s.complete).toBe(true);
+    });
+
+    it('counted six of seven before this fix, forever', async () => {
+      // The regression, stated as the thing that must not come back: the same
+      // citizen, and the only difference is which column the answer sits in.
+      const viaOldColumn = await identityOf({ ...filled, gender: 'female' });
+      const viaNewColumn = await identityOf({ ...filled, genderIdentity: 'female' });
+      expect(viaNewColumn.done).toBe(viaOldColumn.done);
+    });
+
+    it('still counts a pre-split account that only has the retired column', async () => {
+      const s = await identityOf({ ...filled, gender: 'nonbinary' });
+      expect(s.complete).toBe(true);
+    });
+
+    it('counts a free-text gender identity as answered', async () => {
+      const s = await identityOf({ ...filled, genderIdentity: 'other', genderIdentityOther: 'Agender' });
+      expect(s.complete).toBe(true);
+    });
+
+    it('does not count somebody who has not answered it at all', async () => {
+      const s = await identityOf(filled);
+      expect(s.done).toBe(s.total - 1);
+      expect(s.complete).toBe(false);
+    });
+
+    it('does not quietly pass sexAtBirth off as the social answer', async () => {
+      // Clinical and social are different questions (see sex-and-gender.ts).
+      // Answering the private one is not answering the one shown to people.
+      const s = await identityOf({ ...filled, sexAtBirth: 'female' });
+      expect(s.complete).toBe(false);
+    });
+  });
+
   it('keeps the response contract the frontend renders', async () => {
     const svc = serviceWith(prismaFor({}), { name: 'X' });
     const c = await svc.completion('u1');

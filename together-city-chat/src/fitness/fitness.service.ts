@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MasterProfileService } from '../profile/master-profile.service';
+import { clinicalSex } from '../profile/sex-and-gender';
 import { MedicalService } from '../medical/medical.service';
 import { flagsFor } from '../nutrition/clinical-engine';
 import {
@@ -55,7 +56,20 @@ export class FitnessService {
   /** Shared demographics from the Master Profile for a first-time fitness form. */
   private async prefillFromMaster(userId: string): Promise<{ age?: number; sex?: string; heightCm?: number | null; weightKg?: number | null } | null> {
     const m = await this.masterProfile.get(userId);
-    const sex = m.gender === 'male' || m.gender === 'female' ? m.gender : undefined;
+    // clinicalSex(), not m.gender. `sex` here feeds Mifflin-St Jeor, and this
+    // line was reading the SOCIAL column for a CLINICAL value — the exact
+    // conflation the 20260730200000 split existed to end, still live in the one
+    // place a wrong answer changes somebody's calorie target.
+    //
+    // It was also reading a column the Master Profile page stopped writing, so a
+    // citizen who answered "Sex at birth: female" on that page arrived here with
+    // nothing, and computeTargets fell back to a reference body.
+    //
+    // clinicalSex() prefers sexAtBirth, falls back to the pre-split column for
+    // rows the backfill did not reach, and returns undefined for intersex or
+    // preferNotToSay rather than guessing — which the caller already handles,
+    // because "no sex on file" is reported in `assumed[]`.
+    const sex = clinicalSex(m);
     const out: { age?: number; sex?: string; heightCm?: number | null; weightKg?: number | null } = {};
     if (typeof m.age === 'number') out.age = m.age;
     if (sex) out.sex = sex;
@@ -71,10 +85,17 @@ export class FitnessService {
     };
     // The citizen saved their training profile — this row is no longer defaults.
     await this.prisma.fitnessProfile.upsert({ where: { userId }, update: answeredNow(data), create: { userId, ...answeredNow(data) } } as never);
-    // Master Profile sync — height/weight/gender are shared fields.
+    // Master Profile sync. This wrote `gender` — the retired column — which is
+    // most of why it still looked alive: saving a fitness profile refilled it,
+    // so the read sites that depended on it kept working for anybody who had,
+    // and silently failed for anybody who had not.
+    //
+    // The fitness form asks a clinical question ("female | male | other" against
+    // a BMR equation), so its answer belongs in sexAtBirth. 'other' is not a
+    // clinical answer and is dropped rather than stored as one.
     await this.masterProfile.syncShared(userId, {
       heightCm: dto.heightCm ?? undefined, weightKg: dto.weightKg ?? undefined,
-      gender: dto.sex === 'other' ? undefined : dto.sex,
+      sexAtBirth: dto.sex === 'other' ? undefined : dto.sex,
     }, 'fitness').catch(() => undefined);
     return this.getProfile(userId);
   }

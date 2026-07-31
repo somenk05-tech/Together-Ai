@@ -1,5 +1,5 @@
 import { Injectable, Logger, ConflictException } from '@nestjs/common';
-import { clinicalSex, datingGender } from './sex-and-gender';
+import { clinicalSex, datingGender, displayGender, genderIdentityFromBeauty } from './sex-and-gender';
 import { salutation } from '../shared/salutation';
 import { diffProfile, versionConflict } from './profile-change';
 import { answeredNow } from '../shared/prisma/answered-at';
@@ -223,7 +223,11 @@ export class MasterProfileService {
       } : {},
       food ? { heightCm: food.heightCm, weightKg: food.weightKg, sexAtBirth: food.sex } : {},
       fitness ? { heightCm: fitness.heightCm, weightKg: fitness.weightKg, sexAtBirth: fitness.sex === 'other' ? undefined : fitness.sex } : {},
-      { heightCm: beautyEx.heightCm, weightKg: beautyEx.weightKg, gender: beautyEx.gender, city: beautyEx.city, occupation: beautyEx.occupation },
+      // Beauty stores its label capitalised ('Female'). Merging it raw put that
+      // into a column whose readers compare lowercase, so the backfill was
+      // writing a value clinicalSex() could never read — the same bug as the
+      // sync, arriving by the other door.
+      { heightCm: beautyEx.heightCm, weightKg: beautyEx.weightKg, genderIdentity: genderIdentityFromBeauty(beautyEx.gender), city: beautyEx.city, occupation: beautyEx.occupation },
     );
 
     // Self-healing consolidation: persist anything the sources knew that the
@@ -262,6 +266,18 @@ export class MasterProfileService {
       photo: (user as { profileImage?: string | null } | null)?.profileImage ?? null,
       ...merged,
       age,
+      // The two answers already resolved, so no screen has to work them out.
+      //
+      // Four frontends were each doing their own version of this against the
+      // retired `gender` column — nutrition for a CLINICAL value that sets
+      // calorie targets, astrology and beauty and fitness for a social one. Four
+      // copies of a rule that had already changed once under them.
+      //
+      // A page reads a field now. `resolvedSex` is null for intersex,
+      // preferNotToSay and unanswered alike, because none of those is a
+      // coefficient, and the caller is expected to say so rather than assume.
+      resolvedSex: clinicalSex(merged) ?? null,
+      resolvedGender: displayGender(merged) ?? null,
       updatedAt: row?.updatedAt?.toISOString?.() ?? null,
     };
   }
@@ -363,7 +379,18 @@ export class MasterProfileService {
 
     const sections = [
       section('identity', 'Identity', '/profile', [
-        has(m.name), has(m.dateOfBirth), has(m.gender), has(m.heightCm), has(m.city), has(m.languages), has(m.photo),
+        // displayGender(), not m.gender. The 20260730200000 split retired that
+        // column — the Master Profile page writes sexAtBirth and genderIdentity
+        // and never touches it — so this check could only ever pass for accounts
+        // old enough to predate the split, or ones that had saved a Fitness or
+        // Dating profile (both of which still wrote it back).
+        //
+        // Which means: a citizen who opened /profile, answered every question on
+        // it correctly, and saved, was told their Identity section was 6 of 7
+        // and always would be. The meter on the page graded them down for using
+        // the page. §4 has just put that meter at the top of the dashboard, so
+        // it is now the first thing they see.
+        has(m.name), has(m.dateOfBirth), has(displayGender(m)), has(m.heightCm), has(m.city), has(m.languages), has(m.photo),
       ]),
       section('astrology', 'Astrology', '/profile/astrology', [
         has(m.dateOfBirth), has(m.timeOfBirth), has(m.birthCity ?? m.city),

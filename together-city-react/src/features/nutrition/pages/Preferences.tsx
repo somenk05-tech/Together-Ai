@@ -198,7 +198,11 @@ export function Preferences() {
     setForm((f) => {
       if (!f) return f;
       const patch: Partial<FoodPref> = {};
-      if (!f.sex && (m.gender === 'male' || m.gender === 'female')) patch.sex = m.gender;
+      // resolvedSex, not m.gender. This sets the sex the calorie equation uses,
+      // and it was reading the SOCIAL column — and a retired one, so a citizen
+      // who answered "Sex at birth" on the Master Profile page arrived here with
+      // nothing and got a reference body instead of their own.
+      if (!f.sex && m.resolvedSex) patch.sex = m.resolvedSex;
       if (f.heightCm == null && m.heightCm != null) patch.heightCm = m.heightCm;
       if (f.weightKg == null && m.weightKg != null) patch.weightKg = m.weightKg;
       return Object.keys(patch).length ? { ...f, ...patch } : f;

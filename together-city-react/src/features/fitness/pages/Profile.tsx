@@ -57,7 +57,10 @@ export function Profile() {
     // Auto-fill shared fields from the Master Profile when this hub hasn't got
     // them yet (spec: read shared fields; never re-ask).
     setAge(m?.age ?? d.age);
-    setSex(d.sex && d.sex !== 'other' ? d.sex : (m?.gender ?? d.sex));
+    // `d.sex` is the server's prefill, which now resolves through clinicalSex().
+    // The `m?.gender` fallback that used to sit here read the retired column —
+    // and read the SOCIAL answer for a field that feeds a BMR equation.
+    setSex(d.sex || (m?.resolvedSex ?? d.sex));
     setLevel(d.level); setMode(d.mode); setGoal(d.goal); setConditions(d.conditions);
     setHeightCm(d.heightCm ?? (m?.heightCm ?? '')); setWeightKg(d.weightKg ?? (m?.weightKg ?? '')); setBodyGoal(d.bodyGoal ?? 'athletic');
     // Already completed before → open as a compact summary, not the full form.

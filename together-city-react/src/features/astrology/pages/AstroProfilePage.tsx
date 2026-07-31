@@ -130,10 +130,12 @@ function PersonalInfoSection() {
     const m = master.data;
     if (!m || loaded) return;
     setForm({
-      gender: m.gender ?? '', heightCm: m.heightCm ? String(m.heightCm) : '',
+      gender: m.resolvedGender ?? '', heightCm: m.heightCm ? String(m.heightCm) : '',
       languages: m.languages ?? '', occupation: m.occupation ?? '', phone: m.phone ?? '',
     });
-    setEditing(!(m.gender || m.heightCm || m.languages)); // returning users see the summary
+    // resolvedGender, or somebody who answered on the Master Profile page is
+    // treated as brand new here and shown the form instead of their summary.
+    setEditing(!(m.resolvedGender || m.heightCm || m.languages)); // returning users see the summary
     setLoaded(true);
   }, [master.data, loaded]);
 

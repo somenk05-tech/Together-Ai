@@ -5,6 +5,7 @@ import { MedicalService } from '../medical/medical.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import { MasterProfileService } from '../profile/master-profile.service';
+import { beautyGender, genderIdentityFromBeauty } from '../profile/sex-and-gender';
 import {
   beautyInsights, recommendProducts, priceBeautyOrder, CONCERN_TAGS,
   type BeautyInsight,
@@ -64,7 +65,12 @@ export class BeautyService {
     const merged = { ...profile };
     const put = (k: string, v: unknown) => { if (v !== undefined && v !== null && v !== '') merged[k] = v; };
     put('age', typeof m.age === 'number' ? m.age : undefined);
-    put('gender', m.gender ?? undefined);
+    // beautyGender(), not m.gender and not displayGender(). This hub's select is
+    // Female | Male | Other, so displayGender's 'Non-binary' would match no
+    // option and the field would open blank — §15.1, one hub along. Reading
+    // m.gender directly meant anyone who answered on the Master Profile page was
+    // asked again here, because that page stopped writing that column.
+    put('gender', beautyGender(m));
     put('heightCm', typeof m.heightCm === 'number' ? m.heightCm : undefined);
     put('weightKg', typeof m.weightKg === 'number' ? m.weightKg : undefined);
     put('city', m.city ?? undefined);
@@ -204,8 +210,13 @@ export class BeautyService {
     // Master Profile sync — shared demographics flow back to the single source of
     // truth and propagate to every other hub (age lives in the master fallback).
     const pp = p as { gender?: string; heightCm?: number; weightKg?: number; city?: string; occupation?: string };
+    // genderIdentity, in the identity vocabulary. This used to write pp.gender
+    // — Beauty's CAPITALISED label — into the retired `gender` column, which
+    // expects lowercase. So 'Female' went in, clinicalSex() compared it against
+    // 'female' and returned undefined, and a citizen who filled Beauty first had
+    // no clinical sex anywhere in the city with nothing to say why.
     await this.masterProfile.syncShared(userId, {
-      gender: pp.gender, heightCm: pp.heightCm, weightKg: pp.weightKg,
+      genderIdentity: genderIdentityFromBeauty(pp.gender), heightCm: pp.heightCm, weightKg: pp.weightKg,
       city: pp.city, occupation: pp.occupation,
     }, 'beauty').catch(() => undefined);
 

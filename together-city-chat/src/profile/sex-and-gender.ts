@@ -123,6 +123,48 @@ export function datingGender(p: {
 }
 
 /**
+ * The three options the Beauty hub's Skin & Hair form offers, capitalised.
+ *
+ * Its own vocabulary, like Dating's, and for the same reason: it predates the
+ * split and its select is Female | Male | Other. Handing it 'Non-binary' would
+ * match no option, the field would open blank, and somebody who had already
+ * answered would be asked again — the §15.1 failure, one hub along.
+ *
+ * The flattening of nonBinary to 'Other' is a real loss and is written down
+ * rather than hidden: it is what the hub has always stored, nothing in
+ * beauty-analysis or beauty-engine branches on the value, and widening the
+ * select is a product decision rather than a bug fix.
+ */
+export const BEAUTY_GENDER = ['Female', 'Male', 'Other'] as const;
+export type BeautyGender = (typeof BEAUTY_GENDER)[number];
+
+export function beautyGender(p: {
+  genderIdentity?: string | null;
+  gender?: string | null;
+}): BeautyGender | undefined {
+  const raw = (p.genderIdentity ?? p.gender ?? '').toLowerCase();
+  if (raw === 'male') return 'Male';
+  if (raw === 'female') return 'Female';
+  return raw ? 'Other' : undefined;
+}
+
+/**
+ * Beauty's answer, on its way back to the Master Profile.
+ *
+ * The hub used to sync its label straight into the retired `gender` column —
+ * so 'Female' landed where 'female' was expected, and clinicalSex(), which
+ * compares lowercase, returned undefined. A citizen who filled Beauty first had
+ * no clinical sex anywhere in the city, and nothing said why.
+ */
+export function genderIdentityFromBeauty(label?: string | null): GenderIdentity | undefined {
+  const raw = (label ?? '').toLowerCase();
+  if (raw === 'male') return 'male';
+  if (raw === 'female') return 'female';
+  if (raw === 'other') return 'other';
+  return undefined;
+}
+
+/**
  * Why we ask, in the citizen's words. FE-3.1 requires this to sit next to the
  * fields; keeping the copy beside the rules stops the two drifting apart.
  */

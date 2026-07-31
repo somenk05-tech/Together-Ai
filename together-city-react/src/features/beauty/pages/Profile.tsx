@@ -367,11 +367,6 @@ function ProgressView({ entries }: { entries: BeautyProgressEntry[] }) {
   );
 }
 
-/** Master gender ('male'/'female') → Beauty's capitalised option. */
-const capGender = (g?: string | null): string | undefined => {
-  const s = (g ?? '').toLowerCase();
-  return s === 'male' ? 'Male' : s === 'female' ? 'Female' : s ? 'Other' : undefined;
-};
 /** Is a saved beauty profile fully answered (all 18 required)? */
 function isBeautyComplete(p: Partial<Form>): boolean {
   return REQUIRED_SINGLE.every((k) => Boolean(p[k] && String(p[k]).trim()))
@@ -428,7 +423,10 @@ export function Profile() {
       // (spec: read shared fields; never re-ask). Age is master-owned when set.
       if (m) {
         if (m.age != null) base.age = m.age;
-        base.gender ??= capGender(m.gender);
+        // No gender fallback here any more. withMasterDemographics() overlays
+        // it server-side in this form's own vocabulary, so `saved.gender`
+        // already carries it. The local capitalising helper that used to sit
+        // above was a third hand-rolled mapping of the same thing.
         base.heightCm ??= m.heightCm ?? undefined;
         base.weightKg ??= m.weightKg ?? undefined;
         base.city ??= m.city ?? undefined;

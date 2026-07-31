@@ -15,6 +15,11 @@ export interface MasterProfileView {
   country?: string | null; state?: string | null; city?: string | null;
   timeZone?: string | null; languages?: string | null; heightCm?: number | null;
   weightKg?: number | null; occupation?: string | null; phone?: string | null;
+  /** Both answers already resolved by the server, so no page re-derives them.
+   *  `resolvedSex` is null for intersex, preferNotToSay and unanswered alike —
+   *  none is a coefficient, and a screen should say so rather than assume. */
+  resolvedSex?: 'male' | 'female' | null;
+  resolvedGender?: string | null;
   age?: number | null; updatedAt?: string | null;
 }
 
