@@ -1,6 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { VerifiedGuard } from '../auth/verified.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
@@ -65,7 +64,6 @@ export class JobsController {
   }
 
   // ── employer side ──
-  @UseGuards(VerifiedGuard)
   @Post('postings')
   @UsePipes(new ZodValidationPipe(PostJobSchema))
   postJob(@CurrentUser() user: JwtUser, @Body() dto: PostJobDto) {

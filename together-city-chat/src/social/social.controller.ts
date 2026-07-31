@@ -2,7 +2,6 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, Us
 import { Deprecated } from '../shared/deprecated.decorator';
 import { z } from 'zod';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { VerifiedGuard } from '../auth/verified.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
@@ -58,13 +57,11 @@ export class SocialController {
 
   // Publishing to the city feed is public-facing → requires a confirmed email.
   @Post('posts')
-  @UseGuards(VerifiedGuard)
   @UsePipes(new ZodValidationPipe(CreatePostSchema))
   create(@CurrentUser() user: JwtUser, @Body() dto: CreatePostDto) {
     return this.social.createPost(user.sub, dto);
   }
 
-  @UseGuards(VerifiedGuard)
   @Patch('posts/:id')
   update(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
     // Same cap as create (2200) — an edit must not exceed the create limit.
@@ -90,7 +87,6 @@ export class SocialController {
     return this.social.comments(user.sub, id);
   }
 
-  @UseGuards(VerifiedGuard)
   @Post('posts/:id/comments')
   comment(
     @CurrentUser() user: JwtUser,
@@ -107,7 +103,6 @@ export class SocialController {
   }
 
   // Repost (share to feed) — appears at the top of the reposter's network feed.
-  @UseGuards(VerifiedGuard)
   @Post('posts/:id/repost')
   repost(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.social.repost(user.sub, id);

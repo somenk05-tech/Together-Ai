@@ -5,9 +5,20 @@ import { useAuthStore } from '@/store/auth.store';
 const DISMISS_KEY = 'tc:verify-banner-dismissed';
 
 /**
- * Soft-gate banner: the app stays usable while an email is unconfirmed, but a
- * few public-facing actions (posting to the city feed, listing a property,
- * connecting in dating) are blocked server-side by VerifiedGuard. This says why.
+ * The one place an unconfirmed address is raised, now that nothing blocks on it.
+ *
+ * This used to explain a soft gate: "a few public-facing actions (posting to the
+ * city feed, listing a property, connecting in dating) are blocked server-side by
+ * VerifiedGuard". Those guards are gone — verification is a sign-up-time step and
+ * the guards were the retired link flow's enforcement, ambushing people days
+ * later on an ordinary action. Leaving this copy up would have made the banner
+ * threaten consequences the server no longer applies, which is the same species
+ * of untrue sentence the guards themselves were.
+ *
+ * So it now says the reason that is actually true: an unconfirmed address cannot
+ * be used to get back into the account. That is not a threat, it is the thing
+ * they will wish they had done, and it is worth saying every session until it is
+ * done — which is what a banner is for.
  *
  * It used to carry a "Resend link" button that mailed a 24-hour verification
  * link. That flow is gone — the link was filed in the citizen's own in-app
@@ -47,8 +58,8 @@ export function VerifyEmailBanner() {
     }}>
       <span aria-hidden style={{ fontSize: 15 }}>✉️</span>
       <span style={{ flex: 1, minWidth: 220 }}>
-        Confirm your email{user?.email ? <> (<strong>{user.email}</strong>)</> : ''} to publish posts,
-        list property and connect in Dating.
+        Confirm your email{user?.email ? <> (<strong>{user.email}</strong>)</> : ''} so you can get back
+        in if you forget your password. Nothing is locked until you do.
       </span>
       <Link
         to="/profile"
