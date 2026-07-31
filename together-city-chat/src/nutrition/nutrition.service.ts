@@ -678,8 +678,13 @@ interface NutritionHistoryDelegate {
 }
 // Family member sub-profiles (Family §). Hand-typed delegate (offline client).
 export interface FamilyMemberRow {
-  id: string; ownerId: string; name: string; role: string; sex: string; age: number;
-  heightCm: number; weightKg: number; activity: number; goal: string; diet: string;
+  // NULL means nobody has told us — see the schema comment on FamilyMember.
+  // This interface is what the service typechecks against (the prisma delegate
+  // is cast to it), so it declaring these non-null is the reason the whole
+  // substitution compiled cleanly for as long as it did.
+  id: string; ownerId: string; name: string; role: string;
+  sex: string | null; age: number | null;
+  heightCm: number | null; weightKg: number | null; activity: number; goal: string; diet: string;
   extras: string | null; isSelf: boolean; createdAt: Date; updatedAt: Date;
 }
 interface FamilyMemberRowExt extends FamilyMemberRow { memberUserId: string | null }
@@ -2718,9 +2723,17 @@ export class NutritionService implements OnModuleInit {
   private shapeMember(m: FamilyMemberRowExt, image?: string | null, sharing?: HouseholdSharing) {
     const ex = parseExtras(m.extras);
     const targets = computeTargets({
-      weightKg: m.weightKg, heightCm: m.heightCm, age: m.age, sex: m.sex,
+      weightKg: m.weightKg ?? undefined, heightCm: m.heightCm ?? undefined,
+      age: m.age ?? undefined, sex: m.sex ?? undefined,
       activity: m.activity, goal: m.goal, conditions: ex.healthConditions ?? [],
     });
+    // Targets computed from a body we do not have are not this member's. The
+    // numbers come out and the reason goes in their place — the same rule the
+    // citizen's own plan follows, applied to the people they cook for.
+    const readiness = (targets as { readiness?: { ok: boolean; missing?: { label: string }[] } }).readiness;
+    const bodyUnknown = readiness && !readiness.ok
+      ? { fields: (readiness.missing ?? []).map((x) => x.label) }
+      : null;
     const householdRole = m.isSelf ? 'owner' : (HOUSEHOLD_ROLES as readonly string[]).includes(m.role) ? m.role : 'adult';
     const s = m.isSelf ? { targets: true, conditions: true, weight: true, bloodTests: true } : (sharing ?? DEFAULT_SHARING);
     const zeroTargets = { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0, adjustments: [] as string[] };
@@ -2734,7 +2747,8 @@ export class NutritionService implements OnModuleInit {
       privacy: { targets: !s.targets, conditions: !s.conditions, weight: !s.weight, bloodTests: !s.bloodTests },
       proteins: ex.proteins ?? [], cuisines: ex.cuisines ?? [], allergies: ex.allergies ?? '',
       healthConditions: s.conditions ? (ex.healthConditions ?? []) : [],
-      targets: s.targets
+      bodyUnknown,
+      targets: s.targets && !bodyUnknown
         ? { kcal: targets.kcal, protein: targets.protein, carb: targets.carb, fat: targets.fat, fiber: targets.fiber, adjustments: targets.adjustments }
         : zeroTargets,
     };
@@ -2809,8 +2823,11 @@ export class NutritionService implements OnModuleInit {
     await this.members.create({
       data: {
         ownerId, memberUserId: ownerId, isSelf: true, name: user?.name ?? 'You', role: 'owner',
-        sex: pref?.sex ?? 'male', age: pref?.age ?? 30, heightCm: pref?.heightCm ?? 172,
-        weightKg: pref?.weightKg ?? 70, activity: pref?.activity ?? 1.4, goal: pref?.goal ?? 'maintain',
+        // The owner's own row mirrors their FoodPref, INCLUDING the parts of it
+        // that are empty. This filled in 172 cm and 70 kg here, which is how a
+        // stranger's body got stored as the citizen's in the first place.
+        sex: pref?.sex ?? null, age: pref?.age ?? null, heightCm: pref?.heightCm ?? null,
+        weightKg: pref?.weightKg ?? null, activity: pref?.activity ?? 1.4, goal: pref?.goal ?? 'maintain',
         diet: pref?.diet ?? 'everything',
         extras: JSON.stringify({ proteins: ex.proteins ?? [], cuisines: ex.cuisines ?? [], allergies: ex.allergies ?? '', healthConditions: ex.healthConditions ?? [] }),
       } as never,
@@ -2862,6 +2879,17 @@ export class NutritionService implements OnModuleInit {
 
   private memberData(dto: Record<string, unknown>) {
     const clamp = (v: unknown, lo: number, hi: number, d: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+    // Clamp when there is a number, null when there is not. `clamp` needs a
+    // default and there isn't one for a body — that is the whole point. '' and
+    // null both mean "not answered"; Number('') is 0, which would clamp to the
+    // floor and store a one-year-old.
+    const opt = (v: unknown, lo: number, hi: number, round: boolean): number | null => {
+      if (v === null || v === undefined || v === '') return null;
+      const n = Number(v);
+      if (!Number.isFinite(n)) return null;
+      const c = Math.min(hi, Math.max(lo, n));
+      return round ? Math.round(c) : c;
+    };
     const extras = JSON.stringify({
       proteins: Array.isArray(dto.proteins) ? dto.proteins : [],
       cuisines: Array.isArray(dto.cuisines) ? dto.cuisines : [],
@@ -2871,10 +2899,19 @@ export class NutritionService implements OnModuleInit {
     return {
       name: String(dto.name ?? 'Member').slice(0, 60),
       role: String(dto.role ?? 'member').toLowerCase().slice(0, 20),
-      sex: dto.sex === 'female' ? 'female' : 'male',
-      age: Math.round(clamp(dto.age, 1, 110, 30)),
-      heightCm: Math.round(clamp(dto.heightCm, 60, 230, 170)),
-      weightKg: clamp(dto.weightKg, 8, 250, 65),
+      // BLANK STAYS BLANK.
+      //
+      // `dto.sex === 'female' ? 'female' : 'male'` did not mean "default to male
+      // when it is missing" — it meant ANYTHING that is not the literal string
+      // 'female' is a man. A blank field, a null, "Female" with a capital F. And
+      // the three clamps turned a missing age, height or weight into 30, 170 and
+      // 65 and stored them as fact, so a member added with only a name came out
+      // as a 30-year-old man of 170 cm and 65 kg, and their meals were portioned
+      // for him.
+      sex: dto.sex === 'female' ? 'female' : dto.sex === 'male' ? 'male' : null,
+      age: opt(dto.age, 1, 110, true),
+      heightCm: opt(dto.heightCm, 60, 230, true),
+      weightKg: opt(dto.weightKg, 8, 250, false),
       activity: clamp(dto.activity, 1.2, 1.9, 1.4),
       goal: ['lose', 'maintain', 'gain'].includes(String(dto.goal)) ? String(dto.goal) : 'maintain',
       diet: String(dto.diet ?? 'everything'),
@@ -3486,7 +3523,7 @@ export class NutritionService implements OnModuleInit {
     const members = rows.map((m) => {
       const ex = parseExtras(m.extras);
       const conditions = ex.healthConditions ?? [];
-      const t = computeTargets({ weightKg: m.weightKg, heightCm: m.heightCm, age: m.age, sex: m.sex, activity: m.activity, goal: m.goal, conditions });
+      const t = computeTargets({ weightKg: m.weightKg ?? undefined, heightCm: m.heightCm ?? undefined, age: m.age ?? undefined, sex: m.sex ?? undefined, activity: m.activity, goal: m.goal, conditions });
       return { id: m.id, name: m.name, role: m.role, diet: m.diet as Diet, isSelf: m.isSelf, dayKcal: t.kcal, perMeal: t.perMeal, conditions };
     });
 
@@ -3644,7 +3681,7 @@ export class NutritionService implements OnModuleInit {
     const members = rows.map((m) => {
       const ex = parseExtras(m.extras);
       const conditions = (ex.healthConditions ?? []).map((c) => c.toLowerCase());
-      const t = computeTargets({ weightKg: m.weightKg, heightCm: m.heightCm, age: m.age, sex: m.sex, activity: m.activity, goal: m.goal, conditions: ex.healthConditions ?? [] });
+      const t = computeTargets({ weightKg: m.weightKg ?? undefined, heightCm: m.heightCm ?? undefined, age: m.age ?? undefined, sex: m.sex ?? undefined, activity: m.activity, goal: m.goal, conditions: ex.healthConditions ?? [] });
       return { id: m.id, name: m.name, role: m.role, diet: m.diet, isSelf: m.isSelf, conditions, target: t, consumed: { kcal: 0, protein: 0, fiber: 0 } };
     });
 
@@ -3762,7 +3799,7 @@ export class NutritionService implements OnModuleInit {
     const raw = await this.householdRaw(userId);
     const real = raw.map(({ row, sharing }) => {
       const ex = parseExtras(row.extras);
-      const t = computeTargets({ weightKg: row.weightKg, heightCm: row.heightCm, age: row.age, sex: row.sex, activity: row.activity, goal: row.goal, conditions: ex.healthConditions ?? [] });
+      const t = computeTargets({ weightKg: row.weightKg ?? undefined, heightCm: row.heightCm ?? undefined, age: row.age ?? undefined, sex: row.sex ?? undefined, activity: row.activity, goal: row.goal, conditions: ex.healthConditions ?? [] });
       return { age: row.age, diet: row.diet, goal: row.goal, isSelf: row.isSelf, sharesConditions: row.isSelf || sharing.conditions,
         conditions: ex.healthConditions ?? [], allergies: ex.allergies ?? '', cuisines: ex.cuisines ?? [], targets: t };
     });
@@ -3774,9 +3811,13 @@ export class NutritionService implements OnModuleInit {
     const ownerExtras = parseExtras((ownerPref as { extras?: string | null } | null)?.extras);
 
     const uniq = (xs: string[]) => [...new Set(xs.map((x) => x.trim()).filter(Boolean))];
-    const seniors = real.filter((m) => m.age >= 60).length;
-    const children = real.filter((m) => m.age < 18).length;
-    const adults = real.length - seniors - children;
+    // An unknown age is not an adult. `adults = total - seniors - children` made
+    // it one by arithmetic, silently, which is how a household whose ages nobody
+    // has entered reported every one of them as an adult.
+    const seniors = real.filter((m) => m.age != null && m.age >= 60).length;
+    const children = real.filter((m) => m.age != null && m.age < 18).length;
+    const ageUnknown = real.filter((m) => m.age == null).length;
+    const adults = real.length - seniors - children - ageUnknown;
 
     const dietLabel: Record<string, string> = { everything: 'Non-veg', nonveg: 'Non-veg', veg: 'Veg', vegan: 'Vegan', egg: 'Egg', pesc: 'Pescatarian', jain: 'Jain' };
     const dietTypes = uniq(real.map((m) => dietLabel[m.diet] ?? m.diet));
@@ -3804,7 +3845,7 @@ export class NutritionService implements OnModuleInit {
 
     return {
       name: owner?.name ? `${owner.name.split(' ')[0]}'s Household` : 'Your Household',
-      counts: { total: real.length, adults, children, seniors },
+      counts: { total: real.length, adults, children, seniors, ageUnknown },
       dietTypes, conditions, allergies, cuisines, goals,
       compatibility,
       weeklyBudgetInr: ownerExtras.budgetInr ?? null,
@@ -4988,7 +5029,7 @@ export class NutritionService implements OnModuleInit {
       const raw = await this.householdRaw(userId);
       memberScales = raw.map(({ row }) => {
         const ex = parseExtras(row.extras);
-        const t = computeTargets({ weightKg: row.weightKg, heightCm: row.heightCm, age: row.age, sex: row.sex, activity: row.activity, goal: row.goal, conditions: ex.healthConditions ?? [] });
+        const t = computeTargets({ weightKg: row.weightKg ?? undefined, heightCm: row.heightCm ?? undefined, age: row.age ?? undefined, sex: row.sex ?? undefined, activity: row.activity, goal: row.goal, conditions: ex.healthConditions ?? [] });
         return { name: row.name, dailyKcal: t.kcal, multiplier: Math.round((t.kcal / REF_KCAL) * 100) / 100 };
       });
       scale = Math.max(1, memberScales.reduce((s, m) => s + m.multiplier, 0));
@@ -5270,7 +5311,7 @@ export class NutritionService implements OnModuleInit {
     const rows = await this.members.findMany({ where: { ownerId: userId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => [] as FamilyMemberRow[]);
     const members = rows.map((m) => {
       const ex = parseExtras(m.extras);
-      const t = computeTargets({ weightKg: m.weightKg, heightCm: m.heightCm, age: m.age, sex: m.sex, activity: m.activity, goal: m.goal, conditions: ex.healthConditions ?? [] });
+      const t = computeTargets({ weightKg: m.weightKg ?? undefined, heightCm: m.heightCm ?? undefined, age: m.age ?? undefined, sex: m.sex ?? undefined, activity: m.activity, goal: m.goal, conditions: ex.healthConditions ?? [] });
       return { diet: m.diet as Diet, perMeal: t.perMeal };
     });
     if (!members.length) return this.buildCart(userId, { mode: 'family' });

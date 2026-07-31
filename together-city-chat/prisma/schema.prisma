@@ -568,10 +568,19 @@ model FamilyMember {
   memberUserId String? // set when this row mirrors a real invited Together City user (Household Connection)
   name         String
   role         String   @default("member") // household role: owner | adult | child | guest (legacy: father|mother|child|self|member)
-  sex          String   @default("male")
-  age          Int      @default(30)
-  heightCm     Int      @default(170)
-  weightKg     Float    @default(65)
+  /// NULL means nobody has told us. These four were NOT NULL with defaults
+  /// "male" / 30 / 170 / 65 — a reference body written into a table and
+  /// indistinguishable from a real answer, exactly the trap FoodPref documents.
+  /// computeTargets then saw a complete body, `readiness` came back ok, and the
+  /// refusal that exists so nobody is shown a target computed for somebody else
+  /// could never fire for a family member.
+  ///
+  /// activity and goal keep their defaults: sedentary and maintain are true of a
+  /// real population. There is no honest default for how much somebody weighs.
+  sex          String?
+  age          Int?
+  heightCm     Int?
+  weightKg     Float?
   activity     Float    @default(1.4)
   goal         String   @default("maintain") // lose | maintain | gain
   diet         String   @default("everything")

@@ -215,10 +215,15 @@ function EditSelfForm({ initial, onSave, onCancel, saving }: { initial: FamilyMe
   return (
     <div className="card" style={{ padding: 18, marginBottom: 16, border: '1px solid var(--accent)' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 12 }}>
-        <Field label="Sex"><select style={fld} value={f.sex} onChange={(e) => set('sex', e.target.value)}><option value="male">Male</option><option value="female">Female</option></select></Field>
-        <Field label="Age"><input style={fld} type="number" value={f.age} onChange={(e) => set('age', +e.target.value)} /></Field>
-        <Field label="Height (cm)"><input style={fld} type="number" value={f.heightCm} onChange={(e) => set('heightCm', +e.target.value)} /></Field>
-        <Field label="Weight (kg)"><input style={fld} type="number" value={f.weightKg} onChange={(e) => set('weightKg', +e.target.value)} /></Field>
+        {/* Blank is an answer, and it has to survive the round trip.
+            `+e.target.value` on an emptied field is 0, not null — so clearing
+            your age used to send 0, which the server clamped to 1 and stored as
+            a one-year-old. Every one of these now sends null when emptied, and
+            the sex select has somewhere to put "we haven't said". */}
+        <Field label="Sex"><select style={fld} value={f.sex ?? ''} onChange={(e) => set('sex', e.target.value || null)}><option value="">Not stated</option><option value="male">Male</option><option value="female">Female</option></select></Field>
+        <Field label="Age"><input style={fld} type="number" value={f.age ?? ''} onChange={(e) => set('age', e.target.value === '' ? null : +e.target.value)} /></Field>
+        <Field label="Height (cm)"><input style={fld} type="number" value={f.heightCm ?? ''} onChange={(e) => set('heightCm', e.target.value === '' ? null : +e.target.value)} /></Field>
+        <Field label="Weight (kg)"><input style={fld} type="number" value={f.weightKg ?? ''} onChange={(e) => set('weightKg', e.target.value === '' ? null : +e.target.value)} /></Field>
         <Field label="Activity"><select style={fld} value={f.activity} onChange={(e) => set('activity', +e.target.value)}>{ACTIVITY.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
         <Field label="Goal"><select style={fld} value={f.goal} onChange={(e) => set('goal', e.target.value)}>{GOALS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
         <Field label="Diet"><select style={fld} value={f.diet} onChange={(e) => set('diet', e.target.value)}>{Object.entries(DIETS).filter(([v]) => v !== 'nonveg').map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
@@ -264,7 +269,13 @@ function MemberCard({ m, onEdit, onRemove }: { m: FamilyMemberProfile; onEdit: (
             {m.name}
             {m.isSelf && <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>· You</span>}
           </h4>
-          <p className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>{dietLabel} · {m.age}y{!m.privacy.weight && m.weightKg ? ` · ${m.weightKg}kg` : ''}</p>
+          {/* Only the parts we actually know. This was `{dietLabel} · {m.age}y`
+              unconditionally, which renders "nully" the moment age can be null —
+              and it always could have been; the column was lying about it. */}
+          <p className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>
+            {[dietLabel, m.age != null ? `${m.age}y` : null, !m.privacy.weight && m.weightKg ? `${m.weightKg}kg` : null]
+              .filter(Boolean).join(' · ')}
+          </p>
         </div>
         <span style={{ flex: 'none', fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: role.color, background: role.soft, borderRadius: 999, padding: '3px 10px' }}>{role.label}</span>
       </div>
@@ -272,6 +283,18 @@ function MemberCard({ m, onEdit, onRemove }: { m: FamilyMemberProfile; onEdit: (
       {m.privacy.targets ? (
         <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)', fontSize: 12.5, color: 'var(--muted)' }}>
           🔒 Nutrition targets are private — the plan still portions their plate safely.
+        </div>
+      ) : m.bodyUnknown ? (
+        // Not a number. A member whose body nobody has entered had one computed
+        // from a 30-year-old man of 170 cm and 65 kg, printed here as theirs, and
+        // their plate portioned from it.
+        //
+        // No button: Edit only appears on the owner's own row, so there is
+        // nothing on this card that would fix it, and offering one that does not
+        // exist is how this whole class of bug starts.
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)', fontSize: 12.5, lineHeight: 1.6 }}>
+          No targets for {m.name.split(' ')[0]} yet — {m.bodyUnknown.fields.join(', ').toLowerCase()} still to add.
+          <span className="muted"> Portions come from a body, and we would rather ask than use somebody else&rsquo;s.</span>
         </div>
       ) : (
         <div style={{ display: 'flex', gap: 18, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)', fontSize: 13 }}>

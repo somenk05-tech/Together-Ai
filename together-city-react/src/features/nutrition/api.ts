@@ -106,8 +106,11 @@ export const nutritionApi = {
 export type CalorieType = 'Meal Plan' | 'Extra' | 'Alcohol';
 export type HouseholdRole = 'owner' | 'adult' | 'child' | 'guest';
 export interface FamilyMemberProfile {
-  id: string; name: string; role: string; sex: string; age: number; heightCm: number;
-  weightKg: number; activity: number; goal: string; diet: string; isSelf: boolean;
+  // NULL means nobody has told us. These were non-null here and non-null in the
+  // database, which is what let the card render `{m.age}y` unconditionally.
+  id: string; name: string; role: string;
+  sex: string | null; age: number | null; heightCm: number | null;
+  weightKg: number | null; activity: number; goal: string; diet: string; isSelf: boolean;
   userId: string | null;              // real Together City user (null for the owner self-row)
   image: string | null;              // profile photo
   householdRole: HouseholdRole;      // owner | adult | child | guest
@@ -115,6 +118,9 @@ export interface FamilyMemberProfile {
   privacy: { targets: boolean; conditions: boolean; weight: boolean; bloodTests: boolean }; // true = hidden by that member
   proteins: string[]; cuisines: string[]; allergies: string; healthConditions: string[];
   targets: { kcal: number; protein: number; carb: number; fat: number; fiber: number; adjustments: string[] };
+  /** Set when the four inputs a target needs are not all known for this member.
+   *  `targets` is zeroed in that case — read this first. */
+  bodyUnknown: { fields: string[] } | null;
 }
 export interface HouseholdSharing { targets: boolean; conditions: boolean; weight: boolean; bloodTests: boolean }
 
@@ -164,7 +170,11 @@ export interface PantryItemView {
 export interface PantryAisle { key: string; icon: string; title: string; items: PantryItemView[] }
 export interface PantryView { aisles: PantryAisle[]; itemCount: number }
 export interface FamilyMemberInput {
-  name: string; role: string; sex: string; age: number; heightCm: number; weightKg: number;
+  // Nullable for the same reason the profile is: the form has to be able to say
+  // "not answered". Without this, editing a member whose body is unknown would
+  // force the person editing to invent one to get past the type.
+  name: string; role: string;
+  sex: string | null; age: number | null; heightCm: number | null; weightKg: number | null;
   activity: number; goal: string; diet: string; healthConditions: string[]; allergies?: string;
 }
 
