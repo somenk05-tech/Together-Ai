@@ -172,14 +172,6 @@ describe('Nutrition Hub — Round-2 large matrix (real 11k pool)', () => {
         if (dev <= 0.10) m.kcalWithin10++;
         if (dev <= 0.20) m.kcalWithin20++;
         if (day.totals.protein >= targets.protein * 0.9) m.proteinMetDays++;
-        else if (process.env.PROTEIN_BREAKDOWN) {
-          const k = `${p.diet}|${p.goal}|${isClinical ? 'clinical' : 'healthy'}`;
-          (globalThis as never as Record<string, Map<string, number[]>>).__pb ??= new Map();
-          const pb = (globalThis as never as Record<string, Map<string, number[]>>).__pb;
-          const e = pb.get(k) ?? [0, 0, 0];
-          e[0] += 1; e[1] += day.totals.protein; e[2] += targets.protein;
-          pb.set(k, e);
-        }
 
         const slots = day.meals.map((mm) => mm.slot).join(',');
         if (!prefs.fasting && slots !== 'b,l,s,es,d') m.structureBad++;
@@ -254,12 +246,6 @@ describe('Nutrition Hub — Round-2 large matrix (real 11k pool)', () => {
     // eslint-disable-next-line no-console
     console.log(rep.join('\n'));
 
-    if (process.env.PROTEIN_BREAKDOWN) {
-      const pb = (globalThis as never as Record<string, Map<string, number[]>>).__pb ?? new Map();
-      // eslint-disable-next-line no-console
-      console.log('\n===PROTEIN MISSES===\n' + [...pb.entries()].sort((a, b) => b[1][0] - a[1][0])
-        .map(([k, [n, got, want]]) => `${String(n).padStart(4)} days  got ${Math.round(got / n)}g of ${Math.round(want / n)}g  ${k}`).join('\n'));
-    }
     expect(m.crashes).toBe(0);
     expect(m.days).toBeGreaterThan(1000);
 

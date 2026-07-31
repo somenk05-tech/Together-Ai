@@ -584,12 +584,29 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
   // for CLINICAL plans too (Optimal Health) — the added dish still passes every
   // clinical/renal filter via candidates(), and reduceToCaps trims any breach — so
   // Optimal Health actually meets its protein prescription instead of undershooting.
-  if (proteinTarget > 0 && sel.length && sel.length < 7) {
+  //
+  // It tops up REPEATEDLY, and picks the densest of the candidate roles rather
+  // than the first that answers. One addition was not enough: the days that
+  // missed were missing by 20-25% — 65 g of 87 g, 88 g of 115 g — and a single
+  // dal closes about half of that. The misses concentrated on `lose` and `gain`,
+  // where the protein prescription moves away from the calorie budget in
+  // opposite directions, and they were spread evenly across diets, so this was
+  // never a shortage of vegetarian protein in the corpus.
+  //
+  // Three additions is the ceiling, and the plate cap of seven components binds
+  // first in practice. A plate is a meal somebody has to want to eat; there is a
+  // point past which meeting the number stops being the goal.
+  for (let topUp = 0; topUp < 3 && proteinTarget > 0 && sel.length && sel.length < 7; topUp++) {
     const maxProtein = sel.reduce((t, s) => t + s.r.protein * ((ROLE_BOUNDS[s.role]?.[1] ?? 150) / 100), 0);
-    if (maxProtein < proteinTarget * 0.95) {
-      const extra = pick('dal', ctx) ?? pick('dairy', ctx) ?? pick('snack', ctx) ?? pick('main', { ...ctx, banMain: undefined });
-      if (extra && !sel.some((s) => s.r.id === extra.id)) take(extra, extra.role === 'dal' ? 'dal' : extra.role);
-    }
+    if (maxProtein >= proteinTarget * 0.95) break;
+    const options = [pick('dal', ctx), pick('dairy', ctx), pick('snack', ctx), pick('main', { ...ctx, banMain: undefined })]
+      .filter((r): r is PoolRecipe => Boolean(r) && !sel.some((s) => s.r.id === r!.id));
+    if (!options.length) break;
+    // Densest by protein per calorie, so topping up does not simply add a
+    // second dinner: the plate still has to fit its energy target afterwards.
+    const extra = options.reduce((best, r) =>
+      (r.protein / Math.max(1, r.kcal)) > (best.protein / Math.max(1, best.kcal)) ? r : best);
+    take(extra, extra.role === 'dal' ? 'dal' : extra.role);
   }
 
   // Fibre topping: if the plate is short on fibre even at max portions, add a
