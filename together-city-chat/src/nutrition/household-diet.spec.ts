@@ -138,12 +138,11 @@ describe('the household plan is built against the household diet', () => {
     return end < 0 ? src.slice(at) : src.slice(at, end);
   };
 
-  it('generatePlan asks for the household constraints in family mode', () => {
-    const b = body('private async generatePlan(');
-    expect(b).toContain("mode === 'family'");
-    expect(b).toContain('this.withHouseholdConstraints(');
-    expect(b).toContain('h.diet');
-  });
+  // generatePlan used to be checked here too. It belonged to the MealPlan model,
+  // which no page ever called and which BE-21.1 retired — so the guard that
+  // matters is the one below, on composeFor, which is the path that actually
+  // builds a household's plan. One check on live code beats two where one of
+  // them was watching a road with no traffic.
 
   it('composeFor does the same when it is composing for a household', () => {
     const b = body('private async composeFor(');

@@ -68,6 +68,17 @@ import { stats, unscopedSignatures } from './query-inventory';
  *   - MealPlan.update went 2 → 3 with markEdited, which stamps editedAt by the
  *     plan's own key. Every caller passes through assertOwnsPlan first.
  *
+ * Changed 2026-07-31, when BE-21.1 retired the MealPlan model:
+ *
+ *   - MealPlan.deleteMany x1 → 0, MealPlan.update x3 → 0, and
+ *     MealPlan.findUnique x6 → x2. The routes that reached them went first
+ *     (nothing in the app had called them for some time), then the methods:
+ *     generatePlan, swap, repairDay, snapshotWeek, weeks and the rest.
+ *   - This list getting SHORTER is why the check fails on a decrease as well
+ *     as an increase. An unscoped query that quietly disappears is usually
+ *     good news and occasionally means a feature left with it, and the
+ *     difference is worth one deliberate edit.
+ *
  * What this scanner does NOT see, recorded so the gap is a known one:
  *
  *   - Models with no userId column are outside its reach by construction.
@@ -141,10 +152,8 @@ const REVIEWED_UNSCOPED = [
   'notifications/web-push.provider.ts  DeviceToken.deleteMany x1',
   'nutrition/nutrition.service.ts  Dietitian.count x1',
   'nutrition/nutrition.service.ts  MealPlan.count x2',
-  'nutrition/nutrition.service.ts  MealPlan.deleteMany x1',
   'nutrition/nutrition.service.ts  MealPlan.findFirst x1',
-  'nutrition/nutrition.service.ts  MealPlan.findUnique x6',
-  'nutrition/nutrition.service.ts  MealPlan.update x3',
+  'nutrition/nutrition.service.ts  MealPlan.findUnique x2',
   'nutrition/nutrition.service.ts  NutritionOrder.update x1',
   // upload(), addItem() and confirm() write by an id either created in the same
   // call or read a line earlier via findFirst({ id, userId }). Request-path, so

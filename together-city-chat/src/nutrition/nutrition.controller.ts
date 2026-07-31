@@ -176,6 +176,28 @@ export class NutritionController {
   }
 
   // Start a fresh 3-week plan (re-anchor to today, reseed, clear overrides).
+  /** Choose the dish for a slot yourself — the "build your own plan" door on
+   *  the plan the app actually renders. Allergens refuse; a diet mismatch is
+   *  stored and warned about. */
+  @Post('plan/composed/pin')
+  @UsePipes(new ZodValidationPipe(z.object({
+    day: z.number().int().min(0).max(60),
+    slot: z.enum(['b', 'l', 's', 'd', 'es']),
+    recipeId: z.string().min(1).max(120),
+  })))
+  pinComposed(@CurrentUser() user: JwtUser, @Body() dto: { day: number; slot: string; recipeId: string }) {
+    return this.nutrition.pinComposedMeal(user.sub, dto.day, dto.slot, dto.recipeId);
+  }
+
+  @Post('plan/composed/unpin')
+  @UsePipes(new ZodValidationPipe(z.object({
+    day: z.number().int().min(0).max(60),
+    slot: z.enum(['b', 'l', 's', 'd', 'es']),
+  })))
+  unpinComposed(@CurrentUser() user: JwtUser, @Body() dto: { day: number; slot: string }) {
+    return this.nutrition.unpinComposedMeal(user.sub, dto.day, dto.slot);
+  }
+
   @Post('plan/composed/renew')
   renewComposedPlan(@CurrentUser() user: JwtUser) {
     return this.nutrition.renewComposedPlan(user.sub);

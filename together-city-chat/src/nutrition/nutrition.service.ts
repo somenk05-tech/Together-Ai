@@ -15,19 +15,17 @@ import { AiService } from '../ai/ai.service';
 import { ConnectionsService } from '../connections/connections.service';
 import {
   CITATIONS, MARKER_RULES, criticalAlerts, evaluateMarker, supplementKit,
-  flagsFor, planGuidance, rankByModes, planningModes, ruleFor,
+  flagsFor, ruleFor,
   triggeredConditions, conditionsFromBlood, type MarkerStatus,
 } from './clinical-engine';
 import type { BloodInputDto, Diet, FoodPrefDto, PlanMode, Slot } from './dto/nutrition.dto';
 import type { OwnRecipeDto } from './dto/own-recipe.dto';
 import { buildOwnRecipe } from './own-recipe';
 import { assemblePlate, perMealTargets, type PlateOpts, type DayMealInput } from './plate';
-import { estimateDayMicros, type DayMealForMicros } from './micros-engine';
-import { assignDietPlans, dietPlanBias, planLabel, DIET_PLAN_CATALOG } from './diet-plans';
-import { addonLabel, addonMacros, complementByKey, fillGapWithComplements, type AddonPick } from './complements';
+import { assignDietPlans, planLabel, DIET_PLAN_CATALOG } from './diet-plans';
 import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
-import { activeMntRules, mntRecipeBias, mntAvoidKeywords, type MntRule } from './clinical-mnt';
+import { activeMntRules, mntAvoidKeywords } from './clinical-mnt';
 import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from './diet-tags';
 import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
@@ -45,10 +43,7 @@ import {
 } from './quick-commerce';
 import { QuickCommerceClient } from './quick-commerce-client';
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOTS: Slot[] = ['b', 'l', 's', 'd'];
-/** Slot letters as a citizen would say them. */
-const SLOT_NAMES: Record<string, string> = { b: 'breakfast', l: 'lunch', s: 'snack', d: 'dinner' };
 
 /** Diet compatibility — which recipe diets a preference may be served. */
 /**
@@ -75,41 +70,7 @@ function dietAllows(pref: Diet, recipe: Diet): boolean {
   return (map[pref] ?? map.veg).includes(recipe);
 }
 
-const SHORT_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-// ─────────── real calendar dates (spec §20) ───────────
-/** The Monday (local) of the week containing `anchor`. Meal plans run Mon→Sun. */
-function weekMonday(anchor: Date): Date {
-  const d = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
-  const dow = (d.getDay() + 6) % 7; // 0 = Monday
-  d.setDate(d.getDate() - dow);
-  return d;
-}
-function addDays(d: Date, n: number): Date {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
-}
-const isoDate = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-/** ISO-8601 week number (1..53) — matches "Week 30" style labels. */
-function isoWeekNumber(d: Date): number {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const day = (t.getUTCDay() + 6) % 7;
-  t.setUTCDate(t.getUTCDate() - day + 3); // nearest Thursday
-  const firstThu = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
-  const firstDay = (firstThu.getUTCDay() + 6) % 7;
-  firstThu.setUTCDate(firstThu.getUTCDate() - firstDay + 3);
-  return 1 + Math.round((t.getTime() - firstThu.getTime()) / (7 * 24 * 3600 * 1000));
-}
-/** "20–26 Jul 2026" (or across months/years) for a week's Mon→Sun span. */
-function weekRangeLabel(mon: Date, sun: Date): string {
-  const sameMonth = mon.getMonth() === sun.getMonth() && mon.getFullYear() === sun.getFullYear();
-  if (sameMonth) return `${mon.getDate()}–${sun.getDate()} ${MONTHS[mon.getMonth()]} ${mon.getFullYear()}`;
-  const sameYear = mon.getFullYear() === sun.getFullYear();
-  const left = `${mon.getDate()} ${MONTHS[mon.getMonth()]}${sameYear ? '' : ' ' + mon.getFullYear()}`;
-  return `${left} – ${sun.getDate()} ${MONTHS[sun.getMonth()]} ${sun.getFullYear()}`;
-}
 
 // ─────────── smart grocery: shelf-life buckets + human units (Grocery spec) ───────────
 type ShelfBucket = 'pantry' | 'weekly' | 'daily';
@@ -288,12 +249,6 @@ export function recommendedPack(name: string, grams: number, aisle: string): { l
 // Rough ₹ per kg / litre by aisle — for an at-a-glance grocery estimate only.
 const COST_PER_KG: Record<string, number> = { produce: 60, fruit: 120, meat: 320, dairy: 90, spices: 800, oils: 200, nuts: 900, pantry: 90 };
 
-const CUISINE_BY_COUNTRY: Record<string, string> = {
-  India: 'Indian', China: 'Chinese', Italy: 'Italian', Mexico: 'Mexican', Thailand: 'Thai',
-  Japan: 'Japanese', USA: 'American', 'United States': 'American', America: 'American',
-  Lebanon: 'Middle Eastern', Turkey: 'Middle Eastern', 'Middle East': 'Middle Eastern',
-  Greece: 'Mediterranean', France: 'Continental', UK: 'Continental', England: 'Continental',
-};
 
 export interface FamilyContext {
   role: 'owner' | 'member' | 'solo';
@@ -325,6 +280,9 @@ interface PrefExtras {
   /** Composed-plan per-meal overrides (Refresh/Skip). Keys "d{index}:{slotCode}". */
   composedSkips?: string[];
   composedBumps?: Record<string, number>;
+  /** Dishes the citizen chose for a slot themselves. Keys "d{index}:{slotCode}"
+   *  → recipeId. Honoured only while the dish still passes their filters. */
+  composedPins?: Record<string, string>;
   /** 3-week plan anchor: the plan runs PLAN_DAYS days from this date (YYYY-MM-DD).
    *  Lazily set to "today" on first plan, so day 0 is the day the user started. */
   planStartDate?: string;
@@ -347,6 +305,15 @@ function parseExtras(extras: string | null | undefined): PrefExtras {
 
 /** The meal plan spans three weeks (21 days), generated in one go; the user is
  *  prompted to review/adjust after it ends. */
+/** A Recipe row as the composer's pool builder needs it. */
+type PoolRow = {
+  id: string; name: string; country: string; slot: string; diet: string; recipeNo?: number | null;
+  kcal: number; protein: number; carbs: number; fat: number; fiber: number;
+  minutes: number; gramsPerServing: number; servings?: number;
+  steps?: string | null; cookSteps?: string | null; image?: string | null; imageUrl?: string | null;
+  ingredients: Array<{ name: string; grams?: number | null }>;
+};
+
 const PLAN_DAYS = 21;
 // todayISO() lived here and returned the UTC day. Removed rather than fixed:
 // "today" is not a property of the server, it is a property of the citizen, and
@@ -511,11 +478,6 @@ export function hasSelectedAnimalProtein(r: RecipeWithIng, allowed: Set<string>)
   if (allowed.size === 0) return false;
   return [...detectProteins(r)].some((t) => ANIMAL_PROTEINS.has(t) && allowed.has(t));
 }
-/** True when the user eats meat (selected ≥1 animal protein) — so breakfast/snack
- *  should bias toward those proteins. */
-function eatsAnimalProtein(allowed: Set<string>): boolean {
-  return [...allowed].some((t) => ANIMAL_PROTEINS.has(t));
-}
 
 // ─────────── medical conditions as HARD exclusions ───────────
 // Keyword exclusions per condition (the recipe DB carries no micronutrient
@@ -606,38 +568,7 @@ function isPlannableMeal(r: { slot: string; kcal?: number; gramsPerServing?: num
   return perServing >= (MEAL_MIN_KCAL[r.slot] ?? 150);
 }
 
-// ─────────── meal-type appropriateness (think like a dietitian) ───────────
-// A realistic per-person calorie window for each slot. The LOW ends are kept
-// deliberately generous so real but light dishes stay eligible (Indian mains
-// flex up to target in the thali builder); the HIGH ends still keep a snack from
-// being a heavy main and reject batch-estimate outliers. Anything below the low
-// end is a trivial / corrupt row, handled together with MEAL_MIN_KCAL.
-const SLOT_KCAL: Record<string, [number, number]> = {
-  b: [70, 700], l: [80, 950], s: [40, 300], d: [80, 850],
-};
-// Condiments / seasonings — never a meal in any slot.
-const CONDIMENT_NAME = /(pickle|relish|chutney|marmalade|preserve|\bjam\b|\bjelly\b|seasoning|\bsyrup\b|condiment|ketchup|\bglaze\b|marinade)/i;
-// A full main course / heavy dish — never an appropriate snack.
-const SNACK_UNFIT_NAME = /biryani|pulao|pilaf|fried rice|\brice\b|pasta|lasagn|noodle|thali|casserole|risotto|paella|khichdi|pongal|platter|\bstew\b|\bcurry\b|\bgravy\b|dressing|\bdip\b|\bsauce\b|\bpaste\b/i;
 
-/**
- * Mandatory meal-type validation. Is this recipe realistic for the slot?
- *  • every slot has a sensible per-person calorie window;
- *  • condiments are never a meal;
- *  • a snack must be light AND quick (≤30 min) and never a rice/curry/pasta main.
- */
-function mealAppropriate(r: RecipeWithIng): boolean {
-  const slot = r.slot;
-  const per = (r.kcal ?? 0) / recipeServings({ slot, kcal: r.kcal ?? 0, gramsPerServing: r.gramsPerServing ?? 0, servings: r.servings });
-  const [lo, hi] = SLOT_KCAL[slot] ?? [200, 900];
-  if (r.kcal != null && (per < lo || per > hi)) return false;
-  if (CONDIMENT_NAME.test(r.name)) return false;
-  if (slot === 's') {
-    if (saneMinutes(r.minutes) > 30) return false;
-    if (SNACK_UNFIT_NAME.test(r.name)) return false;
-  }
-  return true;
-}
 
 /**
  * HARD constraints — a recipe that fails ANY of these is never eligible, and
@@ -682,21 +613,6 @@ function passesSoft(r: RecipeWithIng, ex: PrefExtras): boolean {
 function filterByPrefs(recipes: RecipeWithIng[], diet: Diet, ex: PrefExtras): RecipeWithIng[] {
   const allowed = allowedProteins(ex);
   return recipes.filter((r) => passesHard(r, diet, ex, allowed) && passesSoft(r, ex));
-}
-/** Front-load recipes whose cuisine the user weighted highest (soft bias). */
-function cuisineBias<T extends { country: string }>(list: T[], mix: Record<string, number>): T[] {
-  const total = Object.values(mix).reduce((a, b) => a + b, 0);
-  if (!total) return list;
-  const w = (r: T) => mix[CUISINE_BY_COUNTRY[r.country] ?? r.country] ?? 0;
-  return [...list].sort((a, b) => w(b) - w(a));
-}
-/** Is this recipe's cuisine one the user selected? With a set Cuisine Mix, only
- *  the chosen kitchens are used (Indian 100% ⇒ only Indian); an empty mix means
- *  no preference, so everything is allowed. */
-function cuisineAllowed(country: string, mix: Record<string, number>): boolean {
-  const chosen = Object.keys(mix).filter((k) => (mix[k] ?? 0) > 0);
-  if (!chosen.length) return true;
-  return chosen.includes(CUISINE_BY_COUNTRY[country] ?? country);
 }
 
 export interface RecipeShape {
@@ -1530,46 +1446,6 @@ export class NutritionService implements OnModuleInit {
     }
   }
 
-  /**
-   * Remove the rows the dataset-cleaning pass dropped (condiments/seasonings,
-   * corrupt names, no-ingredient rows, and exact duplicates) from an already-
-   * loaded database. Fresh databases load the cleaned dataset directly, so this
-   * only does work once on existing prod data. Idempotent + best-effort: reads a
-   * shipped drop-list of recipe ids, deletes any meals referencing them (they
-   * live in disposable meal plans that regenerate), then the recipes themselves
-   * (ingredients cascade). Never throws — recipe cleanup must not break boot.
-   */
-  private async purgeDroppedRecipes(): Promise<void> {
-    try {
-      const candidates = [
-        join(__dirname, 'data', 'recipes.dropped.json.gz'),
-        join(process.cwd(), 'dist', 'nutrition', 'data', 'recipes.dropped.json.gz'),
-        join(process.cwd(), 'src', 'nutrition', 'data', 'recipes.dropped.json.gz'),
-      ];
-      const path = candidates.find((p) => existsSync(p));
-      if (!path) return;
-      const ids = JSON.parse(gunzipSync(readFileSync(path)).toString('utf8')) as string[];
-      if (!Array.isArray(ids) || !ids.length) return;
-
-      // Quick exit once the DB is already clean (idempotent no-op on later boots).
-      const stillThere = await this.prisma.recipe.count({ where: { id: { in: ids.slice(0, 1000) } } }).catch(() => 0);
-      if (stillThere === 0) return;
-
-      let removed = 0;
-      const B = 500;
-      for (let i = 0; i < ids.length; i += B) {
-        const batch = ids.slice(i, i + B);
-        await this.prisma.meal.deleteMany({ where: { recipeId: { in: batch } } }).catch(() => undefined);
-        const res = await this.prisma.recipe.deleteMany({ where: { id: { in: batch } } }).catch(() => ({ count: 0 }));
-        if (res.count) this.invalidateRecipeCorpus();
-        removed += res.count;
-      }
-      if (removed) this.logger.log(`Recipe cleanup: removed ${removed} non-meal/duplicate rows (dataset cleaning).`);
-    } catch (e) {
-      this.logger.warn(`Recipe cleanup skipped: ${(e as Error).message}`);
-    }
-  }
-
   // ─────────────── targets (Mifflin-St Jeor) ───────────────
   async targets(userId: string) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
@@ -1662,30 +1538,6 @@ export class NutritionService implements OnModuleInit {
     return this.recipeCorpusPromise;
   }
 
-  /**
-   * What this citizen's plan may be built from: the shared corpus plus their own
-   * recipes.
-   *
-   * Their own dishes are a separate, tiny query rather than part of the cache,
-   * which is what keeps BE-19.1's fix intact — the expensive read stays shared
-   * and is done once, and the per-citizen part is a handful of rows on an
-   * indexed column. Own recipes carry a derived diet label and real ingredient
-   * names, so every gate the planner already applies — allergens, diet screen,
-   * condition caps — sees them exactly as it sees a corpus row.
-   */
-  private async planningPool(userId: string): Promise<RecipeWithIng[]> {
-    const corpus = await this.recipeCorpus();
-    const own = (await this.prisma.recipe.findMany({
-      where: { authorId: userId } as never,
-      select: {
-        id: true, slot: true, diet: true, name: true, country: true, minutes: true,
-        kcal: true, gramsPerServing: true, servings: true,
-        ingredients: { select: { name: true, priceInr: true, grams: true } },
-      },
-    })) as unknown as RecipeWithIng[];
-    return own.length ? [...corpus, ...own] : corpus;
-  }
-
   /** Drop the corpus after anything that writes a field the planner ranks on.
    *  `cookSteps` is not one of them — it is not in the select above — so the
    *  AI cook-step cache does not need to call this. */
@@ -1739,14 +1591,23 @@ export class NutritionService implements OnModuleInit {
   private async datasetPool(): Promise<PoolRecipe[]> {
     if (this.datasetPoolCache) return this.datasetPoolCache;
     const rows = (await this.prisma.recipe.findMany({
+      // authorId null is the shared corpus. This cache is process-wide and
+      // handed to every citizen's composer, so a citizen's own dish must never
+      // enter it — without this line the first person to save a private recipe
+      // would have put it on everybody else's plate. Own dishes are appended
+      // per request in poolFor().
+      where: { authorId: null } as never,
       include: { ingredients: { select: { name: true, grams: true } } },
-    })) as unknown as Array<{
-      id: string; name: string; country: string; slot: string; diet: string; recipeNo?: number | null;
-      kcal: number; protein: number; carbs: number; fat: number; fiber: number;
-      minutes: number; gramsPerServing: number; servings?: number;
-      steps?: string | null; cookSteps?: string | null; image?: string | null; imageUrl?: string | null;
-      ingredients: Array<{ name: string; grams?: number | null }>;
-    }>;
+    })) as unknown as PoolRow[];
+    const out = this.shapePoolRows(rows);
+    this.datasetPoolCache = out;
+    this.logger.log(`Composite meal engine: dataset pool built (${out.length} recipes).`);
+    return out;
+  }
+
+  /** Row → PoolRecipe, shared by the corpus pool and a citizen's own dishes so
+   *  the two can never be shaped differently. */
+  private shapePoolRows(rows: PoolRow[]): PoolRecipe[] {
     const out: PoolRecipe[] = [];
     for (const r of rows) {
       if (!r.ingredients?.length) continue;
@@ -1774,8 +1635,6 @@ export class NutritionService implements OnModuleInit {
         steps: this.parseSteps(r.cookSteps ?? r.steps), imageUrl: recipeImageUrl(r.recipeNo) ?? r.imageUrl ?? r.image ?? null,
       });
     }
-    this.datasetPoolCache = out;
-    this.logger.log(`Composite meal engine: dataset pool built (${out.length} recipes).`);
     return out;
   }
 
@@ -1792,6 +1651,32 @@ export class NutritionService implements OnModuleInit {
    * here, not in the small curated seed pool. Bounded so it can't hang (the outer
    * composedPlan timeout is longer); returns the seed-only pool ([]) if it's slow.
    */
+  /**
+   * The pool this citizen's plan is composed from: the shared corpus plus their
+   * own recipes.
+   *
+   * The shared part is the process-wide cache above, built once. Their own part
+   * is a small query on an indexed column, done per request — which is what
+   * keeps one citizen's dishes out of another's plan while still letting their
+   * own appear, as the founder asked for.
+   */
+  private async poolFor(userId: string, maxWaitMs = 6500): Promise<PoolRecipe[]> {
+    const shared = await this.datasetPoolReady(maxWaitMs);
+    const own = await this.ownPoolRecipes(userId);
+    return own.length ? [...shared, ...own] : shared;
+  }
+
+  /** This citizen's own dishes, shaped for the composer exactly as the dataset
+   *  pool shapes the corpus. */
+  private async ownPoolRecipes(userId: string): Promise<PoolRecipe[]> {
+    if (!userId) return [];
+    const rows = (await this.prisma.recipe.findMany({
+      where: { authorId: userId } as never,
+      include: { ingredients: { select: { name: true, grams: true } } },
+    })) as unknown as PoolRow[];
+    return this.shapePoolRows(rows);
+  }
+
   private async datasetPoolReady(maxWaitMs = 6500): Promise<PoolRecipe[]> {
     if (this.datasetPoolCache) return this.datasetPoolCache;
     this.warmDatasetPool();
@@ -2039,10 +1924,13 @@ export class NutritionService implements OnModuleInit {
         favourites: optimal ? undefined : (favourites.length ? favourites : undefined),
         skips: ex.composedSkips,
         bumps: ex.composedBumps,
+        pins: ex.composedPins,
       };
     };
 
-    const datasetPool = await this.datasetPoolReady();   // wait (bounded) for the full 11k pool — non-veg mains + photos live here
+    // Corpus + this citizen's own dishes. poolFor keeps the shared build cached
+    // and appends only theirs, so their recipes reach their plan and nobody else's.
+    const datasetPool = await this.poolFor(userId);
     const weekFor = (m: 'preferred' | 'optimal') =>
       composeWeek(targets, cprefsFor(m), PLAN_DAYS, this.seedFor(userId) + Math.imul(planSeedBump, 7919) + (m === 'optimal' ? 101 : 0), datasetPool);
 
@@ -2471,6 +2359,67 @@ export class NutritionService implements OnModuleInit {
 
   /** Start a FRESH 3-week plan: re-anchor day 0 to today, reseed the meals so the
    *  new block differs, and clear any per-dish Refresh/Skip overrides. */
+  /**
+   * Pin a dish the citizen chose to a day and a slot of their composed plan.
+   *
+   * Stored beside composedSkips and composedBumps, which is how every other
+   * edit in this plan persists, and applied during composition.
+   *
+   * Refused outright for an allergen or an avoided food. That check is here as
+   * well as in the composer, and the duplication is deliberate: the composer
+   * drops an unsafe pin silently because it has no way to speak to anybody,
+   * whereas somebody pressing a button deserves to be told why it did not work
+   * — and told at the moment they press it, not by noticing later that their
+   * choice never appeared.
+   *
+   * A diet mismatch is NOT refused. Somebody putting a fish dish in their own
+   * plan on purpose is making a choice; the composer will decline to serve it
+   * while their profile says otherwise, and the warning says so.
+   */
+  async pinComposedMeal(userId: string, day: number, slot: string, recipeId: string) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+
+    const r = (await this.prisma.recipe.findUnique({
+      where: { id: recipeId },
+      select: { id: true, name: true, diet: true, authorId: true, ingredients: { select: { name: true } } } as never,
+    })) as { id: string; name: string; diet: string; authorId: string | null; ingredients: { name: string }[] } | null;
+    if (!r || (r.authorId && r.authorId !== userId)) throw new NotFoundException('recipe not found');
+
+    const names = r.ingredients.map((i) => i.name);
+    const declared = [...(ex.allergies ?? []), ...(ex.excluded ?? [])];
+    const hit = findAllergen(r.name, names, declared);
+    if (hit) {
+      throw new BadRequestException(
+        hit.allergen
+          ? `${r.name} contains ${hit.found}, and you've told us you're allergic to ${hit.term}. We won't put it in your plan.`
+          : `${r.name} contains ${hit.found}, which is on your avoid list. We won't put it in your plan.`,
+      );
+    }
+
+    const warnings: string[] = [];
+    const screen = screenRecipe(pref?.diet ?? 'everything', names);
+    if (!screen.ok) {
+      const what = [...new Set(screen.offending.map((o) => o.ingredient))].slice(0, 3).join(', ');
+      warnings.push(`${r.name} contains ${what}, which is outside the diet on your profile — so it won't appear until that changes.`);
+    }
+
+    const pins = { ...(ex.composedPins ?? {}) };
+    pins[`d${day}:${slot}`] = recipeId;
+    await this.mergeExtras(userId, { composedPins: pins });
+    return { ...(await this.composedPlan(userId)), warnings };
+  }
+
+  /** Let a slot go back to being chosen for them. */
+  async unpinComposedMeal(userId: string, day: number, slot: string) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const pins = { ...(ex.composedPins ?? {}) };
+    delete pins[`d${day}:${slot}`];
+    await this.mergeExtras(userId, { composedPins: pins });
+    return this.composedPlan(userId);
+  }
+
   async renewComposedPlan(userId: string) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
@@ -2479,6 +2428,7 @@ export class NutritionService implements OnModuleInit {
       planSeedBump: (Number(ex.planSeedBump) || 0) + 1,
       composedBumps: {},
       composedSkips: [],
+      composedPins: {},
     });
     return this.composedPlan(userId);
   }
@@ -3143,48 +3093,6 @@ export class NutritionService implements OnModuleInit {
       : { householdDiet: normaliseDietKey(ownerDiet), dietBecause: [] };
   }
 
-  /**
-   * A member's READ-ONLY view derived from the household's master family plan:
-   * the same meals, scaled to this member's own daily-calorie target (with their
-   * macros recomputed proportionally). Returns null when the household has no
-   * family plan yet (caller then falls back to the member's own plan). This is
-   * the single-source-of-truth read for the Individual planner in Family Mode.
-   */
-  private async familyDerivedWeekly(memberUserId: string, ownerId: string, currentMon: Date) {
-    const plans = await this.prisma.mealPlan.findMany({ where: { userId: ownerId, mode: 'family' }, orderBy: { createdAt: 'desc' } }) as unknown as Array<{ key: string; weekStart?: Date | null; createdAt: Date }>;
-    const master = plans.find((p) => this.planWeek(p).getTime() === currentMon.getTime()) ?? plans[0];
-    if (!master) return null;
-
-    const shaped = await this.shapePlan(master.key);
-    // Personalisation factor: this member's daily target vs the plan owner's.
-    const [mine, theirs] = await Promise.all([this.targets(memberUserId), this.targets(ownerId)]);
-    const factor = Math.min(1.9, Math.max(0.4, (mine.kcal || 1) / (theirs.kcal || 1)));
-    const owner = await this.prisma.user.findUnique({ where: { id: ownerId }, select: { name: true } }).catch(() => null);
-
-    const scaleMeal = (m: Record<string, unknown>): Record<string, unknown> => ({
-      ...m,
-      grams: typeof m.grams === 'number' ? Math.round((m.grams as number) * factor) : m.grams,
-      kcal: typeof m.kcal === 'number' ? Math.round((m.kcal as number) * factor) : m.kcal,
-      protein: typeof m.protein === 'number' ? Math.round((m.protein as number) * factor) : m.protein,
-      carbs: typeof m.carbs === 'number' ? Math.round((m.carbs as number) * factor) : m.carbs,
-      fat: typeof m.fat === 'number' ? Math.round((m.fat as number) * factor) : m.fat,
-      fiber: typeof m.fiber === 'number' ? Math.round((m.fiber as number) * factor) : m.fiber,
-    });
-
-    const days = (shaped.days as Array<Record<string, unknown>>).map((d) => ({
-      ...d,
-      meals: (d.meals as Array<Record<string, unknown>>).map(scaleMeal),
-    }));
-
-    return {
-      ...shaped,
-      days,
-      familyMode: true as const,
-      readOnly: true as const,
-      basedOnFamily: { ownerName: owner?.name ?? 'your family', factor: Math.round(factor * 100) / 100 },
-    };
-  }
-
   // ─────────────── shared pantry (one per household) ───────────────
   /** The household pantry, grouped into supermarket aisles with on-hand amounts. */
   /**
@@ -3440,40 +3348,6 @@ export class NutritionService implements OnModuleInit {
     }
     await this.mergeExtras(ownerId, { pantrySettledThrough: yesterday }).catch(() => undefined);
     return { settledDays, settledMeals };
-  }
-
-  /**
-   * ADVANCE-PREP ALERTS.
-   *
-   * Some dishes can't be started at mealtime: idli/dosa batter ferments
-   * overnight, rajma soaks 8 hours, biryani meat marinates. If breakfast is at
-   * 09:00 and the batter needed to be down by 21:00 the night before, telling
-   * the citizen at 09:00 is useless. This looks ahead at the plan and tells them
-   * while there's still time to act.
-   *
-   * Lead time is read from the recipe's own words, so it's honest about what a
-   * dish actually needs rather than guessing a flat number.
-   */
-  private static prepLeadHours(text: string): { hours: number; what: string } | null {
-    const t = (text || '').toLowerCase();
-    // Longest/most specific first — "overnight" beats a bare "soak".
-    if (/\bferment(ing|ed|ation)?\b.*\bovernight\b|\bovernight\b.*\bferment/.test(t)) return { hours: 12, what: 'ferment overnight' };
-    if (/\bovernight\b/.test(t)) return { hours: 12, what: 'prep overnight' };
-    if (/\bferment/.test(t)) return { hours: 8, what: 'ferment' };
-    if (/\bsoak(ing|ed)?\b/.test(t)) {
-      const m = t.match(/soak[^.]{0,40}?(\d{1,2})\s*(hour|hr)/);
-      const h = m ? Math.min(24, Math.max(1, Number(m[1]))) : 8;
-      return { hours: h, what: `soak ${h}h` };
-    }
-    if (/\bmarinat/.test(t)) {
-      const m = t.match(/marinat[^.]{0,40}?(\d{1,2})\s*(hour|hr)/);
-      const h = m ? Math.min(24, Math.max(1, Number(m[1]))) : 2;
-      return { hours: h, what: `marinate ${h}h` };
-    }
-    if (/\bsprout(ing|ed)?\b/.test(t)) return { hours: 12, what: 'sprout' };
-    if (/\bproof(ing|ed)?\b|\brise\b.*\bdough\b|\bdough\b.*\brise\b/.test(t)) return { hours: 3, what: 'prove the dough' };
-    if (/\bchill\b.*\b(\d{1,2})\s*(hour|hr)|\brefrigerate\b.*\bovernight\b/.test(t)) return { hours: 4, what: 'chill' };
-    return null;
   }
 
   /**
@@ -4104,233 +3978,6 @@ export class NutritionService implements OnModuleInit {
     return { ok: true };
   }
 
-  // ─────────────── weekly plan ───────────────
-  /**
-   * Required-preference gate. The planner is the user's source of truth, so it
-   * must never guess: if a required field is missing, we return what's missing
-   * instead of generating a plan on assumptions.
-   */
-  async profileStatus(userId: string): Promise<{ complete: boolean; missing: { key: string; label: string }[] }> {
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-    if (!pref) {
-      return { complete: false, missing: [
-        { key: 'diet', label: 'Diet pattern' },
-        { key: 'proteins', label: 'Protein sources' },
-        { key: 'body', label: 'Age, sex, height & weight' },
-      ] };
-    }
-    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-    const missing: { key: string; label: string }[] = [];
-    if (!pref.age) missing.push({ key: 'age', label: 'Age' });
-    if (!pref.sex) missing.push({ key: 'sex', label: 'Sex' });
-    if (!pref.heightCm) missing.push({ key: 'height', label: 'Height' });
-    if (!pref.weightKg) missing.push({ key: 'weight', label: 'Weight' });
-    if (!(ex.proteins && ex.proteins.length)) missing.push({ key: 'proteins', label: 'Protein sources' });
-    return { complete: missing.length === 0, missing };
-  }
-
-  /**
-   * Load the weekly plan. A saved plan is a DOCUMENT, not a live regeneration:
-   * once it exists we always return it exactly as saved (with the user's edits)
-   * and NEVER auto-regenerate — not even when preferences change. The user
-   * regenerates explicitly (Regenerate / Start Fresh). `stale` merely flags that
-   * preferences changed since the plan was made so the UI can offer a
-   * "Regenerate to apply" prompt.
-   *
-   * `readOnly` is set by the Daily Meal Planner, which must NEVER create a plan —
-   * it's only a view of the saved week. When no plan exists it returns
-   * `needsPlan` and the Daily view directs the user to the Weekly planner. The
-   * Weekly planner (readOnly=false) bootstraps a first plan when none exists.
-   */
-  async weeklyPlan(userId: string, mode: PlanMode = 'individual', readOnly = false) {
-    const status = await this.profileStatus(userId);
-    if (!status.complete) {
-      return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
-    }
-    const currentMon = weekMonday(new Date());
-
-    // Planner mode is the single switch between the household's SHARED plan
-    // (family) and this user's OWN independent plan (individual). A user can
-    // only be in family mode when they truly belong to a household that has
-    // Family Meal Planning on — otherwise fall back to their individual plan.
-    const ctx = await this.familyContext(userId).catch(() => null);
-    if (mode === 'family' && !(ctx?.hasFamily && ctx.familyMealPlanning)) mode = 'individual';
-
-    // FAMILY MODE for a connected MEMBER: a READ-ONLY, personalised view of the
-    // household's master family plan (single source of truth). Owners fall
-    // through and load their own stored master plan (mode='family') below.
-    if (mode === 'family' && ctx?.role === 'member') {
-      const derived = await this.familyDerivedWeekly(userId, ctx.ownerId, currentMon).catch(() => null);
-      if (derived) {
-        const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-        return { ...derived, stale: false, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
-      }
-      // The household hasn't built its master plan yet — nothing to show.
-      return { needsPlan: true, key: '', days: [], stale: false, isCurrentWeek: false, guidance: null, advisories: [], familyMode: true, readOnly: true };
-    }
-
-    const plans = await this.prisma.mealPlan.findMany({ where: { userId, mode }, orderBy: { createdAt: 'desc' } }) as unknown as Array<{ key: string; weekStart?: Date | null; createdAt: Date }>;
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-    const current = plans.find((p) => this.planWeek(p).getTime() === currentMon.getTime());
-
-    // No plan for the current week.
-    if (!current) {
-      // Daily never generates — but if a past week is saved, show that (most
-      // recent) so today's plate isn't empty; otherwise point to the Weekly planner.
-      if (readOnly) {
-        const latest = plans[0];
-        if (!latest) return { needsPlan: true, key: '', days: [], stale: false, isCurrentWeek: false, guidance: null, advisories: [] };
-        const plan = await this.shapePlan(latest.key);
-        const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-        return { ...plan, stale: false, isCurrentWeek: false, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
-      }
-      // Weekly planner: a new calendar week with no plan → generate it (a NEW
-      // week; every other saved week is preserved).
-      const plan = await this.generatePlan(userId, mode, currentMon);
-      const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-      return { ...plan, stale: false, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
-    }
-
-    // The current week is a saved DOCUMENT: load it as-is, never auto-regenerate.
-    //
-    // `locked` says the citizen changed this plan themselves, so what loads here
-    // is their version and regenerating would throw it away. The client uses it
-    // to turn the "preferences changed" nudge into a warning — the plan is still
-    // replaceable, but only deliberately and only after being told what is lost.
-    const editedAt = (current as { editedAt?: Date | null }).editedAt ?? null;
-    const stale = Boolean(pref && current.createdAt < pref.updatedAt);
-    const plan = await this.shapePlan(current.key);
-    const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-    return {
-      ...plan, stale, isCurrentWeek: true,
-      locked: Boolean(editedAt),
-      editedAt: editedAt ? editedAt.toISOString() : null,
-      guidance, advisories: adv.advisories, healthScore: adv.healthScore,
-    };
-  }
-
-  /** Explicit regeneration — replaces the CURRENT week only (Regenerate / Start Fresh). */
-  async regenerate(userId: string, mode: PlanMode = 'individual') {
-    const status = await this.profileStatus(userId);
-    if (!status.complete) {
-      return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
-    }
-    // In Family Mode a member cannot regenerate the master — return the
-    // read-only family-derived view instead (the owner regenerates the master).
-    const ctx = await this.familyContext(userId).catch(() => null);
-    if (mode === 'family' && !(ctx?.hasFamily && ctx.familyMealPlanning)) mode = 'individual';
-    if (mode === 'family' && ctx?.role === 'member') {
-      const derived = await this.familyDerivedWeekly(userId, ctx.ownerId, weekMonday(new Date())).catch(() => null);
-      if (derived) {
-        const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-        return { ...derived, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
-      }
-      return { needsPlan: true, key: '', days: [], guidance: null, advisories: [], familyMode: true, readOnly: true };
-    }
-    const plan = await this.generatePlan(userId, mode, weekMonday(new Date()));
-    const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-    return { ...plan, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
-  }
-
-  /** Every saved week for the user — the calendar/timeline (newest week first). */
-  async weeks(userId: string, mode: PlanMode = 'individual') {
-    const currentMon = weekMonday(new Date());
-    const plans = await this.prisma.mealPlan.findMany({
-      where: { userId, mode }, orderBy: { createdAt: 'desc' },
-      include: { days: { select: { _count: { select: { meals: true } } } } },
-    }) as unknown as Array<{ key: string; weekStart?: Date | null; createdAt: Date; days: Array<{ _count: { meals: number } }> }>;
-    // One entry per calendar week (keep the newest plan if a week somehow dupes).
-    const byWeek = new Map<number, { key: string; weekStart: string; weekEnd: string; weekLabel: string; weekNumber: number; isCurrent: boolean; meals: number; createdAt: string }>();
-    for (const p of plans) {
-      const mon = this.planWeek(p); const t = mon.getTime();
-      if (byWeek.has(t)) continue;
-      const sun = addDays(mon, 6);
-      byWeek.set(t, {
-        key: p.key, weekStart: isoDate(mon), weekEnd: isoDate(sun),
-        weekLabel: weekRangeLabel(mon, sun), weekNumber: isoWeekNumber(mon),
-        isCurrent: t === currentMon.getTime(),
-        meals: p.days.reduce((s, d) => s + d._count.meals, 0),
-        createdAt: p.createdAt.toISOString(),
-      });
-    }
-    return [...byWeek.values()].sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1));
-  }
-
-  /** Load ONE saved week by its key (owner-checked) — for the timeline/revisit view. */
-  async weekByKey(userId: string, key: string) {
-    await this.assertOwnsPlan(key, userId);
-    const plan = await this.shapePlan(key);
-    const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-    const currentMon = weekMonday(new Date());
-    const isCurrentWeek = plan.weekStart === isoDate(currentMon);
-    return { ...plan, isCurrentWeek, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
-  }
-
-  /** Generate a brand-new week WITHOUT touching existing weeks. Defaults to the
-   *  current calendar week if it has no plan, otherwise the week after the most
-   *  recent saved week. */
-  async newWeek(userId: string, mode: PlanMode = 'individual', weekStart?: string) {
-    const status = await this.profileStatus(userId);
-    if (!status.complete) return { incomplete: true, missing: status.missing, key: '', days: [], guidance: null };
-    // Family Mode: members don't author their own weeks — hand back the read-only
-    // family-derived view (the owner owns the master plan).
-    const ctx = await this.familyContext(userId).catch(() => null);
-    if (mode === 'family' && !(ctx?.hasFamily && ctx.familyMealPlanning)) mode = 'individual';
-    if (mode === 'family' && ctx?.role === 'member') {
-      const derived = await this.familyDerivedWeekly(userId, ctx.ownerId, weekMonday(new Date())).catch(() => null);
-      if (derived) {
-        const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-        return { ...derived, isCurrentWeek: true, guidance, advisories: adv.advisories, healthScore: adv.healthScore };
-      }
-      return { needsPlan: true, key: '', days: [], guidance: null, advisories: [], familyMode: true, readOnly: true };
-    }
-    const plans = await this.prisma.mealPlan.findMany({ where: { userId, mode }, orderBy: { createdAt: 'desc' } }) as unknown as Array<{ weekStart?: Date | null; createdAt: Date }>;
-    const currentMon = weekMonday(new Date());
-    const weeks = new Set(plans.map((p) => this.planWeek(p).getTime()));
-    let target: Date;
-    if (weekStart) target = weekMonday(new Date(weekStart));
-    else if (!weeks.has(currentMon.getTime())) target = currentMon;
-    else {
-      const latest = plans.length ? this.planWeek(plans[0]) : currentMon;
-      target = addDays(latest.getTime() >= currentMon.getTime() ? latest : currentMon, 7);
-    }
-    const plan = await this.generatePlan(userId, mode, target);
-    const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-    return { ...plan, isCurrentWeek: this.planWeek({ weekStart: target, createdAt: target }).getTime() === currentMon.getTime(), guidance, advisories: adv.advisories, healthScore: adv.healthScore };
-  }
-
-  /** Copy a saved week's meals into a NEW week (default: the next empty week). */
-  async duplicateWeek(userId: string, mode: PlanMode, sourceKey: string, weekStart?: string) {
-    await this.assertOwnsPlan(sourceKey, userId);
-    const src = await this.prisma.mealPlan.findUnique({
-      where: { key: sourceKey },
-      include: { days: { include: { meals: true } } },
-    });
-    if (!src) throw new NotFoundException('week not found');
-    const plans = await this.prisma.mealPlan.findMany({ where: { userId, mode }, orderBy: { createdAt: 'desc' } }) as unknown as Array<{ weekStart?: Date | null; createdAt: Date }>;
-    const currentMon = weekMonday(new Date());
-    const weeks = new Set(plans.map((p) => this.planWeek(p).getTime()));
-    let target = weekStart ? weekMonday(new Date(weekStart)) : (weeks.has(currentMon.getTime()) ? addDays(this.planWeek(plans[0]), 7) : currentMon);
-    while (weeks.has(target.getTime())) target = addDays(target, 7); // never clobber an existing week
-    const key = 'wk_' + this.rand(8);
-    await this.prisma.mealPlan.create({
-      data: {
-        key, userId, mode,
-        days: {
-          create: src.days.map((d) => ({
-            dayIndex: d.dayIndex, dayName: d.dayName,
-            meals: { create: d.meals.map((m) => ({ slot: m.slot, recipeId: m.recipeId, skipped: m.skipped, sidesRice: m.sidesRice, sidesRoti: m.sidesRoti, sidesCurd: m.sidesCurd, sidesSalad: m.sidesSalad })) },
-          })),
-        },
-      },
-    });
-    await this.prisma.mealPlan.update({ where: { key }, data: { weekStart: target } as never }).catch(() => undefined);
-    await this.snapshotWeek(userId, mode, key);
-    const plan = await this.shapePlan(key);
-    const [guidance, adv] = await Promise.all([this.userPlanGuidance(userId), this.advisoriesFor(userId)]);
-    return { ...plan, isCurrentWeek: target.getTime() === currentMon.getTime(), guidance, advisories: adv.advisories, healthScore: adv.healthScore };
-  }
-
   /** Load the user's stored marker values, as a {key: value} map. */
   /**
    * Biomarkers that drive the plan — read from the Medical Hub (source of truth),
@@ -4351,161 +3998,6 @@ export class NutritionService implements OnModuleInit {
     // Fallback: legacy nutrition-local markers (pre-Medical-Hub).
     const rows = await this.prisma.bloodMarker.findMany({ where: { userId } });
     return Object.fromEntries(rows.map((r) => [r.key, r.value]));
-  }
-
-  /** Condition-aware planning rationale for the current markers + goal (or null). */
-  private async userPlanGuidance(userId: string) {
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-    const flags = flagsFor(await this.bloodValues(userId));
-    return planGuidance(flags, pref?.goal ?? 'maintain');
-  }
-
-  /**
-   * Medical advisory system (spec §21). Evidence-based recommendations derived
-   * from the user's declared conditions + blood flags, shown as ADVICE — never
-   * used to override the saved Food Preference Profile. The meal plan always
-   * follows the user's own choices; these cards suggest optional improvements
-   * with an "Update Food Preferences" / "Keep Current" decision left to the user.
-   * Levels: 1 Informational · 2 Recommended · 3 Safety alert (safety-only).
-   */
-  /**
-   * Score the citizen's CURRENT composed plan with the real scorer — averaged
-   * day totals measured against their targets and clinical caps. Returns null
-   * when there's no plan to score, so callers can say "not yet" instead of
-   * printing a made-up number.
-   */
-  private async scorePlanForUser(userId: string): Promise<{ health: number; preference: number } | null> {
-    const plan = (await this.composedPlan(userId)) as unknown as {
-      needsProfile?: boolean;
-      scorecard?: { health?: number; preference?: number };
-    };
-    if (plan?.needsProfile) return null;
-    const h = plan?.scorecard?.health;
-    const p = plan?.scorecard?.preference;
-    if (typeof h !== 'number' || typeof p !== 'number') return null;
-    return { health: Math.max(0, Math.min(100, Math.round(h))), preference: Math.max(0, Math.min(100, Math.round(p))) };
-  }
-
-  private async advisoriesFor(userId: string) {
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-    const flags = flagsFor(await this.bloodValues(userId));
-    const conds = new Set((ex.healthConditions ?? []).map((c) => c.toLowerCase()));
-    const has = (...k: string[]) => k.some((x) => [...conds].some((c) => c.includes(x)));
-    const diet = pref?.diet ?? 'everything';
-    const DIET_LABEL: Record<string, string> = {
-      everything: 'Non-Vegetarian', nonveg: 'Non-Vegetarian', pesc: 'Pescatarian',
-      egg: 'Eggetarian', veg: 'Vegetarian', vegan: 'Vegan', jain: 'Jain',
-    };
-    const dietName = DIET_LABEL[diet] ?? 'your current diet';
-    const eatsAnimal = ['everything', 'nonveg', 'pesc', 'egg'].includes(diet) || eatsAnimalProtein(allowedProteins(ex));
-
-    type Advisory = { key: string; condition: string; level: 1 | 2 | 3; title: string; message: string; actionable: boolean; recommendedPreference?: string };
-    const A: Advisory[] = [];
-    const kidney = has('kidney', 'renal', 'ckd');
-    const fatty = has('fatty liver', 'nafld');
-    const highChol = has('cholesterol') || flags.ldl === 'high' || flags.trig === 'high';
-    const diabetes = has('diabetes') || flags.hba1c === 'high';
-    const htn = has('hypertension', 'blood pressure');
-    const pcos = has('pcos');
-
-    if (kidney) A.push({ key: 'kidney', condition: 'Kidney health', level: 2,
-      title: 'A more plant-forward diet may support your kidneys',
-      message: `Based on your health profile, a predominantly vegetarian diet may be more beneficial for your kidney health. Your current meal plan has been generated according to your saved food preferences (${dietName}). To optimise kidney function, consider replacing some animal protein with paneer, tofu or legumes — or update your Food Preference Profile to Vegetarian / plant-forward. This may help reduce kidney workload while still meeting your protein requirements. Please confirm targets with your nephrologist.`,
-      actionable: eatsAnimal, recommendedPreference: 'veg' });
-    if (fatty) A.push({ key: 'fattyLiver', condition: 'Liver health', level: 2,
-      title: 'Leaner, plant-forward meals may help your liver',
-      message: `Reducing saturated fat and processed meat while increasing vegetables, legumes, whole grains and fibre may improve fatty-liver health. Your plan follows your saved preference (${dietName}); a more plant-forward pattern is worth considering.`,
-      actionable: eatsAnimal, recommendedPreference: 'veg' });
-    if (highChol) A.push({ key: 'highChol', condition: 'Cholesterol', level: 2,
-      title: 'Swap some red meat for fish or plant proteins',
-      message: `Consider replacing some red meat with fish, legumes, tofu or plant-based proteins and increasing soluble fibre. Your plan follows your saved preference (${dietName}); these swaps can help lower LDL over time.`,
-      actionable: eatsAnimal, recommendedPreference: 'pesc' });
-    if (diabetes) A.push({ key: 'diabetes', condition: 'Blood sugar', level: 1,
-      title: 'Favour high-fibre, lower-glycaemic carbohydrates',
-      message: 'Prioritise high-fibre, lower-glycaemic carbohydrates and lean protein sources while limiting added sugars and refined carbohydrates. Your plan already leans this way — no preference change needed.',
-      actionable: false });
-    if (htn) A.push({ key: 'hypertension', condition: 'Blood pressure', level: 1,
-      title: 'Lower sodium, raise potassium',
-      message: 'Reducing sodium and increasing potassium-rich foods may help support healthy blood pressure. Your plan already limits high-salt items automatically.',
-      actionable: false });
-    if (pcos) A.push({ key: 'pcos', condition: 'PCOS', level: 1,
-      title: 'Higher-protein, high-fibre, lower-GI meals',
-      message: 'A higher-protein, high-fibre diet with lower-glycaemic carbohydrates may improve insulin sensitivity and hormone balance.',
-      actionable: false });
-
-    // Health-score impact (§21). `medicalOptimisation` reflects how well the
-    // plan's choices align with declared conditions.
-    let medicalOptimisation = 100;
-    for (const a of A) medicalOptimisation -= a.actionable ? (a.level === 2 ? 16 : 8) : (a.level === 2 ? 6 : 3);
-    medicalOptimisation = Math.max(50, medicalOptimisation);
-
-    // `preferenceMatch` used to be the constant 100 — so this score never looked
-    // at the food at all and could not fall below ~72 no matter how badly the
-    // plan missed the citizen's targets. Score the ACTUAL plan with the real
-    // scorer (the same one the composed plan's scorecard uses). If the plan
-    // can't be scored we report null rather than inventing a number.
-    const scored = await this.scorePlanForUser(userId).catch(() => null);
-    const preferenceMatch = scored?.preference ?? null;
-    const nutritionalHealth = scored?.health ?? null;
-    const overall = scored
-      ? Math.round((scored.health * 0.35) + (scored.preference * 0.25) + (medicalOptimisation * 0.40))
-      : null;
-    const misaligned = A.filter((a) => a.actionable);
-    const note = misaligned.length
-      ? `Your meal plan fully matches your food preferences. However, based on your ${misaligned.map((a) => a.condition.toLowerCase()).join(' & ')}, a more plant-forward diet may further improve long-term outcomes.`
-      : 'Your meal plan matches both your food preferences and your medical profile.';
-    return { advisories: A, healthScore: { preferenceMatch, medicalOptimisation, nutritionalHealth, overall, note } };
-  }
-
-  /** Build a slot→recipes map honouring the user's diet, allergies, avoided
-   *  foods, cook-time cap and cuisine-mix bias. `dayDiet` lets a single day be
-   *  forced vegetarian (weekly veg/non-veg rule) on top of the base diet. */
-  private rankedPools(
-    recipes: RecipeWithIng[], dayDiet: Diet, ex: PrefExtras, modes: ReturnType<typeof planningModes>,
-    preferAnimalProtein = true,
-  ): Record<Slot, RecipeWithIng[]> {
-    const mix = ex.cuisineMix ?? (ex.cuisines?.length ? Object.fromEntries(ex.cuisines.map((c) => [c, 1])) : {});
-    const allowed = allowedProteins(ex);
-    const out = {} as Record<Slot, RecipeWithIng[]>;
-    for (const slot of SLOTS) {
-      const inSlot = recipes.filter((r) => r.slot === slot);
-      // Primary: hard + meal-type-appropriate + soft. Fallbacks drop soft rules,
-      // then meal-fit, but always keep diet/protein/allergy/medical enforced so we
-      // never surface a disallowed item (a rice dish can never become a snack here).
-      // Cuisine Mix is enforced (only chosen kitchens), then relaxed only if a
-      // slot would otherwise be empty.
-      let pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed) && cuisineAllowed(r.country, mix) && mealAppropriate(r) && passesSoft(r, ex));
-      if (!pool.length) pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed) && cuisineAllowed(r.country, mix) && mealAppropriate(r));
-      if (!pool.length) pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed) && mealAppropriate(r));
-      if (!pool.length) pool = inSlot.filter((r) => passesHard(r, dayDiet, ex, allowed));
-      // Last-resort pools relax diet-fit and meal-fit, but NEVER allergies or
-      // avoided foods. If nothing is safe the slot is left empty on purpose —
-      // previously this fell back to the unfiltered slot and could plate an
-      // allergen for someone who had declared it.
-      if (!pool.length) pool = inSlot.filter((r) => dietAllows(dayDiet, r.diet as Diet) && isPlannableMeal(r) && allergySafe(r, ex));
-      if (!pool.length) pool = inSlot.filter((r) => dietAllows(dayDiet, r.diet as Diet) && allergySafe(r, ex));
-      if (!pool.length) pool = inSlot.filter((r) => allergySafe(r, ex));
-      const byMode = rankByModes(pool as unknown as RecipeShape[], modes) as unknown as RecipeWithIng[];
-      let ordered = cuisineBias(byMode, mix);
-      // Breakfast & snack: PREFER the user's selected animal proteins (egg/
-      // chicken/fish first) without excluding veg options — a stable partition
-      // keeps the clinical + cuisine order intact within each group. We honour
-      // the user's food preference even with a medical condition (§21): the plan
-      // follows their choice; medical guidance is shown as advice, not enforced.
-      if (preferAnimalProtein && (slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)) {
-        const withP = ordered.filter((r) => hasSelectedAnimalProtein(r, allowed));
-        const without = ordered.filter((r) => !hasSelectedAnimalProtein(r, allowed));
-        ordered = [...withP, ...without];
-      }
-      out[slot] = ordered;
-    }
-    return out;
-  }
-
-  /** Effective calendar week (Monday) a stored plan is FOR. */
-  private planWeek(p: { weekStart?: Date | null; createdAt: Date }): Date {
-    return weekMonday(p.weekStart ?? p.createdAt);
   }
 
   /**
@@ -4550,391 +4042,6 @@ export class NutritionService implements OnModuleInit {
     };
   }
 
-  private async generatePlan(userId: string, mode: PlanMode, weekStart?: Date) {
-    const ws = weekMonday(weekStart ?? new Date());
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-    let ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-    // FAMILY plans feed everyone from the same dishes, so the household's
-    // allergies, avoided foods and DIET must ALL apply — the owner's
-    // preferences alone would let a shared dish carry a child's allergen, or
-    // put chicken in front of the one vegetarian at the table.
-    let diet = normaliseDietKey(pref?.diet) as unknown as Diet;
-    if (mode === 'family') {
-      const h = await this.withHouseholdConstraints(userId, ex, pref?.diet as string | undefined);
-      ex = h.ex;
-      diet = h.diet as unknown as Diet;
-    }
-    const allowed = allowedProteins(ex);
-    // Cross-week variety (spec §18): remember the recipes in the plan we're about
-    // to replace so the new week de-prioritises them — Week 2 shouldn't repeat
-    // Week 1. Read BEFORE the deleteMany below. Down-ranked, never excluded, so a
-    // narrow pool can still fill every slot.
-    const prior = await this.prisma.mealPlan.findFirst({
-      where: { userId, mode },
-      include: { days: { include: { meals: { select: { recipeId: true } } } } },
-    });
-    const recentIds = new Set<string>((prior?.days ?? []).flatMap((d) => d.meals.map((m) => m.recipeId)));
-    // Load prices too, so the budget filter can work.
-    const recipes = await this.planningPool(userId);
-
-    // Condition-aware selection: blood flags + goal switch on planning modes.
-    const bloodFlags = flagsFor(await this.bloodValues(userId));
-    const modes = planningModes(bloodFlags, pref?.goal ?? 'maintain');
-    // Backend-assigned diet plans (Diet Plan Guide): decided from the profile,
-    // never picked by the user; they bias recipe selection below.
-    const dietPlans = assignDietPlans({
-      conditions: ex.healthConditions ?? [], flags: bloodFlags as Record<string, string>,
-      goal: pref?.goal ?? 'maintain', diet, age: pref?.age ?? 30,
-    });
-    // Clinical MNT layer (mined from Krause's + ESPEN): condition-specific
-    // emphasize/limit food guidance biases every recipe decision.
-    const mntRules: MntRule[] = activeMntRules({
-      conditions: ex.healthConditions ?? [], flags: bloodFlags as Record<string, string>,
-      age: pref?.age ?? 30, sex: pref?.sex ?? 'male',
-    });
-    // Targets drive selection, so compute them BEFORE ranking the pools. The
-    // protein DENSITY target (g per kcal) decides whether this is a genuinely
-    // high-protein prescription. Only then do we let breakfast/snack lean into
-    // animal-protein dishes; a modest-protein plan (the common case, and the
-    // one that used to "spill" past 100 %) must NOT be pushed toward dense
-    // protein foods it can't stay under.
-    const tg = await this.targets(userId);
-    const opts = await this.plateOptsFor(userId);
-    const proteinDensityTarget = tg.protein / Math.max(1, tg.kcal);
-    const proteinCapped = isProteinRestricted(ex);
-    // High-protein prescription ≈ ≥0.04 g/kcal (~103 g at 2,573 kcal). Below
-    // that, protein is the binding ceiling, so we suppress every protein-seeking
-    // heuristic and hard-cap per-dish protein density instead.
-    const preferAnimalProtein = !proteinCapped && proteinDensityTarget >= 0.04;
-    const baseRanked = this.rankedPools(recipes, diet, ex, modes, preferAnimalProtein);
-    // Some days can be forced vegetarian by the weekly rule — precompute a veg pool.
-    const vegRanked = this.rankedPools(recipes, 'veg', ex, modes, preferAnimalProtein);
-
-    const offset = Math.floor(Math.random() * 6);
-    const key = 'wk_' + this.rand(8);
-
-    // Variety engine (§variety): a dietitian-style week rotates recipes, proteins,
-    // carbohydrate bases AND cooking methods so no day feels like a repeat of the
-    // last. Hard rules: never repeat a recipe; no protein signature more than
-    // twice. Soft rotation (tried first, degrades gracefully so a slot is never
-    // empty): spread carbohydrate staples and cooking styles across the week, and
-    // avoid last week's recipes. Cuisine is left to the % preference bias (a hard
-    // cuisine cap would fight an "Indian 70%" preference), so it follows the
-    // user's declared distribution.
-    let usedRecipe = new Map<string, number>();
-    let usedProtein = new Map<string, number>();
-    let usedCarb = new Map<string, number>();
-    let usedMethod = new Map<string, number>();
-    const count = (m: Map<string, number>, k: string) => m.get(k) ?? 0;
-    const bump = (m: Map<string, number>, k: string) => m.set(k, count(m, k) + 1);
-    const proteinSig = (r: RecipeWithIng) => [...detectProteins(r)].sort().join(',') || r.diet;
-    const carbSig = (r: RecipeWithIng) => detectCarb(r);
-    const methodSig = (r: RecipeWithIng) => detectMethod(r);
-    // Soft caps across the whole week (28 meals). Generous enough that a narrow
-    // recipe pool still fills every slot, tight enough to force real rotation.
-    const CARB_CAP = 4, METHOD_CAP = 4;
-
-    // ── Nutrition-first fit score (spec: the prescription is the CONSTRAINT and
-    // the meals are the solution). The user's daily targets define ideal macro
-    // DENSITIES (grams per kcal); a dish whose composition matches those
-    // densities can be portioned onto the prescription exactly. Protein density
-    // is weighted hardest — it's the axis condition-moderated targets (kidney)
-    // and goals live on. Lower score = better fit. A small bonus rewards
-    // micronutrient-rich ingredient profiles so RDAs fill up by construction.
-    const tD = {
-      protein: tg.protein / Math.max(1, tg.kcal), carb: tg.carb / Math.max(1, tg.kcal),
-      fat: tg.fat / Math.max(1, tg.kcal), fiber: tg.fiber / Math.max(1, tg.kcal),
-    };
-    const microRichnessCache = new Map<string, number>();
-    const microRichness = (r: RecipeWithIng): number => {
-      const hit = microRichnessCache.get(r.id);
-      if (hit !== undefined) return hit;
-      const keys = new Set(estimateDayMicros([{ recipeName: r.name, ingredients: r.ingredients, servings: 1, portionFactor: 1 }], 30, 'male')
-        .filter((m) => m.intake > 0).map((m) => m.key));
-      microRichnessCache.set(r.id, keys.size);
-      return keys.size;
-    };
-    const fitScore = (r: RecipeWithIng, slot: Slot, dayIndex: number): number => {
-      const mealKcal = tg.perMeal[slot as 'b' | 'l' | 's' | 'd']?.kcal ?? tg.kcal / 4;
-      const n = this.mealMacros(r as never, slot, dayIndex, opts, mealKcal);
-      const k = Math.max(1, n.kcal);
-      // Protein is ASYMMETRIC: weekly protein must stay ≤100 %, so a dish that
-      // is denser than the target is far worse than one that is lighter. Over-
-      // target density is penalised ~3× harder than under — this is what stops
-      // the optimiser from ever "spilling" protein past the prescription.
-      const pDev = (n.protein / k - tD.protein) / Math.max(0.005, tD.protein);
-      return 3.0 * (pDev > 0 ? pDev * 3 : -pDev)
-        + 1.0 * Math.abs(n.carbs / k - tD.carb) / Math.max(0.01, tD.carb)
-        + 1.0 * Math.abs(n.fat / k - tD.fat) / Math.max(0.01, tD.fat)
-        + 0.6 * Math.max(0, tD.fiber - n.fiber / k) / Math.max(0.002, tD.fiber)   // fibre: only shortfall hurts
-        + 1.2 * Math.abs(n.kcal - mealKcal) / Math.max(1, mealKcal)               // a dietitian sizes each meal to its slot
-        - 0.03 * microRichness(r)                                                 // micro-dense food fills RDAs by default
-        + dietPlanBias(dietPlans, r, { protein: n.protein / k, fiber: n.fiber / k })  // assigned-plan nudge (±0.5 max)
-        + mntRecipeBias(mntRules, r);                                             // clinical MNT guidance (±0.4 max)
-    };
-    const pick = (pool: RecipeWithIng[], dayIndex: number, slot: Slot, prefer?: (r: RecipeWithIng) => boolean): RecipeWithIng | undefined => {
-      if (!pool.length) return undefined;
-      const rot = pool.map((_, i) => pool[(i + dayIndex + offset) % pool.length]);
-      const fresh = (r: RecipeWithIng) => count(usedRecipe, r.id) < 1;                 // not used yet THIS week
-      const varied = (r: RecipeWithIng) => fresh(r) && count(usedProtein, proteinSig(r)) < 2;
-      const newWeek = (r: RecipeWithIng) => !recentIds.has(r.id);                        // not in LAST week's plan
-      // Most-diverse: also spread the carbohydrate base and cooking method so we
-      // don't serve rice every meal or curry every day.
-      const diverse = (r: RecipeWithIng) => varied(r) && newWeek(r)
-        && count(usedCarb, carbSig(r)) < CARB_CAP
-        && count(usedMethod, methodSig(r)) < METHOD_CAP;
-      // Within each variety tier, take the BEST NUTRITIONAL FIT among the first
-      // dozen candidates — not merely the first hit. Tiers still degrade
-      // gracefully so a slot is never left empty.
-      const bestOf = (pred: (r: RecipeWithIng) => boolean): RecipeWithIng | undefined => {
-        const cands: RecipeWithIng[] = [];
-        for (const r of rot) { if (pred(r)) { cands.push(r); if (cands.length >= 12) break; } }
-        if (!cands.length) return undefined;
-        let best = cands[0], bestS = fitScore(cands[0], slot, dayIndex);
-        for (let i = 1; i < cands.length; i++) {
-          const s = fitScore(cands[i], slot, dayIndex);
-          if (s < bestS) { best = cands[i]; bestS = s; }
-        }
-        return best;
-      };
-      const chosen =
-        (prefer ? bestOf((r) => diverse(r) && prefer(r)) : undefined) ??
-        bestOf(diverse) ??
-        (prefer ? bestOf((r) => varied(r) && newWeek(r) && prefer(r)) : undefined) ??
-        bestOf((r) => varied(r) && newWeek(r)) ??
-        (prefer ? bestOf((r) => varied(r) && prefer(r)) : undefined) ??
-        bestOf(varied) ??
-        (prefer ? bestOf((r) => fresh(r) && prefer(r)) : undefined) ??
-        bestOf(fresh) ??
-        rot[0];
-      bump(usedRecipe, chosen.id);
-      bump(usedProtein, proteinSig(chosen));
-      bump(usedCarb, carbSig(chosen));
-      bump(usedMethod, methodSig(chosen));
-      return chosen;
-    };
-
-    // ── Dynamic meal structure (spec: the NUMBER of meals is an optimization
-    // outcome, not a fixed design decision). For each day we trial 4-meal
-    // (b/l/s/d), 3-meal (b/l/d) and 2-meal (l/d) structures, pick + portion-
-    // solve each, and keep the structure whose day best satisfies the
-    // prescription. The standard 4-meal day wins ties; fewer meals take over
-    // only when they MEANINGFULLY improve validity — e.g. a kidney-moderated
-    // 66 g protein target that four dishes can't stay under. Very high targets
-    // are covered by larger portions plus the card's split-into-two-servings
-    // guidance (effectively 5–6 eating occasions without new slots).
-    const STRUCTURES: Slot[][] = [
-      [...SLOTS],                                        // 4 meals — standard
-      SLOTS.filter((s) => s !== 's') as Slot[],          // 3 meals — no snack
-      SLOTS.filter((s) => s === 'l' || s === 'd') as Slot[], // 2 meals — lunch + dinner
-    ];
-    const snapMaps = () => [new Map(usedRecipe), new Map(usedProtein), new Map(usedCarb), new Map(usedMethod)] as const;
-    const restoreMaps = (s: readonly [Map<string, number>, Map<string, number>, Map<string, number>, Map<string, number>]) => {
-      usedRecipe = new Map(s[0]); usedProtein = new Map(s[1]); usedCarb = new Map(s[2]); usedMethod = new Map(s[3]);
-    };
-
-    // ── Weekly nutritional budgeting: the WEEK is the optimization unit under
-    // HARD weekly rules (protein ≤100%, carbs ≥95%, kcal 98–100%…). Each day
-    // aims at its share of the REMAINING weekly budget, so the caps are
-    // enforced arithmetically as the week is composed — then a final week
-    // validation gate rejects and regenerates if anything still escapes.
-    const initState = snapMaps();
-    const composeWeek = (weekShift: number) => {
-      restoreMaps(initState);
-      const picks: Record<number, Partial<Record<Slot, RecipeWithIng>>> = {};
-      const portions: Record<number, Record<string, number>> = {};
-      const dayAddons: Record<number, Record<string, AddonPick[]>> = {};
-      const consumed = { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0 };
-      for (let d = 0; d < DAYS.length; d++) {
-      const dayVeg = ex.weekly?.[SHORT_DAYS[d]] === 'veg';
-      const ranked = dayVeg ? vegRanked : baseRanked;
-      const pickSlot = (slot: Slot, rotShift = 0): RecipeWithIng | undefined => {
-        const full = ranked[slot];
-        const sliced = modes.length ? full.slice(0, Math.max(6, Math.ceil(full.length / 2))) : full;
-        // HARD protein-density ceiling: no dish denser than ~1.5× the target
-        // protein density may even enter the candidate set (portioning can't
-        // lower a dish's density, so an over-dense dish spills protein at ANY
-        // serving size). Relax the cap only if the slot would go under-stocked,
-        // and never for a genuinely high-protein prescription (cap is high there).
-        const densityCap = Math.max(proteinDensityTarget * 1.5, 0.03);
-        const rDensity = (r: RecipeWithIng): number => {
-          const m = r as unknown as { protein?: number; kcal?: number };
-          return (m.protein ?? 0) / Math.max(1, m.kcal ?? 1);
-        };
-        const capped = (() => {
-          for (let t = 0, f = 1; t < 6; t++, f *= 1.3) {
-            const kept = sliced.filter((r) => rDensity(r) <= densityCap * f);
-            if (kept.length >= 10) return kept;
-          }
-          return sliced;
-        })();
-        // Preference nudge for breakfast/snack — ONLY when the prescription
-        // genuinely wants dense protein; suppressed otherwise so it can't spill.
-        const prefer = preferAnimalProtein && (slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)
-          ? (r: RecipeWithIng) => hasSelectedAnimalProtein(r, allowed)
-          : undefined;
-        return pick(capped, d + rotShift + weekShift, slot, prefer);
-      };
-      // Evaluate a candidate set of picks: quantized solve (½–1½ plates) with
-      // shared plate budgets, then complement fill, then the HARD gate. Score
-      // is the total band violation of the COMPLETE day (dishes + add-ons).
-      const tgDay = this.weekBudgetTarget(tg, consumed, d, proteinCapped);
-      const mealsLikeOf = (p: Partial<Record<Slot, RecipeWithIng>>) =>
-        SLOTS.filter((sl) => p[sl]).map((sl) => ({ slot: sl as string, skipped: false, recipe: p[sl] as unknown }));
-      const evalPicks = (p: Partial<Record<Slot, RecipeWithIng>>) => {
-        const solved = this.solveDayQ(mealsLikeOf(p), d, tgDay, opts);
-        const planned = this.planDayAddons(solved.items, solved.pcts, tgDay, diet, dietPlans);
-        const addonItems = Object.values(planned.addons).reduce((n, a) => n + a.length, 0);
-        // A dietitian prefers the day whose MEALS carry the nutrition: add-on
-        // items cost score, so recipe swaps win over patching whenever possible.
-        return { ...solved, ...planned, score: planned.violation.total + addonItems * 0.35 };
-      };
-
-      // Trial every structure from the same starting variety state; keep the best.
-      const baseState = snapMaps();
-      type Trial = { picksT: Partial<Record<Slot, RecipeWithIng>>; ev: ReturnType<typeof evalPicks>; state: ReturnType<typeof snapMaps> };
-      let best: Trial | null = null;
-      for (const S of STRUCTURES) {
-        restoreMaps(baseState);
-        const trial: Partial<Record<Slot, RecipeWithIng>> = {};
-        for (const slot of S) { const r = pickSlot(slot); if (r) trial[slot] = r; }
-        const ev = evalPicks(trial);
-        // First (standard) structure sets the bar; later, smaller structures
-        // must beat it by a real margin to be worth losing a meal.
-        if (!best || ev.score < best.ev.score - 0.5) best = { picksT: trial, ev, state: snapMaps() };
-        if (best.ev.score <= 0) break;   // valid — no need to try smaller structures
-      }
-      const chosen = best as Trial;
-      restoreMaps(chosen.state);
-      picks[d] = chosen.picksT;
-      let ev = chosen.ev;
-
-      // HARD-GATE repair: the plan is INVALID until every nutrient (including
-      // the complement add-ons) sits inside its band. Swap recipes — fit-sorted
-      // candidates most likely to fix the violated nutrient first — until the
-      // gate passes or the pool is exhausted. Pools are hard-filtered, so a
-      // swap can never violate diet/medical constraints.
-      if (ev.score > 0) {
-        const pools = dayVeg ? vegRanked : baseRanked;
-        for (let sweep = 0; sweep < 3 && ev.score > 0; sweep++) {
-          for (const sl of SLOTS.filter((s) => picks[d][s])) {
-            if (ev.score <= 0) break;
-            const original = picks[d][sl] as RecipeWithIng;
-            const isPlate = /india/i.test(original.country) && (sl === 'l' || sl === 'd');
-            if (isPlate) continue;
-            const alternates = (pools[sl] ?? [])
-              .filter((r) => r.id !== original.id && count(usedRecipe, r.id) < (sweep === 0 ? 1 : 2))
-              .slice(0, 300)
-              .map((r) => ({ r, s: fitScore(r, sl, d) }))
-              .sort((a, b) => a.s - b.s)
-              .slice(0, sweep === 0 ? 40 : sweep === 1 ? 80 : 120)
-              .map((x) => x.r);
-            for (const alt of alternates) {
-              picks[d][sl] = alt;
-              const tryEv = evalPicks(picks[d]);
-              if (tryEv.score < ev.score - 0.1) { ev = tryEv; bump(usedRecipe, alt.id); }
-              else picks[d][sl] = original;
-              if (ev.score <= 0) break;
-            }
-          }
-        }
-        if (ev.score > 0) ev = evalPicks(picks[d]); // settle on the final picks
-
-        // Full-day REDESIGN (dietitian rule: if a day can't be balanced, don't
-        // patch it — compose a new one). Up to two attempts from different
-        // rotations; keep whichever day reviews best.
-        for (const rotShift of [3, 5]) {
-          if (ev.score <= 0) break;
-          const redesignState = snapMaps();
-          restoreMaps(baseState);
-          const redesign: Partial<Record<Slot, RecipeWithIng>> = {};
-          for (const slot of SLOTS) {
-            if (!chosen.picksT[slot] && !picks[d][slot]) continue;
-            const r = pickSlot(slot, rotShift);
-            if (r) redesign[slot] = r;
-          }
-          const savedPicks = picks[d];
-          picks[d] = redesign;
-          const evR = evalPicks(redesign);
-          if (evR.score < ev.score - 0.1) { ev = evR; }
-          else { picks[d] = savedPicks; restoreMaps(redesignState); }
-        }
-      }
-      portions[d] = ev.pcts;
-      dayAddons[d] = ev.addons;
-      // Consume this day's outcome from the weekly budget.
-      const dayTot = dayTotalsFor(ev.items, ev.pcts);
-      consumed.kcal += dayTot.kcal + ev.extra.kcal;
-      consumed.protein += dayTot.protein + ev.extra.protein;
-      consumed.carb += dayTot.carbs + ev.extra.carbs;
-      consumed.fat += dayTot.fat + ev.extra.fat;
-      consumed.fiber += dayTot.fiber + ev.extra.fiber;
-      }
-      const weekTotals = { kcal: consumed.kcal, protein: consumed.protein, carbs: consumed.carb, fat: consumed.fat, fiber: consumed.fiber };
-      const gate = weekBandViolation(weekTotals, tg);
-      return { picks, portions, dayAddons, weekTotals, gate };
-    };
-
-    // WEEK VALIDATION GATE: compose, and if any weekly hard rule fails,
-    // reject the whole week and regenerate from a different rotation —
-    // keep whichever attempt satisfies the constraints best.
-    let weekPlan = composeWeek(0);
-    if (weekPlan.gate.total > 0) {
-      const retry = composeWeek(11);
-      if (retry.gate.total < weekPlan.gate.total) weekPlan = retry;
-    }
-    if (weekPlan.gate.total > 0) {
-      this.logger.warn(`Week gate not fully satisfied after regeneration: worst=${weekPlan.gate.worstNutrient} ${weekPlan.gate.worstSide} (${weekPlan.gate.total} pts)`);
-    }
-    const picks = weekPlan.picks;
-    const portions = weekPlan.portions;
-    const dayAddons = weekPlan.dayAddons;
-
-    // One plan per user+mode — clear old ones so the profile stays the source of truth.
-    // Replace ONLY the plan for this same calendar week (preserve other weeks).
-    const owned = await this.prisma.mealPlan.findMany({ where: { userId, mode } }) as unknown as Array<{ id: string; weekStart?: Date | null; createdAt: Date }>;
-    const sameWeekIds = owned.filter((p) => this.planWeek(p).getTime() === ws.getTime()).map((p) => p.id);
-    if (sameWeekIds.length) await this.prisma.mealPlan.deleteMany({ where: { id: { in: sameWeekIds } } });
-
-    await this.prisma.mealPlan.create({
-      data: {
-        key,
-        userId,
-        mode,
-        days: {
-          create: DAYS.map((dayName, dayIndex) => ({
-            dayIndex,
-            dayName,
-            meals: {
-              create: SLOTS.filter((slot) => picks[dayIndex][slot]).map((slot) => {
-                const recipe = picks[dayIndex][slot] as RecipeWithIng;
-                const withSides = slot === 'l' || slot === 'd';
-                return {
-                  slot,
-                  recipeId: recipe.id,
-                  skipped: false,
-                  portionPct: portions[dayIndex]?.[slot] ?? 100,
-                  addonsJson: JSON.stringify(dayAddons[dayIndex]?.[slot] ?? []),
-                  sidesRice: withSides ? (slot === 'l' ? 1 : 0) : 0,
-                  sidesRoti: withSides ? 2 : 0,
-                  sidesCurd: slot === 'l' ? 1 : 0,
-                  sidesSalad: withSides ? 1 : 0,
-                } as never;
-              }),
-            },
-          })),
-        },
-      },
-    });
-    // Tag the plan with the calendar week it's for (the offline Prisma client
-    // doesn't know the new column, hence the cast).
-    await this.prisma.mealPlan.update({ where: { key }, data: { weekStart: ws } as never }).catch(() => undefined);
-    // Permanently record this week in the user's nutrition history (spec §19) —
-    // best-effort, never blocks serving the plan.
-    await this.snapshotWeek(userId, mode, key);
-    return this.shapePlan(key);
-  }
-
   // ─────────────── day summary ───────────────
   /** Diet/goal/diabetes context for the thali plate builder — shared by shapePlan
    *  (card display) and daySummary (dashboard) so the two can NEVER disagree. */
@@ -4977,90 +4084,6 @@ export class NutritionService implements OnModuleInit {
    *  counts the same portioned numbers, so totals always reconcile. */
   private static readonly QSOLVE: SolveOpts = { steps: [50, 75, 100, 125, 150], defaultMax: 150 };
 
-  /**
-   * THE one day-measurement everyone shares (generator, repair, rebalance,
-   * overview): plate budgets from perMealTargets with portion-aware fixed
-   * kcal, plates pinned at 100%, other dishes carry base per-serving macros.
-   */
-  private buildDayItems(
-    meals: Array<{ slot: string; skipped: boolean; portionPct?: number | null; recipe: unknown }>,
-    pcts: Record<string, number>,
-    dayIndex: number,
-    tg: Awaited<ReturnType<NutritionService['targets']>>,
-    opts: PlateOpts,
-  ): DayItemForOpt[] {
-    const withPcts = meals.map((m) => ({ ...m, portionPct: pcts[m.slot] ?? m.portionPct ?? 100 }));
-    const dyn = perMealTargets(this.dayMealInputs(withPcts as never), tg.kcal);
-    return withPcts.filter((m) => !m.skipped).map((m) => {
-      const country = (m.recipe as { country: string }).country;
-      const isPlate = (m.slot === 'l' || m.slot === 'd') && /india/i.test(country);
-      const mealTarget = isPlate ? dyn[m.slot as 'l' | 'd'] : undefined;
-      const base = this.mealMacros(m.recipe as never, m.slot, dayIndex, opts, mealTarget);
-      return { slot: m.slot, ...base, ...(isPlate ? { minPct: 100, maxPct: 100 } : {}) };
-    });
-  }
-
-  /**
-   * Iterated quantized solve: portions and plate budgets feed each other, so
-   * solve to a fixed point (2–3 rounds converge — plates absorb the remainder,
-   * a negative feedback). Returns the FINAL items so validation and totals are
-   * computed on exactly what will be stored and displayed.
-   */
-  private solveDayQ(
-    meals: Array<{ slot: string; skipped: boolean; portionPct?: number | null; recipe: unknown }>,
-    dayIndex: number,
-    tg: Awaited<ReturnType<NutritionService['targets']>>,
-    opts: PlateOpts,
-  ): { pcts: Record<string, number>; sol: ReturnType<typeof solveDayPortions>; items: DayItemForOpt[] } {
-    let pcts: Record<string, number> = {};
-    for (const m of meals) if (!m.skipped) pcts[m.slot] = 100;
-    let items = this.buildDayItems(meals, pcts, dayIndex, tg, opts);
-    let sol = solveDayPortions(items, tg, NutritionService.QSOLVE);
-    for (let round = 0; round < 2; round++) {
-      const next = { ...pcts, ...sol.pcts };
-      const changed = Object.keys(next).some((k) => next[k] !== pcts[k]);
-      pcts = next;
-      items = this.buildDayItems(meals, pcts, dayIndex, tg, opts);
-      sol = solveDayPortions(items, tg, NutritionService.QSOLVE);
-      if (!changed) break;
-    }
-    return { pcts: { ...pcts, ...sol.pcts }, sol, items };
-  }
-
-  /**
-   * Close the remaining gap to the prescription with realistic complement
-   * foods (whole units — egg, curd, fruit, nuts, roti…), then run the HARD
-   * validation gate on totals INCLUDING the add-ons.
-   */
-  private planDayAddons(
-    items: DayItemForOpt[],
-    pcts: Record<string, number>,
-    tg: Awaited<ReturnType<NutritionService['targets']>>,
-    diet: string,
-    plans: string[],
-  ): { addons: Record<string, AddonPick[]>; extra: ReturnType<typeof addonMacros>; violation: ReturnType<typeof bandViolationPct> } {
-    const t = dayTotalsFor(items, pcts);
-    const kAllow = Math.max(tg.kcal * 0.02, 60);
-    const pAllow = Math.max(tg.protein * 0.02, 5);
-    const gapKcal = tg.kcal - t.kcal;
-    let addons: Record<string, AddonPick[]> = {};
-    // Dietitian rule: swaps fix composition; an accompaniment is only added for
-    // a genuinely meaningful remaining gap, max one per meal / two per day.
-    if (gapKcal > Math.max(kAllow, 120)) {
-      addons = fillGapWithComplements({
-        gapKcal,
-        gapProtein: (tg.protein - pAllow) - t.protein,
-        proteinCeiling: tg.protein + pAllow - t.protein,
-        diet,
-        plans,
-        slots: items.map((i) => i.slot),
-      });
-    }
-    const extra = addonMacros(Object.values(addons).flat());
-    const violation = bandViolationPct(items, pcts, tg, extra);
-    return { addons, extra, violation };
-  }
-
   /** The nutrition a single meal contributes — the assembled thali total for an
    *  Indian lunch/dinner (identical to the card), else the dish's per-serving
    *  values. ONE calculation, used for both the card and the dashboard. */
@@ -5074,601 +4097,8 @@ export class NutritionService implements OnModuleInit {
     return { kcal: shape.kcal, protein: shape.protein, carbs: shape.carbs, fat: shape.fat, fiber: shape.fiber };
   }
 
-  /**
-   * Re-optimize one day's portions against the owner's daily targets. Runs after
-   * generation, every refresh, and every skip — so the Daily Nutrition Overview
-   * is always the OPTIMIZED total, never an accident of per-serving sizes.
-   * Health/condition constraints live upstream (recipe filtering + computeTargets
-   * adjustments) and are never relaxed here.
-   */
-  private async rebalanceDay(planKey: string, dayIndex: number): Promise<void> {
-    const day = await this.prisma.mealPlanDay.findFirst({
-      where: { dayIndex, plan: { key: planKey } },
-      include: { plan: { select: { userId: true } }, meals: { include: { recipe: true } } },
-    });
-    if (!day) return;
-    const userId = day.plan.userId;
-    const tg = await this.targets(userId);
-    const opts = await this.plateOptsFor(userId);
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-    const active = day.meals.filter((m) => !m.skipped);
-    if (!active.length) return;
-    // Same machinery as generation: quantized solve on the SHARED measurement,
-    // then complement fill — after a skip/refresh the remaining meals and
-    // add-ons re-close the day to the prescription. Weekly budgeting: this
-    // day's working target absorbs the deviation of the days BEFORE it.
-    const tgDay = await this.weekAwareTarget(planKey, dayIndex, tg, opts, isProteinRestricted(ex));
-    const { pcts, items } = this.solveDayQ(day.meals as never, dayIndex, tgDay, opts);
-    const plans = assignDietPlans({
-      conditions: ex.healthConditions ?? [], flags: flagsFor(await this.bloodValues(userId)) as Record<string, string>,
-      goal: pref?.goal ?? 'maintain', diet: (pref?.diet ?? 'everything') as Diet, age: pref?.age ?? 30,
-    });
-    const { addons } = this.planDayAddons(items, pcts, tgDay, (pref?.diet ?? 'everything') as string, plans);
-    await Promise.all(active.map((m) =>
-      this.prisma.meal.update({
-        where: { id: m.id },
-        data: { portionPct: pcts[m.slot] ?? 100, addonsJson: JSON.stringify(addons[m.slot] ?? []) } as never,
-      }).catch(() => undefined),
-    ));
-  }
-
-  /**
-   * Full in-place day repair (spec: the user gets the most optimal diet — the
-   * app never asks them to fix it). Re-runs the same swap + portion machinery
-   * the generator uses against the SAVED day: if the day's totals violate the
-   * tolerance bands, dishes are replaced with better-fitting ones from the
-   * user's hard-filtered pools and portions re-solved, then persisted. Also
-   * heals plans generated by older engine versions the moment they're viewed.
-   * Returns whether the day now sits fully inside its bands.
-   */
-  async repairDay(userId: string, planKey: string, dayIndex: number) {
-    await this.assertOwnsPlan(planKey, userId);
-    const day = await this.prisma.mealPlanDay.findFirst({
-      where: { dayIndex, plan: { key: planKey } },
-      include: { meals: { include: { recipe: { include: { ingredients: true } } } } },
-    });
-    if (!day) throw new NotFoundException('plan day not found');
-    const tg = await this.targets(userId);
-    const opts = await this.plateOptsFor(userId);
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-    const dayVeg = ex.weekly?.[SHORT_DAYS[dayIndex]] === 'veg';
-    const diet = dayVeg ? 'veg' : ((pref?.diet ?? 'everything') as Diet);
-    const active = day.meals.filter((m) => !m.skipped);
-    if (!active.length) return { repaired: false, valid: true };
-
-    const picks = new Map<string, RecipeWithIng>();
-    const mealIdBySlot = new Map<string, string>();
-    const skippedSlots = new Set<string>();
-    for (const m of day.meals) mealIdBySlot.set(m.slot, m.id);
-    for (const m of active) picks.set(m.slot, m.recipe as unknown as RecipeWithIng);
-    const isPlate = (r: RecipeWithIng, sl: string) => /india/i.test(r.country) && (sl === 'l' || sl === 'd');
-    const plans = assignDietPlans({
-      conditions: ex.healthConditions ?? [], flags: flagsFor(await this.bloodValues(userId)) as Record<string, string>,
-      goal: pref?.goal ?? 'maintain', diet, age: pref?.age ?? 30,
-    });
-    const tgDay = await this.weekAwareTarget(planKey, dayIndex, tg, opts, isProteinRestricted(ex));
-    const mealsLike = () => [...picks.entries()]
-      .filter(([sl]) => !skippedSlots.has(sl))
-      .map(([sl, r]) => ({ slot: sl, skipped: false, recipe: r as unknown }));
-    const evalNow = () => {
-      const solved = this.solveDayQ(mealsLike(), dayIndex, tgDay, opts);
-      const planned = this.planDayAddons(solved.items, solved.pcts, tgDay, diet as string, plans);
-      const addonItems = Object.values(planned.addons).reduce((n, a) => n + a.length, 0);
-      return { ...solved, ...planned, score: planned.violation.total + addonItems * 0.35 };
-    };
-
-    let ev = evalNow();
-    let changedRecipes = false;
-    if (ev.score > 0) {
-      const recipes = await this.planningPool(userId);
-      const modes = planningModes(flagsFor(await this.bloodValues(userId)), pref?.goal ?? 'maintain');
-      const pools = this.rankedPools(recipes, diet, ex, modes);
-      const tD = {
-        protein: tg.protein / Math.max(1, tg.kcal), carb: tg.carb / Math.max(1, tg.kcal),
-        fat: tg.fat / Math.max(1, tg.kcal), fiber: tg.fiber / Math.max(1, tg.kcal),
-      };
-      const fit = (r: RecipeWithIng, sl: string): number => {
-        const mealKcal = tg.perMeal[sl as 'b' | 'l' | 's' | 'd']?.kcal ?? tg.kcal / 4;
-        const n = this.mealMacros(r as never, sl, dayIndex, opts, mealKcal);
-        const k = Math.max(1, n.kcal);
-        return 3.0 * Math.abs(n.protein / k - tD.protein) / Math.max(0.005, tD.protein)
-          + 1.0 * Math.abs(n.carbs / k - tD.carb) / Math.max(0.01, tD.carb)
-          + 1.0 * Math.abs(n.fat / k - tD.fat) / Math.max(0.01, tD.fat)
-          + 1.2 * Math.abs(n.kcal - mealKcal) / Math.max(1, mealKcal)
-          + dietPlanBias(plans, r, { protein: n.protein / k, fiber: n.fiber / k });
-      };
-      const inUse = () => new Set([...picks.values()].map((r) => r.id));
-      // Stage 1+2: portions are inside evalNow; swap recipes until the gate passes.
-      for (let sweep = 0; sweep < 2 && ev.score > 0; sweep++) {
-        for (const sl of [...picks.keys()]) {
-          if (ev.score <= 0) break;
-          if (skippedSlots.has(sl)) continue;
-          const original = picks.get(sl) as RecipeWithIng;
-          if (isPlate(original, sl)) continue;
-          const used = inUse();
-          const alternates = (pools[sl as Slot] ?? [])
-            .filter((r) => !used.has(r.id))
-            .slice(0, 300)
-            .map((r) => ({ r, s: fit(r, sl) }))
-            .sort((a, b) => a.s - b.s)
-            .slice(0, sweep === 0 ? 40 : 100)
-            .map((x) => x.r);
-          for (const alt of alternates) {
-            picks.set(sl, alt);
-            const tryEv = evalNow();
-            if (tryEv.score < ev.score - 0.1) { ev = tryEv; changedRecipes = true; }
-            else picks.set(sl, original);
-            if (ev.score <= 0) break;
-          }
-        }
-      }
-      // Stage 3 (removal ladder): if the day is still over its targets with
-      // every dish at minimum portion, drop the snack, then breakfast — the
-      // objective is the most accurate day, not keeping every planned meal.
-      for (const dropSlot of ['s', 'b']) {
-        if (ev.score <= 0) break;
-        if (!picks.has(dropSlot) || skippedSlots.has(dropSlot)) continue;
-        skippedSlots.add(dropSlot);
-        const tryEv = evalNow();
-        if (tryEv.score < ev.score - 0.1) { ev = tryEv; changedRecipes = true; }
-        else skippedSlots.delete(dropSlot);
-      }
-      if (ev.score > 0) ev = evalNow();
-    }
-
-    // Persist the repaired day: swaps, portions, add-ons, and any dropped meals.
-    await Promise.all([...picks.entries()].map(([sl, r]) => {
-      const id = mealIdBySlot.get(sl);
-      if (!id) return Promise.resolve(undefined);
-      const dropped = skippedSlots.has(sl);
-      return this.prisma.meal.update({
-        where: { id },
-        data: {
-          recipeId: r.id,
-          skipped: dropped,
-          portionPct: dropped ? 100 : (ev.pcts[sl] ?? 100),
-          addonsJson: JSON.stringify(dropped ? [] : (ev.addons[sl] ?? [])),
-        } as never,
-      }).catch(() => undefined);
-    }));
-    await this.markEdited(planKey);
-    const valid = ev.score <= 0;
-    let limiting: { nutrient: string; side: string; achieved: number; target: number } | null = null;
-    if (!valid) {
-      const totals = dayTotalsFor(ev.items, ev.pcts);
-      const ex2 = ev.extra;
-      const key = ev.violation.worstNutrient as 'kcal' | 'protein' | 'carbs' | 'fat' | 'fiber';
-      const achievedMap = {
-        kcal: totals.kcal + ex2.kcal, protein: totals.protein + ex2.protein,
-        carbs: totals.carbs + ex2.carbs, fat: totals.fat + ex2.fat, fiber: totals.fiber + ex2.fiber,
-      };
-      const targetMap = { kcal: tg.kcal, protein: tg.protein, carbs: tg.carb, fat: tg.fat, fiber: tg.fiber };
-      limiting = {
-        nutrient: ev.violation.worstNutrient, side: ev.violation.worstSide,
-        achieved: Math.round(achievedMap[key] ?? 0), target: Math.round(targetMap[key] ?? 0),
-      };
-    }
-    return {
-      repaired: changedRecipes || true,
-      valid,
-      violation: ev.violation.total,
-      // Only meaningful when the EXHAUSTIVE search failed: the single
-      // constraint the recipe library cannot satisfy, with the closest
-      // achievable value so the user sees exactly why.
-      limiting,
-    };
-  }
-
   // ── plate-component → library-recipe matching (clickable thali items) ──
   private recipeNameIndex: Array<{ id: string; name: string }> | null = null;
-  private async nameIndex(): Promise<Array<{ id: string; name: string }>> {
-    if (!this.recipeNameIndex) {
-      const rows = await this.prisma.recipe.findMany({ select: { id: true, name: true } }).catch(() => []);
-      this.recipeNameIndex = rows.map((r) => ({ id: r.id, name: r.name.toLowerCase() }));
-    }
-    return this.recipeNameIndex;
-  }
-  /** Best-effort library match for a plate component name ("Masoor Dal" → the
-   *  Masoor Dal recipe) so every thali item can open a real recipe page. */
-  private matchComponentRecipe(index: Array<{ id: string; name: string }>, compName: string): string | undefined {
-    const q = compName.toLowerCase().replace(/\(.*?\)/g, '').replace(/plain |mixed |seasonal |sprouts? & /g, '').trim();
-    if (q.length < 3) return undefined;
-    const exact = index.find((r) => r.name === q);
-    if (exact) return exact.id;
-    const contains = index.find((r) => r.name.includes(q));
-    if (contains) return contains.id;
-    // last word match ("Cauliflower Sabzi" → any sabzi/curry with cauliflower)
-    const words = q.split(/\s+/).filter((w) => w.length > 3);
-    if (words.length >= 2) {
-      const hit = index.find((r) => words.every((w) => r.name.includes(w)));
-      if (hit) return hit.id;
-    }
-    return undefined;
-  }
-
-  /** Ownership guard — a meal plan may only be read/mutated by the user it belongs to. */
-  /**
-   * Record that the citizen changed this plan themselves.
-   *
-   * From here on the plan is their decision, not the generator's: it loads
-   * exactly as they left it on every login, and the "your preferences changed"
-   * prompt turns into a warning that regenerating discards their edits rather
-   * than a nudge to do it. Best-effort — failing to mark a plan as edited must
-   * never fail the edit the citizen actually asked for.
-   */
-  private async markEdited(planKey: string): Promise<void> {
-    await this.prisma.mealPlan
-      .update({ where: { key: planKey }, data: { editedAt: new Date() } as never })
-      .catch(() => undefined);
-  }
-
-  private async assertOwnsPlan(planKey: string, userId: string): Promise<void> {
-    const plan = await this.prisma.mealPlan.findUnique({ where: { key: planKey }, select: { userId: true } });
-    if (!plan) throw new NotFoundException('plan not found');
-    if (plan.userId !== userId) throw new ForbiddenException('That meal plan is not yours.');
-  }
-
-  /**
-   * Remaining-budget day target: each day aims at (weekly remaining ÷ days
-   * left), with directional safety factors that make the weekly HARD rules
-   * arithmetically enforceable — protein aims 1.5% under its share (so day
-   * overshoot tolerance can never push the week past 100%), calories aim
-   * 0.5% under, fibre 2% over. Clamped to sane daily ranges; renal protein
-   * NEVER exceeds the prescribed daily cap.
-   */
-  private weekBudgetTarget(
-    tg: Awaited<ReturnType<NutritionService['targets']>>,
-    consumed: { kcal: number; protein: number; carb: number; fat: number; fiber: number },
-    dayIdx: number,
-    proteinCapped: boolean,
-  ) {
-    const remain = Math.max(1, 7 - dayIdx);
-    const budget = (dailyT: number, cons: number) => (dailyT * 7 - cons) / remain;
-    const clamp = (v: number, lo: number, hi: number) => Math.round(Math.min(hi, Math.max(lo, v)));
-    const proteinHi = proteinCapped ? tg.protein : tg.protein * 1.06;
-    return {
-      ...tg,
-      kcal: clamp(budget(tg.kcal, consumed.kcal) * 0.995, tg.kcal * 0.9, tg.kcal * 1.06),
-      protein: clamp(budget(tg.protein, consumed.protein) * 0.985, tg.protein * 0.8, proteinHi),
-      carb: clamp(budget(tg.carb, consumed.carb) * 1.0, tg.carb * 0.85, tg.carb * 1.15),
-      fat: clamp(budget(tg.fat, consumed.fat) * 0.99, tg.fat * 0.85, tg.fat * 1.1),
-      fiber: clamp(budget(tg.fiber, consumed.fiber) * 1.02, tg.fiber * 0.9, tg.fiber * 1.18),
-    };
-  }
-
-  /** Working target for one day of a SAVED plan, absorbing prior days' deviation. */
-  private async weekAwareTarget(
-    planKey: string,
-    dayIndex: number,
-    tg: Awaited<ReturnType<NutritionService['targets']>>,
-    opts: PlateOpts,
-    proteinCapped: boolean,
-  ) {
-    if (dayIndex <= 0) return tg;
-    const prior = await this.prisma.mealPlanDay.findMany({
-      where: { plan: { key: planKey }, dayIndex: { lt: dayIndex } },
-      include: { meals: { include: { recipe: { include: { ingredients: true } } } } },
-    }).catch(() => []);
-    const consumed = { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0 };
-    for (const d of prior) {
-      const t = this.dayTotalsCore(d.meals as never, d.dayIndex, tg, opts);
-      consumed.kcal += t.kcal; consumed.protein += t.protein;
-      consumed.carb += t.carbs; consumed.fat += t.fat; consumed.fiber += t.fiber;
-    }
-    return this.weekBudgetTarget(tg, consumed, dayIndex, proteinCapped);
-  }
-
-  /**
-   * Weekly budgeting: nudge a day's working target by the week's accumulated
-   * deviation (Monday ran 150 kcal over → Tuesday aims slightly lower). Bounded
-   * to safe daily ranges, and protein NEVER rises above the prescribed daily
-   * cap for protein-restricted (renal) users — disease limits stay daily.
-   */
-  private carryAdjustedTarget(
-    tg: Awaited<ReturnType<NutritionService['targets']>>,
-    carry: { kcal: number; protein: number; carb: number; fat: number; fiber: number },
-    proteinCapped: boolean,
-  ) {
-    const c = (base: number, dev: number, loPct: number, hiPct: number) =>
-      Math.round(Math.min(base * hiPct, Math.max(base * loPct, base + dev * 0.5)));
-    const protein = proteinCapped
-      ? Math.min(tg.protein, c(tg.protein, carry.protein, 0.88, 1.0))
-      : c(tg.protein, carry.protein, 0.88, 1.1);
-    return { ...tg, kcal: c(tg.kcal, carry.kcal, 0.92, 1.08), protein, carb: c(tg.carb, carry.carb, 0.85, 1.15), fat: c(tg.fat, carry.fat, 0.85, 1.12), fiber: c(tg.fiber, carry.fiber, 0.9, 1.15) };
-  }
-
-  /** Shared per-day totals (dishes + add-ons) — the same numbers the cards show. */
-  private dayTotalsCore(
-    meals: Array<{ slot: string; skipped: boolean; portionPct?: number | null; recipe: unknown; addonsJson?: string | null }>,
-    dayIndex: number,
-    tg: Awaited<ReturnType<NutritionService['targets']>>,
-    opts: PlateOpts,
-  ) {
-    const dyn = perMealTargets(this.dayMealInputs(meals as never), tg.kcal);
-    let kcal = 0, protein = 0, carbs = 0, fat = 0, fiber = 0;
-    for (const m of meals) {
-      if (m.skipped) continue;
-      const mealTarget = dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal;
-      const n = this.mealMacros(m.recipe as never, m.slot, dayIndex, opts, mealTarget);
-      const pf = ((m.portionPct ?? 100) as number) / 100;  // portioned = what's eaten
-      kcal += n.kcal * pf; protein += n.protein * pf; carbs += n.carbs * pf; fat += n.fat * pf; fiber += n.fiber * pf;
-    }
-    const addonPicks: AddonPick[] = meals.filter((m) => !m.skipped).flatMap((m) => {
-      try { return JSON.parse((m.addonsJson) ?? '[]') as AddonPick[]; } catch { return []; }
-    });
-    const a = addonMacros(addonPicks);
-    return {
-      kcal: Math.round(kcal + a.kcal), protein: Math.round(protein + a.protein),
-      carbs: Math.round(carbs + a.carbs), fat: Math.round(fat + a.fat), fiber: Math.round(fiber + a.fiber),
-    };
-  }
-
-  /**
-   * Weekly Nutrition Progress (spec §weekly budgeting): per-day totals,
-   * cumulative intake vs cumulative target for every day, and the Sunday
-   * weekly score + compliance. A dietitian judges the WEEK; daily medical
-   * caps still gate each individual day elsewhere.
-   */
-  async weekSummary(userId: string, planKey: string) {
-    await this.assertOwnsPlan(planKey, userId);
-    const plan = await this.prisma.mealPlan.findUnique({
-      where: { key: planKey },
-      include: { days: { orderBy: { dayIndex: 'asc' }, include: { meals: { include: { recipe: { include: { ingredients: true } } } } } } },
-    });
-    if (!plan) throw new NotFoundException('plan not found');
-    const tg = await this.targets(userId);
-    const opts = await this.plateOptsFor(userId);
-    const KEYS = ['kcal', 'protein', 'carbs', 'fat', 'fiber'] as const;
-    const targetOf = { kcal: tg.kcal, protein: tg.protein, carbs: tg.carb, fat: tg.fat, fiber: tg.fiber };
-
-    const mon = weekMonday((plan as { weekStart?: Date | null }).weekStart ?? plan.createdAt);
-    const perDay = plan.days.map((d) => ({
-      dayIndex: d.dayIndex, day: d.dayName,
-      dateShort: (() => { const dt = addDays(mon, d.dayIndex); return `${d.dayName.slice(0, 3)}, ${dt.getDate()} ${MONTHS[dt.getMonth()]}`; })(),
-      ...this.dayTotalsCore(d.meals as never, d.dayIndex, tg, opts),
-    }));
-    const weeklyTargetOf = Object.fromEntries(KEYS.map((k) => [k, Math.round(targetOf[k] * 7)])) as Record<typeof KEYS[number], number>;
-    const cum = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
-    const days = perDay.map((p, i) => {
-      for (const k of KEYS) cum[k] += p[k];
-      return {
-        ...p,
-        cumulative: { ...cum },
-        cumulativeTarget: Object.fromEntries(KEYS.map((k) => [k, Math.round(targetOf[k] * (i + 1))])),
-        // Remaining weekly allowance after this day — the budget still to eat.
-        remaining: Object.fromEntries(KEYS.map((k) => [k, Math.max(0, weeklyTargetOf[k] - cum[k])])),
-      };
-    });
-    const weeklyTarget = weeklyTargetOf;
-    // Weekly score straight from the HARD weekly bands (protein ≤100%,
-    // carbs ≥95%, kcal 98–100%…). 100 = every rule satisfied.
-    const gate = weekBandViolation({ ...cum }, tg);
-    let complianceSum = 0;
-    for (const k of KEYS) {
-      const T = weeklyTarget[k]; if (!T) continue;
-      complianceSum += Math.min(100, Math.max(0, 100 - (Math.abs(cum[k] - T) / T) * 100));
-    }
-    const weeklyScore = Math.max(0, Math.min(100, Math.round(100 - gate.total)));
-    const compliancePct = Math.round(complianceSum / KEYS.length);
-    return {
-      key: planKey, days, weeklyTarget, weeklyIntake: { ...cum }, weeklyScore, compliancePct,
-      dailyTarget: targetOf,
-      weekStartLabel: `${DAYS[0].slice(0, 3)}, ${mon.getDate()} ${MONTHS[mon.getMonth()]} ${mon.getFullYear()}`,
-    };
-  }
-
-  async daySummary(userId: string, planKey: string, dayIndex: number) {
-    const day = await this.prisma.mealPlanDay.findFirst({
-      where: { dayIndex, plan: { key: planKey } },
-      include: { plan: { select: { userId: true } }, meals: { include: { recipe: { include: { ingredients: true } } } } },
-    });
-    if (!day) throw new NotFoundException('plan day not found');
-    const planOwner = day.plan.userId;
-    // A household MEMBER may total the SHARED family plan (read-only). Their
-    // numbers are personalised by the same factor the scaled meal cards use, so
-    // the information bar matches the plates. Anyone else is refused.
-    let factor = 1;
-    if (planOwner !== userId) {
-      const ctx = await this.familyContext(userId).catch(() => null);
-      const allowed = ctx?.role === 'member' && ctx.ownerId === planOwner && ctx.familyMealPlanning;
-      if (!allowed) throw new ForbiddenException('That meal plan is not yours.');
-      const [mine, theirs] = await Promise.all([this.targets(userId), this.targets(planOwner)]);
-      factor = Math.min(1.9, Math.max(0.4, (mine.kcal || 1) / (theirs.kcal || 1)));
-    }
-    const reqTg = planOwner === userId ? null : await this.targets(userId);
-    const opts = await this.plateOptsFor(planOwner);
-    const tg = await this.targets(planOwner);
-    // Dynamic budgets: skipped meals redistribute to the remaining plates.
-    const dyn = perMealTargets(this.dayMealInputs(day.meals), tg.kcal);
-
-    let kcal = 0, protein = 0, carbs = 0, fat = 0, fiber = 0, cost = 0;
-    for (const m of day.meals) {
-      if (m.skipped) continue;
-      // Aggregate the SAME plate/dish the card shows — the single source of truth.
-      const mealTarget = dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal;
-      const n = this.mealMacros(m.recipe as unknown as RecipeWithIng & { kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number }, m.slot, dayIndex, opts, mealTarget);
-      const pf = (((m as { portionPct?: number }).portionPct ?? 100) / 100) * factor;  // portioned = what the (scaled) card shows
-      kcal += n.kcal * pf; protein += n.protein * pf; carbs += n.carbs * pf; fat += n.fat * pf; fiber += n.fiber * pf;
-      const s = recipeServings(m.recipe);
-      const ing = m.recipe.ingredients.reduce((sum, i) => sum + i.priceInr, 0);
-      cost += (ing > 0 ? Math.round(ing / s) : Math.round((m.recipe.kcal / s) * 0.11)) * factor;
-    }
-    // Complement add-ons are part of the day's nutrition — same source the
-    // cards display.
-    const addonPicks: AddonPick[] = day.meals.filter((m) => !m.skipped).flatMap((m) => {
-      try { return JSON.parse(((m as { addonsJson?: string | null }).addonsJson) ?? '[]') as AddonPick[]; } catch { return []; }
-    });
-    const addonTotals = addonMacros(addonPicks);
-    kcal += addonTotals.kcal * factor; protein += addonTotals.protein * factor; carbs += addonTotals.carbs * factor;
-    fat += addonTotals.fat * factor; fiber += addonTotals.fiber * factor;
-
-    kcal = Math.round(kcal); protein = Math.round(protein); carbs = Math.round(carbs);
-    fat = Math.round(fat); fiber = Math.round(fiber); cost = Math.round(cost);
-
-    // Real micronutrient estimation from the day's ACTUAL ingredients (portion-
-    // scaled), with age/sex targets and blood-marker links — replaces the old
-    // placeholder coverage constants.
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-    const flags = flagsFor(await this.bloodValues(userId));
-    const microMeals: DayMealForMicros[] = day.meals.filter((m) => !m.skipped).map((m) => ({
-      recipeName: m.recipe.name,
-      ingredients: m.recipe.ingredients,
-      servings: recipeServings(m.recipe),
-      portionFactor: (((m as { portionPct?: number }).portionPct ?? 100) / 100) * factor,
-    }));
-    // Add-ons contribute micros too (their keywords feed the same estimator).
-    if (addonPicks.length) {
-      microMeals.push({
-        recipeName: 'Add-ons',
-        ingredients: addonPicks.map((p) => ({ name: complementByKey.get(p.key)?.microKeyword ?? p.key })),
-        servings: 1,
-        portionFactor: factor,
-      });
-    }
-    const micros = estimateDayMicros(microMeals, pref?.age ?? 30, pref?.sex ?? 'male')
-      .map((mi) => ({
-        ...mi,
-        markerStatus: mi.marker ? (flags[mi.marker] as string | undefined) ?? null : null,
-      }));
-    // fibre rides with the macros but belongs in the micro dashboard too
-    const fiberTarget = (reqTg ?? tg).fiber || 36;
-    micros.push({
-      key: 'fiber', label: 'Fibre', unit: 'g', intake: fiber, target: fiberTarget,
-      pct: Math.round((fiber / fiberTarget) * 100), marker: undefined,
-      foods: ['Whole grains & millets', 'Dals & legumes', 'Vegetables with skins', 'Fruit (guava, apple)', 'Seeds'],
-      topSources: [], markerStatus: null,
-    });
-
-    // Legacy coverage map (old clients) — now driven by the real estimates.
-    const coverage = Object.fromEntries(micros.map((mi) => [mi.key, Math.max(0, Math.min(200, mi.pct))]));
-    coverage.protein = Math.round((protein / Math.max(1, (reqTg ?? tg).protein)) * 100);
-
-    return { kcal, protein, carbs, fat, fiber, cost, coverage, micros };
-  }
-
-  // ─────────────── nutrition history (spec §19) ───────────────
-  /** Snapshot the just-generated week into permanent, versioned nutrition
-   *  history. Immutable — never overwrites prior weeks. Wrapped so a snapshot
-   *  failure can never break serving the plan (history is secondary). */
-  private async snapshotWeek(userId: string, mode: PlanMode, key: string): Promise<void> {
-    try {
-      const plan = await this.prisma.mealPlan.findUnique({
-        where: { key },
-        include: {
-          days: {
-            orderBy: { dayIndex: 'asc' },
-            include: { meals: { orderBy: { slot: 'asc' }, include: { recipe: { include: { ingredients: true } } } } },
-          },
-        },
-      });
-      if (!plan) return;
-      const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-      const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-      const opts = await this.plateOptsFor(userId);
-      const tg = await this.targets(userId);
-      const latestBlood = await (this.prisma as unknown as {
-        bloodAnalysis: { findFirst(a: unknown): Promise<{ analysisVersion: string; analyzedAt: Date } | null> };
-      }).bloodAnalysis.findFirst({ where: { userId }, orderBy: { analyzedAt: 'desc' }, select: { analysisVersion: true, analyzedAt: true } }).catch(() => null);
-
-      const slotOrder = NutritionService.SLOT_ORDER;
-      const recipeIds = new Set<string>();
-      const proteinDist: Record<string, number> = {};
-      const cuisineDist: Record<string, number> = {};
-      let mealCount = 0;
-
-      // Real calendar dates (spec §20) — Mon→Sun anchored to the plan's week.
-      const mon = weekMonday((plan as { weekStart?: Date | null }).weekStart ?? plan.createdAt);
-      const sun = addDays(mon, 6);
-
-      const days = plan.days.map((d) => {
-        const dyn = perMealTargets(this.dayMealInputs(d.meals), tg.kcal);
-        const dayDate = addDays(mon, d.dayIndex);
-        let dk = 0, dp = 0, dc = 0, df = 0, dfi = 0, dcost = 0;
-        const meals = [...d.meals].sort((a, b) => slotOrder[a.slot] - slotOrder[b.slot]).map((m) => {
-          const shape = this.recipeShape(m.recipe);
-          const mealTarget = dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal;
-          const n = this.mealMacros(m.recipe as unknown as RecipeWithIng & { kcal: number; protein: number; carbs: number; fat: number; fiber: number; gramsPerServing: number }, m.slot, d.dayIndex, opts, mealTarget);
-          const s = recipeServings(m.recipe);
-          const ing = m.recipe.ingredients.reduce((sum, i) => sum + i.priceInr, 0);
-          const cost = ing > 0 ? Math.round(ing / s) : Math.round((m.recipe.kcal / s) * 0.11);
-          if (!m.skipped) {
-            dk += n.kcal; dp += n.protein; dc += n.carbs; df += n.fat; dfi += n.fiber; dcost += cost;
-            mealCount++;
-            recipeIds.add(m.recipeId);
-            const psig = [...detectProteins(m.recipe as unknown as RecipeWithIng)].sort().join('+') || m.recipe.diet;
-            proteinDist[psig] = (proteinDist[psig] ?? 0) + 1;
-            const cuisine = /india/i.test(m.recipe.country) ? 'Indian' : (m.recipe.country || 'Other');
-            cuisineDist[cuisine] = (cuisineDist[cuisine] ?? 0) + 1;
-          }
-          return {
-            slot: m.slot, recipeId: m.recipeId, recipeName: shape.name, cuisine: m.recipe.country,
-            diet: m.recipe.diet, minutes: shape.minutes, cost, skipped: m.skipped,
-            kcal: Math.round(n.kcal), protein: Math.round(n.protein), carbs: Math.round(n.carbs),
-            fat: Math.round(n.fat), fiber: Math.round(n.fiber),
-            interactions: { generated: true, viewed: false, cooked: false, skipped: m.skipped, refreshed: false, rated: null, liked: false, disliked: false, favourite: false, notes: '' },
-          };
-        });
-        return {
-          day: d.dayName, dayIndex: d.dayIndex,
-          date: isoDate(dayDate),
-          dateLabel: `${d.dayName}, ${dayDate.getDate()} ${MONTHS[dayDate.getMonth()]} ${dayDate.getFullYear()}`,
-          totals: { kcal: Math.round(dk), protein: Math.round(dp), carbs: Math.round(dc), fat: Math.round(df), fiber: Math.round(dfi), cost: Math.round(dcost) },
-          target: { kcal: tg.kcal, protein: tg.protein, carbs: tg.carb, fat: tg.fat, fiber: tg.fiber },
-          meals,
-        };
-      });
-
-      const weeklyTotals = days.reduce((a, d) => ({
-        kcal: a.kcal + d.totals.kcal, protein: a.protein + d.totals.protein, carbs: a.carbs + d.totals.carbs,
-        fat: a.fat + d.totals.fat, fiber: a.fiber + d.totals.fiber, cost: a.cost + d.totals.cost,
-      }), { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, cost: 0 });
-
-      // Variety score: distinct recipes / meals served (0..100).
-      const recipeVariety = mealCount ? Math.round((recipeIds.size / mealCount) * 100) : 0;
-      const cuisineVariety = Object.keys(cuisineDist).length;
-      const proteinVariety = Object.keys(proteinDist).length;
-
-      const weekNumber = isoWeekNumber(mon);
-      const weekLabel = weekRangeLabel(mon, sun);
-      // One record per calendar week: replace any existing snapshot for this same
-      // week (regenerating a week updates its entry, it doesn't pile up). Earlier
-      // weeks are preserved — that's the historical record.
-      await this.history.deleteMany({ where: { userId, mode, weekLabel } }).catch(() => undefined);
-      const sequence = (await this.history.count({ where: { userId, mode } }).catch(() => 0)) + 1;
-
-      await this.history.create({
-        data: {
-          userId, mode, planKey: key, weekNumber, weekLabel,
-          startDate: mon, endDate: sun,
-          targets: JSON.stringify(tg),
-          context: JSON.stringify({
-            diet: pref?.diet ?? 'everything', goal: pref?.goal ?? 'maintain',
-            medicalConditions: ex.healthConditions ?? [],
-            cuisineMix: ex.cuisineMix ?? (ex.cuisines?.length ? Object.fromEntries(ex.cuisines.map((c) => [c, 1])) : {}),
-            weeklySchedule: ex.weekly ?? {},
-            bloodVersion: latestBlood?.analysisVersion ?? null,
-            bloodAnalyzedAt: latestBlood?.analyzedAt ?? null,
-            profileVersion: pref?.updatedAt ?? null,
-            adjustments: tg.adjustments ?? [],
-            sequence, // the user's Nth generated week (ordering aid)
-          }),
-          days: JSON.stringify(days),
-          weekly: JSON.stringify({
-            totals: weeklyTotals,
-            averages: { kcal: Math.round(weeklyTotals.kcal / 7), protein: Math.round(weeklyTotals.protein / 7) },
-            variety: { recipeVarietyPct: recipeVariety, cuisineVariety, proteinVariety, distinctRecipes: recipeIds.size, mealsServed: mealCount },
-            cuisineDistribution: cuisineDist,
-            proteinDistribution: proteinDist,
-          }),
-          cost: weeklyTotals.cost,
-        },
-      });
-    } catch {
-      /* history is best-effort — never block plan generation */
-    }
-  }
 
   /** List a user's stored weekly plans (newest first) — compact summaries. One
    *  entry per calendar week: collapse any legacy same-week duplicates to the
@@ -5709,159 +4139,6 @@ export class NutritionService implements OnModuleInit {
       targets: safeJson(r.targets, {}), context: safeJson(r.context, {}),
       days: safeJson(r.days, []), weekly: safeJson(r.weekly, {}),
     };
-  }
-
-  // ─────────────── swap + sides ───────────────
-  /**
-   * Put a dish the citizen chose into a day and a slot of their own plan.
-   *
-   * `swap` above asks the engine for a DIFFERENT dish; `restoreRecipeId` only
-   * puts back one it had removed. Neither answers "I want this one here", which
-   * is what building your own plan means, so this is a new door.
-   *
-   * The gates are not the same on the way through it. An allergen is a hard
-   * refusal — this is the one thing in the hub that can put somebody in
-   * hospital, and it is refused whether the dish came from the corpus or from
-   * their own kitchen. A diet mismatch is a warning, not a refusal: a
-   * vegetarian putting a fish dish in their own plan on purpose is a choice,
-   * and the app's job there is to be sure they meant it, not to overrule them.
-   * A slot mismatch is a note.
-   *
-   * The day is rebalanced afterwards, exactly as a swap is, so portions still
-   * solve against the day's targets rather than leaving the arithmetic stale.
-   */
-  async setMeal(userId: string, planKey: string, dayIndex: number, slot: Slot, recipeId: string) {
-    await this.assertOwnsPlan(planKey, userId);
-    const meal = await this.findMeal(planKey, dayIndex, slot);
-
-    const target = (await this.prisma.recipe.findUnique({
-      where: { id: recipeId },
-      select: { id: true, name: true, slot: true, diet: true, authorId: true, ingredients: { select: { name: true } } } as never,
-    })) as { id: string; name: string; slot: string; diet: string; authorId: string | null; ingredients: { name: string }[] } | null;
-    // Somebody else's own recipe is not a dish this citizen can place, and
-    // not-found is the honest answer — "it exists and is not yours" is itself
-    // something nobody should learn by guessing ids.
-    if (!target || (target.authorId && target.authorId !== userId)) throw new NotFoundException('recipe not found');
-
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
-    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-    const names = target.ingredients.map((i) => i.name);
-
-    const declared = [...(ex.allergies ?? []), ...(ex.excluded ?? [])];
-    const hit = findAllergen(target.name, names, declared);
-    if (hit) {
-      throw new BadRequestException(
-        hit.allergen
-          ? `${target.name} contains ${hit.found}, and you've told us you're allergic to ${hit.term}. We won't put it in your plan.`
-          : `${target.name} contains ${hit.found}, which is on your avoid list. We won't put it in your plan.`,
-      );
-    }
-
-    const warnings: string[] = [];
-    const screen = screenRecipe(pref?.diet ?? 'everything', names);
-    if (!screen.ok) {
-      const what = [...new Set(screen.offending.map((o) => o.ingredient))].slice(0, 3).join(', ');
-      warnings.push(`${target.name} contains ${what}, which is outside the diet on your profile. It's in your plan because you asked for it.`);
-    }
-    if (target.slot !== slot) {
-      warnings.push(`${target.name} is usually a ${SLOT_NAMES[target.slot] ?? target.slot} dish. It's on your ${SLOT_NAMES[slot] ?? slot} instead.`);
-    }
-
-    await this.prisma.meal.update({ where: { id: meal.id }, data: { recipeId: target.id, skipped: false } });
-    await this.rebalanceDay(planKey, dayIndex);
-    await this.markEdited(planKey);
-    return { plan: await this.shapePlan(planKey), warnings };
-  }
-
-  async swap(userId: string, planKey: string, dayIndex: number, slot: Slot, restoreRecipeId?: string) {
-    await this.assertOwnsPlan(planKey, userId);
-    const meal = await this.findMeal(planKey, dayIndex, slot);
-
-    // Undo a refresh — restore a specific earlier recipe the user was shown before.
-    // Must be a real recipe for this same slot, so the plate/macros stay coherent.
-    if (restoreRecipeId) {
-      const target = await this.prisma.recipe.findUnique({ where: { id: restoreRecipeId }, select: { id: true, slot: true } });
-      if (!target || target.slot !== slot) throw new BadRequestException('That recipe cannot be restored for this slot.');
-      await this.prisma.meal.update({ where: { id: meal.id }, data: { recipeId: target.id, skipped: false } });
-      await this.rebalanceDay(planKey, dayIndex);
-      await this.markEdited(planKey);
-      return this.shapePlan(planKey);
-    }
-
-    const plan = await this.prisma.mealPlan.findUnique({ where: { key: planKey }, select: { userId: true } });
-    const pref = plan ? await this.prisma.foodPref.findUnique({ where: { userId: plan.userId } }) : null;
-    const diet = (pref?.diet ?? 'everything') as Diet;
-    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-    const effDiet: Diet = ex.weekly?.[SHORT_DAYS[dayIndex]] === 'veg' ? 'veg' : diet;
-
-    // Filtered from the pool rather than re-queried: the corpus is already in
-    // memory, and one slot of it is a predicate, not a round trip.
-    const recipes = (await this.planningPool(plan?.userId ?? '')).filter((r) => r.slot === slot);
-    const allowed = allowedProteins(ex);
-    const mix = ex.cuisineMix ?? (ex.cuisines?.length ? Object.fromEntries(ex.cuisines.map((c) => [c, 1])) : {});
-    // Same hard + meal-type + cuisine constraints as the planner; relax only soft rules.
-    let candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed) && cuisineAllowed(r.country, mix) && mealAppropriate(r) && passesSoft(r, ex));
-    if (!candidates.length) candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed) && cuisineAllowed(r.country, mix) && mealAppropriate(r));
-    if (!candidates.length) candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed) && mealAppropriate(r));
-    if (!candidates.length) candidates = recipes.filter((r) => passesHard(r, effDiet, ex, allowed));
-    if (!candidates.length) candidates = recipes.filter((r) => dietAllows(effDiet, r.diet as Diet) && isPlannableMeal(r));
-    if (!candidates.length) candidates = recipes;
-    const others = candidates.filter((c) => c.id !== meal.recipeId);
-    const pickFrom = others.length ? others : candidates;
-    if (pickFrom.length) {
-      // Smart refresh: the plate flexes to hit the calorie target either way, so
-      // rank replacements by per-serving protein and pick from the top third —
-      // a swap keeps the day's protein high instead of dropping to a random dish.
-      const protein = (c: RecipeWithIng) => (c as unknown as { protein?: number }).protein ?? 0;
-      let rankPool = [...pickFrom];
-      if ((slot === 'b' || slot === 's') && eatsAnimalProtein(allowed)) {
-        // Breakfast/snack refresh: keep the user's selected animal proteins first
-        // (spec §7 & §16) so a refresh never drops a non-veg user to a vegan dish
-        // when an egg/chicken option exists.
-        const withP = rankPool.filter((r) => hasSelectedAnimalProtein(r, allowed));
-        if (withP.length) rankPool = withP;
-      }
-      const ranked = rankPool.sort((a, b) => protein(b) - protein(a));
-      const top = ranked.slice(0, Math.max(1, Math.ceil(ranked.length / 3)));
-      const pick = top[Math.floor(Math.random() * top.length)];
-      await this.prisma.meal.update({ where: { id: meal.id }, data: { recipeId: pick.id, skipped: false } });
-    }
-    // A refresh changes the day's macro mix — rebalance every portion so the
-    // daily totals stay on target.
-    await this.rebalanceDay(planKey, dayIndex);
-    await this.markEdited(planKey);
-    return this.shapePlan(planKey);
-  }
-
-  /** Skip / un-skip a meal for the day. */
-  async setSkip(userId: string, planKey: string, dayIndex: number, slot: Slot, skipped: boolean) {
-    await this.assertOwnsPlan(planKey, userId);
-    const meal = await this.findMeal(planKey, dayIndex, slot);
-    await this.prisma.meal.update({ where: { id: meal.id }, data: { skipped } });
-    // Skipping frees calories — the remaining meals grow (portions up to 180%)
-    // to recover the day's targets; un-skipping shrinks them back.
-    await this.rebalanceDay(planKey, dayIndex);
-    await this.markEdited(planKey);
-    return this.shapePlan(planKey);
-  }
-
-  async setSides(userId: string, planKey: string, dayIndex: number, slot: Slot, sides: { rice: number; roti: number; curd: number; salad: number }) {
-    await this.assertOwnsPlan(planKey, userId);
-    const meal = await this.findMeal(planKey, dayIndex, slot);
-    await this.prisma.meal.update({
-      where: { id: meal.id },
-      data: { sidesRice: sides.rice, sidesRoti: sides.roti, sidesCurd: sides.curd, sidesSalad: sides.salad },
-    });
-    await this.markEdited(planKey);
-    return this.shapePlan(planKey);
-  }
-
-  private async findMeal(planKey: string, dayIndex: number, slot: Slot) {
-    const meal = await this.prisma.meal.findFirst({
-      where: { slot, day: { dayIndex, plan: { key: planKey } } },
-    });
-    if (!meal) throw new NotFoundException('meal not found');
-    return meal;
   }
 
   // ─────────────── recipes ───────────────
@@ -6523,12 +4800,6 @@ export class NutritionService implements OnModuleInit {
       ...this.recipeShape(r as unknown as Parameters<NutritionService['recipeShape']>[0]),
       matches, missingCount: missing,
     }));
-  }
-
-  // ─────────────── grocery cart ───────────────
-  /** Title-case an ingredient for display ("brown rice" → "Brown Rice"). */
-  private static prettyIngredient(name: string): string {
-    return name.trim().replace(/\s+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   /**
@@ -7504,108 +5775,6 @@ export class NutritionService implements OnModuleInit {
     };
   }
 
-  private async shapePlan(key: string) {
-    const plan = await this.prisma.mealPlan.findUnique({
-      where: { key },
-      include: {
-        days: {
-          orderBy: { dayIndex: 'asc' },
-          include: { meals: { orderBy: { slot: 'asc' }, include: { recipe: true } } },
-        },
-      },
-    });
-    if (!plan) throw new NotFoundException('plan not found');
-    const slotOrder = NutritionService.SLOT_ORDER;
-
-    // Plate context + per-meal calorie budgets — SAME source the dashboard sums.
-    const plateOpts = await this.plateOptsFor(plan.userId);
-    const tg = await this.targets(plan.userId);
-    const nameIdx = await this.nameIndex();
-
-    // Real calendar dates (spec §20): anchor the Mon→Sun week to the plan's
-    // saved weekStart (the calendar week it's FOR), falling back to its creation
-    // date for legacy plans — so every day carries an actual date.
-    const mon = weekMonday((plan as { weekStart?: Date | null }).weekStart ?? plan.createdAt);
-    const sun = addDays(mon, 6);
-
-    return {
-      key: plan.key,
-      weekNumber: isoWeekNumber(mon),
-      weekStart: isoDate(mon),
-      weekEnd: isoDate(sun),
-      weekLabel: weekRangeLabel(mon, sun),
-      days: plan.days.map((d) => {
-        // Same dynamic budgets the dashboard uses — skipped meals grow the rest.
-        const dyn = perMealTargets(this.dayMealInputs(d.meals), tg.kcal);
-        const date = addDays(mon, d.dayIndex);
-        return {
-        day: d.dayName,
-        date: isoDate(date),
-        dateLabel: `${d.dayName}, ${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`,
-        meals: [...d.meals]
-          .sort((a, b) => slotOrder[a.slot] - slotOrder[b.slot])
-          .map((m) => {
-            const recipe = this.recipeShape(m.recipe);
-            // Thali assembly is for INDIAN mains only — Western/other cuisines stay
-            // a single plated dish, not a roti+rice+dal+curd thali.
-            const indian = /india/i.test(m.recipe.country);
-            const rawPlate = indian && (m.slot === 'l' || m.slot === 'd')
-              ? assemblePlate(recipe, m.slot as 'l' | 'd', plateOpts, d.dayIndex * 4 + slotOrder[m.slot], dyn[m.slot as 'l' | 'd'] ?? tg.perMeal[m.slot as 'b' | 'l' | 's' | 'd']?.kcal)
-              : undefined;
-            // Every thali component is clickable: the main links to its own
-            // recipe; sides best-effort-match to library recipes by name.
-            const plate = rawPlate ? {
-              ...rawPlate,
-              components: rawPlate.components.map((c) => ({
-                ...c,
-                recipeId: c.role === 'main' ? m.recipe.id : this.matchComponentRecipe(nameIdx, c.name),
-              })),
-            } : undefined;
-            // The card carries the PORTIONED values (what this meal actually
-            // contributes); the serving size is shown alongside, and the recipe
-            // page keeps per-full-plate values.
-            const pct = (m as { portionPct?: number }).portionPct ?? 100;
-            const pf = pct / 100;
-            const scaled = pct === 100 ? recipe : {
-              ...recipe,
-              kcal: Math.round(recipe.kcal * pf),
-              protein: Math.round(recipe.protein * pf),
-              carbs: Math.round(recipe.carbs * pf),
-              fat: Math.round(recipe.fat * pf),
-              fiber: Math.round(recipe.fiber * pf),
-              gramsPerServing: Math.round((recipe.gramsPerServing ?? 0) * pf),
-            };
-            // Complement foods on this plate (whole units, dietitian-style).
-            let addons: Array<{ key: string; units: number; label: string; kcal: number }> = [];
-            try {
-              const picks = JSON.parse(((m as { addonsJson?: string | null }).addonsJson) ?? '[]') as AddonPick[];
-              addons = picks.map((p) => ({
-                key: p.key, units: p.units, label: addonLabel(p.key, p.units),
-                kcal: Math.round((complementByKey.get(p.key)?.kcal ?? 0) * p.units),
-              }));
-            } catch { addons = []; }
-            return {
-              slot: m.slot,
-              recipe: scaled,
-              skipped: m.skipped,
-              portionPct: pct,
-              addons,
-              sides: { rice: m.sidesRice, roti: m.sidesRoti, curd: m.sidesCurd, salad: m.sidesSalad },
-              plate,
-            };
-          }),
-        };
-      }),
-    };
-  }
-
-  private rand(n: number): string {
-    const c = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let s = '';
-    for (let i = 0; i < n; i++) s += c[Math.floor(Math.random() * c.length)];
-    return s;
-  }
-
   // ─────────────── recipe library (tops up missing recipes on every boot) ───────────────
   private async ensureRecipes(): Promise<void> {
     let existing: Set<string>;
@@ -8458,4 +6627,45 @@ export class NutritionService implements OnModuleInit {
       this.logger.warn(`v2 dataset adoption skipped: ${(e as Error).message}`);
     }
   }
+
+  /**
+   * ADVANCE-PREP ALERTS.
+   *
+   * Some dishes can't be started at mealtime: idli/dosa batter ferments
+   * overnight, rajma soaks 8 hours, biryani meat marinates. If breakfast is at
+   * 09:00 and the batter needed to be down by 21:00 the night before, telling
+   * the citizen at 09:00 is useless. This looks ahead at the plan and tells them
+   * while there's still time to act.
+   *
+   * Lead time is read from the recipe's own words, so it's honest about what a
+   * dish actually needs rather than guessing a flat number.
+   */
+  private static prepLeadHours(text: string): { hours: number; what: string } | null {
+    const t = (text || '').toLowerCase();
+    // Longest/most specific first — "overnight" beats a bare "soak".
+    if (/\bferment(ing|ed|ation)?\b.*\bovernight\b|\bovernight\b.*\bferment/.test(t)) return { hours: 12, what: 'ferment overnight' };
+    if (/\bovernight\b/.test(t)) return { hours: 12, what: 'prep overnight' };
+    if (/\bferment/.test(t)) return { hours: 8, what: 'ferment' };
+    if (/\bsoak(ing|ed)?\b/.test(t)) {
+      const m = t.match(/soak[^.]{0,40}?(\d{1,2})\s*(hour|hr)/);
+      const h = m ? Math.min(24, Math.max(1, Number(m[1]))) : 8;
+      return { hours: h, what: `soak ${h}h` };
+    }
+    if (/\bmarinat/.test(t)) {
+      const m = t.match(/marinat[^.]{0,40}?(\d{1,2})\s*(hour|hr)/);
+      const h = m ? Math.min(24, Math.max(1, Number(m[1]))) : 2;
+      return { hours: h, what: `marinate ${h}h` };
+    }
+    if (/\bsprout(ing|ed)?\b/.test(t)) return { hours: 12, what: 'sprout' };
+    if (/\bproof(ing|ed)?\b|\brise\b.*\bdough\b|\bdough\b.*\brise\b/.test(t)) return { hours: 3, what: 'prove the dough' };
+    if (/\bchill\b.*\b(\d{1,2})\s*(hour|hr)|\brefrigerate\b.*\bovernight\b/.test(t)) return { hours: 4, what: 'chill' };
+    return null;
+  }
+
+  // ─────────────── grocery cart ───────────────
+  /** Title-case an ingredient for display ("brown rice" → "Brown Rice"). */
+  private static prettyIngredient(name: string): string {
+    return name.trim().replace(/\s+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
 }

@@ -174,6 +174,26 @@ function useComposedMutation<V>(path: string) {
 export function useRefreshMeal() { return useComposedMutation<{ day: number; slot: string }>('/nutrition/plan/composed/refresh'); }
 export function useSkipMeal() { return useComposedMutation<{ day: number; slot: string; skipped: boolean }>('/nutrition/plan/composed/skip'); }
 export function useRestoreSkips() { return useComposedMutation<Record<string, never>>('/nutrition/plan/composed/restore'); }
+/**
+ * Choose the dish for a slot yourself.
+ *
+ * Pin returns the plan AND any warnings, so it cannot use the shared mutation
+ * helper above — a warning that gets thrown away is worse than no warning,
+ * because the citizen then believes the pin took effect exactly as asked.
+ */
+export function usePinMeal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { day: number; slot: string; recipeId: string }) =>
+      api.post<ComposedWeek & { warnings?: string[] }>('/nutrition/plan/composed/pin', v).then((r) => r.data),
+    onSuccess: (wk) => {
+      qc.setQueryData(['nutrition', 'composed', wk.mode ?? 'preferred', 'self'], wk);
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'composed'] });
+    },
+  });
+}
+export function useUnpinMeal() { return useComposedMutation<{ day: number; slot: string }>('/nutrition/plan/composed/unpin'); }
+
 /** Start a fresh 3-week plan (re-anchor to today, reseed the meals). */
 export function useRenewPlan() { return useComposedMutation<Record<string, never>>('/nutrition/plan/composed/renew'); }
 /** Per-line (single-dish) Refresh / Skip — reroll or drop one dish by its plate role. */

@@ -54,6 +54,19 @@ export interface ComposerPrefs {
   /** Per-day meal overrides (Refresh/Skip): keys "d{index}:{slotCode}". */
   skips?: string[];
   bumps?: Record<string, number>;
+  /**
+   * Dishes the citizen chose themselves: "d{index}:{slotCode}" → recipeId.
+   *
+   * A pin is honoured ONLY if the recipe is in the candidate list the composer
+   * would have picked from anyway. That is the whole safety story and it is one
+   * line, on purpose: a pin is stored in the profile and outlives the
+   * preferences it was made under. Somebody pins a prawn curry in March and
+   * declares a shellfish allergy in June — re-screening at selection is what
+   * stops March's choice reappearing on June's plate. Checking against
+   * candidates() rather than re-implementing the checks means the pin can never
+   * drift out of step with the filters everything else obeys.
+   */
+  pins?: Record<string, string>;
 }
 
 /** "Inform, don't force" — how the user's preferred plan compares to the clinical ideal. */
@@ -503,14 +516,29 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
   const sel: Sel[] = [];
   const take = (r: PoolRecipe | null, role: string) => { if (r) { ctx.used.set(r.id, (ctx.used.get(r.id) ?? 0) + 1); sel.push({ r, role }); } };
 
+  /**
+   * The dish this citizen pinned to this slot, if it is still one they may eat.
+   *
+   * Resolved through candidates() rather than straight out of the pool, so a pin
+   * clears exactly the filters every other selection clears — diet, exclusions,
+   * clinical ceilings, cuisine locks. A pin that no longer qualifies is dropped
+   * silently here and the slot composes normally; the citizen is told why on the
+   * plan itself rather than by a dish quietly changing under them.
+   */
+  const pinnedFor = (role: string, roleCtx: SelectCtx): PoolRecipe | null => {
+    const id = ctx.prefs.pins?.[`d${ctx.dayIndex}:${ctx.slot}`];
+    if (!id) return null;
+    return candidates(role, roleCtx).find((r) => r.id === id) ?? null;
+  };
+
   if (slot === 'b') {
-    const bf = pick('breakfast', ctx);
+    const bf = pinnedFor('breakfast', ctx) ?? pick('breakfast', ctx);
     take(bf, 'breakfast');
     // If breakfast alone can't reach ~85% of target even at max scale, add a light side.
     if (bf && bf.kcal * 1.6 < targetKcal * 0.85) take(pick('snack', ctx), 'side');
   } else if (slot === 's') {
     // Afternoon snack — fresh fruit by default (spec §3), else a light snack/drink.
-    take(pickFruit(ctx) ?? pick('snack', ctx) ?? pick('drink', ctx), 'snack');
+    take(pinnedFor('snack', ctx) ?? pickFruit(ctx) ?? pick('snack', ctx) ?? pick('drink', ctx), 'snack');
   } else if (slot === 'es') {
     // Dedicated ~7 PM evening course — a soup by default (spec §4), else a light drink.
     take(pick('soup', ctx) ?? pick('drink', ctx) ?? pick('snack', ctx), 'soup');
@@ -527,7 +555,8 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
     // Protein-role guarantee (HIGH-1): a plate must never render without a main.
     // Try main (respecting the consecutive-day ban), then relax the ban, then
     // fall back to a dal — so aggressive excludes/small pools can't empty it.
-    let main = pick('main', ctxRole('main')) ?? pick('main', { ...ctxRole('main'), banMain: undefined });
+    let main = pinnedFor('main', ctxRole('main'))
+      ?? pick('main', ctxRole('main')) ?? pick('main', { ...ctxRole('main'), banMain: undefined });
     if (!main) main = pick('dal', ctxRole('main'));
     take(main, main?.role === 'dal' ? 'dal' : 'main');
     if (!renal && main?.role !== 'dal') {
