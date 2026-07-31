@@ -47,6 +47,19 @@ describe('markMealCooked', () => {
     expect(body).not.toMatch(/log\.create\([\s\S]{0,200}?\.catch\(\(\) => undefined\)/);
   });
 
+  it('locks the household pantry before reading it', () => {
+    // The claim row makes one MEAL draw once. Two different meals settling at
+    // the same moment still read the same rice and both write an absolute
+    // amount, so the second erases the first. This is the part that stops that,
+    // and its position — before the read — is the whole of it.
+    const lock = body.indexOf('FOR UPDATE');
+    const read = body.indexOf('txPantry.findMany');
+    expect(lock).toBeGreaterThan(-1);
+    expect(read).toBeGreaterThan(-1);
+    expect(lock).toBeLessThan(read);
+    expect(body).toContain('"PantryItem"');
+  });
+
   it('never discards a pantry write', () => {
     // Any `.catch(() => undefined)` inside the transaction would put us back
     // where we started: a deduction that failed silently while the claim stood.

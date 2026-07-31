@@ -3216,6 +3216,22 @@ export class NutritionService implements OnModuleInit {
           data: { ownerId, mealKey, label: (input.label ?? '').slice(0, 120), itemsJson: '[]' },
         });
 
+        // Lock this household's pantry rows before reading them.
+        //
+        // The claim above makes ONE meal draw once. It does nothing about two
+        // DIFFERENT meals drawn at the same time, which is an ordinary evening
+        // in a shared household: both read rice at 1,000 g, one takes 300 and
+        // writes 700, the other takes 200 and writes 800. Five hundred grams
+        // were cooked and the pantry says eight hundred are left, because the
+        // second write did not know about the first.
+        //
+        // It cannot be a conditional decrement the way the wallet's is, because
+        // qtyLabel is recomputed from the resulting amount and has to agree with
+        // it. Locking the rows makes the read-decide-write correct as a whole.
+        // The scope is one household's pantry for the length of one settlement,
+        // which is what wants serialising anyway — two households never meet.
+        await tx.$queryRaw`SELECT id FROM "PantryItem" WHERE "ownerId" = ${ownerId} FOR UPDATE`;
+
         // Deduct what we actually hold; never go below zero, and keep the row
         // (at 0) so the citizen can see it ran out rather than having it vanish.
         const rows = await txPantry.findMany({ where: { ownerId } });
