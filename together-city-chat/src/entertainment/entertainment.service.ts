@@ -98,11 +98,26 @@ export class EntertainmentService implements OnModuleInit {
       userId,
       { hub: 'Entertainment', category: 'entertainment', label: `${e.title} · ${dto.tier} ×${dto.qty}`, amountInr: totalInr, method: dto.method },
       async (tx) => {
-        // Seats are decremented inside the same transaction, and the tier is
-        // re-read here rather than trusted from the check above: two people
-        // buying the last four seats at the same moment both passed that check,
-        // and nothing afterwards ever reduced availability — the tier count was
-        // decorative, so an event could be sold indefinitely.
+        // Take the row's write lock BEFORE reading it.
+        //
+        // Availability lives inside a JSON string, so claiming a seat is
+        // read-modify-write and cannot be expressed as a condition on a column
+        // the way the wallet's balance can. Re-reading inside the transaction —
+        // which is what this used to do, and what the comment here used to
+        // claim was enough — fixes only the stale-check half. The lost-update
+        // half survived it: two bookings both read "4 available", both compute
+        // 4 − 2, and both write 2. Six seats sold, two decremented, and the
+        // second write silently erases the first.
+        //
+        // FOR UPDATE makes the second booking wait for the first to commit and
+        // then read what it actually wrote. It locks one event row for the few
+        // milliseconds of a booking, which is exactly the scope wanted: two
+        // people buying tickets to different events never meet.
+        //
+        // The real fix is a tier table with an integer column, so this could be
+        // one conditional UPDATE like the wallet's. That is a migration and a
+        // reshape of the seed data; this is correct in the meantime and says so.
+        await tx.$queryRaw`SELECT id FROM "Event" WHERE id = ${eventId} FOR UPDATE`;
         const fresh = await tx.event.findUnique({ where: { id: eventId }, select: { tiersJson: true } });
         const tiers = parseTiers(fresh?.tiersJson ?? e.tiersJson);
         const seat = tiers.find((t) => t.name === dto.tier);
