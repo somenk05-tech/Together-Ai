@@ -8,6 +8,15 @@ import { useFoodPref } from '@/features/nutrition/hooks';
 type Gender = 'male' | 'female';
 type Goal = 'lose' | 'maintain' | 'gain';
 interface Health { age: number; gender: Gender; heightCm: number; weightKg: number; activityMult: number; goal: Goal }
+/**
+ * Stand-ins, used to draw a page when the citizen has told us nothing.
+ *
+ * They are not a profile and must never be shown as one. `healthFromPref`
+ * returns `assumed[]` naming every field that fell back to one of these, and
+ * the panel says so — the same shape target-readiness.ts uses in Nutrition,
+ * for the same reason: a number built from an average is a real answer to a
+ * different question.
+ */
 const DEFAULT_HEALTH: Health = { age: 30, gender: 'female', heightCm: 165, weightKg: 65, activityMult: 1.55, goal: 'maintain' };
 
 const WORKOUT_MIN = 60, WALK_MIN = 20, STEPS_PER_MIN = 130;
@@ -16,6 +25,15 @@ const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
 const kcalWorkout = (min: number, weight: number) => Math.round(6.0 * weight * (min / 60));
 const kcalWalk = (min: number, weight: number) => Math.round(4.3 * weight * (min / 60));
 
+/**
+ * Mifflin-St Jeor.
+ *
+ * `sx` is the term the equation has for male and the term it has for female,
+ * and it has no third one. That is a fact about the equation, not about people,
+ * and the honest handling of it is to say the number is not theirs — which is
+ * what `assumed` below is for. Defaulting quietly to the female term and
+ * printing the result as their target is the version this replaces.
+ */
 function calorieTarget(h: Health) {
   const sx = h.gender === 'male' ? 5 : -161;
   const bmr = 10 * h.weightKg + 6.25 * h.heightCm - 5 * h.age + sx;
@@ -152,8 +170,23 @@ const buildSeq = (loc: Loc, focus: string, level: Level, dur: number, includeWal
 };
 
 /** Map the Nutrition food-preference profile onto the fitness body profile. */
-function healthFromPref(p: { age: number | null; sex: 'male' | 'female' | null; heightCm: number | null; weightKg: number | null; activity: number; goal: Goal } | undefined): Health {
-  if (!p) return DEFAULT_HEALTH;
+function healthFromPref(
+  p: { age: number | null; sex: 'male' | 'female' | null; heightCm: number | null; weightKg: number | null; activity: number; goal: Goal } | undefined,
+): Health & { assumed: string[]; sexKnown: boolean } {
+  if (!p) return { ...DEFAULT_HEALTH, assumed: ['weight', 'height', 'age', 'sex at birth'], sexKnown: false };
+  const assumed: string[] = [];
+  if (p.weightKg == null) assumed.push('weight');
+  if (p.heightCm == null) assumed.push('height');
+  if (p.age == null) assumed.push('age');
+  // Sex was NOT in the old check for whether this profile counted as filled in,
+  // so somebody who had given their weight, height and age but never answered
+  // this was told the page was "personalised from your Nutrition profile",
+  // labelled Women, and handed a calorie target built on the female term.
+  //
+  // It is also the field a non-binary citizen legitimately has empty:
+  // clinicalSex() refuses to invent a coefficient, so FoodPref.sex stays null,
+  // and the old code read that silence as "female".
+  if (p.sex == null) assumed.push('sex at birth');
   return {
     age: p.age ?? DEFAULT_HEALTH.age,
     gender: p.sex ?? DEFAULT_HEALTH.gender,
@@ -161,6 +194,8 @@ function healthFromPref(p: { age: number | null; sex: 'male' | 'female' | null; 
     weightKg: p.weightKg ?? DEFAULT_HEALTH.weightKg,
     activityMult: p.activity || DEFAULT_HEALTH.activityMult,
     goal: p.goal ?? DEFAULT_HEALTH.goal,
+    assumed,
+    sexKnown: p.sex != null,
   };
 }
 
@@ -189,12 +224,21 @@ export function Workout() {
 
   // Body profile is shared with the Nutrition food-preference profile — no re-typing.
   const health = useMemo(() => healthFromPref(foodPref.data), [foodPref.data]);
-  const hasProfile = Boolean(foodPref.data?.weightKg || foodPref.data?.heightCm || foodPref.data?.age);
+  const hasProfile = health.assumed.length < 4;
   const gender = health.gender, goalKey = health.goal, WEIGHT = health.weightKg;
   const KCAL = calorieTarget(health);
   const goalTag = goalTagOf(goalKey);
-  const genderTag = gender === 'male' ? 'Men' : 'Women';
-  const genderEmph = gender === 'male' ? 'upper-body strength & push' : 'glutes, lower-body & core';
+  // Null when we have not been told. `gender` still carries a value so the
+  // routine builder has something to pick exercises with — that is a product
+  // choice about which session to show. Printing "Women" on somebody's page is
+  // a claim about them, and we only make it when they have said so.
+  const genderTag = health.sexKnown ? (gender === 'male' ? 'Men' : 'Women') : null;
+  /** Header segments, with anything we do not know left out rather than shown
+   *  as a gap or, worse, as the word "null". */
+  const seg = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join(' · ');
+  const genderEmph = health.sexKnown
+    ? (gender === 'male' ? 'upper-body strength & push' : 'glutes, lower-body & core')
+    : 'full-body strength & conditioning';
   const burnWorkout = kcalWorkout(WORKOUT_MIN, WEIGHT), burnWalk = kcalWalk(WALK_MIN, WEIGHT), burnTotal = burnWorkout + burnWalk;
 
   const workoutSeconds = useMemo(() => buildSeq(loc, focus, level, dur, false, gender, goalKey).reduce((a, s) => a + s.dur, 0), [loc, focus, level, dur, gender, goalKey]);
@@ -294,9 +338,21 @@ export function Workout() {
       <div className="card" style={{ marginBottom: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: 'var(--accent-soft)', border: 'none' }}>
         <div style={{ fontSize: 12.5 }}>
           {hasProfile ? (
-            <>🔗 Personalised from your Nutrition profile — <b>{health.weightKg}kg · {health.heightCm}cm · {genderTag} · {goalTag}</b></>
+            <>
+              🔗 From your Nutrition profile — <b>{[
+                health.assumed.includes('weight') ? null : `${health.weightKg}kg`,
+                health.assumed.includes('height') ? null : `${health.heightCm}cm`,
+                genderTag, goalTag,
+              ].filter(Boolean).join(' · ')}</b>
+              {health.assumed.length > 0 && (
+                <span className="muted" style={{ display: 'block', marginTop: 4 }}>
+                  {health.assumed.join(', ')} {health.assumed.length === 1 ? 'is a stand-in' : 'are stand-ins'} —
+                  today’s calorie figure is an average until you set {health.assumed.length === 1 ? 'it' : 'them'}.
+                </span>
+              )}
+            </>
           ) : (
-            <>🔗 Using default body stats. Set yours once to personalise every workout.</>
+            <>🔗 Using default body stats — nothing here is yours yet. Set them once to personalise every workout.</>
           )}
         </div>
         <Link to="/nutrition/preferences" style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
@@ -329,7 +385,11 @@ export function Workout() {
       <section className="blk">
         <div className="blk-head"><h2>Today's plan · 60-min workout + 20-min walk</h2><span className="muted" style={{ fontSize: 12 }}>≈ {Math.round(workoutSeconds / 60)} min {levelCfg(level).tag} {loc === 'gym' ? `${focus} (${goalTag})` : 'home'} workout + {WALK_MIN} min walk</span></div>
         <div className="card">
-          <p className="muted" style={{ fontSize: 11.5, margin: '0 0 10px' }}>Tailored for <b style={{ color: 'var(--ink)' }}>{genderTag}</b> · emphasis on {genderEmph}.</p>
+          <p className="muted" style={{ fontSize: 11.5, margin: '0 0 10px' }}>
+            {genderTag
+              ? <>Tailored for <b style={{ color: 'var(--ink)' }}>{genderTag}</b> · emphasis on {genderEmph}.</>
+              : <>Emphasis on {genderEmph}. Set your sex at birth in Nutrition and this session adapts to it.</>}
+          </p>
           <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', margin: '0 0 6px' }}>Your experience level</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{LEVELS.map(([k, l]) => <Seg key={k} on={level === k} onClick={() => setLevel(k)}>{l}</Seg>)}</div>
           <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', margin: '12px 0 6px' }}>Session length</div>
@@ -356,7 +416,7 @@ export function Workout() {
           {/* routine preview */}
           {loc === 'home' ? (
             <div>
-              {blkHead(`${levelCfg(level).tag} · ${genderTag} · emphasis on ${genderEmph}`)}
+              {blkHead(seg(levelCfg(level).tag, genderTag, `emphasis on ${genderEmph}`))}
               {currentHomePlan(level, gender).map((b) => {
                 const rounds = homeRounds(dur, b.rounds);
                 return (
@@ -371,7 +431,7 @@ export function Workout() {
             </div>
           ) : (
             <div>
-              {blkHead(`${focus} · ${levelCfg(level).tag} · ${genderTag} · ${goalTag} · ${sc.sets} sets · ${sc.restSec}s rest`)}
+              {blkHead(seg(focus, levelCfg(level).tag, genderTag, goalTag, `${sc.sets} sets`, `${sc.restSec}s rest`))}
               {gymExercises(focus, dur, gender).map((e, i) => exRow(i + 1, e.n, e.t ? 'hold each set' : `rest ${sc.restSec}s between sets`, e.t ? `3 × ${mmss(e.t)}` : `${sc.sets} × ${sc.reps}`))}
               {blkHead('Finish · Walk')}
               {exRow(1, 'Brisk walk', `outdoors or treadmill · ~${WALK_STEPS.toLocaleString('en-IN')} steps`, `${WALK_MIN}:00`)}
