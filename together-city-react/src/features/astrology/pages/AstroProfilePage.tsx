@@ -190,9 +190,11 @@ function PersonalInfoSection() {
                 placeholder="Select…" onChange={(o) => setForm((f) => ({ ...f, gender: o?.code ?? '' }))} />
             </div>
             <div>
-              <label style={label}>Height (cm)</label>
-              <input type="number" min={50} max={272} value={form.heightCm}
-                onChange={(e) => setForm((f) => ({ ...f, heightCm: e.target.value }))} style={field} />
+              <label style={{ display: 'block' }}>
+                <span style={label}>Height (cm)</span>
+                <input type="number" min={50} max={272} value={form.heightCm}
+                  onChange={(e) => setForm((f) => ({ ...f, heightCm: e.target.value }))} style={field} />
+              </label>
             </div>
             <div>
               <label style={label}>Languages</label>
@@ -386,9 +388,11 @@ export function AstroProfilePage() {
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14 }}>
             <div>
-              <label style={label}>Date of Birth</label>
-              <input type="date" value={birthDate} min="1900-01-01" max={today}
-                onChange={(e) => setBirthDate(e.target.value)} style={field} />
+              <label style={{ display: 'block' }}>
+                <span style={label}>Date of Birth</span>
+                <input type="date" value={birthDate} min="1900-01-01" max={today}
+                  onChange={(e) => setBirthDate(e.target.value)} style={field} />
+              </label>
             </div>
             <div>
               <label style={label}>Time of Birth</label>
@@ -455,7 +459,7 @@ export function AstroProfilePage() {
                   </button>
                 </div>
               ) : (
-                <input value={timeZone} onChange={(e) => setTimeZone(e.target.value)} style={field} />
+                <input aria-label="Time zone" value={timeZone} onChange={(e) => setTimeZone(e.target.value)} style={field} />
               )}
             </div>
           </div>

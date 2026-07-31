@@ -198,13 +198,13 @@ export function Sell() {
                       {f.opts?.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   )
-                  : <input type={f.type === 'number' ? 'number' : 'text'} value={fields[f.key] ?? ''} onChange={setField(f.key)} style={inputS} />}
+                  : <input aria-label={f.label} type={f.type === 'number' ? 'number' : 'text'} value={fields[f.key] ?? ''} onChange={setField(f.key)} style={inputS} />}
               </div>
             ))}
           </div>
           <div style={{ marginBottom: 16 }}>
             <label style={labelS}>Description</label>
-            <textarea rows={3} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Highlight light, layout, connectivity and anything special." style={inputS} />
+            <textarea aria-label="Description" rows={3} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Highlight light, layout, connectivity and anything special." style={inputS} />
           </div>
 
           <div className="rule" />

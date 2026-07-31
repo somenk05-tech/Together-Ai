@@ -111,8 +111,8 @@ function CreateForm() {
       <input value={text} onChange={(e) => setText(e.target.value)} placeholder={EXAMPLES[0]} style={fi} />
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>{EXAMPLES.slice(1).map((e) => <button key={e} type="button" onClick={() => setText(e)} className="pill" style={{ border: '1px solid var(--line)', borderRadius: 999, padding: '4px 10px', fontSize: 11.5, cursor: 'pointer', background: 'transparent' }}>{e}</button>)}</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
-        <div><span style={fl}>Date</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={fi} /></div>
-        <div><span style={fl}>Time</span><input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={fi} /></div>
+        <label style={{ display: 'block' }}><span style={fl}>Date</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={fi} /></label>
+        <label style={{ display: 'block' }}><span style={fl}>Time</span><input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={fi} /></label>
       </div>
       <span style={fl}>Location</span>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{CATEGORIES.map(([k, l]) => <button key={k} type="button" onClick={() => setCategory(k)} style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 12px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${category === k ? 'var(--accent)' : 'var(--line)'}`, background: category === k ? 'var(--accent)' : 'transparent', color: category === k ? '#fff' : 'var(--ink-soft)' }}>{l}</button>)}</div>

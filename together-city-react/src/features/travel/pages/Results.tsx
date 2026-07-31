@@ -50,7 +50,7 @@ export function TravelResults() {
         <aside style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div className="card">
             <h5 style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>Price range</h5>
-            <input type="range" min={700} max={1400} defaultValue={1400} style={{ width: '100%' }} />
+            <input type="range" aria-label="Maximum price" min={700} max={1400} defaultValue={1400} style={{ width: '100%' }} />
             <p className="meta muted" style={{ fontSize: 12 }}>₹700 – ₹1,400</p>
           </div>
           <div className="card">

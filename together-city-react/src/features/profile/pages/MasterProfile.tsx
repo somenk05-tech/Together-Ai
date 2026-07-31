@@ -108,8 +108,9 @@ export function MasterProfile() {
     </label>
   );
 
-  const text = (k: keyof MasterProfileView, type = 'text') => (
+  const text = (k: keyof MasterProfileView, name: string, type = 'text') => (
     <input
+      aria-label={name}
       type={type}
       value={v[k] ?? ''}
       onChange={(e) => set(k, type === 'number' ? (e.target.value === '' ? null : Number(e.target.value)) : e.target.value)}
@@ -117,6 +118,12 @@ export function MasterProfile() {
       style={inputStyle}
     />
   );
+
+  /** A plain text row: the name is written once and reaches both the visible
+   *  label and the input's accessible name, so the two cannot drift apart. */
+  const textField = (
+    k: keyof MasterProfileView, name: string, hint?: string, type = 'text',
+  ) => field(k, name, text(k, name, type), hint);
 
   const pct = completion.data?.percent ?? null;
 
@@ -165,9 +172,9 @@ export function MasterProfile() {
 
       {/* ── Identity ─────────────────────────────────────────────── */}
       <Section id="identity" title="Identity">
-        {field('name', 'Name', text('name'))}
+        {textField('name', 'Name')}
         {field('dateOfBirth', 'Date of birth',
-          <input type="date" max={new Date().toISOString().slice(0, 10)}
+          <input type="date" aria-label="Date of birth" max={new Date().toISOString().slice(0, 10)}
             value={(v.dateOfBirth ?? '').slice(0, 10)}
             onChange={(e) => set('dateOfBirth', e.target.value || null)}
             onBlur={() => commit('dateOfBirth')} style={inputStyle} />,
@@ -196,8 +203,8 @@ export function MasterProfile() {
           </select>,
           WHY_WE_ASK.genderIdentity)}
 
-        {v.genderIdentity === 'other' && field('genderIdentityOther', 'In your words', text('genderIdentityOther'))}
-        {field('occupation', 'Occupation', text('occupation'))}
+        {v.genderIdentity === 'other' && textField('genderIdentityOther', 'In your words')}
+        {textField('occupation', 'Occupation')}
       </Section>
 
       {/* ── Body ─────────────────────────────────────────────────── */}
@@ -206,8 +213,8 @@ export function MasterProfile() {
           These set your calorie and nutrient targets. Leave one blank and we say so rather than
           working them out from somebody else’s body.
         </p>
-        {field('heightCm', 'Height (cm)', text('heightCm', 'number'))}
-        {field('weightKg', 'Weight (kg)', text('weightKg', 'number'))}
+        {textField('heightCm', 'Height (cm)', undefined, 'number')}
+        {textField('weightKg', 'Weight (kg)', undefined, 'number')}
       </Section>
 
       {/* ── Diet ─────────────────────────────────────────────────── */}
@@ -230,10 +237,10 @@ export function MasterProfile() {
 
       {/* ── Contact ──────────────────────────────────────────────── */}
       <Section id="contact" title="Contact">
-        {field('phone', 'Phone', text('phone', 'tel'))}
-        {field('city', 'City', text('city'))}
-        {field('state', 'State', text('state'))}
-        {field('country', 'Country', text('country'))}
+        {textField('phone', 'Phone', undefined, 'tel')}
+        {textField('city', 'City')}
+        {textField('state', 'State')}
+        {textField('country', 'Country')}
       </Section>
     </div>
   );

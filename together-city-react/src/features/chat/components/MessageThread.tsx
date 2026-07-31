@@ -124,7 +124,7 @@ export function MessageThread({ messages, currentUserId, typing, onDelete, onEdi
               </div>
             ) : editingId === m.id ? (
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input autoFocus value={editText} onChange={(e) => setEditText(e.target.value)}
+                <input autoFocus aria-label="Edit your message" value={editText} onChange={(e) => setEditText(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') void saveEdit(m); if (e.key === 'Escape') setEditingId(null); }}
                   style={{ border: '1.5px solid var(--accent)', borderRadius: 12, padding: '8px 12px', fontSize: 14, fontFamily: 'inherit', minWidth: 220 }} />
                 <button type="button" className="btn btn-accent btn-sm" onClick={() => void saveEdit(m)}>Save</button>

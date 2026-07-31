@@ -19,7 +19,7 @@ function BudgetRow({ b }: { b: Budget }) {
         </div>
         {editing ? (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <input type="number" min={0} value={val} onChange={(e) => setVal(e.target.value)}
+            <input type="number" aria-label={`Monthly budget for ${b.label}`} min={0} value={val} onChange={(e) => setVal(e.target.value)}
               style={{ width: 96, padding: '7px 9px', border: '1.5px solid var(--line)', borderRadius: 9, fontSize: 13, fontFamily: 'inherit' }} />
             <Button variant="accent" size="sm" disabled={set.isPending}
               onClick={() => set.mutate({ category: b.category, monthlyInr: Number(val) || 0 }, { onSuccess: () => setEditing(false) })}>Save</Button>

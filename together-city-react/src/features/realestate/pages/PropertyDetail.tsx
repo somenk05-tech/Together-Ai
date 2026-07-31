@@ -27,7 +27,7 @@ function EmiCalculator({ priceInr }: { priceInr: number }) {
   const Row = ({ label, val, min, max, step, set, fmt }: { label: string; val: number; min: number; max: number; step: number; set: (n: number) => void; fmt: (n: number) => string }) => (
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}><span className="muted">{label}</span><strong>{fmt(val)}</strong></div>
-      <input type="range" min={min} max={max} step={step} value={val} onChange={(e) => set(Number(e.target.value))} style={{ width: '100%' }} />
+      <input type="range" aria-label={label} min={min} max={max} step={step} value={val} onChange={(e) => set(Number(e.target.value))} style={{ width: '100%' }} />
     </div>
   );
 

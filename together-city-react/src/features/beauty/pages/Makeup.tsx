@@ -225,7 +225,7 @@ export function Makeup() {
           </div>
           <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 20, color: 'var(--accent)' }}>₹{inr(budget)}</span>
         </div>
-        <input type="range" min={1000} max={20000} step={500} value={budget} style={{ width: '100%', margin: '14px 0 2px', accentColor: 'var(--accent)' }}
+        <input type="range" aria-label="Makeup budget" min={1000} max={20000} step={500} value={budget} style={{ width: '100%', margin: '14px 0 2px', accentColor: 'var(--accent)' }}
           onChange={(e) => { const b = Number(e.target.value); setBudget(b); rebuild(b); }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--ink-soft)', marginTop: 4 }}><span>₹1,000</span><span>₹20,000</span></div>
         <p style={{ fontSize: 12.5, marginTop: 8, color: over ? '#b0503e' : '#2e7d4f', fontWeight: over ? 600 : 400 }}>

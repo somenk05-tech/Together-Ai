@@ -281,7 +281,7 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
 
       {editing ? (
         <div style={{ marginTop: 12 }}>
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} maxLength={2200} autoFocus
+          <textarea aria-label="Edit your post" value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} maxLength={2200} autoFocus
             style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button type="button" disabled={upd.isPending}

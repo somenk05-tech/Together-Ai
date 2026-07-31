@@ -1,8 +1,6 @@
 {
-  "total": 47,
+  "total": 23,
   "byKind": {
-    "tap-target-under-44": 23,
-    "input-no-label": 23,
-    "textarea-no-label": 1
+    "tap-target-under-44": 23
   }
 }

@@ -42,7 +42,7 @@ export function Log() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
           <input value={focus} onChange={(e) => setFocus(e.target.value)} placeholder="What did you do? (e.g. Tempo run)"
             style={{ flex: 1, minWidth: 180, padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
-          <input type="number" min={1} max={600} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}
+          <input type="number" aria-label="Minutes" min={1} max={600} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}
             style={{ width: 76, padding: '10px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
           <span className="muted" style={{ fontSize: 12.5 }}>min</span>
         </div>

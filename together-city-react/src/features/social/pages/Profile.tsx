@@ -681,13 +681,15 @@ function EditProfileModal({ me, onClose }: { me: MyProfile; onClose: () => void 
           </div>
         </div>
 
-        <label style={label}>Full name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} style={field} maxLength={80} />
+        <label style={{ display: 'block' }}>
+          <span style={label}>Full name</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} style={field} maxLength={80} />
+        </label>
 
         <label style={label}>Handle</label>
         <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 10px' }}>
           <span className="muted">@</span>
-          <input value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
+          <input aria-label="Handle" value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
             style={{ flex: 1, border: 'none', outline: 'none', padding: '11px 6px', fontSize: 14, fontFamily: 'inherit', background: 'transparent' }} maxLength={30} />
         </div>
 

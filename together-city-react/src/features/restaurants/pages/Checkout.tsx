@@ -11,8 +11,10 @@ const PAYS = ['Together Wallet', 'UPI', 'Card •••• 4821', 'Cash on Deliv
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ marginBottom: 16 }}>
-      <label style={{ display: 'block', fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 600, marginBottom: 6 }}>{label}</label>
-      <input defaultValue={value} style={fieldInput} />
+      <label style={{ display: 'block' }}>
+        <span style={{ display: 'block', fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 600, marginBottom: 6 }}>{label}</span>
+        <input defaultValue={value} style={fieldInput} />
+      </label>
     </div>
   );
 }
