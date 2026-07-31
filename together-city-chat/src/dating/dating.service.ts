@@ -10,7 +10,7 @@ import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { compatibilityScore, zodiacSign } from './astrology';
-import { factorScores, overallScore, hardFilterReason, explain, sharedItems, type DXProfile, type FactorBreakdown } from './matching';
+import { factorScores, overallScore, unreachableReason, explain, sharedItems, type DXProfile, type FactorBreakdown } from './matching';
 import { profileCompletion } from './completion';
 import { decide, scanText, type Check, type ModerationResult } from '../realestate/moderation';
 import { nickname } from '../shared/nickname';
@@ -207,8 +207,8 @@ export class DatingService {
       const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
       if (!iWant || !theyWant) continue;
       const theirAge = this.ageOf(cand.birthDate);
-      if (hardFilterReason(myD, candD, theirAge)) continue;
-      if (hardFilterReason(candD, myD, this.ageOf(mine.birthDate))) continue;
+      // This site always checked both ways — it is what the lists disagreed with.
+      if (unreachableReason(myD, candD, this.ageOf(mine.birthDate), theirAge)) continue;
 
       const { score: astro } = compatibilityScore(
         { userId, birthDate: mine.birthDate, interests: myInterests },
@@ -376,9 +376,11 @@ export class DatingService {
         const iWant = mine.seeking === 'any' || mine.seeking === cand.gender;
         const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
         if (!iWant || !theyWant) continue;
-        const theirAge = Math.floor((Date.now() - new Date(cand.birthDate).getTime()) / (365.25 * 86_400_000));
+        const theirAge = this.ageOf(cand.birthDate);
         const theirD = this.parseDX((cand as { extras?: string | null }).extras);
-        if (hardFilterReason(myD, theirD, theirAge)) continue;
+        // Both directions. Showing somebody whose own filters exclude you is
+        // offering a door that is locked from the other side.
+        if (unreachableReason(myD, theirD, this.ageOf(mine.birthDate), theirAge)) continue;
       }
 
       // Weighted compatibility (astrology-led) with a per-factor breakdown.
@@ -473,9 +475,11 @@ export class DatingService {
         const iWant = mine.seeking === 'any' || mine.seeking === cand.gender;
         const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
         if (!iWant || !theyWant) continue;
-        const theirAge = Math.floor((Date.now() - new Date(cand.birthDate).getTime()) / (365.25 * 86_400_000));
+        const theirAge = this.ageOf(cand.birthDate);
         const theirD = this.parseDX((cand as { extras?: string | null }).extras);
-        if (hardFilterReason(myD, theirD, theirAge)) continue;
+        // Both directions. Showing somebody whose own filters exclude you is
+        // offering a door that is locked from the other side.
+        if (unreachableReason(myD, theirD, this.ageOf(mine.birthDate), theirAge)) continue;
       }
 
       const { score: astro, signA, signB } = compatibilityScore(
@@ -651,7 +655,9 @@ export class DatingService {
         if (!iWant || !theyWant) continue;
         const theirAge = this.ageOf(cand.birthDate);
         const theirD = this.parseDX((cand as { extras?: string | null }).extras);
-        if (hardFilterReason(myD, theirD, theirAge)) continue;
+        // Both directions. Showing somebody whose own filters exclude you is
+        // offering a door that is locked from the other side.
+        if (unreachableReason(myD, theirD, this.ageOf(mine.birthDate), theirAge)) continue;
       }
 
       const { score: astro, signA, signB } = compatibilityScore(
@@ -746,7 +752,12 @@ export class DatingService {
       const iWant = mine.seeking === 'any' || mine.seeking === cand.gender;
       const theyWant = cand.seeking === 'any' || cand.seeking === mine.gender;
       if (!iWant || !theyWant) throw new NotFoundException('This profile is not available.');
-      if (hardFilterReason(myD, candD, theirAge)) throw new NotFoundException('This profile is not available.');
+      // The comment above has said "both sides" since this was written; only one
+      // side was ever checked. Now it is both, and the message stays deliberately
+      // identical either way — "they filtered you out" is not ours to disclose.
+      if (unreachableReason(myD, candD, this.ageOf(mine.birthDate), theirAge)) {
+        throw new NotFoundException('This profile is not available.');
+      }
     }
 
     const myInterests = this.splitInterests(mine.interests);

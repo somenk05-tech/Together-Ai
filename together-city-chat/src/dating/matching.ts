@@ -89,6 +89,36 @@ export function hardFilterReason(myD: DXProfile, theirD: DXProfile, theirAge: nu
   return null;
 }
 
+/**
+ * Whether these two can reach each other AT ALL — both sides' filters, not just
+ * the viewer's.
+ *
+ * `hardFilterReason` answers "does this candidate pass MY filters", and three of
+ * the four places that listed candidates asked only that. So you were shown, and
+ * could like, people whose own age range or deal-breakers excluded you. They got
+ * "You have a new like 💛", went looking, and you were not in their matches —
+ * because their own filters had removed you. Neither of you could see why.
+ *
+ * `reindexAfterChange()` has always checked both directions, so the live-match
+ * notifier and the list disagreed about who was even a candidate. This resolves
+ * that towards the stricter answer: a filter somebody set is a decision they
+ * made, and honouring it in one direction only honours it in neither.
+ *
+ * `by` says whose filter closed the door. Both are hidden today — surfacing
+ * "outside the range THEY set" would leak a stranger's settings — but the two
+ * are not the same fact, and a caller that wants to explain your own filter back
+ * to you should not have to work it out a second time.
+ */
+export function unreachableReason(
+  myD: DXProfile, theirD: DXProfile, myAge: number, theirAge: number,
+): { by: 'you' | 'them'; reason: string } | null {
+  const mine = hardFilterReason(myD, theirD, theirAge);
+  if (mine) return { by: 'you', reason: mine };
+  const theirs = hardFilterReason(theirD, myD, myAge);
+  if (theirs) return { by: 'them', reason: theirs };
+  return null;
+}
+
 /** Short, human explanation of why this is a good match. */
 export function explain(f: FactorBreakdown, sharedInterests: string[]): string[] {
   const r: string[] = [];
