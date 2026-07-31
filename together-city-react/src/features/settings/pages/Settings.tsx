@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useWebPush } from '@/hooks/useWebPush';
 import { Card, Button } from '@/components/ui';
 import { authApi, type SessionInfo } from '@/api/auth.api';
+import { useMyProfile } from '@/features/social/myProfile.api';
 
 /** A neutral, self-contained on/off switch (on-device preference). */
 function Switch({ on, onChange, disabled }: { on: boolean; onChange?: (v: boolean) => void; disabled?: boolean }) {
@@ -114,6 +115,10 @@ function DevicesCard() {
 export function Settings() {
   const { user, signOut } = useAuth();
   const push = useWebPush();
+  // Whether to offer the moderation queue. The role is computed server-side on
+  // every read of this profile rather than carried in the token, so revoking it
+  // takes effect on the next request instead of on the next sign-in.
+  const me = useMyProfile();
 
   // On-device notification preferences (cosmetic client prefs; the message
   // push toggle below is the one wired to the server subscription).
@@ -195,6 +200,16 @@ export function Settings() {
           desc="Blocking hides someone and stops them reaching you. This is where you undo it."
           right={<Link to="/settings/blocked" className="tag">Manage</Link>}
         />
+        {/* Offered only to moderators. The server decides — this row hides the
+            door, it does not lock it; every endpoint behind it checks the role
+            again for itself. */}
+        {me.data?.isModerator && (
+          <Row
+            title="Reported"
+            desc="Reports filed by citizens, grouped by what they are about."
+            right={<Link to="/moderation" className="tag">Open queue</Link>}
+          />
+        )}
       </Card>
 
       {/* Subscription & account */}

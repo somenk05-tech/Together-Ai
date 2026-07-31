@@ -9,6 +9,9 @@ export interface MyProfile {
   id: string; handle: string; name: string; profileImage: string | null;
   bio: string | null; city: string | null; website: string | null;
   email: string | null; verified: boolean; memberSince: string; stats: ProfileStats;
+  /** True when this account holds the moderator role. Only decides whether the
+   *  queue is offered — every moderation endpoint checks the role again. */
+  isModerator: boolean;
 }
 
 export interface PublicProfile {
