@@ -10,7 +10,7 @@ import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { compatibilityScore, zodiacSign } from './astrology';
-import { factorScores, overallScore, unreachableReason, explain, sharedItems, type DXProfile, type FactorBreakdown } from './matching';
+import { factorScores, overallScore, unreachableReason, explain, preferenceNotes, sharedItems, type DXProfile, type FactorBreakdown } from './matching';
 import { profileCompletion } from './completion';
 import { decide, scanText, type Check, type ModerationResult } from '../realestate/moderation';
 import { nickname } from '../shared/nickname';
@@ -414,7 +414,7 @@ export class DatingService {
         theirSign: signB,
         score,
         breakdown,
-        reasons: explain(breakdown, sharedItems(myInterests, theirInterests)),
+        reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candDX)),
         likedByMe: state ? this.likedBy(state, userId) : false,
         matched: false,
         conversationId: state?.conversationId ?? null,
@@ -508,7 +508,7 @@ export class DatingService {
           theirSign: signB,
           score,
           breakdown,
-          reasons: explain(breakdown, sharedItems(myInterests, theirInterests)),
+          reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candDX)),
           likedByMe: state ? this.likedBy(state, userId) : false,
           matched: false,
           conversationId: state?.conversationId ?? null,
@@ -686,7 +686,7 @@ export class DatingService {
         theirSign: signB,
         score,
         breakdown,
-        reasons: explain(breakdown, sharedItems(myInterests, theirInterests)),
+        reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candDX)),
         likedByMe: state ? this.likedBy(state, userId) : false,
         matched: isMatched,
         // Null until Connect to Chat opens the conversation — the card reads it
@@ -793,7 +793,7 @@ export class DatingService {
       verified: Boolean(candD.selfieVerified && candD.selfiePhoto), // camera-verified only
       yourSign: signA, theirSign: signB,
       score, breakdown,
-      reasons: explain(breakdown, sharedItems(myInterests, theirInterests)),
+      reasons: explain(breakdown, sharedItems(myInterests, theirInterests), preferenceNotes(myD, candD)),
       likedByMe: state ? this.likedBy(state, userId) : false,
       matched: state?.status === 'matched',
       conversationId: state?.conversationId ?? null,

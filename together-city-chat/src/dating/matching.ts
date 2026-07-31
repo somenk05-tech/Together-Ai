@@ -2,11 +2,31 @@
  * Together City AI matching — weighted compatibility over hard-filtered
  * candidates. Astrology-led (50%) with personality, goals, values, lifestyle,
  * interests and location. Returns a per-factor breakdown + a short explanation.
+ *
+ * H3: three preferences the citizen states — diet, smoking, drinking — were
+ * collected by the form and never read here. They now move the lifestyle factor
+ * and are named in the explanation, so a stated preference visibly counts
+ * instead of silently doing nothing. They do not hide anybody: a preference is
+ * not a deal-breaker, and `dealBreakers[]` is the list that removes people.
+ *
+ * H1/M4: astrology stays at 0.50 — it is what this product is — but the other
+ * six factors used to sit on high floors (personality 55, goals 60, lifestyle
+ * 65, location 45) and so could barely separate one candidate from another.
+ * Two profiles that had answered almost nothing could clear the 75% "curated"
+ * bar on favourable star signs alone. The floors are lower now: a blank answer
+ * costs score, which is the only way a filled-in profile can be worth filling in.
  */
+
 
 export interface DXProfile {
   personalityTraits?: string[]; values?: string[]; relationshipGoal?: string;
   diet?: string; smoking?: string; drinking?: string; fitnessLevel?: string;
+  /** What they said they'd prefer in someone else. Empty = "Any", which is not
+   *  a preference and must never be scored as one. The form writes these from
+   *  the SAME lookup categories as the attributes above and stores the same
+   *  labels, so they compare directly — checked, because §15.1 was two
+   *  vocabularies that looked like one. */
+  prefDiet?: string; prefSmoking?: string; prefDrinking?: string;
   city?: string; state?: string;
   prefAgeMin?: number | null; prefAgeMax?: number | null; prefDistanceKm?: number | null;
   dealBreakers?: string[]; wantsChildren?: string;
@@ -37,37 +57,73 @@ export function sharedItems(a: string[] = [], b: string[] = []): string[] {
 
 const GOAL_ORDER = ['Friendship First', 'Casual Dating', 'Serious Dating', 'Long-term Relationship', 'Marriage'];
 function goalScore(a?: string, b?: string): number {
-  if (!a || !b) return 60;
+  // Unanswered is 45, not 60. Two people who have not said what they want are
+  // not a better prospect than two who said different things.
+  if (!a || !b) return 45;
   const i = GOAL_ORDER.indexOf(a), j = GOAL_ORDER.indexOf(b);
-  if (i < 0 || j < 0) return 60;
-  return Math.max(20, 100 - Math.abs(i - j) * 22);
+  if (i < 0 || j < 0) return 45;
+  return Math.max(15, 100 - Math.abs(i - j) * 25);
 }
+
+/** Which stated preference governs which attribute. */
+const PREFERRED: [keyof DXProfile, keyof DXProfile][] = [
+  ['prefDiet', 'diet'], ['prefSmoking', 'smoking'], ['prefDrinking', 'drinking'],
+];
+
+/** Every stated preference on this pair that was met, in the citizen's words. */
+export function preferenceNotes(a: DXProfile, b: DXProfile): string[] {
+  const out: string[] = [];
+  for (const [pref, attr] of PREFERRED) {
+    const want = a[pref], got = b[attr];
+    if (want && got && want === got) out.push(`${String(got)} — the ${String(attr)} you asked for.`);
+  }
+  return out;
+}
+
 function lifestyleScore(a: DXProfile, b: DXProfile): number {
-  const attrs: (keyof DXProfile)[] = ['diet', 'smoking', 'drinking', 'fitnessLevel'];
   let s = 0, n = 0;
-  for (const k of attrs) { const av = a[k], bv = b[k]; if (av && bv) { n++; s += av === bv ? 100 : 55; } }
-  return n ? Math.round(s / n) : 65;
+  // Alignment: do our own habits look alike.
+  const attrs: (keyof DXProfile)[] = ['diet', 'smoking', 'drinking', 'fitnessLevel'];
+  for (const k of attrs) { const av = a[k], bv = b[k]; if (av && bv) { n++; s += av === bv ? 100 : 40; } }
+  // Preference: is the other person what I said I wanted, and am I what they
+  // said they wanted. Both directions — a preference honoured one way is
+  // honoured neither way, the same lesson as unreachableReason.
+  //
+  // A missed preference costs more than mere misalignment (25 vs 40) because
+  // somebody actually asked for this, and less than a deal-breaker costs,
+  // because they did not put it on that list.
+  for (const [pref, attr] of PREFERRED) {
+    for (const [me, them] of [[a, b], [b, a]] as [DXProfile, DXProfile][]) {
+      const want = me[pref], got = them[attr];
+      if (!want || !got) continue;   // "Any" is not a preference
+      n++; s += want === got ? 100 : 25;
+    }
+  }
+  return n ? Math.round(s / n) : 45;
 }
 function personalityScore(a: string[] = [], b: string[] = []): number {
   const A = new Set(a), B = new Set(b);
   const shared = [...A].filter((x) => B.has(x)).length;
   const complement = (A.has('Introvert') && B.has('Extrovert')) || (A.has('Extrovert') && B.has('Introvert')) ? 8 : 0;
-  return Math.min(100, 55 + shared * 10 + complement);
+  return Math.min(100, 35 + shared * 13 + complement);
 }
 function locationScore(a: DXProfile, b: DXProfile): number {
   if (a.city && b.city && lc(a.city) === lc(b.city)) return 100;
   if (a.state && b.state && lc(a.state) === lc(b.state)) return 70;
-  return 45;
+  return 30;
 }
-
 export function factorScores(astrology: number, aInterests: string[], bInterests: string[], aD: DXProfile, bD: DXProfile): FactorBreakdown {
   return {
     astrology: Math.round(astrology),
     personality: personalityScore(aD.personalityTraits, bD.personalityTraits),
     relationshipGoals: goalScore(aD.relationshipGoal, bD.relationshipGoal),
-    values: 40 + Math.round(0.6 * overlapPct(aD.values, bD.values)),
+    // Floor low, reach the whole way to 100. The old 40 + 0.6x and 30 + 0.7x
+    // could not reward a real overlap OR punish none of it — every pair landed
+    // in the same narrow band, which is how astrology came to decide the order
+    // on its own.
+    values: Math.min(100, 20 + overlapPct(aD.values, bD.values)),
     lifestyle: lifestyleScore(aD, bD),
-    interests: 30 + Math.round(0.7 * overlapPct(aInterests, bInterests)),
+    interests: Math.min(100, 15 + overlapPct(aInterests, bInterests)),
     location: locationScore(aD, bD),
   };
 }
@@ -120,8 +176,13 @@ export function unreachableReason(
 }
 
 /** Short, human explanation of why this is a good match. */
-export function explain(f: FactorBreakdown, sharedInterests: string[]): string[] {
+export function explain(f: FactorBreakdown, sharedInterests: string[], prefsMet: string[] = []): string[] {
   const r: string[] = [];
+  // A preference the citizen stated, named first when it was met. Anything
+  // collected has to visibly change the answer, or it should not be collected.
+  for (const p of prefsMet) r.push(p);
+  // Where they are, when we could work it out. Omitted rather than hedged when
+  // we could not — "distance unknown" is noise on a card.
   if (f.astrology >= 85) r.push('Excellent astrological compatibility.');
   else if (f.astrology >= 70) r.push('Strong astrological alignment.');
   if (f.relationshipGoals >= 85) r.push('Similar relationship goals.');

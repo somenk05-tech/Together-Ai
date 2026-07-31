@@ -665,8 +665,25 @@ export function DatingProfilePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
             <label style={{ display: 'block' }}><span style={label}>Age from</span><input type="number" min={18} max={99} value={dx.prefAgeMin ?? ''} onChange={(e) => setD({ prefAgeMin: num(e.target.value) })} style={field} /></label>
             <label style={{ display: 'block' }}><span style={label}>Age to</span><input type="number" min={18} max={99} value={dx.prefAgeMax ?? ''} onChange={(e) => setD({ prefAgeMax: num(e.target.value) })} style={field} /></label>
-            <label style={{ display: 'block' }}><span style={label}>Distance (km)</span><input type="number" min={1} max={5000} value={dx.prefDistanceKm ?? ''} onChange={(e) => setD({ prefDistanceKm: num(e.target.value) })} style={field} /></label>
-            <div><span style={label}>Height preference <span style={{ textTransform: 'none' }}>(optional)</span></span><input value={dx.prefHeight ?? ''} placeholder="e.g. 165–185cm" onChange={(e) => setD({ prefHeight: e.target.value })} style={field} /></div>
+            <label style={{ display: 'block' }}>
+              <span style={label}>Distance (km) <span style={{ textTransform: 'none', fontWeight: 500 }}>— not used yet</span></span>
+              <input type="number" min={1} max={5000} value={dx.prefDistanceKm ?? ''} onChange={(e) => setD({ prefDistanceKm: num(e.target.value) })} style={field} />
+              {/* Honest rather than removed (your call). locationScore compares
+                  city names for exact equality — no coordinates, so "Bengaluru"
+                  and "Bangalore" are strangers and a radius cannot be measured. */}
+              <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, display: 'block', marginTop: 4 }}>
+                We can’t measure distance yet — matching only knows your city by name, not where it is.
+                We’ll keep your answer and use it as soon as it can mean something.
+              </span>
+            </label>
+            <div>
+              <span style={label}>Height preference <span style={{ textTransform: 'none', fontWeight: 500 }}>— not used yet</span></span>
+              <input value={dx.prefHeight ?? ''} placeholder="e.g. 165–185cm" onChange={(e) => setD({ prefHeight: e.target.value })} style={field} />
+              <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, display: 'block', marginTop: 4 }}>
+                A free-text box we can’t reliably read back, so it doesn’t affect matching yet.
+                It will once it’s a proper range.
+              </span>
+            </div>
             <div><span style={label}>Diet</span><SearchSelect category="diet" value={dx.prefDiet ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ prefDiet: o?.label })} /></div>
             <div><span style={label}>Wants children</span><SearchSelect category="wantsChildren" value={dx.wantsChildren ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ wantsChildren: o?.label })} /></div>
             <div><span style={label}>Smoking</span><SearchSelect category="smoking" value={dx.prefSmoking ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ prefSmoking: o?.label })} /></div>
