@@ -5,6 +5,7 @@ import {
   useDatingProfile, useLikeMatch, usePassMatch, useDatingStack, useDatingChats,
   type CuratedMatch, type MatchKind, type CompatibilityBand, type DatingChatSummary,
 } from '../api';
+import { SafetyMenu } from '../components/SafetyMenu';
 
 function ScoreRing({ score }: { score: number }) {
   return (
@@ -118,6 +119,14 @@ function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
           )}
         </div>
       )}
+
+      {/* On the card, not only the detail page. Most people never open the
+          detail page, and "I had to go looking for it" is exactly the failure
+          this control exists to prevent. Outside the breakdown block, because a
+          match with no score breakdown still has a person behind it. */}
+      <div style={{ marginTop: 12 }}>
+        <SafetyMenu userId={match.user.id} kind={kind} compact />
+      </div>
 
       {match.interests.length > 0 && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>

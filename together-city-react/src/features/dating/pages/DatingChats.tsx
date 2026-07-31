@@ -7,6 +7,7 @@ import type { Message } from '@/api/schemas';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDatingChats, useRevealMatch, useUnmatch, type DatingChatSummary } from '../api';
 import { CallButtons } from '@/features/calls/CallButtons';
+import { SafetyMenu } from '../components/SafetyMenu';
 
 /** Initials for the masked/real avatar. */
 function initials(name: string): string {
@@ -163,6 +164,10 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
           onClick={() => { if (window.confirm('Unmatch and end this chat? This frees you to connect with someone new.')) unmatch.mutate(chat.otherUserId, { onSuccess: onBack }); }}>
           Unmatch
         </Button>
+        {/* Unmatch and block are not the same thing, and the open chat is where
+            that difference matters most. Unmatch frees you to connect with
+            somebody else; block ends it and hides you from each other. */}
+        <SafetyMenu userId={chat.otherUserId} kind="romantic" compact />
       </div>
 
       {/* messages */}

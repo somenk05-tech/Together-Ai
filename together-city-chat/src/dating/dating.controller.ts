@@ -9,6 +9,8 @@ import { DatingService } from './dating.service';
 import {
   MatchesQuerySchema,
   MatchKindSchema,
+  ReportMatchSchema,
+  type ReportMatchDto,
   UpsertDatingProfileSchema, type UpsertDatingProfileDto,
   CreateActivitySchema, type CreateActivityDto, RespondInviteSchema, TrustSchema,
 } from './dto/dating.dto';
@@ -134,6 +136,27 @@ export class DatingController {
   ) {
     const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
     return this.dating.pass(user.sub, targetUserId, kind);
+  }
+
+  // ─── Safety. Reachable from the match, the profile and the chat (H6). ───
+  @Post('matches/:targetUserId/block')
+  blockMatch(
+    @CurrentUser() user: JwtUser,
+    @Param('targetUserId') targetUserId: string,
+    @Body() body: unknown,
+  ) {
+    const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
+    return this.dating.blockMatch(user.sub, targetUserId, kind);
+  }
+
+  @Post('matches/:targetUserId/report')
+  @UsePipes(new ZodValidationPipe(ReportMatchSchema))
+  reportMatch(
+    @CurrentUser() user: JwtUser,
+    @Param('targetUserId') targetUserId: string,
+    @Body() dto: ReportMatchDto,
+  ) {
+    return this.dating.reportMatch(user.sub, targetUserId, dto.reason);
   }
 
   // ─── Activity Dating ───

@@ -808,6 +808,74 @@ export class DatingService {
    * anyone in a BLOCKED relationship, in either direction. Family and friends
    * therefore never discover the member's dating profile.
    */
+  // ─────────────── safety, reachable from where the harm is (H6) ───────────────
+  /**
+   * Block a match from inside the Dating Hub.
+   *
+   * There was no way to do this here. Blocking lived only in People/Connections,
+   * which meant a citizen in a bad dating conversation had to work out that the
+   * control they needed was in a different hub, about a person they had met in
+   * this one. Safety that is not reachable from where the harm happens is not
+   * safety; it is a feature that exists.
+   *
+   * Four things, in this order, and the order matters — the block lands before
+   * anything else can fail:
+   *   1. the block itself, through the one writer the whole city shares
+   *   2. the match torn down, so they cannot reappear in a list or a like
+   *   3. the conversation archived for both, so it stops surfacing
+   *   4. nothing sent to them. Not a notification, not an unmatch, nothing.
+   *      A block the other person is told about is the one kind that is unsafe.
+   */
+  async blockMatch(userId: string, targetUserId: string, kind: MatchKind) {
+    if (userId === targetUserId) throw new BadRequestException("You can't block yourself.");
+    await this.blocking.block(userId, targetUserId);
+
+    const [userOneId, userTwoId] = [userId, targetUserId].sort();
+    const state = await this.prisma.datingMatch.findFirst({
+      where: { OR: [{ userOneId, userTwoId }], kind } as never,
+    });
+    if (state) {
+      if (state.conversationId) {
+        await this.conversations.archiveForAll(state.conversationId).catch(() => undefined);
+      }
+      await this.prisma.datingMatch.update({
+        where: { id: state.id },
+        data: {
+          status: 'passed', passedByOne: true, passedByTwo: true,
+          revealByOne: false, revealByTwo: false,
+        } as never,
+      }).catch(() => undefined);
+    }
+    return { blocked: true as const };
+  }
+
+  /**
+   * Report a match to the moderation queue.
+   *
+   * The same Report row the Social hub files, so it lands in the console a
+   * moderator already reads rather than a second queue nobody opened. Reporting
+   * does NOT block — they are different decisions and a citizen may want only
+   * one — but the surface offers both together, because in the moment somebody
+   * needs one of these they should not have to find the other.
+   *
+   * The reported citizen is told nothing, and the reporter is never named to
+   * them. A report that gets back to its subject is a report nobody files.
+   */
+  async reportMatch(userId: string, targetUserId: string, reason?: string) {
+    if (userId === targetUserId) throw new BadRequestException("You can't report yourself.");
+    const target = await this.prisma.user.findUnique({ where: { id: targetUserId }, select: { id: true } });
+    if (!target) throw new NotFoundException('No citizen with that id.');
+    await this.prisma.report.create({
+      data: {
+        reporterId: userId,
+        targetType: 'user',
+        targetId: targetUserId,
+        reason: (reason ?? '').trim().slice(0, 500) || null,
+      },
+    });
+    return { reported: true as const };
+  }
+
   private async connectionExclusions(userId: string): Promise<Set<string>> {
     const [conns, blocked] = await Promise.all([
       this.prisma.connection.findMany({

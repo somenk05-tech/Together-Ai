@@ -32,5 +32,13 @@ export const CreateActivitySchema = z.object({
 });
 export type CreateActivityDto = z.infer<typeof CreateActivitySchema>;
 
+/** Report a match. The reason is the reporter's own words — kept, never edited,
+ *  and read only by a moderator. Optional: "this person" is often the report. */
+export const ReportMatchSchema = z.object({
+  kind: MatchKindSchema.default('romantic'),
+  reason: z.string().max(500).optional(),
+});
+export type ReportMatchDto = z.infer<typeof ReportMatchSchema>;
+
 export const RespondInviteSchema = z.object({ action: z.enum(['connect', 'pass']) });
 export const TrustSchema = z.object({ step: z.enum(['reveal', 'friends']) });

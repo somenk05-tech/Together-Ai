@@ -8,6 +8,7 @@ import {
   type MatchKind, type MatchDetail,
 } from '../api';
 import { SelfieOnFile, SELFIE_ON_FILE_NOTE } from '../components/SelfieOnFile';
+import { SafetyMenu } from '../components/SafetyMenu';
 
 const photoBox: CSSProperties = { position: 'relative', borderRadius: 16, overflow: 'hidden', background: 'var(--paper)' };
 const cover: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' };
@@ -235,6 +236,9 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
           <p className="muted" style={{ fontSize: 11.5, marginTop: 10, textAlign: 'center' }}>
             {matched ? 'Connecting opens an anonymous chat in the Dating Hub — one at a time. First 3 connections are free.' : 'They’re notified only if you both like each other.'}
           </p>
+          <div style={{ marginTop: 14, textAlign: 'center' }}>
+            <SafetyMenu userId={targetUserId} kind={kind} />
+          </div>
         </div>
       </div>
     </div>

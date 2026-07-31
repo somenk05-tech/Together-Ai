@@ -530,26 +530,13 @@ export class SocialService {
       select: { id: true },
     });
     if (!target) throw new NotFoundException('No citizen with that handle.');
-    if (target.id === userId) throw new ForbiddenException("You can't block yourself.");
-    await this.prisma.block.createMany({
-      data: [{ blockerId: userId, blockedId: target.id }],
-      skipDuplicates: true,
-    });
-    // Sever any follow edges in both directions so neither appears in the other's circle.
-    await this.prisma.follow.deleteMany({
-      where: {
-        OR: [
-          { followerId: userId, followeeId: target.id },
-          { followerId: target.id, followeeId: userId },
-        ],
-      },
-    });
-    return { blocked: true, userId: target.id };
+    // Resolving the @handle is this hub's job; writing the block is not. Dating
+    // needs the same write (H6), and the city should not have two of them.
+    return this.blocking.block(userId, target.id);
   }
 
   async unblock(userId: string, targetId: string) {
-    await this.prisma.block.deleteMany({ where: { blockerId: userId, blockedId: targetId } });
-    return { blocked: false, userId: targetId };
+    return this.blocking.unblock(userId, targetId);
   }
 
   async listBlocks(userId: string) {

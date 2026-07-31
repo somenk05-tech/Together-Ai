@@ -136,6 +136,10 @@ export const datingApi = {
     api.post<{ ok: boolean }>(`/dating/matches/${targetUserId}/pass`, { kind }).then((r) => r.data),
   chats: () => api.get<DatingChatSummary[]>('/dating/chats').then((r) => r.data),
   stack: (kind: MatchKind) => api.get<DatingStack>('/dating/stack', { params: { kind } }).then((r) => r.data),
+  blockMatch: (targetUserId: string, kind: MatchKind) =>
+    api.post<{ blocked: true }>(`/dating/matches/${targetUserId}/block`, { kind }).then((r) => r.data),
+  reportMatch: (targetUserId: string, kind: MatchKind, reason?: string) =>
+    api.post<{ reported: true }>(`/dating/matches/${targetUserId}/report`, { kind, reason }).then((r) => r.data),
   adminStats: () => api.get<DatingAdminStats>('/dating/admin/stats').then((r) => r.data),
 };
 
@@ -344,4 +348,32 @@ export function useDatingStack(kind: MatchKind, enabled = true) {
 }
 export function useDatingAdminStats() {
   return useQuery({ queryKey: ['dating', 'admin', 'stats'], queryFn: () => datingApi.adminStats(), retry: false });
+}
+
+/**
+ * Block, then forget everything we knew about them.
+ *
+ * The invalidation list is the point: a block that leaves the person sitting in
+ * a cached match list until the next refetch is a block the citizen can watch
+ * fail. Every dating surface is dropped, and the conversation list with it.
+ */
+export function useBlockMatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, kind }: { userId: string; kind: MatchKind }) => datingApi.blockMatch(userId, kind),
+    onSuccess: () => {
+      for (const key of [['dating', 'stack'], ['dating', 'matches'], ['dating', 'discover'], ['dating', 'chats'], ['conversations']]) {
+        void qc.invalidateQueries({ queryKey: key });
+      }
+    },
+  });
+}
+
+/** Report. Nothing is invalidated — reporting deliberately changes nothing the
+ *  reporter can see, so they are not signalling to anybody that they filed it. */
+export function useReportMatch() {
+  return useMutation({
+    mutationFn: ({ userId, kind, reason }: { userId: string; kind: MatchKind; reason?: string }) =>
+      datingApi.reportMatch(userId, kind, reason),
+  });
 }
