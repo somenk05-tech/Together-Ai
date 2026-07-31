@@ -2,6 +2,8 @@ import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundE
 import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
+import { VISIBLE_ONLY } from './post-visibility';
+import { AdminService } from '../auth/admin';
 import { ConnectionsService } from '../connections/connections.service';
 import { RECORD_CAP } from '../shared/paging';
 import { SocialGateway } from './social.gateway';
@@ -20,6 +22,7 @@ export class SocialService {
     private readonly storage: StorageProvider,
     private readonly connections: ConnectionsService,
     private readonly blocking: BlockingService,
+    private readonly admin: AdminService,
   ) {}
 
   /** Set a video post's cover: extract the frame at `timeSec` with ffmpeg from
@@ -306,6 +309,7 @@ export class SocialService {
     }
     const posts = await this.prisma.post.findMany({
       where: {
+        ...VISIBLE_ONLY,
         // City-wide videos aren't bounded to your network; every other lens is.
         ...(cityWide
           ? (blockedSet.length ? { authorId: { notIn: blockedSet } } : {})
@@ -425,6 +429,7 @@ export class SocialService {
     const familyIds = [...(await this.familyIds(userId))];
     const posts = await this.prisma.post.findMany({
       where: {
+        ...VISIBLE_ONLY,
         lat: { not: null },
         lng: { not: null },
         authorId: { in: network },
@@ -568,6 +573,127 @@ export class SocialService {
       },
     });
     return { reported: true };
+  }
+
+  // ─────────────── the moderation queue (BE-13.7) ───────────────
+  /**
+   * Open reports, grouped by what they are about.
+   *
+   * Grouped rather than listed, because ten people reporting one post is one
+   * decision and not ten, and because the count is the single most useful thing
+   * a moderator can see. A flat list buries a post ten people flagged under
+   * nine older singletons.
+   *
+   * Reporters are counted, never named. A queue that shows who reported whom is
+   * one leak away from being the reason nobody reports anything.
+   */
+  async reportQueue(adminId: string) {
+    await this.admin.assertAdmin(adminId);
+    const rows = await this.prisma.report.findMany({
+      where: { status: 'open' } as never,
+      orderBy: { createdAt: 'asc' },
+      take: 500,
+    }) as unknown as Array<{ id: string; reporterId: string; targetType: string; targetId: string; reason: string | null; createdAt: Date }>;
+
+    const groups = new Map<string, {
+      targetType: string; targetId: string; reportCount: number;
+      reporters: Set<string>; reasons: string[]; firstReportedAt: Date; lastReportedAt: Date;
+    }>();
+    for (const r of rows) {
+      const key = `${r.targetType}:${r.targetId}`;
+      const g = groups.get(key) ?? {
+        targetType: r.targetType, targetId: r.targetId, reportCount: 0,
+        reporters: new Set<string>(), reasons: [], firstReportedAt: r.createdAt, lastReportedAt: r.createdAt,
+      };
+      g.reportCount += 1;
+      g.reporters.add(r.reporterId);
+      if (r.reason) g.reasons.push(r.reason);
+      if (r.createdAt < g.firstReportedAt) g.firstReportedAt = r.createdAt;
+      if (r.createdAt > g.lastReportedAt) g.lastReportedAt = r.createdAt;
+      groups.set(key, g);
+    }
+
+    const items = await Promise.all([...groups.values()].map(async (g) => ({
+      targetType: g.targetType,
+      targetId: g.targetId,
+      reportCount: g.reportCount,
+      distinctReporters: g.reporters.size,
+      reasons: g.reasons.slice(0, 10),
+      firstReportedAt: g.firstReportedAt,
+      lastReportedAt: g.lastReportedAt,
+      subject: await this.reportSubject(g.targetType, g.targetId),
+    })));
+
+    // Most-reported first, then oldest — a thing ten people flagged an hour ago
+    // outranks a thing one person flagged last week, and nothing sits forever.
+    items.sort((a, b) => b.distinctReporters - a.distinctReporters
+      || a.firstReportedAt.getTime() - b.firstReportedAt.getTime());
+    return { items, openTotal: rows.length };
+  }
+
+  /** Enough of the reported thing to judge it, and no more. */
+  private async reportSubject(targetType: string, targetId: string) {
+    if (targetType === 'post') {
+      const p = await this.prisma.post.findUnique({
+        where: { id: targetId },
+        select: { id: true, text: true, createdAt: true, moderation: true, author: { select: AUTHOR_SELECT } } as never,
+      }).catch(() => null) as null | { id: string; text: string | null; createdAt: Date; moderation: string; author: unknown };
+      if (!p) return { kind: 'post' as const, gone: true };
+      return { kind: 'post' as const, gone: false, text: p.text, createdAt: p.createdAt, moderation: p.moderation, author: p.author };
+    }
+    if (targetType === 'user') {
+      const u = await this.prisma.user.findUnique({ where: { id: targetId }, select: AUTHOR_SELECT }).catch(() => null);
+      return u ? { kind: 'user' as const, gone: false, user: u } : { kind: 'user' as const, gone: true };
+    }
+    const c = await this.prisma.comment.findUnique({
+      where: { id: targetId },
+      select: { id: true, text: true, createdAt: true, author: { select: AUTHOR_SELECT } } as never,
+    }).catch(() => null);
+    return c ? { kind: 'comment' as const, gone: false, comment: c } : { kind: 'comment' as const, gone: true };
+  }
+
+  /**
+   * Decide every open report about one target at once.
+   *
+   * 'remove' hides the post from everybody but its author — see
+   * post-visibility.ts for why the author still sees it. 'dismiss' closes the
+   * reports and changes nothing. Both are recorded against every report in the
+   * group, so a second moderator sees that somebody already looked.
+   *
+   * Only a post can be removed here. Removing a USER is an account action with
+   * consequences this endpoint has no business having — it is out of scope
+   * deliberately rather than half-built.
+   */
+  async reportDecide(
+    adminId: string,
+    dto: { targetType: string; targetId: string; decision: 'remove' | 'dismiss'; note?: string },
+  ) {
+    await this.admin.assertAdmin(adminId);
+    const { targetType, targetId, decision } = dto;
+    if (!['user', 'post', 'comment'].includes(targetType)) throw new ForbiddenException('invalid report target');
+    if (decision === 'remove' && targetType !== 'post') {
+      throw new ForbiddenException('Only a post can be removed from here. An account action is not this endpoint.');
+    }
+
+    if (decision === 'remove') {
+      const updated = await this.prisma.post.updateMany({
+        where: { id: targetId },
+        data: { moderation: 'removed' } as never,
+      });
+      if (!updated.count) throw new NotFoundException('That post no longer exists.');
+    }
+
+    const now = new Date();
+    const closed = await this.prisma.report.updateMany({
+      where: { targetType, targetId, status: 'open' } as never,
+      data: {
+        status: decision === 'remove' ? 'actioned' : 'dismissed',
+        reviewedById: adminId,
+        reviewedAt: now,
+        decision: this.clean(dto.note) ?? null,
+      } as never,
+    });
+    return { decided: decision, reportsClosed: closed.count };
   }
 
   /** Users allowed to receive live updates for a post, given its audience.

@@ -152,4 +152,28 @@ export class SocialController {
     );
     return this.social.report(user.sub, dto);
   }
+
+  // ─────────────── moderation console (BE-13.7) ───────────────
+  // Authorisation is inside the service, on User.role, not on a decorator here:
+  // every path that can read or act on a report goes through one assertAdmin,
+  // and a guard that is easy to forget on a new route is a guard that gets
+  // forgotten on a new route.
+  @Get('reports/queue')
+  reportQueue(@CurrentUser() user: JwtUser) {
+    return this.social.reportQueue(user.sub);
+  }
+
+  @Post('reports/decide')
+  reportDecide(@CurrentUser() user: JwtUser, @Body() body: unknown) {
+    const dto = parseOrThrow(
+      z.object({
+        targetType: z.enum(['user', 'post', 'comment']),
+        targetId: z.string().min(1),
+        decision: z.enum(['remove', 'dismiss']),
+        note: z.string().max(500).optional(),
+      }),
+      body,
+    );
+    return this.social.reportDecide(user.sub, dto);
+  }
 }

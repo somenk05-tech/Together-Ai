@@ -709,6 +709,10 @@ model Post {
   text      String?
   feeling   String?
   audience  String   @default("public") // public | friends | family | private
+  /// visible | removed. Set by a moderator acting on a report. Every list read
+  /// of Post filters on it — social/post-visibility.ts is the single definition
+  /// and moderation-reach.spec.ts is what stops a new read path forgetting.
+  moderation String  @default("visible")
   sortIndex Int? // author's custom order on their profile grid (null = unarranged, falls back to newest-first)
   category  String? // 'work' | 'personal' — author's own sorting on their profile
   musicUrl  String? // attached royalty-free track (plays over the video in reels)
@@ -730,6 +734,7 @@ model Post {
 
   @@index([createdAt])
   @@index([authorId])
+  @@index([moderation])
   // Serves the hot feed path: WHERE authorId IN (...) ORDER BY createdAt DESC.
   @@index([authorId, createdAt])
   @@index([repostOfId])
@@ -812,10 +817,19 @@ model Report {
   reason     String?
   createdAt  DateTime @default(now())
 
+  /// open | actioned | dismissed. What the reporter wrote is never edited; this
+  /// records whether anybody has looked at it. See SocialService.reportQueue.
+  status       String    @default("open")
+  reviewedById String?
+  reviewedAt   DateTime?
+  /// The moderator's note. Read by nobody but the next moderator.
+  decision     String?
+
   reporter User @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
 
   @@index([targetType, targetId])
   @@index([reporterId])
+  @@index([status, createdAt])
 }
 
 // ─────────────────────────── Dating Hub ───────────────────────────

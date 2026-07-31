@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
+import { VISIBLE_ONLY } from '../social/post-visibility';
+import { AdminService } from '../auth/admin';
 import { ConnectionsService } from '../connections/connections.service';
 import { isReservedAdminHandle } from '../auth/admin';
 import { orderPair } from '../connections/connection.util';
@@ -20,6 +22,12 @@ export interface MyProfile {
   id: string; handle: string; name: string; profileImage: string | null;
   bio: string | null; city: string | null; website: string | null;
   email: string | null; verified: boolean; memberSince: string; stats: ProfileStats;
+  /** True when this account holds the moderator role. Computed from User.role
+   *  on every read rather than carried in the JWT, so revoking it takes effect
+   *  on the next request instead of on the next sign-in. It is here only so the
+   *  client knows whether to offer the queue — every moderation endpoint checks
+   *  the role again for itself. */
+  isModerator: boolean;
 }
 
 /** Another citizen's public profile (People tab → View Profile). Never exposes email. */
@@ -47,6 +55,7 @@ export class ProfileService {
     private readonly masterProfile: MasterProfileService,
     private readonly connections: ConnectionsService,
     private readonly blocking: BlockingService,
+    private readonly admin: AdminService,
   ) {}
 
   async summary(userId: string): Promise<ProfileSummary> {
@@ -228,7 +237,8 @@ export class ProfileService {
       this.prisma.like.count({ where: { post: { authorId: userId } } }),
       this.prisma.comment.count({ where: { post: { authorId: userId } } }),
       // Shares = reposts of this citizen's posts.
-      this.prisma.post.count({ where: { repostOf: { authorId: userId } } as never }),
+      // Someone else's repost of your post: a removed one is not a share.
+      this.prisma.post.count({ where: { ...VISIBLE_ONLY, repostOf: { authorId: userId } } as never }),
       this.prisma.follow.findMany({ where: { followeeId: userId }, select: { followerId: true } }),
       this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } }),
       this.prisma.connection.findMany({ where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] }, select: { userOneId: true, userTwoId: true } }),
@@ -251,11 +261,12 @@ export class ProfileService {
   async me(userId: string): Promise<MyProfile> {
     const u = (await this.prisma.user.findUnique({ where: { id: userId }, select: this.userSelect })) as unknown as UserRow | null;
     if (!u) throw new NotFoundException('Account not found');
-    const stats = await this.statsFor(userId);
+    const [stats, isModerator] = await Promise.all([this.statsFor(userId), this.admin.isAdmin(userId)]);
     return {
       id: u.id, handle: u.handle, name: u.name, profileImage: u.profileImage,
       bio: u.bio, city: u.city, website: u.website, email: u.email,
       verified: u.emailVerified, memberSince: u.createdAt.toISOString(), stats,
+      isModerator,
     };
   }
 
@@ -444,7 +455,7 @@ export class ProfileService {
 
     const take = Math.min(Math.max(limit, 1), 50);
     const rows = await this.prisma.post.findMany({
-      where: { authorId: u.id, repostOfId: null, audience: { in: allowed } } as never,
+      where: { ...VISIBLE_ONLY, authorId: u.id, repostOfId: null, audience: { in: allowed } } as never,
       orderBy: [{ sortIndex: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }] as never,
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),

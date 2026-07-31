@@ -6,9 +6,10 @@ import { SocialService } from './social.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { MediaModule } from '../media/media.module';
 import { ConnectionsModule } from '../connections/connections.module';
+import { AdminModule } from '../auth/admin.module';
 
 @Module({
-  imports: [PrismaModule, NotificationsModule, MediaModule, ConnectionsModule],
+  imports: [PrismaModule, NotificationsModule, MediaModule, ConnectionsModule, AdminModule],
   controllers: [SocialController],
   providers: [SocialService, SocialGateway],
 })
