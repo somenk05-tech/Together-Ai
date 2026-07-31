@@ -42,7 +42,6 @@ const ACTIONS: Dest[] = [
   { id: 'a-doctor', kind: 'action', label: 'Book a doctor', path: '/medical/consults', hub: 'medical', icon: 'heart', keywords: 'consult appointment gp physician health' },
   { id: 'a-blood', kind: 'action', label: 'View my latest blood test', path: '/medical/blood', hub: 'medical', icon: 'heart', keywords: 'labs biomarkers results panel' },
   { id: 'a-tests', kind: 'action', label: 'Order blood tests', path: '/medical/tests', hub: 'medical', icon: 'heart', keywords: 'lab diagnostics home collection' },
-  { id: 'a-insurance', kind: 'action', label: 'Find my insurance', path: '/medical/insurance', hub: 'medical', icon: 'heart', keywords: 'cover policy health' },
   { id: 'a-trips', kind: 'action', label: 'Show my upcoming trips', path: '/travel/trips', hub: 'travel', icon: 'trip', keywords: 'travel bookings flights holiday' },
   { id: 'a-flight', kind: 'action', label: 'Book a flight', path: '/travel/flights', hub: 'travel', icon: 'flight', keywords: 'travel airfare' },
   { id: 'a-workout', kind: 'action', label: "Start today's workout", path: '/fitness/workout', hub: 'fitness', icon: 'star', keywords: 'exercise gym training' },

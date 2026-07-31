@@ -91,13 +91,8 @@ const EntWatchlist = lazy(() => import('@/features/entertainment/pages/Watchlist
 // Beauty sub-pages
 const BeautyMakeup = lazy(() => import('@/features/beauty/pages/Makeup').then((m) => ({ default: m.Makeup })));
 const BeautyRoutine = lazy(() => import('@/features/beauty/pages/Routine').then((m) => ({ default: m.Routine })));
-const BeautyCheckout = lazy(() => import('@/features/beauty/pages/Checkout').then((m) => ({ default: m.Checkout })));
-const BeautyConfirm = lazy(() => import('@/features/beauty/pages/Confirm').then((m) => ({ default: m.Confirm })));
 // Social sub-pages
-const SocFeelings = lazy(() => import('@/features/social/pages/Feelings').then((m) => ({ default: m.Feelings })));
-const SocCircle = lazy(() => import('@/features/social/pages/Circle').then((m) => ({ default: m.SocialCircle })));
 const SocCreate = lazy(() => import('@/features/social/pages/CreatePost').then((m) => ({ default: m.CreatePost })));
-const SocMessages = lazy(() => import('@/features/social/pages/Messages').then((m) => ({ default: m.Messages })));
 const SocNotifications = lazy(() => import('@/features/social/pages/Notifications').then((m) => ({ default: m.SocialNotifications })));
 const SocProfile = lazy(() => import('@/features/social/pages/Profile').then((m) => ({ default: m.SocialProfile })));
 const SocPublicProfile = lazy(() => import('@/features/social/pages/Profile').then((m) => ({ default: m.PublicProfilePage })));
@@ -107,9 +102,6 @@ const MedTests = lazy(() => import('@/features/medical/pages/Tests').then((m) =>
 const MedConnections = lazy(() => import('@/features/medical/pages/Connections').then((m) => ({ default: m.Connections })));
 const MedTimeline = lazy(() => import('@/features/medical/pages/Timeline').then((m) => ({ default: m.Timeline })));
 const MedFamily = lazy(() => import('@/features/medical/pages/Family').then((m) => ({ default: m.Family })));
-const MedEmergency = lazy(() => import('@/features/medical/pages/Emergency').then((m) => ({ default: m.Emergency })));
-const MedInsurance = lazy(() => import('@/features/medical/pages/Insurance').then((m) => ({ default: m.Insurance })));
-const MedFitness = lazy(() => import('@/features/medical/pages/Fitness').then((m) => ({ default: m.Fitness })));
 // Dating sub-pages
 const DatingActivity = lazy(() => import('@/features/dating/pages/DatingActivity').then((m) => ({ default: m.DatingActivity })));
 const DatingChats = lazy(() => import('@/features/dating/pages/DatingChats').then((m) => ({ default: m.DatingChats })));
@@ -235,10 +227,7 @@ export const router = createBrowserRouter([
     element: <HubLayout hub={HUBS.social} />,
     children: [
       { path: '/social/feed', element: <RequireAuth>{wrap(<SocialFeed />)}</RequireAuth> },
-      { path: '/social/feelings', element: <RequireAuth>{wrap(<SocFeelings />)}</RequireAuth> },
-      { path: '/social/circle', element: <RequireAuth>{wrap(<SocCircle />)}</RequireAuth> },
       { path: '/social/create', element: <RequireAuth>{wrap(<SocCreate />)}</RequireAuth> },
-      { path: '/social/messages', element: <RequireAuth>{wrap(<SocMessages />)}</RequireAuth> },
       { path: '/social/notifications', element: <RequireAuth>{wrap(<SocNotifications />)}</RequireAuth> },
       { path: '/social/profile', element: <RequireAuth>{wrap(<SocProfile />)}</RequireAuth> },
       { path: '/social/u/:handle', element: <RequireAuth>{wrap(<SocPublicProfile />)}</RequireAuth> },
@@ -278,9 +267,6 @@ export const router = createBrowserRouter([
       { path: '/medical/connections', element: <RequireAuth>{wrap(<MedConnections />)}</RequireAuth> },
       { path: '/medical/timeline', element: <RequireAuth>{wrap(<MedTimeline />)}</RequireAuth> },
       { path: '/medical/family', element: <RequireAuth>{wrap(<MedFamily />)}</RequireAuth> },
-      { path: '/medical/emergency', element: <RequireAuth>{wrap(<MedEmergency />)}</RequireAuth> },
-      { path: '/medical/insurance', element: <RequireAuth>{wrap(<MedInsurance />)}</RequireAuth> },
-      { path: '/medical/fitness', element: <RequireAuth>{wrap(<MedFitness />)}</RequireAuth> },
     ],
   },
   {
@@ -292,8 +278,6 @@ export const router = createBrowserRouter([
       { path: '/beauty/orders', element: <RequireAuth>{wrap(<BeautyOrders />)}</RequireAuth> },
       { path: '/beauty/makeup', element: <RequireAuth>{wrap(<BeautyMakeup />)}</RequireAuth> },
       { path: '/beauty/routine', element: <RequireAuth>{wrap(<BeautyRoutine />)}</RequireAuth> },
-      { path: '/beauty/checkout', element: <RequireAuth>{wrap(<BeautyCheckout />)}</RequireAuth> },
-      { path: '/beauty/confirm', element: <RequireAuth>{wrap(<BeautyConfirm />)}</RequireAuth> },
     ],
   },
   {

@@ -354,9 +354,16 @@ export function Makeup() {
                 <span className="muted">Budget</span>
                 <span style={{ color: over ? '#b0503e' : '#2e7d4f', fontWeight: over ? 600 : 400 }}>{over ? `over by ₹${inr(total - budget)}` : `₹${inr(budget - total)} to spare`} · ₹{inr(budget)}</span>
               </div>
-              {over
-                ? <div className="btn btn-line" style={{ width: '100%', justifyContent: 'center', marginTop: 10, opacity: .55, pointerEvents: 'none' }}>Over budget</div>
-                : <Link className="btn btn-accent" style={{ width: '100%', justifyContent: 'center', marginTop: 14 }} to="/beauty/checkout">Proceed to Checkout →</Link>}
+              {over && <div className="btn btn-line" style={{ width: '100%', justifyContent: 'center', marginTop: 10, opacity: .55, pointerEvents: 'none' }}>Over budget</div>}
+              <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 14 }}>
+                Your look above is yours — read from your own face analysis. This kit is a shopping list rather than a basket:
+                Together City doesn't sell makeup yet, so the brands, shades and prices are here for you to take to wherever
+                you already shop. We'll tell you the day that changes.
+              </p>
+              <p style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 8 }}>
+                Skincare you <em>can</em> order today: <Link to="/beauty/market" style={{ color: 'var(--accent)', fontWeight: 600 }}>the Beauty Market</Link> —
+                paid from your city wallet, and it turns up under My Orders.
+              </p>
             </div>
           )}
         </aside>
