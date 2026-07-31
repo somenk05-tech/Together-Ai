@@ -3162,6 +3162,8 @@ export class NutritionService implements OnModuleInit {
       };
     }).pantryConsumption;
 
+    // A cheap early exit for the common case — somebody tapping a meal that was
+    // already settled. It is NOT what makes this safe; see the transaction below.
     const already = await log.findFirst({ where: { ownerId, mealKey } }).catch(() => null);
     if (already) return { ...(await this.pantryListRaw(ownerId)), alreadyCooked: true };
 
@@ -3187,27 +3189,60 @@ export class NutritionService implements OnModuleInit {
     }
     if (!need.size) throw new BadRequestException('That meal has nothing to draw from the pantry.');
 
-    // Deduct what we actually hold; never go below zero, and keep the row (at 0)
-    // so the citizen can see it ran out rather than having it vanish.
-    const rows = await this.pantry.findMany({ where: { ownerId } }).catch(() => [] as PantryItemRow[]);
-    const byKey = new Map(rows.map((r) => [canonicalIngredient(r.name).toLowerCase(), r]));
+    // THE LOG ROW IS THE CLAIM, and it is written before anything is taken.
+    //
+    // This used to check for an existing log, deduct the pantry, and then write
+    // the log with `.catch(() => undefined)` on the end. Two taps on Cooked —
+    // or, more likely, a manual tap arriving while settleElapsedDays() settles
+    // the same meal — both found no log, both drew the ingredients down, and
+    // then the second insert hit the unique index on (ownerId, mealKey) and was
+    // swallowed. One dinner, twice the flour and rice gone from a shared
+    // household pantry, and a grocery list built on what was left.
+    //
+    // The unique index was there the whole time. What it could not do was guard
+    // work that happened before the insert and was allowed to fail after it. So
+    // the insert goes first: whoever wins it has the right to deduct, and the
+    // loser is told the meal was already cooked, which is true.
+    //
+    // All of it in one transaction, so a failure halfway through does not leave
+    // a half-emptied pantry with a log saying it was emptied properly.
     const deducted: Array<{ name: string; grams: number }> = [];
-    for (const [name, grams] of need) {
-      const row = byKey.get(name.toLowerCase());
-      if (!row) continue;                       // not stocked — nothing to draw
-      const take = Math.min(row.grams, grams);
-      if (take <= 0) continue;
-      const left = row.grams - take;
-      await this.pantry.update({
-        where: { id: row.id },
-        data: { grams: left, qtyLabel: standardQty(row.name, left, row.aisle).label } as never,
-      }).catch(() => undefined);
-      deducted.push({ name: row.name, grams: take });
-    }
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const txLog = (tx as unknown as { pantryConsumption: { create(a: unknown): Promise<{ id: string }>; update(a: unknown): Promise<unknown> } }).pantryConsumption;
+        const txPantry = (tx as unknown as { pantryItem: PantryDelegate }).pantryItem;
 
-    await log.create({
-      data: { ownerId, mealKey, label: (input.label ?? '').slice(0, 120), itemsJson: JSON.stringify(deducted) },
-    }).catch(() => undefined);
+        const claim = await txLog.create({
+          data: { ownerId, mealKey, label: (input.label ?? '').slice(0, 120), itemsJson: '[]' },
+        });
+
+        // Deduct what we actually hold; never go below zero, and keep the row
+        // (at 0) so the citizen can see it ran out rather than having it vanish.
+        const rows = await txPantry.findMany({ where: { ownerId } });
+        const byKey = new Map(rows.map((r) => [canonicalIngredient(r.name).toLowerCase(), r]));
+        for (const [name, grams] of need) {
+          const row = byKey.get(name.toLowerCase());
+          if (!row) continue;                       // not stocked — nothing to draw
+          const take = Math.min(row.grams, grams);
+          if (take <= 0) continue;
+          const left = row.grams - take;
+          await txPantry.update({
+            where: { id: row.id },
+            data: { grams: left, qtyLabel: standardQty(row.name, left, row.aisle).label } as never,
+          });
+          deducted.push({ name: row.name, grams: take });
+        }
+
+        await txLog.update({ where: { id: claim.id }, data: { itemsJson: JSON.stringify(deducted) } });
+      });
+    } catch (e) {
+      // P2002 is the unique index: somebody else settled this meal between the
+      // check above and here. Nothing was taken — the transaction saw to that.
+      if ((e as { code?: string })?.code === 'P2002') {
+        return { ...(await this.pantryListRaw(ownerId)), alreadyCooked: true };
+      }
+      throw e;
+    }
 
     return { ...(await this.pantryListRaw(ownerId)), cooked: true, deducted };
   }
