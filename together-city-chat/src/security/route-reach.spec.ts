@@ -57,7 +57,12 @@ const ALLOW: Array<{ id: string; why: string }> = [
  * wired up, take it off". Both are worth one deliberate edit, and the second is
  * how the list actually empties.
  *
- * Nothing here has been investigated. Some will be dead — the beauty looks
+ * Four entries came off this list the day after it was written, when the
+ * matcher was fixed rather than the code — they had never been orphans at all.
+ * That is the argument for the broad matcher above: a list with false entries in
+ * it is a list people learn to scroll past.
+ *
+ * Nothing remaining here has been investigated. Some will be dead — the beauty looks
  * endpoints, the entertainment events flow and the prescriptions dose log all
  * look like features whose UI never arrived or has since gone. Some will be
  * false alarms from a URL this scanner cannot see being built. Working out
@@ -69,8 +74,6 @@ const KNOWN_UNREACHED: string[] = [
   "ai/ai-suggestions.controller.ts  GET /ai/beauty",
   "ai/ai-suggestions.controller.ts  GET /ai/fitness",
   "ai/ai-suggestions.controller.ts  GET /ai/recipes",
-  "auth/auth.controller.ts  GET /auth/email-available",
-  "auth/auth.controller.ts  GET /auth/handle-available",
   "auth/auth.controller.ts  POST /auth/check-email",
   "auth/auth.controller.ts  POST /auth/check-handle",
   "beauty/beauty.controller.ts  DELETE /beauty/looks/*",
@@ -105,8 +108,6 @@ const KNOWN_UNREACHED: string[] = [
   "prescriptions/prescriptions.controller.ts  GET /prescriptions/today",
   "prescriptions/prescriptions.controller.ts  POST /prescriptions/doses",
   "privacy/privacy.controller.ts  GET /privacy/export",
-  "profile/profile.controller.ts  GET /profile/user/*",
-  "profile/profile.controller.ts  GET /profile/user/*/posts",
 ];
 
 /** A declared route path, reduced to its shape: a :param becomes a star. */
@@ -118,7 +119,10 @@ const shapeOfRoute = (prefix: string, path: string): string =>
 /** A called URL, reduced the same way: a template hole becomes a star, so
  *  the two can be compared without caring what the variable was named. */
 const shapeOfCall = (url: string): string =>
-  url.replace(/\$\{[^}]*\}/g, '*').replace(/\/+$/, '');
+  url
+    .split('?')[0]                       // '/auth/email-available?email=…'
+    .replace(/\$\{[^}]*\}/g, '*')        // a template hole is a parameter
+    .replace(/\/+$/, '');
 
 function webFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -152,8 +156,17 @@ describeOrSkip('every route this API declares is called by the web app', () => {
   const called = new Set<string>();
   if (existsSync(WEB_SRC)) {
     for (const f of webFiles(WEB_SRC)) {
-      for (const m of readFileSync(f, 'utf8').matchAll(/[`'"](\/[A-Za-z0-9_\-/${}.:]*)[`'"]/g)) {
-        called.add(shapeOfCall(m[1]));
+      const src = readFileSync(f, 'utf8');
+      // Any quoted string that starts with a slash. An earlier version listed
+      // the characters it would accept inside one and got it wrong twice: a
+      // query string ended the match early, and `${encodeURIComponent(x)}` has
+      // parentheses that were not on the list. Both produced routes reported as
+      // orphaned while they were being called several times a day. Accepting
+      // everything up to the closing quote is the version with no such list to
+      // get wrong.
+      for (const q of ['`', "'", '"']) {
+        const re = new RegExp(q + '(\\/[^' + q + '\\n]*)' + q, 'g');
+        for (const m of src.matchAll(re)) called.add(shapeOfCall(m[1]));
       }
     }
   }
