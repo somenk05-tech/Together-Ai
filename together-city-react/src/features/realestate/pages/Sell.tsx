@@ -286,7 +286,13 @@ export function Sell() {
           </div>
           <div className="card">
             <div className="eyebrow">Before it goes live</div>
-            <p className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>Every listing is checked automatically — photos, pricing sanity and description — and goes live once it clears review. You'll see the outcome the moment you submit.</p>
+            {/* This list used to begin with "photos", and post() says in as many words
+                that photos are optional and enforced by nothing. The other two were
+                real, which is what made the third easy to miss. Named here as what
+                moderate() actually runs: required fields, an AI read of the text, a
+                duplicate check against this seller's other listings, and price
+                against the peer median per sq ft. */}
+            <p className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>Every listing is checked automatically before it goes live — the required details, the description, whether it duplicates one of your others, and how the price compares with similar homes nearby. You'll see the outcome the moment you submit. Photos aren't checked yet, so nothing here depends on them.</p>
           </div>
         </aside>
       </div>
