@@ -14,9 +14,6 @@ import {
 import { useFollowers, useFollowing, useFollow, useUnfollow, useBlock, useReport, useSetCover, useSetPostCategory, type FollowPerson, type Post } from '../api';
 import { PostCard } from '../PostCard';
 
-const money = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
-const PAY_PER_VIDEO = 100;
-const DAILY_CAP = 15;
 
 /** Resize a chosen image to a small square JPEG data URL (no external storage needed). */
 function resizeToDataUrl(file: File, size = 240): Promise<string> {
@@ -713,9 +710,26 @@ function EditProfileModal({ me, onClose }: { me: MyProfile; onClose: () => void 
   );
 }
 
+/**
+ * Post & Earn, told the truth.
+ *
+ * This tab used to quote rates: "up to ₹100 each, ₹1,500/day", "once reviewed
+ * & approved, each eligible video (3+ minutes) can earn up to ₹100". Every
+ * video a citizen had posted was listed underneath with the status "In review".
+ *
+ * There is no earnings programme. No payout model in the schema, no route, no
+ * review queue, nothing that could ever pay anybody or look at a video. The
+ * balances all read ₹0, which is what made it convincing — a real account that
+ * simply had not filled up yet.
+ *
+ * Of everything found in this sweep, this is the one that asked people for
+ * work. Record three minutes about your life, and the money is coming. It was
+ * not coming. The rates and the review status are gone; what a citizen sees now
+ * is that the programme has not opened, and that their videos are posts rather
+ * than submissions.
+ */
 function EarnView({ posts }: { posts: ProfilePost[] }) {
   const videos = posts.filter((p) => p.media.some((m) => m.kind === 'video'));
-  const dailyCapInr = PAY_PER_VIDEO * DAILY_CAP;
   const TOPICS = [
     'Your life & personal journey', 'Your daily routine', 'Food reviews & cooking', 'Restaurants & cafés',
     'Health & fitness', 'Beauty & skincare', 'Travel experiences', 'Movies & entertainment',
@@ -724,41 +738,45 @@ function EarnView({ posts }: { posts: ProfilePost[] }) {
   return (
     <div>
       <div style={{ background: 'linear-gradient(135deg,var(--accent),#7a4fa0)', color: '#fff', borderRadius: 'var(--radius-lg)', padding: '22px 24px', marginBottom: 16 }}>
-        <div style={{ fontSize: 12, opacity: 0.9, textTransform: 'uppercase', letterSpacing: '.05em' }}>Redeemable balance</div>
-        <div style={{ fontFamily: 'var(--serif)', fontSize: 38, lineHeight: 1 }}>{money(0)}</div>
-        <div style={{ fontSize: 13, opacity: 0.95, marginTop: 2 }}>Earn by publishing eligible videos — up to {money(PAY_PER_VIDEO)} each, {money(dailyCapInr)}/day.</div>
-      </div>
-
-      <div className="card">
-        <div className="blk-head"><h3>Turn your stories into earnings</h3></div>
-        <p className="muted" style={{ fontSize: 12.5 }}>
-          Share authentic videos about your life and interests while helping others discover Together City.
-          Once reviewed &amp; approved, each eligible video (3+ minutes) can earn up to <b>{money(PAY_PER_VIDEO)}</b>.
-        </p>
-        <div style={{ display: 'flex', gap: 24, marginTop: 14, flexWrap: 'wrap' }}>
-          <div><div style={{ fontFamily: 'var(--serif)', fontSize: 24, color: 'var(--accent)' }}>{videos.length}</div><div className="muted" style={{ fontSize: 11 }}>videos posted</div></div>
-          <div><div style={{ fontFamily: 'var(--serif)', fontSize: 24, color: 'var(--accent)' }}>{money(0)}</div><div className="muted" style={{ fontSize: 11 }}>earned</div></div>
-          <div><div style={{ fontFamily: 'var(--serif)', fontSize: 24, color: 'var(--accent)' }}>{money(0)}</div><div className="muted" style={{ fontSize: 11 }}>redeemed</div></div>
+        <div style={{ fontSize: 12, opacity: 0.9, textTransform: 'uppercase', letterSpacing: '.05em' }}>Post &amp; Earn</div>
+        <div style={{ fontFamily: 'var(--serif)', fontSize: 28, lineHeight: 1.2, marginTop: 4 }}>Not open yet</div>
+        <div style={{ fontSize: 13, opacity: 0.95, marginTop: 6, maxWidth: '54ch' }}>
+          We would rather tell you this plainly than show you a balance. There is no way to earn
+          from your videos on Together City today — no rate, no review, no payout. The day that
+          changes, you will be told, and it will be told to you here first.
         </div>
       </div>
 
+      <div className="card">
+        <div className="blk-head"><h3>What we are hoping to build</h3></div>
+        <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.65 }}>
+          A way for the people who make this city worth living in to be paid for it — authentic
+          videos about your life and your corner of the city, and a share of what they bring in.
+          It is a real intention, not a promise with a date on it, and until it exists we are not
+          going to quote you a figure.
+        </p>
+      </div>
+
       <div className="card" style={{ marginTop: 16 }}>
-        <div className="blk-head"><h3>What can you make videos about?</h3></div>
+        <div className="blk-head"><h3>The kinds of stories we mean</h3></div>
         <div style={{ marginTop: 10 }}>
           {TOPICS.map((t) => (
             <span key={t} style={{ display: 'inline-block', background: 'var(--surface-2,#f2eee9)', border: '1px solid var(--line,#e5ddd3)', borderRadius: 999, padding: '5px 11px', fontSize: 12, margin: '0 6px 6px 0' }}>{t}</span>
           ))}
         </div>
+        <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
+          Post them because you want to — they are posts on your profile, not submissions to anything.
+        </p>
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>
-        <div className="blk-head"><h3>Your videos</h3></div>
+        <div className="blk-head"><h3>Your videos</h3><span className="muted" style={{ fontSize: 12 }}>{videos.length}</span></div>
         {videos.length === 0
-          ? <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>No videos yet. Post a video to start earning.</p>
+          ? <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>You haven’t posted a video yet.</p>
           : videos.map((v) => (
             <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--line)', fontSize: 13 }}>
               <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.text || v.feeling || 'Video post'}</span>
-              <span className="muted" style={{ whiteSpace: 'nowrap' }}>In review</span>
+              <span className="muted" style={{ whiteSpace: 'nowrap' }}>Posted</span>
             </div>
           ))}
       </div>
