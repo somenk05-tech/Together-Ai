@@ -6,8 +6,8 @@ import { HUBS } from '@/config/hubs';
 import { REMOVED_ROUTES } from '@/config/labels';
 import { ChunkBoundary } from './ChunkBoundary';
 import { Home } from '@/pages/Home';
+import { Dashboard } from '@/pages/Dashboard';
 import { HubLanding } from '@/pages/HubLanding';
-import { HubStub } from '@/pages/HubStub';
 import { CarsComingSoon } from '@/pages/CarsComingSoon';
 import { AstroToday } from '@/features/astrology/pages/AstroToday';
 import { AstroMonthly } from '@/features/astrology/pages/AstroMonthly';
@@ -148,7 +148,7 @@ const wrap = (el: JSX.Element) => <ChunkBoundary>{el}</ChunkBoundary>;
 /**
  * Router covers every hub. Landings are data-driven (HubLanding); inner pages
  * live under a HubLayout (sidebar). Nutrition is fully migrated as the reference;
- * other inner routes render HubStub until migrated, following the same pattern.
+ * other inner routes are migrated one at a time, following the same pattern.
  */
 export const router = createBrowserRouter([
   {
@@ -188,7 +188,7 @@ export const router = createBrowserRouter([
       { path: '/calendar', element: <RequireAuth>{wrap(<Calendar />)}</RequireAuth> },
       { path: '/chats', element: <RequireAuth>{wrap(<Chats />)}</RequireAuth> },
       { path: '/connections', element: <RequireAuth>{wrap(<Connections />)}</RequireAuth> },
-      { path: '/dashboard', element: <HubStub title="Dashboard" /> },
+      { path: '/dashboard', element: <Dashboard /> },
     ],
   },
   {

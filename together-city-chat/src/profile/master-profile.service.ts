@@ -1,5 +1,6 @@
 import { Injectable, Logger, ConflictException } from '@nestjs/common';
 import { clinicalSex, datingGender } from './sex-and-gender';
+import { salutation } from '../shared/salutation';
 import { diffProfile, versionConflict } from './profile-change';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -399,7 +400,12 @@ export class MasterProfileService {
     // Most impactful next steps: incomplete sections, least-complete first.
     const nextUp = sections.filter((s) => !s.complete).sort((a, b) => a.percent - b.percent).slice(0, 4).map((s) => ({ key: s.key, label: s.label, href: s.href }));
 
-    return { percent, complete: percent >= 100, sections, nextUp };
+    // The dashboard's opening line comes from here rather than from the page,
+    // because there is one formatter for how this city addresses a citizen and
+    // it already exists. A second `name.split(' ')[0]` on the frontend is how
+    // somebody ends up greeted "Dear ," above their own data — see
+    // shared/salutation.ts, which was written after exactly that happened.
+    return { greeting: salutation(m.name), percent, complete: percent >= 100, sections, nextUp };
   }
 }
 

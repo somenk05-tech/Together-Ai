@@ -23,6 +23,10 @@ export interface CompletionSection {
   done: number; total: number; percent: number; complete: boolean;
 }
 export interface ProfileCompletion {
+  /** "Dear Priya," — from the server's one salutation formatter, never rebuilt
+   *  here. A second name.split(' ')[0] on this side is how somebody ends up
+   *  greeted "Dear ," above their own data. */
+  greeting: string;
   percent: number;
   complete: boolean;
   sections: CompletionSection[];
