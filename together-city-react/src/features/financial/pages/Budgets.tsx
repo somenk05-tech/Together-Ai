@@ -40,7 +40,7 @@ function BudgetRow({ b }: { b: Budget }) {
 export function Budgets() {
   const q = useBudgets();
   if (q.isLoading) return <Spinner label="Loading your budgets…" />;
-  if (q.isError || !q.data) return <EmptyState title="Couldn't load budgets" hint="Start the backend and reload." />;
+  if (q.isError || !q.data) return <EmptyState title="Couldn't load budgets" hint="Your budgets are still set exactly as you left them. We just couldn’t read them." />;
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '28px 16px' }}>

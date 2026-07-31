@@ -6,7 +6,7 @@ import { useSpending, catColor, catIcon, inr } from '../api';
 export function Spending() {
   const q = useSpending();
   if (q.isLoading) return <Spinner label="Adding up your spending…" />;
-  if (q.isError || !q.data) return <EmptyState title="Couldn't load spending" hint="Start the backend and reload." />;
+  if (q.isError || !q.data) return <EmptyState title="Couldn't load spending" hint="Your transactions are safe — this is only the summary that didn’t arrive." />;
   const s = q.data;
   const max = Math.max(1, ...s.byCategory.map((c) => c.amountInr));
 

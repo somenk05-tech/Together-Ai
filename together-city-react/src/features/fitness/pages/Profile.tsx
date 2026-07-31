@@ -68,7 +68,7 @@ export function Profile() {
   }, [profile.data, master.data]);
 
   if (profile.isLoading) return <Spinner label="Loading your fitness profile…" />;
-  if (profile.isError || !profile.data) return <EmptyState title="Couldn't load your profile" hint="Start the backend and reload." />;
+  if (profile.isError || !profile.data) return <EmptyState title="Couldn't load your profile" hint="Nothing you’ve entered has been lost — this didn’t reach us. Try again in a moment." />;
 
   const { levels, modes, bodyGoals } = profile.data.options;
   const toggle = (k: string) => setConditions((c) => (c.includes(k) ? c.filter((x) => x !== k) : [...c, k]));

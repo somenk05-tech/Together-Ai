@@ -22,7 +22,7 @@ export function Connections() {
   const consents = useConsents();
   const set = useSetConsent();
   if (consents.isLoading) return <Spinner label="Loading your connections…" />;
-  if (consents.isError || !consents.data) return <EmptyState title="Couldn't load connections" hint="Start the backend and reload." />;
+  if (consents.isError || !consents.data) return <EmptyState title="Couldn't load connections" hint="Nothing has been granted or revoked — we couldn’t read who has access. Try again in a moment." />;
 
   return (
     <>

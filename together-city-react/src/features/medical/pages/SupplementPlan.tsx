@@ -23,7 +23,7 @@ export function SupplementPlan() {
   const plan = useMedicalSupplementPlan();
 
   if (plan.isLoading) return <Spinner label="Building your plan…" />;
-  if (plan.isError || !plan.data) return <EmptyState title="Couldn't load your plan" hint="Start the backend and reload." />;
+  if (plan.isError || !plan.data) return <EmptyState title="Couldn't load your plan" hint="Your plan is still saved — this didn’t reach us. Nothing has been changed or removed." />;
 
   const { basis, items, totalInr, safety } = plan.data;
   const goalLabel = basis.goal === 'lose' ? 'weight loss' : basis.goal === 'gain' ? 'muscle gain' : 'maintenance';

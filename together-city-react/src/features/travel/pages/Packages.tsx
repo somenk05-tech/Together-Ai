@@ -14,7 +14,7 @@ export function TravelPackages() {
       <section className="blk rise d2">
         <div className="blk-head"><h2>Popular packages</h2><Link className="more" to="/travel/explore">View all packages →</Link></div>
         {pkgs.isLoading ? <Spinner label="Loading packages…" />
-          : pkgs.isError ? <EmptyState title="Couldn't load packages" hint="Start the backend and reload." />
+          : pkgs.isError ? <EmptyState title="Couldn't load packages" hint="This didn’t reach us — it isn’t that there’s nothing on offer. Try again in a moment." />
           : list.length === 0 ? <EmptyState icon="🧳" title="No packages yet" hint="Check back soon." />
           : (
             <div className="grid3">

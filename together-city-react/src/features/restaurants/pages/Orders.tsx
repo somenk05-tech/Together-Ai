@@ -47,7 +47,7 @@ export function Orders() {
         <Link to="/restaurants" style={{ marginLeft: 'auto' }}><Button variant="line" size="sm">← Discover</Button></Link>
       </div>
       {q.isLoading ? <Spinner label="Loading orders…" />
-        : q.isError ? <EmptyState title="Couldn't load orders" hint="Start the backend and reload." />
+        : q.isError ? <EmptyState title="Couldn't load orders" hint="Any order you’ve placed is unaffected — we just couldn’t read the list." />
         : (q.data ?? []).length === 0 ? <EmptyState icon="🧾" title="No orders yet" hint="Order from a restaurant." />
         : <div style={{ marginTop: 16 }}>{q.data?.map((o) => <OrderCard key={o.id} o={o} />)}</div>}
     </div>

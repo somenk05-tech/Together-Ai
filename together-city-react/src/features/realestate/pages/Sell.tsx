@@ -140,7 +140,10 @@ export function Sell() {
         : '';
       setNote(`Submitted for review — ${parts.join(' · ')}.${rej} Every listing passes an automated safety & quality check before going live. Track status in My Listings.`);
     } catch {
-      setNote('Couldn’t submit — start the backend and try again.');
+      // Was "start the backend and try again" — an instruction only we could
+      // follow, given to somebody who has just typed out a property listing and
+      // needs to know whether they have to type it again. They do not.
+      setNote('Couldn’t submit — that didn’t reach us. Nothing you’ve typed has been lost; try again in a moment.');
     }
   };
 

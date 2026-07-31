@@ -157,7 +157,7 @@ function FolderView({ folder }: { folder: Folder }) {
         <div><div className="eyebrow">{meta.eyebrow}</div><h1 style={{ fontSize: 24, margin: 0 }}>{meta.icon} {meta.title}</h1></div>
       </div>
       {q.isLoading ? <Spinner label="Loading mail…" />
-        : q.isError ? <EmptyState title="Couldn't load mail" hint="Start the backend and reload." />
+        : q.isError ? <EmptyState title="Couldn't load mail" hint="Nothing has been deleted — we couldn’t reach your mailbox. Try again in a moment." />
         : (q.data ?? []).length === 0 ? <EmptyState icon={meta.icon} title={meta.empty} hint={folder === 'inbox' ? 'City mail will appear here.' : undefined} />
         : <div className="card" style={{ padding: 0, overflow: 'hidden' }}>{q.data?.map((m) => <Row key={m.id} m={m} folder={folder} />)}</div>}
     </div>

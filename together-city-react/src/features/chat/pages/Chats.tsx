@@ -123,7 +123,7 @@ export function Chats() {
   }, [activeId, history.data, user?.id, qc]);
 
   if (conversations.isLoading) return <Spinner label="Loading your chats…" />;
-  if (conversations.isError) return <EmptyState title="Couldn't load chats" hint="Start the backend and reload." />;
+  if (conversations.isError) return <EmptyState title="Couldn't load chats" hint="Every conversation is still there — this didn’t reach us. Try again in a moment." />;
 
   const list = conversations.data ?? [];
   const onOpened = (id: string) => { setActiveId(id); void conversations.refetch(); };

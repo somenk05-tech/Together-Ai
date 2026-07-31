@@ -19,7 +19,7 @@ export function Consent() {
   const set = useSetConsent();
 
   if (consents.isLoading) return <Spinner label="Loading your privacy settings…" />;
-  if (consents.isError || !consents.data) return <EmptyState title="Couldn't load consent settings" hint="Start the backend and reload." />;
+  if (consents.isError || !consents.data) return <EmptyState title="Couldn't load consent settings" hint="Nothing has been granted or revoked. We couldn’t read your settings, so we’re not showing you switches that might be wrong." />;
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '28px 16px' }}>

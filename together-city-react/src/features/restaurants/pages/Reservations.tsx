@@ -40,7 +40,7 @@ export function Reservations() {
         <Link to="/restaurants" style={{ marginLeft: 'auto' }}><Button variant="line" size="sm">← Discover</Button></Link>
       </div>
       {q.isLoading ? <Spinner label="Loading reservations…" />
-        : q.isError ? <EmptyState title="Couldn't load reservations" hint="Start the backend and reload." />
+        : q.isError ? <EmptyState title="Couldn't load reservations" hint="Any table you’ve booked is still booked — this is only the list failing to load." />
         : (q.data ?? []).length === 0 ? <EmptyState icon="📅" title="No reservations yet" hint="Book a table from a restaurant." />
         : <div style={{ marginTop: 16 }}>{q.data?.map((v) => <ResCard key={v.id} v={v} />)}</div>}
     </div>

@@ -7,7 +7,7 @@ export function Orders() {
   const orders = useBeautyOrders();
 
   if (orders.isLoading) return <Spinner label="Loading your orders…" />;
-  if (orders.isError) return <EmptyState title="Couldn't load your orders" hint="Start the backend and reload." />;
+  if (orders.isError) return <EmptyState title="Couldn't load your orders" hint="Anything you’ve ordered is unaffected — we just couldn’t read the list. Try again in a moment." />;
 
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>

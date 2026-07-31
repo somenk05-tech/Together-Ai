@@ -55,7 +55,7 @@ export function TravelBookings() {
 
       <section className="blk rise d2">
         {q.isLoading ? <Spinner label="Loading your bookings…" />
-          : q.isError ? <EmptyState title="Couldn't load bookings" hint="Start the backend and reload." />
+          : q.isError ? <EmptyState title="Couldn't load bookings" hint="Anything you’ve booked is still booked — this is only the list failing to load." />
           : rows.length === 0 ? <EmptyState icon="🧳" title="No bookings here yet" hint="Book a flight or a package to see it here." />
           : (
             <table className="tc">

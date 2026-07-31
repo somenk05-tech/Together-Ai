@@ -67,7 +67,7 @@ export function Discover() {
       </div>
 
       {list.isLoading ? <Spinner label="Loading restaurants…" />
-        : list.isError ? <EmptyState title="Couldn't load restaurants" hint="Start the backend and reload." />
+        : list.isError ? <EmptyState title="Couldn't load restaurants" hint="This didn’t reach us — it isn’t a statement about what’s open near you. Try again in a moment." />
         : (list.data ?? []).length === 0 ? <EmptyState icon="🍽" title="No restaurants match" hint="Try another cuisine." />
         : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>

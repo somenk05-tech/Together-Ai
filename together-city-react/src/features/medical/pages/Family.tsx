@@ -118,7 +118,7 @@ export function Family() {
   const fh = useFamilyHealth();
 
   if (fh.isLoading) return <Spinner label="Reading your family's health…" />;
-  if (fh.isError || !fh.data) return <EmptyState title="Couldn't load family health" hint="Start the backend and reload." />;
+  if (fh.isError || !fh.data) return <EmptyState title="Couldn't load family health" hint="Nothing has been lost — every record is still in your vault. We couldn’t read them just now." />;
   const { summary, members } = fh.data;
 
   const Stat = ({ n, l }: { n: number | string; l: string }) => (

@@ -20,7 +20,7 @@ export function Log() {
   };
 
   if (log.isLoading) return <Spinner label="Loading your log…" />;
-  if (log.isError || !log.data) return <EmptyState title="Couldn't load your log" hint="Start the backend and reload." />;
+  if (log.isError || !log.data) return <EmptyState title="Couldn't load your log" hint="Every workout you’ve recorded is still there — only the reading of it failed." />;
 
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>

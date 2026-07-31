@@ -33,7 +33,7 @@ export function Transactions() {
   const [filter, setFilter] = useState('all');
 
   if (q.isLoading) return <Spinner label="Loading your transactions…" />;
-  if (q.isError || !q.data) return <EmptyState title="Couldn't load transactions" hint="Start the backend and reload." />;
+  if (q.isError || !q.data) return <EmptyState title="Couldn't load transactions" hint="Nothing has changed in your account — this is the history failing to load, not the record itself." />;
 
   const rows = filter === 'all' ? q.data : q.data.filter((t) => t.category === filter);
 

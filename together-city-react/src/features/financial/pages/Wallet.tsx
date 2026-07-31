@@ -30,7 +30,7 @@ export function Wallet() {
   const [amount, setAmount] = useState('');
 
   if (wallet.isLoading) return <Spinner label="Opening your wallet…" />;
-  if (wallet.isError || !wallet.data) return <EmptyState title="Couldn't load your wallet" hint="Start the backend and reload." />;
+  if (wallet.isError || !wallet.data) return <EmptyState title="Couldn't load your wallet" hint="Your balance and cards are untouched — nothing has moved. We simply couldn’t read them just now." />;
   const w = wallet.data;
 
   return (

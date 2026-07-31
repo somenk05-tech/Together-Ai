@@ -41,7 +41,7 @@ export function MyTrips() {
         <Link to="/travel/explore" style={{ marginLeft: 'auto' }}><Button variant="line" size="sm">← Explore</Button></Link>
       </div>
       {q.isLoading ? <Spinner label="Loading your trips…" />
-        : q.isError ? <EmptyState title="Couldn't load your trips" hint="Start the backend and reload." />
+        : q.isError ? <EmptyState title="Couldn't load your trips" hint="Your trips are unaffected — nothing has been cancelled. We couldn’t read them just now." />
         : (q.data ?? []).length === 0 ? <EmptyState icon="🧳" title="No trips yet" hint="Book a package or a flight." />
         : <div style={{ marginTop: 16 }}>{q.data?.map((t) => <TripPass key={t.id} t={t} />)}</div>}
     </div>
