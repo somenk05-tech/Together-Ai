@@ -531,6 +531,11 @@ const MICRO: Record<string, [number, number, number, number]> = {
   // calcium-rich
   'milk': [0, 125, 1.3, 0], 'curd (yogurt)': [0, 121, 0.1, 1], 'yogurt': [0, 121, 0.1, 1], 'greek yogurt': [0, 110, 0, 0],
   'paneer': [0, 480, 0.4, 0], 'cheese': [0.7, 720, 0.6, 0], 'parmesan': [0.8, 1180, 0.5, 0], 'mozzarella': [0.4, 505, 0.4, 0],
+  // Plant milks, so they stop resolving to cow's milk through the word "milk".
+  // Unfortified values: fortification varies by brand and claiming it is worse
+  // than admitting we do not know.
+  'coconut milk': [0.7, 16, 0, 0], 'almond milk': [0.3, 17, 0, 0], 'soy milk': [0.6, 25, 0, 0],
+  'soymilk': [0.6, 25, 0, 0], 'oat milk': [0.2, 12, 0, 0], 'rice milk': [0.2, 12, 0, 0],
   'ragi': [3.9, 344, 0, 0], 'almonds': [3.7, 269, 0, 0], 'sesame seeds ': [14.6, 975, 0, 0], 'buttermilk': [0, 116, 0, 0],
   // vitamin C-rich
   'lemon': [0.6, 26, 0, 53], 'lime': [0.6, 33, 0, 29], 'orange': [0.1, 40, 0, 53], 'amla': [0.3, 25, 0, 600],
@@ -542,14 +547,39 @@ const MICRO: Record<string, [number, number, number, number]> = {
   'egg': [1.8, 56, 2, 0], 'eggs': [1.8, 56, 2, 0], 'fish': [1, 30, 11, 0], 'salmon': [0.5, 12, 13, 0],
   'tuna': [1, 10, 5, 0], 'mushroom': [0.5, 3, 7, 2],
 };
+/**
+ * Names that must never resolve through a shorter key inside them.
+ *
+ * A condiment made from a food is not that food in any quantity that matters:
+ * 100 g of fish sauce was resolving to 100 g of fish and supplying 11 µg of
+ * vitamin D, most of a day's intake, from a splash. Same for soy and oyster
+ * sauce reaching mushroom and fish.
+ */
+const MICRO_NEVER = [/\bsauce\b/, /\bstock\b/, /\bbroth\b/, /\bextract\b/, /\bessence\b/, /\bpowder\b/, /\bnoodle/];
+
+/**
+ * Keys longest first, so a specific row beats a generic one — "coconut milk"
+ * before "milk". Computed once; the table is a module constant.
+ *
+ * It used to iterate Object.keys in insertion order and take the first
+ * substring hit, which made the answer depend on where a row happened to sit in
+ * the literal. Moving a line could change somebody's calcium.
+ */
+const MICRO_KEYS_BY_LENGTH = Object.keys(MICRO).sort((a, b) => b.length - a.length);
+
+const microWord = (hay: string, key: string) =>
+  new RegExp(`(^| )${key.replace(/\s*\(.*?\)\s*/g, '').trim()}s?( |$)`).test(hay);
+
 function lookupMicro(name: string): [number, number, number, number] | null {
   const n = name.trim().toLowerCase();
   if (MICRO[n]) return MICRO[n];
   const bare = n.replace(/\s*\(.*?\)\s*/g, '').trim();
   if (MICRO[bare]) return MICRO[bare];
-  for (const key of Object.keys(MICRO)) {
-    const kb = key.replace(/\s*\(.*?\)\s*/g, '').trim();
-    if (n.includes(kb) || bare.includes(kb)) return MICRO[key];
+  if (MICRO_NEVER.some((re) => re.test(bare))) return null;
+  // Whole words only. `includes` had eggplant reading as egg, cheesecloth as
+  // cheese at 720 mg of calcium, and beefsteak tomato as beef.
+  for (const key of MICRO_KEYS_BY_LENGTH) {
+    if (microWord(bare, key) || microWord(n, key)) return MICRO[key];
   }
   return null;
 }
