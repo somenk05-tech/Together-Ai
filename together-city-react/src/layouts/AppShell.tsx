@@ -8,7 +8,6 @@ import { useConnectionSync } from '@/api/connections.api';
 import { CookRoot } from '@/features/nutrition/components/CookMode';
 import { NotificationToaster } from './NotificationToaster';
 import { VerifyEmailBanner } from '@/features/auth/VerifyEmailBanner';
-import { CallCenter } from '@/features/calls/CallCenter';
 
 /** Root layout for full-width hub landings & the city home. */
 export function AppShell() {
@@ -21,15 +20,17 @@ export function AppShell() {
   // scroll, which pushes the composer below the fold — so no footer on /chats.
   const isChat = useLocation().pathname.startsWith('/chats');
   return (
-    // CallCenter wraps everything because a call has to outlive the screen it
-    // started on, and an incoming one has to appear wherever the citizen is.
-    <CallCenter>
+    // CallCenter has moved up to App, above the router. It was here, and this
+    // layout is only one of several route blocks — so "wherever the citizen is"
+    // meant "wherever the citizen is inside this subtree", which excluded every
+    // hub inner page in the app.
+    <>
       <Header />
       <VerifyEmailBanner />
       <main className="tc-main" style={isChat ? { minHeight: 0, overflow: 'hidden' } : undefined}><Outlet /></main>
       {!isChat && <Footer />}
       <CookRoot /> {/* guided cook overlay + background timer — only renders while cooking */}
       <NotificationToaster /> {/* app-wide live toasts for notifications + chat */}
-    </CallCenter>
+    </>
   );
 }
