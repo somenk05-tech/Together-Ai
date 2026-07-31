@@ -4,7 +4,7 @@ import { EmptyState, Spinner } from '@/components/ui';
 import { useRecipe, useRecipes, useBuildCart, useSavedRecipes, useToggleSave, useRecipeVariants } from '../hooks';
 import { stepTimerSeconds } from '../components/CookMode';
 import { useCookStore } from '../cook.store';
-import { DIET_META } from './Recipes';
+import { DIET_META } from '../dietMeta';
 import { recipeImageUrl } from '../recipeImages';
 import { VegMark, dietKind } from '../components/VegMark';
 import type { DietKey } from '../types';

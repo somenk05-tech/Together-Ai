@@ -2258,7 +2258,7 @@ export class NutritionService implements OnModuleInit {
     return { ok: true as const, cleared: res.count };
   }
 
-  async recipeLibrary(q: { search?: string; cuisine?: string; mealType?: string; diet?: string; sort?: string; page?: number; pageSize?: number }) {
+  async recipeLibrary(q: { search?: string; cuisine?: string; mealType?: string; diet?: string; sort?: string; page?: number; pageSize?: number; ingredients?: string[] }) {
     const page = Math.max(1, q.page ?? 1);
     const pageSize = Math.min(60, Math.max(12, q.pageSize ?? 24));
     const where: Record<string, unknown> = {};
@@ -2280,6 +2280,15 @@ export class NutritionService implements OnModuleInit {
       if (slot) where.slot = slot;
     }
     if (q.diet) { const dv = this.dietDbValues(q.diet); if (dv.length) where.diet = { in: dv }; }
+    // Cook-from-what-you-have: AND, not OR. Somebody who lists paneer and
+    // spinach is telling us what is in their kitchen, and a dish that uses only
+    // one of the two does not answer that. Kept separate from `search` above,
+    // which is a single OR across name-or-ingredient and means something else.
+    if (q.ingredients?.length) {
+      where.AND = q.ingredients.map((name) => ({
+        ingredients: { some: { name: { contains: name, mode: 'insensitive' } } },
+      }));
+    }
     const orderBy = (q.sort === 'rated' || q.sort === 'health' || q.sort === 'trending')
       ? [{ healthPercent: 'desc' as const }]
       : q.sort === 'name' ? [{ name: 'asc' as const }] : [{ recipeNo: 'desc' as const }];

@@ -14,6 +14,9 @@ export interface LibraryResult {
 }
 export interface LibraryQuery {
   search?: string; cuisine?: string; mealType?: string; diet?: string; sort?: string; page?: number;
+  /** Comma-separated ingredient names. Every one must be in the recipe — this is
+   *  "cook from what I have", not "anything matching one of these". */
+  ingredients?: string;
 }
 
 export function useRecipeLibrary(q: LibraryQuery, enabled = true) {

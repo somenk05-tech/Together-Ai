@@ -7,7 +7,7 @@ import { useBloodHistory } from '@/features/medical/api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 import type { FoodPref } from '../api';
-import { DIET_META } from './Recipes';
+import { DIET_META } from '../dietMeta';
 
 const DIETS: { key: string; label: string }[] = [
   { key: 'everything', label: 'Everything' },

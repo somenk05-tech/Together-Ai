@@ -191,6 +191,9 @@ export class NutritionController {
   recipeLibrary(@Query() q: Record<string, string>) {
     return this.nutrition.recipeLibrary({
       search: q.search, cuisine: q.cuisine, mealType: q.mealType, diet: q.diet, sort: q.sort,
+      // "I have paneer and spinach" — every named ingredient must be present,
+      // which is a different question from the single free-text search above.
+      ingredients: (q.ingredients ?? '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 8),
       page: q.page ? parseInt(q.page, 10) : 1, pageSize: q.pageSize ? parseInt(q.pageSize, 10) : 24,
     });
   }
