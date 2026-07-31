@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface Entry { total: number; wakes: number; bed: string; wake: string; score: number }
 type Log = Record<string, Entry>;
 interface Target { bed: string; wake: string }
 
 const DAYNAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const STAGE_COLOR = { deep: '#3b3a86', rem: '#6a5acd', light: '#9bb0e0', awake: '#d9a24a' } as const;
 const BAND_COLOR: Record<string, string> = { great: '#2e7d4f', good: '#6a5acd', fair: '#c6a15b', poor: '#d9534f', none: 'var(--line)' };
 const BAND_LBL: Record<string, string> = { great: 'Great', good: 'Good', fair: 'Fair', poor: 'Poor' };
 
@@ -15,13 +14,6 @@ const hm = (min: number) => { const h = Math.floor(min / 60), m = Math.round(min
 const t12 = (t: string) => { const p = String(t).split(':'); let h = +p[0]; const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return `${h}:${p[1]} ${ap}`; };
 const dayKey = (d = new Date()) => d.toISOString().slice(0, 10);
 
-function stages(total: number, quality: number) {
-  const deep = Math.round(total * (0.13 + 0.09 * quality));
-  const rem = Math.round(total * (0.18 + 0.07 * quality));
-  let awake = Math.round(total * (0.06 - 0.04 * quality)); if (awake < 3) awake = 3;
-  let light = total - deep - rem - awake; if (light < 0) light = 0;
-  return { deep, rem, light, awake };
-}
 function scoreOf(total: number, goal: number, wakes: number) {
   const durScore = 100 - Math.min(40, (Math.abs(total - goal) / goal) * 120);
   const wakeScore = 100 - Math.min(30, wakes * 8);
@@ -29,33 +21,64 @@ function scoreOf(total: number, goal: number, wakes: number) {
 }
 const band = (sc: number) => sc >= 85 ? 'great' : sc >= 72 ? 'good' : sc >= 58 ? 'fair' : 'poor';
 
-function seed(target: Target): Log {
-  const goal = durMin(target.bed, target.wake);
-  const demo = [{ h: 7.2, w: 1 }, { h: 6.4, w: 2 }, { h: 7.8, w: 0 }, { h: 6.9, w: 1 }, { h: 5.9, w: 3 }, { h: 7.5, w: 1 }, { h: 6.7, w: 2 }];
-  const log: Log = {};
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    const row = demo[6 - i]; const tot = Math.round(row.h * 60);
-    log[dayKey(d)] = { total: tot, wakes: row.w, bed: target.bed, wake: target.wake, score: scoreOf(tot, goal, row.w) };
-  }
-  return log;
+/** Nights this citizen typed, kept on this device — the same treatment saved
+ *  posts get. There is no sleep model in the schema and no endpoint to save to,
+ *  so localStorage is the honest maximum: it survives a reload, it does not
+ *  follow them to another phone, and the page says so. */
+const STORE = 'tc:sleep:log';
+const TARGET_STORE = 'tc:sleep:target';
+
+function readLog(): Log {
+  try { return JSON.parse(localStorage.getItem(STORE) ?? '{}') as Log; } catch { return {}; }
+}
+function readTarget(): Target {
+  try {
+    const t = JSON.parse(localStorage.getItem(TARGET_STORE) ?? 'null') as Target | null;
+    return t && t.bed && t.wake ? t : { bed: '23:00', wake: '07:00' };
+  } catch { return { bed: '23:00', wake: '07:00' }; }
 }
 
 const inS = { border: '1px solid var(--line)', borderRadius: 9, padding: '9px 11px', fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)', color: 'var(--ink)' } as const;
 const fieldL = { display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12, color: 'var(--ink-soft)' } as const;
 
-const DEVICES = ['◈ Apple Health', '◈ Google Fit', '◈ Fitbit', '◈ Samsung Health'];
-
-/** Sleep Cycle — duration, quality, schedule and a 7-day log, seeded with demo nights (local state). */
+/**
+ * Sleep Cycle — duration, consistency and a 7-day log of nights the citizen
+ * entered themselves.
+ *
+ * Three things came out of this page.
+ *
+ * It used to open with seven nights already in it — 7.2h, 6.4h, 7.8h, 5.9h,
+ * with wake counts and quality scores — dated to the last seven real days and
+ * presented as this person's own week. Anyone opening it for the first time was
+ * looking at a stranger's sleep with their own dates on it. That is health data,
+ * and there is no version of inventing it that is acceptable.
+ *
+ * It offered Apple Health, Google Fit, Fitbit and Samsung Health, and tapping
+ * one produced "✓ Apple Health connected — sleep stages and wake times sync
+ * automatically each morning." Nothing was connected and nothing synced; the
+ * connection was a string in useState. There is no wearable integration in this
+ * codebase at all.
+ *
+ * And it showed a sleep-stage breakdown — deep, REM, light, awake, with
+ * percentages — computed by a formula from the total and the score. You cannot
+ * derive sleep architecture from a bedtime and a wake time. It was the most
+ * clinical-looking thing on the page and the least real.
+ *
+ * What is left is arithmetic on what the citizen typed: how long they slept,
+ * how that compares to their goal, how many times they woke, and how steady the
+ * week was. Kept on this device, and labelled as such.
+ */
 export function Sleep() {
-  const [target, setTarget] = useState<Target>({ bed: '23:00', wake: '07:00' });
-  const [log, setLog] = useState<Log>(() => seed({ bed: '23:00', wake: '07:00' }));
-  const [device, setDevice] = useState<string | null>(null);
-  const [bedF, setBedF] = useState('23:00');
-  const [wakeF, setWakeF] = useState('07:00');
+  const [target, setTarget] = useState<Target>(readTarget);
+  const [log, setLog] = useState<Log>(readLog);
+  const [bedF, setBedF] = useState(() => readTarget().bed);
+  const [wakeF, setWakeF] = useState(() => readTarget().wake);
   const [logBed, setLogBed] = useState('23:20');
   const [logWake, setLogWake] = useState('06:50');
   const [logWakes, setLogWakes] = useState(1);
+
+  useEffect(() => { try { localStorage.setItem(STORE, JSON.stringify(log)); } catch { /* private mode */ } }, [log]);
+  useEffect(() => { try { localStorage.setItem(TARGET_STORE, JSON.stringify(target)); } catch { /* private mode */ } }, [target]);
 
   const goal = durMin(target.bed, target.wake);
   const keys = useMemo(() => Object.keys(log).sort(), [log]);
@@ -80,9 +103,7 @@ export function Sleep() {
     : 'A healthy 7–9 hour window. Keep bedtime within ~30 min every night, including weekends.';
 
   const sc = latest ? latest.score : 0;
-  const b = band(sc); const q = sc / 100;
-  const st = latest ? stages(latest.total, q) : { deep: 0, rem: 0, light: 0, awake: 0 };
-  const tot = latest ? latest.total : 1;
+  const b = band(sc);
   const C = 2 * Math.PI * 54;
 
   return (
@@ -115,22 +136,17 @@ export function Sleep() {
               </div>
               {latest && <div className="muted" style={{ fontSize: 12.5 }}>Asleep <b>{t12(latest.bed)}</b> → <b>{t12(latest.wake)}</b></div>}
             </div>
-            <div style={{ display: 'flex', height: 22, borderRadius: 8, overflow: 'hidden', margin: '12px 0 6px' }}>
-              {(['deep', 'rem', 'light', 'awake'] as const).map((k) => <i key={k} style={{ display: 'block', height: '100%', width: `${(st[k] / tot) * 100}%`, background: STAGE_COLOR[k] }} />)}
-            </div>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--ink-soft)' }}>
-              {(['deep', 'rem', 'light', 'awake'] as const).map((k) => (
-                <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <b style={{ width: 10, height: 10, borderRadius: 3, display: 'inline-block', background: STAGE_COLOR[k] }} />
-                  {k[0].toUpperCase() + k.slice(1)} {hm(st[k])}
-                </span>
-              ))}
-            </div>
+            {!latest && (
+              <p className="muted" style={{ fontSize: 12.5, marginTop: 10, lineHeight: 1.6 }}>
+                Nothing logged yet. Add last night below and this fills in — we would rather start
+                empty than show you a week you did not sleep.
+              </p>
+            )}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 12 }}>
             {[
-              { l: 'Deep sleep', v: `${Math.round((st.deep / tot) * 100)}%` },
-              { l: 'REM', v: `${Math.round((st.rem / tot) * 100)}%` },
+              { l: 'Nights logged', v: String(keys.length) },
+              { l: '7-day average', v: weekKeys.length ? hm(weekAvg) : '—' },
               { l: 'Times woke', v: latest ? String(latest.wakes) : '—' },
               { l: 'vs goal', v: latest ? `${latest.total >= goal ? '+' : '-'}${hm(Math.abs(latest.total - goal))}` : '—', c: latest && latest.total >= goal - 20 ? '#2e7d4f' : '#b0503e' },
             ].map((m) => (
@@ -177,7 +193,7 @@ export function Sleep() {
 
       {/* log */}
       <section className="blk">
-        <div className="blk-head"><h2>Log last night</h2><span className="muted" style={{ fontSize: 12 }}>Or let your device do it</span></div>
+        <div className="blk-head"><h2>Log last night</h2><span className="muted" style={{ fontSize: 12 }}>Kept on this device</span></div>
         <div className="card">
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label style={fieldL}>Fell asleep<input style={inS} type="time" value={logBed} onChange={(e) => setLogBed(e.target.value)} /></label>
@@ -192,22 +208,13 @@ export function Sleep() {
       <section className="blk">
         <div className="blk-head"><h2>Health app &amp; smartwatch</h2></div>
         <div className="card">
-          {device ? (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <div><b style={{ fontSize: 13.5 }}>✓ {device} connected</b><div className="muted" style={{ fontSize: 12 }}>Sleep stages and wake times sync automatically each morning.</div></div>
-              <button type="button" className="btn btn-line btn-sm" onClick={() => setDevice(null)}>Disconnect</button>
-            </div>
-          ) : (
-            <>
-              <p className="muted" style={{ fontSize: 12.5, marginBottom: 10 }}>Connect a wearable or health app to log sleep automatically — no manual entry.</p>
-              <div className="grid2" style={{ gap: 10 }}>
-                {DEVICES.map((d) => (
-                  <button key={d} type="button" onClick={() => setDevice(d.replace('◈ ', ''))}
-                    style={{ border: '1px solid var(--line)', background: 'var(--card)', borderRadius: 12, padding: '12px 14px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, textAlign: 'left', width: '100%' }}>{d}</button>
-                ))}
-              </div>
-            </>
-          )}
+          <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.65, margin: 0 }}>
+            Together City cannot read your watch or your health app yet. There is no Apple Health,
+            Google Fit, Fitbit or Samsung Health connection behind this page — so rather than offer
+            you buttons that would only look like they worked, we are telling you it is manual for
+            now. Your nights above are kept on this device; they will not follow you to another
+            phone until there is somewhere to save them.
+          </p>
         </div>
       </section>
 
