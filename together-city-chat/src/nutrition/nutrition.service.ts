@@ -1736,7 +1736,14 @@ export class NutritionService implements OnModuleInit {
       try {
         // Even the fallback honours the user's diet (never veg for a non-veg user).
         const prefF = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null);
-        const t = computeTargets({ weightKg: prefF?.weightKg ?? 70, heightCm: prefF?.heightCm ?? 172, age: prefF?.age ?? 30, sex: prefF?.sex ?? 'male', activity: prefF?.activity ?? 1.4, goal: prefF?.goal ?? 'maintain', conditions: [], flags: {} });
+        // Same rule on the degraded path. A starter plan that already admits it
+        // is general must not also claim to be sized for a body we never read.
+        const t = computeTargets({
+          weightKg: prefF?.weightKg ?? undefined, heightCm: prefF?.heightCm ?? undefined,
+          age: prefF?.age ?? undefined, sex: prefF?.sex ?? undefined,
+          activity: prefF?.activity ?? undefined, goal: prefF?.goal ?? undefined,
+          conditions: [], flags: {},
+        });
         const pool = await this.datasetPoolReady();
         const week = composeWeek(
           { kcal: t.kcal, protein: t.protein, carbs: (t as { carb: number }).carb, fat: t.fat, fiber: t.fiber },
@@ -1847,9 +1854,15 @@ export class NutritionService implements OnModuleInit {
     // Declared conditions + conditions DERIVED from abnormal blood values (QA H5).
     const conditions = [...new Set([...(ex.healthConditions ?? []), ...conditionsFromBlood(bvals)])];
     const flags = flagsFor(bvals);
+    // Nullables through, NOT pre-substituted — this is the plan the citizen
+    // actually gets, and it was the last place the substitution still happened
+    // before computeTargets could see it. With `?? 70` here, readiness always
+    // came back ok, so the refusal on the plan page could never once fire: a
+    // gate wired to a signal that was hardcoded true.
     const t = computeTargets({
-      weightKg: pref?.weightKg ?? 70, heightCm: pref?.heightCm ?? 172, age: pref?.age ?? 30,
-      sex: pref?.sex ?? 'male', activity: pref?.activity ?? 1.4, goal: pref?.goal ?? 'maintain',
+      weightKg: pref?.weightKg ?? undefined, heightCm: pref?.heightCm ?? undefined,
+      age: pref?.age ?? undefined, sex: pref?.sex ?? undefined,
+      activity: pref?.activity ?? undefined, goal: pref?.goal ?? undefined,
       conditions, flags,
     });
     // Jain is vegetarian + automatic exclusion of onion, garlic and root vegetables.
