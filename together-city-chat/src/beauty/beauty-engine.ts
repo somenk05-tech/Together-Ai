@@ -161,6 +161,43 @@ export const BEAUTY_PRODUCTS: BeautyProduct[] = [
 ];
 
 /** Legacy quick-concern keys → the assessment reading keys they imply. */
+export interface RequestedLine { id: string; qty: number }
+export interface PricedLine { id: string; name: string; priceInr: number; qty: number }
+export type BeautyOrderPricing =
+  | { ok: true; lines: PricedLine[]; totalInr: number }
+  | { ok: false; unknownIds: string[] };
+
+/**
+ * What a beauty order costs, decided here rather than by whoever asked for it.
+ *
+ * The order endpoint used to take `priceInr` from the request body and charge
+ * the city wallet the sum of what was posted. Every other paid endpoint in the
+ * app — restaurant dishes, event tiers, consult fees, travel packages, tarot
+ * spreads, the grocery cart — reads its price out of the row or the rate table
+ * first. This one trusted the caller, so a request naming a ₹1,690 retinal at
+ * ₹1 would have been charged ₹1 and recorded a legitimate-looking order.
+ *
+ * So the client now says only WHAT and HOW MANY. An id that is not on the shelf
+ * is refused rather than silently dropped, because a citizen who thinks they
+ * ordered five things should not be charged for four. Two lines naming the same
+ * product are one line for twice as much, so quantity caps cannot be walked
+ * around by repeating an id.
+ */
+export function priceBeautyOrder(requested: RequestedLine[]): BeautyOrderPricing {
+  const byId = new Map(BEAUTY_PRODUCTS.map((p) => [p.id, p]));
+  const unknownIds = [...new Set(requested.map((r) => r.id).filter((id) => !byId.has(id)))];
+  if (unknownIds.length > 0) return { ok: false, unknownIds };
+
+  const qtyById = new Map<string, number>();
+  for (const r of requested) qtyById.set(r.id, (qtyById.get(r.id) ?? 0) + r.qty);
+
+  const lines: PricedLine[] = [...qtyById].map(([id, qty]) => {
+    const p = byId.get(id) as BeautyProduct;
+    return { id, name: p.name, priceInr: p.priceInr, qty };
+  });
+  return { ok: true, lines, totalInr: lines.reduce((s, l) => s + l.priceInr * l.qty, 0) };
+}
+
 export const CONCERN_TAGS: Record<string, { label: string; tags: BeautyTag[]; keys: string[] }> = {
   dryness: { label: 'Dryness', tags: ['barrier', 'hydration'], keys: ['hydration'] },
   dullness: { label: 'Dullness', tags: ['brightening', 'antioxidant'], keys: ['pigmentation', 'texture'] },

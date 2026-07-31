@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ORDER_HISTORY_CAP } from '../shared/paging';
 import { MedicalService } from '../medical/medical.service';
@@ -6,7 +6,7 @@ import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import {
-  beautyInsights, recommendProducts, BEAUTY_PRODUCTS, CONCERN_TAGS,
+  beautyInsights, recommendProducts, priceBeautyOrder, CONCERN_TAGS,
   type BeautyInsight,
 } from './beauty-engine';
 import { buildRoutines } from './routine-engine';
@@ -442,7 +442,16 @@ export class BeautyService {
 
   // ─────────────── orders (the commerce loop) ───────────────
   async placeOrder(userId: string, dto: PlaceBeautyOrderDto) {
-    const totalInr = dto.items.reduce((s, i) => s + i.priceInr * i.qty, 0);
+    // The wallet is charged what the shelf says, not what the request says.
+    const priced = priceBeautyOrder(dto.items);
+    if (!priced.ok) {
+      throw new BadRequestException(
+        priced.unknownIds.length === 1
+          ? 'One of these is no longer on the shelf. Reload the market and try again.'
+          : 'Some of these are no longer on the shelf. Reload the market and try again.',
+      );
+    }
+    const { lines, totalInr } = priced;
     // Unified payment: pay from the one city wallet via the Financial hub.
     // Charge and record the order together — a failure after the debit used to
     // leave the citizen paid-up with no order to show for it.
@@ -453,7 +462,7 @@ export class BeautyService {
       { hub: 'Beauty', category: 'beauty', label: 'Beauty market order', amountInr: totalInr, method: dto.method },
       async (tx) => {
         const created = await tx.beautyOrder.create({
-          data: { userId, itemsJson: JSON.stringify(dto.items), totalInr, status: 'placed' },
+          data: { userId, itemsJson: JSON.stringify(lines), totalInr, status: 'placed' },
         });
         return created.id;
       },
