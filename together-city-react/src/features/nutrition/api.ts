@@ -1,10 +1,8 @@
 import { http as api } from '@/api/client';
-import type { WeekPlan, WeekSummary, DaySummary, NutritionTargets, NutritionAdvisory, MedRecCard, WeekNutritionSummary, Sides, Recipe, NutritionHistoryWeek } from './types';
+import type { NutritionTargets, NutritionAdvisory, MedRecCard, Recipe, NutritionHistoryWeek } from './types';
 
 /** Nutrition endpoints on the NestJS backend (no engine logic duplicated client-side). */
 export const nutritionApi = {
-  weeklyPlan: (mode: 'individual' | 'family' = 'individual', readOnly = false) =>
-    api.get<WeekPlan>('/nutrition/plan/weekly', { params: { mode, ...(readOnly ? { readOnly: 1 } : {}) } }).then((r) => r.data),
   history: (mode?: 'individual' | 'family') =>
     api.get<NutritionHistoryWeek[]>('/nutrition/history', { params: mode ? { mode } : undefined }).then((r) => r.data),
   historyDetail: (id: string) =>
@@ -36,20 +34,6 @@ export const nutritionApi = {
   familyPortions: (dayIndex: number) => api.get<FamilyPortions>(`/nutrition/family/portions/${dayIndex}`).then((r) => r.data),
   buildFamilyCart: () => api.post<GroceryCart>('/nutrition/family/cart', {}).then((r) => r.data),
   familyDashboard: () => api.get<FamilyDashboard>('/nutrition/family/dashboard').then((r) => r.data),
-  regenerate: (mode: 'individual' | 'family' = 'individual') =>
-    api.post<WeekPlan>('/nutrition/plan/weekly/regenerate', { mode }).then((r) => r.data),
-  weeks: (mode: 'individual' | 'family' = 'individual') =>
-    api.get<WeekSummary[]>('/nutrition/plan/weeks', { params: { mode } }).then((r) => r.data),
-  weekByKey: (key: string) =>
-    api.get<WeekPlan>(`/nutrition/plan/week/${key}`).then((r) => r.data),
-  newWeek: (mode: 'individual' | 'family' = 'individual', weekStart?: string) =>
-    api.post<WeekPlan>('/nutrition/plan/weekly/new', { mode, weekStart }).then((r) => r.data),
-  duplicateWeek: (sourceKey: string, mode: 'individual' | 'family' = 'individual', weekStart?: string) =>
-    api.post<WeekPlan>('/nutrition/plan/weekly/duplicate', { mode, sourceKey, weekStart }).then((r) => r.data),
-  weekSummary: (planKey: string) =>
-    api.get<WeekNutritionSummary>(`/nutrition/plan/${planKey}/week-summary`).then((r) => r.data),
-  daySummary: (planKey: string, dayIndex: number) =>
-    api.get<DaySummary>(`/nutrition/plan/${planKey}/day/${dayIndex}/summary`).then((r) => r.data),
   repairDay: (planKey: string, dayIndex: number) =>
     api.post<{ repaired: boolean; valid: boolean }>(`/nutrition/plan/${planKey}/day/${dayIndex}/rebalance`, {}).then((r) => r.data),
   targets: () => api.get<NutritionTargets>('/nutrition/targets').then((r) => r.data),
@@ -57,20 +41,12 @@ export const nutritionApi = {
   medicalRecs: () => api.get<{ cards: MedRecCard[] }>('/nutrition/medical-recs').then((r) => r.data),
   decideMedicalRec: (condition: string, choice: 'apply' | 'keep') =>
     api.post<{ ok: boolean; choice: string; message: string }>('/nutrition/medical-recs/decide', { condition, choice }).then((r) => r.data),
-  setMeal: (planKey: string, dayIndex: number, slot: string, recipeId: string) =>
-    api.post<{ plan: WeekPlan; warnings: string[] }>(`/nutrition/plan/${planKey}/day/${dayIndex}/set`, { slot, recipeId }).then((r) => r.data),
-  swapMeal: (planKey: string, dayIndex: number, slot: string, restoreRecipeId?: string) =>
-    api.post<WeekPlan>(`/nutrition/plan/${planKey}/day/${dayIndex}/swap`, restoreRecipeId ? { slot, restoreRecipeId } : { slot }).then((r) => r.data),
-  skipMeal: (planKey: string, dayIndex: number, slot: string, skipped: boolean) =>
-    api.post<WeekPlan>(`/nutrition/plan/${planKey}/day/${dayIndex}/skip`, { slot, skipped }).then((r) => r.data),
   healthLog: (dates: string[]) =>
     api.get<{ entries: CalorieEntry[] }>('/nutrition/health/log', { params: { dates: dates.join(',') } }).then((r) => r.data),
   addCalorie: (e: { date: string; name: string; kcal: number; type: CalorieType }) =>
     api.post<{ entries: CalorieEntry[] }>('/nutrition/health/log', e).then((r) => r.data),
   removeCalorie: (id: string) =>
     api.delete<{ ok: boolean }>(`/nutrition/health/log/${id}`).then((r) => r.data),
-  setSides: (planKey: string, dayIndex: number, slot: string, sides: Sides) =>
-    api.patch<WeekPlan>(`/nutrition/plan/${planKey}/day/${dayIndex}/sides`, { slot, sides }).then((r) => r.data),
   recipes: (diet?: string) =>
     api.get<Recipe[]>('/nutrition/recipes', { params: diet && diet !== 'everything' ? { diet } : undefined }).then((r) => r.data),
   searchRecipes: (ingredients: string[], diet?: string) =>

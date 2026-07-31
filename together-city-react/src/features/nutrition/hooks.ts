@@ -5,72 +5,11 @@ import type { WeekPlan } from './types';
 const KEY = (mode: string) => ['nutrition', 'weekly', mode] as const;
 const DAILY_KEY = (mode: string) => ['nutrition', 'daily', mode] as const;
 
-/** The Weekly planner — the master. Bootstraps a first plan when none exists;
- *  never auto-regenerates a saved plan.
- *
- *  retry is off for this one query, against the client-wide default of 1. This
- *  GET is not a read: when the current week has no plan it composes one. A
- *  timeout therefore does not mean "nothing happened and it is safe to ask
- *  again" — the server is still building, and the retry starts a second
- *  generation racing the first. It also doubled what the citizen sat through,
- *  twenty seconds of spinner becoming forty before they were told anything. */
-export function useWeeklyPlan(mode: 'individual' | 'family' = 'individual') {
-  return useQuery({ queryKey: KEY(mode), queryFn: () => nutritionApi.weeklyPlan(mode), retry: false });
-}
 
-/** The Daily planner — a strictly read-only view of the SAME saved plan. Never
- *  generates (backend readOnly); returns needsPlan when no week is saved yet. */
-export function useDailyPlan(mode: 'individual' | 'family' = 'individual') {
-  return useQuery({ queryKey: DAILY_KEY(mode), queryFn: () => nutritionApi.weeklyPlan(mode, true) });
-}
 
-/**
- * Put a chosen dish into a day and a slot of the saved plan.
- *
- * Distinct from a swap, which asks the engine for something different. This is
- * the citizen naming the dish. The server refuses an allergen outright and
- * returns warnings for anything it did with reservations, so the caller has to
- * decide what to show — the warnings are not decoration.
- */
-export function useSetMeal(mode: 'individual' | 'family' = 'individual') {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (v: { planKey: string; dayIndex: number; slot: string; recipeId: string }) =>
-      nutritionApi.setMeal(v.planKey, v.dayIndex, v.slot, v.recipeId),
-    onSuccess: (res) => {
-      qc.setQueryData(KEY(mode), res.plan);
-      void qc.invalidateQueries({ queryKey: DAILY_KEY(mode) });
-    },
-  });
-}
 
-/** Every saved week — the calendar/timeline. */
-export function useWeeks(mode: 'individual' | 'family' = 'individual') {
-  return useQuery({ queryKey: ['nutrition', 'weeks', mode], queryFn: () => nutritionApi.weeks(mode) });
-}
 
-/** Load one saved week by key (revisit a past week from the timeline). */
-export function useWeekByKey(key: string | null) {
-  return useQuery({ queryKey: ['nutrition', 'week', key], queryFn: () => nutritionApi.weekByKey(key as string), enabled: Boolean(key) });
-}
 
-/** Generate a brand-new week (never overwrites existing weeks). */
-export function useNewWeek(mode: 'individual' | 'family' = 'individual') {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => nutritionApi.newWeek(mode),
-    onSuccess: (plan) => { syncPlanCaches(qc, mode, plan); void qc.invalidateQueries({ queryKey: ['nutrition', 'weeks', mode] }); },
-  });
-}
-
-/** Duplicate a saved week's meals into a new (empty) week. */
-export function useDuplicateWeek(mode: 'individual' | 'family' = 'individual') {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (sourceKey: string) => nutritionApi.duplicateWeek(sourceKey, mode),
-    onSuccess: (plan) => { syncPlanCaches(qc, mode, plan); void qc.invalidateQueries({ queryKey: ['nutrition', 'weeks', mode] }); },
-  });
-}
 
 /**
  * Push an edited/returned week into BOTH the weekly and daily caches so the two
@@ -212,44 +151,9 @@ export function useRespondHouseholdInvite() {
   });
 }
 
-/** Auto-repair a saved day in place (swaps + portions) so it meets the
- *  prescription — invalidates the day summary and both plan views. */
-export function useRepairDay() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (v: { planKey: string; dayIndex: number }) => nutritionApi.repairDay(v.planKey, v.dayIndex),
-    onSuccess: (_r, v) => {
-      void qc.invalidateQueries({ queryKey: ['nutrition', 'summary', v.planKey, v.dayIndex] });
-      void qc.invalidateQueries({ queryKey: ['nutrition', 'week-summary'] });
-      void qc.invalidateQueries({ queryKey: ['nutrition', 'weekly'] });
-      void qc.invalidateQueries({ queryKey: ['nutrition', 'daily'] });
-    },
-  });
-}
 
-export function useWeekNutrition(planKey: string | undefined) {
-  return useQuery({
-    queryKey: ['nutrition', 'week-summary', planKey],
-    queryFn: () => nutritionApi.weekSummary(planKey as string),
-    enabled: Boolean(planKey),
-  });
-}
 
-export function useDaySummary(planKey: string | undefined, dayIndex: number) {
-  return useQuery({
-    queryKey: ['nutrition', 'summary', planKey, dayIndex],
-    queryFn: () => nutritionApi.daySummary(planKey as string, dayIndex),
-    enabled: Boolean(planKey),
-  });
-}
 
-export function useRegenerateWeek(mode: 'individual' | 'family' = 'individual') {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => nutritionApi.regenerate(mode),
-    onSuccess: (plan: WeekPlan) => syncPlanCaches(qc, mode, plan),
-  });
-}
 
 export function useRecipes(diet?: string) {
   return useQuery({ queryKey: ['nutrition', 'recipes', diet ?? 'everything'], queryFn: () => nutritionApi.recipes(diet) });

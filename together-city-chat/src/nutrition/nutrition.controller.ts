@@ -12,10 +12,8 @@ import {
   AddToCartSchema, type AddToCartDto,
   BloodInputSchema, type BloodInputDto,
   type Diet, FoodPrefSchema, type FoodPrefDto,
-  type PlanMode, RegenerateSchema, type RegenerateDto,
-  SidesSchema, type SidesDto, type Slot, SwapSchema, type SwapDto,
-  SetMealSchema, type SetMealDto,
-  SkipSchema, type SkipDto, CalorieSchema, type CalorieDto,
+  type PlanMode,
+  CalorieSchema, type CalorieDto,
 } from './dto/nutrition.dto';
 import { OwnRecipeSchema, type OwnRecipeDto } from './dto/own-recipe.dto';
 
@@ -216,44 +214,6 @@ export class NutritionController {
   })))
   updateMealSettings(@CurrentUser() user: JwtUser, @Body() dto: Record<string, unknown>) {
     return this.nutrition.setMealSettings(user.sub, dto);
-  }
-
-  // Specific plan routes first, then parameterised ones.
-  @Get('plan/weekly')
-  weekly(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode, @Query('readOnly') readOnly?: string) {
-    // readOnly=1 → Daily Meal Planner view: return the saved plan, never generate.
-    return this.nutrition.weeklyPlan(user.sub, mode ?? 'individual', readOnly === '1' || readOnly === 'true');
-  }
-
-  @Post('plan/weekly/regenerate')
-  @UsePipes(new ZodValidationPipe(RegenerateSchema))
-  regenerate(@CurrentUser() user: JwtUser, @Body() dto: RegenerateDto) {
-    return this.nutrition.regenerate(user.sub, dto.mode ?? 'individual');
-  }
-
-  // Every saved week (the calendar/timeline).
-  @Get('plan/weeks')
-  weeks(@CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode) {
-    return this.nutrition.weeks(user.sub, mode ?? 'individual');
-  }
-
-  // Generate a brand-new week without touching existing weeks.
-  @Post('plan/weekly/new')
-  newWeek(@CurrentUser() user: JwtUser, @Body() dto: { mode?: PlanMode; weekStart?: string }) {
-    return this.nutrition.newWeek(user.sub, dto?.mode ?? 'individual', dto?.weekStart);
-  }
-
-  // Duplicate a saved week's meals into a new (empty) week.
-  @Post('plan/weekly/duplicate')
-  duplicateWeek(@CurrentUser() user: JwtUser, @Body() dto: { mode?: PlanMode; sourceKey: string; weekStart?: string }) {
-    return this.nutrition.duplicateWeek(user.sub, dto?.mode ?? 'individual', dto?.sourceKey, dto?.weekStart);
-  }
-
-  // Load one saved week by key (revisit/edit from the timeline). Must come after
-  // the specific plan/weekly/* routes and before the parameterised plan/:key/*.
-  @Get('plan/week/:key')
-  weekByKey(@CurrentUser() user: JwtUser, @Param('key') key: string) {
-    return this.nutrition.weekByKey(user.sub, key);
   }
 
   // Nutrition history (spec §19) — permanent, versioned weekly plan record.
@@ -462,50 +422,6 @@ export class NutritionController {
   @Get('history/:id')
   historyDetail(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.nutrition.nutritionHistoryDetail(user.sub, id);
-  }
-
-  /** Weekly Nutrition Progress — per-day, cumulative and weekly totals + scores. */
-  @Get('plan/:key/week-summary')
-  weekSummary(@CurrentUser() user: JwtUser, @Param('key') key: string) {
-    return this.nutrition.weekSummary(user.sub, key);
-  }
-
-  @Get('plan/:key/day/:idx/summary')
-  daySummary(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number) {
-    return this.nutrition.daySummary(user.sub, key, idx);
-  }
-
-  /** Auto-repair: swap dishes + re-solve portions so the saved day meets its
-   *  tolerance bands — the app fixes the plan, never the user. */
-  @Post('plan/:key/day/:idx/rebalance')
-  repairDay(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number) {
-    return this.nutrition.repairDay(user.sub, key, idx);
-  }
-
-  /** Put a dish the citizen chose into this day and slot — the "build your own
-   *  plan" door. Allergens refuse; a diet mismatch warns and proceeds. */
-  @Post('plan/:key/day/:idx/set')
-  @UsePipes(new ZodValidationPipe(SetMealSchema))
-  setMeal(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SetMealDto) {
-    return this.nutrition.setMeal(user.sub, key, idx, dto.slot as Slot, dto.recipeId);
-  }
-
-  @Post('plan/:key/day/:idx/swap')
-  @UsePipes(new ZodValidationPipe(SwapSchema))
-  swap(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SwapDto) {
-    return this.nutrition.swap(user.sub, key, idx, dto.slot as Slot, dto.restoreRecipeId);
-  }
-
-  @Post('plan/:key/day/:idx/skip')
-  @UsePipes(new ZodValidationPipe(SkipSchema))
-  skip(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SkipDto) {
-    return this.nutrition.setSkip(user.sub, key, idx, dto.slot as Slot, dto.skipped);
-  }
-
-  @Patch('plan/:key/day/:idx/sides')
-  @UsePipes(new ZodValidationPipe(SidesSchema))
-  sides(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SidesDto) {
-    return this.nutrition.setSides(user.sub, key, idx, dto.slot as Slot, dto.sides);
   }
 
   // ─── My Health Profile calorie log (persists per day) ───
