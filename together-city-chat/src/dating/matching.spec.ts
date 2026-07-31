@@ -1,4 +1,4 @@
-import { factorScores, type DXProfile } from './matching';
+import { distanceNote, factorScores, type DXProfile } from './matching';
 /** The whole module, so an assertion can read as a claim about the engine.
  *  Kept as the namespace import itself: aliasing it through `const NEW = ENGINE`
  *  makes NEW a VALUE, and `NEW.DXProfile` in type position then fails with
@@ -153,5 +153,59 @@ describe('a blank profile cannot buy a curated match with star signs (M4)', () =
     };
     expect(scores(NEW, filled, { ...filled }, 88).overall)
       .toBeGreaterThan(scores(NEW, blank, { ...blank }, 88).overall);
+  });
+});
+
+const at = (city: string, extra: Partial<DXProfile> = {}): DXProfile => ({ city, country: 'India', ...extra });
+const loc = (a: DXProfile, b: DXProfile) => factorScores(88, [], [], a, b).location;
+
+describe('location is measured now, not spelled', () => {
+  it('treats the two spellings of one city as one place (M7)', () => {
+    expect(loc(at('Bengaluru'), at('Bangalore'))).toBe(100);
+    expect(loc(at('Mumbai'), at('Bombay'))).toBe(100);
+  });
+  it('separates a day trip from a flight', () => {
+    expect(loc(at('Mumbai'), at('Pune'))).toBe(85);       // ~120 km
+    expect(loc(at('Mumbai'), at('Delhi'))).toBe(50);      // ~1150 km, a flight
+    expect(loc(at('Mumbai'), at('London'))).toBe(25);     // ~7,200 km
+  });
+  it('is the audit’s complaint, closed: India-metro × overseas no longer scores near', () => {
+    expect(loc(at('Delhi'), at('New York'))).toBeLessThan(loc(at('Delhi'), at('Jaipur')));
+  });
+});
+
+describe('prefDistanceKm finally does something', () => {
+  it('penalises a candidate beyond a stated limit', () => {
+    const near = at('Pune', { prefDistanceKm: 200 });
+    expect(loc(near, at('Mumbai'))).toBe(85);             // ~120 km, inside 200
+    expect(loc(near, at('Delhi'))).toBe(30);              // ~1170 km, outside
+  });
+  it('honours the limit in both directions', () => {
+    const strict = at('Delhi', { prefDistanceKm: 50 });
+    expect(loc(at('Mumbai'), strict)).toBe(30);
+    expect(loc(strict, at('Mumbai'))).toBe(30);
+  });
+  it('does nothing when nobody set one', () => {
+    expect(loc(at('Mumbai'), at('Delhi'))).toBe(50);
+  });
+  it('ignores a nonsense limit rather than blocking everybody', () => {
+    expect(loc(at('Mumbai'), at('Pune', { prefDistanceKm: 0 }))).toBe(85);
+  });
+});
+
+describe('when a place cannot be resolved, nothing is invented', () => {
+  it('falls back to exactly the old behaviour', () => {
+    expect(loc(at('Nowhereville', { state: 'MH' }), at('Elsewheretown', { state: 'MH' }))).toBe(70);
+    expect(loc({ city: 'Nowhereville' }, { city: 'Nowhereville' })).toBe(100);
+    expect(loc({ city: 'Nowhereville' }, { city: 'Elsewheretown' })).toBe(30);
+  });
+  it('does not apply a distance preference to a distance nobody measured', () => {
+    const p = { city: 'Nowhereville', prefDistanceKm: 10 };
+    expect(loc(p, { city: 'Nowhereville' })).toBe(100);
+  });
+  it('prints no distance line on a card it could not measure', () => {
+    expect(distanceNote({ city: 'Nowhereville' }, { city: 'Pune' })).toBeNull();
+    expect(distanceNote(at('Pune'), at('Pune'))).toBe('In your city.');
+    expect(distanceNote(at('Mumbai'), at('Pune'))).toMatch(/^About 1[0-9]{2} km away/);
   });
 });

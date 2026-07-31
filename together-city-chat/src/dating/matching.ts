@@ -18,6 +18,8 @@
  */
 
 
+import { distanceBetween } from '../shared/geo';
+
 export interface DXProfile {
   personalityTraits?: string[]; values?: string[]; relationshipGoal?: string;
   diet?: string; smoking?: string; drinking?: string; fitnessLevel?: string;
@@ -27,7 +29,7 @@ export interface DXProfile {
    *  labels, so they compare directly — checked, because §15.1 was two
    *  vocabularies that looked like one. */
   prefDiet?: string; prefSmoking?: string; prefDrinking?: string;
-  city?: string; state?: string;
+  city?: string; state?: string; country?: string;
   prefAgeMin?: number | null; prefAgeMax?: number | null; prefDistanceKm?: number | null;
   dealBreakers?: string[]; wantsChildren?: string;
 }
@@ -107,10 +109,63 @@ function personalityScore(a: string[] = [], b: string[] = []): number {
   const complement = (A.has('Introvert') && B.has('Extrovert')) || (A.has('Extrovert') && B.has('Introvert')) ? 8 : 0;
   return Math.min(100, 35 + shared * 13 + complement);
 }
+/**
+ * Distance bands, in kilometres.
+ *
+ * Bands rather than a decay curve, because the score has to survive being
+ * turned into a sentence — "you are both in Pune", "you are 1,150 km apart".
+ * Shaped to the distances this city actually spans, checked against real pairs
+ * rather than round numbers: Mumbai-Pune is 120 km and is a drive people make
+ * for lunch; Delhi-Jaipur is 240 and is a weekend; Mumbai-Delhi is 1,150 and is
+ * a flight. A first guess at 25/100/300/1000 put all three one band too low.
+ */
+function bandFor(km: number): number {
+  if (km <= 30) return 100;      // the same city, give or take a suburb
+  if (km <= 150) return 85;      // an easy day out
+  if (km <= 400) return 70;      // a weekend
+  if (km <= 1500) return 50;     // a domestic flight
+  if (km <= 4000) return 35;
+  return 25;
+}
+
+/**
+ * How close they are, measured where we can measure it.
+ *
+ * This was exact city-string equality, which is why M7 recorded that
+ * "Bengaluru" and "Bangalore" were strangers to each other and prefDistanceKm
+ * could not be honoured at all. The coordinate table in shared/geo.ts resolves
+ * both spellings to one point, so the aliasing fixes itself.
+ *
+ * When either person cannot be placed, this falls back to exactly what it did
+ * before — same city, same state, neither — and prefDistanceKm is left out of
+ * the calculation rather than applied to a distance nobody measured. The table
+ * is ~140 cities; everyone outside it keeps the old behaviour, which is a
+ * stated bound rather than a silent one.
+ */
 function locationScore(a: DXProfile, b: DXProfile): number {
-  if (a.city && b.city && lc(a.city) === lc(b.city)) return 100;
-  if (a.state && b.state && lc(a.state) === lc(b.state)) return 70;
-  return 30;
+  const km = distanceBetween(a, b);
+  if (km === null) {
+    if (a.city && b.city && lc(a.city) === lc(b.city)) return 100;
+    if (a.state && b.state && lc(a.state) === lc(b.state)) return 70;
+    // Two people with no location in common share no location.
+    return 30;
+  }
+  const base = bandFor(km);
+  // A stated distance preference, honoured in both directions — the same rule
+  // as every other preference here. Beyond what somebody asked for costs them,
+  // and it costs the same whether they are 10 km over or 10,000: they said no.
+  const limits = [a.prefDistanceKm, b.prefDistanceKm].filter((n): n is number => typeof n === 'number' && n > 0);
+  const beyond = limits.some((limit) => km > limit);
+  return beyond ? Math.min(base, 30) : base;
+}
+
+/** The distance, in the words a card can print, or null when unmeasured. */
+export function distanceNote(a: DXProfile, b: DXProfile): string | null {
+  const km = distanceBetween(a, b);
+  if (km === null) return null;
+  if (km <= 30) return 'In your city.';
+  if (km <= 150) return `About ${km} km away — an easy day out.`;
+  return `About ${km.toLocaleString('en-IN')} km away.`;
 }
 export function factorScores(astrology: number, aInterests: string[], bInterests: string[], aD: DXProfile, bD: DXProfile): FactorBreakdown {
   return {
@@ -176,11 +231,16 @@ export function unreachableReason(
 }
 
 /** Short, human explanation of why this is a good match. */
-export function explain(f: FactorBreakdown, sharedInterests: string[], prefsMet: string[] = []): string[] {
+export function explain(
+  f: FactorBreakdown, sharedInterests: string[], prefsMet: string[] = [], distance: string | null = null,
+): string[] {
   const r: string[] = [];
   // A preference the citizen stated, named first when it was met. Anything
   // collected has to visibly change the answer, or it should not be collected.
   for (const p of prefsMet) r.push(p);
+  // Where they are, when we could work it out. Omitted rather than hedged when
+  // we could not — "distance unknown" is noise on a card.
+  if (distance) r.push(distance);
   // Where they are, when we could work it out. Omitted rather than hedged when
   // we could not — "distance unknown" is noise on a card.
   if (f.astrology >= 85) r.push('Excellent astrological compatibility.');

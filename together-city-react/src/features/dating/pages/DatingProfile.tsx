@@ -666,14 +666,16 @@ export function DatingProfilePage() {
             <label style={{ display: 'block' }}><span style={label}>Age from</span><input type="number" min={18} max={99} value={dx.prefAgeMin ?? ''} onChange={(e) => setD({ prefAgeMin: num(e.target.value) })} style={field} /></label>
             <label style={{ display: 'block' }}><span style={label}>Age to</span><input type="number" min={18} max={99} value={dx.prefAgeMax ?? ''} onChange={(e) => setD({ prefAgeMax: num(e.target.value) })} style={field} /></label>
             <label style={{ display: 'block' }}>
-              <span style={label}>Distance (km) <span style={{ textTransform: 'none', fontWeight: 500 }}>— not used yet</span></span>
+              <span style={label}>Distance (km)</span>
               <input type="number" min={1} max={5000} value={dx.prefDistanceKm ?? ''} onChange={(e) => setD({ prefDistanceKm: num(e.target.value) })} style={field} />
-              {/* Honest rather than removed (your call). locationScore compares
-                  city names for exact equality — no coordinates, so "Bengaluru"
-                  and "Bangalore" are strangers and a radius cannot be measured. */}
+              {/* This does something now. shared/geo.ts resolves ~140 cities to
+                  coordinates, so the distance is measured rather than guessed —
+                  and a city outside that list falls back to comparing place
+                  names, with the preference left out rather than applied to a
+                  distance nobody measured. */}
               <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, display: 'block', marginTop: 4 }}>
-                We can’t measure distance yet — matching only knows your city by name, not where it is.
-                We’ll keep your answer and use it as soon as it can mean something.
+                Someone further away than this still appears, scored lower — it shapes your matches
+                rather than hiding people. If we don’t recognise a city we leave this out rather than guess.
               </span>
             </label>
             <div>
