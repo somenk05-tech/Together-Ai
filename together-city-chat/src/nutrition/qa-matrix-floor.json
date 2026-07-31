@@ -1,0 +1,7 @@
+{
+  "_": "The hardest population's numbers, ratcheted. See qa-matrix.spec.ts for what these mean and why they exist. Measured 30 Jul 2026.",
+  "calorieWithin10Pct": 66.4,
+  "proteinMetPct": 66.9,
+  "capBreachDays": 127,
+  "tolerancePoints": 2
+}

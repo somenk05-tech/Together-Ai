@@ -234,5 +234,70 @@ describe('Nutrition Hub — Round-2 large matrix (real 11k pool)', () => {
 
     expect(m.crashes).toBe(0);
     expect(m.days).toBeGreaterThan(1000);
+
+    // ── the ratchet ────────────────────────────────────────────────────
+    //
+    // This matrix is not the release gate. RELEASE-GATE.md's >=90% calorie
+    // figure reads against sim-150, because the question it answers is whether
+    // the hub works for the people who use it, and sim-150 is a realistic
+    // distribution — 63 of its 150 users are clinical. This file is a
+    // cross-product sweep in which EVERY profile carries a condition set, so it
+    // describes the corners rather than the middle, and it is allowed to be
+    // worse than the middle.
+    //
+    // What it is not allowed to be is quietly worse than yesterday. The two
+    // harnesses report the same measure — the deviation arithmetic is identical
+    // line for line — so a 23-point gap between them is a fact about who is
+    // being simulated, and a gap that grows is a fact about the engine.
+    //
+    // Same shape as lint-ceiling.mjs on the web side: the number fails when it
+    // gets worse AND when it gets better without anybody moving the floor. A
+    // ratchet nobody ratchets is a floor that silently stops meaning anything.
+    // The tolerance exists because these are percentages over ~1,000 plan-days
+    // and a rounding-level wobble is not news.
+    const floor = require('./qa-matrix-floor.json') as {
+      calorieWithin10Pct: number; proteinMetPct: number; capBreachDays: number; tolerancePoints: number;
+    };
+    const tol = floor.tolerancePoints;
+    const measured = {
+      calorieWithin10Pct: Math.round(1000 * m.kcalWithin10 / m.kcalDays) / 10,
+      proteinMetPct: Math.round(1000 * m.proteinMetDays / m.kcalDays) / 10,
+      capBreachDays: m.capBreachDays,
+    };
+
+    const ratchet = (name: 'calorieWithin10Pct' | 'proteinMetPct', better: 'higher') => {
+      void better;
+      const now = measured[name];
+      const was = floor[name];
+      if (now < was - tol) {
+        throw new Error(
+          `${name} fell to ${now}% from a floor of ${was}%. The hardest profiles got worse. ` +
+          'Find out which cohort moved before changing this number.',
+        );
+      }
+      if (now > was + tol) {
+        throw new Error(
+          `${name} improved to ${now}% (floor ${was}%). Raise it in qa-matrix-floor.json and commit ` +
+          'that alongside the change — an unratcheted floor stops protecting anything.',
+        );
+      }
+    };
+    ratchet('calorieWithin10Pct', 'higher');
+    ratchet('proteinMetPct', 'higher');
+
+    // Cap breaches move the other way: this one is a ceiling.
+    if (measured.capBreachDays > floor.capBreachDays) {
+      throw new Error(
+        `Cap-breach days rose to ${measured.capBreachDays} from a ceiling of ${floor.capBreachDays}. ` +
+        'These are days a clinical plan could not be made to meet its caps — they are reported and ' +
+        'warned, never shipped silently, but more of them is a worse hub.',
+      );
+    }
+    if (measured.capBreachDays < floor.capBreachDays) {
+      throw new Error(
+        `Cap-breach days fell to ${measured.capBreachDays} (ceiling ${floor.capBreachDays}). Lower it ` +
+        'in qa-matrix-floor.json and commit that alongside the change.',
+      );
+    }
   });
 });
