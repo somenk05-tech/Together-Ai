@@ -25,7 +25,7 @@ export function TargetsDisclosure({ p }: { p: Prescription }) {
 
   // The refusal comes first and replaces the working, because there is no
   // working to show — the number on screen was built from a reference body.
-  if (r && !r.ok) return <MissingInputs r={r} />;
+  if (r && !r.ok) return <TargetsRefusal r={r} />;
   if (!p.energyTrace) return null;
 
   const { equation, inputs, steps, notes } = p.energyTrace;
@@ -86,7 +86,16 @@ export function TargetsDisclosure({ p }: { p: Prescription }) {
  * guess a route. That matters more than it looks: the first version of the
  * engine linked to a page that does not hold these fields at all.
  */
-function MissingInputs({ r }: { r: Extract<NonNullable<Prescription['readiness']>, { ok: false }> }) {
+/**
+ * The refusal, exported because more than one screen owes it.
+ *
+ * BE-7.4's note says eight surfaces read a target and would adopt `readiness`
+ * one at a time. Each one that does needs this exact panel — the headline, the
+ * reason, and a link per missing field that lands on the input rather than the
+ * page. A second copy of it is a second wording of the same refusal, and the
+ * two would drift the way the hub lists did.
+ */
+export function TargetsRefusal({ r }: { r: Extract<NonNullable<Prescription['readiness']>, { ok: false }> }) {
   return (
     <div style={{ marginTop: 10, padding: '14px 16px', border: '1px solid var(--accent)', borderRadius: 12, background: 'var(--accent-soft, rgba(179,138,44,.06))' }}>
       <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700 }}>{r.headline}</p>

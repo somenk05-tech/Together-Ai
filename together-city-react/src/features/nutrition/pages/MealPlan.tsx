@@ -8,7 +8,7 @@ import {
 } from '../composed.api';
 import { useHealthScore } from '@/features/profile/hooks';
 import { ComposedMealCard, SkippedMealCard, skippedSlotsFor } from '../components/ComposedMealCard';
-import { TargetsDisclosure } from '../components/TargetsDisclosure';
+import { TargetsDisclosure, TargetsRefusal } from '../components/TargetsDisclosure';
 import { NIc } from '../components/NIcon';
 import { balanceNote, dayBalance } from '../dayBalance';
 
@@ -375,6 +375,32 @@ export function MealPlan() {
     );
   }
   if (plan.data.needsProfile) return <ProfileGate />;
+
+  // BE-7.4, the owner's ruling: refuse, don't approximate.
+  //
+  // Until now this page showed the plan and put the refusal UNDERNEATH it — a
+  // week of portioned meals sized from REFERENCE_BODY (70 kg, 172 cm, 30,
+  // male) with a note below explaining the body it was sized for was not
+  // theirs. A 52 kg woman was served a man's maintenance energy, plated, seven
+  // days of it, and asked to read the small print.
+  //
+  // `readiness` is optional and only an explicit { ok: false } refuses. An
+  // older API that does not send it leaves the page exactly as it was, rather
+  // than emptying the hub on a field that happens to be missing.
+  const readiness = plan.data.prescription?.readiness;
+  if (readiness && !readiness.ok) {
+    return (
+      <div style={{ maxWidth: 560, margin: '48px auto', padding: '0 16px' }}>
+        <h1 style={{ fontSize: 22, margin: '0 0 6px' }}>We can’t size a plan for you yet</h1>
+        <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, margin: '0 0 4px' }}>
+          A meal plan is portions, and portions come from a body. We’d rather ask
+          than guess — a week of meals measured for somebody else isn’t a plan,
+          it’s a plan for somebody else.
+        </p>
+        <TargetsRefusal r={readiness} />
+      </div>
+    );
+  }
 
   const wk = plan.data;
   // FE-8.1's gate, decided server-side. `undefined` while the score loads —

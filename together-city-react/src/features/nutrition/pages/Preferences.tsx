@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useFormValidation, ValidationSummary, FieldError, successToast } from '@/components/form-validation';
 import { Button, Spinner } from '@/components/ui';
 import { useFoodPref, useNutritionTargets, useUpdateFoodPref } from '../hooks';
+import { TargetsRefusal } from '../components/TargetsDisclosure';
 import { useBloodHistory } from '@/features/medical/api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
@@ -126,6 +127,20 @@ function TargetsCard() {
   const targets = useNutritionTargets();
   if (!targets.data) return null;
   const t = targets.data;
+  // BE-7.4. Six figures headed "Your daily targets", every one of them computed
+  // from a reference body, is the most confident this app gets about a person it
+  // knows nothing about. Say what is missing instead.
+  if (t.readiness && !t.readiness.ok) {
+    return (
+      <div className="card" style={{ marginTop: 18 }}>
+        <div className="eyebrow">Your daily targets</div>
+        <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '8px 0 0' }}>
+          These are worked out from your body, so we need it before we can give you a number.
+        </p>
+        <TargetsRefusal r={t.readiness} />
+      </div>
+    );
+  }
   const rows: [string, string][] = [
     ['Calories', `${t.kcal} kcal`], ['Protein', `${t.protein} g`], ['Carbs', `${t.carb} g`],
     ['Fat', `${t.fat} g`], ['Fibre', `${t.fiber} g`], ['Water', `${(t.waterMl / 1000).toFixed(1)} L`],

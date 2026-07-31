@@ -1,3 +1,4 @@
+import type { Readiness } from './composed.api';
 /** Nutrition domain types — mirror the NestJS meal-planner DTOs. */
 export type DietKey = 'everything' | 'veg' | 'nonveg' | 'pesc' | 'egg' | 'vegan' | 'jain';
 export type Slot = 'b' | 'l' | 's' | 'd';
@@ -124,6 +125,10 @@ export interface NutritionHistoryWeek {
 
 export interface NutritionTargets {
   kcal: number; protein: number; carb: number; fat: number; fiber: number; waterMl: number;
+  /** BE-7.4. The server has always sent this; nothing here had declared it, so
+   *  no screen reading these targets could see the refusal it carries. */
+  readiness?: Readiness;
+  assumed?: string[];
   sugarMaxG?: number; satFatMaxG?: number; sodiumMaxMg?: number; potassiumMinMg?: number;
   perMeal?: Record<'b' | 'l' | 's' | 'd', { kcal: number; protein: number; carb: number; fat: number }>;
   adjustments?: string[]; // medical target adjustments applied

@@ -1786,9 +1786,19 @@ export class NutritionService implements OnModuleInit {
 
       if (shareable) {
         const ownerPlan = await this.composeFor(ctx.ownerId, mode);
+        // Nullables passed through, NOT pre-substituted.
+        //
+        // This used to fill in 70 / 172 / 30 / male right here, before
+        // computeTargets could see that anything was missing — so a family
+        // member with no profile of their own got readiness: { ok: true }, an
+        // empty assumed[], and a plan scaled by a factor derived from a
+        // stranger's body, with nothing anywhere saying so. The same double
+        // erasure was fixed in targets() and this copy was left behind; it was
+        // the worse of the two, because it was silently confident.
         const mt = computeTargets({
-          weightKg: mpref?.weightKg ?? 70, heightCm: mpref?.heightCm ?? 172, age: mpref?.age ?? 30,
-          sex: mpref?.sex ?? 'male', activity: mpref?.activity ?? 1.4, goal: mpref?.goal ?? 'maintain',
+          weightKg: mpref?.weightKg ?? undefined, heightCm: mpref?.heightCm ?? undefined,
+          age: mpref?.age ?? undefined, sex: mpref?.sex ?? undefined,
+          activity: mpref?.activity ?? undefined, goal: mpref?.goal ?? undefined,
           conditions: mConds, flags: mFlags,
         });
         const factor = Math.max(0.4, Math.min(1.9, mt.kcal / Math.max(1, ownerPlan.targets.kcal)));
