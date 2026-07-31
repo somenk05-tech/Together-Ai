@@ -644,11 +644,16 @@ export class NutritionController {
   }
 
   @Post('orders')
+  // deliveryAddress is OPTIONAL here and required in the service, which is not
+  // an oversight. The service's own check says "Where should this go? Add a
+  // delivery address before paying."; Zod would say the shape was wrong. The
+  // only caller that omits it is a browser tab opened before this deployed, and
+  // the person holding it deserves the sentence rather than the schema.
   @UsePipes(new ZodValidationPipe(z.object({
     method: z.enum(['wallet', 'card']).optional(),
-    deliveryAddress: z.string().min(1).max(300),
+    deliveryAddress: z.string().max(300).optional(),
   })))
-  placeOrder(@CurrentUser() user: JwtUser, @Body() body: { method?: 'wallet' | 'card'; deliveryAddress: string }) {
+  placeOrder(@CurrentUser() user: JwtUser, @Body() body: { method?: 'wallet' | 'card'; deliveryAddress?: string }) {
     return this.nutrition.placeOrder(user.sub, body?.method, body?.deliveryAddress);
   }
 
