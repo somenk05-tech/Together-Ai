@@ -82,10 +82,14 @@ describe('blockedWith', () => {
 });
 
 describe('blockedMessage', () => {
-  it('tells the blocker what they did and how to undo it', () => {
+  it('tells the blocker what they did and where to undo it', () => {
     for (const d of ['i-blocked-them', 'both'] as const) {
       expect(blockedMessage(d)).toContain('You have blocked');
-      expect(blockedMessage(d)).toContain('Unblock');
+      // A place, not just an instruction. The first version of this said
+      // "unblock them from their profile", which nobody could act on: a block
+      // takes that profile out of the feed, out of search and out of your
+      // circle. The screen it names now is /settings/blocked.
+      expect(blockedMessage(d)).toContain('Blocked citizens');
     }
   });
 

@@ -162,6 +162,7 @@ const Chats = lazy(() => import('@/features/chat/pages/Chats').then((m) => ({ de
 const Settings = lazy(() => import('@/features/settings/pages/Settings').then((m) => ({ default: m.Settings })));
 const Calendar = lazy(() => import('@/features/calendar/pages/Calendar').then((m) => ({ default: m.Calendar })));
 const SignIn = lazy(() => import('@/features/auth/pages/SignIn').then((m) => ({ default: m.SignIn })));
+const BlockedPeople = lazy(() => import('@/features/social/pages/Blocked').then((m) => ({ default: m.BlockedPeople })));
 const PrivacySettings = lazy(() => import('@/features/privacy/pages/PrivacySettings').then((m) => ({ default: m.PrivacySettings })));
 const Info = lazy(() => import('@/pages/Info').then((m) => ({ default: m.Info })));
 const LegalCenter = lazy(() => import('@/features/legal/LegalCenter').then((m) => ({ default: m.LegalCenter })));
@@ -201,6 +202,7 @@ export const router = createBrowserRouter([
       { path: '/settings', element: <RequireAuth>{wrap(<Settings />)}</RequireAuth> },
       { path: '/drive', element: <RequireAuth>{wrap(<DrivePage />)}</RequireAuth> },
       { path: '/settings/privacy', element: <RequireAuth>{wrap(<PrivacySettings />)}</RequireAuth> },
+      { path: '/settings/blocked', element: <RequireAuth>{wrap(<BlockedPeople />)}</RequireAuth> },
       { path: '/legal', element: wrap(<LegalCenter />) },
       { path: '/legal/policy/:policyId', element: wrap(<LegalCenter />) },
       { path: '/legal/privacy', element: wrap(<Info slug="privacy" />) },

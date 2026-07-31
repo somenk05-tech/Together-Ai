@@ -112,7 +112,11 @@ export function blockedWith(
  * What to say when the gate closes.
  *
  * Only one of these two sentences may name a block, and it is the one said to
- * the person who made it. The other has to be true without being informative:
+ * the person who made it — and it has to name somewhere they can actually go.
+ * The first draft of this said "unblock them from their profile", which was
+ * advice nobody could follow: blocking somebody removes them from the feed,
+ * from search and from your circle, so their profile is the one page you can no
+ * longer reach. See the Blocked citizens screen (FE-13.5). The other has to be true without being informative:
  * "not accepting" covers a block, and it covers half a dozen other things, and
  * that ambiguity is the point. A message that says "they blocked you" turns the
  * block into a notification and hands over the one fact its owner was trying
@@ -120,7 +124,7 @@ export function blockedWith(
  */
 export function blockedMessage(direction: BlockDirection): string {
   if (direction === 'i-blocked-them' || direction === 'both') {
-    return 'You have blocked this citizen. Unblock them from their profile if you would like to reach them again.';
+    return 'You have blocked this citizen. You can undo that under Settings → Blocked citizens.';
   }
   return 'This citizen is not accepting messages right now.';
 }

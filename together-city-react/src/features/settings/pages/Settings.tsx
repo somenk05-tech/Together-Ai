@@ -187,6 +187,16 @@ export function Settings() {
       {/* Devices — real, backend-driven session manager */}
       <DevicesCard />
 
+      {/* Safety */}
+      <Card style={{ marginTop: 18 }}>
+        <SectionTitle eyebrow="Safety" title="People you have blocked" />
+        <Row
+          title="Blocked citizens"
+          desc="Blocking hides someone and stops them reaching you. This is where you undo it."
+          right={<Link to="/settings/blocked" className="tag">Manage</Link>}
+        />
+      </Card>
+
       {/* Subscription & account */}
       <Card style={{ marginTop: 18 }}>
         <SectionTitle eyebrow="Subscription" title="Together+ & account" />
