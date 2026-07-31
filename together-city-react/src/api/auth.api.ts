@@ -15,7 +15,7 @@ export const LoginInput = z.object({ handle: z.string().min(3), password: z.stri
 export type RegisterInput = z.infer<typeof RegisterInput>;
 export type LoginInput = z.infer<typeof LoginInput>;
 
-const OkSent = z.object({ sent: z.boolean(), delivery: z.enum(['live', 'unconfigured']).optional() });
+const OkSent = z.object({ sent: z.boolean(), delivery: z.enum(['live', 'failed', 'unconfigured']).optional() });
 
 /** Six-digit verification of a real email address or phone number (p2, p3, p19). */
 export const VerificationChannel = z.enum(['email', 'phone']);
@@ -26,7 +26,9 @@ const CodeSent = z.object({
   channel: VerificationChannel,
   /** Masked — s****i@gbcapl.com. Enough to recognise, not enough to harvest. */
   target: z.string(),
-  delivery: z.enum(['live', 'unconfigured']),
+  /** 'failed' means the provider refused it — no code is on its way. */
+  delivery: z.enum(['live', 'failed', 'unconfigured']),
+  reason: z.string().optional(),
   retryAfterMs: z.number(),
 });
 export type CodeSent = z.infer<typeof CodeSent>;
@@ -79,7 +81,7 @@ export const authApi = {
   revokeSession: (id: string): Promise<{ ok: boolean }> => apiPost('/auth/sessions/revoke', { id }, Ok),
   logoutOthers: (): Promise<{ ok: boolean }> => apiPost('/auth/logout-others', {}, Ok),
   logoutAll: (): Promise<{ ok: boolean }> => apiPost('/auth/logout-all', {}, Ok),
-  forgot: (identifier: string, channel: 'email' | 'sms' = 'email'): Promise<{ sent: boolean; delivery?: 'live' | 'unconfigured' }> =>
+  forgot: (identifier: string, channel: 'email' | 'sms' = 'email'): Promise<{ sent: boolean; delivery?: 'live' | 'failed' | 'unconfigured' }> =>
     apiPost('/auth/forgot', { identifier, channel }, OkSent),
   reset: (input: { identifier: string; code: string; newPassword: string }): Promise<{ ok: boolean }> =>
     apiPost<{ ok: boolean }>('/auth/reset', input, OkReset),

@@ -26,8 +26,20 @@ export interface SendResult {
   channel: Channel;
   /** Masked, so the UI can say where it went without printing the address. */
   target: string;
-  /** False when no provider is wired — the UI says so instead of pretending. */
-  delivery: 'live' | 'unconfigured';
+  /**
+   * What actually happened to this dispatch.
+   *
+   *   live         — the provider accepted it
+   *   failed       — the provider REFUSED it; no code is arriving
+   *   unconfigured — no provider is wired at all
+   *
+   * `failed` is the one that was missing, and its absence is why somebody can
+   * sit on a verification screen indefinitely while the server log says
+   * "delivery FAILED" every time they press resend.
+   */
+  delivery: 'live' | 'failed' | 'unconfigured';
+  /** Safe to show. The provider's own reason is in the server log, not here. */
+  reason?: string;
   retryAfterMs: number;
 }
 
@@ -171,13 +183,37 @@ export class VerificationCodeService {
 
     this.logger.log(`code sent user=${userId} channel=${channel} provider=${dispatch.provider} status=${dispatch.status}`);
 
+    // THE RESULT OF THE DISPATCH, NOT THE EXISTENCE OF A PROVIDER.
+    //
+    // This used to return `sent: true` unconditionally and derive `delivery`
+    // from deliveryConfigured() — which answers "is a provider wired", not "did
+    // this message leave". So a refused code was computed, logged at error
+    // level, and then reported to the citizen as "we sent a 6-digit code to
+    // s****i@example.com. It expires in 10 minutes."
+    //
+    // That is the exact failure in the July outage postmortem, one layer up.
+    // ResendEmailProvider.send destructured { data, error } and dropped `error`;
+    // this destructured the dispatch and dropped `status`. The postmortem's own
+    // third finding — "'Configured' was read as 'working'" — is this line.
+    //
+    // The lesson it ends on: an outbound integration needs a failure path
+    // noisier than its success path. The log had one. The response did not, and
+    // the response is the only one the person waiting can see.
+    const wired = this.mail.deliveryConfigured(channel === 'phone' ? 'sms' : 'email');
+    const delivery: 'live' | 'failed' | 'unconfigured' =
+      !wired ? 'unconfigured' : dispatch.ok ? 'live' : 'failed';
+
     return {
-      sent: true,
+      sent: delivery === 'live',
       channel,
       target: maskTarget(channel, target),
-      // Honest about the stub: if no provider is wired, no code is arriving, and
-      // saying "sent" without saying that wastes ten minutes of somebody's day.
-      delivery: this.mail.deliveryConfigured(channel === 'phone' ? 'sms' : 'email') ? 'live' : 'unconfigured',
+      delivery,
+      // Enough to act on, nothing that belongs only in a log. The provider is
+      // named because "Resend refused it" sends an operator to the right console;
+      // its reason is not repeated here because it can quote the recipient.
+      ...(delivery === 'failed'
+        ? { reason: `${dispatch.provider} refused the message. The reason is in the server log — this is not a problem you can fix by waiting.` }
+        : {}),
       retryAfterMs: 60_000,
     };
   }

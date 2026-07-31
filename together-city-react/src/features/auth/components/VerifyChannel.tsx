@@ -47,7 +47,8 @@ export function VerifyChannel({ channel, current, onVerified, onCancel }: Verify
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
-  const [delivery, setDelivery] = useState<'live' | 'unconfigured'>('live');
+  const [delivery, setDelivery] = useState<'live' | 'failed' | 'unconfigured'>('live');
+  const [deliveryReason, setDeliveryReason] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const timer = useRef<number | null>(null);
 
@@ -71,6 +72,7 @@ export function VerifyChannel({ channel, current, onVerified, onCancel }: Verify
       const res = await authApi.sendCode(channel, target.trim() || undefined);
       setSentTo(res.target);
       setDelivery(res.delivery);
+      setDeliveryReason(res.reason ?? null);
       setStep('code');
       setCode('');
       startCooldown(res.retryAfterMs);
@@ -130,11 +132,31 @@ export function VerifyChannel({ channel, current, onVerified, onCancel }: Verify
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <div>
-        <p style={{ fontSize: 14, margin: '0 0 2px' }}>
-          We sent a 6-digit code to <strong>{sentTo}</strong>.
-        </p>
-        <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>It expires in 10 minutes.</p>
+        {/* Do not say we sent it when we know we did not. This block used to be
+            unconditional, because the server reported sent: true either way. */}
+        {delivery === 'live' ? (
+          <>
+            <p style={{ fontSize: 14, margin: '0 0 2px' }}>
+              We sent a 6-digit code to <strong>{sentTo}</strong>.
+            </p>
+            <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>It expires in 10 minutes.</p>
+          </>
+        ) : (
+          <p style={{ fontSize: 14, margin: 0 }}>
+            We could not send a code to <strong>{sentTo}</strong>.
+          </p>
+        )}
       </div>
+
+      {delivery === 'failed' && (
+        // The provider refused it. Pressing resend again will refuse again, and
+        // an hour of pressing it is what this message exists to prevent.
+        <p role="alert" style={{ ...errorStyle }}>
+          {deliveryReason ?? 'The email provider refused the message, so no code is on its way.'}
+          {' '}Nothing is wrong with your address or your account — the send itself is failing,
+          and it needs fixing on our side before a code can reach you.
+        </p>
+      )}
 
       {delivery === 'unconfigured' && (
         // The stub provider logs instead of sending. Saying "check your inbox"
