@@ -57,6 +57,8 @@ export const nutritionApi = {
   medicalRecs: () => api.get<{ cards: MedRecCard[] }>('/nutrition/medical-recs').then((r) => r.data),
   decideMedicalRec: (condition: string, choice: 'apply' | 'keep') =>
     api.post<{ ok: boolean; choice: string; message: string }>('/nutrition/medical-recs/decide', { condition, choice }).then((r) => r.data),
+  setMeal: (planKey: string, dayIndex: number, slot: string, recipeId: string) =>
+    api.post<{ plan: WeekPlan; warnings: string[] }>(`/nutrition/plan/${planKey}/day/${dayIndex}/set`, { slot, recipeId }).then((r) => r.data),
   swapMeal: (planKey: string, dayIndex: number, slot: string, restoreRecipeId?: string) =>
     api.post<WeekPlan>(`/nutrition/plan/${planKey}/day/${dayIndex}/swap`, restoreRecipeId ? { slot, restoreRecipeId } : { slot }).then((r) => r.data),
   skipMeal: (planKey: string, dayIndex: number, slot: string, skipped: boolean) =>

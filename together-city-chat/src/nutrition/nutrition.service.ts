@@ -31,7 +31,7 @@ import { activeMntRules, mntRecipeBias, mntAvoidKeywords, type MntRule } from '.
 import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from './diet-tags';
 import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
-import { isAllergenSafe } from './allergens';
+import { findAllergen, isAllergenSafe } from './allergens';
 import { energyTarget } from './energy';
 import { itemKey, mergeGroceryList } from './grocery-merge';
 import { targetReadiness } from './target-readiness';
@@ -47,6 +47,8 @@ import { QuickCommerceClient } from './quick-commerce-client';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const SLOTS: Slot[] = ['b', 'l', 's', 'd'];
+/** Slot letters as a citizen would say them. */
+const SLOT_NAMES: Record<string, string> = { b: 'breakfast', l: 'lunch', s: 'snack', d: 'dinner' };
 
 /** Diet compatibility — which recipe diets a preference may be served. */
 /**
@@ -5710,6 +5712,67 @@ export class NutritionService implements OnModuleInit {
   }
 
   // ─────────────── swap + sides ───────────────
+  /**
+   * Put a dish the citizen chose into a day and a slot of their own plan.
+   *
+   * `swap` above asks the engine for a DIFFERENT dish; `restoreRecipeId` only
+   * puts back one it had removed. Neither answers "I want this one here", which
+   * is what building your own plan means, so this is a new door.
+   *
+   * The gates are not the same on the way through it. An allergen is a hard
+   * refusal — this is the one thing in the hub that can put somebody in
+   * hospital, and it is refused whether the dish came from the corpus or from
+   * their own kitchen. A diet mismatch is a warning, not a refusal: a
+   * vegetarian putting a fish dish in their own plan on purpose is a choice,
+   * and the app's job there is to be sure they meant it, not to overrule them.
+   * A slot mismatch is a note.
+   *
+   * The day is rebalanced afterwards, exactly as a swap is, so portions still
+   * solve against the day's targets rather than leaving the arithmetic stale.
+   */
+  async setMeal(userId: string, planKey: string, dayIndex: number, slot: Slot, recipeId: string) {
+    await this.assertOwnsPlan(planKey, userId);
+    const meal = await this.findMeal(planKey, dayIndex, slot);
+
+    const target = (await this.prisma.recipe.findUnique({
+      where: { id: recipeId },
+      select: { id: true, name: true, slot: true, diet: true, authorId: true, ingredients: { select: { name: true } } } as never,
+    })) as { id: string; name: string; slot: string; diet: string; authorId: string | null; ingredients: { name: string }[] } | null;
+    // Somebody else's own recipe is not a dish this citizen can place, and
+    // not-found is the honest answer — "it exists and is not yours" is itself
+    // something nobody should learn by guessing ids.
+    if (!target || (target.authorId && target.authorId !== userId)) throw new NotFoundException('recipe not found');
+
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const names = target.ingredients.map((i) => i.name);
+
+    const declared = [...(ex.allergies ?? []), ...(ex.excluded ?? [])];
+    const hit = findAllergen(target.name, names, declared);
+    if (hit) {
+      throw new BadRequestException(
+        hit.allergen
+          ? `${target.name} contains ${hit.found}, and you've told us you're allergic to ${hit.term}. We won't put it in your plan.`
+          : `${target.name} contains ${hit.found}, which is on your avoid list. We won't put it in your plan.`,
+      );
+    }
+
+    const warnings: string[] = [];
+    const screen = screenRecipe(pref?.diet ?? 'everything', names);
+    if (!screen.ok) {
+      const what = [...new Set(screen.offending.map((o) => o.ingredient))].slice(0, 3).join(', ');
+      warnings.push(`${target.name} contains ${what}, which is outside the diet on your profile. It's in your plan because you asked for it.`);
+    }
+    if (target.slot !== slot) {
+      warnings.push(`${target.name} is usually a ${SLOT_NAMES[target.slot] ?? target.slot} dish. It's on your ${SLOT_NAMES[slot] ?? slot} instead.`);
+    }
+
+    await this.prisma.meal.update({ where: { id: meal.id }, data: { recipeId: target.id, skipped: false } });
+    await this.rebalanceDay(planKey, dayIndex);
+    await this.markEdited(planKey);
+    return { plan: await this.shapePlan(planKey), warnings };
+  }
+
   async swap(userId: string, planKey: string, dayIndex: number, slot: Slot, restoreRecipeId?: string) {
     await this.assertOwnsPlan(planKey, userId);
     const meal = await this.findMeal(planKey, dayIndex, slot);

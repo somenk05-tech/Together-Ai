@@ -14,6 +14,7 @@ import {
   type Diet, FoodPrefSchema, type FoodPrefDto,
   type PlanMode, RegenerateSchema, type RegenerateDto,
   SidesSchema, type SidesDto, type Slot, SwapSchema, type SwapDto,
+  SetMealSchema, type SetMealDto,
   SkipSchema, type SkipDto, CalorieSchema, type CalorieDto,
 } from './dto/nutrition.dto';
 import { OwnRecipeSchema, type OwnRecipeDto } from './dto/own-recipe.dto';
@@ -479,6 +480,14 @@ export class NutritionController {
   @Post('plan/:key/day/:idx/rebalance')
   repairDay(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number) {
     return this.nutrition.repairDay(user.sub, key, idx);
+  }
+
+  /** Put a dish the citizen chose into this day and slot — the "build your own
+   *  plan" door. Allergens refuse; a diet mismatch warns and proceeds. */
+  @Post('plan/:key/day/:idx/set')
+  @UsePipes(new ZodValidationPipe(SetMealSchema))
+  setMeal(@CurrentUser() user: JwtUser, @Param('key') key: string, @Param('idx', ParseIntPipe) idx: number, @Body() dto: SetMealDto) {
+    return this.nutrition.setMeal(user.sub, key, idx, dto.slot as Slot, dto.recipeId);
   }
 
   @Post('plan/:key/day/:idx/swap')

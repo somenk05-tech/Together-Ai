@@ -5,6 +5,7 @@ import { useRecipe, useRecipes, useBuildCart, useSavedRecipes, useToggleSave, us
 import { stepTimerSeconds } from '../components/CookMode';
 import { useCookStore } from '../cook.store';
 import { DIET_META } from '../dietMeta';
+import { AddToPlan } from '../components/AddToPlan';
 import { recipeImageUrl } from '../recipeImages';
 import { VegMark, dietKind } from '../components/VegMark';
 import type { DietKey } from '../types';
@@ -262,6 +263,7 @@ export function RecipeDetail() {
         </div>
         <div>
           <h1 style={{ fontSize: 34, lineHeight: 1.1, letterSpacing: '-.02em', margin: '2px 0 8px', fontWeight: 700 }}>{r.name}</h1>
+          <AddToPlan recipeId={r.id} recipeName={r.name} />
           <p style={{ fontSize: 15, color: 'var(--muted)', lineHeight: 1.5, margin: '0 0 16px' }}>
             {r.whyForYou?.summary ?? `A ${meta.label.toLowerCase()} ${r.country} recipe, ready in about ${r.minutes} minutes.`}
           </p>

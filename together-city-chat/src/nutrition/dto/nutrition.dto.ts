@@ -22,6 +22,12 @@ export type RegenerateDto = z.infer<typeof RegenerateSchema>;
 // `restoreRecipeId` (optional) restores a specific earlier recipe for the slot —
 // this powers the meal card's "back" arrow (undo a refresh). When absent the
 // engine picks a fresh recipe as before.
+export const SetMealSchema = z.object({
+  slot: z.enum(['b', 'l', 's', 'd']),
+  recipeId: z.string().min(1).max(120),
+});
+export type SetMealDto = z.infer<typeof SetMealSchema>;
+
 export const SwapSchema = z.object({ slot: SlotSchema, restoreRecipeId: z.string().min(1).optional() });
 export type SwapDto = z.infer<typeof SwapSchema>;
 

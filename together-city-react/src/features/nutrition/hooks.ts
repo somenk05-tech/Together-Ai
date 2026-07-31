@@ -24,6 +24,26 @@ export function useDailyPlan(mode: 'individual' | 'family' = 'individual') {
   return useQuery({ queryKey: DAILY_KEY(mode), queryFn: () => nutritionApi.weeklyPlan(mode, true) });
 }
 
+/**
+ * Put a chosen dish into a day and a slot of the saved plan.
+ *
+ * Distinct from a swap, which asks the engine for something different. This is
+ * the citizen naming the dish. The server refuses an allergen outright and
+ * returns warnings for anything it did with reservations, so the caller has to
+ * decide what to show — the warnings are not decoration.
+ */
+export function useSetMeal(mode: 'individual' | 'family' = 'individual') {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { planKey: string; dayIndex: number; slot: string; recipeId: string }) =>
+      nutritionApi.setMeal(v.planKey, v.dayIndex, v.slot, v.recipeId),
+    onSuccess: (res) => {
+      qc.setQueryData(KEY(mode), res.plan);
+      void qc.invalidateQueries({ queryKey: DAILY_KEY(mode) });
+    },
+  });
+}
+
 /** Every saved week — the calendar/timeline. */
 export function useWeeks(mode: 'individual' | 'family' = 'individual') {
   return useQuery({ queryKey: ['nutrition', 'weeks', mode], queryFn: () => nutritionApi.weeks(mode) });
