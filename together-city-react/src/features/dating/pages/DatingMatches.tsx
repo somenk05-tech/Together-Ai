@@ -273,19 +273,23 @@ function Distribution({ bands, total, highlightScore }: { bands: CompatibilityBa
 
 /** Shown while the user already has an active dating chat — the stack is hidden
  *  so they focus on that one connection. */
-function EngagedPanel({ chat }: { chat: DatingChatSummary | null }) {
+function EngagedPanel({ chat, openChats, cap }: { chat: DatingChatSummary | null; openChats: number; cap: number }) {
   return (
     <div className="card" style={{ padding: '22px 20px', textAlign: 'center' }}>
       <div style={{ fontSize: 34 }}>💬</div>
-      <h2 style={{ fontSize: 18, margin: '6px 0 4px' }}>You’re getting to know {chat ? chat.name : 'someone'}</h2>
+      <h2 style={{ fontSize: 18, margin: '6px 0 4px' }}>
+        {openChats === 1 ? `You’re getting to know ${chat ? chat.name : 'someone'}` : `You have ${openChats} conversations going`}
+      </h2>
       <p className="muted" style={{ fontSize: 13, margin: '0 auto 16px', maxWidth: 380, lineHeight: 1.55 }}>
-        Intentional dating means one conversation at a time. Your match stack is paused while you focus here — new matches will be waiting when you’re ready.
+        Intentional dating means a few conversations, not endless ones — {cap} at a time.
+        Your match stack is paused while you give these your attention, and every match is still
+        waiting when you unmatch one.
       </p>
       <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
         <Link to={chat ? `/dating/chats?c=${chat.conversationId}` : '/dating/chats'}><Button variant="accent">Open your chat</Button></Link>
         <Link to="/dating/chats"><Button variant="line">Dating chats</Button></Link>
       </div>
-      <p className="muted" style={{ fontSize: 11.5, marginTop: 14 }}>To meet someone new, unmatch your current chat first.</p>
+      <p className="muted" style={{ fontSize: 11.5, marginTop: 14 }}>To start another, unmatch one of these first.</p>
     </div>
   );
 }
@@ -315,7 +319,12 @@ export function DatingMatches() {
     );
   }
 
-  const engaged = (stack.data?.engaged ?? false) || (chats.data?.length ?? 0) > 0;
+  // Paused at the CAP, not at the first conversation. `engaged` meant "has any
+  // chat", so one conversation hid the entire match stack — the page stopped
+  // doing its job the moment it succeeded once.
+  const chatCap = stack.data?.chatCap ?? 3;
+  const openChats = stack.data?.openChats ?? (chats.data?.filter((c) => c.conversationId).length ?? 0);
+  const atCapacity = stack.data?.atCapacity ?? openChats >= chatCap;
   const activeChat = chats.data?.[0] ?? null;
   const top = stack.data?.top ?? null;
   const matched = stack.data?.matched ?? [];
@@ -338,8 +347,8 @@ export function DatingMatches() {
       <div style={{ marginBottom: 18, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 14, padding: '13px 16px' }}>
         <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid #caa94a', color: 'var(--muted)', flex: 'none' }}>🔒</span>
         <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-          <strong>We believe in intentional dating.</strong> You can chat with one person at a time.
-          If you feel the conversation isn’t going anywhere, <strong>unmatch</strong> and move forward.
+          <strong>We believe in intentional dating.</strong> You can have up to three conversations
+          going at once. If one isn’t going anywhere, <strong>unmatch</strong> and move forward.
         </div>
       </div>
 
@@ -362,8 +371,8 @@ export function DatingMatches() {
 
       {stack.isLoading ? (
         <Spinner label="Scoring compatibility…" />
-      ) : engaged ? (
-        <EngagedPanel chat={activeChat} />
+      ) : atCapacity ? (
+        <EngagedPanel chat={activeChat} openChats={openChats} cap={chatCap} />
       ) : top ? (
         <>
           {/* Top match first */}

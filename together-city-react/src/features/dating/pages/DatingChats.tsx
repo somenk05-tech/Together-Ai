@@ -212,6 +212,10 @@ export function DatingChats() {
     (c): c is OpenChat => c.conversationId !== null && c.conversationId === openId,
   ) ?? null;
 
+  // Everything that is not the thread on screen. Computed here rather than
+  // inside the branch so the empty case and the switching case cannot disagree
+  // about what "your other chats" means.
+  const others = list.filter((c) => c.conversationId !== active?.conversationId);
   const open = (id: string) => setParams((p) => { p.set('c', id); return p; });
   const back = () => setParams((p) => { p.delete('c'); return p; }, { replace: true });
 
@@ -220,11 +224,28 @@ export function DatingChats() {
       <div className="eyebrow">Dating Hub · Chats</div>
       <h1 style={{ fontSize: 26 }}>Your dating chats</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
-        Intentional dating — one conversation at a time. You choose whether to chat under your own name or a pseudonym, and so do they. These chats live only here, never in your main Chats.
+        Intentional dating — a few conversations, not endless ones. You choose whether to chat under your own name or a pseudonym, and so do they. These chats live only here, never in your main Chats.
       </p>
 
       {active ? (
-        me.data && <Thread chat={active} meId={me.data.id} onBack={back} />
+        <>
+          {me.data && <Thread chat={active} meId={me.data.id} onBack={back} />}
+          {/* Opening a chat used to REPLACE the whole list, which was survivable
+              when only one could exist and is not now: the other people you are
+              talking to simply vanished until you pressed Back. They stay. */}
+          {others.length > 0 && (
+            <div style={{ marginTop: 18 }}>
+              <div className="eyebrow" style={{ marginBottom: 6 }}>
+                Your other {others.length === 1 ? 'chat' : 'chats'}
+              </div>
+              {others.map((c) => (
+                c.conversationId
+                  ? <ChatRow key={c.conversationId} c={c} active={false} onClick={() => open(c.conversationId as string)} />
+                  : <PendingRow key={c.otherUserId} c={c} />
+              ))}
+            </div>
+          )}
+        </>
       ) : chats.isLoading ? (
         <Spinner label="Loading your chats…" />
       ) : list.length === 0 ? (

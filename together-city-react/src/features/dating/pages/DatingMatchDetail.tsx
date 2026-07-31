@@ -198,8 +198,8 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
         <div style={{ marginTop: 12, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 14, padding: '13px 16px' }}>
           <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid #caa94a', color: 'var(--muted)', flex: 'none' }}>🔒</span>
           <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-            <strong>We believe in intentional dating.</strong> You can chat with one person at a time.
-            If you feel the conversation isn’t going anywhere, <strong>unmatch</strong> and move forward.
+            <strong>We believe in intentional dating.</strong> You can have up to three conversations
+            going at once. If one isn’t going anywhere, <strong>unmatch</strong> and move forward.
           </div>
         </div>
 
@@ -234,7 +234,7 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
             </div>
           )}
           <p className="muted" style={{ fontSize: 11.5, marginTop: 10, textAlign: 'center' }}>
-            {matched ? 'Connecting opens an anonymous chat in the Dating Hub — one at a time. First 3 connections are free.' : 'They’re notified only if you both like each other.'}
+            {matched ? 'Connecting opens an anonymous chat in the Dating Hub — up to three at a time. First 3 connections are free.' : 'They’re notified only if you both like each other.'}
           </p>
           <div style={{ marginTop: 14, textAlign: 'center' }}>
             <SafetyMenu userId={targetUserId} kind={kind} />

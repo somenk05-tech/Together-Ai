@@ -32,6 +32,9 @@ function serviceWith(candidates: Array<Record<string, unknown>>, states: Array<R
     datingMatch: {
       findFirst: jest.fn(async () => null),   // not engaged in a chat
       findMany: jest.fn(async () => states),
+      // The open-conversation count the chat cap reads. Absent, the stub was
+      // modelling a delegate this app does have.
+      count: jest.fn(async () => states.filter((s) => (s as { conversationId?: string | null }).conversationId).length),
     },
     // The pair-score cache H2 learns from. It was absent, so the stub was
     // modelling a database this app does not have; returning null here exercises

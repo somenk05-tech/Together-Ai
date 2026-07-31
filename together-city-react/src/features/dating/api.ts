@@ -159,7 +159,12 @@ export interface DatingAdminStats {
 
 export interface CompatibilityBand { label: string; min: number; max: number; count: number }
 export interface DatingStack {
+  /** True when ANY chat is open. Kept for older callers; prefer atCapacity. */
   engaged: boolean;
+  /** How many conversations are open, and the most this hub allows at once. */
+  openChats?: number;
+  chatCap?: number;
+  atCapacity?: boolean;
   distribution: CompatibilityBand[];
   /** The highest-scoring candidate. The page leads with it — but it is the
    *  first of `candidates`, not the only one anybody gets to see. */

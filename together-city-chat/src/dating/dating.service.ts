@@ -36,6 +36,15 @@ const MATCH_THRESHOLD = 75; // only curated matches ≥75% are ever shown (spec)
  * 137 of the 500 people we looked at" is a sentence the page can say honestly.
  * A silent bound is the thing this change is removing; a stated one is a fact.
  */
+/**
+ * How many dating conversations one citizen may have open at once.
+ *
+ * Was hardcoded as exactly one. Three is the same three as the free
+ * connections, so the two limits in this hub are one number rather than two,
+ * and it is small enough that "intentional" still means something.
+ */
+export const DATING_CHAT_CAP = 3;
+
 const SCORING_POOL = 500;
 
 /**
@@ -690,6 +699,19 @@ export class DatingService {
       where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null } } as never,
     });
     const engaged = Boolean(engagedRow);
+    // How many are actually open, so the page can say "two of three" rather than
+    // hiding the stack the moment a single conversation exists.
+    //
+    // try/catch around the WHOLE access, not just the promise: reaching for
+    // `.count` on a delegate that does not have it throws synchronously, before
+    // there is a promise for `.catch` to attach to. Falling back to the boolean
+    // is the honest degradation — we know there is at least one.
+    let openChats = engaged ? 1 : 0;
+    try {
+      openChats = await this.prisma.datingMatch.count({
+        where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null } } as never,
+      });
+    } catch { /* keep the boolean-derived count */ }
 
     const candidates = await this.prisma.datingProfile.findMany({
       where: { userId: { not: userId }, visible: true, moderation: 'approved' } as never,
@@ -811,6 +833,7 @@ export class DatingService {
     // something the citizen can scroll rather than the only thing they get.
     return {
       engaged, distribution, top, candidates: cards, matched, totalCandidates: cards.length,
+      openChats, chatCap: DATING_CHAT_CAP, atCapacity: openChats >= DATING_CHAT_CAP,
       // Rendered, not logged. Once the weights differ per person so does the
       // percentage, and a screen showing the new number under the old sentence
       // would be lying quietly.
@@ -1059,11 +1082,29 @@ export class DatingService {
     if (state.status !== 'matched') throw new NotFoundException('No active match to connect to.');
     if (state.conversationId) return { conversationId: state.conversationId, alreadyOpen: true, chargedInr: 0 };
 
-    // Intentional dating: at most one active dating chat at a time.
-    const active = await this.prisma.datingMatch.findFirst({
+    // Intentional dating: a few conversations, not one, and not endless.
+    //
+    // This was exactly one. Matching with somebody you could not talk to until
+    // you unmatched somebody else made the second match a punishment for the
+    // first, and the hub's whole job is to produce matches.
+    //
+    // THREE, and the number is not arbitrary. It is the same three as the free
+    // connections, so the two limits a citizen meets in this hub are one number
+    // rather than two — and it is small enough that "intentional" still means
+    // something. Endless is the thing this product is defined against.
+    // findMany + length rather than count(): this path decides whether somebody
+    // is allowed to open a conversation, so it must not depend on a delegate
+    // method the rest of this service never uses.
+    const others = await this.prisma.datingMatch.findMany({
       where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null }, id: { not: state.id } } as never,
+      select: { id: true },
     });
-    if (active) throw new BadRequestException('You can chat with one person at a time. Unmatch your current chat to connect with someone new.');
+    const openCount = others.length;
+    if (openCount >= DATING_CHAT_CAP) {
+      throw new BadRequestException(
+        `You have ${openCount} conversations open, which is as many as this hub allows at once. Unmatch one to start another — the match itself stays until you do.`,
+      );
+    }
 
     // First 3 connections free, then the rate-card price.
     const mine = await this.prisma.datingProfile.findUnique({ where: { userId } });
