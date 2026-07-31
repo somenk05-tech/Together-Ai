@@ -358,6 +358,58 @@ for (const [route] of UNREACHABLE_ON_PURPOSE) {
   }
 }
 
+// ── 7. a hub's inner pages belong to that hub ────────────────────────────
+//
+// Found by clicking through to a page this audit had just made reachable. The
+// Medicines & Reminders page — prescriptions, doses, the allergies somebody has
+// recorded — rendered with a left sidebar headed "Dating Hub", listing Curated
+// Matches and Dating Chats. It sat in the dating route block, so it inherited
+// that block's layout, and the router gave no hint: the line looked exactly like
+// its neighbours.
+//
+// This is not only untidy. A medicine list is the page you hold up to a
+// pharmacist. /thoughts is a private journal. Rendering either one framed by
+// somebody's dating navigation is a small betrayal of context, and it happened
+// because a route was added to whichever block had room.
+const HUB_PREFIX = new Map();
+const HUB_NAME = new Map();
+for (const m of hubs.matchAll(/key: '(\w+)',\s*name: '([^']*)',\s*tag: '[^']*',\s*backPath: '([^']+)'/g)) {
+  HUB_NAME.set(m[1], m[2]);
+  HUB_PREFIX.set(m[1], m[3]);
+}
+
+/** Paths that live under another hub's layout deliberately, and why. */
+const FOREIGN_ON_PURPOSE = new Map([
+  ['/profile/astrology', 'astrology'], // item 05 of the Astrology menu
+  // Top-level path, listed as item 05 of the Social Life menu. The journal
+  // predates the hub and its URL is the one thing about it anybody could have
+  // saved; the alternative was renaming it to /social/thoughts for tidiness.
+  ['/thoughts', 'social'],
+]);
+
+// Split on any top-level route object, NOT only the multi-line ones. The first
+// version matched /\n {2}\{\n/, which does not match a route written on one
+// line — so /sign-in, /signin and /index.html, which follow the mail block, were
+// read as children of it and reported as rendering with a mail sidebar. Same
+// mistake as the line-scan draft: a check that guesses at structure will invent
+// findings, and an audit that cries wolf gets switched off.
+for (const block of router.split(/\n {2}\{/)) {
+  const h = block.match(/HubLayout hub=\{HUBS\.(\w+)\}/);
+  if (!h) continue;
+  const prefix = HUB_PREFIX.get(h[1]);
+  if (!prefix) continue;
+  for (const m of block.matchAll(/path: '(\/[^']*)'/g)) {
+    const p = m[1];
+    if (p === prefix || p.startsWith(prefix + '/')) continue;
+    if (FOREIGN_ON_PURPOSE.get(p) === h[1]) continue;
+    problems.push(
+      `app/router.tsx  "${p}" is a child of the ${h[1]} hub's route block, so it `
+      + `renders with the "${HUB_NAME.get(h[1])}" sidebar. Move it to the block for `
+      + 'its own hub, or add it to FOREIGN_ON_PURPOSE with the reason.',
+    );
+  }
+}
+
 if (problems.length) {
   console.error(`nav-audit: ${problems.length} problem(s)\n`);
   for (const p of problems) console.error('  ' + p);

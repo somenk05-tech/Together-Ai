@@ -172,6 +172,7 @@ export const router = createBrowserRouter([
       { path: '/cars', element: <CarsComingSoon /> },
       { path: '/profile', element: <RequireAuth>{wrap(<Profile />)}</RequireAuth> },
       { path: '/profile/master', element: <RequireAuth>{wrap(<MasterProfile />)}</RequireAuth> },
+      { path: '/profile/avatar', element: <RequireAuth>{wrap(<Avatars />)}</RequireAuth> },
       { path: '/settings', element: <RequireAuth>{wrap(<Settings />)}</RequireAuth> },
       { path: '/drive', element: <RequireAuth>{wrap(<DrivePage />)}</RequireAuth> },
       { path: '/settings/privacy', element: <RequireAuth>{wrap(<PrivacySettings />)}</RequireAuth> },
@@ -220,6 +221,10 @@ export const router = createBrowserRouter([
       { path: '/social/profile', element: <RequireAuth>{wrap(<SocProfile />)}</RequireAuth> },
       { path: '/social/u/:handle', element: <RequireAuth>{wrap(<SocPublicProfile />)}</RequireAuth> },
       { path: '/social/saved', element: <RequireAuth>{wrap(<SocSaved />)}</RequireAuth> },
+      // The journal, which the Social Life menu now lists. It was rendering
+      // under the Dating hub's layout, so opening it from Social Life put a
+      // sidebar headed "Dating Hub" beside somebody's private writing.
+      { path: '/thoughts', element: <RequireAuth>{wrap(<Thoughts />)}</RequireAuth> },
     ],
   },
   {
@@ -230,9 +235,6 @@ export const router = createBrowserRouter([
       { path: '/dating/matches', element: <RequireAuth>{wrap(<DatingMatches />)}</RequireAuth> },
       { path: '/dating/activity', element: <RequireAuth>{wrap(<DatingActivity />)}</RequireAuth> },
       { path: '/dating/chats', element: <RequireAuth>{wrap(<DatingChats />)}</RequireAuth> },
-      { path: '/thoughts', element: <RequireAuth>{wrap(<Thoughts />)}</RequireAuth> },
-      { path: '/profile/avatar', element: <RequireAuth>{wrap(<Avatars />)}</RequireAuth> },
-      { path: '/medical/medicines', element: <RequireAuth>{wrap(<Medicines />)}</RequireAuth> },
       { path: '/dating/admin', element: <RequireAuth>{wrap(<DatingAdminStats />)}</RequireAuth> },
       // '/dating/chat' (singular) removed — it served a hardcoded conversation
       // with scripted replies. The real one is '/dating/chats'.
@@ -254,6 +256,7 @@ export const router = createBrowserRouter([
       { path: '/medical/connections', element: <RequireAuth>{wrap(<MedConnections />)}</RequireAuth> },
       { path: '/medical/timeline', element: <RequireAuth>{wrap(<MedTimeline />)}</RequireAuth> },
       { path: '/medical/family', element: <RequireAuth>{wrap(<MedFamily />)}</RequireAuth> },
+      { path: '/medical/medicines', element: <RequireAuth>{wrap(<Medicines />)}</RequireAuth> },
     ],
   },
   {
