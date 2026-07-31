@@ -1,5 +1,4 @@
 import { http as api } from '@/api/client';
-import { useMutation, useQuery } from '@tanstack/react-query';
 
 export type CallType = 'audio' | 'video' | 'avatar';
 export type CallStatus = 'ringing' | 'active' | 'ended';
@@ -47,22 +46,16 @@ export const callsApi = {
   end: (id: string) => api.post<Call>(`/calls/${id}/end`, {}).then((r) => r.data),
 };
 
-/** Fetched once and reused: a rotated TURN credential matters, but not within
- *  the seconds a call takes to set up. */
-export function useIceConfig() {
-  return useQuery({ queryKey: ['calls', 'ice'], queryFn: callsApi.ice, staleTime: 10 * 60 * 1000 });
-}
-
-export function useCallHistory(conversationId?: string) {
-  return useQuery({
-    queryKey: ['calls', 'history', conversationId ?? 'all'],
-    queryFn: () => callsApi.history(conversationId),
-  });
-}
-
-export function useStartCall() {
-  return useMutation({
-    mutationFn: (v: { conversationId: string; type: CallType; avatarId?: string }) =>
-      callsApi.start(v.conversationId, v.type, v.avatarId),
-  });
-}
+/*
+ * There were three hooks here — useIceConfig, useCallHistory and useStartCall —
+ * and nothing imported any of them. Calls work, and they work by calling
+ * callsApi.* directly from CallCenter.tsx: it holds the ICE config in a ref for
+ * the life of a call rather than in the query cache, because a rotated TURN
+ * credential matters and re-reading a cached one mid-call does not help.
+ *
+ * They are deleted rather than wired up. A second, cached way to start a call
+ * sitting next to the real one is how somebody later fixes a bug in the wrong
+ * place — which is the specific mistake dead-export-audit.mjs was written after.
+ * If a call-history screen is ever built, useCallHistory is four lines and can
+ * come back with a caller.
+ */
