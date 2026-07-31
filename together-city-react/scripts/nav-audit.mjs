@@ -243,6 +243,56 @@ for (const file of files) {
   });
 }
 
+// ── 6. the menu does not promise what the page cannot do ─────────────────
+/**
+ * A page that honestly says "coming soon" is good behaviour. A menu entry that
+ * sells it as finished undoes that before the citizen ever opens it.
+ *
+ * The Medical hub listed "Order Blood Tests — 5,000+ tests, home collection".
+ * There are no partner labs and no home collection; the page behind it said so
+ * plainly, and the person reading the menu had already been told otherwise.
+ * Two more were the same shape. The subtitle is the first sentence anybody
+ * reads about a feature, and it is the easiest place for a promise to survive a
+ * page being made honest.
+ *
+ * So: if the page a nav item points at is a coming-soon page, the subtitle has
+ * to say something of the same kind.
+ *
+ * "Is a coming-soon page" means the words are its HEADING, not merely somewhere
+ * on it. The first version of this check tested the whole file and flagged the
+ * family grocery list, which works perfectly well and simply carries an honest
+ * note that in-app ordering is not live. Flagging a page for being candid about
+ * a missing sub-feature is precisely the way to teach people to stop being
+ * candid. So the rule is narrow, and it misses things a human would catch —
+ * a page whose placeholder is worded differently, or one that is empty for
+ * reasons it never states. It does not check the reverse either: a subtitle may
+ * hedge about a page that works fine.
+ */
+const PENDING_SUB = /\b(soon|not yet|yet\b|until|once it|when it)\b/i;
+const hubs = readFileSync(join(SRC, 'config/hubs.ts'), 'utf8');
+
+/** path -> the component name the router mounts for it. */
+const mounted = new Map();
+for (const m of router.matchAll(/path:\s*'([^']+)',\s*element:[^\n]*?<(\w+)\s*\/>/g)) mounted.set(m[1], m[2]);
+/** component name -> the source file it lazy-imports. */
+const lazyFile = new Map();
+for (const m of router.matchAll(/const (\w+) = lazy\(\(\) => import\('@\/([^']+)'/g)) lazyFile.set(m[1], m[2]);
+
+for (const m of hubs.matchAll(/\{\s*path:\s*'([^']+)'[^}]*?\bsub:\s*(?:'([^']*)'|"([^"]*)")[^}]*\}/g)) {
+  const [, path, subA, subB] = m;
+  const sub = subA ?? subB;
+  const file = lazyFile.get(mounted.get(path));
+  if (!file) continue;                       // redirects, index pages, dynamic mounts
+  const full = join(SRC, `${file}.tsx`);
+  const page = source.get(full);
+  if (!page || !/<h[12][^>]*>[^<]{0,24}coming soon[^<]{0,24}<\/h[12]>/i.test(page)) continue;
+  if (PENDING_SUB.test(sub)) continue;
+  problems.push(
+    `config/hubs.ts  "${path}" is a coming-soon page but the menu sells it as `
+    + `"${sub}" — say in the subtitle that it is not ready`,
+  );
+}
+
 if (problems.length) {
   console.error(`nav-audit: ${problems.length} problem(s)\n`);
   for (const p of problems) console.error('  ' + p);
