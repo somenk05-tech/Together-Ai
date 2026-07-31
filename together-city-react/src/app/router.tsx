@@ -67,18 +67,8 @@ const RestaurantDetail = lazy(() => import('@/features/restaurants/pages/Restaur
 const RestaurantsReservations = lazy(() => import('@/features/restaurants/pages/Reservations').then((m) => ({ default: m.Reservations })));
 const RestaurantsOrders = lazy(() => import('@/features/restaurants/pages/Orders').then((m) => ({ default: m.Orders })));
 // Travel sub-pages (ported from the static site)
-const TravelTrains = lazy(() => import('@/features/travel/pages/Trains').then((m) => ({ default: m.TravelTrains })));
-const TravelHotels = lazy(() => import('@/features/travel/pages/Hotels').then((m) => ({ default: m.TravelHotels })));
 const TravelPackages = lazy(() => import('@/features/travel/pages/Packages').then((m) => ({ default: m.TravelPackages })));
 const TravelBookings = lazy(() => import('@/features/travel/pages/Bookings').then((m) => ({ default: m.TravelBookings })));
-const TravelInsurance = lazy(() => import('@/features/travel/pages/Insurance').then((m) => ({ default: m.TravelInsurance })));
-const TravelVisa = lazy(() => import('@/features/travel/pages/Visa').then((m) => ({ default: m.TravelVisa })));
-const TravelGuide = lazy(() => import('@/features/travel/pages/Guide').then((m) => ({ default: m.TravelGuide })));
-const TravelConnect = lazy(() => import('@/features/travel/pages/Connect').then((m) => ({ default: m.TravelConnect })));
-const TravelResults = lazy(() => import('@/features/travel/pages/Results').then((m) => ({ default: m.TravelResults })));
-const TravelDetail = lazy(() => import('@/features/travel/pages/Detail').then((m) => ({ default: m.TravelDetail })));
-const TravelCheckout = lazy(() => import('@/features/travel/pages/Checkout').then((m) => ({ default: m.TravelCheckout })));
-const TravelConfirm = lazy(() => import('@/features/travel/pages/Confirm').then((m) => ({ default: m.TravelConfirm })));
 // Restaurants sub-pages
 const RestExplore = lazy(() => import('@/features/restaurants/pages/Explore').then((m) => ({ default: m.Explore })));
 const RestHome = lazy(() => import('@/features/restaurants/pages/RestaurantsHome').then((m) => ({ default: m.RestaurantsHome })));
@@ -375,18 +365,8 @@ export const router = createBrowserRouter([
       { path: '/travel/package/:id', element: <RequireAuth>{wrap(<TravelPackage />)}</RequireAuth> },
       { path: '/travel/flights', element: <RequireAuth>{wrap(<TravelFlights />)}</RequireAuth> },
       { path: '/travel/trips', element: <RequireAuth>{wrap(<TravelTrips />)}</RequireAuth> },
-      { path: '/travel/trains', element: <RequireAuth>{wrap(<TravelTrains />)}</RequireAuth> },
-      { path: '/travel/hotels', element: <RequireAuth>{wrap(<TravelHotels />)}</RequireAuth> },
       { path: '/travel/packages', element: <RequireAuth>{wrap(<TravelPackages />)}</RequireAuth> },
       { path: '/travel/bookings', element: <RequireAuth>{wrap(<TravelBookings />)}</RequireAuth> },
-      { path: '/travel/insurance', element: <RequireAuth>{wrap(<TravelInsurance />)}</RequireAuth> },
-      { path: '/travel/visa', element: <RequireAuth>{wrap(<TravelVisa />)}</RequireAuth> },
-      { path: '/travel/guide', element: <RequireAuth>{wrap(<TravelGuide />)}</RequireAuth> },
-      { path: '/travel/connect', element: <RequireAuth>{wrap(<TravelConnect />)}</RequireAuth> },
-      { path: '/travel/results', element: <RequireAuth>{wrap(<TravelResults />)}</RequireAuth> },
-      { path: '/travel/detail', element: <RequireAuth>{wrap(<TravelDetail />)}</RequireAuth> },
-      { path: '/travel/checkout', element: <RequireAuth>{wrap(<TravelCheckout />)}</RequireAuth> },
-      { path: '/travel/confirm', element: <RequireAuth>{wrap(<TravelConfirm />)}</RequireAuth> },
     ],
   },
   {

@@ -13,12 +13,27 @@ function statusTag(status: string): string {
   return 'tag gold';
 }
 
+/**
+ * The Cancel button is gone, and that is the fix rather than a loss.
+ *
+ * It added the booking's id to a Set in React state and nothing else. The row
+ * turned red, the status read "Cancelled", the Cancelled tab found it — and the
+ * server never heard. Reload the page and the trip was confirmed again. There
+ * is no cancellation endpoint on the travel controller to call: /travel has
+ * categories, packages, book, airports, flight search, flight book and trips,
+ * and that is all of it. So this was not a wiring mistake. It was a control
+ * that could never have worked, on a page listing journeys the citizen has
+ * already paid for.
+ *
+ * A booking someone believes they cancelled is worse than one they know they
+ * cannot. Until there is an endpoint, the page says how to cancel instead of
+ * pretending to.
+ */
 export function TravelBookings() {
   const q = useMyTrips();
   const [tab, setTab] = useState(0);
-  const [cancelled, setCancelled] = useState<Set<string>>(new Set());
 
-  const statusOf = (t: Trip) => (cancelled.has(t.id) ? 'Cancelled' : t.status);
+  const statusOf = (t: Trip) => t.status;
 
   const rows = useMemo(() => {
     const list = q.data ?? [];
@@ -30,8 +45,7 @@ export function TravelBookings() {
       if (key === 'completed') return s.includes('complete');
       return s.includes('cancel');
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q.data, tab, cancelled]);
+  }, [q.data, tab]);
 
   return (
     <>
@@ -46,10 +60,9 @@ export function TravelBookings() {
           : (
             <table className="tc">
               <tbody>
-                <tr><th>Booking details</th><th>Date</th><th>Travellers</th><th>Amount</th><th>Status</th><th>Actions</th></tr>
+                <tr><th>Booking details</th><th>Date</th><th>Travellers</th><th>Amount</th><th>Status</th></tr>
                 {rows.map((t) => {
                   const st = statusOf(t);
-                  const isCancelled = st === 'Cancelled';
                   const d = t.detail as { date?: string; startDate?: string | null };
                   return (
                     <tr key={t.id}>
@@ -58,12 +71,6 @@ export function TravelBookings() {
                       <td>{t.pax} {t.pax > 1 ? 'Adults' : 'Adult'}</td>
                       <td><b>{inr(t.totalInr)}</b><br /><span className="muted">Paid</span></td>
                       <td><span className={statusTag(st)}>{st}</span></td>
-                      <td>
-                        <Link className="btn btn-sm btn-line" to="/travel/confirm">View details</Link>{' '}
-                        {!isCancelled && st.toLowerCase().includes('complete') === false && (
-                          <button type="button" className="btn btn-sm btn-line" onClick={() => setCancelled((prev) => new Set(prev).add(t.id))}>Cancel</button>
-                        )}
-                      </td>
                     </tr>
                   );
                 })}
@@ -73,11 +80,16 @@ export function TravelBookings() {
       </section>
 
       <section className="blk rise d3" style={{ textAlign: 'center' }}>
-        <p className="muted" style={{ marginBottom: 18 }}>Need help? Easy modification · Best price guarantee · Secure payments</p>
+        <p className="muted" style={{ fontSize: 12.5, maxWidth: '62ch', margin: '0 auto 18px', lineHeight: 1.65 }}>
+          Changing or cancelling a booking isn’t something we can do for you inside Together City yet.
+          Your booking reference is on each row above — the airline or the trip operator will need it,
+          and they can act on it today. We’d rather point you somewhere that works than put a button
+          here that doesn’t.
+        </p>
         <Link className="btn btn-gold" to="/travel/packages">Explore more packages</Link>
       </section>
 
-      <TrustBar items={['Best price guarantee', '24/7 support', 'Secure booking', 'Easy cancellation', 'Loyalty rewards']} />
+      <TrustBar items={['Secure booking', 'Paid from your city wallet', 'Every booking kept here']} />
     </>
   );
 }

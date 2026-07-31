@@ -40,14 +40,9 @@ export const HUBS: Record<HubKey, HubConfig> = {
     items: [
       { path: '/travel/explore', index: '01', label: 'Explore Trips', sub: 'Curated packages' },
       { path: '/travel/flights', index: '02', label: 'Flights', sub: 'Compare fares & book' },
-      { path: '/travel/trains', index: '03', label: 'Trains', sub: 'Rail across India' },
-      { path: '/travel/hotels', index: '04', label: 'Hotels', sub: 'Find the perfect stay' },
-      { path: '/travel/packages', index: '05', label: 'Packages', sub: 'Curated experiences' },
-      { path: '/travel/visa', index: '06', label: 'Visa Services', sub: 'Three steps, zero stress' },
-      { path: '/travel/insurance', index: '07', label: 'Travel Insurance', sub: 'Covered, wherever you go' },
-      { path: '/travel/guide', index: '08', label: 'Travel Guide', sub: 'Editorial guides & tips' },
-      { path: '/travel/connect', index: '09', label: 'Connect Friends', sub: 'Groups & shared trips' },
-      { path: '/travel/trips', index: '10', label: 'My Trips', sub: 'Bookings & tickets' },
+      { path: '/travel/packages', index: '03', label: 'Packages', sub: 'Curated experiences' },
+      { path: '/travel/bookings', index: '04', label: 'My Bookings', sub: 'Flights & packages you have paid for' },
+      { path: '/travel/trips', index: '05', label: 'My Trips', sub: 'Bookings & tickets' },
     ],
   },
   restaurants: {
