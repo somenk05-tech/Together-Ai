@@ -89,7 +89,14 @@ export function Watchlist() {
       <PosterLead eyebrow="Entertainment · 04" title="Watchlist" sub="Everything you've saved to watch later." />
 
       {wl.isLoading && <Spinner label="Loading your Watchlist…" />}
-      {!wl.isLoading && items.length === 0 && (
+      {!wl.isLoading && wl.isError && (
+        <EmptyState
+          icon="⚠️"
+          title="We couldn’t load your Watchlist"
+          hint="Everything you’ve bookmarked is still saved — try again in a moment."
+        />
+      )}
+      {!wl.isLoading && !wl.isError && items.length === 0 && (
         <EmptyState icon="🔖" title="Nothing saved yet" hint="Tap the bookmark on any movie or show — in Movies Now, OTT Watch, Curated or search — and it lands here instantly." />
       )}
 

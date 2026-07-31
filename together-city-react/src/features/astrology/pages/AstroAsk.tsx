@@ -72,6 +72,17 @@ export function AstroAsk() {
 
           <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, margin: '0 0 12px' }}>My Questions</h3>
           {questions.isLoading && <Spinner />}
+          {/* This list guarded on `questions.data?.length === 0`, so a failed
+              read rendered NOTHING — the heading "My Questions" above an empty
+              gap. These are answers the citizen paid for; a blank space where
+              they should be is the worst possible way to not say something. */}
+          {questions.isError && (
+            <EmptyState
+              icon="⚠️"
+              title="We couldn’t load your consultations"
+              hint="Nothing has been lost — every answer you’ve paid for is still saved. Try again in a moment."
+            />
+          )}
           {questions.data?.length === 0 && (
             <EmptyState icon="🪐" title="No consultations yet" hint="Your first paid question and its full answer will be saved here." />
           )}

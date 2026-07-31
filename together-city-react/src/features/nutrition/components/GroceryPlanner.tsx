@@ -177,6 +177,19 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
 
   if (plan.isLoading) return <Spinner label="Building your shopping list…" />;
 
+  // "No shopping list yet — generate a meal plan" is an instruction to redo the
+  // planning a citizen may already have done, and the list is derived from the
+  // plan, so failing to read the plan says nothing at all about the list.
+  if (plan.isError) {
+    return (
+      <EmptyState
+        icon="⚠️"
+        title="We couldn’t build your shopping list"
+        hint="Your meal plan is safe — this didn’t reach us. There’s no need to plan anything again; try once more in a moment."
+      />
+    );
+  }
+
   // The window picker stays visible even when a window has no meals, so the
   // citizen can widen it instead of hitting a dead end.
   const windowPicker = (

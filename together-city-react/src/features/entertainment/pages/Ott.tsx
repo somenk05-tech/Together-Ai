@@ -68,7 +68,9 @@ export function Ott() {
         <>
           <div className="blk-head rise"><h2>🔍 Results for “{q.trim()}”</h2></div>
           {search.isLoading ? <Spinner label="Searching…" /> : (
-            (search.data?.results ?? []).length === 0
+            search.isError
+              ? <EmptyState icon="⚠️" title="That search didn’t reach us" hint="Nothing is wrong with what you typed — try again in a moment." />
+              : (search.data?.results ?? []).length === 0
               ? <EmptyState icon="🎞" title="No titles found" hint="Try a different name." />
               : <div className="grid4 rise" style={{ marginBottom: 30 }}>{search.data!.results.map((m, i) => <TitleCard key={`${m.type}${m.id}`} m={m} i={i} badge={m.type === 'tv' ? 'Series' : 'Film'} onOpen={setSel} />)}</div>
           )}

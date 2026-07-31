@@ -78,6 +78,24 @@ export function Routine() {
 
   if (routine.isLoading) return <Spinner label="Building your routine…" />;
 
+  // `empty` is `!data || …`, so a failed read produced "No routine yet — tell us
+  // about your skin and hair", sending a citizen who has already filled in that
+  // profile back to fill it in again. The routine is built from what they told
+  // us; failing to read it is not the same as never having been told.
+  if (routine.isError) {
+    return (
+      <div style={{ maxWidth: 640, margin: '0 auto', padding: '28px 16px' }}>
+        <div className="eyebrow">Beauty Hub · Routine</div>
+        <h1 style={{ fontSize: 26 }}>Your routine</h1>
+        <EmptyState
+          icon="⚠️"
+          title="We couldn’t build your routine just now"
+          hint="Your skin and hair profile is safe — this didn’t reach us. There’s nothing to fill in again; try once more in a moment."
+        />
+      </div>
+    );
+  }
+
   const data = routine.data;
   const empty = !data || data.routines.every((r) => r.steps.length === 0);
 

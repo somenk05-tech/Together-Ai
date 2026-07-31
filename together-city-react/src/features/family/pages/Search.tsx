@@ -155,6 +155,12 @@ export function FamilySearch() {
             <Spinner label="Matching your ingredients…" />
           ) : !searching ? (
             <EmptyState title="Add an ingredient to start" hint="Type what's in your kitchen — or tap a staple on the right." />
+          ) : search.isError ? (
+            // "No recipes use those ingredients — try fewer or different ones"
+            // told somebody their kitchen was the problem when the search had
+            // simply not run. They would then remove ingredients they have, and
+            // get the same answer for the same reason.
+            <EmptyState title="That search didn’t reach us" hint="It’s not your ingredients — we couldn’t run the search. Try again in a moment." />
           ) : shown.length === 0 ? (
             <EmptyState title="No recipes use those ingredients" hint="Try fewer or different ingredients." />
           ) : (
