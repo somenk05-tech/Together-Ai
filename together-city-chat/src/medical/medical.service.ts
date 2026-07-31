@@ -22,9 +22,9 @@ import {
 } from '../nutrition/clinical-engine';
 import type { SaveBloodTestDto } from './dto/medical.dto';
 import { BIOMARKER_SECTIONS, biomarkerDef } from './biomarker-catalog';
-import { parseReportText } from './report-parser';
+import { parseReportText, type PrintedRange } from './report-parser';
 import { panelBand, panelScore, panelScoreBasis } from './panel-score';
-import { CURRENT_BASIS, inRangeSummary, panelRangeNote } from './range-basis';
+import { basisFor, formatRange, inRangeSummary, panelRangeNote, statusAgainst } from './range-basis';
 import { normalizeReportImage } from './image-normalize';
 
 const cite = (ids: string[]) => ids.map((id) => CITATIONS[id]).filter(Boolean);
@@ -130,10 +130,10 @@ export class MedicalService implements OnModuleInit {
    * The document itself is already filed by the caller, so this never throws.
    */
   private async readReportFromVault(fileKey: string, mimeType: string): Promise<{
-    values: Record<string, number>; lab?: string; takenOn?: string;
+    values: Record<string, number>; ranges?: Record<string, PrintedRange>; lab?: string; takenOn?: string;
     via: 'ai-text' | 'ai-vision' | 'parser' | 'none'; locked: boolean;
   }> {
-    let extracted: { values: Record<string, number>; lab?: string; takenOn?: string } = { values: {} };
+    let extracted: { values: Record<string, number>; ranges?: Record<string, PrintedRange>; lab?: string; takenOn?: string } = { values: {} };
     let via: 'ai-text' | 'ai-vision' | 'parser' | 'none' = 'none';
     let locked = false;
     try {
@@ -158,6 +158,28 @@ export class MedicalService implements OnModuleInit {
           // AI off / out of credits / failed → deterministic parse of the text.
           const parsed = parseReportText(text);
           if (Object.keys(parsed.values).length) { extracted = parsed; via = 'parser'; }
+        } else if (text && !extracted.ranges) {
+          // VALUES from whichever extractor read them best; REFERENCE RANGES
+          // from the parser, always, whenever there is text to parse.
+          //
+          // The parser is the deterministic half of this pipeline and usually
+          // the half that does not run — the AI reads the values first and the
+          // parser is only a fallback. But the interval is the thing the parser
+          // is BETTER at: a fixed pattern on a fixed row, and the AI is
+          // explicitly instructed to ignore ranges precisely so it cannot
+          // confuse one with a value. So it runs anyway and contributes only
+          // the intervals, and only for markers the values already cover.
+          const parsed = parseReportText(text);
+          if (parsed.ranges) {
+            const forFound: Record<string, PrintedRange> = {};
+            for (const [k, r] of Object.entries(parsed.ranges)) {
+              if (extracted.values[k] !== undefined) forFound[k] = r;
+            }
+            if (Object.keys(forFound).length) {
+              extracted = { ...extracted, ranges: forFound };
+              this.logger.log(`blood read: parser supplied ${Object.keys(forFound).length} printed range(s) [${Object.keys(forFound).join(',')}]`);
+            }
+          }
         }
       } else {
         const img = await normalizeReportImage(obj.base64, mimeType || obj.contentType);
@@ -388,6 +410,10 @@ export class MedicalService implements OnModuleInit {
       values: Record<string, number>;
       /** The unit each value was printed in, where it is not the catalog's. */
       units?: Record<string, string> | null;
+      /** The interval the citizen's own lab printed, in the same unit as the
+       *  value beside it. Optional and best-effort: a panel must never fail to
+       *  save because a range could not be read. */
+      ranges?: Record<string, PrintedRange> | null;
       lab?: string | null; takenOn?: Date; recordId?: string | null;
     },
   ): Promise<string> {
@@ -405,7 +431,10 @@ export class MedicalService implements OnModuleInit {
      * A unit we cannot read stops the save. Storing the number and hoping is
      * the failure above with an extra step.
      */
-    const biomarkers: { key: string; value: number; enteredValue: number; enteredUnit: string }[] = [];
+    const biomarkers: {
+      key: string; value: number; enteredValue: number; enteredUnit: string;
+      refLow?: number | null; refHigh?: number | null;
+    }[] = [];
     for (const [key, raw] of Object.entries(input.values)) {
       if (typeof raw !== 'number' || Number.isNaN(raw)) continue;
       const printed = input.units?.[key];
@@ -413,9 +442,32 @@ export class MedicalService implements OnModuleInit {
       if (!conv.ok) {
         throw new BadRequestException(`${biomarkerDef(key)?.label ?? key}: ${conv.reason}`);
       }
+      // The printed interval goes through the SAME toCanonical() call, with the
+      // same unit, or it is not stored. A bound converted differently from the
+      // value beside it is worse than no bound at all — it would sit on the
+      // marker row looking like the citizen's own lab's opinion.
+      //
+      // A range that will not convert is dropped, never raised: the value is
+      // the thing that must reach the record, and refusing to save a panel
+      // because its reference column was unreadable would be the tail wagging.
+      let refLow: number | null = null;
+      let refHigh: number | null = null;
+      const printedRange = input.ranges?.[key];
+      if (printedRange) {
+        const lo = printedRange.low === null ? null : toCanonical(key, printedRange.low, printed);
+        const hi = printedRange.high === null ? null : toCanonical(key, printedRange.high, printed);
+        const loOk = lo === null || lo.ok;
+        const hiOk = hi === null || hi.ok;
+        if (loOk && hiOk) {
+          refLow = lo === null ? null : (lo as { value: number }).value;
+          refHigh = hi === null ? null : (hi as { value: number }).value;
+        }
+      }
       biomarkers.push({
         key,
         value: conv.value,
+        refLow,
+        refHigh,
         // Kept whether or not a conversion happened, so a row can always say
         // what it was given rather than only when the answer was interesting.
         enteredValue: raw,
@@ -543,7 +595,7 @@ export class MedicalService implements OnModuleInit {
 
     const takenOnDate = extracted.takenOn ? new Date(extracted.takenOn) : new Date();
     const testId = await this.upsertPanelAndAnalyze(userId, {
-      values, lab: extracted.lab ?? null,
+      values, ranges: extracted.ranges ?? null, lab: extracted.lab ?? null,
       takenOn: Number.isNaN(takenOnDate.getTime()) ? new Date() : takenOnDate,
       recordId: rec.id,
     });
@@ -619,6 +671,13 @@ export class MedicalService implements OnModuleInit {
     });
     if (!test) throw new NotFoundException('blood test not found');
     const values = Object.fromEntries(test.biomarkers.map((b) => [b.key, b.value]));
+    // The interval this citizen's own lab printed, where one was stored. Absent
+    // for every panel taken before BE-3.2b, which is exactly what basisFor()
+    // reads as 'general-adult' — the caveat stays on those and lifts on these.
+    const own = Object.fromEntries(
+      (test.biomarkers as Array<{ key: string; refLow?: number | null; refHigh?: number | null }>)
+        .map((b) => [b.key, { low: b.refLow ?? null, high: b.refHigh ?? null }]),
+    ) as Record<string, { low: number | null; high: number | null }>;
     const crp = values.crp;
 
     // previous panel for trend arrows
@@ -636,9 +695,18 @@ export class MedicalService implements OnModuleInit {
         ? (value > before ? 'up' : value < before ? 'down' : 'flat')
         : null;
       return {
-        key: rule.key, label: rule.label, unit: rule.unit, value, range: `${rule.min}–${rule.max}`,
-        rangeBasis: CURRENT_BASIS,
-        status: ev.status, advice: ev.advice, caveat: ev.caveat, citations: ev.citations,
+        key: rule.key, label: rule.label, unit: rule.unit, value,
+        // The citizen's own interval wins when there is one. It was produced by
+        // the lab that ran the test, so it already accounts for their sex, their
+        // age and that assay — the three things our single adult band cannot.
+        range: basisFor(own[rule.key]) === 'own-report' ? formatRange(own[rule.key]) : `${rule.min}–${rule.max}`,
+        rangeBasis: basisFor(own[rule.key]),
+        // Judged against whichever band is shown. The advice, caveat and
+        // citations still come from the clinical engine — those are about the
+        // marker, not about the interval, and they do not change because the
+        // boundary moved a decimal place.
+        status: basisFor(own[rule.key]) === 'own-report' ? statusAgainst(value, own[rule.key]) : ev.status,
+        advice: ev.advice, caveat: ev.caveat, citations: ev.citations,
         trend, previous: typeof before === 'number' ? before : null,
       };
     });
@@ -684,11 +752,15 @@ export class MedicalService implements OnModuleInit {
     }
 
     // Each biomarker's chronological (value, date) series across ALL panels.
-    const series = new Map<string, { value: number; date: Date }[]>();
+    // The interval travels with the value it was printed beside. This view shows
+    // the most recent value per marker across every panel, so the band has to be
+    // the one from THAT panel — carrying the newest panel's range onto an older
+    // marker would be attributing one lab's opinion to another lab's result.
+    const series = new Map<string, { value: number; date: Date; own: { low: number | null; high: number | null } }[]>();
     for (const t of tests) {
-      for (const b of t.biomarkers) {
+      for (const b of t.biomarkers as Array<{ key: string; value: number; refLow?: number | null; refHigh?: number | null }>) {
         const arr = series.get(b.key) ?? [];
-        arr.push({ value: b.value, date: t.takenOn });
+        arr.push({ value: b.value, date: t.takenOn, own: { low: b.refLow ?? null, high: b.refHigh ?? null } });
         series.set(b.key, arr);
       }
     }
@@ -710,15 +782,30 @@ export class MedicalService implements OnModuleInit {
         key, value: last.value, trend, previous: prev?.value ?? null,
         lastTested: iso(last.date), previousDate: prev ? iso(prev.date) : null,
       };
+      const basis = basisFor(last.own);
+      const mine = basis === 'own-report';
       const rule = ruleFor(key);
       if (rule) {
         const ev = evaluateMarker(rule, last.value, crp);
-        return { ...common, label: rule.label, unit: rule.unit, range: `${rule.min}–${rule.max}`, rangeBasis: CURRENT_BASIS, status: ev.status, advice: ev.advice, caveat: ev.caveat, citations: ev.citations };
+        return {
+          ...common, label: rule.label, unit: rule.unit,
+          range: mine ? formatRange(last.own) : `${rule.min}–${rule.max}`,
+          rangeBasis: basis,
+          status: mine ? statusAgainst(last.value, last.own) : ev.status,
+          advice: ev.advice, caveat: ev.caveat, citations: ev.citations,
+        };
       }
       const def = biomarkerDef(key);
       if (!def) return null;
-      const status = last.value < def.min ? 'low' : last.value > def.max ? 'high' : 'normal';
-      return { ...common, label: def.label, unit: def.unit, range: `${def.min}–${def.max}`, rangeBasis: CURRENT_BASIS, status, advice: '', caveat: null, citations: [] as { id: string; label: string; ref: string }[] };
+      const status = mine
+        ? statusAgainst(last.value, last.own)
+        : (last.value < def.min ? 'low' : last.value > def.max ? 'high' : 'normal');
+      return {
+        ...common, label: def.label, unit: def.unit,
+        range: mine ? formatRange(last.own) : `${def.min}–${def.max}`,
+        rangeBasis: basis, status, advice: '', caveat: null,
+        citations: [] as { id: string; label: string; ref: string }[],
+      };
     }).filter((m): m is NonNullable<typeof m> => m != null);
     // Abnormal first, then alphabetical — the design (rows) is unchanged.
     markers.sort((a, b) => Number(a.status === 'normal') - Number(b.status === 'normal') || a.label.localeCompare(b.label));

@@ -1097,6 +1097,16 @@ model MedicalBiomarker {
   /// is better than backfilling a unit nobody chose.
   enteredValue Float?
   enteredUnit  String?
+  /// The reference interval the citizen's OWN lab printed beside this value, in
+  /// the same canonical unit as `value` — converted through the same
+  /// toCanonical() call, or not stored at all. Null on every panel taken before
+  /// BE-3.2b and on any row whose interval could not be read or converted
+  /// safely; those keep being judged against the general adult band and keep
+  /// the caveat that says so. Either bound may be null on a row that has the
+  /// other: "< 5.0" states an upper bound and no lower one, and inventing a
+  /// zero would be inventing the lab's opinion.
+  refLow       Float?
+  refHigh      Float?
 
   bloodTest MedicalBloodTest @relation(fields: [bloodTestId], references: [id], onDelete: Cascade)
 

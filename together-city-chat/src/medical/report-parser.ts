@@ -13,8 +13,16 @@
  * Anything ambiguous is simply omitted — the user types that one in manually.
  */
 
+/** A reference interval as the LAB printed it, in the value's own units.
+ *  `low` or `high` is null for a one-sided bound ("< 5.0", "> 40"). */
+export interface PrintedRange { low: number | null; high: number | null }
+
 export interface ParsedReport {
   values: Record<string, number>;
+  /** The interval the citizen's own lab printed beside each value, where one was
+   *  found and could be trusted. The lab applied their sex, their age and their
+   *  assay to produce it, which is three things our catalogue cannot do. */
+  ranges?: Record<string, PrintedRange>;
   lab?: string;
   takenOn?: string; // YYYY-MM-DD
 }
@@ -140,7 +148,42 @@ export function standaloneNumbers(line: string): number[] {
   return out;
 }
 
-function pickValue(spec: MarkerSpec, lines: string[], idx: number): number | null {
+/**
+ * The reference interval printed on a line, or null.
+ *
+ * `standaloneNumbers()` above already finds these — it has to, so it can refuse
+ * to mistake one for a result. Lines 134-136 are that refusal. This is the same
+ * three shapes, kept instead of discarded.
+ *
+ * Deliberately NOT clever. One interval per line, the first one found, and only
+ * the forms a lab actually prints. A range guessed off a busy line would end up
+ * beside somebody's haemoglobin as though their own lab had said it.
+ */
+export function printedRange(line: string): PrintedRange | null {
+  // "13.0 - 17.0", "13–17", "13 to 17"
+  const two = line.match(/(\d+(?:[.,]\d+)?)\s*(?:-|–|—|to)\s*(\d+(?:[.,]\d+)?)/);
+  if (two) {
+    const low = parseFloat(two[1].replace(',', '.'));
+    const high = parseFloat(two[2].replace(',', '.'));
+    if (Number.isFinite(low) && Number.isFinite(high) && low < high) return { low, high };
+    return null;
+  }
+  // "< 5.0" / "≤ 6" — an upper bound with no lower one stated.
+  const upper = line.match(/[<≤]\s*(\d+(?:[.,]\d+)?)/);
+  if (upper) {
+    const high = parseFloat(upper[1].replace(',', '.'));
+    if (Number.isFinite(high)) return { low: null, high };
+  }
+  // "> 40" / "≥ 40"
+  const lower = line.match(/[>≥]\s*(\d+(?:[.,]\d+)?)/);
+  if (lower) {
+    const low = parseFloat(lower[1].replace(',', '.'));
+    if (Number.isFinite(low)) return { low, high: null };
+  }
+  return null;
+}
+
+function pickValue(spec: MarkerSpec, lines: string[], idx: number): { value: number; range: PrintedRange | null } | null {
   // Candidates: numbers on the marker's own line after the name, else the next line
   // (text extracted from PDF columns often wraps the value onto its own line).
   const candidateLines = [lines[idx], lines[idx + 1] ?? ''];
@@ -151,18 +194,59 @@ function pickValue(spec: MarkerSpec, lines: string[], idx: number): number | nul
     // ("25-OH Vitamin D") can never be mistaken for the result.
     const nameMatch = li === 0 ? line.match(spec.name) : null;
     const from = nameMatch ? (nameMatch.index ?? 0) + nameMatch[0].length : 0;
-    const nums = standaloneNumbers(line.slice(from));
+    const tail = line.slice(from);
+    const nums = standaloneNumbers(tail);
     for (const raw of nums) {
       let v = raw;
       const unitConv = spec.convert?.find((c) => c.unit.test(line));
+      // Whether the printed range can be trusted alongside this value.
+      //
+      // A range is only useful in the SAME units as the value beside it. An
+      // explicit unit conversion is linear and applies to the bounds exactly as
+      // it applies to the value, so those are safe. The threshold conversions
+      // are not: `v < 15 ? v * 38.67 : v` decides per number, so a bound either
+      // side of 15 converts differently from the value and the interval comes
+      // out nonsense. We would rather have no range than a wrong one — a wrong
+      // one is printed beside somebody's result as though their lab said it.
+      let trustRange = true;
       if (unitConv) v = unitConv.factor(v);
-      else if (spec.autoThreshold && spec.autoConvert && v > spec.autoThreshold) v = spec.autoConvert(v);
-      else if (SMALL_UNIT_AUTOCONVERT[spec.key]) v = SMALL_UNIT_AUTOCONVERT[spec.key](v);
+      else if (spec.autoThreshold && spec.autoConvert && v > spec.autoThreshold) { v = spec.autoConvert(v); trustRange = false; }
+      else if (SMALL_UNIT_AUTOCONVERT[spec.key]) {
+        const converted = SMALL_UNIT_AUTOCONVERT[spec.key](v);
+        if (converted !== v) trustRange = false;
+        v = converted;
+      }
       v = Math.round(v * 100) / 100;
-      if (v >= spec.lo && v <= spec.hi) return v;
+      if (v < spec.lo || v > spec.hi) continue;
+
+      let range = trustRange ? printedRange(tail) : null;
+      if (range && unitConv) {
+        range = {
+          low: range.low === null ? null : Math.round(unitConv.factor(range.low) * 100) / 100,
+          high: range.high === null ? null : Math.round(unitConv.factor(range.high) * 100) / 100,
+        };
+      }
+      // A range the value itself sits nowhere near is a range we attributed to
+      // the wrong marker. Dropping it costs a caveat; keeping it would tell
+      // somebody their result is abnormal against numbers that are not theirs.
+      if (range && !plausibleFor(spec, range)) range = null;
+      return { value: v, range };
     }
   }
   return null;
+}
+
+/** Both stated bounds must sit inside the marker's physiological span, and the
+ *  interval must not be wider than that span. Cheap, and it catches a range
+ *  scraped from the wrong column. */
+function plausibleFor(spec: MarkerSpec, r: PrintedRange): boolean {
+  // `spec.lo` is the floor of a plausible RESULT, not of a stated bound: labs
+  // routinely print "0.0 - 0.5", and rejecting that threw away every CRP range
+  // on the first run of this. Only the top is checked against the span.
+  const inSpan = (n: number | null) => n === null || (n >= 0 && n <= spec.hi);
+  if (!inSpan(r.low) || !inSpan(r.high)) return false;
+  if (r.low !== null && r.high !== null && r.high - r.low > spec.hi - spec.lo) return false;
+  return true;
 }
 
 function findDate(text: string): string | undefined {
@@ -191,6 +275,7 @@ function findDate(text: string): string | undefined {
  *  anything it can't confidently attribute; never throws. */
 export function parseReportText(text: string): ParsedReport {
   const values: Record<string, number> = {};
+  const ranges: Record<string, PrintedRange> = {};
   try {
     const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     for (const spec of MARKERS) {
@@ -198,13 +283,18 @@ export function parseReportText(text: string): ParsedReport {
       for (let i = 0; i < lines.length; i++) {
         if (!spec.name.test(lines[i])) continue;
         if (spec.exclude?.test(lines[i])) continue;
-        const v = pickValue(spec, lines, i);
-        if (v !== null) { values[spec.key] = v; break; }
+        const hit = pickValue(spec, lines, i);
+        if (hit !== null) {
+          values[spec.key] = hit.value;
+          if (hit.range) ranges[spec.key] = hit.range;
+          break;
+        }
       }
     }
     const labMatch = text.match(KNOWN_LABS);
     return {
       values,
+      ranges: Object.keys(ranges).length ? ranges : undefined,
       lab: labMatch ? labMatch[1].replace(/\s+/g, ' ').trim() : undefined,
       takenOn: findDate(text),
     };

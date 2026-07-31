@@ -1,7 +1,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import {
-  basisLabel, inRangeSummary, matchedToCitizen, panelRangeNote, type RangeBasis,
+  basisFor, basisLabel, formatRange, inRangeSummary, matchedToCitizen,
+  panelRangeNote, statusAgainst, type RangeBasis,
 } from './range-basis';
 
 const general = (n: number): RangeBasis[] => Array.from({ length: n }, () => 'general-adult' as const);
@@ -137,5 +138,57 @@ describeOrSkip('the web package does not claim a range it does not have', () => 
   it('is actually reading the web package, not an empty directory', () => {
     // Without this, a wrong path would make the guard above pass forever.
     expect(webFiles(WEB_SRC).length).toBeGreaterThan(100);
+  });
+});
+
+describe('basisFor — the seam BE-3.2a left open', () => {
+  it('is the citizen’s own only when an interval was actually stored', () => {
+    expect(basisFor({ low: 13, high: 17 })).toBe('own-report');
+    expect(basisFor({ low: null, high: 5 })).toBe('own-report');
+    expect(basisFor({ low: 40, high: null })).toBe('own-report');
+  });
+  it('reads a pre-BE-3.2b row — two nulls — as the general band', () => {
+    expect(basisFor({ low: null, high: null })).toBe('general-adult');
+    expect(basisFor(null)).toBe('general-adult');
+    expect(basisFor(undefined)).toBe('general-adult');
+  });
+});
+
+describe('formatRange', () => {
+  it('writes a one-sided bound the way the lab wrote it', () => {
+    expect(formatRange({ low: 13, high: 17 })).toBe('13–17');
+    expect(formatRange({ low: null, high: 5 })).toBe('< 5');
+    expect(formatRange({ low: 40, high: null })).toBe('> 40');
+  });
+});
+
+describe('statusAgainst — the status cannot disagree with the range shown', () => {
+  it('judges against the interval it is given', () => {
+    expect(statusAgainst(12.4, { low: 13, high: 17 })).toBe('low');
+    expect(statusAgainst(14, { low: 13, high: 17 })).toBe('normal');
+    expect(statusAgainst(18, { low: 13, high: 17 })).toBe('high');
+  });
+  it('is the whole point: the man the general band called normal', () => {
+    // Haemoglobin 12.4 clears the union band 12–17.5 and fails a male 13–17.
+    expect(statusAgainst(12.4, { low: 12, high: 17.5 })).toBe('normal');
+    expect(statusAgainst(12.4, { low: 13, high: 17 })).toBe('low');
+  });
+  it('lets a one-sided bound constrain one side only', () => {
+    expect(statusAgainst(0.1, { low: null, high: 5 })).toBe('normal');
+    expect(statusAgainst(9, { low: null, high: 5 })).toBe('high');
+    expect(statusAgainst(10, { low: 40, high: null })).toBe('low');
+    expect(statusAgainst(900, { low: 40, high: null })).toBe('normal');
+  });
+});
+
+describe('the caveat lifts exactly when it stops applying', () => {
+  it('goes away once every band on the panel is the citizen’s own', () => {
+    expect(panelRangeNote(['own-report', 'own-report'])).toBeNull();
+    expect(inRangeSummary({ bases: ['own-report', 'own-report'], outOfRange: 0 }))
+      .toBe('All 2 markers fell inside the ranges printed on your report.');
+  });
+  it('stays, and counts, on a mixed panel', () => {
+    const note = panelRangeNote(['own-report', 'general-adult', 'own-report'])!;
+    expect(note).toMatch(/^1 of these 3 ranges/);
   });
 });

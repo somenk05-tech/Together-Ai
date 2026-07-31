@@ -34,15 +34,53 @@ export type RangeBasis =
   | 'own-report';
 
 /**
- * The basis every band we hold today actually has.
+ * Where a marker's band came from, per marker.
  *
- * Not a placeholder — a statement of fact about the codebase. `biomarker-catalog.ts`
- * and `clinical-engine.ts` are the only two sources of a range, and both hold one
- * band per marker covering the whole adult population. BE-3.2b is where this stops
- * being a constant: it becomes per-marker, and a marker whose range was read off
- * the citizen's own report returns 'own-report' instead. One place changes.
+ * This was `CURRENT_BASIS`, a constant, because at the time every band in the
+ * codebase was a general adult one — `biomarker-catalog.ts` and
+ * `clinical-engine.ts` were the only two sources and both hold a single band
+ * covering the whole population. BE-3.2a documented it as the single seam that
+ * BE-3.2b would open. This is that.
+ *
+ * The question it answers is deliberately narrow: did THIS marker, on THIS
+ * panel, come with an interval the citizen's own lab printed. Not "do we have a
+ * better band somewhere" — provenance, which is checkable, rather than quality,
+ * which is a clinical claim we are not in a position to make.
  */
-export const CURRENT_BASIS: RangeBasis = 'general-adult';
+export function basisFor(ownRange: { low: number | null; high: number | null } | null | undefined): RangeBasis {
+  if (!ownRange) return 'general-adult';
+  // A row with neither bound set is a row with no interval on it. Postgres will
+  // hand back two nulls for any panel stored before the column existed.
+  if (ownRange.low === null && ownRange.high === null) return 'general-adult';
+  return 'own-report';
+}
+
+/** How an interval reads on a marker row, with a one-sided bound written the
+ *  way the lab wrote it rather than padded out to look complete. */
+export function formatRange(r: { low: number | null; high: number | null }): string {
+  if (r.low !== null && r.high !== null) return `${r.low}–${r.high}`;
+  if (r.high !== null) return `< ${r.high}`;
+  if (r.low !== null) return `> ${r.low}`;
+  return '';
+}
+
+/**
+ * Where a value sits in an interval.
+ *
+ * This exists so the status and the range on a marker row cannot disagree. Once
+ * a row shows the citizen's own lab's interval, judging it against our general
+ * band would put "Normal" next to numbers that say otherwise — the same
+ * incoherence BE-3.2a removed, rebuilt from the other side.
+ *
+ * A one-sided bound constrains one side only. "< 5.0" cannot make a result low.
+ */
+export function statusAgainst(
+  value: number, r: { low: number | null; high: number | null },
+): 'low' | 'normal' | 'high' {
+  if (r.low !== null && value < r.low) return 'low';
+  if (r.high !== null && value > r.high) return 'high';
+  return 'normal';
+}
 
 /** Short attribution, shown beside the range on a marker row. */
 export function basisLabel(basis: RangeBasis): string {
