@@ -89,10 +89,13 @@ export function Checkout() {
 
   const pay = (method: PayMethod) => {
     placeOrder.mutate({ method, deliveryAddress: address.trim() }, {
-      onSuccess: () => {
+      // The order's own id, not a constant. The confirmation used to fall back
+      // to a hardcoded "#TC-GRO-88412" because nothing was ever passed to it,
+      // so every citizen's receipt carried the same number.
+      onSuccess: (order) => {
         setPayOpen(false);
         const kept = lines.filter((_, i) => isOn(i));
-        navigate('/nutrition/confirm', { state: { type: 'order', items: kept, total } });
+        navigate('/nutrition/confirm', { state: { type: 'order', id: order.id, items: kept, total } });
       },
     });
   };

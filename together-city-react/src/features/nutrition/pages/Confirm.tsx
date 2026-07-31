@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Button } from '@/components/ui';
+import { Button, EmptyState } from '@/components/ui';
 
 interface ConfirmLine { name: string; qty: number; price: number }
 interface ConfirmState {
@@ -10,59 +9,49 @@ interface ConfirmState {
   total?: number;
 }
 
-const DEMO: Required<Pick<ConfirmState, 'items' | 'total'>> = {
-  items: [
-    { name: 'Spinach 250g', qty: 2, price: 25 },
-    { name: 'Toor Dal 1kg', qty: 1, price: 120 },
-  ],
-  total: 1746,
-};
+/**
+ * This page used to contradict the checkout that leads to it.
+ *
+ * Three separate inventions lived here. A DEMO basket — spinach and toor dal,
+ * ₹1,746 — rendered whenever the page was opened without state, so anyone who
+ * typed the URL or reloaded after paying saw a receipt for an order nobody had
+ * placed. (The demo did not even add up: two at ₹25 and one at ₹120 is ₹170,
+ * shown beside a total of ₹1,746.) An order number, #TC-GRO-88412, that the
+ * checkout never passed and every real order therefore displayed. And a
+ * delivery tracker frozen at "On the way", with clock times — Packed 5:45 PM,
+ * Delivered 6:30–7:00 PM — that were the same for every citizen on every day.
+ *
+ * The tracker is the one that mattered. BE-11.2 had just made the checkout say
+ * plainly that Together City does not deliver yet. A citizen read that, paid,
+ * and landed on a screen telling them their groceries were packed at 5:45 and
+ * are on their way. The ETA card under it went further: it asked for their
+ * location and reported the distance to "your nearest store", measured from a
+ * hardcoded point in Mumbai. There is no store.
+ *
+ * What is left is the order they actually placed, and the same sentence the
+ * checkout told them.
+ */
 
-const TRACK: { label: string; time: string; state: 'done' | 'on' | '' }[] = [
-  { label: 'Confirmed', time: '11:45 AM', state: 'done' },
-  { label: 'Packed', time: '5:45 PM', state: 'done' },
-  { label: 'On the way', time: '5:55 PM', state: 'on' },
-  { label: 'Delivered', time: '6:30–7:00 PM', state: '' },
-];
-
-/** Order Confirmed — success card, live ETA (optional geolocation) and delivery tracking. */
+/** Order Confirmed — what was ordered, and what happens to it next. */
 export function Confirm() {
   const { state } = useLocation() as { state: ConfirmState | null };
-  const items = state?.items ?? DEMO.items;
-  const total = state?.total ?? DEMO.total;
-  const orderId = state?.id ?? '#TC-GRO-88412';
+  const items = state?.items;
+  const total = state?.total;
 
-  const [eta, setEta] = useState('Arriving in ~35–45 min');
-  const [where, setWhere] = useState('To your saved address. Tap below for a precise ETA to where you are now.');
-  const [locating, setLocating] = useState(false);
-  const [locBtn, setLocBtn] = useState('📍 Use my location');
-
-  const useLocate = () => {
-    if (!navigator.geolocation) { setWhere("Location isn't available in this browser."); return; }
-    setLocating(true); setLocBtn('Locating…');
-    const HUB = { lat: 19.07, lng: 72.87 };
-    const hav = (a: number, b: number, c: number, d: number) => {
-      const R = 6371;
-      const x = Math.sin(((c - a) * Math.PI) / 360) ** 2 +
-        Math.cos((a * Math.PI) / 180) * Math.cos((c * Math.PI) / 180) * Math.sin(((d - b) * Math.PI) / 360) ** 2;
-      return 2 * R * Math.asin(Math.sqrt(x));
-    };
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const km = hav(HUB.lat, HUB.lng, pos.coords.latitude, pos.coords.longitude);
-        const travel = Math.max(6, Math.round((km / 22) * 60));
-        const lo = 15 + travel;
-        setEta(`Arriving in ~${lo}–${lo + 10} min`);
-        setWhere(`${km.toFixed(1)} km from your nearest store`);
-        setLocBtn('✓ ETA updated'); setLocating(false);
-      },
-      (err) => {
-        setWhere(`⚠ ${err.message || 'Location denied'} — showing the default ETA.`);
-        setLocBtn('📍 Use my location'); setLocating(false);
-      },
-      { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 },
+  if (!items || items.length === 0 || total == null) {
+    return (
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
+        <EmptyState
+          title="There's no order to show here"
+          hint="This page shows an order the moment you place it. If you've just paid and landed here after a reload, the order is safe — it's recorded against your account and charged once."
+        />
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 24, justifyContent: 'center' }}>
+          <Link to="/nutrition/grocery"><Button variant="line">Back to Grocery Lists</Button></Link>
+          <Link to="/nutrition/weekly"><Button variant="accent">Continue to Meal Planner →</Button></Link>
+        </div>
+      </div>
     );
-  };
+  }
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
@@ -71,8 +60,11 @@ export function Confirm() {
           width: 88, height: 88, borderRadius: '50%', background: 'var(--accent-soft)', color: 'var(--accent)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 38, margin: '0 auto 18px',
         }}>✓</div>
-        <h1 style={{ marginBottom: 8 }}>Order Confirmed!</h1>
-        <p className="muted">Order <b>{orderId}</b> · {items.length} items · ₹{total.toLocaleString('en-IN')}</p>
+        <h1 style={{ marginBottom: 8 }}>Order confirmed</h1>
+        <p className="muted">
+          {state?.id ? <>Order <b>{state.id}</b> · </> : null}
+          {items.length} item{items.length === 1 ? '' : 's'} · ₹{total.toLocaleString('en-IN')}
+        </p>
       </div>
 
       <div className="card" style={{ marginTop: 24 }}>
@@ -87,36 +79,21 @@ export function Confirm() {
       </div>
 
       <div className="card" style={{ marginTop: 24, border: '1px solid var(--accent)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
-          <div>
-            <div className="eyebrow" style={{ color: 'var(--accent)' }}>Delivery ETA</div>
-            <h3 style={{ fontSize: 26, margin: '2px 0 4px' }}>{eta}</h3>
-            <p className="muted" style={{ fontSize: 12.5 }}>{where}</p>
-          </div>
-          <Button variant="line" size="sm" disabled={locating} onClick={useLocate}>{locBtn}</Button>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: 24 }}>
-        <h4 style={{ marginBottom: 16 }}>Delivery Tracking</h4>
-        <div className="stepper">
-          {TRACK.map((s) => (
-            <div key={s.label} className={`step${s.state ? ` ${s.state}` : ''}`}>
-              <span className="dot">{s.state === 'done' ? '✓' : s.state === 'on' ? '●' : TRACK.indexOf(s) + 1}</span>
-              {s.label}<br /><span className="muted" style={{ fontSize: 10.5 }}>{s.time}</span>
-            </div>
-          ))}
-        </div>
+        <div className="eyebrow" style={{ color: 'var(--accent)' }}>What happens next</div>
+        <p style={{ fontSize: 13.5, lineHeight: 1.65, marginTop: 6 }}>
+          <b>We are not delivering yet</b> — no van is on its way, and we would rather say so than
+          show you a tracker that means nothing. Your address is saved, and you will be told the day
+          delivery starts in your area. There is nothing to sign up for.
+        </p>
+        <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.65, marginTop: 8 }}>
+          Your list is above with the quantities already worked out, so you can order it from
+          whichever service already delivers to you — or take it to the shop as it is.
+        </p>
       </div>
 
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 28, justifyContent: 'center' }}>
         <Link to="/nutrition/grocery"><Button variant="line">Back to Grocery Lists</Button></Link>
         <Link to="/nutrition/weekly"><Button variant="accent">Continue to Meal Planner →</Button></Link>
-      </div>
-
-      <div className="trust">
-        <span>◈ Personalised for You</span><span>◈ Expert Guidance</span>
-        <span>◈ Quality You Can Trust</span><span>◈ Better Every Day</span>
       </div>
     </div>
   );

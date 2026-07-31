@@ -44,8 +44,16 @@ module.exports = {
   // postcss.config.js and public/sw.js are not in tsconfig.json, so the
   // type-aware parser refuses them outright — two "errors" that were never
   // about the code. scripts/ is tooling, not app source.
+  //
+  // vite.config.js and vite.config.d.ts are emitted next to vite.config.ts by
+  // `tsc -b`, which `npm run build` runs. They are already in .gitignore, but
+  // eslint does not read that, so simply having built the project added two
+  // parser errors and pushed the lint ceiling from 25 to 27 — with nothing
+  // wrong in any source file. The trap is what happens next: the obvious
+  // response is to raise the ceiling to 27, and a ceiling raised for phantom
+  // errors quietly stops catching two real ones.
   ignorePatterns: [
-    'dist', '.eslintrc.cjs', 'vite.config.ts', 'vitest.config.ts',
-    'tailwind.config.ts', 'postcss.config.js', 'public/**', 'scripts/**',
+    'dist', '.eslintrc.cjs', 'vite.config.ts', 'vite.config.js', 'vite.config.d.ts',
+    'vitest.config.ts', 'tailwind.config.ts', 'postcss.config.js', 'public/**', 'scripts/**',
   ],
 };
