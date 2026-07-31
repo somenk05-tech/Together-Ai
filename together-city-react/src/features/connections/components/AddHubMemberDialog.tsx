@@ -161,7 +161,7 @@ export function AddHubMemberDialog({
         )}
 
         <p className="muted" style={{ fontSize: 11.5, marginTop: 14, lineHeight: 1.5 }}>
-          Manage everyone in one place under <button type="button" onClick={() => navigate('/connections')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5 }}>People</button>. Removing a member there — or here — disconnects them from this hub instantly.
+          Manage everyone in one place under <button type="button" onClick={() => navigate('/connections')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5 }}>People</button>. This dialog only adds someone; removing them is done there, and it disconnects them from every hub at once.
         </p>
       </div>
     </div>
