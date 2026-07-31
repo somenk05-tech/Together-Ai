@@ -1,5 +1,5 @@
 import {
-  FORBIDDEN_BY_DIET, explainScreen, labelMatchesContents, normaliseDiet,
+  FORBIDDEN_BY_DIET, JAIN_EXCLUSION_HINTS, explainScreen, labelMatchesContents, normaliseDiet,
   screenRecipe, tagsForIngredient, tagsForRecipe,
 } from './diet-tags';
 
@@ -161,7 +161,9 @@ describe('a recipe label that disagrees with the recipe', () => {
     // This is not hypothetical: it is in the seeded corpus.
     const s = labelMatchesContents('jain', ['Sago', 'Peanuts', 'Potato']);
     expect(s.ok).toBe(false);
-    expect(s.offending[0].ingredient).toBe('Potato');
+    // Both the sago and the potato offend now. This test used sago as harmless
+    // filler back when it was; it is a root product and it is on the list.
+    expect(s.offending.map((o) => o.ingredient)).toEqual(['Sago', 'Potato']);
   });
 
   it('passes a dish whose label is honest', () => {
@@ -178,5 +180,40 @@ describe('tagsForRecipe', () => {
 
   it('is empty for a dish nothing forbids', () => {
     expect(tagsForRecipe(['Rice', 'Cabbage', 'Oil', 'Salt'])).toEqual([]);
+  });
+});
+
+describe('sabudana, sago and tapioca — the exception that was removed', () => {
+  // The list excluded cassava and admitted sabudana, which is cassava in
+  // processed form. The product owner ruled for consistency; these pin it so the
+  // exception cannot quietly come back.
+  it('tags every name for the same root', () => {
+    for (const name of ['Sabudana', 'Sabudhana', 'Sago', 'Tapioca', 'Javvarisi', 'Saggubiyyam', 'Cassava']) {
+      expect(tagsForIngredient(name)).toEqual(['contains-root-vegetable']);
+    }
+  });
+
+  it('tags the forms a recipe actually lists them in', () => {
+    expect(tagsForIngredient('Tapioca starch')).toEqual(['contains-root-vegetable']);
+    expect(tagsForIngredient('Sago pearls')).toEqual(['contains-root-vegetable']);
+    expect(tagsForIngredient('Sabudana khichdi')).toEqual(['contains-root-vegetable']);
+  });
+
+  it('keeps a sabudana dish off a Jain plate', () => {
+    expect(tagsForRecipe(['Sago', 'Peanut', 'Cumin', 'Oil'])).toEqual(['contains-root-vegetable']);
+  });
+
+  it('leaves everything that merely sounds like it alone', () => {
+    // Sabja (basil seed) and sabut (whole) are not sabudana, and a boundary that
+    // catches them is the kind of over-match that makes a filter get switched off.
+    expect(tagsForIngredient('Sabja seeds')).toEqual([]);
+    expect(tagsForIngredient('Sabut masoor')).toEqual([]);
+    expect(tagsForIngredient('Saag')).toEqual([]);
+  });
+
+  it('is in JAIN_EXCLUSION_HINTS too, so the composer and the tagger agree', () => {
+    for (const hint of ['sabudana', 'sago', 'tapioca']) {
+      expect(JAIN_EXCLUSION_HINTS).toContain(hint);
+    }
   });
 });

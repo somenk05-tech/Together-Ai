@@ -5969,7 +5969,7 @@ export class NutritionService implements OnModuleInit {
       R('Lemon Poha with Vegetables', 'India', 'b', 330, 6, 58, 8, 4, 15, 270, 'vegan', [['Flattened rice', 75, 16], ['Vegetables', 80, 14], ['Lemon', 12, 3], ['Oil', 8, 7]]),
       R('Aloo Capsicum & Phulka', 'India', 'd', 450, 10, 74, 13, 8, 28, 350, 'vegan', [['Potato', 130, 14], ['Capsicum', 80, 16], ['Phulka roti', 90, 15]]),
       R('Vegetable Pulao (Light)', 'India', 'l', 490, 9, 84, 13, 7, 30, 380, 'vegan', [['Basmati rice', 150, 28], ['Mixed vegetables', 120, 22], ['Oil whole spices', 10, 9]]),
-      R('Sabudana Fruit Bowl', 'India', 's', 260, 3, 52, 5, 3, 20, 240, 'jain', [['Sago', 60, 13], ['Fruit', 100, 18], ['Coconut', 10, 4]]),
+      R('Sabudana Fruit Bowl', 'India', 's', 260, 3, 52, 5, 3, 20, 240, 'vegan', [['Sago', 60, 13], ['Fruit', 100, 18], ['Coconut', 10, 4]]),
       R('Rice Sevai with Coconut', 'India', 'd', 430, 7, 74, 12, 5, 25, 340, 'vegan', [['Rice vermicelli', 100, 18], ['Coconut', 25, 10], ['Vegetables', 70, 12], ['Oil', 8, 7]]),
       R('Honey Fruit Chaat', 'India', 's', 190, 2, 44, 1, 5, 10, 220, 'veg', [['Seasonal fruit', 220, 40], ['Honey', 12, 6], ['Lemon chaat masala', 5, 3]]),
 

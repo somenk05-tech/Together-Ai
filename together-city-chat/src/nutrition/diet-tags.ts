@@ -33,14 +33,24 @@
  * "peanut butter" is not butter, "kidney beans" are not an organ, and an
  * "eggplant" is not an egg. A filter that gets those wrong stops being used.
  *
- * WHAT IS A JUDGEMENT CALL AND NOT MINE. Jain practice varies between
- * households, and the boundary cases below are the app's existing choice rather
- * than a ruling: fresh ginger and mushroom are excluded (both already appear in
- * the two hardcoded lists this module replaces), while sabudana — a tapioca-ROOT
- * product — is not, because it is widely eaten. That inconsistency is real and
- * is flagged for the product owner in Backend-Open-Decisions rather than
- * silently settled here. What is NOT a judgement call: potato and carrot are on
- * the app's own list, and shipping them inside a dish labelled Jain is a bug.
+ * WHAT WAS A JUDGEMENT CALL, AND WHO MADE IT. Jain practice varies between
+ * households, so the boundary cases are a decision rather than a derivation.
+ * Fresh ginger and mushroom are excluded (both already appear in the two
+ * hardcoded lists this module replaces). Sabudana was NOT, on the grounds that
+ * it is widely eaten — which left the list excluding cassava while admitting
+ * sabudana, sago and tapioca, all of which are the same cassava root in
+ * processed form. The product owner has now ruled: exclude it, because a
+ * religious filter earns its trust by being consistent, and one arbitrary
+ * exception invites doubt about every other entry.
+ *
+ * That decision costs something real and it is worth naming: sabudana khichdi
+ * is standard Jain fasting food in many households, and this filter will now
+ * keep it off a Jain plate. Someone who wants it is better served by a filter
+ * they can predict than by one that happens to agree with them here and not
+ * about carrots.
+ *
+ * What was NEVER a judgement call: potato and carrot are on the app's own list,
+ * and shipping them inside a dish labelled Jain is a bug.
  */
 
 /** The seven tags the spec names, on the dish rather than on the eater. */
@@ -116,7 +126,7 @@ const RULES: TagRule[] = [
   },
   {
     tag: 'contains-root-vegetable',
-    match: /\b(potato|potatoes|aloo|alu|batata|sweet potato|shakarkand|shakarkandi|yam|suran|jimikand|arbi|arvi|colocasia|taro|carrot|carrots|gajar|radish|mooli|muli|daikon|beetroot|beet|beets|chukandar|turnip|shalgam|rutabaga|parsnip|celeriac|cassava|mushroom|mushrooms|ginger|adrak|horseradish|jerusalem artichoke)\b/i,
+    match: /\b(potato|potatoes|aloo|alu|batata|sweet potato|shakarkand|shakarkandi|yam|suran|jimikand|arbi|arvi|colocasia|taro|carrot|carrots|gajar|radish|mooli|muli|daikon|beetroot|beet|beets|chukandar|turnip|shalgam|rutabaga|parsnip|celeriac|cassava|sabudana|sabudhana|sago|javvarisi|saggubiyyam|tapioca|mushroom|mushrooms|ginger|adrak|horseradish|jerusalem artichoke)\b/i,
     // Powdered/dried spices from rhizomes are not the root vegetable, and
     // "ginger garlic paste" is caught by the onion-garlic rule regardless.
     // "<thing>-free" covers the Jain variants this corpus actually ships —
@@ -248,5 +258,8 @@ export const JAIN_EXCLUSION_HINTS: readonly string[] = [
   'onion', 'garlic', 'pyaz', 'lehsun', 'shallot', 'leek', 'chive',
   'potato', 'aloo', 'batata', 'yam', 'suran', 'arbi', 'colocasia', 'taro',
   'carrot', 'gajar', 'radish', 'mooli', 'beetroot', 'turnip', 'cassava',
+  // Sabudana, sago and tapioca are cassava in processed form. Cassava was
+  // already here; these three were the inconsistency.
+  'sabudana', 'sago', 'tapioca',
   'mushroom', 'ginger', 'adrak',
 ];
