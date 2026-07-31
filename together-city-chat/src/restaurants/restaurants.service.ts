@@ -10,6 +10,7 @@ import { MailService } from '../mail/mail.service';
 import { orderReceipt, tableReceipt } from '../mail/receipts';
 import { CUISINES, CUISINE_META, DIET_ALLOW, DIET_LABEL, RESTAURANT_SEEDS, hero, type Dish } from './restaurants.constants';
 import { recipeServings } from '../nutrition/nutrition.service';
+import { findAllergen } from '../shared/allergens';
 
 const SLOT_LABEL: Record<string, string> = { b: 'Breakfast', l: 'Lunch', s: 'Snack', d: 'Dinner' };
 import type { PlaceOrderDto, ReserveTableDto, RestaurantQueryDto, DiscoverDto } from './dto/restaurants.dto';
@@ -172,7 +173,15 @@ export class RestaurantsService implements OnModuleInit {
 
       const menu = parseMenu(r.menuJson);
       const menuText = `${r.name} ${r.tagline} ${menu.map((m) => m.name).join(' ')}`.toLowerCase();
-      if (allergens.some((a) => menuText.includes(a))) continue; // allergy = never shown
+      // allergy = never shown.
+      //
+      // This was `menuText.includes(declaredTerm)` against that concatenated
+      // blob, which is the substring test allergens.ts was written to replace —
+      // "nuts" does not appear in "Kaju Curry" or "Badam Halwa", and this is a
+      // menu, so the miss puts a dish in front of somebody rather than a serum.
+      // Dish names go in as separate candidates because that is what they are,
+      // and because it lets the matcher say which one.
+      if (findAllergen(r.name, menu.map((m) => m.name), allergens)) continue;
 
       const cuisineName = CUISINE_TO_MIX[r.cuisine] ?? '';
       const cuisineWeight = mixTotal ? (mix[cuisineName] ?? 0) / mixTotal : 0;

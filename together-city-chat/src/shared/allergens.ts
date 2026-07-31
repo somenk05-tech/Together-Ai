@@ -19,6 +19,15 @@
  *
  * This module is the single answer, and it is pure so it can be argued with.
  *
+ * IT LIVES IN shared/ AND NOT IN nutrition/ BECAUSE A NUT ALLERGY IS NOT A
+ * NUTRITION FACT. It is a fact about the citizen, and it is equally true of a
+ * face serum: almond oil is a tree nut whether it is eaten or applied. While
+ * this file sat inside the nutrition folder it was imported by exactly two
+ * files, both of them nutrition's, and the Beauty hub — which recommends
+ * ingredients to put on somebody's skin — wrote its own substring test three
+ * times over rather than reach across a hub boundary for it. §3's rule is that
+ * a field is owned by exactly one place; so is a vocabulary.
+ *
  * MATCHING IS ON WORDS, NOT SUBSTRINGS, which fixes the failures in both
  * directions. "egg" stops matching eggplant. "nut" stops matching coconut,
  * nutmeg and butternut squash — a nut-allergic citizen was being refused every
@@ -158,7 +167,11 @@ const TERM_TO_KEYS: Record<string, readonly AllergenKey[]> = {
   mustard: ['mustard'], sarson: ['mustard'],
 };
 
-const clean = (s: string) => (s ?? '').toLowerCase().replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
+/**
+ * Exported because topical-sensitivities.ts is a second vocabulary over the
+ * same mechanism, and a second COPY of this line is how the two drift apart.
+ */
+export const clean = (s: string) => (s ?? '').toLowerCase().replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
 
 /**
  * Whole-word containment, tolerant of a plural: "onion" is in "spring onion",
@@ -168,10 +181,40 @@ const clean = (s: string) => (s ?? '').toLowerCase().replace(/[^a-z ]+/g, ' ').r
  * every entry, and the first draft missed hazelnuts, oysters and half a dozen
  * others — which is the kind of list that looks complete and is not.
  */
-function hasWord(haystack: string, phrase: string): boolean {
+export function hasWord(haystack: string, phrase: string): boolean {
   const p = clean(phrase);
   if (!p) return false;
   return new RegExp(`(^| )${p}e?s?( |$)`).test(haystack);
+}
+
+const PREFIX = ['allergic to', 'allergy to', 'intolerant to', 'avoid', 'no'];
+const SUFFIX = ['allergy', 'allergies', 'intolerance', 'intolerant', 'sensitivity', 'sensitive', 'free'];
+
+/**
+ * The word inside a declaration.
+ *
+ * A free-text allergies box does not receive tidy vocabulary terms. It receives
+ * "nut allergy", "allergic to dairy", "gluten free", "no shellfish" — and every
+ * one of those missed the lookup table entirely, falling through to a literal
+ * whole-word match against ingredient names, which of course found nothing
+ * either. The declaration was read as an unknown food called "nut allergy".
+ *
+ * TERM_TO_KEYS already carried 'gluten intolerance' as its own entry, which is
+ * the same problem solved one phrase at a time. Stripping is the general form.
+ *
+ * This is the DECLARED side only. Ingredient text is never put through it —
+ * "sulphate free" on a label means the opposite of "sulphate free" typed by a
+ * citizen, and conflating the two would turn a safe product into an excluded one.
+ */
+export function declaredTerm(term: string): string {
+  let t = clean(term);
+  for (let i = 0; i < 3 && t; i++) {
+    const before = t;
+    for (const p of PREFIX) if (t.startsWith(`${p} `)) t = t.slice(p.length + 1);
+    for (const s of SUFFIX) if (t.endsWith(` ${s}`)) t = t.slice(0, -(s.length + 1));
+    if (t === before) break;
+  }
+  return t.trim();
 }
 
 /**
@@ -180,7 +223,7 @@ function hasWord(haystack: string, phrase: string): boolean {
  * the family treatment.
  */
 export function allergenFamilies(term: string): readonly AllergenKey[] {
-  const t = clean(term);
+  const t = declaredTerm(term);
   if (!t) return [];
   const singular = t.endsWith('s') ? t.slice(0, -1) : t;
   return TERM_TO_KEYS[t] ?? TERM_TO_KEYS[singular] ?? [];
@@ -243,7 +286,7 @@ export function findAllergen(
         const present = allergensIn(name);
         const hit = keys.find((k) => present.has(k));
         if (hit) return { term, allergen: hit, found: raw };
-      } else if (hasWord(name, term)) {
+      } else if (hasWord(name, declaredTerm(term))) {
         // Not a known allergen — an avoided food. Honoured literally, on words.
         return { term, allergen: null, found: raw };
       }

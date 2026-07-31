@@ -12,6 +12,8 @@
  * confidence of 0 — so the citizen is told the photo was not actually read.
  */
 
+import { isTopicallySafe } from '../shared/topical-sensitivities';
+
 export type Finish = 'matte' | 'dewy' | 'natural';
 export type Intensity = 'soft' | 'medium' | 'bold';
 export type Focus = 'eyes' | 'lips' | 'balanced';
@@ -130,8 +132,12 @@ export function matchProducts(
   const skin = (opts.skinType ?? '').toLowerCase();
 
   const safe = shelf.filter((p) => {
-    const hay = `${p.name} ${p.actives.join(' ')}`.toLowerCase();
-    if (allergies.some((a) => hay.includes(a))) return false;
+    // The header above says "anything containing a declared allergen is excluded
+    // before matching, not filtered from the result afterwards". That was true
+    // of the ORDER of operations and false of the exclusion itself, which was
+    // `haystack.includes(declaredTerm)` — a test that finds almond oil only for
+    // somebody who wrote "almond".
+    if (!isTopicallySafe(p.name, p.actives, allergies)) return false;
     if (skin && p.suitableSkin.length && !p.suitableSkin.includes('all') && !p.suitableSkin.includes(skin)) return false;
     return true;
   });

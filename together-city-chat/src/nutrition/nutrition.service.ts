@@ -29,7 +29,7 @@ import { activeMntRules, mntAvoidKeywords } from './clinical-mnt';
 import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from './diet-tags';
 import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
-import { findAllergen, isAllergenSafe } from './allergens';
+import { findAllergen, isAllergenSafe } from '../shared/allergens';
 import { energyTarget } from './energy';
 import { itemKey, mergeGroceryList } from './grocery-merge';
 import { targetReadiness } from './target-readiness';

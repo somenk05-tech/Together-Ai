@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { gunzipSync } from 'zlib';
-import { isAllergenSafe } from './allergens';
+import { isAllergenSafe } from '../shared/allergens';
 import { join } from 'path';
 import { computeTargets } from './nutrition.service';
 import { composeWeek, type ComposerPrefs, type Diet, type PoolRecipe } from './meal-composer';

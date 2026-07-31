@@ -2,7 +2,7 @@ import {
   SLOTS, SLOT_BY_CODE, type SlotCode, type MealCategory,
   resolveSchedule, type FastingPrefs, type DaySchedule,
 } from './meal-engine';
-import { isAllergenSafe } from './allergens';
+import { isAllergenSafe } from '../shared/allergens';
 import { COMPONENT_SEEDS, componentId, componentSteps, isPantryStaple, type ComponentSeed } from './component-recipes';
 import { screenRecipe } from './diet-tags';
 

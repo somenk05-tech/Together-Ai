@@ -22,6 +22,8 @@ import { CITATIONS, flagsFor, type Citation, type MarkerStatus } from '../nutrit
 const cite = (ids: string[]): Citation[] => ids.map((id) => CITATIONS[id]).filter(Boolean);
 
 /** Beauty "need" categories — the vocabulary that links insights to products. */
+import { isTopicallySafe } from '../shared/topical-sensitivities';
+
 export type BeautyTag =
   | 'barrier' | 'hydration' | 'brightening' | 'antioxidant'
   | 'collagen' | 'soothing' | 'spf' | 'scalp' | 'hair-density';
@@ -267,7 +269,13 @@ export function recommendProducts(opts: {
 
   const scored = BEAUTY_PRODUCTS
     // Hard filter: never surface something the user is allergic/sensitive to.
-    .filter((p) => !allergies.some((a) => p.actives.some((ing) => ing.toLowerCase().includes(a)) || p.keyIngredient.toLowerCase().includes(a)))
+    //
+    // This was `ingredient.toLowerCase().includes(declaredTerm)`, which is only
+    // a filter when the citizen happens to type the exact ingredient string.
+    // "tree nuts" does not appear in "almond oil"; "salicylates" does not appear
+    // in "salicylic acid". Both passed straight through a line commented "hard
+    // filter", which is the worst kind of guard — one that reads as settled.
+    .filter((p) => isTopicallySafe(p.name, [...p.actives, p.keyIngredient], allergies))
     .map((p) => {
       const matchedAttrs = p.profileKeys.map((k) => need.get(k)).filter(Boolean) as ReadingLite[];
       const suitable = p.suitableSkin.includes('all') || p.suitableSkin.includes(skinType);

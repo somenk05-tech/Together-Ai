@@ -6,7 +6,7 @@ import { composeWeek, scaleComposedWeek, type ComposerPrefs, type Diet, type Poo
 import { categorizeRecipe, type MealCategory } from './meal-engine';
 import { computeNutrients, perServingIngredients } from './ingredient-nutrients';
 import { supplementKit, flagsFor } from './clinical-engine';
-import { isAllergenSafe } from './allergens';
+import { isAllergenSafe } from '../shared/allergens';
 
 /**
  * Large-scale SIMULATED production test (150 virtual users) — Round-2 validation.

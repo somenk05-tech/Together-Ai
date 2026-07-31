@@ -3,6 +3,8 @@
 // profile + concerns + any photo findings into per-attribute readings, the top
 // issues, and a routine tuned to their goals, allergies and medical conditions.
 
+import { isTopicallySafe } from '../shared/topical-sensitivities';
+
 export type Level = 'good' | 'monitor' | 'attention' | 'priority';
 export interface Reading { key: string; label: string; level: Level; note: string }
 export interface RoutineStep { step: string; ingredient?: string }
@@ -49,7 +51,21 @@ export function assessBeauty(p: BeautyProfileInput, photoFindings: string[] = []
   const age = p.age ?? 0;
 
   const pregnant = has(conds, 'pregnan', 'breastfeed');
-  const avoid = (name: string) => allergies.some((a) => name.toLowerCase().includes(a) || a.includes(name.toLowerCase()));
+  /**
+   * This was a bidirectional substring test:
+   *
+   *     allergies.some((a) => name.includes(a) || a.includes(name))
+   *
+   * and it was wrong in both directions at once. Under-exclusion: "salicylates"
+   * is not a substring of "Salicylic acid (BHA)", so the one ingredient a
+   * salicylate-sensitive citizen must not be handed was recommended to them by
+   * name. Over-exclusion: the reversed half meant a declared "coconut oil"
+   * matched any recommendation whose name is a substring of it.
+   *
+   * findSensitivity matches on whole words and on families, so a declared term
+   * reaches the things it actually means and stops there.
+   */
+  const avoid = (name: string) => !isTopicallySafe(name, [], allergies);
 
   // ---- Skin readings ----
   const skin: Reading[] = [];
