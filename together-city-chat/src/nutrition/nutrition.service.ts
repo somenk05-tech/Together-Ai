@@ -4228,15 +4228,44 @@ export class NutritionService implements OnModuleInit {
    */
   async deleteOwnRecipe(userId: string, id: string) {
     const existing = await this.prisma.recipe.findUnique({
-      where: { id }, select: { id: true, authorId: true, meals: { select: { id: true }, take: 1 } } as never,
-    }) as { id: string; authorId: string | null; meals: { id: string }[] } | null;
+      where: { id }, select: { id: true, name: true, authorId: true, meals: { select: { id: true }, take: 1 } } as never,
+    }) as { id: string; name: string; authorId: string | null; meals: { id: string }[] } | null;
     if (!existing || existing.authorId !== userId) throw new NotFoundException('recipe not found');
+    // Historical Meal rows from the retired plan model. Nothing writes them any
+    // more, but Meal.recipe restricts on delete, so a dish caught in an old
+    // saved week would fail at the database with something unreadable. Refuse
+    // here instead, in words.
     if (existing.meals.length) {
-      throw new BadRequestException('This dish is in one of your meal plans. Swap it out of the plan first, then delete it.');
+      throw new BadRequestException('This dish is in one of your saved meal plans and can’t be removed yet.');
     }
+
+    // Any slot they had pinned this dish to goes back to being chosen for them.
+    //
+    // The composer already drops a pin whose recipe has vanished, so nothing
+    // unsafe happens either way — but it drops it in silence, and a slot the
+    // citizen deliberately chose quietly reverting is the kind of small
+    // dishonesty this app has spent a lot of effort removing. Deleting is the
+    // moment we know for certain, so it is the moment to clear the pin and say
+    // how many slots changed.
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const pins = { ...(ex.composedPins ?? {}) };
+    const freed = Object.keys(pins).filter((k) => pins[k] === id);
+    if (freed.length) {
+      for (const k of freed) delete pins[k];
+      await this.mergeExtras(userId, { composedPins: pins });
+    }
+
     await this.prisma.recipeIngredient.deleteMany({ where: { recipeId: id } });
     await this.prisma.recipe.delete({ where: { id } });
-    return { deleted: true };
+    return {
+      deleted: true,
+      slotsFreed: freed.length,
+      note: freed.length
+        ? `${existing.name} was your choice for ${freed.length} ${freed.length === 1 ? 'meal' : 'meals'} in your plan. `
+          + `${freed.length === 1 ? 'That slot goes' : 'Those slots go'} back to being chosen for you.`
+        : null,
+    };
   }
 
   async recipe(id: string, userId?: string) {

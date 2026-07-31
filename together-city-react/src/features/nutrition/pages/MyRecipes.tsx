@@ -53,6 +53,7 @@ export function MyRecipes() {
   const [numbers, setNumbers] = useState({ kcal: '', protein: '', carbs: '', fat: '', fiber: '' });
   const [saved, setSaved] = useState<{ name: string; notes: string[]; source: string; coverage: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [removed, setRemoved] = useState<string | null>(null);
 
   const set = <K extends keyof OwnRecipeInput>(k: K, v: OwnRecipeInput[K]) => setForm((f) => ({ ...f, [k]: v }));
   const setIngredient = (i: number, patch: Partial<OwnIngredient>) =>
@@ -246,11 +247,15 @@ export function MyRecipes() {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Button variant="line" size="sm" onClick={() => edit(r)}>Edit</Button>
-              <Button variant="line" size="sm" disabled={remove.isPending} onClick={() => remove.mutate(r.id)}>Delete</Button>
+              <Button variant="line" size="sm" disabled={remove.isPending}
+                onClick={() => remove.mutate(r.id, { onSuccess: (res) => setRemoved(res.note) })}>Delete</Button>
             </div>
           </div>
         </Card>
       ))}
+      {removed && (
+        <p className="muted" style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.6 }}>{removed}</p>
+      )}
       {remove.isError && (
         <p style={{ color: '#b0503e', fontSize: 12.5, marginTop: 8, lineHeight: 1.6 }}>
           {(remove.error as { response?: { data?: { message?: string } } })?.response?.data?.message

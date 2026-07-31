@@ -52,13 +52,24 @@ export function useSaveOwnRecipe() {
   });
 }
 
+export interface DeletedOwnRecipe {
+  deleted: boolean;
+  /** How many plan slots this dish was the citizen's own choice for. */
+  slotsFreed: number;
+  /** Plain-language consequence, when there is one. Shown, not swallowed. */
+  note: string | null;
+}
+
 export function useDeleteOwnRecipe() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.delete<{ deleted: boolean }>(`/nutrition/recipes/own/${id}`).then((r) => r.data),
+    mutationFn: (id: string) => api.delete<DeletedOwnRecipe>(`/nutrition/recipes/own/${id}`).then((r) => r.data),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: KEY });
       void qc.invalidateQueries({ queryKey: ['nutrition', 'library'] });
+      // Deleting can clear pins, so the plan the citizen is looking at may have
+      // changed underneath them.
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'composed'] });
     },
   });
 }
