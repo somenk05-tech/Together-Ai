@@ -1,3 +1,4 @@
+import { swallow } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { checkCollectionDate } from './collection-date';
 import { pageLimit } from '../shared/paging';
@@ -216,9 +217,12 @@ export class MedicalService implements OnModuleInit {
     const [mail, docs, drive] = await Promise.all([
       this.prisma.mailMessage.findMany({ where: { ownerId: userId }, select: { sizeBytes: true } }),
       this.prisma.medicalRecord.findMany({ where: { userId }, select: { sizeBytes: true } as never }) as Promise<Array<{ sizeBytes: number }>>,
-      ((this.prisma as unknown as {
+      // A failed aggregate reported 0 bytes used — an absence never
+      // established, on a storage meter. Same fallback, now witnessed.
+      swallow((this.prisma as unknown as {
         driveFile: { aggregate(a: unknown): Promise<{ _sum: { sizeBytes: number | null } }> };
-      }).driveFile.aggregate({ where: { ownerId: userId }, _sum: { sizeBytes: true } })).catch(() => ({ _sum: { sizeBytes: 0 } })),
+      }).driveFile.aggregate({ where: { ownerId: userId }, _sum: { sizeBytes: true } }), 'storage meter: drive usage', { userId })
+        .then((r) => r ?? { _sum: { sizeBytes: 0 } }),
     ]);
     const mailBytes = mail.reduce((s, m) => s + (m.sizeBytes ?? 0), 0);
     const healthBytes = docs.reduce((s, d) => s + (d.sizeBytes ?? 0), 0);
@@ -506,9 +510,11 @@ export class MedicalService implements OnModuleInit {
           biomarkers: { deleteMany: {}, create: biomarkers },
         },
       });
-      await (this.prisma as unknown as { bloodAnalysis: { deleteMany: (a: unknown) => Promise<unknown> } })
-        .bloodAnalysis.deleteMany({ where: { bloodTestId: existingTestId, userId } }).catch(() => undefined);
-      void this.healthSummary(userId).catch(() => undefined);
+      // A failed delete keeps a STALE cached interpretation alive next to the
+      // new panel — the reader would show old conclusions about new numbers.
+      await swallow((this.prisma as unknown as { bloodAnalysis: { deleteMany: (a: unknown) => Promise<unknown> } })
+        .bloodAnalysis.deleteMany({ where: { bloodTestId: existingTestId, userId } }), 'retire stale blood analyses', { userId });
+      void swallow(this.healthSummary(userId), 'pre-warm health summary', { userId });
       return existingTestId;
     }
 
@@ -530,12 +536,14 @@ export class MedicalService implements OnModuleInit {
       // decides the update-in-place branch, so a recordId belonging to someone
       // else falls through to here. Scoping the write means a foreign id
       // matches nothing instead of stamping this panel onto their record.
-      await this.prisma.medicalRecord
-        .updateMany({ where: { id: input.recordId, userId }, data: { bloodTestId: test.id } as never })
-        .catch(() => undefined);
+      // If this fails the uploaded report never links to its panel and the
+      // reader shows a document with no analysis — silently, until now.
+      await swallow(this.prisma.medicalRecord
+        .updateMany({ where: { id: input.recordId, userId }, data: { bloodTestId: test.id } as never }),
+        'link record to blood test', { userId, recordId: input.recordId });
     }
     // Pre-warm the AI health summary so Blood Test Analysis opens instantly.
-    void this.healthSummary(userId).catch(() => undefined);
+    void swallow(this.healthSummary(userId), 'pre-warm health summary', { userId });
     return test.id;
   }
 
@@ -1073,23 +1081,23 @@ export class MedicalService implements OnModuleInit {
     const V = MedicalService.ANALYSIS_VERSION;
     const bloodAnalysis = (this.prisma as unknown as { bloodAnalysis: { findFirst: (a: unknown) => Promise<{ payload: string } | null>; create: (a: unknown) => Promise<unknown> } }).bloodAnalysis;
 
-    const exact = await bloodAnalysis.findFirst({ where: { bloodTestId: test.id, analysisVersion: V } }).catch(() => null);
+    const exact = await swallow(bloodAnalysis.findFirst({ where: { bloodTestId: test.id, analysisVersion: V } }), 'analysis cache read (exact)', { userId });
     if (exact?.payload) { try { return JSON.parse(exact.payload) as StoredAnalysis; } catch { /* regenerate */ } }
 
     const values = Object.fromEntries(test.biomarkers.map((b) => [b.key, b.value]));
     const hash = this.reportHash(values);
 
-    const twin = await bloodAnalysis.findFirst({ where: { userId, reportHash: hash, analysisVersion: V } }).catch(() => null);
+    const twin = await swallow(bloodAnalysis.findFirst({ where: { userId, reportHash: hash, analysisVersion: V } }), 'analysis cache read (twin)', { userId });
     if (twin?.payload) {
       try {
         const payload = JSON.parse(twin.payload) as StoredAnalysis;
-        await this.storeAnalysis(userId, test.id, hash, payload).catch(() => undefined);
+        await swallow(this.storeAnalysis(userId, test.id, hash, payload), 'analysis cache write (twin reuse)', { userId });
         return payload;
       } catch { /* regenerate */ }
     }
 
     const payload = await this.computeAnalysis(values, fullName, hash);
-    await this.storeAnalysis(userId, test.id, hash, payload).catch(() => undefined);
+    await swallow(this.storeAnalysis(userId, test.id, hash, payload), 'analysis cache write', { userId });
     return payload;
   }
 
