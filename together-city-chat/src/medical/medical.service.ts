@@ -215,7 +215,9 @@ export class MedicalService implements OnModuleInit {
     // ONE 10 GB vault per account — mail + health documents + drive files all
     // draw from the same allowance, so this must count drive usage too.
     const [mail, docs, drive] = await Promise.all([
+      // unbounded: the storage meter SUMS every row — truncating undercounts the vault
       this.prisma.mailMessage.findMany({ where: { ownerId: userId }, select: { sizeBytes: true } }),
+      // unbounded: same meter, the medical documents' share of it
       this.prisma.medicalRecord.findMany({ where: { userId }, select: { sizeBytes: true } as never }) as Promise<Array<{ sizeBytes: number }>>,
       // A failed aggregate reported 0 bytes used — an absence never
       // established, on a storage meter. Same fallback, now witnessed.
@@ -748,6 +750,8 @@ export class MedicalService implements OnModuleInit {
    * analyze() (+ lastTested / previousDate). Per-report history is unchanged.
    */
   async latest(userId: string) {
+    // unbounded: most-recent value PER BIOMARKER needs every panel — a missing
+    // old panel silently drops a marker nothing newer ever measured again
     const tests = await this.prisma.medicalBloodTest.findMany({
       where: { userId }, orderBy: { takenOn: 'asc' }, include: { biomarkers: true },
     });
@@ -867,6 +871,8 @@ export class MedicalService implements OnModuleInit {
    * it's read, so a normalised value drops its (unconfirmed) suggestion.
    */
   async medicalConditionSuggestions(userId: string) {
+    // unbounded: clinical suggestions read the full panel history — a
+    // truncated history is a wrong clinical picture, not a slow one
     const tests = await this.prisma.medicalBloodTest.findMany({
       where: { userId }, orderBy: { takenOn: 'asc' }, include: { biomarkers: true },
     });
@@ -936,6 +942,8 @@ export class MedicalService implements OnModuleInit {
    * Deterministic + explainable — the same inputs always give the same read.
    */
   async bloodTrends(userId: string) {
+    // unbounded: the trend line IS the whole history — paging.ts's canonical
+    // computation example. Truncation would fabricate a different trend.
     const tests = await this.prisma.medicalBloodTest.findMany({
       where: { userId }, orderBy: { takenOn: 'asc' }, include: { biomarkers: true },
     });
@@ -1285,6 +1293,7 @@ export class MedicalService implements OnModuleInit {
       // price and a Book button that opened a chat with nobody.
       where: { user: { deletedAt: null } },
       include: { user: { select: { id: true, handle: true, name: true, profileImage: true } } },
+      take: RECORD_CAP, // a directory bigger than this needs search, not scroll
     });
     return rows.map((d) => ({
       id: d.id, name: d.user.name, handle: d.user.handle, specialty: d.specialty,
@@ -1346,6 +1355,7 @@ export class MedicalService implements OnModuleInit {
   // ─────────────── consent core ───────────────
   /** Consent per hub (defaults created granted=true the first time). */
   async consents(userId: string) {
+    // unbounded: one row per hub — CONSENT_HUBS bounds this, not the citizen
     const existing = await this.prisma.medicalConsent.findMany({ where: { userId } });
     const byHub = new Map(existing.map((c) => [c.hub, c]));
     const out = [];
