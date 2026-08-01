@@ -7,6 +7,7 @@
  * (email) or Twilio/SNS (SMS) by implementing this interface and returning it
  * from `createMessagingProvider()`. Nothing else in the app changes.
  */
+import { swallow } from '../shared/swallow';
 import { randomBytes } from 'crypto';
 import { Resend } from 'resend';
 
@@ -232,7 +233,7 @@ export class TwilioSmsProvider implements MessagingProvider {
         // waiting. Fail fast and let them press resend.
         signal: AbortSignal.timeout(10_000),
       });
-      const json = (await res.json().catch(() => ({}))) as { sid?: string; status?: string; message?: string };
+      const json = ((await swallow(res.json(), 'twilio: response parse')) ?? {}) as { sid?: string; status?: string; message?: string };
       if (!res.ok) {
         // Never log msg.to at error level: a failed-send log becomes a list of
         // phone numbers, which is the last thing an incident channel needs.

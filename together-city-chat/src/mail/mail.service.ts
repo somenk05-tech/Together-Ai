@@ -1,3 +1,4 @@
+import { swallow } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { ConnectionStatus } from '@prisma/client';
@@ -45,10 +46,10 @@ export class MailService {
     const drive = (this.prisma as unknown as {
       driveFile: { updateMany(a: unknown): Promise<{ count: number }> };
     }).driveFile;
-    await drive.updateMany({
+    await swallow(drive.updateMany({
       where: { id: { in: fileIds.slice(0, 10) }, ownerId: userId },
       data: { attachedType: 'mail', attachedId: threadId },
-    }).catch(() => undefined);
+    }), 'mail: attach drive files', { userId, threadId });
   }
 
   /**
@@ -65,9 +66,10 @@ export class MailService {
     const drive = (this.prisma as unknown as {
       driveFile: { findMany(a: unknown): Promise<Array<{ id: string; name: string; mimeType: string | null; sizeBytes: number; storageKey: string }>> };
     }).driveFile;
-    const files = await drive.findMany({
+    // A failed read silently sent the mail WITHOUT its attachments.
+    const files = (await swallow(drive.findMany({
       where: { id: { in: fileIds.slice(0, 10) }, ownerId: userId },
-    }).catch(() => []);
+    }), 'mail: outgoing attachments read', { userId })) ?? [];
     if (!files.length) return none;
 
     const total = files.reduce((n, f) => n + (f.sizeBytes ?? 0), 0);
@@ -87,7 +89,7 @@ export class MailService {
     for (const f of ordered) {
       const size = f.sizeBytes ?? 0;
       if (size <= budget) {
-        const obj = await this.storage.getHealthObjectBase64(f.storageKey).catch(() => null);
+        const obj = await swallow(this.storage.getHealthObjectBase64(f.storageKey), 'mail: attachment inline read', { fileId: f.id });
         if (obj) {
           attachments.push({ filename: f.name, contentBase64: obj.base64, contentType: f.mimeType ?? obj.contentType });
           budget -= size;
@@ -95,7 +97,9 @@ export class MailService {
         }
         // Unreadable inline → fall through and try a link instead of dropping it.
       }
-      const url = await this.storage.presignShareLink(f.storageKey, SHARE_LINK_TTL_SEC).catch(() => null);
+      // If this ALSO fails after the inline read failed, the attachment is
+      // dropped from the mail — both failures now leave a line.
+      const url = await swallow(this.storage.presignShareLink(f.storageKey, SHARE_LINK_TTL_SEC), 'mail: attachment link presign', { fileId: f.id });
       if (url) linked.push({ name: f.name, sizeBytes: size, url });
     }
 
@@ -133,11 +137,13 @@ export class MailService {
     const drive = (this.prisma as unknown as {
       driveFile: { findMany(a: unknown): Promise<Array<{ id: string; name: string; mimeType: string | null; sizeBytes: number }>> };
     }).driveFile;
-    const items = await drive.findMany({
+    // [] on failure told the reader this thread HAD no attachments — an
+    // absence never established.
+    const items = (await swallow(drive.findMany({
       where: { attachedType: 'mail', attachedId: threadId },
       select: { id: true, name: true, mimeType: true, sizeBytes: true },
       orderBy: { createdAt: 'asc' },
-    }).catch(() => []);
+    }), 'mail: thread attachments read', { threadId })) ?? [];
     return { items };
   }
 
@@ -175,9 +181,9 @@ export class MailService {
       const local = acct.address.split('@')[0];
       const domain = acct.address.split('@')[1];
       if (local && domain && domain !== MAIL_DOMAIN && CITY_DOMAINS.includes(domain)) {
-        const moved = await this.prisma.mailAccount
-          .update({ where: { userId }, data: { address: `${local}@${MAIL_DOMAIN}` } })
-          .catch(() => null);
+        const moved = await swallow(this.prisma.mailAccount
+          .update({ where: { userId }, data: { address: `${local}@${MAIL_DOMAIN}` } }),
+          'mail: address domain migration', { userId });
         if (moved) return moved;
       }
       return acct;
@@ -419,12 +425,14 @@ export class MailService {
     const res = await provider
       .send({ channel: 'email', to: toEmail, subject, body: dto.body + linkFooter + footer, kind: 'mail', ...(attachments.length ? { attachments } : {}) })
       .catch((e: Error) => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const, error: e.message }));
-    await this.prisma.emailDelivery.create({
+    // The delivery audit row is how an outage gets diagnosed (see the mail
+    // postmortem) — losing it silently blinds exactly that investigation.
+    await swallow(this.prisma.emailDelivery.create({
       data: {
         userId, channel: 'email', toEmail, kind: 'mail', subject, body: dto.body,
         provider: res.provider, providerMessageId: res.providerMessageId ?? undefined, status: res.status,
       },
-    }).catch(() => undefined);
+    }), 'mail: delivery audit write', { userId, kind: 'mail' });
 
     // The stub provider reports 'sent' so demo and dev never block; only a
     // CONFIGURED provider's refusal is a real failure.
@@ -526,12 +534,12 @@ export class MailService {
     if (target) {
       const provider = createMessagingProvider(channel);
       const res = await provider.send({ channel, to: target, subject, body: greeted.body, ...(channel === 'email' && greeted.html ? { html: greeted.html } : {}), kind }).catch(() => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const }));
-      await this.prisma.emailDelivery.create({
+      await swallow(this.prisma.emailDelivery.create({
         data: {
           userId, channel, toEmail: channel === 'email' ? target : null, toPhone: channel === 'sms' ? target : null,
           kind, subject, body: r.body, provider: res.provider, providerMessageId: res.providerMessageId ?? undefined, status: res.status,
         },
-      }).catch(() => undefined);
+      }), 'mail: delivery audit write', { userId, kind });
     }
     return { deliveredToInbox: true, dispatchedTo: target, channel };
   }
@@ -557,7 +565,7 @@ export class MailService {
     const provider = createMessagingProvider(channel);
     // Same rule as deliverSystem. A verification code that opens "Dear Somen,"
     // reads as a message from somebody rather than from a system.
-    const who = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(() => null);
+    const who = await swallow(this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }), 'mail: recipient name read', { userId });
     const body = (channel === 'sms' ? greetSms : greetText)(r.body, who?.name);
     const html = r.html ? greetHtml(r.html, who?.name) : undefined;
     const res = await provider
@@ -570,7 +578,7 @@ export class MailService {
       // coming.
       this.logger.error(`delivery FAILED user=${userId} channel=${channel} kind=${kind} — ${'error' in res ? res.error : 'no reason reported'}`);
     }
-    await this.prisma.emailDelivery.create({
+    await swallow(this.prisma.emailDelivery.create({
       data: {
         userId, channel,
         toEmail: channel === 'email' ? target : null,
@@ -582,7 +590,7 @@ export class MailService {
         kind, subject: r.subject, body: '(verification code redacted)',
         provider: res.provider, providerMessageId: res.providerMessageId ?? undefined, status: res.status,
       },
-    }).catch(() => undefined);
+    }), 'mail: delivery audit write', { userId, kind });
     return { ok: res.status !== 'failed', provider: res.provider, status: res.status };
   }
 
