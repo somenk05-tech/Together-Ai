@@ -1,3 +1,4 @@
+import { swallow } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConnectionStatus, ConnectionType, Connection, User } from '@prisma/client';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -148,7 +149,7 @@ export class ConnectionsService {
 
   /** Tell the recipient a connection request arrived. */
   private async notifyRequest(requesterId: string, recipientId: string): Promise<void> {
-    const u = await this.prisma.user.findUnique({ where: { id: requesterId }, select: { name: true } }).catch(() => null);
+    const u = await swallow(this.prisma.user.findUnique({ where: { id: requesterId }, select: { name: true } }), 'notify: requester name read', { requesterId });
     await this.notifications.create({
       userId: recipientId, actorId: requesterId, kind: 'connection_request',
       title: `${u?.name ?? 'Someone'} sent you a connection request`, href: '/connections', entityId: requesterId,
@@ -177,7 +178,9 @@ export class ConnectionsService {
     // compatibility between them. (COUPLE is Dating's own relationship, so it's
     // never torn down here; it's created directly by the Dating Hub.)
     if (updated.connectionType !== ConnectionType.COUPLE) {
-      await this.purgeDatingBetween(updated.userOneId, updated.userTwoId).catch(() => undefined);
+      // Privacy teardown — connections are never dating candidates. A silent
+      // failure here left match state alive between people who connected.
+      await swallow(this.purgeDatingBetween(updated.userOneId, updated.userTwoId), 'purge dating state between connections', { userOneId: updated.userOneId, userTwoId: updated.userTwoId });
     }
     // Accepting a connection makes the two people follow each other (Social hub).
     if (status === ConnectionStatus.ACCEPTED) {
@@ -190,9 +193,9 @@ export class ConnectionsService {
       });
       // System Sync (Universal Connection Model): accepting in People connects
       // the granted modules everywhere — no separate hub invitations.
-      await this.syncModules(updated).catch(() => undefined);
+      await swallow(this.syncModules(updated), 'sync modules after connection change', { connectionId: updated.id });
       // Tell the original requester their request was accepted.
-      const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(() => null);
+      const me = await swallow(this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }), 'notify: acceptor name read', { userId });
       void this.notifications.create({
         userId: updated.requestedById, actorId: userId, kind: 'connection_accepted',
         title: `${me?.name ?? 'Someone'} accepted your connection request`, href: '/connections', entityId: userId,
@@ -260,10 +263,11 @@ export class ConnectionsService {
       } as never,
     });
     if (updated.status === ConnectionStatus.ACCEPTED) {
-      await this.syncModules(updated).catch(() => undefined);
+      await swallow(this.syncModules(updated), 'sync modules after connection change', { connectionId: updated.id });
       // Revoking a module disconnects that hub too (nutrition → household).
       if (before.includes('nutrition') && !modules.includes('nutrition')) {
-        await this.unsyncHousehold(updated).catch(() => undefined);
+        // Household access must not outlive the grant that created it.
+        await swallow(this.unsyncHousehold(updated), 'unsync household on nutrition revoke', { connectionId: updated.id });
       }
     }
     this.broadcast(updated);
@@ -315,9 +319,11 @@ export class ConnectionsService {
       return !!c;
     }
     const { userOneId, userTwoId } = orderPair(a, b);
-    const conn = await this.prisma.connection.findFirst({
+    // Fails CLOSED (no access) on a read error — the right direction, but a
+    // DB blip locking family out of a hub should be visible in the logs.
+    const conn = await swallow(this.prisma.connection.findFirst({
       where: { userOneId, userTwoId, status: ConnectionStatus.ACCEPTED },
-    }).catch(() => null);
+    }), 'module-access connection read', { userOneId, userTwoId });
     if (!conn) return false;
     // effectiveModules, not parseModules: a stored grant is only honoured if the
     // relationship on the connection may hold it. This is the gate the whole
@@ -353,12 +359,12 @@ export class ConnectionsService {
 
     const { userOneId, userTwoId } = orderPair(viewer, owner);
     const [follows, conn] = await Promise.all([
-      this.prisma.follow
-        .findUnique({ where: { followerId_followeeId: { followerId: viewer, followeeId: owner } }, select: { id: true } })
-        .catch(() => null),
-      this.prisma.connection
-        .findFirst({ where: { userOneId, userTwoId, status: ConnectionStatus.ACCEPTED } })
-        .catch(() => null),
+      // Both fail CLOSED, to the more-private audience — but silently
+      // shrinking what a viewer may see is still worth a log line.
+      swallow(this.prisma.follow
+        .findUnique({ where: { followerId_followeeId: { followerId: viewer, followeeId: owner } }, select: { id: true } }), 'visibility: follow read', { viewer, owner }),
+      swallow(this.prisma.connection
+        .findFirst({ where: { userOneId, userTwoId, status: ConnectionStatus.ACCEPTED } }), 'visibility: connection read', { viewer, owner }),
     ]);
 
     const social = conn
@@ -380,19 +386,21 @@ export class ConnectionsService {
   async revokeModuleForPair(userA: string, userB: string, module: string): Promise<void> {
     if (isUniversalHub(module)) return;
     const { userOneId, userTwoId } = orderPair(userA, userB);
-    const conn = await this.prisma.connection.findUnique({
+    // A failed read here SKIPPED the revoke silently — module access
+    // persisting past its revocation, the wrong direction to fail.
+    const conn = await swallow(this.prisma.connection.findUnique({
       where: {
         userOneId_userTwoId_connectionType: { userOneId, userTwoId, connectionType: ConnectionType.FRIEND },
       },
-    }).catch(() => null);
+    }), 'revoke-module: connection read', { userOneId, userTwoId });
     if (!conn) return;
     const current = parseModules((conn as { modulesJson?: string | null }).modulesJson);
     if (!current.includes(module)) return;
     const next = current.filter((m) => m !== module);
-    const updated = await this.prisma.connection.update({
+    const updated = await swallow(this.prisma.connection.update({
       where: { id: conn.id },
       data: { modulesJson: JSON.stringify(withUniversal(next)) } as never,
-    }).catch(() => null);
+    }), 'revoke-module: write', { connectionId: conn.id, module });
     if (updated) this.broadcast(updated); // two-way sync → refresh People + hub lists
   }
 
@@ -410,17 +418,17 @@ export class ConnectionsService {
     if (!conn) throw new NotFoundException('Connection not found');
     if (conn.userOneId !== userId && conn.userTwoId !== userId) throw new ForbiddenException('Not your connection');
     const removed = await this.prisma.connection.update({ where: { id: conn.id }, data: { status: ConnectionStatus.REMOVED } });
-    await this.unsyncHousehold(conn).catch(() => undefined);
+    await swallow(this.unsyncHousehold(conn), 'unsync household on remove', { connectionId: conn.id });
     this.broadcast(removed); // disconnects everywhere — refresh People + every hub list
     // Social follows end with the connection.
-    await this.prisma.follow.deleteMany({
+    await swallow(this.prisma.follow.deleteMany({
       where: {
         OR: [
           { followerId: conn.userOneId, followeeId: conn.userTwoId },
           { followerId: conn.userTwoId, followeeId: conn.userOneId },
         ],
       },
-    }).catch(() => undefined);
+    }), 'remove: end mutual follows', { connectionId: conn.id });
     return { removed: true };
   }
 
@@ -430,18 +438,19 @@ export class ConnectionsService {
    *  dating candidates). The dating conversation, if any, stays as their normal
    *  People chat (archive policy). */
   private async purgeDatingBetween(a: string, b: string): Promise<void> {
-    await this.prisma.datingMatch.deleteMany({
+    await swallow(this.prisma.datingMatch.deleteMany({
       where: { OR: [{ userOneId: a, userTwoId: b }, { userOneId: b, userTwoId: a }] },
-    }).catch(() => undefined);
-    await (this.prisma as unknown as { compatibilityScore: { deleteMany(x: unknown): Promise<unknown> } }).compatibilityScore
-      .deleteMany({ where: { OR: [{ userA: a, userB: b }, { userA: b, userB: a }] } }).catch(() => undefined);
+    }), 'purge dating matches', { a, b });
+    await swallow((this.prisma as unknown as { compatibilityScore: { deleteMany(x: unknown): Promise<unknown> } }).compatibilityScore
+      .deleteMany({ where: { OR: [{ userA: a, userB: b }, { userA: b, userB: a }] } }), 'purge compatibility scores', { a, b });
   }
 
   private async unsyncHousehold(conn: Connection): Promise<void> {
     const household = (this.prisma as unknown as {
       householdMember: { updateMany: (a: unknown) => Promise<unknown> };
     }).householdMember;
-    await household.updateMany({
+    // Household membership must not outlive the connection it came from.
+    await swallow(household.updateMany({
       where: {
         OR: [
           { ownerId: conn.userOneId, memberUserId: conn.userTwoId },
@@ -449,7 +458,7 @@ export class ConnectionsService {
         ],
       },
       data: { status: 'removed' },
-    }).catch(() => undefined);
+    }), 'household unlink', { connectionId: conn.id });
   }
 
   /** Propagate granted modules into hub systems (accept once, connected everywhere). */
@@ -467,11 +476,11 @@ export class ConnectionsService {
           update: (a: unknown) => Promise<unknown>;
         };
       }).householdMember;
-      const existing = await household.findFirst({ where: { ownerId, memberUserId } }).catch(() => null);
+      const existing = await swallow(household.findFirst({ where: { ownerId, memberUserId } }), 'household sync: member read', { ownerId, memberUserId });
       if (!existing) {
-        await household.create({ data: { ownerId, memberUserId, role: 'adult', status: 'accepted', requestedById: ownerId } }).catch(() => undefined);
+        await swallow(household.create({ data: { ownerId, memberUserId, role: 'adult', status: 'accepted', requestedById: ownerId } }), 'household sync: member create', { ownerId, memberUserId });
       } else if (existing.status !== 'accepted') {
-        await household.update({ where: { id: existing.id }, data: { status: 'accepted' } }).catch(() => undefined);
+        await swallow(household.update({ where: { id: existing.id }, data: { status: 'accepted' } }), 'household sync: member accept', { ownerId, memberUserId });
       }
     }
     // Medical reads the household; travel/entertainment/etc consume the record
