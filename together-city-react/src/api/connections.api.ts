@@ -81,39 +81,9 @@ export function useRespondConnection() {
   });
 }
 
-/** Single-source write from the People checkbox grid — a hub→boolean map. */
-export function useSetPermissions() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (v: { id: string; hubPermissions: Record<string, boolean>; relationship?: string }) =>
-      connectionsApi.setPermissions(v.id, v.hubPermissions, v.relationship),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['connections'] });
-      void qc.invalidateQueries({ queryKey: ['hub-members'] });
-    },
-  });
-}
-
 /** Master hubs registry (drives the toggle UI; new hubs need no frontend change). */
 export function useHubs() {
   return useQuery({ queryKey: ['connections', 'hubs'], queryFn: () => connectionsApi.hubs(), staleTime: 5 * 60_000 });
-}
-
-/** Everyone connected to a specific hub — every hub's Members list reads this. */
-export function useHubMembers(hub: string) {
-  return useQuery({ queryKey: ['hub-members', hub], queryFn: () => connectionsApi.hubMembers(hub) });
-}
-
-/** Add/remove one member for a hub (writes the shared permission store). */
-export function useSetHubMember(hub: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (v: { connectionId: string; enabled: boolean }) => connectionsApi.setHubMember(hub, v.connectionId, v.enabled),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['hub-members'] });
-      void qc.invalidateQueries({ queryKey: ['connections'] });
-    },
-  });
 }
 
 /**

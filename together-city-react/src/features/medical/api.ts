@@ -253,18 +253,8 @@ export function useAddRecord() {
     onSuccess: (recs) => qc.setQueryData(['medical', 'records'], recs),
   });
 }
-export function useDoctors() {
-  return useQuery({ queryKey: ['medical', 'doctors'], queryFn: () => medicalApi.doctors() });
-}
 export function useConsults() {
   return useQuery({ queryKey: ['medical', 'consults'], queryFn: () => medicalApi.consults() });
-}
-export function useBookConsult() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: { doctorId: string; reason?: string; method?: 'wallet' | 'card' }) => medicalApi.bookConsult(input),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['medical', 'consults'] }); void qc.invalidateQueries({ queryKey: ['financial'] }); },
-  });
 }
 export function useConsents() {
   return useQuery({ queryKey: ['medical', 'consents'], queryFn: () => medicalApi.consents() });

@@ -1,33 +1,5 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { nutritionApi } from './api';
-import type { WeekPlan } from './types';
-
-const KEY = (mode: string) => ['nutrition', 'weekly', mode] as const;
-const DAILY_KEY = (mode: string) => ['nutrition', 'daily', mode] as const;
-
-
-
-
-
-
-
-/**
- * Push an edited/returned week into BOTH the weekly and daily caches so the two
- * views are ALWAYS the same single plan (edit in one → appears instantly in the
- * other), then refresh the dependents (day summary, grocery list, history).
- * The DB is already updated by the mutating call; this just keeps the client in
- * lockstep without a refetch round-trip.
- */
-export function syncPlanCaches(qc: QueryClient, mode: string, plan: WeekPlan) {
-  const merge = (prev: WeekPlan | undefined) => ({ ...((prev ?? {}) as WeekPlan), ...plan });
-  qc.setQueryData(KEY(mode), merge);
-  qc.setQueryData(DAILY_KEY(mode), merge);
-  void qc.invalidateQueries({ queryKey: ['nutrition', 'summary'] });
-  void qc.invalidateQueries({ queryKey: ['nutrition', 'week-summary'] });
-  void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] });
-  void qc.invalidateQueries({ queryKey: ['nutrition', 'history', mode] });
-  void qc.invalidateQueries({ queryKey: ['nutrition', 'weeks', mode] });
-}
 
 export function useNutritionTargets() {
   return useQuery({ queryKey: ['nutrition', 'targets'], queryFn: () => nutritionApi.targets() });
@@ -49,15 +21,6 @@ export function useDecideMedicalRec() {
       void qc.invalidateQueries({ queryKey: ['nutrition', 'advice'] });
     },
   });
-}
-
-/** Personalized Nutrition Advice — dietary-balance advisories for the overview. */
-export function useNutritionAdvice() {
-  return useQuery({ queryKey: ['nutrition', 'advice'], queryFn: () => nutritionApi.advice() });
-}
-
-export function useNutritionHistory(mode: 'individual' | 'family' = 'individual') {
-  return useQuery({ queryKey: ['nutrition', 'history', mode], queryFn: () => nutritionApi.history(mode) });
 }
 
 const FAM_KEY = ['nutrition', 'family', 'members'] as const;
@@ -136,13 +99,6 @@ export function usePantryMutations() {
 export function useHouseholdInvites() {
   return useQuery({ queryKey: ['nutrition', 'family', 'invites'], queryFn: () => nutritionApi.householdInvites() });
 }
-export function useInviteHousehold() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (v: { userRef: string; role: import('./api').HouseholdRole }) => nutritionApi.inviteHousehold(v.userRef, v.role),
-    onSuccess: (r) => { qc.setQueryData(FAM_KEY, r.household); void qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); },
-  });
-}
 export function useRespondHouseholdInvite() {
   const qc = useQueryClient();
   return useMutation({
@@ -150,10 +106,6 @@ export function useRespondHouseholdInvite() {
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['nutrition', 'family'] }); void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery-plan'] }); },
   });
 }
-
-
-
-
 
 export function useRecipes(diet?: string) {
   return useQuery({ queryKey: ['nutrition', 'recipes', diet ?? 'everything'], queryFn: () => nutritionApi.recipes(diet) });
@@ -199,15 +151,6 @@ export function useRecipeVariants(id: string | undefined, type: string | null) {
   });
 }
 
-/** Advance-prep alerts — dishes that must be started early (soak/ferment). */
-export function usePrepAlerts(mode: 'individual' | 'family' = 'individual') {
-  return useQuery({
-    queryKey: ['nutrition', 'prep-alerts', mode],
-    queryFn: () => nutritionApi.prepAlerts(mode),
-    staleTime: 5 * 60_000,
-  });
-}
-
 /** Supermarket-style grocery plan (Grocery Planner redesign) — aisles + recipe view. */
 export function useGroceryPlan(mode: 'individual' | 'family' = 'individual', days = 7, startDate?: string) {
   return useQuery({
@@ -233,57 +176,6 @@ export function useBuildFamilyCart() {
   });
 }
 
-export function useHealthLog(dates: string[]) {
-  return useQuery({
-    queryKey: ['nutrition', 'health', dates.join(',')],
-    queryFn: () => nutritionApi.healthLog(dates),
-    enabled: dates.length > 0,
-  });
-}
-
-export function useAddCalorie() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (e: { date: string; name: string; kcal: number; type: 'Meal Plan' | 'Extra' | 'Alcohol' }) => nutritionApi.addCalorie(e),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['nutrition', 'health'] }),
-  });
-}
-
-export function useRemoveCalorie() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => nutritionApi.removeCalorie(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['nutrition', 'health'] }),
-  });
-}
-
-export function useBloodPanel() {
-  return useQuery({ queryKey: ['nutrition', 'blood'], queryFn: () => nutritionApi.blood() });
-}
-
-export function useSaveBlood() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: Record<string, number>) => nutritionApi.saveBlood(input),
-    onSuccess: (panel) => {
-      qc.setQueryData(['nutrition', 'blood'], panel);
-      void qc.invalidateQueries({ queryKey: ['nutrition', 'supplements'] });
-    },
-  });
-}
-
-export function useSupplements() {
-  return useQuery({ queryKey: ['nutrition', 'supplements'], queryFn: () => nutritionApi.supplements() });
-}
-
-export function useDietitians() {
-  return useQuery({ queryKey: ['nutrition', 'dietitians'], queryFn: () => nutritionApi.dietitians() });
-}
-
-export function useBookDietitian() {
-  return useMutation({ mutationFn: (id: string) => nutritionApi.bookDietitian(id) });
-}
-
 export function useFoodPref() {
   return useQuery({ queryKey: ['nutrition', 'preferences'], queryFn: () => nutritionApi.preferences() });
 }
@@ -305,10 +197,6 @@ export function useWallet() {
   return useQuery({ queryKey: ['nutrition', 'wallet'], queryFn: () => nutritionApi.wallet() });
 }
 
-export function useOrders() {
-  return useQuery({ queryKey: ['nutrition', 'orders'], queryFn: () => nutritionApi.orders() });
-}
-
 /** The address the last order went to, offered back at checkout. */
 export function useLastDeliveryAddress() {
   return useQuery({
@@ -327,17 +215,6 @@ export function usePlaceOrder() {
       void qc.invalidateQueries({ queryKey: ['nutrition', 'orders'] });
       void qc.invalidateQueries({ queryKey: ['nutrition', 'wallet'] });
       void qc.invalidateQueries({ queryKey: ['financial'] });
-    },
-  });
-}
-
-export function useCancelDelivery() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (v: { orderId: string; deliveryId: string }) => nutritionApi.cancelDelivery(v.orderId, v.deliveryId),
-    onSuccess: (orders) => {
-      qc.setQueryData(['nutrition', 'orders'], orders);
-      void qc.invalidateQueries({ queryKey: ['nutrition', 'wallet'] });
     },
   });
 }
@@ -366,16 +243,3 @@ export function useQcOrder() {
   });
 }
 
-/** Live tracking — polls while the order is on its way, stops once delivered. */
-export function useQcTrack(orderId: string | null, delivered = false) {
-  return useQuery({
-    queryKey: ['nutrition', 'qc-track', orderId],
-    queryFn: () => nutritionApi.qcTrack(orderId as string),
-    enabled: !!orderId,
-    refetchInterval: delivered ? false : 10_000,
-  });
-}
-
-export function useNutritionOrders() {
-  return useQuery({ queryKey: ['nutrition', 'orders'], queryFn: nutritionApi.orders });
-}

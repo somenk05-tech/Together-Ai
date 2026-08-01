@@ -107,9 +107,6 @@ export function useFeed(filter = 'foryou') {
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
 }
-export function useMap() {
-  return useQuery({ queryKey: ['social', 'map'], queryFn: () => socialApi.map() });
-}
 export function useFollowers() {
   return useQuery({ queryKey: ['social', 'followers'], queryFn: () => socialApi.followers() });
 }

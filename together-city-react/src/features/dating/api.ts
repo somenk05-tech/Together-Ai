@@ -266,9 +266,6 @@ export function useDeleteDatingProfile() {
     },
   });
 }
-export function useMatches(kind: MatchKind, enabled = true) {
-  return useQuery({ queryKey: ['dating', 'matches', kind], queryFn: () => datingApi.matches(kind), enabled });
-}
 export function useDiscover(kind: MatchKind, enabled = true) {
   return useQuery({ queryKey: ['dating', 'discover', kind], queryFn: () => datingApi.discover(kind), enabled });
 }
@@ -287,17 +284,6 @@ export function useLikeMatch(kind: MatchKind) {
       void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] });
       void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
       void qc.invalidateQueries({ queryKey: ['dating', 'stack', kind] });
-    },
-  });
-}
-export function useUnlockChat(kind: MatchKind) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (v: { targetUserId: string; method: 'wallet' | 'card' }) => datingApi.unlockChat(v.targetUserId, kind, v.method),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] });
-      void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
-      void qc.invalidateQueries({ queryKey: ['financial'] });
     },
   });
 }

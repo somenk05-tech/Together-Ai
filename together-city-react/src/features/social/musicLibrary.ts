@@ -34,7 +34,3 @@ export const MUSIC_LIBRARY: Track[] = [
   { id: 'sunlit-string-waltz', title: 'Sunlit String Waltz', url: '/music/sunlit-string-waltz.mp3', mood: 'Acoustic', license: CLEARED },
 ];
 
-export function trackByUrl(url?: string | null): Track | undefined {
-  if (!url) return undefined;
-  return MUSIC_LIBRARY.find((t) => t.url === url);
-}

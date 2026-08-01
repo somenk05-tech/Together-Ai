@@ -10,9 +10,6 @@ export function payError(err: unknown): string {
   }
   return 'Payment failed.';
 }
-export function isInsufficient(err: unknown): boolean {
-  return err instanceof AxiosError && err.response?.status === 400 && /insufficient/i.test((err.response?.data as { message?: string })?.message ?? '');
-}
 
 export interface Service { key: string; label: string; hub: string; category: string; amountInr: number; note: string }
 

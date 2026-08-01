@@ -51,13 +51,6 @@ export function useUploadResume() {
     onSuccess: (res) => { qc.setQueryData(['jobs', 'profile'], res.parsed); void qc.invalidateQueries({ queryKey: ['jobs', 'matches'] }); void qc.invalidateQueries({ queryKey: ['profile'] }); },
   });
 }
-export function useSaveJobProfile() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: jobsApi.saveProfile,
-    onSuccess: (p) => { qc.setQueryData(['jobs', 'profile'], p); void qc.invalidateQueries({ queryKey: ['jobs', 'matches'] }); void qc.invalidateQueries({ queryKey: ['profile'] }); },
-  });
-}
 export function useJobMatches() {
   return useQuery({ queryKey: ['jobs', 'matches'], queryFn: () => jobsApi.matches() });
 }
