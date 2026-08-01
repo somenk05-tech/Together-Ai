@@ -9,6 +9,11 @@
  * instead of silently doing nothing. They do not hide anybody: a preference is
  * not a deal-breaker, and `dealBreakers[]` is the list that removes people.
  *
+ * L2: the height preference was a free-text box nothing could read. It is a
+ * min/max range now, and by owner decision it is a HARD filter alongside the
+ * age range rather than a scoring nudge — see `heightFilterReason`, which is
+ * also where to undo that if the pool cost turns out to bite.
+ *
  * H1/M4: astrology stays at 0.50 — it is what this product is — but the other
  * six factors used to sit on high floors (personality 55, goals 60, lifestyle
  * 65, location 45) and so could barely separate one candidate from another.
@@ -31,6 +36,11 @@ export interface DXProfile {
   prefDiet?: string; prefSmoking?: string; prefDrinking?: string;
   city?: string; state?: string; country?: string;
   prefAgeMin?: number | null; prefAgeMax?: number | null; prefDistanceKm?: number | null;
+  /** Their own height, and the range they asked for in somebody else. Both in
+   *  centimetres. The height read here is the same number the card displays, so
+   *  a candidate is filtered on exactly the figure they are shown by. */
+  heightCm?: number | null;
+  prefHeightMinCm?: number | null; prefHeightMaxCm?: number | null;
   dealBreakers?: string[]; wantsChildren?: string;
 }
 
@@ -189,10 +199,58 @@ export function overallScore(f: FactorBreakdown): number {
   return Math.round(sum);
 }
 
+/** A number that can be a height or a bound, or undefined. Zero, negatives,
+ *  NaN and nonsense outside human range are all "not stated". */
+function cm(v: unknown): number | undefined {
+  return typeof v === 'number' && Number.isFinite(v) && v >= 100 && v <= 250 ? v : undefined;
+}
+
+/**
+ * Whether a stated height range excludes this candidate.
+ *
+ * OWNER DECISION, 1 Aug (L2): a height range HIDES people, the way
+ * `prefAgeMin`/`prefAgeMax` do — not scores them lower, the way a distance
+ * limit does. The two numeric ranges on the form now behave alike, which is the
+ * argument that decided it: a range somebody typed reads as a boundary.
+ *
+ * It costs pool size, and that cost is real and one-sided — neither person is
+ * told a filter removed them, because saying so would leak a stranger's
+ * settings. Reversible in one place: move this call out of `hardFilterReason`
+ * and into `locationScore`'s style of penalty and it becomes a soft preference.
+ *
+ * Three things it will not do.
+ *
+ * It will not filter on a height nobody recorded. `undefined` is not "too
+ * short". Excluding somebody over a field we never collected would quietly
+ * empty the pool of every incomplete profile and tell neither side why — the
+ * same reasoning that keeps `prefDistanceKm` off a distance nobody measured.
+ *
+ * It will not honour a nonsense range. `min > max` excludes everybody, which
+ * cannot be what somebody meant; ignored, exactly as `locationScore` ignores a
+ * non-positive distance limit rather than blocking the world.
+ *
+ * It will not read the legacy free-text `prefHeight`. That box was never
+ * reliably parseable — that is what L2 recorded — and a guess about what
+ * somebody typed must not be the thing that hides a stranger. The form offers
+ * the old text back to be confirmed as a range instead.
+ */
+export function heightFilterReason(myD: DXProfile, theirD: DXProfile): 'height' | null {
+  const min = cm(myD.prefHeightMinCm), max = cm(myD.prefHeightMaxCm);
+  if (min === undefined && max === undefined) return null;
+  if (min !== undefined && max !== undefined && min > max) return null;
+  const theirs = cm(theirD.heightCm);
+  if (theirs === undefined) return null;
+  if (min !== undefined && theirs < min) return 'height';
+  if (max !== undefined && theirs > max) return 'height';
+  return null;
+}
+
 /** Hard filters. Returns a rejection reason, or null if the candidate passes. */
 export function hardFilterReason(myD: DXProfile, theirD: DXProfile, theirAge: number): string | null {
   if (myD.prefAgeMin && theirAge < myD.prefAgeMin) return 'age';
   if (myD.prefAgeMax && theirAge > myD.prefAgeMax) return 'age';
+  const height = heightFilterReason(myD, theirD);
+  if (height) return height;
   const db = myD.dealBreakers ?? [];
   if (db.includes('Smoking') && theirD.smoking === 'Regularly') return 'smoking';
   if (db.includes('Drinking') && theirD.drinking === 'Regularly') return 'drinking';
