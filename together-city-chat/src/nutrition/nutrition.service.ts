@@ -1,3 +1,4 @@
+import { ORDER_HISTORY_CAP, RECORD_CAP } from '../shared/paging';
 import { swallowed } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { demoDataEnabled } from '../shared/demo-data';
@@ -1411,6 +1412,7 @@ export class NutritionService implements OnModuleInit {
    */
   private async runNutritionQa(): Promise<void> {
     try {
+      // unbounded: the QA sweep must visit every recipe below the current version
       const pending = (await this.prisma.recipe.findMany({
         where: { qaVersion: { lt: NutritionService.QA_VERSION } } as never,
         include: { ingredients: { select: { name: true, grams: true } } },
@@ -1519,6 +1521,7 @@ export class NutritionService implements OnModuleInit {
     if (this.recipeCorpusCache && fresh) return this.recipeCorpusCache;
     if (!this.recipeCorpusPromise) {
       const started = Date.now();
+      // unbounded: the corpus cache — one read, kept (see the comment above)
       this.recipeCorpusPromise = this.prisma.recipe
         .findMany({
           // authorId null is the vetted world corpus. Citizens' own dishes are
@@ -1596,6 +1599,7 @@ export class NutritionService implements OnModuleInit {
    */
   private async datasetPool(): Promise<PoolRecipe[]> {
     if (this.datasetPoolCache) return this.datasetPoolCache;
+    // unbounded: the vetted corpus, read ONCE into the process-wide pool cache
     const rows = (await this.prisma.recipe.findMany({
       // authorId null is the shared corpus. This cache is process-wide and
       // handed to every citizen's composer, so a citizen's own dish must never
@@ -1676,6 +1680,7 @@ export class NutritionService implements OnModuleInit {
    *  pool shapes the corpus. */
   private async ownPoolRecipes(userId: string): Promise<PoolRecipe[]> {
     if (!userId) return [];
+    // unbounded: their own dishes — the pool must hold all of them
     const rows = (await this.prisma.recipe.findMany({
       where: { authorId: userId } as never,
       include: { ingredients: { select: { name: true, grams: true } } },
@@ -2788,10 +2793,13 @@ export class NutritionService implements OnModuleInit {
   private async householdRaw(ownerId: string) {
     await this.ensureSelfMember(ownerId);
     await this.syncHouseholdMirrors(ownerId);
+    // unbounded: a household's members — family-sized
     const rows = await this.members.findMany({ where: { ownerId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(swallowed('nutrition.householdRaw', [] as FamilyMemberRowExt[]));
     const userIds = rows.map((r) => r.memberUserId).filter((x): x is string => Boolean(x));
     const [users, prefs] = await Promise.all([
+      // unbounded: `in:` of household member ids bounds it
       userIds.length ? this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, profileImage: true } }).catch(swallowed('nutrition.householdRaw', [])) : Promise.resolve([]),
+      // unbounded: `in:` of household member ids bounds it
       userIds.length ? this.prisma.foodPref.findMany({ where: { userId: { in: userIds } } }).catch(swallowed('nutrition.householdRaw', [])) : Promise.resolve([]),
     ]);
     const imageOf = new Map(users.map((u) => [u.id, u.profileImage]));
@@ -2840,6 +2848,7 @@ export class NutritionService implements OnModuleInit {
 
   /** Seed the owner's own "self" member row from their saved preferences. */
   private async ensureSelfMember(ownerId: string) {
+    // unbounded: the isSelf row — at most one exists
     const rows = await this.members.findMany({ where: { ownerId, isSelf: true } }).catch(swallowed('nutrition.ensureSelfMember', [] as FamilyMemberRowExt[]));
     if (rows.length) return;
     const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(swallowed('nutrition.ensureSelfMember', null));
@@ -2876,11 +2885,13 @@ export class NutritionService implements OnModuleInit {
    *  mirrors for anyone no longer accepted. Best-effort; never throws. */
   private async syncHouseholdMirrors(ownerId: string) {
     try {
+      // unbounded: a household's links — family-sized
       const links = await this.household.findMany({ where: { ownerId } }).catch(swallowed('nutrition.syncHouseholdMirrors', [] as HouseholdMemberRow[]));
       const accepted = links.filter((l) => l.status === 'accepted');
       const acceptedIds = new Set(accepted.map((l) => l.memberUserId));
 
       // Remove mirrors whose link is gone / no longer accepted (never the self row).
+      // unbounded: a household's members — family-sized
       const mirrors = await this.members.findMany({ where: { ownerId, isSelf: false } }).catch(swallowed('nutrition.syncHouseholdMirrors', [] as FamilyMemberRowExt[]));
       for (const mir of mirrors) {
         if (mir.memberUserId && !acceptedIds.has(mir.memberUserId)) {
@@ -3021,8 +3032,10 @@ export class NutritionService implements OnModuleInit {
 
   /** Invitations awaiting THIS user's response (the in-app notification list). */
   async householdInvites(userId: string) {
+    // unbounded: their pending invites — a handful by nature
     const links = await this.household.findMany({ where: { memberUserId: userId, status: 'pending' } }).catch(swallowed('nutrition.householdInvites', [] as HouseholdMemberRow[]));
     if (!links.length) return [] as unknown[];
+    // unbounded: `in:` of pending-invite senders bounds it
     const owners = await this.prisma.user.findMany({
       where: { id: { in: links.map((l) => l.ownerId) } }, select: { id: true, name: true, handle: true, profileImage: true },
     }).catch(swallowed('nutrition.householdInvites', []));
@@ -3165,6 +3178,7 @@ export class NutritionService implements OnModuleInit {
   private async householdDietNotice(ownerId: string): Promise<{ householdDiet: DietKey; dietBecause: string[] }> {
     const [pref, members] = await Promise.all([
       this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(swallowed('nutrition.householdDietNotice', null)),
+      // unbounded: a household's members — family-sized
       this.prisma.familyMember
         .findMany({ where: { ownerId }, select: { name: true, diet: true, isSelf: true } })
         .catch(swallowed('nutrition.householdDietNotice', [] as Array<{ name: string; diet: string | null; isSelf: boolean }>)),
@@ -3197,7 +3211,7 @@ export class NutritionService implements OnModuleInit {
 
   /** The pantry exactly as stored — no settlement pass (re-entrancy safe). */
   private async pantryListRaw(ownerId: string) {
-    const rows = await this.pantry.findMany({ where: { ownerId }, orderBy: { name: 'asc' } }).catch(swallowed('nutrition.pantryListRaw', [] as PantryItemRow[]));
+    const rows = await this.pantry.findMany({ where: { ownerId }, orderBy: { name: 'asc' }, take: RECORD_CAP }).catch(swallowed('nutrition.pantryListRaw', [] as PantryItemRow[]));
     const grouped = new Map<string, PantryItemRow[]>();
     for (const r of rows) { const arr = grouped.get(r.aisle) ?? []; arr.push(r); grouped.set(r.aisle, arr); }
     const aisles = GROCERY_AISLES
@@ -3354,6 +3368,7 @@ export class NutritionService implements OnModuleInit {
 
         // Deduct what we actually hold; never go below zero, and keep the row
         // (at 0) so the citizen can see it ran out rather than having it vanish.
+        // unbounded: the settlement pass rebalances the WHOLE pantry inside the transaction
         const rows = await txPantry.findMany({ where: { ownerId } });
         const byKey = new Map(rows.map((r) => [canonicalIngredient(r.name).toLowerCase(), r]));
         for (const [name, grams] of need) {
@@ -3544,6 +3559,7 @@ export class NutritionService implements OnModuleInit {
    */
   async familyPortions(userId: string, dayIndex: number) {
     await this.familyMembers(userId); // ensure the self profile is seeded
+    // unbounded: a household's members — family-sized
     const rows = await this.members.findMany({ where: { ownerId: userId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(swallowed('nutrition.familyPortions', [] as FamilyMemberRow[]));
     const members = rows.map((m) => {
       const ex = parseExtras(m.extras);
@@ -3702,6 +3718,7 @@ export class NutritionService implements OnModuleInit {
    */
   async familyDashboard(userId: string, dayIndex = 0) {
     await this.familyMembers(userId);
+    // unbounded: a household's members — family-sized
     const rows = await this.members.findMany({ where: { ownerId: userId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(swallowed('nutrition.familyDashboard', [] as FamilyMemberRow[]));
     const members = rows.map((m) => {
       const ex = parseExtras(m.extras);
@@ -3910,6 +3927,7 @@ export class NutritionService implements OnModuleInit {
     const keys: string[] = [];
     for (let i = 0; i < days; i++) keys.push(addDaysISO(todayLocal, -i));
     const entries = await this.prisma.calorieEntry
+      // unbounded: `in:` of the last few day-keys bounds it
       .findMany({ where: { userId, date: { in: keys } }, select: { date: true, type: true } })
       .catch(swallowed('nutrition.householdAdherence', [] as Array<{ date: string; type: string }>));
     if (!entries.length) return { adherenceScore: 0, mealCompletion: 0 };
@@ -3940,9 +3958,13 @@ export class NutritionService implements OnModuleInit {
       consult: { findMany(a: unknown): Promise<{ userId: string; scheduledAt: Date | null; createdAt: Date }[]> };
     };
     const [markers, tests, records, consults] = await Promise.all([
+      // unbounded: same household-bounded read
       uids.length ? P.bloodMarker.findMany({ where: { userId: { in: uids } } }).catch(swallowed('nutrition.familyHealth', [])) : Promise.resolve([]),
+      // unbounded: same household-bounded read
       uids.length ? P.medicalBloodTest.findMany({ where: { userId: { in: uids } }, orderBy: { takenOn: 'desc' } }).catch(swallowed('nutrition.familyHealth', [])) : Promise.resolve([]),
+      // unbounded: same household-bounded read
       uids.length ? P.medicalRecord.findMany({ where: { userId: { in: uids } }, orderBy: { recordedOn: 'desc' } }).catch(swallowed('nutrition.familyHealth', [])) : Promise.resolve([]),
+      // unbounded: household-bounded ids; the family dashboard reads whole histories on purpose
       uids.length ? P.consult.findMany({ where: { userId: { in: uids } }, orderBy: { createdAt: 'desc' } }).catch(swallowed('nutrition.familyHealth', [])) : Promise.resolve([]),
     ]);
     const markersBy = new Map<string, { key: string; value: number; updatedAt: Date }[]>();
@@ -4049,12 +4071,14 @@ export class NutritionService implements OnModuleInit {
   async healthLog(userId: string, dates: string[]) {
     const clean = dates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 31);
     if (!clean.length) return { entries: [] as CalorieRow[] };
+    // unbounded: `in:` of at most 31 dates bounds it
     const entries = await this.calorie.findMany({ where: { userId, date: { in: clean } }, orderBy: { createdAt: 'asc' } });
     return { entries };
   }
 
   async addCalorie(userId: string, dto: { date: string; name: string; kcal: number; type: string }) {
     if (dto.type === 'Extra') {
+      // unbounded: one day's Extra rows — the 5-per-day rule below bounds it
       const existing = await this.calorie.findMany({ where: { userId, date: dto.date, type: 'Extra' } });
       if (existing.length >= 5) throw new BadRequestException('Maximum 5 extra items per day.');
     }
@@ -4085,6 +4109,7 @@ export class NutritionService implements OnModuleInit {
       return Object.fromEntries(test.biomarkers.map((b) => [b.key, b.value]));
     }
     // Fallback: legacy nutrition-local markers (pre-Medical-Hub).
+    // unbounded: legacy fallback maps every stored marker — a computation
     const rows = await this.prisma.bloodMarker.findMany({ where: { userId } });
     return Object.fromEntries(rows.map((r) => [r.key, r.value]));
   }
@@ -4099,6 +4124,7 @@ export class NutritionService implements OnModuleInit {
   private async withHouseholdConstraints(
     userId: string, ex: PrefExtras, ownerDiet?: string | null,
   ): Promise<{ ex: PrefExtras; diet: DietKey }> {
+    // unbounded: a household's members — family-sized
     const members = await this.prisma.familyMember
       .findMany({ where: { ownerId: userId }, select: { extras: true, diet: true, isSelf: true } })
       .catch(swallowed('nutrition.withHouseholdConstraints', [] as Array<{ extras: string | null; diet: string | null; isSelf: boolean }>));
@@ -4272,6 +4298,7 @@ export class NutritionService implements OnModuleInit {
     const rows = await this.prisma.recipe.findMany({
       where: { authorId: userId } as never,
       orderBy: { id: 'desc' },
+      take: RECORD_CAP,
       include: { ingredients: true },
     });
     return rows.map((r) => ({
@@ -4888,6 +4915,7 @@ export class NutritionService implements OnModuleInit {
       }).catch(swallowed('nutrition.searchByIngredients', [] as Array<{ recipeId: string }>));
       const ids = [...new Set(hits.map((h) => h.recipeId))].slice(0, 1200);
       if (!ids.length) return [];
+      // unbounded: `in:` of at most 1200 ids from the capped hit list
       rows = (await this.prisma.recipe.findMany({
         where: { id: { in: ids } },
         include: { ingredients: { select: { name: true } } },
@@ -5100,6 +5128,7 @@ export class NutritionService implements OnModuleInit {
     // What the household ALREADY has — so the list shows what's actually left
     // to buy instead of asking them to re-buy a full jar of rice every week.
     const onHand = new Map<string, number>();
+    // unbounded: the pantry offset SUMS what is on hand — truncation re-buys full jars
     for (const row of await this.pantry.findMany({ where: { ownerId: userId } }).catch(swallowed('nutrition.groceryPlan', [] as PantryItemRow[]))) {
       const k = canonicalIngredient(row.name).toLowerCase();
       if (k) onHand.set(k, (onHand.get(k) ?? 0) + row.grams);
@@ -5296,6 +5325,7 @@ export class NutritionService implements OnModuleInit {
       if (plan) for (const day of plan.days) for (const m of day.meals) { if (!m.skipped) addRecipe(m.recipe); }
     }
     if (opts.recipeIds?.length) {
+      // unbounded: `in:` of at most 80 ids bounds it
       const recipes = await this.prisma.recipe.findMany({ where: { id: { in: opts.recipeIds.slice(0, 80) } }, include: { ingredients: true } });
       for (const r of recipes) addRecipe(r);
     }
@@ -5333,6 +5363,7 @@ export class NutritionService implements OnModuleInit {
    */
   async buildFamilyCart(userId: string) {
     await this.familyMembers(userId); // ensure self is seeded
+    // unbounded: a household's members — family-sized, not citizen-grown
     const rows = await this.members.findMany({ where: { ownerId: userId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(swallowed('nutrition.buildFamilyCart', [] as FamilyMemberRow[]));
     const members = rows.map((m) => {
       const ex = parseExtras(m.extras);
@@ -5399,6 +5430,7 @@ export class NutritionService implements OnModuleInit {
 
   /** Balance + ledger. First call seeds a welcome credit so the demo economy works. */
   async wallet(userId: string) {
+    // unbounded: the balance SUMS the ledger — truncation corrupts the balance
     let ledger = await this.prisma.walletLedger.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -5407,6 +5439,7 @@ export class NutritionService implements OnModuleInit {
       await this.prisma.walletLedger.create({
         data: { userId, amountInr: NutritionService.WALLET_SEED_INR, kind: 'credit', note: 'Welcome credit' },
       });
+      // unbounded: the balance SUMS the ledger — truncation corrupts the balance
       ledger = await this.prisma.walletLedger.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
     }
     const balanceInr = ledger.reduce(
@@ -5513,6 +5546,7 @@ export class NutritionService implements OnModuleInit {
     const rows = await this.prisma.nutritionOrder.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
+      take: ORDER_HISTORY_CAP,
       include: { items: true, deliveries: { orderBy: { dayIndex: 'asc' } } },
     });
     return rows.map((o) => this.shapeOrder(o));
@@ -5745,6 +5779,7 @@ export class NutritionService implements OnModuleInit {
 
   // ─────────────── blood panel (Medical bridge) ───────────────
   async bloodPanel(userId: string) {
+    // unbounded: the panel view maps every marker on file — a computation
     const rows = await this.prisma.bloodMarker.findMany({ where: { userId } });
     const byKey = new Map(rows.map((r) => [r.key, r.value]));
     const values: Record<string, number> = {};
@@ -5812,6 +5847,7 @@ export class NutritionService implements OnModuleInit {
       // Same rule as the doctor directory: a deleted account is not a
       // practitioner you can book.
       where: { user: { deletedAt: null } },
+      take: RECORD_CAP, // a directory bigger than this needs search, not scroll
       include: { user: { select: { id: true, handle: true, name: true, profileImage: true } } },
     });
     return rows.map((d) => ({
@@ -5897,6 +5933,7 @@ export class NutritionService implements OnModuleInit {
   private async ensureRecipes(): Promise<void> {
     let existing: Set<string>;
     try {
+      // unbounded: corpus seed check — needs every existing name
       const rows = await this.prisma.recipe.findMany({ select: { name: true } });
       existing = new Set(rows.map((r) => r.name));
     } catch {
@@ -6593,6 +6630,7 @@ export class NutritionService implements OnModuleInit {
       const data = JSON.parse(gunzipSync(readFileSync(path)).toString('utf8')) as DS[];
 
       const existingIds = new Set(
+        // unbounded: corpus import — dedupe needs every existing id
         (await this.prisma.recipe.findMany({ select: { id: true } })).map((r) => r.id),
       );
       const fresh = data.filter((r) => !existingIds.has(r.id));
@@ -6687,6 +6725,7 @@ export class NutritionService implements OnModuleInit {
       // is swapped wholesale as before. No meal plan is touched.
       const removed = await this.prisma.recipe.deleteMany({ where: { meals: { none: {} } } });
       if (removed.count) this.invalidateRecipeCorpus();
+      // unbounded: corpus maintenance — the pinned-id sweep must see every row
       const pinnedRows = await this.prisma.recipe.findMany({ select: { id: true } });
       const pinned = new Set(pinnedRows.map((r) => r.id));
       this.logger.log(`Recipes: ${removed.count} unreferenced replaced, ${pinned.size} kept in place because saved plans use them.`);

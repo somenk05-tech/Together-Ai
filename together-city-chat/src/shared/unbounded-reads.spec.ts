@@ -17,10 +17,11 @@ import { join } from 'path';
  * list-or-computation call to be made explicitly, once, where the query is.
  *
  * Ceiling-style because 126 existed when this was written: the count may only
- * go DOWN, and lowering it belongs in the commit that earned it. Comments are
- * stripped before the take: check — a guard that reads its own prose has been
- * fooled four times in this repo — but NOT before the annotation check, which
- * is prose on purpose.
+ * go DOWN, and lowering it belongs in the commit that earned it. Calls are
+ * located in comment-BLANKED source (offsets preserved) so a doc comment
+ * mentioning findMany is not counted — this guard was fooled by exactly that
+ * prose, once, before this line existed — while the annotation check reads
+ * the raw text, because the annotation is prose on purpose.
  */
 const CEILING_FILE = join(__dirname, 'unbounded-reads-ceiling.json');
 const SELF = 'unbounded-reads.spec.ts';
@@ -35,6 +36,10 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 const stripComments = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+/** Comments blanked to spaces — same length, so offsets keep working. */
+const blankComments = (s: string) =>
+  s.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+    .replace(/\/\/[^\n]*/g, (m) => ' '.repeat(m.length));
 
 /** The balanced argument text of a call starting at `open` (index of '('). */
 function callText(src: string, open: number): string {
@@ -56,10 +61,11 @@ describe('the unbounded-read ceiling', () => {
     for (const f of walk(join(__dirname, '..'))) {
       if (f.endsWith(SELF)) continue;
       const src = readFileSync(f, 'utf8');
+      const code = blankComments(src);
       let n = 0;
-      for (let i = src.indexOf('.findMany('); i >= 0; i = src.indexOf('.findMany(', i + 1)) {
-        const call = callText(src, i + '.findMany'.length);
-        if (/\btake:\s*/.test(stripComments(call))) continue;
+      for (let i = code.indexOf('.findMany('); i >= 0; i = code.indexOf('.findMany(', i + 1)) {
+        const call = callText(code, i + '.findMany'.length);
+        if (/\btake:\s*/.test(call)) continue;
         // The annotation: inline in the call, or on one of the two lines above.
         const lineStart = src.lastIndexOf('\n', i);
         const twoAbove = src.lastIndexOf('\n', src.lastIndexOf('\n', lineStart - 1) - 1);
