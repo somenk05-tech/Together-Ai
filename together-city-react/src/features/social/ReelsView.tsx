@@ -63,7 +63,7 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
     if (el) el.scrollBy({ top: dir * el.clientHeight, behavior: 'smooth' });
   };
   return (
-    <div style={{ position: 'relative', height: fullScreen ? '100dvh' : 'calc(100dvh - 120px)', background: '#fff' }}>
+    <div style={{ position: 'relative', height: fullScreen ? '100dvh' : 'calc(100dvh - 120px)', background: 'var(--card)' }}>
       <div ref={scroller} onScroll={onScroll} className="tc-hscroll"
         style={{ height: '100%', overflowY: 'auto', scrollSnapType: 'y mandatory' }}>
         {items.map((p) => <Reel key={p.key ?? p.id} post={p} onOpenAuthor={onOpenAuthor} muted={muted} onToggleMute={toggleMute} />)}
@@ -73,7 +73,7 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
       <div style={{ position: 'absolute', right: 22, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {([['up', -1], ['down', 1]] as const).map(([dir, d]) => (
           <button key={dir} type="button" onClick={() => go(d)} aria-label={dir === 'up' ? 'Previous' : 'Next'}
-            style={{ width: 44, height: 44, borderRadius: '50%', background: '#fff', border: '1px solid var(--line)', cursor: 'pointer',
+            style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--card)', border: '1px solid var(--line)', cursor: 'pointer',
               display: 'grid', placeItems: 'center', boxShadow: '0 2px 10px rgba(0,0,0,.08)', color: 'var(--ink)' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
               style={{ transform: dir === 'down' ? 'rotate(180deg)' : 'none' }}><path d="M18 15l-6-6-6 6" /></svg>

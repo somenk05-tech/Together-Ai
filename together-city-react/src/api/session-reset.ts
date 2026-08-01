@@ -17,7 +17,7 @@ import { queryClient } from './queryClient';
  * the app's `tc-` / `tc:` namespace is per-user or per-session UI state and is
  * safe (and correct) to drop on a user switch.
  */
-const KEEP_KEYS = new Set<string>(['tc:auth']);
+const KEEP_KEYS = new Set<string>(['tc:auth', 'tc:theme']); // theme is a device preference, not personal data
 
 export function resetClientState(): void {
   // 1) React Query cache — the primary cross-user leak.

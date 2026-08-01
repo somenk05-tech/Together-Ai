@@ -170,7 +170,7 @@ function FamilyMealPlanningCard() {
           <button role="switch" aria-checked={on} disabled={update.isPending}
             onClick={() => update.mutate(!on)}
             style={{ flex: 'none', width: 48, height: 28, borderRadius: 999, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .15s', background: on ? 'var(--accent)' : 'var(--line)' }}>
-            <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+            <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: 'var(--card)', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
           </button>
         ) : (
           <span className="muted" style={{ fontSize: 11.5, textAlign: 'right', maxWidth: 130 }}>
@@ -227,7 +227,7 @@ function PrivacyCard() {
               <button role="switch" aria-checked={on} disabled={update.isPending}
                 onClick={() => update.mutate({ [r.key]: !on })}
                 style={{ flex: 'none', width: 44, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background .15s', background: on ? 'var(--accent)' : 'var(--line)' }}>
-                <span style={{ position: 'absolute', top: 3, left: on ? 21 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+                <span style={{ position: 'absolute', top: 3, left: on ? 21 : 3, width: 20, height: 20, borderRadius: '50%', background: 'var(--card)', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
               </button>
             </div>
           );

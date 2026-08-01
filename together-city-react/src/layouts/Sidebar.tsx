@@ -46,6 +46,10 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
         </div>
       )}
 
+      <button type="button" className="back" style={{ minHeight: 44 }}
+        onClick={() => { window.dispatchEvent(new Event('tc:command')); toggle(false); }}>
+        ⌕ Search the city
+      </button>
       <nav className="side-menu">
         {hub.items.map((it) => (
           <NavLink key={it.path} to={it.path} onClick={() => toggle(false)}

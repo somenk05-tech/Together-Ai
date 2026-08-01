@@ -90,7 +90,7 @@ export function Blood() {
               background: on ? 'var(--accent)' : 'var(--line)', transition: 'background .15s', opacity: setConsent.isPending ? 0.6 : 1,
             }}
           >
-            <span style={{ position: 'absolute', top: 3, left: on ? 25 : 3, width: 24, height: 24, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.25)' }} />
+            <span style={{ position: 'absolute', top: 3, left: on ? 25 : 3, width: 24, height: 24, borderRadius: '50%', background: 'var(--card)', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.25)' }} />
           </button>
         </div>
 

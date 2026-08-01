@@ -6,28 +6,8 @@ import { Card, Button } from '@/components/ui';
 import { authApi, type SessionInfo } from '@/api/auth.api';
 import { http } from '@/api/client';
 import { useMyProfile } from '@/features/social/myProfile.api';
+import { useThemeStore } from '@/store/theme.store';
 
-/** A neutral, self-contained on/off switch (on-device preference). */
-function Switch({ on, onChange, disabled }: { on: boolean; onChange?: (v: boolean) => void; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      disabled={disabled}
-      onClick={() => onChange?.(!on)}
-      style={{
-        width: 44, height: 26, borderRadius: 999, border: 'none', flexShrink: 0, cursor: disabled ? 'default' : 'pointer',
-        background: on ? 'var(--accent)' : 'var(--line)', opacity: disabled ? 0.5 : 1, position: 'relative', transition: 'background .15s',
-      }}
-    >
-      <span style={{
-        position: 'absolute', top: 3, left: on ? 21 : 3, width: 20, height: 20, borderRadius: '50%',
-        background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)', transition: 'left .15s',
-      }} />
-    </button>
-  );
-}
 
 /** A labelled row inside a settings card. */
 function Row({ title, desc, right }: { title: string; desc?: string; right?: ReactNode }) {
@@ -120,13 +100,8 @@ export function Settings() {
   // every read of this profile rather than carried in the token, so revoking it
   // takes effect on the next request instead of on the next sign-in.
   const me = useMyProfile();
-
-  // On-device notification preferences (cosmetic client prefs; the message
-  // push toggle below is the one wired to the server subscription).
-  const [digest, setDigest] = useState(true);
-  const [quiet, setQuiet] = useState(true);
-  const [priceDrop, setPriceDrop] = useState(true);
-  const [socialMute, setSocialMute] = useState(false);
+  const themeMode = useThemeStore((s) => s.mode);
+  const setThemeMode = useThemeStore((s) => s.setMode);
 
   const [exporting, setExporting] = useState(false);
   // GET /privacy/export has existed server-side since the purge work — the
@@ -203,10 +178,29 @@ export function Settings() {
               : <Button size="sm" variant="accent" disabled={push.busy} onClick={() => void push.enable()}>{push.busy ? 'Enabling…' : 'Enable'}</Button>}
           />
         )}
-        <Row title="Digest bundling" desc="Group order updates into one notification" right={<Switch on={digest} onChange={setDigest} />} />
-        <Row title="Quiet hours" desc="10:00 PM – 7:00 AM · nothing but emergencies" right={<Switch on={quiet} onChange={setQuiet} />} />
-        <Row title="Price-drop alerts" desc="Saved flights & hotels" right={<Switch on={priceDrop} onChange={setPriceDrop} />} />
-        <Row title="Social — likes & comments" desc="Mute individual notifications, keep digests" right={<Switch on={socialMute} onChange={setSocialMute} />} />
+        {/* Four switches used to sit here — digest bundling, quiet hours,
+            price-drop alerts, a social mute — wired to nothing but useState.
+            A control that only remembers being touched is an invented feature;
+            the golden rule applies to switches too. */}
+        <Row title="Muting a conversation" desc="Lives in each chat's own menu — it silences that thread everywhere, including here." right={<span className="tag">In chat</span>} />
+      </Card>
+
+      {/* Appearance — light / dark / follow the OS */}
+      <Card style={{ marginTop: 18 }}>
+        <SectionTitle eyebrow="Appearance" title="Light or dark" />
+        <Row title="Theme" desc="Dark mode rests the eyes at night; System follows your device."
+          right={
+            <div style={{ display: 'flex', gap: 6 }}>
+              {(['light', 'dark', 'system'] as const).map((m) => (
+                <button key={m} type="button" onClick={() => setThemeMode(m)}
+                  className="tag"
+                  style={{ cursor: 'pointer', fontFamily: 'inherit', border: themeMode === m ? '1px solid var(--accent)' : '1px solid transparent',
+                    color: themeMode === m ? 'var(--accent)' : undefined, textTransform: 'capitalize' }}>
+                  {m}
+                </button>
+              ))}
+            </div>
+          } />
       </Card>
 
       {/* Devices — real, backend-driven session manager */}

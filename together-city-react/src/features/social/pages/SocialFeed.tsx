@@ -56,11 +56,11 @@ export function SocialFeed() {
   // back button returns to the City Feed (For You).
   if (filter === 'videos') {
     return createPortal(
-      <div style={{ position: 'fixed', inset: 0, background: '#fff', zIndex: 1000 }}>
+      <div style={{ position: 'fixed', inset: 0, background: 'var(--card)', zIndex: 1000 }}>
         <button type="button" onClick={() => setFilter('foryou')}
           style={{ position: 'absolute', top: 14, left: 14, zIndex: 4, cursor: 'pointer',
             display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700,
-            color: 'var(--ink)', background: '#fff', border: '1px solid var(--line)',
+            color: 'var(--ink)', background: 'var(--card)', border: '1px solid var(--line)',
             borderRadius: 999, padding: '8px 14px', boxShadow: '0 2px 10px rgba(0,0,0,.08)' }}>
           ← City Feed
         </button>

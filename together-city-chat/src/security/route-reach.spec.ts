@@ -112,7 +112,7 @@ const KNOWN_UNREACHED: string[] = [
   "prescriptions/prescriptions.controller.ts  GET /prescriptions/logs",
   "prescriptions/prescriptions.controller.ts  GET /prescriptions/today",
   "prescriptions/prescriptions.controller.ts  POST /prescriptions/doses",
-  "privacy/privacy.controller.ts  GET /privacy/export",
+  // GET /privacy/export came off 1 Aug: Settings' Download button calls it.
 ];
 
 /** A declared route path, reduced to its shape: a :param becomes a star. */

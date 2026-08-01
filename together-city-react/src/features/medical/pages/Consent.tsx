@@ -8,7 +8,7 @@ function Toggle({ on, disabled, onClick }: { on: boolean; disabled?: boolean; on
         width: 46, height: 26, borderRadius: 999, border: 'none', cursor: disabled ? 'wait' : 'pointer',
         background: on ? 'var(--accent)' : 'var(--line)', position: 'relative', transition: 'background .15s', flexShrink: 0,
       }}>
-      <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .15s' }} />
+      <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 20, height: 20, borderRadius: '50%', background: 'var(--card)', transition: 'left .15s' }} />
     </button>
   );
 }
