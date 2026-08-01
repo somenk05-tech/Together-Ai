@@ -22,8 +22,8 @@ describe('blood → condition → plan chain (composeFor logic)', () => {
         try {
           const flags = flagsFor(bvals);
           const conditions = [...new Set([...declared, ...conditionsFromBlood(bvals)])];
-          const t = computeTargets({ weightKg: 72, heightCm: 168, age: 44, sex: 'female', activity: 1.4, goal: 'maintain', conditions, flags }) as unknown as Record<string, number>;
-          const mnt = mntAvoidKeywords(activeMntRules({ conditions, flags: flags as Record<string, string>, age: 44, sex: 'female' }));
+          const t = computeTargets({ weightKg: 72, heightCm: 168, age: 44, activity: 1.4, goal: 'maintain', conditions, flags }) as unknown as Record<string, number>;
+          const mnt = mntAvoidKeywords(activeMntRules({ conditions, flags: flags as Record<string, string>, age: 44 }));
           const condText = conditions.join(' ').toLowerCase();
           const isClinical = /kidney|renal|ckd|dialysis|diabet|hba1c|hypertension|cholesterol|lipid|triglycer|fatty liver|gout/.test(condText) || flags.hba1c === 'high' || flags.ldl === 'high' || flags.trig === 'high';
           const caps = isClinical ? { sodiumMg: t.sodiumMaxMg, potassiumMg: t.potassiumMaxMg, phosphorusMg: t.phosphorusMaxMg, sugarG: t.sugarMaxG, satFatG: t.satFatMaxG } : undefined;

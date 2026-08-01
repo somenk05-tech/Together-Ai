@@ -1952,7 +1952,7 @@ export class NutritionService implements OnModuleInit {
     const jainExcludes = isJain ? [...JAIN_EXCLUSION_HINTS] : [];
     // MNT hard-avoid lists (QA M8): organ/processed meat for gout & CKD, alcohol
     // for fatty liver, etc. — now actually applied to the composed plan.
-    const mntAvoids = mntAvoidKeywords(activeMntRules({ conditions, flags: flags as Record<string, string>, age: pref?.age ?? 30, sex: pref?.sex ?? 'male' }));
+    const mntAvoids = mntAvoidKeywords(activeMntRules({ conditions, flags: flags as Record<string, string>, age: pref?.age ?? undefined }));
     const excluded = [
       ...(ex.excluded ? ex.excluded.split(',') : []),
       ...(ex.allergies ? ex.allergies.split(',') : []),
@@ -2835,7 +2835,7 @@ export class NutritionService implements OnModuleInit {
     // Clinical MNT patterns (Krause's / ESPEN) active for this user, with sources.
     const mnt = activeMntRules({
       conditions: ex.healthConditions ?? [], flags: flags as Record<string, string>,
-      age: pref?.age ?? 30, sex: pref?.sex ?? 'male',
+      age: pref?.age ?? undefined,
     });
     for (const rule of mnt) {
       if (!rule.advisory) continue;

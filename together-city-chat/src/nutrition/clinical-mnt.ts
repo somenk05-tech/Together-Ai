@@ -148,8 +148,20 @@ export const MNT_RULES: Record<string, MntRule> = {
 export interface MntContext {
   conditions: string[];
   flags: Record<string, string>;
-  age: number;
-  sex: string;
+  /**
+   * The citizen's age, or undefined when it is not on file.
+   *
+   * NOT a number with a fallback. Both callers used to pass `age ?? 30`, which
+   * silently answered a clinical question nobody had asked: a 66-year-old whose
+   * age we do not hold was handed the rules for a 30-year-old and lost
+   * `MNT_RULES.elderly`. Thirty is not a neutral value — it is the one age at
+   * which the age-dependent rule reliably does not fire.
+   *
+   * Undefined means the elderly rule is not evaluated, which is the honest
+   * outcome: we do not know, so we do not claim. Same reasoning as
+   * `clinicalSex()` returning undefined rather than guessing.
+   */
+  age?: number;
 }
 
 /** Which MNT rules are active for this user (kidney staging via condition text). */
@@ -167,7 +179,8 @@ export function activeMntRules(ctx: MntContext): MntRule[] {
   if (ctx.flags.ldl === 'high' || ctx.flags.trig === 'high' || has('cholesterol')) out.push(MNT_RULES.dyslipidemia);
   if (has('fatty liver', 'nafld', 'masld', 'nash')) out.push(MNT_RULES.fattyLiver);
   if (has('uric', 'gout')) out.push(MNT_RULES.gout);
-  if (ctx.age >= 65) out.push(MNT_RULES.elderly);
+  // Only when we actually know. An unknown age is not "under 65".
+  if (ctx.age !== undefined && ctx.age >= 65) out.push(MNT_RULES.elderly);
   return out;
 }
 
