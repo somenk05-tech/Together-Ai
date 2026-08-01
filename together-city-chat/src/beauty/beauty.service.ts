@@ -1,3 +1,4 @@
+import { swallow } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ORDER_HISTORY_CAP } from '../shared/paging';
@@ -60,7 +61,7 @@ export class BeautyService {
    *  blob so the Skin & Hair form auto-fills age/gender/height/weight/city/
    *  occupation from whatever hub the user filled first (single source of truth). */
   private async withMasterDemographics(userId: string, profile: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const m = await this.masterProfile.get(userId).catch(() => null);
+    const m = await swallow(this.masterProfile.get(userId), 'beauty: master read', { userId });
     if (!m) return profile;
     const merged = { ...profile };
     const put = (k: string, v: unknown) => { if (v !== undefined && v !== null && v !== '') merged[k] = v; };
@@ -95,7 +96,7 @@ export class BeautyService {
    */
   private async declaredSensitivities(userId: string, own: unknown): Promise<string[]> {
     const mine = Array.isArray(own) ? own.map(String).map((s) => s.trim()).filter(Boolean) : [];
-    const m = await this.masterProfile.get(userId).catch(() => null);
+    const m = await swallow(this.masterProfile.get(userId), 'beauty: master read', { userId });
     const food = String((m as { foodAllergens?: string | null } | null)?.foodAllergens ?? '')
       .split(',').map((s) => s.trim()).filter(Boolean);
     return [...new Set([...mine, ...food])];
@@ -162,7 +163,7 @@ export class BeautyService {
   /** The permanent skin & hair timeline: every dated assessment, the latest-vs-
    *  previous comparison, and whether a monthly follow-up is due. */
   async beautyHistory(userId: string) {
-    const row = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
+    const row = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
     const progress = safeJson<ProgressEntry[]>(row?.progressJson, []);
     if (!progress.length) return { hasHistory: false, entries: [], comparison: null, followUpDue: false, daysSinceLast: null };
     const entries = progress.map((e, i) => ({
@@ -183,7 +184,7 @@ export class BeautyService {
 
   // ─────────────── skin & hair profile ───────────────
   async getProfile(userId: string) {
-    const row = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
+    const row = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
     if (!row) {
       // First open: auto-fill shared demographics from the Master Profile.
       const profile = await this.withMasterDemographics(userId, {});
@@ -212,7 +213,7 @@ export class BeautyService {
     const concerns = Array.isArray(p.skinConcerns) ? (p.skinConcerns as string[]) : [];
 
     // Keep any prior photo findings so re-saving the profile doesn't lose them.
-    const existing = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
+    const existing = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
     const photos = safeJson<{ slot: string; findings: string[] }[]>(existing?.photosJson, []);
     const photoFindings = [...new Set(photos.flatMap((x) => x.findings ?? []))];
 
@@ -243,10 +244,10 @@ export class BeautyService {
     // expects lowercase. So 'Female' went in, clinicalSex() compared it against
     // 'female' and returned undefined, and a citizen who filled Beauty first had
     // no clinical sex anywhere in the city with nothing to say why.
-    await this.masterProfile.syncShared(userId, {
+    await swallow(this.masterProfile.syncShared(userId, {
       genderIdentity: genderIdentityFromBeauty(pp.gender), heightCm: pp.heightCm, weightKg: pp.weightKg,
       city: pp.city, occupation: pp.occupation,
-    }, 'beauty').catch(() => undefined);
+    }, 'beauty'), 'beauty: master-profile sync', { userId });
 
     return this.getProfile(userId);
   }
@@ -259,11 +260,11 @@ export class BeautyService {
    * detected issues are folded into the deterministic assessment. Runs once.
    */
   async analyzePhotos(userId: string, photos: { slot: string; base64: string; mediaType?: string }[], thumb?: string) {
-    const existing = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
+    const existing = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
 
     // Rolling-week rate limit: at most 5 photo analyses per 7 days (deleting a
     // check-in does not refund one — the log survives deletes).
-    const recentLog = this.analysisLog(existing);
+    const recentLog = this.analysisLog(existing ?? null);
     if (recentLog.length >= 5) {
       const oldest = new Date(Math.min(...recentLog.map((t) => new Date(t).getTime())));
       const nextAt = new Date(oldest.getTime() + 7 * 86_400_000);
@@ -445,8 +446,8 @@ export class BeautyService {
 
   /** How many photo analyses remain this rolling week (max 5). */
   async uploadAllowance(userId: string) {
-    const row = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
-    const used = this.analysisLog(row).length;
+    const row = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
+    const used = this.analysisLog(row ?? null).length;
     return { limit: 5, used, remaining: Math.max(0, 5 - used) };
   }
 
@@ -455,7 +456,7 @@ export class BeautyService {
    *  fresh photo set and re-analyses. Earlier timeline entries are kept; the
    *  weekly analysis counter is NOT reset — deleting doesn't refund an upload. */
   async deleteLatestAssessment(userId: string) {
-    const existing = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
+    const existing = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
     if (!existing) return this.getProfile(userId);
     const progress = safeJson<ProgressEntry[]>(existing.progressJson, []);
     if (progress.length === 0) return this.getProfile(userId);
@@ -470,7 +471,7 @@ export class BeautyService {
 
   // ─────────────── Makeup Studio (face-first, biomarker-free) ───────────────
   async makeupLook(userId: string, occasion?: string) {
-    const row = await this.beauty.findUnique({ where: { userId } }).catch(() => null);
+    const row = await swallow(this.beauty.findUnique({ where: { userId } }), 'beauty: profile read', { userId });
     const face = safeJson<FaceAttrs | null>(row?.faceJson, null);
     const analysis = safeJson<{ skin?: { readings?: { key: string; label: string; level: string }[] } } | null>(row?.analysisJson, null);
     const extras = safeJson<{ skinTone?: string; undertone?: string; budget?: string }>(row?.extras, {});
