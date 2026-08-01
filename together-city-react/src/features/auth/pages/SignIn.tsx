@@ -212,7 +212,8 @@ export function SignIn() {
               </button>
             </form>
 
-            {mode === 'login' && handle && <p style={{ fontSize: 11.5, marginTop: 10, textAlign: 'center', color: 'rgba(255,255,255,.6)' }}>@{handle} · {handle}@togethercity.app</p>}
+            {mode === 'login' && <p style={{ fontSize: 11.5, marginTop: 10, textAlign: 'center', color: 'rgba(255,255,255,.55)' }}>You'll stay signed in on this device until you sign out.</p>}
+            {mode === 'login' && handle && <p style={{ fontSize: 11.5, marginTop: 6, textAlign: 'center', color: 'rgba(255,255,255,.6)' }}>@{handle} · {handle}@togethercity.app</p>}
             {notice && <p style={{ color: 'var(--gold-bright)', fontSize: 12.5, marginTop: 12, textAlign: 'center' }}>{notice}</p>}
             {error && <p className="tc-shake" style={{ color: '#e88', fontSize: 12.5, marginTop: 12, textAlign: 'center' }}>{error}</p>}
 

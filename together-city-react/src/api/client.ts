@@ -42,7 +42,6 @@ http.interceptors.request.use((cfg: InternalAxiosRequestConfig) => {
   return cfg;
 });
 
-let refreshing: Promise<string | null> | null = null;
 // Never try to refresh on the auth endpoints themselves (a 401 there IS the
 // signal that the session is dead) — that would loop.
 const isAuthEndpoint = (url?: string) => !!url && /\/auth\/(refresh|login|register|logout)/.test(url);
@@ -53,11 +52,12 @@ http.interceptors.response.use(
     const original = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
     if (error.response?.status === 401 && original && !original._retried && !isAuthEndpoint(original.url)) {
       original._retried = true;
-      // Single shared refresh for all concurrent 401s (no storm of refresh calls).
-      refreshing ??= useAuthStore.getState().refresh().finally(() => { refreshing = null; });
-      const token = await refreshing;
+      // The store's refresh() is single-flight across EVERY caller (this
+      // interceptor, hydrate, anything else) — one rotation per burst of 401s.
+      const token = await useAuthStore.getState().refresh();
       if (token) { original.headers.Authorization = `Bearer ${token}`; return http(original); }
-      // Refresh already cleared the session inside the store; nothing else to do.
+      // A definitive rejection already cleared the session inside the store;
+      // an outage kept it, and this request fails honestly instead.
     }
     return Promise.reject(error);
   },

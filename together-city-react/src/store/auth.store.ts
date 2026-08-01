@@ -30,6 +30,8 @@ interface AuthState {
   hydrate: () => Promise<void>;
 }
 
+let refreshInFlight: Promise<string | null> | null = null;
+
 /** Typed auth store over the NestJS handle+password endpoints. */
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -57,22 +59,36 @@ export const useAuthStore = create<AuthState>()(
 
 
       refresh: async () => {
-        // Persistent login runs on the refresh token in localStorage (no cookie).
-        // Without one there's nothing to refresh, so clear cleanly to the login
-        // screen instead of firing a doomed request.
-        const rt = get().tokens?.refreshToken;
-        if (!rt) {
-          set({ user: null, tokens: null });
-          return null;
-        }
-        try {
-          const tokens = await authApi.refresh(rt);
-          set({ tokens });
-          return tokens.accessToken;
-        } catch {
-          set({ user: null, tokens: null });
-          return null;
-        }
+        // SINGLE-FLIGHT: hydrate, the 401 interceptor and any other caller share
+        // one in-flight rotation. Refresh tokens are single-use server-side, so
+        // two concurrent rotations meant the loser was told "invalid" and the
+        // citizen was signed out of a live session mid-use.
+        refreshInFlight ??= (async (): Promise<string | null> => {
+          // Persistent login runs on the refresh token in localStorage (no cookie).
+          // Without one there's nothing to refresh, so clear cleanly to the login
+          // screen instead of firing a doomed request.
+          const rt = get().tokens?.refreshToken;
+          if (!rt) {
+            set({ user: null, tokens: null });
+            return null;
+          }
+          try {
+            const tokens = await authApi.refresh(rt);
+            set({ tokens });
+            return tokens.accessToken;
+          } catch (e) {
+            // Only a definitive server "no" ends the session. A timeout, a cold
+            // start, DNS failure or a 5xx is OUR outage — signing the citizen out
+            // for it is the "app forgot who I am" bug. Keep the tokens; the next
+            // attempt (or the error states) will tell the truth about the outage.
+            const status = (e as { response?: { status?: number } } | null)?.response?.status;
+            if (status === 400 || status === 401 || status === 403) set({ user: null, tokens: null });
+            return null;
+          } finally {
+            refreshInFlight = null;
+          }
+        })();
+        return refreshInFlight;
       },
 
       // Only hit /auth/logout when we actually hold a live token — otherwise just
@@ -115,3 +131,24 @@ export const useAuthStore = create<AuthState>()(
     { name: 'tc:auth', partialize: (s) => ({ tokens: s.tokens, user: s.user }) },
   ),
 );
+
+// Another tab rotated the session (refresh tokens are single-use) or signed
+// out. Adopt its state instead of keeping stale tokens that would fail the
+// next refresh and sign THIS tab out of a live session.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== 'tc:auth') return;
+    try {
+      const next = e.newValue
+        ? (JSON.parse(e.newValue) as { state?: { tokens?: AuthTokens | null; user?: User | null } }).state
+        : null;
+      if (next?.tokens?.accessToken) {
+        useAuthStore.setState({ tokens: next.tokens, user: next.user ?? useAuthStore.getState().user });
+      } else if (useAuthStore.getState().tokens) {
+        useAuthStore.setState({ tokens: null, user: null });
+      }
+    } catch {
+      // Malformed storage payload — leave this tab's state alone.
+    }
+  });
+}
