@@ -1,3 +1,4 @@
+import { swallow } from '../shared/swallow';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { BlockingService } from '../connections/blocking.service';
@@ -310,7 +311,7 @@ export class ProfileService {
     // City is a shared field — write it back to the Master Profile so every hub
     // picks it up (spec: hubs write shared fields to the single source of truth).
     if (dto.city !== undefined) {
-      await this.masterProfile.syncShared(userId, { city: (data.city as string | null) ?? undefined }, 'social').catch(() => undefined);
+      await swallow(this.masterProfile.syncShared(userId, { city: (data.city as string | null) ?? undefined }, 'social'), 'master-profile city sync from social', { userId });
     }
     return this.me(userId);
   }
@@ -419,7 +420,7 @@ export class ProfileService {
       const { userOneId, userTwoId } = orderPair(viewerId, u.id);
       const [conn, follow] = await Promise.all([
         this.prisma.connection.findFirst({ where: { userOneId, userTwoId, connectionType: 'FRIEND' }, select: { status: true, requestedById: true } }),
-        this.prisma.follow.findUnique({ where: { followerId_followeeId: { followerId: viewerId, followeeId: u.id } }, select: { followerId: true } }).catch(() => null),
+        swallow(this.prisma.follow.findUnique({ where: { followerId_followeeId: { followerId: viewerId, followeeId: u.id } }, select: { followerId: true } }), 'profile view: follow-state read', { viewerId }),
       ]);
       relationship = this.relationshipOf(conn?.status, conn?.requestedById, viewerId);
       iFollow = Boolean(follow);

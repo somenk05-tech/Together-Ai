@@ -1,3 +1,4 @@
+import { swallow } from '../shared/swallow';
 import { Injectable, Logger, ConflictException } from '@nestjs/common';
 import { clinicalSex, datingGender, displayGender, genderIdentityFromBeauty } from './sex-and-gender';
 import { salutation } from '../shared/salutation';
@@ -157,12 +158,14 @@ export class MasterProfileService {
     };
 
     const since = new Date(Date.now() - 30 * 24 * 3600 * 1000);
+    // A failed read here quietly shrinks the health score's inputs — the score
+    // then judges the citizen on data it never saw. Logged now, per source.
     const [fitness, food, master, workouts, analysis] = await Promise.all([
-      db.fitnessProfile.findUnique({ where: { userId } }).catch(() => null),
-      db.foodPref.findUnique({ where: { userId } }).catch(() => null),
-      this.master.findUnique({ where: { userId } }).catch(() => null),
-      db.workoutLog.findMany({ where: { userId, doneAt: { gte: since } }, select: { minutes: true }, take: 500 }).catch(() => []),
-      db.bloodAnalysis.findFirst({ where: { userId }, orderBy: { analyzedAt: 'desc' } }).catch(() => null),
+      swallow(db.fitnessProfile.findUnique({ where: { userId } }), 'health-score: fitness read', { userId }),
+      swallow(db.foodPref.findUnique({ where: { userId } }), 'health-score: food-pref read', { userId }),
+      swallow(this.master.findUnique({ where: { userId } }), 'health-score: master read', { userId }),
+      swallow(db.workoutLog.findMany({ where: { userId, doneAt: { gte: since } }, select: { minutes: true }, take: 500 }), 'health-score: workouts read', { userId }).then((r) => r ?? []),
+      swallow(db.bloodAnalysis.findFirst({ where: { userId }, orderBy: { analyzedAt: 'desc' } }), 'health-score: blood-analysis read', { userId }),
     ]);
 
     // First source that actually has the measurement wins.
@@ -206,14 +209,17 @@ export class MasterProfileService {
     const beautyDb = (this.prisma as unknown as {
       beautyProfile: { findUnique: (a: unknown) => Promise<{ extras?: string | null } | null> };
     }).beautyProfile;
+    // swallow() keeps two meanings apart, and here it matters: null is "this
+    // citizen has no row", undefined is "the read FAILED". The consolidation
+    // below must not mistake a failed master read for a profile full of gaps.
     const [row, user, astro, dating, food, fitness, beauty] = await Promise.all([
-      this.master.findUnique({ where: { userId } }).catch(() => null),
+      swallow(this.master.findUnique({ where: { userId } }), 'master-profile read', { userId }),
       this.prisma.user.findUnique({ where: { id: userId } }),
-      astroDb.findUnique({ where: { userId } }).catch(() => null),
-      this.prisma.datingProfile.findUnique({ where: { userId } }).catch(() => null),
-      this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null),
-      this.prisma.fitnessProfile.findUnique({ where: { userId } }).catch(() => null),
-      beautyDb.findUnique({ where: { userId } }).catch(() => null),
+      swallow(astroDb.findUnique({ where: { userId } }), 'master view: astro read', { userId }),
+      swallow(this.prisma.datingProfile.findUnique({ where: { userId } }), 'master view: dating read', { userId }),
+      swallow(this.prisma.foodPref.findUnique({ where: { userId } }), 'master view: food-pref read', { userId }),
+      swallow(this.prisma.fitnessProfile.findUnique({ where: { userId } }), 'master view: fitness read', { userId }),
+      swallow(beautyDb.findUnique({ where: { userId } }), 'master view: beauty read', { userId }),
     ]);
     // Beauty stores its Basic Profile (age/gender/height/weight/city/occupation)
     // inside an extras JSON blob — parse it so those fields count as a source.
@@ -273,10 +279,13 @@ export class MasterProfileService {
       SHARED_KEYS.filter((k) => (row?.[k] === undefined || row?.[k] === null) && merged[k] !== undefined)
         .map((k) => [k, merged[k]]),
     );
-    if (Object.keys(gaps).length) {
-      await this.master.upsert({
+    // row === undefined means the master READ failed — every field then looks
+    // like a gap, and "healing" would overwrite canonical values with whatever
+    // the hubs happened to say. Heal only from an established absence.
+    if (row !== undefined && Object.keys(gaps).length) {
+      await swallow(this.master.upsert({
         where: { userId }, update: gaps, create: { userId, ...gaps },
-      }).catch(() => undefined);
+      }), 'master-profile gap consolidation', { userId, fields: Object.keys(gaps) });
     }
 
     // Age: prefer the precise value from date-of-birth, but fall back to the raw
@@ -333,7 +342,9 @@ export class MasterProfileService {
     // Read before writing, for two reasons: the audit trail needs the old
     // values, and a caller that stated which version it was editing needs to be
     // told if the profile moved underneath it.
-    const before = await this.master.findUnique({ where: { userId } }).catch(() => null);
+    // A failed read here would silently skip the version-conflict check and
+    // write an audit entry with no old values — worth a log line.
+    const before = await swallow(this.master.findUnique({ where: { userId } }), 'sync-shared: master read before write', { userId });
     const current = (before as { version?: number } | null)?.version ?? 0;
     if (versionConflict(current, opts.expectedVersion)) {
       throw new ConflictException(
@@ -341,7 +352,7 @@ export class MasterProfileService {
       );
     }
 
-    const changes = diffProfile(before as Record<string, unknown> | null, clean as Record<string, unknown>);
+    const changes = diffProfile((before ?? null) as Record<string, unknown> | null, clean as Record<string, unknown>);
 
     await this.master.upsert({
       where: { userId },
@@ -368,10 +379,12 @@ export class MasterProfileService {
     // updateMany({where:{userId}}) is a no-op when the hub row doesn't exist —
     // exactly the semantics we want (propagate, never create).
     await Promise.all([
-      Object.keys(plan.astro).length ? p.astroProfile.updateMany({ where: { userId }, data: plan.astro }).catch(() => undefined) : null,
-      Object.keys(plan.dating).length ? p.datingProfile.updateMany({ where: { userId }, data: plan.dating }).catch(() => undefined) : null,
-      Object.keys(plan.food).length ? p.foodPref.updateMany({ where: { userId }, data: answeredNow(plan.food) }).catch(() => undefined) : null,
-      Object.keys(plan.fitness).length ? p.fitnessProfile.updateMany({ where: { userId }, data: answeredNow(plan.fitness) }).catch(() => undefined) : null,
+      // A propagation that fails silently is a hub quietly diverging from the
+      // master — the exact disagreement §3 exists to end.
+      Object.keys(plan.astro).length ? swallow(p.astroProfile.updateMany({ where: { userId }, data: plan.astro }), 'propagate shared fields to astro', { userId }) : null,
+      Object.keys(plan.dating).length ? swallow(p.datingProfile.updateMany({ where: { userId }, data: plan.dating }), 'propagate shared fields to dating', { userId }) : null,
+      Object.keys(plan.food).length ? swallow(p.foodPref.updateMany({ where: { userId }, data: answeredNow(plan.food) }), 'propagate shared fields to food-pref', { userId }) : null,
+      Object.keys(plan.fitness).length ? swallow(p.fitnessProfile.updateMany({ where: { userId }, data: answeredNow(plan.fitness) }), 'propagate shared fields to fitness', { userId }) : null,
     ]);
     this.logger.log(`shared fields synced from ${source}: ${Object.keys(clean).join(', ')} (${changes.length} changed)`);
     return { synced: true, fields: Object.keys(clean), changed: changes.map((c) => c.field) };
@@ -395,12 +408,12 @@ export class MasterProfileService {
       user: { findUnique(a: unknown): Promise<{ bio?: string | null } | null> };
     };
     const [food, fitness, beauty, dating, jobs, user] = await Promise.all([
-      px.foodPref.findUnique({ where: { userId } }).catch(() => null),
-      px.fitnessProfile.findUnique({ where: { userId } }).catch(() => null),
-      px.beautyProfile.findUnique({ where: { userId } }).catch(() => null),
-      px.datingProfile.findUnique({ where: { userId } }).catch(() => null),
-      px.jobProfile.findUnique({ where: { userId } }).catch(() => null),
-      px.user.findUnique({ where: { id: userId } }).catch(() => null),
+      swallow(px.foodPref.findUnique({ where: { userId } }), 'prefill: food-pref read', { userId }),
+      swallow(px.fitnessProfile.findUnique({ where: { userId } }), 'prefill: fitness read', { userId }),
+      swallow(px.beautyProfile.findUnique({ where: { userId } }), 'prefill: beauty read', { userId }),
+      swallow(px.datingProfile.findUnique({ where: { userId } }), 'prefill: dating read', { userId }),
+      swallow(px.jobProfile.findUnique({ where: { userId } }), 'prefill: jobs read', { userId }),
+      swallow(px.user.findUnique({ where: { id: userId } }), 'prefill: user read', { userId }),
     ]);
 
     const has = (v: unknown): boolean => v !== undefined && v !== null && v !== '';
