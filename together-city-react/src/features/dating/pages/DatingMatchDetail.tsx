@@ -59,7 +59,7 @@ function Collage({ d }: { d: MatchDetail }) {
           <div style={{ position: 'absolute', top: 10, left: 12, right: 12, display: 'flex', gap: 4 }}>
             {photos.map((_, k) => (
               <button key={k} type="button" aria-label={`Photo ${k + 1}`} onClick={() => setI(k)}
-                style={{ flex: 1, height: 3, borderRadius: 2, border: 'none', padding: 0, cursor: 'pointer', background: k === active ? '#fff' : 'rgba(255,255,255,.42)' }} />
+                style={{ minWidth: 44, minHeight: 44, flex: 1, height: 3, borderRadius: 2, border: 'none', padding: 0, cursor: 'pointer', background: k === active ? '#fff' : 'rgba(255,255,255,.42)' }} />
             ))}
           </div>
         )}

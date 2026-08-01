@@ -226,7 +226,7 @@ function PersonSheet({ id, onClose, onOpenTitle }: { id: number; onClose: () => 
                 <div style={{ flex: 1, minWidth: 220 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                     <h2 style={{ margin: 0, fontSize: 22 }}>{p.name}</h2>
-                    <button type="button" onClick={onClose} aria-label="Close" style={{ border: 'none', background: 'var(--paper)', borderRadius: 999, width: 30, height: 30, cursor: 'pointer' }}>✕</button>
+                    <button type="button" onClick={onClose} aria-label="Close" style={{ minWidth: 44, minHeight: 44, border: 'none', background: 'var(--paper)', borderRadius: 999, width: 30, height: 30, cursor: 'pointer' }}>✕</button>
                   </div>
                   <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
                     {[p.department, p.birthday ? `b. ${prettyDate(p.birthday)}` : null, p.placeOfBirth].filter(Boolean).join(' · ')}

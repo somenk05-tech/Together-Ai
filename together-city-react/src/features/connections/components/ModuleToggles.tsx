@@ -42,7 +42,7 @@ export function ModuleToggles({ relationship, selected, onChange }: {
   if (isLoading) {
     return <p className="muted" style={{ fontSize: 12.5, margin: '6px 0' }}>Loading the list of hubs…</p>;
   }
-  if (isError || allowed.length === 0) {
+  if (isError) {
     // No invented fallback list. If we cannot say what the hubs are, we say that.
     return (
       <div style={{ padding: '10px 12px', borderRadius: 9, border: '1px dashed var(--line)' }}>
@@ -56,6 +56,17 @@ export function ModuleToggles({ relationship, selected, onChange }: {
           Try again
         </button>
       </div>
+    );
+  }
+  if (allowed.length === 0) {
+    // The inverse of the usual bug: this used to report a LOAD FAILURE when
+    // the list was legitimately empty — for a relationship that grants no
+    // optional hubs, "we couldn't load" was a false apology for a true answer.
+    return (
+      <p className="muted" style={{ fontSize: 12.5, margin: '6px 0', lineHeight: 1.5 }}>
+        This relationship has no optional hubs to grant — everything it shares
+        is already included.
+      </p>
     );
   }
 

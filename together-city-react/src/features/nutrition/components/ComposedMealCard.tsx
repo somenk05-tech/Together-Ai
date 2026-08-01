@@ -121,7 +121,7 @@ export function SkippedMealCard({ dayIndex, slot }: { dayIndex: number; slot: st
       <span className="muted" style={{ fontSize: 13 }}>Skipped — not counted in today&rsquo;s totals or your grocery list.</span>
       <button type="button" disabled={skip.isPending}
         onClick={() => skip.mutate({ day: dayIndex, slot, skipped: false })}
-        style={{ minHeight: 40, padding: '0 14px', borderRadius: 10, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
+        style={{ minWidth: 44, minHeight: 44, padding: '0 14px', borderRadius: 10, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
         {skip.isPending ? 'Adding back…' : 'Add back'}
       </button>
     </div>
@@ -199,14 +199,14 @@ export function ComposedMealCard({ meal, dayIndex, readOnly, people = 1, skips =
                 <>
                   <button type="button" disabled={busy} aria-label={`Swap ${c.name} for another ${c.role}`} title="Swap for another (same type)"
                     onClick={() => refreshComp.mutate({ day: dayIndex, slot: meal.slot, role: c.role })}
-                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: 'none', border: '1px solid var(--line)', color: 'var(--muted)', cursor: 'pointer', flex: '0 0 auto', padding: 0 }}>
+                    style={{ minWidth: 44, minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: 'none', border: '1px solid var(--line)', color: 'var(--muted)', cursor: 'pointer', flex: '0 0 auto', padding: 0 }}>
                     <NIc name="refresh" size={13} />
                   </button>
                   <button type="button" disabled={busy}
                     aria-label={off ? `Add ${c.name} back` : `Skip ${c.name}`}
                     title={off ? 'Add this dish back' : 'Skip this dish'}
                     onClick={() => skipComp.mutate({ day: dayIndex, slot: meal.slot, role: c.role, skipped: !off })}
-                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: 'none', border: `1px solid ${off ? 'var(--accent)' : 'var(--line)'}`, color: off ? 'var(--accent)' : 'var(--muted)', cursor: 'pointer', flex: '0 0 auto', padding: 0 }}>
+                    style={{ minWidth: 44, minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: 'none', border: `1px solid ${off ? 'var(--accent)' : 'var(--line)'}`, color: off ? 'var(--accent)' : 'var(--muted)', cursor: 'pointer', flex: '0 0 auto', padding: 0 }}>
                     <NIc name={off ? 'refresh' : 'skip'} size={13} />
                   </button>
                 </>

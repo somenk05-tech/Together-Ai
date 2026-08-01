@@ -248,7 +248,7 @@ export function RecipeDetail() {
             <Ic name="bookmark" size={16} style={saved ? { fill: 'var(--green)' } : undefined} /> {saved ? 'Saved' : 'Save Recipe'}
           </button>
           <button type="button" onClick={() => void share()} aria-label="Share recipe"
-            style={{ display: 'grid', placeItems: 'center', width: 38, height: 38, cursor: 'pointer', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)' }}>
+            style={{ minWidth: 44, minHeight: 44, display: 'grid', placeItems: 'center', width: 38, height: 38, cursor: 'pointer', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)' }}>
             <Ic name="share" size={16} />
           </button>
         </div>
@@ -377,7 +377,7 @@ export function RecipeDetail() {
                 <span style={{ flex: 1, fontSize: 14, color: 'var(--ink)' }}>{ing.name}</span>
                 <span style={{ fontSize: 13, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{gLabel(ing.grams)}{ing.priceInr > 0 ? ` · ${fmtINR(ing.priceInr)}` : ''}</span>
                 <button type="button" onClick={toGrocery} aria-label={`Add ${ing.name} to grocery list`}
-                  style={{ display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 999, border: `1.5px solid ${added ? 'var(--green)' : 'var(--line)'}`, background: added ? 'var(--green)' : 'var(--card)', color: added ? '#fff' : 'var(--green)', cursor: 'pointer', flex: '0 0 auto' }}>
+                  style={{ minWidth: 44, minHeight: 44, display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 999, border: `1.5px solid ${added ? 'var(--green)' : 'var(--line)'}`, background: added ? 'var(--green)' : 'var(--card)', color: added ? '#fff' : 'var(--green)', cursor: 'pointer', flex: '0 0 auto' }}>
                   <Ic name={added ? 'check' : 'plus'} size={15} stroke={2.2} />
                 </button>
               </div>

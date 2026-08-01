@@ -636,7 +636,7 @@ export function DatingProfilePage() {
               <div key={i} style={{ position: 'relative' }}>
                 <img src={p} alt="" style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover' }} />
                 <button type="button" onClick={() => removePhoto(i)} aria-label="Remove"
-                  style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', border: 'none', background: '#c62828', color: '#fff', cursor: 'pointer', fontSize: 12 }}>×</button>
+                  style={{ minWidth: 44, minHeight: 44, position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', border: 'none', background: '#c62828', color: '#fff', cursor: 'pointer', fontSize: 12 }}>×</button>
               </div>
             ))}
             {photos.length < 10 && (

@@ -34,7 +34,7 @@ export function TargetsDisclosure({ p }: { p: Prescription }) {
     <div style={{ marginTop: 10 }}>
       <button type="button" onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        style={{ minHeight: 40, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--accent)' }}>
+        style={{ minWidth: 44, minHeight: 44, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--accent)' }}>
         {open ? '▾' : '▸'} How we calculated this
       </button>
 

@@ -112,7 +112,7 @@ export function Supplements() {
                     <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
                       <span>{s.ic} {s.name}</span>
                       <b style={{ marginLeft: 'auto' }}>{inr(s.price)}</b>
-                      <button type="button" onClick={() => toggle(s.id)} aria-label="Remove" style={{ border: '1px solid var(--line)', background: 'var(--card)', borderRadius: 6, width: 22, height: 22, cursor: 'pointer', fontSize: 13, lineHeight: 1 }}>×</button>
+                      <button type="button" onClick={() => toggle(s.id)} aria-label="Remove" style={{ minWidth: 44, minHeight: 44, border: '1px solid var(--line)', background: 'var(--card)', borderRadius: 6, width: 22, height: 22, cursor: 'pointer', fontSize: 13, lineHeight: 1 }}>×</button>
                     </div>
                   ))}
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--serif)', fontSize: 18, borderTop: '1px solid var(--line)', paddingTop: 10, marginTop: 8 }}>

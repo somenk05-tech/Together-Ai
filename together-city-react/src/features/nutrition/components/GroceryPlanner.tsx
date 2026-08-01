@@ -18,7 +18,7 @@ function ItemRow({ item, checked, onToggle }: { item: GroceryPlanItem; checked: 
         <button
           onClick={onToggle}
           aria-label={checked ? 'Uncheck' : 'Check off'}
-          style={{
+          style={{ minWidth: 44, minHeight: 44, 
             flex: 'none', width: 22, height: 22, borderRadius: 7, cursor: 'pointer',
             border: checked ? 'none' : '1.8px solid var(--line)',
             background: checked ? 'var(--accent, #1e8449)' : 'transparent',

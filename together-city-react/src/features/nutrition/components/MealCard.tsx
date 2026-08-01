@@ -124,7 +124,7 @@ export function MealCard({ meal, onSwap, onSkip, people = 1, onBack, canGoBack =
         <div style={{ display: 'flex', gap: 7, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           {canGoBack && onBack && (
             <button type="button" onClick={onBack} title="Back to the previous recipe" aria-label="Back to the previous recipe"
-              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 999, border: '1.5px solid var(--line)', background: 'var(--card)', color: 'var(--ink)', cursor: 'pointer', fontSize: 15, lineHeight: 1, flex: '0 0 auto' }}>
+              style={{ minWidth: 44, minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 999, border: '1.5px solid var(--line)', background: 'var(--card)', color: 'var(--ink)', cursor: 'pointer', fontSize: 15, lineHeight: 1, flex: '0 0 auto' }}>
               ↩
             </button>
           )}

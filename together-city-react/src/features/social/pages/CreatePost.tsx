@@ -315,7 +315,7 @@ function MusicPicker({ selected, onSelect, stopSignal }: { selected: Track | nul
                 border: `1.5px solid ${active ? 'var(--accent)' : 'var(--line)'}`,
                 background: active ? 'color-mix(in srgb, var(--accent) 12%, var(--card))' : 'var(--card)' }}>
               <button type="button" onClick={() => preview(t)}
-                style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                style={{ minWidth: 44, minHeight: 44, width: 30, height: 30, borderRadius: '50%', border: 'none', cursor: 'pointer',
                   background: 'var(--accent)', color: '#fff', fontSize: 13, flex: '0 0 auto' }}>
                 {previewId === t.id ? '⏸' : '▶'}
               </button>
@@ -561,7 +561,7 @@ export function CreatePost() {
                   )}
                   <button type="button" onClick={() => setMedia((prev) => prev.filter((_, j) => j !== i))}
                     aria-label={`Remove this ${m.type === 'video' ? 'video' : 'photo'}`}
-                    style={{ position: 'absolute', top: 5, right: 5, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,.65)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>
+                    style={{ minWidth: 44, minHeight: 44, position: 'absolute', top: 5, right: 5, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,.65)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>
                     ✕
                   </button>
                   {m.type === 'video' && (

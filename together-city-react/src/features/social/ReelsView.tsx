@@ -184,7 +184,7 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
 
         {/* mute toggle (bottom-right of the video) — one control for ALL reels */}
         <button type="button" onClick={onToggleMute}
-          style={{ position: 'absolute', bottom: 12, right: 12, width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 15 }}>
+          style={{ minWidth: 44, minHeight: 44, position: 'absolute', bottom: 12, right: 12, width: 34, height: 34, borderRadius: '50%', background: 'rgba(0,0,0,.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 15 }}>
           {muted ? '🔇' : '🔊'}
         </button>
 

@@ -137,7 +137,7 @@ function Row({ m, folder }: { m: MailItem; folder: Folder }) {
       {folder === 'failed' && (
         <button type="button" disabled={retry.isPending} title="Try sending this again"
           onClick={(e) => { e.stopPropagation(); retry.mutate(m.id); }}
-          style={{ minHeight: 40, padding: '0 12px', borderRadius: 9, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+          style={{ minWidth: 44, minHeight: 44, padding: '0 12px', borderRadius: 9, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
           {retry.isPending ? 'Sending…' : 'Try again'}
         </button>
       )}

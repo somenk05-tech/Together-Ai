@@ -106,7 +106,7 @@ export function PhotoCapture({ photos, onChange }: { photos: Photo[]; onChange: 
             <div key={i} style={{ position: 'relative', width: 108, height: 80, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--line)' }}>
               <img src={p.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               <button type="button" onClick={() => remove(i)} aria-label="Remove"
-                style={{ position: 'absolute', top: 3, right: 3, width: 22, height: 22, borderRadius: '50%', border: 'none', cursor: 'pointer', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 13, lineHeight: '22px' }}>×</button>
+                style={{ minWidth: 44, minHeight: 44, position: 'absolute', top: 3, right: 3, width: 22, height: 22, borderRadius: '50%', border: 'none', cursor: 'pointer', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 13, lineHeight: '22px' }}>×</button>
               {i === 0 && <span style={{ position: 'absolute', bottom: 3, left: 3, fontSize: 9, fontWeight: 700, color: '#fff', background: 'rgba(0,0,0,.55)', borderRadius: 4, padding: '1px 5px' }}>COVER</span>}
             </div>
           ))}

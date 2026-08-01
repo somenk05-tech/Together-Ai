@@ -340,7 +340,7 @@ export function Makeup() {
                   </div>
                   <b>₹{inr(eff.price)}</b>
                   <button type="button" onClick={() => toggleCart(s)} title="Remove"
-                    style={{ marginLeft: 8, width: 22, height: 22, flex: '0 0 auto', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)', borderRadius: 6, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
+                    style={{ minWidth: 44, minHeight: 44, marginLeft: 8, width: 22, height: 22, flex: '0 0 auto', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)', borderRadius: 6, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
                 </div>
               );
             })}

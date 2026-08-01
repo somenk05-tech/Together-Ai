@@ -12,9 +12,9 @@ function Row({ it, onSet, onRemove, busy }: { it: PantryItemView; onSet: (g: num
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: '1px solid var(--line)' }}>
       <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, textTransform: 'capitalize' }}>{it.name}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <button aria-label="Less" disabled={busy} onClick={() => onSet(Math.max(0, it.grams - stepG))} style={{ width: 26, height: 26, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', cursor: 'pointer', fontSize: 15, lineHeight: 1 }}>−</button>
+        <button aria-label="Less" disabled={busy} onClick={() => onSet(Math.max(0, it.grams - stepG))} style={{ minWidth: 44, minHeight: 44, width: 26, height: 26, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', cursor: 'pointer', fontSize: 15, lineHeight: 1 }}>−</button>
         <span style={{ minWidth: 62, textAlign: 'center', fontWeight: 700, fontSize: 13 }}>{it.qtyLabel}</span>
-        <button aria-label="More" disabled={busy} onClick={() => onSet(it.grams + stepG)} style={{ width: 26, height: 26, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', cursor: 'pointer', fontSize: 15, lineHeight: 1 }}>+</button>
+        <button aria-label="More" disabled={busy} onClick={() => onSet(it.grams + stepG)} style={{ minWidth: 44, minHeight: 44, width: 26, height: 26, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', cursor: 'pointer', fontSize: 15, lineHeight: 1 }}>+</button>
       </div>
       <button aria-label="Remove" disabled={busy} onClick={onRemove} style={{ border: 'none', background: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 16 }}>×</button>
     </div>

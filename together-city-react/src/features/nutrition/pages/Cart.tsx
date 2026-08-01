@@ -8,10 +8,10 @@ function Stepper({ qty, onChange }: { qty: number; onChange: (q: number) => void
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', border: '1.3px solid var(--accent)', borderRadius: 9, overflow: 'hidden' }}>
       <button type="button" onClick={() => onChange(qty - 1)} aria-label="Decrease quantity"
-        style={{ background: 'var(--accent)', color: '#fff', border: 'none', width: 26, height: 30, fontSize: 16, lineHeight: 1, cursor: 'pointer' }}>−</button>
+        style={{ minWidth: 44, minHeight: 44, background: 'var(--accent)', color: '#fff', border: 'none', width: 26, height: 30, fontSize: 16, lineHeight: 1, cursor: 'pointer' }}>−</button>
       <b style={{ minWidth: 26, textAlign: 'center', fontSize: 13, color: 'var(--accent)' }}>{qty}</b>
       <button type="button" onClick={() => onChange(qty + 1)} aria-label="Increase quantity"
-        style={{ background: 'var(--accent)', color: '#fff', border: 'none', width: 26, height: 30, fontSize: 16, lineHeight: 1, cursor: 'pointer' }}>+</button>
+        style={{ minWidth: 44, minHeight: 44, background: 'var(--accent)', color: '#fff', border: 'none', width: 26, height: 30, fontSize: 16, lineHeight: 1, cursor: 'pointer' }}>+</button>
     </span>
   );
 }
