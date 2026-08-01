@@ -195,6 +195,9 @@ export function Explore() {
             <span className="muted" style={{ fontSize: 12 }}>Searching all restaurants</span>
           </div>
           {search.isLoading ? <p className="muted">Searching…</p>
+            /* "No restaurants match" on a FAILED search is a false negative
+               about the city, not a fact about the term. */
+            : search.isError ? <p className="muted">Search didn’t go through — that’s us, not a lack of matches. Try again in a moment.</p>
             : (search.data?.results.length ?? 0) === 0 ? <p className="muted">No restaurants match “{term}”.</p>
             : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 18 }}>{search.data!.results.map((r) => <CuratedCardView key={r.id} r={r} />)}</div>}
         </>
@@ -263,6 +266,9 @@ export function Explore() {
                 <span className="muted" style={{ fontSize: 12 }}>{top.data?.live ? 'Live · Google + Together City' : 'Curated selection'}</span>
               </div>
               {top.isLoading ? <p className="muted">Curating the best spots near you…</p>
+                /* A failed read used to blame the citizen's filters and ask
+                   them to widen the radius. Our failure, their sentence. */
+                : top.isError ? <p className="muted">We couldn’t curate the list just now — no filter of yours is to blame. Try again in a moment.</p>
                 : topList.length === 0 ? <p className="muted">No matches with these filters — widen the radius or clear a filter.</p>
                 : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 18 }}>{topList.map((r) => <CuratedCardView key={r.id} r={r} />)}</div>}
             </section>

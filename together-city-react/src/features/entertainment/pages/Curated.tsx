@@ -22,8 +22,11 @@ export function Curated() {
       <PosterLead eyebrow="Entertainment · 03" title="Curated Movies" sub="Critics' picks, hidden gems and Indian indie cinema — chosen by ratings, not ads." />
 
       {curated.isLoading && <Spinner label="Curating the shelf…" />}
-      {!curated.isLoading && !isLive && (
-        <EmptyState icon="🎞" title="Curated picks are unavailable" hint="The movie service isn't reachable right now — please check back shortly." />
+      {!curated.isLoading && (curated.isError || !isLive) && (
+        <EmptyState icon="🎞" title="Curated picks are unavailable"
+          hint={curated.isError
+            ? 'We couldn’t reach the shelf just now — that’s on our side, and nothing about your watchlist has changed. Check back shortly.'
+            : "The movie service isn't reachable right now — please check back shortly."} />
       )}
 
       {isLive && (

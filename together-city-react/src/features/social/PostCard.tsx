@@ -58,6 +58,9 @@ function CommentsPanel({ postId }: { postId: string }) {
   return (
     <div style={{ borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 12 }}>
       {comments.isLoading && <Spinner />}
+      {comments.isError && (
+        <p className="muted" style={{ fontSize: 12.5 }}>Comments didn’t load — they’re still there. Try again in a moment.</p>
+      )}
       {(comments.data ?? []).map((c) => (
         <div key={c.id} style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
           <Avatar name={c.author.name} src={c.author.profileImage} />

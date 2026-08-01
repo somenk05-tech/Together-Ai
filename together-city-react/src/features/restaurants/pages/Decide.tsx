@@ -123,7 +123,11 @@ export function Decide() {
       {mode === 'plan' && (
         <div style={{ marginTop: 22 }}>
           {meal.isLoading ? <p className="muted">Matching dishes to your plan…</p>
-            : !meal.data?.hasPlan ? (
+            /* A failed read used to open "No meal plan yet" with a set-up
+               button — inviting somebody to rebuild a plan they already have. */
+            : meal.isError ? (
+              <p className="muted">We couldn’t match dishes just now — your meal plan is untouched. Try again in a moment.</p>
+            ) : !meal.data?.hasPlan ? (
               <div className="empty" style={{ textAlign: 'center', padding: '40px 24px', border: '1px dashed var(--line)', borderRadius: 'var(--radius-lg)' }}>
                 <div style={{ fontSize: 34, marginBottom: 8 }}>🥗</div>
                 <h3 style={{ marginBottom: 6 }}>No meal plan yet</h3>
@@ -152,6 +156,7 @@ export function Decide() {
             <p style={{ fontSize: 13.5, margin: '4px 0 0' }}>We're ignoring today's targets — here's what people are loving nearby. Nutrition still shows on each dish so you stay in control.</p>
           </div>
           {cheat.isLoading ? <p className="muted" style={{ marginTop: 16 }}>Finding the good stuff…</p>
+            : cheat.isError ? <p className="muted" style={{ marginTop: 16 }}>We couldn’t load nearby treats just now — they’re still out there. Try again in a moment.</p>
             : (cheat.data?.collections.length ?? 0) === 0 ? <p className="muted" style={{ marginTop: 16 }}>Nothing nearby yet — try <Link to="/restaurants/explore">Explore</Link>.</p>
             : (cheat.data!.collections
                 .filter((c) => ['trending', 'desserts', 'top25', 'cafes', 'street', 'coffee', 'finedining'].includes(c.key))

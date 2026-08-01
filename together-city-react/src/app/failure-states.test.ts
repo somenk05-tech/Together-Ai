@@ -42,14 +42,9 @@ const KNOWN_MISSING = [
   'components/SearchSelect.tsx',
   'features/chat/components/ChatStarter.tsx',
   'features/chat/share.tsx',
-  'features/entertainment/pages/Curated.tsx',
   'features/mail/DrivePicker.tsx',
   'features/nutrition/components/QuickCommerce.tsx',
   'features/nutrition/pages/Preferences.tsx',
-  'features/restaurants/pages/Decide.tsx',
-  'features/restaurants/pages/Explore.tsx',
-  'features/social/PostCard.tsx',
-  'features/social/ReelsView.tsx',
 ];
 
 function walk(dir: string, out: string[] = []): string[] {

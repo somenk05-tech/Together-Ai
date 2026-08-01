@@ -239,6 +239,9 @@ function ReelComments({ postId, onClose }: { postId: string; onClose: () => void
           <button type="button" onClick={onClose} aria-label="Close comments" style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-soft)' }}>×</button>
         </div>
         {comments.isLoading && <Spinner />}
+        {comments.isError && (
+          <p className="muted" style={{ fontSize: 13 }}>Comments didn’t load — they’re still there. Try again in a moment.</p>
+        )}
         {(comments.data ?? []).map((c) => (
           <div key={c.id} style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
             <Avatar name={c.author.name} src={c.author.profileImage} />
@@ -248,7 +251,9 @@ function ReelComments({ postId, onClose }: { postId: string; onClose: () => void
             </div>
           </div>
         ))}
-        {!comments.isLoading && (comments.data ?? []).length === 0 && <p className="muted" style={{ fontSize: 13 }}>Be the first to comment.</p>}
+        {/* "Be the first to comment" on a failed read invited somebody to
+            reply to a conversation that already exists. */}
+        {!comments.isLoading && !comments.isError && (comments.data ?? []).length === 0 && <p className="muted" style={{ fontSize: 13 }}>Be the first to comment.</p>}
         <form onSubmit={submit} style={{ display: 'flex', gap: 8, marginTop: 8, position: 'sticky', bottom: 0, background: 'var(--card,#fff)', paddingTop: 6 }}>
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a comment…"
             style={{ flex: 1, border: '1.5px solid var(--line)', borderRadius: 999, padding: '9px 14px', fontSize: 13, fontFamily: 'inherit', outline: 'none', background: 'var(--card)', color: 'var(--ink)' }} />
