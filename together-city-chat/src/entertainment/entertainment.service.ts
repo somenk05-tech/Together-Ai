@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { demoDataEnabled } from '../shared/demo-data';
 import { randomBytes } from 'crypto';
@@ -40,7 +41,7 @@ export class EntertainmentService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     if (demoDataEnabled()) return;
     const ids = EntertainmentService.RETIRED_SEED_EVENT_IDS;
-    const gone = await this.prisma.event.deleteMany({ where: { id: { in: ids } } }).catch(() => null);
+    const gone = await this.prisma.event.deleteMany({ where: { id: { in: ids } } }).catch(swallowed('entertainment.onModuleInit', null));
     if (gone === null) {
       this.logger.warn(
         `Could not remove retired seed events (${ids.join(', ')}) — a citizen has almost certainly booked one. Those tickets are for events that do not exist and need refunding.`,
@@ -135,7 +136,7 @@ export class EntertainmentService implements OnModuleInit {
     // Receipt AFTER the transaction: a mail provider call inside one holds a
     // database connection open across the network, and a failed receipt should
     // never undo a confirmed booking.
-    await this.mail.deliverSystem(userId, ticketReceipt({ title: e.title, tier: dto.tier, qty: dto.qty, totalInr, venue: e.venue, city: e.city, date: e.date, time: e.time, code })).catch(() => undefined);
+    await this.mail.deliverSystem(userId, ticketReceipt({ title: e.title, tier: dto.tier, qty: dto.qty, totalInr, venue: e.venue, city: e.city, date: e.date, time: e.time, code })).catch(swallowed('entertainment.book', undefined));
     return this.myTickets(userId);
   }
 

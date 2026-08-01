@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { demoDataEnabled } from '../shared/demo-data';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -37,7 +38,7 @@ export class JobsService implements OnModuleInit {
     // Auto-fill the shared location from the Master Profile when the CV had none
     // (spec: read shared fields; never re-ask).
     if (!shaped.location) {
-      const m = await this.masterProfile.get(userId).catch(() => null);
+      const m = await this.masterProfile.get(userId).catch(swallowed('jobs.getProfile', null));
       if (m?.city) shaped.location = m.city;
     }
     return shaped;
@@ -66,7 +67,7 @@ export class JobsService implements OnModuleInit {
     await this.prisma.jobProfile.upsert({ where: { userId }, update: data, create: { userId, ...data } });
     // Write shared fields back to the Master Profile (job title → occupation,
     // CV location → city) so every other hub stays in sync.
-    await this.masterProfile.syncShared(userId, { occupation: p.headline || undefined, city: p.location ?? undefined }, 'jobs').catch(() => undefined);
+    await this.masterProfile.syncShared(userId, { occupation: p.headline || undefined, city: p.location ?? undefined }, 'jobs').catch(swallowed('jobs.persistProfile', undefined));
   }
 
   // ─────────────── job board (seeded + company-posted) ───────────────
@@ -254,7 +255,7 @@ export class JobsService implements OnModuleInit {
       const removable = ids.filter((id) => !withApplicants.includes(id));
       if (removable.length) {
         await this.prisma.job.deleteMany({ where: { id: { in: removable }, postedById: null } })
-          .catch(() => undefined);
+          .catch(swallowed('jobs.ensureSeedJobs', undefined));
       }
       if (withApplicants.length) {
         this.logger.warn(

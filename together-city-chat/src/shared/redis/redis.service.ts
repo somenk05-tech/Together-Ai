@@ -1,3 +1,4 @@
+import { swallowed } from '../../shared/swallow';
 import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
@@ -27,7 +28,7 @@ export class RedisService implements OnModuleDestroy {
       this.healthy = false;
       this.logger.warn(`Redis unavailable: ${e.message}`);
     });
-    void this.client.connect().catch(() => undefined);
+    void this.client.connect().catch(swallowed('shared.constructor', undefined));
   }
 
   onModuleDestroy(): void {

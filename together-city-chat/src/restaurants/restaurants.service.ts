@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { demoDataEnabled } from '../shared/demo-data';
 import { randomBytes } from 'crypto';
@@ -153,7 +154,7 @@ export class RestaurantsService implements OnModuleInit {
     // preferences. get() back-fills them, but a read that fails or a row that
     // has not been touched yet must not be the difference between a filtered
     // menu and an unfiltered one.
-    const master = await this.masterProfile.get(userId).catch(() => null);
+    const master = await this.masterProfile.get(userId).catch(swallowed('restaurants.discover', null));
     const allergens = [...new Set([
       ...terms(ex.allergies),
       ...terms((master as { foodAllergens?: string | null } | null)?.foodAllergens ?? ''),
@@ -397,8 +398,8 @@ export class RestaurantsService implements OnModuleInit {
     // Trending: real signal from the last 30 days of orders + reservations.
     const since = new Date(Date.now() - 30 * 864e5);
     const [ord, res] = await Promise.all([
-      this.prisma.diningOrder.groupBy({ by: ['restaurantId'], where: { createdAt: { gt: since } }, _count: { restaurantId: true } }).catch(() => [] as { restaurantId: string; _count: { restaurantId: number } }[]),
-      this.prisma.reservation.groupBy({ by: ['restaurantId'], where: { createdAt: { gt: since } }, _count: { restaurantId: true } }).catch(() => [] as { restaurantId: string; _count: { restaurantId: number } }[]),
+      this.prisma.diningOrder.groupBy({ by: ['restaurantId'], where: { createdAt: { gt: since } }, _count: { restaurantId: true } }).catch(swallowed('restaurants.collections', [] as { restaurantId: string; _count: { restaurantId: number } }[])),
+      this.prisma.reservation.groupBy({ by: ['restaurantId'], where: { createdAt: { gt: since } }, _count: { restaurantId: true } }).catch(swallowed('restaurants.collections', [] as { restaurantId: string; _count: { restaurantId: number } }[])),
     ]);
     const trend = new Map<string, number>();
     for (const o of ord) trend.set(o.restaurantId, (trend.get(o.restaurantId) ?? 0) + o._count.restaurantId);
@@ -673,7 +674,7 @@ export class RestaurantsService implements OnModuleInit {
         },
       }),
     );
-    await this.mail.deliverSystem(userId, orderReceipt({ restaurantName: r.name, area: r.area, mode: dto.mode, items: lines.map((l) => ({ name: l.name, qty: l.qty, lineInr: l.lineInr })), subtotalInr: subtotal, packingInr, taxInr, totalInr, code: orderCode })).catch(() => undefined);
+    await this.mail.deliverSystem(userId, orderReceipt({ restaurantName: r.name, area: r.area, mode: dto.mode, items: lines.map((l) => ({ name: l.name, qty: l.qty, lineInr: l.lineInr })), subtotalInr: subtotal, packingInr, taxInr, totalInr, code: orderCode })).catch(swallowed('restaurants.placeOrder', undefined));
     return this.myOrders(userId);
   }
 
@@ -702,7 +703,7 @@ export class RestaurantsService implements OnModuleInit {
         notes: dto.notes ?? '', code: resCode, status: 'confirmed',
       },
     });
-    await this.mail.deliverSystem(userId, tableReceipt({ restaurantName: r.name, area: r.area, date: dto.date, time: dto.time, partySize: dto.partySize, guestName: dto.name, code: resCode })).catch(() => undefined);
+    await this.mail.deliverSystem(userId, tableReceipt({ restaurantName: r.name, area: r.area, date: dto.date, time: dto.time, partySize: dto.partySize, guestName: dto.name, code: resCode })).catch(swallowed('restaurants.reserve', undefined));
     return this.myReservations(userId);
   }
 
@@ -723,7 +724,7 @@ export class RestaurantsService implements OnModuleInit {
     if (!demoDataEnabled()) {
       const ids = RESTAURANT_SEEDS.map((s) => s.id);
       const gone = await this.prisma.restaurant.deleteMany({ where: { id: { in: ids } } })
-        .catch(() => null);
+        .catch(swallowed('restaurants.ensureSeeds', null));
       if (gone === null) {
         this.logger.warn(
           `Could not remove seeded restaurants (${ids.join(', ')}) — most likely a real order or reservation references one. Resolve those, then restart.`,
@@ -742,7 +743,7 @@ export class RestaurantsService implements OnModuleInit {
           rating: s.rating, priceForTwoInr: s.priceForTwoInr, tagline: s.tagline, openHours: s.openHours,
           vegFriendly: s.vegFriendly, heroUrl: hero(s.name, hue), menuJson: JSON.stringify(s.menu),
         },
-      }).catch(() => undefined);
+      }).catch(swallowed('restaurants.ensureSeeds', undefined));
     }
   }
 }

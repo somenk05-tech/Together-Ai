@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { StorageProvider } from '../media/storage.provider';
@@ -84,8 +85,8 @@ export class DriveService {
   // ── storage usage (unified vault: mail + health + drive) ──
   async usage(userId: string) {
     const [mail, health, drive] = await Promise.all([
-      this.prisma.mailMessage.findMany({ where: { ownerId: userId }, select: { sizeBytes: true } }).catch(() => [] as Array<{ sizeBytes: number | null }>),
-      (this.prisma.medicalRecord.findMany({ where: { userId }, select: { sizeBytes: true } as never }) as Promise<Array<{ sizeBytes: number | null }>>).catch(() => []),
+      this.prisma.mailMessage.findMany({ where: { ownerId: userId }, select: { sizeBytes: true } }).catch(swallowed('drive.usage', [] as Array<{ sizeBytes: number | null }>)),
+      (this.prisma.medicalRecord.findMany({ where: { userId }, select: { sizeBytes: true } as never }) as Promise<Array<{ sizeBytes: number | null }>>).catch(swallowed('drive.usage', [])),
       this.files.aggregate({ where: { ownerId: userId }, _sum: { sizeBytes: true } }).catch(() => ({ _sum: { sizeBytes: 0 } })),
     ]);
     const mailBytes = mail.reduce((s, m) => s + (m.sizeBytes ?? 0), 0);
@@ -166,7 +167,7 @@ export class DriveService {
       for (const k of kids) ids.push(k.id);
     }
     const doomed = await this.files.findMany({ where: { ownerId: userId, folderId: { in: ids } } as never });
-    for (const f of doomed) await this.storage.deleteHealthObject(f.storageKey).catch(() => undefined);
+    for (const f of doomed) await this.storage.deleteHealthObject(f.storageKey).catch(swallowed('drive.deleteFolder', undefined));
     await this.folders.delete({ where: { id } }); // children + files cascade
     return { ok: true, deletedFiles: doomed.length };
   }
@@ -233,7 +234,7 @@ export class DriveService {
   async deleteFile(userId: string, id: string) {
     const row = await this.files.findFirst({ where: { id, ownerId: userId } });
     if (!row) throw new NotFoundException('File not found.');
-    await this.storage.deleteHealthObject(row.storageKey).catch(() => undefined);
+    await this.storage.deleteHealthObject(row.storageKey).catch(swallowed('drive.deleteFile', undefined));
     await this.files.delete({ where: { id } });
     return { ok: true };
   }

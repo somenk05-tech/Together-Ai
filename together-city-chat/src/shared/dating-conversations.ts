@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import type { PrismaService } from './prisma/prisma.service';
 
 /**
@@ -35,7 +36,7 @@ export async function datingConversationIds(prisma: PrismaService, userId: strin
       where: { OR: [{ userOneId: userId }, { userTwoId: userId }], conversationId: { not: null } },
       select: { conversationId: true },
     })
-    .catch(() => [] as MatchRow[]);
+    .catch(swallowed('shared.datingConversationIds', [] as MatchRow[]));
   const out = new Set<string>();
   for (const r of rows) if (r.conversationId) out.add(r.conversationId);
   return out;
@@ -72,7 +73,7 @@ export async function datingContext(
       where: { conversationId },
       select: { revealByOne: true, revealByTwo: true, conversationId: true, userOneId: true, userTwoId: true },
     })
-    .catch(() => null);
+    .catch(swallowed('shared.datingContext', null));
   if (!row) return { dating: false, revealed: false, senderRevealed: false };
 
   const revealed = Boolean(row.revealByOne && row.revealByTwo);

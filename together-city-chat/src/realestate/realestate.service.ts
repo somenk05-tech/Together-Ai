@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
@@ -34,7 +35,7 @@ export class RealEstateService implements OnModuleInit {
     // One-time cleanup: remove the old demo listings (platform-seeded ids).
     await this.prisma.property.deleteMany({
       where: { id: { in: ['re_ready_1', 're_ready_2', 're_ready_3', 're_uc_1', 're_uc_2'] }, sellerId: null },
-    }).catch(() => undefined);
+    }).catch(swallowed('realestate.onModuleInit', undefined));
   }
 
   /**
@@ -265,7 +266,7 @@ export class RealEstateService implements OnModuleInit {
   private async logModeration(listingId: string, actor: string, decision: string, reason: string) {
     await (this.prisma as unknown as { moderationLog: { create(a: unknown): Promise<unknown> } }).moderationLog
       .create({ data: { listingId, actor, decision, reason: reason.slice(0, 500) } })
-      .catch(() => undefined);
+      .catch(swallowed('realestate.logModeration', undefined));
   }
 
   // ─────────────── admin moderation ───────────────

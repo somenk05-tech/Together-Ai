@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { StorageProvider } from '../media/storage.provider';
@@ -274,7 +275,7 @@ export class AvatarsService {
    */
   async remove(userId: string, id: string) {
     const row = await this.own(userId, id);
-    if (row.assetKey) await this.storage.deleteHealthObject(row.assetKey).catch(() => undefined);
+    if (row.assetKey) await this.storage.deleteHealthObject(row.assetKey).catch(swallowed('avatars.remove', undefined));
     await this.avatar.deleteMany({ where: { id, userId } });
     return { ok: true as const };
   }

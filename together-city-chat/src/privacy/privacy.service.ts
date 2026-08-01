@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { exportPlan, manifest, scrubRow, type ExportManifest } from './data-export';
@@ -90,7 +91,7 @@ export class PrivacyService {
   }
 
   async get(userId: string): Promise<PrivacyStateView> {
-    const rows = await this.store.findMany({ where: { userId } }).catch(() => [] as SettingRow[]);
+    const rows = await this.store.findMany({ where: { userId } }).catch(swallowed('privacy.get', [] as SettingRow[]));
     const acks: Record<string, boolean> = {};
     const prefs: Record<string, boolean> = {};
     let tosAccepted = false;

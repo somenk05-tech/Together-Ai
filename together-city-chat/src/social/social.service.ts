@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { spawn } from 'child_process';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -144,7 +145,7 @@ export class SocialService {
     const target = await this.prisma.user.findFirst({ where: { OR: [{ id: targetRef }, { handle: ref }] }, select: { id: true } });
     if (!target) throw new NotFoundException('No citizen with that handle.');
     if (target.id === userId) throw new ForbiddenException("You can't follow yourself.");
-    const before = await this.prisma.follow.findUnique({ where: { followerId_followeeId: { followerId: userId, followeeId: target.id } } }).catch(() => null);
+    const before = await this.prisma.follow.findUnique({ where: { followerId_followeeId: { followerId: userId, followeeId: target.id } } }).catch(swallowed('social.follow', null));
     await this.prisma.follow.createMany({ data: [{ followerId: userId, followeeId: target.id }], skipDuplicates: true });
     // Notify only on a genuinely new follow (not a repeat).
     if (!before) {
@@ -415,7 +416,7 @@ export class SocialService {
         status: 'ACCEPTED' as never,
         OR: [{ userOneId: userId }, { userTwoId: userId }],
       },
-    }).catch(() => []);
+    }).catch(swallowed('social.familyIds', []));
     return new Set(
       rows
         .filter((r) => ((r as unknown as { relationship?: string | null }).relationship ?? '') === 'family')
@@ -624,18 +625,18 @@ export class SocialService {
       const p = await this.prisma.post.findUnique({
         where: { id: targetId },
         select: { id: true, text: true, createdAt: true, moderation: true, author: { select: AUTHOR_SELECT } } as never,
-      }).catch(() => null) as null | { id: string; text: string | null; createdAt: Date; moderation: string; author: unknown };
+      }).catch(swallowed('social.reportSubject', null)) as null | { id: string; text: string | null; createdAt: Date; moderation: string; author: unknown };
       if (!p) return { kind: 'post' as const, gone: true };
       return { kind: 'post' as const, gone: false, text: p.text, createdAt: p.createdAt, moderation: p.moderation, author: p.author };
     }
     if (targetType === 'user') {
-      const u = await this.prisma.user.findUnique({ where: { id: targetId }, select: AUTHOR_SELECT }).catch(() => null);
+      const u = await this.prisma.user.findUnique({ where: { id: targetId }, select: AUTHOR_SELECT }).catch(swallowed('social.reportSubject', null));
       return u ? { kind: 'user' as const, gone: false, user: u } : { kind: 'user' as const, gone: true };
     }
     const c = await this.prisma.comment.findUnique({
       where: { id: targetId },
       select: { id: true, text: true, createdAt: true, author: { select: AUTHOR_SELECT } } as never,
-    }).catch(() => null);
+    }).catch(swallowed('social.reportSubject', null));
     return c ? { kind: 'comment' as const, gone: false, comment: c } : { kind: 'comment' as const, gone: true };
   }
 
@@ -741,7 +742,7 @@ export class SocialService {
 
   /** The display name of whoever triggered a notification. */
   private async actorName(userId: string): Promise<string> {
-    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(() => null);
+    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(swallowed('social.actorName', null));
     return u?.name ?? 'Someone';
   }
 

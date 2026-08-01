@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { ACTIVITY_FACTORS } from '../shared/energy';
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { answeredNow } from '../shared/prisma/answered-at';
@@ -36,7 +37,7 @@ export class FitnessService {
     // Shared demographics (age, gender, height, weight) are owned by the Master
     // Profile — the single source of truth — so they always reflect whatever the
     // user entered in any hub. Fitness owns only level/mode/goal/conditions/body.
-    const pre = await this.prefillFromMaster(userId).catch(() => null);
+    const pre = await this.prefillFromMaster(userId).catch(swallowed('fitness.getProfile', null));
     if (!row) {
       const sex = pre?.sex ?? 'other';
       return { ...DEFAULT_PROFILE, ...(pre ?? {}), saved: false, prefilled: Boolean(pre && (pre.heightCm || pre.weightKg || pre.age)), options: this.optionsFor(sex) };
@@ -70,7 +71,7 @@ export class FitnessService {
    * rather than choosing a factor for them.
    */
   private async activityFor(userId: string): Promise<number | null> {
-    const m = await this.masterProfile.get(userId).catch(() => null);
+    const m = await this.masterProfile.get(userId).catch(swallowed('fitness.activityFor', null));
     const level = (m as { activityLevel?: string | null } | null)?.activityLevel;
     if (!level) return null;
     return ACTIVITY_FACTORS[level as keyof typeof ACTIVITY_FACTORS] ?? null;
@@ -119,7 +120,7 @@ export class FitnessService {
     await this.masterProfile.syncShared(userId, {
       heightCm: dto.heightCm ?? undefined, weightKg: dto.weightKg ?? undefined,
       sexAtBirth: dto.sex === 'other' ? undefined : dto.sex,
-    }, 'fitness').catch(() => undefined);
+    }, 'fitness').catch(swallowed('fitness.saveProfile', undefined));
     return this.getProfile(userId);
   }
 

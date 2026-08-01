@@ -1,3 +1,4 @@
+import { swallowed } from '../../shared/swallow';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -36,7 +37,7 @@ export class ClockService {
   async timezoneFor(userId: string): Promise<string> {
     const row = await this.prisma.masterProfile
       .findUnique({ where: { userId }, select: { timeZone: true } })
-      .catch(() => null);
+      .catch(swallowed('shared.timezoneFor', null));
     const tz = (row as { timeZone?: string | null } | null)?.timeZone;
     return this.validZone(tz) ? (tz as string) : DEFAULT_TIMEZONE;
   }

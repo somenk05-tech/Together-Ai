@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { Injectable, Logger } from '@nestjs/common';
 import { datingContext } from '../shared/dating-conversations';
 import { nickname } from '../shared/nickname';
@@ -85,7 +86,7 @@ export class NotificationsService {
 
   /** Recent notifications for a user, newest first. */
   async listFor(userId: string, limit = 50) {
-    const rows = await this.notif.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: limit }).catch(() => [] as NotificationRow[]);
+    const rows = await this.notif.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: limit }).catch(swallowed('notifications.listFor', [] as NotificationRow[]));
     return rows.map((r) => this.shape(r));
   }
 
@@ -94,12 +95,12 @@ export class NotificationsService {
   }
 
   async markRead(userId: string, id: string): Promise<void> {
-    await this.notif.updateMany({ where: { id, userId }, data: { read: true } }).catch(() => undefined);
+    await this.notif.updateMany({ where: { id, userId }, data: { read: true } }).catch(swallowed('notifications.markRead', undefined));
     this.gateway.emitCount(userId, await this.unreadCount(userId));
   }
 
   async markAllRead(userId: string): Promise<void> {
-    await this.notif.updateMany({ where: { userId, read: false }, data: { read: true } }).catch(() => undefined);
+    await this.notif.updateMany({ where: { userId, read: false }, data: { read: true } }).catch(swallowed('notifications.markAllRead', undefined));
     this.gateway.emitCount(userId, 0);
   }
 
@@ -129,7 +130,7 @@ export class NotificationsService {
   /** Clear a conversation's message notification once the user opens it, so the
    *  bell badge stays in sync with what they've actually read. */
   async markConversationRead(userId: string, conversationId: string): Promise<void> {
-    await this.notif.updateMany({ where: { userId, kind: 'message', entityId: conversationId, read: false }, data: { read: true } }).catch(() => undefined);
+    await this.notif.updateMany({ where: { userId, kind: 'message', entityId: conversationId, read: false }, data: { read: true } }).catch(swallowed('notifications.markConversationRead', undefined));
     this.gateway.emitCount(userId, await this.unreadCount(userId));
   }
 

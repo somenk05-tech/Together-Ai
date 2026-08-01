@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { demoDataEnabled, DEMO_DISABLED_REASON } from '../shared/demo-data';
 import { randomBytes } from 'crypto';
@@ -73,7 +74,7 @@ export class TravelService implements OnModuleInit {
         },
       }),
     );
-    await this.mail.deliverSystem(userId, packageReceipt({ title: p.title, destination: p.destination, nights: p.nights, days: p.days, tier: dto.tier, pax: dto.pax, totalInr, code: bookingCode, startDate: dto.startDate ?? null })).catch(() => undefined);
+    await this.mail.deliverSystem(userId, packageReceipt({ title: p.title, destination: p.destination, nights: p.nights, days: p.days, tier: dto.tier, pax: dto.pax, totalInr, code: bookingCode, startDate: dto.startDate ?? null })).catch(swallowed('travel.bookPackage', undefined));
     return this.myTrips(userId);
   }
 
@@ -115,7 +116,7 @@ export class TravelService implements OnModuleInit {
         },
       }),
     );
-    await this.mail.deliverSystem(userId, flightReceipt({ from: flight.from, to: flight.to, airline: flight.airline, flightNo: flight.flightNo, departTime: flight.departTime, arriveTime: flight.arriveTime, durationLabel: flight.durationLabel, stopLabel: flight.stopLabel, cabin: flight.cabin, date: dto.date, pax: dto.pax, totalInr, code: bookingCode })).catch(() => undefined);
+    await this.mail.deliverSystem(userId, flightReceipt({ from: flight.from, to: flight.to, airline: flight.airline, flightNo: flight.flightNo, departTime: flight.departTime, arriveTime: flight.arriveTime, durationLabel: flight.durationLabel, stopLabel: flight.stopLabel, cabin: flight.cabin, date: dto.date, pax: dto.pax, totalInr, code: bookingCode })).catch(swallowed('travel.bookFlight', undefined));
     return this.myTrips(userId);
   }
 
@@ -138,7 +139,7 @@ export class TravelService implements OnModuleInit {
     if (!demoDataEnabled()) {
       const ids = PACKAGE_SEEDS.map((s) => s.id);
       const gone = await this.prisma.travelPackage.deleteMany({ where: { id: { in: ids } } })
-        .catch(() => null);
+        .catch(swallowed('travel.ensureSeeds', null));
       if (gone === null) {
         this.logger.warn(
           `Could not remove seeded travel packages (${ids.join(', ')}) — most likely a real booking references one. Resolve those bookings, then restart.`,
@@ -156,7 +157,7 @@ export class TravelService implements OnModuleInit {
           highlightsJson: JSON.stringify(s.highlights), inclusionsJson: JSON.stringify(s.inclusions),
           itineraryJson: JSON.stringify(s.itinerary), tiersJson: JSON.stringify(s.tiers),
         },
-      }).catch(() => undefined);
+      }).catch(swallowed('travel.ensureSeeds', undefined));
     }
   }
 }

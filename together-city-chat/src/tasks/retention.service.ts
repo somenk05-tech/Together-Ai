@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -99,6 +100,6 @@ export class RetentionService {
     where: unknown,
   ): Promise<{ count: number } | null> {
     if (!model) return Promise.resolve({ count: 0 });
-    return model.deleteMany({ where }).catch(() => null);
+    return model.deleteMany({ where }).catch(swallowed('tasks.sweep', null));
   }
 }

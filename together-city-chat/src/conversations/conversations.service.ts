@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
@@ -218,11 +219,11 @@ export class ConversationsService {
   async summaryFor(conversationId: string, userId: string): Promise<{ lastMessageAt: string; lastText: string | null; lastSenderId: string | null; unread: number }> {
     const member = await this.prisma.conversationMember.findUnique({
       where: { conversationId_userId: { conversationId, userId } },
-    }).catch(() => null);
+    }).catch(swallowed('conversations.summaryFor', null));
     const last = await this.prisma.message.findFirst({
       where: { conversationId, deleted: false },
       orderBy: { createdAt: 'desc' },
-    }).catch(() => null);
+    }).catch(swallowed('conversations.summaryFor', null));
     const unread = await this.prisma.message.count({
       where: {
         conversationId, deleted: false, senderId: { not: userId },
@@ -240,12 +241,12 @@ export class ConversationsService {
   /** Archive a conversation for every member (used when a dating match is
    *  unmatched — the chat leaves both people's lists). */
   async archiveForAll(conversationId: string): Promise<void> {
-    await this.prisma.conversationMember.updateMany({ where: { conversationId }, data: { archived: true } }).catch(() => undefined);
+    await this.prisma.conversationMember.updateMany({ where: { conversationId }, data: { archived: true } }).catch(swallowed('conversations.archiveForAll', undefined));
   }
 
   /** Advance/clear a dating conversation's anonymity (reveal at ≥2). */
   async setAnonymousTrust(conversationId: string, trust: number | null): Promise<void> {
-    await this.prisma.conversation.update({ where: { id: conversationId }, data: { anonymousTrust: trust } as never }).catch(() => undefined);
+    await this.prisma.conversation.update({ where: { id: conversationId }, data: { anonymousTrust: trust } as never }).catch(swallowed('conversations.setAnonymousTrust', undefined));
   }
 
   /**

@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { matchesFor, type RecordedAllergy } from './allergy-notice';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -159,7 +160,7 @@ export class PrescriptionsService {
       where: { userId, kind: 'allergy' },
       orderBy: { recordedOn: 'desc' },
       take: 50,
-    }).catch(() => null);
+    }).catch(swallowed('prescriptions.recordedAllergies', null));
     return (rows ?? []).map((r) => ({
       id: r.id,
       title: r.title,
@@ -688,7 +689,7 @@ export class PrescriptionsService {
           action: 'missed',
           actedAtUtc: null,
         },
-      }).catch(() => undefined); // a race that lost is fine: the row exists
+      }).catch(swallowed('prescriptions.markMissed', undefined)); // a race that lost is fine: the row exists
       missed++;
     }
     return missed;

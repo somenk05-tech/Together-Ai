@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { StorageProvider } from '../media/storage.provider';
@@ -93,7 +94,7 @@ export class AccountPurgeService {
           const value = row[key];
           if (typeof value !== 'string' || !value) continue;
           // Everything with a storage key here lives in the private vault.
-          await this.storage.deleteHealthObject(value).catch(() => undefined);
+          await this.storage.deleteHealthObject(value).catch(swallowed('privacy.purgeObjects', undefined));
           removed++;
         }
       } catch (e) {

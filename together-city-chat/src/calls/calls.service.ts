@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
@@ -179,7 +180,7 @@ export class CallsService {
     if (dto.type === 'avatar') {
       const owned = await this.avatarTable
         .findFirst({ where: { id: dto.avatarId, userId, status: 'ready' }, select: { id: true } })
-        .catch(() => null);
+        .catch(swallowed('calls.start', null));
       if (!owned) throw new BadRequestException('That avatar is not ready, or is not yours.');
     }
 

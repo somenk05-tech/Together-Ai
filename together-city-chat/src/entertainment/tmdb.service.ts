@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 
 /**
@@ -405,10 +406,10 @@ export class TmdbService {
         Promise.all(seeds.map((s) =>
           this.get<TmdbList>(`/${s.type === 'tv' ? 'tv' : 'movie'}/${s.id}/recommendations`)
             .then((r) => r.results.map((m) => ({ ...this.shape(m), type: s.type })))
-            .catch(() => [] as (MovieCard & { type: 'movie' | 'tv' })[]),
+            .catch(swallowed('entertainment.recommendedFor', [] as (MovieCard & { type: 'movie' | 'tv' })[])),
         )),
-        topGenres[0] ? this.discover(topGenres[0], topLangs[0], undefined, 'movie').then((r) => r.results).catch(() => []) : Promise.resolve([]),
-        topGenres[0] ? this.discover(topGenres[0], undefined, undefined, 'tv').then((r) => r.results).catch(() => []) : Promise.resolve([]),
+        topGenres[0] ? this.discover(topGenres[0], topLangs[0], undefined, 'movie').then((r) => r.results).catch(swallowed('entertainment.recommendedFor', [])) : Promise.resolve([]),
+        topGenres[0] ? this.discover(topGenres[0], undefined, undefined, 'tv').then((r) => r.results).catch(swallowed('entertainment.recommendedFor', [])) : Promise.resolve([]),
       ]);
 
       const savedKeys = new Set(saved.map((s) => `${s.type}${s.id}`));

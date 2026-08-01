@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { Injectable, Logger } from '@nestjs/common';
 import * as webpush from 'web-push';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -60,7 +61,7 @@ export class WebPushProvider {
           const code = (e as { statusCode?: number }).statusCode;
           // 404/410 → the subscription expired; drop it so we stop trying.
           if (code === 404 || code === 410) {
-            await this.prisma.deviceToken.deleteMany({ where: { token } }).catch(() => undefined);
+            await this.prisma.deviceToken.deleteMany({ where: { token } }).catch(swallowed('notifications.send', undefined));
           } else {
             this.logger.warn(`web push failed (${code ?? '?'}): ${(e as Error).message}`);
           }
