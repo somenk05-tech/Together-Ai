@@ -14,10 +14,24 @@
  * something. This hub is defined against endless (see DATING_CHAT_CAP's note,
  * which is the same argument about conversations).
  *
- * WHY SIXTY. High enough that nobody browsing honestly will meet it — the
- * curated stack rarely offers that many in a day — and low enough that
- * liking everything stops being a strategy. If it turns out real citizens hit
- * it, that is a finding about the number, not about the rule.
+ * WHY TWENTY. Set by the owner on 2 Aug, down from the 60 engineering had
+ * chosen to unblock the work.
+ *
+ * The change is not cosmetic, and the old comment would have become untrue if
+ * it had been left: 60 was justified here as a ceiling "high enough that nobody
+ * browsing honestly will meet it". Twenty is not that. An active citizen on a
+ * good day can plausibly reach twenty, which means the limit stops being an
+ * invisible backstop against liking everything and becomes a budget people
+ * actually feel.
+ *
+ * That is a defensible thing to want — a like nobody has to think about is the
+ * signal this cap exists to protect — but it is a different design, so the
+ * things to watch are different too. `likeLimitMessage` is now a sentence real
+ * citizens will read rather than an edge case, which is why it names when the
+ * allowance returns and says the people they have not seen will still be there.
+ * If citizens hit it and stop opening the hub, that is a finding about the
+ * number; if they hit it and the likes they do send land better, the number is
+ * doing its job.
  *
  * WHY ONE SUPER-LIKE. Scarcity is the entire mechanism. Two is not meaningfully
  * different from one, and five is a second kind of like. It is deliberately NOT
@@ -29,7 +43,7 @@
  */
 
 /** Likes — ordinary and super combined — one citizen may send per local day. */
-export const DAILY_LIKES = 60;
+export const DAILY_LIKES = 20;
 
 /** Super-likes within that allowance per local day. */
 export const DAILY_SUPER_LIKES = 1;
