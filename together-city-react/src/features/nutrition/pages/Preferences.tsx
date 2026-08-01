@@ -4,6 +4,7 @@ import { useFormValidation, ValidationSummary, FieldError, successToast } from '
 import { Button, Spinner } from '@/components/ui';
 import { useFoodPref, useNutritionTargets, useUpdateFoodPref } from '../hooks';
 import { TargetsRefusal } from '../components/TargetsDisclosure';
+import { MedicalRecs } from '../components/MedicalRecs';
 import { useBloodHistory } from '@/features/medical/api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
@@ -204,7 +205,11 @@ export function Preferences() {
     if (existing.data && !form) {
       setForm(existing.data);
       let parsed: Extras = {};
-      try { parsed = existing.data.extras ? JSON.parse(existing.data.extras) : {}; } catch { parsed = {}; }
+      // `JSON.parse` returns `any`, and assigning that straight into a typed
+      // Extras was one of the web package's nine standing lint errors. Cast at
+      // the parse, not at the variable: the shape is unverified either way, and
+      // this at least says so in one place.
+      try { parsed = (existing.data.extras ? JSON.parse(existing.data.extras) : {}) as Extras; } catch { parsed = {}; }
       // Migration: the old separate "Meats you eat" list is folded into the single
       // Protein sources list, so prior meat picks aren't lost and any hidden ones
       // (e.g. Fish) become visible for the user to keep or remove.
@@ -439,6 +444,18 @@ export function Preferences() {
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0' }}>
         Your taste, your health goals, your budget — behind every meal plan and recipe.
       </p>
+
+      {/* Second of the six finished-but-unwired components (owner: wire, don't
+          delete). It belongs HERE rather than on the planner because what it
+          offers is a change to this page's saved answers — `useDecideMedicalRec`
+          invalidates the preferences cache — and a card that changes your
+          preferences should sit where your preferences are, not next to the
+          plan built from them.
+
+          It draws nothing when there are no recommendations and nothing has
+          been acknowledged, so a citizen with no condition on file sees no
+          empty section asserting that none apply. */}
+      <div style={{ marginTop: 18 }}><MedicalRecs /></div>
 
       {collapsed && (
         <div className="card" style={{ marginTop: 16 }}>

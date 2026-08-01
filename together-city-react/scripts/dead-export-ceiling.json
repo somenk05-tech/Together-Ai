@@ -1,4 +1,4 @@
 {
   "comment": "Exported symbols no other module imports. See scripts/dead-export-audit.mjs. Never raise it.",
-  "total": 3
+  "total": 2
 }
