@@ -3,7 +3,7 @@ import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundEx
 import { demoDataEnabled } from '../shared/demo-data';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService } from '../shared/clock/clock.service';
-import { ORDER_HISTORY_CAP } from '../shared/paging';
+import { FEED_CAP, ORDER_HISTORY_CAP } from '../shared/paging';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { parseResume, matchJobs, labelFor, JOB_SEEDS, type ParsedResume, type JobLike } from './jobs-engine';
 import type { UploadResumeDto, SaveJobProfileDto, ApplyDto, PostJobDto } from './dto/jobs.dto';
@@ -81,6 +81,8 @@ export class JobsService implements OnModuleInit {
   }
 
   private async allJobs(userId?: string): Promise<JobLike[]> {
+    // unbounded: the matcher scores EVERY open posting — the board is
+    // employer-curated and moderated, not citizen-grown
     const rows = await this.prisma.job.findMany({ orderBy: { createdAt: 'desc' } });
     return rows.map((r) => this.toJobLike(r, userId));
   }
@@ -94,6 +96,8 @@ export class JobsService implements OnModuleInit {
       experienceYears: row.experienceYears, seniority: row.seniority as ParsedResume['seniority'], location: row.location,
     };
     const jobs = await this.allJobs(userId);
+    // unbounded: their own applications, as a filter set — truncation would
+    // re-offer roles they already applied to
     const applied = new Set((await this.prisma.jobApplication.findMany({ where: { userId }, select: { jobId: true } })).map((a) => a.jobId));
     const matches = matchJobs(parsed, jobs).map((m) => ({
       ...m,
@@ -214,12 +218,14 @@ export class JobsService implements OnModuleInit {
   async applicants(userId: string, jobId: string) {
     const job = await this.prisma.job.findFirst({ where: { id: jobId, postedById: userId } });
     if (!job) throw new NotFoundException('posting not found');
-    const apps = await this.prisma.jobApplication.findMany({ where: { jobId }, orderBy: { createdAt: 'desc' } });
+    const apps = await this.prisma.jobApplication.findMany({ where: { jobId }, orderBy: { createdAt: 'desc' }, take: FEED_CAP });
     const jobSkills = new Set(job.skills ? job.skills.split(',').filter(Boolean) : []);
     // M1: batch the user + profile lookups instead of N+1 per applicant.
     const userIds = [...new Set(apps.map((a) => a.userId))];
     const [users, profs] = await Promise.all([
+      // unbounded: `in:` of ids from the capped list above bounds both reads
       this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, handle: true } }),
+      // unbounded: same bounded id set
       this.prisma.jobProfile.findMany({ where: { userId: { in: userIds } } }),
     ]);
     const userBy = new Map(users.map((u) => [u.id, u]));
@@ -248,6 +254,7 @@ export class JobsService implements OnModuleInit {
     // a real person's real submission and is not ours to delete.
     if (!demoDataEnabled()) {
       const ids = JOB_SEEDS.map((j) => j.id);
+      // unbounded: distinct jobIds over the fixed seed-id set
       const withApplicants = await this.prisma.jobApplication
         .findMany({ where: { jobId: { in: ids } }, select: { jobId: true }, distinct: ['jobId'] })
         .then((rows: Array<{ jobId: string }>) => rows.map((r) => r.jobId))

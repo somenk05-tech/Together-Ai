@@ -137,6 +137,7 @@ export class RestaurantsService implements OnModuleInit {
       }
     }
     if (!cands.length) {
+      // unbounded: the seeded catalogue — city-curated; ranking scans all of it
       const rows = await this.prisma.restaurant.findMany() as RestaurantRow[];
       cands = rows.map((row) => ({ row, source: 'seed' as const }));
     }
@@ -271,6 +272,7 @@ export class RestaurantsService implements OnModuleInit {
       }
     }
     if (!cands.length) {
+      // unbounded: the seeded catalogue — city-curated; ranking scans all of it
       const rows = await this.prisma.restaurant.findMany() as RestaurantRow[];
       cands = rows.map((row) => ({ row, source: 'seed' as const }));
     }
@@ -434,6 +436,7 @@ export class RestaurantsService implements OnModuleInit {
   async search(userId: string, term: string) {
     const q = (term ?? '').trim().toLowerCase();
     if (q.length < 2) return { query: term ?? '', results: [] as unknown[] };
+    // unbounded: the seeded catalogue — city-curated; ranking scans all of it
     const rows = await this.prisma.restaurant.findMany() as RestaurantRow[];
     const hits = rows.filter((r) =>
       r.name.toLowerCase().includes(q) || r.cuisine.toLowerCase().includes(q) ||
@@ -531,6 +534,7 @@ export class RestaurantsService implements OnModuleInit {
     const diet = await this.userDiet(userId);
     const allow = diet ? DIET_ALLOW[diet] ?? null : null;
     const vegDiet = diet ? ['veg', 'vegan', 'jain'].includes(diet) : false;
+    // unbounded: the seeded catalogue — city-curated; ranking scans all of it
     const rows = await this.prisma.restaurant.findMany() as RestaurantRow[]; // catalogue = the menus we can read
 
     type Match = { matchScore: number } & Record<string, unknown>;
@@ -572,6 +576,7 @@ export class RestaurantsService implements OnModuleInit {
   }
 
   async browse(userId: string, query: RestaurantQueryDto) {
+    // unbounded: the seeded catalogue — city-curated; ranking scans all of it
     const rows = await this.prisma.restaurant.findMany() as RestaurantRow[];
     const diet = await this.userDiet(userId);
     const allow = diet ? DIET_ALLOW[diet] ?? null : null;

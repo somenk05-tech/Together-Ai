@@ -67,6 +67,7 @@ export class MailService {
       driveFile: { findMany(a: unknown): Promise<Array<{ id: string; name: string; mimeType: string | null; sizeBytes: number; storageKey: string }>> };
     }).driveFile;
     // A failed read silently sent the mail WITHOUT its attachments.
+    // unbounded: `in:` of at most 10 ids — the attach flow slices first
     const files = (await swallow(drive.findMany({
       where: { id: { in: fileIds.slice(0, 10) }, ownerId: userId },
     }), 'mail: outgoing attachments read', { userId })) ?? [];
@@ -138,7 +139,7 @@ export class MailService {
       driveFile: { findMany(a: unknown): Promise<Array<{ id: string; name: string; mimeType: string | null; sizeBytes: number }>> };
     }).driveFile;
     // [] on failure told the reader this thread HAD no attachments — an
-    // absence never established.
+    // absence never established. unbounded: attach flow caps at 10 per entity
     const items = (await swallow(drive.findMany({
       where: { attachedType: 'mail', attachedId: threadId },
       select: { id: true, name: true, mimeType: true, sizeBytes: true },
@@ -206,6 +207,7 @@ export class MailService {
   }
 
   private async usedBytes(userId: string): Promise<number> {
+    // unbounded: the storage meter SUMS every row — truncating undercounts the vault
     const rows = await this.prisma.mailMessage.findMany({ where: { ownerId: userId }, select: { sizeBytes: true } });
     return rows.reduce((s, r) => s + r.sizeBytes, 0);
   }
@@ -298,6 +300,7 @@ export class MailService {
     const rows = await this.prisma.mailMessage.findMany({
       where: { ownerId: userId, threadId },
       orderBy: { createdAt: 'asc' },
+      take: FEED_CAP, // a thread longer than this needs pagination, not scroll
     });
     return rows.map((m) => ({ ...this.shape(m), body: m.body }));
   }
@@ -615,6 +618,8 @@ export class MailService {
    * BLOCKED/REMOVED is the opposite of one.
    */
   private async connectedIds(userId: string): Promise<string[]> {
+    // unbounded: a citizen's ACCEPTED connections feed the address-book id
+    // set; the visible list downstream is already capped at 200
     const rows = await this.prisma.connection.findMany({
       where: {
         status: ConnectionStatus.ACCEPTED,

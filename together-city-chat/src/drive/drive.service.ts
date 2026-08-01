@@ -1,3 +1,4 @@
+import { RECORD_CAP } from '../shared/paging';
 import { swallowed } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -85,7 +86,9 @@ export class DriveService {
   // ── storage usage (unified vault: mail + health + drive) ──
   async usage(userId: string) {
     const [mail, health, drive] = await Promise.all([
+      // unbounded: the storage meter SUMS every row — truncating undercounts the vault
       this.prisma.mailMessage.findMany({ where: { ownerId: userId }, select: { sizeBytes: true } }).catch(swallowed('drive.usage', [] as Array<{ sizeBytes: number | null }>)),
+      // unbounded: same meter, the medical documents' share of it
       (this.prisma.medicalRecord.findMany({ where: { userId }, select: { sizeBytes: true } as never }) as Promise<Array<{ sizeBytes: number | null }>>).catch(swallowed('drive.usage', [])),
       this.files.aggregate({ where: { ownerId: userId }, _sum: { sizeBytes: true } }).catch(() => ({ _sum: { sizeBytes: 0 } })),
     ]);
@@ -108,8 +111,10 @@ export class DriveService {
   async list(userId: string, folderId?: string) {
     const parentId = await this.ownFolder(userId, folderId ?? null);
     const [folders, files] = await Promise.all([
-      this.folders.findMany({ where: { ownerId: userId, parentId }, orderBy: { name: 'asc' } }),
-      this.files.findMany({ where: { ownerId: userId, folderId: parentId }, orderBy: { createdAt: 'desc' } }),
+      // A folder deeper than the cap needs pagination, not scroll — the
+      // follow-up work paging.ts's header already names.
+      this.folders.findMany({ where: { ownerId: userId, parentId }, orderBy: { name: 'asc' }, take: RECORD_CAP }),
+      this.files.findMany({ where: { ownerId: userId, folderId: parentId }, orderBy: { createdAt: 'desc' }, take: RECORD_CAP }),
     ]);
     // Breadcrumb from the current folder up to the root.
     const breadcrumb: Array<{ id: string; name: string }> = [];
@@ -163,9 +168,12 @@ export class DriveService {
     // Collect the subtree so the stored objects can be removed too.
     const ids: string[] = [id];
     for (let i = 0; i < ids.length && i < 5000; i++) {
+      // unbounded: DELETION must find every descendant — a truncated subtree
+      // walk leaves orphaned folders and stored objects surviving the delete
       const kids = await this.folders.findMany({ where: { ownerId: userId, parentId: ids[i] }, select: { id: true } as never });
       for (const k of kids) ids.push(k.id);
     }
+    // unbounded: same rule — every file in the subtree dies with it
     const doomed = await this.files.findMany({ where: { ownerId: userId, folderId: { in: ids } } as never });
     for (const f of doomed) await this.storage.deleteHealthObject(f.storageKey).catch(swallowed('drive.deleteFolder', undefined));
     await this.folders.delete({ where: { id } }); // children + files cascade
@@ -287,6 +295,8 @@ export class DriveService {
 
   /** Everything the user has attached to a given entity. */
   async attachments(userId: string, attachedType: string, attachedId: string) {
+    // unbounded: the attach flows cap at 10 files per entity — the write side
+    // bounds this, not the citizen
     const rows = await this.files.findMany({
       where: { ownerId: userId, attachedType, attachedId },
       orderBy: { createdAt: 'desc' },

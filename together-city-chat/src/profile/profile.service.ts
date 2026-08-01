@@ -240,8 +240,12 @@ export class ProfileService {
       // Shares = reposts of this citizen's posts.
       // Someone else's repost of your post: a removed one is not a share.
       this.prisma.post.count({ where: { ...VISIBLE_ONLY, repostOf: { authorId: userId } } as never }),
+      // unbounded ×3: follower/following/connection COUNTS — a truncated set
+      // is a wrong number on the profile, not a slow one
       this.prisma.follow.findMany({ where: { followeeId: userId }, select: { followerId: true } }),
+      // unbounded: see above
       this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } }),
+      // unbounded: see above
       this.prisma.connection.findMany({ where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] }, select: { userOneId: true, userTwoId: true } }),
     ]);
     const connIds = connRows.map((c) => (c.userOneId === userId ? c.userTwoId : c.userOneId));
@@ -377,6 +381,7 @@ export class ProfileService {
     const ids = Array.isArray(order) ? order.filter((x) => typeof x === 'string') : [];
     if (!ids.length) return { ok: true, ordered: 0 };
     // Only reindex posts that actually belong to the caller.
+    // unbounded: `in:` of the caller's id list bounds it
     const owned = await this.prisma.post.findMany({
       where: { id: { in: ids }, authorId: userId },
       select: { id: true },
@@ -524,6 +529,7 @@ export class ProfileService {
     // One query for the viewer's connections, mapped to each result.
     const ids = rows.map((r) => r.id);
     const conns = ids.length
+      // unbounded: `in:` of at most 12 search results bounds it
       ? await this.prisma.connection.findMany({
           where: { connectionType: 'FRIEND', OR: [
             { userOneId: viewerId, userTwoId: { in: ids } },
