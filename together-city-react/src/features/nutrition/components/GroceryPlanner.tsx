@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { EmptyState, Spinner } from '@/components/ui';
 import { useGroceryPlan } from '../hooks';
 import { nutritionApi } from '../api';
@@ -109,21 +110,11 @@ function Aisle({ aisle, checked, toggle }: { aisle: GroceryAisle; checked: Set<s
  * shopping order, real-unit quantities, expandable "used in", a Grocery/Recipe
  * view toggle, check-off, and per-aisle shelf life + storage tips.
  */
-/** Local YYYY-MM-DD from the LIVE clock — never a stale/anchored date. */
-function isoDay(offset = 0): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-const DURATIONS = [1, 2, 5, 7] as const;
-
 export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
   // Shopping window: starts TODAY or TOMORROW (live date — you can't shop for a
   // day that's gone), for a chosen number of days.
-  const [startOffset, setStartOffset] = useState<0 | 1>(0);
-  const [days, setDays] = useState<number>(7);
-  const startDate = isoDay(startOffset);
-  const plan = useGroceryPlan(mode, days, startDate);
+  // No window state: the basket follows the locks, which the server reads.
+  const plan = useGroceryPlan(mode);
   const qc = useQueryClient();
   const schedule = plan.data?.deliverySchedule;
   const [view, setView] = useState<View>('grocery');
@@ -190,55 +181,43 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
     );
   }
 
-  // The window picker stays visible even when a window has no meals, so the
-  // citizen can widen it instead of hitting a dead end.
-  const windowPicker = (
-    <div className="card" style={{ marginBottom: 14, display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-      <div>
-        <div className="muted" style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 5 }}>Start</div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {([[0, 'Today'], [1, 'Tomorrow']] as const).map(([off, label]) => (
-            <button key={label} type="button" onClick={() => setStartOffset(off)}
-              style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 14px', borderRadius: 999,
-                border: `1.5px solid ${startOffset === off ? 'var(--accent)' : 'var(--line)'}`,
-                background: startOffset === off ? 'var(--accent)' : 'var(--card)', color: startOffset === off ? '#fff' : 'var(--ink)' }}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <div className="muted" style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 5 }}>How many days</div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {DURATIONS.map((d) => (
-            <button key={d} type="button" onClick={() => setDays(d)}
-              style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '7px 14px', borderRadius: 999,
-                border: `1.5px solid ${days === d ? 'var(--accent)' : 'var(--line)'}`,
-                background: days === d ? 'var(--accent)' : 'var(--card)', color: days === d ? '#fff' : 'var(--ink)' }}>
-              {d} {d === 1 ? 'day' : 'days'}
-            </button>
-          ))}
-        </div>
-      </div>
-      {summary?.startDate && (
-        <span className="muted" style={{ fontSize: 12, marginLeft: 'auto' }}>
-          Shopping for {new Date(`${summary.startDate}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-          {summary.endDate && summary.endDate !== summary.startDate
-            ? ` – ${new Date(`${summary.endDate}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
-            : ''}
-        </span>
-      )}
+  /**
+   * There is no window picker any more. (Owner decision, 1 Aug.)
+   *
+   * "Start: today | tomorrow" and "how many days" described days the citizen
+   * had not decided on yet — so the list churned whenever the planner rerolled
+   * a meal they were still browsing, and it bought food for a Thursday they
+   * might never cook. The basket follows the LOCKS now: locking a day is the
+   * act of deciding, and the list says which days it is made of rather than
+   * offering a length to choose.
+   */
+  const lockedNote = (
+    <div className="card" style={{ marginBottom: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', fontSize: 12.5 }}>
+      <span aria-hidden="true" style={{ fontSize: 15 }}>🔒</span>
+      <span style={{ flex: 1, minWidth: 200 }}>
+        This list is built from the days you have locked in your meal plan.
+      </span>
+      <Link to="/nutrition/weekly" style={{ fontWeight: 600, color: 'var(--accent)', textDecoration: 'none' }}>
+        Open meal plan →
+      </Link>
     </div>
   );
 
   if (itemCount === 0) {
+    // Two different nothings, and they need different sentences: a citizen who
+    // has locked no days can act, and one whose locked days produced no
+    // ingredients is looking at our problem. The server tells us which.
+    const nothingLocked = (summary as { lockedDays?: number } | undefined)?.lockedDays === 0
+      || (plan.data as { lockedDays?: number } | undefined)?.lockedDays === 0;
     return (
       <div>
-        {windowPicker}
+        {lockedNote}
         <EmptyState
-        icon="🛒"
-        title="No shopping list yet"
-          hint={`Generate a ${mode === 'family' ? 'family ' : ''}meal plan — your grocery list builds itself from it.`}
+          icon="🔒"
+          title={nothingLocked ? 'Lock a day to start your list' : 'Nothing to buy for the days you locked'}
+          hint={nothingLocked
+            ? 'Open your meal plan, settle a day you are happy with, and lock it — its ingredients land here.'
+            : 'The days you locked need nothing you do not already have.'}
         />
       </div>
     );
@@ -294,7 +273,7 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
 
   return (
     <div>
-      {windowPicker}
+      {lockedNote}
       {deliveryCard}
       {/* Shopping summary — household scaling + estimated cost & waste (family) */}
       {mode === 'family' && summary && summary.householdSize > 1 && (

@@ -81,6 +81,17 @@ const ALLOW: Array<{ id: string; why: string }> = [
 // Came off 1 Aug: auth's POST check-* pair and messages' REST read/delivered
 // (all four were duplicates of the paths actually used — GET *-available and
 // the socket receipts) were DELETED rather than wired.
+//
+// Went ON 1 Aug: the four /nutrition/qc/* routes. The quick-commerce comparison
+// panel was removed from the Grocery page because every price, ETA and stock
+// count it showed came from a deterministic SIMULATION (see the header of
+// nutrition/quick-commerce.ts) presented as live quotes and attributed to
+// Blinkit, Zepto, Swiggy Instamart, BigBasket and JioMart BY NAME. These are
+// parked rather than deleted because POST /nutrition/qc/order charged the
+// wallet and wrote NutritionOrder rows, so historical orders reference it —
+// removing the subsystem is a product decision, not a cleanup. Until it is
+// taken, four endpoints serving invented prices are reachable with a token and
+// rendered by nothing.
 const KNOWN_UNREACHED: string[] = [
   "beauty/beauty.controller.ts  DELETE /beauty/looks/*",
   "beauty/beauty.controller.ts  GET /beauty/looks",
@@ -105,8 +116,12 @@ const KNOWN_UNREACHED: string[] = [
   "nutrition/nutrition.controller.ts  GET /nutrition/diet-plans",
   "nutrition/nutrition.controller.ts  GET /nutrition/pantry/history",
   "nutrition/nutrition.controller.ts  GET /nutrition/qa/report",
+  "nutrition/nutrition.controller.ts  GET /nutrition/qc/compare",
+  "nutrition/nutrition.controller.ts  GET /nutrition/qc/orders/*/track",
+  "nutrition/nutrition.controller.ts  GET /nutrition/qc/search",
   "nutrition/nutrition.controller.ts  GET /nutrition/targets/history",
   "nutrition/nutrition.controller.ts  POST /nutrition/pantry/settle",
+  "nutrition/nutrition.controller.ts  POST /nutrition/qc/order",
   "prescriptions/prescriptions.controller.ts  GET /prescriptions/*",
   "prescriptions/prescriptions.controller.ts  GET /prescriptions/logs",
   "prescriptions/prescriptions.controller.ts  GET /prescriptions/today",

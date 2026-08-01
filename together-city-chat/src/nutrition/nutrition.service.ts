@@ -2470,7 +2470,10 @@ export class NutritionService implements OnModuleInit {
     // The basket must never be the reason a lock fails. A citizen who locked
     // their Tuesday and got an error has a locked Tuesday and no idea whether
     // it worked; they can always regenerate the list from the Grocery page.
-    const grocery = await this.groceryPlan(userId, mode, 1, dayISO)
+    // Recompute the WHOLE basket from the locks, not this one day. It is
+    // idempotent, it cannot double-count a day locked twice, and unlocking
+    // becomes the same operation in reverse.
+    const grocery = await this.groceryPlan(userId, mode)
       .catch(swallowed('nutrition.lockComposedDay grocery', null, { userId, day }));
 
     return {
@@ -2490,9 +2493,12 @@ export class NutritionService implements OnModuleInit {
     const locks = new Set(this.lockedDays(ex));
     locks.delete(day);
     await this.mergeExtras(userId, { composedLocks: [...locks].sort((a, b) => a - b) });
-    // The groceries STAY. They may already be ticked, or bought. Silently
-    // removing food from somebody's basket because they reopened a menu is a
-    // worse surprise than a line they can tick off themselves.
+    // The basket follows the locks, so this day's lines go — EXCEPT any the
+    // citizen has already ticked, which mergeGroceryList keeps precisely
+    // because a ticked line has been bought and removing it would make the
+    // list disagree with the trolley. Manual additions are never touched.
+    await this.groceryPlan(userId, 'individual')
+      .catch(swallowed('nutrition.unlockComposedDay grocery', null, { userId, day }));
     return { locked: false as const, day, plan: await this.composedPlan(userId) };
   }
 
@@ -5136,6 +5142,17 @@ export class NutritionService implements OnModuleInit {
     days: number,
     fromISO?: string,
     household = false,
+    /**
+     * Shop for exactly these plan days. (Owner decision, 1 Aug: the basket
+     * follows the LOCKS, not a window.)
+     *
+     * A start-date-plus-length window meant the list described days the citizen
+     * had not decided on yet — so it churned every time the planner rerolled a
+     * meal they were still browsing, and it bought food for a Thursday they
+     * might never cook. Locking is the act of deciding; the basket should
+     * contain the days that were decided and nothing else.
+     */
+    dayIndexes?: readonly number[],
   ): Promise<{
     dayCount: number;
     meals: Array<{ slot: string; recipeName: string; dayISO?: string; ingredients: Array<{ name: string; grams: number }> }>;
@@ -5161,8 +5178,16 @@ export class NutritionService implements OnModuleInit {
           offset = Math.max(0, Math.round((target - start) / 86_400_000));
         }
       }
-      const slice = plan.days.filter((d) => d.dayIndex >= offset).slice(0, days);
-      const use = slice.length ? slice : plan.days.slice(0, days);
+      let use: typeof plan.days;
+      if (dayIndexes) {
+        // Locked days only, in plan order. No fallback to a window: if nothing
+        // is locked the honest basket is an empty one, and groceryPlan says so.
+        const want = new Set(dayIndexes);
+        use = plan.days.filter((d) => want.has(d.dayIndex));
+      } else {
+        const slice = plan.days.filter((d) => d.dayIndex >= offset).slice(0, days);
+        use = slice.length ? slice : plan.days.slice(0, days);
+      }
       const startISO = plan.planStartDate && /^\d{4}-\d{2}-\d{2}$/.test(plan.planStartDate) ? plan.planStartDate : await this.today(userId);
       const meals = use.flatMap((d) => d.meals.flatMap((m) => m.components.map((c) => ({
         slot: m.slot,
@@ -5173,7 +5198,11 @@ export class NutritionService implements OnModuleInit {
           .filter((i) => !i.toTaste && (i.grams ?? 0) > 0)
           .map((i) => ({ name: i.name, grams: i.grams })),
       }))));
-      if (!meals.length) return await this.storedPlanMealsForShopping(userId, days);
+      // The stored-plan fallback exists for a citizen whose composed plan will
+      // not build. It must NOT rescue an empty locked set — "you have locked
+      // nothing" is a real answer, and substituting a week of unlocked meals
+      // for it would put food in the basket nobody asked for.
+      if (!meals.length) return dayIndexes ? empty : await this.storedPlanMealsForShopping(userId, days);
       return { dayCount: use.length, meals };
     } catch {
       return await this.storedPlanMealsForShopping(userId, days).catch(() => empty);
@@ -5233,10 +5262,14 @@ export class NutritionService implements OnModuleInit {
     // to the stored weekly plan only if the composed plan can't be produced.
     const window = Math.max(1, Math.min(28, Math.round(days)));
     const fromISO = await this.resolveStartDate(userId, startDate);
+    // THE BASKET FOLLOWS THE LOCKS. Days the citizen has settled, and nothing
+    // else — see composedMealsForShopping's dayIndexes.
+    const prefForLocks = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const locked = this.lockedDays(parseExtras((prefForLocks as { extras?: string | null } | null)?.extras));
     // mode==='family' composes with every household member's allergies and
     // exclusions applied, so the basket can never buy an ingredient for a dish
     // one of them can't eat.
-    const composed = await this.composedMealsForShopping(userId, window, fromISO, mode === 'family');
+    const composed = await this.composedMealsForShopping(userId, window, fromISO, mode === 'family', locked);
 
     // Household scaling factor. Individual = 1. Family = the SUM of each member's
     // portion multiplier (their daily calorie target ÷ a 2,000-kcal standard
@@ -5262,7 +5295,17 @@ export class NutritionService implements OnModuleInit {
     const slotCounts: Record<string, number> = { b: 0, l: 0, s: 0, d: 0 };
     const activeDays = composed.dayCount;
     const headcount = mode === 'family' ? Math.max(1, memberScales.length) : 1;
-    if (!composed.meals.length) return { aisles: [], recipes: [], itemCount: 0 };
+    if (!composed.meals.length) {
+      // Distinguish "nothing locked" from "we could not build a list" — the
+      // first is a thing the citizen can act on and the second is our failure.
+      return {
+        aisles: [], recipes: [], itemCount: 0,
+        lockedDays: locked.length,
+        note: locked.length
+          ? 'The days you locked have no ingredients to buy.'
+          : 'Nothing is locked yet. Lock a day in your meal plan and its ingredients appear here.',
+      };
+    }
     for (const meal of composed.meals) {
       slotCounts[meal.slot] = (slotCounts[meal.slot] ?? 0) + headcount;   // meals served = per-slot × people
       const rname = cleanRecipeName(meal.recipeName);

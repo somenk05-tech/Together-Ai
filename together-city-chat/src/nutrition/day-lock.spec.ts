@@ -31,13 +31,15 @@ function build(extras: Record<string, unknown> = {}) {
 }
 
 describe('what a lock does', () => {
-  it('records the day, and puts that day s shopping in the basket', async () => {
+  it('records the day, and rebuilds the basket from the locks', async () => {
     const { s, saved, groceryCalls } = build();
     const out = await s.lockComposedDay('u1', 2, 'individual');
     expect(out.locked).toBe(true);
     expect(saved[0]).toEqual({ composedLocks: [2] });
-    // Exactly one day, dated — not the whole week.
-    expect(groceryCalls[0]).toEqual(['u1', 'individual', 1, '2026-08-03']);
+    // NO window and no date: groceryPlan reads composedLocks itself. Passing a
+    // single day would double-count one locked twice and could not express a
+    // day being taken back out.
+    expect(groceryCalls[0]).toEqual(['u1', 'individual']);
     expect(out.groceryAdded).toBe(true);
   });
 
@@ -89,14 +91,16 @@ describe('what a locked day refuses', () => {
 });
 
 describe('unlocking', () => {
-  it('reopens the day and leaves the groceries alone', async () => {
-    // They may already be ticked, or bought. Removing food from somebody's
-    // basket because they reopened a menu is the worse surprise.
+  it('reopens the day and rebuilds the basket without it', async () => {
     const { s, saved, groceryCalls } = build({ composedLocks: [1, 2] });
     const out = await s.unlockComposedDay('u1', 1);
     expect(out.locked).toBe(false);
     expect(saved[0]).toEqual({ composedLocks: [2] });
-    expect(groceryCalls).toHaveLength(0);
+    // The basket follows the locks in BOTH directions, or it is not following
+    // them. What protects the citizen here is mergeGroceryList, not skipping
+    // the rebuild: a ticked line has been bought and is kept, and a manual
+    // line was never the planner's to remove. See grocery-merge.spec.ts.
+    expect(groceryCalls).toEqual([['u1', 'individual']]);
   });
 });
 

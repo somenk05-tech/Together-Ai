@@ -211,9 +211,14 @@ function DayLock({ dayIndex, date, locked, lastDay, onMoveTo }: {
             Nothing on {weekdayFull(date)} will change, and its ingredients are on your grocery list.
           </div>
         </div>
-        <Button variant="line" size="sm" disabled={unlock.isPending} onClick={() => unlock.mutate({ day: dayIndex })}>
-          {unlock.isPending ? 'Unlocking…' : 'Unlock'}
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-soft)', whiteSpace: 'nowrap' }}>
+            {weekdayFull(date)} {shortDate(date)}
+          </span>
+          <Button variant="line" size="sm" disabled={unlock.isPending} onClick={() => unlock.mutate({ day: dayIndex })}>
+            {unlock.isPending ? 'Unlocking…' : 'Unlock'}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -224,25 +229,36 @@ function DayLock({ dayIndex, date, locked, lastDay, onMoveTo }: {
       <div style={{ flex: 1, minWidth: 200 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>Happy with {weekdayFull(date)}?</div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
-          Locking stops this day changing and adds its ingredients to your grocery list.
+          Locking stops this day changing and puts its ingredients on your grocery list.
         </div>
         {said && <div style={{ fontSize: 12.5, marginTop: 6, color: 'var(--accent)' }}>{said}</div>}
       </div>
-      <Button
-        variant="accent" size="sm" disabled={lock.isPending}
-        onClick={() => lock.mutate({ day: dayIndex }, {
-          onSuccess: (r) => {
-            // Only ever claim what happened. The basket write is allowed to
-            // fail without failing the lock, so the sentence has two versions.
-            setSaid(r.groceryAdded
-              ? 'Locked, and the ingredients are on your grocery list.'
-              : 'Locked. The grocery list didn\'t update just now — you can regenerate it from Grocery.');
-            if (r.nextDay !== null && r.nextDay <= lastDay) onMoveTo(r.nextDay);
-          },
-        })}
-      >
-        {lock.isPending ? 'Locking…' : '🔒 Lock this menu'}
-      </Button>
+      {/* The date sits beside the button, not only in the heading, because the
+          button is the thing being pressed and "which day am I committing?" is
+          the question worth answering at the point of commitment. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-soft)', whiteSpace: 'nowrap' }}>
+          {weekdayFull(date)} {shortDate(date)}
+        </span>
+        <Button
+          variant="accent" size="sm" disabled={lock.isPending}
+          onClick={() => lock.mutate({ day: dayIndex }, {
+            onSuccess: (r) => {
+              // Only ever claim what happened. The basket write is allowed to
+              // fail without failing the lock, so the sentence has two versions.
+              setSaid(r.groceryAdded
+                ? 'Locked, and the ingredients are on your grocery list.'
+                : 'Locked. The grocery list didn\'t update just now — you can regenerate it from Grocery.');
+              if (r.nextDay !== null && r.nextDay <= lastDay) onMoveTo(r.nextDay);
+            },
+          })}
+        >
+          {/* The label says what the button DOES, both halves of it. "Lock this
+              menu" described only the half you can see; the groceries are the
+              half you would otherwise discover later, in another hub. */}
+          {lock.isPending ? 'Locking…' : '🔒 Lock menu & add to grocery list'}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -152,10 +152,14 @@ export function useRecipeVariants(id: string | undefined, type: string | null) {
 }
 
 /** Supermarket-style grocery plan (Grocery Planner redesign) — aisles + recipe view. */
-export function useGroceryPlan(mode: 'individual' | 'family' = 'individual', days = 7, startDate?: string) {
+/**
+ * The basket. Keyed by mode alone — there is no window any more: the server
+ * builds it from the days the citizen has locked (owner decision, 1 Aug).
+ */
+export function useGroceryPlan(mode: 'individual' | 'family' = 'individual') {
   return useQuery({
-    queryKey: ['nutrition', 'grocery-plan', mode, days, startDate ?? 'today'],
-    queryFn: () => nutritionApi.groceryPlan(mode, days, startDate),
+    queryKey: ['nutrition', 'grocery-plan', mode],
+    queryFn: () => nutritionApi.groceryPlan(mode),
   });
 }
 
@@ -219,27 +223,4 @@ export function usePlaceOrder() {
   });
 }
 
-// ───── Quick Commerce — find the grocery list across online stores ─────
-
-export function useQcCompare(mode: 'individual' | 'family' = 'individual', enabled = true) {
-  return useQuery({
-    queryKey: ['nutrition', 'qc-compare', mode],
-    queryFn: () => nutritionApi.qcCompare(mode),
-    enabled,
-    staleTime: 5 * 60_000,
-  });
-}
-
-export function useQcSearch() {
-  return useMutation({ mutationFn: (q: string) => nutritionApi.qcSearch(q) });
-}
-
-export function useQcOrder() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ provider, mode, method }: { provider: string; mode?: 'individual' | 'family'; method?: 'wallet' | 'card' }) =>
-      nutritionApi.qcOrder(provider, mode ?? 'individual', method ?? 'wallet'),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['nutrition', 'orders'] }),
-  });
-}
 

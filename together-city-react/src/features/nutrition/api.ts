@@ -67,8 +67,9 @@ export const nutritionApi = {
     api.post<{ ok: true; key: string }>('/nutrition/grocery/item', { label }).then((r) => r.data),
   groceryClearChecked: () =>
     api.post<{ ok: true; cleared: number }>('/nutrition/grocery/clear-checked', {}).then((r) => r.data),
-  groceryPlan: (mode: 'individual' | 'family' = 'individual', days = 7, startDate?: string) =>
-    api.get<GroceryPlan>('/nutrition/grocery/plan', { params: { mode, days, ...(startDate ? { startDate } : {}) } }).then((r) => r.data),
+  // No days/startDate: the server builds the basket from the locked plan days.
+  groceryPlan: (mode: 'individual' | 'family' = 'individual') =>
+    api.get<GroceryPlan>('/nutrition/grocery/plan', { params: { mode } }).then((r) => r.data),
   cart: () => api.get<GroceryCart>('/nutrition/cart').then((r) => r.data),
   prepAlerts: (mode: 'individual' | 'family' = 'individual') =>
     api.get<{ alerts: Array<{ mealKey: string; title: string; what: string; startBy: string; notified: boolean }> }>(
@@ -92,13 +93,6 @@ export const nutritionApi = {
   lastDeliveryAddress: () => api.get<{ deliveryAddress: string | null }>('/nutrition/orders/last-address').then((r) => r.data),
   placeOrder: (method: 'wallet' | 'card' = 'wallet', deliveryAddress = '') =>
     api.post<NutritionOrder>('/nutrition/orders', { method, deliveryAddress }).then((r) => r.data),
-  qcCompare: (mode: 'individual' | 'family' = 'individual') =>
-    api.get<QcCompare>('/nutrition/qc/compare', { params: { mode } }).then((r) => r.data),
-  qcSearch: (q: string) => api.get<QcSearch>('/nutrition/qc/search', { params: { q } }).then((r) => r.data),
-  qcOrder: (provider: string, mode: 'individual' | 'family' = 'individual', method: 'wallet' | 'card' = 'wallet') =>
-    api.post<NutritionOrder>('/nutrition/qc/order', { provider, mode, method }).then((r) => r.data),
-  qcTrack: (orderId: string) =>
-    api.get<{ orderId: string; totalInr: number; tracking: QcTracking }>(`/nutrition/qc/orders/${orderId}/track`).then((r) => r.data),
   cancelDelivery: (orderId: string, deliveryId: string) =>
     api.post<NutritionOrder[]>(`/nutrition/orders/${orderId}/deliveries/${deliveryId}/cancel`, {}).then((r) => r.data),
 };
@@ -295,6 +289,10 @@ export interface DeliverySchedule { preferredTime: string; first: DeliveryDrop; 
 export interface GroceryPlan {
   aisles: GroceryAisle[]; recipes: GroceryRecipeView[]; itemCount: number; summary?: GrocerySummary;
   deliverySchedule?: DeliverySchedule;
+  /** How many plan days are locked — the basket is built from those and only those. */
+  lockedDays?: number;
+  /** Present when there is nothing to buy, saying WHICH nothing it is. */
+  note?: string;
 }
 
 export interface Citation { id: string; label: string; ref: string }
@@ -347,19 +345,6 @@ export interface QcOrderMeta {
   placedAt: string; rider: { name: string; rating: number };
   tracking: QcTracking;
 }
-export interface QcQuote {
-  provider: { key: string; name: string; icon: string; tagline: string };
-  etaMinutes: number; itemsTotalInr: number; deliveryFeeInr: number; surgeInr: number;
-  availableCount: number; itemCount: number; unavailable: string[]; unavailableCount: number;
-  totalInr: number; freeDeliveryOverInr: number; badges: string[];
-}
-export interface QcCompare { itemCount: number; live: boolean; liveEnabled?: boolean; liveNote?: string; quotes: QcQuote[]; note?: string }
-export interface QcSearchRow {
-  provider: { key: string; name: string; icon: string; tagline: string };
-  priceInr: number; available: boolean; note: string | null; etaMinutes: number; deliveryFeeInr: number;
-}
-export interface QcSearch { query: string; live: boolean; liveEnabled?: boolean; results: QcSearchRow[] }
-
 export interface NutritionOrder {
   qc?: QcOrderMeta | null;
   id: string;
