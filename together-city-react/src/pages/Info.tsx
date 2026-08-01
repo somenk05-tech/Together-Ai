@@ -48,7 +48,7 @@ const DOCS: Record<Slug, Doc> = {
   },
   about: {
     title: 'About Together City',
-    lede: "The world's largest digital city. Everything personalized.",
+    lede: "One city for your whole life. Everything personalized.",
     sections: [
       { h: 'One city, every part of life', p: [
         'Together City brings the parts of daily life — health, food, money, travel, dating, entertainment, work and more — into one connected place, personalized to you.',

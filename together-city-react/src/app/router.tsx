@@ -416,5 +416,7 @@ export const router = createBrowserRouter([
     element: <Navigate to={to} replace />,
   })),
 
-  { path: '*', element: <NotFound /> },
+  // The 404 renders INSIDE the app shell (consumer review #8): full header,
+  // menu and search — a wrong turn, not a locked exit.
+  { element: <AppShell />, children: [{ path: '*', element: wrap(<NotFound />) }] },
 ]);

@@ -79,7 +79,7 @@ export function Home() {
   return (
     <div>
       {/* ============ THE PAVILION CITY ============ */}
-      <div className="citymap" style={{ position: 'relative' }}>
+      <div className="citymap" style={{ position: 'relative', background: '#0f1012' }}>
         {/* Dynamic city strip — location · date · live weather, top-left in the sky.
             z-index above the clickable map SVG (which is z-index 5). */}
         <div style={{ position: 'absolute', top: 18, left: 18, zIndex: 20, pointerEvents: 'none' }}>
@@ -124,7 +124,7 @@ export function Home() {
         {/* ============ WELCOME ============ */}
         <div className="center rise" style={{ textAlign: 'center' }}>
           <div className="eyebrow" style={{ fontSize: 'clamp(14px, 1.5vw, 18px)', letterSpacing: '0.22em' }}>Welcome to Together City</div>
-          <h1 style={{ maxWidth: '22ch', margin: '0 auto', fontSize: 'clamp(34px, 5.2vw, 64px)', lineHeight: 1.1 }}>The world&apos;s largest digital city. Everything. Personalized.</h1>
+          <h1 style={{ maxWidth: '22ch', margin: '0 auto', fontSize: 'clamp(34px, 5.2vw, 64px)', lineHeight: 1.1 }}>One city for your whole life. Everything. Personalized.</h1>
           <p className="lede" style={{ margin: '22px auto 0', fontSize: 'clamp(18px, 1.9vw, 23px)', lineHeight: 1.6, maxWidth: '58ch' }}>
             Every hub belongs to the same city but carries its own atmosphere. Walk the waterfront, step into a pavilion, and everything — travel, dining, health, home, work, love — is personalised around one identity: yours.
           </p>
@@ -151,14 +151,20 @@ export function Home() {
         <div style={{ maxWidth: 1240, margin: '0 auto', padding: '8px 32px 22px' }}>
           <div className="blk-head"><h2>Walk the districts</h2><Link className="more" to="/social/feed">Your city today →</Link></div>
         </div>
-        {PANELS.map((p) => {
+        {PANELS.map((p, panelIndex) => {
           const panelStyle: React.CSSProperties = {
             position: 'relative', display: 'flex', alignItems: 'flex-end',
             minHeight: 'clamp(460px, 84vh, 900px)', color: '#fff', overflow: 'hidden', textDecoration: 'none',
+            // A panel waiting on its photo is a lit stage, not a grey hole
+            // (consumer review #4): the copy is readable immediately and the
+            // image fades in over this backdrop when it arrives.
+            background: 'linear-gradient(165deg, #1a1c1f 0%, #101113 70%)',
           };
           const copy = (eyebrow: string, tag: string, label: string, soon: boolean) => (
             <>
-              <img src={img(p.img)} alt="" loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={img(p.img)} alt="" loading={panelIndex < 2 ? 'eager' : 'lazy'} decoding="async"
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0, transition: 'opacity .5s ease' }}
+                onLoad={(e) => { e.currentTarget.style.opacity = '1'; }} />
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(8,9,8,.84) 0%, rgba(8,9,8,.28) 42%, rgba(8,9,8,.08) 100%)' }} />
               <div style={{ position: 'relative', zIndex: 2, padding: '0 clamp(24px,6vw,96px) clamp(44px,7vh,84px)', maxWidth: 1000 }}>
                 <div className="eyebrow" style={{ color: 'var(--gold-bright)' }}>{eyebrow}</div>

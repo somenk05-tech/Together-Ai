@@ -113,6 +113,7 @@ function NotificationBell() {
 export function Header() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const { user } = useAuth();
+  const authed = Boolean(user);
   const firstName = fromName(user?.name) ?? 'Profile';
   const tabs = NAV.filter((n) => n.key !== 'mail'); // Mail lives in the actions, not the tab row
   useTrackRecent(); // remember where we've been — powers Recently Viewed + breadcrumbs
@@ -138,17 +139,32 @@ export function Header() {
           ))}
         </nav>
         <div className="tc-actionbar">
-          <QuickActions show="links" />
-          <NotificationBell />
-          <Link to="/profile" aria-label="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            {user?.profileImage ? (
-              <img src={user.profileImage} alt="" width={24} height={24}
-                style={{ borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1.5px solid var(--line)' }} />
-            ) : (
-              <Icon name="user" size={20} />
-            )}
-            <span className="lab">{firstName}</span>
-          </Link>
+          {authed ? (
+            <>
+              <QuickActions show="links" />
+              <NotificationBell />
+              <Link to="/profile" aria-label="Profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                {user?.profileImage ? (
+                  <img src={user.profileImage} alt="" width={24} height={24}
+                    style={{ borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1.5px solid var(--line)' }} />
+                ) : (
+                  <Icon name="user" size={20} />
+                )}
+                <span className="lab">{firstName}</span>
+              </Link>
+            </>
+          ) : (
+            <>
+              {/* A visitor gets doors that open (consumer review #10) — not four
+                  buttons that each end at the login wall. */}
+              <Link to="/sign-in" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--chip-fs)', letterSpacing: '.05em', fontWeight: 600, textTransform: 'uppercase' }}>
+                <Icon name="user" size={17} /> <span className="lab">SIGN IN</span>
+              </Link>
+              <Link to="/sign-up" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--chip-fs)', letterSpacing: '.06em', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)' }}>
+                JOIN THE CITY
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

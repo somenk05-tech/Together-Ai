@@ -139,7 +139,7 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
             )}
             <p style={{ fontSize: 13.5, marginBottom: 22, textAlign: 'center', color: 'rgba(255,255,255,.72)' }}>
               {mode === 'forgot' || mode === 'reset' ? 'Recovery goes to your primary email or phone.'
-                : <>The world's largest digital city. Everything. <span style={{ color: 'var(--gold-bright)', fontWeight: 700 }}>Personalized.</span></>}
+                : <>One city for your whole life. Everything. <span style={{ color: 'var(--gold-bright)', fontWeight: 700 }}>Personalized.</span></>}
             </p>
 
             <form onSubmit={(e) => void submit(e)}>

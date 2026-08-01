@@ -11,7 +11,7 @@ export function Footer() {
         <Link to="/legal/terms">Terms</Link>
         <Link to="/contact">Contact</Link>
       </nav>
-      <span>The world's largest digital city. Everything personalized. © 2026 Together City</span>
+      <span>One city for your whole life. Everything personalized. © 2026 Together City</span>
     </footer>
   );
 }

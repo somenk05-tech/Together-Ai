@@ -130,7 +130,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
     <>
       <div className="eyebrow" style={{ textAlign: 'center' }}>Together City</div>
       <h1 style={{ fontSize: 28, marginBottom: 6, textAlign: 'center' }}>Join the City</h1>
-      <p className="muted" style={{ fontSize: 13.5, marginBottom: 20, textAlign: 'center' }}>The world’s largest digital city. Create your account in seconds.</p>
+      <p className="muted" style={{ fontSize: 13.5, marginBottom: 20, textAlign: 'center' }}>One city for your whole life. Create your account in seconds.</p>
 
       <form onSubmit={(e) => void submit(e)} className="tc-riser" noValidate>
         {/* Handle */}
