@@ -232,8 +232,8 @@ export class BeautyService {
     await this.beauty.upsert({
       where: { userId },
       update: { skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto),
-        ...(refreshed ? { analysisJson: JSON.stringify(refreshed) } : {}) } as never,
-      create: { userId, skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto), photosJson: '[]', progressJson: '[]' } as never,
+        ...(refreshed ? { analysisJson: JSON.stringify(refreshed) } : {}) },
+      create: { userId, skinType, hairType, concerns: concerns.join(','), extras: JSON.stringify(dto), photosJson: '[]', progressJson: '[]' },
     });
 
     // Master Profile sync — shared demographics flow back to the single source of
@@ -335,8 +335,8 @@ export class BeautyService {
           ...(review.face ? { faceJson: JSON.stringify(review.face) } : {}) };
     await this.beauty.upsert({
       where: { userId },
-      update: update as never,
-      create: { userId, skinType: String(profile.skinType ?? 'normal'), hairType: String(profile.hairType ?? 'straight'), concerns: (profile.skinConcerns ?? []).join(','), extras: JSON.stringify(profile), photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(rejected ? [] : nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: now, analysisLogJson: newLog } as never,
+      update: update,
+      create: { userId, skinType: String(profile.skinType ?? 'normal'), hairType: String(profile.hairType ?? 'straight'), concerns: (profile.skinConcerns ?? []).join(','), extras: JSON.stringify(profile), photosJson: JSON.stringify(photoRows), progressJson: JSON.stringify(rejected ? [] : nextProgress), analysisJson: JSON.stringify(analysis), analyzedAt: now, analysisLogJson: newLog },
     });
     return { ...(await this.getProfile(userId)), photoFindings: findings, aiUsed: this.ai.enabled && images.length > 0, quality: review.quality, warning };
   }
@@ -463,8 +463,8 @@ export class BeautyService {
     const nextProgress = progress.slice(0, -1);
     await this.beauty.upsert({
       where: { userId },
-      update: { photosJson: '[]', progressJson: JSON.stringify(nextProgress), analysisJson: null, analyzedAt: null, faceJson: null } as never,
-      create: { userId, skinType: 'normal', hairType: 'straight', concerns: '', photosJson: '[]', progressJson: '[]' } as never,
+      update: { photosJson: '[]', progressJson: JSON.stringify(nextProgress), analysisJson: null, analyzedAt: null, faceJson: null },
+      create: { userId, skinType: 'normal', hairType: 'straight', concerns: '', photosJson: '[]', progressJson: '[]' },
     });
     return this.getProfile(userId);
   }

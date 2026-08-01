@@ -48,8 +48,8 @@ export class AdminService implements OnModuleInit {
     if (!ADMIN_HANDLES.length) return;
     const granted = await swallow(this.prisma.user
       .updateMany({
-        where: { handle: { in: [...ADMIN_HANDLES] }, role: { not: 'admin' } } as never,
-        data: { role: 'admin' } as never,
+        where: { handle: { in: [...ADMIN_HANDLES] }, role: { not: 'admin' } },
+        data: { role: 'admin' },
       }), 'moderator role sync');
     if (!granted) {
       this.logger.warn('Could not sync moderator roles from MODERATION_ADMINS.');
@@ -62,7 +62,7 @@ export class AdminService implements OnModuleInit {
   async isAdmin(userId?: string): Promise<boolean> {
     if (!userId) return false;
     const row = await swallow(this.prisma.user
-      .findUnique({ where: { id: userId }, select: { role: true } as never }),
+      .findUnique({ where: { id: userId }, select: { role: true } }),
       'admin role read', { userId });
     return (row as { role?: string } | null | undefined)?.role === 'admin';
   }

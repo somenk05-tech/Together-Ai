@@ -108,7 +108,7 @@ export class VerificationCodeService {
   ): Promise<SendResult> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, phone: true } as never,
+      select: { id: true, name: true, email: true, phone: true },
     }) as { id: string; name: string; email: string | null; phone: string | null } | null;
     if (!user) throw new BadRequestException('Account not found.');
 
@@ -160,7 +160,7 @@ export class VerificationCodeService {
         codeHash: await argon2.hash(code),
         expiresAt: new Date(now.getTime() + CODE_TTL_MS),
         ip: ip ?? null,
-      } as never,
+      },
     });
 
     // Write the pending target onto the account, without a verified stamp. The
@@ -264,12 +264,12 @@ export class VerificationCodeService {
       // guard is right to insist the write says whose row it is touching.
       if (row && verdict.outcome === 'wrong') {
         await swallow(this.verificationCode.updateMany({
-          where: { id: row.id, userId }, data: { attempts: { increment: 1 } } as never,
+          where: { id: row.id, userId }, data: { attempts: { increment: 1 } },
         }), 'attempt counter increment', { userId });
       }
       if (row && verdict.outcome === 'exhausted') {
         await swallow(this.verificationCode.updateMany({
-          where: { id: row.id, userId }, data: { attempts: { increment: 1 }, consumedAt: now } as never,
+          where: { id: row.id, userId }, data: { attempts: { increment: 1 }, consumedAt: now },
         }), 'attempt counter increment (exhausted)', { userId });
       }
       this.logger.warn(`code refused user=${userId} channel=${channel} outcome=${verdict.outcome}`);
@@ -286,7 +286,7 @@ export class VerificationCodeService {
     // usually used once.
     const claimed = await this.verificationCode.updateMany({
       where: { id: row.id, userId, consumedAt: null },
-      data: { consumedAt: now } as never,
+      data: { consumedAt: now },
     });
     if (!claimed.count) {
       throw new BadRequestException('That code has already been used. Ask for a new one.');
@@ -329,7 +329,7 @@ export class VerificationCodeService {
       // longer claims.
       ? { email: target, emailVerified: false, emailVerifiedAt: null }
       : { phone: target, phoneE164: target, phoneVerifiedAt: null };
-    await this.prisma.user.update({ where: { id: userId }, data: data as never });
+    await this.prisma.user.update({ where: { id: userId }, data: data });
   }
 
   private async stampVerified(userId: string, channel: Channel, target: string, at: Date): Promise<void> {
@@ -337,7 +337,7 @@ export class VerificationCodeService {
       ? { email: target, emailVerified: true, emailVerifiedAt: at }
       : { phone: target, phoneE164: target, phoneVerifiedAt: at };
     try {
-      await this.prisma.user.update({ where: { id: userId }, data: data as never });
+      await this.prisma.user.update({ where: { id: userId }, data: data });
     } catch (e) {
       // The partial unique index refused it: somebody else already proved they
       // own this address or number. Say that plainly — it is the one case where
@@ -363,7 +363,7 @@ export class VerificationCodeService {
   }> {
     const u = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, emailVerified: true, emailVerifiedAt: true, phoneE164: true, phone: true, phoneVerifiedAt: true } as never,
+      select: { email: true, emailVerified: true, emailVerifiedAt: true, phoneE164: true, phone: true, phoneVerifiedAt: true },
     }) as {
       email: string | null; emailVerified: boolean; emailVerifiedAt: Date | null;
       phoneE164: string | null; phone: string | null; phoneVerifiedAt: Date | null;

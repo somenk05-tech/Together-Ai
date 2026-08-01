@@ -74,7 +74,7 @@ export class BlockingService {
       })),
       // unbounded: same safety rule — blocked-connection states
       this.safely<ConnectionBlockRow>(() => this.prisma.connection.findMany({
-        where: { status: BLOCKED_STATUS as never, OR: [{ userOneId: userId }, { userTwoId: userId }] },
+        where: { status: BLOCKED_STATUS, OR: [{ userOneId: userId }, { userTwoId: userId }] },
         select: { userOneId: true, userTwoId: true, status: true },
       }) as Promise<ConnectionBlockRow[]>),
     ]);

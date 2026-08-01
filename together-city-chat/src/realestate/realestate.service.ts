@@ -94,7 +94,7 @@ export class RealEstateService implements OnModuleInit {
   async listings(query: ListingQueryDto, userId?: string) {
     // Only approved listings are searchable in Explore.
     // unbounded: filters run in memory below — a cap would silently hide matching listings; query-side filters + pagination is the named follow-up
-    const rows = await this.prisma.property.findMany({ where: { status: 'ready', moderation: 'approved' } as never, orderBy: { createdAt: 'desc' } }) as PropRow[];
+    const rows = await this.prisma.property.findMany({ where: { status: 'ready', moderation: 'approved' }, orderBy: { createdAt: 'desc' } }) as PropRow[];
     const filtered = rows.filter((p) =>
       (!query.city || p.city.toLowerCase() === query.city.toLowerCase()) &&
       (!query.propertyType || p.propertyType === query.propertyType) &&
@@ -108,7 +108,7 @@ export class RealEstateService implements OnModuleInit {
 
   async underConstruction(userId?: string) {
     // unbounded: filters run in memory below — same follow-up as listings()
-    const rows = await this.prisma.property.findMany({ where: { status: 'under_construction', moderation: 'approved' } as never, orderBy: { createdAt: 'desc' } }) as PropRow[];
+    const rows = await this.prisma.property.findMany({ where: { status: 'under_construction', moderation: 'approved' }, orderBy: { createdAt: 'desc' } }) as PropRow[];
     const tz = userId ? await this.clock.timezoneFor(userId) : DEFAULT_TIMEZONE;
     return Promise.all(rows.map(async (p) => {
       const d = await this.shapeDetail(p, userId, tz);
@@ -163,14 +163,14 @@ export class RealEstateService implements OnModuleInit {
         possessionDate: dto.possessionDate ?? null, progressPct: dto.progressPct ?? null,
         floorPlansJson: dto.floorPlans ? JSON.stringify(dto.floorPlans) : null,
         milestonesJson: dto.milestones ? JSON.stringify(dto.milestones) : null,
-      } as never,
+      },
     }) as PropRow;
 
     // 2) Run the moderation pipeline and record the outcome.
     const result = await this.moderate(userId, p, dto);
     await this.prisma.property.update({
       where: { id: p.id },
-      data: { moderation: result.decision, moderationJson: JSON.stringify(result) } as never,
+      data: { moderation: result.decision, moderationJson: JSON.stringify(result) },
     });
     await this.logModeration(p.id, 'system', result.decision, result.reasons.join(' · '));
 
@@ -243,7 +243,7 @@ export class RealEstateService implements OnModuleInit {
 
   private async peerMedianPerSqft(dto: PostPropertyDto): Promise<number | null> {
     const peers = await this.prisma.property.findMany({
-      where: { city: dto.city, propertyType: dto.propertyType, listingType: dto.listingType, moderation: 'approved' } as never,
+      where: { city: dto.city, propertyType: dto.propertyType, listingType: dto.listingType, moderation: 'approved' },
       take: 200,
     }) as PropRow[];
     const vals = peers.filter((x) => x.areaSqft > 0).map((x) => x.priceInr / x.areaSqft).sort((a, b) => a - b);
@@ -258,7 +258,7 @@ export class RealEstateService implements OnModuleInit {
     const total = await this.prisma.property.count({ where: { sellerId: userId } });
     const dayAgo = new Date(Date.now() - 86_400_000);
     const lastDay = await this.prisma.property.count({ where: { sellerId: userId, createdAt: { gt: dayAgo } } });
-    const rejected = await this.prisma.property.count({ where: { sellerId: userId, moderation: 'rejected' } as never });
+    const rejected = await this.prisma.property.count({ where: { sellerId: userId, moderation: 'rejected' } });
     let score = 0;
     const accountAgeH = user ? (Date.now() - new Date(user.createdAt).getTime()) / 3600_000 : 0;
     if (accountAgeH < 24 && total >= 3) score += 30;          // brand-new account, many listings
@@ -283,7 +283,7 @@ export class RealEstateService implements OnModuleInit {
   async moderationQueue(userId?: string) {
     await this.assertAdmin(userId);
     const rows = await this.prisma.property.findMany({
-      where: { moderation: { in: ['pending', 'review'] } } as never,
+      where: { moderation: { in: ['pending', 'review'] } },
       orderBy: { createdAt: 'desc' }, take: 100,
     }) as PropRow[];
     return rows.map((p) => ({
@@ -302,7 +302,7 @@ export class RealEstateService implements OnModuleInit {
       decision, confidence: 1, score: prev?.score ?? 0, checks: prev?.checks ?? [],
       reasons: reason ? [reason] : (decision === 'rejected' ? (prev?.reasons ?? []) : []), decidedAt: new Date().toISOString(),
     };
-    await this.prisma.property.update({ where: { id }, data: { moderation: decision, moderationJson: JSON.stringify(next) } as never });
+    await this.prisma.property.update({ where: { id }, data: { moderation: decision, moderationJson: JSON.stringify(next) } });
     await this.logModeration(id, userId ?? 'moderator', decision, reason);
     return { id, moderation: decision };
   }

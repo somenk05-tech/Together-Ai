@@ -130,7 +130,7 @@ export class AstrologyService {
             birthCountry: master.birthCountry, birthState: master.birthState ?? null,
             birthCity: master.birthCity, timeZone, lat, lng,
           },
-        }), 'astro: materialise profile from master', { userId }) as never;
+        }), 'astro: materialise profile from master', { userId });
         if (row) return { complete: true, profile: this.shape(row), prefill: null, source: 'master' as const };
       }
       const dating = await swallow(this.prisma.datingProfile.findUnique({ where: { userId } }), 'astro: dating read for prefill', { userId });
@@ -150,7 +150,7 @@ export class AstrologyService {
               birthCountry, birthState: place.length > 2 ? place[1] : null, birthCity,
               timeZone, lat, lng,
             },
-          }), 'astro: materialise profile from dating', { userId }) as never;
+          }), 'astro: materialise profile from dating', { userId });
           source = row ? 'dating' : null;
         } else {
           // Partial → prefill the form, never ask for what we already know.

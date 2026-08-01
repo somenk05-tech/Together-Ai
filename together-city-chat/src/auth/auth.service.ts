@@ -292,7 +292,7 @@ export class AuthService {
         emailVerifiedAt: null,
         onlineStatus: false,
         passwordHash: await argon2.hash(randomInt(1_000_000, 9_999_999).toString() + userId + Date.now()),
-      } as never,
+      },
     });
 
     // 3) Sign out everywhere — every refresh token/session is revoked.

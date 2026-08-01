@@ -194,7 +194,7 @@ export class SocialService {
         media: dto.media?.length
           ? { create: dto.media.map((m) => ({ url: m.url, kind: m.kind, thumbUrl: m.thumbUrl ?? null })) }
           : undefined,
-      } as never,
+      },
       include: { author: { select: AUTHOR_SELECT }, media: true },
     });
     const shaped = this.shapePost(post, { likes: 0, comments: 0 }, false);
@@ -229,11 +229,11 @@ export class SocialService {
     if (dto.category !== undefined) data.category = dto.category ?? null;
     const updated = await this.prisma.post.update({
       where: { id: postId },
-      data: data as never,
+      data: data,
       include: { author: { select: AUTHOR_SELECT }, media: true, _count: { select: { likes: true, comments: true } }, likes: { where: { userId }, select: { id: true } } },
     });
     const u = updated as unknown as { _count: { likes: number; comments: number }; likes: unknown[] };
-    return this.shapePost(updated as never, u._count, u.likes.length > 0);
+    return this.shapePost(updated, u._count, u.likes.length > 0);
   }
 
   /** Cursor-paginated feed, newest first. Cursor = last post id of the previous page. */
@@ -338,7 +338,7 @@ export class SocialService {
       ...cursorClause,
       orderBy: (filter === 'trending'
         ? [{ likes: { _count: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }]
-        : [{ createdAt: 'desc' }, { id: 'desc' }]) as never,
+        : [{ createdAt: 'desc' }, { id: 'desc' }]),
       include: {
         author: { select: AUTHOR_SELECT },
         media: true,
@@ -352,7 +352,7 @@ export class SocialService {
             likes: { where: { userId }, select: { id: true } },
           },
         },
-      } as never,
+      },
     });
     const hasMore = posts.length > limit;
     const page = hasMore ? posts.slice(0, limit) : posts;
@@ -387,10 +387,10 @@ export class SocialService {
     const original = await this.prisma.post.findUnique({ where: { id: postId }, select: { id: true, authorId: true, audience: true } });
     if (!original) throw new NotFoundException('post not found');
     await this.assertCanView(userId, original);
-    const existing = await this.prisma.post.findFirst({ where: { authorId: userId, repostOfId: postId } as never, select: { id: true } });
+    const existing = await this.prisma.post.findFirst({ where: { authorId: userId, repostOfId: postId }, select: { id: true } });
     if (existing) return { reposted: true };
     const row = await this.prisma.post.create({
-      data: { authorId: userId, repostOfId: postId, audience: 'public' } as never,
+      data: { authorId: userId, repostOfId: postId, audience: 'public' },
       include: {
         author: { select: AUTHOR_SELECT },
         _count: { select: { likes: true, comments: true } },
@@ -403,7 +403,7 @@ export class SocialService {
             likes: { where: { userId }, select: { id: true } },
           },
         },
-      } as never,
+      },
     });
     const shaped = this.shapeFeedRow(row);
     const recipients = await this.postRecipients(userId, 'public');
@@ -423,7 +423,7 @@ export class SocialService {
     // unbounded: audience gate — the family set must be COMPLETE or a family post reaches the wrong eyes
     const rows = await this.prisma.connection.findMany({
       where: {
-        status: 'ACCEPTED' as never,
+        status: 'ACCEPTED',
         OR: [{ userOneId: userId }, { userTwoId: userId }],
       },
     }).catch(swallowed('social.familyIds', []));
@@ -589,7 +589,7 @@ export class SocialService {
   async reportQueue(adminId: string) {
     await this.admin.assertAdmin(adminId);
     const rows = await this.prisma.report.findMany({
-      where: { status: 'open' } as never,
+      where: { status: 'open' },
       orderBy: { createdAt: 'asc' },
       take: 500,
     }) as unknown as Array<{ id: string; reporterId: string; targetType: string; targetId: string; reason: string | null; createdAt: Date }>;
@@ -635,7 +635,7 @@ export class SocialService {
     if (targetType === 'post') {
       const p = await this.prisma.post.findUnique({
         where: { id: targetId },
-        select: { id: true, text: true, createdAt: true, moderation: true, author: { select: AUTHOR_SELECT } } as never,
+        select: { id: true, text: true, createdAt: true, moderation: true, author: { select: AUTHOR_SELECT } },
       }).catch(swallowed('social.reportSubject', null)) as null | { id: string; text: string | null; createdAt: Date; moderation: string; author: unknown };
       if (!p) return { kind: 'post' as const, gone: true };
       return { kind: 'post' as const, gone: false, text: p.text, createdAt: p.createdAt, moderation: p.moderation, author: p.author };
@@ -646,7 +646,7 @@ export class SocialService {
     }
     const c = await this.prisma.comment.findUnique({
       where: { id: targetId },
-      select: { id: true, text: true, createdAt: true, author: { select: AUTHOR_SELECT } } as never,
+      select: { id: true, text: true, createdAt: true, author: { select: AUTHOR_SELECT } },
     }).catch(swallowed('social.reportSubject', null));
     return c ? { kind: 'comment' as const, gone: false, comment: c } : { kind: 'comment' as const, gone: true };
   }
@@ -677,20 +677,20 @@ export class SocialService {
     if (decision === 'remove') {
       const updated = await this.prisma.post.updateMany({
         where: { id: targetId },
-        data: { moderation: 'removed' } as never,
+        data: { moderation: 'removed' },
       });
       if (!updated.count) throw new NotFoundException('That post no longer exists.');
     }
 
     const now = new Date();
     const closed = await this.prisma.report.updateMany({
-      where: { targetType, targetId, status: 'open' } as never,
+      where: { targetType, targetId, status: 'open' },
       data: {
         status: decision === 'remove' ? 'actioned' : 'dismissed',
         reviewedById: adminId,
         reviewedAt: now,
         decision: this.clean(dto.note) ?? null,
-      } as never,
+      },
     });
     return { decided: decision, reportsClosed: closed.count };
   }
@@ -704,7 +704,7 @@ export class SocialService {
     const [conns, blocked] = await Promise.all([
       // unbounded: fan-out audience — must be complete; a truncated audience silently unshares a post
       this.prisma.connection.findMany({
-        where: { status: 'ACCEPTED' as never, OR: [{ userOneId: authorId }, { userTwoId: authorId }] },
+        where: { status: 'ACCEPTED', OR: [{ userOneId: authorId }, { userTwoId: authorId }] },
       }),
       this.blockedWith(authorId),
     ]);

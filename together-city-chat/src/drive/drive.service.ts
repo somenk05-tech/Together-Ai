@@ -89,7 +89,7 @@ export class DriveService {
       // unbounded: the storage meter SUMS every row — truncating undercounts the vault
       this.prisma.mailMessage.findMany({ where: { ownerId: userId }, select: { sizeBytes: true } }).catch(swallowed('drive.usage', [] as Array<{ sizeBytes: number | null }>)),
       // unbounded: same meter, the medical documents' share of it
-      (this.prisma.medicalRecord.findMany({ where: { userId }, select: { sizeBytes: true } as never }) as Promise<Array<{ sizeBytes: number | null }>>).catch(swallowed('drive.usage', [])),
+      (this.prisma.medicalRecord.findMany({ where: { userId }, select: { sizeBytes: true } }) as Promise<Array<{ sizeBytes: number | null }>>).catch(swallowed('drive.usage', [])),
       this.files.aggregate({ where: { ownerId: userId }, _sum: { sizeBytes: true } }).catch(() => ({ _sum: { sizeBytes: 0 } })),
     ]);
     const mailBytes = mail.reduce((s, m) => s + (m.sizeBytes ?? 0), 0);
@@ -170,11 +170,11 @@ export class DriveService {
     for (let i = 0; i < ids.length && i < 5000; i++) {
       // unbounded: DELETION must find every descendant — a truncated subtree
       // walk leaves orphaned folders and stored objects surviving the delete
-      const kids = await this.folders.findMany({ where: { ownerId: userId, parentId: ids[i] }, select: { id: true } as never });
+      const kids = await this.folders.findMany({ where: { ownerId: userId, parentId: ids[i] }, select: { id: true } });
       for (const k of kids) ids.push(k.id);
     }
     // unbounded: same rule — every file in the subtree dies with it
-    const doomed = await this.files.findMany({ where: { ownerId: userId, folderId: { in: ids } } as never });
+    const doomed = await this.files.findMany({ where: { ownerId: userId, folderId: { in: ids } } });
     for (const f of doomed) await this.storage.deleteHealthObject(f.storageKey).catch(swallowed('drive.deleteFolder', undefined));
     await this.folders.delete({ where: { id } }); // children + files cascade
     return { ok: true, deletedFiles: doomed.length };

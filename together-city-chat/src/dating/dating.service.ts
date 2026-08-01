@@ -160,8 +160,8 @@ export class DatingService {
     };
     const profile = await this.prisma.datingProfile.upsert({
       where: { userId },
-      update: data as never,
-      create: { userId, ...data } as never,
+      update: data,
+      create: { userId, ...data },
     });
 
     // Master Profile sync (spec: every hub writes shared fields back to the
@@ -183,7 +183,7 @@ export class DatingService {
     const result = await this.moderateProfile(userId, dto);
     await this.prisma.datingProfile.update({
       where: { userId },
-      data: { moderation: result.decision, moderationJson: JSON.stringify(result) } as never,
+      data: { moderation: result.decision, moderationJson: JSON.stringify(result) },
     });
     await this.logModeration(userId, 'system', result.decision, result.reasons.join(' · '));
 
@@ -212,7 +212,7 @@ export class DatingService {
     const myInterests = this.splitInterests(mine.interests);
 
     const candidates = await this.prisma.datingProfile.findMany({
-      where: { userId: { not: userId }, visible: true, moderation: 'approved' } as never,
+      where: { userId: { not: userId }, visible: true, moderation: 'approved' },
       take: SCORING_POOL,
     });
     // Connections/blocked users never get a "new match" alert about this member.
@@ -378,7 +378,7 @@ export class DatingService {
 
     // unbounded: the matching pool — every visible approved profile is scored; the pool is the product
     const candidates = await this.prisma.datingProfile.findMany({
-      where: { userId: { not: userId }, visible: true, moderation: 'approved' } as never,
+      where: { userId: { not: userId }, visible: true, moderation: 'approved' },
       include: { user: { select: { id: true, handle: true, name: true, profileImage: true } } },
     });
 
@@ -482,7 +482,7 @@ export class DatingService {
 
     // unbounded: the matching pool — every visible approved profile is scored
     const candidates = await this.prisma.datingProfile.findMany({
-      where: { userId: { not: userId }, visible: true, moderation: 'approved' } as never,
+      where: { userId: { not: userId }, visible: true, moderation: 'approved' },
       include: { user: { select: { id: true, handle: true, name: true, profileImage: true, createdAt: true, lastSeen: true, onlineStatus: true } } },
     });
     // unbounded: their own match states — bounded by the pool above
@@ -721,7 +721,7 @@ export class DatingService {
 
     // Already chatting with someone? (one active dating conversation at a time)
     const engagedRow = await this.prisma.datingMatch.findFirst({
-      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null } } as never,
+      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null } },
     });
     const engaged = Boolean(engagedRow);
     // How many are actually open, so the page can say "two of three" rather than
@@ -734,13 +734,13 @@ export class DatingService {
     let openChats = engaged ? 1 : 0;
     try {
       openChats = await this.prisma.datingMatch.count({
-        where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null } } as never,
+        where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null } },
       });
     } catch { /* keep the boolean-derived count */ }
 
     // unbounded: the matching pool — every visible approved profile is scored
     const candidates = await this.prisma.datingProfile.findMany({
-      where: { userId: { not: userId }, visible: true, moderation: 'approved' } as never,
+      where: { userId: { not: userId }, visible: true, moderation: 'approved' },
       include: { user: { select: { id: true, handle: true, name: true, profileImage: true } } },
     });
     // unbounded: their own match states — bounded by the pool above
@@ -987,7 +987,7 @@ export class DatingService {
 
     const [userOneId, userTwoId] = [userId, targetUserId].sort();
     const state = await this.prisma.datingMatch.findFirst({
-      where: { OR: [{ userOneId, userTwoId }], kind } as never,
+      where: { OR: [{ userOneId, userTwoId }], kind },
     });
     if (state) {
       if (state.conversationId) {
@@ -1000,7 +1000,7 @@ export class DatingService {
         data: {
           status: 'passed', passedByOne: true, passedByTwo: true,
           revealByOne: false, revealByTwo: false,
-        } as never,
+        },
       }), 'dating pass: record pass', { userId });
     }
     return { blocked: true as const };
@@ -1037,7 +1037,7 @@ export class DatingService {
     const [conns, blocked] = await Promise.all([
       // unbounded: safety — connections are NEVER dating candidates; the exclusion set must be complete
       this.prisma.connection.findMany({
-        where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: { in: ['ACCEPTED', 'BLOCKED'] } } as never,
+        where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: { in: ['ACCEPTED', 'BLOCKED'] } },
         select: { userOneId: true, userTwoId: true },
       }),
       // Blocking someone in the Social hub writes a different table, which this
@@ -1126,7 +1126,7 @@ export class DatingService {
     // method the rest of this service never uses.
     // unbounded: their matches — the product caps how many can exist
     const others = await this.prisma.datingMatch.findMany({
-      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null }, id: { not: state.id } } as never,
+      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched', conversationId: { not: null }, id: { not: state.id } },
       select: { id: true },
     });
     const openCount = others.length;
@@ -1156,14 +1156,14 @@ export class DatingService {
         { hub: 'Dating', category: 'dating', label: 'Connect to chat — new match', amountInr, method },
         async (tx) => {
           await tx.datingMatch.update({ where: { id: state.id }, data: { conversationId } });
-          await tx.datingProfile.update({ where: { userId }, data: { connectCount: count + 1 } as never });
+          await tx.datingProfile.update({ where: { userId }, data: { connectCount: count + 1 } });
         },
       );
       chargedInr = amountInr;
     } else {
       await this.prisma.datingMatch.update({ where: { id: state.id }, data: { conversationId } });
       // The connect quota. A failed increment is a free connect, silently.
-      await swallow(this.prisma.datingProfile.update({ where: { userId }, data: { connectCount: count + 1 } as never }), 'dating: connect-count increment', { userId });
+      await swallow(this.prisma.datingProfile.update({ where: { userId }, data: { connectCount: count + 1 } }), 'dating: connect-count increment', { userId });
     }
 
     void this.notifications.create({
@@ -1191,17 +1191,17 @@ export class DatingService {
       male, female, nonbinary, connectedMembers, activeChats, totalMatches, mutualLikes,
     ] = await Promise.all([
       dp.count(),
-      dp.count({ where: { visible: true, moderation: 'approved' } as never }),
-      dp.count({ where: { moderation: { in: ['pending', 'review'] } } as never }),
-      dp.count({ where: { moderation: 'rejected' } as never }),
-      dp.count({ where: { visible: false } as never }),
-      dp.count({ where: { gender: 'male' } as never }),
-      dp.count({ where: { gender: 'female' } as never }),
-      dp.count({ where: { gender: 'nonbinary' } as never }),
-      dp.count({ where: { connectCount: { gt: 0 } } as never }),
-      dm.count({ where: { status: 'matched', conversationId: { not: null } } as never }),
-      dm.count({ where: { status: 'matched' } as never }),
-      dm.count({ where: { status: 'matched' } as never }),
+      dp.count({ where: { visible: true, moderation: 'approved' } }),
+      dp.count({ where: { moderation: { in: ['pending', 'review'] } } }),
+      dp.count({ where: { moderation: 'rejected' } }),
+      dp.count({ where: { visible: false } }),
+      dp.count({ where: { gender: 'male' } }),
+      dp.count({ where: { gender: 'female' } }),
+      dp.count({ where: { gender: 'nonbinary' } }),
+      dp.count({ where: { connectCount: { gt: 0 } } }),
+      dm.count({ where: { status: 'matched', conversationId: { not: null } } }),
+      dm.count({ where: { status: 'matched' } }),
+      dm.count({ where: { status: 'matched' } }),
     ]);
     return {
       totalProfiles,
@@ -1224,13 +1224,13 @@ export class DatingService {
   async unmatch(userId: string, targetUserId: string, kind: MatchKind) {
     const [userOneId, userTwoId] = [userId, targetUserId].sort();
     const state = await this.prisma.datingMatch.findFirst({
-      where: { OR: [{ userOneId, userTwoId }], kind } as never,
+      where: { OR: [{ userOneId, userTwoId }], kind },
     });
     if (!state) return { ok: true as const };
     if (state.conversationId) await swallow(this.conversations.archiveForAll(state.conversationId), 'dating unmatch: archive conversation', { userId });
     await this.prisma.datingMatch.update({
       where: { id: state.id },
-      data: { status: 'passed', passedByOne: true, passedByTwo: true, revealByOne: false, revealByTwo: false } as never,
+      data: { status: 'passed', passedByOne: true, passedByTwo: true, revealByOne: false, revealByTwo: false },
     });
     return { ok: true as const };
   }
@@ -1252,12 +1252,12 @@ export class DatingService {
    */
   async reveal(userId: string, targetUserId: string, kind: MatchKind, show = true) {
     const [userOneId, userTwoId] = [userId, targetUserId].sort();
-    const state = await this.prisma.datingMatch.findFirst({ where: { OR: [{ userOneId, userTwoId }], kind } as never });
+    const state = await this.prisma.datingMatch.findFirst({ where: { OR: [{ userOneId, userTwoId }], kind } });
     if (!state || !state.conversationId) throw new NotFoundException('No active chat to reveal.');
     const meIsOne = state.userOneId === userId;
     const updated = await this.prisma.datingMatch.update({
       where: { id: state.id },
-      data: (meIsOne ? { revealByOne: show } : { revealByTwo: show }) as never,
+      data: (meIsOne ? { revealByOne: show } : { revealByTwo: show }),
     });
     const flags = updated as { revealByOne?: boolean; revealByTwo?: boolean };
     const both = Boolean(flags.revealByOne && flags.revealByTwo);
@@ -1287,7 +1287,7 @@ export class DatingService {
     // was the one screen that denied having any.
     // unbounded: their matches — the product caps how many can exist
     const matches = await this.prisma.datingMatch.findMany({
-      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched' } as never,
+      where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'matched' },
       orderBy: { updatedAt: 'desc' },
     });
     const out = [];
@@ -1405,7 +1405,7 @@ export class DatingService {
 
     // AI invites the most compatible people (weighted score, mutual seeking).
     // unbounded: admin stats — a computation over the whole hub
-    const cands = await this.prisma.datingProfile.findMany({ where: { userId: { not: hostId }, visible: true, moderation: 'approved' } as never });
+    const cands = await this.prisma.datingProfile.findMany({ where: { userId: { not: hostId }, visible: true, moderation: 'approved' } });
     const hostD = this.parseDX((host as { extras?: string | null }).extras);
     const hostInterests = this.splitInterests(host.interests);
     // Never invite a family member, friend, existing connection or blocked user.

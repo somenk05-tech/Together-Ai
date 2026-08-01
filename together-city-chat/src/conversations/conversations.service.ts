@@ -204,12 +204,12 @@ export class ConversationsService {
     const existing = await this.prisma.conversation.findUnique({ where: { directKey } });
     if (existing) {
       if (anonymousTrust != null && (existing as { anonymousTrust?: number | null }).anonymousTrust == null) {
-        await this.prisma.conversation.update({ where: { id: existing.id }, data: { anonymousTrust } as never });
+        await this.prisma.conversation.update({ where: { id: existing.id }, data: { anonymousTrust } });
       }
       return existing.id;
     }
     const conv = await this.prisma.conversation.create({
-      data: { type: 'DIRECT', directKey, anonymousTrust: anonymousTrust ?? null, members: { create: [{ userId: aId }, { userId: bId }] } } as never,
+      data: { type: 'DIRECT', directKey, anonymousTrust: anonymousTrust ?? null, members: { create: [{ userId: aId }, { userId: bId }] } },
     });
     return conv.id;
   }
@@ -246,7 +246,7 @@ export class ConversationsService {
 
   /** Advance/clear a dating conversation's anonymity (reveal at ≥2). */
   async setAnonymousTrust(conversationId: string, trust: number | null): Promise<void> {
-    await this.prisma.conversation.update({ where: { id: conversationId }, data: { anonymousTrust: trust } as never }).catch(swallowed('conversations.setAnonymousTrust', undefined));
+    await this.prisma.conversation.update({ where: { id: conversationId }, data: { anonymousTrust: trust } }).catch(swallowed('conversations.setAnonymousTrust', undefined));
   }
 
   /**

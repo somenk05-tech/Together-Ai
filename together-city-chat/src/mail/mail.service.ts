@@ -459,7 +459,7 @@ export class MailService {
         // retry that quietly dropped the attachments would arrive incomplete,
         // which is a worse outcome than the failure it was fixing.
         ...(failed && dto.attachmentFileIds?.length ? { attachmentIds: JSON.stringify(dto.attachmentFileIds) } : {}),
-      } as never,
+      },
     });
 
     // Keep the attachments visible on whichever copy was written.

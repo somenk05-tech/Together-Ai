@@ -108,7 +108,7 @@ export class FitnessService {
       conditions: dto.conditions.join(','), heightCm: dto.heightCm ?? null, weightKg: dto.weightKg ?? null, bodyGoal: dto.bodyGoal,
     };
     // The citizen saved their training profile — this row is no longer defaults.
-    await this.prisma.fitnessProfile.upsert({ where: { userId }, update: answeredNow(data), create: { userId, ...answeredNow(data) } } as never);
+    await this.prisma.fitnessProfile.upsert({ where: { userId }, update: answeredNow(data), create: { userId, ...answeredNow(data) } });
     // Master Profile sync. This wrote `gender` — the retired column — which is
     // most of why it still looked alive: saving a fitness profile refilled it,
     // so the read sites that depended on it kept working for anybody who had,

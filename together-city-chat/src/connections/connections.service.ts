@@ -120,12 +120,12 @@ export class ConnectionsService {
         requestedById: requesterId,
         relationship: dto.relationship ?? null,
         modulesJson: JSON.stringify(grants.modules),
-      } as never,
+      },
       // Re-requesting refreshes the requested modules/relationship.
       update: dto.modules?.length || dto.relationship ? {
         ...(dto.modules?.length ? { modulesJson: JSON.stringify(grants.modules) } : {}),
         ...(dto.relationship ? { relationship: dto.relationship } : {}),
-      } as never : {},
+      } : {},
     });
 
     // If a prior row exists but was removed/blocked, re-open it as a fresh pending request.
@@ -136,7 +136,7 @@ export class ConnectionsService {
           status: ConnectionStatus.PENDING, requestedById: requesterId,
           relationship: dto.relationship ?? null,
           modulesJson: JSON.stringify(grants.modules),
-        } as never,
+        },
       });
       this.broadcast(reopened);
       void this.notifyRequest(requesterId, target.id);
@@ -261,7 +261,7 @@ export class ConnectionsService {
       data: {
         modulesJson: JSON.stringify(modules),
         ...(dto.relationship ? { relationship: dto.relationship } : {}),
-      } as never,
+      },
     });
     if (updated.status === ConnectionStatus.ACCEPTED) {
       await swallow(this.syncModules(updated), 'sync modules after connection change', { connectionId: updated.id });
@@ -400,7 +400,7 @@ export class ConnectionsService {
     const next = current.filter((m) => m !== module);
     const updated = await swallow(this.prisma.connection.update({
       where: { id: conn.id },
-      data: { modulesJson: JSON.stringify(withUniversal(next)) } as never,
+      data: { modulesJson: JSON.stringify(withUniversal(next)) },
     }), 'revoke-module: write', { connectionId: conn.id, module });
     if (updated) this.broadcast(updated); // two-way sync → refresh People + hub lists
   }

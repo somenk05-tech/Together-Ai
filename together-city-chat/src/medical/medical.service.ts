@@ -218,7 +218,7 @@ export class MedicalService implements OnModuleInit {
       // unbounded: the storage meter SUMS every row — truncating undercounts the vault
       this.prisma.mailMessage.findMany({ where: { ownerId: userId }, select: { sizeBytes: true } }),
       // unbounded: same meter, the medical documents' share of it
-      this.prisma.medicalRecord.findMany({ where: { userId }, select: { sizeBytes: true } as never }) as Promise<Array<{ sizeBytes: number }>>,
+      this.prisma.medicalRecord.findMany({ where: { userId }, select: { sizeBytes: true } }) as Promise<Array<{ sizeBytes: number }>>,
       // A failed aggregate reported 0 bytes used — an absence never
       // established, on a storage meter. Same fallback, now witnessed.
       swallow((this.prisma as unknown as {
@@ -279,7 +279,7 @@ export class MedicalService implements OnModuleInit {
         userId, kind: dto.kind, title: dto.title, detail: dto.detail ?? null,
         fileUrl: null, fileKey: dto.fileKey, mimeType: dto.mimeType ?? null,
         sizeBytes: dto.sizeBytes, recordedOn: new Date(),
-      } as never,
+      },
     });
     return this.records(userId);
   }
@@ -313,7 +313,7 @@ export class MedicalService implements OnModuleInit {
         userId, kind: 'blood-test', title: dto.title || 'Blood report', detail: 'Uploaded blood report',
         fileUrl: null, fileKey: dto.fileKey, mimeType: dto.mimeType, sizeBytes: dto.sizeBytes,
         recordedOn: new Date(),
-      } as never,
+      },
     });
 
     // Read it back from the private vault via the shared layered pipeline
@@ -541,7 +541,7 @@ export class MedicalService implements OnModuleInit {
       // If this fails the uploaded report never links to its panel and the
       // reader shows a document with no analysis — silently, until now.
       await swallow(this.prisma.medicalRecord
-        .updateMany({ where: { id: input.recordId, userId }, data: { bloodTestId: test.id } as never }),
+        .updateMany({ where: { id: input.recordId, userId }, data: { bloodTestId: test.id } }),
         'link record to blood test', { userId, recordId: input.recordId });
     }
     // Pre-warm the AI health summary so Blood Test Analysis opens instantly.
@@ -582,7 +582,7 @@ export class MedicalService implements OnModuleInit {
       data: {
         userId, kind: 'blood-test', title: dto.title || 'Blood report', detail: dto.detail || 'Uploaded blood report',
         fileUrl: null, fileKey: dto.fileKey, mimeType: dto.mimeType, sizeBytes: dto.sizeBytes, recordedOn: new Date(),
-      } as never,
+      },
     });
 
     const extracted = await this.readReportFromVault(dto.fileKey, dto.mimeType);

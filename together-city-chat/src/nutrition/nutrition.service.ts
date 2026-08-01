@@ -1415,7 +1415,7 @@ export class NutritionService implements OnModuleInit {
     try {
       // unbounded: the QA sweep must visit every recipe below the current version
       const pending = (await this.prisma.recipe.findMany({
-        where: { qaVersion: { lt: NutritionService.QA_VERSION } } as never,
+        where: { qaVersion: { lt: NutritionService.QA_VERSION } },
         include: { ingredients: { select: { name: true, grams: true } } },
       })) as unknown as Array<QaRecipe & { recipeNo?: number | null }>;
       if (!pending.length) return;
@@ -1444,7 +1444,7 @@ export class NutritionService implements OnModuleInit {
             data.servings = res.fix.servings;
             data.gramsPerServing = Math.round(res.fix.gramsPerServing);
           }
-          await this.prisma.recipe.update({ where: { id: rec.id }, data: data as never }).catch(swallowed('nutrition.runNutritionQa', undefined));
+          await this.prisma.recipe.update({ where: { id: rec.id }, data: data }).catch(swallowed('nutrition.runNutritionQa', undefined));
           this.invalidateRecipeCorpus();
         }));
       }
@@ -1528,7 +1528,7 @@ export class NutritionService implements OnModuleInit {
           // authorId null is the vetted world corpus. Citizens' own dishes are
           // fetched per request in planningPool() — caching them here would put
           // one person's recipe in everybody else's plan.
-          where: { authorId: null } as never,
+          where: { authorId: null },
           select: {
             id: true, slot: true, diet: true, name: true, country: true, minutes: true,
             kcal: true, gramsPerServing: true, servings: true,
@@ -1607,7 +1607,7 @@ export class NutritionService implements OnModuleInit {
       // enter it — without this line the first person to save a private recipe
       // would have put it on everybody else's plate. Own dishes are appended
       // per request in poolFor().
-      where: { authorId: null } as never,
+      where: { authorId: null },
       include: { ingredients: { select: { name: true, grams: true } } },
     })) as unknown as PoolRow[];
     const out = this.shapePoolRows(rows);
@@ -1683,7 +1683,7 @@ export class NutritionService implements OnModuleInit {
     if (!userId) return [];
     // unbounded: their own dishes — the pool must hold all of them
     const rows = (await this.prisma.recipe.findMany({
-      where: { authorId: userId } as never,
+      where: { authorId: userId },
       include: { ingredients: { select: { name: true, grams: true } } },
     })) as unknown as PoolRow[];
     return this.shapePoolRows(rows);
@@ -2263,8 +2263,8 @@ export class NutritionService implements OnModuleInit {
       : q.sort === 'name' ? [{ name: 'asc' as const }] : [{ recipeNo: 'desc' as const }];
 
     const [rows, total] = await Promise.all([
-      this.prisma.recipe.findMany({ where, orderBy, skip: (page - 1) * pageSize, take: pageSize, include: { ingredients: { select: { name: true, grams: true } } } } as never) as unknown as Promise<Parameters<NutritionService['recipeCard']>[0][]>,
-      this.prisma.recipe.count({ where } as never),
+      this.prisma.recipe.findMany({ where, orderBy, skip: (page - 1) * pageSize, take: pageSize, include: { ingredients: { select: { name: true, grams: true } } } }) as unknown as Promise<Parameters<NutritionService['recipeCard']>[0][]>,
+      this.prisma.recipe.count({ where }),
     ]);
     /**
      * The column said it was fine; check the dish.
@@ -2425,7 +2425,7 @@ export class NutritionService implements OnModuleInit {
 
     const r = (await this.prisma.recipe.findUnique({
       where: { id: recipeId },
-      select: { id: true, name: true, diet: true, authorId: true, ingredients: { select: { name: true } } } as never,
+      select: { id: true, name: true, diet: true, authorId: true, ingredients: { select: { name: true } } },
     })) as { id: string; name: string; diet: string; authorId: string | null; ingredients: { name: string }[] } | null;
     if (!r || (r.authorId && r.authorId !== userId)) throw new NotFoundException('recipe not found');
 
@@ -2586,7 +2586,7 @@ export class NutritionService implements OnModuleInit {
     ex.medRecChoices = choices;
     await this.prisma.foodPref.update({
       where: { userId },
-      data: { extras: JSON.stringify(ex) } as never,
+      data: { extras: JSON.stringify(ex) },
     });
     return {
       ok: true,
@@ -2873,12 +2873,12 @@ export class NutritionService implements OnModuleInit {
         weightKg: pref?.weightKg ?? null, activity: pref?.activity ?? 1.4, goal: pref?.goal ?? 'maintain',
         diet: pref?.diet ?? 'everything',
         extras: JSON.stringify({ proteins: ex.proteins ?? [], cuisines: ex.cuisines ?? [], allergies: ex.allergies ?? '', healthConditions: ex.healthConditions ?? [] }),
-      } as never,
+      },
     }).catch(swallowed('nutrition.ensureSelfMember', undefined));
   }
 
   /** Build the member-row nutrition fields from a real user's own Nutrition profile. */
-  private mirrorDataFromPref(name: string, role: string, pref: { sex?: string; age?: number; heightCm?: number; weightKg?: number; activity?: number; goal?: string; diet?: string; extras?: string | null } | null) {
+  private mirrorDataFromPref(name: string, role: string, pref: { sex?: string | null; age?: number | null; heightCm?: number | null; weightKg?: number | null; activity?: number | null; goal?: string | null; diet?: string | null; extras?: string | null } | null) {
     const ex = parseExtras(pref?.extras);
     return {
       name: name.slice(0, 60), role,
@@ -2914,10 +2914,10 @@ export class NutritionService implements OnModuleInit {
           this.prisma.user.findUnique({ where: { id: link.memberUserId }, select: { name: true } }).catch(swallowed('nutrition.syncHouseholdMirrors', null)),
           this.prisma.foodPref.findUnique({ where: { userId: link.memberUserId } }).catch(swallowed('nutrition.syncHouseholdMirrors', null)),
         ]);
-        const data = this.mirrorDataFromPref(user?.name ?? 'Member', link.role, pref as never);
+        const data = this.mirrorDataFromPref(user?.name ?? 'Member', link.role, pref);
         const existing = await this.members.findFirst({ where: { ownerId, memberUserId: link.memberUserId } }).catch(swallowed('nutrition.syncHouseholdMirrors', null));
-        if (existing) await this.members.update({ where: { id: existing.id }, data: data as never }).catch(swallowed('nutrition.syncHouseholdMirrors', undefined));
-        else await this.members.create({ data: { ownerId, memberUserId: link.memberUserId, isSelf: false, ...data } as never }).catch(swallowed('nutrition.syncHouseholdMirrors', undefined));
+        if (existing) await this.members.update({ where: { id: existing.id }, data: data }).catch(swallowed('nutrition.syncHouseholdMirrors', undefined));
+        else await this.members.create({ data: { ownerId, memberUserId: link.memberUserId, isSelf: false, ...data } }).catch(swallowed('nutrition.syncHouseholdMirrors', undefined));
       }
     } catch { /* mirror sync is best-effort */ }
   }
@@ -2970,7 +2970,7 @@ export class NutritionService implements OnModuleInit {
     const existing = await this.members.findFirst({ where: { id, ownerId } }).catch(swallowed('nutrition.updateFamilyMember', null));
     if (!existing) throw new NotFoundException('family member not found');
     if (existing.memberUserId && !existing.isSelf) throw new ForbiddenException('This member manages their own profile in their Nutrition Hub.');
-    await this.members.update({ where: { id }, data: this.memberData(dto) as never });
+    await this.members.update({ where: { id }, data: this.memberData(dto) });
     return this.familyMembers(ownerId);
   }
 
@@ -3004,7 +3004,7 @@ export class NutritionService implements OnModuleInit {
     let relationship: 'self' | 'member' | 'pending' | 'none' = 'none';
     if (user.id === ownerId) relationship = 'self';
     else {
-      const link = await this.household.findUnique({ where: { ownerId_memberUserId: { ownerId, memberUserId: user.id } } as never }).catch(swallowed('nutrition.searchHouseholdUser', null));
+      const link = await this.household.findUnique({ where: { ownerId_memberUserId: { ownerId, memberUserId: user.id } } }).catch(swallowed('nutrition.searchHouseholdUser', null));
       if (link?.status === 'accepted') relationship = 'member';
       else if (link?.status === 'pending') relationship = 'pending';
     }
@@ -3021,14 +3021,14 @@ export class NutritionService implements OnModuleInit {
     const memberUserId = res.user.id;
 
     await this.household.upsert({
-      where: { ownerId_memberUserId: { ownerId, memberUserId } } as never,
-      create: { ownerId, memberUserId, role, status: 'pending', requestedById: ownerId } as never,
-      update: { role, status: 'pending', requestedById: ownerId } as never,
+      where: { ownerId_memberUserId: { ownerId, memberUserId } },
+      create: { ownerId, memberUserId, role, status: 'pending', requestedById: ownerId },
+      update: { role, status: 'pending', requestedById: ownerId },
     }).catch(async (e) => {
       // Fallback if upsert composite where isn't available on the offline client.
       const existing = await this.household.findFirst({ where: { ownerId, memberUserId } }).catch(swallowed('nutrition.inviteHousehold', null));
-      if (existing) return this.household.update({ where: { id: existing.id }, data: { role, status: 'pending', requestedById: ownerId } as never });
-      return this.household.create({ data: { ownerId, memberUserId, role, status: 'pending', requestedById: ownerId } as never }).catch(() => { throw e; });
+      if (existing) return this.household.update({ where: { id: existing.id }, data: { role, status: 'pending', requestedById: ownerId } });
+      return this.household.create({ data: { ownerId, memberUserId, role, status: 'pending', requestedById: ownerId } }).catch(() => { throw e; });
     });
 
     const owner = await this.prisma.user.findUnique({ where: { id: ownerId }, select: { name: true } }).catch(swallowed('nutrition.inviteHousehold', null));
@@ -3065,7 +3065,7 @@ export class NutritionService implements OnModuleInit {
     if (!link) throw new NotFoundException('Invitation not found.');
     if (link.memberUserId !== userId) throw new ForbiddenException('This invitation is not addressed to you.');
     if (link.status !== 'pending') throw new BadRequestException('This invitation has already been answered.');
-    await this.household.update({ where: { id: inviteId }, data: { status: accept ? 'accepted' : 'declined' } as never });
+    await this.household.update({ where: { id: inviteId }, data: { status: accept ? 'accepted' : 'declined' } });
     if (accept) await this.syncHouseholdMirrors(link.ownerId);   // bring their profile into the owner's household
     return { ok: true, status: accept ? 'accepted' : 'declined', invites: await this.householdInvites(userId) };
   }
@@ -3074,7 +3074,7 @@ export class NutritionService implements OnModuleInit {
    *  relationship between the two users is left completely untouched. */
   async removeHouseholdMember(ownerId: string, memberUserId: string) {
     const link = await this.household.findFirst({ where: { ownerId, memberUserId } }).catch(swallowed('nutrition.removeHouseholdMember', null));
-    if (link) await this.household.update({ where: { id: link.id }, data: { status: 'removed' } as never }).catch(swallowed('nutrition.removeHouseholdMember', undefined));
+    if (link) await this.household.update({ where: { id: link.id }, data: { status: 'removed' } }).catch(swallowed('nutrition.removeHouseholdMember', undefined));
     await this.members.deleteMany({ where: { ownerId, memberUserId } }).catch(swallowed('nutrition.removeHouseholdMember', undefined));
     // Two-way sync: removing inside Nutrition immediately turns the People
     // `nutrition` module OFF on the shared connection record (no drift).
@@ -3097,7 +3097,7 @@ export class NutritionService implements OnModuleInit {
     const extras = parseExtras((pref as { extras?: string | null }).extras);
     const next = parseSharing({ ...(extras.householdSharing ?? {}), ...patch });
     extras.householdSharing = next;
-    await this.prisma.foodPref.update({ where: { userId }, data: answeredNow({ extras: JSON.stringify(extras) }) as never });
+    await this.prisma.foodPref.update({ where: { userId }, data: answeredNow({ extras: JSON.stringify(extras) }) });
     return next;
   }
 
@@ -3115,7 +3115,7 @@ export class NutritionService implements OnModuleInit {
     if (!pref) throw new NotFoundException('Set up your Nutrition profile first.');
     const extras = parseExtras((pref as { extras?: string | null }).extras);
     extras.familyMealPlanning = !!on;
-    await this.prisma.foodPref.update({ where: { userId: ownerId }, data: answeredNow({ extras: JSON.stringify(extras) }) as never });
+    await this.prisma.foodPref.update({ where: { userId: ownerId }, data: answeredNow({ extras: JSON.stringify(extras) }) });
     return { familyMealPlanning: !!on };
   }
 
@@ -3152,7 +3152,7 @@ export class NutritionService implements OnModuleInit {
    * OFF, every member gets an independent AI plan while staying connected.
    */
   async familyContext(userId: string): Promise<FamilyContext> {
-    const asOwner = await this.household.findFirst({ where: { ownerId: userId, memberUserId: { not: null }, status: 'accepted' } as never }).catch(swallowed('nutrition.familyContext', null));
+    const asOwner = await this.household.findFirst({ where: { ownerId: userId, memberUserId: { not: null }, status: 'accepted' } }).catch(swallowed('nutrition.familyContext', null));
     if (asOwner) {
       return {
         role: 'owner', ownerId: userId, hasFamily: true,
@@ -3254,10 +3254,10 @@ export class NutritionService implements OnModuleInit {
       const total = existing.grams + grams;
       // Re-stocking raises the "full" mark so the depletion bar refills.
       const start = Math.max(total, (existing as { startGrams?: number }).startGrams ?? 0);
-      await this.pantry.update({ where: { id: existing.id }, data: { grams: total, startGrams: start, qtyLabel: standardQty(name, total, aisle).label, unit: standardQty(name, total, aisle).unit } as never });
+      await this.pantry.update({ where: { id: existing.id }, data: { grams: total, startGrams: start, qtyLabel: standardQty(name, total, aisle).label, unit: standardQty(name, total, aisle).unit } });
     } else {
       const q = standardQty(name, grams || 1, aisle);
-      await this.pantry.create({ data: { ownerId, name, aisle, grams, startGrams: grams, unit: q.unit, qtyLabel: q.label } as never });
+      await this.pantry.create({ data: { ownerId, name, aisle, grams, startGrams: grams, unit: q.unit, qtyLabel: q.label } });
     }
     return this.pantryList(ownerId);
   }
@@ -3270,7 +3270,7 @@ export class NutritionService implements OnModuleInit {
     if (g <= 0) await this.pantry.delete({ where: { id } });
     else {
       const start = Math.max(g, (existing as { startGrams?: number }).startGrams ?? 0);
-      await this.pantry.update({ where: { id }, data: { grams: g, startGrams: start, qtyLabel: standardQty(existing.name, g, existing.aisle).label } as never });
+      await this.pantry.update({ where: { id }, data: { grams: g, startGrams: start, qtyLabel: standardQty(existing.name, g, existing.aisle).label } });
     }
     return this.pantryList(ownerId);
   }
@@ -3388,7 +3388,7 @@ export class NutritionService implements OnModuleInit {
           const left = row.grams - take;
           await txPantry.update({
             where: { id: row.id },
-            data: { grams: left, qtyLabel: standardQty(row.name, left, row.aisle).label } as never,
+            data: { grams: left, qtyLabel: standardQty(row.name, left, row.aisle).label },
           });
           deducted.push({ name: row.name, grams: take });
         }
@@ -4135,7 +4135,7 @@ export class NutritionService implements OnModuleInit {
   ): Promise<{ ex: PrefExtras; diet: DietKey }> {
     // unbounded: a household's members — family-sized
     const members = await this.prisma.familyMember
-      .findMany({ where: { ownerId: userId }, select: { extras: true, diet: true, isSelf: true, memberUserId: true } as never })
+      .findMany({ where: { ownerId: userId }, select: { extras: true, diet: true, isSelf: true, memberUserId: true } })
       .catch(swallowed('nutrition.withHouseholdConstraints', [] as Array<{ extras: string | null; diet: string | null; isSelf: boolean; memberUserId?: string | null }>)) as Array<{ extras: string | null; diet: string | null; isSelf: boolean; memberUserId?: string | null }>;
     // The diet of the table: the union of what everyone in it forbids. The
     // allergies below were already merged across the household; the diet never
@@ -4277,7 +4277,7 @@ export class NutritionService implements OnModuleInit {
     // Somebody else's own recipe is not part of the world database.
     const visible = { OR: [{ authorId: null }, ...(userId ? [{ authorId: userId }] : [])] };
     const where = diet && diet !== 'everything' ? { diet, ...visible } : visible;
-    const rows = await this.prisma.recipe.findMany({ where: where as never, orderBy: { name: 'asc' }, take: 200 });
+    const rows = await this.prisma.recipe.findMany({ where: where, orderBy: { name: 'asc' }, take: 200 });
     return rows.map((r) => this.recipeShape(r));
   }
 
@@ -4302,7 +4302,7 @@ export class NutritionService implements OnModuleInit {
         nutritionSource: built.row.nutritionSource,
         coveragePct: built.row.coveragePct,
         ingredients: { create: dto.ingredients.map((i) => ({ name: i.name, grams: i.grams })) },
-      } as never,
+      },
       include: { ingredients: true },
     });
     // Their own dishes are not in the shared cache, so nothing to invalidate.
@@ -4312,7 +4312,7 @@ export class NutritionService implements OnModuleInit {
   /** Everything this citizen has added, newest first. */
   async myRecipes(userId: string) {
     const rows = await this.prisma.recipe.findMany({
-      where: { authorId: userId } as never,
+      where: { authorId: userId },
       orderBy: { id: 'desc' },
       take: RECORD_CAP,
       include: { ingredients: true },
@@ -4328,7 +4328,7 @@ export class NutritionService implements OnModuleInit {
    *  the nutrition and the diet label are both read off them — keeping a stale
    *  ingredient row would leave the dish claiming something it is not. */
   async updateOwnRecipe(userId: string, id: string, dto: OwnRecipeDto) {
-    const existing = await this.prisma.recipe.findUnique({ where: { id }, select: { id: true, authorId: true } as never }) as { id: string; authorId: string | null } | null;
+    const existing = await this.prisma.recipe.findUnique({ where: { id }, select: { id: true, authorId: true } }) as { id: string; authorId: string | null } | null;
     if (!existing || existing.authorId !== userId) throw new NotFoundException('recipe not found');
     const built = buildOwnRecipe(dto);
     if (!built.ok) throw new BadRequestException(built.reason);
@@ -4344,7 +4344,7 @@ export class NutritionService implements OnModuleInit {
         nutritionSource: built.row.nutritionSource,
         coveragePct: built.row.coveragePct,
         ingredients: { create: dto.ingredients.map((i) => ({ name: i.name, grams: i.grams })) },
-      } as never,
+      },
       include: { ingredients: true },
     });
     return { recipe: this.recipeShape(updated), notes: built.notes, computed: built.computed };
@@ -4360,7 +4360,7 @@ export class NutritionService implements OnModuleInit {
    */
   async deleteOwnRecipe(userId: string, id: string) {
     const existing = await this.prisma.recipe.findUnique({
-      where: { id }, select: { id: true, name: true, authorId: true, meals: { select: { id: true }, take: 1 } } as never,
+      where: { id }, select: { id: true, name: true, authorId: true, meals: { select: { id: true }, take: 1 } },
     }) as { id: string; name: string; authorId: string | null; meals: { id: string }[] } | null;
     if (!existing || existing.authorId !== userId) throw new NotFoundException('recipe not found');
     // Historical Meal rows from the retired plan model. Nothing writes them any
@@ -4841,7 +4841,7 @@ export class NutritionService implements OnModuleInit {
             const durationSec = secondsFromText(text);
             return { text, durationSec, active: isActiveStep(text, durationSec) };
           });
-          await this.prisma.recipe.update({ where: { id: r.id }, data: { cookSteps: JSON.stringify(result) } as never }).catch(swallowed('nutrition.recipeCookSteps', undefined));
+          await this.prisma.recipe.update({ where: { id: r.id }, data: { cookSteps: JSON.stringify(result) } }).catch(swallowed('nutrition.recipeCookSteps', undefined));
           return result;
         }
       } catch { /* fall through to AI/fallback */ }
@@ -4873,7 +4873,7 @@ export class NutritionService implements OnModuleInit {
       : [];
     const result = cleaned.length ? cleaned : fallback;
     await this.prisma.recipe
-      .update({ where: { id: r.id }, data: { cookSteps: JSON.stringify(result) } as never })
+      .update({ where: { id: r.id }, data: { cookSteps: JSON.stringify(result) } })
       .catch(swallowed('nutrition.recipeCookSteps', undefined));
     return result;
   }
@@ -5366,7 +5366,7 @@ export class NutritionService implements OnModuleInit {
       };
     });
     return this.prisma.groceryCart.create({
-      data: { userId, items: { create: itemsCreate as never } },
+      data: { userId, items: { create: itemsCreate } },
       include: { items: true },
     });
   }
@@ -5483,12 +5483,12 @@ export class NutritionService implements OnModuleInit {
     // order is the fallback for citizens who ordered before the profile field
     // existed.
     const profile = await this.prisma.masterProfile
-      .findUnique({ where: { userId }, select: { address: true } as never })
+      .findUnique({ where: { userId }, select: { address: true } })
       .catch(swallowed('nutrition.lastDeliveryAddress', null));
     const saved = (profile as { address?: string | null } | null)?.address;
     if (saved) return saved;
     const last = await this.prisma.nutritionOrder
-      .findFirst({ where: { userId, deliveryAddress: { not: null } } as never, orderBy: { createdAt: 'desc' }, select: { deliveryAddress: true } as never })
+      .findFirst({ where: { userId, deliveryAddress: { not: null } }, orderBy: { createdAt: 'desc' }, select: { deliveryAddress: true } })
       .catch(swallowed('nutrition.lastDeliveryAddress', null));
     return (last as { deliveryAddress?: string | null } | null)?.deliveryAddress ?? null;
   }
@@ -5513,7 +5513,7 @@ export class NutritionService implements OnModuleInit {
     // Best-effort: a citizen who has paid should not see their order fail
     // because we could not write a convenience field.
     await this.prisma.masterProfile
-      .upsert({ where: { userId }, update: { address } as never, create: { userId, address } as never })
+      .upsert({ where: { userId }, update: { address }, create: { userId, address } })
       .catch(swallowed('nutrition.placeOrder', undefined));
 
     const total = cart.items.reduce((s, i) => s + i.priceInr, 0);
@@ -5547,7 +5547,7 @@ export class NutritionService implements OnModuleInit {
             amountInr: dayIndex === 6 ? freshTotal - perDay * 6 : perDay,
           })),
         },
-      } as never,
+      },
       include: { items: true, deliveries: { orderBy: { dayIndex: 'asc' } } },
       }),
     );
@@ -5729,11 +5729,11 @@ export class NutritionService implements OnModuleInit {
                 name: i.name, category: FRESH.has(groceryAisle(i.name)) ? 'fresh' : 'pantry', qty: 1, priceInr: i.priceInr,
               })),
             },
-          } as never,
+          },
           include: { items: true, deliveries: true },
         });
         const qcMeta = buildQcMeta(quote, created.id);
-        await tx.nutritionOrder.update({ where: { id: created.id }, data: { qcJson: JSON.stringify(qcMeta) } as never });
+        await tx.nutritionOrder.update({ where: { id: created.id }, data: { qcJson: JSON.stringify(qcMeta) } });
         return { order: created, meta: qcMeta };
       },
     );
@@ -6601,7 +6601,7 @@ export class NutritionService implements OnModuleInit {
     const seedAll = [...seed, ...lowProtein300];
     const missing = seedAll.filter((s) => !existing.has(s.name));
     for (const r of missing) {
-      await this.prisma.recipe.create({ data: r as never }).catch(swallowed('nutrition.ensureRecipes', undefined));
+      await this.prisma.recipe.create({ data: r }).catch(swallowed('nutrition.ensureRecipes', undefined));
       this.invalidateRecipeCorpus();
     }
     if (missing.length) this.logger.log(`Recipe library topped up: +${missing.length} (total ${existing.size + missing.length}).`);
@@ -6610,7 +6610,7 @@ export class NutritionService implements OnModuleInit {
     // Idempotent, and updates rows seeded BEFORE numbering — so the old→new
     // mapping always applies on boot (matches even if a recipe already exists).
     for (const r of lowProtein300) {
-      await this.prisma.recipe.updateMany({ where: { name: r.name }, data: { recipeNo: r.recipeNo } as never }).catch(swallowed('nutrition.ensureRecipes', undefined));
+      await this.prisma.recipe.updateMany({ where: { name: r.name }, data: { recipeNo: r.recipeNo } }).catch(swallowed('nutrition.ensureRecipes', undefined));
       this.invalidateRecipeCorpus();
     }
     this.logger.log(`LowProtein 300: recipe numbers 11223–${11223 + lowProtein300.length - 1} assigned (${lowProtein300.length} recipes).`);
@@ -6663,7 +6663,7 @@ export class NutritionService implements OnModuleInit {
             servings: r.servings ?? 0, healthGrade: r.healthGrade ?? null, healthPercent: r.healthPercent ?? 0,
             steps: JSON.stringify(r.steps ?? []),
           }));
-          await this.prisma.recipe.createMany({ data: batch as never, skipDuplicates: true });
+          await this.prisma.recipe.createMany({ data: batch, skipDuplicates: true });
           this.invalidateRecipeCorpus();
         }
         // 2) ingredients
@@ -6688,7 +6688,7 @@ export class NutritionService implements OnModuleInit {
         const SB = 100;
         for (let i = 0; i < toSync.length; i += SB) {
           await Promise.allSettled(toSync.slice(i, i + SB).map((r) =>
-            this.prisma.recipe.update({ where: { id: r.id }, data: { recipeNo: r.no, name: r.name } as never }),
+            this.prisma.recipe.update({ where: { id: r.id }, data: { recipeNo: r.no, name: r.name } }),
           ));
         }
       }
@@ -6709,7 +6709,7 @@ export class NutritionService implements OnModuleInit {
    */
   private async adoptDatasetV2(): Promise<void> {
     try {
-      const migrated = await this.prisma.recipe.count({ where: { servings: { gt: 0 } } as never }).catch(() => -1);
+      const migrated = await this.prisma.recipe.count({ where: { servings: { gt: 0 } } }).catch(() => -1);
       if (migrated < 0) return; // `servings` column not created yet (db push pending) — next boot
       const total = await this.prisma.recipe.count();
       if (total > 0 && migrated >= total * 0.9) return; // already on v2
@@ -6763,6 +6763,7 @@ export class NutritionService implements OnModuleInit {
       const RB = 500;
       for (let i = 0; i < fresh.length; i += RB) {
         const batch = fresh.slice(i, i + RB).map((r) => ({ id: r.id, ...shape(r) }));
+        // corpus import builds rows from parsed unknowns; schema-validating the importer is the real fix
         await this.prisma.recipe.createMany({ data: batch as never, skipDuplicates: true });
         this.invalidateRecipeCorpus();
       }
@@ -6780,7 +6781,7 @@ export class NutritionService implements OnModuleInit {
       let refreshed = 0;
       for (const r of inUse) {
         try {
-          await this.prisma.recipe.update({ where: { id: r.id as string }, data: shape(r) as never });
+          await this.prisma.recipe.update({ where: { id: r.id as string }, data: shape(r) as never }); // same corpus-import caveat as createMany above
           this.invalidateRecipeCorpus();
           await this.prisma.recipeIngredient.deleteMany({ where: { recipeId: r.id as string } });
           const rows = ingredientsOf(r);

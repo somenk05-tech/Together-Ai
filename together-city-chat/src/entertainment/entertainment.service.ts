@@ -160,7 +160,7 @@ export class EntertainmentService implements OnModuleInit {
   }
 
   private async writeWatchlist(userId: string, items: WatchItem[]): Promise<void> {
-    await this.prisma.user.update({ where: { id: userId }, data: { watchlistJson: JSON.stringify(items) } as never });
+    await this.prisma.user.update({ where: { id: userId }, data: { watchlistJson: JSON.stringify(items) } });
   }
 
   async watchlist(userId: string) {

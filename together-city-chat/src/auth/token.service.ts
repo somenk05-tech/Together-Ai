@@ -96,7 +96,7 @@ export class TokenService {
         expiresAt: new Date(Date.now() + this.refreshTtl() * 1000),
         device: meta.device ?? null,
         ip: meta.ip ?? null,
-      } as never,
+      },
     });
     return pair;
   }
@@ -127,7 +127,7 @@ export class TokenService {
         lastUsedAt: new Date(),
         ...(meta.ip ? { ip: meta.ip } : {}),
         ...(meta.device ? { device: meta.device } : {}),
-      } as never,
+      },
     });
     this.recentlyRotated.set(oldHash, { pair, until: now + TokenService.ROTATION_GRACE_MS });
     return pair;
@@ -167,8 +167,8 @@ export class TokenService {
     // unbounded: the signed-in devices screen must show EVERY live session — hiding one hides an intruder
     const rows = (await this.prisma.refreshToken.findMany({
       where: { userId, revoked: false, expiresAt: { gt: new Date() } },
-      orderBy: { lastUsedAt: 'desc' } as never,
-      select: { id: true, device: true, ip: true, createdAt: true, lastUsedAt: true, tokenHash: true } as never,
+      orderBy: { lastUsedAt: 'desc' },
+      select: { id: true, device: true, ip: true, createdAt: true, lastUsedAt: true, tokenHash: true },
     })) as unknown as Array<{ id: string; device: string | null; ip: string | null; createdAt: Date; lastUsedAt: Date; tokenHash: string }>;
     const currentHash = currentRefreshToken ? this.hash(currentRefreshToken) : null;
     return rows.map((r) => ({

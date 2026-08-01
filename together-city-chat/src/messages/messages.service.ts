@@ -137,7 +137,7 @@ export class MessagesService {
       // Soft delete: the row stays, with a full audit trail of who/when.
       await this.prisma.message.update({
         where: { id: messageId },
-        data: { deleted: true, text: null, deletedAt: new Date(), deletedById: userId } as never,
+        data: { deleted: true, text: null, deletedAt: new Date(), deletedById: userId },
       });
       this.bus.publish({ kind: 'message.deleted', conversationId: msg.conversationId, messageId });
       return { deleted: true, scope: 'EVERYONE' };
@@ -152,7 +152,7 @@ export class MessagesService {
     if (!hidden.includes(userId)) {
       await this.prisma.message.update({
         where: { id: messageId },
-        data: { hiddenForJson: JSON.stringify([...hidden, userId]) } as never,
+        data: { hiddenForJson: JSON.stringify([...hidden, userId]) },
       });
     }
     return { deleted: true, scope: 'ME' };

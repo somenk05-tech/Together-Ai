@@ -26,7 +26,7 @@ export class UsersService {
         id: true, handle: true, name: true, profileImage: true, lastSeen: true,
         email: true, emailVerified: true, emailVerifiedAt: true,
         phone: true, phoneE164: true, phoneVerifiedAt: true,
-      } as never,
+      },
     });
   }
 

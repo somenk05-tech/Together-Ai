@@ -68,7 +68,7 @@ export class ProfileService {
       select: {
         handle: true, name: true, email: true, phone: true, profileImage: true, createdAt: true,
         emailVerified: true, emailVerifiedAt: true, phoneE164: true, phoneVerifiedAt: true,
-      } as never,
+      },
     })) as unknown as {
       handle: string; name: string; email: string | null; phone: string | null;
       profileImage: string | null; createdAt: Date;
@@ -228,18 +228,18 @@ export class ProfileService {
   private readonly userSelect = {
     id: true, handle: true, name: true, email: true, profileImage: true,
     emailVerified: true, createdAt: true, bio: true, city: true, website: true,
-  } as never;
+  };
 
   /** Reputation & city points derived from real activity — 0 for a brand-new
    *  account, growing as the citizen posts and connects. Never seeded. */
   async statsFor(userId: string): Promise<ProfileStats> {
     const [posts, likesReceived, commentsReceived, sharesReceived, followerRows, followeeRows, connRows] = await Promise.all([
-      this.prisma.post.count({ where: { authorId: userId, repostOfId: null } as never }),
+      this.prisma.post.count({ where: { authorId: userId, repostOfId: null } }),
       this.prisma.like.count({ where: { post: { authorId: userId } } }),
       this.prisma.comment.count({ where: { post: { authorId: userId } } }),
       // Shares = reposts of this citizen's posts.
       // Someone else's repost of your post: a removed one is not a share.
-      this.prisma.post.count({ where: { ...VISIBLE_ONLY, repostOf: { authorId: userId } } as never }),
+      this.prisma.post.count({ where: { ...VISIBLE_ONLY, repostOf: { authorId: userId } } }),
       // unbounded ×3: follower/following/connection COUNTS — a truncated set
       // is a wrong number on the profile, not a slow one
       // unbounded: the accepted-connection id set — socially bounded; feeds gates, not lists
@@ -311,7 +311,7 @@ export class ProfileService {
       data.website = site || null;
     }
     if (Object.keys(data).length) {
-      await this.prisma.user.update({ where: { id: userId }, data: data as never });
+      await this.prisma.user.update({ where: { id: userId }, data: data });
     }
     // City is a shared field — write it back to the Master Profile so every hub
     // picks it up (spec: hubs write shared fields to the single source of truth).
@@ -325,14 +325,14 @@ export class ProfileService {
   async myPosts(userId: string, cursor?: string, limit = 18) {
     const take = Math.min(Math.max(limit, 1), 50);
     const rows = await this.prisma.post.findMany({
-      where: { authorId: userId, repostOfId: null } as never,
+      where: { authorId: userId, repostOfId: null },
       // Author's custom profile arrangement first (sortIndex 0,1,2…), then any
       // un-arranged posts newest-first. New posts (null sortIndex) surface at top
       // of the un-arranged group.
       orderBy: [
         { sortIndex: { sort: 'asc', nulls: 'last' } },
         { createdAt: 'desc' },
-      ] as never,
+      ],
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: {
@@ -391,7 +391,7 @@ export class ProfileService {
     const updates = ids
       .filter((id) => ownedSet.has(id))
       .map((id, index) =>
-        this.prisma.post.update({ where: { id }, data: { sortIndex: index } as never }),
+        this.prisma.post.update({ where: { id }, data: { sortIndex: index } }),
       );
     await this.prisma.$transaction(updates);
     return { ok: true, ordered: updates.length };
@@ -413,7 +413,7 @@ export class ProfileService {
         id: true, handle: true, name: true, email: true, profileImage: true,
         emailVerified: true, createdAt: true, bio: true, city: true, website: true,
         deletedAt: true,
-      } as never,
+      },
     })) as unknown as (UserRow & { deletedAt?: Date | null }) | null;
     // A deleted account has no public profile — it reads exactly like a handle
     // that never existed.
@@ -462,8 +462,8 @@ export class ProfileService {
 
     const take = Math.min(Math.max(limit, 1), 50);
     const rows = await this.prisma.post.findMany({
-      where: { ...VISIBLE_ONLY, authorId: u.id, repostOfId: null, audience: { in: allowed } } as never,
-      orderBy: [{ sortIndex: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }] as never,
+      where: { ...VISIBLE_ONLY, authorId: u.id, repostOfId: null, audience: { in: allowed } },
+      orderBy: [{ sortIndex: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }],
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: {
@@ -522,8 +522,8 @@ export class ProfileService {
           { handle: { startsWith: handleQ } },
           { name: { contains: q, mode: 'insensitive' } },
         ],
-      } as never,
-      select: { id: true, handle: true, name: true, profileImage: true, city: true, emailVerified: true } as never,
+      },
+      select: { id: true, handle: true, name: true, profileImage: true, city: true, emailVerified: true },
       take: 12,
     })) as unknown as Array<{ id: string; handle: string; name: string; profileImage: string | null; city: string | null; emailVerified: boolean }>;
 
