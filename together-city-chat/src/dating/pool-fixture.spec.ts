@@ -128,8 +128,10 @@ L2's OWN COST — pairs that would reach each other but for a height range:
   });
 
   it('prices one typical range, the way a citizen would experience it', () => {
-    // A viewer whose ONLY filter is 165-185 cm. This is the question the owner
-    // was actually asking: "if I type a range, how much of the city goes away?"
+    // A viewer whose ONLY filter is 165-185 cm. This was the question the owner
+    // was asking — "if I type a range, how much of the city goes away?" — and
+    // since 2 Aug the form no longer offers the box, so it is now the price
+    // paid by everybody still holding a range they cannot reach.
     const viewer = citizen({ id: 'viewer', age: 30, profile: { prefHeightMinCm: 165, prefHeightMaxCm: 185 } });
     const removed = pool.filter((c) => heightFilterReason(viewer.profile, c.profile) !== null).length;
     const noHeight = pool.filter((c) => c.heightCm === null).length;

@@ -16,6 +16,11 @@ import { hardFilterReason, heightFilterReason, unreachableReason, type DXProfile
  * NOT cut. A hard filter that fires on absent or nonsense data does not show an
  * error — it silently removes strangers, tells neither person why, and the only
  * symptom is a thinner pool that looks like the city being quiet.
+ *
+ * OWNER DECISION, 2 AUG: the form stopped asking for a range, and this filter
+ * stayed. Every case below therefore now describes what happens to ranges
+ * nobody can edit any more — which makes the "must NOT cut" half of this spec
+ * the more important half, not the less. See the last describe block.
  */
 
 const tall: DXProfile = { heightCm: 190 };
@@ -122,5 +127,37 @@ describe('it is actually wired in, in both directions', () => {
 
   it('does not invent a block between two profiles that stated nothing', () => {
     expect(unreachableReason({}, {}, 30, 30)).toBeNull();
+  });
+});
+
+describe('after the form stopped asking (2 Aug)', () => {
+  const dx = (p: Partial<DXProfile>): DXProfile => p as DXProfile;
+
+  /**
+   * Nothing collects a height range any more — the web guard
+   * `app/dating-height-range.test.ts` holds that end. This end is the half that
+   * did not change, and the reason it is written down: a stored range is STILL
+   * a hard filter, so the people holding one keep filtering the city with a
+   * setting they can no longer see.
+   */
+  it('still honours a range that was saved before the form removed it', () => {
+    const stored = dx({ prefHeightMinCm: 165, prefHeightMaxCm: 185 });
+    expect(hardFilterReason(stored, dx({ heightCm: 158 }), 30)).toBe('height');
+    expect(hardFilterReason(stored, dx({ heightCm: 172 }), 30)).toBeNull();
+  });
+
+  it('is undone by deleting one call, which is what "reversible in one place" was for', () => {
+    // Not a behaviour test — a note in executable form. If this filter is ever
+    // withdrawn, `heightFilterReason` keeps working and only `hardFilterReason`
+    // stops asking it, so nothing else has to be unpicked.
+    expect(heightFilterReason(dx({ prefHeightMinCm: 165 }), dx({ heightCm: 158 }))).toBe('height');
+    expect(unreachableReason(dx({ prefHeightMinCm: 165 }), dx({ heightCm: 158 }), 30, 30))
+      .toEqual({ by: 'you', reason: 'height' });
+  });
+
+  it('still refuses to hide a citizen whose height is not on file', () => {
+    // The promise that made the filter safe to ship. It now has to hold for
+    // people who cannot turn the filter off, which is a stronger reason.
+    expect(hardFilterReason(dx({ prefHeightMinCm: 165, prefHeightMaxCm: 185 }), dx({}), 30)).toBeNull();
   });
 });

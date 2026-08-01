@@ -42,9 +42,19 @@ interface DX {
   relationshipGoal?: string; diet?: string; smoking?: string; drinking?: string; fitnessLevel?: string; education?: string; profession?: string;
   personalityTraits?: string[]; values?: string[];
   prefAgeMin?: number | null; prefAgeMax?: number | null; prefDistanceKm?: number | null;
-  /** `prefHeight` was free text nothing could read (L2). Replaced by a range;
-   *  the old string is kept only long enough to be offered back for confirming,
-   *  and is dropped the moment the range is set. */
+  /** The preferred-height range is NO LONGER COLLECTED (owner decision, 2 Aug).
+   *  The two inputs and the offer of the old free-text answer came off this
+   *  form. These three keys stay declared because a range somebody already
+   *  saved is STILL READ by the API's hard filter, so a save has to round-trip
+   *  it rather than quietly clear it — a filter that switches itself off for
+   *  whoever edits their profile and stays on for everyone else is one setting
+   *  behaving two ways.
+   *
+   *  THIS IS A ONE-WAY DOOR, and a deliberate one. Anybody holding a stored
+   *  range keeps being filtered by it with no screen left to see or change it
+   *  on, and the person it removes is not told either. The pool fixture prices
+   *  a typical range at about a third of the city. Written down here rather
+   *  than found later. */
   prefHeight?: string; prefHeightMinCm?: number | null; prefHeightMaxCm?: number | null;
   prefDiet?: string; prefSmoking?: string; prefDrinking?: string; wantsChildren?: string; religion?: string;
   partnerLocationMode?: 'any' | 'specific';
@@ -415,19 +425,6 @@ export function DatingProfilePage() {
 
   const setD = (patch: Partial<DX>) => setDx((prev) => ({ ...prev, ...patch }));
   const num = (v: string) => (v ? parseInt(v, 10) : null);
-  // The old free-text height preference, if this profile still carries one and
-  // no range has been set. Offered back rather than dropped — it is the
-  // citizen's own answer — but never used as a filter until they confirm it,
-  // because this preference now hides people and a guess must not do that.
-  const legacyHeight = (() => {
-    const raw = dx.prefHeight?.trim();
-    if (!raw || dx.prefHeightMinCm != null || dx.prefHeightMaxCm != null) return null;
-    const found = (raw.match(/\d{2,3}/g) ?? []).map(Number).filter((n) => n >= 100 && n <= 250);
-    // Exactly two plausible centimetre figures in order, or we do not guess:
-    // "5'6\"–6'0\"" and "tall" both fall through to asking.
-    const parsed = found.length === 2 && found[0] <= found[1] ? ([found[0], found[1]] as [number, number]) : null;
-    return { parsed };
-  })();
   const capToggle = (list: string[] | undefined, v: string, cap: number): string[] => {
     const arr = list ?? [];
     if (arr.includes(v)) return arr.filter((x) => x !== v);
@@ -770,37 +767,6 @@ export function DatingProfilePage() {
                 rather than hiding people. If we don’t recognise a city we leave this out rather than guess.
               </span>
             </label>
-            <label style={{ display: 'block' }}><span style={label}>Height from (cm)</span>
-              <input type="number" min={100} max={250} value={dx.prefHeightMinCm ?? ''}
-                onChange={(e) => setD({ prefHeightMinCm: num(e.target.value), prefHeight: undefined })} style={field} /></label>
-            <label style={{ display: 'block' }}><span style={label}>Height to (cm)</span>
-              <input type="number" min={100} max={250} value={dx.prefHeightMaxCm ?? ''}
-                onChange={(e) => setD({ prefHeightMaxCm: num(e.target.value), prefHeight: undefined })} style={field} /></label>
-            <div style={{ gridColumn: '1 / -1' }}>
-              {/* This one hides people, so it says so. It sits beside Age from /
-                  Age to and behaves the same way — the owner's call, and the
-                  difference between a filter and a nudge is not something to
-                  leave a citizen to guess at. */}
-              <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, display: 'block', marginBottom: 4 }}>
-                Unlike distance, a height range <strong>hides</strong> people outside it, the same as
-                the age range above. Leave both blank for any height. Someone who hasn’t recorded
-                their height is never hidden by this — we won’t rule anybody out over a figure we
-                don’t have.
-              </span>
-              {legacyHeight && (
-                <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, display: 'block' }}>
-                  You previously wrote “{dx.prefHeight}”, which we could never read back — so it has
-                  never affected your matches.{' '}
-                  {legacyHeight.parsed ? (
-                    <button type="button"
-                      onClick={() => setD({ prefHeightMinCm: legacyHeight.parsed![0], prefHeightMaxCm: legacyHeight.parsed![1], prefHeight: undefined })}
-                      style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'var(--accent)', fontWeight: 600, cursor: 'pointer' }}>
-                      Use {legacyHeight.parsed[0]}–{legacyHeight.parsed[1]} cm
-                    </button>
-                  ) : 'Set the range above to start using it.'}
-                </span>
-              )}
-            </div>
             <div><span style={label}>Diet</span><SearchSelect category="diet" value={dx.prefDiet ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ prefDiet: o?.label })} /></div>
             <div><span style={label}>Wants children</span><SearchSelect category="wantsChildren" value={dx.wantsChildren ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ wantsChildren: o?.label })} /></div>
             <div><span style={label}>Smoking</span><SearchSelect category="smoking" value={dx.prefSmoking ?? ''} clearable clearLabel="Any" placeholder="Any" onChange={(o) => setD({ prefSmoking: o?.label })} /></div>

@@ -231,8 +231,23 @@ function cm(v: unknown): number | undefined {
  *
  * It will not read the legacy free-text `prefHeight`. That box was never
  * reliably parseable — that is what L2 recorded — and a guess about what
- * somebody typed must not be the thing that hides a stranger. The form offers
- * the old text back to be confirmed as a range instead.
+ * somebody typed must not be the thing that hides a stranger.
+ *
+ * OWNER DECISION, 2 AUG: THE FORM NO LONGER ASKS, AND THIS STILL FILTERS.
+ *
+ * The preferred-height section came off the dating form. Asked whether this
+ * filter should come off with it, the answer was no. So every range already
+ * saved keeps hiding people, and the citizen who set it has no screen left to
+ * see it on or remove it — nor is the person it removes told, because saying so
+ * would leak a stranger's settings.
+ *
+ * That is a one-way door and it is recorded as one rather than left to be
+ * discovered. F.33 priced what is behind it: a typical range (165–185cm)
+ * removes about 34.6% of the city for the viewer holding it, and height alone
+ * accounts for 7.9% of all directed pairs that cannot reach each other.
+ *
+ * Undoing it is still one line — drop this call from `hardFilterReason` — and
+ * that is the whole of what "reversible in one place" was for.
  */
 export function heightFilterReason(myD: DXProfile, theirD: DXProfile): 'height' | null {
   const min = cm(myD.prefHeightMinCm), max = cm(myD.prefHeightMaxCm);
