@@ -6,6 +6,7 @@ import { usersApi, chatApi, useConnections, type LookupResult } from '@/api';
 import { useHubs, useRequestConnection, useRespondConnection } from '@/api/connections.api';
 import { DEFAULT_MODULES, RELATIONSHIPS, allowedModules } from '../modules';
 import { ModuleToggles } from './ModuleToggles';
+import { PendingRequestNotice } from './PendingRequestNotice';
 
 /**
  * Private discovery: find ONE member by their EXACT @handle — there is no
@@ -114,6 +115,7 @@ export function MemberFinder() {
       )}
 
       {!busy && result && (
+        <>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 4px', borderTop: '1px solid var(--line)' }}>
           <div className="tc-avatar" style={{ width: 40, height: 40, fontSize: 14, flexShrink: 0 }}>
             {result.name.slice(0, 2).toUpperCase()}
@@ -138,6 +140,8 @@ export function MemberFinder() {
             <Button variant="line" size="sm" disabled>Unavailable</Button>
           )}
         </div>
+        <PendingRequestNotice result={result} />
+        </>
       )}
 
       {/* Universal Connection Model: relationship first, then the hubs to connect */}

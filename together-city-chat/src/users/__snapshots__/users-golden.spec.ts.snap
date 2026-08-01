@@ -8,6 +8,8 @@ exports[`what handle lookup decides today the relationship labels, exactly as th
     "name": "Rhea",
     "profileImage": null,
     "relationship": "accepted",
+    "requestedModules": null,
+    "requestedRelationship": null,
   },
   "blocked": {
     "handle": "rhea",
@@ -15,6 +17,8 @@ exports[`what handle lookup decides today the relationship labels, exactly as th
     "name": "Rhea",
     "profileImage": null,
     "relationship": "blocked",
+    "requestedModules": null,
+    "requestedRelationship": null,
   },
   "iAsked": {
     "handle": "rhea",
@@ -22,6 +26,8 @@ exports[`what handle lookup decides today the relationship labels, exactly as th
     "name": "Rhea",
     "profileImage": null,
     "relationship": "pending_out",
+    "requestedModules": [],
+    "requestedRelationship": null,
   },
   "stranger": {
     "handle": "rhea",
@@ -29,6 +35,8 @@ exports[`what handle lookup decides today the relationship labels, exactly as th
     "name": "Rhea",
     "profileImage": null,
     "relationship": "none",
+    "requestedModules": null,
+    "requestedRelationship": null,
   },
   "theyAsked": {
     "handle": "rhea",
@@ -36,6 +44,31 @@ exports[`what handle lookup decides today the relationship labels, exactly as th
     "name": "Rhea",
     "profileImage": null,
     "relationship": "pending_in",
+    "requestedModules": [
+      "medical",
+      "financial",
+    ],
+    "requestedRelationship": "family",
+  },
+  "theyAskedBeyondTheirRelationship": {
+    "handle": "rhea",
+    "id": "u2",
+    "name": "Rhea",
+    "profileImage": null,
+    "relationship": "pending_in",
+    "requestedModules": [
+      "jobs",
+    ],
+    "requestedRelationship": "friend",
+  },
+  "theyAskedUnparseable": {
+    "handle": "rhea",
+    "id": "u2",
+    "name": "Rhea",
+    "profileImage": null,
+    "relationship": "pending_in",
+    "requestedModules": [],
+    "requestedRelationship": null,
   },
 }
 `;

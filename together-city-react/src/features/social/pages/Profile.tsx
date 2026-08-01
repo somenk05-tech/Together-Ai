@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Spinner } from '@/components/ui';
 import { chatApi } from '@/api';
 import { useConnections, useRequestConnection, useRespondConnection } from '@/api/connections.api';
+import { ModuleChips } from '@/features/connections/components/ModuleToggles';
 import { profileApi } from '@/features/profile/api';
 import { useAuthStore } from '@/store/auth.store';
 import { initials } from '../shared';
@@ -349,7 +350,21 @@ function ConnectButton({ id, handle, relationship }: { id: string; handle: strin
 
   if (rel === 'accepted') return <Button variant="accent" size="sm" disabled={busy} onClick={() => void message()}>{busy ? '…' : 'Message'}</Button>;
   if (rel === 'pending_out') return <Button variant="line" size="sm" disabled>Requested</Button>;
-  if (rel === 'pending_in') return <Button variant="accent" size="sm" disabled={respondConn.isPending} onClick={() => void accept()}>Accept</Button>;
+  if (rel === 'pending_in') {
+    // Same rule as everywhere else: this button grants hubs somebody else
+    // picked, so it does not stand alone. The row is already in the connections
+    // cache — the accept handler looks it up — so the hubs cost nothing to show.
+    const row = (connections.data ?? []).find((c) => c.user.id === id && c.status === 'pending');
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
+        <Button variant="accent" size="sm" disabled={respondConn.isPending} onClick={() => void accept()}>Accept</Button>
+        <ModuleChips modules={row?.modules ?? []} caption="Hubs they want to open:" />
+        <span className="muted" style={{ fontSize: 11, textAlign: 'right', maxWidth: 240, lineHeight: 1.5 }}>
+          They chose these. You can change them any time afterwards.
+        </span>
+      </div>
+    );
+  }
   if (rel === 'blocked') return <Button variant="line" size="sm" disabled>Unavailable</Button>;
   return <Button variant="accent" size="sm" disabled={requestConn.isPending} onClick={() => void connect()}>Connect</Button>;
 }

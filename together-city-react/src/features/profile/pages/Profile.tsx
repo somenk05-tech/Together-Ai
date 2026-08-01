@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/auth.store';
+import { ModuleChips } from '@/features/connections/components/ModuleToggles';
 import { Card, Button, Spinner, EmptyState, ValueOrEmpty } from '@/components/ui';
 import { useProfileSummary, useProfileCompletion, useHealthScore } from '../hooks';
 import { profileApi } from '../api';
@@ -222,14 +223,23 @@ function NotificationsTab() {
         {incoming.length === 0 ? (
           <p className="muted" style={{ fontSize: 13 }}>No pending requests.</p>
         ) : incoming.map((c) => (
-          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: '1px solid var(--line)' }}>
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: '1px solid var(--line)', flexWrap: 'wrap' }}>
             <Avatar src={c.user.profileImage} name={c.user.name} size={38} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: 14 }}>{c.user.name}</div>
               <div className="muted" style={{ fontSize: 12 }}>@{c.user.handle} wants to connect</div>
+              {/* The hubs were on this object all along and never drawn. The
+                  requester picks them and the accepter cannot change them
+                  first — so an Accept button with nothing beside it was asking
+                  somebody to grant access they had not been shown. */}
+              <ModuleChips modules={c.modules ?? []} caption="Hubs they want to open:" />
             </div>
             <Button size="sm" variant="accent" disabled={respond.isPending} onClick={() => respond.mutate({ id: c.id, accept: true })}>Accept</Button>
             <Button size="sm" variant="line" disabled={respond.isPending} onClick={() => respond.mutate({ id: c.id, accept: false })}>Decline</Button>
+            <p className="muted" style={{ flexBasis: '100%', fontSize: 11.5, margin: 0, lineHeight: 1.55 }}>
+              They chose these. Accepting opens exactly them &mdash; you can change them, or
+              disconnect, any time afterwards.
+            </p>
           </div>
         ))}
       </Card>

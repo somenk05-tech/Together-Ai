@@ -4,6 +4,7 @@ import { Button, Spinner } from '@/components/ui';
 import { usersApi, useConnections, type LookupResult } from '@/api';
 import { useHubs, useRequestConnection, useRespondConnection } from '@/api/connections.api';
 import { RELATIONSHIPS, moduleDef } from '../modules';
+import { PendingRequestNotice } from './PendingRequestNotice';
 
 /**
  * One button, every hub. Instead of each hub running its own invite flow, a hub's
@@ -126,6 +127,8 @@ export function AddHubMemberDialog({
               {result.relationship === 'accepted' && <span style={{ fontSize: 12.5, color: '#2e7d4f', fontWeight: 700 }}>✓ Connected</span>}
               {result.relationship === 'blocked' && <Button variant="line" size="sm" disabled>Unavailable</Button>}
             </div>
+
+            <PendingRequestNotice result={result} />
 
             {canConnect && (
               <div style={{ marginTop: 14 }}>

@@ -100,13 +100,21 @@ export function ModuleToggles({ relationship, selected, onChange }: {
 }
 
 /** "Connected Hubs" chips — universal hubs are implied, not listed. */
-export function ModuleChips({ modules }: { modules: string[] }) {
+/**
+ * The hubs on a connection, as chips.
+ *
+ * `caption` exists because the default read as a lie on half the rows it
+ * appeared on. A PENDING request showed "Connected hubs: Medical" — present
+ * tense, on a connection nobody had accepted, where nothing was connected to
+ * anything. A caller that is describing a proposal has to say so.
+ */
+export function ModuleChips({ modules, caption = 'Connected hubs:' }: { modules: string[]; caption?: string }) {
   const { data: hubs } = useHubs();
   const optional = optionalOf(hubs, modules);
   if (!optional.length) return null;
   return (
     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4, alignItems: 'center' }}>
-      <span className="muted" style={{ fontSize: 10.5 }}>Connected hubs:</span>
+      <span className="muted" style={{ fontSize: 10.5 }}>{caption}</span>
       {optional.map((key) => {
         const def = moduleDef(hubs, key);
         return (

@@ -22,8 +22,11 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-function Row({ c, actions, subtitle, children, collapsible, expanded, onToggle }: {
+function Row({ c, actions, subtitle, children, collapsible, expanded, onToggle, chipCaption }: {
   c: Connection; actions?: React.ReactNode; subtitle?: string; children?: React.ReactNode;
+  /** Overrides the chip caption. A pending row is describing a proposal, not a
+   *  state — see ModuleChips. */
+  chipCaption?: string;
   /** When set, the connected-hubs are collapsed by default and toggled by `onToggle`. */
   collapsible?: boolean; expanded?: boolean; onToggle?: () => void;
 }) {
@@ -45,10 +48,10 @@ function Row({ c, actions, subtitle, children, collapsible, expanded, onToggle }
                 <span aria-hidden style={{ display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>▸</span>
                 {expanded ? 'Hide' : `${hubCount} connected hub${hubCount > 1 ? 's' : ''}`}
               </button>
-              {expanded && <ModuleChips modules={c.modules ?? DEFAULT_MODULES} />}
+              {expanded && <ModuleChips modules={c.modules ?? DEFAULT_MODULES} caption={chipCaption} />}
             </>
           ) : (
-            <ModuleChips modules={c.modules ?? DEFAULT_MODULES} />
+            <ModuleChips modules={c.modules ?? DEFAULT_MODULES} caption={chipCaption} />
           )}
         </div>
         {actions}
@@ -154,11 +157,22 @@ export function Connections() {
       {incoming.length > 0 && (
         <div className="card" style={{ marginBottom: 18 }}>
           <div className="eyebrow">Requests for you · {incoming.length}</div>
+          {/* The sender chose the relationship and the hubs, and this screen is
+              not where they get changed — that is the owner's decision, and it
+              is a defensible one. What it makes necessary is saying so, and
+              saying when it DOES become changeable. Accepting is otherwise a
+              button that opens hubs somebody else picked with no indication
+              that the choice can be revisited. */}
+          <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0', lineHeight: 1.55 }}>
+            They chose which hubs to ask for. Accepting opens exactly those &mdash; you can change
+            them, or disconnect, any time afterwards.
+          </p>
           {incoming.map((c) => (
             <Row
               key={c.id}
               c={c}
               subtitle={relLabel(c.relationship) ? `wants to connect with you as ${relLabel(c.relationship)}` : 'wants to connect with you'}
+              chipCaption="Hubs they want to open:"
               actions={
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button size="sm" variant="accent" disabled={respond.isPending}
@@ -176,7 +190,7 @@ export function Connections() {
         <div className="card" style={{ marginBottom: 18 }}>
           <div className="eyebrow">Sent · {outgoing.length}</div>
           {outgoing.map((c) => (
-            <Row key={c.id} c={c} actions={<span className="muted" style={{ fontSize: 12.5 }}>Pending…</span>} />
+            <Row key={c.id} c={c} chipCaption="Hubs you asked to open:" actions={<span className="muted" style={{ fontSize: 12.5 }}>Pending…</span>} />
           ))}
         </div>
       )}

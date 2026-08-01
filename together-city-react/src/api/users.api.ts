@@ -14,6 +14,12 @@ export const LookupSchema = z
     name: z.string(),
     profileImage: z.string().nullable().optional(),
     relationship: RelationshipSchema,
+    /** On a pending request only: the hubs it would open and what the sender
+     *  called the relationship. The requester picks both and the accepter
+     *  cannot change them before accepting — which is exactly why they have to
+     *  be shown beside the Accept button. */
+    requestedModules: z.array(z.string()).nullable().optional(),
+    requestedRelationship: z.string().nullable().optional(),
   })
   .nullable();
 export type LookupResult = z.infer<typeof LookupSchema>;
