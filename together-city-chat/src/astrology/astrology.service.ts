@@ -1,3 +1,4 @@
+import { swallow } from '../shared/swallow';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MasterProfileService } from '../profile/master-profile.service';
@@ -91,19 +92,19 @@ export class AstrologyService {
     userId: string, kind: 'daily' | 'monthly', periodKey: string, compute: () => T | Promise<T>,
   ): Promise<T & { saved: boolean }> {
     const period = `${AstrologyService.READING_VER}:${periodKey}`;
-    const hit = await this.db.astroReading.findUnique({
+    const hit = await swallow(this.db.astroReading.findUnique({
       where: { userId_kind_period: { userId, kind, period } },
-    }).catch(() => null);
+    }), 'astro: reading cache read', { userId, kind });
     if (hit) {
       try { return { ...(JSON.parse(hit.readingJson) as T), saved: true }; }
       catch { /* recompute below */ }
     }
     const reading = await compute();
-    await this.db.astroReading.upsert({
+    await swallow(this.db.astroReading.upsert({
       where: { userId_kind_period: { userId, kind, period } },
       update: { readingJson: JSON.stringify(reading) },
       create: { userId, kind, period, readingJson: JSON.stringify(reading) },
-    }).catch(() => undefined); // table may not exist mid-deploy — reading still returns
+    }), 'astro: reading cache write', { userId, kind }); // table may not exist mid-deploy — reading still returns
     return { ...reading, saved: true };
   }
 
@@ -112,27 +113,27 @@ export class AstrologyService {
   /** The shared astrology profile. If absent, birth details already given to
    *  the dating hub are auto-migrated in — entered once, reused everywhere. */
   async getProfile(userId: string) {
-    let row = await this.db.astroProfile.findUnique({ where: { userId } }).catch(() => null);
+    let row = await swallow(this.db.astroProfile.findUnique({ where: { userId } }), 'astro: profile read', { userId });
     let source: 'astrology' | 'dating' | 'master' | null = row ? 'astrology' : null;
 
     if (!row) {
       // Master Profile first (single source of truth): if it already knows the
       // birth details — from ANY hub — materialise the astro row from it.
-      const master = await this.masterProfile.get(userId).catch(() => null);
+      const master = await swallow(this.masterProfile.get(userId), 'astro: master read for prefill', { userId });
       if (master?.dateOfBirth && master.birthCity && master.birthCountry) {
         const timeZone = master.timeZone || 'Asia/Kolkata';
         const { lat, lng } = geocodeApprox(master.birthCity, master.birthState ?? null, master.birthCountry, timeZone);
-        row = await this.db.astroProfile.upsert({
+        row = await swallow(this.db.astroProfile.upsert({
           where: { userId }, update: {},
           create: {
             userId, birthDate: new Date(master.dateOfBirth), birthTime: master.timeOfBirth ?? null,
             birthCountry: master.birthCountry, birthState: master.birthState ?? null,
             birthCity: master.birthCity, timeZone, lat, lng,
           },
-        }).catch(() => null as never);
+        }), 'astro: materialise profile from master', { userId }) as never;
         if (row) return { complete: true, profile: this.shape(row), prefill: null, source: 'master' as const };
       }
-      const dating = await this.prisma.datingProfile.findUnique({ where: { userId } }).catch(() => null);
+      const dating = await swallow(this.prisma.datingProfile.findUnique({ where: { userId } }), 'astro: dating read for prefill', { userId });
       if (dating?.birthDate) {
         const place = (dating.birthPlace ?? '').split(',').map((s) => s.trim()).filter(Boolean);
         const birthCity = place[0] ?? '';
@@ -141,7 +142,7 @@ export class AstrologyService {
           // Complete elsewhere → persist silently so every feature shares it.
           const timeZone = 'Asia/Kolkata';
           const { lat, lng } = geocodeApprox(birthCity, place[1] ?? null, birthCountry, timeZone);
-          row = await this.db.astroProfile.upsert({
+          row = await swallow(this.db.astroProfile.upsert({
             where: { userId },
             update: {},
             create: {
@@ -149,7 +150,7 @@ export class AstrologyService {
               birthCountry, birthState: place.length > 2 ? place[1] : null, birthCity,
               timeZone, lat, lng,
             },
-          }).catch(() => null as never);
+          }), 'astro: materialise profile from dating', { userId }) as never;
           source = row ? 'dating' : null;
         } else {
           // Partial → prefill the form, never ask for what we already know.
@@ -193,13 +194,15 @@ export class AstrologyService {
     // now stale. Drop the user's cached readings so daily/monthly/insights
     // regenerate from the new chart on the next fetch (spec: show the UPDATED
     // horoscope after saving).
-    await this.db.astroReading.deleteMany({ where: { userId } }).catch(() => undefined);
+    // If this fails the citizen keeps seeing a horoscope for the OLD chart —
+    // the spec says show the updated one after saving.
+    await swallow(this.db.astroReading.deleteMany({ where: { userId } }), 'astro: purge stale readings', { userId });
     // Master Profile sync — birth details are shared fields used app-wide.
-    await this.masterProfile.syncShared(userId, {
+    await swallow(this.masterProfile.syncShared(userId, {
       dateOfBirth: birthDate, timeOfBirth: data.birthTime,
       birthCountry: data.birthCountry, birthState: data.birthState, birthCity: data.birthCity,
       timeZone: data.timeZone,
-    }, 'astrology').catch(() => undefined);
+    }, 'astrology'), 'astro: master-profile sync', { userId });
     return { saved: true, profile: this.shape(row) };
   }
 
@@ -228,7 +231,7 @@ export class AstrologyService {
 
   private async requireProfile(userId: string): Promise<AstroProfileRow | null> {
     await this.getProfile(userId); // triggers the dating auto-migration if possible
-    return this.db.astroProfile.findUnique({ where: { userId } }).catch(() => null);
+    return swallow(this.db.astroProfile.findUnique({ where: { userId } }), 'astro: profile read', { userId }).then((r) => r ?? null);
   }
 
   /** The user's "now" in their own time zone (so the daily flips at THEIR midnight). */
@@ -239,9 +242,8 @@ export class AstrologyService {
 
   /** The name to address someone by, or '' if we don't have a usable one. */
   private async firstName(userId: string): Promise<string> {
-    const u = await this.prisma.user
-      .findUnique({ where: { id: userId }, select: { name: true } })
-      .catch(() => null);
+    const u = await swallow(this.prisma.user
+      .findUnique({ where: { id: userId }, select: { name: true } }), 'astro: name read', { userId });
     return firstNameOf(u?.name);
   }
 
@@ -306,10 +308,10 @@ export class AstrologyService {
 
   /** Saved daily predictions on the profile — the archive, newest first. */
   async dailyHistory(userId: string) {
-    const rows = await this.db.astroReading.findMany({
+    const rows = (await swallow(this.db.astroReading.findMany({
       where: { userId, kind: 'daily', period: { startsWith: `${AstrologyService.READING_VER}:` } },
       orderBy: { period: 'desc' }, take: 30,
-    }).catch(() => [] as Array<{ period: string; readingJson: string }>);
+    }), 'astro: daily history read', { userId })) ?? ([] as Array<{ period: string; readingJson: string }>);
     return rows.map((r) => {
       try { return JSON.parse(r.readingJson); } catch { return { date: r.period, text: '' }; }
     }).filter((r) => r.text);
@@ -393,9 +395,8 @@ export class AstrologyService {
     // time should not be answered as a stranger. Only the questions are sent,
     // not the previous answers: the point is to know what has been on their
     // mind, and replaying old prose invites the model to repeat itself.
-    const priorQuestions = await this.db.astroQuestion
-      .findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 5, select: { topic: true, question: true } })
-      .catch(() => [] as AstroQuestionRow[]);
+    const priorQuestions = (await swallow(this.db.astroQuestion
+      .findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 5, select: { topic: true, question: true } }), 'astro: prior questions read', { userId })) ?? ([] as AstroQuestionRow[]);
     const history = priorQuestions.length
       ? `\n\nThey have asked about this before. Earlier questions, most recent first:\n` +
         priorQuestions.map((q) => `- (${q.topic}) ${q.question}`).join('\n') +
@@ -455,9 +456,11 @@ export class AstrologyService {
 
   /** My Questions — every paid consultation, newest first. */
   async questions(userId: string) {
-    const rows = await this.db.astroQuestion.findMany({
+    // [] on failure showed My Questions as empty — paid consultations,
+    // reported absent on a read error.
+    const rows = (await swallow(this.db.astroQuestion.findMany({
       where: { userId }, orderBy: { createdAt: 'desc' }, take: 100,
-    }).catch(() => [] as AstroQuestionRow[]);
+    }), 'astro: questions read', { userId })) ?? ([] as AstroQuestionRow[]);
     return rows.map((r) => ({
       id: r.id, topic: r.topic, question: r.question, answer: r.answer,
       priceInr: r.priceInr, createdAt: r.createdAt,

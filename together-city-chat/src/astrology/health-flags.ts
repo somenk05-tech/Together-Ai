@@ -1,3 +1,4 @@
+import { swallow } from '../shared/swallow';
 import type { HealthFlag } from './gem-remedy-content';
 import type { PrismaService } from '../shared/prisma/prisma.service';
 
@@ -30,7 +31,9 @@ const CONDITION_PATTERNS: Array<[RegExp, HealthFlag]> = [
 export async function healthFlagsFor(prisma: PrismaService, userId: string): Promise<HealthFlag[]> {
   const flags = new Set<HealthFlag>();
 
-  const pref = await prisma.foodPref.findUnique({ where: { userId } }).catch(() => null);
+  // A failed read silently drops health flags — an observance could be
+  // suggested to exactly the person it is unsafe for.
+  const pref = await swallow(prisma.foodPref.findUnique({ where: { userId } }), 'astro health-flags: food-pref read', { userId });
   if (pref) {
     // Conditions live in the same JSON blob the nutrition hub reads them from.
     let conditions = '';
@@ -46,7 +49,7 @@ export async function healthFlagsFor(prisma: PrismaService, userId: string): Pro
     if (bmi !== null && bmi < 18.5) flags.add('underweight');
   }
 
-  const master = await prisma.masterProfile.findUnique({ where: { userId } }).catch(() => null);
+  const master = await swallow(prisma.masterProfile.findUnique({ where: { userId } }), 'astro health-flags: master read', { userId });
   if (master) {
     const age = ageFrom(master.dateOfBirth);
     if (age !== null && age < 18) flags.add('minor');

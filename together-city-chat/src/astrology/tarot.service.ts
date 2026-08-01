@@ -1,3 +1,4 @@
+import { swallow } from '../shared/swallow';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -91,9 +92,8 @@ export class TarotService {
     const period = this.clock.todayIn(tz);
 
     // Today's card, if it has already been dealt.
-    const hit = await this.db.tarotReading
-      .findUnique({ where: { userId_kind_period: { userId, kind: 'daily', period } } })
-      .catch(() => null);
+    const hit = await swallow(this.db.tarotReading
+      .findUnique({ where: { userId_kind_period: { userId, kind: 'daily', period } } }), 'tarot: today-card read', { userId });
     if (hit) {
       const stored = TarotService.parseRow(hit);
       if (stored) return { ...stored, saved: true, priceInr: 0 };
@@ -105,9 +105,8 @@ export class TarotService {
     // them. Ask the last card whether its own day has actually ended, measured
     // in the zone it was drawn in.
     if (!hit) {
-      const last = await this.db.tarotReading
-        .findFirst({ where: { userId, kind: 'daily' }, orderBy: { createdAt: 'desc' } })
-        .catch(() => null);
+      const last = await swallow(this.db.tarotReading
+        .findFirst({ where: { userId, kind: 'daily' }, orderBy: { createdAt: 'desc' } }), 'tarot: last-card read', { userId });
       const prev = last ? TarotService.parseRow(last) : null;
       if (last?.period && prev?.tz && this.clock.todayIn(prev.tz) === last.period) {
         return { ...prev, saved: true, priceInr: 0 };
@@ -124,7 +123,7 @@ export class TarotService {
       where: { userId_kind_period: { userId, kind: 'daily', period } },
       create: { userId, kind: 'daily', period, seed, readingJson: JSON.stringify(reading), priceInr: 0 },
       update: {},
-    }).catch(() => null); // history is nice to have; the reading stands without it
+    }).then((r) => r, () => null); // optional-by-design: history is nice to have; the reading stands without it
 
     // Whoever won the race owns the card. Same period means the same seed and
     // therefore the same draw, so this only matters for the recorded zone.
@@ -181,9 +180,10 @@ export class TarotService {
 
   /** Past readings, newest first. */
   async history(userId: string, limit = 50) {
-    const rows = await this.db.tarotReading
-      .findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: Math.min(Math.max(limit, 1), 100) })
-      .catch(() => [] as TarotRow[]);
+    // [] on a failed read showed an empty history page — absence never
+    // established.
+    const rows = (await swallow(this.db.tarotReading
+      .findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: Math.min(Math.max(limit, 1), 100) }), 'tarot: history read', { userId })) ?? ([] as TarotRow[]);
     return rows.map((r) => {
       let reading: TarotReadingOut | null = null;
       try { reading = JSON.parse(r.readingJson) as TarotReadingOut; } catch { reading = null; }
