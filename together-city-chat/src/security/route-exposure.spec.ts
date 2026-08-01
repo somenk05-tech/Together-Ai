@@ -28,8 +28,8 @@ const PUBLIC_ALLOWLIST = [
   'auth POST register',
   'auth POST login',
   'auth GET handle-available',
-  'auth POST check-handle',
-  'auth POST check-email',
+  // check-handle / check-email deleted 1 Aug (e75f1c1) — unused duplicates
+  // of the GET *-available pair. The public surface SHRANK by two.
   'auth GET email-available',
   'auth POST refresh',
   'auth POST forgot',
