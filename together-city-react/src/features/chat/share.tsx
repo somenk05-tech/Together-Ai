@@ -136,7 +136,12 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
               style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical' }} />
 
             <div className="eyebrow" style={{ marginTop: 12 }}>Recent chats</div>
-            {convos.isLoading ? <Spinner /> : (
+            {convos.isLoading ? <Spinner /> : convos.isError ? (
+              <p className="muted" style={{ fontSize: 12.5 }}>
+                We couldn’t load your recent chats just now — they’re still
+                there. Try again in a moment.
+              </p>
+            ) : (
               <div style={{ display: 'grid', gap: 2, marginTop: 4 }}>
                 {(convos.data ?? []).slice(0, 4).map((c) => (
                   <div key={c.id} onClick={() => setTarget({ type: 'conversation', id: c.id, label: c.title ?? 'Chat' })} style={row(target?.type === 'conversation' && target.id === c.id)}>
@@ -150,6 +155,12 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
 
             <div className="eyebrow" style={{ marginTop: 12 }}>Or send to someone</div>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people…" style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', marginBottom: 4 }} />
+            {contacts.isError && (
+              <p className="muted" style={{ fontSize: 12.5 }}>
+                We couldn’t load your people just now — your connections are all
+                still there. Try again in a moment.
+              </p>
+            )}
             <div style={{ display: 'grid', gap: 2, maxHeight: 180, overflow: 'auto' }}>
               {contactList.slice(0, 20).map((c) => (
                 <div key={c.id} onClick={() => setTarget({ type: 'contact', id: c.id, handle: c.handle, label: c.name })} style={row(target?.type === 'contact' && target.id === c.id)}>

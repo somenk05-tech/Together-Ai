@@ -38,13 +38,7 @@ const src = join(dirname(fileURLToPath(import.meta.url)), '..');
  * state is this bug again, and every entry here is a page that can currently
  * tell somebody a comfortable thing that isn't true.
  */
-const KNOWN_MISSING = [
-  'components/SearchSelect.tsx',
-  'features/chat/components/ChatStarter.tsx',
-  'features/chat/share.tsx',
-  'features/mail/DrivePicker.tsx',
-  'features/nutrition/components/QuickCommerce.tsx',
-  'features/nutrition/pages/Preferences.tsx',
+const KNOWN_MISSING: string[] = [
 ];
 
 function walk(dir: string, out: string[] = []): string[] {

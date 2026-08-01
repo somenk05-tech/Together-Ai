@@ -72,7 +72,14 @@ function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; o
         )}
 
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people…" style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', margin: '8px 0 4px' }} />
-        {contacts.isLoading ? <Spinner /> : (
+        {contacts.isLoading ? <Spinner /> : contacts.isError ? (
+          // An empty people-picker on a failed read looks like having nobody
+          // to talk to. The connections are still there.
+          <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+            We couldn’t load your people just now — your connections are all
+            still there. Try again in a moment.
+          </p>
+        ) : (
           <div style={{ display: 'grid', gap: 2, maxHeight: 300, overflow: 'auto' }}>
             {list.slice(0, 40).map((c) => {
               const active = picked.some((x) => x.id === c.id);

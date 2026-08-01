@@ -133,6 +133,17 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 
 function TargetsCard() {
   const targets = useNutritionTargets();
+  if (targets.isError) {
+    return (
+      <div className="card" style={{ marginTop: 18 }}>
+        <div className="eyebrow">Your daily targets</div>
+        <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '8px 0 0' }}>
+          We couldn’t load your targets just now — your saved preferences are
+          untouched, and the numbers will be back on the next try.
+        </p>
+      </div>
+    );
+  }
   if (!targets.data) return null;
   const t = targets.data;
   // BE-7.4. Six figures headed "Your daily targets", every one of them computed
@@ -186,6 +197,9 @@ export function Preferences() {
   const [exLoaded, setExLoaded] = useState(false);
   const detectedMerged = useRef(false);
 
+  // A failed profile read must NOT open a blank first-time form: filling and
+  // saving it would overwrite preferences that still exist. The isError gate
+  // before the form render keeps it closed until the read succeeds.
   useEffect(() => {
     if (existing.data && !form) {
       setForm(existing.data);
@@ -267,6 +281,18 @@ export function Preferences() {
     { key: 'delivery', label: 'Delivery Schedule', valid: () => Boolean(ex.delivery), message: 'Choose your Delivery Schedule.' },
   ]);
 
+  if (existing.isError) {
+    return (
+      <div className="card" style={{ maxWidth: 640, margin: '28px auto', padding: '20px 24px' }}>
+        <p style={{ fontSize: 13.5, margin: 0, lineHeight: 1.6 }}>
+          We couldn’t load your food preference profile just now. Everything you
+          saved is untouched — and we won’t show a blank form over it, because
+          saving that would overwrite preferences that still exist. Try again in
+          a moment.
+        </p>
+      </div>
+    );
+  }
   if (existing.isLoading || !form) return <Spinner label="Loading your preferences…" />;
 
   const num = (v: string) => (v ? parseInt(v, 10) : null);

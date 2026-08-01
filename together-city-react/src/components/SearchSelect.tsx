@@ -38,6 +38,9 @@ export function SearchSelect({
   const backend = useLookups(category ?? '', { parent, enabled: Boolean(category) && !staticOptions });
   const options = staticOptions ?? backend.data ?? [];
   const loading = !staticOptions && Boolean(category) && backend.isLoading;
+  // A failed lookup used to render an empty dropdown — "no countries exist"
+  // instead of "the list didn't load". Surfaced as a row the user can read.
+  const loadFailed = !staticOptions && Boolean(category) && backend.isError;
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -95,7 +98,12 @@ export function SearchSelect({
                 style={{ padding: '10px 14px', fontSize: 13.5, cursor: 'pointer', color: 'var(--muted)' }}>{clearLabel}</div>
             )}
             {loading && <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--muted)' }}>Loading…</div>}
-            {!loading && filtered.length === 0 && <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--muted)' }}>No matches</div>}
+            {loadFailed && (
+              <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--muted)' }}>
+                The list didn’t load — that’s us, not a lack of options. Close and reopen to retry.
+              </div>
+            )}
+            {!loading && !loadFailed && filtered.length === 0 && <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--muted)' }}>No matches</div>}
             {filtered.map((o, i) => (
               <div key={o.code} role="option" aria-selected={o.label === value}
                 onMouseDown={() => choose(o)} onMouseEnter={() => setHi(i)}

@@ -94,6 +94,12 @@ export function QuickCommercePanel({ mode = 'individual' }: { mode?: 'individual
 
       {compare.data?.liveNote && <p className="muted" style={{ fontSize: 11, margin: '0 0 10px' }}>ⓘ {compare.data.liveNote}</p>}
       {compare.isLoading && <Spinner label="Pricing your list across stores…" />}
+      {compare.isError && (
+        <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+          We couldn’t price the basket just now — your grocery list is unchanged,
+          and no order has been placed. Try again in a moment.
+        </p>
+      )}
       {compare.data?.note && <Card style={{ padding: 16 }}><p className="muted" style={{ fontSize: 13 }}>{compare.data.note}</p></Card>}
 
       {quotes.length > 0 && (

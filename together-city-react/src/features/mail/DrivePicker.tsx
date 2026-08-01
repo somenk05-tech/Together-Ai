@@ -15,6 +15,9 @@ export function DrivePicker({ onClose, onPick, alreadyPicked }: {
   const [selected, setSelected] = useState<Record<string, DriveFile>>({});
   const listing = useDrive(folderId);
   const data = listing.data;
+  // An empty picker on a failed read looks like the Drive is EMPTY — files
+  // reading as gone is the worst false sentence this dialog can show.
+  const loadFailed = listing.isError;
 
   const toggle = (f: DriveFile) => setSelected((cur) => {
     const next = { ...cur };
@@ -48,6 +51,12 @@ export function DrivePicker({ onClose, onPick, alreadyPicked }: {
 
         <div style={{ flex: 1, overflow: 'auto', minHeight: 140 }}>
           {listing.isLoading && <div style={{ padding: 24 }}><Spinner /></div>}
+          {loadFailed && (
+            <p className="muted" style={{ fontSize: 13, textAlign: 'center', padding: '32px 16px' }}>
+              We couldn’t open your Drive just now. Nothing is missing — every
+              file is where you left it. Close and reopen to retry.
+            </p>
+          )}
           {data && data.folders.length === 0 && data.files.length === 0 && (
             <p className="muted" style={{ fontSize: 13, textAlign: 'center', padding: '32px 16px' }}>
               This folder is empty. Upload files in <strong>Drive</strong> first.
