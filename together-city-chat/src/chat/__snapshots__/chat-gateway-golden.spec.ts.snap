@@ -1,0 +1,118 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`chat gateway golden master a bad token is told once and disconnected — never half-connected 1`] = `
+{
+  "clientOut": [
+    {
+      "event": "error_event",
+      "payload": {
+        "message": "Unauthorized",
+      },
+    },
+  ],
+  "disconnected": true,
+}
+`;
+
+exports[`chat gateway golden master a good token joins the personal room, flips presence, and syncs offline messages 1`] = `
+{
+  "calls": [
+    "bus:{"kind":"presence.changed","userId":"u1","online":true}",
+  ],
+  "clientOut": [
+    {
+      "event": "sync_pending",
+      "payload": [
+        {
+          "id": "m-offline",
+        },
+      ],
+    },
+  ],
+  "joined": [
+    "user:u1",
+  ],
+}
+`;
+
+exports[`chat gateway golden master call signalling re-authorises EVERY frame before relaying, and relays opaque 1`] = `
+{
+  "calls": [
+    "may-signal:["u1","22222222-2222-4222-8222-222222222222","33333333-3333-4333-8333-333333333333"]",
+  ],
+  "out": [
+    {
+      "event": "call_signal",
+      "payload": {
+        "callId": "22222222-2222-4222-8222-222222222222",
+        "from": "u1",
+        "kind": "offer",
+        "payload": {
+          "sdp": "opaque",
+        },
+      },
+      "room": "user:33333333-3333-4333-8333-333333333333",
+    },
+  ],
+}
+`;
+
+exports[`chat gateway golden master joining a conversation is gated, remembered, and clears its bell entry 1`] = `
+{
+  "calls": [
+    "gate:["u1","11111111-1111-4111-8111-111111111111"]",
+    "open:["u1","11111111-1111-4111-8111-111111111111"]",
+    "bell-cleared:["u1","11111111-1111-4111-8111-111111111111"]",
+  ],
+  "joined": [
+    "conversation:11111111-1111-4111-8111-111111111111",
+  ],
+}
+`;
+
+exports[`chat gateway golden master message.created fans out: the room hears the message, each recipient gets the badge push, the bell is filed 1`] = `
+{
+  "calls": [
+    "notify:{"conversationId":"c1","senderId":"u1","recipientIds":["u2","u3"],"preview":"chai at four?"}",
+  ],
+  "out": [
+    {
+      "event": "receive_message",
+      "payload": {
+        "body": "chai at four?",
+        "id": "m1",
+        "senderId": "u1",
+      },
+      "room": "conversation:c1",
+    },
+    {
+      "event": "chat_notification",
+      "payload": {
+        "conversationId": "c1",
+        "messageId": "m1",
+        "preview": "chai at four?",
+        "senderId": "u1",
+      },
+      "room": "user:u2",
+    },
+    {
+      "event": "chat_notification",
+      "payload": {
+        "conversationId": "c1",
+        "messageId": "m1",
+        "preview": "chai at four?",
+        "senderId": "u1",
+      },
+      "room": "user:u3",
+    },
+  ],
+}
+`;
+
+exports[`chat gateway golden master previews: text is quoted, media is named, the unknown stays generic 1`] = `
+[
+  "📷 Photo",
+  "🎤 Voice message",
+  "New message",
+]
+`;

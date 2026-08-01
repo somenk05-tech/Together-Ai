@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { allRoutes } from './route-inventory';
 
 /**
@@ -78,9 +78,10 @@ const ALLOW: Array<{ id: string; why: string }> = [
  * which is a job, not a guess, and pretending otherwise by writing invented
  * reasons into ALLOW above would defeat the whole point of having ALLOW.
  */
+// Came off 1 Aug: auth's POST check-* pair and messages' REST read/delivered
+// (all four were duplicates of the paths actually used — GET *-available and
+// the socket receipts) were DELETED rather than wired.
 const KNOWN_UNREACHED: string[] = [
-  "auth/auth.controller.ts  POST /auth/check-email",
-  "auth/auth.controller.ts  POST /auth/check-handle",
   "beauty/beauty.controller.ts  DELETE /beauty/looks/*",
   "beauty/beauty.controller.ts  GET /beauty/looks",
   "beauty/beauty.controller.ts  GET /beauty/looks/*",
@@ -101,8 +102,6 @@ const KNOWN_UNREACHED: string[] = [
   "entertainment/entertainment.controller.ts  POST /entertainment/events/*/book",
   "medical/medical.controller.ts  GET /medical/shared-biomarkers/*",
   "messages/messages.controller.ts  GET /messages/search",
-  "messages/messages.controller.ts  POST /messages/delivered",
-  "messages/messages.controller.ts  POST /messages/read",
   "nutrition/nutrition.controller.ts  GET /nutrition/diet-plans",
   "nutrition/nutrition.controller.ts  GET /nutrition/pantry/history",
   "nutrition/nutrition.controller.ts  GET /nutrition/qa/report",
@@ -140,6 +139,39 @@ function webFiles(dir: string, out: string[] = []): string[] {
 }
 
 const describeOrSkip = existsSync(WEB_SRC) ? describe : describe.skip;
+
+/**
+ * F.17's companion: the broad matcher above counts a URL string ANYWHERE in
+ * the web package as reached — including in a file nothing imports. A dead
+ * caller keeping a dead endpoint alive is exactly the two-plan-models failure.
+ * So: walk the import graph from the app's entrypoints and check that every
+ * URL string's file is actually part of the app.
+ */
+function reachableWebFiles(): Set<string> {
+  const reached = new Set<string>();
+  const resolve = (spec: string, fromDir: string): string | null => {
+    let base: string;
+    if (spec.startsWith('@/')) base = join(WEB_SRC, spec.slice(2));
+    else if (spec.startsWith('.')) base = join(fromDir, spec);
+    else return null; // package import
+    for (const cand of [base, base + '.ts', base + '.tsx', join(base, 'index.ts'), join(base, 'index.tsx')]) {
+      if (existsSync(cand) && statSync(cand).isFile()) return cand;
+    }
+    return null;
+  };
+  const queue = [join(WEB_SRC, 'main.tsx'), join(WEB_SRC, 'app', 'router.tsx')].filter((f) => existsSync(f));
+  while (queue.length) {
+    const f = queue.pop()!;
+    if (reached.has(f)) continue;
+    reached.add(f);
+    const src = readFileSync(f, 'utf8');
+    for (const m of src.matchAll(/(?:from\s+|import\()\s*['"]([^'"]+)['"]/g)) {
+      const r = resolve(m[1], dirname(f));
+      if (r && !reached.has(r)) queue.push(r);
+    }
+  }
+  return reached;
+}
 
 describeOrSkip('every route this API declares is called by the web app', () => {
   /**
@@ -191,6 +223,35 @@ describeOrSkip('every route this API declares is called by the web app', () => {
       .map((r) => `${r.file}  ${r.method} ${shapeOfRoute(r.prefix, r.path)}`)
       .filter((id) => !allowed.has(id));
     expect(orphans.sort()).toEqual([...KNOWN_UNREACHED].sort());
+  });
+
+  it('no URL string hides in a file the app never imports (F.17 companion)', () => {
+    const reached = reachableWebFiles();
+    /**
+     * Files known to hold API strings while being unreachable — every one a
+     * finished component awaiting the owner's wire-or-delete call. MealCard
+     * was found BY this guard on its first run (1 Aug): the dead-export audit
+     * never saw it because island files can import each other. The five became
+     * six. Wiring or deleting one removes it from this list in the same commit.
+     */
+    const KNOWN_STRAY_FILES = new Set([
+      'features/nutrition/components/MealCard.tsx',
+      'features/nutrition/components/MedicalAdvisories.tsx',
+    ]);
+    const strays: string[] = [];
+    for (const f of webFiles(WEB_SRC)) {
+      if (/\.(test|spec)\.tsx?$/.test(f) || reached.has(f)) continue;
+      if (KNOWN_STRAY_FILES.has(f.slice(WEB_SRC.length + 1))) continue;
+      const src = readFileSync(f, 'utf8');
+      for (const q of ['`', "'", '"']) {
+        const re = new RegExp(q + '(\\/api\\/[^' + q + '\\n]*|\\/(auth|nutrition|medical|dating|jobs|social|financial|beauty|fitness|astrology|travel|restaurants|realestate|mail|drive|chat|messages|privacy|prescriptions|connections|notifications|users|calls|entertainment|city|lookups|ai)\\/[^' + q + '\\n]*)' + q, 'g');
+        for (const m of src.matchAll(re)) strays.push(`${f.slice(WEB_SRC.length + 1)} :: ${m[1]}`);
+      }
+    }
+    // Empty on the day it was written (0f54179 deleted the dead callers).
+    // Anything appearing here is an API call in a file the app cannot reach —
+    // wire the file up or delete it; do not let it keep an endpoint "alive".
+    expect(strays).toEqual([]);
   });
 
   it('every allowed route carries a reason somebody wrote', () => {

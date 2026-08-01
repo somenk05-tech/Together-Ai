@@ -104,19 +104,9 @@ export class AuthController {
     return this.auth.handleAvailable(handle ?? '');
   }
 
-  @Throttle({ default: { limit: 30, ttl: 60_000 } })
-  @Public()
-  @Post('check-handle')
-  checkHandle(@Body() dto: { handle?: string }) {
-    return this.auth.handleAvailable(dto?.handle ?? '');
-  }
-
-  @Throttle({ default: { limit: 15, ttl: 60_000 } })
-  @Public()
-  @Post('check-email')
-  checkEmail(@Body() dto: { email?: string }) {
-    return this.auth.emailAvailable(dto?.email ?? '');
-  }
+  // POST /auth/check-handle and /auth/check-email were unused duplicates of
+  // the GET *-available endpoints the sign-up form actually calls — deleted
+  // 1 Aug when the route-reach review reached them.
 
   @Throttle({ default: { limit: 15, ttl: 60_000 } })
   @Public()

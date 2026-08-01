@@ -68,19 +68,8 @@ export class MessagesController {
     return this.messages.remove(user.sub, id, dto);
   }
 
-  // POST /api/messages/read
-  @Post('messages/read')
-  @UsePipes(new ZodValidationPipe(AckSchema))
-  read(@CurrentUser() user: JwtUser, @Body() dto: AckDto) {
-    return this.messages.markRead(user.sub, dto.messageIds);
-  }
-
-  // POST /api/messages/delivered
-  @Post('messages/delivered')
-  @UsePipes(new ZodValidationPipe(AckSchema))
-  delivered(@CurrentUser() user: JwtUser, @Body() dto: AckDto) {
-    return this.messages.markDelivered(user.sub, dto.messageIds);
-  }
+  // Read/delivered receipts travel over the socket (chat.gateway onRead /
+  // onDelivered) — the REST duplicates nothing called were deleted 1 Aug.
 
   // GET /api/messages/search
   @Get('messages/search')

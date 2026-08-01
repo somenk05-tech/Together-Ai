@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useJobProfile, useUploadResume } from '../api';
@@ -16,7 +16,13 @@ export function Profile() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [text, setText] = useState('');
   const [readError, setReadError] = useState<string | null>(null);
-  const [reading, setReading] = useState(false);
+  const [reading, setReading] = useState<false | 'reader' | 'reading'>(false);
+
+  // The CV readers (pdf.js + mammoth) are a meaty chunk. Warm them the moment
+  // this page opens, so by the time a citizen picks a file the reader is
+  // already here — the review's "downloads something large and just shows a
+  // spinner" was this chunk arriving mid-upload, unexplained.
+  useEffect(() => { void import('../cv-extract').catch(() => undefined); }, []);
   const [editing, setEditing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -31,12 +37,14 @@ export function Profile() {
       return;
     }
     setFileName(f.name);
-    setReading(true);
+    setReading('reader');
     try {
       // Real CVs are PDFs or Word docs — extract their text in the browser
       // (pdf.js / mammoth) before parsing, instead of reading the raw bytes.
-      // Loaded on demand so the heavy parsers don't weigh down the page.
+      // Usually preloaded above; on a slow network the label below says
+      // honestly which wait this is.
       const { extractCvText } = await import('../cv-extract');
+      setReading('reading');
       const { text, kind } = await extractCvText(f);
       const printable = text.replace(/[^\x20-\x7E\s]/g, '').length;
       const looksLikeText = text.trim().length >= 30 && printable / Math.max(1, text.length) >= 0.7;
@@ -97,7 +105,7 @@ export function Profile() {
       >
         <div style={{ fontSize: 40, lineHeight: 1 }}>{(reading || upload.isPending) ? '⏳' : '📄'}</div>
         <div style={{ fontWeight: 700, fontSize: 16, marginTop: 10 }}>
-          {reading ? 'Reading your CV…' : upload.isPending ? 'Parsing your CV…' : fileName ? fileName : 'Drag & drop your CV here'}
+          {reading === 'reader' ? 'Fetching the CV reader (first time only)…' : reading === 'reading' ? 'Reading your CV…' : upload.isPending ? 'Parsing your CV…' : fileName ? fileName : 'Drag & drop your CV here'}
         </div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>
           {(reading || upload.isPending) ? 'One moment' : `or click to choose a file · PDF, Word (.docx) or .txt · max ${MAX_CV_MB} MB`}

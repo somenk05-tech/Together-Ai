@@ -1,0 +1,151 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ai-suggestions golden master (fallback spine) astrology: no dating profile is an invitation, not a guess 1`] = `
+{
+  "aiPowered": false,
+  "intro": "Add your birth date to your dating profile to unlock your compatibility guide.",
+  "items": [],
+}
+`;
+
+exports[`ai-suggestions golden master (fallback spine) astrology: the pairings rank by tradition and NEVER carry a percentage — even when a model tries 1`] = `
+{
+  "aiPowered": true,
+  "intro": "You're a Leo ✨. Here's who the stars say you click with.",
+  "items": [
+    {
+      "detail": "Fire meets fire.",
+      "tag": "Classic pairing",
+      "title": "Leo + Aries",
+    },
+    {
+      "detail": "Adventure squared.",
+      "tag": "Strong pairing",
+      "title": "Leo + Sagittarius",
+    },
+  ],
+  "note": "Just for fun ✨",
+}
+`;
+
+exports[`ai-suggestions golden master (fallback spine) beauty: oily skin with acne builds the treatment routine; no profile builds the gentle default 1`] = `
+{
+  "bare": {
+    "aiPowered": false,
+    "intro": "A routine for normal skin.",
+    "items": [
+      {
+        "detail": "A gentle foaming cleanser morning and night to keep skin balanced.",
+        "tag": "AM/PM",
+        "title": "Cleanse",
+      },
+      {
+        "detail": "A hydrating cream to lock in moisture.",
+        "tag": "AM/PM",
+        "title": "Moisturise",
+      },
+      {
+        "detail": "Broad-spectrum SPF 30+ every morning — the single best anti-ageing step.",
+        "tag": "AM",
+        "title": "Sunscreen",
+      },
+      {
+        "detail": "A hydrating or exfoliating mask once a week for glow.",
+        "tag": "Weekly",
+        "title": "Weekly boost",
+      },
+    ],
+  },
+  "withProfile": {
+    "aiPowered": false,
+    "intro": "A routine for oily skin, targeting acne, dullness.",
+    "items": [
+      {
+        "detail": "A gel cleanser morning and night to keep skin balanced.",
+        "tag": "AM/PM",
+        "title": "Cleanse",
+      },
+      {
+        "detail": "A light, oil-free gel moisturiser.",
+        "tag": "AM/PM",
+        "title": "Moisturise",
+      },
+      {
+        "detail": "Broad-spectrum SPF 30+ every morning — the single best anti-ageing step.",
+        "tag": "AM",
+        "title": "Sunscreen",
+      },
+      {
+        "detail": "A salicylic acid or benzoyl peroxide treatment a few nights a week.",
+        "tag": "PM",
+        "title": "Target breakouts",
+      },
+    ],
+  },
+}
+`;
+
+exports[`ai-suggestions golden master (fallback spine) fitness: declared conditions surface the see-your-doctor note; a beginner gets easy effort 1`] = `
+{
+  "aiPowered": false,
+  "intro": "A beginner plan for your “weightLoss” goal (home).",
+  "items": [
+    {
+      "detail": "Squats, push-ups, rows — 3 sets, easy effort.",
+      "tag": "Strength",
+      "title": "Day 1 — Full-body strength",
+    },
+    {
+      "detail": "30–40 min brisk walk, jog or cycle.",
+      "tag": "Cardio",
+      "title": "Day 2 — Cardio",
+    },
+    {
+      "detail": "Stretching, planks and light core work to recover.",
+      "tag": "Recovery",
+      "title": "Day 3 — Mobility & core",
+    },
+    {
+      "detail": "Repeat Day 1 adding a little weight or a rep when it feels easy.",
+      "tag": "Progress",
+      "title": "Day 4 — Repeat & progress",
+    },
+  ],
+  "note": "You noted health conditions — start easy and check with your doctor.",
+}
+`;
+
+exports[`ai-suggestions golden master (fallback spine) recipes: a low hemoglobin drives marker-led meals; the health note always rides along 1`] = `
+{
+  "aiPowered": false,
+  "intro": "Meal ideas tuned to your latest results (Hemoglobin: low) and your vegetarian diet.",
+  "items": [
+    {
+      "detail": "Build meals around lean red meat, liver, fish & seafood, lentils & beans. Suggests anemia. Build in iron-rich meals — heme iron from lean meat, liver, fish and poultry is best absorbed; pair non-heme (beans, lentils, spi",
+      "tag": "hb",
+      "title": "Hemoglobin is low",
+    },
+  ],
+  "note": "Informational only — not medical advice. Talk to a clinician about your results.",
+}
+`;
+
+exports[`ai-suggestions golden master (fallback spine) recipes: no blood test at all falls back to the goal plates 1`] = `
+{
+  "aiPowered": false,
+  "intro": "Meal ideas for your everything diet and “lose” goal.",
+  "items": [
+    {
+      "detail": "Eggs or Greek yogurt with fruit keeps you full and steadies energy.",
+      "tag": "goal",
+      "title": "High-protein breakfast",
+    },
+    {
+      "detail": "A large salad bowl with a lean protein and olive oil — filling, lower calorie.",
+      "tag": "goal",
+      "title": "Big-volume lunch",
+    },
+  ],
+  "note": "Informational only — not medical advice. Talk to a clinician about your results.",
+}
+`;

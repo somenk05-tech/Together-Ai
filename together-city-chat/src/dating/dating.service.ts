@@ -21,6 +21,10 @@ import { nickname } from '../shared/nickname';
 import type { MatchKind, UpsertDatingProfileDto } from './dto/dating.dto';
 
 const MATCH_THRESHOLD = 75; // only curated matches ≥75% are ever shown (spec)
+/** M4: a curated card must be a real profile, not a stub. Below this floor a
+ *  candidate stays out of everyone's curated pool until they add substance —
+ *  their own completion nudge (profileCompletion) tells them exactly what. */
+const CURATED_MIN_COMPLETION = 40;
 
 /**
  * How many profiles are scored per request.
@@ -417,6 +421,13 @@ export class DatingService {
       const myInterests = this.splitInterests(mine.interests);
       const theirInterests = this.splitInterests(cand.interests);
       const candDX = this.parseDX((cand as { extras?: string | null }).extras) as DXProfile & DXVisibility;
+      // M4: near-empty profiles do not reach the curated shelf, however well
+      // the stars align — a strong score over a stub oversells a stranger.
+      const candCompletion = profileCompletion({
+        ...(candDX as Record<string, unknown>),
+        bio: cand.bio, interests: this.splitInterests(cand.interests),
+      });
+      if (candCompletion.percent < CURATED_MIN_COMPLETION) continue;
       const breakdown = factorScores(astro, myInterests, theirInterests, myD, candDX);
       const score = overallScore(breakdown);
       if (score < MATCH_THRESHOLD) continue;
