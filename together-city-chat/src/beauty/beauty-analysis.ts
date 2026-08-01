@@ -3,7 +3,8 @@
 // profile + concerns + any photo findings into per-attribute readings, the top
 // issues, and a routine tuned to their goals, allergies and medical conditions.
 
-import { isTopicallySafe } from '../shared/topical-sensitivities';
+import { findSensitivity } from '../shared/topical-sensitivities';
+import { joinTerms } from '../shared/allergen-voice';
 
 export type Level = 'good' | 'monitor' | 'attention' | 'priority';
 export interface Reading { key: string; label: string; level: Level; note: string }
@@ -65,7 +66,17 @@ export function assessBeauty(p: BeautyProfileInput, photoFindings: string[] = []
    * findSensitivity matches on whole words and on families, so a declared term
    * reaches the things it actually means and stops there.
    */
-  const avoid = (name: string) => !isTopicallySafe(name, [], allergies);
+  //
+  // K5.66 — it also REMEMBERS what it avoided. The caution below used to fire on
+  // the mere presence of a declared sensitivity, which says something true about
+  // the profile and something unproven about this assessment. Recording the
+  // terms that actually changed a suggestion makes the sentence an event.
+  const avoidedTerms = new Set<string>();
+  const avoid = (name: string) => {
+    const hit = findSensitivity(name, [], allergies);
+    if (hit) avoidedTerms.add(hit.term);
+    return !!hit;
+  };
 
   // ---- Skin readings ----
   const skin: Reading[] = [];
@@ -119,7 +130,12 @@ export function assessBeauty(p: BeautyProfileInput, photoFindings: string[] = []
   // ---- Cautions ----
   const cautions: string[] = [];
   if (pregnant) cautions.push('Pregnant/breastfeeding: avoid retinoids, high-dose salicylic acid and hydroquinone — safer alternatives suggested above.');
-  if (allergies.length) cautions.push(`Avoiding your flagged sensitivities: ${(p.allergies ?? []).join(', ')}.`);
+  // Only when it actually happened, and naming what the citizen typed. Silence
+  // when a declared sensitivity changed nothing here — an unearned reassurance
+  // is the same species of lie as an unearned empty state.
+  if (avoidedTerms.size) {
+    cautions.push(`Some suggestions were changed because you told us about ${joinTerms([...avoidedTerms].sort())}.`);
+  }
   if (has(conds, 'pcos', 'thyroid', 'hormonal acne')) cautions.push('Hormonal factors (PCOS/thyroid) can drive acne & hair fall — topical care helps, but treat the root cause with your doctor.');
   cautions.push('This is an educational assessment, not a dermatological diagnosis. Persistent or worsening issues deserve a certified dermatologist.');
 

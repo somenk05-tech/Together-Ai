@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { http as api } from '@/api/client';
+import type { AllergyNoticeShape } from '@/components/ui';
 
 /* Types mirror the backend meal-composer output (Meal-Planning-Engine-Spec). */
 export interface MealIngredient { name: string; grams: number; pantry: boolean; toTaste?: boolean }
@@ -85,6 +86,8 @@ export interface ComposedWeek {
   /** Dual score for this plan + the counterpart mode, so each tab shows both
    *  scores and the difference between the two plans. */
   scorecard?: Scorecard;
+  /** What the allergy rule kept out of this plan, or null. (K5.66.) */
+  allergyNotice?: AllergyNoticeShape | null;
   prescription: Prescription;
   fastingSafety: { level: 'ok' | 'warn' | 'block'; notes: string[] };
   basedOnFamily?: { ownerName: string; factor: number };

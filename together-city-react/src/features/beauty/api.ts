@@ -1,6 +1,7 @@
 import { AxiosError } from 'axios';
 import { http as api } from '@/api/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { AllergyNoticeShape } from '@/components/ui';
 
 export interface Citation { id: string; label: string; ref: string }
 
@@ -63,6 +64,8 @@ export interface ProductsResponse {
   products: RecommendedProduct[];
   personalisedBy: { concerns: string[]; labs: boolean; assessment: boolean };
   matchedCount: number;
+  /** What the sensitivity rule took off this shelf, or null. (K5.66.) */
+  allergyNotice: AllergyNoticeShape | null;
 }
 /**
  * A product-backed routine step — distinct from the lightweight RoutineStep

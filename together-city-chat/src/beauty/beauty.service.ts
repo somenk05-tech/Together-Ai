@@ -8,9 +8,11 @@ import { AiService } from '../ai/ai.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { beautyGender, genderIdentityFromBeauty } from '../profile/sex-and-gender';
 import {
-  beautyInsights, recommendProducts, priceBeautyOrder, CONCERN_TAGS,
+  beautyInsights, recommendProducts, priceBeautyOrder, CONCERN_TAGS, BEAUTY_PRODUCTS,
   type BeautyInsight,
 } from './beauty-engine';
+import { topicalExclusions } from '../shared/topical-sensitivities';
+import { allergyNotice } from '../shared/allergen-voice';
 import { buildRoutines } from './routine-engine';
 import { LookAnalysisService } from './look-analysis.service';
 import { assessBeauty, type BeautyProfileInput, type BeautyAssessment } from './beauty-analysis';
@@ -385,19 +387,29 @@ export class BeautyService {
     const analysis = profile.analysis as { skin?: { readings?: { key: string; label: string; level: string }[] }; hair?: { readings?: { key: string; label: string; level: string }[] } } | null;
     const readings = [...(analysis?.skin?.readings ?? []), ...(analysis?.hair?.readings ?? [])];
     const extras = profile.profile as { skinType?: string; budget?: string; allergies?: string[] };
+    const declared = await this.declaredSensitivities(userId, extras.allergies);
     const products = recommendProducts({
       readings,
       concerns: profile.concerns,
       profile: {
         skinType: String(extras.skinType ?? profile.skinType), budget: extras.budget,
-        allergies: await this.declaredSensitivities(userId, extras.allergies),
+        allergies: declared,
       },
       insights,
     });
+    // K5.66 — the shelf says why it is shorter. recommendProducts() has filtered
+    // on this since the substring test was replaced; it has never mentioned it,
+    // and a citizen cannot tell our rule from our range. Counted over the same
+    // catalogue the recommender read, with the same matcher.
+    const cut = topicalExclusions(
+      BEAUTY_PRODUCTS.map((p) => ({ name: p.name, ingredients: [...p.actives, p.keyIngredient] })),
+      declared,
+    );
     return {
       products,
       personalisedBy: { concerns: profile.concerns, labs: usedLabs, assessment: readings.length > 0 },
       matchedCount: products.filter((p) => p.matched).length,
+      allergyNotice: allergyNotice(cut.matched, cut.removed, { one: 'product', many: 'products' }),
     };
   }
 

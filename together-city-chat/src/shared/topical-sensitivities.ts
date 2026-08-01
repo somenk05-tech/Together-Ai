@@ -238,6 +238,36 @@ export function findSensitivity(
   return null;
 }
 
+/**
+ * What a declared sensitivity actually took off the shelf. (K5.66.)
+ *
+ * Beauty has always filtered correctly and never said so, which is the review's
+ * complaint about the whole propagation: the citizen sees a shorter shelf and
+ * has no way to know whether that is our rule or our range. Counting here
+ * rather than inside the three filters keeps their signatures — and their six
+ * spec call sites — alone, and costs one extra pass over a list of ~40.
+ *
+ * `matched` is what they TYPED, so the sentence can say "you told us about
+ * nuts" rather than naming a family key they never used.
+ */
+export function topicalExclusions(
+  items: readonly { name: string; ingredients?: readonly string[] }[],
+  declared: readonly string[],
+): { matched: string[]; removed: number; examples: string[] } {
+  if (!declared.length) return { matched: [], removed: 0, examples: [] };
+  const matched = new Set<string>();
+  const examples: string[] = [];
+  let removed = 0;
+  for (const it of items) {
+    const hit = findSensitivity(it.name, it.ingredients ?? [], declared);
+    if (!hit) continue;
+    removed++;
+    matched.add(hit.term);
+    if (examples.length < 3) examples.push(it.name);
+  }
+  return { matched: [...matched], removed, examples };
+}
+
 /** The boolean the three Beauty call sites want. */
 export function isTopicallySafe(
   productName: string,

@@ -6,6 +6,10 @@ import {
   matchProducts, normaliseAttributes, stepsFor, NEUTRAL_ATTRIBUTES,
   type LookAttributes, type ShelfProduct,
 } from './look-decode';
+import { topicalExclusions } from '../shared/topical-sensitivities';
+import { allergyNotice, type AllergyNotice } from '../shared/allergen-voice';
+
+const PRODUCTS = { one: 'product', many: 'products' };
 
 interface LookRow {
   id: string; userId: string; fileKey: string | null; mimeType: string | null;
@@ -92,7 +96,16 @@ export class LookAnalysisService {
     }
 
     const steps = stepsFor(attributes);
-    const matches = matchProducts(steps, this.shelf(), prefs);
+    const shelf = this.shelf();
+    const matches = matchProducts(steps, shelf, prefs);
+    // K5.66 — matchProducts() has excluded on declared sensitivities since the
+    // substring test was replaced, and has never said so. A step with no product
+    // against it reads as "we don't stock one", not "we do, and it has almond
+    // oil in it".
+    const cut = topicalExclusions(
+      shelf.map((p) => ({ name: p.name, ingredients: p.actives })),
+      prefs.allergies ?? [],
+    );
 
     const saved = await this.table.update({
       where: { id: row.id },
@@ -106,7 +119,7 @@ export class LookAnalysisService {
         productMatches: JSON.stringify(matches),
       },
     });
-    return this.shape(saved);
+    return { ...this.shape(saved), allergyNotice: allergyNotice(cut.matched, cut.removed, PRODUCTS) };
   }
 
   async list(userId: string) {
@@ -145,6 +158,9 @@ export class LookAnalysisService {
       attributes: parse<LookAttributes>(r.attributes, NEUTRAL_ATTRIBUTES),
       steps: parse(r.steps, []),
       productMatches: parse(r.productMatches, []),
+      // Only the analyse call knows whose shelf this was; a look re-read later
+      // carries no claim rather than a stale one.
+      allergyNotice: null as AllergyNotice | null,
       /** Said plainly, because a generic routine presented as a reading is a lie. */
       note: r.readBy === 'ai'
         ? 'Read from your photo.'

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Card, Spinner, EmptyState, Button, Chip, Modal } from '@/components/ui';
+import { AllergyNote, Card, Spinner, EmptyState, Button, Chip, Modal } from '@/components/ui';
 import {
   useComposedPlan, useMealSettings, useSaveMealSettings,
   useRestoreSkips, useRenewPlan,
@@ -461,6 +461,11 @@ export function MealPlan() {
       </p>
       </>
       )}
+
+      {/* The plan says what the allergy rule kept out of it. The propagation has
+          been silent since BE-8.4 shipped it — a citizen could not tell their
+          own rule from the limits of our corpus. (K5.66) */}
+      <AllergyNote notice={wk.allergyNotice} />
 
       {/* Both scores for THIS plan + the one-line difference vs the other mode. */}
       {wk.scorecard && <PlanScorecard sc={wk.scorecard} />}

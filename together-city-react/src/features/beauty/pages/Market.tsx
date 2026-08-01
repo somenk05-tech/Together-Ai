@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, EmptyState, Spinner } from '@/components/ui';
+import { AllergyNote, Button, EmptyState, Spinner } from '@/components/ui';
 import { useBeautyProducts, usePlaceBeautyOrder, type RecommendedProduct } from '../api';
 import { payError, type PayMethod } from '@/features/financial/api';
 import { PaymentSheet } from '@/features/financial/PaymentSheet';
@@ -119,6 +119,11 @@ export function Market() {
           : 'Complete your Skin & Hair Profile to personalise the shelf.'}
       </p>
 
+      {/* The shelf explains why it is shorter — Beauty reads the sensitivities
+          declared here AND the food allergens declared in Nutrition, so the
+          link points at the Beauty profile where this hub's half is edited. */}
+      <AllergyNote notice={products.data.allergyNotice} manageTo="/beauty/profile" />
+
       {/* segments */}
       <div style={{ display: 'inline-flex', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 999, padding: 3, marginBottom: 16 }}>
         {([['skin', '🧴 Skin'], ['hair', '💇 Hair']] as const).map(([k, label]) => (
@@ -131,7 +136,13 @@ export function Market() {
       </div>
 
       {shown.length === 0 ? (
-        <EmptyState icon="🧴" title={`No ${seg} products yet`} hint="Set your profile to personalise this shelf." />
+        <EmptyState
+          icon="🧴"
+          title={`No ${seg} products yet`}
+          hint={products.data.allergyNotice
+            ? 'Everything on this shelf has an ingredient you told us to avoid.'
+            : 'Set your profile to personalise this shelf.'}
+        />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
           {shown.map((p) => (

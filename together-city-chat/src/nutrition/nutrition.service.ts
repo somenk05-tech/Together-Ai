@@ -33,6 +33,7 @@ import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POO
 import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from './diet-tags';
 import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
 import { canonicaliseDeclared, findAllergen, isAllergenSafe } from '../shared/allergens';
+import { allergyNotice } from '../shared/allergen-voice';
 import { ACTIVITY_CHOICES, ACTIVITY_FACTORS, GOAL_DELTA, energyTarget, nearestActivityLevel } from '../shared/energy';
 import { itemKey, mergeGroceryList } from './grocery-merge';
 import { targetReadiness } from './target-readiness';
@@ -610,6 +611,41 @@ function passesSoft(r: RecipeWithIng, ex: PrefExtras): boolean {
   const budget = ex.budgetInr ?? null;                               // 8 · budget
   if (budget) { const c = perPlateCost(r); if (c > 0 && c > budget) return false; }
   return true;
+}
+
+/**
+ * How much of the corpus a declaration actually removes. (K5.66.)
+ *
+ * The composed plan has honoured allergies since BE-8.4 and has never mentioned
+ * it, which is the review's complaint: a citizen sees a plan and cannot tell
+ * which of its absences are their rule and which are our range.
+ *
+ * MEMOISED BY DECLARATION SET, not computed per plan. The corpus is ~11k
+ * recipes and process-wide, composedPlan is hot and races an 8s timeout, and
+ * two citizens who both wrote "milk" have the same answer. The pool length is
+ * part of the key so a rebuilt corpus recomputes rather than lying.
+ */
+const CORPUS_CUT = new Map<string, { matched: string[]; removed: number }>();
+export function corpusExcludedBy(
+  pool: readonly { name: string; ingredients: readonly { name: string }[] }[],
+  declared: readonly string[],
+): { matched: string[]; removed: number } {
+  if (!declared.length) return { matched: [], removed: 0 };
+  const key = `${pool.length}:${[...declared].map((d) => d.trim().toLowerCase()).sort().join('|')}`;
+  const hit = CORPUS_CUT.get(key);
+  if (hit) return hit;
+  const matched = new Set<string>();
+  let removed = 0;
+  for (const r of pool) {
+    const h = findAllergen(r.name, r.ingredients.map((i) => i.name), declared);
+    if (h) { matched.add(h.term); removed++; }
+  }
+  const out = { matched: [...matched].sort(), removed };
+  // Bounded: one entry per distinct declaration set seen. Cleared wholesale
+  // rather than evicted cleverly — this is a cache, not a store.
+  if (CORPUS_CUT.size > 500) CORPUS_CUT.clear();
+  CORPUS_CUT.set(key, out);
+  return out;
 }
 
 /** Filter recipes to a diet + the user's rules (hard + soft), in pipeline order. */
@@ -2005,7 +2041,11 @@ export class NutritionService implements OnModuleInit {
     // rather than about whatever the equation says next week. Fire-and-forget:
     // the plan is the answer, the snapshot is a note in the margin.
     void this.snapshotTargets(userId, t);
-    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], scorecard, planStartDate, reviewDate: addDaysISO(planStartDate, PLAN_DAYS), planDays: PLAN_DAYS, ...(compliance ? { compliance } : {}) };
+    // K5.66 — the plan says what the allergy rule kept out of it. Allergy terms
+    // only: `excluded` also carries avoided foods, Jain hints and MNT avoids,
+    // and attributing a clinical avoid to "you told us about it" would be false.
+    const cut = corpusExcludedBy(datasetPool, terms(ex.allergies));
+    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], scorecard, planStartDate, reviewDate: addDaysISO(planStartDate, PLAN_DAYS), planDays: PLAN_DAYS, allergyNotice: allergyNotice(cut.matched, cut.removed, { one: 'recipe', many: 'recipes' }), ...(compliance ? { compliance } : {}) };
   }
 
   /** DB diet values that satisfy a requested diet (ladder). Real DB values:
