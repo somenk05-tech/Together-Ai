@@ -1,0 +1,313 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`the numbers the Fitness hub shows today a woman, same body, same goal 1`] = `
+{
+  "bmr": 1533,
+  "calorieTarget": 1840,
+  "hasMetrics": true,
+  "macros": {
+    "carbG": 180,
+    "fatG": 61,
+    "proteinG": 143,
+  },
+  "nutritionGoal": "lose",
+  "proteinPerKg": 1.9,
+  "tdee": 2300,
+}
+`;
+
+exports[`the numbers the Fitness hub shows today athletic, at every ability level 1`] = `
+{
+  "advanced": {
+    "bmr": 1699,
+    "calorieTarget": 2718,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 353,
+      "fatG": 85,
+      "proteinG": 135,
+    },
+    "nutritionGoal": "maintain",
+    "proteinPerKg": 1.8,
+    "tdee": 2718,
+  },
+  "athlete": {
+    "bmr": 1699,
+    "calorieTarget": 2973,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 401,
+      "fatG": 92,
+      "proteinG": 135,
+    },
+    "nutritionGoal": "maintain",
+    "proteinPerKg": 1.8,
+    "tdee": 2973,
+  },
+  "basic": {
+    "bmr": 1699,
+    "calorieTarget": 2209,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 262,
+      "fatG": 69,
+      "proteinG": 135,
+    },
+    "nutritionGoal": "maintain",
+    "proteinPerKg": 1.8,
+    "tdee": 2209,
+  },
+  "beginner": {
+    "bmr": 1699,
+    "calorieTarget": 2379,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 293,
+      "fatG": 74,
+      "proteinG": 135,
+    },
+    "nutritionGoal": "maintain",
+    "proteinPerKg": 1.8,
+    "tdee": 2379,
+  },
+  "intermediate": {
+    "bmr": 1699,
+    "calorieTarget": 2549,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 325,
+      "fatG": 79,
+      "proteinG": 135,
+    },
+    "nutritionGoal": "maintain",
+    "proteinPerKg": 1.8,
+    "tdee": 2549,
+  },
+}
+`;
+
+exports[`the numbers the Fitness hub shows today buildMuscle, at every ability level 1`] = `
+{
+  "advanced": {
+    "bmr": 1699,
+    "calorieTarget": 3044,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 406,
+      "fatG": 91,
+      "proteinG": 150,
+    },
+    "nutritionGoal": "gain",
+    "proteinPerKg": 2,
+    "tdee": 2718,
+  },
+  "athlete": {
+    "bmr": 1699,
+    "calorieTarget": 3330,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 458,
+      "fatG": 100,
+      "proteinG": 150,
+    },
+    "nutritionGoal": "gain",
+    "proteinPerKg": 2,
+    "tdee": 2973,
+  },
+  "basic": {
+    "bmr": 1699,
+    "calorieTarget": 2474,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 302,
+      "fatG": 74,
+      "proteinG": 150,
+    },
+    "nutritionGoal": "gain",
+    "proteinPerKg": 2,
+    "tdee": 2209,
+  },
+  "beginner": {
+    "bmr": 1699,
+    "calorieTarget": 2664,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 336,
+      "fatG": 80,
+      "proteinG": 150,
+    },
+    "nutritionGoal": "gain",
+    "proteinPerKg": 2,
+    "tdee": 2379,
+  },
+  "intermediate": {
+    "bmr": 1699,
+    "calorieTarget": 2855,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 370,
+      "fatG": 86,
+      "proteinG": 150,
+    },
+    "nutritionGoal": "gain",
+    "proteinPerKg": 2,
+    "tdee": 2549,
+  },
+}
+`;
+
+exports[`the numbers the Fitness hub shows today fatLoss, at every ability level 1`] = `
+{
+  "advanced": {
+    "bmr": 1699,
+    "calorieTarget": 2174,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 239,
+      "fatG": 72,
+      "proteinG": 143,
+    },
+    "nutritionGoal": "lose",
+    "proteinPerKg": 1.9,
+    "tdee": 2718,
+  },
+  "athlete": {
+    "bmr": 1699,
+    "calorieTarget": 2378,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 274,
+      "fatG": 79,
+      "proteinG": 143,
+    },
+    "nutritionGoal": "lose",
+    "proteinPerKg": 1.9,
+    "tdee": 2973,
+  },
+  "basic": {
+    "bmr": 1699,
+    "calorieTarget": 1767,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 166,
+      "fatG": 59,
+      "proteinG": 143,
+    },
+    "nutritionGoal": "lose",
+    "proteinPerKg": 1.9,
+    "tdee": 2209,
+  },
+  "beginner": {
+    "bmr": 1699,
+    "calorieTarget": 1903,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 191,
+      "fatG": 63,
+      "proteinG": 143,
+    },
+    "nutritionGoal": "lose",
+    "proteinPerKg": 1.9,
+    "tdee": 2379,
+  },
+  "intermediate": {
+    "bmr": 1699,
+    "calorieTarget": 2039,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 214,
+      "fatG": 68,
+      "proteinG": 143,
+    },
+    "nutritionGoal": "lose",
+    "proteinPerKg": 1.9,
+    "tdee": 2549,
+  },
+}
+`;
+
+exports[`the numbers the Fitness hub shows today leanDefine, at every ability level 1`] = `
+{
+  "advanced": {
+    "bmr": 1699,
+    "calorieTarget": 2310,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 258,
+      "fatG": 72,
+      "proteinG": 158,
+    },
+    "nutritionGoal": "lose",
+    "proteinPerKg": 2.1,
+    "tdee": 2718,
+  },
+  "athlete": {
+    "bmr": 1699,
+    "calorieTarget": 2527,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 296,
+      "fatG": 79,
+      "proteinG": 158,
+    },
+    "nutritionGoal": "lose",
+    "proteinPerKg": 2.1,
+    "tdee": 2973,
+  },
+  "basic": {
+    "bmr": 1699,
+    "calorieTarget": 1878,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 181,
+      "fatG": 58,
+      "proteinG": 158,
+    },
+    "nutritionGoal": "lose",
+    "proteinPerKg": 2.1,
+    "tdee": 2209,
+  },
+  "beginner": {
+    "bmr": 1699,
+    "calorieTarget": 2022,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 206,
+      "fatG": 63,
+      "proteinG": 158,
+    },
+    "nutritionGoal": "lose",
+    "proteinPerKg": 2.1,
+    "tdee": 2379,
+  },
+  "intermediate": {
+    "bmr": 1699,
+    "calorieTarget": 2167,
+    "hasMetrics": true,
+    "macros": {
+      "carbG": 233,
+      "fatG": 67,
+      "proteinG": 158,
+    },
+    "nutritionGoal": "lose",
+    "proteinPerKg": 2.1,
+    "tdee": 2549,
+  },
+}
+`;
+
+exports[`the numbers the Fitness hub shows today sex "other", which the formula has to resolve somehow 1`] = `
+{
+  "bmr": 1699,
+  "calorieTarget": 2039,
+  "hasMetrics": true,
+  "macros": {
+    "carbG": 214,
+    "fatG": 68,
+    "proteinG": 143,
+  },
+  "nutritionGoal": "lose",
+  "proteinPerKg": 1.9,
+  "tdee": 2549,
+}
+`;
