@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Button, Card, EmptyState, Spinner } from '@/components/ui';
 import {
   useMyRecipes, useSaveOwnRecipe, useDeleteOwnRecipe,
@@ -7,7 +6,13 @@ import {
 } from '../own.api';
 
 /**
- * Your own recipes.
+ * Your own recipes — the add form and everything you have added.
+ *
+ * A COMPONENT, not a page, since 1 Aug. It used to be /nutrition/recipes/own,
+ * a second destination for a thing the library page was already inviting you to
+ * do ("Cook something that isn't in here? Add your own recipe →"). Building a
+ * plan meant bouncing between two screens; now the library page adds and lists
+ * in place, and the old URL redirects so shared links still work.
  *
  * Two things this screen will not do, and both are the point.
  *
@@ -42,7 +47,7 @@ function DietTag({ diet }: { diet: string }) {
   return <span className="tag" style={{ textTransform: 'capitalize' }}>{diet === 'jainvegan' ? 'Jain + vegan' : diet}</span>;
 }
 
-export function MyRecipes() {
+export function OwnRecipes() {
   const mine = useMyRecipes();
   const save = useSaveOwnRecipe();
   const remove = useDeleteOwnRecipe();
@@ -112,17 +117,16 @@ export function MyRecipes() {
   };
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '20px 16px 60px' }}>
-      <div className="eyebrow">Nutrition · Your recipes</div>
-      <h1 style={{ fontSize: 26 }}>Your own recipes</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 4px', lineHeight: 1.6 }}>
+    <section id="your-own-recipes" style={{ marginTop: 34, borderTop: '1px solid var(--line)', paddingTop: 26 }}>
+      <h2 style={{ fontSize: 21, margin: '0 0 4px' }}>Your own recipes</h2>
+      <p className="muted" style={{ fontSize: 13.5, margin: '0 0 4px', lineHeight: 1.6 }}>
         Add a dish you cook. List what goes in it and how much, and we’ll work out the calories and
         macros the same way we do for every recipe in the library — from the ingredients, not from a
         number anybody typed.
       </p>
       <p className="muted" style={{ fontSize: 12.5, margin: '0 0 18px', lineHeight: 1.6 }}>
         Your recipes are yours alone. Nobody else can see them, and they can turn up in your own
-        weekly plan alongside everything else. <Link to="/nutrition/recipes" style={{ color: 'var(--accent)', fontWeight: 600 }}>Back to the library →</Link>
+        weekly plan alongside everything else.
       </p>
 
       {saved && (
@@ -228,31 +232,46 @@ export function MyRecipes() {
       {!mine.isLoading && !mine.isError && (mine.data ?? []).length === 0 && (
         <EmptyState icon="🍲" title="Nothing yet" hint="Add the first dish above — it’ll show up here, in the library, and in your weekly plan." />
       )}
-      {(mine.data ?? []).map((r) => (
-        <Card key={r.id} style={{ marginBottom: 10 }}>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <div style={{ fontWeight: 700, fontSize: 14.5 }}>{r.name}</div>
-              <div className="muted" style={{ fontSize: 12, margin: '3px 0 6px' }}>
-                {r.country} · {r.minutes} min · {r.gramsPerServing} g/plate · <DietTag diet={r.diet} />
-              </div>
-              <div style={{ display: 'flex', gap: 12, fontSize: 12.5, flexWrap: 'wrap' }}>
-                <span><strong>{r.kcal}</strong> kcal</span><span>P {r.protein}g</span><span>C {r.carbs}g</span><span>F {r.fat}g</span><span>Fibre {r.fiber}g</span>
-              </div>
-              <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>
-                {r.nutritionSource === 'author'
-                  ? 'Figures you entered.'
-                  : `Worked out from your ingredients (${r.coveragePct}% recognised).`}
-              </p>
+
+      {/* Laid out by meal, in the weekly planner's language — the same section
+          captions and the same responsive card grid. These dishes end up in
+          that planner, so a dish should not look like one thing here and
+          another thing there. A slot with nothing in it is not drawn: an empty
+          "DINNER" heading states an absence nobody asked about. */}
+      {SLOTS.map(({ key, label }) => {
+        const inSlot = (mine.data ?? []).filter((r) => (r.slot || 'l') === key);
+        if (!inSlot.length) return null;
+        return (
+          <div key={key} style={{ marginBottom: 22 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>
+              {label} · {inSlot.length}
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Button variant="line" size="sm" onClick={() => edit(r)}>Edit</Button>
-              <Button variant="line" size="sm" disabled={remove.isPending}
-                onClick={() => remove.mutate(r.id, { onSuccess: (res) => setRemoved(res.note) })}>Delete</Button>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+              {inSlot.map((r) => (
+                <Card key={r.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14.5 }}>{r.name}</div>
+                  <div className="muted" style={{ fontSize: 12 }}>
+                    {r.country} · {r.minutes} min · {r.gramsPerServing} g/plate · <DietTag diet={r.diet} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, fontSize: 12.5, flexWrap: 'wrap' }}>
+                    <span><strong>{r.kcal}</strong> kcal</span><span>P {r.protein}g</span><span>C {r.carbs}g</span><span>F {r.fat}g</span><span>Fibre {r.fiber}g</span>
+                  </div>
+                  <p className="muted" style={{ fontSize: 11.5, margin: 0 }}>
+                    {r.nutritionSource === 'author'
+                      ? 'Figures you entered.'
+                      : `Worked out from your ingredients (${r.coveragePct}% recognised).`}
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 4 }}>
+                    <Button variant="line" size="sm" onClick={() => edit(r)}>Edit</Button>
+                    <Button variant="line" size="sm" disabled={remove.isPending}
+                      onClick={() => remove.mutate(r.id, { onSuccess: (res) => setRemoved(res.note) })}>Delete</Button>
+                  </div>
+                </Card>
+              ))}
             </div>
           </div>
-        </Card>
-      ))}
+        );
+      })}
       {removed && (
         <p className="muted" style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.6 }}>{removed}</p>
       )}
@@ -262,6 +281,6 @@ export function MyRecipes() {
             ?? 'That didn’t delete. Try again.'}
         </p>
       )}
-    </div>
+    </section>
   );
 }

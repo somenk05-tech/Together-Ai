@@ -75,11 +75,10 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/nutrition/preferences', index: '02', label: 'Food Preference Profile', sub: 'Your taste & goals' },
       { path: '/nutrition/weekly', index: '03', label: 'Weekly Meal Planner', sub: 'Personalised 7-day plan' },
       { path: '/nutrition/grocery', index: '04', label: LABELS.groceryLists, sub: 'Built from your plan' },
-      { path: '/nutrition/recipes', index: '05', label: LABELS.createYourOwnMealPlan, sub: 'Search, add, build your list' },
-      { path: '/nutrition/recipes/own', index: '06', label: 'Your Own Recipes', sub: 'Dishes you cook, in your plan' },
+      { path: '/nutrition/recipes', index: '05', label: LABELS.createYourOwnMealPlan, sub: 'Browse, add your own, build a list' },
       // The Family hub has always listed its Cart. This one did not, so the
       // individual grocery flow had no visible way to check out.
-      { path: '/nutrition/cart', index: '07', label: 'Cart', sub: 'Review & checkout' },
+      { path: '/nutrition/cart', index: '06', label: 'Cart', sub: 'Review & checkout' },
     ],
   },
   family: {

@@ -1,9 +1,11 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, Spinner, EmptyState, Button, Chip } from '@/components/ui';
+import { LABELS } from '@/config/labels';
 import { useRecipeLibrary, type RecipeCard } from '../library.api';
 import { useBuildCart } from '../hooks';
 import { VegMark } from '../components/VegMark';
+import { OwnRecipes } from '../components/OwnRecipes';
 
 /** Debounce a fast-changing value (e.g. a search box) so it only settles after
  *  the user pauses — keeps the input responsive while throttling query-key churn. */
@@ -16,12 +18,6 @@ function useDebouncedValue<T>(value: T, delay = 350): T {
   return debounced;
 }
 
-const FLAG: Record<string, string> = {
-  India: '🇮🇳', Indian: '🇮🇳', Thai: '🇹🇭', Thailand: '🇹🇭', China: '🇨🇳', Chinese: '🇨🇳',
-  Italy: '🇮🇹', Italian: '🇮🇹', Mexico: '🇲🇽', Mexican: '🇲🇽', Japan: '🇯🇵', Japanese: '🇯🇵',
-  Greece: '🇬🇷', Mediterranean: '🇬🇷', Korea: '🇰🇷', Korean: '🇰🇷', American: '🇺🇸', USA: '🇺🇸',
-  French: '🇫🇷', France: '🇫🇷', Spanish: '🇪🇸', Spain: '🇪🇸', Continental: '🌍', Global: '🌍',
-};
 const MEAL_TYPES = ['', 'breakfast', 'lunch', 'dinner', 'snack'];
 const DIETS = ['', 'vegetarian', 'vegan', 'eggetarian'];
 const SORTS: Array<[string, string]> = [['recent', 'Recently Added'], ['health', 'AI Health Score'], ['name', 'A–Z']];
@@ -47,7 +43,7 @@ function RecipeTile({ r, picked, onPick }: { r: RecipeCard; picked: boolean; onP
         </div>
         <div style={{ padding: '12px 14px' }}>
           <div style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.name}</div>
-          <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{FLAG[r.cuisine] ?? '🌍'} {r.cuisine} · {r.minutes} min · {r.difficulty}</div>
+          <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{r.cuisine} · {r.minutes} min · {r.difficulty}</div>
           <div style={{ display: 'flex', gap: 10, fontSize: 12, marginBottom: 8 }}>
             <span><strong>{r.kcal}</strong> kcal</span><span className="muted">P {r.protein}g</span><span className="muted">C {r.carbs}g</span><span className="muted">F {r.fat}g</span>
           </div>
@@ -195,15 +191,12 @@ export function RecipeLibrary() {
   if (cuisine === null && ingredients.length === 0) {
     return (
       <div style={{ maxWidth: 1040, margin: '0 auto', padding: '20px 16px 60px' }}>
-        <div className="eyebrow">Nutrition · Recipes</div>
-        <h1 style={{ fontSize: 26 }}>Recipe Library</h1>
+        <div className="eyebrow">Nutrition</div>
+        <h1 style={{ fontSize: 26 }}>{LABELS.createYourOwnMealPlan}</h1>
         <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
           Search by name or by what is in your kitchen, add the dishes you like, and turn them into
-          one grocery list. Or pick a cuisine and browse every recipe in it.
-        </p>
-        <p style={{ fontSize: 13, margin: '0 0 14px' }}>
-          Cook something that isn’t in here? <Link to="/nutrition/recipes/own" style={{ color: 'var(--accent)', fontWeight: 600 }}>Add your own recipe →</Link>{' '}
-          <span className="muted">It stays private to you, and can appear in your weekly plan.</span>
+          one grocery list. Browse a cuisine for ideas — or add a dish you cook yourself, further
+          down this page.
         </p>
         <form onSubmit={(e) => { e.preventDefault(); if (search) setCuisine(''); }} style={{ marginBottom: 18 }}>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="🔍 Search all recipes…" aria-label="Search recipes"
@@ -218,12 +211,16 @@ export function RecipeLibrary() {
             <button key={c.name} type="button" onClick={() => { setCuisine(c.name); setPage(1); }}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, padding: '16px 16px', border: '1px solid var(--line)',
                 borderRadius: 14, background: 'var(--card)', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
-              <span style={{ fontSize: 26 }}>{FLAG[c.name] ?? '🌍'}</span>
               <span style={{ fontSize: 15, fontWeight: 700 }}>{c.name}</span>
               <span className="muted" style={{ fontSize: 12 }}>{c.count.toLocaleString()} recipes</span>
             </button>
           ))}
         </div>
+
+        {/* Adding your own dish used to be a second page. It is the same job as
+            everything above it — deciding what you are going to eat — so it now
+            happens here, and /nutrition/recipes/own redirects. */}
+        <OwnRecipes />
       </div>
     );
   }
@@ -233,7 +230,7 @@ export function RecipeLibrary() {
     <div style={{ maxWidth: 1120, margin: '0 auto', padding: '20px 16px 60px' }}>
       <button type="button" onClick={() => { setCuisine(null); setSearch(''); setMealType(''); setDiet(''); setIngredients([]); setPage(1); }}
         style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 999, padding: '4px 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', marginBottom: 12 }}>← All cuisines</button>
-      <h1 style={{ fontSize: 24 }}>{(cuisine && FLAG[cuisine]) ?? '🌍'} {cuisine || (ingredients.length ? 'Matching' : 'Search')} Recipes {lib.data && <span className="muted" style={{ fontSize: 14, fontWeight: 400 }}>· {lib.data.total.toLocaleString()}</span>}
+      <h1 style={{ fontSize: 24 }}>{cuisine || (ingredients.length ? 'Matching' : 'Search')} Recipes {lib.data && <span className="muted" style={{ fontSize: 14, fontWeight: 400 }}>· {lib.data.total.toLocaleString()}</span>}
         {lib.isFetching && !lib.isLoading && <span className="muted" style={{ fontSize: 12.5, fontWeight: 400, marginLeft: 8 }}>Updating…</span>}</h1>
 
       <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="🔍 Search recipes…" aria-label="Search recipes"
