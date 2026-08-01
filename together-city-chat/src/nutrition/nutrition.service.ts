@@ -31,7 +31,7 @@ import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POO
 import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from './diet-tags';
 import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
 import { canonicaliseDeclared, findAllergen, isAllergenSafe } from '../shared/allergens';
-import { ACTIVITY_CHOICES, ACTIVITY_FACTORS, energyTarget, nearestActivityLevel } from '../shared/energy';
+import { ACTIVITY_CHOICES, ACTIVITY_FACTORS, GOAL_DELTA, energyTarget, nearestActivityLevel } from '../shared/energy';
 import { itemKey, mergeGroceryList } from './grocery-merge';
 import { targetReadiness } from './target-readiness';
 import { scoreDual, buildScorecard, guidelineCaps } from './plan-score';
@@ -825,7 +825,7 @@ export function computeTargets(inp: TargetInput) {
   const h = height / 100;
   const bmi = h > 0 ? weight / (h * h) : 22;
   const overweight = bmi >= 27;
-  const adj0 = goal === 'lose' ? -0.18 : goal === 'gain' ? (overweight ? 0 : 0.10) : 0;
+  const adj0 = goal === 'gain' && overweight ? 0 : GOAL_DELTA[goal as 'lose' | 'maintain' | 'gain'] ?? 0;
   // No calorie deficit during pregnancy, lactation or childhood/adolescence.
   const adj = (pregnant || lactating || pediatric) ? Math.max(0, adj0) : adj0;
   let energyExtra = 0;

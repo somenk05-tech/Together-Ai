@@ -89,6 +89,19 @@ export const MAX_DAILY_DELTA = Math.round((MAX_WEEKLY_KG * KCAL_PER_KG_FAT) / 7)
 export const ENERGY_FLOOR: Record<Sex, number> = { female: 1200, male: 1500 };
 
 /**
+ * The goal-delta policy — one for the whole city (decided 1 Aug 2026).
+ *
+ * Fitness carried its own (−0.20 fatLoss, −0.15 leanDefine, +0.12
+ * buildMuscle), so /fitness/body-goal and /fitness/workout could disagree by
+ * 40–60 kcal about the same synced goal. The requested adjustment is now this
+ * table, everywhere. A goal's character lives in its protein, macros and
+ * training emphasis — not in a rival calorie policy. Clinical exceptions
+ * (pregnancy, lactation, paediatric, overweight-gain) are applied where the
+ * clinical context is known — nutrition.service — and only ever toward zero.
+ */
+export const GOAL_DELTA: Record<Goal, number> = { lose: -0.18, maintain: 0, gain: 0.10 };
+
+/**
  * Mifflin–St Jeor (1990), the equation the ticket names:
  *   10 × weight(kg) + 6.25 × height(cm) − 5 × age + s,  s = +5 male, −161 female.
  */

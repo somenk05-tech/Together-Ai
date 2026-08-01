@@ -1,4 +1,4 @@
-import { energyTarget, type Sex } from '../shared/energy';
+import { GOAL_DELTA, energyTarget, type Sex } from '../shared/energy';
 /**
  * Together City — Fitness Engine
  * ------------------------------------------------------------------
@@ -385,7 +385,6 @@ export interface BodyGoalDef {
   label: Record<string, string>;   // sex-aware display label
   tag: string;
   nutritionGoal: 'lose' | 'maintain' | 'gain';
-  kcalDelta: number;               // fraction of TDEE (e.g. +0.12, -0.18)
   proteinPerKg: number;            // g/kg bodyweight
   fatPct: number;                  // fraction of kcal from fat
   rate: string;                    // safe rate of change
@@ -397,19 +396,19 @@ export interface BodyGoalDef {
 export const BODY_GOALS: BodyGoalDef[] = [
   { key: 'buildMuscle', label: { male: 'Build muscle (strong & muscular)', female: 'Build & tone (strong, sculpted)', other: 'Build muscle & strength' },
     tag: 'Gain lean mass with a controlled surplus and high protein.',
-    nutritionGoal: 'gain', kcalDelta: 0.12, proteinPerKg: 2.0, fatPct: 0.27, rate: '+0.25–0.5% bodyweight/week (minimise fat gain)',
+    nutritionGoal: 'gain', proteinPerKg: 2.0, fatPct: 0.27, rate: '+0.25–0.5% bodyweight/week (minimise fat gain)',
     emphasis: 'Progressive resistance training, 6–12 rep hypertrophy range, prioritised over cardio.', citations: ['ISSN-PRO', 'ACSM'] },
   { key: 'leanDefine', label: { male: 'Lean & defined', female: 'Lean & sculpted', other: 'Lean & defined' },
     tag: 'Reveal definition with a mild deficit while holding onto muscle.',
-    nutritionGoal: 'lose', kcalDelta: -0.15, proteinPerKg: 2.1, fatPct: 0.28, rate: '−0.5% bodyweight/week',
+    nutritionGoal: 'lose', proteinPerKg: 2.1, fatPct: 0.28, rate: '−0.5% bodyweight/week',
     emphasis: 'Keep lifting heavy to retain muscle; add moderate cardio for the deficit.', citations: ['ISSN-PRO', 'ACSM'] },
   { key: 'athletic', label: { male: 'Athletic / functional', female: 'Athletic / functional', other: 'Athletic / functional' },
     tag: 'Perform and look athletic at roughly maintenance calories.',
-    nutritionGoal: 'maintain', kcalDelta: 0, proteinPerKg: 1.8, fatPct: 0.28, rate: 'Hold weight; recompose slowly',
+    nutritionGoal: 'maintain', proteinPerKg: 1.8, fatPct: 0.28, rate: 'Hold weight; recompose slowly',
     emphasis: 'Balanced strength + conditioning; train for performance.', citations: ['ISSN-PRO', 'WHO-PA'] },
   { key: 'fatLoss', label: { male: 'Fat loss & metabolic health', female: 'Fat loss & metabolic health', other: 'Fat loss & metabolic health' },
     tag: 'Lose fat and improve metabolic markers with a clear deficit.',
-    nutritionGoal: 'lose', kcalDelta: -0.2, proteinPerKg: 1.9, fatPct: 0.3, rate: '−0.5 to −1% bodyweight/week',
+    nutritionGoal: 'lose', proteinPerKg: 1.9, fatPct: 0.3, rate: '−0.5 to −1% bodyweight/week',
     emphasis: 'Resistance training to preserve muscle + more aerobic minutes for the deficit and metabolic health.', citations: ['ISSN-PRO', 'ADA-EX', 'ACSM'] },
 ];
 export function bodyGoalDef(key: string): BodyGoalDef { return BODY_GOALS.find((g) => g.key === key) ?? BODY_GOALS[2]; }
@@ -453,8 +452,8 @@ export function computeBodyProgram(input: {
    * TDEE with no safe-rate cap and no energy floor. shared/energy.ts has had all
    * of that, correctly, the whole time.
    *
-   * energyTarget's `deltaPct` takes this hub's kcalDelta unchanged, so the goal
-   * models were never actually incompatible — only separate. What the citizen
+   * energyTarget's `deltaPct` is GOAL_DELTA — the city's one policy, shared
+   * with Nutrition — no longer a hub-local number. What the citizen
    * gains is the ≤550 kcal/day cap and ENERGY_FLOOR, which this side never had:
    * a small woman on a fat-loss goal was handed 0.8 × TDEE with nothing
    * underneath it.
@@ -493,7 +492,7 @@ export function computeBodyProgram(input: {
   const weight = input.weightKg;
   const energy = energyTarget({
     weightKg: weight, heightCm: input.heightCm, age: input.age, sex,
-    activity: input.activity, goal: g.nutritionGoal, deltaPct: g.kcalDelta,
+    activity: input.activity, goal: g.nutritionGoal, deltaPct: GOAL_DELTA[g.nutritionGoal],
   });
   const bmr = Math.round(energy.bmr);
   const tdee = Math.round(energy.tdee);
