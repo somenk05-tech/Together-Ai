@@ -30,6 +30,18 @@ const initialsOf = (name: string) => name.split(' ').map((w) => w[0]).slice(0, 2
 function InvitesInbox() {
   const invites = useHouseholdInvites();
   const respond = useRespondHouseholdInvite();
+  // A failed read must not look like "nobody invited you" — for somebody
+  // waiting on an invitation, that sentence confirms a fear, not a fact.
+  if (invites.isError) {
+    return (
+      <div className="card" style={{ marginBottom: 18 }}>
+        <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>
+          We couldn’t check for household invitations just now. If someone has
+          invited you, the invitation is still waiting — try again in a moment.
+        </p>
+      </div>
+    );
+  }
   if (!invites.data || invites.data.length === 0) return null;
   return (
     <div className="card" style={{ marginBottom: 18, border: '1px solid var(--accent)', background: 'var(--accent-soft)' }}>
@@ -59,6 +71,16 @@ function InvitesInbox() {
 function FamilyProfileCard() {
   const profile = useFamilyProfile();
   const p = profile.data;
+  if (profile.isError) {
+    return (
+      <div className="card" style={{ marginBottom: 18 }}>
+        <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>
+          We couldn’t load the household summary just now — the household itself
+          is unchanged.
+        </p>
+      </div>
+    );
+  }
   if (!p || p.counts.total <= 1) return null;
   const Stat = ({ n, l }: { n: number | string; l: string }) => (
     <div><div style={{ fontSize: 18, fontWeight: 800 }}>{n}</div><div className="muted" style={{ fontSize: 11 }}>{l}</div></div>
@@ -116,6 +138,16 @@ function FamilyProfileCard() {
 function FamilyMealPlanningCard() {
   const { query, update } = useFamilyMealPlanning();
   const ctx = query.data;
+  if (query.isError) {
+    return (
+      <div className="card" style={{ marginBottom: 18 }}>
+        <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>
+          We couldn’t load the family meal-planning switch just now — its
+          setting hasn’t changed.
+        </p>
+      </div>
+    );
+  }
   if (!ctx) return null;
   const on = ctx.familyMealPlanning;
   const isOwner = ctx.role === 'owner';
@@ -163,6 +195,16 @@ const SHARE_ROWS: { key: keyof HouseholdSharing; label: string; hint: string }[]
 function PrivacyCard() {
   const { query, update } = useHouseholdSharing();
   const s = query.data;
+  if (query.isError) {
+    return (
+      <div className="card" style={{ marginBottom: 18 }}>
+        <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>
+          We couldn’t load your privacy settings just now — nothing about what’s
+          shared has changed.
+        </p>
+      </div>
+    );
+  }
   if (!s) return null;
   return (
     <div className="card" style={{ marginBottom: 18 }}>
@@ -376,6 +418,12 @@ export function FamilyConnect() {
         </div>
 
         {members.isLoading && <Spinner label="Loading your household…" />}
+        {members.isError && (
+          <p className="muted" style={{ fontSize: 13, lineHeight: 1.6 }}>
+            We couldn’t load your household just now — nobody has been removed.
+            Try again in a moment.
+          </p>
+        )}
         {members.data && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
             {members.data.map((m) => editing === m.id ? (

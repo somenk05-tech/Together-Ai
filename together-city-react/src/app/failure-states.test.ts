@@ -40,14 +40,9 @@ const src = join(dirname(fileURLToPath(import.meta.url)), '..');
  */
 const KNOWN_MISSING = [
   'components/SearchSelect.tsx',
-  'features/astrology/pages/AstroProfilePage.tsx',
-  'features/astrology/pages/AstroRemedies.tsx',
   'features/chat/components/ChatStarter.tsx',
   'features/chat/share.tsx',
   'features/entertainment/pages/Curated.tsx',
-  'features/family/components/FamilyDashboard.tsx',
-  'features/family/components/FamilyPortions.tsx',
-  'features/family/pages/Connect.tsx',
   'features/mail/DrivePicker.tsx',
   'features/nutrition/components/QuickCommerce.tsx',
   'features/nutrition/pages/Preferences.tsx',

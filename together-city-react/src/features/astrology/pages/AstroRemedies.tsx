@@ -79,6 +79,16 @@ export function AstroRemedies() {
 
       {loading ? (
         <Spinner label="Reading your season…" />
+      ) : gems.isError || remedies.isError ? (
+        // Failure used to render NOTHING here — no stones, no practices, no
+        // explanation. A blank sky is not an honest answer.
+        <Card style={{ padding: '18px 22px' }}>
+          <p style={{ fontSize: 13.5, margin: 0, lineHeight: 1.6 }}>
+            We couldn’t read your season just now. That’s a problem on our side,
+            not your chart — your birth details are untouched. Try again in a
+            moment.
+          </p>
+        </Card>
       ) : needsProfile ? (
         <NeedsProfileCard />
       ) : (

@@ -61,7 +61,16 @@ export function FamilyDashboard() {
   const q = useFamilyDashboard();
   if (q.isLoading) return <Spinner label="Checking each member's nutrition…" />;
   const d = q.data;
-  if (!d) return null;
+  if (q.isError || !d) {
+    // Silence here read as "no family". A failed read must never look like
+    // members or their targets disappearing.
+    return (
+      <p className="muted" style={{ fontSize: 13, lineHeight: 1.6 }}>
+        We couldn’t check the family’s nutrition just now. Nobody’s plan or
+        targets have changed — try again in a moment.
+      </p>
+    );
+  }
 
   return (
     <div>

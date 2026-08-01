@@ -8,7 +8,16 @@ export function FamilyPortions({ dayIndex }: { dayIndex: number }) {
   const q = useFamilyPortions(dayIndex);
   if (q.isLoading) return <div className="card"><Spinner label="Portioning per member…" /></div>;
   const data = q.data;
-  if (!data) return null;
+  if (q.isError || !data) {
+    return (
+      <div className="card" style={{ padding: '16px 18px' }}>
+        <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>
+          We couldn’t portion today’s meals just now — the plan itself is
+          untouched. Try again in a moment.
+        </p>
+      </div>
+    );
+  }
 
   const soloOnly = data.members.length <= 1;
 

@@ -155,6 +155,16 @@ function PersonalInfoSection() {
   };
 
   const m = master.data;
+  if (master.isError) {
+    return (
+      <Card className="rise" style={{ padding: '16px 22px', marginBottom: 16 }}>
+        <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>
+          We couldn’t load your personal information just now — nothing has been
+          changed. It’ll be back on the next try.
+        </p>
+      </Card>
+    );
+  }
   if (!m) return null;
   const summaryBits = [
     m.gender && GENDERS.find((g) => g.code === m.gender)?.label,
@@ -374,6 +384,17 @@ export function AstroProfilePage() {
       </div>
       <PrivacyNote hub="astrology" style={{ marginBottom: 16 }} />
       {view.isLoading && <Spinner label="Loading your details…" />}
+      {/* A failed read is NOT a first visit. The form below used to open as
+          though the stars had never been told — asking somebody to redo work
+          the city already holds. */}
+      {view.isError && (
+        <Card className="rise" style={{ padding: '20px 26px', marginBottom: 16, borderLeft: '4px solid #e65100' }}>
+          <p style={{ fontSize: 13.5, margin: 0, lineHeight: 1.6 }}>
+            We couldn’t load your birth details just now. Nothing you’ve saved is
+            lost — it’s still on your profile. Try again in a moment.
+          </p>
+        </Card>
+      )}
       {!view.isLoading && <PersonalInfoSection />}
       {view.data?.complete && view.data.profile && !editing && (
         <SummaryCard profile={view.data.profile} justSaved={justSaved} onEdit={() => setEditing(true)} />
