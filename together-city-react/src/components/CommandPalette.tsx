@@ -52,7 +52,7 @@ export function CommandPalette() {
     const kw = q.trim();
     if (!open || !authed || kw.length < 3) { setMsgHits([]); return; }
     const t = setTimeout(() => {
-      http.get('/messages/search', { params: { keyword: kw, limit: 5 } })
+      http.get<unknown>('/messages/search', { params: { keyword: kw, limit: 5 } })
         .then((r) => {
           const rows = Array.isArray(r.data) ? (r.data as Array<Record<string, unknown>>) : [];
           setMsgHits(rows.slice(0, 5).map((m) => ({

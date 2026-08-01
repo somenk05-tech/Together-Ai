@@ -109,7 +109,7 @@ export function Settings() {
   const downloadData = async () => {
     setExporting(true);
     try {
-      const { data } = await http.get('/privacy/export');
+      const { data } = await http.get<unknown>('/privacy/export');
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
