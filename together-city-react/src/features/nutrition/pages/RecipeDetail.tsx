@@ -290,7 +290,7 @@ export function RecipeDetail() {
           )}
 
           {caution && (
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: '#fbf6ec', border: '1px solid #efe1c4', borderRadius: 14, padding: '12px 16px' }}>
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 14, padding: '12px 16px' }}>
               <span style={{ fontSize: 13, color: 'var(--gold-ink)', lineHeight: 1.45 }}>Matches your taste, but higher in {caution}. Your Optimal Health plan picks a lighter option.</span>
               <Link to="/nutrition?mode=optimal" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'var(--green)', textDecoration: 'none', whiteSpace: 'nowrap' }}><Ic name="sparkle" size={15} /> View optimal version</Link>
             </div>

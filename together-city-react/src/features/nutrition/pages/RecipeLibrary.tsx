@@ -165,7 +165,7 @@ export function RecipeLibrary() {
         </Button>
       </div>
       {buildCart.isError && (
-        <p style={{ flexBasis: '100%', margin: 0, fontSize: 12.5, color: '#b0503e' }}>
+        <p style={{ flexBasis: '100%', margin: 0, fontSize: 12.5, color: 'var(--danger-ink)' }}>
           That didn’t go through. Your picks are still here — try again.
         </p>
       )}

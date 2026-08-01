@@ -51,7 +51,7 @@ export function MealCard({ meal, onSwap, onSkip, people = 1, onBack, canGoBack =
         </span>
         {grade && (
           <span title={r.healthPercent ? `Health score ${r.healthPercent}%` : 'Health grade'}
-            style={{ position: 'absolute', top: 10, right: 10, width: 24, height: 24, borderRadius: '50%', background: GRADE_COLOR[grade] ?? '#8a8a80', color: '#fff', fontSize: 12.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,.3)' }}>
+            style={{ position: 'absolute', top: 10, right: 10, width: 24, height: 24, borderRadius: '50%', background: GRADE_COLOR[grade] ?? 'var(--muted)', color: '#fff', fontSize: 12.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,.3)' }}>
             {grade}
           </span>
         )}

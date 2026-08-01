@@ -212,7 +212,7 @@ export function MyRecipes() {
           )}
         </div>
 
-        {error && <p style={{ color: '#b0503e', fontSize: 12.5, marginTop: 12, lineHeight: 1.6 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 12, lineHeight: 1.6 }}>{error}</p>}
 
         <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
           <Button variant="accent" disabled={!ready || save.isPending} onClick={submit}>
@@ -257,7 +257,7 @@ export function MyRecipes() {
         <p className="muted" style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.6 }}>{removed}</p>
       )}
       {remove.isError && (
-        <p style={{ color: '#b0503e', fontSize: 12.5, marginTop: 8, lineHeight: 1.6 }}>
+        <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 8, lineHeight: 1.6 }}>
           {(remove.error as { response?: { data?: { message?: string } } })?.response?.data?.message
             ?? 'That didn’t delete. Try again.'}
         </p>

@@ -372,7 +372,7 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
         <>
           <h3 style={{ fontSize: 15, margin: '0 0 8px' }}>Intermittent fasting</h3>
           {s.fastingSafety.level !== 'ok' && (
-            <div style={{ background: s.fastingSafety.level === 'block' ? '#fdecec' : '#faf3e0', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', marginBottom: 10, fontSize: 12.5 }}>
+            <div style={{ background: s.fastingSafety.level === 'block' ? 'var(--danger-soft)' : 'var(--warn-soft)', border: `1px solid ${s.fastingSafety.level === 'block' ? 'var(--danger-line)' : 'var(--warn-line)'}`, borderRadius: 10, padding: '10px 12px', marginBottom: 10, fontSize: 12.5 }}>
               <strong>{s.fastingSafety.level === 'block' ? 'Not recommended for you.' : 'Please check with your clinician.'}</strong>
               <ul style={{ margin: '6px 0 0 16px' }}>{s.fastingSafety.notes.map((n) => <li key={n}>{n}</li>)}</ul>
             </div>
@@ -559,7 +559,7 @@ export function MealPlan() {
 
       {/* Medical-guidance banner (preferred mode) — inform, offer the healthier plan, never force. */}
       {mode === 'preferred' && wk.compliance && wk.compliance.concerns.length > 0 && (
-        <div style={{ background: '#f4f8f4', border: '1px solid #cfe3cf', borderRadius: 10, padding: '11px 14px', marginBottom: 12, fontSize: 12.5 }}>
+        <div style={{ background: 'var(--ok-soft)', border: '1px solid var(--ok-line)', borderRadius: 10, padding: '11px 14px', marginBottom: 12, fontSize: 12.5 }}>
           {/* Deliberately no percentage here. The scorecard directly above already
               shows the health score, and this banner used to print a SECOND,
               separately-computed number for the same idea — 0/100 in the circle
@@ -583,7 +583,7 @@ export function MealPlan() {
       <TargetsDisclosure p={wk.prescription} />
 
       {/* 3-week plan window + review prompt (planned in one go; adjust after it ends). */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: planEnded ? '#faf3e0' : 'var(--accent-soft)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12.5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: planEnded ? 'var(--warn-soft)' : 'var(--accent-soft)', border: `1px solid ${planEnded ? 'var(--warn-line)' : 'var(--line)'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12.5 }}>
         <span style={{ flex: 1, minWidth: 220 }}>
           {planEnded
             ? <><strong>Your 3-week plan has ended.</strong> Start a fresh one and we’ll plan the next three weeks from today.</>
@@ -597,14 +597,14 @@ export function MealPlan() {
         )}
       </div>
       {wk.blocked && (
-        <div role="alert" style={{ background: '#fdecec', border: '1px solid #e0a0a0', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 12.5 }}>
+        <div role="alert" style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger-line)', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 12.5 }}>
           <strong>⚠ This plan could not be fully certified against your medical limits.</strong>
           <div style={{ marginTop: 4 }}>We couldn’t keep every day within your clinical targets with the recipes available. Please review with your clinician or dietitian before following it.</div>
           {wk.blockReason?.length ? <ul style={{ margin: '6px 0 0 16px' }}>{wk.blockReason.slice(0, 4).map((r) => <li key={r}>{r}</li>)}</ul> : null}
         </div>
       )}
       {wk.degraded && (
-        <div style={{ background: '#faf3e0', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12.5 }}>
+        <div style={{ background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12.5 }}>
           {wk.degradedReason ?? 'This is a general starter plan — reload to personalise it.'}
         </div>
       )}
@@ -615,7 +615,7 @@ export function MealPlan() {
       )}
 
       {!wk.validation.ok && (
-        <div style={{ background: '#faf3e0', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12.5 }}>
+        <div style={{ background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12.5 }}>
           Plan notes: {wk.validation.issues.slice(0, 3).join('; ')}
         </div>
       )}

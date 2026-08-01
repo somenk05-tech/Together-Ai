@@ -88,7 +88,7 @@ export function AddToPlan({ recipeId, recipeName }: { recipeId: string; recipeNa
         </>
       )}
 
-      {errorMessage && <p style={{ color: '#b0503e', fontSize: 12.5, marginTop: 10, lineHeight: 1.6 }}>{errorMessage}</p>}
+      {errorMessage && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 10, lineHeight: 1.6 }}>{errorMessage}</p>}
 
       {done && (
         <div style={{ marginTop: 10 }}>

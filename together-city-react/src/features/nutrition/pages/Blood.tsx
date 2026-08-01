@@ -95,7 +95,7 @@ export function Blood() {
         </div>
 
         {on ? (
-          <p style={{ fontSize: 12.5, marginTop: 12, padding: '10px 12px', background: '#e8f5e9', borderRadius: 10, lineHeight: 1.55 }}>
+          <p style={{ fontSize: 12.5, marginTop: 12, padding: '10px 12px', background: 'var(--ok-soft)', borderRadius: 10, lineHeight: 1.55 }}>
             ✓ Connected — your plans are personalised from your blood test.{' '}
             {hasPanel
               ? <Link to="/medical/blood" style={{ color: 'var(--accent)', fontWeight: 600 }}>View your analysis →</Link>

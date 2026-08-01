@@ -601,7 +601,7 @@ export function Preferences() {
                     <div style={{ fontSize: 11.5, fontWeight: 700, marginBottom: 4 }}>{d}</div>
                     <button type="button" disabled={isVegDiet} onClick={() => setWeekly(d, v === 'veg' ? 'nonveg' : 'veg')}
                       style={{ width: '100%', cursor: isVegDiet ? 'default' : 'pointer', opacity: isVegDiet ? 0.75 : 1, borderRadius: 10, padding: '7px 0', fontSize: 11.5, fontWeight: 600, fontFamily: 'inherit',
-                        border: `1.5px solid ${v === 'veg' ? '#2e7d32' : '#c62828'}`, background: v === 'veg' ? '#e8f5e9' : '#ffebee', color: v === 'veg' ? '#2e7d32' : '#c62828' }}>
+                        border: `1.5px solid ${v === 'veg' ? '#2e7d32' : '#c62828'}`, background: v === 'veg' ? 'var(--ok-soft)' : 'var(--danger-soft)', color: v === 'veg' ? '#2e7d32' : '#c62828' }}>
                       {v === 'veg' ? 'Veg' : 'Non-veg'}
                     </button>
                   </div>
