@@ -412,6 +412,18 @@ export function Profile() {
   // saving here used to flatten a non-binary citizen's answer and write the
   // flattened value back over the canonical one.
   const genderLocked = Boolean(master.data?.genderIdentity);
+  // Owner decision, 1 Aug: this hub's options stay Female | Male | Other, so
+  // anything else flattens to "Other". The flattening is fine. Showing it
+  // without saying so is not — the citizen would be looking at a locked field
+  // reporting an answer they did not give, under a note that says it came from
+  // their Master Profile. So when what they actually chose cannot be spelled
+  // here, the field says which word it is standing in for.
+  const masterGender = master.data?.genderIdentity;
+  const masterGenderFreeText = master.data?.genderIdentityOther?.trim();
+  const genderShownAs =
+    masterGender === 'nonBinary' ? 'Non-binary'
+    : masterGender === 'other' && masterGenderFreeText ? masterGenderFreeText
+    : null;
   const [tab, setTab] = useState<'photos' | 'profile'>('photos');
   const [f, setF] = useState<Form>(EMPTY);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -744,6 +756,12 @@ export function Profile() {
             </div>
             {ageLocked && <MasterLockedNote label="Age" />}
             {genderLocked && <MasterLockedNote label="Gender" />}
+            {genderShownAs && (
+              <p className="muted" style={{ fontSize: 11, margin: '2px 0 0' }}>
+                Shown as “Other” here — this hub only has Female, Male and Other. Your Master
+                Profile still says {genderShownAs}.
+              </p>
+            )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
               {LIFESTYLE.map((l) => <Chip key={l} on={isOn('lifestyle', l)} label={l} onClick={() => single('lifestyle', l)} />)}
             </div>
