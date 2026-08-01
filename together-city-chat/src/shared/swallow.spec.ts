@@ -14,6 +14,15 @@ describe('swallow()', () => {
   });
 });
 
+describe('swallowed()', () => {
+  it('logs and returns the typed fallback', async () => {
+    const { swallowed } = await import('./swallow');
+    expect(await Promise.reject(new Error('boom')).catch(swallowed('spec', null))).toBeNull();
+    expect(await Promise.reject(new Error('boom')).catch(swallowed('spec', [] as number[]))).toEqual([]);
+    expect(await Promise.resolve(3).catch(swallowed('spec', 0))).toBe(3);
+  });
+});
+
 describe('optional()', () => {
   it('passes values through and turns rejection into undefined, silently', async () => {
     expect(await optional(Promise.resolve('v'))).toBe('v');

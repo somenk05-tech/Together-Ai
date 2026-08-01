@@ -40,6 +40,20 @@ export async function swallow<T>(
   }
 }
 
+/**
+ * Drop-in replacement for a bare catch HANDLER, for call sites where
+ * restructuring into swallow(p, ...) would disturb a long expression chain:
+ * `.catch(() => null)` becomes `.catch(swallowed('context', null))`.
+ * Same log line as swallow(); the fallback keeps its exact type.
+ */
+export const swallowed = <F>(context: string, fallback: F, meta: Record<string, unknown> = {}) =>
+  (e: unknown): F => {
+    const reason = e instanceof Error ? e.message : String(e);
+    const detail = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
+    log.warn(`${context} failed — ${reason}${detail}`);
+    return fallback;
+  };
+
 /** Genuinely optional: absence is a normal outcome, not an incident. */
 export const optional = <T>(p: Promise<T> | undefined): Promise<T | undefined> =>
   Promise.resolve(p).then(

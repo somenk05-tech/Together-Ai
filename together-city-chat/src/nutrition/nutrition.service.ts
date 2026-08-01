@@ -1,3 +1,4 @@
+import { swallowed } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { demoDataEnabled } from '../shared/demo-data';
 import { answeredNow } from '../shared/prisma/answered-at';
@@ -1386,8 +1387,8 @@ export class NutritionService implements OnModuleInit {
       // Warm both at boot. The corpus read is the first thing generatePlan does,
       // so without this the first citizen to open the planner after a deploy
       // pays for it — which on Railway is every deploy.
-      .then(() => { this.warmDatasetPool(); void this.recipeCorpus().catch(() => undefined); })
-      .catch(() => undefined);
+      .then(() => { this.warmDatasetPool(); void this.recipeCorpus().catch(swallowed('nutrition.onModuleInit', undefined)); })
+      .catch(swallowed('nutrition.onModuleInit', undefined));
   }
 
   // ─────────────── nutrition QA (ingredient-level ground truth) ───────────────
@@ -1440,7 +1441,7 @@ export class NutritionService implements OnModuleInit {
             data.servings = res.fix.servings;
             data.gramsPerServing = Math.round(res.fix.gramsPerServing);
           }
-          await this.prisma.recipe.update({ where: { id: rec.id }, data: data as never }).catch(() => undefined);
+          await this.prisma.recipe.update({ where: { id: rec.id }, data: data as never }).catch(swallowed('nutrition.runNutritionQa', undefined));
           this.invalidateRecipeCorpus();
         }));
       }
@@ -1716,11 +1717,11 @@ export class NutritionService implements OnModuleInit {
     // Food Preference Profile is the master source of truth — never generate a
     // plan until it's saved. Members of a family with shared planning inherit the
     // owner's saved profile, so they're allowed through.
-    const pref0 = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null);
+    const pref0 = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(swallowed('nutrition.composedPlan', null));
     const ex0 = parseExtras((pref0 as { extras?: string | null } | null)?.extras);
     const profileSaved = !!pref0 && Object.keys(ex0).length > 0;
     if (!profileSaved) {
-      const ctx0 = await this.familyContext(userId).catch(() => null);
+      const ctx0 = await this.familyContext(userId).catch(swallowed('nutrition.composedPlan', null));
       const sharedMember = !!ctx0 && ctx0.role === 'member' && !!ctx0.familyMealPlanning;
       if (!sharedMember) return { needsProfile: true as const };
     }
@@ -1740,7 +1741,7 @@ export class NutritionService implements OnModuleInit {
       this.logger.error(`composedPlan failed for user=${userId}: ${(e as Error)?.stack ?? String(e)}`);
       try {
         // Even the fallback honours the user's diet (never veg for a non-veg user).
-        const prefF = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null);
+        const prefF = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(swallowed('nutrition.composedPlan', null));
         // Same rule on the degraded path. A starter plan that already admits it
         // is general must not also claim to be sized for a body we never read.
         const t = computeTargets({
@@ -1771,7 +1772,7 @@ export class NutritionService implements OnModuleInit {
     mode: 'preferred' | 'optimal' = 'preferred',
     opts: { household?: boolean } = {},
   ) {
-    const ctx = await this.familyContext(userId).catch(() => null);
+    const ctx = await this.familyContext(userId).catch(swallowed('nutrition.buildComposedPlan', null));
     if (ctx && ctx.role === 'member' && ctx.familyMealPlanning) {
       const mpref = await this.prisma.foodPref.findUnique({ where: { userId } });
       const mex = parseExtras((mpref as { extras?: string | null } | null)?.extras);
@@ -1814,7 +1815,7 @@ export class NutritionService implements OnModuleInit {
           conditions: mConds, flags: mFlags,
         });
         const factor = Math.max(0.4, Math.min(1.9, mt.kcal / Math.max(1, ownerPlan.targets.kcal)));
-        const owner = await this.prisma.user.findUnique({ where: { id: ctx.ownerId }, select: { name: true } }).catch(() => null);
+        const owner = await this.prisma.user.findUnique({ where: { id: ctx.ownerId }, select: { name: true } }).catch(swallowed('nutrition.buildComposedPlan', null));
         const scaled = scaleComposedWeek(ownerPlan, factor);
         return {
           ...scaled, prescription: mt, fastingSafety: ownerPlan.fastingSafety,
@@ -2034,7 +2035,7 @@ export class NutritionService implements OnModuleInit {
   private async cuisineFacet() {
     const rows = await (this.prisma as unknown as { recipe: { groupBy: (a: unknown) => Promise<Array<{ country: string; _count: { _all: number } }>> } }).recipe
       .groupBy({ by: ['country'], _count: { _all: true }, orderBy: { _count: { country: 'desc' } }, take: 24 })
-      .catch(() => [] as Array<{ country: string; _count: { _all: number } }>);
+      .catch(swallowed('nutrition.cuisineFacet', [] as Array<{ country: string; _count: { _all: number } }>));
     return rows.filter((r) => r.country).map((r) => ({ name: r.country, count: r._count._all }));
   }
 
@@ -2153,10 +2154,10 @@ export class NutritionService implements OnModuleInit {
           where: { userId_key: { userId, key: it.key } },
           create: { userId, key: it.key, label: it.label, aisle: it.aisle, qtyLabel: it.qtyLabel, checked: it.checked, source: it.source },
           update: { label: it.label, aisle: it.aisle, qtyLabel: it.qtyLabel, source: it.source },
-        }).catch(() => undefined);
+        }).catch(swallowed('nutrition.syncGroceryList', undefined));
       }
       if (merged.removed.length) {
-        await this.groceryRows.deleteMany({ where: { userId, key: { in: merged.removed.slice(0, 200) } } }).catch(() => undefined);
+        await this.groceryRows.deleteMany({ where: { userId, key: { in: merged.removed.slice(0, 200) } } }).catch(swallowed('nutrition.syncGroceryList', undefined));
       }
     } catch (e) {
       this.logger.warn(`grocery list merge failed: ${(e as Error).message}`);
@@ -2497,7 +2498,7 @@ export class NutritionService implements OnModuleInit {
       activityLevel: typeof (dto as { activity?: unknown }).activity === 'number'
         ? nearestActivityLevel((dto as { activity: number }).activity)
         : undefined,
-    }, 'nutrition').catch(() => undefined);
+    }, 'nutrition').catch(swallowed('nutrition.upsertFoodPref', undefined));
     return saved;
   }
 
@@ -2787,11 +2788,11 @@ export class NutritionService implements OnModuleInit {
   private async householdRaw(ownerId: string) {
     await this.ensureSelfMember(ownerId);
     await this.syncHouseholdMirrors(ownerId);
-    const rows = await this.members.findMany({ where: { ownerId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => [] as FamilyMemberRowExt[]);
+    const rows = await this.members.findMany({ where: { ownerId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(swallowed('nutrition.householdRaw', [] as FamilyMemberRowExt[]));
     const userIds = rows.map((r) => r.memberUserId).filter((x): x is string => Boolean(x));
     const [users, prefs] = await Promise.all([
-      userIds.length ? this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, profileImage: true } }).catch(() => []) : Promise.resolve([]),
-      userIds.length ? this.prisma.foodPref.findMany({ where: { userId: { in: userIds } } }).catch(() => []) : Promise.resolve([]),
+      userIds.length ? this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, profileImage: true } }).catch(swallowed('nutrition.householdRaw', [])) : Promise.resolve([]),
+      userIds.length ? this.prisma.foodPref.findMany({ where: { userId: { in: userIds } } }).catch(swallowed('nutrition.householdRaw', [])) : Promise.resolve([]),
     ]);
     const imageOf = new Map(users.map((u) => [u.id, u.profileImage]));
     const sharingOf = new Map((prefs as { userId: string; extras?: string | null }[]).map((p) => [p.userId, parseSharing(parseExtras(p.extras).householdSharing)]));
@@ -2839,11 +2840,11 @@ export class NutritionService implements OnModuleInit {
 
   /** Seed the owner's own "self" member row from their saved preferences. */
   private async ensureSelfMember(ownerId: string) {
-    const rows = await this.members.findMany({ where: { ownerId, isSelf: true } }).catch(() => [] as FamilyMemberRowExt[]);
+    const rows = await this.members.findMany({ where: { ownerId, isSelf: true } }).catch(swallowed('nutrition.ensureSelfMember', [] as FamilyMemberRowExt[]));
     if (rows.length) return;
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(() => null);
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(swallowed('nutrition.ensureSelfMember', null));
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
-    const user = await this.prisma.user.findUnique({ where: { id: ownerId }, select: { name: true } }).catch(() => null);
+    const user = await this.prisma.user.findUnique({ where: { id: ownerId }, select: { name: true } }).catch(swallowed('nutrition.ensureSelfMember', null));
     await this.members.create({
       data: {
         ownerId, memberUserId: ownerId, isSelf: true, name: user?.name ?? 'You', role: 'owner',
@@ -2855,7 +2856,7 @@ export class NutritionService implements OnModuleInit {
         diet: pref?.diet ?? 'everything',
         extras: JSON.stringify({ proteins: ex.proteins ?? [], cuisines: ex.cuisines ?? [], allergies: ex.allergies ?? '', healthConditions: ex.healthConditions ?? [] }),
       } as never,
-    }).catch(() => undefined);
+    }).catch(swallowed('nutrition.ensureSelfMember', undefined));
   }
 
   /** Build the member-row nutrition fields from a real user's own Nutrition profile. */
@@ -2875,28 +2876,28 @@ export class NutritionService implements OnModuleInit {
    *  mirrors for anyone no longer accepted. Best-effort; never throws. */
   private async syncHouseholdMirrors(ownerId: string) {
     try {
-      const links = await this.household.findMany({ where: { ownerId } }).catch(() => [] as HouseholdMemberRow[]);
+      const links = await this.household.findMany({ where: { ownerId } }).catch(swallowed('nutrition.syncHouseholdMirrors', [] as HouseholdMemberRow[]));
       const accepted = links.filter((l) => l.status === 'accepted');
       const acceptedIds = new Set(accepted.map((l) => l.memberUserId));
 
       // Remove mirrors whose link is gone / no longer accepted (never the self row).
-      const mirrors = await this.members.findMany({ where: { ownerId, isSelf: false } }).catch(() => [] as FamilyMemberRowExt[]);
+      const mirrors = await this.members.findMany({ where: { ownerId, isSelf: false } }).catch(swallowed('nutrition.syncHouseholdMirrors', [] as FamilyMemberRowExt[]));
       for (const mir of mirrors) {
         if (mir.memberUserId && !acceptedIds.has(mir.memberUserId)) {
-          await this.members.delete({ where: { id: mir.id } }).catch(() => undefined);
+          await this.members.delete({ where: { id: mir.id } }).catch(swallowed('nutrition.syncHouseholdMirrors', undefined));
         }
       }
       // Upsert a mirror for each accepted member from their live profile.
       for (const link of accepted) {
         if (link.memberUserId === ownerId) continue; // owner is the self row
         const [user, pref] = await Promise.all([
-          this.prisma.user.findUnique({ where: { id: link.memberUserId }, select: { name: true } }).catch(() => null),
-          this.prisma.foodPref.findUnique({ where: { userId: link.memberUserId } }).catch(() => null),
+          this.prisma.user.findUnique({ where: { id: link.memberUserId }, select: { name: true } }).catch(swallowed('nutrition.syncHouseholdMirrors', null)),
+          this.prisma.foodPref.findUnique({ where: { userId: link.memberUserId } }).catch(swallowed('nutrition.syncHouseholdMirrors', null)),
         ]);
         const data = this.mirrorDataFromPref(user?.name ?? 'Member', link.role, pref as never);
-        const existing = await this.members.findFirst({ where: { ownerId, memberUserId: link.memberUserId } }).catch(() => null);
-        if (existing) await this.members.update({ where: { id: existing.id }, data: data as never }).catch(() => undefined);
-        else await this.members.create({ data: { ownerId, memberUserId: link.memberUserId, isSelf: false, ...data } as never }).catch(() => undefined);
+        const existing = await this.members.findFirst({ where: { ownerId, memberUserId: link.memberUserId } }).catch(swallowed('nutrition.syncHouseholdMirrors', null));
+        if (existing) await this.members.update({ where: { id: existing.id }, data: data as never }).catch(swallowed('nutrition.syncHouseholdMirrors', undefined));
+        else await this.members.create({ data: { ownerId, memberUserId: link.memberUserId, isSelf: false, ...data } as never }).catch(swallowed('nutrition.syncHouseholdMirrors', undefined));
       }
     } catch { /* mirror sync is best-effort */ }
   }
@@ -2946,7 +2947,7 @@ export class NutritionService implements OnModuleInit {
   /** Edit a member profile. Members are real users who own their own profile, so
    *  only the self (owner) row is editable here; real members edit their own. */
   async updateFamilyMember(ownerId: string, id: string, dto: Record<string, unknown>) {
-    const existing = await this.members.findFirst({ where: { id, ownerId } }).catch(() => null);
+    const existing = await this.members.findFirst({ where: { id, ownerId } }).catch(swallowed('nutrition.updateFamilyMember', null));
     if (!existing) throw new NotFoundException('family member not found');
     if (existing.memberUserId && !existing.isSelf) throw new ForbiddenException('This member manages their own profile in their Nutrition Hub.');
     await this.members.update({ where: { id }, data: this.memberData(dto) as never });
@@ -2956,7 +2957,7 @@ export class NutritionService implements OnModuleInit {
   /** Remove a member from the household. For a real invited user this ends the
    *  Household Connection (their social relationship, if any, is untouched). */
   async removeFamilyMember(ownerId: string, id: string) {
-    const existing = await this.members.findFirst({ where: { id, ownerId } }).catch(() => null);
+    const existing = await this.members.findFirst({ where: { id, ownerId } }).catch(swallowed('nutrition.removeFamilyMember', null));
     if (!existing) throw new NotFoundException('family member not found');
     if (existing.isSelf) throw new BadRequestException('cannot remove your own profile');
     if (existing.memberUserId) return this.removeHouseholdMember(ownerId, existing.memberUserId);
@@ -2977,13 +2978,13 @@ export class NutritionService implements OnModuleInit {
     const user = await this.prisma.user.findFirst({
       where: { OR: [{ id: q }, { handle }] },
       select: { id: true, handle: true, name: true, profileImage: true },
-    }).catch(() => null);
+    }).catch(swallowed('nutrition.searchHouseholdUser', null));
     if (!user) return { found: false as const };
 
     let relationship: 'self' | 'member' | 'pending' | 'none' = 'none';
     if (user.id === ownerId) relationship = 'self';
     else {
-      const link = await this.household.findUnique({ where: { ownerId_memberUserId: { ownerId, memberUserId: user.id } } as never }).catch(() => null);
+      const link = await this.household.findUnique({ where: { ownerId_memberUserId: { ownerId, memberUserId: user.id } } as never }).catch(swallowed('nutrition.searchHouseholdUser', null));
       if (link?.status === 'accepted') relationship = 'member';
       else if (link?.status === 'pending') relationship = 'pending';
     }
@@ -3005,12 +3006,12 @@ export class NutritionService implements OnModuleInit {
       update: { role, status: 'pending', requestedById: ownerId } as never,
     }).catch(async (e) => {
       // Fallback if upsert composite where isn't available on the offline client.
-      const existing = await this.household.findFirst({ where: { ownerId, memberUserId } }).catch(() => null);
+      const existing = await this.household.findFirst({ where: { ownerId, memberUserId } }).catch(swallowed('nutrition.inviteHousehold', null));
       if (existing) return this.household.update({ where: { id: existing.id }, data: { role, status: 'pending', requestedById: ownerId } as never });
       return this.household.create({ data: { ownerId, memberUserId, role, status: 'pending', requestedById: ownerId } as never }).catch(() => { throw e; });
     });
 
-    const owner = await this.prisma.user.findUnique({ where: { id: ownerId }, select: { name: true } }).catch(() => null);
+    const owner = await this.prisma.user.findUnique({ where: { id: ownerId }, select: { name: true } }).catch(swallowed('nutrition.inviteHousehold', null));
     return {
       invited: { id: res.user.id, handle: res.user.handle, name: res.user.name, image: res.user.profileImage, role },
       message: `${owner?.name ?? 'Someone'} has invited you to join their Household in Nutrition Hub.`,
@@ -3020,11 +3021,11 @@ export class NutritionService implements OnModuleInit {
 
   /** Invitations awaiting THIS user's response (the in-app notification list). */
   async householdInvites(userId: string) {
-    const links = await this.household.findMany({ where: { memberUserId: userId, status: 'pending' } }).catch(() => [] as HouseholdMemberRow[]);
+    const links = await this.household.findMany({ where: { memberUserId: userId, status: 'pending' } }).catch(swallowed('nutrition.householdInvites', [] as HouseholdMemberRow[]));
     if (!links.length) return [] as unknown[];
     const owners = await this.prisma.user.findMany({
       where: { id: { in: links.map((l) => l.ownerId) } }, select: { id: true, name: true, handle: true, profileImage: true },
-    }).catch(() => []);
+    }).catch(swallowed('nutrition.householdInvites', []));
     const by = new Map(owners.map((o) => [o.id, o]));
     return links.map((l) => {
       const o = by.get(l.ownerId);
@@ -3038,7 +3039,7 @@ export class NutritionService implements OnModuleInit {
 
   /** Accept or decline a household invitation (only the invitee may respond). */
   async respondHouseholdInvite(userId: string, inviteId: string, accept: boolean) {
-    const link = await this.household.findUnique({ where: { id: inviteId } }).catch(() => null);
+    const link = await this.household.findUnique({ where: { id: inviteId } }).catch(swallowed('nutrition.respondHouseholdInvite', null));
     if (!link) throw new NotFoundException('Invitation not found.');
     if (link.memberUserId !== userId) throw new ForbiddenException('This invitation is not addressed to you.');
     if (link.status !== 'pending') throw new BadRequestException('This invitation has already been answered.');
@@ -3050,12 +3051,12 @@ export class NutritionService implements OnModuleInit {
   /** End a Household Connection (owner only). The mirror is removed; any social
    *  relationship between the two users is left completely untouched. */
   async removeHouseholdMember(ownerId: string, memberUserId: string) {
-    const link = await this.household.findFirst({ where: { ownerId, memberUserId } }).catch(() => null);
-    if (link) await this.household.update({ where: { id: link.id }, data: { status: 'removed' } as never }).catch(() => undefined);
-    await this.members.deleteMany({ where: { ownerId, memberUserId } }).catch(() => undefined);
+    const link = await this.household.findFirst({ where: { ownerId, memberUserId } }).catch(swallowed('nutrition.removeHouseholdMember', null));
+    if (link) await this.household.update({ where: { id: link.id }, data: { status: 'removed' } as never }).catch(swallowed('nutrition.removeHouseholdMember', undefined));
+    await this.members.deleteMany({ where: { ownerId, memberUserId } }).catch(swallowed('nutrition.removeHouseholdMember', undefined));
     // Two-way sync: removing inside Nutrition immediately turns the People
     // `nutrition` module OFF on the shared connection record (no drift).
-    await this.connections.revokeModuleForPair(ownerId, memberUserId, 'nutrition').catch(() => undefined);
+    await this.connections.revokeModuleForPair(ownerId, memberUserId, 'nutrition').catch(swallowed('nutrition.removeHouseholdMember', undefined));
     return this.familyMembers(ownerId);
   }
 
@@ -3063,13 +3064,13 @@ export class NutritionService implements OnModuleInit {
   /** What the current user shares with households they belong to. Medical data is
    *  private by default; the planner still uses it server-side for safe portioning. */
   async getHouseholdSharing(userId: string): Promise<HouseholdSharing> {
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null);
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(swallowed('nutrition.getHouseholdSharing', null));
     return parseSharing(parseExtras((pref as { extras?: string | null } | null)?.extras).householdSharing);
   }
 
   /** Update the current user's sharing permissions (applies wherever they're a member). */
   async setHouseholdSharing(userId: string, patch: Partial<HouseholdSharing>): Promise<HouseholdSharing> {
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null);
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(swallowed('nutrition.setHouseholdSharing', null));
     if (!pref) throw new NotFoundException('Set up your Nutrition profile first.');
     const extras = parseExtras((pref as { extras?: string | null }).extras);
     const next = parseSharing({ ...(extras.householdSharing ?? {}), ...patch });
@@ -3082,13 +3083,13 @@ export class NutritionService implements OnModuleInit {
   /** The household's Family-Meal-Planning flag (stored on the OWNER's pref).
    *  Defaults to ON — one shared master plan with personalised portions. */
   async getFamilyMealPlanning(ownerId: string): Promise<boolean> {
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(() => null);
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(swallowed('nutrition.getFamilyMealPlanning', null));
     return parseExtras((pref as { extras?: string | null } | null)?.extras).familyMealPlanning !== false;
   }
 
   /** Set the household's Family-Meal-Planning flag (owner only). */
   async setFamilyMealPlanning(ownerId: string, on: boolean): Promise<{ familyMealPlanning: boolean }> {
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(() => null);
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(swallowed('nutrition.setFamilyMealPlanning', null));
     if (!pref) throw new NotFoundException('Set up your Nutrition profile first.');
     const extras = parseExtras((pref as { extras?: string | null }).extras);
     extras.familyMealPlanning = !!on;
@@ -3111,7 +3112,7 @@ export class NutritionService implements OnModuleInit {
    * back rather than an error. Nothing they need disappears.
    */
   private async householdOwnerFor(memberUserId: string): Promise<string | null> {
-    const link = await this.household.findFirst({ where: { memberUserId, status: 'accepted' } }).catch(() => null);
+    const link = await this.household.findFirst({ where: { memberUserId, status: 'accepted' } }).catch(swallowed('nutrition.householdOwnerFor', null));
     if (!link?.ownerId) return null;
     const allowed = await this.connections
       .canAccessHub(memberUserId, link.ownerId, 'nutrition')
@@ -3129,7 +3130,7 @@ export class NutritionService implements OnModuleInit {
    * OFF, every member gets an independent AI plan while staying connected.
    */
   async familyContext(userId: string): Promise<FamilyContext> {
-    const asOwner = await this.household.findFirst({ where: { ownerId: userId, memberUserId: { not: null }, status: 'accepted' } as never }).catch(() => null);
+    const asOwner = await this.household.findFirst({ where: { ownerId: userId, memberUserId: { not: null }, status: 'accepted' } as never }).catch(swallowed('nutrition.familyContext', null));
     if (asOwner) {
       return {
         role: 'owner', ownerId: userId, hasFamily: true,
@@ -3147,7 +3148,7 @@ export class NutritionService implements OnModuleInit {
     }
     return {
       role: 'solo', ownerId: userId, familyMealPlanning: true, hasFamily: false,
-      householdDiet: normaliseDietKey((await this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null))?.diet),
+      householdDiet: normaliseDietKey((await this.prisma.foodPref.findUnique({ where: { userId } }).catch(swallowed('nutrition.familyContext', null)))?.diet),
       dietBecause: [],
     };
   }
@@ -3163,10 +3164,10 @@ export class NutritionService implements OnModuleInit {
    */
   private async householdDietNotice(ownerId: string): Promise<{ householdDiet: DietKey; dietBecause: string[] }> {
     const [pref, members] = await Promise.all([
-      this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(() => null),
+      this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(swallowed('nutrition.householdDietNotice', null)),
       this.prisma.familyMember
         .findMany({ where: { ownerId }, select: { name: true, diet: true, isSelf: true } })
-        .catch(() => [] as Array<{ name: string; diet: string | null; isSelf: boolean }>),
+        .catch(swallowed('nutrition.householdDietNotice', [] as Array<{ name: string; diet: string | null; isSelf: boolean }>)),
     ]);
     const ownerDiet = pref?.diet as string | undefined;
     // The owner's own row is not somebody else's dietary requirement.
@@ -3187,16 +3188,16 @@ export class NutritionService implements OnModuleInit {
    * forever.
    */
   async pantryList(ownerId: string) {
-    await this.settleElapsedDays(ownerId).catch(() => undefined);
+    await this.settleElapsedDays(ownerId).catch(swallowed('nutrition.pantryList', undefined));
     // Same visit, look ahead: anything that must be soaked/fermented/marinated
     // in advance gets its notification while there's still time to act.
-    void this.prepAlerts(ownerId).catch(() => undefined);
+    void this.prepAlerts(ownerId).catch(swallowed('nutrition.pantryList', undefined));
     return this.pantryListRaw(ownerId);
   }
 
   /** The pantry exactly as stored — no settlement pass (re-entrancy safe). */
   private async pantryListRaw(ownerId: string) {
-    const rows = await this.pantry.findMany({ where: { ownerId }, orderBy: { name: 'asc' } }).catch(() => [] as PantryItemRow[]);
+    const rows = await this.pantry.findMany({ where: { ownerId }, orderBy: { name: 'asc' } }).catch(swallowed('nutrition.pantryListRaw', [] as PantryItemRow[]));
     const grouped = new Map<string, PantryItemRow[]>();
     for (const r of rows) { const arr = grouped.get(r.aisle) ?? []; arr.push(r); grouped.set(r.aisle, arr); }
     const aisles = GROCERY_AISLES
@@ -3225,7 +3226,7 @@ export class NutritionService implements OnModuleInit {
     if (!name || skipGroceryIngredient(nameRaw)) throw new BadRequestException('Enter a real grocery item.');
     const aisle = groceryAisle(name);
     const grams = Math.max(0, Math.round(Number(gramsRaw) || 0));
-    const existing = await this.pantry.findFirst({ where: { ownerId, name } }).catch(() => null);
+    const existing = await this.pantry.findFirst({ where: { ownerId, name } }).catch(swallowed('nutrition.addPantryItem', null));
     if (existing) {
       const total = existing.grams + grams;
       // Re-stocking raises the "full" mark so the depletion bar refills.
@@ -3240,7 +3241,7 @@ export class NutritionService implements OnModuleInit {
 
   /** Set an item's on-hand quantity (grams). Zero or less removes it. */
   async updatePantryItem(ownerId: string, id: string, grams: number) {
-    const existing = await this.pantry.findFirst({ where: { id, ownerId } }).catch(() => null);
+    const existing = await this.pantry.findFirst({ where: { id, ownerId } }).catch(swallowed('nutrition.updatePantryItem', null));
     if (!existing) throw new NotFoundException('pantry item not found');
     const g = Math.max(0, Math.round(Number(grams) || 0));
     if (g <= 0) await this.pantry.delete({ where: { id } });
@@ -3252,7 +3253,7 @@ export class NutritionService implements OnModuleInit {
   }
 
   async removePantryItem(ownerId: string, id: string) {
-    const existing = await this.pantry.findFirst({ where: { id, ownerId } }).catch(() => null);
+    const existing = await this.pantry.findFirst({ where: { id, ownerId } }).catch(swallowed('nutrition.removePantryItem', null));
     if (!existing) throw new NotFoundException('pantry item not found');
     await this.pantry.delete({ where: { id } });
     return this.pantryList(ownerId);
@@ -3283,7 +3284,7 @@ export class NutritionService implements OnModuleInit {
 
     // A cheap early exit for the common case — somebody tapping a meal that was
     // already settled. It is NOT what makes this safe; see the transaction below.
-    const already = await log.findFirst({ where: { ownerId, mealKey } }).catch(() => null);
+    const already = await log.findFirst({ where: { ownerId, mealKey } }).catch(swallowed('nutrition.markMealCooked', null));
     if (already) return { ...(await this.pantryListRaw(ownerId)), alreadyCooked: true };
 
     // Find the meal in the composed plan by "<YYYY-MM-DD>:<slot>".
@@ -3398,7 +3399,7 @@ export class NutritionService implements OnModuleInit {
    */
   async settleElapsedDays(ownerId: string): Promise<{ settledDays: number; settledMeals: number }> {
     const none = { settledDays: 0, settledMeals: 0 };
-    const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(() => null);
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId: ownerId } }).catch(swallowed('nutrition.settleElapsedDays', null));
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
 
     // "Today" in the citizen's timezone — a day is only settled once THEIR day
@@ -3409,7 +3410,7 @@ export class NutritionService implements OnModuleInit {
     const yesterday = addDaysISO(todayLocal, -1);
     if (ex.pantrySettledThrough && ex.pantrySettledThrough >= yesterday) return none; // already done
 
-    const plan = (await this.composedPlan(ownerId).catch(() => null)) as unknown as {
+    const plan = (await this.composedPlan(ownerId).catch(swallowed('nutrition.settleElapsedDays', null))) as unknown as {
       needsProfile?: boolean; planStartDate?: string;
       days?: Array<{ dayIndex: number; meals: Array<{ slot: string; title: string; components: Array<{ name: string; ingredients?: Array<{ name: string; grams: number; toTaste?: boolean }> }> }> }>;
     } | null;
@@ -3425,12 +3426,12 @@ export class NutritionService implements OnModuleInit {
       let touched = false;
       for (const m of d.meals) {
         const res = await this.markMealCooked(ownerId, { mealKey: `${dayISO}:${m.slot}`, label: m.title })
-          .catch(() => null);
+          .catch(swallowed('nutrition.settleElapsedDays', null));
         if (res && (res as { cooked?: boolean }).cooked) { settledMeals++; touched = true; }
       }
       if (touched) settledDays++;
     }
-    await this.mergeExtras(ownerId, { pantrySettledThrough: yesterday }).catch(() => undefined);
+    await this.mergeExtras(ownerId, { pantrySettledThrough: yesterday }).catch(swallowed('nutrition.settleElapsedDays', undefined));
     return { settledDays, settledMeals };
   }
 
@@ -3443,7 +3444,7 @@ export class NutritionService implements OnModuleInit {
    * Works for both individual and family plans: family mode says who it feeds.
    */
   async prepAlerts(userId: string, mode: PlanMode = 'individual'): Promise<{ alerts: Array<{ mealKey: string; title: string; what: string; startBy: string; notified: boolean }> }> {
-    const plan = (await this.composedPlan(userId).catch(() => null)) as unknown as {
+    const plan = (await this.composedPlan(userId).catch(swallowed('nutrition.prepAlerts', null))) as unknown as {
       needsProfile?: boolean; planStartDate?: string;
       days?: Array<{ dayIndex: number; meals: Array<{ slot: string; title: string; label: string; scheduledTime?: string; components: Array<{ name: string; steps?: string[]; ingredients?: Array<{ name: string }> }> }> }>;
     } | null;
@@ -3496,9 +3497,9 @@ export class NutritionService implements OnModuleInit {
   private async notifyOnce(userId: string, input: { kind: string; entityId: string; title: string; body: string; href: string }): Promise<boolean> {
     const existing = await (this.prisma as unknown as {
       notification: { findFirst(a: unknown): Promise<{ id: string } | null> };
-    }).notification.findFirst({ where: { userId, entityId: input.entityId } }).catch(() => null);
+    }).notification.findFirst({ where: { userId, entityId: input.entityId } }).catch(swallowed('nutrition.notifyOnce', null));
     if (existing) return false;
-    await this.notifications.create({ userId, kind: input.kind, title: input.title, body: input.body, href: input.href, entityId: input.entityId }).catch(() => undefined);
+    await this.notifications.create({ userId, kind: input.kind, title: input.title, body: input.body, href: input.href, entityId: input.entityId }).catch(swallowed('nutrition.notifyOnce', undefined));
     return true;
   }
 
@@ -3507,7 +3508,7 @@ export class NutritionService implements OnModuleInit {
     const log = (this.prisma as unknown as {
       pantryConsumption: { findMany(a: unknown): Promise<Array<{ mealKey: string; label: string; itemsJson: string; createdAt: Date }>> };
     }).pantryConsumption;
-    const rows = await log.findMany({ where: { ownerId }, orderBy: { createdAt: 'desc' }, take: Math.min(100, limit) }).catch(() => []);
+    const rows = await log.findMany({ where: { ownerId }, orderBy: { createdAt: 'desc' }, take: Math.min(100, limit) }).catch(swallowed('nutrition.pantryHistory', []));
     return {
       items: rows.map((r) => {
         let items: Array<{ name: string; grams: number }> = [];
@@ -3522,7 +3523,7 @@ export class NutritionService implements OnModuleInit {
     const plan = await this.groceryPlan(ownerId, mode);
     for (const aisle of plan.aisles) {
       for (const it of aisle.items) {
-        await this.addPantryItem(ownerId, String(it.name), Number((it as { grams?: number }).grams) || 0).catch(() => undefined);
+        await this.addPantryItem(ownerId, String(it.name), Number((it as { grams?: number }).grams) || 0).catch(swallowed('nutrition.stockPantryFromGrocery', undefined));
       }
     }
     return this.pantryList(ownerId);
@@ -3530,7 +3531,7 @@ export class NutritionService implements OnModuleInit {
 
   /** Best-effort: fold ordered grocery items into the pantry when an order is placed. */
   private async stockPantryFromItems(ownerId: string, items: { name: string; grams?: number }[]) {
-    for (const it of items) await this.addPantryItem(ownerId, it.name, it.grams ?? 0).catch(() => undefined);
+    for (const it of items) await this.addPantryItem(ownerId, it.name, it.grams ?? 0).catch(swallowed('nutrition.stockPantryFromItems', undefined));
   }
 
   /**
@@ -3543,7 +3544,7 @@ export class NutritionService implements OnModuleInit {
    */
   async familyPortions(userId: string, dayIndex: number) {
     await this.familyMembers(userId); // ensure the self profile is seeded
-    const rows = await this.members.findMany({ where: { ownerId: userId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => [] as FamilyMemberRow[]);
+    const rows = await this.members.findMany({ where: { ownerId: userId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(swallowed('nutrition.familyPortions', [] as FamilyMemberRow[]));
     const members = rows.map((m) => {
       const ex = parseExtras(m.extras);
       const conditions = ex.healthConditions ?? [];
@@ -3559,7 +3560,7 @@ export class NutritionService implements OnModuleInit {
     // describe a meal nobody was buying ingredients for. Falls back to the
     // stored plan when there's no composed plan to read, mirroring how
     // composedMealsForShopping falls back.
-    const composedMeals = await this.composedFamilyPortions(userId, dayIndex, members).catch(() => null);
+    const composedMeals = await this.composedFamilyPortions(userId, dayIndex, members).catch(swallowed('nutrition.familyPortions', null));
     if (composedMeals?.length) return { members: roster, meals: composedMeals };
 
     const latest = await this.prisma.mealPlan.findFirst({ where: { userId, mode: 'family' }, orderBy: { createdAt: 'desc' } });
@@ -3638,7 +3639,7 @@ export class NutritionService implements OnModuleInit {
   ): Promise<Array<{ slot: string; slotName: string; name: string; sharedBase: boolean; refKcal: number; perMember: unknown[] }> | null> {
     type Comp = { name: string; grams: number; kcal: number; protein: number; diet?: string; ingredients?: Array<{ name: string }> };
     type CMeal = { slot: string; title: string; totals?: { kcal: number; protein: number }; components?: Comp[] };
-    const plan = (await this.composedPlan(userId, 'preferred', { household: true }).catch(() => null)) as unknown as
+    const plan = (await this.composedPlan(userId, 'preferred', { household: true }).catch(swallowed('nutrition.composedFamilyPortions', null))) as unknown as
       { needsProfile?: boolean; days?: Array<{ dayIndex: number; meals: CMeal[] }> } | null;
     const day = plan?.days?.find((d) => d.dayIndex === dayIndex);
     if (!plan || plan.needsProfile || !day?.meals?.length) return null;
@@ -3701,7 +3702,7 @@ export class NutritionService implements OnModuleInit {
    */
   async familyDashboard(userId: string, dayIndex = 0) {
     await this.familyMembers(userId);
-    const rows = await this.members.findMany({ where: { ownerId: userId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => [] as FamilyMemberRow[]);
+    const rows = await this.members.findMany({ where: { ownerId: userId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(swallowed('nutrition.familyDashboard', [] as FamilyMemberRow[]));
     const members = rows.map((m) => {
       const ex = parseExtras(m.extras);
       const conditions = (ex.healthConditions ?? []).map((c) => c.toLowerCase());
@@ -3829,8 +3830,8 @@ export class NutritionService implements OnModuleInit {
     });
     const dash = await this.familyDashboard(userId, dayIndex);
     const [owner, ownerPref] = await Promise.all([
-      this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(() => null),
-      this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(swallowed('nutrition.familyProfile', null)),
+      this.prisma.foodPref.findUnique({ where: { userId } }).catch(swallowed('nutrition.familyProfile', null)),
     ]);
     const ownerExtras = parseExtras((ownerPref as { extras?: string | null } | null)?.extras);
 
@@ -3862,7 +3863,7 @@ export class NutritionService implements OnModuleInit {
     const nutritionScore = dash.hasPlan ? Math.round((dash.members.filter((m) => m.medicalOk).length / n) * 100) : null;
 
     // Latest household grocery cost, if a family cart exists.
-    const cart = await this.prisma.groceryCart.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' }, include: { items: true } }).catch(() => null);
+    const cart = await this.prisma.groceryCart.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' }, include: { items: true } }).catch(swallowed('nutrition.familyProfile', null));
     const weeklyGroceryCost = cart?.items?.reduce((s, it) => s + ((it as { priceInr?: number }).priceInr ?? 0), 0) ?? 0;
 
     const compatibility = this.familyCompatibility(real.map((m) => ({ diet: m.diet, goal: m.goal, healthConditions: m.conditions, allergies: m.allergies })));
@@ -3910,7 +3911,7 @@ export class NutritionService implements OnModuleInit {
     for (let i = 0; i < days; i++) keys.push(addDaysISO(todayLocal, -i));
     const entries = await this.prisma.calorieEntry
       .findMany({ where: { userId, date: { in: keys } }, select: { date: true, type: true } })
-      .catch(() => [] as Array<{ date: string; type: string }>);
+      .catch(swallowed('nutrition.householdAdherence', [] as Array<{ date: string; type: string }>));
     if (!entries.length) return { adherenceScore: 0, mealCompletion: 0 };
     const planEntries = entries.filter((e) => e.type === 'Meal Plan');
     const daysLogged = new Set(planEntries.map((e) => e.date)).size;
@@ -3939,10 +3940,10 @@ export class NutritionService implements OnModuleInit {
       consult: { findMany(a: unknown): Promise<{ userId: string; scheduledAt: Date | null; createdAt: Date }[]> };
     };
     const [markers, tests, records, consults] = await Promise.all([
-      uids.length ? P.bloodMarker.findMany({ where: { userId: { in: uids } } }).catch(() => []) : Promise.resolve([]),
-      uids.length ? P.medicalBloodTest.findMany({ where: { userId: { in: uids } }, orderBy: { takenOn: 'desc' } }).catch(() => []) : Promise.resolve([]),
-      uids.length ? P.medicalRecord.findMany({ where: { userId: { in: uids } }, orderBy: { recordedOn: 'desc' } }).catch(() => []) : Promise.resolve([]),
-      uids.length ? P.consult.findMany({ where: { userId: { in: uids } }, orderBy: { createdAt: 'desc' } }).catch(() => []) : Promise.resolve([]),
+      uids.length ? P.bloodMarker.findMany({ where: { userId: { in: uids } } }).catch(swallowed('nutrition.familyHealth', [])) : Promise.resolve([]),
+      uids.length ? P.medicalBloodTest.findMany({ where: { userId: { in: uids } }, orderBy: { takenOn: 'desc' } }).catch(swallowed('nutrition.familyHealth', [])) : Promise.resolve([]),
+      uids.length ? P.medicalRecord.findMany({ where: { userId: { in: uids } }, orderBy: { recordedOn: 'desc' } }).catch(swallowed('nutrition.familyHealth', [])) : Promise.resolve([]),
+      uids.length ? P.consult.findMany({ where: { userId: { in: uids } }, orderBy: { createdAt: 'desc' } }).catch(swallowed('nutrition.familyHealth', [])) : Promise.resolve([]),
     ]);
     const markersBy = new Map<string, { key: string; value: number; updatedAt: Date }[]>();
     for (const m of markers) { const a = markersBy.get(m.userId) ?? []; a.push(m); markersBy.set(m.userId, a); }
@@ -4100,7 +4101,7 @@ export class NutritionService implements OnModuleInit {
   ): Promise<{ ex: PrefExtras; diet: DietKey }> {
     const members = await this.prisma.familyMember
       .findMany({ where: { ownerId: userId }, select: { extras: true, diet: true, isSelf: true } })
-      .catch(() => [] as Array<{ extras: string | null; diet: string | null; isSelf: boolean }>);
+      .catch(swallowed('nutrition.withHouseholdConstraints', [] as Array<{ extras: string | null; diet: string | null; isSelf: boolean }>));
     // The diet of the table: the union of what everyone in it forbids. The
     // allergies below were already merged across the household; the diet never
     // was, so a vegetarian member's "personalised" view of the family plan was
@@ -4196,14 +4197,14 @@ export class NutritionService implements OnModuleInit {
       where: mode ? { userId, mode } : { userId },
       orderBy: { createdAt: 'desc' },
       take: 400,
-    }).catch(() => [] as NutritionHistoryRow[]);
+    }).catch(swallowed('nutrition.nutritionHistory', [] as NutritionHistoryRow[]));
     const kept = new Map<string, NutritionHistoryRow>();
     const stale: string[] = [];
     for (const r of all) {
       const k = `${r.mode}|${r.weekLabel}`;
       if (kept.has(k)) stale.push(r.id); else kept.set(k, r); // newest wins (desc order)
     }
-    if (stale.length) await this.history.deleteMany({ where: { id: { in: stale } } }).catch(() => undefined);
+    if (stale.length) await this.history.deleteMany({ where: { id: { in: stale } } }).catch(swallowed('nutrition.nutritionHistory', undefined));
     const rows = [...kept.values()].slice(0, 104);
     return rows.map((r) => {
       const weekly = safeJson<{ totals?: Record<string, number>; variety?: Record<string, number> }>(r.weekly, {});
@@ -4219,7 +4220,7 @@ export class NutritionService implements OnModuleInit {
 
   /** Full stored week — every day, meal, macro and the context it was built in. */
   async nutritionHistoryDetail(userId: string, id: string) {
-    const r = await this.history.findUnique({ where: { id } }).catch(() => null);
+    const r = await this.history.findUnique({ where: { id } }).catch(swallowed('nutrition.nutritionHistoryDetail', null));
     if (!r || r.userId !== userId) throw new NotFoundException('history entry not found');
     return {
       id: r.id, mode: r.mode, weekNumber: r.weekNumber, weekLabel: r.weekLabel,
@@ -4797,7 +4798,7 @@ export class NutritionService implements OnModuleInit {
             const durationSec = secondsFromText(text);
             return { text, durationSec, active: isActiveStep(text, durationSec) };
           });
-          await this.prisma.recipe.update({ where: { id: r.id }, data: { cookSteps: JSON.stringify(result) } as never }).catch(() => undefined);
+          await this.prisma.recipe.update({ where: { id: r.id }, data: { cookSteps: JSON.stringify(result) } as never }).catch(swallowed('nutrition.recipeCookSteps', undefined));
           return result;
         }
       } catch { /* fall through to AI/fallback */ }
@@ -4830,7 +4831,7 @@ export class NutritionService implements OnModuleInit {
     const result = cleaned.length ? cleaned : fallback;
     await this.prisma.recipe
       .update({ where: { id: r.id }, data: { cookSteps: JSON.stringify(result) } as never })
-      .catch(() => undefined);
+      .catch(swallowed('nutrition.recipeCookSteps', undefined));
     return result;
   }
 
@@ -4884,7 +4885,7 @@ export class NutritionService implements OnModuleInit {
         where: { OR: expanded.flatMap((e) => e.variants.map((v) => ({ name: { contains: v, mode: 'insensitive' as const } }))) },
         select: { recipeId: true },
         take: 8000,
-      }).catch(() => [] as Array<{ recipeId: string }>);
+      }).catch(swallowed('nutrition.searchByIngredients', [] as Array<{ recipeId: string }>));
       const ids = [...new Set(hits.map((h) => h.recipeId))].slice(0, 1200);
       if (!ids.length) return [];
       rows = (await this.prisma.recipe.findMany({
@@ -5099,7 +5100,7 @@ export class NutritionService implements OnModuleInit {
     // What the household ALREADY has — so the list shows what's actually left
     // to buy instead of asking them to re-buy a full jar of rice every week.
     const onHand = new Map<string, number>();
-    for (const row of await this.pantry.findMany({ where: { ownerId: userId } }).catch(() => [] as PantryItemRow[])) {
+    for (const row of await this.pantry.findMany({ where: { ownerId: userId } }).catch(swallowed('nutrition.groceryPlan', [] as PantryItemRow[]))) {
       const k = canonicalIngredient(row.name).toLowerCase();
       if (k) onHand.set(k, (onHand.get(k) ?? 0) + row.grams);
     }
@@ -5173,7 +5174,7 @@ export class NutritionService implements OnModuleInit {
     // drop. Everything else fresh is scheduled on the day it's actually cooked,
     // at the citizen's preferred time — so herbs for Friday arrive Friday
     // instead of wilting in the fridge since Monday.
-    const prefRow = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(() => null);
+    const prefRow = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(swallowed('nutrition.groceryPlan', null));
     const prefEx = parseExtras((prefRow as { extras?: string | null } | null)?.extras);
     const deliveryTime = /^\d{2}:\d{2}$/.test(prefEx.deliveryTime ?? '') ? (prefEx.deliveryTime as string) : '08:00';
     const flatItems = aisles.flatMap((a) => a.items as Array<Record<string, unknown>>);
@@ -5332,7 +5333,7 @@ export class NutritionService implements OnModuleInit {
    */
   async buildFamilyCart(userId: string) {
     await this.familyMembers(userId); // ensure self is seeded
-    const rows = await this.members.findMany({ where: { ownerId: userId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(() => [] as FamilyMemberRow[]);
+    const rows = await this.members.findMany({ where: { ownerId: userId }, orderBy: [{ isSelf: 'desc' }, { createdAt: 'asc' }] }).catch(swallowed('nutrition.buildFamilyCart', [] as FamilyMemberRow[]));
     const members = rows.map((m) => {
       const ex = parseExtras(m.extras);
       const t = computeTargets({ weightKg: m.weightKg ?? undefined, heightCm: m.heightCm ?? undefined, age: m.age ?? undefined, sex: m.sex ?? undefined, activity: m.activity, goal: m.goal, conditions: ex.healthConditions ?? [] });
@@ -5434,12 +5435,12 @@ export class NutritionService implements OnModuleInit {
     // existed.
     const profile = await this.prisma.masterProfile
       .findUnique({ where: { userId }, select: { address: true } as never })
-      .catch(() => null);
+      .catch(swallowed('nutrition.lastDeliveryAddress', null));
     const saved = (profile as { address?: string | null } | null)?.address;
     if (saved) return saved;
     const last = await this.prisma.nutritionOrder
       .findFirst({ where: { userId, deliveryAddress: { not: null } } as never, orderBy: { createdAt: 'desc' }, select: { deliveryAddress: true } as never })
-      .catch(() => null);
+      .catch(swallowed('nutrition.lastDeliveryAddress', null));
     return (last as { deliveryAddress?: string | null } | null)?.deliveryAddress ?? null;
   }
 
@@ -5464,7 +5465,7 @@ export class NutritionService implements OnModuleInit {
     // because we could not write a convenience field.
     await this.prisma.masterProfile
       .upsert({ where: { userId }, update: { address } as never, create: { userId, address } as never })
-      .catch(() => undefined);
+      .catch(swallowed('nutrition.placeOrder', undefined));
 
     const total = cart.items.reduce((s, i) => s + i.priceInr, 0);
     // Unified payment: charge the one city wallet via the Financial hub.
@@ -5504,7 +5505,7 @@ export class NutritionService implements OnModuleInit {
     // Pantry stocking stays outside the transaction: it's a best-effort side
     // effect that already swallows its own errors, and it must never be the
     // reason a paid-for order rolls back.
-    await this.stockPantryFromItems(userId, cart.items.map((i) => ({ name: i.name, grams: (i as { grams?: number }).grams ?? 0 }))).catch(() => undefined);
+    await this.stockPantryFromItems(userId, cart.items.map((i) => ({ name: i.name, grams: (i as { grams?: number }).grams ?? 0 }))).catch(swallowed('nutrition.placeOrder', undefined));
     return this.shapeOrder(order);
   }
 
@@ -5619,7 +5620,7 @@ export class NutritionService implements OnModuleInit {
     const quotes = QC_PROVIDERS.map((p) => quoteStore(p, [base]));
     let live = false;
     if (this.qcClient.enabled) {
-      const lp = await this.qcClient.searchItem(name, lat ?? NutritionService.QC_DEFAULT_LAT, lon ?? NutritionService.QC_DEFAULT_LON).catch(() => null);
+      const lp = await this.qcClient.searchItem(name, lat ?? NutritionService.QC_DEFAULT_LAT, lon ?? NutritionService.QC_DEFAULT_LON).catch(swallowed('nutrition.qcSearch', null));
       if (lp) {
         for (const l of lp) {
           const quote = quotes.find((x) => x.provider.key === l.platformKey);
@@ -5686,7 +5687,7 @@ export class NutritionService implements OnModuleInit {
         return { order: created, meta: qcMeta };
       },
     );
-    await this.stockPantryFromItems(userId, quote.items.filter((i) => i.available).map((i) => ({ name: i.name, grams: i.grams }))).catch(() => undefined);
+    await this.stockPantryFromItems(userId, quote.items.filter((i) => i.available).map((i) => ({ name: i.name, grams: i.grams }))).catch(swallowed('nutrition.qcOrder', undefined));
     return { ...this.shapeOrder(order), qc: { ...meta, tracking: trackFromMeta(meta) } };
   }
 
@@ -6547,7 +6548,7 @@ export class NutritionService implements OnModuleInit {
     const seedAll = [...seed, ...lowProtein300];
     const missing = seedAll.filter((s) => !existing.has(s.name));
     for (const r of missing) {
-      await this.prisma.recipe.create({ data: r as never }).catch(() => undefined);
+      await this.prisma.recipe.create({ data: r as never }).catch(swallowed('nutrition.ensureRecipes', undefined));
       this.invalidateRecipeCorpus();
     }
     if (missing.length) this.logger.log(`Recipe library topped up: +${missing.length} (total ${existing.size + missing.length}).`);
@@ -6556,7 +6557,7 @@ export class NutritionService implements OnModuleInit {
     // Idempotent, and updates rows seeded BEFORE numbering — so the old→new
     // mapping always applies on boot (matches even if a recipe already exists).
     for (const r of lowProtein300) {
-      await this.prisma.recipe.updateMany({ where: { name: r.name }, data: { recipeNo: r.recipeNo } as never }).catch(() => undefined);
+      await this.prisma.recipe.updateMany({ where: { name: r.name }, data: { recipeNo: r.recipeNo } as never }).catch(swallowed('nutrition.ensureRecipes', undefined));
       this.invalidateRecipeCorpus();
     }
     this.logger.log(`LowProtein 300: recipe numbers 11223–${11223 + lowProtein300.length - 1} assigned (${lowProtein300.length} recipes).`);
