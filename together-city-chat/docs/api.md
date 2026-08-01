@@ -4,7 +4,7 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **391 routes** across
+Every path below is prefixed with `/api`. **387 routes** across
 **34 controllers**; **9** are reachable without a token.
 
 ## Conventions
@@ -469,10 +469,6 @@ _nutrition/nutrition.controller.ts_
 | PATCH | `/api/nutrition/preferences` | 🔒 |
 | GET | `/api/nutrition/prep-alerts` | 🔒 |
 | GET | `/api/nutrition/qa/report` | token |
-| GET | `/api/nutrition/qc/compare` | 🔒 |
-| POST | `/api/nutrition/qc/order` | 🔒 |
-| GET | `/api/nutrition/qc/orders/:id/track` | 🔒 |
-| GET | `/api/nutrition/qc/search` | token |
 | POST | `/api/nutrition/recipes/:id/save` | 🔒 |
 | GET | `/api/nutrition/recipes/:id/variants` | token |
 | GET | `/api/nutrition/recipes/:id` | 🔒 |

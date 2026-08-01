@@ -604,42 +604,6 @@ export class NutritionController {
     return this.nutrition.orders(user.sub);
   }
 
-  // ── Quick Commerce API — find the grocery list across online stores ──
-
-  /** Compare the whole list across Blinkit/Zepto/Instamart/BigBasket/JioMart/TC Express. */
-  @Get('qc/compare')
-  qcCompare(
-    @CurrentUser() user: JwtUser, @Query('mode') mode?: PlanMode,
-    @Query('lat') lat?: string, @Query('lon') lon?: string,
-  ) {
-    const f = (v?: string) => { const n = parseFloat(v ?? ''); return isFinite(n) ? n : undefined; };
-    return this.nutrition.qcCompare(user.sub, mode ?? 'individual', f(lat), f(lon));
-  }
-
-  /** Find one product across all the stores. */
-  @Get('qc/search')
-  qcSearch(@Query('q') q: string, @Query('lat') lat?: string, @Query('lon') lon?: string) {
-    const f = (v?: string) => { const n = parseFloat(v ?? ''); return isFinite(n) ? n : undefined; };
-    return this.nutrition.qcSearch(q ?? '', f(lat), f(lon));
-  }
-
-  /** Order the list through the chosen store (express delivery + live tracking). */
-  @Post('qc/order')
-  @UsePipes(new ZodValidationPipe(z.object({
-    provider: z.string().min(2).max(30),
-    mode: z.enum(['individual', 'family']).optional(),
-    method: z.enum(['wallet', 'card']).optional(),
-  })))
-  qcOrder(@CurrentUser() user: JwtUser, @Body() body: { provider: string; mode?: PlanMode; method?: 'wallet' | 'card' }) {
-    return this.nutrition.qcOrder(user.sub, body.provider, body.mode ?? 'individual', body.method);
-  }
-
-  /** Live tracking (poll-friendly — advances purely with time). */
-  @Get('qc/orders/:id/track')
-  qcTrack(@CurrentUser() user: JwtUser, @Param('id') id: string) {
-    return this.nutrition.qcTrack(user.sub, id);
-  }
-
   @Post('orders')
   // deliveryAddress is OPTIONAL here and required in the service, which is not
   // an oversight. The service's own check says "Where should this go? Add a

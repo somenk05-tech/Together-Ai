@@ -161,7 +161,14 @@ const REVIEWED_UNSCOPED = [
   'nutrition/nutrition.service.ts  MealPlan.count x2',
   'nutrition/nutrition.service.ts  MealPlan.findFirst x1',
   'nutrition/nutrition.service.ts  MealPlan.findUnique x2',
-  'nutrition/nutrition.service.ts  NutritionOrder.update x1',
+  // onModuleInit() — the same startup alarm as TicketBooking above. The
+  // quick-commerce flow was removed (B.12, 2 Aug); every NutritionOrder still
+  // carrying qcJson was charged at simulated prices under a real retailer's
+  // name, and the question the count asks is "does ANY citizen hold one". The
+  // NutritionOrder.update that used to sit here was qcOrder writing the
+  // tracking metadata onto the row it had just created inside its own
+  // transaction; it went with the flow.
+  'nutrition/nutrition.service.ts  NutritionOrder.count x1',
   // upload(), addItem() and confirm() write by an id either created in the same
   // call or read a line earlier via findFirst({ id, userId }). Request-path, so
   // it counts against the size budget below — unlike the cron queries.
