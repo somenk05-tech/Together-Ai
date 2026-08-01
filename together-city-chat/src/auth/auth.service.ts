@@ -1,4 +1,5 @@
 import { swallow } from '../shared/swallow';
+import { isDisposableEmail } from './disposable-domains';
 import {
   ConflictException,
   Injectable,
@@ -46,6 +47,11 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({ where: { handle: dto.handle.toLowerCase() } });
     if (existing) throw new ConflictException('That handle is already taken.');
     if (dto.email) {
+      // M1: the availability check already refuses these; enforce at the write
+      // too, because a form is not the only client an endpoint ever has.
+      if (isDisposableEmail(dto.email)) {
+        throw new ConflictException('Please use a real email address — temporary inboxes cannot recover an account.');
+      }
       const emailTaken = await this.prisma.user.findFirst({ where: { email: dto.email.toLowerCase() } });
       if (emailTaken) throw new ConflictException('That email is already registered.');
     }
@@ -96,6 +102,10 @@ export class AuthService {
     const email = (raw ?? '').trim().toLowerCase();
     const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 160;
     if (!valid) return { email, valid: false, available: false };
+    // M1: throwaway domains make accounts nobody answers for. Reported as
+    // invalid HERE, at the availability check, so the form says so before
+    // the citizen fills anything else in.
+    if (isDisposableEmail(email)) return { email, valid: false, available: false };
     // Same caveat as handleAvailable. No meta: an email address is PII and
     // does not belong in the logs.
     const taken = await swallow(this.prisma.user.findFirst({ where: { email } }), 'email availability read');

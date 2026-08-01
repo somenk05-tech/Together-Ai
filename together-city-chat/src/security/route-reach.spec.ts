@@ -101,7 +101,7 @@ const KNOWN_UNREACHED: string[] = [
   "entertainment/entertainment.controller.ts  GET /entertainment/tv/*",
   "entertainment/entertainment.controller.ts  POST /entertainment/events/*/book",
   "medical/medical.controller.ts  GET /medical/shared-biomarkers/*",
-  "messages/messages.controller.ts  GET /messages/search",
+  // GET /messages/search came off 1 Aug: the command palette searches messages.
   "nutrition/nutrition.controller.ts  GET /nutrition/diet-plans",
   "nutrition/nutrition.controller.ts  GET /nutrition/pantry/history",
   "nutrition/nutrition.controller.ts  GET /nutrition/qa/report",

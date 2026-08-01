@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { adherenceOf } from '../adherence';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import {
   useAddPrescriptionItem, useConfirmPrescription, useCreateManualPrescription, useDoseLogs,
@@ -309,6 +310,35 @@ export function Medicines() {
               </div>
             ))
           )}
+
+          {/* FE-6.2 — adherence from the same log rendered below. Shown only
+              when there are real days to count; never an invented perfect run. */}
+          {(() => {
+            const a = adherenceOf(logs.data?.items ?? [], new Date());
+            if (a.daysWithData === 0) return null;
+            const dot: Record<string, { bg: string; label: string }> = {
+              clear: { bg: 'var(--accent)', label: 'all taken' },
+              partial: { bg: 'var(--gold-bright)', label: 'some taken' },
+              missed: { bg: '#e0342b', label: 'none taken' },
+              none: { bg: 'var(--line)', label: 'nothing due' },
+            };
+            return (
+              <div className="card" style={{ padding: '14px 16px', margin: '26px 0 10px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>
+                    {a.currentStreak > 0 ? `${a.currentStreak}-day streak — every dose taken` : 'No streak right now'}
+                  </div>
+                  <div className="muted" style={{ fontSize: 12 }}>Best: {a.bestStreak} day{a.bestStreak === 1 ? '' : 's'} · counted only on days doses were due</div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }} aria-label="Last 7 days">
+                  {a.week.map((d) => (
+                    <span key={d.day} title={`${d.day} — ${dot[d.state].label}`}
+                      style={{ width: 14, height: 14, borderRadius: '50%', background: dot[d.state].bg, display: 'inline-block' }} />
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           <h2 style={{ fontSize: 18, margin: '26px 0 10px' }}>Dose log</h2>
           {(logs.data?.items ?? []).length === 0 ? (

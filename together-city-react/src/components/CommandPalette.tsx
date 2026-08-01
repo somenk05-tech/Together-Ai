@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DESTINATIONS, type Dest } from '@/nav/registry';
 import { useRecentStore } from '@/store/recent.store';
 import { useAuthStore } from '@/store/auth.store';
+import { http } from '@/api/client';
 import { Icon } from '@/components/ui/Icon';
 
 /** Lightweight subsequence + token score — good enough for a nav palette. */
@@ -42,6 +43,29 @@ export function CommandPalette() {
   // machine's next visitor gets suggestions, not the last user's movements.
   const authed = useAuthStore((s) => Boolean(s.tokens?.accessToken && s.user));
   const recents = authed ? trail : NO_TRAIL;
+
+  // Your own messages join the search (three letters up, debounced). Server-
+  // side scope rules apply — dating chats never surface here. The /chats page
+  // opens a thread via its ?c= deep link.
+  const [msgHits, setMsgHits] = useState<Array<{ id: string; conversationId: string; text: string | null; senderName: string | null }>>([]);
+  useEffect(() => {
+    const kw = q.trim();
+    if (!open || !authed || kw.length < 3) { setMsgHits([]); return; }
+    const t = setTimeout(() => {
+      http.get('/messages/search', { params: { keyword: kw, limit: 5 } })
+        .then((r) => {
+          const rows = Array.isArray(r.data) ? (r.data as Array<Record<string, unknown>>) : [];
+          setMsgHits(rows.slice(0, 5).map((m) => ({
+            id: String(m.id ?? ''),
+            conversationId: String(m.conversationId ?? ''),
+            text: typeof m.text === 'string' ? m.text : typeof m.body === 'string' ? m.body : null,
+            senderName: typeof (m.sender as { name?: string } | undefined)?.name === 'string' ? (m.sender as { name: string }).name : null,
+          })).filter((m) => m.conversationId));
+        })
+        .catch(() => setMsgHits([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q, open, authed]);
 
   // Global hotkey + a custom event so the header button can open it too.
   useEffect(() => {
@@ -141,6 +165,27 @@ export function CommandPalette() {
               <span className="muted" style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', flexShrink: 0 }}>{KIND_LABEL[d.kind]}</span>
             </button>
           ))}
+
+          {msgHits.length > 0 && (
+            <>
+              <div className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', padding: '10px 10px 4px' }}>
+                In your messages
+              </div>
+              {msgHits.map((m) => (
+                <button key={m.id} type="button" onClick={() => { setOpen(false); nav(`/chats?c=${m.conversationId}`); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', border: 'none',
+                    borderRadius: 10, padding: '10px 12px', cursor: 'pointer', fontFamily: 'inherit', background: 'transparent' }}>
+                  <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <Icon name="comment" size={16} style={{ color: 'var(--accent)' }} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.text ?? 'Attachment'}</span>
+                    {m.senderName && <span className="muted" style={{ display: 'block', fontSize: 12 }}>{m.senderName}</span>}
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       </div>
     </div>
