@@ -1,3 +1,4 @@
+import { medicalFoodAllergenTerms } from '../shared/medical-allergies';
 import { swallowed } from '../shared/swallow';
 import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { demoDataEnabled } from '../shared/demo-data';
@@ -159,6 +160,9 @@ export class RestaurantsService implements OnModuleInit {
     const allergens = [...new Set([
       ...terms(ex.allergies),
       ...terms((master as { foodAllergens?: string | null } | null)?.foodAllergens ?? ''),
+      // P1-5: Medical's allergy records, food families only — the same fact
+      // about the same person, read at match time, never written back.
+      ...await medicalFoodAllergenTerms(this.prisma, userId),
     ])];
     const avoid = terms(ex.excluded);
     const budgetTwo = ex.budgetInr ? Math.round(ex.budgetInr * 2 * 1.5) : null;

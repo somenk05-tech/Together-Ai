@@ -1,3 +1,4 @@
+import { medicalFoodAllergenTerms } from '../shared/medical-allergies';
 import { ORDER_HISTORY_CAP, RECORD_CAP } from '../shared/paging';
 import { swallowed } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
@@ -1843,6 +1844,14 @@ export class NutritionService implements OnModuleInit {
   ) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     let ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    // P1-5: Medical's kind:'allergy' records join the food union at match
+    // time — a read, never written back; the citizen owns that record in
+    // Medical, and deleting it there lifts the constraint here the same day.
+    // Drug/dust/latex records resolve to no food family and stay put.
+    const medicalTerms = await medicalFoodAllergenTerms(this.prisma, userId);
+    if (medicalTerms.length) {
+      ex = { ...ex, allergies: [...new Set([...terms(ex.allergies), ...medicalTerms])].join(',') };
+    }
     // HOUSEHOLD SAFETY. When this plan is being composed to feed a household —
     // today that means the family grocery list, which shops off the composed
     // plan — every member's allergies, exclusions and conditions must apply,
@@ -4126,8 +4135,8 @@ export class NutritionService implements OnModuleInit {
   ): Promise<{ ex: PrefExtras; diet: DietKey }> {
     // unbounded: a household's members — family-sized
     const members = await this.prisma.familyMember
-      .findMany({ where: { ownerId: userId }, select: { extras: true, diet: true, isSelf: true } })
-      .catch(swallowed('nutrition.withHouseholdConstraints', [] as Array<{ extras: string | null; diet: string | null; isSelf: boolean }>));
+      .findMany({ where: { ownerId: userId }, select: { extras: true, diet: true, isSelf: true, memberUserId: true } as never })
+      .catch(swallowed('nutrition.withHouseholdConstraints', [] as Array<{ extras: string | null; diet: string | null; isSelf: boolean; memberUserId?: string | null }>)) as Array<{ extras: string | null; diet: string | null; isSelf: boolean; memberUserId?: string | null }>;
     // The diet of the table: the union of what everyone in it forbids. The
     // allergies below were already merged across the household; the diet never
     // was, so a vegetarian member's "personalised" view of the family plan was
@@ -4145,6 +4154,13 @@ export class NutritionService implements OnModuleInit {
       for (const a of asList(mx.allergies)) { const t = a.trim().toLowerCase(); if (t) allergies.add(t); }
       for (const a of asList(mx.excluded)) { const t = a.trim().toLowerCase(); if (t) excluded.add(t); }
       for (const c of asList(mx.healthConditions)) { const t = c.trim(); if (t) conditions.add(t); }
+    }
+    // P1-5, the household half: a LINKED member's medical allergy records
+    // protect the shared table too — a child's peanut record must reach the
+    // family basket, not just their own plan. Family-sized loop.
+    const linked = [...new Set(members.map((m) => m.memberUserId).filter((x): x is string => Boolean(x) && x !== userId))];
+    for (const uid of linked) {
+      for (const t of await medicalFoodAllergenTerms(this.prisma, uid)) allergies.add(t);
     }
     return {
       ex: {
