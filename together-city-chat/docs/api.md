@@ -4,8 +4,8 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **391 routes** across
-**34 controllers**; **17** are reachable without a token.
+Every path below is prefixed with `/api`. **389 routes** across
+**34 controllers**; **9** are reachable without a token.
 
 ## Conventions
 
@@ -27,8 +27,6 @@ _messages/messages.controller.ts_
 | GET | `/api/chat/:id/messages` | 🔒 |
 | DELETE | `/api/messages/:id` | 🔒 |
 | PUT | `/api/messages/:id` | 🔒 |
-| POST | `/api/messages/delivered` | 🔒 |
-| POST | `/api/messages/read` | 🔒 |
 | GET | `/api/messages/search` | 🔒 |
 | POST | `/api/messages` | 🔒 |
 
@@ -69,8 +67,6 @@ _auth/auth.controller.ts_
 
 | Method | Path | Auth |
 |---|---|---|
-| POST | `/api/auth/check-email` | **public** |
-| POST | `/api/auth/check-handle` | **public** |
 | POST | `/api/auth/delete-account` | 🔒 |
 | GET | `/api/auth/email-available` | **public** |
 | POST | `/api/auth/forgot` | **public** |
@@ -79,18 +75,14 @@ _auth/auth.controller.ts_
 | POST | `/api/auth/logout-all` | 🔒 |
 | POST | `/api/auth/logout-others` | 🔒 |
 | POST | `/api/auth/logout` | 🔒 |
-| POST | `/api/auth/recovery/request` | **public** |
-| POST | `/api/auth/recovery/resend` | **public** |
-| POST | `/api/auth/recovery/reset` | **public** |
-| POST | `/api/auth/recovery/verify` | **public** |
 | POST | `/api/auth/refresh` | **public** |
 | POST | `/api/auth/register` | **public** |
-| POST | `/api/auth/resend-verification` | **public** |
 | POST | `/api/auth/reset` | **public** |
-| POST | `/api/auth/send-verification` | 🔒 |
 | POST | `/api/auth/sessions/revoke` | 🔒 |
 | GET | `/api/auth/sessions` | 🔒 |
-| POST | `/api/auth/verify-email` | **public** |
+| POST | `/api/auth/verification/confirm` | 🔒 |
+| POST | `/api/auth/verification/send` | 🔒 |
+| GET | `/api/auth/verification/status` | 🔒 |
 
 ## /avatars
 
@@ -197,9 +189,11 @@ _dating/dating.controller.ts_
 | GET | `/api/dating/admin/stats` | 🔒 |
 | GET | `/api/dating/chats` | 🔒 |
 | GET | `/api/dating/discover` | 🔒 |
+| POST | `/api/dating/matches/:targetUserId/block` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/connect` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/like` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/pass` | 🔒 |
+| POST | `/api/dating/matches/:targetUserId/report` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/reveal` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/unlock-chat` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/unmatch` | 🔒 |
@@ -339,6 +333,7 @@ _mail/mail.controller.ts_
 | Method | Path | Auth |
 |---|---|---|
 | POST | `/api/mail/:id/flag` | 🔒 |
+| POST | `/api/mail/:id/retry` | 🔒 |
 | DELETE | `/api/mail/:id` | 🔒 |
 | GET | `/api/mail/:id` | 🔒 |
 | GET | `/api/mail/account` | 🔒 |
@@ -439,6 +434,9 @@ _nutrition/nutrition.controller.ts_
 | GET | `/api/nutrition/family/search` | 🔒 |
 | GET | `/api/nutrition/family/sharing` | 🔒 |
 | PATCH | `/api/nutrition/family/sharing` | 🔒 |
+| POST | `/api/nutrition/grocery/check` | 🔒 |
+| POST | `/api/nutrition/grocery/clear-checked` | 🔒 |
+| POST | `/api/nutrition/grocery/item` | 🔒 |
 | GET | `/api/nutrition/grocery/plan` | 🔒 |
 | DELETE | `/api/nutrition/health/log/:id` | 🔒 |
 | GET | `/api/nutrition/health/log` | 🔒 |
@@ -450,30 +448,21 @@ _nutrition/nutrition.controller.ts_
 | POST | `/api/nutrition/medical-recs/decide` | 🔒 |
 | GET | `/api/nutrition/medical-recs` | 🔒 |
 | POST | `/api/nutrition/orders/:orderId/deliveries/:deliveryId/cancel` | 🔒 |
+| GET | `/api/nutrition/orders/last-address` | 🔒 |
 | GET | `/api/nutrition/orders` | 🔒 |
-| POST | `/api/nutrition/orders` | 🔒 |
+| POST | `/api/nutrition/orders` | token |
 | POST | `/api/nutrition/pantry/cooked` | 🔒 |
 | GET | `/api/nutrition/pantry/history` | 🔒 |
 | POST | `/api/nutrition/pantry/settle` | 🔒 |
-| POST | `/api/nutrition/plan/:key/day/:idx/rebalance` | 🔒 |
-| PATCH | `/api/nutrition/plan/:key/day/:idx/sides` | 🔒 |
-| POST | `/api/nutrition/plan/:key/day/:idx/skip` | 🔒 |
-| GET | `/api/nutrition/plan/:key/day/:idx/summary` | 🔒 |
-| POST | `/api/nutrition/plan/:key/day/:idx/swap` | 🔒 |
-| GET | `/api/nutrition/plan/:key/week-summary` | 🔒 |
+| POST | `/api/nutrition/plan/composed/pin` | 🔒 |
 | POST | `/api/nutrition/plan/composed/refresh-item` | 🔒 |
 | POST | `/api/nutrition/plan/composed/refresh` | 🔒 |
 | POST | `/api/nutrition/plan/composed/renew` | 🔒 |
 | POST | `/api/nutrition/plan/composed/restore` | 🔒 |
 | POST | `/api/nutrition/plan/composed/skip-item` | 🔒 |
 | POST | `/api/nutrition/plan/composed/skip` | 🔒 |
+| POST | `/api/nutrition/plan/composed/unpin` | 🔒 |
 | GET | `/api/nutrition/plan/composed` | 🔒 |
-| GET | `/api/nutrition/plan/week/:key` | 🔒 |
-| POST | `/api/nutrition/plan/weekly/duplicate` | 🔒 |
-| POST | `/api/nutrition/plan/weekly/new` | 🔒 |
-| POST | `/api/nutrition/plan/weekly/regenerate` | 🔒 |
-| GET | `/api/nutrition/plan/weekly` | 🔒 |
-| GET | `/api/nutrition/plan/weeks` | 🔒 |
 | GET | `/api/nutrition/preferences` | 🔒 |
 | PATCH | `/api/nutrition/preferences` | 🔒 |
 | GET | `/api/nutrition/prep-alerts` | 🔒 |
@@ -485,11 +474,16 @@ _nutrition/nutrition.controller.ts_
 | POST | `/api/nutrition/recipes/:id/save` | 🔒 |
 | GET | `/api/nutrition/recipes/:id/variants` | token |
 | GET | `/api/nutrition/recipes/:id` | 🔒 |
-| GET | `/api/nutrition/recipes/library` | token |
+| GET | `/api/nutrition/recipes/library` | 🔒 |
+| DELETE | `/api/nutrition/recipes/own/:id` | 🔒 |
+| PATCH | `/api/nutrition/recipes/own/:id` | 🔒 |
+| GET | `/api/nutrition/recipes/own` | 🔒 |
+| POST | `/api/nutrition/recipes/own` | 🔒 |
 | GET | `/api/nutrition/recipes/search` | 🔒 |
-| GET | `/api/nutrition/recipes` | token |
+| GET | `/api/nutrition/recipes` | 🔒 |
 | GET | `/api/nutrition/saved` | 🔒 |
 | GET | `/api/nutrition/supplements` | 🔒 |
+| GET | `/api/nutrition/targets/history` | 🔒 |
 | GET | `/api/nutrition/targets` | 🔒 |
 | GET | `/api/nutrition/wallet` | 🔒 |
 
@@ -509,6 +503,7 @@ _prescriptions/prescriptions.controller.ts_
 | GET | `/api/prescriptions` | 🔒 |
 | GET | `/api/prescriptions/logs` | 🔒 |
 | POST | `/api/prescriptions` | 🔒 |
+| GET | `/api/prescriptions/today` | 🔒 |
 
 ## /privacy
 
@@ -516,6 +511,7 @@ _privacy/privacy.controller.ts_
 
 | Method | Path | Auth |
 |---|---|---|
+| GET | `/api/privacy/export` | 🔒 |
 | GET | `/api/privacy` | 🔒 |
 | PATCH | `/api/privacy` | 🔒 |
 
@@ -607,6 +603,8 @@ _social/social.controller.ts_
 | PATCH | `/api/social/posts/:id` | 🔒 |
 | POST | `/api/social/posts` | 🔒 |
 | POST | `/api/social/report` | 🔒 |
+| POST | `/api/social/reports/decide` | 🔒 |
+| GET | `/api/social/reports/queue` | 🔒 |
 
 ## /thoughts
 
