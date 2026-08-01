@@ -14,7 +14,9 @@ function ItemRow({ item, checked, onToggle }: { item: GroceryPlanItem; checked: 
   const [open, setOpen] = useState(false);
   const multi = item.usedIn.length > 1;
   return (
-    <div style={{ borderTop: '1px solid var(--line)' }}>
+    // A cell now, not a row: it needs a left edge as well as a top one, or the
+    // columns run together into something that reads as one wide line.
+    <div style={{ borderTop: '1px solid var(--line)', borderLeft: '1px solid var(--line)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px' }}>
         <button
           onClick={onToggle}
@@ -96,7 +98,12 @@ function Aisle({ aisle, checked, toggle }: { aisle: GroceryAisle; checked: Set<s
         </div>
         <span className="muted" style={{ flex: 'none', fontSize: 12, fontWeight: 600 }}>{done}/{aisle.items.length}</span>
       </div>
-      <div>
+      {/* Horizontal, not a single column. An aisle is a set of things to pick
+          up, not a sequence — one per row turned thirteen vegetables into a
+          scroll on a screen with two-thirds of its width empty. auto-fill with
+          a min width means it becomes one column on a phone without a media
+          query, which matters because this list is read while shopping. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
         {aisle.items.map((it) => (
           <ItemRow key={it.name} item={it} checked={checked.has(it.name)} onToggle={() => toggle(it.name)} />
         ))}

@@ -15,7 +15,9 @@ import { GroceryPlanner } from '../components/GroceryPlanner';
  */
 export function Grocery() {
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 16px' }}>
+    // Wider than the other nutrition pages on purpose: the list is a grid now,
+    // and 760px could only ever show one column of it.
+    <div style={{ maxWidth: 1180, margin: '0 auto', padding: '28px 16px' }}>
       <div className="eyebrow">Nutrition Hub · 05</div>
       <h1 style={{ fontSize: 26 }}>Your grocery list 🛒</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>

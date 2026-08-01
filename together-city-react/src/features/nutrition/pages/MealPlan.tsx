@@ -253,10 +253,16 @@ function DayLock({ dayIndex, date, locked, lastDay, onMoveTo }: {
             },
           })}
         >
-          {/* The label says what the button DOES, both halves of it. "Lock this
-              menu" described only the half you can see; the groceries are the
-              half you would otherwise discover later, in another hub. */}
-          {lock.isPending ? 'Locking…' : '🔒 Lock menu & add to grocery list'}
+          {/* Two things this label gets right, both of them previously wrong.
+              It says what the button DOES, both halves — "Lock this menu"
+              described only the part you can see, and the groceries were the
+              part you would otherwise discover later, in another hub. And the
+              padlock is OPEN, because that is the state the day is in right
+              now: a closed one showed the destination rather than the fact, and
+              contradicted the card's own icon two inches to its left. It closes
+              on the locked card and on the day tab, which is where it means
+              something. */}
+          {lock.isPending ? '🔒 Locking…' : '🔓 Lock menu & add to grocery list'}
         </Button>
       </div>
     </div>
