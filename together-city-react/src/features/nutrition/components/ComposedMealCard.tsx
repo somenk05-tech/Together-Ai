@@ -9,6 +9,7 @@ import { ShareIconButton } from '@/components/share/ShareButton';
 import { encodeMeal } from '../shareMeal';
 import type { ShareCard } from '@/api';
 import { NIc } from './NIcon';
+import { skippedRolesFor } from '../skips';
 
 /**
  * One composed meal, rendered as a card: banner, 16:9 photo, title, the dishes
@@ -94,17 +95,6 @@ const photoOf = (m: ComposedMeal) =>
  */
 const SLOT_LABEL: Record<string, string> = { b: 'Breakfast', l: 'Lunch', s: 'Snack', d: 'Dinner' };
 
-export function skippedRolesFor(skips: string[], dayIndex: number, slot: string): Set<string> {
-  const prefix = `d${dayIndex}:${slot}:`;
-  return new Set(skips.filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length)));
-}
-
-export function skippedSlotsFor(skips: string[], dayIndex: number): string[] {
-  const prefix = `d${dayIndex}:`;
-  return skips
-    .filter((k) => k.startsWith(prefix) && !k.slice(prefix.length).includes(':'))
-    .map((k) => k.slice(prefix.length));
-}
 
 /** The placeholder that holds a skipped meal's place in the day. */
 export function SkippedMealCard({ dayIndex, slot }: { dayIndex: number; slot: string }) {
@@ -230,6 +220,18 @@ export function ComposedMealCard({ meal, dayIndex, readOnly, people = 1, skips =
               </span>
             </>
           )}
+        </div>
+        {/* This meal's own macros, not just its calories.
+            `meal.totals` has carried protein, carbs, fat and fibre all along and
+            the card printed only kcal — so a plate could be judged as a number
+            of calories with no way to see what those calories were made of, on
+            the one screen where swapping a single dish is a button away. The
+            day's totals are in the rail; these are the section's. */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--muted)', marginTop: 7 }}>
+          <span>P <strong style={{ color: 'var(--ink-soft)' }}>{Math.round(meal.totals.protein)}g</strong></span>
+          <span>C <strong style={{ color: 'var(--ink-soft)' }}>{Math.round(meal.totals.carbs)}g</strong></span>
+          <span>F <strong style={{ color: 'var(--ink-soft)' }}>{Math.round(meal.totals.fat)}g</strong></span>
+          <span>Fibre <strong style={{ color: 'var(--ink-soft)' }}>{Math.round(meal.totals.fiber)}g</strong></span>
         </div>
         {!readOnly && (
           <div style={{ display: 'flex', gap: 16, marginTop: 11 }}>

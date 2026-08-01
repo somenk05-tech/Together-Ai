@@ -7,7 +7,8 @@ import {
   type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard,
 } from '../composed.api';
 import { useHealthScore } from '@/features/profile/hooks';
-import { ComposedMealCard, SkippedMealCard, skippedSlotsFor } from '../components/ComposedMealCard';
+import { ComposedMealCard, SkippedMealCard } from '../components/ComposedMealCard';
+import { skippedSlotsFor, skippedRolesFor } from '../skips';
 import { TargetsDisclosure, TargetsRefusal } from '../components/TargetsDisclosure';
 import { NIc } from '../components/NIcon';
 import { balanceNote, dayBalance } from '../dayBalance';
@@ -179,7 +180,128 @@ function MacroLine({ ic, label, grams, pct }: { ic: string; label: string; grams
   );
 }
 
-const DAY_TIPS = ['Drink at least 2–3 litres of water.', 'Include a variety of colourful vegetables.', 'Choose whole grains over refined grains.', 'Stay active and get good-quality sleep.'];
+/**
+ * What this day's menu would put in the basket.
+ *
+ * Built entirely from ingredients already on the page — every component carries
+ * its own list — so this is a view of the day, not a second source of truth
+ * beside the grocery list. That matters, because the grocery list is built from
+ * LOCKED days only, and an unlocked day is a plan, not a decision.
+ *
+ * So the panel says which of the two it is looking at. Showing an unlocked
+ * day's ingredients under a heading that implies they are on the list would be
+ * the screen claiming a decision the citizen has not made.
+ *
+ * Pantry staples are counted and not listed. Nobody shops for salt, and a list
+ * whose first four lines are salt, oil, water and sugar buries the four things
+ * you actually have to buy.
+ */
+function DayShoppingPanel({ d, dayIndex, locked, skips }: {
+  d: ComposedDay; dayIndex: number; locked: boolean; skips: string[];
+}) {
+  const merged = new Map<string, number>();
+  let pantry = 0;
+  for (const meal of d.meals) {
+    const off = skippedRolesFor(skips, dayIndex, meal.slot);
+    for (const c of meal.components) {
+      if (off.has(c.role)) continue;           // a skipped dish is not shopping
+      for (const ing of c.ingredients ?? []) {
+        if (ing.pantry || ing.toTaste) { pantry += 1; continue; }
+        const key = ing.name.trim();
+        if (!key) continue;
+        merged.set(key, (merged.get(key) ?? 0) + (ing.grams || 0));
+      }
+    }
+  }
+  const items = [...merged.entries()].sort((a, b) => b[1] - a[1]);
+  const shown = items.slice(0, 8);
+  return (
+    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, padding: '16px 18px', boxShadow: 'var(--shadow)' }}>
+      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginBottom: 12 }}>
+        This day&rsquo;s shopping
+      </div>
+      {items.length === 0 ? (
+        <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+          Nothing to buy for this day beyond what a kitchen already keeps.
+        </p>
+      ) : (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {shown.map(([name, grams]) => (
+              <div key={name} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5 }}>
+                <span style={{ color: 'var(--ink)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                <span style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{Math.round(grams)} g</span>
+              </div>
+            ))}
+          </div>
+          {items.length > shown.length && (
+            <p className="muted" style={{ fontSize: 11.5, margin: '9px 0 0' }}>
+              and {items.length - shown.length} more.
+            </p>
+          )}
+          {pantry > 0 && (
+            <p className="muted" style={{ fontSize: 11.5, margin: '4px 0 0', lineHeight: 1.5 }}>
+              {pantry} pantry item{pantry === 1 ? "" : "s"} (salt, oil and the like) left off &mdash; you almost certainly have them.
+            </p>
+          )}
+        </>
+      )}
+      <p style={{ fontSize: 11.5, margin: '11px 0 0', lineHeight: 1.55, color: 'var(--ink-soft)' }}>
+        {locked
+          ? <>This day is locked, so these are already on your{' '}<Link to="/nutrition/grocery" style={{ color: 'var(--accent)', fontWeight: 600 }}>grocery list</Link>.</>
+          : <>Not on your grocery list yet &mdash; lock the day to add them.</>}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * About this menu — what can be said about the day from the day itself.
+ *
+ * Deliberately only facts already on the page: how many dishes, how long they
+ * take, which cuisines are in it, and how much of the micronutrient picture we
+ * could actually compute. That last line is the one worth having. The nutrition
+ * panel above prints sodium and potassium, and it prints them only for the
+ * dishes whose ingredients we recognise; without a count, a citizen reading a
+ * sodium figure has no way to know it is a figure for part of their day.
+ */
+function AboutThisMenu({ d }: { d: ComposedDay }) {
+  const comps = d.meals.flatMap((m) => m.components);
+  const cuisines = [...new Set(comps.map((c) => (c.cuisine ?? "").trim()).filter(Boolean))];
+  const minutes = d.meals.reduce((t, m) => t + (m.minutes || 0), 0);
+  const complete = comps.filter((c) => c.nutrientComplete).length;
+  const facts: string[] = [
+    `${comps.length} dish${comps.length === 1 ? "" : "es"} across ${d.meals.length} meal${d.meals.length === 1 ? "" : "s"}.`,
+    `About ${minutes} minutes of cooking in total.`,
+  ];
+  if (cuisines.length) {
+    facts.push(cuisines.length <= 3
+      ? `${cuisines.join(", ")}.`
+      : `${cuisines.slice(0, 3).join(", ")} and ${cuisines.length - 3} more.`);
+  }
+  if (d.fasting) facts.push(`Everything falls inside ${d.window.start}\u2013${d.window.end}.`);
+  if (comps.length) {
+    facts.push(complete === comps.length
+      ? "Sodium and potassium are computed from every dish here."
+      : `Sodium and potassium come from ${complete} of these ${comps.length} dishes \u2014 the rest have ingredients we cannot yet measure, so those figures are a floor, not a total.`);
+  }
+  return (
+    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, padding: '16px 18px', boxShadow: 'var(--shadow)' }}>
+      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginBottom: 12 }}>
+        About this menu
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {facts.map((f) => (
+          <div key={f} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12.5, color: 'var(--ink-soft)', lineHeight: 1.45 }}>
+            <span style={{ color: 'var(--accent)', marginTop: 1 }}><NIc name="check" size={14} stroke={2.2} /></span>{f}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const DAY_TIPS = ['Drink at least 2\u20133 litres of water.', 'Include a variety of colourful vegetables.', 'Choose whole grains over refined grains.', 'Stay active and get good-quality sleep.'];
 
 /** The full premium day layout: left overview · meal grid · right nutrition/donut/tips. */
 /**
@@ -351,6 +473,13 @@ function DayView({ wk, d, dayIndex, date, readOnly }: { wk: ComposedWeek; d: Com
             </div>
           </div>
         </div>
+
+        {/* The rail carries the day's shopping and what can honestly be said
+            about the menu, so the two questions a menu raises — "what do I have
+            to buy" and "what am I actually looking at" — are answered beside it
+            rather than on another screen. */}
+        <DayShoppingPanel d={d} dayIndex={dayIndex} locked={(wk.locks ?? []).includes(dayIndex)} skips={skips} />
+        <AboutThisMenu d={d} />
 
         <div style={card}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, color: 'var(--accent)', fontWeight: 800, fontSize: 12.5, letterSpacing: '.06em', textTransform: 'uppercase' }}><NIc name="bulb" size={16} /> Tips for the day</div>
