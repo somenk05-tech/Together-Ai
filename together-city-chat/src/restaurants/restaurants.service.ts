@@ -656,7 +656,7 @@ export class RestaurantsService implements OnModuleInit {
       : /main|curry|thali|bowl|combo|platter/.test(both) ? 480
       : 360;
     kcal = Math.round(kcal * (0.85 + Math.min(0.5, d.priceInr / 800)));
-    let carbs = Math.max(6, Math.round((kcal - protein * 4 - fat * 9) / 4));
+    const carbs = Math.max(6, Math.round((kcal - protein * 4 - fat * 9) / 4));
     kcal = protein * 4 + carbs * 4 + fat * 9; // keep internally consistent
     return { kcal, protein, carbs, fat, estimated: true };
   }
@@ -841,8 +841,17 @@ export class RestaurantsService implements OnModuleInit {
   // unscreened: these are dishes the citizen picked by name on a menu that
   // marked them (see detail()). Refusing somebody's own order would be the app
   // overruling them about their own body, which is not a call it gets to make.
-  // If this should instead WARN before charging, that is a product decision —
-  // deliberately not taken by whoever wrote this method.
+  //
+  // ASKED AND ANSWERED, 2 Aug. The open question here used to be whether this
+  // should WARN before charging. It was put to the owner with three options —
+  // warn-and-confirm, stay silent, refuse outright — and the answer is STAY
+  // SILENT. No interstitial, no confirmation step, no block.
+  //
+  // The reasoning, so this is not re-opened as an oversight: the citizen chose
+  // the dish by name from a menu that already carried the allergen mark on every
+  // surface (37790d3), and a warning dismissed every time teaches people to
+  // dismiss warnings, which costs more than it buys. The exemption therefore
+  // stands as a decision rather than as a deferral.
   /** Place a food order — charges the city wallet (Financial), then records the order. */
   async placeOrder(userId: string, restaurantId: string, dto: PlaceOrderDto) {
     const r = await this.prisma.restaurant.findUnique({ where: { id: restaurantId } }) as RestaurantRow | null;
