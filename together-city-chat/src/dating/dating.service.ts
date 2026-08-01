@@ -1,3 +1,4 @@
+import { swallow } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
@@ -88,7 +89,9 @@ export class DatingService {
     if (!profile) {
       // First-time open: auto-populate shared fields from the Master Profile so
       // the user only answers dating-specific questions (spec: never ask twice).
-      const pre = await this.prefillFromMaster(userId).catch(() => null);
+      // A failed prefill opened a blank form for somebody the city already
+      // knows — "never ask twice" silently became "ask twice".
+      const pre = await swallow(this.prefillFromMaster(userId), 'dating: prefill from master', { userId });
       return pre;
     }
     return this.shapeProfile(profile);
@@ -160,7 +163,7 @@ export class DatingService {
     // Master Profile sync (spec: every hub writes shared fields back to the
     // single source of truth, which propagates to astrology/nutrition/fitness).
     const place = (dto.birthPlace ?? '').split(',').map((x) => x.trim()).filter(Boolean);
-    await this.masterProfile.syncShared(userId, {
+    await swallow(this.masterProfile.syncShared(userId, {
       // The identity vocabulary, not Dating's own. Writing `gender` here put a
       // value back into the column the split retired — which is how the dead
       // column kept looking alive, and why only citizens who started on the
@@ -170,7 +173,7 @@ export class DatingService {
       timeOfBirth: dto.birthTime ?? null,
       birthCity: place[0], birthState: place.length > 2 ? place[1] : undefined,
       birthCountry: place.length > 1 ? place[place.length - 1] : undefined,
-    }, 'dating').catch(() => undefined);
+    }, 'dating'), 'dating: master-profile sync', { userId });
 
     // Every profile passes AI + rule moderation before it's visible to others.
     const result = await this.moderateProfile(userId, dto);
@@ -184,7 +187,7 @@ export class DatingService {
     // pool, re-run matching against everyone and alert people who just gained a
     // new ≥75% match. Fire-and-forget so saving stays snappy.
     if (result.decision === 'approved' && inPool) {
-      void this.reindexAfterChange(userId).catch(() => undefined);
+      void swallow(this.reindexAfterChange(userId), 'dating: reindex after change', { userId });
     }
 
     const shaped = this.shapeProfile({ ...profile, moderation: result.decision, moderationJson: JSON.stringify(result) });
@@ -245,7 +248,7 @@ export class DatingService {
       });
       if (state && (state.status === 'passed' || state.status === 'matched')) continue;
 
-      await this.notifications.create({
+      await swallow(this.notifications.create({
         userId: cand.userId,
         kind: 'dating_match',
         title: `You have a new ${score}% compatible match`,
@@ -254,15 +257,15 @@ export class DatingService {
         body: matchAlertBody(matchAlertReason(prev)),
         href: '/dating/matches',
         actorId: userId,
-      }).catch(() => undefined);
+      }), 'dating: match alert', { userId: cand.userId });
     }
   }
 
   /** Sorted-pair cached overall score (the notification ledger), or null. */
   private async readPairScore(a: string, b: string): Promise<number | null> {
     const [userA, userB] = [a, b].sort();
-    const row = await (this.prisma as unknown as { compatibilityScore: { findUnique(x: unknown): Promise<{ overall: number } | null> } }).compatibilityScore
-      .findUnique({ where: { userA_userB: { userA, userB } } }).catch(() => null);
+    const row = await swallow((this.prisma as unknown as { compatibilityScore: { findUnique(x: unknown): Promise<{ overall: number } | null> } }).compatibilityScore
+      .findUnique({ where: { userA_userB: { userA, userB } } }), 'dating: pair score read', { userA, userB });
     return row ? row.overall : null;
   }
 
@@ -270,10 +273,13 @@ export class DatingService {
    *  match states and cached compatibility rows. Removes the user from every
    *  other member's matching pool immediately. */
   async deleteProfile(userId: string) {
-    await this.prisma.datingMatch.deleteMany({ where: { OR: [{ userOneId: userId }, { userTwoId: userId }] } }).catch(() => undefined);
-    await (this.prisma as unknown as { compatibilityScore: { deleteMany(a: unknown): Promise<unknown> } }).compatibilityScore
-      .deleteMany({ where: { OR: [{ userA: userId }, { userB: userId }] } }).catch(() => undefined);
-    await this.prisma.datingProfile.delete({ where: { userId } }).catch(() => undefined);
+    // Deleting a dating profile is a privacy promise. Any of these three
+    // failing silently meant match state, cached compatibility, or THE
+    // PROFILE ITSELF could survive its own deletion with no trace.
+    await swallow(this.prisma.datingMatch.deleteMany({ where: { OR: [{ userOneId: userId }, { userTwoId: userId }] } }), 'dating delete: match state', { userId });
+    await swallow((this.prisma as unknown as { compatibilityScore: { deleteMany(a: unknown): Promise<unknown> } }).compatibilityScore
+      .deleteMany({ where: { OR: [{ userA: userId }, { userB: userId }] } }), 'dating delete: compatibility cache', { userId });
+    await swallow(this.prisma.datingProfile.delete({ where: { userId } }), 'dating delete: profile row', { userId });
     return { ok: true as const, deleted: true as const };
   }
 
@@ -318,8 +324,10 @@ export class DatingService {
 
     // Account fraud score (deeper signals — device/IP/selfie — need infra; TODO).
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } });
-    const rejected = await (this.prisma as unknown as { moderationLog: { count(a: unknown): Promise<number> } }).moderationLog
-      .count({ where: { listingId: userId, decision: 'rejected' } }).catch(() => 0);
+    // 0-on-failure told the fraud score this account had a clean record — an
+    // absence never established, on a fraud signal.
+    const rejected = (await swallow((this.prisma as unknown as { moderationLog: { count(a: unknown): Promise<number> } }).moderationLog
+      .count({ where: { listingId: userId, decision: 'rejected' } }), 'dating: moderation history count', { userId })) ?? 0;
     let fraud = 0;
     const ageH = user ? (Date.now() - new Date(user.createdAt).getTime()) / 3600_000 : 0;
     if (ageH < 1) fraud += 15;
@@ -347,9 +355,11 @@ export class DatingService {
   }
 
   private async logModeration(listingId: string, actor: string, decision: string, reason: string) {
-    await (this.prisma as unknown as { moderationLog: { create(a: unknown): Promise<unknown> } }).moderationLog
-      .create({ data: { listingId, actor, decision, reason: reason.slice(0, 500) } })
-      .catch(() => undefined);
+    // The moderation audit trail is the record of every approve/reject and
+    // why — losing an entry silently is losing the review's defensibility.
+    await swallow((this.prisma as unknown as { moderationLog: { create(a: unknown): Promise<unknown> } }).moderationLog
+      .create({ data: { listingId, actor, decision, reason: reason.slice(0, 500) } }),
+      'dating: moderation log write', { listingId, decision });
   }
 
   // ─────────────── curated matches ───────────────
@@ -964,15 +974,17 @@ export class DatingService {
     });
     if (state) {
       if (state.conversationId) {
-        await this.conversations.archiveForAll(state.conversationId).catch(() => undefined);
+        await swallow(this.conversations.archiveForAll(state.conversationId), 'dating pass: archive conversation', { userId });
       }
-      await this.prisma.datingMatch.update({
+      // If this write fails the pass is not recorded and the person stays in
+      // each other's view — the opposite of what was just asked for.
+      await swallow(this.prisma.datingMatch.update({
         where: { id: state.id },
         data: {
           status: 'passed', passedByOne: true, passedByTwo: true,
           revealByOne: false, revealByTwo: false,
         } as never,
-      }).catch(() => undefined);
+      }), 'dating pass: record pass', { userId });
     }
     return { blocked: true as const };
   }
@@ -1025,13 +1037,12 @@ export class DatingService {
    *  live re-matching reads to detect threshold crossings). */
   private async cacheScore(a: string, b: string, f: FactorBreakdown, overall: number) {
     const [userA, userB] = [a, b].sort();
-    await (this.prisma as unknown as { compatibilityScore: { upsert(a: unknown): Promise<unknown> } }).compatibilityScore
+    await swallow((this.prisma as unknown as { compatibilityScore: { upsert(a: unknown): Promise<unknown> } }).compatibilityScore
       .upsert({
         where: { userA_userB: { userA, userB } },
         update: { astrology: f.astrology, personality: f.personality, relationshipGoal: f.relationshipGoals, values: f.values, lifestyle: f.lifestyle, interest: f.interests, distance: f.location, overall },
         create: { userA, userB, astrology: f.astrology, personality: f.personality, relationshipGoal: f.relationshipGoals, values: f.values, lifestyle: f.lifestyle, interest: f.interests, distance: f.location, overall },
-      })
-      .catch(() => undefined);
+      }), 'dating: compatibility cache write', { userA, userB });
   }
 
   // ─────────────── like / pass state machine ───────────────
@@ -1132,7 +1143,8 @@ export class DatingService {
       chargedInr = amountInr;
     } else {
       await this.prisma.datingMatch.update({ where: { id: state.id }, data: { conversationId } });
-      await this.prisma.datingProfile.update({ where: { userId }, data: { connectCount: count + 1 } as never }).catch(() => undefined);
+      // The connect quota. A failed increment is a free connect, silently.
+      await swallow(this.prisma.datingProfile.update({ where: { userId }, data: { connectCount: count + 1 } as never }), 'dating: connect-count increment', { userId });
     }
 
     void this.notifications.create({
@@ -1196,7 +1208,7 @@ export class DatingService {
       where: { OR: [{ userOneId, userTwoId }], kind } as never,
     });
     if (!state) return { ok: true as const };
-    if (state.conversationId) await this.conversations.archiveForAll(state.conversationId).catch(() => undefined);
+    if (state.conversationId) await swallow(this.conversations.archiveForAll(state.conversationId), 'dating unmatch: archive conversation', { userId });
     await this.prisma.datingMatch.update({
       where: { id: state.id },
       data: { status: 'passed', passedByOne: true, passedByTwo: true, revealByOne: false, revealByTwo: false } as never,
