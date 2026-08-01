@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DESTINATIONS, type Dest } from '@/nav/registry';
 import { useRecentStore } from '@/store/recent.store';
+import { useAuthStore } from '@/store/auth.store';
 import { Icon } from '@/components/ui/Icon';
 
 /** Lightweight subsequence + token score — good enough for a nav palette. */
@@ -28,13 +29,19 @@ const KIND_LABEL: Record<Dest['kind'], string> = { hub: 'Hub', page: 'Page', acc
  * Searches every hub, page, setting and quick action, shows recent pages when
  * empty, and navigates on Enter. The single highest-leverage nav fix (audit 3.1).
  */
+const NO_TRAIL: never[] = [];
+
 export function CommandPalette() {
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const recents = useRecentStore((s) => s.items);
+  const trail = useRecentStore((s) => s.items);
+  // Private trail: shown only to the signed-in citizen who made it. A shared
+  // machine's next visitor gets suggestions, not the last user's movements.
+  const authed = useAuthStore((s) => Boolean(s.tokens?.accessToken && s.user));
+  const recents = authed ? trail : NO_TRAIL;
 
   // Global hotkey + a custom event so the header button can open it too.
   useEffect(() => {

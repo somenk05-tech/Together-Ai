@@ -82,7 +82,12 @@ export const useAuthStore = create<AuthState>()(
             // for it is the "app forgot who I am" bug. Keep the tokens; the next
             // attempt (or the error states) will tell the truth about the outage.
             const status = (e as { response?: { status?: number } } | null)?.response?.status;
-            if (status === 400 || status === 401 || status === 403) set({ user: null, tokens: null });
+            if (status === 400 || status === 401 || status === 403) {
+              set({ user: null, tokens: null });
+              // Same cleanup as signOut: the recent-pages trail and every other
+              // per-user store must not outlive the session on a shared machine.
+              resetClientState();
+            }
             return null;
           } finally {
             refreshInFlight = null;

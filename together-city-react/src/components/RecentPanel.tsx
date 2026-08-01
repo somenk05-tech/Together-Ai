@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useAuthStore } from '@/store/auth.store';
 import { useRecentStore } from '@/store/recent.store';
 import { DESTINATIONS } from '@/nav/registry';
 import { Icon, type IconName } from '@/components/ui/Icon';
@@ -14,7 +15,11 @@ function iconFor(path: string): IconName {
  */
 export function RecentPanel() {
   const items = useRecentStore((s) => s.items);
-  if (!items.length) return null;
+  // The homepage is public; the trail is one citizen's private movements.
+  // Render it only to the signed-in citizen who made it (consumer review #3:
+  // a shared machine showed the last user's "Connect with Blood Test").
+  const authed = useAuthStore((s) => Boolean(s.tokens?.accessToken && s.user));
+  if (!authed || !items.length) return null;
 
   const [top, ...rest] = items;
   const others = rest.slice(0, 5);
