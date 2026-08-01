@@ -53,6 +53,17 @@ export interface PurgeRule {
   filter?: Record<string, unknown>;
   /** Column holding an object-storage key that must be deleted with the row. */
   storageKey?: string;
+  /**
+   * Keys that live INSIDE a JSON column rather than in one of their own.
+   *
+   * Dating photos (M3) are private objects whose keys sit in an array in
+   * DatingProfile.extras alongside everything else about the profile. Deleting
+   * the row would leave the images in the bucket forever — the account gone and
+   * the face still stored, which is the exact failure the purge exists to
+   * prevent. There was no way to express that here, so a rule could be complete
+   * and still leak.
+   */
+  storageKeysJson?: { column: string; field: string };
 }
 
 export const PURGE_RULES: PurgeRule[] = [
@@ -114,7 +125,7 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'BeautyOrder', by: 'userId', action: 'purge', reason: 'What they bought from the beauty shelf.' },
   { model: 'LookAnalysis', by: 'userId', action: 'purge', storageKey: 'fileKey', reason: 'Reference photos of a face, and what was read from them.' },
   { model: 'Avatar', by: 'userId', action: 'purge', storageKey: 'assetKey', reason: 'Generated avatars and their stored images.' },
-  { model: 'DatingProfile', by: 'userId', action: 'purge', reason: 'Dating preferences and intent.' },
+  { model: 'DatingProfile', by: 'userId', action: 'purge', storageKeysJson: { column: 'extras', field: 'photos' }, reason: 'Dating preferences and intent — and the photos, whose keys live in the extras JSON.' },
   { model: 'JobProfile', by: 'userId', action: 'purge', reason: 'Their CV — history, skills, salary expectations.' },
   { model: 'JobApplication', by: 'userId', action: 'purge', reason: 'Applications they sent. The employer keeps the job posting, not the applicant\'s file.' },
   { model: 'PrivacySetting', by: 'userId', action: 'purge', reason: 'Consent and permission flags.' },
@@ -174,7 +185,7 @@ export function deletions(): PurgeRule[] {
 
 /** Rules whose rows hold an object-storage key that must be removed too. */
 export function storageBearing(): PurgeRule[] {
-  return deletions().filter((r) => r.storageKey);
+  return deletions().filter((r) => r.storageKey || r.storageKeysJson);
 }
 
 /** The WHERE clause for one rule against one citizen. */

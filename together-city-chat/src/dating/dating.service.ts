@@ -10,6 +10,8 @@ import { ConversationsService } from '../conversations/conversations.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageProvider } from '../media/storage.provider';
+import { MediaService } from '../media/media.service';
 import { compatibilityScore, zodiacSign } from './astrology';
 import {
   distanceNote, explain, factorScores, matchAlertBody, matchAlertReason, overallScore, preferenceNotes, sharedItems, type DXProfile, type FactorBreakdown, unreachableReason,
@@ -86,7 +88,55 @@ export class DatingService {
     private readonly admin: AdminService,
     private readonly clock: ClockService,
     private readonly blocking: BlockingService,
+    // M3: dating photos are private objects, signed per eligible viewer.
+    private readonly storage: StorageProvider,
+    private readonly media: MediaService,
   ) {}
+
+  /**
+   * A stored photo entry → something a browser can actually load. (M3.)
+   *
+   * THREE SHAPES LIVE IN THIS FIELD AT ONCE and will for a long time:
+   *  · `dating/<uid>/<uuid>.jpg` — a private object. Signed per viewer, 5 min.
+   *  · `data:image/…` — a base64 blob from before M3. Rendered as it always was;
+   *    there is no migration and there does not need to be one, because the
+   *    next time that citizen edits their photos the new path takes over.
+   *  · `https://…` — the account photo, already public, used as the fallback.
+   *
+   * A key that will not sign is DROPPED rather than passed through. A key is
+   * not a URL: emitting it would put a broken image on somebody's profile card,
+   * and a card that renders wrong is worse than a card with one photo fewer.
+   */
+  /**
+   * The same signing, but ALIGNED with what is stored — one output per input,
+   * empty string where a key would not sign.
+   *
+   * The owner's own editor needs this and the candidate cards must not have it.
+   * The editor removes a photo BY INDEX against the stored array, so a display
+   * list that silently dropped an entry would delete the wrong photo. A card
+   * has no such relationship and is better off one photo shorter than showing
+   * a gap.
+   */
+  private async photoUrlsAligned(entries: readonly string[]): Promise<string[]> {
+    const out: string[] = [];
+    for (const e of entries) {
+      if (!e) { out.push(''); continue; }
+      if (e.startsWith('data:') || e.startsWith('http')) { out.push(e); continue; }
+      out.push((await this.storage.presignPrivateDownload(e)) ?? '');
+    }
+    return out;
+  }
+
+  private async photoUrls(entries: readonly string[]): Promise<string[]> {
+    const out: string[] = [];
+    for (const e of entries) {
+      if (!e) continue;
+      if (e.startsWith('data:') || e.startsWith('http')) { out.push(e); continue; }
+      const signed = await this.storage.presignPrivateDownload(e);
+      if (signed) out.push(signed);
+    }
+    return out;
+  }
 
   // ─────────────── profile ───────────────
   async getProfile(userId: string) {
@@ -99,7 +149,11 @@ export class DatingService {
       const pre = await swallow(this.prefillFromMaster(userId), 'dating: prefill from master', { userId });
       return pre;
     }
-    return this.shapeProfile(profile);
+    const shaped = this.shapeProfile(profile);
+    // `extras.photos` stays the STORED value so the editor posts back keys
+    // rather than the expiring URLs it was shown. Two fields, on purpose:
+    // one is the record, the other is this minute's way to look at it.
+    return { ...shaped, photoUrls: await this.photoUrlsAligned(this.storedPhotos(profile.extras)) };
   }
 
   /** A prefill object (no saved profile yet) built from the Master Profile —
@@ -141,13 +195,49 @@ export class DatingService {
     };
   }
 
+  /** A presigned PUT for one dating photo. Private bucket; the key comes back. */
+  async presignPhoto(userId: string, mimeType: string, sizeBytes: number) {
+    return this.media.requestDatingUpload(userId, mimeType, sizeBytes);
+  }
+
+  /**
+   * Photo entries this citizen is allowed to file against their own profile.
+   *
+   * The key arrives FROM THE CLIENT, so without this a citizen could paste
+   * `dating/<someone-else>/<uuid>.jpg` into their extras and the read path
+   * would dutifully sign it for every viewer — someone else's face on their
+   * profile. Drive and the health vault carry the identical guard
+   * (isOwnDriveKey / isOwnHealthKey); this is the third of the same family.
+   *
+   * Legacy base64 and the account-photo URL pass through: they are not keys and
+   * there is nothing to spoof.
+   */
+  private ownPhotosOnly(userId: string, entries: unknown): string[] {
+    if (!Array.isArray(entries)) return [];
+    return entries
+      .filter((e): e is string => typeof e === 'string' && !!e)
+      .filter((e) => e.startsWith('data:') || e.startsWith('http') || StorageProvider.isOwnDatingKey(userId, e))
+      .slice(0, 10);
+  }
+
   async upsertProfile(userId: string, dto: UpsertDatingProfileDto) {
     // Visibility mode lives in the extras JSON. paused/hidden take the profile
     // out of everyone's matching pool (visible=false); everyone/threshold keep
     // it in (threshold is enforced per-viewer in matches()).
-    const dx = this.parseDX(dto.extras) as DXVisibility;
+    const dx = this.parseDX(dto.extras) as DXVisibility & { photos?: unknown };
     const visibility: Visibility = dx.visibility ?? (dto.visible === false ? 'hidden' : 'everyone');
     const inPool = visibility === 'everyone' || visibility === 'threshold';
+    // Rewrite extras with only the photo entries this citizen owns. Filtered
+    // rather than rejected: a save that throws over one bad entry would lose
+    // the whole profile edit, and the honest outcome is the photo not appearing.
+    const cleanedExtras = (() => {
+      if (!dto.extras) return dto.extras ?? null;
+      try {
+        const parsed = JSON.parse(dto.extras) as Record<string, unknown>;
+        if (!('photos' in parsed)) return dto.extras;
+        return JSON.stringify({ ...parsed, photos: this.ownPhotosOnly(userId, parsed.photos) });
+      } catch { return dto.extras; }
+    })();
     const data = {
       gender: dto.gender,
       seeking: dto.seeking,
@@ -156,7 +246,7 @@ export class DatingService {
       birthTime: dto.birthTime ?? null,
       birthPlace: dto.birthPlace ?? null,
       interests: (dto.interests ?? []).join(','),
-      extras: dto.extras ?? null,
+      extras: cleanedExtras,
       visible: inPool,
     };
     const profile = await this.prisma.datingProfile.upsert({
@@ -196,7 +286,8 @@ export class DatingService {
     }
 
     const shaped = this.shapeProfile({ ...profile, moderation: result.decision, moderationJson: JSON.stringify(result) });
-    return { ...shaped, notice: this.noticeFor(result) };
+    const photoUrls = await this.photoUrlsAligned(this.storedPhotos(profile.extras));
+    return { ...shaped, photoUrls, notice: this.noticeFor(result) };
   }
 
   /**
@@ -440,7 +531,7 @@ export class DatingService {
       // Their uploaded gallery (first is primary). Falls back to the account
       // photo so a card is never empty. Only eligible viewers reach this point.
       const candPhotos = (candDX as { photos?: string[] }).photos ?? [];
-      const photos = (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS);
+      const photos = await this.photoUrls((candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS));
       results.push({
         matchId: state?.id ?? null,
         user: cand.user,
@@ -535,7 +626,7 @@ export class DatingService {
       if (candDX.visibility === 'threshold' && score < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
 
       const candPhotos = candDX.photos ?? [];
-      const photos = (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS);
+      const photos = await this.photoUrls((candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS));
       scored.push({
         card: {
           matchId: state?.id ?? null,
@@ -820,7 +911,7 @@ export class DatingService {
       if (!isMatched && candDX.visibility === 'threshold' && standard < (candDX.minMatchScore ?? MATCH_THRESHOLD)) continue;
 
       const candPhotos = candDX.photos ?? [];
-      const photos = (candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS);
+      const photos = await this.photoUrls((candPhotos.length ? candPhotos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, LIST_PHOTOS));
       (isMatched ? matchedCards : cards).push({
         matchId: state?.id ?? null,
         user: cand.user,
@@ -928,7 +1019,7 @@ export class DatingService {
     const state = await this.prisma.datingMatch.findFirst({
       where: { OR: [{ userOneId: userId, userTwoId: targetUserId }, { userOneId: targetUserId, userTwoId: userId }], kind },
     });
-    const photos = (candD.photos?.length ? candD.photos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, 10);
+    const photos = await this.photoUrls((candD.photos?.length ? candD.photos : (cand.user.profileImage ? [cand.user.profileImage] : [])).slice(0, 10));
 
     return {
       user: cand.user,
@@ -1647,6 +1738,12 @@ export class DatingService {
       return { trustLevel: 3 };
     }
     return { trustLevel: u.trustLevel };
+  }
+
+  /** The photo entries as STORED, straight out of the extras blob. */
+  private storedPhotos(extras: string | null | undefined): string[] {
+    const dx = this.parseDX(extras) as { photos?: unknown };
+    return Array.isArray(dx.photos) ? dx.photos.filter((x): x is string => typeof x === 'string') : [];
   }
 
   private shapeProfile(p: {

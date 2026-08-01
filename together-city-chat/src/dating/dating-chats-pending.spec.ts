@@ -29,6 +29,7 @@ function serviceWith(matches: Array<Record<string, unknown>>) {
     prisma as never, {} as never, conversations as never, {} as never,
     {} as never, {} as never, {} as never, {} as never,
     new BlockingService(prisma as never),
+    {} as never, {} as never,   // M3: StorageProvider, MediaService
   );
   return { svc, conversations };
 }

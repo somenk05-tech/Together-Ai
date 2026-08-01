@@ -48,6 +48,7 @@ function serviceWith(candidates: Array<Record<string, unknown>>, states: Array<R
     prisma as never, {} as never, {} as never, {} as never,
     {} as never, {} as never, {} as never, {} as never,
     new BlockingService(prisma as never),
+    {} as never, {} as never,   // M3: StorageProvider, MediaService
   );
   return { svc, prisma };
 }

@@ -60,6 +60,14 @@ export class MediaService {
     return this.storage.presignUpload(userId, mimeType, extFor(mimeType));
   }
 
+  /** Presign a PUT for a dating photo — private bucket, no public URL. (M3.) */
+  async requestDatingUpload(userId: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    const max = this.config.get<number>('policy.maxUploadBytes') ?? 52428800;
+    if (sizeBytes > max) throw new BadRequestException(`File exceeds ${max} bytes`);
+    if (!mimeType.startsWith('image/')) throw new BadRequestException('A dating photo must be an image.');
+    return this.storage.presignDatingUpload(userId, mimeType, extFor(mimeType));
+  }
+
   /** Presign a PUT into the PRIVATE health vault (no public URL is returned). */
   async requestPrivateUpload(userId: string, mimeType: string, sizeBytes: number): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
     const max = this.config.get<number>('policy.maxUploadBytes') ?? 52428800;

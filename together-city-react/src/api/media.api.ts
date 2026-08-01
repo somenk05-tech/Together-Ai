@@ -80,6 +80,26 @@ export const mediaApi = {
     return { fileUrl: publicUrl, fileKey: key, mimeType: safe.type, sizeBytes: safe.size };
   },
 
+  /**
+   * Upload a DATING photo to the private bucket — returns the key only. (M3.)
+   *
+   * It lives here rather than in the dating page for the reason this whole file
+   * exists: the presigned PUT goes browser→bucket, so this is the last moment
+   * anything can be taken out of the bytes, and a dating photo is the single
+   * worst file in the app to publish with the coordinates it was taken at.
+   *
+   * The dating page resizes to a canvas first, which already drops EXIF as a
+   * side effect of re-encoding — but "a side effect of how it happens to be
+   * written today" is not a privacy control. Scrubbing here is.
+   */
+  async uploadDating(file: File): Promise<string> {
+    const { file: safe } = await scrubImage(file, 'private');
+    const res = await apiPost('/dating/photos/presign', { mimeType: safe.type, sizeBytes: safe.size },
+      z.object({ uploadUrl: z.string(), key: z.string(), expiresInSec: z.number().optional() }));
+    await axios.put(res.uploadUrl, safe, { headers: { 'Content-Type': safe.type } });
+    return res.key;
+  },
+
   /** Upload to the PRIVATE health vault — returns the key only (no public URL).
    *  The file is viewable later solely via a short-lived signed link.
    *  A scan we cannot take apart still goes: nobody should be unable to file

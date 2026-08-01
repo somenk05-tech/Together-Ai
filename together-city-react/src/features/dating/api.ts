@@ -24,6 +24,12 @@ export interface DatingProfile {
   minMatchScore?: number;
   completion?: ProfileCompletion;
   extras: string | null;
+  /**
+   * Display URLs for the photos inside `extras`, aligned one-for-one, empty
+   * where a key would not sign. NEVER post these back: `extras.photos` holds
+   * the record (private storage keys) and these expire in minutes. (M3.)
+   */
+  photoUrls?: string[];
   moderation: 'approved' | 'pending' | 'rejected' | 'review';
   moderationReasons: string[];
   notice?: string;

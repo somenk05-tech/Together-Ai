@@ -5,6 +5,7 @@ import { SearchSelect } from '@/components/SearchSelect';
 import { MultiSelect } from '@/components/MultiSelect';
 import type { LookupOption } from '@/api/lookups.api';
 import { useDatingProfile, useUpsertDatingProfile, useDeleteDatingProfile, type UpsertProfileInput, type Visibility, type ProfileCompletion } from '../api';
+import { mediaApi } from '@/api/media.api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 import { SelfieOnFile } from '../components/SelfieOnFile';
@@ -257,9 +258,13 @@ function SelfieVerify({ verified, onCapture, onClear }: {
 
 // Photos are shown large as the profile hero (and at 2× on retina screens), so
 // store them at a resolution that stays crisp when enlarged — not just as
-// thumbnails. 1080px @ q0.82 keeps the hero sharp while bounding payload size
-// (photos live base64-encoded inside the 2 MB extras blob).
-function resizePhoto(file: File, maxDim = 1080): Promise<string> {
+// thumbnails. 1080px @ q0.82 keeps the hero sharp while bounding payload size.
+//
+// M3: this returns a BLOB now, not a data URL. The bytes go straight to a
+// private bucket via a presigned PUT and only the key is saved, so a photo no
+// longer rides inside the 2 MB extras blob and is no longer copied into every
+// candidate card the server sends anybody.
+function resizePhoto(file: File, maxDim = 1080): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image(); const url = URL.createObjectURL(file);
     img.onload = () => {
@@ -269,11 +274,31 @@ function resizePhoto(file: File, maxDim = 1080): Promise<string> {
       const ctx = c.getContext('2d'); if (!ctx) { reject(new Error('no canvas')); return; }
       ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, w, h); URL.revokeObjectURL(url);
-      resolve(c.toDataURL('image/jpeg', 0.82));
+      c.toBlob((b) => (b ? resolve(b) : reject(new Error('encode failed'))), 'image/jpeg', 0.82);
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
     img.src = url;
   });
+}
+
+/**
+ * Resize, then hand the bytes to the ONE place allowed to PUT them. (M3.)
+ *
+ * The first version did its own fetch(PUT) and upload-chokepoint.test.ts caught
+ * it immediately — every direct-to-bucket upload must go through mediaApi,
+ * because that is the last moment a photo's GPS coordinates can be removed
+ * before they leave the device. The canvas resize below already drops EXIF as a
+ * side effect of re-encoding, which is exactly the kind of accidental safety
+ * that stops being true the day somebody changes the resize.
+ */
+async function uploadPhoto(file: File): Promise<string | null> {
+  try {
+    const blob = await resizePhoto(file);
+    const resized = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+    return await mediaApi.uploadDating(resized);
+  } catch {
+    return null;
+  }
 }
 
 /** Dating Profile — 4-phase onboarding. Passes moderation before it's visible. */
@@ -295,6 +320,7 @@ export function DatingProfilePage() {
   const master = useMasterProfile();
   const dobLocked = Boolean(master.data?.dateOfBirth);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   // Empty, not 'male' (p1, FE-15.1). A preselected gender is a value nobody
   // chose, recorded as though they had.
@@ -397,9 +423,17 @@ export function DatingProfilePage() {
     if (!files) return;
     const room = 10 - (dx.photos?.length ?? 0);
     const chosen = Array.from(files).slice(0, Math.max(0, room));
-    const urls: string[] = [];
-    for (const f of chosen) { try { urls.push(await resizePhoto(f)); } catch { /* skip */ } }
-    setD({ photos: [...(dx.photos ?? []), ...urls] });
+    const keys: string[] = [];
+    let failed = 0;
+    for (const f of chosen) {
+      const key = await uploadPhoto(f);
+      if (key) keys.push(key); else failed++;
+    }
+    // Said out loud. A photo that silently does not appear reads as the app
+    // losing it, which is exactly the class of thing the failure-states work
+    // spent a day removing.
+    setPhotoError(failed ? `${failed} photo${failed === 1 ? '' : 's'} didn't upload. Your other photos are saved — try those again.` : null);
+    if (keys.length) setD({ photos: [...(dx.photos ?? []), ...keys] });
   };
   const removePhoto = (i: number) => setD({ photos: (dx.photos ?? []).filter((_, idx) => idx !== i) });
 
@@ -418,6 +452,13 @@ export function DatingProfilePage() {
   const data = upsert.data ?? (saved ? existing.data : null);
   const mod = data ? MOD[data.moderation] ?? MOD.approved : null;
   const photos = dx.photos ?? [];
+  // What to RENDER. `photos` holds private storage keys now (M3), which are not
+  // URLs; the server signs them and returns the list aligned one-for-one, so
+  // remove-by-index still lines up. A photo just uploaded in this session has
+  // no signed URL yet — the profile is refetched on save, which is when it
+  // appears. Falling back to the raw entry keeps legacy base64 rendering.
+  const photoSrcs = (data as { photoUrls?: string[] } | null)?.photoUrls ?? [];
+  const srcAt = (i: number) => photoSrcs[i] || (photos[i]?.startsWith('data:') ? photos[i] : '');
   const completion = upsert.data?.completion ?? (existing.data as { completion?: ProfileCompletion } | null)?.completion;
   const visibility: Visibility = dx.visibility ?? 'everyone';
   const minScore = dx.minMatchScore ?? 75;
@@ -441,8 +482,8 @@ export function DatingProfilePage() {
     const goal = dx.relationshipGoal || 'a connection';
     const location = [dx.city, dx.state, dx.country].filter(Boolean).join(', ');
     const sign = data?.sign ?? '—';
-    const hero = photos[0];
-    const rightPhotos = photos.slice(1, 3);
+    const hero = srcAt(0);
+    const rightPhotos = [srcAt(1), srcAt(2)].filter(Boolean);
     const age = form.birthDate && !isNaN(new Date(form.birthDate).getTime())
       ? Math.floor((Date.now() - new Date(form.birthDate).getTime()) / (365.25 * 86_400_000)) : null;
 
@@ -631,10 +672,17 @@ export function DatingProfilePage() {
           <MultiSelect category="language" values={dx.languages ?? []} onChange={(v) => setD({ languages: v })} placeholder="Add languages…" ariaLabel="Languages spoken" />
 
           <span style={label}>Photos (min 1 · 3+ recommended)</span>
+          {photoError && (
+            <p style={{ margin: '0 0 8px', fontSize: 12.5, color: '#b23' }}>{photoError}</p>
+          )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            {photos.map((p, i) => (
+            {photos.map((_p, i) => (
               <div key={i} style={{ position: 'relative' }}>
-                <img src={p} alt="" style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover' }} />
+                {srcAt(i)
+                  ? <img src={srcAt(i)} alt="" style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover' }} />
+                  /* Uploaded, saved, not yet signed for display. Says so rather
+                     than rendering a broken image frame. */
+                  : <div style={{ width: 72, height: 72, borderRadius: 10, background: 'var(--paper)', border: '1px solid var(--line)', display: 'grid', placeItems: 'center', fontSize: 10, color: 'var(--muted)', textAlign: 'center', padding: 4 }}>Saved · reload to view</div>}
                 <button type="button" onClick={() => removePhoto(i)} aria-label="Remove"
                   style={{ minWidth: 44, minHeight: 44, position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', border: 'none', background: '#c62828', color: '#fff', cursor: 'pointer', fontSize: 12 }}>×</button>
               </div>

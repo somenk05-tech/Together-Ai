@@ -155,6 +155,16 @@ export class DatingController {
     return this.dating.pass(user.sub, targetUserId, kind);
   }
 
+  /**
+   * A presigned PUT for a dating photo (M3). Private bucket — the browser
+   * uploads straight to it and sends back only the key.
+   */
+  @Post('photos/presign')
+  presignPhoto(@CurrentUser() user: JwtUser, @Body() body: unknown) {
+    const b = (body ?? {}) as { mimeType?: string; sizeBytes?: number };
+    return this.dating.presignPhoto(user.sub, String(b.mimeType ?? ''), Number(b.sizeBytes ?? 0));
+  }
+
   // ─── M2: a like you cannot spend twice, a super-like, and a way back. ───
 
   /** What is left of today, in the citizen's own timezone. */

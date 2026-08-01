@@ -84,7 +84,7 @@ export class AccountPurgeService {
     for (const rule of storageBearing()) {
       const table = this.table(rule.model);
       if (!table) continue;
-      const key = rule.storageKey as string;
+      const key = rule.storageKey ?? (rule.storageKeysJson as { column: string }).column;
       try {
         // unbounded: DELETION must be complete — every stored object of the account dies here
         const rows = await table.findMany({
@@ -94,6 +94,23 @@ export class AccountPurgeService {
         for (const row of rows) {
           const value = row[key];
           if (typeof value !== 'string' || !value) continue;
+          // Keys inside a JSON blob (dating photos) rather than a column of
+          // their own. A malformed blob must not stop the rest of the purge:
+          // failing here would leave a half-deleted account, which is worse
+          // than one stubborn object we log and move past.
+          if (rule.storageKeysJson) {
+            const field = rule.storageKeysJson.field;
+            let keys: unknown[] = [];
+            try { keys = (JSON.parse(value) as Record<string, unknown[]>)[field] ?? []; } catch { keys = []; }
+            for (const k of keys) {
+              // Only OUR keys. A legacy base64 blob or an account-photo URL is
+              // not an object in the vault and must not be handed to a delete.
+              if (typeof k !== 'string' || !k || k.startsWith('data:') || k.startsWith('http')) continue;
+              await this.storage.deleteHealthObject(k).catch(swallowed('privacy.purgeObjects', undefined));
+              removed++;
+            }
+            continue;
+          }
           // Everything with a storage key here lives in the private vault.
           await this.storage.deleteHealthObject(value).catch(swallowed('privacy.purgeObjects', undefined));
           removed++;

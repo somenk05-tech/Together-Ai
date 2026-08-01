@@ -214,6 +214,44 @@ export class StorageProvider implements OnModuleInit {
     return { uploadUrl, key, expiresInSec: this.expiresInSec };
   }
 
+  /**
+   * Presign a PUT for a DATING PHOTO. (M3.)
+   *
+   * The private bucket, not the public one, and that is the whole design.
+   * Dating photos were base64 blobs inlined in every payload, which was slow
+   * but had one accidental virtue: only a viewer the service had already judged
+   * eligible ever received the bytes. Moving them to a public URL would have
+   * made them faster AND permanently reachable by anyone who ever saw one —
+   * trading a performance problem for a privacy one, and falsifying the Dating
+   * Terms' promise that photos are shown only to people the profile allows.
+   *
+   * So: private object, short-lived signed GET issued per eligible viewer.
+   */
+  async presignDatingUpload(userId: string, mimeType: string, ext: string): Promise<{ uploadUrl: string; key: string; expiresInSec: number }> {
+    const safeExt = (ext || 'bin').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) || 'bin';
+    const key = `dating/${userId}/${randomUUID()}.${safeExt}`;
+    if (!this.s3) {
+      return { uploadUrl: `${this.publicBase}/__presigned__/${key}`, key, expiresInSec: this.expiresInSec };
+    }
+    const uploadUrl = await getSignedUrl(
+      this.s3,
+      new PutObjectCommand({ Bucket: this.healthBucket, Key: key, ContentType: mimeType }),
+      { expiresIn: this.expiresInSec },
+    );
+    return { uploadUrl, key, expiresInSec: this.expiresInSec };
+  }
+
+  /**
+   * True when this key belongs to the given user's dating namespace.
+   *
+   * The same guard Drive and the health vault carry, for the same reason: the
+   * key arrives from the client when a profile is saved, and without this a
+   * citizen could file somebody else's object as their own photo.
+   */
+  static isOwnDatingKey(userId: string, key: string): boolean {
+    return typeof key === 'string' && key.startsWith(`dating/${userId}/`);
+  }
+
   /** True when this key belongs to the given user's private drive namespace. */
   static isOwnDriveKey(userId: string, key: string): boolean {
     return typeof key === 'string' && key.startsWith(`drive/${userId}/`);
@@ -273,6 +311,10 @@ export class StorageProvider implements OnModuleInit {
 
   /** Short-lived signed GET URL for a private health document (owner-only, handed
    *  out by the authenticated backend). Returns null when storage isn't configured. */
+  async presignPrivateDownload(key: string): Promise<string | null> {
+    return this.presignHealthDownload(key);
+  }
+
   async presignHealthDownload(key: string): Promise<string | null> {
     if (!this.s3 || !key) return null;
     try {

@@ -7,9 +7,10 @@ import { DatingController } from './dating.controller';
 import { DatingService } from './dating.service';
 import { FinancialModule } from '../financial/financial.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { MediaModule } from '../media/media.module';
 
 @Module({
-  imports: [PrismaModule, ProfileModule, ConversationsModule, ConnectionsModule, FinancialModule, NotificationsModule],
+  imports: [PrismaModule, ProfileModule, ConversationsModule, ConnectionsModule, FinancialModule, NotificationsModule, MediaModule],
   controllers: [DatingController],
   providers: [DatingService],
 })
