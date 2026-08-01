@@ -242,6 +242,7 @@ export class ProfileService {
       this.prisma.post.count({ where: { ...VISIBLE_ONLY, repostOf: { authorId: userId } } as never }),
       // unbounded ×3: follower/following/connection COUNTS — a truncated set
       // is a wrong number on the profile, not a slow one
+      // unbounded: the accepted-connection id set — socially bounded; feeds gates, not lists
       this.prisma.follow.findMany({ where: { followeeId: userId }, select: { followerId: true } }),
       // unbounded: see above
       this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } }),

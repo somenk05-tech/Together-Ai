@@ -606,6 +606,7 @@ export class PrescriptionsService {
     if (!doses.length) return { day, timezone, doses: [], answered: 0, total: 0 };
 
     // One query for the whole day rather than one per dose.
+    // unbounded: one day's window bounds it — the date range is the cap
     const logs = await this.prisma.doseLog.findMany({
       where: { userId, scheduledAtUtc: { gte: dayStart, lte: dayEnd } },
       select: { scheduleId: true, scheduledAtUtc: true, action: true, actedAtUtc: true },

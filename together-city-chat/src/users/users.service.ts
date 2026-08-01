@@ -60,6 +60,7 @@ export class UsersService {
 
   /** Online users among a caller's accepted connections. */
   async onlineContacts(userId: string): Promise<string[]> {
+    // unbounded: accepted connections — socially bounded presence set
     const conns = await this.prisma.connection.findMany({
       where: {
         status: 'ACCEPTED',

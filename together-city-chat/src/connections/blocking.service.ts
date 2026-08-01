@@ -67,10 +67,12 @@ export class BlockingService {
 
   private async rows(userId: string): Promise<{ blocks: BlockRow[]; connections: ConnectionBlockRow[] }> {
     const [blocks, connections] = await Promise.all([
+      // unbounded: safety — the block union must be COMPLETE; a truncated list quietly unblocks people
       this.safely<BlockRow>(() => this.prisma.block.findMany({
         where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
         select: { blockerId: true, blockedId: true },
       })),
+      // unbounded: same safety rule — blocked-connection states
       this.safely<ConnectionBlockRow>(() => this.prisma.connection.findMany({
         where: { status: BLOCKED_STATUS as never, OR: [{ userOneId: userId }, { userTwoId: userId }] },
         select: { userOneId: true, userTwoId: true, status: true },

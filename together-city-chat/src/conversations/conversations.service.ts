@@ -19,6 +19,7 @@ export class ConversationsService {
    * (see GET /users/lookup), and messaging is gated on an accepted connection.
    */
   async contacts(userId: string) {
+    // unbounded: contacts = the accepted friend graph — socially bounded
     const conns = await this.prisma.connection.findMany({
       where: {
         status: 'ACCEPTED',

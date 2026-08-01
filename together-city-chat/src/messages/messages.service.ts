@@ -169,6 +169,7 @@ export class MessagesService {
     // a caller could name any message id and have a "delivered" receipt
     // broadcast into a conversation they aren't in. Restricting to conversations
     // they're a member of makes the receipt unforgeable.
+    // unbounded: `in:` of the caller's receipt batch bounds it
     const mine = await this.prisma.message.findMany({
       where: { id: { in: messageIds }, conversation: { members: { some: { userId } } } },
       select: { id: true, conversationId: true },
@@ -187,6 +188,7 @@ export class MessagesService {
     });
     // Membership-scoped for the same reason as markDelivered — an unscoped
     // lookup let a non-participant emit a read receipt into someone else's chat.
+    // unbounded: `in:` of the caller's receipt batch bounds it
     const rows = await this.prisma.message.findMany({
       where: { id: { in: messageIds }, conversation: { members: { some: { userId } } } },
       select: { id: true, conversationId: true },
@@ -216,6 +218,7 @@ export class MessagesService {
 
   /** Multi-criteria search (keyword / sender / type / date / conversation). */
   async search(userId: string, dto: SearchMessagesDto) {
+    // unbounded: their own memberships — the search scope, socially bounded
     const memberships = await this.prisma.conversationMember.findMany({
       where: { userId },
       select: { conversationId: true },
@@ -255,6 +258,7 @@ export class MessagesService {
 
   // ── helpers ──────────────────────────────────────────────
   private async recipientIds(conversationId: string, senderId: string): Promise<string[]> {
+    // unbounded: one conversation's members — group-sized
     const members = await this.prisma.conversationMember.findMany({
       where: { conversationId, userId: { not: senderId } },
       select: { userId: true },

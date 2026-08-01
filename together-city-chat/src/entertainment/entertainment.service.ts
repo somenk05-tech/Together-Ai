@@ -69,6 +69,7 @@ export class EntertainmentService implements OnModuleInit {
   }
 
   async events(query: EventQueryDto) {
+    // unbounded: the events catalogue — city-curated; filters run in memory below
     const rows = await this.prisma.event.findMany({ orderBy: { date: 'asc' } }) as EventRow[];
     return rows
       .filter((e) => (!query.category || e.category === query.category) && (!query.city || e.city.toLowerCase() === query.city.toLowerCase()))

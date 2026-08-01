@@ -65,7 +65,7 @@ describe('the unbounded-read ceiling', () => {
       let n = 0;
       for (let i = code.indexOf('.findMany('); i >= 0; i = code.indexOf('.findMany(', i + 1)) {
         const call = callText(code, i + '.findMany'.length);
-        if (/\btake:\s*/.test(call)) continue;
+        if (/\btake\s*[:,]/.test(call)) continue; // `take,` shorthand counts too (account-purge.due)
         // The annotation: inline in the call, or on one of the two lines above.
         const lineStart = src.lastIndexOf('\n', i);
         const twoAbove = src.lastIndexOf('\n', src.lastIndexOf('\n', lineStart - 1) - 1);

@@ -207,6 +207,7 @@ export class NotificationsService {
           entityId: params.callId,
         });
 
+        // unbounded: one citizen's device tokens — a handful
         const devices = await this.prisma.deviceToken.findMany({
           where: { userId: recipientId },
           select: { token: true, platform: true },
@@ -262,6 +263,7 @@ export class NotificationsService {
       // the sender's name.
       await this.upsertMessageNotification(recipientId, params.conversationId, displayName, params.preview, href);
 
+      // unbounded: one citizen's device tokens — a handful
       const devices = await this.prisma.deviceToken.findMany({
         where: { userId: recipientId },
         select: { token: true, platform: true },

@@ -31,6 +31,7 @@ function datingMatch(prisma: PrismaService) {
 
 /** Every conversation id that belongs to the Dating Hub for this citizen. */
 export async function datingConversationIds(prisma: PrismaService, userId: string): Promise<Set<string>> {
+  // unbounded: isolation safety — the dating id set must be complete or a dating chat leaks into main Chats
   const rows = await datingMatch(prisma)
     .findMany({
       where: { OR: [{ userOneId: userId }, { userTwoId: userId }], conversationId: { not: null } },

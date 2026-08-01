@@ -65,6 +65,7 @@ export class RealEstateService implements OnModuleInit {
   }
 
   private async insightFor(p: PropRow) {
+    // unbounded: the market average — truncation fabricates a different price per sqft
     const peers = await this.prisma.property.findMany({ where: { listingType: p.listingType, city: p.city } }) as PropRow[];
     const valid = peers.filter((x) => x.areaSqft > 0);
     const pps = p.areaSqft ? Math.round(p.priceInr / p.areaSqft) : 0;
@@ -92,6 +93,7 @@ export class RealEstateService implements OnModuleInit {
 
   async listings(query: ListingQueryDto, userId?: string) {
     // Only approved listings are searchable in Explore.
+    // unbounded: filters run in memory below — a cap would silently hide matching listings; query-side filters + pagination is the named follow-up
     const rows = await this.prisma.property.findMany({ where: { status: 'ready', moderation: 'approved' } as never, orderBy: { createdAt: 'desc' } }) as PropRow[];
     const filtered = rows.filter((p) =>
       (!query.city || p.city.toLowerCase() === query.city.toLowerCase()) &&
@@ -105,6 +107,7 @@ export class RealEstateService implements OnModuleInit {
   }
 
   async underConstruction(userId?: string) {
+    // unbounded: filters run in memory below — same follow-up as listings()
     const rows = await this.prisma.property.findMany({ where: { status: 'under_construction', moderation: 'approved' } as never, orderBy: { createdAt: 'desc' } }) as PropRow[];
     const tz = userId ? await this.clock.timezoneFor(userId) : DEFAULT_TIMEZONE;
     return Promise.all(rows.map(async (p) => {
@@ -131,6 +134,7 @@ export class RealEstateService implements OnModuleInit {
   }
 
   async myListings(userId: string) {
+    // unbounded: their own listings — citizen-scale
     const rows = await this.prisma.property.findMany({ where: { sellerId: userId }, orderBy: { createdAt: 'desc' } }) as PropRow[];
     const tz = await this.clock.timezoneFor(userId);
     return rows.map((p) => ({ ...this.shapeCard(p, tz), postedByYou: true }));

@@ -86,6 +86,7 @@ export class AccountPurgeService {
       if (!table) continue;
       const key = rule.storageKey as string;
       try {
+        // unbounded: DELETION must be complete — every stored object of the account dies here
         const rows = await table.findMany({
           where: whereFor(rule, userId),
           select: { [key]: true },

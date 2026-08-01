@@ -137,6 +137,7 @@ export class TokenService {
 
   /** Active sessions for the "signed-in devices" screen. */
   async listSessions(userId: string, currentRefreshToken?: string): Promise<SessionInfo[]> {
+    // unbounded: the signed-in devices screen must show EVERY live session — hiding one hides an intruder
     const rows = (await this.prisma.refreshToken.findMany({
       where: { userId, revoked: false, expiresAt: { gt: new Date() } },
       orderBy: { lastUsedAt: 'desc' } as never,

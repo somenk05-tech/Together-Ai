@@ -67,7 +67,9 @@ export class SocialService {
    */
   private async networkIds(userId: string): Promise<string[]> {
     const [follows, conns, blocked] = await Promise.all([
+      // unbounded: the feed's network set — follows + connections, socially bounded
       this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } }),
+      // unbounded: same network set
       this.prisma.connection.findMany({
         where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
         select: { userOneId: true, userTwoId: true },
@@ -100,6 +102,7 @@ export class SocialService {
 
   /** The set of userIds THIS user follows (their outbound follow edges). */
   private async myFollowingSet(userId: string): Promise<Set<string>> {
+    // unbounded: their outbound follows — socially bounded set
     const rows = await this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } });
     return new Set(rows.map((r) => r.followeeId));
   }
@@ -108,7 +111,9 @@ export class SocialService {
    *  `iFollow` (do you follow them back?) so the UI shows Following / Follow back. */
   async followers(userId: string) {
     const [rows, conns, iFollow] = await Promise.all([
+      // unbounded: followers page — the social graph is the bound; pagination is the named follow-up
       this.prisma.follow.findMany({ where: { followeeId: userId }, select: { follower: { select: AUTHOR_SELECT } } }),
+      // unbounded: same page, connection halves
       this.prisma.connection.findMany({
         where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
         include: { userOne: { select: AUTHOR_SELECT }, userTwo: { select: AUTHOR_SELECT } },
@@ -131,7 +136,9 @@ export class SocialService {
     const others = network.filter((id) => id !== userId);
     if (!others.length) return [];
     const [users, followerRows] = await Promise.all([
+      // unbounded: `in:` of the network set bounds it
       this.prisma.user.findMany({ where: { id: { in: others } }, select: AUTHOR_SELECT }),
+      // unbounded: follower id set — socially bounded
       this.prisma.follow.findMany({ where: { followeeId: userId }, select: { followerId: true } }),
     ]);
     const followsMe = new Set(followerRows.map((r) => r.followerId));
@@ -241,6 +248,7 @@ export class SocialService {
       // Friends = your ACCEPTED connections only (real friends), never the whole
       // city and never people you merely follow one-way. Your own posts are
       // excluded (you aren't your own connection).
+      // unbounded: the friends feed filter set — accepted connections only
       const conns = await this.prisma.connection.findMany({
         where: { status: 'ACCEPTED', OR: [{ userOneId: userId }, { userTwoId: userId }] },
         select: { userOneId: true, userTwoId: true },
@@ -251,6 +259,7 @@ export class SocialService {
         .filter((id) => !blocked.has(id));
     }
     if (filter === 'following') {
+      // unbounded: the following feed filter set
       const follows = await this.prisma.follow.findMany({ where: { followerId: userId }, select: { followeeId: true } });
       network = follows.map((f) => f.followeeId);
     }
@@ -411,6 +420,7 @@ export class SocialService {
 
   /** Accepted connections marked as FAMILY (for family-audience posts). */
   private async familyIds(userId: string): Promise<Set<string>> {
+    // unbounded: audience gate — the family set must be COMPLETE or a family post reaches the wrong eyes
     const rows = await this.prisma.connection.findMany({
       where: {
         status: 'ACCEPTED' as never,
@@ -541,6 +551,7 @@ export class SocialService {
   }
 
   async listBlocks(userId: string) {
+    // unbounded: their block list — safety UI, must be complete
     const rows = await this.prisma.block.findMany({
       where: { blockerId: userId },
       include: { blocked: { select: AUTHOR_SELECT } },
@@ -691,6 +702,7 @@ export class SocialService {
     const ids = new Set<string>([authorId]);
     if (aud === 'private') return [...ids];
     const [conns, blocked] = await Promise.all([
+      // unbounded: fan-out audience — must be complete; a truncated audience silently unshares a post
       this.prisma.connection.findMany({
         where: { status: 'ACCEPTED' as never, OR: [{ userOneId: authorId }, { userTwoId: authorId }] },
       }),
@@ -703,6 +715,7 @@ export class SocialService {
       // friends & public: all accepted connections
       for (const r of conns) ids.add(other(r));
       if (aud === 'public') {
+        // unbounded: public fan-out includes every follower — same completeness rule
         const followers = await this.prisma.follow.findMany({ where: { followeeId: authorId }, select: { followerId: true } });
         for (const f of followers) ids.add(f.followerId);
       }

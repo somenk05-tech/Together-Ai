@@ -91,6 +91,7 @@ export class PrivacyService {
   }
 
   async get(userId: string): Promise<PrivacyStateView> {
+    // unbounded: one row per setting key — the schema bounds it
     const rows = await this.store.findMany({ where: { userId } }).catch(swallowed('privacy.get', [] as SettingRow[]));
     const acks: Record<string, boolean> = {};
     const prefs: Record<string, boolean> = {};

@@ -246,6 +246,7 @@ export class FinancialService {
 
   /** Budgets per category with current-month spend against them. */
   async budgets(userId: string) {
+    // unbounded: budgets — one row per category, a handful by design
     const [rows, all] = await Promise.all([this.prisma.budget.findMany({ where: { userId } }), this.ledger(userId)]);
     const debits = this.debits(all);
     const byCat = new Map(rows.map((r) => [r.category, r.monthlyInr]));

@@ -38,6 +38,7 @@ export class TravelService implements OnModuleInit {
   }
 
   async packages(query: PackageQueryDto) {
+    // unbounded: the packages catalogue — city-curated; filters run in memory below
     const rows = await this.prisma.travelPackage.findMany({ orderBy: { priceFromInr: 'asc' } }) as PkgRow[];
     return rows.filter((p) => !query.category || p.category === query.category).map((p) => this.card(p));
   }

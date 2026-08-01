@@ -197,6 +197,7 @@ export class CallsService {
       if (done.closed) this.emitUpdated(done.row, 'ended');
     }
 
+    // unbounded: one conversation's members — group-sized
     const members = await this.prisma.conversationMember.findMany({
       where: { conversationId: dto.conversationId },
       select: { userId: true },

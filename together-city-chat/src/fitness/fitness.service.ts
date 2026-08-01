@@ -165,6 +165,7 @@ export class FitnessService {
 
   /** Conditions the user carries in their Medical records (kind=condition) mapped to fitness keys. */
   private async recordConditions(userId: string): Promise<string[]> {
+    // unbounded: clinical completeness — a truncated condition list tailors a program wrongly
     const recs = await this.prisma.medicalRecord.findMany({ where: { userId, kind: 'condition' } });
     const text = recs.map((r) => `${r.title} ${r.detail ?? ''}`.toLowerCase()).join(' | ');
     const keys: string[] = [];

@@ -209,6 +209,7 @@ export class ConnectionsService {
 
   /** Every connection this user is part of (friend graph), newest first. */
   async listForUser(userId: string, status?: string): Promise<ShapedConnection[]> {
+    // unbounded: a citizen's friend graph — socially bounded, and the People page shows all of it
     const rows = await this.prisma.connection.findMany({
       where: {
         OR: [{ userOneId: userId }, { userTwoId: userId }],
