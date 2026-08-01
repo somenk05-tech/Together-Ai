@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, EmptyState, Spinner } from '@/components/ui';
+import { AllergyMarkTag, AllergyNote, Button, EmptyState, Spinner } from '@/components/ui';
 import { useCuisines, useRestaurants, inr, type RestaurantCard } from '../api';
 
 function Stars({ rating }: { rating: number }) {
@@ -28,6 +28,7 @@ function Card({ r }: { r: RestaurantCard }) {
           </div>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>{r.tagline}</div>
           <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>{r.area} · {inr(r.priceForTwoInr)} for two · {r.openHours}</div>
+          <div><AllergyMarkTag mark={r.allergen} /></div>
           {fitPct !== null && (
             <div style={{ marginTop: 8, fontSize: 11.5, fontWeight: 600, color: fitPct >= 60 ? '#1b7a3a' : '#8a6d00', background: fitPct >= 60 ? '#e8f5e9' : '#fff7e0', borderRadius: 8, padding: '4px 9px', display: 'inline-block' }}>
               🥗 {r.dietFitCount}/{r.dietTotal} dishes fit your {r.dietLabel} plan
@@ -68,11 +69,23 @@ export function Discover() {
 
       {list.isLoading ? <Spinner label="Loading restaurants…" />
         : list.isError ? <EmptyState title="Couldn't load restaurants" hint="This didn’t reach us — it isn’t a statement about what’s open near you. Try again in a moment." />
-        : (list.data ?? []).length === 0 ? <EmptyState icon="🍽" title="No restaurants match" hint="Try another cuisine." />
         : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
-            {list.data?.map((r) => <Card key={r.id} r={r} />)}
-          </div>
+          <>
+            <AllergyNote notice={list.data?.allergyNotice} />
+            {(list.data?.restaurants ?? []).length === 0
+              ? <EmptyState
+                  icon="🍽"
+                  title="No restaurants match"
+                  hint={list.data?.allergyNotice
+                    ? 'Everything nearby in this cuisine has something you told us to avoid on the menu.'
+                    : 'Try another cuisine.'}
+                />
+              : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                  {list.data?.restaurants.map((r) => <Card key={r.id} r={r} />)}
+                </div>
+              )}
+          </>
         )}
     </div>
   );

@@ -2,18 +2,31 @@ import { http as api } from '@/api/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export interface Cuisine { key: string; label: string; icon: string }
+
+/**
+ * What the allergy rule did on this screen. (K5.66.)
+ *
+ * `allergyNotice` is null whenever it did nothing — the surfaces never send a
+ * zero, so a truthy check is the whole rendering condition.
+ */
+export interface AllergyNotice { terms: string[]; removed: number; sentence: string }
+/** On a result the citizen asked for by name: shown, but marked. */
+export interface AllergyMark { term: string; found: string; label: string }
 export interface RestaurantCard {
   id: string; name: string; cuisine: string; cuisineLabel: string; icon: string;
   area: string; city: string; rating: number; priceForTwoInr: number;
   tagline: string; openHours: string; vegFriendly: boolean; heroUrl: string;
   dietFitCount?: number; dietTotal?: number; dietLabel?: string;
+  /** Set only on surfaces that mark rather than hide (search, detail). */
+  allergen?: AllergyMark | null;
 }
 export interface Dish {
   id: string; name: string; desc: string; priceInr: number; diet: string; dietLabel: string;
   section: string; bestseller?: boolean; spicy?: boolean; fitsYourDiet: boolean | null;
+  allergen: AllergyMark | null;
 }
 export interface MenuSection { section: string; items: Dish[] }
-export interface PopularDish { name: string; priceInr: number; diet: string; dietLabel: string; desc: string; bestseller: boolean }
+export interface PopularDish { name: string; priceInr: number; diet: string; dietLabel: string; desc: string; bestseller: boolean; allergen: AllergyMark | null }
 export interface QualityBreakdown { tcScore: number; food: number; hygiene: number; value: number; googleRating: number }
 export interface RestaurantDetail extends RestaurantCard {
   dietProfile: string | null; sections: MenuSection[];
@@ -30,9 +43,9 @@ export interface CuratedCard extends RestaurantCard {
   tcChecked: boolean; ratingsCount: number | null; placeId: string | null; source: 'places' | 'seed';
   reasons: string[]; rank?: number;
 }
-export interface TopResult { live: boolean; source: string; locality: string | null; count: number; restaurants: CuratedCard[] }
+export interface TopResult { live: boolean; source: string; locality: string | null; count: number; allergyNotice: AllergyNotice | null; restaurants: CuratedCard[] }
 export interface Collection { key: string; title: string; subtitle: string; items: CuratedCard[] }
-export interface CollectionsResult { live: boolean; source: string; collections: Collection[] }
+export interface CollectionsResult { live: boolean; source: string; allergyNotice: AllergyNotice | null; collections: Collection[] }
 export interface SearchResult { query: string; results: CuratedCard[] }
 export interface RestaurantOverview { aiPowered: boolean; highlights: string[]; tryThese: string[]; bestFor: string; note: string }
 
@@ -43,7 +56,7 @@ export interface DishMatch {
   kcal: number; protein: number; carbs: number; fat: number; estimated: boolean; matchScore: number; why: string[];
   restaurantId: string; restaurantName: string; area: string; heroUrl: string; icon: string; cuisineLabel: string; distanceKm: number; etaMins: number;
 }
-export interface MealMatchResult { hasPlan: boolean; slot: string; slotLabel: string; target: MealTarget | null; matches: DishMatch[] }
+export interface MealMatchResult { hasPlan: boolean; slot: string; slotLabel: string; target: MealTarget | null; allergyNotice: AllergyNotice | null; matches: DishMatch[] }
 
 export interface OrderLine { dishId: string; name: string; qty: number; priceInr: number; lineInr: number }
 export interface DiningOrder {
@@ -72,12 +85,14 @@ export interface DiscoverCard extends RestaurantCard {
   source: 'places' | 'seed'; placeId: string | null; ratingsCount: number | null; mapsUrl: string | null;
 }
 export interface DiscoverResult {
-  live: boolean; source: 'places' | 'seed'; count: number; restaurants: DiscoverCard[];
+  live: boolean; source: 'places' | 'seed'; count: number; allergyNotice: AllergyNotice | null; restaurants: DiscoverCard[];
 }
+/** browse() returns an object now — the list alone could not explain itself. */
+export interface BrowseResult { restaurants: RestaurantCard[]; allergyNotice: AllergyNotice | null }
 
 export const restApi = {
   cuisines: () => api.get<Cuisine[]>('/restaurants/cuisines').then((r) => r.data),
-  browse: (q: BrowseQuery) => api.get<RestaurantCard[]>('/restaurants', { params: q }).then((r) => r.data),
+  browse: (q: BrowseQuery) => api.get<BrowseResult>('/restaurants', { params: q }).then((r) => r.data),
   detail: (id: string) => api.get<RestaurantDetail>(`/restaurants/${id}`).then((r) => r.data),
   order: (id: string, input: { mode: 'delivery' | 'dinein'; items: { dishId: string; qty: number }[]; method: PayMethod }) =>
     api.post<DiningOrder[]>(`/restaurants/${id}/order`, input).then((r) => r.data),

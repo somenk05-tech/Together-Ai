@@ -13,6 +13,7 @@ import { orderReceipt, tableReceipt } from '../mail/receipts';
 import { CUISINES, CUISINE_META, DIET_ALLOW, DIET_LABEL, RESTAURANT_SEEDS, hero, type Dish } from './restaurants.constants';
 import { recipeServings } from '../nutrition/nutrition.service';
 import { findAllergen } from '../shared/allergens';
+import { allergyMark, allergyNotice, venueMark, type AllergyMark, type AllergyNotice } from '../shared/allergen-voice';
 import { MasterProfileService } from '../profile/master-profile.service';
 
 const SLOT_LABEL: Record<string, string> = { b: 'Breakfast', l: 'Lunch', s: 'Snack', d: 'Dinner' };
@@ -30,6 +31,79 @@ type RCand = { row: RestaurantRow; realDist?: number; openNow?: boolean | null; 
 
 const parseMenu = (json: string): Dish[] => { try { return JSON.parse(json) as Dish[]; } catch { return []; } };
 const code = () => 'TC-' + randomBytes(3).toString('hex').toUpperCase();
+
+/** A comma/semicolon list, as the citizen typed it. Was local to discover(). */
+const terms = (s?: string | null) => (s ?? '').split(/[,;]/).map((t) => t.trim().toLowerCase()).filter(Boolean);
+
+const PLACES = { one: 'place', many: 'places' };
+const DISHES = { one: 'dish', many: 'dishes' };
+
+/**
+ * Screen a list of VENUES at the level a person actually eats at: the dish.
+ *
+ * The first version of this hid any restaurant with one offending dish, which
+ * is what discover() had always done. Measured against the catalogue, a milk
+ * declaration removed HALF of it — because a place that serves paneer also
+ * serves twelve things that are not paneer. That is the failure allergens.ts
+ * warns about in its own header: the filter becoming useless enough to be
+ * switched off.
+ *
+ * So a venue is HIDDEN only when there is nothing on its menu the citizen can
+ * eat, and otherwise SHOWN with a mark saying how much of the menu is affected.
+ * Safety does not live here — it lives on the dish, and every dish surface now
+ * screens. This decides what is worth putting in a list.
+ */
+/**
+ * One venue, judged. `allUnsafe` is the only thing that justifies hiding it.
+ *
+ * Shared by the ranking surfaces (which may hide) and search (which never
+ * does), so the mark on a searched result says exactly what the mark on a
+ * ranked one would have said.
+ */
+function markVenue(name: string, dishes: readonly string[], declared: readonly string[]): {
+  mark: AllergyMark | null; matched: string[]; allUnsafe: boolean;
+} {
+  if (!declared.length) return { mark: null, matched: [], allUnsafe: false };
+  const unsafe = dishes.map((d) => findAllergen(d, [], declared)).filter((h): h is NonNullable<typeof h> => !!h);
+  // A live Places result carries no menu, so the name is the only signal there
+  // is — and an unreadable menu is worth saying out loud rather than guessing.
+  const nameHit = dishes.length === 0 ? findAllergen(name, [], declared) : null;
+  const first = unsafe[0] ?? nameHit;
+  if (!first) return { mark: null, matched: [], allUnsafe: false };
+  return {
+    matched: [...new Set((unsafe.length ? unsafe : [first]).map((h) => h.term))],
+    allUnsafe: dishes.length > 0 && unsafe.length === dishes.length,
+    mark: unsafe.length
+      ? venueMark(first.term, first.found, unsafe.length)
+      : venueMark(first.term, name, 0, false),
+  };
+}
+
+interface VenueScreen<T> {
+  kept: Array<{ item: T; mark: AllergyMark | null }>;
+  matched: string[];
+  removed: number;
+}
+function screenVenues<T>(
+  items: readonly T[],
+  declared: readonly string[],
+  probe: (x: T) => { name: string; dishes: string[] },
+): VenueScreen<T> {
+  if (!declared.length) return { kept: items.map((item) => ({ item, mark: null })), matched: [], removed: 0 };
+  const kept: Array<{ item: T; mark: AllergyMark | null }> = [];
+  const matched = new Set<string>();
+  let removed = 0;
+  for (const item of items) {
+    const { name, dishes } = probe(item);
+    const judged = markVenue(name, dishes, declared);
+    for (const t of judged.matched) matched.add(t);
+    // Nothing here they can eat. The only case where hiding a venue is a
+    // kindness rather than a lie about the city.
+    if (judged.allUnsafe) { removed++; continue; }
+    kept.push({ item, mark: judged.mark });
+  }
+  return { kept, matched: [...matched], removed };
+}
 
 @Injectable()
 export class RestaurantsService implements OnModuleInit {
@@ -60,6 +134,38 @@ export class RestaurantsService implements OnModuleInit {
       const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
       return pref?.diet ?? null;
     } catch { return null; }
+  }
+
+  /**
+   * Every allergen this citizen has declared, from every place they could have
+   * declared it: Nutrition's FoodPref, the Master Profile, and Medical's
+   * kind:'allergy' records (food families only, P1-5).
+   *
+   * IT LIVES HERE, AND NOT INSIDE discover(), BECAUSE SIX OTHER SURFACES NEEDED
+   * IT AND DID NOT HAVE IT. Until 1 Aug the union was a local variable in one
+   * method, so browse(), topByLocality(), collections(), search(), detail() and
+   * meal-match() — every one of which takes a userId and personalises by diet —
+   * screened for a vegetarian and not for an anaphylactic. See
+   * allergen-reach.spec.ts; nine cases, all of them red before this.
+   *
+   * `alreadyRead` is the extras.allergies string when the caller has the
+   * FoodPref row in hand, so discover() does not read it twice.
+   */
+  private async allergenTerms(userId: string, alreadyRead?: string): Promise<string[]> {
+    let declaredHere = alreadyRead;
+    if (declaredHere === undefined) {
+      const pref = await this.prisma.foodPref.findUnique({ where: { userId } })
+        .catch(swallowed('restaurants.allergenTerms', null as { extras?: string | null } | null));
+      let ex: { allergies?: string } = {};
+      try { ex = (pref as { extras?: string | null } | null)?.extras ? JSON.parse((pref as { extras?: string | null }).extras as string) : {}; } catch { ex = {}; }
+      declaredHere = ex.allergies ?? '';
+    }
+    const master = await this.masterProfile.get(userId).catch(swallowed('restaurants.allergenTerms', null));
+    return [...new Set([
+      ...terms(declaredHere),
+      ...terms((master as { foodAllergens?: string | null } | null)?.foodAllergens ?? ''),
+      ...await medicalFoodAllergenTerms(this.prisma, userId),
+    ])];
   }
 
   private shapeCard(r: RestaurantRow) {
@@ -147,7 +253,6 @@ export class RestaurantsService implements OnModuleInit {
     const vegDiet = ['veg', 'vegan', 'jain'].includes(diet);
     let ex: { cuisineMix?: Record<string, number>; allergies?: string; excluded?: string; budgetInr?: number | null; healthGoals?: string[] } = {};
     try { ex = (pref as { extras?: string | null } | null)?.extras ? JSON.parse((pref as { extras?: string | null }).extras as string) : {}; } catch { ex = {}; }
-    const terms = (s?: string) => (s ?? '').split(/[,;]/).map((t) => t.trim().toLowerCase()).filter(Boolean);
     // FoodPref AND the master, unioned — not the master alone.
     //
     // Reading only the master would be the tidier §3 answer and would silently
@@ -156,14 +261,9 @@ export class RestaurantsService implements OnModuleInit {
     // preferences. get() back-fills them, but a read that fails or a row that
     // has not been touched yet must not be the difference between a filtered
     // menu and an unfiltered one.
-    const master = await this.masterProfile.get(userId).catch(swallowed('restaurants.discover', null));
-    const allergens = [...new Set([
-      ...terms(ex.allergies),
-      ...terms((master as { foodAllergens?: string | null } | null)?.foodAllergens ?? ''),
-      // P1-5: Medical's allergy records, food families only — the same fact
-      // about the same person, read at match time, never written back.
-      ...await medicalFoodAllergenTerms(this.prisma, userId),
-    ])];
+    // P1-5: Medical's allergy records, food families only — the same fact about
+    // the same person, read at match time, never written back.
+    const allergens = await this.allergenTerms(userId, ex.allergies);
     const avoid = terms(ex.excluded);
     const budgetTwo = ex.budgetInr ? Math.round(ex.budgetInr * 2 * 1.5) : null;
     const mix = ex.cuisineMix ?? {};
@@ -172,6 +272,11 @@ export class RestaurantsService implements OnModuleInit {
     const CUISINE_TO_MIX: Record<string, string> = { 'north-indian': 'Indian', 'south-indian': 'Indian', italian: 'Italian', chinese: 'Chinese', japanese: 'Japanese', cafe: 'Continental', biryani: 'Indian', street: 'Indian' };
 
     const cards = [];
+    // What the allergy rule took away here, and which declaration took it. Both
+    // are reported: the citizen is the only person who can tell us the rule is
+    // wrong, and they can only do that if they can see it act. (K5.66)
+    const allergenMatched = new Set<string>();
+    let allergenRemoved = 0;
     for (const c of cands) {
       const r = c.row;
       // City filter only applies to the seeded catalogue (live results are already near the GPS fix).
@@ -195,15 +300,17 @@ export class RestaurantsService implements OnModuleInit {
 
       const menu = parseMenu(r.menuJson);
       const menuText = `${r.name} ${r.tagline} ${menu.map((m) => m.name).join(' ')}`.toLowerCase();
-      // allergy = never shown.
+      // The allergy rule, at the level somebody eats at.
       //
       // This was `menuText.includes(declaredTerm)` against that concatenated
       // blob, which is the substring test allergens.ts was written to replace —
-      // "nuts" does not appear in "Kaju Curry" or "Badam Halwa", and this is a
-      // menu, so the miss puts a dish in front of somebody rather than a serum.
-      // Dish names go in as separate candidates because that is what they are,
-      // and because it lets the matcher say which one.
-      if (findAllergen(r.name, menu.map((m) => m.name), allergens)) continue;
+      // "nuts" does not appear in "Kaju Curry" or "Badam Halwa". It then became
+      // a whole-venue hide, which measured at half the catalogue for milk. It is
+      // now per dish: the place stays, carrying how much of its menu is out.
+      const venue = screenVenues([r], allergens, (x) => ({ name: x.name, dishes: menu.map((m) => m.name) }));
+      for (const t of venue.matched) allergenMatched.add(t);
+      if (!venue.kept.length) { allergenRemoved++; continue; }
+      const allergenMark = venue.kept[0].mark;
 
       const cuisineName = CUISINE_TO_MIX[r.cuisine] ?? '';
       const cuisineWeight = mixTotal ? (mix[cuisineName] ?? 0) / mixTotal : 0;
@@ -248,12 +355,14 @@ export class RestaurantsService implements OnModuleInit {
         openNow: isOpen, reasons: reasons.slice(0, 4), tcChecked,
         pureVeg: isPureVeg, vegan: d.vegan, jain: d.jain, outdoor: d.outdoor, petFriendly: d.petFriendly, familyFriendly: d.familyFriendly,
         source: c.source, placeId: c.placeId ?? null, ratingsCount: c.ratingsCount ?? null, mapsUrl,
+        allergen: allergenMark,
       });
     }
     return {
       live,
       source: live ? 'places' : 'seed',
       count: cards.length,
+      allergyNotice: allergyNotice([...allergenMatched], allergenRemoved, PLACES),
       restaurants: cards.sort((a, b) => b.matchScore - a.matchScore).slice(0, 7),
     };
   }
@@ -384,9 +493,13 @@ export class RestaurantsService implements OnModuleInit {
       .map((c) => this.curatedCard(c))
       .filter((x) => x.d.distanceKm <= radius)
       .filter((x) => this.passesFilters(x, q));
-    built.sort((a, b) => b.card.tcScore - a.card.tcScore);
-    const top = built.slice(0, q.limit ?? 25).map((x, i) => ({ ...x.card, rank: i + 1, reasons: this.reasonsFor(x.r, x.d, x.menu, q.area ?? x.r.area, x.card.tcChecked) }));
-    return { live, source: live ? 'places' : 'seed', locality: q.area ?? null, count: top.length, restaurants: top };
+    // "Top 25 Near You" ranked a peanut dish for a peanut-allergic citizen until
+    // 1 Aug: this list filtered for a vegetarian and not for an allergy.
+    const screen = screenVenues(built, await this.allergenTerms(userId), (x) => ({ name: x.r.name, dishes: x.menu.map((m) => m.name) }));
+    const ranked = screen.kept;
+    ranked.sort((a, b) => b.item.card.tcScore - a.item.card.tcScore);
+    const top = ranked.slice(0, q.limit ?? 25).map(({ item: x, mark }, i) => ({ ...x.card, rank: i + 1, allergen: mark, reasons: this.reasonsFor(x.r, x.d, x.menu, q.area ?? x.r.area, x.card.tcChecked) }));
+    return { live, source: live ? 'places' : 'seed', locality: q.area ?? null, count: top.length, allergyNotice: allergyNotice(screen.matched, screen.removed, PLACES), restaurants: top };
   }
 
   /** Curated discovery collections (Top 25, Cafés, Best Coffee, Under ₹500, Date Night, …). */
@@ -395,10 +508,18 @@ export class RestaurantsService implements OnModuleInit {
     const diet = await this.userDiet(userId);
     const vegDiet = diet ? ['veg', 'vegan', 'jain'].includes(diet) : false;
     const radius = q.radiusKm ?? 8;
-    const all = cands
-      .filter((c) => !(vegDiet && !c.row.vegFriendly))
-      .map((c) => this.curatedCard(c))
-      .filter((x) => x.d.distanceKm <= radius);
+    // Screened ONCE, at the pool, not per collection — a restaurant that is not
+    // safe is not safe in "Hidden Gems" either, and counting it sixteen times
+    // would make the notice say sixteen.
+    const screen = screenVenues(
+      cands
+        .filter((c) => !(vegDiet && !c.row.vegFriendly))
+        .map((c) => this.curatedCard(c))
+        .filter((x) => x.d.distanceKm <= radius),
+      await this.allergenTerms(userId),
+      (x) => ({ name: x.r.name, dishes: x.menu.map((m) => m.name) }),
+    );
+    const all = screen.kept.map(({ item, mark }) => ({ ...item, card: { ...item.card, allergen: mark } }));
     all.sort((a, b) => b.card.tcScore - a.card.tcScore);
 
     // Trending: real signal from the last 30 days of orders + reservations.
@@ -433,7 +554,7 @@ export class RestaurantsService implements OnModuleInit {
       { key: 'latenight', title: 'Late Night Eats', subtitle: 'Open late', items: pick((x) => /(2[2-3]|0[0-3]):\d\d\s*$/.test(x.r.openHours) || /late|24|midnight/i.test(x.r.openHours)) },
       { key: 'hiddengems', title: 'Hidden Gems', subtitle: 'Lesser-known spots worth the trip', items: pick((x) => x.r.rating >= 4.4 && x.r.priceForTwoInr < 1200) },
     ];
-    return { live, source: live ? 'places' : 'seed', collections: defs.filter((d) => d.items.length) };
+    return { live, source: live ? 'places' : 'seed', allergyNotice: allergyNotice(screen.matched, screen.removed, PLACES), collections: defs.filter((d) => d.items.length) };
   }
 
   /** Search the FULL catalogue (browse shows only curated Top 25; search reaches everything). */
@@ -446,8 +567,17 @@ export class RestaurantsService implements OnModuleInit {
       r.name.toLowerCase().includes(q) || r.cuisine.toLowerCase().includes(q) ||
       r.area.toLowerCase().includes(q) || r.city.toLowerCase().includes(q) ||
       (CUISINE_META[r.cuisine]?.label ?? '').toLowerCase().includes(q));
+    // MARKED, NOT HIDDEN. They typed the name; a place they can see on the
+    // street is not one the app should pretend does not exist. The marker names
+    // the dish and their own declaration, so the reason travels with the result.
+    const declared = await this.allergenTerms(userId);
     const results = hits
-      .map((row) => this.curatedCard({ row, source: 'seed' }).card)
+      .map((row) => {
+        const built = this.curatedCard({ row, source: 'seed' });
+        // Shown even when the WHOLE menu is out — they typed this name, and a
+        // place they can see on the street is not one to pretend away.
+        return { ...built.card, allergen: markVenue(row.name, built.menu.map((m) => m.name), declared).mark };
+      })
       .sort((a, b) => b.tcScore - a.tcScore)
       .slice(0, 40);
     return { query: term ?? '', results };
@@ -518,13 +648,13 @@ export class RestaurantsService implements OnModuleInit {
   async mealMatch(userId: string, q: { lat?: number; lng?: number; slot?: string; limit?: number }) {
     const slot = ['b', 'l', 's', 'd'].includes(q.slot ?? '') ? q.slot! : this.currentSlot();
     const plan = await this.prisma.mealPlan.findFirst({ where: { userId, mode: 'individual' }, orderBy: { createdAt: 'desc' } });
-    if (!plan) return { hasPlan: false, slot, slotLabel: SLOT_LABEL[slot], target: null, matches: [] as unknown[] };
+    if (!plan) return { hasPlan: false, slot, slotLabel: SLOT_LABEL[slot], target: null, allergyNotice: null as AllergyNotice | null, matches: [] as unknown[] };
 
     const dayIndex = (new Date().getDay() + 6) % 7;
     const where = (s?: string) => ({ skipped: false, ...(s ? { slot: s } : {}), day: { dayIndex, plan: { id: plan.id } } });
     let meal = await this.prisma.meal.findFirst({ where: where(slot), include: { recipe: true } });
     if (!meal) meal = await this.prisma.meal.findFirst({ where: where(), include: { recipe: true } });
-    if (!meal) return { hasPlan: true, slot, slotLabel: SLOT_LABEL[slot], target: null, matches: [] };
+    if (!meal) return { hasPlan: true, slot, slotLabel: SLOT_LABEL[slot], target: null, allergyNotice: null as AllergyNotice | null, matches: [] };
 
     const rc = meal.recipe;
     const srv = Math.max(1, recipeServings({ slot: rc.slot, kcal: rc.kcal, gramsPerServing: rc.gramsPerServing, servings: (rc as unknown as { servings?: number }).servings ?? 0 }));
@@ -538,6 +668,14 @@ export class RestaurantsService implements OnModuleInit {
     const diet = await this.userDiet(userId);
     const allow = diet ? DIET_ALLOW[diet] ?? null : null;
     const vegDiet = diet ? ['veg', 'vegan', 'jain'].includes(diet) : false;
+    // THE ONE THAT MATTERED MOST. This recommends a NAMED DISH to eat right now,
+    // scored against the citizen's own meal plan — and until 1 Aug it never once
+    // asked what they are allergic to. allergens.ts's header warns about exactly
+    // this: "this is a menu, so the miss puts a dish in front of somebody rather
+    // than a serum."
+    const declared = await this.allergenTerms(userId);
+    const allergenMatched = new Set<string>();
+    let allergenRemoved = 0;
     // unbounded: the seeded catalogue — city-curated; ranking scans all of it
     const rows = await this.prisma.restaurant.findMany() as RestaurantRow[]; // catalogue = the menus we can read
 
@@ -548,6 +686,12 @@ export class RestaurantsService implements OnModuleInit {
       const d = this.derive(r);
       for (const dish of parseMenu(r.menuJson)) {
         if (vegDiet && dish.diet === 'nonveg') continue;
+        if (declared.length) {
+          // The description goes in with the name: "Sev Puri, topped with
+          // crushed groundnut" is a peanut dish whose name does not say so.
+          const hit = findAllergen(dish.name, [dish.desc], declared);
+          if (hit) { allergenMatched.add(hit.term); allergenRemoved++; continue; }
+        }
         const m = this.estimateDishMacros(dish);
         const calPct = Math.abs(m.kcal - target.kcal) / Math.max(target.kcal, 1);
         const calScore = Math.max(0, 100 - calPct * 160);
@@ -576,19 +720,28 @@ export class RestaurantsService implements OnModuleInit {
       }
     }
     matches.sort((a, b) => b.matchScore - a.matchScore);
-    return { hasPlan: true, slot, slotLabel: SLOT_LABEL[slot], target, matches: matches.slice(0, q.limit ?? 12) };
+    return { hasPlan: true, slot, slotLabel: SLOT_LABEL[slot], target, allergyNotice: allergyNotice([...allergenMatched], allergenRemoved, DISHES), matches: matches.slice(0, q.limit ?? 12) };
   }
 
+  /**
+   * The Discover page's list. Returns an OBJECT now rather than a bare array,
+   * because it has something to say beyond the cards — and a list that quietly
+   * got shorter is precisely the complaint.
+   */
   async browse(userId: string, query: RestaurantQueryDto) {
     // unbounded: the seeded catalogue — city-curated; ranking scans all of it
     const rows = await this.prisma.restaurant.findMany() as RestaurantRow[];
     const diet = await this.userDiet(userId);
     const allow = diet ? DIET_ALLOW[diet] ?? null : null;
-    return rows
-      .filter((r) => (!query.cuisine || r.cuisine === query.cuisine) && (!query.vegOnly || r.vegFriendly))
-      .sort((a, b) => b.rating - a.rating)
-      .map((r) => {
-        const card = this.shapeCard(r);
+    const screen = screenVenues(
+      rows.filter((r) => (!query.cuisine || r.cuisine === query.cuisine) && (!query.vegOnly || r.vegFriendly)),
+      await this.allergenTerms(userId),
+      (r) => ({ name: r.name, dishes: parseMenu(r.menuJson).map((m) => m.name) }),
+    );
+    const restaurants = screen.kept
+      .sort((a, b) => b.item.rating - a.item.rating)
+      .map(({ item: r, mark }) => {
+        const card = { ...this.shapeCard(r), allergen: mark };
         // Cross-hub: how much of the menu fits the diner's Nutrition diet profile.
         if (allow) {
           const menu = parseMenu(r.menuJson);
@@ -597,6 +750,7 @@ export class RestaurantsService implements OnModuleInit {
         }
         return card;
       });
+    return { restaurants, allergyNotice: allergyNotice(screen.matched, screen.removed, PLACES) };
   }
 
   async detail(userId: string, id: string) {
@@ -604,11 +758,19 @@ export class RestaurantsService implements OnModuleInit {
     if (!r) throw new NotFoundException('restaurant not found');
     const diet = await this.userDiet(userId);
     const allow = diet ? DIET_ALLOW[diet] ?? null : null;
+    // Marked, not hidden — they opened this restaurant's page on purpose, and a
+    // menu with dishes quietly missing from it is a menu that is simply wrong.
+    const declared = await this.allergenTerms(userId);
+    const markOf = (name: string, desc: string) => {
+      const hit = declared.length ? findAllergen(name, [desc], declared) : null;
+      return hit ? allergyMark(hit.term, hit.found) : null;
+    };
     const menu = parseMenu(r.menuJson).map((d) => ({
       ...d,
       dietLabel: DIET_LABEL[d.diet] ?? d.diet,
       // fitsYourDiet is null when the user has no Nutrition profile yet (nothing to compare against).
       fitsYourDiet: allow ? allow.includes(d.diet) : null,
+      allergen: markOf(d.name, d.desc),
     }));
     // group by section, preserving first-seen order
     const sections: { section: string; items: typeof menu }[] = [];
@@ -622,6 +784,7 @@ export class RestaurantsService implements OnModuleInit {
     const bestsellers = rawMenu.filter((x) => x.bestseller);
     const popularDishes = (bestsellers.length ? bestsellers : rawMenu).slice(0, 8).map((x) => ({
       name: x.name, priceInr: x.priceInr, diet: x.diet, dietLabel: DIET_LABEL[x.diet] ?? x.diet, desc: x.desc, bestseller: !!x.bestseller,
+      allergen: markOf(x.name, x.desc),
     }));
     const amenities = [
       ...(d.outdoor ? ['Outdoor seating'] : []),

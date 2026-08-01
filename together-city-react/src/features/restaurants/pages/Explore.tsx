@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { AllergyMarkTag, AllergyNote } from '@/components/ui';
 import {
   useCuisines, useTopByLocality, useCollections, useRestaurantSearch,
   inr, type DiscoverQuery, type CuratedCard,
@@ -53,6 +54,7 @@ function CuratedCardView({ r }: { r: CuratedCard }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <h3 style={{ margin: 0, fontSize: 18 }}>{r.name}</h3>
             <p className="meta" style={{ margin: '2px 0 0', fontSize: 12.5 }}>{r.icon} {r.cuisineLabel} · {r.area || r.city || 'Nearby'}</p>
+            <AllergyMarkTag mark={r.allergen} />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6, fontSize: 12.5, flexWrap: 'wrap' }}>
               <b>★ {r.rating.toFixed(1)}</b>
               {r.ratingsCount ? <span className="muted">({r.ratingsCount.toLocaleString('en-IN')})</span> : null}
@@ -265,11 +267,14 @@ export function Explore() {
                 <h2 style={{ margin: 0, fontSize: 20 }}>{top.data?.locality ? `Top 25 in ${top.data.locality}` : `Top ${topList.length} near you`}</h2>
                 <span className="muted" style={{ fontSize: 12 }}>{top.data?.live ? 'Live · Google + Together City' : 'Curated selection'}</span>
               </div>
+              <AllergyNote notice={top.data?.allergyNotice} />
               {top.isLoading ? <p className="muted">Curating the best spots near you…</p>
                 /* A failed read used to blame the citizen's filters and ask
                    them to widen the radius. Our failure, their sentence. */
                 : top.isError ? <p className="muted">We couldn’t curate the list just now — no filter of yours is to blame. Try again in a moment.</p>
-                : topList.length === 0 ? <p className="muted">No matches with these filters — widen the radius or clear a filter.</p>
+                : topList.length === 0 ? <p className="muted">{top.data?.allergyNotice
+                    ? 'Everything we found near you has something you told us to avoid on the menu.'
+                    : 'No matches with these filters — widen the radius or clear a filter.'}</p>
                 : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 18 }}>{topList.map((r) => <CuratedCardView key={r.id} r={r} />)}</div>}
             </section>
           )}

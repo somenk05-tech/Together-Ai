@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Button, EmptyState, Spinner } from '@/components/ui';
+import { AllergyMarkTag, Button, EmptyState, Spinner } from '@/components/ui';
 import { useRestaurant, usePlaceOrder, useReserve, useRestaurantOverview, inr, dietDot, type Dish } from '../api';
 import { PaymentSheet } from '@/features/financial/PaymentSheet';
 import { payError, type PayMethod } from '@/features/financial/api';
@@ -35,6 +35,7 @@ function DishRow({ d, qty, onAdd, onSub }: { d: Dish; qty: number; onAdd: () => 
           {d.fitsYourDiet === false && <span style={{ fontSize: 10, fontWeight: 700, color: '#b23', background: '#fdecec', borderRadius: 6, padding: '1px 6px' }}>off your plan</span>}
         </div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>{d.desc}</div>
+        <div><AllergyMarkTag mark={d.allergen} /></div>
         <div style={{ fontWeight: 700, fontSize: 13.5, marginTop: 5 }}>{inr(d.priceInr)}</div>
       </div>
       <div style={{ alignSelf: 'center' }}>
@@ -175,6 +176,7 @@ export function RestaurantDetail() {
                   <span style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' }}>{inr(d.priceInr)}</span>
                 </div>
                 <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>{d.desc}</div>
+                <div><AllergyMarkTag mark={d.allergen} /></div>
                 <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
                   {d.bestseller && <span style={{ fontSize: 10, fontWeight: 700, color: '#8a6d00', background: '#fff3cf', borderRadius: 6, padding: '1px 6px' }}>★ Bestseller</span>}
                   <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>{d.dietLabel}</span>

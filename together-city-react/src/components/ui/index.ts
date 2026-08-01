@@ -17,3 +17,5 @@ export { Spinner } from './Spinner';
 export { CodeInput } from './CodeInput';
 export type { CodeInputProps } from './CodeInput';
 export { EmptyValue, ValueOrEmpty, NothingYet } from './EmptyValue';
+export { AllergyNote, AllergyMarkTag } from './AllergyNote';
+export type { AllergyNoticeShape } from './AllergyNote';

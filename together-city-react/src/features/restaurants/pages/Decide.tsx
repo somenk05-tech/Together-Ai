@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { AllergyNote } from '@/components/ui';
 import { useMealMatch, useCollections, inr, type DishMatch, type CuratedCard } from '../api';
 
 /** Match medal + label for a 0–100 dish match. */
@@ -140,7 +141,10 @@ export function Decide() {
               <>
                 <TargetCard t={meal.data.target} />
                 <h2 style={{ fontSize: 20, margin: '20px 0 12px' }}>Today's best matches</h2>
-                {meal.data.matches.length === 0 ? <p className="muted">No close dish matches nearby yet.</p>
+                <AllergyNote notice={meal.data.allergyNotice} />
+                {meal.data.matches.length === 0 ? <p className="muted">{meal.data.allergyNotice
+                  ? 'Every nearby dish close to today’s target has something you told us to avoid.'
+                  : 'No close dish matches nearby yet.'}</p>
                   : <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{meal.data.matches.map((m, i) => <MatchRow key={`${m.restaurantId}-${m.dishId}`} m={m} rank={i + 1} />)}</div>}
                 <p className="muted" style={{ fontSize: 11.5, marginTop: 14 }}>Dish nutrition is estimated from each dish (menus rarely publish macros) and improves as restaurants add nutrition data.</p>
               </>
