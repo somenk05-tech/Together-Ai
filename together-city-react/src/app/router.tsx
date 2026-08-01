@@ -398,6 +398,12 @@ export const router = createBrowserRouter([
   },
   { path: '/sign-in', element: wrap(<SignIn />) },
   { path: '/signin', element: <Navigate to="/sign-in" replace /> },
+  // A real front door for new citizens (consumer review #2) — and the landing
+  // page an ad, invite or referral link needs. Same component, register-first.
+  { path: '/sign-up', element: wrap(<SignIn initialMode="register" />) },
+  { path: '/signup', element: <Navigate to="/sign-up" replace /> },
+  { path: '/register', element: <Navigate to="/sign-up" replace /> },
+  { path: '/join', element: <Navigate to="/sign-up" replace /> },
   { path: '/index.html', element: <Navigate to="/" replace /> },
 
   // Destinations the review removed. They keep resolving for one release so

@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useHubTheme } from '@/hooks/useHubTheme';
+import { useAuthStore } from '@/store/auth.store';
 import { CityHeader } from '@/components/CityHeader';
 import { RecentPanel } from '@/components/RecentPanel';
 import { HUBS } from '@/config/hubs';
@@ -70,6 +71,7 @@ const PANELS: Panel[] = [
 
 /** City home — the pavilion city, ported 1:1 from index.html. */
 export function Home() {
+  const authed = useAuthStore((s) => Boolean(s.tokens?.accessToken && s.user));
   useHubTheme(null);
   const navigate = useNavigate();
   const img = (f: string) => `/assets/img/${f}`;
@@ -127,7 +129,14 @@ export function Home() {
             Every hub belongs to the same city but carries its own atmosphere. Walk the waterfront, step into a pavilion, and everything — travel, dining, health, home, work, love — is personalised around one identity: yours.
           </p>
           <div style={{ marginTop: 30, display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link className="btn btn-gold" to="/dashboard">Enter your city</Link>
+            {authed ? (
+              <Link className="btn btn-gold" to="/dashboard">Enter your city</Link>
+            ) : (
+              <>
+                <Link className="btn btn-gold" to="/sign-up">Join the city</Link>
+                <Link className="btn" to="/sign-in">Sign in</Link>
+              </>
+            )}
           </div>
         </div>
 

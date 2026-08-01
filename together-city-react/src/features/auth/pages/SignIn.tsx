@@ -27,14 +27,14 @@ const EyeOffIcon = () => (<svg {...ic}><path d="M2 12s3.6-6.5 10-6.5c1.7 0 3.2.4
 const ArrowRight = () => (<svg {...ic} width="20" height="20"><path d="M5 12h14M13 6l6 6-6 6" /></svg>);
 const ShieldIcon = () => (<svg {...ic} width="15" height="15"><path d="M12 3l7 3v5c0 4.4-3 8-7 10-4-2-7-5.6-7-10V6l7-3z" /></svg>);
 
-/** Sign in / recover — register is handled by the redesigned RegisterForm. */
-export function SignIn() {
+/** Sign in / recover / register — /sign-up lands here register-first. */
+export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as LocationState | null)?.from ?? '/';
 
-  const [mode, setMode] = useState<Mode>('login');
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [handle, setHandle] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -225,6 +225,16 @@ export function SignIn() {
             </div>
 
             {mode === 'login' && (
+              <button type="button" onClick={() => { setMode('register'); setError(null); setNotice(null); }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%',
+                  background: 'transparent', border: '1px solid rgba(255,255,255,.38)', borderRadius: 999,
+                  padding: '14px 24px', marginBottom: 14, cursor: 'pointer', color: '#fff',
+                  fontSize: 13, letterSpacing: '.16em', fontWeight: 700, textTransform: 'uppercase', fontFamily: 'inherit' }}>
+                Create your account<ArrowRight />
+              </button>
+            )}
+
+            {mode === 'login' && (
               <p style={{ fontSize: 13, marginBottom: 8, textAlign: 'center', color: 'rgba(255,255,255,.78)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
                 <span style={{ color: 'var(--gold-bright)', display: 'grid', placeItems: 'center' }}><LockIcon size={14} /></span>
                 <button type="button" onClick={() => { setMode('forgot'); setShowPw(false); setError(null); setNotice(null); }} className="lnkbtn">Forgot password?</button>
@@ -232,7 +242,6 @@ export function SignIn() {
             )}
 
             <p style={{ fontSize: 13.5, marginBottom: 4, textAlign: 'center', color: 'rgba(255,255,255,.78)' }}>
-              {mode === 'login' && <>New to Together City?{' '}<button type="button" onClick={() => { setMode('register'); setError(null); setNotice(null); }} className="lnkbtn">Create one →</button></>}
               {(mode === 'forgot' || mode === 'reset') && <>Remembered it?{' '}<button type="button" onClick={() => { setMode('login'); setShowPw(false); setError(null); setNotice(null); }} className="lnkbtn">Back to sign in</button></>}
             </p>
 
