@@ -1,5 +1,5 @@
 import { computeTargets } from './nutrition.service';
-import { ENERGY_FLOOR, MAX_DAILY_DELTA } from './energy';
+import { ENERGY_FLOOR, MAX_DAILY_DELTA } from '../shared/energy';
 
 /**
  * The engines are wired in — proved from the service's own output rather than

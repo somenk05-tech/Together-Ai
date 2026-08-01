@@ -49,6 +49,35 @@ export const ACTIVITY_FACTORS = {
 } as const;
 export type ActivityLevel = keyof typeof ACTIVITY_FACTORS;
 
+/**
+ * THE ONE ACTIVITY SCALE, AND THERE WERE THREE.
+ *
+ *   this file            1.2   1.375  1.55  1.725  1.9    named levels
+ *   Preferences.tsx      1.2   1.4    1.6   1.8    2.0    what the form offered
+ *   fitness-engine.ts    1.3   1.4    1.5   1.6    1.75   derived from Ability
+ *
+ * Every one of those multiplies a BMR to produce a daily calorie target, and no
+ * two of them agree. The word "Athlete" meant 2.0 in the Nutrition form and 1.75
+ * in Fitness — a 14% difference in the same citizen's energy needs, decided by
+ * which page they happened to be on.
+ *
+ * These five are the canonical set because this file already treated them as
+ * canonical: nearestActivityLevel() exists precisely to snap the other numbers
+ * onto them for display, so the disclosure has been naming a level from this
+ * table while multiplying by a number from another one.
+ *
+ * The labels live here, next to the factors, because a scale whose wording lives
+ * in a component and whose numbers live in an engine is a scale that drifts —
+ * which is exactly how there came to be three.
+ */
+export const ACTIVITY_CHOICES: ReadonlyArray<{ level: ActivityLevel; factor: number; label: string }> = [
+  { level: 'sedentary', factor: ACTIVITY_FACTORS.sedentary, label: 'Sedentary — desk days' },
+  { level: 'light', factor: ACTIVITY_FACTORS.light, label: 'Lightly active — walks, errands' },
+  { level: 'moderate', factor: ACTIVITY_FACTORS.moderate, label: 'Moderately active — 3–4 workouts/week' },
+  { level: 'active', factor: ACTIVITY_FACTORS.active, label: 'Very active — daily training' },
+  { level: 'veryActive', factor: ACTIVITY_FACTORS.veryActive, label: 'Athlete — hard training' },
+];
+
 /** Energy in one kilogram of body fat, the figure the ≤0.5 kg/week cap rests on. */
 export const KCAL_PER_KG_FAT = 7700;
 

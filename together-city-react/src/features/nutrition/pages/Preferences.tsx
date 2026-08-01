@@ -20,12 +20,20 @@ const DIETS: { key: string; label: string }[] = [
   { key: 'jain', label: 'Jain' },
 ];
 
+/**
+ * Kept in step with together-city-chat/src/shared/energy.ts, which owns the
+ * scale. This list used to be 1.2 / 1.4 / 1.6 / 1.8 / 2.0 — five numbers that
+ * appear in no engine, so "Athlete — hard training" stored 2.0 while the server
+ * named it "veryActive" (1.9) and the Fitness hub called an athlete 1.75.
+ *
+ * activity-scale.test.ts fails if these five numbers stop matching the server's.
+ */
 const ACTIVITY: { value: number; label: string }[] = [
   { value: 1.2, label: 'Sedentary — desk days' },
-  { value: 1.4, label: 'Lightly active — walks, errands' },
-  { value: 1.6, label: 'Moderately active — 3–4 workouts/week' },
-  { value: 1.8, label: 'Very active — daily training' },
-  { value: 2.0, label: 'Athlete — hard training' },
+  { value: 1.375, label: 'Lightly active — walks, errands' },
+  { value: 1.55, label: 'Moderately active — 3–4 workouts/week' },
+  { value: 1.725, label: 'Very active — daily training' },
+  { value: 1.9, label: 'Athlete — hard training' },
 ];
 
 const CUISINES = ['Indian', 'Chinese', 'Italian', 'Mexican', 'Thai', 'Continental', 'Japanese', 'Mediterranean', 'American', 'Middle Eastern'];

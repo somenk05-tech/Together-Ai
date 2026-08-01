@@ -2,6 +2,7 @@ import { Injectable, Logger, ConflictException } from '@nestjs/common';
 import { clinicalSex, datingGender, displayGender, genderIdentityFromBeauty } from './sex-and-gender';
 import { salutation } from '../shared/salutation';
 import { canonicaliseDeclared } from '../shared/allergens';
+import { ACTIVITY_FACTORS, nearestActivityLevel } from '../shared/energy';
 import { diffProfile, versionConflict } from './profile-change';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -46,13 +47,15 @@ export interface SharedFields {
   /** Declared food allergens, csv. Written by Nutrition; read by hubs that
    *  never ask. See the schema comment for why it is words and not keys. */
   foodAllergens?: string | null;
+  /** sedentary | light | moderate | active | veryActive — see shared/energy.ts. */
+  activityLevel?: string | null;
 }
 
 const SHARED_KEYS: Array<keyof SharedFields> = [
   'gender', 'sexAtBirth', 'genderIdentity', 'genderIdentityOther',
   'dateOfBirth', 'timeOfBirth', 'birthCountry', 'birthState', 'birthCity',
   'country', 'state', 'city', 'timeZone', 'languages', 'heightCm', 'weightKg', 'occupation', 'phone', 'address',
-  'foodAllergens',
+  'foodAllergens', 'activityLevel',
 ];
 
 export const computeAge = (dob: Date | null | undefined): number | null => {
@@ -113,7 +116,15 @@ export function propagationPlan(shared: SharedFields): {
       gender: social, birthDate: shared.dateOfBirth ?? undefined,
       birthTime: shared.timeOfBirth, birthPlace,
     }),
-    food: def({ heightCm: shared.heightCm, weightKg: shared.weightKg, sex: sexBinary, age }),
+    // The level resolves to its factor HERE and nowhere else, so FoodPref keeps
+    // holding a float its engine can multiply while the citizen's answer stays a
+    // word. One lookup table, one direction.
+    food: def({
+      heightCm: shared.heightCm, weightKg: shared.weightKg, sex: sexBinary, age,
+      activity: shared.activityLevel
+        ? ACTIVITY_FACTORS[shared.activityLevel as keyof typeof ACTIVITY_FACTORS]
+        : undefined,
+    }),
     fitness: def({ heightCm: shared.heightCm, weightKg: shared.weightKg, sex: sexBinary, age }),
   };
 }
@@ -237,7 +248,17 @@ export class MasterProfileService {
         birthCity: place[0], birthState: place.length > 2 ? place[1] : undefined,
         birthCountry: place.length > 1 ? place[place.length - 1] : undefined,
       } : {},
-      food ? { heightCm: food.heightCm, weightKg: food.weightKg, sexAtBirth: food.sex, foodAllergens: declaredFood } : {},
+      // answeredAt, not the column. FoodPref.activity defaults to 1.4 at
+      // registration, and back-filling that would turn a default into an answer
+      // — the exact thing answeredAt exists to prevent, arriving through the
+      // consolidation door instead of the read door.
+      food ? {
+        heightCm: food.heightCm, weightKg: food.weightKg, sexAtBirth: food.sex,
+        foodAllergens: declaredFood,
+        activityLevel: food.answeredAt && typeof food.activity === 'number'
+          ? nearestActivityLevel(food.activity)
+          : undefined,
+      } : {},
       fitness ? { heightCm: fitness.heightCm, weightKg: fitness.weightKg, sexAtBirth: fitness.sex === 'other' ? undefined : fitness.sex } : {},
       // Beauty stores its label capitalised ('Female'). Merging it raw put that
       // into a column whose readers compare lowercase, so the backfill was

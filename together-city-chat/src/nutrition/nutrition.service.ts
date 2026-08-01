@@ -30,7 +30,7 @@ import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POO
 import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from './diet-tags';
 import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
 import { canonicaliseDeclared, findAllergen, isAllergenSafe } from '../shared/allergens';
-import { energyTarget } from './energy';
+import { ACTIVITY_CHOICES, ACTIVITY_FACTORS, energyTarget, nearestActivityLevel } from '../shared/energy';
 import { itemKey, mergeGroceryList } from './grocery-merge';
 import { targetReadiness } from './target-readiness';
 import { scoreDual, buildScorecard, guidelineCaps } from './plan-score';
@@ -2491,6 +2491,12 @@ export class NutritionService implements OnModuleInit {
       foodAllergens: typeof declaredAllergies === 'string'
         ? canonicaliseDeclared(declaredAllergies.split(/[,;]/)).join(',')
         : undefined,
+      // The named level, from whatever float the form sent. Sending the number
+      // would put a third scale back on the master the moment anybody changed
+      // the form's options.
+      activityLevel: typeof (dto as { activity?: unknown }).activity === 'number'
+        ? nearestActivityLevel((dto as { activity: number }).activity)
+        : undefined,
     }, 'nutrition').catch(() => undefined);
     return saved;
   }
@@ -2506,6 +2512,10 @@ export class NutritionService implements OnModuleInit {
       age: pref?.age ?? null,
       sex: pref?.sex ?? null,
       activity: pref?.activity ?? 1.4,
+      // The form renders these rather than holding its own copy. Its own copy is
+      // how "Athlete" came to mean 2.0 here and 1.75 in Fitness.
+      activityChoices: ACTIVITY_CHOICES,
+      activityLevel: pref?.activity != null ? nearestActivityLevel(pref.activity) : null,
       extras: (pref as { extras?: string | null } | null)?.extras ?? null,
     };
   }

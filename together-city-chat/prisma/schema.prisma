@@ -1922,6 +1922,13 @@ model MasterProfile {
   /// which never ask. NOT rendered into any hub's editable form — a second
   /// editable copy is the problem §3 exists to remove.
   foodAllergens String?
+  /// How much the citizen moves, in the five named levels of shared/energy.ts —
+  /// sedentary | light | moderate | active | veryActive.
+  ///
+  /// The LEVEL, not the multiplier. A number in a profile column is a number
+  /// somebody will invent a new scale for; the name is the thing the citizen
+  /// actually answered, and every engine looks the factor up from one table.
+  activityLevel String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
