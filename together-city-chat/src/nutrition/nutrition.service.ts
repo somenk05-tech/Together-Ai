@@ -1376,6 +1376,13 @@ export class NutritionService implements OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
+    // The corpus is the FIRST thing generatePlan reads, so it warms FIRST —
+    // in parallel with everything below, not at the end of the QA chain. We
+    // deployed eight times in two hours today and every deploy left the first
+    // planner open paying the whole cold pipeline; the in-flight promise
+    // sharing means anyone arriving mid-warm joins this read instead of
+    // timing out behind it.
+    void this.recipeCorpus().catch(swallowed('nutrition.onModuleInit', undefined));
     await this.ensureRecipes();
     await this.ensureDietitians();
     // Recipe data: adopt the v2 dataset (per-serving, cleaned) on an existing DB,
