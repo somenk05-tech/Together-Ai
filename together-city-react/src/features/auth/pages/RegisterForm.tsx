@@ -115,11 +115,11 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
           <VerifyChannel
             channel="email"
             current={email}
-            onVerified={() => navigate(from, { replace: true })}
+            onVerified={() => navigate(from === '/' ? '/dashboard' : from, { replace: true })}
           />
         </div>
 
-        <Button variant="ghost" size="sm" style={{ width: '100%', justifyContent: 'center' }} onClick={() => navigate(from, { replace: true })}>
+        <Button variant="ghost" size="sm" style={{ width: '100%', justifyContent: 'center' }} onClick={() => navigate(from === '/' ? '/dashboard' : from, { replace: true })}>
           Skip for now
         </Button>
       </div>

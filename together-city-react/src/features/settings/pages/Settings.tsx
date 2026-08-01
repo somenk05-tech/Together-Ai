@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useWebPush } from '@/hooks/useWebPush';
 import { Card, Button } from '@/components/ui';
 import { authApi, type SessionInfo } from '@/api/auth.api';
+import { http } from '@/api/client';
 import { useMyProfile } from '@/features/social/myProfile.api';
 
 /** A neutral, self-contained on/off switch (on-device preference). */
@@ -127,6 +128,25 @@ export function Settings() {
   const [priceDrop, setPriceDrop] = useState(true);
   const [socialMute, setSocialMute] = useState(false);
 
+  const [exporting, setExporting] = useState(false);
+  // GET /privacy/export has existed server-side since the purge work — the
+  // legal pages promise "Download My Data" and this button finally keeps it.
+  const downloadData = async () => {
+    setExporting(true);
+    try {
+      const { data } = await http.get('/privacy/export');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'together-city-data.json'; a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      window.alert("Couldn't build your export just now — nothing was lost. Please try again in a moment.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const [confirmText, setConfirmText] = useState('');
   const [deletePassword, setDeletePassword] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -217,7 +237,9 @@ export function Settings() {
         <SectionTitle eyebrow="Subscription" title="Together+ & account" />
         <Row title="Together+" desc="Priority bookings, no-fee splits, curated perks" right={<span className="tag">Free member</span>} />
         <Row title="Your drive" desc="Private cloud storage for your documents and media" right={<Link to="/drive" className="tag">Open</Link>} />
-        <Row title="Export data" desc="Full archive of your city, downloadable anytime" right={<Link to="/profile" className="tag">Request</Link>} />
+        <Row title="Export data" desc="Everything the city holds about you, as one JSON file"
+          right={<button type="button" className="tag" disabled={exporting} onClick={() => void downloadData()}
+            style={{ cursor: exporting ? 'wait' : 'pointer', fontFamily: 'inherit', border: 'none' }}>{exporting ? 'Building…' : 'Download'}</button>} />
         <Row title="Security & 2FA" desc="Password, biometrics, two-factor" right={<span className="tag">Coming soon</span>} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 0', borderTop: '1px solid var(--line)' }}>
           <div>

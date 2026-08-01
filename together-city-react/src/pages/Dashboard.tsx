@@ -240,8 +240,32 @@ export function Dashboard() {
           </div>
         </section>
       )}
+      {/* ── Bring someone ── the city is better with your people in it. */}
+      <section className="card" style={{ marginTop: 22, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <h2 style={{ fontSize: 16, margin: 0 }}>Bring someone with you</h2>
+          <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>Meals, plans and households work better with your people in the city.</p>
+        </div>
+        <button type="button" onClick={() => void invite()} style={{ ...startStyle, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+          Invite a friend
+        </button>
+      </section>
     </div>
   );
+}
+
+/** Share (or copy) the front-door link — no referral machinery, just the door. */
+async function invite(): Promise<void> {
+  const url = `${window.location.origin}/join`;
+  try {
+    if (navigator.share) { await navigator.share({ title: 'Together City', text: 'Join me in Together City — one city for your whole life.', url }); return; }
+  } catch { return; /* the citizen closed the share sheet — nothing to do */ }
+  try {
+    await navigator.clipboard.writeText(url);
+    window.alert('Invite link copied — send it to anyone.');
+  } catch {
+    window.prompt('Copy your invite link:', url);
+  }
 }
 
 function Waiting({ to, n, one, many }: { to: string; n: number; one: string; many: string }) {

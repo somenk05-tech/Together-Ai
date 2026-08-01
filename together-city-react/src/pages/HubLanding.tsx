@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, Navigate } from 'react-router-dom';
+import { useAuthStore } from '@/store/auth.store';
 import type { HubKey } from '@/types';
 import { HUBS } from '@/config/hubs';
 import { useHubTheme } from '@/hooks/useHubTheme';
@@ -34,6 +36,23 @@ export function HubLanding({ hub }: { hub: HubKey }) {
   const cfg = HUBS[hub];
   const firstInner = cfg.items[0]?.path ?? cfg.backPath;
   const heroSrc = `/assets/img/${HUB_HERO[hub] ?? `${hub}.webp`}`;
+  // The poster earns one showing (consumer review #7): a returning citizen
+  // walks straight into their own kitchen. First visit still sees it (and the
+  // consent gate, which always has the final word), and the per-user seen
+  // flags are wiped with the rest of tc:* on sign-out/user-switch.
+  const authed = useAuthStore((s) => Boolean(s.tokens?.accessToken && s.user));
+  let seen = false;
+  try { seen = authed && localStorage.getItem(`tc:hub-seen:${hub}`) === '1'; } catch { seen = false; }
+  useEffect(() => {
+    if (authed) try { localStorage.setItem(`tc:hub-seen:${hub}`, '1'); } catch { /* storage unavailable */ }
+  }, [authed, hub]);
+  if (seen) {
+    return (
+      <HubConsentGate hub={hub}>
+        <Navigate to={firstInner} replace />
+      </HubConsentGate>
+    );
+  }
   return (
     <HubConsentGate hub={hub}>
     <div className="gateway-lite" style={{ position: 'relative', minHeight: 'calc(100vh - var(--header-h))', display: 'flex', alignItems: 'flex-end', color: '#fff', overflow: 'hidden' }}>

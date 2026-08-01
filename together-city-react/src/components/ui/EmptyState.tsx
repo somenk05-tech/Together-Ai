@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 export interface EmptyStateProps {
   icon?: string;
@@ -22,6 +23,11 @@ export function EmptyState({ icon = '◈', title, hint, action }: EmptyStateProp
       <p style={{ fontWeight: 600, color: 'var(--ink)' }}>{title}</p>
       {hint && <p style={{ fontSize: 13, marginTop: 4 }}>{hint}</p>}
       {action && <div style={{ marginTop: 16 }}>{action}</div>}
+      {icon === '⚠️' && (
+        <p style={{ fontSize: 12.5, marginTop: 14 }}>
+          Keeps happening? <Link to="/help" style={{ color: 'var(--accent)', fontWeight: 700 }}>Help</Link> has a way to reach us.
+        </p>
+      )}
     </div>
   );
 }

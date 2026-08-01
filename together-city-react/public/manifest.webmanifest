@@ -1,0 +1,13 @@
+{
+  "name": "Together City",
+  "short_name": "Together City",
+  "description": "One city for your whole life. Everything personalized.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f1012",
+  "theme_color": "#faf9f6",
+  "icons": [
+    { "src": "/assets/img/tc-logo.png", "sizes": "680x680", "type": "image/png", "purpose": "any" }
+  ]
+}
