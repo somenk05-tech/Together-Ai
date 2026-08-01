@@ -1,0 +1,244 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`what the notifications engine decides today a plain notification: the row, the emit, the count 1`] = `
+{
+  "emitted": [
+    {
+      "count": 1,
+      "ev": "new",
+      "payload": {
+        "body": undefined,
+        "createdAt": "2026-08-01T10:00:00.000Z",
+        "href": "/connections",
+        "id": "n1",
+        "kind": "connection_request",
+        "read": false,
+        "title": "Someone sent you a connection request",
+      },
+      "userId": "u1",
+    },
+  ],
+  "table": [
+    {
+      "actorId": "u2",
+      "body": null,
+      "createdAt": 2026-08-01T10:00:00.000Z,
+      "entityId": null,
+      "href": "/connections",
+      "id": "n1",
+      "kind": "connection_request",
+      "read": false,
+      "title": "Someone sent you a connection request",
+      "userId": "u1",
+    },
+  ],
+}
+`;
+
+exports[`what the notifications engine decides today a ringing phone ignores both rules — every call its own row 1`] = `
+{
+  "pushes": [
+    {
+      "payload": {
+        "body": "Asha Verma is calling you.",
+        "data": {
+          "callId": "call1",
+          "conversationId": "c1",
+        },
+        "deepLink": "togethercity://call/call1",
+        "imageUrl": undefined,
+        "title": "Incoming video call",
+      },
+      "tokens": [
+        "fcm-viewer",
+      ],
+      "via": "fcm",
+    },
+    {
+      "payload": {
+        "body": "Asha Verma is calling you.",
+        "conversationId": "c1",
+        "icon": undefined,
+        "title": "Incoming video call",
+      },
+      "tokens": [
+        "web-viewer",
+      ],
+      "via": "webpush",
+    },
+    {
+      "payload": {
+        "body": "Asha Verma is calling you.",
+        "data": {
+          "callId": "call1",
+          "conversationId": "c1",
+        },
+        "deepLink": "togethercity://call/call1",
+        "imageUrl": undefined,
+        "title": "Incoming video call",
+      },
+      "tokens": [
+        "fcm-mutedone",
+      ],
+      "via": "fcm",
+    },
+    {
+      "payload": {
+        "body": "Asha Verma is calling you.",
+        "conversationId": "c1",
+        "icon": undefined,
+        "title": "Incoming video call",
+      },
+      "tokens": [
+        "web-mutedone",
+      ],
+      "via": "webpush",
+    },
+    {
+      "payload": {
+        "body": "Asha Verma is calling you.",
+        "data": {
+          "callId": "call2",
+          "conversationId": "c1",
+        },
+        "deepLink": "togethercity://call/call2",
+        "imageUrl": undefined,
+        "title": "Incoming call",
+      },
+      "tokens": [
+        "fcm-viewer",
+      ],
+      "via": "fcm",
+    },
+    {
+      "payload": {
+        "body": "Asha Verma is calling you.",
+        "conversationId": "c1",
+        "icon": undefined,
+        "title": "Incoming call",
+      },
+      "tokens": [
+        "web-viewer",
+      ],
+      "via": "webpush",
+    },
+  ],
+  "table": [
+    {
+      "actorId": "sender1",
+      "body": "Asha Verma is calling you.",
+      "createdAt": 2026-08-01T10:00:00.000Z,
+      "entityId": "call1",
+      "href": "/chats?c=c1&call=call1",
+      "id": "n1",
+      "kind": "call_incoming",
+      "read": false,
+      "title": "Incoming video call",
+      "userId": "viewer",
+    },
+    {
+      "actorId": "sender1",
+      "body": "Asha Verma is calling you.",
+      "createdAt": 2026-08-01T10:00:00.000Z,
+      "entityId": "call1",
+      "href": "/chats?c=c1&call=call1",
+      "id": "n2",
+      "kind": "call_incoming",
+      "read": false,
+      "title": "Incoming video call",
+      "userId": "mutedone",
+    },
+    {
+      "actorId": "sender1",
+      "body": "Asha Verma is calling you.",
+      "createdAt": 2026-08-01T10:00:00.000Z,
+      "entityId": "call2",
+      "href": "/chats?c=c1&call=call2",
+      "id": "n3",
+      "kind": "call_incoming",
+      "read": false,
+      "title": "Incoming call",
+      "userId": "viewer",
+    },
+  ],
+}
+`;
+
+exports[`what the notifications engine decides today an unrevealed dating chat shows the pseudonym, never the name 1`] = `
+{
+  "hrefIsDating": "/dating/chats?c=c9",
+  "revealedTitle": "Asha Verma",
+  "unrevealedTitle": "Cosmic Harbor",
+}
+`;
+
+exports[`what the notifications engine decides today messages group per conversation, updating in place; a second chat gets its own row 1`] = `
+[
+  {
+    "body": "second — replaces, not appends",
+    "createdAt": 2026-08-01T10:00:00.000Z,
+    "entityId": "c1",
+    "href": "/chats?c=c1",
+    "id": "n1",
+    "kind": "message",
+    "read": false,
+    "title": "Asha Verma",
+    "userId": "u1",
+  },
+  {
+    "body": "a different chat",
+    "createdAt": 2026-08-01T10:00:00.000Z,
+    "entityId": "c2",
+    "href": "/chats?c=c2",
+    "id": "n2",
+    "kind": "message",
+    "read": false,
+    "title": "Asha Verma",
+    "userId": "u1",
+  },
+]
+`;
+
+exports[`what the notifications engine decides today never notifies you of your own action 1`] = `
+{
+  "emitted": [],
+  "table": [],
+}
+`;
+
+exports[`what the notifications engine decides today viewing the conversation suppresses; being muted suppresses 1`] = `
+{
+  "pushes": [
+    {
+      "payload": {
+        "body": "hello",
+        "data": {
+          "conversationId": "c1",
+        },
+        "deepLink": "togethercity://chat/c1",
+        "imageUrl": undefined,
+        "title": "Asha Verma",
+      },
+      "tokens": [
+        "fcm-plain",
+      ],
+      "via": "fcm",
+    },
+    {
+      "payload": {
+        "body": "hello",
+        "conversationId": "c1",
+        "icon": undefined,
+        "title": "Asha Verma",
+      },
+      "tokens": [
+        "web-plain",
+      ],
+      "via": "webpush",
+    },
+  ],
+  "rowsFor": [
+    "plain",
+  ],
+}
+`;
