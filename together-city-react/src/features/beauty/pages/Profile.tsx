@@ -407,6 +407,11 @@ export function Profile() {
   const del = useDeleteLatestAssessment();
   const master = useMasterProfile();
   const ageLocked = master.data?.age != null;
+  // Gender is decided once, in the Master Profile. Beauty shows it and cannot
+  // change it — its own select only ever offered Female | Male | Other, so
+  // saving here used to flatten a non-binary citizen's answer and write the
+  // flattened value back over the canonical one.
+  const genderLocked = Boolean(master.data?.genderIdentity);
   const [tab, setTab] = useState<'photos' | 'profile'>('photos');
   const [f, setF] = useState<Form>(EMPTY);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -722,13 +727,23 @@ export function Profile() {
             <div className="eyebrow" style={{ marginBottom: 10 }}>Basic profile</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 10 }}>
               <input style={{ ...fld, ...(ageLocked ? masterLockedStyle : {}) }} type="number" placeholder="Age" value={f.age ?? ''} disabled={ageLocked} title={ageLocked ? 'Set in your Master Profile' : undefined} onChange={(e) => set('age', e.target.value ? +e.target.value : undefined)} />
-              <select aria-label="Gender" style={fld} value={f.gender ?? ''} onChange={(e) => set('gender', e.target.value || undefined)}><option value="">Gender</option><option>Female</option><option>Male</option><option>Other</option></select>
+              <select
+                aria-label="Gender"
+                style={{ ...fld, ...(genderLocked ? masterLockedStyle : {}) }}
+                value={f.gender ?? ''}
+                disabled={genderLocked}
+                title={genderLocked ? 'Set in your Master Profile' : undefined}
+                onChange={(e) => set('gender', e.target.value || undefined)}
+              >
+                <option value="">Gender</option><option>Female</option><option>Male</option><option>Other</option>
+              </select>
               <input style={fld} type="number" placeholder="Height (cm)" value={f.heightCm ?? ''} onChange={(e) => set('heightCm', e.target.value ? +e.target.value : undefined)} />
               <input style={fld} type="number" placeholder="Weight (kg)" value={f.weightKg ?? ''} onChange={(e) => set('weightKg', e.target.value ? +e.target.value : undefined)} />
               <input style={fld} placeholder="City / climate" value={f.city ?? ''} onChange={(e) => set('city', e.target.value)} />
               <input style={fld} placeholder="Occupation" value={f.occupation ?? ''} onChange={(e) => set('occupation', e.target.value)} />
             </div>
             {ageLocked && <MasterLockedNote label="Age" />}
+            {genderLocked && <MasterLockedNote label="Gender" />}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
               {LIFESTYLE.map((l) => <Chip key={l} on={isOn('lifestyle', l)} label={l} onClick={() => single('lifestyle', l)} />)}
             </div>

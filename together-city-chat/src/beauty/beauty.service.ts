@@ -6,7 +6,7 @@ import { MedicalService } from '../medical/medical.service';
 import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import { MasterProfileService } from '../profile/master-profile.service';
-import { beautyGender, genderIdentityFromBeauty } from '../profile/sex-and-gender';
+import { beautyGender } from '../profile/sex-and-gender';
 import {
   beautyInsights, recommendProducts, priceBeautyOrder, CONCERN_TAGS, BEAUTY_PRODUCTS,
   type BeautyInsight,
@@ -241,13 +241,26 @@ export class BeautyService {
     // Master Profile sync — shared demographics flow back to the single source of
     // truth and propagate to every other hub (age lives in the master fallback).
     const pp = p as { gender?: string; heightCm?: number; weightKg?: number; city?: string; occupation?: string };
-    // genderIdentity, in the identity vocabulary. This used to write pp.gender
-    // — Beauty's CAPITALISED label — into the retired `gender` column, which
-    // expects lowercase. So 'Female' went in, clinicalSex() compared it against
-    // 'female' and returned undefined, and a citizen who filled Beauty first had
-    // no clinical sex anywhere in the city with nothing to say why.
+    /**
+     * BEAUTY NO LONGER WRITES GENDER BACK. (Owner decision, 1 Aug: gender is
+     * decided once, at the Master Profile, and no hub asks again.)
+     *
+     * It used to, and it destroyed data. Beauty's select is
+     * Female | Male | Other, so beautyGender() flattens nonBinary to 'Other';
+     * the save then ran that label back through genderIdentityFromBeauty(),
+     * which returns 'other', and syncShared() overwrites any field it is
+     * handed. A non-binary citizen who changed their SKIN TYPE silently had
+     * `nonBinary` rewritten to `other` in the canonical row — a protected
+     * attribute destroyed by an unrelated save, with nothing shown.
+     *
+     * Removing the field from the patch is the whole fix, because syncShared
+     * ignores `undefined`. The consolidation back-fill in
+     * master-profile.service stays: it is fill-if-missing and write-once, so
+     * it can still recover a gender for a legacy account whose only answer was
+     * this hub's select, and it can never overwrite one.
+     */
     await swallow(this.masterProfile.syncShared(userId, {
-      genderIdentity: genderIdentityFromBeauty(pp.gender), heightCm: pp.heightCm, weightKg: pp.weightKg,
+      heightCm: pp.heightCm, weightKg: pp.weightKg,
       city: pp.city, occupation: pp.occupation,
     }, 'beauty'), 'beauty: master-profile sync', { userId });
 
