@@ -1,0 +1,232 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`livability, as scored today score and basis over amenities + neighbourhood 1`] = `
+{
+  "bare": {
+    "basis": "Counts 0 listed amenities and 0 facilities within 2 km, as reported by the seller. It is not a survey, an inspection, or a rating of the area.",
+    "score": 0,
+  },
+  "full": {
+    "basis": "Counts 4 listed amenities and 3 facilities within 2 km, as reported by the seller. It is not a survey, an inspection, or a rating of the area.",
+    "score": 48,
+  },
+}
+`;
+
+exports[`what listing moderation decides today contact detection and description normalisation, as they are 1`] = `
+{
+  "hits": [
+    "a WhatsApp/Telegram contact",
+    "a social handle",
+    "a UPI / payment id",
+    "an off-platform link",
+  ],
+  "normalized": "2bhk  sunlit  airy",
+}
+`;
+
+exports[`what listing moderation decides today the AI verdict: confident flags reject, unsure flags go to review 1`] = `
+{
+  "aiClear": {
+    "confidence": 0.9,
+    "decision": "approved",
+    "failed": [],
+    "reasons": [],
+    "score": 0,
+  },
+  "confidentFlag": {
+    "confidence": 0.6,
+    "decision": "rejected",
+    "failed": [],
+    "reasons": [
+      "Reads like a rental scam.",
+    ],
+    "score": 0,
+  },
+  "unsureFlag": {
+    "confidence": 0.4,
+    "decision": "review",
+    "failed": [],
+    "reasons": [],
+    "score": 0,
+  },
+}
+`;
+
+exports[`what listing moderation decides today the clean listing, the phone number, the missing fields 1`] = `
+{
+  "clean": {
+    "confidence": 0.9,
+    "decision": "approved",
+    "failed": [],
+    "reasons": [],
+    "score": 0,
+  },
+  "emailInCaption": {
+    "confidence": 0.95,
+    "decision": "rejected",
+    "failed": [
+      "no-contact-info",
+    ],
+    "reasons": [
+      "Remove an email address, a social handle — keep contact on Together City.",
+    ],
+    "score": 8,
+  },
+  "missingEverything": {
+    "confidence": 0.95,
+    "decision": "rejected",
+    "failed": [
+      "required-fields",
+    ],
+    "reasons": [
+      "Missing: title, city, locality, price, area, bedrooms.",
+    ],
+    "score": 8,
+  },
+  "phoneInDescription": {
+    "confidence": 0.95,
+    "decision": "rejected",
+    "failed": [
+      "no-contact-info",
+    ],
+    "reasons": [
+      "Remove a phone number — keep contact on Together City.",
+    ],
+    "score": 8,
+  },
+}
+`;
+
+exports[`what listing moderation decides today the soft signals: duplicate, price outlier, scam phrasing, spam, fraud 1`] = `
+{
+  "allCaps": {
+    "confidence": 0.6,
+    "decision": "review",
+    "failed": [
+      "no-spam",
+    ],
+    "reasons": [
+      "Looks spammy (emoji/keyword/caps overuse).",
+    ],
+    "score": 8,
+  },
+  "duplicate": {
+    "confidence": 0.6,
+    "decision": "review",
+    "failed": [
+      "not-duplicate",
+    ],
+    "reasons": [
+      "Very similar to an existing listing (prop-1).",
+    ],
+    "score": 8,
+  },
+  "riskyAccount": {
+    "confidence": 0.6,
+    "decision": "review",
+    "failed": [
+      "fraud-score",
+    ],
+    "reasons": [
+      "Account risk score 65/100.",
+    ],
+    "score": 73,
+  },
+  "scamPhrasing": {
+    "confidence": 0.6,
+    "decision": "review",
+    "failed": [
+      "no-scam-language",
+    ],
+    "reasons": [
+      "Contains scam-like phrasing — needs a look.",
+    ],
+    "score": 8,
+  },
+  "tenTimesTheMarket": {
+    "confidence": 0.6,
+    "decision": "review",
+    "failed": [
+      "pricing-sane",
+    ],
+    "reasons": [
+      "₹75000/sqft vs ₹1800/sqft nearby — verify.",
+    ],
+    "score": 8,
+  },
+}
+`;
+
+exports[`what the service derives today, over stubs fraud score branches (decade-old account: age bonus can never fire) 1`] = `
+{
+  "clean": 0,
+  "rapidPoster": 25,
+  "repeatOffender": 30,
+}
+`;
+
+exports[`what the service derives today, over stubs the card: derived price/sqft, verification badges, posted-on in the viewer zone 1`] = `
+{
+  "areaSqft": 1200,
+  "bathrooms": 2,
+  "bedrooms": 2,
+  "city": "Bengaluru",
+  "coverPhoto": "p1.webp",
+  "createdOn": "2026-08-01",
+  "developer": null,
+  "facing": "east",
+  "furnishing": "semi",
+  "id": "p1",
+  "listingType": "sale",
+  "locality": "Indiranagar",
+  "moderation": "approved",
+  "moderationReasons": [],
+  "photoCount": 1,
+  "possessionDate": null,
+  "postedByYou": false,
+  "priceInr": 9000000,
+  "pricePerSqft": 7500,
+  "progressPct": null,
+  "projectName": null,
+  "propertyType": "apartment",
+  "status": "ready",
+  "title": "2BHK",
+  "verified": {
+    "listedBy": "owner",
+    "photo": true,
+    "rera": true,
+  },
+}
+`;
+
+exports[`what the service derives today, over stubs the market insight block 1`] = `
+{
+  "noPeers": {
+    "areaAvgPerSqft": 7500,
+    "deltaPct": 0,
+    "pricePerSqft": 7500,
+    "sampleSize": 0,
+  },
+  "withPeers": {
+    "areaAvgPerSqft": 8000,
+    "deltaPct": -6,
+    "pricePerSqft": 7500,
+    "sampleSize": 2,
+  },
+  "zeroArea": {
+    "areaAvgPerSqft": 8000,
+    "deltaPct": -100,
+    "pricePerSqft": 0,
+    "sampleSize": 1,
+  },
+}
+`;
+
+exports[`what the service derives today, over stubs the three sentences a citizen reads after posting 1`] = `
+{
+  "approved": "Your property is now live in Explore Properties.",
+  "rejected": "Your listing wasn’t published: Remove a phone number. Edit and resubmit when ready.",
+  "review": "Thanks — your listing is in manual review. We’ll notify you shortly.",
+}
+`;

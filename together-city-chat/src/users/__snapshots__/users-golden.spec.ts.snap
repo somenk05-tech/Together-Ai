@@ -1,0 +1,41 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`what handle lookup decides today the relationship labels, exactly as the UI receives them 1`] = `
+{
+  "accepted": {
+    "handle": "rhea",
+    "id": "u2",
+    "name": "Rhea",
+    "profileImage": null,
+    "relationship": "accepted",
+  },
+  "blocked": {
+    "handle": "rhea",
+    "id": "u2",
+    "name": "Rhea",
+    "profileImage": null,
+    "relationship": "blocked",
+  },
+  "iAsked": {
+    "handle": "rhea",
+    "id": "u2",
+    "name": "Rhea",
+    "profileImage": null,
+    "relationship": "pending_out",
+  },
+  "stranger": {
+    "handle": "rhea",
+    "id": "u2",
+    "name": "Rhea",
+    "profileImage": null,
+    "relationship": "none",
+  },
+  "theyAsked": {
+    "handle": "rhea",
+    "id": "u2",
+    "name": "Rhea",
+    "profileImage": null,
+    "relationship": "pending_in",
+  },
+}
+`;
