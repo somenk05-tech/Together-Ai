@@ -189,6 +189,25 @@ export class NutritionController {
     return this.nutrition.pinComposedMeal(user.sub, dto.day, dto.slot, dto.recipeId);
   }
 
+  /**
+   * Lock a day. Its meals stop moving, and its shopping joins the grocery list
+   * — the moment a plan becomes a shopping trip.
+   */
+  @Post('plan/composed/lock')
+  @UsePipes(new ZodValidationPipe(z.object({
+    day: z.number().int().min(0).max(60),
+    mode: z.enum(['individual', 'family']).optional(),
+  })))
+  lockComposedDay(@CurrentUser() user: JwtUser, @Body() dto: { day: number; mode?: 'individual' | 'family' }) {
+    return this.nutrition.lockComposedDay(user.sub, dto.day, dto.mode ?? 'individual');
+  }
+
+  @Post('plan/composed/unlock')
+  @UsePipes(new ZodValidationPipe(z.object({ day: z.number().int().min(0).max(60) })))
+  unlockComposedDay(@CurrentUser() user: JwtUser, @Body() dto: { day: number }) {
+    return this.nutrition.unlockComposedDay(user.sub, dto.day);
+  }
+
   @Post('plan/composed/unpin')
   @UsePipes(new ZodValidationPipe(z.object({
     day: z.number().int().min(0).max(60),

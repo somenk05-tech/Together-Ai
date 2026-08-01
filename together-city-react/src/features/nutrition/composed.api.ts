@@ -86,6 +86,8 @@ export interface ComposedWeek {
   /** Dual score for this plan + the counterpart mode, so each tab shows both
    *  scores and the difference between the two plans. */
   scorecard?: Scorecard;
+  /** Day indexes the citizen has locked. Enforced server-side, not a UI flag. */
+  locks?: number[];
   /** What the allergy rule kept out of this plan, or null. (K5.66.) */
   allergyNotice?: AllergyNoticeShape | null;
   prescription: Prescription;
@@ -199,6 +201,37 @@ export function useUnpinMeal() { return useComposedMutation<{ day: number; slot:
 
 /** Start a fresh 3-week plan (re-anchor to today, reseed the meals). */
 export function useRenewPlan() { return useComposedMutation<Record<string, never>>('/nutrition/plan/composed/renew'); }
+
+/**
+ * Lock a day: its meals stop moving and its shopping joins the grocery list.
+ *
+ * The grocery cache is invalidated too — the whole point of locking is that the
+ * basket changed, and a Grocery page still showing yesterday's list would make
+ * the citizen doubt it worked.
+ */
+export interface LockResult {
+  locked: boolean; day: number; dayISO: string | null;
+  nextDay: number | null; groceryAdded: boolean; plan: ComposedWeek;
+}
+export function useLockDay() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { day: number; mode?: 'individual' | 'family' }) =>
+      api.post<LockResult>('/nutrition/plan/composed/lock', v).then((r) => r.data),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'composed'] });
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery'] });
+    },
+  });
+}
+export function useUnlockDay() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { day: number }) =>
+      api.post<{ locked: boolean; day: number; plan: ComposedWeek }>('/nutrition/plan/composed/unlock', v).then((r) => r.data),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['nutrition', 'composed'] }); },
+  });
+}
 /** Per-line (single-dish) Refresh / Skip — reroll or drop one dish by its plate role. */
 export function useRefreshComponent() { return useComposedMutation<{ day: number; slot: string; role: string }>('/nutrition/plan/composed/refresh-item'); }
 export function useSkipComponent() { return useComposedMutation<{ day: number; slot: string; role: string; skipped: boolean }>('/nutrition/plan/composed/skip-item'); }

@@ -4,7 +4,7 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **392 routes** across
+Every path below is prefixed with `/api`. **395 routes** across
 **34 controllers**; **9** are reachable without a token.
 
 ## Conventions
@@ -201,6 +201,7 @@ _dating/dating.controller.ts_
 | POST | `/api/dating/matches/:targetUserId/unmatch` | 🔒 |
 | GET | `/api/dating/matches/:targetUserId` | 🔒 |
 | GET | `/api/dating/matches` | 🔒 |
+| POST | `/api/dating/photos/presign` | 🔒 |
 | DELETE | `/api/dating/profile` | 🔒 |
 | GET | `/api/dating/profile` | 🔒 |
 | POST | `/api/dating/profile` | 🔒 |
@@ -457,6 +458,7 @@ _nutrition/nutrition.controller.ts_
 | POST | `/api/nutrition/pantry/cooked` | 🔒 |
 | GET | `/api/nutrition/pantry/history` | 🔒 |
 | POST | `/api/nutrition/pantry/settle` | 🔒 |
+| POST | `/api/nutrition/plan/composed/lock` | 🔒 |
 | POST | `/api/nutrition/plan/composed/pin` | 🔒 |
 | POST | `/api/nutrition/plan/composed/refresh-item` | 🔒 |
 | POST | `/api/nutrition/plan/composed/refresh` | 🔒 |
@@ -464,6 +466,7 @@ _nutrition/nutrition.controller.ts_
 | POST | `/api/nutrition/plan/composed/restore` | 🔒 |
 | POST | `/api/nutrition/plan/composed/skip-item` | 🔒 |
 | POST | `/api/nutrition/plan/composed/skip` | 🔒 |
+| POST | `/api/nutrition/plan/composed/unlock` | 🔒 |
 | POST | `/api/nutrition/plan/composed/unpin` | 🔒 |
 | GET | `/api/nutrition/plan/composed` | 🔒 |
 | GET | `/api/nutrition/preferences` | 🔒 |

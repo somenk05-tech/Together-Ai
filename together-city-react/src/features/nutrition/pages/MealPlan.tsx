@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { AllergyNote, Card, Spinner, EmptyState, Button, Chip, Modal } from '@/components/ui';
 import {
   useComposedPlan, useMealSettings, useSaveMealSettings,
-  useRestoreSkips, useRenewPlan,
+  useRestoreSkips, useRenewPlan, useLockDay, useUnlockDay,
   type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard,
 } from '../composed.api';
 import { useHealthScore } from '@/features/profile/hooks';
@@ -182,6 +182,93 @@ function MacroLine({ ic, label, grams, pct }: { ic: string; label: string; grams
 const DAY_TIPS = ['Drink at least 2–3 litres of water.', 'Include a variety of colourful vegetables.', 'Choose whole grains over refined grains.', 'Stay active and get good-quality sleep.'];
 
 /** The full premium day layout: left overview · meal grid · right nutrition/donut/tips. */
+/**
+ * Lock this day — and put its shopping in the basket.
+ *
+ * The two halves are one action on purpose. Locking a day IS the moment a plan
+ * becomes a shopping trip, and asking somebody to press a second button to say
+ * so is the app failing to notice what they just decided.
+ *
+ * Then it moves on. Staying on a day you have just settled leaves you looking
+ * at a screen with nothing left to do on it; the next unlocked day is where the
+ * work is. The server decides which day that is, because the server knows which
+ * ones are already locked.
+ */
+function DayLock({ dayIndex, date, locked, lastDay, onMoveTo }: {
+  dayIndex: number; date: Date; locked: boolean; lastDay: number; onMoveTo: (d: number) => void;
+}) {
+  const lock = useLockDay();
+  const unlock = useUnlockDay();
+  const [said, setSaid] = useState<string | null>(null);
+
+  if (locked) {
+    return (
+      <div className="card" style={{ marginTop: 12, padding: '13px 16px', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', borderColor: 'var(--accent)' }}>
+        <span aria-hidden="true" style={{ fontSize: 18 }}>🔒</span>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>This menu is locked</div>
+          <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
+            Nothing on {weekdayFull(date)} will change, and its ingredients are on your grocery list.
+          </div>
+        </div>
+        <Button variant="line" size="sm" disabled={unlock.isPending} onClick={() => unlock.mutate({ day: dayIndex })}>
+          {unlock.isPending ? 'Unlocking…' : 'Unlock'}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card" style={{ marginTop: 12, padding: '13px 16px', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <span aria-hidden="true" style={{ fontSize: 18 }}>🔓</span>
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>Happy with {weekdayFull(date)}?</div>
+        <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
+          Locking stops this day changing and adds its ingredients to your grocery list.
+        </div>
+        {said && <div style={{ fontSize: 12.5, marginTop: 6, color: 'var(--accent)' }}>{said}</div>}
+      </div>
+      <Button
+        variant="accent" size="sm" disabled={lock.isPending}
+        onClick={() => lock.mutate({ day: dayIndex }, {
+          onSuccess: (r) => {
+            // Only ever claim what happened. The basket write is allowed to
+            // fail without failing the lock, so the sentence has two versions.
+            setSaid(r.groceryAdded
+              ? 'Locked, and the ingredients are on your grocery list.'
+              : 'Locked. The grocery list didn\'t update just now — you can regenerate it from Grocery.');
+            if (r.nextDay !== null && r.nextDay <= lastDay) onMoveTo(r.nextDay);
+          },
+        })}
+      >
+        {lock.isPending ? 'Locking…' : '🔒 Lock this menu'}
+      </Button>
+    </div>
+  );
+}
+
+/** A locked day, folded down to what it is: a decision, and what you are eating. */
+function LockedDaySummary({ d, date }: { d: ComposedDay; date: Date }) {
+  const meals = d.meals ?? [];
+  return (
+    <div className="card" style={{ padding: '16px 18px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+        <strong style={{ fontSize: 15 }}>{weekdayFull(date)} is settled</strong>
+        <span className="muted" style={{ fontSize: 12.5 }}>{meals.length} meal{meals.length === 1 ? '' : 's'}</span>
+      </div>
+      <ul style={{ margin: '10px 0 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {meals.map((m, i) => (
+          <li key={i} style={{ display: 'flex', gap: 10, fontSize: 13.5, alignItems: 'baseline' }}>
+            <span className="muted" style={{ minWidth: 74, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.04em' }}>{m.label}</span>
+            <span style={{ flex: 1 }}>{m.title}</span>
+            <span className="muted" style={{ fontSize: 12 }}>{Math.round(m.totals.kcal)} kcal</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function DayView({ wk, d, dayIndex, date, readOnly }: { wk: ComposedWeek; d: ComposedDay; dayIndex: number; date: Date; readOnly?: boolean }) {
   const t = d.totals as Totals;
   const kcal = Math.max(1, t.kcal);
@@ -552,7 +639,9 @@ export function MealPlan() {
                 return (
                   <button key={i} type="button" onClick={() => setDay(i)} aria-current={on} data-active={on ? 'true' : undefined}
                     style={{ flex: '1 0 auto', minWidth: 84, border: 'none', background: on ? 'var(--accent-soft)' : 'transparent', borderRadius: 11, padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>
-                    <div style={{ fontSize: 12, fontWeight: on ? 800 : 700, letterSpacing: '.03em', color: on ? 'var(--accent)' : 'var(--ink-soft)' }}>{isToday ? 'TODAY' : weekdayFull(dates[i]).toUpperCase()}</div>
+                    <div style={{ fontSize: 12, fontWeight: on ? 800 : 700, letterSpacing: '.03em', color: on ? 'var(--accent)' : 'var(--ink-soft)' }}>
+                      {(wk.locks ?? []).includes(i) ? '🔒 ' : ''}{isToday ? 'TODAY' : weekdayFull(dates[i]).toUpperCase()}
+                    </div>
                     <div style={{ fontSize: 10.5, marginTop: 2, color: on ? 'var(--accent)' : 'var(--muted)' }}>{shortDate(dates[i])}</div>
                   </button>
                 );
@@ -569,8 +658,21 @@ export function MealPlan() {
             </div>
           )}
 
+          <DayLock
+            dayIndex={day}
+            date={dates[day]}
+            locked={(wk.locks ?? []).includes(day)}
+            lastDay={wk.days.length - 1}
+            onMoveTo={setDay}
+          />
+
           <div style={{ marginTop: 14 }}>
-            <DayView wk={wk} d={d} dayIndex={day} date={dates[day]} readOnly={wk.readOnly} />
+            {(wk.locks ?? []).includes(day)
+              /* Collapsed on purpose: a locked day is a decision already made,
+                 and re-reading it is not what you came back for. The summary
+                 stays so it is still a menu, not just a padlock. */
+              ? <LockedDaySummary d={d} date={dates[day]} />
+              : <DayView wk={wk} d={d} dayIndex={day} date={dates[day]} readOnly={wk.readOnly} />}
           </div>
 
           <div style={{ marginTop: 22, textAlign: 'center', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 14, padding: '12px 16px', fontSize: 12.5, color: 'var(--muted)' }}>

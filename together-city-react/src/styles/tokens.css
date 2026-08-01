@@ -10,6 +10,14 @@
   --rose: #b76e79; --rose-soft: #f9eef0;
   --purple: #5b4b8a; --purple-soft: #efecf7;
   --navy: #16283c; --emerald: #1d5c4d;
+  /* Status washes. These existed as hardcoded hexes in a dozen screens — the
+     amber "heads up", the pink "this failed", the green "all good" — which meant
+     every one of them stayed light-mode-coloured in dark mode, and stayed
+     cream-and-pink inside a hub themed green. Naming them is what lets a banner
+     follow the theme it is sitting in. */
+  --warn-soft: #faf3e0; --warn-line: #e6d3a3; --warn-ink: #6b5310;
+  --danger-soft: #fdecec; --danger-line: #e0a0a0; --danger-ink: #9c2b2b;
+  --ok-soft: #e8f5e9; --ok-line: #b7ddbc; --ok-ink: #1b5e28;
   --accent: var(--gold); --accent-soft: var(--gold-soft);
   --radius: 14px; --radius-lg: 20px;
   --shadow: 0 1px 2px rgba(20,20,18,.04), 0 8px 24px rgba(20,20,18,.06);
@@ -32,12 +40,55 @@
   --gold-soft: #2b2415; --gold-ink: #d4af5e;
   --green-soft: #182619; --blue-soft: #172230;
   --rose-soft: #2b1d20; --purple-soft: #211d2e;
+  --warn-soft: #2a2312; --warn-line: #4a3d1c; --warn-ink: #e8cf8e;
+  --danger-soft: #2c1a1a; --danger-line: #4d2a2a; --danger-ink: #f0a9a9;
+  --ok-soft: #16261a; --ok-line: #27452e; --ok-ink: #8fd3a6;
   --shadow: 0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.4);
   --shadow-deep: 0 2px 4px rgba(0,0,0,.45), 0 16px 40px rgba(0,0,0,.55);
 }
 
 /* Per-hub accent theming — the shell sets data-hub on <body>, exactly like tc.js. */
 [data-hub="nutrition"], [data-hub="family"], [data-hub="fitness"] { --accent: var(--green); --accent-soft: var(--green-soft); }
+
+/* ── Nutrition: green all the way down, not just the accent ────────────────
+   The hub already borrowed --accent from green; its SURFACES stayed the same
+   paper-and-white as everywhere else, so "the nutrition section" never actually
+   felt like anywhere in particular.
+
+   These tint the surfaces themselves, and they are written as overrides of the
+   existing tokens rather than a parallel palette, so every component that
+   already reads --paper/--card/--line follows for free — the same property that
+   made dark mode a single block on 1 Aug.
+
+   IT RESPECTS LIGHT AND DARK. A hub that forced one or the other would override
+   a choice the citizen made in Settings, and read as a bug to anybody who picked
+   Light. Light gets a pale herb wash; dark gets the deep green of the design. */
+[data-hub="nutrition"] {
+  --paper: #f2f7f2;
+  --card: #ffffff;
+  --line: #dde8de;
+  --ink-soft: #3d4a3f;
+  --muted: #5d6b5f;
+  --green-soft: #e4f0e6;
+  --ok-soft: #dff0e2; --ok-line: #b0d9b7;
+  --warn-soft: #f6f2e2; --warn-line: #ddd2a8;
+  --shadow: 0 1px 2px rgba(20,40,24,.05), 0 8px 24px rgba(20,40,24,.07);
+}
+[data-theme="dark"][data-hub="nutrition"] {
+  --paper: #0e1710;
+  --card: #16241a;
+  --line: #24382a;
+  --ink: #e8f0e8;
+  --ink-soft: #c2d2c4;
+  --muted: #93a596;
+  --green: #5aa06e;          /* lifted: #2e5c3f has too little contrast on #16241a */
+  --green-soft: #1c2e21;
+  --gold-bright: #d9c07a;
+  --ok-soft: #17301e; --ok-line: #2a4d33; --ok-ink: #9adfb0;
+  --warn-soft: #2a2814; --warn-line: #46421f;
+  --danger-soft: #2d1d1d; --danger-line: #4f2e2e;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.45);
+}
 [data-hub="medical"] { --accent: var(--blue); --accent-soft: var(--blue-soft); }
 [data-hub="dating"], [data-hub="beauty"] { --accent: var(--rose); --accent-soft: var(--rose-soft); }
 [data-hub="entertainment"], [data-hub="social"] { --accent: var(--purple); --accent-soft: var(--purple-soft); }

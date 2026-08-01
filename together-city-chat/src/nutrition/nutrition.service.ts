@@ -283,6 +283,20 @@ interface PrefExtras {
   pantrySettledThrough?: string;
   /** Composed-plan per-meal overrides (Refresh/Skip). Keys "d{index}:{slotCode}". */
   composedSkips?: string[];
+  /**
+   * Days the citizen has LOCKED, as day indexes into the plan window.
+   *
+   * A locked day stops changing: no reroll, no skip, no pin. It exists because
+   * "decide once, then shop and cook" is a different mode from "browse until it
+   * looks right", and the planner only supported the second one.
+   *
+   * SERVER-SIDE, and that is not incidental. A lock the client remembers is a
+   * lock that vanishes on another device and forgets itself on reload, while
+   * still showing a padlock — which is the shape of the four placebo switches
+   * deleted on 1 Aug. If it cannot be enforced where the plan is composed, it
+   * should not be drawn.
+   */
+  composedLocks?: number[];
   composedBumps?: Record<string, number>;
   /** Dishes the citizen chose for a slot themselves. Keys "d{index}:{slotCode}"
    *  → recipeId. Honoured only while the dish still passes their filters. */
@@ -2045,7 +2059,8 @@ export class NutritionService implements OnModuleInit {
     // only: `excluded` also carries avoided foods, Jain hints and MNT avoids,
     // and attributing a clinical avoid to "you told us about it" would be false.
     const cut = corpusExcludedBy(datasetPool, terms(ex.allergies));
-    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], scorecard, planStartDate, reviewDate: addDaysISO(planStartDate, PLAN_DAYS), planDays: PLAN_DAYS, allergyNotice: allergyNotice(cut.matched, cut.removed, { one: 'recipe', many: 'recipes' }), ...(compliance ? { compliance } : {}) };
+    const locks = this.lockedDays(ex);
+    return { ...week, mode, prescription: t, fastingSafety: safety, skips: ex.composedSkips ?? [], locks, scorecard, planStartDate, reviewDate: addDaysISO(planStartDate, PLAN_DAYS), planDays: PLAN_DAYS, allergyNotice: allergyNotice(cut.matched, cut.removed, { one: 'recipe', many: 'recipes' }), ...(compliance ? { compliance } : {}) };
   }
 
   /** DB diet values that satisfy a requested diet (ladder). Real DB values:
@@ -2394,6 +2409,7 @@ export class NutritionService implements OnModuleInit {
   /** Refresh ONE meal — bump that slot's seed so it re-picks different recipes,
    *  keeping the day's targets and every preference. Returns the updated plan. */
   async refreshComposedMeal(userId: string, day: number, slot: string) {
+    await this.assertDayUnlocked(userId, day);
     const key = `d${day}:${slot}`;
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
@@ -2403,9 +2419,94 @@ export class NutritionService implements OnModuleInit {
     return this.composedPlan(userId);
   }
 
+  /**
+   * The days this citizen has locked. Always a clean, sorted set of numbers —
+   * the blob is user-editable JSON and has held rubbish before.
+   */
+  private lockedDays(ex: PrefExtras): number[] {
+    const raw = (ex as { composedLocks?: unknown }).composedLocks;
+    if (!Array.isArray(raw)) return [];
+    return [...new Set(raw.filter((d): d is number => typeof d === 'number' && Number.isInteger(d) && d >= 0))].sort((a, b) => a - b);
+  }
+
+  /**
+   * Refuse to change a day the citizen has settled.
+   *
+   * Called by every mutation that could move a meal. The message names the way
+   * out, because a refusal that does not is just a wall.
+   */
+  private async assertDayUnlocked(userId: string, day: number): Promise<void> {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    if (this.lockedDays(ex).includes(day)) {
+      throw new BadRequestException("That day is locked, so its meals stay put. Unlock it if you want to change something.");
+    }
+  }
+
+  /**
+   * Lock a day, and put its shopping in the basket. (Planner redesign.)
+   *
+   * The grocery half is the point, not a side effect: locking a day is the
+   * moment a plan becomes a shopping trip, and making somebody press a second
+   * button to say so is the app failing to notice what they just decided.
+   *
+   * It reuses groceryPlan() for exactly one day rather than growing a second
+   * way to turn meals into a basket — that function already normalises names,
+   * merges quantities into real units, assigns aisles, and folds the result
+   * into the list the citizen is already shopping from, keeping their ticks.
+   */
+  async lockComposedDay(userId: string, day: number, mode: PlanMode = 'individual') {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const locks = new Set(this.lockedDays(ex));
+    locks.add(day);
+    await this.mergeExtras(userId, { composedLocks: [...locks].sort((a, b) => a - b) });
+
+    const plan = (await this.composedPlan(userId, 'preferred')) as unknown as {
+      planStartDate?: string; planDays?: number; days?: unknown[];
+    };
+    const dayISO = plan.planStartDate ? addDaysISO(plan.planStartDate, day) : undefined;
+
+    // The basket must never be the reason a lock fails. A citizen who locked
+    // their Tuesday and got an error has a locked Tuesday and no idea whether
+    // it worked; they can always regenerate the list from the Grocery page.
+    const grocery = await this.groceryPlan(userId, mode, 1, dayISO)
+      .catch(swallowed('nutrition.lockComposedDay grocery', null, { userId, day }));
+
+    return {
+      locked: true as const,
+      day,
+      dayISO: dayISO ?? null,
+      /** The next unlocked day, so the UI knows where to move to. Null at the end. */
+      nextDay: this.nextUnlockedDay(day, [...locks], plan.planDays ?? 21),
+      groceryAdded: grocery ? true : false,
+      plan: await this.composedPlan(userId),
+    };
+  }
+
+  async unlockComposedDay(userId: string, day: number) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const locks = new Set(this.lockedDays(ex));
+    locks.delete(day);
+    await this.mergeExtras(userId, { composedLocks: [...locks].sort((a, b) => a - b) });
+    // The groceries STAY. They may already be ticked, or bought. Silently
+    // removing food from somebody's basket because they reopened a menu is a
+    // worse surprise than a line they can tick off themselves.
+    return { locked: false as const, day, plan: await this.composedPlan(userId) };
+  }
+
+  /** The next day that is not locked, or null when there is none ahead. */
+  private nextUnlockedDay(from: number, locks: number[], planDays: number): number | null {
+    const set = new Set(locks);
+    for (let d = from + 1; d < planDays; d++) if (!set.has(d)) return d;
+    return null;
+  }
+
   /** Skip / unskip ONE meal — the day's energy is redistributed across the
    *  remaining meals and the grocery list is recomputed. Returns the updated plan. */
   async skipComposedMeal(userId: string, day: number, slot: string, skipped: boolean) {
+    await this.assertDayUnlocked(userId, day);
     const key = `d${day}:${slot}`;
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
@@ -2419,6 +2520,7 @@ export class NutritionService implements OnModuleInit {
    *  a carb stays a carb, a vegetable stays a vegetable) while every other dish on
    *  the plate is untouched. Keyed by d{day}:{slot}:{role}. */
   async refreshComposedComponent(userId: string, day: number, slot: string, role: string) {
+    await this.assertDayUnlocked(userId, day);
     const key = `d${day}:${slot}:${role}`;
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
@@ -2432,6 +2534,7 @@ export class NutritionService implements OnModuleInit {
    *  remaining dishes rescale to the meal's calorie target. Keyed by
    *  d{day}:{slot}:{role}. */
   async skipComposedComponent(userId: string, day: number, slot: string, role: string, skipped: boolean) {
+    await this.assertDayUnlocked(userId, day);
     const key = `d${day}:${slot}:${role}`;
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
@@ -2467,6 +2570,7 @@ export class NutritionService implements OnModuleInit {
    * while their profile says otherwise, and the warning says so.
    */
   async pinComposedMeal(userId: string, day: number, slot: string, recipeId: string) {
+    await this.assertDayUnlocked(userId, day);
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
 
