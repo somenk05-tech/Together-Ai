@@ -4,7 +4,7 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **389 routes** across
+Every path below is prefixed with `/api`. **392 routes** across
 **34 controllers**; **9** are reachable without a token.
 
 ## Conventions
@@ -187,6 +187,7 @@ _dating/dating.controller.ts_
 | GET | `/api/dating/activities/mine` | 🔒 |
 | POST | `/api/dating/activities` | 🔒 |
 | GET | `/api/dating/admin/stats` | 🔒 |
+| GET | `/api/dating/allowance` | 🔒 |
 | GET | `/api/dating/chats` | 🔒 |
 | GET | `/api/dating/discover` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/block` | 🔒 |
@@ -195,6 +196,7 @@ _dating/dating.controller.ts_
 | POST | `/api/dating/matches/:targetUserId/pass` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/report` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/reveal` | 🔒 |
+| POST | `/api/dating/matches/:targetUserId/super-like` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/unlock-chat` | 🔒 |
 | POST | `/api/dating/matches/:targetUserId/unmatch` | 🔒 |
 | GET | `/api/dating/matches/:targetUserId` | 🔒 |
@@ -203,6 +205,7 @@ _dating/dating.controller.ts_
 | GET | `/api/dating/profile` | 🔒 |
 | POST | `/api/dating/profile` | 🔒 |
 | GET | `/api/dating/stack` | 🔒 |
+| POST | `/api/dating/undo-pass` | 🔒 |
 
 ## /drive
 

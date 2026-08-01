@@ -155,6 +155,31 @@ export class DatingController {
     return this.dating.pass(user.sub, targetUserId, kind);
   }
 
+  // ─── M2: a like you cannot spend twice, a super-like, and a way back. ───
+
+  /** What is left of today, in the citizen's own timezone. */
+  @Get('allowance')
+  allowance(@CurrentUser() user: JwtUser) {
+    return this.dating.likeAllowance(user.sub);
+  }
+
+  @Post('matches/:targetUserId/super-like')
+  superLike(
+    @CurrentUser() user: JwtUser,
+    @Param('targetUserId') targetUserId: string,
+    @Body() body: unknown,
+  ) {
+    const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
+    return this.dating.like(user.sub, targetUserId, kind, { superLike: true });
+  }
+
+  /** Give back the most recent pass. Never an unmatch — see undoLastPass. */
+  @Post('undo-pass')
+  undoPass(@CurrentUser() user: JwtUser, @Body() body: unknown) {
+    const kind = parseOrThrow(MatchKindSchema.optional().default('romantic'), (body as { kind?: string } | null)?.kind);
+    return this.dating.undoLastPass(user.sub, kind);
+  }
+
   // ─── Safety. Reachable from the match, the profile and the chat (H6). ───
   @Post('matches/:targetUserId/block')
   blockMatch(

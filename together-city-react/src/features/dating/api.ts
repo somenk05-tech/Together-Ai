@@ -132,6 +132,11 @@ export const datingApi = {
     api.post<{ ok: boolean }>(`/dating/matches/${targetUserId}/unmatch`, { kind }).then((r) => r.data),
   reveal: (targetUserId: string, kind: MatchKind, show = true) =>
     api.post<{ revealed: boolean; myReveal: boolean }>(`/dating/matches/${targetUserId}/reveal`, { kind, show }).then((r) => r.data),
+  superLike: (targetUserId: string, kind: MatchKind) =>
+    api.post<{ matched: boolean; matchId: string; superLike: boolean }>(`/dating/matches/${targetUserId}/super-like`, { kind }).then((r) => r.data),
+  undoPass: (kind: MatchKind) =>
+    api.post<UndoPassResult>('/dating/undo-pass', { kind }).then((r) => r.data),
+  allowance: () => api.get<LikeAllowance>('/dating/allowance').then((r) => r.data),
   pass: (targetUserId: string, kind: MatchKind) =>
     api.post<{ ok: boolean }>(`/dating/matches/${targetUserId}/pass`, { kind }).then((r) => r.data),
   chats: () => api.get<DatingChatSummary[]>('/dating/chats').then((r) => r.data),
@@ -276,6 +281,45 @@ export function useMatchDetail(targetUserId: string | null, kind: MatchKind) {
     enabled: Boolean(targetUserId),
   });
 }
+/** What is left of today, in the citizen's own timezone. (M2.) */
+export interface LikeAllowance {
+  likesUsed: number; likesLeft: number;
+  supersUsed: number; supersLeft: number;
+  dailyLikes: number; dailySuperLikes: number;
+  resetsAtLocal: string;
+}
+export type UndoPassResult =
+  | { undone: true; targetUserId: string; theyLiked: boolean }
+  | { undone: false; reason: string };
+
+export function useLikeAllowance(enabled = true) {
+  return useQuery({ queryKey: ['dating', 'allowance'], queryFn: () => datingApi.allowance(), enabled });
+}
+
+export function useSuperLike(kind: MatchKind) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (targetUserId: string) => datingApi.superLike(targetUserId, kind),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'stack', kind] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'allowance'] });
+    },
+  });
+}
+
+export function useUndoPass(kind: MatchKind) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => datingApi.undoPass(kind),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'stack', kind] });
+    },
+  });
+}
+
 export function useLikeMatch(kind: MatchKind) {
   const qc = useQueryClient();
   return useMutation({
@@ -284,6 +328,7 @@ export function useLikeMatch(kind: MatchKind) {
       void qc.invalidateQueries({ queryKey: ['dating', 'matches', kind] });
       void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
       void qc.invalidateQueries({ queryKey: ['dating', 'stack', kind] });
+      void qc.invalidateQueries({ queryKey: ['dating', 'allowance'] });
     },
   });
 }
@@ -296,6 +341,8 @@ export function usePassMatch(kind: MatchKind) {
       void qc.invalidateQueries({ queryKey: ['dating', 'discover', kind] });
       void qc.invalidateQueries({ queryKey: ['dating', 'stack', kind] });
     },
+    // Nothing else to do: undo is offered from the stack, which knows a pass
+    // just happened without needing the server to say so.
   });
 }
 export function useConnectChat(kind: MatchKind) {

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import {
   useDatingProfile, useLikeMatch, usePassMatch, useDatingStack, useDatingChats,
+  useLikeAllowance, useSuperLike, useUndoPass,
   type CuratedMatch, type MatchKind, type CompatibilityBand, type DatingChatSummary,
 } from '../api';
 import { SafetyMenu } from '../components/SafetyMenu';
@@ -72,7 +73,14 @@ function MatchGallery({ photos, name, age, theirSign, yourSign, score, href }: {
 function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
   const like = useLikeMatch(kind);
   const pass = usePassMatch(kind);
+  const superLike = useSuperLike(kind);
+  const allowance = useLikeAllowance();
   const [result, setResult] = useState<{ matched: boolean; conversationId: string | null } | null>(null);
+  // The server is the authority on the limit; this only decides what the button
+  // looks like before it is pressed. A refusal still arrives as a real message.
+  const supersLeft = allowance.data?.supersLeft ?? 0;
+  const outOfLikes = (allowance.data?.likesLeft ?? 1) < 1;
+  const limitError = (like.error ?? superLike.error) as { response?: { data?: { message?: string } } } | null;
 
   const matched = result?.matched || match.matched;
   const photos = match.photos ?? [];
@@ -148,6 +156,13 @@ function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
           </div>
         ) : (
           <>
+            {/* A refused like is not a failed request — it is the rule speaking,
+                and the server's sentence already says when it lifts. */}
+            {limitError?.response?.data?.message && (
+              <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--ink-soft)', background: 'var(--paper)', borderRadius: 8, padding: '8px 11px' }}>
+                {limitError.response.data.message}
+              </p>
+            )}
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
               <Button
                 variant="accent" size="sm" disabled={like.isPending}
@@ -155,9 +170,23 @@ function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
               >
                 {like.isPending ? '…' : kind === 'romantic' ? '♥ Like' : '＋ Connect'}
               </Button>
+              {/* One a day, and it says which day it is. Scarcity you cannot see
+                  is a counter, not scarcity — so the count is on the button. */}
+              {kind === 'romantic' && (
+                <Button
+                  variant="line" size="sm"
+                  disabled={superLike.isPending || supersLeft < 1 || outOfLikes}
+                  title={supersLeft < 1
+                    ? `Your super-like comes back at midnight (${allowance.data?.resetsAtLocal ?? 'your local time'}).`
+                    : 'They will be told you used your one super-like of the day on them.'}
+                  onClick={() => superLike.mutate(match.user.id, { onSuccess: (r) => setResult({ matched: r.matched, conversationId: null }) })}
+                >
+                  {superLike.isPending ? '…' : `⭐ Super-like${supersLeft > 0 ? ` (${supersLeft})` : ''}`}
+                </Button>
+              )}
               {/* "Skip", not "Pass" — the match detail page has always said Skip,
                   and the same action on two screens should not have two names. */}
-              <Button variant="line" size="sm" disabled={pass.isPending} onClick={() => pass.mutate(match.user.id)}>
+              <Button variant="line" size="sm" disabled={pass.isPending || outOfLikes} onClick={() => pass.mutate(match.user.id)}>
                 ✕ Skip
               </Button>
               {/* Chat is shown here, always, so it is obvious that it exists and
@@ -296,6 +325,44 @@ function EngagedPanel({ chat, openChats, cap }: { chat: DatingChatSummary | null
 
 /** Curated Matches (romantic) / New Friends (platonic) — intentional-dating stack:
  *  a compatibility-band breakdown of the pool + your single strongest match. */
+/**
+ * Today's allowance, and the way back from a skip. (M2.)
+ *
+ * The undo says WHO it gave back. "Undone" on its own leaves somebody scanning
+ * a list for a face they only half-saw, which is the state that made them want
+ * undo in the first place.
+ */
+function UndoAndAllowance({ kind }: { kind: MatchKind }) {
+  const allowance = useLikeAllowance();
+  const undo = useUndoPass(kind);
+  const [said, setSaid] = useState<string | null>(null);
+  const a = allowance.data;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14, fontSize: 12.5 }}>
+      <Button
+        variant="line" size="sm" disabled={undo.isPending}
+        onClick={() => undo.mutate(undefined, {
+          onSuccess: (r) => setSaid(r.undone
+            ? (r.theyLiked ? 'Skip undone — and they had already liked you.' : 'Skip undone — they are back in your matches.')
+            : r.reason),
+        })}
+      >
+        {undo.isPending ? '…' : '↩ Undo last skip'}
+      </Button>
+      {/* Only ever the real numbers: while the read is in flight this says
+          nothing rather than guessing at a count. */}
+      {a && (
+        <span className="muted">
+          {a.likesLeft} of {a.dailyLikes} likes left today
+          {a.supersLeft > 0 ? ` · ⭐ ${a.supersLeft}` : ' · ⭐ used'}
+        </span>
+      )}
+      {said && <span style={{ color: 'var(--ink-soft)' }}>{said}</span>}
+    </div>
+  );
+}
+
 export function DatingMatches() {
   const kind: MatchKind = 'romantic';
   const profile = useDatingProfile();
@@ -357,6 +424,8 @@ export function DatingMatches() {
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px' }}>
         Curated, not endless — you meet your single strongest match, not an endless list. Below is how your whole match pool breaks down by compatibility.
       </p>
+
+      <UndoAndAllowance kind={kind} />
 
       {/* The same notice the match detail page carries, shown ONCE for the page
           rather than repeated under every card — it is a rule about how this hub

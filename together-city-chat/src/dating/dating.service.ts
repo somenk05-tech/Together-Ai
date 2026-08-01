@@ -16,6 +16,7 @@ import {
 } from './matching';
 import { LEARNING_WINDOW, learnWeights, overallScoreWith, type Decision } from './learned-weights';
 import { profileCompletion } from './completion';
+import { DAILY_LIKES, DAILY_SUPER_LIKES, likeLimitMessage, superLimitMessage } from './limits';
 import { decide, scanText, type Check, type ModerationResult } from '../realestate/moderation';
 import { nickname } from '../shared/nickname';
 import type { MatchKind, UpsertDatingProfileDto } from './dto/dating.dto';
@@ -1064,12 +1065,61 @@ export class DatingService {
   }
 
   // ─────────────── like / pass state machine ───────────────
-  async like(userId: string, targetUserId: string, kind: MatchKind) {
+
+  /**
+   * What is left of today, for this citizen, in their own timezone.
+   *
+   * Counted from the like TIMESTAMPS rather than a stored counter, because a
+   * counter is a second source of truth that drifts the first time a write
+   * half-fails, and because "reset at midnight" then becomes a job somebody has
+   * to run rather than a property of the query.
+   */
+  async likeAllowance(userId: string) {
+    const tz = await this.clock.timezoneFor(userId).catch(() => DEFAULT_TIMEZONE);
+    const since = this.clock.startOfDayIn(tz);
+    // unbounded: today's likes for one citizen — bounded by DAILY_LIKES itself
+    const today = await this.prisma.datingMatch.findMany({
+      where: {
+        OR: [
+          { userOneId: userId, likedAtOne: { gte: since } },
+          { userTwoId: userId, likedAtTwo: { gte: since } },
+        ],
+      },
+      select: { userOneId: true, superByOne: true, superByTwo: true },
+    });
+    const supers = today.filter((r) => (r.userOneId === userId ? r.superByOne : r.superByTwo)).length;
+    const resetsAtLocal = `${this.clock.todayIn(tz)} · ${tz}`;
+    return {
+      likesUsed: today.length,
+      likesLeft: Math.max(0, DAILY_LIKES - today.length),
+      supersUsed: supers,
+      supersLeft: Math.max(0, DAILY_SUPER_LIKES - supers),
+      dailyLikes: DAILY_LIKES,
+      dailySuperLikes: DAILY_SUPER_LIKES,
+      resetsAtLocal,
+    };
+  }
+
+  async like(userId: string, targetUserId: string, kind: MatchKind, opts: { superLike?: boolean } = {}) {
     const state = await this.upsertState(userId, targetUserId, kind);
     const meIsOne = state.userOneId === userId;
+
+    // Already liked → not a second like, and it must not cost a second one
+    // against the allowance. Re-tapping like on a card you already liked is a
+    // thing people do; charging for it would be a limit that punishes the UI.
+    const alreadyLiked = meIsOne ? state.likedByOne : state.likedByTwo;
+    if (!alreadyLiked) {
+      const left = await this.likeAllowance(userId);
+      if (left.likesLeft < 1) throw new BadRequestException(likeLimitMessage(left.resetsAtLocal));
+      if (opts.superLike && left.supersLeft < 1) throw new BadRequestException(superLimitMessage(left.resetsAtLocal));
+    }
+
+    const now = new Date();
     const updated = await this.prisma.datingMatch.update({
       where: { id: state.id },
-      data: meIsOne ? { likedByOne: true } : { likedByTwo: true },
+      data: meIsOne
+        ? { likedByOne: true, likedAtOne: now, ...(opts.superLike ? { superByOne: true } : {}), passedByOne: false, passedAtOne: null }
+        : { likedByTwo: true, likedAtTwo: now, ...(opts.superLike ? { superByTwo: true } : {}), passedByTwo: false, passedAtTwo: null },
     });
 
     // Mutual like → matched. Chat is NOT opened yet — it's unlocked via a paid
@@ -1089,13 +1139,90 @@ export class DatingService {
       return { matched: true, conversationId: null, chatLocked: true, matchId: matched.id };
     }
     // A one-way like/request — nudge the other person to check their matches.
+    //
+    // A super-like SAYS SO to the person receiving it. That is the whole point:
+    // scarcity nobody can see is not scarcity, it is a counter. It does not
+    // bypass anything and it does not open a chat — it changes one sentence and
+    // the order of one queue.
     void this.notifications.create({
       userId: targetUserId, actorId: userId, kind: 'dating_like',
-      title: kind === 'romantic' ? 'You have a new like 💛' : 'Someone wants to connect',
-      body: 'A member likes your profile — see who in your matches.',
+      title: opts.superLike
+        ? (kind === 'romantic' ? 'Someone super-liked you ⭐' : 'Someone really wants to connect ⭐')
+        : (kind === 'romantic' ? 'You have a new like 💛' : 'Someone wants to connect'),
+      body: opts.superLike
+        ? 'They get one of these a day, and they used it on you — see who in your matches.'
+        : 'A member likes your profile — see who in your matches.',
       href: '/dating/matches',
     });
-    return { matched: false, conversationId: null, chatLocked: false, matchId: updated.id };
+    return { matched: false, conversationId: null, chatLocked: false, matchId: updated.id, superLike: !!opts.superLike };
+  }
+
+  /**
+   * Give back the last pass. (M2 — the one people actually ask for.)
+   *
+   * ONLY A PASS THIS CODE RECORDED, and only the most recent one. Three things
+   * fall out of that, all deliberate:
+   *
+   *  · A pass from before the timestamps existed has a NULL passedAt and is
+   *    left alone. Offering back "your last pass" and producing a stranger from
+   *    March would be worse than offering nothing.
+   *  · unmatch() sets both passed flags and NO timestamp, so an unmatch can
+   *    never be undone by this. Ending a conversation is a decision with
+   *    somebody else in it; a swipe is not.
+   *  · The row goes back to what it was, which is `matched` if they had liked
+   *    you and `pending` otherwise — not blanket `pending`, which would quietly
+   *    throw away their like.
+   */
+  async undoLastPass(userId: string, kind: MatchKind) {
+    // ONE QUERY PER SIDE, then compared here.
+    //
+    // A single findMany with orderBy [{passedAtOne:'desc'},{passedAtTwo:'desc'}]
+    // looks like it means "the latest pass" and does not: it sorts by
+    // passedAtOne FIRST, so a citizen who is userTwo in their most recent pair
+    // and userOne in an older one gets the older one handed back. The two
+    // columns are one logical field split across the pair row, and SQL will not
+    // reassemble it for us. Two indexed single-row reads, max() in JS.
+    const select = {
+      id: true, userOneId: true, userTwoId: true,
+      passedAtOne: true, passedAtTwo: true,
+      likedByOne: true, likedByTwo: true,
+    };
+    const [asOne, asTwo] = await Promise.all([
+      this.prisma.datingMatch.findFirst({
+        where: { kind, userOneId: userId, passedByOne: true, passedAtOne: { not: null } },
+        orderBy: { passedAtOne: 'desc' }, select,
+      }),
+      this.prisma.datingMatch.findFirst({
+        where: { kind, userTwoId: userId, passedByTwo: true, passedAtTwo: { not: null } },
+        orderBy: { passedAtTwo: 'desc' }, select,
+      }),
+    ]);
+    const at = (r: typeof asOne) =>
+      !r ? 0 : (r.userOneId === userId ? r.passedAtOne : r.passedAtTwo)?.getTime() ?? 0;
+    const row = at(asOne) >= at(asTwo) ? asOne : asTwo;
+    if (!row) {
+      return { undone: false as const, reason: 'There is no pass to undo — nothing you have passed on was recorded with a time.' };
+    }
+    const meIsOne = row.userOneId === userId;
+    const passedAt = meIsOne ? row.passedAtOne : row.passedAtTwo;
+    if (!passedAt) {
+      return { undone: false as const, reason: 'There is no pass to undo — nothing you have passed on was recorded with a time.' };
+    }
+
+    const theyLiked = meIsOne ? row.likedByTwo : row.likedByOne;
+    const iLiked = meIsOne ? row.likedByOne : row.likedByTwo;
+    await this.prisma.datingMatch.update({
+      where: { id: row.id },
+      data: {
+        ...(meIsOne ? { passedByOne: false, passedAtOne: null } : { passedByTwo: false, passedAtTwo: null }),
+        status: iLiked && theyLiked ? 'matched' : 'pending',
+      },
+    });
+    return {
+      undone: true as const,
+      targetUserId: meIsOne ? row.userTwoId : row.userOneId,
+      theyLiked,
+    };
   }
 
   /**
@@ -1339,11 +1466,17 @@ export class DatingService {
   async pass(userId: string, targetUserId: string, kind: MatchKind) {
     const state = await this.upsertState(userId, targetUserId, kind);
     const meIsOne = state.userOneId === userId;
+    // The timestamp is what makes this undoable, and what tells a swipe-pass
+    // apart from an unmatch (which sets both flags and no time).
+    const now = new Date();
     await this.prisma.datingMatch.update({
       where: { id: state.id },
-      data: { ...(meIsOne ? { passedByOne: true } : { passedByTwo: true }), status: 'passed' },
+      data: {
+        ...(meIsOne ? { passedByOne: true, passedAtOne: now } : { passedByTwo: true, passedAtTwo: now }),
+        status: 'passed',
+      },
     });
-    return { ok: true };
+    return { ok: true, undoable: true };
   }
 
   // ─────────────── helpers ───────────────

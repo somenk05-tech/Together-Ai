@@ -946,6 +946,17 @@ model DatingMatch {
   passedByTwo    Boolean  @default(false)
   revealByOne    Boolean  @default(false) // dating chat: userOne agreed to reveal identity
   revealByTwo    Boolean  @default(false) // dating chat: userTwo agreed to reveal identity
+  // WHEN, not just whether (M2). Undo needs to know which pass was last, and a
+  // daily limit needs something to count; updatedAt moves for reveals and
+  // unmatches too, so it can answer neither. A NULL passedAt on a passed row
+  // means "passed before we recorded when" — undo leaves those alone.
+  likedAtOne     DateTime?
+  likedAtTwo     DateTime?
+  passedAtOne    DateTime?
+  passedAtTwo    DateTime?
+  // A super-like is a like that says so. Scarce by the day, never by payment.
+  superByOne     Boolean  @default(false)
+  superByTwo     Boolean  @default(false)
   conversationId String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -956,6 +967,10 @@ model DatingMatch {
   @@unique([userOneId, userTwoId, kind])
   @@index([userOneId, status])
   @@index([userTwoId, status])
+  @@index([userOneId, likedAtOne])
+  @@index([userTwoId, likedAtTwo])
+  @@index([userOneId, passedAtOne])
+  @@index([userTwoId, passedAtTwo])
 }
 
 // ─────────────── Nutrition Hub: orders, deliveries & wallet ───────────────
