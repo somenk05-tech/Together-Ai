@@ -52,12 +52,14 @@ describe('the activity scale', () => {
     ].join('\n')).toEqual(serverFactors);
   });
 
-  it('the engine holds exactly one factor table', () => {
-    // fitness-engine.ts had its own, derived from Ability. It comes off in the
-    // commit after this one; until then this test names it so the removal is not
-    // forgotten, and fails if a THIRD table appears anywhere else.
+  it('the engine holds no factor table of its own', () => {
+    // fitness-engine.ts had one, derived from Ability. It came off in 50eaf55,
+    // when computeBodyProgram started taking the Master Profile's activity
+    // factor through shared/energy.ts. This test was written before that
+    // commit precisely so it would fail the moment the removal landed and be
+    // rewritten into this: fail if the table grows back.
     const fitness = readFileSync(join(api, 'fitness/fitness-engine.ts'), 'utf8');
-    const known = fitness.includes('function activityFactor(');
-    expect(known, 'fitness-engine.ts no longer has activityFactor — update this test').toBe(true);
+    const grown = fitness.includes('function activityFactor(');
+    expect(grown, 'fitness-engine.ts has grown its own activity factor table again').toBe(false);
   });
 });

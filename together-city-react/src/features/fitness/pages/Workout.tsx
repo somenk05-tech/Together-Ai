@@ -2,12 +2,12 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import { useAddWorkout } from '../api';
-import { useFoodPref } from '@/features/nutrition/hooks';
+import { useFoodPref, useNutritionTargets } from '@/features/nutrition/hooks';
 
 /* ---------- shared body profile (from the Nutrition food-preference profile) ---------- */
 type Gender = 'male' | 'female';
 type Goal = 'lose' | 'maintain' | 'gain';
-interface Health { age: number; gender: Gender; heightCm: number; weightKg: number; activityMult: number; goal: Goal }
+interface Health { age: number; gender: Gender; heightCm: number; weightKg: number; goal: Goal }
 /**
  * Stand-ins, used to draw a page when the citizen has told us nothing.
  *
@@ -17,7 +17,7 @@ interface Health { age: number; gender: Gender; heightCm: number; weightKg: numb
  * for the same reason: a number built from an average is a real answer to a
  * different question.
  */
-const DEFAULT_HEALTH: Health = { age: 30, gender: 'female', heightCm: 165, weightKg: 65, activityMult: 1.55, goal: 'maintain' };
+const DEFAULT_HEALTH: Health = { age: 30, gender: 'female', heightCm: 165, weightKg: 65, goal: 'maintain' };
 
 const WORKOUT_MIN = 60, WALK_MIN = 20, STEPS_PER_MIN = 130;
 const WALK_STEPS = WALK_MIN * STEPS_PER_MIN;
@@ -25,22 +25,16 @@ const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
 const kcalWorkout = (min: number, weight: number) => Math.round(6.0 * weight * (min / 60));
 const kcalWalk = (min: number, weight: number) => Math.round(4.3 * weight * (min / 60));
 
-/**
- * Mifflin-St Jeor.
+/*
+ * There is no calorieTarget() here any more, and that is the point.
  *
- * `sx` is the term the equation has for male and the term it has for female,
- * and it has no third one. That is a fact about the equation, not about people,
- * and the honest handling of it is to say the number is not theirs — which is
- * what `assumed` below is for. Defaulting quietly to the female term and
- * printing the result as their target is the version this replaces.
+ * This was the app's fourth Mifflin-St Jeor — thoughtfully written (it carried
+ * assumed[] and sexKnown and said when the figure was an average), and still a
+ * different number for the same person. The daily target is computed once, in
+ * the API's shared/energy.ts; this page renders the one /nutrition/targets
+ * returns, or renders no number at all. src/app/one-energy.test.ts keeps this
+ * from growing back.
  */
-function calorieTarget(h: Health) {
-  const sx = h.gender === 'male' ? 5 : -161;
-  const bmr = 10 * h.weightKg + 6.25 * h.heightCm - 5 * h.age + sx;
-  const tdee = bmr * (h.activityMult || 1.55);
-  const adj = h.goal === 'lose' ? -0.15 : h.goal === 'gain' ? 0.12 : 0;
-  return Math.max(1200, Math.round(tdee * (1 + adj)));
-}
 const goalTagOf = (g: Goal) => ({ gain: 'Hypertrophy', lose: 'Fat loss', maintain: 'Strength' }[g]);
 
 /* ---------- routine data ---------- */
@@ -192,7 +186,6 @@ function healthFromPref(
     gender: p.sex ?? DEFAULT_HEALTH.gender,
     heightCm: p.heightCm ?? DEFAULT_HEALTH.heightCm,
     weightKg: p.weightKg ?? DEFAULT_HEALTH.weightKg,
-    activityMult: p.activity || DEFAULT_HEALTH.activityMult,
     goal: p.goal ?? DEFAULT_HEALTH.goal,
     assumed,
     sexKnown: p.sex != null,
@@ -216,6 +209,7 @@ function speak(txt: string) { try { if ('speechSynthesis' in window) { const u =
 export function Workout() {
   const addWorkout = useAddWorkout();
   const foodPref = useFoodPref();
+  const nutritionTargets = useNutritionTargets();
   const [level, setLevel] = useState<Level>('intermediate');
   const [dur, setDur] = useState(60);
   const [loc, setLoc] = useState<Loc>('home');
@@ -226,7 +220,12 @@ export function Workout() {
   const health = useMemo(() => healthFromPref(foodPref.data), [foodPref.data]);
   const hasProfile = health.assumed.length < 4;
   const gender = health.gender, goalKey = health.goal, WEIGHT = health.weightKg;
-  const KCAL = calorieTarget(health);
+  // The server's one daily target. Null while it loads, when the request
+  // fails, or when readiness carries a refusal — three states this page keeps
+  // apart below, because they license different sentences.
+  const KCAL = nutritionTargets.data && !(nutritionTargets.data.readiness && !nutritionTargets.data.readiness.ok)
+    ? nutritionTargets.data.kcal
+    : null;
   const goalTag = goalTagOf(goalKey);
   // Null when we have not been told. `gender` still carries a value so the
   // routine builder has something to pick exercises with — that is a product
@@ -347,7 +346,7 @@ export function Workout() {
               {health.assumed.length > 0 && (
                 <span className="muted" style={{ display: 'block', marginTop: 4 }}>
                   {health.assumed.join(', ')} {health.assumed.length === 1 ? 'is a stand-in' : 'are stand-ins'} —
-                  today’s calorie figure is an average until you set {health.assumed.length === 1 ? 'it' : 'them'}.
+                  used only to pick today’s routine, never to compute your calories.
                 </span>
               )}
             </>
@@ -364,7 +363,18 @@ export function Workout() {
       <section className="blk">
         <div className="blk-head"><h2>Today's activity goal</h2><span className="muted" style={{ fontSize: 12 }}>From your Nutrition plan</span></div>
         <div className="card">
-          <p className="muted" style={{ fontSize: 12.5, marginBottom: 2 }}>To maintain your <b style={{ color: 'var(--ink)' }}>{inr(KCAL)} kcal</b> Nutrition plan, aim to burn about <b style={{ color: 'var(--ink)' }}>{inr(burnTotal)} kcal</b> today through activity:</p>
+          {KCAL != null ? (
+            <p className="muted" style={{ fontSize: 12.5, marginBottom: 2 }}>To maintain your <b style={{ color: 'var(--ink)' }}>{inr(KCAL)} kcal</b> Nutrition plan, aim to burn about <b style={{ color: 'var(--ink)' }}>{inr(burnTotal)} kcal</b> today through activity:</p>
+          ) : (
+            <>
+              <p className="muted" style={{ fontSize: 12.5, marginBottom: 2 }}>Aim to burn about <b style={{ color: 'var(--ink)' }}>{inr(burnTotal)} kcal</b> today through activity:</p>
+              {nutritionTargets.isError ? (
+                <p className="muted" style={{ fontSize: 11.5, marginBottom: 2 }}>Your Nutrition plan couldn't be loaded just now — the burn goal above still stands.</p>
+              ) : nutritionTargets.data ? (
+                <p className="muted" style={{ fontSize: 11.5, marginBottom: 2 }}>Your daily calorie plan will appear here once your <Link to="/nutrition/preferences" style={{ color: 'var(--accent)' }}>Nutrition profile</Link> is complete.</p>
+              ) : null}
+            </>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 14, marginTop: 6 }}>
             {[
               { l: 'Work out', v: `${WORKOUT_MIN} min`, s: `circuit & strength · ≈ ${inr(burnWorkout)} kcal` },
