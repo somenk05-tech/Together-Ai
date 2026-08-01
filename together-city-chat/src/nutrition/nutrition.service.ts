@@ -29,12 +29,12 @@ import { assignDietPlans, planLabel, DIET_PLAN_CATALOG } from './diet-plans';
 import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntAvoidKeywords } from './clinical-mnt';
-import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
+import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, cuisineAliases, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from './diet-tags';
 import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
 import { canonicaliseDeclared, findAllergen, isAllergenSafe } from '../shared/allergens';
 import { allergyNotice } from '../shared/allergen-voice';
-import { ACTIVITY_CHOICES, ACTIVITY_FACTORS, GOAL_DELTA, energyTarget, nearestActivityLevel } from '../shared/energy';
+import { ACTIVITY_CHOICES, GOAL_DELTA, energyTarget, nearestActivityLevel } from '../shared/energy';
 import { itemKey, mergeGroceryList } from './grocery-merge';
 import { targetReadiness } from './target-readiness';
 import { scoreDual, buildScorecard, guidelineCaps } from './plan-score';
@@ -906,8 +906,10 @@ export function computeTargets(inp: TargetInput) {
     activity, goal: goal as 'lose' | 'maintain' | 'gain',
     deltaPct: adj, extraKcal: energyExtra,
   });
-  const bmr = energy.bmr;
-  const tdee = energy.tdee;
+  // `bmr` and `tdee` used to be pulled out here and were read by nobody:
+  // energy.trace carries "Resting energy (BMR)" as a labelled step and the
+  // caller returns `energyTrace`, which is what FE-7.1 renders. Two dead locals
+  // left behind by the thing that replaced them.
   const kcal = energy.kcal;
 
   const refWeight = bmi >= 27 ? Math.round(25 * h * h) : weight;
@@ -2093,7 +2095,7 @@ export class NutritionService implements OnModuleInit {
     const diet = r.diet === 'jainvegan' ? 'vegan' : r.diet;
     const difficulty = r.minutes <= 15 ? 'Easy' : r.minutes <= 40 ? 'Medium' : 'Hard';
     return {
-      id: r.id, name: r.name, cuisine: r.country, kcal, protein: per(r.protein), carbs: per(r.carbs), fat: per(r.fat), fiber: per(r.fiber),
+      id: r.id, name: r.name, cuisine: normCuisine(r.country), kcal, protein: per(r.protein), carbs: per(r.carbs), fat: per(r.fat), fiber: per(r.fiber),
       minutes: r.minutes, servings: 1, difficulty, diet, healthScore: r.healthPercent ?? null, healthGrade: r.healthGrade ?? null,
       sodiumMg: n.complete ? n.na : null, potassiumMg: n.complete ? n.k : null, sugarG: n.complete ? n.sug : null,
       ironMg: micro.ironMg || null, calciumMg: micro.calciumMg || null, vitDUg: micro.vitDUg || null, vitCMg: micro.vitCMg || null,
@@ -2108,11 +2110,41 @@ export class NutritionService implements OnModuleInit {
   }
 
   /** Cuisine facet for the library grid (top countries by recipe count). */
+  /**
+   * The cuisine cards on the Recipe Library landing.
+   *
+   * The corpus stores a `country`, and it stores it two ways — the dataset's
+   * "India", "Italy", "Thailand" alongside the profile's "Indian", "Italian",
+   * "Thai". Grouping the raw column showed both, so the landing offered Indian
+   * AND India, Chinese AND China, six pairs in all, each holding part of a
+   * cuisine and neither admitting the other existed.
+   *
+   * So the counts fold onto the name `normCuisine` already uses everywhere else
+   * — the planner, the pool, plan-score. The Library was the one place still
+   * speaking the raw column.
+   *
+   * THE FOLD HAPPENS BEFORE THE TRUNCATION, which is why the group is no longer
+   * capped at 24 in the query. Take the top 24 raw rows and merge afterwards and
+   * you have merged a truncated list: a cuisine split across two spellings could
+   * miss the cut on both while its combined count would have put it near the
+   * top. `FACET_SCAN` sits comfortably above the real cardinality of a country
+   * column and is there only so this is not an unbounded read.
+   */
   private async cuisineFacet() {
+    const FACET_SCAN = 200;
     const rows = await (this.prisma as unknown as { recipe: { groupBy: (a: unknown) => Promise<Array<{ country: string; _count: { _all: number } }>> } }).recipe
-      .groupBy({ by: ['country'], _count: { _all: true }, orderBy: { _count: { country: 'desc' } }, take: 24 })
+      .groupBy({ by: ['country'], _count: { _all: true }, orderBy: { _count: { country: 'desc' } }, take: FACET_SCAN })
       .catch(swallowed('nutrition.cuisineFacet', [] as Array<{ country: string; _count: { _all: number } }>));
-    return rows.filter((r) => r.country).map((r) => ({ name: r.country, count: r._count._all }));
+    const folded = new Map<string, number>();
+    for (const r of rows) {
+      if (!r.country) continue;
+      const name = normCuisine(r.country);
+      folded.set(name, (folded.get(name) ?? 0) + r._count._all);
+    }
+    return [...folded.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+      .slice(0, 24);
   }
 
   /**
@@ -2291,7 +2323,11 @@ export class NutritionService implements OnModuleInit {
     // literally named "Chili"/"Chicken" is noise in a browsable library.
     const JUNK_TITLES = ['Chili', 'Chilli', 'Chicken', 'Curry', 'Dal', 'Rice', 'Soup', 'Salad', 'Sauce', 'Bread', 'Cake', 'Fish', 'Beef', 'Pork', 'Lamb', 'Snack', 'Drink', 'Dessert', 'Gravy', 'Stew'];
     where.NOT = { name: { in: JUNK_TITLES } };
-    if (q.cuisine) where.country = q.cuisine;
+    // Against every spelling of it, not just the one on the card. The card now
+    // says "Indian" and its count includes the rows filed under "India"; a
+    // filter on the canonical name alone would return only part of what the
+    // count promised, which is a worse bug than the two cards were.
+    if (q.cuisine) { const aliases = cuisineAliases(q.cuisine); if (aliases.length) where.country = { in: aliases }; }
     // Search matches a recipe's NAME or its INGREDIENTS, so "paneer" finds
     // dishes made with paneer, not only ones with it in the title.
     if (q.search) {

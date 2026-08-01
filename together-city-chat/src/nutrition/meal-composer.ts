@@ -1,5 +1,5 @@
 import {
-  SLOTS, SLOT_BY_CODE, type SlotCode, type MealCategory,
+  SLOT_BY_CODE, type SlotCode, type MealCategory,
   resolveSchedule, type FastingPrefs, type DaySchedule,
 } from './meal-engine';
 import { isAllergenSafe } from '../shared/allergens';
@@ -180,6 +180,25 @@ const CUISINE_NORMALISE: Record<string, string> = {
   Global: 'Global',
 };
 export function normCuisine(c: string): string { return CUISINE_NORMALISE[(c ?? '').trim()] ?? c; }
+
+/**
+ * Every spelling stored in the corpus that means this cuisine.
+ *
+ * The inverse of `normCuisine`, and the reason the Recipe Library could show
+ * "Indian" and "India" as two cards: the facet grouped the raw column and the
+ * filter compared against it, so folding the two names together in the display
+ * without folding them in the QUERY would have given you one card that returned
+ * half its recipes — a worse bug than the one being fixed.
+ *
+ * The canonical name is always included, even when it is not itself a key, so a
+ * cuisine the map has never heard of ("France") still matches itself.
+ */
+export function cuisineAliases(canonical: string): string[] {
+  const want = (canonical ?? '').trim();
+  if (!want) return [];
+  const raws = Object.keys(CUISINE_NORMALISE).filter((k) => CUISINE_NORMALISE[k] === want);
+  return [...new Set([want, ...raws])];
+}
 
 /** Per-role potassium/phosphorus ceilings (mg/serving) for renal plates. */
 const RENAL_K_CEIL: Record<string, number> = { main: 240, dal: 0, vegetable: 230, carb: 180, salad: 180, snack: 240, breakfast: 340, soup: 200, dessert: 240, drink: 240, side: 200, dairy: 0 };
