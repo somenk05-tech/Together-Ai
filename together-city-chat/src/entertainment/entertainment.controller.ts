@@ -6,7 +6,7 @@ import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { EntertainmentService } from './entertainment.service';
 import { TmdbService } from './tmdb.service';
 import { WatchmodeService } from './watchmode.service';
-import { BookTicketSchema, type BookTicketDto, EventQuerySchema, type EventQueryDto, SaveWatchSchema, type SaveWatchDto } from './dto/entertainment.dto';
+import { SaveWatchSchema, type SaveWatchDto } from './dto/entertainment.dto';
 import { Delete } from '@nestjs/common';
 
 @Controller('entertainment')
@@ -100,25 +100,4 @@ export class EntertainmentController {
     return this.tmdb.person(id);
   }
 
-  @Get('events')
-  @UsePipes(new ZodValidationPipe(EventQuerySchema))
-  events(@Query() query: EventQueryDto) {
-    return this.entertainment.events(query);
-  }
-
-  @Get('events/:id')
-  detail(@Param('id') id: string) {
-    return this.entertainment.detail(id);
-  }
-
-  @Post('events/:id/book')
-  @UsePipes(new ZodValidationPipe(BookTicketSchema))
-  book(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: BookTicketDto) {
-    return this.entertainment.book(user.sub, id, dto);
-  }
-
-  @Get('tickets')
-  tickets(@CurrentUser() user: JwtUser) {
-    return this.entertainment.myTickets(user.sub);
-  }
 }

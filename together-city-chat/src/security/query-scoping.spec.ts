@@ -142,6 +142,13 @@ const REVIEWED_UNSCOPED = [
   'auth/token.service.ts  RefreshToken.update x1',
   'auth/token.service.ts  RefreshToken.updateMany x1',
   'conversations/conversations.service.ts  ConversationMember.updateMany x1',
+  // onModuleInit() — a startup alarm, not a read of anybody's data. The events
+  // flow was removed (owner decision, 2 Aug) and any TicketBooking row is now a
+  // charge whose owner has no screen to see it on. The question the count asks
+  // is "does ANY citizen hold one of these", so scoping it to a user would be
+  // scoping it to nobody: there is no caller and no current user at boot.
+  // Returns a number. No row, no field, nothing to leak.
+  'entertainment/entertainment.service.ts  TicketBooking.count x1',
   'jobs/jobs.service.ts  JobApplication.delete x1',
   'jobs/jobs.service.ts  JobApplication.findMany x2',
   'jobs/jobs.service.ts  JobApplication.findUnique x2',

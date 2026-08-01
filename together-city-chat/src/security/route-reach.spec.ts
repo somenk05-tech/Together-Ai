@@ -105,12 +105,8 @@ const KNOWN_UNREACHED: string[] = [
   "drive/drive.controller.ts  GET /drive/attachments",
   "drive/drive.controller.ts  POST /drive/files/*/attach",
   "entertainment/entertainment.controller.ts  GET /entertainment/categories",
-  "entertainment/entertainment.controller.ts  GET /entertainment/events",
-  "entertainment/entertainment.controller.ts  GET /entertainment/events/*",
   "entertainment/entertainment.controller.ts  GET /entertainment/movies/*",
-  "entertainment/entertainment.controller.ts  GET /entertainment/tickets",
   "entertainment/entertainment.controller.ts  GET /entertainment/tv/*",
-  "entertainment/entertainment.controller.ts  POST /entertainment/events/*/book",
   "medical/medical.controller.ts  GET /medical/shared-biomarkers/*",
   // GET /messages/search came off 1 Aug: the command palette searches messages.
   "nutrition/nutrition.controller.ts  GET /nutrition/diet-plans",

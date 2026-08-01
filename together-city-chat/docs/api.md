@@ -4,7 +4,7 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **395 routes** across
+Every path below is prefixed with `/api`. **391 routes** across
 **34 controllers**; **9** are reachable without a token.
 
 ## Conventions
@@ -237,9 +237,6 @@ _entertainment/entertainment.controller.ts_
 | GET | `/api/entertainment/categories` | token |
 | GET | `/api/entertainment/curated-movies` | token |
 | GET | `/api/entertainment/discover` | token |
-| POST | `/api/entertainment/events/:id/book` | 🔒 |
-| GET | `/api/entertainment/events/:id` | token |
-| GET | `/api/entertainment/events` | token |
 | GET | `/api/entertainment/movies/:id` | token |
 | GET | `/api/entertainment/movies` | token |
 | GET | `/api/entertainment/ott` | token |
@@ -247,7 +244,6 @@ _entertainment/entertainment.controller.ts_
 | GET | `/api/entertainment/recommended` | 🔒 |
 | GET | `/api/entertainment/search` | token |
 | GET | `/api/entertainment/sources/:type/:id` | token |
-| GET | `/api/entertainment/tickets` | 🔒 |
 | GET | `/api/entertainment/tv/:id` | token |
 | DELETE | `/api/entertainment/watchlist/:type/:id` | 🔒 |
 | GET | `/api/entertainment/watchlist` | 🔒 |

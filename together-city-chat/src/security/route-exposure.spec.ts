@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { allRoutes, controllerFiles, Route } from './route-inventory';
 
@@ -52,7 +52,6 @@ const UNSCOPED_CATALOGUE_READS = [
   'entertainment GET tv/:id',
   'entertainment GET sources/:type/:id',
   'entertainment GET person/:id',
-  'entertainment GET events/:id',
   'lookups GET :category',
   'nutrition GET recipes/:id/variants',
   'travel GET packages/:id',
@@ -112,7 +111,6 @@ describe('production source carries no invented data', () => {
 
   function sourceFiles(): string[] {
     // Reuse the controller walker's directory traversal by walking from src/.
-    const { readdirSync, statSync } = require('fs') as typeof import('fs');
     const root = join(__dirname, '..');
     const out: string[] = [];
     (function walk(dir: string) {

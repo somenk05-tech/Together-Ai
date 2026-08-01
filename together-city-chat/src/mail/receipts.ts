@@ -12,24 +12,6 @@ const foot = (code: string): string =>
 
 export interface Receipt { subject: string; body: string }
 
-export function ticketReceipt(x: {
-  title: string; tier: string; qty: number; totalInr: number; venue: string; city: string; date: string; time: string; code: string;
-}): Receipt {
-  return {
-    subject: `🎟 Tickets confirmed — ${x.title}`,
-    body: [
-      `Your tickets are booked. Show this reference at the gate.`,
-      ``, rule,
-      `Event      ${x.title}`,
-      `Venue      ${x.venue}, ${x.city}`,
-      `When       ${x.date} · ${x.time}`,
-      `Tickets    ${x.tier} × ${x.qty}`,
-      `Paid       ${inr(x.totalInr)}`,
-      ``, foot(x.code),
-    ].join('\n'),
-  };
-}
-
 export function tableReceipt(x: {
   restaurantName: string; area: string; date: string; time: string; partySize: number; guestName: string; code: string;
 }): Receipt {

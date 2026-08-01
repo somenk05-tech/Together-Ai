@@ -1,18 +1,9 @@
 import { swallowed } from '../shared/swallow';
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { demoDataEnabled } from '../shared/demo-data';
-import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
-import { ClockService } from '../shared/clock/clock.service';
-import { ORDER_HISTORY_CAP } from '../shared/paging';
-import { FinancialService } from '../financial/financial.service';
-import { MailService } from '../mail/mail.service';
-import { ticketReceipt } from '../mail/receipts';
-import { CATEGORY_META, CATEGORIES } from './entertainment.constants';
-import type { BookTicketDto, EventQueryDto, SaveWatchDto } from './dto/entertainment.dto';
-
-type Tier = { name: string; priceInr: number; available: number };
-type EventRow = { id: string; title: string; category: string; venue: string; city: string; date: string; time: string; description: string; posterUrl: string; priceFromInr: number; tiersJson: string };
+import { CATEGORIES } from './entertainment.constants';
+import type { SaveWatchDto } from './dto/entertainment.dto';
 
 /** One saved Watchlist title (stored as JSON on the user). */
 export interface WatchItem {
@@ -20,8 +11,6 @@ export interface WatchItem {
   posterUrl: string | null; rating: number | null; releaseDate: string | null;
   language: string; genres: string[]; platform: string | null; savedAt: string;
 }
-
-const parseTiers = (json: string): Tier[] => { try { return JSON.parse(json) as Tier[]; } catch { return []; } };
 
 @Injectable()
 export class EntertainmentService implements OnModuleInit {
@@ -33,122 +22,48 @@ export class EntertainmentService implements OnModuleInit {
   ];
 
   /**
-   * Clear invented events left by an earlier deploy. The seed constant is gone,
-   * but rows it created would still be listed and still bookable — real money
-   * for a concert that was never scheduled. Bookings block the delete, and that
-   * is the case an operator most needs to hear about, so it is logged loudly.
+   * Nobody is left holding a paid ticket to a flow that no longer exists.
+   *
+   * Owner decision, 2 Aug: REMOVE the events flow. It charged the city wallet
+   * against a table with no UI anywhere in the app — four endpoints, a seat-lock
+   * transaction, a receipt email, and no screen from which any of it could be
+   * reached.
+   *
+   * Deleting the code is the easy half. The half that matters is that money may
+   * already have moved: an earlier deploy seeded invented events (a concert that
+   * was never scheduled), and those rows were bookable. The previous version of
+   * this hook deleted those eight seed rows and shouted if a booking blocked the
+   * delete. That warning was the only thing in the codebase that knew a refund
+   * might be owed, so it does not get deleted along with the feature it was
+   * warning about — it gets widened, because with the flow gone EVERY
+   * TicketBooking row is a charge for something its owner can no longer see,
+   * use, or cancel.
+   *
+   * TicketBooking rows are NOT deleted. They are the evidence a refund is owed.
+   * The Event and TicketBooking tables stay for the same reason: dropping a
+   * table this cannot verify is empty is not a thing to do from a code change.
    */
   async onModuleInit(): Promise<void> {
     if (demoDataEnabled()) return;
     const ids = EntertainmentService.RETIRED_SEED_EVENT_IDS;
-    const gone = await this.prisma.event.deleteMany({ where: { id: { in: ids } } }).catch(swallowed('entertainment.onModuleInit', null));
-    if (gone === null) {
-      this.logger.warn(
-        `Could not remove retired seed events (${ids.join(', ')}) — a citizen has almost certainly booked one. Those tickets are for events that do not exist and need refunding.`,
+    const paid = await this.prisma.ticketBooking.count().catch(swallowed('entertainment.onModuleInit count', null));
+    if (paid) {
+      this.logger.error(
+        `${paid} ticket booking(s) exist for the removed events flow. Those citizens paid, and there is no longer any screen on which they can see or use what they bought — some of them for seeded events that were never scheduled (${ids.join(', ')}). These need refunding by hand; the rows are deliberately left in place as the record of it.`,
       );
     }
+    // The invented rows themselves still go, so nothing can list them again.
+    // A booking no longer blocks this — the count above is the alarm.
+    await this.prisma.event.deleteMany({ where: { id: { in: ids } } }).catch(swallowed('entertainment.onModuleInit', null));
   }
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly financial: FinancialService, // ticket payments flow through the one city wallet
-    private readonly mail: MailService,            // confirmations land in the city inbox + primary email
-    private readonly clock: ClockService,
-  ) {}
+  // The wallet, the mailer and the clock came out with the events flow: this
+  // service no longer takes money, sends a receipt, or has a time to localise.
+  // Watchlist is a JSON column on the user, and the catalogue is TMDB.
+  constructor(private readonly prisma: PrismaService) {}
 
   categories() {
     return CATEGORIES.map((c) => ({ key: c.key, label: c.label, icon: c.icon }));
-  }
-
-  private shapeCard(e: EventRow) {
-    const meta = CATEGORY_META[e.category] ?? { label: e.category, icon: '🎟', hue: 0 };
-    return {
-      id: e.id, title: e.title, category: e.category, categoryLabel: meta.label, icon: meta.icon,
-      venue: e.venue, city: e.city, date: e.date, time: e.time, posterUrl: e.posterUrl, priceFromInr: e.priceFromInr,
-    };
-  }
-
-  async events(query: EventQueryDto) {
-    // unbounded: the events catalogue — city-curated; filters run in memory below
-    const rows = await this.prisma.event.findMany({ orderBy: { date: 'asc' } }) as EventRow[];
-    return rows
-      .filter((e) => (!query.category || e.category === query.category) && (!query.city || e.city.toLowerCase() === query.city.toLowerCase()))
-      .map((e) => this.shapeCard(e));
-  }
-
-  async detail(id: string) {
-    const e = await this.prisma.event.findUnique({ where: { id } }) as EventRow | null;
-    if (!e) throw new NotFoundException('event not found');
-    return { ...this.shapeCard(e), description: e.description, tiers: parseTiers(e.tiersJson) };
-  }
-
-  /** Book tickets — charges the city wallet (Financial), then issues a pass. */
-  async book(userId: string, eventId: string, dto: BookTicketDto) {
-    const e = await this.prisma.event.findUnique({ where: { id: eventId } }) as EventRow | null;
-    if (!e) throw new NotFoundException('event not found');
-    const tier = parseTiers(e.tiersJson).find((t) => t.name === dto.tier);
-    if (!tier) throw new BadRequestException('unknown ticket tier');
-    if (tier.available < dto.qty) throw new BadRequestException('not enough tickets in that tier');
-
-    const totalInr = tier.priceInr * dto.qty;
-    const code = 'TC-' + randomBytes(3).toString('hex').toUpperCase();
-
-    // Charge and issue the pass together. Previously the wallet was debited and
-    // the booking written as a separate call, so a failure in between left a
-    // citizen paid-up with no ticket and nothing to reconcile against.
-    await this.financial.paid(
-      userId,
-      { hub: 'Entertainment', category: 'entertainment', label: `${e.title} · ${dto.tier} ×${dto.qty}`, amountInr: totalInr, method: dto.method },
-      async (tx) => {
-        // Take the row's write lock BEFORE reading it.
-        //
-        // Availability lives inside a JSON string, so claiming a seat is
-        // read-modify-write and cannot be expressed as a condition on a column
-        // the way the wallet's balance can. Re-reading inside the transaction —
-        // which is what this used to do, and what the comment here used to
-        // claim was enough — fixes only the stale-check half. The lost-update
-        // half survived it: two bookings both read "4 available", both compute
-        // 4 − 2, and both write 2. Six seats sold, two decremented, and the
-        // second write silently erases the first.
-        //
-        // FOR UPDATE makes the second booking wait for the first to commit and
-        // then read what it actually wrote. It locks one event row for the few
-        // milliseconds of a booking, which is exactly the scope wanted: two
-        // people buying tickets to different events never meet.
-        //
-        // The real fix is a tier table with an integer column, so this could be
-        // one conditional UPDATE like the wallet's. That is a migration and a
-        // reshape of the seed data; this is correct in the meantime and says so.
-        await tx.$queryRaw`SELECT id FROM "Event" WHERE id = ${eventId} FOR UPDATE`;
-        const fresh = await tx.event.findUnique({ where: { id: eventId }, select: { tiersJson: true } });
-        const tiers = parseTiers(fresh?.tiersJson ?? e.tiersJson);
-        const seat = tiers.find((t) => t.name === dto.tier);
-        if (!seat || seat.available < dto.qty) {
-          throw new BadRequestException('Those seats just went — try a different tier.');
-        }
-        seat.available -= dto.qty;
-        await tx.event.update({ where: { id: eventId }, data: { tiersJson: JSON.stringify(tiers) } });
-        await tx.ticketBooking.create({
-          data: { userId, eventId, title: e.title, tier: dto.tier, qty: dto.qty, totalInr, code, status: 'confirmed', eventDate: e.date, eventTime: e.time, venue: e.venue, city: e.city, category: e.category },
-        });
-      },
-    );
-
-    // Receipt AFTER the transaction: a mail provider call inside one holds a
-    // database connection open across the network, and a failed receipt should
-    // never undo a confirmed booking.
-    await this.mail.deliverSystem(userId, ticketReceipt({ title: e.title, tier: dto.tier, qty: dto.qty, totalInr, venue: e.venue, city: e.city, date: e.date, time: e.time, code })).catch(swallowed('entertainment.book', undefined));
-    return this.myTickets(userId);
-  }
-
-  async myTickets(userId: string) {
-    const rows = await this.prisma.ticketBooking.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: ORDER_HISTORY_CAP });
-    const tz = await this.clock.timezoneFor(userId);
-    return rows.map((t) => ({
-      id: t.id, eventId: t.eventId, title: t.title, tier: t.tier, qty: t.qty, totalInr: t.totalInr, code: t.code, status: t.status,
-      date: t.eventDate, time: t.eventTime, venue: t.venue, city: t.city,
-      icon: CATEGORY_META[t.category]?.icon ?? '🎟', bookedOn: this.clock.dayIn(tz, t.createdAt),
-    }));
   }
 
   // ─────────────── personal Watchlist (saved movies & series) ───────────────
