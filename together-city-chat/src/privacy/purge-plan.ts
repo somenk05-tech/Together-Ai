@@ -84,6 +84,11 @@ export const PURGE_RULES: PurgeRule[] = [
   // cascade away with their individual plans above — so by the time this rule
   // runs, nothing of theirs holds the FK open.
   { model: 'Recipe', by: 'authorId', action: 'purge', reason: 'Their own dishes. NULL authorId is the vetted world corpus and never matches a citizen; a private dish is visible only to its author, so nothing another citizen can see is destroyed. Ingredients cascade with the row.' },
+  // Placed AFTER the MealPlan rules on purpose: the retired Meal table still
+  // holds a plain FK to Recipe (no cascade), and a citizen's own Meal rows
+  // cascade away with their individual plans above — so by the time this rule
+  // runs, nothing of theirs holds the FK open.
+  { model: 'Recipe', by: 'authorId', action: 'purge', reason: 'Their own dishes. NULL authorId is the vetted world corpus and never matches a citizen; a private dish is visible only to its author, so nothing another citizen can see is destroyed. Ingredients cascade with the row.' },
   { model: 'NutritionOrder', by: 'userId', action: 'purge', reason: 'Grocery orders. Line items cascade.' },
   { model: 'DietitianBooking', by: 'userId', action: 'purge', reason: 'Their side of a booking; the dietitian is a catalogue row and stays.' },
 

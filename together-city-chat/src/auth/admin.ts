@@ -1,3 +1,4 @@
+import { swallow } from '../shared/swallow';
 import { ForbiddenException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 
@@ -45,13 +46,12 @@ export class AdminService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     if (!ADMIN_HANDLES.length) return;
-    const granted = await this.prisma.user
+    const granted = await swallow(this.prisma.user
       .updateMany({
         where: { handle: { in: [...ADMIN_HANDLES] }, role: { not: 'admin' } } as never,
         data: { role: 'admin' } as never,
-      })
-      .catch(() => null);
-    if (granted === null) {
+      }), 'moderator role sync');
+    if (!granted) {
       this.logger.warn('Could not sync moderator roles from MODERATION_ADMINS.');
     } else if (granted.count) {
       this.logger.log(`Granted the moderator role to ${granted.count} account(s) from MODERATION_ADMINS.`);
@@ -61,10 +61,10 @@ export class AdminService implements OnModuleInit {
   /** True when this account holds the moderator role. */
   async isAdmin(userId?: string): Promise<boolean> {
     if (!userId) return false;
-    const row = await this.prisma.user
-      .findUnique({ where: { id: userId }, select: { role: true } as never })
-      .catch(() => null);
-    return (row as { role?: string } | null)?.role === 'admin';
+    const row = await swallow(this.prisma.user
+      .findUnique({ where: { id: userId }, select: { role: true } as never }),
+      'admin role read', { userId });
+    return (row as { role?: string } | null | undefined)?.role === 'admin';
   }
 
   async assertAdmin(userId?: string, message = 'Moderator access required.'): Promise<void> {

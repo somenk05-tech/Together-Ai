@@ -1,3 +1,4 @@
+import { swallow } from '../shared/swallow';
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 
@@ -26,9 +27,13 @@ export class VerifiedGuard implements CanActivate {
     const userId = req.user?.sub;
     if (!userId) return true; // JwtAuthGuard owns authentication; nothing to check here.
 
-    const user = await this.prisma.user
-      .findUnique({ where: { id: userId }, select: { email: true, emailVerified: true } })
-      .catch(() => null);
+    // Fail-open on a read error is deliberate: this guard soft-gates features
+    // behind email verification, it does not authenticate. A DB blip should
+    // not lock a signed-in citizen out of the city — but it should be seen.
+    const user = await swallow(
+      this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, emailVerified: true } }),
+      'verified-guard user read', { userId },
+    );
 
     // Unknown user or no email on file → nothing to verify, let it through.
     if (!user || !user.email) return true;

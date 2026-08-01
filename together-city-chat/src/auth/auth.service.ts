@@ -1,3 +1,4 @@
+import { swallow } from '../shared/swallow';
 import {
   ConflictException,
   Injectable,
@@ -30,9 +31,9 @@ export class AuthService {
   private async initializeAccount(userId: string): Promise<void> {
     const p = this.prisma as unknown as Record<string, { create(a: unknown): Promise<unknown> }>;
     await Promise.all([
-      p.foodPref?.create({ data: { userId } }).catch(() => undefined),        // Nutrition Hub
-      p.beautyProfile?.create({ data: { userId } }).catch(() => undefined),   // Beauty Hub
-      p.fitnessProfile?.create({ data: { userId } }).catch(() => undefined),  // Fitness Hub
+      swallow(p.foodPref?.create({ data: { userId } }), 'seed FoodPref at sign-up', { userId }), // Nutrition Hub
+      swallow(p.beautyProfile?.create({ data: { userId } }), 'seed BeautyProfile at sign-up', { userId }), // Beauty Hub
+      swallow(p.fitnessProfile?.create({ data: { userId } }), 'seed FitnessProfile at sign-up', { userId }), // Fitness Hub
     ]);
   }
 
@@ -74,7 +75,10 @@ export class AuthService {
   async handleAvailable(raw: string): Promise<{ handle: string; valid: boolean; available: boolean; suggestions: string[] }> {
     const handle = (raw ?? '').trim().toLowerCase();
     if (!/^[a-z0-9_.]{3,30}$/.test(handle)) return { handle, valid: false, available: false, suggestions: [] };
-    const taken = await this.prisma.user.findUnique({ where: { handle } }).catch(() => null);
+    // NOTE: on a failed read this still reports "available" — an absence the
+    // form never established. Logged now; the honest API shape (available:
+    // unknown) is a separate, client-visible change.
+    const taken = await swallow(this.prisma.user.findUnique({ where: { handle } }), 'handle availability read', { handle });
     if (!taken) return { handle, valid: true, available: true, suggestions: [] };
     const base = handle.replace(/[._]+$/, '') || handle;
     const candidates = [`${base}_${randomInt(10, 99)}`, `${base}.city`, `${base}_official`, `the.${base}`, `${base}${randomInt(1, 9)}`, `${base}_${randomInt(100, 999)}`];
@@ -82,7 +86,7 @@ export class AuthService {
     for (const c of candidates) {
       if (suggestions.length >= 4) break;
       if (!/^[a-z0-9_.]{3,30}$/.test(c) || suggestions.includes(c)) continue;
-      if (!(await this.prisma.user.findUnique({ where: { handle: c } }).catch(() => null))) suggestions.push(c);
+      if (!(await swallow(this.prisma.user.findUnique({ where: { handle: c } }), 'handle suggestion read', { candidate: c }))) suggestions.push(c);
     }
     return { handle, valid: true, available: false, suggestions };
   }
@@ -92,7 +96,9 @@ export class AuthService {
     const email = (raw ?? '').trim().toLowerCase();
     const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 160;
     if (!valid) return { email, valid: false, available: false };
-    const taken = await this.prisma.user.findFirst({ where: { email } }).catch(() => null);
+    // Same caveat as handleAvailable. No meta: an email address is PII and
+    // does not belong in the logs.
+    const taken = await swallow(this.prisma.user.findFirst({ where: { email } }), 'email availability read');
     return { email, valid: true, available: !taken };
   }
 
@@ -163,8 +169,11 @@ export class AuthService {
       // correspondence, not a secret, and belongs in the inbox.
       const target = sendChannel === 'sms' ? user.phone : user.email;
       if (target) {
-        await this.mail.deliverTo(user.id, sendChannel, target,
-          { subject: '🔐 Your Together City recovery code', body }, 'recovery').catch(() => undefined);
+        // If this fails, the citizen was told "sent" and no code is coming.
+        // That was invisible; now it is a [swallowed] line with their id.
+        await swallow(this.mail.deliverTo(user.id, sendChannel, target,
+          { subject: '🔐 Your Together City recovery code', body }, 'recovery'),
+          'recovery-code delivery', { userId: user.id, channel: sendChannel });
       }
     }
     return { sent: true, delivery, channel };
@@ -201,10 +210,10 @@ export class AuthService {
     await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: await argon2.hash(dto.newPassword) } });
     await this.prisma.passwordReset.update({ where: { id: reset.id }, data: { usedAt: new Date() } });
     await this.tokens.revokeAll(user.id); // sign out everywhere after a reset
-    await this.mail.deliverSystem(user.id, {
+    await swallow(this.mail.deliverSystem(user.id, {
       subject: '✅ Your Together City password was changed',
       body: `Your password was just reset and you've been signed out of all sessions. If this wasn't you, reset your password again immediately.`,
-    }, 'security').catch(() => undefined);
+    }, 'security'), 'password-changed notice', { userId: user.id });
     return { ok: true };
   }
 
@@ -247,9 +256,11 @@ export class AuthService {
 
     // 1) Remove this citizen's own public presence. Post media/likes/comments
     //    cascade from Post; reposts of their posts cascade too.
-    await this.prisma.post.deleteMany({ where: { authorId: userId } }).catch(() => undefined);
-    await this.prisma.follow.deleteMany({ where: { OR: [{ followerId: userId }, { followeeId: userId }] } }).catch(() => undefined);
-    await this.prisma.connection.deleteMany({ where: { OR: [{ userOneId: userId }, { userTwoId: userId }] } }).catch(() => undefined);
+    // A step that fails here leaves public presence live behind an account
+    // that reports itself deleted — the log line is the only witness.
+    await swallow(this.prisma.post.deleteMany({ where: { authorId: userId } }), 'deletion: posts', { userId });
+    await swallow(this.prisma.follow.deleteMany({ where: { OR: [{ followerId: userId }, { followeeId: userId }] } }), 'deletion: follows', { userId });
+    await swallow(this.prisma.connection.deleteMany({ where: { OR: [{ userOneId: userId }, { userTwoId: userId }] } }), 'deletion: connections', { userId });
 
     // 2) Anonymise the surviving row. The handle is released in a form that can
     //    never collide with a real one, and the password is replaced with an
@@ -275,7 +286,7 @@ export class AuthService {
     });
 
     // 3) Sign out everywhere — every refresh token/session is revoked.
-    await this.tokens.revokeAll(userId).catch(() => undefined);
+    await swallow(this.tokens.revokeAll(userId), 'deletion: revoke all sessions', { userId });
     return { ok: true };
   }
 

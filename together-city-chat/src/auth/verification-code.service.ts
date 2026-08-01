@@ -1,3 +1,4 @@
+import { optional, swallow } from '../shared/swallow';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import * as argon2 from 'argon2';
@@ -117,15 +118,18 @@ export class VerificationCodeService {
     // Throttle on the TARGET, not on the account. An attacker who wants to bury
     // someone in texts would otherwise just make a new account per burst.
     const [toTarget, fromIp] = await Promise.all([
-      this.verificationCode.findMany({
+      // An empty history on a failed read bypasses the throttle entirely —
+      // that bypass now leaves a [swallowed] line. No target in the meta: it
+      // is an email address or phone number.
+      swallow(this.verificationCode.findMany({
         where: { target, createdAt: { gte: new Date(now.getTime() - HOUR_MS) } },
         select: { createdAt: true }, orderBy: { createdAt: 'desc' }, take: 50,
-      }).catch(() => [] as CodeRow[]),
+      }), 'send-throttle history by target').then((r) => r ?? ([] as CodeRow[])),
       ip
-        ? this.verificationCode.findMany({
+        ? swallow(this.verificationCode.findMany({
             where: { ip, createdAt: { gte: new Date(now.getTime() - HOUR_MS) } },
             select: { createdAt: true }, orderBy: { createdAt: 'desc' }, take: 50,
-          }).catch(() => [] as CodeRow[])
+          }), 'send-throttle history by ip').then((r) => r ?? ([] as CodeRow[]))
         : Promise.resolve([] as CodeRow[]),
     ]);
 
@@ -141,10 +145,13 @@ export class VerificationCodeService {
     // One live code per user per channel. Retiring the old one first means a
     // resend genuinely replaces — otherwise the previous code stays valid and
     // every resend widens the window instead of restarting it.
-    await this.verificationCode.updateMany({
+    // If this fails, the previous code stays valid and a resend widens the
+    // window instead of restarting it — the exact failure the comment above
+    // warns about, now visible when it happens.
+    await swallow(this.verificationCode.updateMany({
       where: { userId, channel, consumedAt: null },
       data: { consumedAt: now },
-    }).catch(() => undefined);
+    }), 'retire previous verification codes', { userId, channel });
 
     const code = formatCode(randomInt(0, 1_000_000));
     await this.verificationCode.create({
@@ -159,7 +166,9 @@ export class VerificationCodeService {
     // Write the pending target onto the account, without a verified stamp. The
     // profile can then show "shruti@gbcapl.com — unverified" rather than showing
     // nothing until the code comes back.
-    await this.writePendingTarget(userId, channel, target).catch(() => undefined);
+    // optional(): purely cosmetic — the profile shows the pending target a
+    // little sooner. Its absence is a normal outcome, not an incident.
+    await optional(this.writePendingTarget(userId, channel, target));
 
     const minutes = Math.round(CODE_TTL_MS / 60000);
     const dispatch = await this.mail.deliverTo(
@@ -225,10 +234,12 @@ export class VerificationCodeService {
     const code = (codeRaw ?? '').replace(/\D/g, '');
     const now = new Date();
 
-    const row = await this.verificationCode.findFirst({
+    // A failed read fails CLOSED below (dummy verify, then refusal) — right
+    // for security, but a DB blip rejecting valid codes should be in the logs.
+    const row = await swallow(this.verificationCode.findFirst({
       where: { userId, channel },
       orderBy: { createdAt: 'desc' },
-    }).catch(() => null);
+    }), 'latest verification-code read', { userId, channel });
 
     // Hash comparison happens before the verdict so that a missing row and a
     // wrong code take the same amount of work. Without the dummy verify, "no
@@ -252,14 +263,14 @@ export class VerificationCodeService {
       // else's — but a future edit could move that load, and the query-scoping
       // guard is right to insist the write says whose row it is touching.
       if (row && verdict.outcome === 'wrong') {
-        await this.verificationCode.updateMany({
+        await swallow(this.verificationCode.updateMany({
           where: { id: row.id, userId }, data: { attempts: { increment: 1 } } as never,
-        }).catch(() => undefined);
+        }), 'attempt counter increment', { userId });
       }
       if (row && verdict.outcome === 'exhausted') {
-        await this.verificationCode.updateMany({
+        await swallow(this.verificationCode.updateMany({
           where: { id: row.id, userId }, data: { attempts: { increment: 1 }, consumedAt: now } as never,
-        }).catch(() => undefined);
+        }), 'attempt counter increment (exhausted)', { userId });
       }
       this.logger.warn(`code refused user=${userId} channel=${channel} outcome=${verdict.outcome}`);
       throw new BadRequestException(verdict.message);
