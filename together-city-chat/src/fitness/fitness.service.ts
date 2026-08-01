@@ -1,3 +1,4 @@
+import { ACTIVITY_FACTORS } from '../shared/energy';
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -51,6 +52,28 @@ export class FitnessService {
       heightCm, weightKg, bodyGoal: row.bodyGoal,
       saved: true, options: this.optionsFor(sex),
     };
+  }
+
+  /**
+   * How much the citizen moves, from the one place that knows.
+   *
+   * This hub used to derive it from `level` — the field its own form labels
+   * "Ability level · basic → super-athletic" and its summary row calls
+   * "Ability". That is training experience. Two people with identical bodies
+   * were given different energy needs because one said they were more
+   * experienced, and neither number matched what Nutrition used.
+   *
+   * Ability still decides the programme: how many sessions, how hard. It has
+   * simply stopped deciding how many calories somebody burns sitting still.
+   *
+   * Null when they have never answered. computeBodyProgram refuses on null
+   * rather than choosing a factor for them.
+   */
+  private async activityFor(userId: string): Promise<number | null> {
+    const m = await this.masterProfile.get(userId).catch(() => null);
+    const level = (m as { activityLevel?: string | null } | null)?.activityLevel;
+    if (!level) return null;
+    return ACTIVITY_FACTORS[level as keyof typeof ACTIVITY_FACTORS] ?? null;
   }
 
   /** Shared demographics from the Master Profile for a first-time fitness form. */
@@ -117,7 +140,8 @@ export class FitnessService {
     const p = await this.getProfile(userId);
     const { flags, values, granted } = await this.labFlagsFor(userId);
     const program = computeBodyProgram({
-      age: p.age, sex: p.sex, level: p.level, heightCm: p.heightCm, weightKg: p.weightKg,
+      age: p.age, sex: p.sex, heightCm: p.heightCm, weightKg: p.weightKg,
+      activity: await this.activityFor(userId),
       bodyGoal: p.bodyGoal, labFlags: flags, labValues: values,
     });
     return { ...program, consentGranted: granted };
@@ -127,7 +151,8 @@ export class FitnessService {
   async syncNutrition(userId: string) {
     const p = await this.getProfile(userId);
     const program = computeBodyProgram({
-      age: p.age, sex: p.sex, level: p.level, heightCm: p.heightCm, weightKg: p.weightKg, bodyGoal: p.bodyGoal,
+      age: p.age, sex: p.sex, heightCm: p.heightCm, weightKg: p.weightKg,
+      activity: await this.activityFor(userId), bodyGoal: p.bodyGoal,
     });
     await this.prisma.foodPref.upsert({
       where: { userId },

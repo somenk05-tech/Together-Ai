@@ -1,3 +1,4 @@
+import { energyTarget, type Sex } from '../shared/energy';
 /**
  * Together City — Fitness Engine
  * ------------------------------------------------------------------
@@ -413,20 +414,18 @@ export const BODY_GOALS: BodyGoalDef[] = [
 ];
 export function bodyGoalDef(key: string): BodyGoalDef { return BODY_GOALS.find((g) => g.key === key) ?? BODY_GOALS[2]; }
 
-/** Activity factor for TDEE, from ability level. */
-function activityFactor(level: string): number {
-  return level === 'basic' ? 1.3 : level === 'beginner' ? 1.4 : level === 'intermediate' ? 1.5 : level === 'advanced' ? 1.6 : 1.75;
-}
-
 export interface BodyProgram {
   goalKey: string;
   goalLabel: string;
   tag: string;
   hasMetrics: boolean;          // whether height/weight were supplied
-  bmr: number;
-  tdee: number;
-  calorieTarget: number;
-  macros: { proteinG: number; fatG: number; carbG: number };
+  /** Null when the energy cannot be computed. See `missing`. */
+  bmr: number | null;
+  tdee: number | null;
+  calorieTarget: number | null;
+  macros: { proteinG: number; fatG: number; carbG: number } | null;
+  /** What we would need and do not have: weight, height, sex, activity. */
+  missing: string[];
   proteinPerKg: number;
   rate: string;
   emphasis: string;
@@ -438,17 +437,67 @@ export interface BodyProgram {
 
 /** Compute the integrated body-composition program (medical + workout + nutrition). */
 export function computeBodyProgram(input: {
-  age: number; sex: string; level: string; heightCm?: number | null; weightKg?: number | null;
+  age: number; sex: string; heightCm?: number | null; weightKg?: number | null;
+  /** The citizen's activity factor from the Master Profile. Not their ability. */
+  activity?: number | null;
   bodyGoal: string; labFlags?: Record<string, string>; labValues?: Record<string, number>;
 }): BodyProgram {
   const g = bodyGoalDef(input.bodyGoal);
   const hasMetrics = Boolean(input.heightCm && input.weightKg);
-  const weight = input.weightKg ?? 70;
-  const height = input.heightCm ?? 172;
-  const sexAdj = input.sex === 'female' ? -161 : 5; // Mifflin-St Jeor sex constant
-  const bmr = Math.round(10 * weight + 6.25 * height - 5 * input.age + sexAdj);
-  const tdee = Math.round(bmr * activityFactor(input.level));
-  const calorieTarget = Math.round(tdee * (1 + g.kcalDelta));
+
+  /**
+   * ONE ENERGY COMPUTATION, AND THIS FUNCTION USED TO BE A SECOND ONE.
+   *
+   * It had its own Mifflin-St Jeor line, its own activity factors derived from
+   * the citizen's ABILITY rating, and its own goal model — a flat percentage of
+   * TDEE with no safe-rate cap and no energy floor. shared/energy.ts has had all
+   * of that, correctly, the whole time.
+   *
+   * energyTarget's `deltaPct` takes this hub's kcalDelta unchanged, so the goal
+   * models were never actually incompatible — only separate. What the citizen
+   * gains is the ≤550 kcal/day cap and ENERGY_FLOOR, which this side never had:
+   * a small woman on a fat-loss goal was handed 0.8 × TDEE with nothing
+   * underneath it.
+   *
+   * AND IT REFUSES NOW. It used to substitute 70 kg, 172 cm, and the male sex
+   * constant for anybody who had not said, then print the result as "Your daily
+   * diet targets". Refusing is the same call already made for nutrition: a
+   * number attributed to somebody, computed from a body that is not theirs, is
+   * worse than an empty space.
+   */
+  const sex: Sex | null = input.sex === 'male' || input.sex === 'female' ? input.sex : null;
+  const missing = [
+    !input.weightKg && 'weight',
+    !input.heightCm && 'height',
+    !sex && 'sex',
+    !input.activity && 'activity level',
+  ].filter(Boolean) as string[];
+
+  if (missing.length || !sex || !input.weightKg || !input.heightCm || !input.activity) {
+    return {
+      goalKey: g.key, goalLabel: g.label[input.sex] ?? g.label.other, tag: g.tag,
+      hasMetrics, bmr: null, tdee: null, calorieTarget: null, macros: null, missing,
+      proteinPerKg: g.proteinPerKg, rate: g.rate, emphasis: g.emphasis,
+      nutrition: {
+        goal: g.nutritionGoal, proteinTarget: 0,
+        note: `Your goal is synced to Nutrition as "${g.nutritionGoal}", so your meal plans follow it. Calorie and protein numbers need your ${missing.join(', ')}.`,
+      },
+      healthImprovements: [], citations: cite(g.citations),
+      disclaimer:
+        'Your training programme does not need these numbers. Calorie and macro targets appear '
+        + 'once the details above are added — they are only ever computed from your own body. '
+        + 'Not a substitute for a dietitian or doctor.',
+    };
+  }
+
+  const weight = input.weightKg;
+  const energy = energyTarget({
+    weightKg: weight, heightCm: input.heightCm, age: input.age, sex,
+    activity: input.activity, goal: g.nutritionGoal, deltaPct: g.kcalDelta,
+  });
+  const bmr = Math.round(energy.bmr);
+  const tdee = Math.round(energy.tdee);
+  const calorieTarget = energy.kcal;
   const proteinG = Math.round(g.proteinPerKg * weight);
   const fatG = Math.round((calorieTarget * g.fatPct) / 9);
   const carbG = Math.max(0, Math.round((calorieTarget - proteinG * 4 - fatG * 9) / 4));
@@ -465,19 +514,23 @@ export function computeBodyProgram(input: {
     goalKey: g.key,
     goalLabel: g.label[input.sex] ?? g.label.other,
     tag: g.tag,
-    hasMetrics, bmr, tdee, calorieTarget,
+    hasMetrics, bmr, tdee, calorieTarget, missing,
     macros: { proteinG, fatG, carbG },
     proteinPerKg: g.proteinPerKg,
     rate: g.rate,
     emphasis: g.emphasis,
     nutrition: {
       goal: g.nutritionGoal, proteinTarget: proteinG,
-      note: `Synced to Nutrition as a "${g.nutritionGoal}" goal with a ${proteinG} g/day protein target, so your meal plans, targets and grocery list adapt automatically.`,
+      // FoodPref has no protein column, so the old wording — "with a 143 g/day
+      // protein target, so your meal plans, targets and grocery list adapt
+      // automatically" — named a number that syncNutrition does not write.
+      // The goal genuinely does sync. The protein figure is this hub's own.
+      note: `Your goal is synced to Nutrition as "${g.nutritionGoal}", so your meal plans and grocery list follow it. The ${proteinG} g/day protein target is this page's; Nutrition sets its own from your profile.`,
     },
     healthImprovements: health,
     citations: cite([...new Set([...g.citations, 'MIFFLIN'])]),
-    disclaimer: hasMetrics
-      ? 'Energy from your body metrics and activity level; targets are starting points — adjust from real-world progress. Not a substitute for a dietitian or doctor.'
-      : 'Add your height and weight for personalised calorie and macro targets. Shown values use population defaults until then.',
+    // The refusal branch returns before this point, so metrics are always
+    // present here; the "population defaults" caption left with the defaults.
+    disclaimer: 'Energy from your body metrics and activity level; targets are starting points — adjust from real-world progress. Not a substitute for a dietitian or doctor.',
   };
 }

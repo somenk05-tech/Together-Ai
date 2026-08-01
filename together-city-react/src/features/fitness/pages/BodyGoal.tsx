@@ -42,16 +42,23 @@ export function BodyGoal() {
         {p.tag} One systematic program across workout, nutrition and your health data.
       </p>
 
-      {!p.hasMetrics && (
+      {/* "Numbers below use population defaults for now" is the sentence this
+          replaces. It was true, and it sat above four figures printed under the
+          heading "Your daily diet targets" — a 70 kg, 172 cm body that was not
+          theirs, with the male sex constant if they had not said. The server
+          returns nulls now, so there is nothing to caption. */}
+      {p.missing.length > 0 && (
         <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid #e65100' }}>
-          <p style={{ fontSize: 13, margin: 0 }}>
-            Add your <strong>height and weight</strong> in your profile for personalised calorie and macro
-            targets. Numbers below use population defaults for now.
+          <p style={{ fontSize: 13, margin: 0, lineHeight: 1.6 }}>
+            We can't work out your calories and macros without your{' '}
+            <strong>{p.missing.join(', ')}</strong>. We'd rather leave this blank than show you
+            numbers worked out from somebody else's body.
           </p>
-          <div style={{ marginTop: 10 }}><Link to="/fitness/profile"><Button variant="line" size="sm">Add measurements</Button></Link></div>
+          <div style={{ marginTop: 10 }}><Link to="/fitness/profile"><Button variant="line" size="sm">Add your details</Button></Link></div>
         </div>
       )}
 
+      {p.calorieTarget != null && p.macros && (
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="eyebrow">Your daily diet targets</div>
         <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginTop: 10 }}>
@@ -63,6 +70,7 @@ export function BodyGoal() {
         <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>Safe rate: {p.rate}. Base metabolic rate ≈ {p.bmr} kcal.</p>
         <Chips citations={p.citations} />
       </div>
+      )}
 
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="eyebrow">Training emphasis</div>

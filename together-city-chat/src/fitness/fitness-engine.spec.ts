@@ -1,20 +1,16 @@
 import { computeBodyProgram, BODY_GOALS } from './fitness-engine';
+import { ACTIVITY_FACTORS, ENERGY_FLOOR, MAX_DAILY_DELTA } from '../shared/energy';
 
 /**
- * What the Fitness hub computes today, written down before it is changed.
+ * What the Fitness hub computes after the unification, written down.
  *
- * src/fitness had no tests at all — 118 spec files in this package and none in
- * the folder that turns a citizen's height, weight, age and sex into a BMR, a
- * TDEE, a daily calorie target and a macro split. The next commit unifies that
- * arithmetic with shared/energy.ts so the app stops showing two different daily
- * calorie targets for the same person, and there was nothing to tell me which
- * numbers I had moved on purpose.
- *
- * So this is a golden master, not a specification. The snapshots below assert
- * nothing about whether these numbers are RIGHT — several of them are known to
- * be wrong, and the last two tests say exactly how. They assert only that the
- * numbers are what they are, so the next commit's diff is a complete and honest
- * record of every figure that changed.
+ * The previous version of this file was a golden master of the OLD behaviour,
+ * recorded at 6edaef0 before anything changed. The snapshot diff between that
+ * commit and this one is therefore the complete record of every calorie figure
+ * that moved, and why it moved: one energy computation (shared/energy.ts)
+ * instead of two, the activity factor from the Master Profile instead of from
+ * ability, a safe-rate cap and an energy floor where there were neither, and a
+ * refusal where a 70 kg / 172 cm body used to be substituted.
  */
 const core = (p: ReturnType<typeof computeBodyProgram>) => ({
   hasMetrics: p.hasMetrics,
@@ -24,66 +20,73 @@ const core = (p: ReturnType<typeof computeBodyProgram>) => ({
   macros: p.macros,
   proteinPerKg: p.proteinPerKg,
   nutritionGoal: p.nutrition.goal,
+  missing: p.missing,
 });
 
-const person = { age: 30, sex: 'male', heightCm: 175, weightKg: 75 };
+const person = { age: 30, sex: 'male', heightCm: 175, weightKg: 75, activity: ACTIVITY_FACTORS.moderate };
 
-describe('the numbers the Fitness hub shows today', () => {
-  it.each(BODY_GOALS.map((g) => g.key))('%s, at every ability level', (bodyGoal) => {
-    const byLevel = ['basic', 'beginner', 'intermediate', 'advanced', 'athlete'].map((level) =>
-      [level, core(computeBodyProgram({ ...person, level, bodyGoal }))] as const);
+describe('the numbers the Fitness hub shows now', () => {
+  it.each(BODY_GOALS.map((g) => g.key))('%s, at every activity level', (bodyGoal) => {
+    const byLevel = (Object.keys(ACTIVITY_FACTORS) as (keyof typeof ACTIVITY_FACTORS)[]).map((level) =>
+      [level, core(computeBodyProgram({ ...person, activity: ACTIVITY_FACTORS[level], bodyGoal }))] as const);
     expect(Object.fromEntries(byLevel)).toMatchSnapshot();
   });
 
   it('a woman, same body, same goal', () => {
-    expect(core(computeBodyProgram({ ...person, sex: 'female', level: 'intermediate', bodyGoal: 'fatLoss' })))
+    expect(core(computeBodyProgram({ ...person, sex: 'female', bodyGoal: 'fatLoss' })))
       .toMatchSnapshot();
   });
 
-  it('sex "other", which the formula has to resolve somehow', () => {
-    expect(core(computeBodyProgram({ ...person, sex: 'other', level: 'intermediate', bodyGoal: 'fatLoss' })))
+  it('sex "other", which the formula now refuses rather than resolves', () => {
+    expect(core(computeBodyProgram({ ...person, sex: 'other', bodyGoal: 'fatLoss' })))
       .toMatchSnapshot();
   });
 });
 
-describe('three things the next commit changes, recorded as they are', () => {
-  it('derives the activity factor from ABILITY, which is a different question', () => {
-    // The Fitness form labels this field "Ability level · basic → super-athletic"
-    // and its summary row calls it "Ability". It is training experience. Here it
-    // is multiplied into a BMR as though it were how much somebody moves.
-    const beginner = computeBodyProgram({ ...person, level: 'beginner', bodyGoal: 'athletic' });
-    const advanced = computeBodyProgram({ ...person, level: 'advanced', bodyGoal: 'athletic' });
-
-    expect(beginner.bmr).toBe(advanced.bmr);            // same body
-    expect(advanced.tdee).toBeGreaterThan(beginner.tdee); // different energy need
-    // The only input that differs is how experienced they say they are.
+describe('the recorded behaviours, now changed', () => {
+  it('no longer derives energy from ABILITY — ability is not an input at all', () => {
+    // Training experience decides the programme: how many sessions, how hard.
+    // How much somebody moves decides their energy. Identical bodies at
+    // identical activity get identical energy needs, whatever they said about
+    // their experience.
+    const light = computeBodyProgram({ ...person, activity: ACTIVITY_FACTORS.light, bodyGoal: 'athletic' });
+    const very = computeBodyProgram({ ...person, activity: ACTIVITY_FACTORS.veryActive, bodyGoal: 'athletic' });
+    expect(light.bmr).toBe(very.bmr);                 // same body
+    expect(very.tdee!).toBeGreaterThan(light.tdee!);  // more movement, more energy
   });
 
-  it('substitutes a 70 kg / 172 cm body when measurements are missing', () => {
-    const unknown = computeBodyProgram({ age: 30, sex: 'male', level: 'beginner', bodyGoal: 'athletic' });
-    const stated = computeBodyProgram({ age: 30, sex: 'male', level: 'beginner', bodyGoal: 'athletic', heightCm: 172, weightKg: 70 });
-
+  it('refuses when measurements are missing, instead of substituting 70 kg / 172 cm', () => {
+    const unknown = computeBodyProgram({ age: 30, sex: 'male', activity: ACTIVITY_FACTORS.moderate, bodyGoal: 'athletic' });
     expect(unknown.hasMetrics).toBe(false);
-    expect(unknown.bmr).toBe(stated.bmr);               // somebody else's body
-    expect(unknown.calorieTarget).toBeGreaterThan(0);   // and it is still rendered
-    // target-substitution.spec.ts bans exactly this in nutrition. It walks
-    // computeTargets() call sites, so it has never looked at this function.
+    expect(unknown.bmr).toBeNull();
+    expect(unknown.calorieTarget).toBeNull();
+    expect(unknown.macros).toBeNull();
+    expect(unknown.missing).toEqual(['weight', 'height']);
+    // The programme itself still renders; only the numbers wait for a body.
   });
 
-  it('reads sex "other" as male, silently', () => {
-    // `input.sex === 'female' ? -161 : 5` — the Mifflin-St Jeor sex constant.
-    // Anyone who is not female gets the male one, including anyone who has not
-    // said. clinicalSex() exists to refuse this rather than guess.
-    const other = computeBodyProgram({ ...person, sex: 'other', level: 'beginner', bodyGoal: 'athletic' });
-    const male = computeBodyProgram({ ...person, sex: 'male', level: 'beginner', bodyGoal: 'athletic' });
-    expect(other.bmr).toBe(male.bmr);
+  it('refuses sex "other" rather than silently applying the male constant', () => {
+    const other = computeBodyProgram({ ...person, sex: 'other', bodyGoal: 'athletic' });
+    expect(other.calorieTarget).toBeNull();
+    expect(other.missing).toEqual(['sex']);
   });
 
-  it('applies no safe-rate cap and no energy floor', () => {
-    // shared/energy.ts limits a deliberate deficit to 550 kcal/day (0.5 kg/week)
-    // and floors the result at ENERGY_FLOOR. This function does neither: the
-    // target is a flat percentage of TDEE, whatever that comes to.
-    const small = computeBodyProgram({ age: 30, sex: 'female', heightCm: 150, weightKg: 42, level: 'basic', bodyGoal: 'fatLoss' });
-    expect(small.calorieTarget).toBe(Math.round(small.tdee * 0.8));
+  it('refuses when activity is unknown, rather than choosing a factor', () => {
+    const na = computeBodyProgram({ age: 30, sex: 'male', heightCm: 175, weightKg: 75, bodyGoal: 'athletic' });
+    expect(na.calorieTarget).toBeNull();
+    expect(na.missing).toEqual(['activity level']);
+  });
+
+  it('applies the energy floor a small body used to fall through', () => {
+    // OLD: 0.8 × TDEE, whatever that came to — for this body, about 1005 kcal
+    // with nothing underneath it.
+    const small = computeBodyProgram({ age: 30, sex: 'female', heightCm: 150, weightKg: 42, activity: ACTIVITY_FACTORS.sedentary, bodyGoal: 'fatLoss' });
+    expect(small.calorieTarget).toBe(ENERGY_FLOOR.female);
+  });
+
+  it('caps a deliberate deficit at the safe rate', () => {
+    // A big, very active body on fatLoss requests far more than 550 kcal/day.
+    const big = computeBodyProgram({ age: 30, sex: 'male', heightCm: 190, weightKg: 120, activity: ACTIVITY_FACTORS.veryActive, bodyGoal: 'fatLoss' });
+    expect(big.tdee! - big.calorieTarget!).toBeLessThanOrEqual(MAX_DAILY_DELTA + 1); // ±1 for rounding
   });
 });

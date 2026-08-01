@@ -14,7 +14,8 @@ export interface FitnessProfile {
 }
 export interface BodyProgram {
   goalKey: string; goalLabel: string; tag: string; hasMetrics: boolean;
-  bmr: number; tdee: number; calorieTarget: number;
+  bmr: number | null; tdee: number | null; calorieTarget: number | null;
+  missing: string[];
   macros: { proteinG: number; fatG: number; carbG: number };
   proteinPerKg: number; rate: string; emphasis: string;
   nutrition: { goal: 'lose' | 'maintain' | 'gain'; proteinTarget: number; note: string };
