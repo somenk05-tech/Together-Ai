@@ -4,6 +4,7 @@ import { clinicalSex, datingGender, displayGender, genderIdentityFromBeauty } fr
 import { salutation } from '../shared/salutation';
 import { canonicaliseDeclared } from '../shared/allergens';
 import { ACTIVITY_FACTORS, nearestActivityLevel } from '../shared/energy';
+import { dietKeyFrom } from '../shared/diet';
 import { diffProfile, versionConflict } from './profile-change';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { PrismaService } from '../shared/prisma/prisma.service';
@@ -50,13 +51,17 @@ export interface SharedFields {
   foodAllergens?: string | null;
   /** sedentary | light | moderate | active | veryActive — see shared/energy.ts. */
   activityLevel?: string | null;
+  /** What the citizen eats, as a Nutrition key. **Write-owner: Nutrition.**
+   *  `shared/diet.ts` is the only crossing to the label Dating stores, and
+   *  names what the crossing loses. Never defaulted — see the column comment. */
+  dietaryPreference?: string | null;
 }
 
 const SHARED_KEYS: Array<keyof SharedFields> = [
   'gender', 'sexAtBirth', 'genderIdentity', 'genderIdentityOther',
   'dateOfBirth', 'timeOfBirth', 'birthCountry', 'birthState', 'birthCity',
   'country', 'state', 'city', 'timeZone', 'languages', 'heightCm', 'weightKg', 'occupation', 'phone', 'address',
-  'foodAllergens', 'activityLevel',
+  'foodAllergens', 'activityLevel', 'dietaryPreference',
 ];
 
 export const computeAge = (dob: Date | null | undefined): number | null => {
@@ -122,6 +127,10 @@ export function propagationPlan(shared: SharedFields): {
     // word. One lookup table, one direction.
     food: def({
       heightCm: shared.heightCm, weightKg: shared.weightKg, sex: sexBinary, age,
+      // The key, resolved HERE and nowhere else — the same one-lookup-one-
+      // direction rule as activity below. A label that reached FoodPref.diet
+      // would be a second vocabulary inside the engine's own column.
+      diet: dietKeyFrom(shared.dietaryPreference),
       activity: shared.activityLevel
         ? ACTIVITY_FACTORS[shared.activityLevel as keyof typeof ACTIVITY_FACTORS]
         : undefined,
@@ -236,6 +245,14 @@ export class MasterProfileService {
       foodEx = raw ? JSON.parse(raw) : {};
     } catch { foodEx = {}; }
     const declaredFood = canonicaliseDeclared(String(foodEx.allergies ?? '').split(/[,;]/)).join(',') || undefined;
+    // Dating keeps the citizen's diet as a LABEL inside its own extras blob.
+    // Parsed here so somebody who has only ever filled in Dating is not asked
+    // the question a second time by Nutrition.
+    let datingEx: { diet?: string } = {};
+    try {
+      const raw = (dating as { extras?: string | null } | null)?.extras;
+      datingEx = raw ? JSON.parse(raw) as { diet?: string } : {};
+    } catch { datingEx = {}; }
 
     const astroRow = astro as { birthDate?: Date; birthTime?: string | null; birthCountry?: string; birthState?: string | null; birthCity?: string; timeZone?: string } | null;
     const place = ((dating?.birthPlace as string | undefined) ?? '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -264,6 +281,10 @@ export class MasterProfileService {
         activityLevel: food.answeredAt && typeof food.activity === 'number'
           ? nearestActivityLevel(food.activity)
           : undefined,
+        // Same guard, sharper edge: FoodPref.diet is NOT NULL and defaults to
+        // 'everything', so without answeredAt this would file "eats everything"
+        // for every citizen who has never opened Nutrition.
+        dietaryPreference: food.answeredAt ? dietKeyFrom(food.diet) : undefined,
       } : {},
       fitness ? { heightCm: fitness.heightCm, weightKg: fitness.weightKg, sexAtBirth: fitness.sex === 'other' ? undefined : fitness.sex } : {},
       // Beauty stores its label capitalised ('Female'). Merging it raw put that
@@ -271,6 +292,13 @@ export class MasterProfileService {
       // writing a value clinicalSex() could never read — the same bug as the
       // sync, arriving by the other door.
       { heightCm: beautyEx.heightCm, weightKg: beautyEx.weightKg, genderIdentity: genderIdentityFromBeauty(beautyEx.gender), city: beautyEx.city, occupation: beautyEx.occupation },
+      // DELIBERATELY LAST, and only for diet. Dating outranks Nutrition in the
+      // precedence above because it holds the richest birth data — but the diet
+      // key is what the meal engine branches on, and Nutrition is its
+      // write-owner. Placing this source below Nutrition's is what stops a
+      // social self-description from outranking the answer that decides what
+      // somebody is served, while still letting it fill an empty column.
+      { dietaryPreference: dietKeyFrom(datingEx.diet) },
     );
 
     // Self-healing consolidation: persist anything the sources knew that the

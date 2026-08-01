@@ -1937,6 +1937,19 @@ model MasterProfile {
   /// which never ask. NOT rendered into any hub's editable form — a second
   /// editable copy is the problem §3 exists to remove.
   foodAllergens String?
+  /// What the citizen eats, as a Nutrition key: everything | veg | nonveg |
+  /// pesc | egg | vegan | jain. shared/diet.ts is the only crossing point to
+  /// the label the dating form stores, and names what that crossing loses.
+  ///
+  /// WRITE-OWNER: NUTRITION. The meal engine branches on this, so the value
+  /// that decides what somebody is served has one writer. Dating fills it only
+  /// when nothing else has (gap consolidation), and never overwrites it.
+  ///
+  /// NEVER DEFAULTED. FoodPref.diet defaults to 'everything' at registration
+  /// and that default reads exactly like an answer — so this column stays NULL
+  /// until somebody actually answers. A diet is a rule about what may be put in
+  /// front of a person, not a preference to be assumed.
+  dietaryPreference String?
   /// How much the citizen moves, in the five named levels of shared/energy.ts —
   /// sedentary | light | moderate | active | veryActive.
   ///

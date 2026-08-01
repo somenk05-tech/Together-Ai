@@ -41,6 +41,7 @@ import { scoreDual, buildScorecard, guidelineCaps } from './plan-score';
 import { recipeImageUrl } from './recipe-image-set';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
 import { computeNutrients, computeMicros, ingredientBatchServings, isSalt, perServingIngredients } from './ingredient-nutrients';
+import { dietKeyFrom } from '../shared/diet';
 // Quoting and ordering came out with the quick-commerce flow (B.12). What is
 // left reads the tracking metadata already stored on orders that were charged
 // while it existed — this service can no longer produce a quote or place one.
@@ -2724,6 +2725,12 @@ export class NutritionService implements OnModuleInit {
       activityLevel: typeof (dto as { activity?: unknown }).activity === 'number'
         ? nearestActivityLevel((dto as { activity: number }).activity)
         : undefined,
+      // Nutrition is the WRITE-OWNER of the diet key: this is the form the
+      // citizen answers it on, and the engine branches on what they said. Sent
+      // only when the payload carried a diet, so a save that did not touch it
+      // leaves the master alone (the d7b0d43 rule — syncShared overwrites any
+      // field handed to it, so hand it nothing you were not told).
+      dietaryPreference: dietKeyFrom((dto as { diet?: string }).diet),
     }, 'nutrition').catch(swallowed('nutrition.upsertFoodPref', undefined));
     return saved;
   }

@@ -1,9 +1,10 @@
 import { swallow } from '../shared/swallow';
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
 import { AdminService } from '../auth/admin';
 import { MasterProfileService } from '../profile/master-profile.service';
+import { dietLabel } from '../shared/diet';
 import { datingGender } from '../profile/sex-and-gender';
 import { BlockingService } from '../connections/blocking.service';
 import { ConversationsService } from '../conversations/conversations.service';
@@ -180,6 +181,10 @@ export class DatingService {
       birthTime: m.timeOfBirth ?? null,
       birthPlace,
       languages: m.languages ?? null,
+      // The diet the citizen already told Nutrition, as the label this form
+      // shows — "never ask twice" for the one question both hubs ask. The key
+      // stays Nutrition's; only the label crosses, through shared/diet.ts.
+      diet: dietLabel(m.dietaryPreference) ?? null,
       country: m.country ?? m.birthCountry ?? null,
       state: m.state ?? m.birthState ?? null,
       city: m.city ?? m.birthCity ?? null,

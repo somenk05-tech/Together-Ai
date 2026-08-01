@@ -343,7 +343,7 @@ export function DatingProfilePage() {
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    const d = existing.data as (typeof existing.data & { saved?: boolean; name?: string; country?: string | null; state?: string | null; city?: string | null; heightCm?: number | null; photo?: string | null }) | null;
+    const d = existing.data as (typeof existing.data & { saved?: boolean; name?: string; country?: string | null; state?: string | null; city?: string | null; heightCm?: number | null; photo?: string | null; diet?: string | null }) | null;
     if (!d) return;
     const isSaved = (d as { saved?: boolean }).saved !== false; // prefill objects carry saved:false
     setForm({
@@ -368,6 +368,9 @@ export function DatingProfilePage() {
         state: prev.state || d.state || undefined,
         city: prev.city || d.city || undefined,
         heightCm: prev.heightCm || d.heightCm || undefined,
+        // The diet the citizen already gave Nutrition, as this form's label.
+        // One question, asked once, in whichever hub they opened first.
+        diet: prev.diet || d.diet || undefined,
         // Reuse the Master Profile photo as the first dating photo (spec §4).
         photos: prev.photos && prev.photos.length ? prev.photos : (d.photo ? [d.photo] : prev.photos),
       }));
