@@ -1,0 +1,36 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`lookups golden master limit is clamped to [1, 500] 1`] = `
+[
+  1,
+  500,
+]
+`;
+
+exports[`lookups golden master query shape: trim, parent filter, case-insensitive search 1`] = `
+{
+  "orderBy": [
+    {
+      "sortOrder": "asc",
+    },
+    {
+      "label": "asc",
+    },
+  ],
+  "select": {
+    "code": true,
+    "label": true,
+    "parentCode": true,
+  },
+  "take": 200,
+  "where": {
+    "active": true,
+    "category": "city",
+    "label": {
+      "contains": "pun",
+      "mode": "insensitive",
+    },
+    "parentCode": "IN-MH",
+  },
+}
+`;

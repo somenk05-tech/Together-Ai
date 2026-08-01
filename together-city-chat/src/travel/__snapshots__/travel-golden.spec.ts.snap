@@ -1,0 +1,123 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`travel golden master flights with demo OFF: an honest zero, with the reason 1`] = `
+{
+  "available": false,
+  "cabin": "economy",
+  "count": 0,
+  "date": "2026-08-15",
+  "flights": [],
+  "from": "BOM",
+  "pax": 2,
+  "reason": "This hub has no real inventory connected yet, so there is nothing to show. Sample data is available only on demo deployments.",
+  "to": "BLR",
+}
+`;
+
+exports[`travel golden master flights with demo ON: the synthesiser is deterministic for one route+date 1`] = `
+{
+  "available": true,
+  "count": 8,
+  "first": {
+    "airline": "Vistara",
+    "airlineCode": "UK",
+    "arriveTime": "21:22",
+    "cabin": "economy",
+    "cheapest": true,
+    "departTime": "18:31",
+    "durationLabel": "2h 51m",
+    "durationMins": 171,
+    "flightNo": "UK 480",
+    "from": "BOM",
+    "id": "UK887-2026-08-15-6",
+    "nextDay": false,
+    "priceInr": 4500,
+    "stopLabel": "1 stop",
+    "stops": 1,
+    "to": "BLR",
+  },
+}
+`;
+
+exports[`travel golden master my trips: a flight gets the plane, a package gets its category icon 1`] = `
+[
+  {
+    "bookedOn": "1 Aug 2026",
+    "code": "TC-1",
+    "detail": {
+      "date": "2026-08-15",
+    },
+    "icon": "✈️",
+    "id": "t1",
+    "kind": "flight",
+    "pax": 1,
+    "status": "confirmed",
+    "subtitle": "IndiGo 6E-501",
+    "tier": "economy",
+    "title": "BOM → BLR",
+    "totalInr": 4500,
+  },
+  {
+    "bookedOn": "1 Aug 2026",
+    "code": "TC-2",
+    "detail": {},
+    "icon": "🧳",
+    "id": "t2",
+    "kind": "package",
+    "pax": 2,
+    "status": "confirmed",
+    "subtitle": "2N/3D · Coorg",
+    "tier": "Base",
+    "title": "Coorg Coffee Trail",
+    "totalInr": 25000,
+  },
+]
+`;
+
+exports[`travel golden master package detail: corrupt JSON fields degrade to empty arrays, never a crash 1`] = `
+{
+  "category": "hills",
+  "categoryLabel": "hills",
+  "country": "India",
+  "days": 3,
+  "destination": "Coorg",
+  "heroUrl": "h",
+  "highlights": [],
+  "icon": "🧳",
+  "id": "p1",
+  "inclusions": [
+    "stay",
+  ],
+  "itinerary": [
+    {
+      "day": 1,
+      "detail": "…",
+      "title": "Arrive",
+    },
+  ],
+  "nights": 2,
+  "priceFromInr": 12500,
+  "summary": "Estates and easy treks",
+  "tiers": [],
+  "title": "Coorg Coffee Trail",
+}
+`;
+
+exports[`travel golden master the catalogue filters by category and shapes the card 1`] = `
+[
+  {
+    "category": "beach",
+    "categoryLabel": "Beaches",
+    "country": "India",
+    "days": 3,
+    "destination": "Coorg",
+    "heroUrl": "h",
+    "icon": "🏖",
+    "id": "p2",
+    "nights": 2,
+    "priceFromInr": 12500,
+    "summary": "Estates and easy treks",
+    "title": "Goa Slow Week",
+  },
+]
+`;

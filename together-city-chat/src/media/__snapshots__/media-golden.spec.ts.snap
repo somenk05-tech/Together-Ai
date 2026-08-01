@@ -1,0 +1,26 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`media golden master extension per mime — knowns mapped, unknowns derived, never rejected 1`] = `
+[
+  "image/jpeg -> .jpg",
+  "image/heic -> .heic",
+  "image/tiff -> .tiff",
+  "application/pdf -> .pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document -> .docx",
+  "text/csv -> .csv",
+  "application/x-foo+zip -> .xfoozip",
+  "application/octet-stream -> .octetstr",
+  "weird/ -> .bin",
+]
+`;
+
+exports[`media golden master the health vault path presigns privately with the same rules 1`] = `
+[
+  {
+    "ext": "heic",
+    "kind": "health",
+    "mime": "image/heic",
+    "userId": "u1",
+  },
+]
+`;

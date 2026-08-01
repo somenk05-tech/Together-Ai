@@ -1,0 +1,76 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`tasks golden master account purge: aggregates the night into one line and names the incomplete 1`] = `
+[
+  "account purge: 2 account(s), 123 rows, 4 files, 1 INCOMPLETE — see errors above",
+  "ERROR account purge failed: db unreachable",
+]
+`;
+
+exports[`tasks golden master credential sweep: four tables, one grace cutoff, a missing model is zero and a failing one is survived 1`] = `
+{
+  "logs": [
+    "WARN Retention sweep failed for verificationToken.",
+    "Swept expired credentials — refreshToken: 12, recoveryCode: 12.",
+  ],
+  "wheres": {
+    "recoveryCode": {
+      "OR": [
+        {
+          "expiresAt": {
+            "lt": 2026-07-25T21:00:00.000Z,
+          },
+        },
+        {
+          "usedAt": {
+            "lt": 2026-07-25T21:00:00.000Z,
+          },
+        },
+      ],
+    },
+    "refreshToken": {
+      "OR": [
+        {
+          "expiresAt": {
+            "lt": 2026-07-25T21:00:00.000Z,
+          },
+        },
+        {
+          "createdAt": {
+            "lt": 2026-07-25T21:00:00.000Z,
+          },
+          "revoked": true,
+        },
+      ],
+    },
+    "verificationToken": {
+      "OR": [
+        {
+          "expiresAt": {
+            "lt": 2026-07-25T21:00:00.000Z,
+          },
+        },
+        {
+          "usedAt": {
+            "lt": 2026-07-25T21:00:00.000Z,
+          },
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`tasks golden master medicine dispatch: sends each due reminder once, counts only real sends, survives a dead read 1`] = `
+[
+  "dispatched 2 medicine reminder(s)",
+  "WARN reminder dispatch failed: db",
+]
+`;
+
+exports[`tasks golden master stale calls: closes the abandoned ring, stays quiet at zero, survives a failure 1`] = `
+[
+  "closed 2 unanswered/abandoned call(s)",
+  "WARN stale call sweep failed: db",
+]
+`;

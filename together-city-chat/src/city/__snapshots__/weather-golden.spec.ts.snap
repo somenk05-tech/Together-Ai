@@ -1,0 +1,61 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`city weather golden master device coordinates win; reverse geocode names the place 1`] = `
+{
+  "city": "Pune",
+  "code": 3,
+  "description": "Overcast",
+  "feelsLikeC": 33,
+  "icon": "☁️",
+  "lat": 18.52,
+  "lng": 73.85,
+  "region": "Maharashtra",
+  "source": "device",
+  "temperatureC": 30,
+}
+`;
+
+exports[`city weather golden master geocode failure falls back to the default city UNDER ITS OWN NAME 1`] = `
+{
+  "city": "Mumbai",
+  "code": 3,
+  "description": "Overcast",
+  "feelsLikeC": 33,
+  "icon": "☁️",
+  "lat": 19.076,
+  "lng": 72.8777,
+  "region": null,
+  "source": "default",
+  "temperatureC": 30,
+}
+`;
+
+exports[`city weather golden master no location at all → default city; upstream outage → null reading, honest nulls 1`] = `
+{
+  "city": "Mumbai",
+  "code": null,
+  "description": null,
+  "feelsLikeC": null,
+  "icon": "🌡",
+  "lat": 19.076,
+  "lng": 72.8777,
+  "region": null,
+  "source": "default",
+  "temperatureC": null,
+}
+`;
+
+exports[`city weather golden master saved city geocodes when there are no device coordinates 1`] = `
+{
+  "city": "Bengaluru",
+  "code": 3,
+  "description": "Overcast",
+  "feelsLikeC": 33,
+  "icon": "☁️",
+  "lat": 12.97,
+  "lng": 77.59,
+  "region": "Karnataka",
+  "source": "profile",
+  "temperatureC": 30,
+}
+`;

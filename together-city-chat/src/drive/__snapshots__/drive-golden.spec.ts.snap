@@ -1,0 +1,68 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`drive golden master deleting a folder walks the WHOLE subtree and deletes every stored object 1`] = `
+{
+  "deletedObjects": [
+    "drive/u1/x",
+    "drive/u1/y",
+  ],
+  "res": {
+    "deletedFiles": 2,
+    "ok": true,
+  },
+}
+`;
+
+exports[`drive golden master list shapes breadcrumb from the folder up to the root 1`] = `
+{
+  "breadcrumb": [
+    {
+      "id": "root",
+      "name": "Documents",
+    },
+    {
+      "id": "mid",
+      "name": "Health",
+    },
+    {
+      "id": "leaf",
+      "name": "2026",
+    },
+  ],
+  "files": [
+    {
+      "attachedId": null,
+      "attachedType": null,
+      "createdAt": "2026-08-01T00:00:00.000Z",
+      "folderId": "leaf",
+      "id": "report.pdf",
+      "mimeType": "application/pdf",
+      "name": "report.pdf",
+      "sizeBytes": 10,
+      "updatedAt": "2026-08-01T00:00:00.000Z",
+    },
+  ],
+  "folderId": "leaf",
+  "folders": [],
+}
+`;
+
+exports[`drive golden master quota gate: a file that fits is presigned; one that busts the vault is refused 1`] = `
+{
+  "key": "drive/u1/new.pdf",
+  "mime": "application/octet-stream",
+  "uploadUrl": "put-here",
+}
+`;
+
+exports[`drive golden master the storage meter sums all three vault tenants against the one 10GB quota 1`] = `
+{
+  "driveBytes": 3000,
+  "healthBytes": 250,
+  "mailBytes": 500,
+  "quotaBytes": 10737418240,
+  "remainingBytes": 10737414490,
+  "usedBytes": 3750,
+  "usedPct": 0,
+}
+`;
