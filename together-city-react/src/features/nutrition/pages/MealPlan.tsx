@@ -8,6 +8,8 @@ import {
 } from '../composed.api';
 import { useHealthScore } from '@/features/profile/hooks';
 import { ComposedMealCard, SkippedMealCard } from '../components/ComposedMealCard';
+import { PlannerModeToggle } from '../components/PlannerModeToggle';
+import { usePlannerMode } from '../plannerMode';
 import { skippedSlotsFor, skippedRolesFor } from '../skips';
 import { TargetsDisclosure, TargetsRefusal } from '../components/TargetsDisclosure';
 import { NIc } from '../components/NIcon';
@@ -585,7 +587,16 @@ export function MealPlan() {
   const [sp, setSp] = useSearchParams();
   const mode: 'preferred' | 'optimal' = sp.get('mode') === 'optimal' ? 'optimal' : 'preferred';
   const setMode = (m: 'preferred' | 'optimal') => setSp((p) => { p.set('mode', m); return p; }, { replace: true });
-  const plan = useComposedPlan(mode);
+  // Family or individual. Everything for this existed and nothing joined it up:
+  // `useComposedPlan` has always taken a scope, the server has always answered
+  // 'household', `usePlannerMode` knew whether the household offers a shared
+  // plan, and `PlannerModeToggle` was built to switch it — and this page called
+  // `useComposedPlan(mode)` with no scope, so it always got 'self'. A household
+  // with Family Meal Planning switched ON could not reach its shared plan from
+  // the planner at all. Not a dead export: an unreachable feature.
+  const planner = usePlannerMode();
+  const scope = planner.canUseFamily && planner.mode === 'family' ? 'household' : 'self';
+  const plan = useComposedPlan(mode, scope);
   const settingsSave = useSaveMealSettings();
   const setDay = (i: number) => setSp((p) => { p.set('day', String(i)); return p; }, { replace: true });
   const [showSettings, setShowSettings] = useState(false);
@@ -665,6 +676,19 @@ export function MealPlan() {
         </div>
         {!wk.readOnly && <Button variant="line" size="sm" onClick={() => setShowSettings(true)}>Meal settings</Button>}
       </div>
+
+      {/* Whose plan this is. The component draws nothing unless the household
+          actually offers a shared plan, so a solo citizen sees no switch and is
+          not asked a question that has one answer. */}
+      {planner.canUseFamily && (
+        <div style={{ marginTop: 14 }}>
+          <PlannerModeToggle
+            mode={planner.mode}
+            onChange={planner.setMode}
+            busy={plan.isFetching}
+          />
+        </div>
+      )}
 
       {/*
         FE-8.1 (p9): Optimal Health is offered only when there is something for
