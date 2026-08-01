@@ -371,6 +371,9 @@ export class RestaurantsService implements OnModuleInit {
 
   /** Candidate assembly shared by the curated surfaces: live Google Places (real
    *  distance) when a key + GPS are present, otherwise the seeded catalogue. */
+  // unscreened: a private candidate fetch with no citizen in scope. Every
+  // caller screens what it returns; screening here too would hide venues from
+  // the surfaces that are supposed to show them marked.
   private async assembleCandidates(q: { lat?: number; lng?: number; radiusKm?: number }): Promise<{ cands: RCand[]; live: boolean }> {
     let cands: RCand[] = [];
     let live = false;
@@ -439,6 +442,9 @@ export class RestaurantsService implements OnModuleInit {
   }
 
   /** Shape a candidate into a curated card with the TC score, category and signals. */
+  // unscreened: a pure card shaper. It is handed one row and returns its
+  // presentation; the allergy decision belongs to the caller that chose to
+  // include the row, and lives one level up in screenVenues/markVenue.
   private curatedCard(c: RCand) {
     const r = c.row;
     const d = this.derive(r, c.realDist);
@@ -587,8 +593,16 @@ export class RestaurantsService implements OnModuleInit {
   async overview(userId: string, id: string) {
     const r = await this.prisma.restaurant.findUnique({ where: { id } }) as RestaurantRow | null;
     if (!r) throw new NotFoundException('restaurant not found');
-    const menu = parseMenu(r.menuJson);
+    const fullMenu = parseMenu(r.menuJson);
     const d = this.derive(r);
+    // "Try these" NAMES DISHES TO ORDER, so it is a recommendation and screens
+    // like one — found by allergen-ratchet.spec.ts on its first run, the same
+    // way the route-reach companion guard found MealCard. The AI path is fed
+    // only safe dishes AND has its answer filtered, because a model handed a
+    // menu can return anything, including something we did not send it.
+    const declared = await this.allergenTerms(userId);
+    const safeName = (name: string) => !declared.length || !findAllergen(name, [], declared);
+    const menu = fullMenu.filter((x) => safeName(x.name));
     const bestsellers = menu.filter((x) => x.bestseller).map((x) => x.name);
     const meta = CUISINE_META[r.cuisine];
     const fallback = {
@@ -606,7 +620,14 @@ export class RestaurantsService implements OnModuleInit {
     const sys = 'You write concise, factual overviews for a curated food-discovery guide. Use ONLY the provided facts (cuisine, price, rating, hygiene, menu). NEVER invent diner quotes, review counts, or star breakdowns. Return strict JSON.';
     const user = `Venue: ${r.name}\nCategory/Cuisine: ${this.category(r)} · ${meta?.label ?? r.cuisine}\nArea: ${r.area}, ${r.city}\nRating: ${r.rating}/5\nPrice for two: ₹${r.priceForTwoInr}\nTagline: ${r.tagline}\nMenu: ${menu.slice(0, 12).map((x) => x.name).join(', ') || '(no online menu)'}\nBestsellers: ${bestsellers.join(', ') || '—'}\n\nReturn JSON: {"highlights":[3-4 short phrases],"tryThese":[3-5 dish names from the menu above],"bestFor":"one short occasion phrase","note":"one factual sentence"}`;
     const out = await this.ai.json(sys, user, fallback);
-    return { aiPowered: true, highlights: out.highlights ?? fallback.highlights, tryThese: out.tryThese ?? fallback.tryThese, bestFor: out.bestFor ?? fallback.bestFor, note: out.note ?? fallback.note };
+    const suggested = (out.tryThese ?? fallback.tryThese).filter((n: string) => safeName(n));
+    return {
+      aiPowered: true,
+      highlights: out.highlights ?? fallback.highlights,
+      tryThese: suggested.length ? suggested : fallback.tryThese,
+      bestFor: out.bestFor ?? fallback.bestFor,
+      note: out.note ?? fallback.note,
+    };
   }
 
   // ─────────────── Intelligent eating decision engine (meal-plan dish matching) ───────────────
@@ -817,6 +838,11 @@ export class RestaurantsService implements OnModuleInit {
     };
   }
 
+  // unscreened: these are dishes the citizen picked by name on a menu that
+  // marked them (see detail()). Refusing somebody's own order would be the app
+  // overruling them about their own body, which is not a call it gets to make.
+  // If this should instead WARN before charging, that is a product decision —
+  // deliberately not taken by whoever wrote this method.
   /** Place a food order — charges the city wallet (Financial), then records the order. */
   async placeOrder(userId: string, restaurantId: string, dto: PlaceOrderDto) {
     const r = await this.prisma.restaurant.findUnique({ where: { id: restaurantId } }) as RestaurantRow | null;
@@ -864,6 +890,8 @@ export class RestaurantsService implements OnModuleInit {
   }
 
   /** Reserve a table — a free confirmed booking (pay-at-restaurant). */
+  // unscreened: booking a table names no dish. The menu read here is for the
+  // venue name on the confirmation.
   async reserve(userId: string, restaurantId: string, dto: ReserveTableDto) {
     const r = await this.prisma.restaurant.findUnique({ where: { id: restaurantId } }) as RestaurantRow | null;
     if (!r) throw new NotFoundException('restaurant not found');
