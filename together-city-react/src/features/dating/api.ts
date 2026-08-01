@@ -336,17 +336,6 @@ export function useUnmatch(kind: MatchKind) {
     },
   });
 }
-/** Choose the name you chat under. `show: false` goes back to the pseudonym. */
-export function useRevealMatch() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (v: string | { targetUserId: string; show: boolean }) =>
-      typeof v === 'string'
-        ? datingApi.reveal(v, 'romantic')
-        : datingApi.reveal(v.targetUserId, 'romantic', v.show),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['dating', 'chats'] }),
-  });
-}
 export function useDatingChats() {
   return useQuery({ queryKey: ['dating', 'chats'], queryFn: () => datingApi.chats(), refetchInterval: 15_000 });
 }

@@ -5,7 +5,7 @@ import { useMe } from '@/api';
 import { chatApi, useMessages, useChatRealtime } from '@/api';
 import type { Message } from '@/api/schemas';
 import { useQueryClient } from '@tanstack/react-query';
-import { useDatingChats, useRevealMatch, useUnmatch, type DatingChatSummary } from '../api';
+import { useDatingChats, useUnmatch, type DatingChatSummary } from '../api';
 import { CallButtons } from '@/features/calls/CallButtons';
 import { SafetyMenu } from '../components/SafetyMenu';
 
@@ -29,7 +29,7 @@ function Avatar({ name, photo, size = 46 }: { name: string; photo: string | null
   return (
     <div style={{ width: size, height: size, borderRadius: '50%', flex: 'none', display: 'grid', placeItems: 'center',
       background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 700, fontSize: size * 0.36 }}>
-      {photo === null ? '🕶' : initials(name)}
+      {initials(name)}
     </div>
   );
 }
@@ -46,7 +46,6 @@ function ChatRow({ c, active, onClick }: { c: DatingChatSummary; active: boolean
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <span style={{ fontWeight: 700, fontSize: 14.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
-          {!c.revealed && <span className="tag" style={{ fontSize: 10 }}>Anonymous</span>}
           <span className="muted" style={{ marginLeft: 'auto', fontSize: 11.5, flex: 'none' }}>{timeAgo(c.lastMessageAt)}</span>
         </div>
         <div className="muted" style={{ fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
@@ -60,36 +59,34 @@ function ChatRow({ c, active, onClick }: { c: DatingChatSummary; active: boolean
 
 const bubbleBase: CSSProperties = { maxWidth: '76%', padding: '9px 13px', borderRadius: 14, fontSize: 13.5, lineHeight: 1.4, wordBreak: 'break-word' };
 
-/** A mutual match whose chat has not been opened yet. */
-function PendingRow({ c }: { c: DatingChatSummary }) {
+/** A new match, waiting for its first message — the Bumble-style queue tile.
+ *  Same name and photo the match card showed; tapping opens the connect step. */
+function MatchBubble({ c }: { c: DatingChatSummary }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 12, width: '100%',
-      padding: '12px 12px', borderRadius: 14, border: '1px solid var(--line)', marginBottom: 8, background: 'var(--card)',
-    }}>
-      <Avatar name={c.name} photo={c.photo} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontWeight: 700, fontSize: 14.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
-          <span className="tag" style={{ fontSize: 10, background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 700 }}>💫 Matched</span>
+    <Link to={`/dating/match?u=${c.otherUserId}`}
+      style={{ textDecoration: 'none', color: 'inherit', flex: 'none', width: 78, textAlign: 'center' }}>
+      <div style={{ width: 68, height: 68, margin: '0 auto', borderRadius: '50%', padding: 3,
+        background: 'linear-gradient(135deg, var(--accent), var(--accent-soft))' }}>
+        <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden',
+          border: '2px solid var(--card)', display: 'grid', placeItems: 'center', background: 'var(--accent-soft)' }}>
+          {c.photo
+            ? <img src={c.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <span style={{ fontWeight: 700, color: 'var(--accent)', fontSize: 20 }}>{initials(c.name)}</span>}
         </div>
-        <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>You both liked each other — start the conversation.</div>
       </div>
-      <Link to={`/dating/match?u=${c.otherUserId}`} style={{ flex: 'none' }}>
-        <Button size="sm" variant="accent">Connect to chat</Button>
-      </Link>
-    </div>
+      <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
+      {c.score != null && <div style={{ fontSize: 10.5, color: 'var(--accent)', fontWeight: 700 }}>{c.score}%</div>}
+    </Link>
   );
 }
 
-/** The open conversation thread — anonymous until both reveal. */
+/** The open conversation thread. */
 /** Only ever rendered for a chat that has actually been opened, so the
  *  conversation id is non-null by construction rather than by assertion. */
 type OpenChat = DatingChatSummary & { conversationId: string };
 
 function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: () => void }) {
   const qc = useQueryClient();
-  const reveal = useRevealMatch();
   const unmatch = useUnmatch('romantic');
   const msgs = useMessages(chat.conversationId);
   const [draft, setDraft] = useState('');
@@ -118,10 +115,6 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
     } catch { setDraft(body); } finally { setSending(false); }
   };
 
-  // Two independent facts now, not one shared state: how THEY appear to you
-  // (their choice) and how YOU appear to them (yours).
-  const iAmReal = chat.myIdentity === 'real';
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'min(72vh, 640px)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden', background: 'var(--card)' }}>
       {/* header */}
@@ -129,10 +122,9 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
         <button type="button" onClick={onBack} aria-label="Back" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-soft)', display: 'none' }} className="tc-chat-back">←</button>
         <Avatar name={chat.name} photo={chat.photo} size={40} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14.5 }}>{chat.name}{chat.otherReveal && chat.sign ? ` · ${chat.sign}` : ''}</div>
-          <div className="muted" style={{ fontSize: 11.5 }}>
-            {chat.otherReveal ? 'Chatting as themselves' : 'Chatting anonymously — only they can share their name'}
-          </div>
+          <div style={{ fontWeight: 700, fontSize: 14.5 }}>{chat.name}{chat.sign ? ` · ${chat.sign}` : ''}</div>
+          {/* One identity: the name above is the profile's, the same one the
+              match card showed. Nothing here changes anybody's name. */}
         </div>
         {chat.score != null && <span className="tag" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 700 }}>{chat.score}%</span>}
         {/* A call here carries no more identity than the chat does: the avatar
@@ -140,25 +132,11 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
         <CallButtons conversationId={chat.conversationId} compact />
       </div>
 
-      {/* identity / unmatch bar — YOUR name is your decision, taken here */}
+      {/* unmatch / safety bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--paper)', borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
         <span className="muted" style={{ fontSize: 12 }}>
-          You’re chatting as <strong style={{ color: 'var(--ink)' }}>{iAmReal ? 'yourself' : chat.myNickname}</strong>
+          You appear as yourself — the same name and photos as your profile.
         </span>
-        <Button
-          size="sm"
-          variant={iAmReal ? 'line' : 'accent'}
-          disabled={reveal.isPending}
-          onClick={() => {
-            // Going back to the pseudonym cannot un-send what they already saw,
-            // so say that plainly instead of implying it can be undone.
-            if (iAmReal && !window.confirm('Chat as “' + chat.myNickname + '” from now on? They won’t see your name or photo going forward, but this can’t unsend what they’ve already seen.')) return;
-            reveal.mutate({ targetUserId: chat.otherUserId, show: !iAmReal });
-          }}
-        >
-          {reveal.isPending ? '…' : iAmReal ? `Switch to ${chat.myNickname}` : 'Use my real name'}
-        </Button>
-        {chat.revealed && <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>✓ You both use your real names</span>}
         <Button size="sm" variant="line" style={{ marginLeft: 'auto', color: '#c62828', borderColor: '#f0b0b0' }}
           disabled={unmatch.isPending}
           onClick={() => { if (window.confirm('Unmatch and end this chat? This frees you to connect with someone new.')) unmatch.mutate(chat.otherUserId, { onSuccess: onBack }); }}>
@@ -175,7 +153,7 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
         {msgs.isLoading ? <Spinner /> : messages.length === 0 ? (
           <div style={{ margin: 'auto', textAlign: 'center', maxWidth: 260 }}>
             <div style={{ fontSize: 30 }}>💬</div>
-            <p className="muted" style={{ fontSize: 13 }}>You matched — start the conversation. Keep it kind; reveal when you’re both ready.</p>
+            <p className="muted" style={{ fontSize: 13 }}>You matched — start the conversation. Keep it kind.</p>
           </div>
         ) : messages.map((m) => {
           const mine = m.senderId === meId;
@@ -200,7 +178,7 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
   );
 }
 
-/** Dating Hub · Chats — anonymous, one-at-a-time match conversations. */
+/** Dating Hub · Chats — the match queue, then the conversations. */
 export function DatingChats() {
   const me = useMe();
   const chats = useDatingChats();
@@ -212,10 +190,10 @@ export function DatingChats() {
     (c): c is OpenChat => c.conversationId !== null && c.conversationId === openId,
   ) ?? null;
 
-  // Everything that is not the thread on screen. Computed here rather than
-  // inside the branch so the empty case and the switching case cannot disagree
-  // about what "your other chats" means.
-  const others = list.filter((c) => c.conversationId !== active?.conversationId);
+  // The queue and the conversations, split once so no branch disagrees.
+  const pendingMatches = list.filter((c) => !c.conversationId);
+  const opened = list.filter((c) => c.conversationId);
+  const others = opened.filter((c) => c.conversationId !== active?.conversationId);
   const open = (id: string) => setParams((p) => { p.set('c', id); return p; });
   const back = () => setParams((p) => { p.delete('c'); return p; }, { replace: true });
 
@@ -224,7 +202,7 @@ export function DatingChats() {
       <div className="eyebrow">Dating Hub · Chats</div>
       <h1 style={{ fontSize: 26 }}>Your dating chats</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
-        Intentional dating — a few conversations, not endless ones. You choose whether to chat under your own name or a pseudonym, and so do they. These chats live only here, never in your main Chats.
+        Intentional dating — a few conversations, not endless ones. Everyone appears as themselves, with the same name and photos as their profile. These chats live only here, never in your main Chats.
       </p>
 
       {active ? (
@@ -239,9 +217,7 @@ export function DatingChats() {
                 Your other {others.length === 1 ? 'chat' : 'chats'}
               </div>
               {others.map((c) => (
-                c.conversationId
-                  ? <ChatRow key={c.conversationId} c={c} active={false} onClick={() => open(c.conversationId as string)} />
-                  : <PendingRow key={c.otherUserId} c={c} />
+                <ChatRow key={c.conversationId} c={c} active={false} onClick={() => open(c.conversationId as string)} />
               ))}
             </div>
           )}
@@ -260,20 +236,33 @@ export function DatingChats() {
         />
       ) : list.length === 0 ? (
         <>
-          <EmptyState icon="💬" title="No dating chats yet" hint="When you connect with a match, your anonymous conversation appears here." />
+          <EmptyState icon="💬" title="No dating chats yet" hint="When you connect with a match, your conversation appears here." />
           <div style={{ textAlign: 'center', marginTop: 14 }}>
             <Link to="/dating/matches"><Button variant="accent">See your matches</Button></Link>
           </div>
         </>
       ) : (
-        list.map((c) => (
-          c.conversationId
-            ? <ChatRow key={c.conversationId} c={c} active={false} onClick={() => open(c.conversationId as string)} />
-            // A match with no chat yet. It belongs on this page — it is the
-            // reason the citizen came here — but it opens the connect step
-            // rather than a thread that does not exist.
-            : <PendingRow key={c.otherUserId} c={c} />
-        ))
+        <>
+          {/* The queue: matches waiting for a first message, the way Bumble
+              stacks them — faces first, newest matches in front. Tapping one
+              opens the connect step, not a thread that does not exist. */}
+          {pendingMatches.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div className="eyebrow" style={{ marginBottom: 8 }}>
+                New matches · {pendingMatches.length}
+              </div>
+              <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4 }}>
+                {pendingMatches.map((c) => <MatchBubble key={c.otherUserId} c={c} />)}
+              </div>
+            </div>
+          )}
+          {opened.length > 0 && pendingMatches.length > 0 && (
+            <div className="eyebrow" style={{ marginBottom: 6 }}>Chats</div>
+          )}
+          {opened.map((c) => (
+            <ChatRow key={c.conversationId} c={c} active={false} onClick={() => open(c.conversationId as string)} />
+          ))}
+        </>
       )}
     </div>
   );

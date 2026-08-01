@@ -1,5 +1,13 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`what the notifications engine decides today a dating chat titles with the profile name — one identity — and keeps the dating href 1`] = `
+{
+  "hrefIsDating": "/dating/chats?c=c9",
+  "titleAfterReveal": "Asha Verma",
+  "titleBeforeReveal": "Asha Verma",
+}
+`;
+
 exports[`what the notifications engine decides today a plain notification: the row, the emit, the count 1`] = `
 {
   "emitted": [
@@ -161,14 +169,6 @@ exports[`what the notifications engine decides today a ringing phone ignores bot
       "userId": "viewer",
     },
   ],
-}
-`;
-
-exports[`what the notifications engine decides today an unrevealed dating chat shows the pseudonym, never the name 1`] = `
-{
-  "hrefIsDating": "/dating/chats?c=c9",
-  "revealedTitle": "Asha Verma",
-  "unrevealedTitle": "Cosmic Harbor",
 }
 `;
 

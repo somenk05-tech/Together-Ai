@@ -72,15 +72,17 @@ describe('dating chats include matches that have not been connected yet', () => 
     expect(conversations.summaryFor).toHaveBeenCalledWith('conv-1', 'me');
   });
 
-  it('keeps a pending match anonymous until they choose otherwise', async () => {
+  it('uses the profile name from the first moment — the same name the match card showed', async () => {
+    // Decided 1 Aug: ONE identity, the profile's. The Matches page already
+    // shows the name and photos before anyone matches; a pseudonym after
+    // matching protected nothing and read as the name changing.
     const { svc } = serviceWith([match()]);
     const out = await svc.datingChats('me') as unknown as Array<{ name: string; photo: string | null }>;
-    expect(out[0].name).not.toBe('Rhea');
-    expect(out[0].photo).toBeNull();
+    expect(out[0].name).toBe('Rhea');
+    expect(out[0].photo).toBe('photo.jpg');
   });
 
-  it('shows their real name once THEY have chosen it, connected or not', async () => {
-    // revealByTwo is theirs; mine stays false.
+  it('the name does not depend on reveal flags in either direction', async () => {
     const { svc } = serviceWith([match({ revealByTwo: true })]);
     const out = await svc.datingChats('me') as unknown as Array<{ name: string; photo: string | null }>;
     expect(out[0].name).toBe('Rhea');

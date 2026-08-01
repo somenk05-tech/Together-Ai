@@ -1,7 +1,6 @@
 import { swallowed } from '../shared/swallow';
 import { Injectable, Logger } from '@nestjs/common';
 import { datingContext } from '../shared/dating-conversations';
-import { nickname } from '../shared/nickname';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { RedisService } from '../shared/redis/redis.service';
 import { PresenceService } from '../users/presence.service';
@@ -156,10 +155,12 @@ export class NotificationsService {
     });
     if (!sender) return null;
     const ctx = await datingContext(this.prisma, conversationId, senderId);
-    const anonymous = ctx.dating && !ctx.senderRevealed;
+    // One identity: dating no longer masks the sender's name — the profile
+    // the recipient matched with carries the same name everywhere. `dating`
+    // still decides the href, so these chats keep opening in the Dating Hub.
     return {
-      displayName: anonymous ? nickname(senderId) : sender.name,
-      displayPhoto: anonymous ? undefined : (sender.profileImage ?? undefined),
+      displayName: sender.name,
+      displayPhoto: sender.profileImage ?? undefined,
       dating: ctx.dating,
     };
   }

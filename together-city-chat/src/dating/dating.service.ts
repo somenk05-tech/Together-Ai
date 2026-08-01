@@ -1286,7 +1286,7 @@ export class DatingService {
         : { lastMessageAt: m.updatedAt.toISOString(), lastText: null, lastSenderId: null, unread: 0 };
       const otherProfile = await this.prisma.datingProfile.findUnique({ where: { userId: otherId } });
       const otherUser = await this.prisma.user.findUnique({ where: { id: otherId }, select: { name: true, profileImage: true } });
-      const candD = this.parseDX((otherProfile as { extras?: string | null } | null)?.extras) as DXProfile & { photos?: string[] };
+      const candD = this.parseDX((otherProfile as { extras?: string | null } | null)?.extras) as DXProfile & { firstName?: string; photos?: string[] };
       const score = await this.readPairScore(userId, otherId);
 
       out.push({
@@ -1294,10 +1294,12 @@ export class DatingService {
         /** True while the match exists but the chat has not been opened yet. */
         pending: !m.conversationId,
         otherUserId: otherId,
-        // Their choice alone decides whether you see their name — not a mutual
-        // agreement, and never your own flag.
-        name: otherReveal ? (otherUser?.name ?? 'Member') : nickname(otherId),
-        photo: otherReveal ? ((candD.photos && candD.photos[0]) ?? otherUser?.profileImage ?? null) : null,
+        // ONE identity, the profile's. The Matches page shows every visible
+        // candidate's first name and photos to anyone browsing — a pseudonym
+        // AFTER two people matched protected nothing, and read as the person
+        // changing names between screens. Same expression the match card uses.
+        name: candD.firstName || otherUser?.name || 'Member',
+        photo: (candD.photos && candD.photos[0]) ?? otherUser?.profileImage ?? null,
         /** Which name YOU are chatting under, so the UI can offer the switch. */
         myIdentity: (myReveal ? 'real' : 'anonymous') as 'real' | 'anonymous',
         myNickname: nickname(userId),

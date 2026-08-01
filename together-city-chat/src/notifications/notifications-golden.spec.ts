@@ -17,7 +17,8 @@ import { NotificationsService, NotificationRow } from './notifications.service';
  *  · a recipient actively viewing the conversation is suppressed; muted too
  *  · a ringing phone ignores BOTH rules — every call is its own row, muted
  *    or not, viewing or not
- *  · in an unrevealed dating chat the sender's name is their pseudonym
+ *  · a dating chat titles with the profile's name (decided 1 Aug: one
+ *    identity everywhere) while its href stays inside the Dating Hub
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -116,15 +117,16 @@ describe('what the notifications engine decides today', () => {
     expect({ table, pushes }).toMatchSnapshot();
   });
 
-  it('an unrevealed dating chat shows the pseudonym, never the name', async () => {
+  it('a dating chat titles with the profile name — one identity — and keeps the dating href', async () => {
     const dm = { conversationId: 'c9', userOneId: 'sender1', userTwoId: 'u1', revealByOne: false, revealByTwo: false };
     const { svc, table } = build({ datingMatch: dm });
     await svc.notifyNewMessage({ conversationId: 'c9', senderId: 'sender1', recipientIds: ['u1'], preview: 'hi' });
     const revealed = build({ datingMatch: { ...dm, revealByOne: true } });
     await revealed.svc.notifyNewMessage({ conversationId: 'c9', senderId: 'sender1', recipientIds: ['u1'], preview: 'hi again' });
+    // Reveal flags no longer change the name; the href still says which hub.
     expect({
-      unrevealedTitle: table[0]?.title,
-      revealedTitle: revealed.table[0]?.title,
+      titleBeforeReveal: table[0]?.title,
+      titleAfterReveal: revealed.table[0]?.title,
       hrefIsDating: (table[0] as any)?.href,
     }).toMatchSnapshot();
   });

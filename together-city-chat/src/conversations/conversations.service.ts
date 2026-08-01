@@ -3,7 +3,6 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ConnectionPermissionService } from '../connections/connection-permission.service';
 import { directKeyOf } from './conversation.util';
-import { nickname } from '../shared/nickname';
 import { datingConversationIds } from '../shared/dating-conversations';
 import { CreateGroupDto } from './dto/conversations.dto';
 
@@ -176,15 +175,15 @@ export class ConversationsService {
   ) {
     const isGroup = c.type === 'GROUP';
     const others = c.members.filter((m) => m.userId !== userId);
-    // Dating-match anonymity: at trust level 1 the other person is a pseudonym.
-    // Their real name (the DTO title, which the client also uses for the avatar)
-    // is only revealed once both agree (trust ≥ 2). Only dating chats set this.
+    // One identity across the city: the dating pseudonym is retired. The
+    // Matches page always showed the profile's real name, so a different name
+    // here read as the person changing names between screens. `anonymous`
+    // still marks a dating conversation's trust level for the surfaces that
+    // key other behaviour off it; it no longer changes anybody's name.
     const anonymous = !isGroup && c.anonymousTrust != null && c.anonymousTrust < 2;
     const title = isGroup
       ? c.title ?? 'Group'
-      : anonymous
-        ? (others[0] ? nickname(others[0].userId) : 'Anonymous')
-        : others[0]?.user?.name ?? 'Conversation';
+      : others[0]?.user?.name ?? 'Conversation';
     const lastAt = c.messages?.[0]?.createdAt ?? c.updatedAt;
     return {
       id: c.id,
