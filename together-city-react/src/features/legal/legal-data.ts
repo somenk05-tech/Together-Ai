@@ -312,7 +312,18 @@ P.dating = {
     { h: '3. Compatibility scoring', html:
       `<p>Compatibility (including any astrology-based scoring) is generated for entertainment and matching purposes and is not a guarantee of suitability, safety, or relationship success.</p>` },
     { h: '4. Safety', html:
-      li(['Report abuse and block users at any time;', 'Screenshot-protection measures are applied where feasible;', 'Follow our Safety Centre before meeting anyone in person: meet in public, tell a friend, and trust your instincts;', 'Emergency reporting is available in-app.']) },
+      li([
+        'Report abuse and block users at any time;',
+        // Was "Screenshot-protection measures are applied where feasible", which
+        // nothing implemented and no website can: browsers expose no way to stop
+        // a screenshot. Somebody could have shared a photo believing otherwise,
+        // which makes it the most costly kind of untrue sentence to leave up.
+        'We cannot stop anyone taking a screenshot — no website can — so treat anything you share here as something that could be saved;',
+        'Your dating photos are shown inside the Dating Hub only, to people allowed by the visibility setting on your profile — you can require a minimum match score, or hide your profile entirely;',
+        'Sharing intimate images of someone without their consent is prohibited and can lead to permanent removal and reporting to authorities;',
+        'Follow our Safety Centre before meeting anyone in person: meet in public, tell a friend, and trust your instincts;',
+        'Emergency reporting is available in-app.',
+      ]) },
     { h: '5. Anti-harassment', html:
       `<p>Harassment, threats, non-consensual imagery, and off-platform abuse are prohibited and may lead to permanent removal and reporting to authorities. See our Harassment & Abuse Policy.</p>` },
   ],
