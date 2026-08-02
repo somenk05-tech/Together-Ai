@@ -3,10 +3,19 @@ import { useFamilyMealPlanning } from './hooks';
 
 /**
  * Planner mode — the single switch between the household's shared Family Plan
- * and this user's own Individual Plan. The choice is remembered for the session
- * (localStorage) and shared across the Weekly and Daily planners so switching in
- * one carries to the other. Switching is instant: it only changes which plan the
- * planner requests (React Query caches each mode), never a page reload.
+ * and this user's own Individual Plan. The choice is remembered (localStorage)
+ * and broadcast, so every page that reads this hook agrees the moment one of
+ * them changes it.
+ *
+ * WHICH PAGES: the nutrition planner, `/nutrition/weekly`. One, today. This
+ * sentence used to promise "the Weekly and Daily planners"; there is no
+ * `/nutrition/daily`, and the Family planners at `/family/weekly` and
+ * `/family/daily` deliberately do NOT read this — they are the household
+ * surface and are always household-scoped. A doc that names pages which do not
+ * exist reads as a wiring bug to the next person, and one already went looking.
+ *
+ * Switching is instant: it only changes which plan the planner requests (React
+ * Query caches each mode + scope), never a page reload.
  */
 export type PlannerMode = 'family' | 'individual';
 

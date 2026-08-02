@@ -28,10 +28,10 @@ const api = read('features/nutrition/composed.api.ts');
  * `/family/weekly` and `/family/daily` pass `'household'` directly and are both
  * listed in the Family hub menu. What was missing is narrower — the nutrition
  * planner ignored a choice the citizen had made, and the switch built to make it
- * there was dead. `usePlannerMode`'s own doc still promises the mode is "shared
- * across the Weekly and Daily planners so switching in one carries to the
- * other"; the two family pages do not read it either, so that sentence is still
- * ahead of the code.
+ * there was dead. `usePlannerMode`'s doc used to promise the mode was "shared
+ * across the Weekly and Daily planners"; there is no `/nutrition/daily`, and the
+ * family pages deliberately do not read it. That sentence is corrected rather
+ * than the code — and the block at the foot of this file pins why.
  *
  * This guard checks the WIRE, not the component. A component rendered on a page
  * it cannot affect is still unreachable — it just stops being counted.
@@ -72,5 +72,62 @@ describe('the planner asks for the plan the citizen chose', () => {
     // Same mode, different scope, different plan. A shared key would show one
     // household member the other's plan out of cache.
     expect(api).toMatch(/queryKey: \['nutrition', 'composed', mode, scope\]/);
+  });
+});
+
+/**
+ * The Family planners are household-scoped ON PURPOSE, and say so honestly.
+ *
+ * §12 of the site review reads: "/family/weekly and /family/daily pass
+ * 'household' unconditionally, and config/hubs.ts lists both with no gate — so
+ * with family mode OFF the menu offers planners that request a shared plan the
+ * household has not enabled. Fix: gate the menu entries, and have those pages
+ * refuse rather than request."
+ *
+ * CHECKED AGAINST THE CODE, AND THAT FIX WOULD BE A REGRESSION.
+ *
+ * `scope=household` does not mean "the household is following this". It means
+ * "composed with every member's allergies, exclusions and conditions applied",
+ * and the server serves it whether or not shared planning is on — the flag
+ * governs how members inherit the owner's profile, not whether a household
+ * composition is allowed. So the plan is real, and it is the SAFER plan to cook
+ * from for a table, which is exactly what a household with shared planning off
+ * still needs.
+ *
+ * And the pages already say which of the three states they are in: shared
+ * planning on, no household at all, or household with planning off — that last
+ * one in as many words: "nobody else is following this plan. It is yours."
+ * Making the pages refuse would delete a working, honest, allergy-safe plan and
+ * replace it with an error.
+ *
+ * So this block guards the honesty rather than the phantom defect: the scope
+ * stays, and the notice that explains it stays with it.
+ */
+describe('the family planners', () => {
+  const weekly = read('features/family/pages/Weekly.tsx');
+  const daily = read('features/family/pages/Daily.tsx');
+  const notice = read('features/family/components/HouseholdPlanNotice.tsx');
+
+  it('ask for the household composition, both of them', () => {
+    for (const page of [weekly, daily]) expect(page).toMatch(/useComposedPlan\(mode, 'household'\)/);
+  });
+
+  it('never leave the scope unexplained', () => {
+    // The scope without the sentence is the actual §12 risk: a citizen with
+    // shared planning off, looking at a plan nobody else is following, told
+    // nothing about it.
+    for (const page of [weekly, daily]) expect(page).toMatch(/<HouseholdPlanNotice/);
+  });
+
+  it('tell the truth in all three states', () => {
+    expect(notice).toMatch(/This is your <b>family meal plan<\/b>/);
+    expect(notice).toMatch(/You don't have a household yet/);
+    expect(notice).toMatch(/<b>Household meal planning is off<\/b>/);
+    // The specific claims that must survive: nobody else is following it, and
+    // it is still safe to cook for the table.
+    // Whitespace-flexible: the sentence wraps in the source, and a guard that
+    // only matches one line wrapping is a guard that fails on a reformat.
+    expect(notice).toMatch(/nobody else is\s+following this plan/);
+    expect(notice).toMatch(/still applied/);
   });
 });
