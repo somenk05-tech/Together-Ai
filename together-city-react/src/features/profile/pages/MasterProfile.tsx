@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Spinner } from '@/components/ui';
 import { profileApi, type MasterProfileView } from '../api';
 import { BLOOD_GROUP_OPTIONS } from '../bloodGroup';
+import { RELATIONSHIP_STATUS_OPTIONS } from '../relationshipStatus';
 import { useMasterProfile, useProfileCompletion } from '../hooks';
 
 /**
@@ -206,6 +207,20 @@ export function MasterProfile() {
 
         {v.genderIdentity === 'other' && textField('genderIdentityOther', 'In your words')}
         {textField('occupation', 'Occupation')}
+
+        {field('relationshipStatus', 'Relationship status',
+          <select aria-label="Relationship status" value={v.relationshipStatus ?? ''}
+            onChange={(e) => set('relationshipStatus', e.target.value || null)}
+            onBlur={() => commit('relationshipStatus')} style={inputStyle}>
+            {/* Blank first and preselected by nothing. */}
+            <option value="">Not recorded</option>
+            {RELATIONSHIP_STATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>,
+          'Optional. Nothing in Together City uses it — it is not your dating profile, '
+          + 'which asks separately what you are looking for, and no hub reads it. '
+          + '"Prefer not to say" is recorded as your answer; leaving it blank records nothing.')}
       </Section>
 
       {/* ── Body ─────────────────────────────────────────────────── */}

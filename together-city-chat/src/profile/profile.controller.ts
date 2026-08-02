@@ -69,6 +69,10 @@ export class ProfileController {
     // citizen saying they do not know. Anything else is refused rather than
     // stored: this column is only ever their own answer.
     bloodGroup: z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'hh+', 'hh-', 'unknown']).nullable().optional(),
+    // The citizen's own answer about their life, from a closed list. Anything
+    // else is refused rather than stored.
+    relationshipStatus: z.enum(['single', 'inRelationship', 'engaged', 'married',
+      'separated', 'divorced', 'widowed', 'preferNotToSay']).nullable().optional(),
   })))
   async updateMaster(@CurrentUser() user: JwtUser, @Body() body: Record<string, unknown>) {
     const patch: SharedFields = {

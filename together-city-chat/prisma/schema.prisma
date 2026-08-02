@@ -1937,6 +1937,16 @@ model MasterProfile {
   /// which never ask. NOT rendered into any hub's editable form — a second
   /// editable copy is the problem §3 exists to remove.
   foodAllergens String?
+  /// Single | inRelationship | engaged | married | separated | divorced |
+  /// widowed | preferNotToSay. NULL means nobody has asked or they skipped it;
+  /// 'preferNotToSay' means they were asked and declined, which is a different
+  /// fact and reads differently on screen.
+  ///
+  /// NOT dating's relationshipGoal (what they are looking for) and NOT
+  /// Connection.relationship (their relationship to another person). Three
+  /// different questions; see shared/relationship-status.ts. Nothing computes
+  /// with this one — the profile shows it back, and that is all it does.
+  relationshipStatus String?
   /// The citizen's blood group — one of the eight ABO/Rh groups, 'hh+'/'hh-'
   /// for the Bombay phenotype (ABO-independent, but Rh still applies, which is
   /// why it carries a sign), or the string 'unknown' meaning they answered and

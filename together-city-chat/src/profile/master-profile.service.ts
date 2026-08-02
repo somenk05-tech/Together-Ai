@@ -51,6 +51,11 @@ export interface SharedFields {
   foodAllergens?: string | null;
   /** sedentary | light | moderate | active | veryActive — see shared/energy.ts. */
   activityLevel?: string | null;
+  /** Single | inRelationship | … | preferNotToSay. **Write-owner: the citizen,
+   *  on the Master Profile page.** Nothing computes with it, and it is neither
+   *  dating's `relationshipGoal` nor `Connection.relationship` — see
+   *  shared/relationship-status.ts. */
+  relationshipStatus?: string | null;
   /** One of the eight ABO/Rh groups, or 'unknown' = answered, does not know.
    *  Null = never answered. **Write-owner: the citizen, on the Master Profile
    *  page** — the first shared field no hub owns, because no hub computes with
@@ -66,7 +71,7 @@ const SHARED_KEYS: Array<keyof SharedFields> = [
   'gender', 'sexAtBirth', 'genderIdentity', 'genderIdentityOther',
   'dateOfBirth', 'timeOfBirth', 'birthCountry', 'birthState', 'birthCity',
   'country', 'state', 'city', 'timeZone', 'languages', 'heightCm', 'weightKg', 'occupation', 'phone', 'address',
-  'foodAllergens', 'activityLevel', 'dietaryPreference', 'bloodGroup',
+  'foodAllergens', 'activityLevel', 'dietaryPreference', 'bloodGroup', 'relationshipStatus',
 ];
 
 export const computeAge = (dob: Date | null | undefined): number | null => {

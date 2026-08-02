@@ -15,6 +15,9 @@ export interface MasterProfileView {
   country?: string | null; state?: string | null; city?: string | null;
   timeZone?: string | null; languages?: string | null; heightCm?: number | null;
   weightKg?: number | null; occupation?: string | null; phone?: string | null;
+  /** single | inRelationship | … | preferNotToSay. `preferNotToSay` is an
+   *  ANSWER; absent means nobody asked. Nothing computes with it. */
+  relationshipStatus?: string | null;
   /** One of the eight ABO/Rh groups, or 'unknown' — the citizen answered and
    *  does not know. `null`/absent means nobody has answered, which is a
    *  different fact and is shown differently. */
