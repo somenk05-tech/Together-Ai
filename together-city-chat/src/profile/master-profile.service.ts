@@ -65,6 +65,17 @@ export interface SharedFields {
    *  `shared/diet.ts` is the only crossing to the label Dating stores, and
    *  names what the crossing loses. Never defaulted — see the column comment. */
   dietaryPreference?: string | null;
+  /** Declared conditions as csv keys, or 'none' = asked and ticked nothing.
+   *  Null = nobody asked. **Write-owner: the citizen, on the Master Profile
+   *  page.** Read and written only through profile/master-health-conditions.ts,
+   *  because the three columns are not independent of each other. */
+  healthConditions?: string | null;
+  /** first | second | third | unstated. Only ever set alongside a declared
+   *  pregnancy; cleared with it. */
+  pregnancyTrimester?: string | null;
+  /** early | late | dialysis | unstated. Only ever set alongside a declared
+   *  kidney condition; cleared with it. */
+  kidneyStage?: string | null;
 }
 
 const SHARED_KEYS: Array<keyof SharedFields> = [
@@ -72,6 +83,7 @@ const SHARED_KEYS: Array<keyof SharedFields> = [
   'dateOfBirth', 'timeOfBirth', 'birthCountry', 'birthState', 'birthCity',
   'country', 'state', 'city', 'timeZone', 'languages', 'heightCm', 'weightKg', 'occupation', 'phone', 'address',
   'foodAllergens', 'activityLevel', 'dietaryPreference', 'bloodGroup', 'relationshipStatus',
+  'healthConditions', 'pregnancyTrimester', 'kidneyStage',
 ];
 
 export const computeAge = (dob: Date | null | undefined): number | null => {

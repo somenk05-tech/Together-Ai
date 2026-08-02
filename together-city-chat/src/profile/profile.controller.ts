@@ -6,6 +6,7 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
 import { ProfileService } from './profile.service';
 import { MasterProfileService, type SharedFields } from './master-profile.service';
+import { declaredHealthPatch } from './master-health-conditions';
 
 @Controller('profile')
 @UseGuards(JwtAuthGuard)
@@ -73,10 +74,28 @@ export class ProfileController {
     // else is refused rather than stored.
     relationshipStatus: z.enum(['single', 'inRelationship', 'engaged', 'married',
       'separated', 'divorced', 'widowed', 'preferNotToSay']).nullable().optional(),
+    // The twelve conditions a citizen can declare about themselves, and the
+    // two qualifiers that have rules branching on them. Written out here and
+    // pinned against shared/health-conditions.ts by
+    // master-health-conditions.spec.ts, which fails on drift in either
+    // direction — the pattern blood group and relationship status established.
+    //
+    // An array, not a csv: the wire carries what the citizen ticked, and
+    // exactly one function decides how that becomes three column values.
+    healthConditions: z.array(z.enum(['diabetes', 'hypertension', 'highCholesterol',
+      'kidney', 'fattyLiver', 'gout', 'pcos', 'thyroid', 'anaemia', 'jointPain',
+      'pregnancy', 'breastfeeding'])).max(12).nullable().optional(),
+    pregnancyTrimester: z.enum(['first', 'second', 'third', 'unstated']).nullable().optional(),
+    kidneyStage: z.enum(['early', 'late', 'dialysis', 'unstated']).nullable().optional(),
   })))
   async updateMaster(@CurrentUser() user: JwtUser, @Body() body: Record<string, unknown>) {
     const patch: SharedFields = {
       ...body,
+      // The three health columns move together or not at all, and one
+      // function decides how: an array of keys off the wire becomes csv,
+      // and a qualifier whose condition is not ticked is cleared rather
+      // than left behind. See master-health-conditions.ts.
+      ...declaredHealthPatch(body),
       dateOfBirth: typeof body.dateOfBirth === 'string' ? new Date(body.dateOfBirth + 'T00:00:00.000Z') : (body.dateOfBirth as null | undefined),
     } as SharedFields;
     const { expectedVersion, ...fields } = patch as typeof patch & { expectedVersion?: number };

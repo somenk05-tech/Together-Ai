@@ -1978,6 +1978,31 @@ model MasterProfile {
   /// somebody will invent a new scale for; the name is the thing the citizen
   /// actually answered, and every engine looks the factor up from one table.
   activityLevel String?
+  /// What the citizen declares about their own health, as csv keys from
+  /// shared/health-conditions.ts in that file's order. NULL means nobody has
+  /// asked. The literal 'none' means they were asked and ticked nothing, which
+  /// is an ANSWER — the same distinction bloodGroup draws with 'unknown', and
+  /// never the empty string, which mergeShared() reads as a gap to be filled.
+  ///
+  /// **Write-owner: the citizen, on the Master Profile page.** Nutrition,
+  /// Fitness, Medical and Beauty each still read their own list today; this is
+  /// the column they converge onto, and until they do nothing here is copied
+  /// into them — a second editable copy is the defect, not the migration path.
+  ///
+  /// Blood-DERIVED conclusions never land here. 'glycemic', 'dyslipidemia',
+  /// 'inflammation' and 'anemia' are things a lab report says, not things a
+  /// citizen declared, and shared/health-conditions.ts refuses them on purpose.
+  healthConditions   String?
+  /// Pregnancy's qualifier: first | second | third | unstated. NULL means not
+  /// answered; 'unstated' means answered and would rather not say, which the
+  /// energy figure reads as the second trimester and SAYS SO on screen.
+  /// Cleared whenever pregnancy is not among the declared conditions — see
+  /// profile/master-health-conditions.ts, which is the only writer.
+  pregnancyTrimester String?
+  /// Kidney's qualifier: early | late | dialysis | unstated. Three different
+  /// protein ceilings; 'unstated' maps to ckdEarly exactly as absent condition
+  /// text does today. Cleared whenever kidney is not declared.
+  kidneyStage        String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
