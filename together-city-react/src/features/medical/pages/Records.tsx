@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useMasterProfile } from '@/features/profile/hooks';
+import { bloodGroupLabel } from '@/features/profile/bloodGroup';
 import { useAddRecord, useRecords, useStorageUsage, useDeleteRecord, useLatestPanel, useBloodHistory, useIngestBlood, useHealthSummary, medicalApi } from '../api';
 
 const MSTATUS: Record<string, { color: string; bg: string; label: string }> = {
@@ -231,7 +232,7 @@ export function Records() {
         {master.data?.bloodGroup === 'unknown'
           ? <>You told us you don’t know it. <Link to="/profile/master#medical" style={{ color: 'var(--accent)', fontWeight: 600 }}>Update</Link></>
           : master.data?.bloodGroup
-            ? master.data.bloodGroup
+            ? bloodGroupLabel(master.data.bloodGroup)
             : <>Not recorded. <Link to="/profile/master#medical" style={{ color: 'var(--accent)', fontWeight: 600 }}>Add it</Link></>}
       </p>
 

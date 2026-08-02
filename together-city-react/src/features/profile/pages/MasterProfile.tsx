@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Spinner } from '@/components/ui';
 import { profileApi, type MasterProfileView } from '../api';
+import { BLOOD_GROUP_OPTIONS } from '../bloodGroup';
 import { useMasterProfile, useProfileCompletion } from '../hooks';
 
 /**
@@ -235,8 +236,8 @@ export function MasterProfile() {
             {/* Blank first, and it stays blank. Nothing here is preselected:
                 a group nobody chose, recorded as though they had, is p1. */}
             <option value="">Not recorded</option>
-            {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((g) => (
-              <option key={g} value={g}>{g}</option>
+            {BLOOD_GROUP_OPTIONS.map((g) => (
+              <option key={g.value} value={g.value}>{g.label}</option>
             ))}
             {/* Kept apart from the blank above on purpose: this one is an
                 ANSWER. "Nobody asked" and "I answered, and I don't know" are

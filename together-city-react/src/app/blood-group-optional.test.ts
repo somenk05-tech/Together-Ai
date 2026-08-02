@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const master = readFileSync(join(web, 'features', 'profile', 'pages', 'MasterProfile.tsx'), 'utf8');
 const records = readFileSync(join(web, 'features', 'medical', 'pages', 'Records.tsx'), 'utf8');
+const options = readFileSync(join(web, 'features', 'profile', 'bloodGroup.ts'), 'utf8');
 const validation = readFileSync(join(web, 'features', 'profile', 'pages', 'MasterProfile.tsx'), 'utf8');
 
 /**
@@ -27,11 +28,37 @@ const validation = readFileSync(join(web, 'features', 'profile', 'pages', 'Maste
  *    only place that shows it.
  */
 describe('the blood group field', () => {
-  it('offers the eight groups and nothing is preselected', () => {
-    for (const g of ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']) {
-      expect(master).toContain(`'${g}'`);
+  it('offers every group the server accepts, and nothing is preselected', () => {
+    for (const g of ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'hh+', 'hh-']) {
+      expect(options).toContain(`'${g}'`);
     }
     expect(master).toMatch(/<option value="">Not recorded<\/option>/);
+  });
+
+  it('keeps the picker and the server reading one vocabulary', () => {
+    // §15.1 and the beautyGender bug in one: two lists for one answer, and a
+    // value that looks right never matches. The API file is the source; this
+    // fails the moment either side gains a group the other does not have.
+    const api = readFileSync(
+      join(web, '..', '..', 'together-city-chat', 'src', 'shared', 'blood-group.ts'), 'utf8',
+    );
+    const apiValues = ((/export const BLOOD_GROUPS = \[([^\]]*)\]/.exec(api)?.[1] ?? '')
+      .match(/'[^']+'/g) ?? []).sort();
+    // Only the `value:` side. The labels differ from the keys on purpose — that
+    // is the whole reason the label map exists — so comparing every quoted
+    // string in the file compares the wrong thing.
+    const webValues = ((options.match(/value: '[^']+'/g) ?? [])
+      .map((m) => m.replace('value: ', ''))).sort();
+    expect(webValues).toEqual(apiValues);
+    expect(apiValues.length).toBe(10);
+  });
+
+  it('shows Bombay by name, never as its storage key', () => {
+    // 'hh+' in front of a citizen is the app talking to itself. It carries an
+    // Rh sign because hh is ABO-independent, not Rh-independent.
+    expect(options).toContain("label: 'Bombay (hh) +'");
+    expect(options).toContain("label: 'Bombay (hh) −'");
+    expect(records).toMatch(/bloodGroupLabel\(master\.data\.bloodGroup\)/);
   });
 
   it('keeps "I don’t know" as its own answer, separate from blank', () => {
