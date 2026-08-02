@@ -11,6 +11,7 @@ import { ComposedMealCard, SkippedMealCard } from '../components/ComposedMealCar
 import { PlannerModeToggle } from '../components/PlannerModeToggle';
 import { usePlannerMode } from '../plannerMode';
 import { skippedSlotsFor, skippedRolesFor } from '../skips';
+import { SLOT_CUISINES, slotCuisineLabel } from '../cuisineMix';
 import { TargetsDisclosure, TargetsRefusal } from '../components/TargetsDisclosure';
 import { NIc } from '../components/NIcon';
 import { balanceNote, dayBalance } from '../dayBalance';
@@ -110,7 +111,6 @@ function Legend({ color, label, g, pct }: { color: string; label: string; g: num
     </span>
   );
 }
-const CUISINES = ['Indian', 'Chinese', 'Thai', 'Italian', 'Continental', 'Mediterranean', 'Global'];
 const PROTOCOLS = ['12:12', '14:10', '16:8', '18:6', '20:4', 'omad'];
 const BUCKETS: { key: CuisineBucket; label: string }[] = [
   { key: 'breakfast', label: 'Breakfast' }, { key: 'lunch', label: 'Lunch' },
@@ -549,7 +549,11 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
           </div>
 
           <h3 style={{ fontSize: 15, margin: '18px 0 8px' }}>Cuisine by meal</h3>
-          <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>Set which cuisines each meal draws from. Lock a meal to allow only those cuisines.</p>
+          <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>
+            Set which cuisines each meal draws from. Lock a meal to allow only those cuisines —
+            and keep &ldquo;Anything&rdquo; on if you still want fruit, nuts and eggs, which belong to no
+            cuisine and are excluded by a lock without it.
+          </p>
           {BUCKETS.map((b) => (
             <div key={b.key} style={{ borderTop: '1px solid var(--line)', padding: '10px 0' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -560,10 +564,12 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
                 </label>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {CUISINES.map((c) => {
+                {SLOT_CUISINES.map((c) => {
                   const w = cuisineBySlot[b.key]?.[c] ?? 0;
                   return (
-                    <Chip key={c} selected={w > 0} onClick={() => setCuisine(b.key, c, w > 0 ? 0 : 100)}>{c}</Chip>
+                    <Chip key={c} selected={w > 0} onClick={() => setCuisine(b.key, c, w > 0 ? 0 : 100)}>
+                      {slotCuisineLabel(c)}
+                    </Chip>
                   );
                 })}
               </div>

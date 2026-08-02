@@ -25,6 +25,50 @@ export const CUISINES = [
   'Continental', 'Japanese', 'Mediterranean', 'American', 'Middle Eastern',
 ];
 
+/**
+ * THE THIRD LIST, AND THE TWO QUESTIONS IT WAS WAITING ON.
+ *
+ * `cuisine-one-store.test.ts` found MealPlan.tsx keeping its own seven-entry
+ * list for the per-slot LOCK and recorded it rather than merging it, because
+ * both halves were product decisions: does a slot lock offer all ten, and does
+ * 'Global' belong in a mix? Measured against the corpus, they answer
+ * themselves.
+ *
+ * WHICH KITCHENS EXIST IS NOT OUR OPINION. The dataset carries ten `country`
+ * values across 11,217 recipes — Indian 30.3%, American 19.7%, Continental
+ * 16.7%, Thai 7.4%, Mediterranean 7.1%, Middle Eastern 6.7%, Chinese 3.6%,
+ * Japanese 3.3%, Italian 2.8%, Mexican 2.5% — and the ten above are exactly
+ * those. The planner offered six of them. American, Japanese, Mexican and
+ * Middle Eastern, 32.2% of the corpus, could not be chosen at all; and because
+ * a LOCKED bucket excludes everything outside the chosen list, somebody who
+ * wanted American lunches had no way to say so. So the lock offers all ten.
+ *
+ * 'GLOBAL' IS NOT A KITCHEN. It is the twelve curated components that belong to
+ * no cuisine — fruit bowl, mixed nuts, boiled eggs, sweet corn, whey shake. It
+ * stays OUT of the mix, where a percentage share would be a second and
+ * contradictory answer to a question the composer already answers (out-of-mix
+ * recipes score 1, neutral ones score 5). It stays IN the slot list, where its
+ * job is exact and load-bearing: a lock EXCLUDES, so without it, locking Snacks
+ * to Indian deletes every neutral snack and the composer quietly drops the lock
+ * to refill the meal.
+ *
+ * The API's `cuisine-vocabulary.spec.ts` holds both lists against the corpus,
+ * in both directions — a kitchen offered with no food, and food with no way to
+ * choose it, are different bugs and are checked separately.
+ */
+export const NEUTRAL_CUISINE = 'Global';
+
+/** What a per-slot cuisine lock offers: every kitchen, plus the components that
+ *  belong to none. A different SETTING from the mix, so a different list is
+ *  fine — a different idea of which kitchens exist is not. */
+export const SLOT_CUISINES: string[] = [...CUISINES, NEUTRAL_CUISINE];
+
+/** 'Global' is a storage key the engine matches on; it is not a word to put in
+ *  front of somebody. Same rule as the blood group labels. */
+export function slotCuisineLabel(cuisine: string): string {
+  return cuisine === NEUTRAL_CUISINE ? 'Anything (no cuisine)' : cuisine;
+}
+
 /** The extras keys this module touches. Everything else on the blob is somebody
  *  else's and must survive a save untouched. */
 export interface CuisineExtras {

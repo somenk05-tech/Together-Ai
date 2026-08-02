@@ -42,19 +42,34 @@ describe('the cuisine mix', () => {
     for (const page of [prefs, master]) expect(page).toMatch(/from '[^']*cuisineMix'/);
   });
 
-  it('leaves the planner\'s per-slot list alone, because it is a different setting', () => {
-    // FOUND WHILE DE-DUPLICATING, AND DELIBERATELY NOT MERGED. MealPlan.tsx has
-    // its own CUISINES — seven entries including 'Global', against this
-    // module's ten — and it drives the per-slot cuisine LOCKS (breakfast /
-    // lunch / dinner / snack), not the whole-plan mix. Two lists for two
-    // settings is fine; two lists for one setting is §15.1. Merging them is a
-    // product decision (does a slot lock offer all ten? does 'Global' belong in
-    // a mix?), so it is recorded here rather than done quietly.
+  it('gives the per-slot lock every kitchen the mix has, and one the mix must not', () => {
+    // WAS: MealPlan.tsx kept its own seven-entry list, and this case recorded
+    // the split instead of fixing it, because both halves were product
+    // decisions. The corpus answered them. Ten kitchens exist; the planner
+    // offered six, and a LOCKED bucket excludes everything outside the chosen
+    // list — so American (19.7% of the recipes), Japanese, Mexican and Middle
+    // Eastern could not be asked for by the one control that asks.
     const planner = read('features', 'nutrition', 'pages', 'MealPlan.tsx');
-    expect(codeOnly(planner)).toMatch(/const CUISINES = \[/);
+    expect(codeOnly(planner)).not.toMatch(/const CUISINES = \[/);
+    expect(codeOnly(planner)).toMatch(/SLOT_CUISINES\.map/);
     expect(codeOnly(planner)).toMatch(/cuisineLocks|cuisineBySlot/);
-    // And it must not start driving the mix by accident.
-    expect(codeOnly(planner)).not.toMatch(/cuisineMix/);
+    // Two settings, two lists, one idea of which kitchens exist. The lock's
+    // list is the mix's list plus the neutral components, spelled as a spread
+    // so the two cannot be edited apart.
+    expect(codeOnly(module_)).toMatch(
+      /export const SLOT_CUISINES: string\[\] = \[\.\.\.CUISINES, NEUTRAL_CUISINE\]/,
+    );
+    // 'Global' is not a kitchen and must never enter the mix: mixTotal spends a
+    // 100% budget across kitchens, and the composer already weights the neutral
+    // components at 5. A share here would be a second answer to that question.
+    const mixList = codeOnly(module_).slice(
+      codeOnly(module_).indexOf('export const CUISINES'),
+      codeOnly(module_).indexOf('];', codeOnly(module_).indexOf('export const CUISINES')),
+    );
+    expect(mixList).not.toContain('Global');
+    // And the planner still must not start driving the MIX. Importing the
+    // module is now expected; calling its mix arithmetic is not.
+    expect(codeOnly(planner)).not.toMatch(/withMix\(|readMix\(|capPct\(/);
   });
 
   it('is never copied onto the Master Profile row', () => {
