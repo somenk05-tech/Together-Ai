@@ -10,6 +10,7 @@ import { useMasterProfile } from '@/features/profile/hooks';
 import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLockedField';
 import type { FoodPref } from '../api';
 import { DIET_META } from '../dietMeta';
+import { CUISINES, balanced, capPct, mixTotal as mixTotalOf, readMix, withMix } from '../cuisineMix';
 
 const DIETS: { key: string; label: string }[] = [
   { key: 'everything', label: 'Everything' },
@@ -37,7 +38,6 @@ const ACTIVITY: { value: number; label: string }[] = [
   { value: 1.9, label: 'Athlete — hard training' },
 ];
 
-const CUISINES = ['Indian', 'Chinese', 'Italian', 'Mexican', 'Thai', 'Continental', 'Japanese', 'Mediterranean', 'American', 'Middle Eastern'];
 
 // ── Protein sources, grouped like a dietitian's intake form ──
 // India-first: Beef & Pork live behind a "Show international ingredients"
@@ -363,30 +363,14 @@ export function Preferences() {
     } as typeof ex);
   };
 
-  // Cuisine mix (%). Fall back to an even split of the legacy `cuisines` list.
-  const mix: Record<string, number> = ex.cuisineMix
-    ?? (ex.cuisines && ex.cuisines.length
-      ? Object.fromEntries(ex.cuisines.map((c) => [c, Math.round(100 / ex.cuisines!.length)]))
-      : {});
-  const mixTotal = CUISINES.reduce((sum, c) => sum + (mix[c] ?? 0), 0);
-  const setMix = (nextMix: Record<string, number>) => {
-    const cleaned = Object.fromEntries(Object.entries(nextMix).filter(([, v]) => v > 0));
-    setEx({ ...ex, cuisineMix: cleaned, cuisines: Object.keys(cleaned) });
-  };
-  const setPct = (c: string, v: number) => {
-    // Total can never exceed 100% — cap this slider at whatever's left.
-    const others = mixTotal - (mix[c] ?? 0);
-    const capped = Math.max(0, Math.min(v, 100 - others));
-    setMix({ ...mix, [c]: capped });
-  };
-  const balanceMix = () => {
-    const active = CUISINES.filter((c) => (mix[c] ?? 0) > 0);
-    const list = active.length ? active : CUISINES;
-    const each = Math.floor(100 / list.length);
-    const next: Record<string, number> = {};
-    list.forEach((c, i) => { next[c] = each + (i < 100 - each * list.length ? 1 : 0); });
-    setMix(next);
-  };
+  // Cuisine mix (%). The list, the 100% cap and the merge-back all live in
+  // ../cuisineMix, because the Master Profile edits this same store and two
+  // editors that disagree about the arithmetic are worse than one.
+  const mix = readMix(ex);
+  const mixTotal = mixTotalOf(mix);
+  const setMix = (nextMix: Record<string, number>) => setEx(withMix(ex, nextMix));
+  const setPct = (c: string, v: number) => setMix({ ...mix, [c]: capPct(mix, c, v) });
+  const balanceMix = () => setMix(balanced(mix));
 
   // Read-only summary shown after saving (the page collapses to this).
   const dietLabel = DIETS.find((d) => d.key === form.diet)?.label ?? form.diet;

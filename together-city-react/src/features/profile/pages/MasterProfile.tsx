@@ -5,6 +5,8 @@ import { Spinner } from '@/components/ui';
 import { profileApi, type MasterProfileView } from '../api';
 import { BLOOD_GROUP_OPTIONS } from '../bloodGroup';
 import { RELATIONSHIP_STATUS_OPTIONS } from '../relationshipStatus';
+import { useFoodPref, useUpdateFoodPref } from '@/features/nutrition/hooks';
+import { CUISINES, balanced, capPct, cuisineSummary, mixTotal, readMix, withMix } from '@/features/nutrition/cuisineMix';
 import { useMasterProfile, useProfileCompletion } from '../hooks';
 
 /**
@@ -61,6 +63,35 @@ export function MasterProfile() {
   const [draft, setDraft] = useState<Draft>({});
   const [saved, setSaved] = useState<string | null>(null);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Cuisines, edited HERE and stored THERE.
+   *
+   * The mix lives in FoodPref.extras and the Nutrition preferences page edits
+   * the same blob. Nothing is copied onto the Master Profile row: one store,
+   * two screens, so there is no second copy for syncShared() to overwrite.
+   *
+   * The payload carries `extras` ONLY — every other FoodPref column is left
+   * alone by Prisma — and the blob is built with withMix(), which spreads what
+   * is already there. `extras` is replaced wholesale by the server, so a
+   * payload built from scratch would delete this citizen's allergies.
+   */
+  const foodPref = useFoodPref();
+  const updateFoodPref = useUpdateFoodPref();
+  const foodExtras = useMemo(() => {
+    try { return foodPref.data?.extras ? JSON.parse(foodPref.data.extras) as Record<string, unknown> : {}; }
+    catch { return {}; }
+  }, [foodPref.data?.extras]);
+  const [mixDraft, setMixDraft] = useState<Record<string, number> | null>(null);
+  const mix = mixDraft ?? readMix(foodExtras);
+  const mixDirty = mixDraft !== null;
+  const saveMix = () => {
+    if (!mixDraft) return;
+    updateFoodPref.mutate(
+      { extras: JSON.stringify(withMix(foodExtras, mixDraft)) },
+      { onSuccess: () => setMixDraft(null) },
+    );
+  };
 
   const save = useMutation({
     mutationFn: (patch: Draft) => profileApi.updateMaster(patch),
@@ -235,6 +266,42 @@ export function MasterProfile() {
 
       {/* ── Diet ─────────────────────────────────────────────────── */}
       <Section id="diet" title="Diet">
+        <div style={{ marginBottom: 16 }}>
+          <span style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+            Cuisines
+            {mixDirty && <span style={{ color: 'var(--accent)', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}> · unsaved</span>}
+          </span>
+          <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: '4px 0 8px' }}>
+            How much of your meal plan comes from each kitchen. This is the same setting the
+            Nutrition hub edits — changing it here changes it there. Leave everything at zero for
+            a broad mix; the total cannot pass 100%.
+          </p>
+          {foodPref.isLoading ? <span className="muted" style={{ fontSize: 12 }}>Loading…</span> : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 6 }}>
+                {CUISINES.map((c) => (
+                  <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
+                    <span style={{ flex: 1, minWidth: 0 }}>{c}</span>
+                    <input type="number" min={0} max={100} step={5} aria-label={`${c} share`}
+                      value={mix[c] ?? 0}
+                      onChange={(e) => setMixDraft({ ...mix, [c]: capPct(mix, c, Number(e.target.value)) })}
+                      style={{ ...inputStyle, width: 64, padding: '4px 6px' }} />
+                    <span className="muted" style={{ fontSize: 11 }}>%</span>
+                  </label>
+                ))}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+                <span className="muted" style={{ fontSize: 11.5 }}>{mixTotal(mix)}% assigned · {cuisineSummary(mix)}</span>
+                <button type="button" onClick={() => setMixDraft(balanced(mix))}
+                  className="btn btn-line btn-sm">Balance evenly</button>
+                <button type="button" onClick={saveMix} disabled={!mixDirty || updateFoodPref.isPending}
+                  className="btn btn-accent btn-sm">
+                  {updateFoodPref.isPending ? 'Saving…' : 'Save cuisines'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
         <Elsewhere
           what="Your diet, allergies and the foods you avoid"
           where="/nutrition/preferences"
