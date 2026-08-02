@@ -1,0 +1,4 @@
+{
+  "total": 23,
+  "note": "Bespoke condition tests still left in the hub. Fails on UP; fails on DOWN without being lowered. See condition-match.spec.ts."
+}

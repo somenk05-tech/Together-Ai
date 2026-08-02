@@ -1,3 +1,5 @@
+import { conditionMatcher } from './condition-match';
+
 /**
  * Clinical MNT (Medical Nutrition Therapy) knowledge base — the condition
  * layer of the nutrition engine, mined from the user's clinical guideline
@@ -166,8 +168,10 @@ export interface MntContext {
 
 /** Which MNT rules are active for this user (kidney staging via condition text). */
 export function activeMntRules(ctx: MntContext): MntRule[] {
-  const conds = ctx.conditions.map((c) => c.toLowerCase());
-  const has = (...k: string[]) => k.some((x) => conds.some((c) => c.includes(x)));
+  // One matcher for the whole hub. A term condition-match.ts knows is
+  // answered by the shared vocabulary; anything else (the kidney STAGING
+  // below) stays the literal substring test it always was.
+  const has = conditionMatcher(ctx.conditions);
   const out: MntRule[] = [];
   if (has('kidney', 'renal', 'ckd')) {
     if (has('dialysis')) out.push(MNT_RULES.dialysis);

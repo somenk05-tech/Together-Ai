@@ -1,3 +1,5 @@
+import { conditionMatcher } from './condition-match';
+
 /**
  * Diet Plan Guide (uploaded reference): 24 evidence-based named diet patterns.
  * BACKEND-ASSIGNED — the engine decides which plans apply to a user from their
@@ -60,7 +62,9 @@ export interface PlanAssignInput {
  */
 export function assignDietPlans(inp: PlanAssignInput): string[] {
   const out: string[] = [];
-  const has = (c: string) => inp.conditions.some((x) => x.toLowerCase().includes(c));
+  // One matcher for the whole hub — this call site asked has('kidney')
+  // alone, so 'CKD stage 4' got the ceilings and no renal PLAN.
+  const has = conditionMatcher(inp.conditions);
   const renal = has('kidney');
 
   // Clinical plans (priority order)

@@ -1,3 +1,4 @@
+import { conditionMatcher, hasCondition } from './condition-match';
 import { medicalFoodAllergenTerms } from '../shared/medical-allergies';
 import { ORDER_HISTORY_CAP, RECORD_CAP } from '../shared/paging';
 import { swallowed } from '../shared/swallow';
@@ -485,7 +486,7 @@ export function isPlantForward(r: RecipeWithIng): boolean {
 /** Protein-restricted diet — kidney disease / CKD lowers the protein target, so
  *  the planner must stop forcing animal protein and lean lighter. */
 export function isProteinRestricted(ex: PrefExtras): boolean {
-  return (ex.healthConditions ?? []).some((c) => /kidney|renal|\bckd\b|nephro/i.test(c));
+  return hasCondition(ex.healthConditions, 'kidney');
 }
 
 /** Does this recipe actually feature one of the user's SELECTED animal proteins?
@@ -929,8 +930,10 @@ export function computeTargets(inp: TargetInput) {
   const fatPct = 0.27;
   let fiber = Math.max(25, Math.min(50, Math.round((kcal / 1000) * 14)));
 
-  const conds = new Set((inp.conditions ?? []).map((c) => c.toLowerCase()));
-  const has = (...k: string[]) => k.some((x) => [...conds].some((c) => c.includes(x)));
+  // One matcher for the whole hub. A term condition-match.ts knows is
+  // answered by the shared vocabulary; anything else (the kidney STAGING
+  // below) stays the literal substring test it always was.
+  const has = conditionMatcher(inp.conditions ?? []);
   const diabetes = flags.hba1c === 'high' || has('diabetes');
   const highChol = flags.ldl === 'high' || flags.trig === 'high' || has('cholesterol');
   const fattyLiver = has('fatty liver');
@@ -3991,7 +3994,7 @@ export class NutritionService implements OnModuleInit {
       const calorieStatus = !hasPlan ? 'none' : kcalPct > 112 ? 'over' : kcalPct < 88 ? 'under' : 'on';
       const proteinStatus = !hasPlan ? 'none' : proteinPct > 120 ? 'over' : proteinPct < 80 ? 'low' : 'met';
       const flags: string[] = [];
-      const kidney = m.conditions.some((c) => /kidney|renal|ckd/.test(c));
+      const kidney = hasCondition(m.conditions, 'kidney');
       if (hasPlan && kidney && proteinPct > 110) flags.push('Protein above the kidney-safe target — give a smaller protein portion');
       if (hasPlan && calorieStatus === 'over') flags.push('Projected calories above target');
       if (hasPlan && proteinStatus === 'low') flags.push('Protein below target');
@@ -4029,7 +4032,7 @@ export class NutritionService implements OnModuleInit {
     const hasVegan = members.some((m) => m.diet === 'vegan');
     const hasDairyEater = members.some((m) => m.diet !== 'vegan');
     const conds = members.flatMap((m) => (m.healthConditions ?? []).map((c) => c.toLowerCase()));
-    const renalMembers = members.filter((m) => (m.healthConditions ?? []).some((c) => /kidney|renal|ckd/i.test(c))).length;
+    const renalMembers = members.filter((m) => hasCondition(m.healthConditions, 'kidney')).length;
     const otherConds = [...new Set(conds.filter((c) => /diabet|hypertens|blood pressure|cholesterol|fatty liver|pcos|thyroid/.test(c)))];
     const allergens = [...new Set(members.flatMap((m) => (m.allergies ? m.allergies.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean) : [])))];
     const goals = new Set(members.map((m) => m.goal));
@@ -4399,7 +4402,7 @@ export class NutritionService implements OnModuleInit {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
     const flags = flagsFor(await this.bloodValues(userId));
-    const diabetes = flags.hba1c === 'high' || (ex.healthConditions ?? []).some((c) => /diab/i.test(c));
+    const diabetes = flags.hba1c === 'high' || hasCondition(ex.healthConditions, 'diabetes');
     const lactoseFree = /lactose|dairy-free|milk/i.test(ex.allergies ?? '');
     return {
       diet: pref?.diet ?? 'everything',

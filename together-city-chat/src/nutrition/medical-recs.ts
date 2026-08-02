@@ -1,3 +1,5 @@
+import { conditionMatcher } from './condition-match';
+
 /**
  * Medical Nutrition Recommendations — the bridge between blood tests /
  * conditions and the user's SELECTED preferences.
@@ -131,7 +133,7 @@ export function buildMedicalRecs(
   flags: Record<string, string>,
 ): MedRecCard[] {
   const conds = prefs.healthConditions.map((c) => c.toLowerCase());
-  const has = (...k: string[]) => k.some((x) => conds.some((c) => c.includes(x)));
+  const has = conditionMatcher(conds);
   const out: MedRecCard[] = [];
   const veg = vegDayCount(prefs.weekly);
 
