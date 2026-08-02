@@ -1,0 +1,4 @@
+{
+  "comment": "Maximum ESLint errors allowed in together-city-chat, measured with the same glob npm run lint uses. Lower it whenever you fix some \u2014 see scripts/lint-ceiling.mjs. Never raise it.",
+  "errors": 128
+}
