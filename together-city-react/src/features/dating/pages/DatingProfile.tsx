@@ -727,7 +727,19 @@ export function DatingProfilePage() {
             onChange={(o) => setD({ relationshipGoal: o?.label })} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
             <div><span style={label}>Diet</span><SearchSelect category="diet" value={dx.diet ?? ''} placeholder="Select" onChange={(o) => setD({ diet: o?.label })} /></div>
-            <div><span style={label}>Fitness level</span><SearchSelect category="exercise" value={dx.fitnessLevel ?? ''} placeholder="Select" onChange={(o) => setD({ fitnessLevel: o?.label })} /></div>
+            <div>
+              {/* NOT the fitness hub's question. That one is an ABILITY
+                  TIER and it sets training days and an intensity ceiling;
+                  this is how somebody describes themselves to another
+                  citizen. See shared/fitness-level.ts. */}
+              <span style={label}>How active you are</span>
+              <SearchSelect category="exercise" value={dx.fitnessLevel ?? ''} placeholder="Select"
+                onChange={(o) => setD({ fitnessLevel: o?.label })} />
+              <span className="muted" style={{ fontSize: 11, lineHeight: 1.5, display: 'block', marginTop: 4 }}>
+                Shown on your profile. It does not set your workout plan or your calorie target —
+                the Fitness and Nutrition hubs ask those separately.
+              </span>
+            </div>
             <div><span style={label}>Smoking</span><SearchSelect category="smoking" value={dx.smoking ?? ''} placeholder="Select" onChange={(o) => setD({ smoking: o?.label })} /></div>
             <div><span style={label}>Drinking</span><SearchSelect category="alcohol" value={dx.drinking ?? ''} placeholder="Select" onChange={(o) => setD({ drinking: o?.label })} /></div>
             <div><span style={label}>Education</span><SearchSelect category="education" value={dx.education ?? ''} placeholder="Select" onChange={(o) => setD({ education: o?.label })} /></div>

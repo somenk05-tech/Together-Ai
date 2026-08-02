@@ -1272,7 +1272,21 @@ model FitnessProfile {
   userId     String   @unique
   age        Int      @default(35)
   sex        String   @default("other") // female | male | other
-  level      String   @default("beginner") // basic | beginner | intermediate | advanced | athlete
+  /// The ability tier: basic | beginner | intermediate | advanced | athlete.
+  /// Sets TRAINING DAYS PER WEEK and the starting INTENSITY CEILING — see
+  /// LEVELS / levelDef() in fitness/fitness-engine.ts. A statement about what
+  /// this citizen can safely be asked to do.
+  ///
+  /// NOT a self-description, and NOT the activity scale. Dating's
+  /// `extras.fitnessLevel` ('Sedentary'…'Daily') is how somebody describes
+  /// themselves to another citizen and sets nothing; MasterProfile.activityLevel
+  /// is the multiplier that decides a calorie target. Three fields, three
+  /// questions, and two of the dating values spell the same as two activity
+  /// keys — see shared/fitness-level.ts, which refuses to convert between them.
+  ///
+  /// Defaulted to 'beginner' at registration, so `answeredAt` above is the only
+  /// way to tell this apart from an answer.
+  level      String   @default("beginner")
   mode       String   @default("mixed") // mixed | strength | walking | running
   goal       String   @default("general") // general | weightLoss | strength | endurance
   conditions String   @default("") // csv: hypertension|diabetes|pregnancy|jointPain
