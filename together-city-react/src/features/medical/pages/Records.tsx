@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
+import { useMasterProfile } from '@/features/profile/hooks';
 import { useAddRecord, useRecords, useStorageUsage, useDeleteRecord, useLatestPanel, useBloodHistory, useIngestBlood, useHealthSummary, medicalApi } from '../api';
 
 const MSTATUS: Record<string, { color: string; bg: string; label: string }> = {
@@ -43,6 +44,8 @@ const fmtBytes = (n: number) => {
 /** Medical Records — the secure record store + unified 10 GB document vault. */
 export function Records() {
   const records = useRecords();
+  // Read-only. The Master Profile asks for the blood group; this page shows it.
+  const master = useMasterProfile();
   const storage = useStorageUsage();
   const latest = useLatestPanel();
   const history = useBloodHistory();
@@ -216,6 +219,20 @@ export function Records() {
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0' }}>
         One secure place for conditions, prescriptions, reports, allergies and vaccinations —
         your <strong>source of truth</strong>, shared with other hubs only with your consent.
+      </p>
+
+      {/* Blood group. Asked once on the Master Profile and read here — the only
+          place in the city that shows it, and the reason the field exists at
+          all. Read-only: one asker, one owner, and this page is not it.
+          The three states are three different sentences, because "not
+          recorded" and "answered: I don't know" are not the same fact. */}
+      <p className="muted" style={{ fontSize: 12.5, margin: '10px 0 0' }}>
+        <strong>Blood group</strong>{' · '}
+        {master.data?.bloodGroup === 'unknown'
+          ? <>You told us you don’t know it. <Link to="/profile/master#medical" style={{ color: 'var(--accent)', fontWeight: 600 }}>Update</Link></>
+          : master.data?.bloodGroup
+            ? master.data.bloodGroup
+            : <>Not recorded. <Link to="/profile/master#medical" style={{ color: 'var(--accent)', fontWeight: 600 }}>Add it</Link></>}
       </p>
 
       {/* Health highlights — analysis across your reports/panels */}

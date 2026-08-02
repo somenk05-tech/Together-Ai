@@ -65,6 +65,9 @@ export class ProfileController {
     weightKg: z.number().int().min(20).max(400).nullable().optional(),
     occupation: z.string().max(80).nullable().optional(),
     phone: z.string().max(20).nullable().optional(),
+    // The eight groups, or the citizen saying they do not know. Anything else
+    // is refused rather than stored: this column is only ever their own answer.
+    bloodGroup: z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknown']).nullable().optional(),
   })))
   async updateMaster(@CurrentUser() user: JwtUser, @Body() body: Record<string, unknown>) {
     const patch: SharedFields = {

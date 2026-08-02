@@ -1937,6 +1937,16 @@ model MasterProfile {
   /// which never ask. NOT rendered into any hub's editable form — a second
   /// editable copy is the problem §3 exists to remove.
   foodAllergens String?
+  /// The citizen's blood group — one of the eight ABO/Rh groups, or the string
+  /// 'unknown' meaning they answered and do not know it. NULL means nobody has
+  /// asked or they skipped it, which is a DIFFERENT fact and reads differently
+  /// on screen.
+  ///
+  /// Optional by design, and nothing computes with it: no target, no filter, no
+  /// recommendation. The Medical hub shows it back to its owner, which is the
+  /// whole of its job. Never derived - not from a parsed lab report, not from a
+  /// family member.
+  bloodGroup String?
   /// What the citizen eats, as a Nutrition key: everything | veg | nonveg |
   /// pesc | egg | vegan | jain. shared/diet.ts is the only crossing point to
   /// the label the dating form stores, and names what that crossing loses.

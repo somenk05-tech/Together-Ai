@@ -51,6 +51,11 @@ export interface SharedFields {
   foodAllergens?: string | null;
   /** sedentary | light | moderate | active | veryActive — see shared/energy.ts. */
   activityLevel?: string | null;
+  /** One of the eight ABO/Rh groups, or 'unknown' = answered, does not know.
+   *  Null = never answered. **Write-owner: the citizen, on the Master Profile
+   *  page** — the first shared field no hub owns, because no hub computes with
+   *  it. See shared/blood-group.ts. */
+  bloodGroup?: string | null;
   /** What the citizen eats, as a Nutrition key. **Write-owner: Nutrition.**
    *  `shared/diet.ts` is the only crossing to the label Dating stores, and
    *  names what the crossing loses. Never defaulted — see the column comment. */
@@ -61,7 +66,7 @@ const SHARED_KEYS: Array<keyof SharedFields> = [
   'gender', 'sexAtBirth', 'genderIdentity', 'genderIdentityOther',
   'dateOfBirth', 'timeOfBirth', 'birthCountry', 'birthState', 'birthCity',
   'country', 'state', 'city', 'timeZone', 'languages', 'heightCm', 'weightKg', 'occupation', 'phone', 'address',
-  'foodAllergens', 'activityLevel', 'dietaryPreference',
+  'foodAllergens', 'activityLevel', 'dietaryPreference', 'bloodGroup',
 ];
 
 export const computeAge = (dob: Date | null | undefined): number | null => {

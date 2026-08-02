@@ -319,7 +319,10 @@ const NAV_REF = /(?:to=|navigate\(|path:\s*|href:\s*|deepLink:\s*)["'`](\/[A-Za-
 
 /** Routes with no way in, on purpose. Each needs a reason, not just a line. */
 const UNREACHABLE_ON_PURPOSE = new Map([
-  ['/profile/master', 'linked by the API — target-readiness.ts hands this href to the client in profile-completion nextUp, so no client-side link exists to find'],
+  // /profile/master came OFF this list on 2 Aug: the Medical hub's record page
+  // now links to it (#medical) to add or change a blood group, so there IS a
+  // client-side way in. It was here because the only reference was an href the
+  // API handed over in profile-completion nextUp.
   ['/dating/admin', 'operator page, deliberately absent from every menu'],
   ['/realestate/admin', 'operator page, deliberately absent from every menu'],
   ['/dating/match', 'UNRESOLVED. The singular sibling of /dating/chat, which was removed for serving a hardcoded conversation. Nothing opens this one either. Decide: delete it, or link it from a match card.'],

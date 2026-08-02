@@ -228,6 +228,24 @@ export function MasterProfile() {
 
       {/* ── Medical ──────────────────────────────────────────────── */}
       <Section id="medical" title="Medical">
+        {field('bloodGroup', 'Blood group',
+          <select aria-label="Blood group" value={v.bloodGroup ?? ''}
+            onChange={(e) => set('bloodGroup', e.target.value || null)}
+            onBlur={() => commit('bloodGroup')} style={inputStyle}>
+            {/* Blank first, and it stays blank. Nothing here is preselected:
+                a group nobody chose, recorded as though they had, is p1. */}
+            <option value="">Not recorded</option>
+            {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((g) => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+            {/* Kept apart from the blank above on purpose: this one is an
+                ANSWER. "Nobody asked" and "I answered, and I don't know" are
+                different facts, and the health record says which. */}
+            <option value="unknown">I don’t know</option>
+          </select>,
+          'Optional — skip it and we leave it blank rather than working it out from anything else. '
+          + 'We show it back to you on your health record; nothing in Together City uses it to make '
+          + 'a clinical decision, and no other hub sees it without your consent.')}
         <Elsewhere
           what="Your conditions, medicines and lab results"
           where="/medical/records"

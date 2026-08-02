@@ -15,6 +15,10 @@ export interface MasterProfileView {
   country?: string | null; state?: string | null; city?: string | null;
   timeZone?: string | null; languages?: string | null; heightCm?: number | null;
   weightKg?: number | null; occupation?: string | null; phone?: string | null;
+  /** One of the eight ABO/Rh groups, or 'unknown' — the citizen answered and
+   *  does not know. `null`/absent means nobody has answered, which is a
+   *  different fact and is shown differently. */
+  bloodGroup?: string | null;
   /** Both answers already resolved by the server, so no page re-derives them.
    *  `resolvedSex` is null for intersex, preferNotToSay and unanswered alike —
    *  none is a coefficient, and a screen should say so rather than assume. */
