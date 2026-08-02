@@ -107,6 +107,16 @@ const KNOWN_UNREACHED: string[] = [
   "entertainment/entertainment.controller.ts  GET /entertainment/tv/*",
   "medical/medical.controller.ts  GET /medical/shared-biomarkers/*",
   // GET /messages/search came off 1 Aug: the command palette searches messages.
+  // Came ON 2 Aug: the family cart endpoint. Its only web caller was
+  // useBuildFamilyCart(), which built a cart from the older STORED family
+  // plan while the page beside it showed the composed one — so a household
+  // that still had a stored plan could check out meals nobody was looking
+  // at. The hook and its api.ts method are deleted; the family cart is
+  // built by useBuildCart(mode:'family') through the composed path.
+  // The ENDPOINT is parked rather than deleted: it is the only thing that
+  // still merges per-member protein swaps, and dropping that is a product
+  // decision, not a cleanup.
+  "nutrition/nutrition.controller.ts  POST /nutrition/family/cart",
   "nutrition/nutrition.controller.ts  GET /nutrition/diet-plans",
   "nutrition/nutrition.controller.ts  GET /nutrition/pantry/history",
   "nutrition/nutrition.controller.ts  GET /nutrition/qa/report",
@@ -240,7 +250,6 @@ describeOrSkip('every route this API declares is called by the web app', () => {
      * six. Wiring or deleting one removes it from this list in the same commit.
      */
     const KNOWN_STRAY_FILES = new Set([
-      'features/nutrition/components/MealCard.tsx',
       'features/nutrition/components/MedicalAdvisories.tsx',
     ]);
     const strays: string[] = [];

@@ -426,6 +426,14 @@ export function PublicProfileModal({ handle, onClose }: { handle: string; onClos
               <StatCell n={p.stats.cityPoints} label="city points" />
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
+              {/* The peek has to keep the door it replaced. FollowList used to
+                  navigate straight to /social/u/<handle>; opening this instead
+                  without a way through would remove the only route from a
+                  followers list to somebody's posts. */}
+              <Link to={`/social/u/${encodeURIComponent(p.handle)}`} onClick={onClose}
+                style={{ marginRight: 'auto', fontSize: 12.5, fontWeight: 600, color: 'var(--accent)' }}>
+                View full profile →
+              </Link>
               <SafetyActions id={p.id} handle={p.handle} onBlocked={onClose} />
               <Button variant="line" size="sm" onClick={onClose}>Close</Button>
               <ConnectButton id={p.id} handle={p.handle} relationship={p.relationship} />
@@ -828,7 +836,10 @@ function FollowRow({ person, onView }: { person: FollowPerson; onView: () => voi
 }
 
 function FollowList({ kind }: { kind: 'followers' | 'following' }) {
-  const navigate = useNavigate();
+  // A peek, not a departure. Tapping a row in a list you are browsing should
+  // not cost you your place in it — the modal carries Follow, Connect and the
+  // safety actions, and links through to the full profile for anything more.
+  const [peek, setPeek] = useState<string | null>(null);
   const followers = useFollowers();
   const following = useFollowing();
   const q = kind === 'followers' ? followers : following;
@@ -843,7 +854,8 @@ function FollowList({ kind }: { kind: 'followers' | 'following' }) {
   }
   return (
     <div className="rise d1" style={{ display: 'grid', gap: 8, marginTop: 16, maxWidth: 560 }}>
-      {people.map((person) => <FollowRow key={person.id} person={person} onView={() => navigate(`/social/u/${encodeURIComponent(person.handle)}`)} />)}
+      {people.map((person) => <FollowRow key={person.id} person={person} onView={() => setPeek(person.handle)} />)}
+      {peek && <PublicProfileModal handle={peek} onClose={() => setPeek(null)} />}
     </div>
   );
 }

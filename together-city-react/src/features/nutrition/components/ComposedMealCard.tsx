@@ -17,8 +17,10 @@ import { skippedRolesFor } from '../skips';
  *
  * Lifted out of MealPlan.tsx so the family planner can render the SAME meal the
  * individual planner does. A composed meal is N components rather than one
- * recipe, which is why the older MealCard can't show it — that component reads
- * `meal.recipe`, and a ComposedMeal has no such field.
+ * recipe, which is why the pre-composer card could not show it — it read
+ * `meal.recipe`, and a ComposedMeal has no such field. That card was deleted on
+ * 2 Aug rather than wired: there was no screen where a worse duplicate of this
+ * one was the right answer.
  */
 /** Build a rich, shareable recipe card from a meal — its headline dish photo,
  *  the meal's name, calories and macros, deep-linked to the recipe page. Reused

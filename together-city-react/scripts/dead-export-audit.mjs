@@ -53,6 +53,24 @@ const EXEMPT_FILE = /\/(main|App)\.tsx?$|\/app\/router\.tsx$|\.d\.ts$/;
 /** Names too short or too common to search for honestly. */
 const TOO_GENERIC = new Set(['default', 'Props', 'State']);
 
+/**
+ * Comments are not uses.
+ *
+ * This guard used to count an export as reached if its NAME appeared anywhere in
+ * another file — and a name appears in prose about it as readily as in a call.
+ * Three dead components were held alive that way: MealCard and MedicalAdvisories
+ * by one sentence in a test's doc comment, and useBuildFamilyCart by the comment
+ * in Weekly.tsx explaining why it is NOT used. The ceiling read 2 while the real
+ * number was 5.
+ *
+ * Same failure as the absence checks in the app's other guards, and the same
+ * fix: read the code, not the explanation above it. String literals are left
+ * alone deliberately — a name in a string can be a real dynamic reference.
+ */
+const stripComments = (src) => src
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n');
+
 const exportsOf = (src) => {
   const out = [];
   for (const m of src.matchAll(/^export\s+(?:async\s+)?(?:function|const|class)\s+([A-Za-z_$][\w$]*)/gm)) {
@@ -71,12 +89,12 @@ for (const file of files) {
     // Used inside its own module counts as reached. An api object that only its
     // own hooks call is an over-broad export, not a dead one, and reporting it
     // here would bury the finding this guard exists for under dozens of them.
-    const ownUses = (source.get(file).match(word) ?? []).length;
+    const ownUses = (stripComments(source.get(file)).match(word) ?? []).length;
     let reached = ownUses > 1;
     if (!reached) {
       for (const [other, src] of source) {
         if (other === file) continue;
-        if (word.test(src)) { reached = true; break; }
+        if (word.test(stripComments(src))) { reached = true; break; }
         word.lastIndex = 0;
       }
     }

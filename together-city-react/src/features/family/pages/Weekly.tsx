@@ -42,10 +42,11 @@ export function FamilyWeekly() {
   const plan = useComposedPlan(mode, 'household');
   const renew = useRenewPlan();
   // buildCart(mode:'family') routes through the household COMPOSED plan — the
-  // same meals this page shows. useBuildFamilyCart() reads the older stored
-  // family plan first, so on a household that still has one it would save a
-  // cart for meals nobody is looking at. Its per-member protein-swap merge is
-  // the one thing lost here, and that belongs on the composed path anyway.
+  // same meals this page shows. The older family-cart hook read the stored
+  // family plan first, so on a household that still had one it would save a
+  // cart for meals nobody was looking at; it was deleted on 2 Aug along with
+  // the endpoint call behind it. Its per-member protein-swap merge is the one
+  // thing lost, and that belongs on the composed path anyway.
   const buildCart = useBuildCart();
   const navigate = useNavigate();
   const recipes = useRecipes();

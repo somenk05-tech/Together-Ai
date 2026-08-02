@@ -22,8 +22,9 @@ const NUTRITION = join(dirname(fileURLToPath(import.meta.url)), '..', 'features'
  *  · VegMark's green/amber/red are the Indian veg / egg / non-veg marks. That
  *    is a regulated symbol, not a style choice, and theming it would be wrong
  *    in a way no dark mode justifies.
- *  · MealCard's A–E grade ramp and MedicalAdvisories' severity scale are ramps
- *    where the hue IS the datum.
+ *  · MedicalAdvisories' severity scale is a ramp where the hue IS the datum.
+ *    (The A-E grade ramp that used to sit beside it belonged to the
+ *    pre-composer meal card, deleted on 2 Aug.)
  *  · CookMode is a full-screen cooking overlay with its own dark surface on
  *    purpose — a phone propped against a chopping board, not a page in the hub.
  * Status washes are NOT in that list: --warn-soft / --danger-soft / --ok-soft
