@@ -31,9 +31,20 @@
 import { CITY_COORDS, cityCoords } from '../../src/shared/geo';
 import type { DXProfile } from '../../src/dating/matching';
 
+/** What the DATABASE can see: the columns a WHERE clause could use. Everything
+ *  else a hard filter reads lives inside the `extras` JSON string. */
+export type FixtureGender = 'male' | 'female' | 'nonbinary';
+
 export interface FixtureCitizen {
   id: string;
   age: number;
+  /** Columns on DatingProfile, so a query can filter on them. Reciprocity is
+   *  `seeking`/`gender` both ways — the only hard filter that is entirely
+   *  columns, and therefore the only one a prefilter cannot get wrong. */
+  gender: FixtureGender;
+  seeking: FixtureGender | 'any';
+  /** The stored column. `ageOf()` reads it back as `age` — see AGE_YEAR_MS. */
+  birthDate: Date;
   /** null means NOT ON FILE. A real share of the pool has no height, because
    *  "an unrecorded height is never hidden" is the property L2 leans on
    *  hardest, and a fixture where everybody answered cannot exercise it. */
@@ -105,6 +116,8 @@ export function citizen(over: Partial<FixtureCitizen> & { profile?: Partial<DXPr
   const { profile: profileOver, ...rest } = over;
   const base: FixtureCitizen = {
     id: 'c0', age: 30, heightCm: null, city: 'Mumbai', profile: {},
+    gender: 'female', seeking: 'any',
+    birthDate: birthDateForAge(rest.age ?? 30, 0.5, FIXED_NOW),
     ...rest,
   };
   base.profile = {
@@ -115,9 +128,15 @@ export function citizen(over: Partial<FixtureCitizen> & { profile?: Partial<DXPr
   return base;
 }
 
+/** A fixed clock. Birth dates are derived from it, so a pool built today and a
+ *  pool built tomorrow are the same pool — determinism reaches the dates too. */
+export const FIXED_NOW = Date.UTC(2026, 7, 2, 12, 0, 0);
+
 export interface PoolOptions {
   size?: number;
   seed?: string;
+  /** Only for tests that want to move the clock. */
+  now?: number;
 }
 
 /**
@@ -125,7 +144,7 @@ export interface PoolOptions {
  * is a visible edit rather than a tuned constant, and every figure any test
  * reports can be traced back to a line here.
  */
-export function buildPool({ size = 800, seed = 'together-city' }: PoolOptions = {}): FixtureCitizen[] {
+export function buildPool({ size = 800, seed = 'together-city', now = FIXED_NOW }: PoolOptions = {}): FixtureCitizen[] {
   const r = rand(seed);
   const out: FixtureCitizen[] = [];
 
@@ -163,8 +182,21 @@ export function buildPool({ size = 800, seed = 'together-city' }: PoolOptions = 
 
     const city = FIXTURE_CITIES[int(r, 0, FIXTURE_CITIES.length - 1)];
 
+    // The two columns reciprocity reads. A tenth are non-binary, and roughly a
+    // third state no preference — both matter, because 'any' is the case a
+    // reciprocity prefilter gets wrong if it treats seeking as an equality.
+    const gender = weighted<FixtureGender>(r, [['female', 45], ['male', 45], ['nonbinary', 10]]);
+    const seeking = weighted<FixtureGender | 'any'>(r, [
+      ['any', 32], ['female', 26], ['male', 34], ['nonbinary', 8],
+    ]);
+    // Where in their year they sit. 0 is the boundary itself: an inverted age
+    // range that is off by a day gets exactly these people wrong, so a real
+    // share of the pool stands on it.
+    const frac = weighted<number>(r, [[0, 12], [0.25, 25], [0.5, 38], [0.9999, 25]]);
+
     out.push(citizen({
-      id: `c${i}`, age, heightCm, city,
+      id: `c${i}`, age, heightCm, city, gender, seeking,
+      birthDate: birthDateForAge(age, frac, now),
       profile: {
         city, country: 'India', heightCm,
         prefHeightMinCm, prefHeightMaxCm, prefAgeMin, prefAgeMax,
@@ -196,6 +228,20 @@ export function forEachDirectedPair(
     }
   }
 }
+
+/**
+ * The year `DatingService.ageOf()` divides by: (now - birthDate) / 365.25 days,
+ * floored. Written here too because the fixture has to produce birth dates that
+ * function reads back exactly, and a second constant that drifts would make
+ * every age in the pool a near-miss.
+ */
+export const AGE_YEAR_MS = 365.25 * 86_400_000;
+
+/** A birthDate that ageOf() reads back as exactly `age` at `now`. `frac` places
+ *  them within the year — 0 is the boundary itself, which is where an inverted
+ *  range gets it wrong if it is going to. */
+export const birthDateForAge = (age: number, frac: number, now: number): Date =>
+  new Date(now - Math.floor((age + frac) * AGE_YEAR_MS));
 
 /** Directed pairs in a pool of this size — stated once so no report has to
  *  recompute it and get it subtly wrong. */

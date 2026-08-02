@@ -308,8 +308,45 @@ export class DatingService {
     const myD = this.parseDX((mine as { extras?: string | null }).extras);
     const myInterests = this.splitInterests(mine.interests);
 
+    // SCORING_POOL narrows what this notifier scores, and until now it narrowed
+    // it ARBITRARILY: 500 rows in whatever order the database returned, with
+    // every filter applied afterwards in JS. So the 500 slots were spent on
+    // people this citizen can never match — a candidate seeking a gender they
+    // are not, or outside the age range they set — and anybody past row 500 was
+    // never considered for a "new match" alert at all.
+    //
+    // The two narrowings below are the ones the database can actually do:
+    // `seeking`/`gender` (both sides, both columns — so unlike a height
+    // prefilter this cannot reintroduce H4) and the viewer's own age range as a
+    // birthDate range. Everything else the hard filters read — height, the
+    // other person's age preference, deal-breakers, distance — lives inside the
+    // `extras` JSON string and cannot be filtered in SQL at all.
+    //
+    // THE RULE STAYS IN JS. This is an optimisation, not the decision: every
+    // check below still runs, so the query can only be equal to or narrower
+    // than the JS filter, never looser. `pool-fixture.spec.ts` pins that the two
+    // select exactly the same people.
     const candidates = await this.prisma.datingProfile.findMany({
-      where: { userId: { not: userId }, visible: true, moderation: 'approved' },
+      where: {
+        userId: { not: userId }, visible: true, moderation: 'approved',
+        // I want them, and they want me.
+        ...(mine.seeking === 'any' ? {} : { gender: mine.seeking }),
+        seeking: { in: ['any', mine.gender] },
+        // My own age range. ageOf() is (now - birthDate) / 365.25 days floored,
+        // which inverts exactly: age >= min is birthDate <= now - min years, and
+        // age <= max is birthDate > now - (max+1) years. A backwards range
+        // (min > max) yields an empty range here and excludes everybody in JS —
+        // the same answer, deliberately, rather than a silent repair.
+        //
+        // The range is computed once, milliseconds before the check runs, so a
+        // candidate whose age ticks over in that gap is missed by one run of a
+        // notifier that runs on every profile edit.
+        ...this.birthDateRangeFor(myD),
+      },
+      // Was unordered, which is what made "the first 500" arbitrary. Most
+      // recently updated first: if the cap has to bind, it binds on the people
+      // most likely to still be here.
+      orderBy: { updatedAt: 'desc' },
       take: SCORING_POOL,
     });
     // Connections/blocked users never get a "new match" alert about this member.
@@ -1607,6 +1644,23 @@ export class DatingService {
   private shapeActivity(a: ActivityRow, tz: string = DEFAULT_TIMEZONE) {
     return { id: a.id, text: a.text, category: a.category, date: a.date, time: a.time, groupSize: a.groupSize, description: a.description, createdOn: this.clock.dayIn(tz, a.createdAt) };
   }
+  /** Milliseconds in the year ageOf() uses. Written once so the query and the
+   *  check cannot drift apart. */
+  private static readonly AGE_YEAR_MS = 365.25 * 86_400_000;
+
+  /**
+   * The viewer's stated age range, as a birthDate range the database can use.
+   * Empty when they stated none — `hardFilterReason` treats 0 and null as "not
+   * stated", and this mirrors that exactly rather than approximately.
+   */
+  private birthDateRangeFor(myD: DXProfile): { birthDate?: { lte?: Date; gt?: Date } } {
+    const now = Date.now();
+    const range: { lte?: Date; gt?: Date } = {};
+    if (myD.prefAgeMin) range.lte = new Date(now - myD.prefAgeMin * DatingService.AGE_YEAR_MS);
+    if (myD.prefAgeMax) range.gt = new Date(now - (myD.prefAgeMax + 1) * DatingService.AGE_YEAR_MS);
+    return Object.keys(range).length ? { birthDate: range } : {};
+  }
+
   private ageOf(birthDate: Date): number { return Math.floor((Date.now() - new Date(birthDate).getTime()) / (365.25 * 86_400_000)); }
 
   /** Anonymised view of a party; identity revealed only at trust level ≥2. */

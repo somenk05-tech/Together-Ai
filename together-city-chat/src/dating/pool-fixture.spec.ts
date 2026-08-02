@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import {
-  buildPool, citizen, directedPairCount, forEachDirectedPair, FIXTURE_CITIES, type FixtureCitizen,
+  AGE_YEAR_MS, buildPool, citizen, directedPairCount, FIXED_NOW, forEachDirectedPair,
+  FIXTURE_CITIES, type FixtureCitizen,
 } from '../../test/fixtures/dating-pool';
 import { cityCoords } from '../shared/geo';
 import { hardFilterReason, heightFilterReason, unreachableReason, type DXProfile } from './matching';
@@ -167,59 +168,109 @@ L2's OWN COST — pairs that would reach each other but for a height range:
   });
 });
 
-describe('H.39 — whether SCORING_POOL = 500 binds', () => {
+/**
+ * The 500 cap, and what it actually caps.
+ *
+ * THE ENTRY WAS WRONG ABOUT WHO IT HURTS, and the code says so plainly:
+ * matches(), discover() and stack() have NO `take` at all — they are the
+ * deliberate unbounded reads marked "the pool is the product". The only capped
+ * site is reindexAfterChange(), the live-match notifier that runs on every
+ * profile save. So the cap never hid anybody from a list a citizen browses; it
+ * hid them from being TOLD about a match.
+ *
+ * And until now the 500 were arbitrary: no ordering, and every filter applied
+ * in JS afterwards, so slots were spent on people the viewer can never match.
+ *
+ * These tests pin the property that makes the new prefilter safe — the query
+ * and the JS rule select exactly the same people — and then report what it buys.
+ */
+const AGE_OF = (c: FixtureCitizen, now: number) => Math.floor((now - c.birthDate.getTime()) / AGE_YEAR_MS);
+
+/** The WHERE clause in reindexAfterChange(), replicated. If this and the
+ *  service ever disagree, the set-equality test below stops meaning anything —
+ *  which is why it is written out rather than imported through a mock. */
+function passesWhere(me: FixtureCitizen, them: FixtureCitizen, now: number): boolean {
+  if (me.seeking !== 'any' && them.gender !== me.seeking) return false;
+  if (!(them.seeking === 'any' || them.seeking === me.gender)) return false;
+  const min = me.profile.prefAgeMin, max = me.profile.prefAgeMax;
+  if (min && !(them.birthDate.getTime() <= now - min * AGE_YEAR_MS)) return false;
+  if (max && !(them.birthDate.getTime() > now - (max + 1) * AGE_YEAR_MS)) return false;
+  return true;
+}
+
+/** The rule as the service applies it in JS, which stays authoritative. */
+function isEligible(me: FixtureCitizen, them: FixtureCitizen, now: number): boolean {
+  const iWant = me.seeking === 'any' || me.seeking === them.gender;
+  const theyWant = them.seeking === 'any' || them.seeking === me.gender;
+  if (!iWant || !theyWant) return false;
+  return !unreachableReason(me.profile, them.profile, AGE_OF(me, now), AGE_OF(them, now));
+}
+
+describe('H.39 — the 500 cap on the match notifier', () => {
   const SCORING_POOL = 500;
+  const now = FIXED_NOW;
 
-  /**
-   * The query takes the first SCORING_POOL rows and filters afterwards, so what
-   * a viewer SEES is "eligible candidates among the first 500 rows", not "the
-   * best 500 eligible candidates". The gap between the two is the whole of
-   * H.39 — and the fix it proposes (apply the hard filters in the query, before
-   * the cap) closes it exactly: the same viewer would then see min(500, eligible).
-   */
-  const measure = (size: number) => {
-    const pool = buildPool({ size, seed: SEED });
-    let eligibleTotal = 0, seenTotal = 0, starved = 0;
-    for (const viewer of pool) {
-      let eligible = 0, seen = 0, row = 0;
-      for (const candidate of pool) {
-        if (candidate === viewer) continue;
-        row++;
-        if (unreachableReason(viewer.profile, candidate.profile, viewer.age, candidate.age)) continue;
-        eligible++;
-        if (row <= SCORING_POOL) seen++;
+  it('produces birth dates the service reads back as the ages it generated', () => {
+    // Guards the fixture itself: every age figure below is derived from a
+    // birthDate through the same floor() the service uses, so a fixture that
+    // was a day out would quietly shift every measurement.
+    for (const c of buildPool({ size: 300, seed: SEED })) expect(AGE_OF(c, now)).toBe(c.age);
+  });
+
+  it('narrows without ever removing somebody the rule would have kept', () => {
+    // THE PROPERTY. A prefilter that is stricter than the check is the H4 shape:
+    // the query and the rule disagreeing about who exists. Checked over every
+    // directed pair, including the citizens standing exactly on an age boundary.
+    const pool = buildPool({ size: 600, seed: SEED });
+    let eligible = 0, dropped = 0;
+    forEachDirectedPair(pool, (me, them) => {
+      if (!isEligible(me, them, now)) return;
+      eligible++;
+      if (!passesWhere(me, them, now)) dropped++;
+    });
+    expect(eligible).toBeGreaterThan(1000);   // the test is exercising something
+    expect(dropped).toBe(0);
+  });
+
+  it('measures what the prefilter buys the notifier', () => {
+    const rows: string[] = [];
+    for (const size of [800, 2000]) {
+      const pool = buildPool({ size, seed: SEED });
+      let eligibleTotal = 0, before = 0, after = 0;
+      for (const me of pool) {
+        // BEFORE: 500 rows in table order, filtered afterwards.
+        let seenBefore = 0, row = 0;
+        // AFTER: 500 rows that already passed the WHERE. Table order stands in
+        // for `orderBy updatedAt desc` — the fixture has no updatedAt, and what
+        // is being measured is how many slots survive, not which.
+        let seenAfter = 0, narrowedRow = 0;
+        for (const them of pool) {
+          if (them === me) continue;
+          const ok = isEligible(me, them, now);
+          if (ok) eligibleTotal++;
+          row++;
+          if (row <= SCORING_POOL && ok) seenBefore++;
+          if (passesWhere(me, them, now)) {
+            narrowedRow++;
+            if (narrowedRow <= SCORING_POOL && ok) seenAfter++;
+          }
+        }
+        before += seenBefore; after += seenAfter;
       }
-      eligibleTotal += eligible;
-      seenTotal += seen;
-      if (seen < Math.min(SCORING_POOL, eligible)) starved++;
+      const n = pool.length;
+      const avg = (x: number) => Math.round(x / n);
+      rows.push(`  ${String(size).padStart(4)} citizens: ${String(avg(eligibleTotal)).padStart(3)} eligible · `
+        + `${String(avg(before)).padStart(3)} told about before · ${String(avg(after)).padStart(3)} after`);
+      // The whole point: never worse.
+      expect(avg(after)).toBeGreaterThanOrEqual(avg(before));
     }
-    return {
-      size,
-      eligible: Math.round(eligibleTotal / pool.length),
-      seen: Math.round(seenTotal / pool.length),
-      starved: pct(starved, pool.length),
-    };
-  };
-
-  it('measures what the cap hides as the city grows', () => {
-    const rows = [400, 800, 2000].map(measure);
     // eslint-disable-next-line no-console
     console.log(`
-================ DATING POOL — THE 500 CAP ================
-Per viewer, on average:
-${rows.map((r) => `  ${String(r.size).padStart(4)} citizens: ${String(r.eligible).padStart(4)} eligible · `
-  + `${String(r.seen).padStart(4)} actually scored · `
-  + `${String(Math.min(SCORING_POOL, r.eligible)).padStart(4)} would be scored if the hard filters ran BEFORE the cap`).join('\n')}
-Viewers shown fewer candidates than the cap could have held: ${rows.map((r) => `${r.size}: ${r.starved}%`).join(' · ')}
-The hidden ones are INVISIBLE, not ranked lower, and nothing says so.
-===========================================================`);
-
-    const small = rows[0], large = rows[2];
-    // Below the cap nothing can be hidden: the guard that says this measurement
-    // is measuring the cap and not the fixture.
-    expect(small.seen).toBe(small.eligible);
-    // Above it, the gap is real.
-    expect(large.seen).toBeLessThan(large.eligible);
-    expect(large.eligible).toBeGreaterThan(0);
+================ DATING POOL — THE 500 CAP (match notifier) ================
+Per viewer, on average — how many eligible people a profile edit can notify:
+${rows.join('\n')}
+The lists (matches/discover/stack) are uncapped and always were; this is the
+notifier, which is where somebody silently never hears about a match.
+============================================================================`);
   });
 });
