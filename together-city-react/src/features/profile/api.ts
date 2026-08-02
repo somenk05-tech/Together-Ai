@@ -22,6 +22,16 @@ export interface MasterProfileView {
    *  does not know. `null`/absent means nobody has answered, which is a
    *  different fact and is shown differently. */
   bloodGroup?: string | null;
+  /** Declared conditions as csv keys, or the literal 'none' — asked, and
+   *  nothing ticked. `null`/absent means nobody has asked, which is a different
+   *  fact. Read here; written only through updateHealthConditions below. */
+  healthConditions?: string | null;
+  /** first | second | third | unstated. Only ever set beside a declared
+   *  pregnancy, and cleared with it. */
+  pregnancyTrimester?: string | null;
+  /** early | late | dialysis | unstated. Only ever set beside a declared kidney
+   *  condition, and cleared with it. */
+  kidneyStage?: string | null;
   /** Both answers already resolved by the server, so no page re-derives them.
    *  `resolvedSex` is null for intersex, preferNotToSay and unanswered alike —
    *  none is a coefficient, and a screen should say so rather than assume. */
@@ -72,11 +82,33 @@ export interface HealthScoreView {
   };
 }
 
+/**
+ * The three health columns as one answer.
+ *
+ * They are not independent — a trimester with no pregnancy beside it is not a
+ * fact about anybody — so they travel together and the server clears any
+ * qualifier whose condition is not ticked. A draft type rather than three
+ * fields on MasterProfileView, because a screen that can PATCH them separately
+ * is a screen that can store half an answer.
+ */
+export interface DeclaredHealthDraft {
+  keys: string[];
+  trimester: string | null;
+  kidneyStage: string | null;
+}
+
 export const profileApi = {
   master: () => api.get<MasterProfileView>('/profile/master').then((r) => r.data),
   completion: () => api.get<ProfileCompletion>('/profile/completion').then((r) => r.data),
   updateMaster: (patch: Partial<MasterProfileView>) =>
     api.patch<MasterProfileView>('/profile/master', patch).then((r) => r.data),
+  /** One request, three columns. See DeclaredHealthDraft. */
+  updateHealthConditions: (h: DeclaredHealthDraft) =>
+    api.patch<MasterProfileView>('/profile/master', {
+      healthConditions: h.keys,
+      pregnancyTrimester: h.trimester,
+      kidneyStage: h.kidneyStage,
+    }).then((r) => r.data),
   summary: () => api.get<ProfileSummary>('/profile/summary').then((r) => r.data),
   healthScore: () => api.get<HealthScoreView>('/profile/health-score').then((r) => r.data),
   updateSection: (key: string, value: string) =>

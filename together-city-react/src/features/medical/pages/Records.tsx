@@ -5,6 +5,7 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useMasterProfile } from '@/features/profile/hooks';
 import { bloodGroupLabel } from '@/features/profile/bloodGroup';
+import { declaredSummary, wasAsked } from '@/features/profile/healthConditions';
 import { useAddRecord, useRecords, useStorageUsage, useDeleteRecord, useLatestPanel, useBloodHistory, useIngestBlood, useHealthSummary, medicalApi } from '../api';
 
 const MSTATUS: Record<string, { color: string; bg: string; label: string }> = {
@@ -234,6 +235,22 @@ export function Records() {
           : master.data?.bloodGroup
             ? bloodGroupLabel(master.data.bloodGroup)
             : <>Not recorded. <Link to="/profile/master#medical" style={{ color: 'var(--accent)', fontWeight: 600 }}>Add it</Link></>}
+      </p>
+
+      {/* Health conditions. Asked once on the Master Profile and read here, for
+          the same reason blood group is: a field that is collected and never
+          shown is the H3 defect. Read-only — one asker, one owner.
+          Three states, three sentences: never asked, asked and none, and the
+          list itself with each qualifier beside the condition it belongs to. */}
+      <p className="muted" style={{ fontSize: 12.5, margin: '6px 0 0' }}>
+        <strong>Health conditions</strong>{' · '}
+        {wasAsked(master.data?.healthConditions)
+          ? <>
+              {declaredSummary(master.data?.healthConditions, master.data?.pregnancyTrimester, master.data?.kidneyStage)}
+              {'. '}
+              <Link to="/profile/master#medical" style={{ color: 'var(--accent)', fontWeight: 600 }}>Update</Link>
+            </>
+          : <>Not recorded. <Link to="/profile/master#medical" style={{ color: 'var(--accent)', fontWeight: 600 }}>Add them</Link></>}
       </p>
 
       {/* Health highlights — analysis across your reports/panels */}

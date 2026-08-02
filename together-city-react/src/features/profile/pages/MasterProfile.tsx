@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Spinner } from '@/components/ui';
-import { profileApi, type MasterProfileView } from '../api';
+import { profileApi, type DeclaredHealthDraft, type MasterProfileView } from '../api';
 import { BLOOD_GROUP_OPTIONS } from '../bloodGroup';
 import { RELATIONSHIP_STATUS_OPTIONS } from '../relationshipStatus';
+import { HEALTH_CONDITION_OPTIONS, KIDNEY_STAGE_OPTIONS, TRIMESTER_OPTIONS, declaredKeys, wasAsked } from '../healthConditions';
 import { useFoodPref, useUpdateFoodPref } from '@/features/nutrition/hooks';
 import { CUISINES, balanced, capPct, cuisineSummary, mixTotal, readMix, withMix } from '@/features/nutrition/cuisineMix';
 import { useMasterProfile, useProfileCompletion } from '../hooks';
@@ -93,6 +94,24 @@ export function MasterProfile() {
     );
   };
 
+  /**
+   * Conditions, ticked here and saved on a button rather than on blur.
+   *
+   * The three columns move together, so there is one request and one draft: a
+   * PATCH per checkbox would let a refresh land between two of them and store a
+   * trimester with nothing beside it. Same shape as the cuisine mix above, for
+   * the same reason.
+   */
+  const [healthDraft, setHealthDraft] = useState<DeclaredHealthDraft | null>(null);
+  const saveConditions = useMutation({
+    mutationFn: (h: DeclaredHealthDraft) => profileApi.updateHealthConditions(h),
+    onSuccess: (fresh) => {
+      setHealthDraft(null);
+      qc.setQueryData(['profile', 'master'], fresh);
+      void qc.invalidateQueries({ queryKey: ['profile', 'completion'] });
+    },
+  });
+
   const save = useMutation({
     mutationFn: (patch: Draft) => profileApi.updateMaster(patch),
     onSuccess: (fresh, patch) => {
@@ -124,6 +143,26 @@ export function MasterProfile() {
   const commit = (k: keyof MasterProfileView) => {
     if (!(k in draft)) return;              // nothing changed on this field
     save.mutate({ [k]: draft[k] } as Draft);
+  };
+
+  const health: DeclaredHealthDraft = healthDraft ?? {
+    keys: declaredKeys(v.healthConditions),
+    trimester: v.pregnancyTrimester ?? null,
+    kidneyStage: v.kidneyStage ?? null,
+  };
+  const healthDirty = healthDraft !== null;
+  const toggleCondition = (key: string) => {
+    const keys = health.keys.includes(key)
+      ? health.keys.filter((k) => k !== key)
+      : [...health.keys, key];
+    setHealthDraft({
+      keys,
+      // A qualifier never outlives its condition. The server clears it as well;
+      // this is the same rule on the near side, so the control that disappears
+      // does not leave a value behind the screen.
+      trimester: keys.includes('pregnancy') ? health.trimester : null,
+      kidneyStage: keys.includes('kidney') ? health.kidneyStage : null,
+    });
   };
 
   const field = (
@@ -329,6 +368,101 @@ export function MasterProfile() {
           'Optional — skip it and we leave it blank rather than working it out from anything else. '
           + 'We show it back to you on your health record; nothing in Together City uses it to make '
           + 'a clinical decision, and no other hub sees it without your consent.')}
+
+        {/* ── Health conditions ────────────────────────────────────
+            The picker computeTargets has been waiting for. Ticked here, saved
+            in one request, and shown back on the health record — the same
+            shape blood group takes, and for the same reason: a field that is
+            collected and never shown is the H3 defect. */}
+        <div style={{ margin: '18px 0 4px' }}>
+          <span style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+            Health conditions
+            {healthDirty && <span style={{ color: 'var(--accent)', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}> · unsaved</span>}
+          </span>
+          <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: '4px 0 8px' }}>
+            Tick anything a doctor has told you about. All optional — and saving with nothing
+            ticked is recorded as your answer, which is not the same as never being asked.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 4 }}>
+            {HEALTH_CONDITION_OPTIONS.map((o) => (
+              <label key={o.value} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, minHeight: 44, cursor: 'pointer' }}>
+                <input type="checkbox" checked={health.keys.includes(o.value)}
+                  onChange={() => toggleCondition(o.value)} style={{ width: 18, height: 18 }} />
+                <span style={{ flex: 1, minWidth: 0 }}>{o.label}</span>
+              </label>
+            ))}
+          </div>
+
+          {health.keys.includes('pregnancy') && (
+            <label style={{ display: 'block', marginTop: 10 }}>
+              <span style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+                Which trimester
+              </span>
+              <select aria-label="Which trimester" value={health.trimester ?? ''}
+                onChange={(e) => setHealthDraft({ ...health, trimester: e.target.value || null })}
+                style={{ ...inputStyle, marginTop: 4 }}>
+                {/* Blank means NOT ANSWERED. "I&rsquo;d rather not say" below is a
+                    different fact and is recorded as one. */}
+                <option value="">Not answered</option>
+                {TRIMESTER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, display: 'block', marginTop: 4 }}>
+                Energy needs change by trimester — nothing extra in the first, about 340 more
+                calories a day in the second and 450 in the third. If you would rather not say,
+                we use the middle figure and tell you we did.
+              </span>
+            </label>
+          )}
+
+          {health.keys.includes('kidney') && (
+            <label style={{ display: 'block', marginTop: 10 }}>
+              <span style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+                Which stage
+              </span>
+              <select aria-label="Which kidney stage" value={health.kidneyStage ?? ''}
+                onChange={(e) => setHealthDraft({ ...health, kidneyStage: e.target.value || null })}
+                style={{ ...inputStyle, marginTop: 4 }}>
+                <option value="">Not answered</option>
+                {KIDNEY_STAGE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, display: 'block', marginTop: 4 }}>
+                The stage decides how much protein a plan may carry. Not knowing is a fine
+                answer — we use the gentler limit and say so.
+              </span>
+            </label>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => saveConditions.mutate(health)}
+              disabled={!healthDirty || saveConditions.isPending}
+              className="btn btn-accent btn-sm">
+              {saveConditions.isPending ? 'Saving…' : 'Save conditions'}
+            </button>
+            {!healthDirty && wasAsked(v.healthConditions) && (
+              <span className="muted" style={{ fontSize: 11.5 }}>Recorded on your health record.</span>
+            )}
+          </div>
+          {saveConditions.isError && (
+            <p style={{ color: '#c62828', fontSize: 12.5, margin: '8px 0 0' }}>
+              That didn&rsquo;t save. Your ticks are still here — try again.
+            </p>
+          )}
+
+          {/* The sentence that stops this being a button which reports success
+              and changes nothing. It is pinned by a test, so it costs something
+              to delete before it stops being true. */}
+          <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: '10px 0 0' }}>
+            One thing to know: your meal plan does not read this list yet. The conditions your
+            plan uses are still the ones on{' '}
+            <Link to="/nutrition/preferences" style={{ color: 'var(--accent)', fontWeight: 600 }}>Food preferences</Link>,
+            so ticking a box here changes what your profile says and not yet what you are served.
+            We are joining the two up; until then, set both.
+          </p>
+        </div>
         <Elsewhere
           what="Your conditions, medicines and lab results"
           where="/medical/records"
