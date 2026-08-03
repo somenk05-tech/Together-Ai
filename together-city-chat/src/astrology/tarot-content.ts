@@ -49,6 +49,12 @@ export interface TarotReadingOut {
    * a period of '2026-07-29' means nothing without knowing whose day that was.
    */
   tz?: string;
+  /**
+   * Which of the face-down cards was turned, for a Card of the Day that was
+   * chosen rather than dealt. Optional because every daily card drawn before
+   * choosing existed has no position, and those readings are still theirs.
+   */
+  position?: number;
 }
 
 /**

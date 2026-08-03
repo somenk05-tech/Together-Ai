@@ -72,9 +72,22 @@ export interface TarotDrawnCard {
 }
 export interface TarotReading {
   kind: SpreadKind; spreadName: string; question?: string;
+  /** Which of the face-down cards was turned. Absent on cards dealt before
+   *  choosing existed, and on every paid spread. */
+  position?: number;
   cards: TarotDrawnCard[]; summary: string; disclaimer: string; seed: string;
 }
-export interface TarotDaily extends TarotReading { saved: boolean; priceInr: number }
+/**
+ * Card of the Day, in two shapes.
+ *
+ * `chosen: false` means NOTHING HAS BEEN DEALT AND NOTHING HAS BEEN STORED —
+ * there is no card yet, only `fan` face-down ones to pick from. It is not an
+ * empty state and it is not an error; it is the moment before the choice, and
+ * the screen has to be able to tell the difference.
+ */
+export type TarotDaily =
+  | { chosen: false; fan: number; priceInr: number; disclaimer: string }
+  | (TarotReading & { chosen: true; saved: boolean; priceInr: number });
 export interface TarotSpreadResult extends TarotReading { id: string; priceInr: number }
 export interface TarotSpreadOption { kind: SpreadKind; name: string; cards: number; priceInr: number }
 export interface TarotHistoryItem {
@@ -117,6 +130,8 @@ export const astrologyApi = {
 
   tarotSpreads: () => api.get<{ disclaimer: string; spreads: TarotSpreadOption[] }>('/astrology/tarot/spreads').then((r) => r.data),
   tarotDaily: () => api.get<TarotDaily>('/astrology/tarot/daily').then((r) => r.data),
+  tarotChooseDaily: (position: number) =>
+    api.post<TarotDaily>('/astrology/tarot/daily/choose', { position }).then((r) => r.data),
   tarotDraw: (dto: { kind: 'three' | 'celtic'; question: string; method?: 'wallet' | 'card' }) =>
     api.post<TarotSpreadResult>('/astrology/tarot/draw', dto).then((r) => r.data),
   tarotHistory: () => api.get<TarotHistoryItem[]>('/astrology/tarot/history').then((r) => r.data),

@@ -46,6 +46,19 @@ export function useTarotDaily() {
   return useQuery({ queryKey: ['astrology', 'tarot', 'daily'], queryFn: astrologyApi.tarotDaily, staleTime: 30 * 60_000 });
 }
 
+/** Turn one of today's face-down cards. The first turn is the one that counts —
+ *  the server ignores a second, so this never needs to guard against one. */
+export function useChooseDailyCard() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (position: number) => astrologyApi.tarotChooseDaily(position),
+    onSuccess: (data) => {
+      qc.setQueryData(['astrology', 'tarot', 'daily'], data);
+      void qc.invalidateQueries({ queryKey: ['astrology', 'tarot', 'history'] });
+    },
+  });
+}
+
 export function useTarotSpreads() {
   return useQuery({ queryKey: ['astrology', 'tarot', 'spreads'], queryFn: astrologyApi.tarotSpreads, staleTime: 60 * 60_000 });
 }

@@ -435,3 +435,102 @@
   .ask-panel-inner { margin: 0 auto; padding: 26px 20px 72px; }
   .ask-cta { letter-spacing: .12em; }
 }
+
+/* ─────────────────────── Card of the Day — the fan ───────────────────────
+   Seven face-down cards laid in a shallow arc. The backs are drawn here rather
+   than shipped as images, for the same reason the revealed card is typographic:
+   inventing tarot art we have no licence for would be worse than showing none.
+   If real designs arrive, `.tarot-back-face` is one background-image away.
+
+   The arc is computed from two custom properties the component sets — `--i`
+   (this card's index) and `--n` (how many there are) — so the layout follows
+   whatever the server says is on the table. A hard-coded seven in a stylesheet
+   would be a second opinion about a number the API already owns.
+   ─────────────────────────────────────────────────────────────────────────── */
+.tarot-fan {
+  --card-w: clamp(74px, 9vw, 104px);
+  --spread: 26deg;              /* total sweep, first card to last */
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding: 26px 0 12px;
+  min-height: calc(var(--card-w) * 1.62 + 40px);
+  perspective: 1200px;
+}
+.tarot-back {
+  --half: calc((var(--n) - 1) / 2);
+  --turn: calc((var(--i) - var(--half)) * (var(--spread) / max(var(--n) - 1, 1)));
+  --lift: calc(((var(--i) - var(--half)) * (var(--i) - var(--half))) * 1.6px);
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  width: var(--card-w);
+  aspect-ratio: 1 / 1.62;
+  margin-inline: calc(var(--card-w) * -0.22);
+  transform-origin: 50% 118%;
+  transform: rotate(var(--turn)) translateY(var(--lift));
+  transition: transform .35s cubic-bezier(.22, .61, .36, 1), filter .35s ease;
+  will-change: transform;
+}
+.tarot-back:hover:not(:disabled),
+.tarot-back:focus-visible {
+  transform: rotate(var(--turn)) translateY(calc(var(--lift) - 16px));
+  z-index: 2;
+  filter: brightness(1.12);
+}
+.tarot-back:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 10px; }
+.tarot-back:disabled { cursor: default; }
+.tarot-back-face {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(216, 178, 109, .38);
+  background:
+    repeating-linear-gradient(45deg, rgba(216,178,109,.07) 0 6px, transparent 6px 12px),
+    radial-gradient(120% 90% at 50% 8%, #23304a 0%, #131a29 46%, #0b1020 100%);
+  box-shadow: 0 8px 22px rgba(8, 12, 22, .34), inset 0 0 0 3px rgba(216, 178, 109, .10);
+}
+.tarot-back-mark {
+  width: 46%; aspect-ratio: 1;
+  border: 1px solid rgba(216, 178, 109, .55);
+  border-radius: 50%;
+  position: relative;
+}
+.tarot-back-mark::before,
+.tarot-back-mark::after {
+  content: ''; position: absolute; inset: 22%;
+  border: 1px solid rgba(216, 178, 109, .5);
+}
+.tarot-back-mark::before { transform: rotate(45deg); }
+.tarot-back-mark::after { border-radius: 50%; inset: 32%; }
+
+/* The turn itself. One transform on one element, and nothing at all for
+   somebody who asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .tarot-turned { animation: tarotTurn .62s cubic-bezier(.22, .61, .36, 1) both; transform-origin: 50% 50%; }
+}
+@keyframes tarotTurn {
+  from { opacity: 0; transform: perspective(1200px) rotateY(-82deg); }
+  60%  { opacity: 1; }
+  to   { opacity: 1; transform: perspective(1200px) rotateY(0deg); }
+}
+
+@media (max-width: 560px) {
+  .tarot-fan { --spread: 34deg; }
+  .tarot-back { margin-inline: calc(var(--card-w) * -0.3); }
+}
+
+/* A card's painting. `contain` rather than `cover` because the crops keep each
+   card's own gold frame and their heights differ by a few pixels — cover would
+   shave a different sliver off every one of them. The ground behind is the
+   card's own dark, so the few pixels of letterbox are invisible. */
+.tarot-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1.72;
+  object-fit: contain;
+  background: #0b0b0e;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  transition: transform .3s;
+}

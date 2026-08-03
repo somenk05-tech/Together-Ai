@@ -49,6 +49,23 @@ const surfaceCss = (): string => {
   return css.slice(start);
 };
 
+/**
+ * The surfaces this guard is about, named rather than inferred.
+ *
+ * THIS LIST IS THE THIRD ATTEMPT AND THE FIRST HONEST ONE. The guard began by
+ * reading from its own block to the END of the stylesheet, which meant every
+ * surface appended afterwards inherited it — and twice that caught correct
+ * code: the consultation room's screen-reader clip (`margin: -1px`, which is
+ * what that pattern IS), and the tarot fan's overlapping cards
+ * (`margin-inline: -22%`, which is what a fan IS). Neither has anything to do
+ * with bleeding out of a shell.
+ *
+ * An accidental boundary that keeps swallowing new work is worse than a narrow
+ * one that has to be widened on purpose. A new bleeding surface adds its prefix
+ * here, and that is a decision somebody makes rather than a net they fall into.
+ */
+const BLEEDING_SURFACES = /^\.(letter|ask)-|^\.tc-shell \.tc-main > \.(letter|ask)/;
+
 const rulesFor = (pattern: RegExp): Array<{ selector: string; body: string }> =>
   surfaceCss().replace(/\/\*[\s\S]*?\*\//g, ' ')
     .split('}')
@@ -65,7 +82,7 @@ describe('the letter surface', () => {
   });
 
   it('uses no negative margin anywhere in it', () => {
-    const own = rulesFor(/./);
+    const own = rulesFor(BLEEDING_SURFACES);
     expect(own.length, 'these surfaces have no rules in layout.css').toBeGreaterThan(20);
     const offenders = own
       .filter((r) => /margin[^:]*:\s*[^;]*-\d/.test(r.body))
@@ -81,7 +98,9 @@ describe('the letter surface', () => {
       'the first time: offset between 780px and 1100px, and eating the',
       'breadcrumb row above it.',
       '',
-      'Override `.tc-shell .tc-main > *` instead.',
+      'Override `.tc-shell .tc-main > *` instead. If this rule is not about',
+      'bleeding out of the shell at all, it does not belong to a surface in',
+      'BLEEDING_SURFACES — check the prefix before changing the CSS.',
       '',
     ].join('\n')).toEqual([]);
   });

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Button, Card, EmptyState, Spinner, Tag } from '@/components/ui';
-import { useDrawTarot, useTarotDaily, useTarotHistory, useTarotSpreads } from '../hooks';
+import { useChooseDailyCard, useDrawTarot, useTarotDaily, useTarotHistory, useTarotSpreads } from '../hooks';
 import { AstroHeader } from '../shared';
 import type { TarotDrawnCard, TarotReading } from '../api';
+import { artFor } from '../cardArt';
 
 /**
  * Tab 04 — Tarot. Card of the Day is free; the Past/Present/Future and Celtic
@@ -17,10 +18,22 @@ const SUIT_GLYPH: Record<string, string> = {
   wands: '🜂', cups: '🜄', swords: '🜁', pentacles: '🜃',
 };
 
-/** One drawn card. Typographic rather than illustrated — inventing card art we
- *  don't have a licence for would be worse than showing none. */
+/**
+ * One drawn card.
+ *
+ * ILLUSTRATED WHERE WE HAVE THE ART AND TYPOGRAPHIC WHERE WE DO NOT. The 22
+ * Major Arcana have paintings; the 56 Minors do not yet, and asking cardArt.ts
+ * rather than assuming is the difference between a page of cards and a page of
+ * broken image icons. The fallback is the face this component always drew, so a
+ * Minor reads as a deliberate design rather than as a fault — see cardArt.ts.
+ *
+ * A reversed card is rotated, which is what reversed MEANS. The name and
+ * keywords underneath stay the right way up, because they are a caption on the
+ * card and not part of it.
+ */
 function CardFace({ card, index }: { card: TarotDrawnCard; index: number }) {
   const glyph = card.arcana === 'major' ? '✦' : SUIT_GLYPH[card.suit ?? ''] ?? '✦';
+  const art = artFor(card.cardId);
   return (
     <div style={{
       border: '1px solid var(--line)', borderRadius: 16, background: 'var(--card)',
@@ -40,10 +53,16 @@ function CardFace({ card, index }: { card: TarotDrawnCard; index: number }) {
         )}
       </div>
       <div style={{ padding: '18px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <div style={{
-          fontSize: 30, lineHeight: 1, marginBottom: 10, textAlign: 'center',
-          transform: card.reversed ? 'rotate(180deg)' : 'none', transition: 'transform .3s',
-        }}>{glyph}</div>
+        {art ? (
+          <img className="tarot-art" src={art} alt=""
+            loading="lazy" decoding="async"
+            style={{ transform: card.reversed ? 'rotate(180deg)' : 'none' }} />
+        ) : (
+          <div style={{
+            fontSize: 30, lineHeight: 1, marginBottom: 10, textAlign: 'center',
+            transform: card.reversed ? 'rotate(180deg)' : 'none', transition: 'transform .3s',
+          }}>{glyph}</div>
+        )}
         <h4 style={{ fontFamily: 'var(--serif)', fontSize: 17, textAlign: 'center', margin: '0 0 10px' }}>{card.name}</h4>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginBottom: 12 }}>
           {card.keywords.map((k) => <Tag key={k}>{k}</Tag>)}
@@ -82,8 +101,103 @@ function Disclaimer({ text }: { text: string }) {
   );
 }
 
-export function AstroTarot() {
+/**
+ * Card of the Day — seven face-down cards, and the one you turn is yours.
+ *
+ * THE CHOICE IS REAL, which is the only reason this is a fan and not a
+ * flourish. The position is part of the seed on the server, so the seven backs
+ * are seven different cards; nothing is dealt or stored until one is turned;
+ * and the first turn is written with `update: {}`, so it cannot be retaken. A
+ * spread you can pick from that always gives the same card is theatre, and the
+ * citizen finds out by reloading.
+ *
+ * The backs are drawn in CSS rather than shipped as art — the same reason
+ * CardFace is typographic: inventing card illustrations we have no licence for
+ * would be worse than showing none. If real designs arrive, `.tarot-back` is
+ * one rule and one image away from using them.
+ */
+function DailyCard() {
   const daily = useTarotDaily();
+  const choose = useChooseDailyCard();
+  const [turning, setTurning] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const d = daily.data;
+
+  const pick = (position: number) => {
+    if (choose.isPending) return;
+    setError(null);
+    setTurning(position);
+    choose.mutate(position, {
+      onError: (e) => {
+        setTurning(null);
+        const msg = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
+        setError(Array.isArray(msg) ? msg.join(' ') : msg ?? 'The card would not turn. Try again in a moment.');
+      },
+    });
+  };
+
+  return (
+    <Card className="rise" style={{ padding: '24px 26px', marginBottom: 22 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+        <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, margin: 0 }}>Card of the Day</h3>
+        <span className="muted" style={{ fontSize: 12.5 }}>Free · one card, yours until midnight</span>
+      </div>
+
+      {daily.isLoading && <Spinner label="Laying out the cards…" />}
+      {daily.isError && (
+        <p className="muted" style={{ fontSize: 13.5 }}>
+          We couldn&rsquo;t lay out today&rsquo;s cards. This isn&rsquo;t a message that you&rsquo;ve
+          already drawn &mdash; only that we couldn&rsquo;t check. Reload to try again.
+        </p>
+      )}
+
+      {d && !d.chosen && (
+        <>
+          <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.65, margin: '0 0 20px', maxWidth: '54ch' }}>
+            Seven cards, face down. Take your time and turn one &mdash; whichever you choose is the
+            card for your day, and it stays yours until midnight.
+          </p>
+          <div className="tarot-fan" role="group" aria-label="Seven face-down cards">
+            {Array.from({ length: d.fan }, (_, i) => (
+              <button key={i} type="button" className="tarot-back"
+                style={{ '--i': i, '--n': d.fan } as CSSProperties}
+                disabled={choose.isPending}
+                aria-label={`Turn card ${i + 1} of ${d.fan}`}
+                onClick={() => pick(i)}>
+                <span className="tarot-back-face" aria-hidden>
+                  <span className="tarot-back-mark" />
+                </span>
+              </button>
+            ))}
+          </div>
+          {choose.isPending && (
+            <p className="muted" style={{ fontSize: 12.5, marginTop: 16 }}>
+              Turning card {(turning ?? 0) + 1}…
+            </p>
+          )}
+          {error && <p style={{ color: '#c0392b', fontSize: 13, marginTop: 14 }}>{error}</p>}
+          <Disclaimer text={d.disclaimer} />
+        </>
+      )}
+
+      {d?.chosen && (
+        <>
+          {typeof d.position === 'number' && (
+            <p className="muted" style={{ fontSize: 12.5, margin: '0 0 14px' }}>
+              You turned card {d.position + 1}.
+            </p>
+          )}
+          <div className="tarot-turned">
+            <ReadingView reading={d} />
+          </div>
+          <Disclaimer text={d.disclaimer} />
+        </>
+      )}
+    </Card>
+  );
+}
+
+export function AstroTarot() {
   const spreads = useTarotSpreads();
   const history = useTarotHistory();
   const draw = useDrawTarot();
@@ -115,20 +229,7 @@ export function AstroTarot() {
         lede="A card a day, free — or ask a question and draw a full spread. Every reading is reproducible: the same draw can be regenerated from its seed." />
 
       {/* ── Card of the Day (free) ── */}
-      <Card className="rise" style={{ padding: '24px 26px', marginBottom: 22 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
-          <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, margin: 0 }}>Card of the Day</h3>
-          <span className="muted" style={{ fontSize: 12.5 }}>Free · one card, yours until midnight</span>
-        </div>
-        {daily.isLoading && <Spinner label="Turning your card…" />}
-        {daily.isError && <p className="muted" style={{ fontSize: 13.5 }}>Couldn't draw today's card. Reload to try again.</p>}
-        {daily.data && (
-          <>
-            <ReadingView reading={daily.data} />
-            <Disclaimer text={daily.data.disclaimer} />
-          </>
-        )}
-      </Card>
+      <DailyCard />
 
       {/* ── Paid spreads ── */}
       <Card className="rise" style={{ padding: '24px 26px', marginBottom: 22 }}>

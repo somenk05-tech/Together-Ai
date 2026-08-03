@@ -13,6 +13,18 @@ export const SPREAD_PRICE_INR: Record<SpreadKind, number> = {
   celtic: 149,
 };
 
+/**
+ * What the daily surface returns.
+ *
+ * Two shapes, and the discriminant is the honest part: `chosen: false` means
+ * NOTHING HAS BEEN DEALT AND NOTHING HAS BEEN STORED — there is no card yet,
+ * only a number of face-down ones to pick from. It is not an empty state and it
+ * is not an error; it is the moment before the choice.
+ */
+export type DailyCardOut =
+  | { chosen: false; fan: number; priceInr: 0; disclaimer: string }
+  | (TarotReadingOut & { chosen: true; saved: boolean; priceInr: 0 });
+
 export interface DrawSpreadDto {
   kind: 'three' | 'celtic';
   question: string;
@@ -64,71 +76,125 @@ export class TarotService {
   }
 
   /**
-   * Card of the Day — free, one per citizen per day, and not re-drawable.
+   * How many face-down cards the daily fan offers.
    *
-   * `@@unique([userId, kind, period])` already makes a second row for the same
-   * day impossible. The work here is making sure `period` names the same day on
-   * every request, because a unique key is only as stable as the value you put
-   * in it. Three things could previously shift it and hand out a fresh card:
-   *
-   *  - a failed timezone lookup fell back to the SERVER's day, which for a
-   *    citizen in Asia/Kolkata is a different date for five and a half hours out
-   *    of every twenty-four. Reloading in that window dealt a second card. The
-   *    ClockService fallback is the city's own zone, so a transient database
-   *    error can no longer change which day it is;
-   *  - editing the timezone on your profile re-dated today and dealt again. Now
-   *    the card records the zone it was drawn in and stays current until the day
-   *    ends THERE, so changing zones (or flying somewhere) never re-deals;
-   *  - two simultaneous requests both missed the read and both inserted. The
-   *    write is now a single upsert, so the loser gets the winner's row back
-   *    instead of an error that was being swallowed.
-   *
-   * The seed is derived from the citizen and the period, so a card is stable
-   * across reloads and devices even before it is stored — the row records which
-   * day was drawn, it doesn't decide what the card is.
+   * Seven because it has to be enough that choosing feels like choosing, and few
+   * enough to lay out on a phone without becoming a grid. The number is part of
+   * the API — the client draws exactly this many backs — so it lives here rather
+   * than in a stylesheet.
    */
-  async dailyCard(userId: string): Promise<TarotReadingOut & { saved: boolean; priceInr: number }> {
+  static readonly DAILY_FAN = 7;
+
+  /**
+   * Card of the Day — free, one per citizen per day, and CHOSEN rather than dealt.
+   *
+   * WHAT CHANGED AND WHY IT HAD TO. This used to deal the card the moment the
+   * page loaded. The screen then grew a spread of face-down cards to pick from,
+   * and that would have been theatre: the card was already decided, so whichever
+   * back you clicked, the same card turned over. A citizen finds that out by
+   * reloading and picking a different one, and what they learn is that the
+   * choice they were offered was not one.
+   *
+   * So the choice is real. Nothing is dealt on load and NOTHING IS STORED on
+   * load; the position is part of the seed, so each of the seven backs is a
+   * different card; and the first choice is written with `update: {}`, so it
+   * cannot be re-rolled by choosing again.
+   *
+   * Everything that made the old version stable is kept, because all of it was
+   * about which DAY it is and none of it was about which card:
+   *
+   *  - `@@unique([userId, kind, period])` still makes a second row for the same
+   *    day impossible;
+   *  - a failed timezone lookup still falls back to the city's own zone rather
+   *    than the server's, so a transient database error cannot change the date;
+   *  - a card records the zone it was drawn in and stays current until the day
+   *    ends THERE, so changing zones (or flying somewhere) never re-deals;
+   *  - two simultaneous choices still resolve to one row, and the loser is
+   *    handed the winner's card rather than an error.
+   */
+  async dailyCard(userId: string): Promise<DailyCardOut> {
+    const already = await this.todaysCard(userId);
+    if (already) return { ...already.reading, chosen: true as const, saved: true, priceInr: 0 };
+    return {
+      chosen: false as const,
+      fan: TarotService.DAILY_FAN,
+      priceInr: 0,
+      // The disclaimer is on the empty state too. It is not a footnote to a
+      // reading, it is a statement about what this surface is, and somebody
+      // deciding whether to turn a card should have read it before they do.
+      disclaimer: DISCLAIMER,
+    };
+  }
+
+  /**
+   * Turn one of today's face-down cards.
+   *
+   * THE FIRST CHOICE WINS AND THE REQUESTED POSITION IS IGNORED IF ONE EXISTS.
+   * That is not a courtesy to double-clicks; it is the whole point. A choice you
+   * can retake until you like the answer is not a choice, and this is the only
+   * place a citizen could otherwise reroll their day.
+   */
+  async chooseDailyCard(userId: string, position: number): Promise<DailyCardOut> {
+    if (!Number.isInteger(position) || position < 0 || position >= TarotService.DAILY_FAN) {
+      throw new BadRequestException('That is not one of the cards on the table.');
+    }
+    const already = await this.todaysCard(userId);
+    if (already) return { ...already.reading, chosen: true as const, saved: true, priceInr: 0 };
+
     const tz = await this.clock.timezoneFor(userId);
     const period = this.clock.todayIn(tz);
-
-    // Today's card, if it has already been dealt.
-    const hit = await swallow(this.db.tarotReading
-      .findUnique({ where: { userId_kind_period: { userId, kind: 'daily', period } } }), 'tarot: today-card read', { userId });
-    if (hit) {
-      const stored = TarotService.parseRow(hit);
-      if (stored) return { ...stored, saved: true, priceInr: 0 };
-      // Unreadable row — recompose. Same period, same seed, same card.
-    }
-
-    // No row under today's date. That does NOT mean a new day: the citizen may
-    // have changed timezone since drawing, which re-dates "today" underneath
-    // them. Ask the last card whether its own day has actually ended, measured
-    // in the zone it was drawn in.
-    if (!hit) {
-      const last = await swallow(this.db.tarotReading
-        .findFirst({ where: { userId, kind: 'daily' }, orderBy: { createdAt: 'desc' } }), 'tarot: last-card read', { userId });
-      const prev = last ? TarotService.parseRow(last) : null;
-      if (last?.period && prev?.tz && this.clock.todayIn(prev.tz) === last.period) {
-        return { ...prev, saved: true, priceInr: 0 };
-      }
-    }
-
-    const seed = `tarot:daily:${userId}:${period}`;
-    const reading: TarotReadingOut = { ...composeTarot('daily', seed), tz };
+    // The position is IN the seed, which is what makes the choice real: seven
+    // positions are seven different shuffles and therefore seven different
+    // cards. It is also why a reading stays reproducible — the seed is stored
+    // with it, and it now records the choice as well as the day.
+    const seed = `tarot:daily:${userId}:${period}:${position}`;
+    const reading: TarotReadingOut = { ...composeTarot('daily', seed), tz, position };
 
     // Upsert, not create: two requests racing for the first card of the day both
-    // succeed, and both end up looking at the same row. `update: {}` is
-    // deliberate — a card that has been dealt is never rewritten.
+    // succeed and both end up looking at the same row. `update: {}` is
+    // deliberate — a card that has been turned is never turned again.
     const saved = await this.db.tarotReading.upsert({
       where: { userId_kind_period: { userId, kind: 'daily', period } },
       create: { userId, kind: 'daily', period, seed, readingJson: JSON.stringify(reading), priceInr: 0 },
       update: {},
     }).then((r) => r, () => null); // optional-by-design: history is nice to have; the reading stands without it
 
-    // Whoever won the race owns the card. Same period means the same seed and
-    // therefore the same draw, so this only matters for the recorded zone.
+    // Whoever won the race owns the card, and it may not be the one composed
+    // above — so the stored row is preferred over the local draw.
     const stored = saved ? TarotService.parseRow(saved) : null;
-    return { ...(stored ?? reading), saved: !!saved, priceInr: 0 };
+    return { ...(stored ?? reading), chosen: true as const, saved: !!saved, priceInr: 0 };
+  }
+
+  /**
+   * The card this citizen has already turned today, or null.
+   *
+   * The second half is the timezone-drift guard, and it is the reason this is a
+   * function rather than one findUnique. No row under today's date does NOT mean
+   * a new day: the citizen may have changed zone since choosing, which re-dates
+   * "today" underneath them. So the last card is asked whether its OWN day has
+   * ended, measured in the zone it was drawn in.
+   */
+  private async todaysCard(userId: string): Promise<{ reading: TarotReadingOut } | null> {
+    const tz = await this.clock.timezoneFor(userId);
+    const period = this.clock.todayIn(tz);
+
+    const hit = await swallow(this.db.tarotReading
+      .findUnique({ where: { userId_kind_period: { userId, kind: 'daily', period } } }), 'tarot: today-card read', { userId });
+    if (hit) {
+      const stored = TarotService.parseRow(hit);
+      // An unreadable row still means a card was turned today. Recomposing it
+      // from the stored seed is exact; guessing a new one would deal twice.
+      if (stored) return { reading: stored };
+      if (hit.seed) return { reading: { ...composeTarot('daily', hit.seed), tz } };
+    }
+
+    const last = await swallow(this.db.tarotReading
+      .findFirst({ where: { userId, kind: 'daily' }, orderBy: { createdAt: 'desc' } }), 'tarot: last-card read', { userId });
+    const prev = last ? TarotService.parseRow(last) : null;
+    if (last?.period && prev?.tz && this.clock.todayIn(prev.tz) === last.period) {
+      return { reading: prev };
+    }
+    return null;
   }
 
   /**

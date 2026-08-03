@@ -99,6 +99,21 @@ export class AstrologyController {
   }
 
   /** Card of the Day — free, one card, stable for the citizen's whole day. */
+  /**
+   * Turn one of today's face-down cards.
+   *
+   * The bound comes from the service rather than a literal, because the number
+   * of cards on the table is one fact and a route that disagrees with it would
+   * accept a choice nobody was offered.
+   */
+  @Post('tarot/daily/choose')
+  @UsePipes(new ZodValidationPipe(z.object({
+    position: z.number().int().min(0).max(TarotService.DAILY_FAN - 1),
+  })))
+  tarotChooseDaily(@CurrentUser() user: JwtUser, @Body() body: { position: number }) {
+    return this.tarot.chooseDailyCard(user.sub, body.position);
+  }
+
   @Get('tarot/daily')
   tarotDaily(@CurrentUser() user: JwtUser) {
     return this.tarot.dailyCard(user.sub);
