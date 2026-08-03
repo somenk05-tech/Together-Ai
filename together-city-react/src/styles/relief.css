@@ -490,31 +490,48 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
    instead of being handed one: they float on the same white with a real
    shadow, and the content is pushed off them by a gutter rather than by a
    colour change.                                                            */
-/* THE BAR IS PLAIN WHITE, AND EVERY BIT OF ITS DEPTH IS CUT INTO IT.
-   A white pill on a white bar has nothing to cast a shadow onto — both
-   surfaces are lit the same way, so the key reads as an outline and the bar
-   reads as paint. Giving the bar a gradient did not help; it only made the bar
-   grey. What creates depth here is CONTRAST, so the rows of keys sit in carved
-   troughs and stand up out of them, exactly like the segmented control. */
+/* ── THE BAR IS THE ONE FLAT THING, AND THAT IS A DECISION ────────────────
+   Relief says everything is raised, carved or pressed. The header is the
+   exception, on purpose.
+
+   It was tried the other way twice. Raised pills on a white bar read as
+   outlines, because a white key on a white surface has nothing to cast a
+   shadow onto — both are lit identically. Cutting the row into a trough fixed
+   the contrast and cost something worse: a groove across the top of every page
+   competing with the page's own content for the eye, and a drop shadow under
+   the bar that greyed the first inch of every screen.
+
+   A hub tab is not a control. You do not press a place — you are in it, or you
+   are not, and the only thing that has to be legible is which. Type does that
+   on its own: everything is muted, the one you are in is black. Nothing else
+   in the application is drawn this way, which is exactly why the bar reads as
+   chrome and not as content.
+
+   THE CAPS ARE PRESENTATIONAL, NOT IN THE DATA. hubs.ts holds "Real estate",
+   because the same string is a command-palette entry and a bottom-nav label,
+   and neither wants to shout. Only this row uppercases it. */
 .tc-header {
   background: var(--card);
-  border-bottom: 0;
-  box-shadow: var(--e2);
+  box-shadow: none;
+  border-bottom: 1px solid var(--line);
   color: var(--ink);
 }
-/* THE TROUGH IS THE NAV'S ALONE. QuickActions renders `.tc-actions` around
-   People/Mail/Chat but Alerts and the avatar are direct children of the bar, so
-   a groove there would hold three of the five keys and leave two standing
-   outside it — a grouping that means nothing. The actions are all buttons; they
-   all stand up. The nav is a place you are, so it is the one that is cut in. */
 .tc-nav {
-  background: var(--well); box-shadow: var(--carve);
-  border-radius: var(--r-full); padding: 4px; gap: 3px;
-  /* Fits its tabs. Left to grow it becomes a groove with a metre of empty
-     channel after the last hub. */
-  flex: 0 1 auto;
+  background: none; box-shadow: none; padding: 0; border-radius: 0;
+  gap: clamp(14px, 1.7vw, 26px); flex: 1 1 auto;
 }
+.tc-nav a {
+  background: none; box-shadow: none; border: 0; border-radius: 0;
+  padding: 0; height: auto;
+  text-transform: uppercase; letter-spacing: .13em; font-weight: 600;
+  color: var(--muted);
+  transition: color var(--dur-fast) linear;
+}
+.tc-nav a:hover { background: none; box-shadow: none; color: var(--ink); transform: none; }
+.tc-nav a.on { background: none; box-shadow: none; color: var(--ink); font-weight: 700; }
+
 .tc-actionbar, .tc-actions { gap: 8px; }
+
 .tc-logo .word { color: var(--ink); font-weight: 700; letter-spacing: -.03em; }
 .tc-logo .mark {
   background: var(--face-2); box-shadow: var(--e1); border-radius: 12px;

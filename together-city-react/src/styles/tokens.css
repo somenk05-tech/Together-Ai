@@ -160,7 +160,7 @@
   --ease: cubic-bezier(.22,.61,.36,1);
   --spring: cubic-bezier(.34,1.42,.5,1);
 
-  --header-h: 88px;   /* two rows: the logo, then the nav trough with room to be one */
+  --header-h: 78px;
 
   /* ── ONE TYPEFACE ───────────────────────────────────────────────────────
      General Sans, self-hosted. --serif and --mono still exist because they are

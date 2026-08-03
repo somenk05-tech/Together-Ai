@@ -5,7 +5,7 @@
    the old file mixed "the header is 78px tall" with "the header is white",
    so changing the material meant editing the layout.
    ================================================================== */
-.tc-header { --chip-fs: 12.5px; position: fixed; top: var(--safe-top); left: 0; right: 0; height: var(--header-h); z-index: 100; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; padding: 9px 24px 9px; color: var(--ink); }
+.tc-header { --chip-fs: 11.5px; position: fixed; top: var(--safe-top); left: 0; right: 0; height: var(--header-h); z-index: 100; display: flex; flex-direction: column; justify-content: space-between; gap: 3px; padding: 8px 24px 4px; color: var(--ink); }
 /* Two-row header: Row 1 centred logo · Row 2 hub tabs (left) + actions (right) on one line.
    The burger is pinned left on Row 1 (mobile) without shifting the centred logo. */
 .tc-header-top { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 34px; }
@@ -19,16 +19,17 @@
 .tc-navrow { display: flex; align-items: center; gap: 18px; width: 100%; min-width: 0; }
 .tc-nav { display: flex; align-items: center; justify-content: flex-start; gap: 6px; min-width: 0; padding-left: 32px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .tc-nav::-webkit-scrollbar { display: none; }
-/* NOT UPPERCASE ANY MORE. Twelve shouted words in a row is a wall of caps that
-   nobody reads as twelve separate places; sentence case plus depth does the
-   same job and stays legible at --chip-fs 9px on a narrow desktop. */
-.tc-nav a { font-size: var(--chip-fs); letter-spacing: -.005em; font-weight: 500; height: 30px; display: inline-flex; align-items: center; padding: 0 13px; white-space: nowrap; text-transform: none; }
+/* The tabs are the one row in the application set in capitals, and relief.css
+   says why. The LABELS themselves are sentence case in hubs.ts — the same
+   strings are command-palette entries and bottom-nav labels, and neither
+   should shout — so the capitals live here, where only this row gets them. */
+.tc-nav a { font-size: var(--chip-fs); white-space: nowrap; display: inline-flex; align-items: center; }
 .tc-actionbar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-left: auto; }
 .tc-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .tc-actionbar a, .tc-actionbar button, .tc-actions a, .tc-actions button { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; font-size: var(--chip-fs); letter-spacing: 0; font-weight: 600; white-space: nowrap; text-transform: none; position: relative; }
 /* keep all 12 sectors + actions on one line — shrink tabs/gaps on narrower desktops */
-@media (max-width: 1560px) { .tc-header { --chip-fs: 11.5px; } .tc-navrow { gap: 14px; } .tc-nav { gap: 5px; padding-left: 24px; } .tc-actionbar, .tc-actions { gap: 8px; } }
-@media (max-width: 1340px) { .tc-header { --chip-fs: 10.5px; } .tc-navrow { gap: 12px; } .tc-nav { gap: 4px; padding-left: 14px; } .tc-actionbar, .tc-actions { gap: 6px; } }
+@media (max-width: 1560px) { .tc-header { --chip-fs: 10.5px; } .tc-navrow { gap: 14px; } .tc-nav { gap: 5px; padding-left: 24px; } .tc-actionbar, .tc-actions { gap: 8px; } }
+@media (max-width: 1340px) { .tc-header { --chip-fs: 9.5px; } .tc-navrow { gap: 12px; } .tc-nav { gap: 4px; padding-left: 14px; } .tc-actionbar, .tc-actions { gap: 6px; } }
 .tc-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; overflow: hidden; }
 
 .tc-main { padding-top: calc(var(--header-h) + var(--safe-top)); min-height: 100vh; }
