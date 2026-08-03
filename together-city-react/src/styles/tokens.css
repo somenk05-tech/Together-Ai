@@ -225,6 +225,22 @@
 
   --header-h: 78px;
 
+  /* ── THE MEASURE ────────────────────────────────────────────────────────
+     THE SURFACE TAKES THE MEASURE, NOT THE TEXT INSIDE IT.
+
+     A card that fills the column with a 68ch paragraph inside it leaves a
+     dead white channel down the right-hand side — and worse, the picture at
+     the top of that card runs the full width while the words stop two-thirds
+     of the way across, so the two do not look like parts of the same object.
+
+     Constraining the CARD instead fixes both at once: the letterhead ends
+     exactly where the last line ends, and there is no empty column, because
+     there is no card under it. --measure is the reading width; --measure-pad
+     is what a long-form surface adds for its own padding. */
+  --measure: 68ch;
+  --measure-pad: 88px;
+  --measure-card: calc(var(--measure) + var(--measure-pad));
+
   /* THE CARD SHAPE, IN ONE PLACE, because a back and a face that disagree means
      a card changes shape as it turns.
 

@@ -130,7 +130,7 @@ export function SexAndGenderCard() {
         <Button variant="ghost" size="sm" disabled={save.isPending} onClick={() => setEditing(false)}>Cancel</Button>
       </div>
       {save.isError && (
-        <p role="alert" style={{ fontSize: 13, color: 'var(--red)', margin: '10px 0 0' }}>
+        <p role="alert" style={{ fontSize: 13, color: 'var(--danger-ink)', margin: '10px 0 0' }}>
           Couldn&rsquo;t save that just now. Try again in a moment.
         </p>
       )}

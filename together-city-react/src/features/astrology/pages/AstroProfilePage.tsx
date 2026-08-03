@@ -378,12 +378,17 @@ export function AstroProfilePage() {
 
   return (
     <div className="astro-frame" style={{ maxWidth: 780, margin: '0 auto' }}>
-      {/* The frame is a mat. Only the two lines that sit directly ON it are
-          re-coloured; every card inside keeps the app's ordinary light surface,
-          so nothing here can quietly become unreadable. */}
+      {/* THESE TWO LINES WERE CREAM, and the comment that used to sit here said
+          why: the frame was a dark celestial mat, and only the lines resting
+          directly ON it were re-coloured. The mat is white now, and cream on
+          white is nothing — the heading of this page was invisible.
+
+          They carry no colour at all now. `.eyebrow` and `h1` already know what
+          they should be, and a line that names its own colour is a line that
+          cannot follow the surface it is standing on. */}
       <div className="rise" style={{ marginBottom: 18 }}>
-        <div className="eyebrow" style={{ color: 'rgba(242,231,205,.72)' }}>Profile · Master Profile</div>
-        <h1 style={{ fontSize: 'clamp(24px,3vw,32px)', color: 'var(--accent-soft)' }}>Birth Details</h1>
+        <div className="eyebrow">Profile · Master Profile</div>
+        <h1 style={{ fontSize: 'clamp(24px,3vw,32px)' }}>Birth Details</h1>
       </div>
       <PrivacyNote hub="astrology" style={{ marginBottom: 16 }} />
       {view.isLoading && <Spinner label="Loading your details…" />}

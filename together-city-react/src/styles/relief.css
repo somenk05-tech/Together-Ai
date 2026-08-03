@@ -858,6 +858,54 @@ img[src$=".svg"], .no-case {
   .district-plate:hover .hub-plate-cta { transform: none; }
 }
 
+/* ══ A WALL OF PICTURES, IN THE HUB'S LANGUAGE ═══════════════════════════
+   The profile grid was 6px gutters and 8px corners — a contact sheet. Nothing
+   wrong with that, except it is the one screen in the application that does
+   not look like the rest of it, and it is the screen a citizen shows people.
+
+   THE TILES ARE CASED, NOT CROPPED. The universal image rule cannot help here:
+   the tile clips its own overflow, so a drop shadow on the picture is cut off
+   at the tile's edge and the rim never appears. The case has to be the TILE. */
+.social-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: clamp(8px, 1vw, 16px);
+}
+.social-tile {
+  position: relative; aspect-ratio: 1 / 1; overflow: hidden;
+  border-radius: var(--r-3); background: var(--well);
+  box-shadow: var(--e1);
+  transition: transform var(--dur-base) var(--spring), box-shadow var(--dur-base) var(--ease);
+}
+.social-tile:hover { transform: translateY(-3px); box-shadow: var(--e2); }
+.social-tile > img, .social-tile > video { width: 100%; height: 100%; object-fit: cover; }
+.social-tile::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: var(--case-rim-soft);
+}
+@media (max-width: 560px) { .social-grid { gap: 6px; } .social-tile { border-radius: var(--r-2); } }
+
+/* ── THE SHEET ────────────────────────────────────────────────────────────
+   Every overlay on this page dimmed the city with a brown-black scrim, which
+   is what you do when the thing behind is the content. Here the thing behind
+   is a wall of somebody's photographs, and darkening them to show one of them
+   is working against the page. The sheet lifts instead: the page stays lit,
+   frosted back, and the sheet floats three steps above it. */
+.sheet-ov {
+  position: fixed; inset: 0; z-index: 70; display: grid; padding: 16px; overflow: auto;
+  background: rgba(255,255,255,.72);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+.sheet-ov.is-centred { place-items: center; }
+.sheet-ov.is-top { place-items: start center; }
+.sheet {
+  background: var(--face-tall); border: 0; border-radius: var(--r-5);
+  box-shadow: var(--e3); padding: 20px 22px;
+  animation: sheetIn .28s var(--ease) both;
+}
+@keyframes sheetIn { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+
 /* ══ MOTION ══════════════════════════════════════════════════════════════
    A transform is not an animation, and the global reduced-motion rule only
    zeroes durations. Without this a hover still jumps 3px instantly, which is

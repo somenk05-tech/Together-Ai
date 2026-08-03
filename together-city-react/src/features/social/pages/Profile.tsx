@@ -77,7 +77,7 @@ function PostTile({ p }: { p: ProfilePost }) {
   // For videos, only a thumbnail image is ever loaded here (never the video file).
   const imgSrc = isVideo ? (first?.thumbUrl ?? null) : (first ? (first.thumbUrl || first.url) : null);
   return (
-    <div style={{ aspectRatio: '1/1', borderRadius: 8, overflow: 'hidden', position: 'relative', background: 'var(--paper)' }}>
+    <div className="social-tile">
       {imgSrc ? (
         <img src={imgSrc} alt={p.text ?? ''} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', background: isVideo ? 'var(--ink)' : undefined }} />
       ) : isVideo && first ? (
@@ -150,7 +150,7 @@ function PostLightbox({ post, category, onClose }: { post: Post; category?: stri
     </button>
   );
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,16,.62)', display: 'grid', placeItems: 'start center', padding: 16, zIndex: 70, overflow: 'auto' }}>
+    <div onClick={onClose} className="sheet-ov is-top">
       <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(600px,96vw)', margin: 'auto 0' }}>
         <PostCard post={post} manage
           onSetCover={(t) => setCover.mutate({ postId: post.id, time: t })}
@@ -283,7 +283,7 @@ function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'phot
         </div>
       )}
 
-      <div className="rise d1" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
+      <div className="rise d1 social-grid">
         {grid.map((p, i) => (
           arranging ? (
             <div
@@ -403,8 +403,8 @@ export function PublicProfileModal({ handle, onClose }: { handle: string; onClos
   const q = usePublicProfile(handle);
   const p = q.data as PublicProfile | undefined;
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,16,.5)', display: 'grid', placeItems: 'center', padding: 20, zIndex: 60 }}>
-      <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(460px,94vw)', maxHeight: '86vh', overflow: 'auto' }}>
+    <div onClick={onClose} className="sheet-ov is-centred">
+      <div onClick={(e) => e.stopPropagation()} className="sheet" style={{ width: 'min(460px,94vw)', maxHeight: '86vh', overflow: 'auto' }}>
         {q.isLoading && <Spinner label="Loading profile…" />}
         {q.isError && <p className="muted" style={{ fontSize: 13 }}>Couldn't load that profile.</p>}
         {p && (
@@ -469,7 +469,7 @@ function FollowButton({ userId, handle, iFollow }: { userId: string; handle: str
 /** Read-only post viewer for a public profile (no edit/delete/sort). */
 function ReadOnlyLightbox({ post, onClose, onOpenAuthor }: { post: Post; onClose: () => void; onOpenAuthor: (handle: string) => void }) {
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,16,.62)', display: 'grid', placeItems: 'start center', padding: 16, zIndex: 70, overflow: 'auto' }}>
+    <div onClick={onClose} className="sheet-ov is-top">
       <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(600px,96vw)', margin: 'auto 0' }}>
         <PostCard post={post} onOpenAuthor={onOpenAuthor} />
         <div style={{ textAlign: 'center' }}>
@@ -516,7 +516,7 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
   }
   return (
     <>
-      <div className="rise d1" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginTop: 16 }}>
+      <div className="rise d1 social-grid" style={{ marginTop: 16 }}>
         {view.map((p) => (
           <button key={p.id} type="button" onClick={() => setOpenId(p.id)}
             style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', font: 'inherit' }}>
@@ -688,8 +688,8 @@ function EditProfileModal({ me, onClose }: { me: MyProfile; onClose: () => void 
   const label: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: 'var(--muted)', display: 'block', margin: '12px 0 5px' };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,16,.5)', display: 'grid', placeItems: 'center', padding: 20, zIndex: 60 }}>
-      <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(500px,94vw)', maxHeight: '88vh', overflow: 'auto' }}>
+    <div onClick={onClose} className="sheet-ov is-centred">
+      <div onClick={(e) => e.stopPropagation()} className="sheet" style={{ width: 'min(500px,94vw)', maxHeight: '88vh', overflow: 'auto' }}>
         <div className="blk-head"><h3>Edit profile</h3></div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8 }}>
@@ -784,7 +784,7 @@ function EarnView({ posts }: { posts: ProfilePost[] }) {
         <div className="blk-head"><h3>The kinds of stories we mean</h3></div>
         <div style={{ marginTop: 10 }}>
           {TOPICS.map((t) => (
-            <span key={t} style={{ display: 'inline-block', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 999, padding: '5px 11px', fontSize: 12, margin: '0 6px 6px 0' }}>{t}</span>
+            <span key={t} className="tag" style={{ margin: '0 6px 6px 0' }}>{t}</span>
           ))}
         </div>
         <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>

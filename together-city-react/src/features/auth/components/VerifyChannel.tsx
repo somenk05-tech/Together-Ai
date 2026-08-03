@@ -161,7 +161,7 @@ export function VerifyChannel({ channel, current, onVerified, onCancel }: Verify
       {delivery === 'unconfigured' && (
         // The stub provider logs instead of sending. Saying "check your inbox"
         // here would cost somebody ten minutes and a support message.
-        <p role="status" style={{ ...errorStyle, background: 'var(--amber-soft)', color: 'var(--ink)' }}>
+        <p role="status" style={{ ...errorStyle, background: 'var(--warn-soft)', color: 'var(--ink)' }}>
           No {channel === 'phone' ? 'SMS' : 'email'} provider is configured on this
           environment, so nothing was actually delivered. The code is in the server log.
         </p>
@@ -201,7 +201,7 @@ const field: React.CSSProperties = {
 
 const errorStyle: React.CSSProperties = {
   fontSize: 13, margin: 0, padding: '10px 12px', borderRadius: 10,
-  background: 'var(--red-soft)', color: 'var(--red)', lineHeight: 1.5,
+  background: 'var(--danger-soft)', color: 'var(--danger-ink)', lineHeight: 1.5,
 };
 
 /** The server's message is the useful one — it knows why. */

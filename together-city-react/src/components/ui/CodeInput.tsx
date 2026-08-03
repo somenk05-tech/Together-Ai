@@ -106,9 +106,9 @@ export function CodeInput({
                 width: 44, height: 56, display: 'grid', placeItems: 'center',
                 fontSize: 24, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
                 borderRadius: 12,
-                border: `1.5px solid ${invalid ? 'var(--red)' : isActive ? palette.active : palette.idle}`,
+                border: `1.5px solid ${invalid ? 'var(--danger-ink)' : isActive ? palette.active : palette.idle}`,
                 background: disabled ? palette.idle : palette.bg,
-                color: invalid ? 'var(--red)' : palette.ink,
+                color: invalid ? 'var(--danger-ink)' : palette.ink,
                 transition: 'border-color .12s ease',
               }}
             >

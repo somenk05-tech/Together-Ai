@@ -367,6 +367,58 @@ describe('Relief stays a system', () => {
   });
 
   /**
+   * A WASH IS A BACKGROUND. IT IS NEVER TEXT.
+   *
+   * --accent-soft and the status washes are near-white by definition — they
+   * exist to sit BEHIND something. On the dark surfaces this design used to
+   * have, cream-on-black was correct, and the colour sweep did not catch these
+   * because they are tokens, not hexes. When those surfaces turned white the
+   * text turned invisible, and the page it happened to was the one whose
+   * heading says "Birth Details".
+   *
+   * Nothing failed. The typecheck passed, every test passed, the contrast
+   * audit passed — because none of them can see that a colour and its
+   * background became the same colour.
+   */
+  it('never paints text with a background wash', () => {
+    const WASH = /(?<![-\w])color:\s*'var\(--(accent-soft|ok-soft|warn-soft|danger-soft|info-soft|gold-soft|green-soft|blue-soft|rose-soft|purple-soft)\)'/;
+    // CookMode is a full-screen near-black theatre — the one surface in the
+    // application where a near-white wash IS the readable colour. It is named
+    // rather than pattern-matched, so it has to be re-argued if it changes.
+    const ON_A_DARK_STAGE = ['src/features/nutrition/components/CookMode.tsx'];
+    const offenders: string[] = [];
+    for (const file of PAGES) {
+      if (ON_A_DARK_STAGE.includes(file)) continue;
+      const m = stripTs(read(file)).match(new RegExp(WASH.source, 'g'));
+      if (m) offenders.push(`${file} → ${[...new Set(m)].join(' ')}`);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * AND NEAR-WHITE TEXT NEEDS SOMETHING DARK UNDER IT.
+   *
+   * Light type is correct on exactly one kind of surface in this design: a
+   * photograph with a scrim over it. Anywhere else it is the same defect as
+   * above wearing different syntax. A file that writes in near-white must also
+   * paint something dark — a scrim, a media background, or a dark gradient.
+   */
+  it('only writes in near-white where something dark is painted', () => {
+    const LIGHT = /color:\s*'rgba\(\s*2[0-5]\d\s*,\s*2[0-5]\d\s*,\s*2[0-5]\d/;
+    // A dark paint is not always a dark LITERAL. Workout's theatre is
+    // `linear-gradient(160deg, var(--ink), var(--ink))` — as black as it gets,
+    // and invisible to a regex that only knows hexes and rgba.
+    const DARK = /(--media-bg|var\(--ink\)|rgba\(\s*[0-2]?\d\s*,|#0[0-9a-f]|#1[0-9a-f])/i;
+    const offenders: string[] = [];
+    for (const file of PAGES) {
+      const src = stripTs(read(file));
+      if (!new RegExp(LIGHT.source).test(src)) continue;
+      if (!new RegExp(DARK.source, 'i').test(src)) offenders.push(file);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  /**
    * MOTION IS A PREFERENCE, AND A TRANSFORM IS NOT AN ANIMATION.
    *
    * The global reduced-motion rule only zeroes durations, so without this a
@@ -420,6 +472,44 @@ describe('Relief stays a system', () => {
    * system sans renders and everything looks nearly right. This is the only
    * place that failure becomes loud before a release.
    */
+  /**
+   * EVERY CUSTOM PROPERTY A SCREEN ASKS FOR IS ONE SOMEBODY DEFINED.
+   *
+   * `var(--surface-2)` survived the palette rewrite in two files. It does not
+   * fail: an undefined custom property with no fallback resolves to nothing, so
+   * the chip simply had no face and the transaction icon no disc, and both
+   * looked deliberate. That is the whole danger — a dead token is invisible,
+   * where a dead class at least leaves an unstyled element behind.
+   *
+   * A name counts as defined if ANYTHING declares it: tokens.css, any
+   * stylesheet, or a component setting it inline. A `var(--x, fallback)` is
+   * always fine, because the fallback is the definition.
+   */
+  it('never asks for a custom property nobody defines', () => {
+    const CSS = [tokens, relief, layout, index].map(strip);
+    const TS = PAGES.map((f) => stripTs(read(f)));
+
+    const defined = new Set<string>();
+    for (const text of [...CSS, ...TS]) {
+      for (const m of text.matchAll(/(--[\w-]+)\s*:/g)) defined.add(m[1]);
+      for (const m of text.matchAll(/'(--[\w-]+)'\s*:/g)) defined.add(m[1]);
+    }
+
+    const offenders: string[] = [];
+    const files: Array<[string, string]> = [
+      ['src/styles/tokens.css', CSS[0]], ['src/styles/relief.css', CSS[1]],
+      ['src/styles/layout.css', CSS[2]], ['src/index.css', CSS[3]],
+      ...PAGES.map((f, i) => [f, TS[i]] as [string, string]),
+    ];
+    for (const [name, text] of files) {
+      // Only a var() with NO fallback can resolve to nothing.
+      for (const m of text.matchAll(/var\(\s*(--[\w-]+)\s*\)/g)) {
+        if (!defined.has(m[1])) offenders.push(`${name}: ${m[1]}`);
+      }
+    }
+    expect([...new Set(offenders)]).toEqual([]);
+  });
+
   it('references a font file the build can actually serve', () => {
     const urls = [...strip(relief).matchAll(/url\('([^']+\.woff2)'\)/g)].map((m) => m[1]);
     expect(urls.length).toBeGreaterThan(0);
