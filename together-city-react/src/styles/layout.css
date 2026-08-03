@@ -734,3 +734,108 @@
   .tarot-solo-art { max-width: 260px; margin: 0 auto; }
   .tarot-solo-read { max-width: none; }
 }
+
+/* ═══════════════ Tarot — the whole page is the inside of a card ═══════════
+   The supplied border is a portrait tarot frame: four corner medallions (sun,
+   crescent, eye, full moon) and long dashed runs, with the middle of every edge
+   pure black.
+
+   THE FRAME IS FIXED TO THE VIEWPORT, NOT DRAWN ON THE PAGE. The page scrolls
+   for several screens; one border stretched over all of it would pull the
+   medallions into ribbons. Fixed, it frames whatever you are looking at, the
+   way a card frames whatever you are holding — and it costs nothing to scroll,
+   because it never moves.
+
+   AND IT IS A border-image, NOT A BACKGROUND. `background-size: 100% 100%` on a
+   landscape window would stretch a 1:2 artwork to 16:9 and turn every circular
+   medallion into an oval. border-image slices the four corners out and stretches
+   only the EDGES between them — and those edges are pure black in this artwork,
+   so the stretch is invisible. The corners keep their own proportions at every
+   window size, which is the one thing that has to be true.
+
+   The slice numbers are read off the artwork, not guessed: ink runs to y=540 at
+   the top and starts again at y=1153 of 1774, and to x=410 of 887 on each side.
+   640 and 420 clear both with margin and still leave a black strip in the
+   middle of each edge to stretch. Changing the artwork means re-measuring
+   these. */
+.tarot-frame {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;           /* it is decoration; nothing under it is blocked */
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(var(--tarot-fw) * 1.524) var(--tarot-fw);
+  border-image-source: url('/assets/img/tarot-frame.webp');
+  border-image-slice: 640 420;
+  border-image-repeat: stretch;
+}
+
+.tarot-night {
+  /* 1.524 is 640/420 — the corner slice's own aspect. The top and bottom
+     borders must stay in that ratio to the sides or the medallions squash. */
+  --tarot-fw: clamp(46px, 6.5vw, 124px);
+
+  /* The design system, re-pointed. Nothing below restyles a component: Card,
+     Tag, Button, EmptyState and Spinner all read these already. */
+  --paper: #05070c;
+  --card: rgba(255, 255, 255, .045);
+  --line: rgba(216, 178, 109, .22);
+  --ink: #f4ead4;
+  --ink-soft: rgba(244, 234, 212, .82);
+  --muted: rgba(244, 234, 212, .58);
+  --accent: #d8b26d;
+  --accent-soft: rgba(216, 178, 109, .14);
+  --gold-ink: #e0bd80;
+  --warn-ink: #e0a86a;
+  --danger-ink: #ef9a86;
+  --shadow: 0 18px 44px rgba(0, 0, 0, .45);
+  --shadow-deep: 0 26px 64px rgba(0, 0, 0, .6);
+
+  background: #05070c;
+  color: var(--ink-soft);
+  min-height: 100vh;
+  /* Clears the frame on every side. The top and bottom use the same 1.524 the
+     border does, so content can never slide under an ornament — the alternative
+     is two numbers that must be kept in step by hand, forever. */
+  padding: calc(var(--tarot-fw) * 1.524 + 14px) calc(var(--tarot-fw) + 16px);
+}
+
+/* The shell pads every child of the content column. Override that rule rather
+   than cancelling it with a negative margin — see letter-surface.test.ts for
+   what negative margins cost here. */
+/* ALL FOUR SIDES, because `.tc-shell .tc-main > *` sets the shorthand at higher
+   specificity than a single class — override only the left and right and the
+   shell keeps supplying the top, which is exactly where the ornament is. Both
+   values are computed from --tarot-fw, so the padding and the border cannot
+   drift apart. */
+.tc-shell .tc-main > .tarot-night {
+  padding: calc(var(--tarot-fw) * 1.524 + 14px) calc(var(--tarot-fw) + 16px);
+}
+
+/* Headings and prose on the night ground. */
+.tarot-night h1,
+.tarot-night h2,
+.tarot-night h3,
+.tarot-night h4 { color: var(--ink); }
+.tarot-night .muted { color: var(--muted); }
+
+/* A textarea is the one control that does not read the variables — its own
+   default background is white in every browser. */
+.tarot-night textarea,
+.tarot-night input[type='text'] {
+  background: rgba(255, 255, 255, .05);
+  color: var(--ink);
+  border-color: var(--line) !important;
+}
+.tarot-night textarea::placeholder { color: rgba(244, 234, 212, .38); }
+
+/* The revealed card art sits on its own dark ground already; the fan's backs
+   were drawn for a night surface from the start and need nothing. */
+.tarot-night .tarot-solo-art { box-shadow: 0 18px 44px rgba(0, 0, 0, .55); }
+
+@media (max-width: 560px) {
+  /* Under a phone's width the frame would eat the page, so it thins — and the
+     padding follows it, because both read the same custom property. */
+  .tarot-night { --tarot-fw: 34px; }
+}

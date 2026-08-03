@@ -64,7 +64,7 @@ const surfaceCss = (): string => {
  * one that has to be widened on purpose. A new bleeding surface adds its prefix
  * here, and that is a decision somebody makes rather than a net they fall into.
  */
-const BLEEDING_SURFACES = /^\.(letter|ask)-|^\.tc-shell \.tc-main > \.(letter|ask)/;
+const BLEEDING_SURFACES = /^\.(letter|ask|tarot-night|tarot-frame)-?|^\.tc-shell \.tc-main > \.(letter|ask|tarot)/;
 
 const rulesFor = (pattern: RegExp): Array<{ selector: string; body: string }> =>
   surfaceCss().replace(/\/\*[\s\S]*?\*\//g, ' ')

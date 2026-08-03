@@ -47,7 +47,7 @@ function CardFace({ card, index }: { card: TarotDrawnCard; index: number }) {
           {index + 1} · {card.position}
         </span>
         {card.reversed && (
-          <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: '#a4551f' }}>
+          <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--warn-ink)' }}>
             Reversed
           </span>
         )}
@@ -202,13 +202,12 @@ function DailyCard() {
     // app's ordinary light surface, so nothing here has to be re-coloured for a
     // dark ground and nothing can quietly become unreadable.
     <>
-    {/* ABOVE THE FRAME, NOT ON IT. The ornament has deep corner flourishes and
-        a crescent that hangs into the top edge, and the heading sat straight
-        across them — unreadable at some widths, and colliding at others. A
-        frame frames one thing; the label belongs outside it. */}
+    {/* NO FRAME AROUND THE CARD, BECAUSE THE PAGE IS THE FRAME. This used to sit
+        inside its own celestial border; the whole surface now carries one, and
+        a frame inside a frame is two ornaments arguing. */}
     <h3 className="astro-frame-heading">Card of the Day</h3>
     <p className="astro-frame-note">Free · one card, yours until midnight</p>
-    <div className="astro-frame">
+    <div style={{ marginBottom: 22 }}>
       <Card className="rise" style={{ padding: '26px 28px', marginBottom: 0 }}>
 
       {daily.isLoading && <Spinner label="Laying out the cards…" />}
@@ -243,7 +242,7 @@ function DailyCard() {
               Turning card {(turning ?? 0) + 1}…
             </p>
           )}
-          {error && <p style={{ color: '#c0392b', fontSize: 13, marginTop: 14 }}>{error}</p>}
+          {error && <p style={{ color: 'var(--danger-ink)', fontSize: 13, marginTop: 14 }}>{error}</p>}
           <Disclaimer text={d.disclaimer} />
         </>
       )}
@@ -332,7 +331,18 @@ export function AstroTarot() {
   };
 
   return (
-    <div>
+    /**
+     * THE WHOLE PAGE IS THE INSIDE OF A CARD.
+     *
+     * `.tarot-night` re-points the design system's own variables — --card,
+     * --line, --ink, --paper, --muted — rather than restyling anything. Every
+     * shared component inside it (Card, Tag, Button, EmptyState, Spinner)
+     * already reads those, so they follow the theme without one of them being
+     * touched. That is what the variables are for, and it is why this is a
+     * class on a wrapper and not a second copy of the component library.
+     */
+    <div className="tarot-night">
+      <div className="tarot-frame" aria-hidden />
       <AstroHeader
         title="Tarot"
         lede="A card a day, free — or ask a question and turn a full spread yourself. Nothing is dealt until you have turned every card. Every reading is reproducible: the same draw can be regenerated from its seed." />
@@ -436,7 +446,7 @@ export function AstroTarot() {
             </div>
           </>
         )}
-        {error && <p style={{ color: '#c0392b', fontSize: 13, marginTop: 10 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--danger-ink)', fontSize: 13, marginTop: 10 }}>{error}</p>}
       </Card>
 
       {result && (
@@ -499,7 +509,7 @@ export function AstroTarot() {
                           setDeleteError(Array.isArray(msg) ? msg.join(' ') : msg ?? 'It could not be deleted just now — it is still here.');
                         },
                       })}
-                      style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, color: '#c0392b', fontWeight: 600 }}>
+                      style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600 }}>
                       {removeReading.isPending ? 'Deleting…' : 'Yes, delete'}
                     </button>
                     <button type="button" onClick={() => { setConfirmId(null); setDeleteError(null); }}
@@ -517,7 +527,7 @@ export function AstroTarot() {
               {/* The server's own sentence, not ours — today's Card of the Day
                   is refused, and the reason is worth reading. */}
               {deleteError && confirmId === h.id && (
-                <p style={{ color: '#c0392b', fontSize: 12.5, marginTop: 10, lineHeight: 1.6 }} role="alert">{deleteError}</p>
+                <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 10, lineHeight: 1.6 }} role="alert">{deleteError}</p>
               )}
             </div>
           )}
