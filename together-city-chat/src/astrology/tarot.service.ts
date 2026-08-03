@@ -6,11 +6,22 @@ import { ClockService } from '../shared/clock/clock.service';
 import { FinancialService } from '../financial/financial.service';
 import { composeTarot, spreadSize, SPREAD_NAME, DISCLAIMER, type SpreadKind, type TarotReadingOut } from './tarot-content';
 
-/** Card of the Day is free; a spread you ask a question of is not. */
+/**
+ * What a spread costs. ALL THREE ARE FREE FOR NOW.
+ *
+ * The Celtic Cross was ₹149 and Past·Present·Future ₹49. The paywall came down
+ * across the whole hub — see the free path in drawSpread(), which does not call
+ * the financial service at all rather than calling it with a zero.
+ *
+ * These stay a Record rather than becoming a deleted concept: the prices are a
+ * product decision that has already changed once and will change again, and
+ * `spreads()` hands them to the client so a screen never holds its own opinion
+ * about what something costs.
+ */
 export const SPREAD_PRICE_INR: Record<SpreadKind, number> = {
   daily: 0,
-  three: 49,
-  celtic: 149,
+  three: 0,
+  celtic: 0,
 };
 
 /**
@@ -62,6 +73,7 @@ export class TarotService {
   private get db() {
     return this.prisma as unknown as {
       tarotReading: {
+        create: (a: unknown) => Promise<{ id: string }>;
         findUnique: (a: unknown) => Promise<TarotRow | null>;
         findFirst: (a: unknown) => Promise<TarotRow | null>;
         findMany: (a: unknown) => Promise<TarotRow[]>;
@@ -212,13 +224,34 @@ export class TarotService {
     if (question.length > 300) throw new BadRequestException('Keep the question under 300 characters.');
 
     const price = SPREAD_PRICE_INR[kind];
-    // Fail fast on an empty wallet rather than after the draw.
-    await this.financial.assertCanPay(userId, price, dto.method);
+    // Fail fast on an empty wallet rather than after the draw — but only when
+    // there is something to pay.
+    if (price > 0) await this.financial.assertCanPay(userId, price, dto.method);
 
     // Fresh entropy per draw: two identical questions must not deal identical
     // cards. Stored, so this specific reading stays reproducible forever.
     const seed = `tarot:${kind}:${userId}:${randomBytes(8).toString('hex')}`;
     const reading = composeTarot(kind, seed, question);
+    const data = {
+      userId, kind, period: null, question, seed,
+      readingJson: JSON.stringify(reading), priceInr: price,
+    };
+
+    /**
+     * A FREE SPREAD DOES NOT TOUCH THE WALLET AT ALL.
+     *
+     * Not `paid(..., amountInr: 0)`, which would be the smaller diff and the
+     * wrong one: assertCanPay still demands a linked card when the method is
+     * `card`, so a citizen with no card would be refused a free reading; and
+     * charge() would write a ₹0 line into the ledger, so every free draw would
+     * leave a transaction in the Financial hub that moved no money. A statement
+     * full of zero-rupee entries is a worse record than no entry.
+     */
+    if (price === 0) {
+      const free = await this.db.tarotReading.create({ data });
+      this.logger.log(`Tarot ${kind} for ${userId} · free · ${spreadSize(kind)} cards`);
+      return { ...reading, id: free.id, priceInr: 0 };
+    }
 
     const row = await this.financial.paid<{ id: string }>(
       userId,
@@ -232,12 +265,7 @@ export class TarotService {
       // deploy shouldn't fail to compile on that. The runtime client has it.
       (tx) => (tx as unknown as {
         tarotReading: { create(a: unknown): Promise<{ id: string }> };
-      }).tarotReading.create({
-        data: {
-          userId, kind, period: null, question, seed,
-          readingJson: JSON.stringify(reading), priceInr: price,
-        },
-      }),
+      }).tarotReading.create({ data }),
     );
 
     this.logger.log(`Tarot ${kind} for ${userId} · ₹${price} · ${spreadSize(kind)} cards`);

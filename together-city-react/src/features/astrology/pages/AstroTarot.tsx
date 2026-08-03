@@ -247,7 +247,7 @@ export function AstroTarot() {
                 border: `1.5px solid ${kind === o.kind ? 'var(--accent)' : 'var(--line)'}`,
               }}>
               <div style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 3 }}>{o.name}</div>
-              <div className="muted" style={{ fontSize: 12.5 }}>{o.cards} cards · ₹{o.priceInr}</div>
+              <div className="muted" style={{ fontSize: 12.5 }}>{o.cards} cards · {o.priceInr ? `₹${o.priceInr}` : 'Free'}</div>
             </button>
           ))}
         </div>
@@ -265,7 +265,7 @@ export function AstroTarot() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <Button variant="accent" disabled={draw.isPending || question.trim().length < 5} onClick={submit}>
-            {draw.isPending ? 'Drawing…' : `Draw ${chosen?.name ?? 'spread'} · ₹${chosen?.priceInr ?? 0}`}
+            {draw.isPending ? 'Drawing…' : `Draw ${chosen?.name ?? 'spread'}${chosen?.priceInr ? ` · ₹${chosen.priceInr}` : ''}`}
           </Button>
           <span className="muted" style={{ fontSize: 12 }}>{question.trim().length}/300</span>
         </div>

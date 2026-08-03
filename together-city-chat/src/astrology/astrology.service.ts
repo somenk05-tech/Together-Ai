@@ -24,7 +24,16 @@ export interface SaveAstroProfileDto {
 }
 export interface AskDto { topic: string; question: string; method?: 'wallet' | 'card' }
 
-export const ASK_PRICE_INR = 75;
+/**
+ * What a consultation costs. FREE FOR NOW — it was ₹75.
+ *
+ * Kept as a constant rather than deleted: the price is a product decision that
+ * has changed once and will change again, and the controller, the service and
+ * the screen all read it from here so none of them can hold a different
+ * opinion. The free path below skips the financial service entirely rather than
+ * charging a zero.
+ */
+export const ASK_PRICE_INR = 0;
 
 /**
  * A letter with the period it was written for.
@@ -454,12 +463,11 @@ export class AstrologyService {
     const local = this.userNow(row);
     const astro = scanMonth(chart, local.getUTCFullYear(), local.getUTCMonth() + 1);
 
-    // Charge FIRST (throws 400 on insufficient balance — nothing is stored).
-    // Pre-flight only: confirm the wallet can cover this BEFORE spending an AI
-    // call on it, so someone short of balance is told immediately rather than
-    // after a 1,600-token generation. The real charge happens below, with the
-    // answer, once there is something to charge for.
-    await this.financial.assertCanPay(userId, ASK_PRICE_INR, dto.method);
+    // Pre-flight only, and only when there is something to pay: confirm the
+    // wallet can cover this BEFORE spending an AI call on it, so someone short
+    // of balance is told immediately rather than after a 1,600-token
+    // generation. The real charge happens below, once there is an answer.
+    if (ASK_PRICE_INR > 0) await this.financial.assertCanPay(userId, ASK_PRICE_INR, dto.method);
 
     // Deterministic answer is the guaranteed floor; AI (when configured)
     // rewrites it in a more natural voice without changing what it says.
@@ -508,6 +516,29 @@ export class AstrologyService {
     // citizen billed ₹75 for a consultation they never received. Ordered this
     // way the worst case is that we absorb the cost of a generation nobody paid
     // for, which is ours to lose rather than theirs.
+    /**
+     * A FREE CONSULTATION DOES NOT TOUCH THE WALLET AT ALL.
+     *
+     * Not `paid(..., amountInr: 0)`: assertCanPay would still demand a linked
+     * card from anyone whose method is `card`, and charge() would write a ₹0
+     * line into the Financial hub for every consultation. A statement full of
+     * zero-rupee entries is a worse record than no entry.
+     *
+     * `payment` is omitted rather than reported as a zero charge, because there
+     * was no payment. The field is optional on the response for exactly this.
+     */
+    if (ASK_PRICE_INR === 0) {
+      const free = await this.db.astroQuestion.create({
+        data: { userId, topic: dto.topic, question: dto.question, answer, priceInr: 0 },
+      });
+      this.logger.log(`Astrology consultation for ${userId} · ${dto.topic} · free`);
+      return {
+        needsProfile: false as const,
+        id: free.id, topic: free.topic, question: free.question, answer: free.answer,
+        priceInr: free.priceInr, createdAt: free.createdAt,
+      };
+    }
+
     const { saved, payment } = await this.financial.paid(
       userId,
       {

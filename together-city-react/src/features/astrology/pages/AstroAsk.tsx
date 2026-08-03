@@ -7,7 +7,15 @@ const TOPICS = [
   'Career', 'Marriage', 'Relationships', 'Business', 'Investments', 'Education',
   'Children', 'Foreign Travel', 'Property', 'Health', 'Spiritual Growth',
 ];
-const PRICE = 75;
+/**
+ * What a consultation costs, mirrored from the API's ASK_PRICE_INR.
+ *
+ * Zero for now — the paywall across this hub came down. It is a constant rather
+ * than a removed concept because the price has changed once already; every
+ * place that mentions money on this screen asks it, so none of them can be left
+ * saying ₹75 when the server has stopped charging it.
+ */
+const PRICE: number = 0;
 /** The server's own rule, mirrored so the counter can say what it is:
  *  `question: z.string().min(10).max(600)` in astrology.controller.ts. */
 const MIN_CHARS = 10;
@@ -171,12 +179,13 @@ export function AstroAsk() {
                 <button type="button" className="ask-cta"
                   disabled={count < MIN_CHARS || tooLong || ask.isPending}
                   onClick={submit}>
-                  {ask.isPending ? 'Writing your answer…' : `Pay ₹${PRICE} & Ask →`}
+                  {ask.isPending ? 'Writing your answer…' : PRICE ? `Pay ₹${PRICE} & Ask →` : 'Ask →'}
                 </button>
 
                 <p className="ask-fineprint">
-                  Charged securely to your Together City Wallet. Your consultation will be
-                  permanently available inside My Questions.
+                  {PRICE
+                    ? 'Charged securely to your Together City Wallet. Your consultation will be permanently available inside My Questions.'
+                    : 'Free for now. Your consultation will be permanently available inside My Questions.'}
                 </p>
               </section>
 
