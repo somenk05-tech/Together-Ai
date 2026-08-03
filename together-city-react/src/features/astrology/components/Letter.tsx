@@ -5,11 +5,17 @@ import type { ReactNode } from 'react';
 export function LetterSky({ children }: { children: ReactNode }) {
   return (
     <section className="letter-sky">
-      <div className="letter-sky-body">{children}</div>
-      <picture>
+      {/* THE SKY GOES FIRST. It sat after the sign-off, which is where it made
+          sense when the letter was a night surface and the picture was the
+          ground the words were printed on — there was no "before" or "after",
+          only behind. On a white letter it became a strip of space after the
+          last line, and a picture below a signature is an afterthought. It is
+          the letterhead now: you see the sky, then you read the letter. */}
+      <picture className="letter-sky-frame">
         <source media="(max-width: 780px)" srcSet="/assets/img/guidance-sky-tall.webp" />
         <img className="letter-sky-art" src="/assets/img/guidance-sky-wide.webp" alt="" />
       </picture>
+      <div className="letter-sky-body">{children}</div>
     </section>
   );
 }

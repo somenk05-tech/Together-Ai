@@ -95,9 +95,22 @@
   content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px;
   background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: .34;
 }
+/* A 3:1 letterhead, not a 9:1 strip. At clamp(...,210px) on a 1100px letter the
+   sky was a 5:1 ribbon — too short to read as a picture and too tall to read as
+   a rule. Aspect-ratio lets it scale with the letter instead of holding one
+   height at every width. */
+.letter-sky-frame {
+  display: block; position: relative; border-radius: var(--r-3);
+  background: var(--well); box-shadow: var(--carve-deep);
+  overflow: hidden; margin-bottom: clamp(20px, 2.4vw, 30px);
+}
+.letter-sky-frame::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: var(--case-rim);
+}
 .letter-sky-art {
-  display: block; width: 100%; height: clamp(120px, 16vw, 210px); object-fit: cover;
-  border-radius: var(--r-3); margin-bottom: clamp(22px, 3vw, 34px);
+  display: block; width: 100%; aspect-ratio: 3 / 1; max-height: 300px; object-fit: cover;
+  border-radius: inherit;
 }
 .letter-sky-body { position: relative; z-index: 1; max-width: 68ch; }
 .letter-sky .letter-open { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-bottom: 18px; }
@@ -213,7 +226,7 @@
    Backs are raised cards; a card you have turned is pressed into the table.
    ═══════════════════════════════════════════════════════════════════════════ */
 .tarot-fan { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 26px 0; }
-.tarot-back { width: 92px; aspect-ratio: 1 / 1.72; border: 0; background: none; padding: 0; cursor: pointer; perspective: 900px; }
+.tarot-back { width: 92px; aspect-ratio: var(--tarot-card); border: 0; background: none; padding: 0; cursor: pointer; perspective: 900px; }
 .tarot-back:focus-visible { outline: none; }
 .tarot-back:focus-visible .tarot-back-face { box-shadow: var(--e2), 0 0 0 3px rgba(0,0,0,.16); }
 .tarot-back-face {
@@ -228,7 +241,7 @@
 @media (max-width: 560px) { .tarot-back { width: 68px; } }
 
 .tarot-table { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
-.tarot-pick { width: 108px; aspect-ratio: 1 / 1.72; border: 0; background: none; padding: 0; cursor: pointer; }
+.tarot-pick { width: 108px; aspect-ratio: var(--tarot-card); border: 0; background: none; padding: 0; cursor: pointer; }
 .tarot-pick.is-turned .tarot-back-face { background: var(--well); box-shadow: var(--press); transform: none; }
 .tarot-pick-no { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
 
@@ -236,7 +249,11 @@
    is `contain` and not `cover` — cropping would cut the frame off. A carved
    case around it would be a frame inside a frame, so the art gets the shell
    and the well but NOT a second rim: .case-flat, not .case. */
-.tarot-art { display: block; width: 100%; aspect-ratio: 1 / 1.72; object-fit: contain; border-radius: 8px; background: var(--well); }
+/* cover, NOT contain. In a row every card must be the same size or the spread
+   reads as a mistake, and `contain` inside a uniform box is what put each card
+   in a letterbox. The outliers lose a little from their edges; the alternative
+   is 78 cards in 78 different frames. */
+.tarot-art { display: block; width: 100%; aspect-ratio: var(--tarot-card); object-fit: cover; border-radius: 8px; background: var(--well); }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -281,7 +298,10 @@
   background: var(--face); box-shadow: var(--e3); position: relative;
 }
 .tarot-solo-art::before { content: ''; position: absolute; inset: 8px; border-radius: calc(var(--r-3) - 8px); box-shadow: var(--carve); pointer-events: none; }
-.tarot-solo-art img { display: block; width: 100%; aspect-ratio: 1 / 1.72; object-fit: contain; border-radius: calc(var(--r-3) - 8px); position: relative; }
+/* THE ONE CARD ON THE PAGE KEEPS ITS OWN SHAPE. Nothing sits beside it, so
+   there is no grid to keep, and `height: auto` means the frame IS the picture —
+   filled top to bottom by construction, with nothing cropped off a painting. */
+.tarot-solo-art img { display: block; width: 100%; height: auto; border-radius: calc(var(--r-3) - 8px); position: relative; }
 .tarot-solo-glyph { width: 54px; height: 54px; border-radius: 50%; background: var(--well); box-shadow: var(--carve); display: grid; place-items: center; font-size: 21px; color: var(--ink-soft); }
 .tarot-solo-eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: var(--faint); }
 .tarot-solo-rev { font-size: 11.5px; font-weight: 700; color: var(--warn-ink); }

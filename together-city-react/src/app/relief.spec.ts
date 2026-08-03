@@ -321,6 +321,52 @@ describe('Relief stays a system', () => {
   });
 
   /**
+   * THE CARD SHAPE IS MEASURED FROM THE CARDS.
+   *
+   * --tarot-card was 1 / 1.72 — the proportions of a real tarot card, and a
+   * perfectly reasonable thing to type. The 78 artwork files are not that
+   * shape: their ratios run from 0.607 to 1.809. Held in a 1:1.72 box the
+   * typical card floated in a letterbox with a third of the frame empty.
+   *
+   * This reads the actual files. If the deck is re-cut, or a card is replaced
+   * with a differently-shaped one, the token has to move with it — which is a
+   * thing nobody would otherwise notice until it was on a screen.
+   */
+  it('shapes the tarot card from the artwork that ships', () => {
+    const dir = join(APP, 'public/assets/img/tarot');
+    const files = readdirSync(dir).filter((f) => f.endsWith('.webp'));
+    expect(files.length).toBe(78);
+
+    const ratios = files.map((f) => {
+      const b = readFileSync(join(dir, f));
+      const tag = b.subarray(12, 16).toString('latin1');
+      let w = 0, h = 0;
+      if (tag === 'VP8X') { w = b.readUIntLE(24, 3) + 1; h = b.readUIntLE(27, 3) + 1; }
+      else if (tag === 'VP8 ') { w = b.readUInt16LE(26) & 0x3fff; h = b.readUInt16LE(28) & 0x3fff; }
+      else if (tag === 'VP8L') { const n = b.readUInt32LE(21); w = (n & 0x3fff) + 1; h = ((n >> 14) & 0x3fff) + 1; }
+      return h / w;
+    }).filter((r) => Number.isFinite(r) && r > 0).sort((a, b) => a - b);
+
+    const median = ratios[Math.floor(ratios.length / 2)];
+    const declared = strip(tokens).match(/--tarot-card:\s*1\s*\/\s*([\d.]+)/);
+    expect(declared, '--tarot-card is not declared as `1 / n`').toBeTruthy();
+    // Within 10% of the median: close enough that most cards fill their frame,
+    // loose enough that re-exporting the deck does not fail the build over a
+    // rounding difference.
+    expect(Math.abs(Number(declared![1]) - median) / median).toBeLessThan(0.1);
+  });
+
+  /**
+   * AND NOTHING HARD-CODES IT BESIDE THE TOKEN, or a back and a face disagree
+   * and the card changes shape as it turns.
+   */
+  it('shares one card shape between the backs and the faces', () => {
+    const tarot = strip(layout).split('\n').filter((l) => /tarot/.test(l) && /aspect-ratio/.test(l));
+    expect(tarot.length).toBeGreaterThanOrEqual(3);
+    expect(tarot.filter((l) => !l.includes('var(--tarot-card)'))).toEqual([]);
+  });
+
+  /**
    * MOTION IS A PREFERENCE, AND A TRANSFORM IS NOT AN ANIMATION.
    *
    * The global reduced-motion rule only zeroes durations, so without this a

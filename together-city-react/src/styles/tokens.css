@@ -171,6 +171,17 @@
 
   --header-h: 78px;
 
+  /* THE CARD SHAPE, IN ONE PLACE, because a back and a face that disagree means
+     a card changes shape as it turns.
+
+     1 / 1.14 IS MEASURED, NOT CHOSEN. A tarot card is 1 : 1.72 and that is what
+     this was — but the 78 artwork files are not tarot-shaped. Their height/width
+     ratios run from 0.607 (pentacles-4 is landscape) to 1.809 (major-0), with a
+     median of 1.14. Held in a 1:1.72 box with object-fit: contain, the typical
+     card floated in the middle of a tall white frame with a third of the box
+     empty above and below it. No box fits all 78; this one fits most of them. */
+  --tarot-card: 1 / 1.14;
+
   /* ── ONE TYPEFACE ───────────────────────────────────────────────────────
      General Sans, self-hosted. --serif and --mono still exist because they are
      read in a few dozen places, and they resolve to the same family: a heading
