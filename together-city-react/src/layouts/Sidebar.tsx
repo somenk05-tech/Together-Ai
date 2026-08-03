@@ -21,12 +21,15 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
 
   // Nutrition and Family Nutrition are the two modes of one experience.
   const showModeTabs = hub.key === 'nutrition' || hub.key === 'family';
-  const modeTab = (active: boolean): React.CSSProperties => ({
+  // GEOMETRY ONLY — the material is `.mode-tab` in relief.css. This used to
+  // fill itself with var(--accent-soft) and write in var(--accent), which put a
+  // green panel and green type in a sidebar on a page where a hub's colour is
+  // a dot and a hairline. Selected is now CARVED, like every other thing in
+  // this application that is set rather than pressed.
+  const modeTab = (): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
-    padding: '13px 16px', borderRadius: 12, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-    fontSize: 16, fontWeight: 600, marginBottom: 4,
-    background: active ? 'var(--accent-soft)' : 'transparent',
-    color: active ? 'var(--accent)' : 'var(--ink)',
+    padding: '13px 16px', cursor: 'pointer', fontFamily: 'inherit',
+    fontSize: 16, marginBottom: 4,
   });
 
   return (
@@ -37,10 +40,12 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
 
       {showModeTabs && (
         <div style={{ borderTop: '1px solid var(--line)', margin: '14px 0', paddingTop: 14 }}>
-          <button type="button" style={modeTab(hub.key === 'nutrition')} onClick={() => { navigate('/nutrition/blood'); toggle(false); }}>
+          <button type="button" className="mode-tab" aria-pressed={hub.key === 'nutrition'}
+            style={modeTab()} onClick={() => { navigate('/nutrition/blood'); toggle(false); }}>
             <PersonIcon /> Individual
           </button>
-          <button type="button" style={modeTab(hub.key === 'family')} onClick={() => { navigate('/family'); toggle(false); }}>
+          <button type="button" className="mode-tab" aria-pressed={hub.key === 'family'}
+            style={modeTab()} onClick={() => { navigate('/family'); toggle(false); }}>
             <PeopleIcon /> Family
           </button>
         </div>

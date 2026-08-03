@@ -14,20 +14,20 @@ export interface HubConfig {
 
 /** Header tabs — ported 1:1 from tc.js NAV (order preserved). */
 export const NAV: NavItem[] = [
-  { key: 'travel', label: 'TRAVEL', path: '/travel' },
-  { key: 'astrology', label: 'ASTROLOGY', path: '/astrology' },
-  { key: 'nutrition', label: 'NUTRITION', path: '/nutrition' },
-  { key: 'entertainment', label: 'ENTERTAINMENT', path: '/entertainment' },
-  { key: 'social', label: 'SOCIAL LIFE', path: '/social' },
-  { key: 'dating', label: 'DATING', path: '/dating' },
-  { key: 'realestate', label: 'REAL ESTATE', path: '/realestate' },
-  { key: 'jobs', label: 'JOBS', path: '/jobs' },
-  { key: 'medical', label: 'MEDICAL', path: '/medical' },
-  { key: 'financial', label: 'FINANCIAL', path: '/financial' },
-  { key: 'beauty', label: 'BEAUTY', path: '/beauty' },
-  { key: 'fitness', label: 'FITNESS', path: '/fitness' },
-  { key: 'cars', label: 'CARS', path: '/cars' },
-  { key: 'mail', label: 'MAIL', path: '/mail' },
+  { key: 'travel', label: 'Travel', path: '/travel' },
+  { key: 'astrology', label: 'Astrology', path: '/astrology' },
+  { key: 'nutrition', label: 'Nutrition', path: '/nutrition' },
+  { key: 'entertainment', label: 'Entertainment', path: '/entertainment' },
+  { key: 'social', label: 'Social life', path: '/social' },
+  { key: 'dating', label: 'Dating', path: '/dating' },
+  { key: 'realestate', label: 'Real estate', path: '/realestate' },
+  { key: 'jobs', label: 'Jobs', path: '/jobs' },
+  { key: 'medical', label: 'Medical', path: '/medical' },
+  { key: 'financial', label: 'Financial', path: '/financial' },
+  { key: 'beauty', label: 'Beauty', path: '/beauty' },
+  { key: 'fitness', label: 'Fitness', path: '/fitness' },
+  { key: 'cars', label: 'Cars', path: '/cars' },
+  { key: 'mail', label: 'Mail', path: '/mail' },
 ];
 
 /** Hub metadata — names/taglines ported 1:1 from tc.js SIDE. */

@@ -215,6 +215,80 @@ describe('Relief stays a system', () => {
   });
 
   /**
+   * THE STYLESHEET DOES NOT STYLE CLASSES THE MARKUP DOES NOT HAVE.
+   *
+   * `.n` is the sidebar's number badge and `.l` is its label. They were styled
+   * as one rule once — because `.l` looked like it meant "the little icon" —
+   * and the label inherited a 30x30 box, so every menu word wrapped inside a
+   * square and printed on top of its own sub-line. Nothing failed: not the
+   * typecheck, not the tests, not a single audit. A class name is a contract
+   * between two files that never import each other, and this is the only thing
+   * that can check it.
+   */
+  it('only styles shell classes the shell actually renders', () => {
+    const SHELL = ['src/layouts/Sidebar.tsx', 'src/layouts/Header.tsx',
+      'src/layouts/QuickActions.tsx', 'src/components/BottomNav.tsx'];
+    const markup = SHELL.map(read).join('\n');
+    // Class names arrive three ways in this shell: a literal className, a
+    // ternary on isActive, and a template literal for the drawer's `open`. Any
+    // quoted token in the file counts as rendered — loose on purpose, because
+    // the defect worth catching is a class the component never mentions AT ALL.
+    // TWO PASSES, because the drawer's open state is written
+    // `className={`tc-side${open ? ' open' : ''}`}` — the class name lives in a
+    // single-quoted string INSIDE a template expression. Strip the `${…}` and
+    // it disappears; read the backticks naively and the whole expression parses
+    // as one token. So: ordinary quotes first, backticks separately.
+    const quoted = [...markup.matchAll(/['"]([^'"\n]{0,60})['"]/g)].map((m) => m[1]);
+    const templated = [...markup.matchAll(/`([^`]{0,200})`/g)]
+      .map((m) => m[1].replace(/\$\{[^}]*\}/g, ' '));
+    const rendered = new Set([...quoted, ...templated]
+      .flatMap((t) => t.split(/\s+/))
+      .filter(Boolean));
+    const offenders: string[] = [];
+    for (const css of [relief, layout]) {
+      // Only descendants of the shell containers — a global `.card` is not a
+      // claim about what Sidebar.tsx renders.
+      for (const m of strip(css).matchAll(/\.(side-menu|tc-nav|tc-actions|tc-actionbar|tc-side|tc-logo)\b[^{,]*?\.([a-z][a-z0-9-]*)/g)) {
+        if (!rendered.has(m[2])) offenders.push(`.${m[1]} … .${m[2]}`);
+      }
+    }
+    expect([...new Set(offenders)]).toEqual([]);
+  });
+
+  /**
+   * THE SHELL DOES NOT SET ITS OWN MATERIAL FROM A STYLE PROP.
+   *
+   * `background: 'transparent'` in a style attribute beats every stylesheet in
+   * the cascade, no matter how it is layered. The header's quick-action pills
+   * carried exactly that, so they rendered with the RIM of --e1 and none of
+   * its lit face — flat, on a page where everything else stood up, and
+   * unfixable from CSS. Geometry may live in a style prop. Material may not.
+   */
+  it('leaves the shell material to the stylesheet', () => {
+    const SHELL = ['src/layouts/Sidebar.tsx', 'src/layouts/Header.tsx',
+      'src/layouts/QuickActions.tsx', 'src/components/BottomNav.tsx'];
+    // NOT ALL INLINE STYLE IS THE PROBLEM. `boxShadow: 'var(--e3)'` in a style
+    // prop cannot contradict the system — it IS the system, written somewhere
+    // inconvenient. What breaks the material layer is a value the stylesheet
+    // can never beat: `transparent`, a raw hex, or shouting. Those three, and
+    // only those three, are what this refuses.
+    const BAD = [
+      [/\b(background|backgroundColor)\s*:\s*[^,}\n]*['"]transparent['"]/g, "background: 'transparent'"],
+      [/\b(background|backgroundColor|boxShadow|color)\s*:\s*['"]#[0-9a-fA-F]{3,8}['"]/g, 'a raw colour'],
+      [/\btextTransform\s*:\s*['"]uppercase['"]/g, "textTransform: 'uppercase'"],
+      [/\bletterSpacing\s*:/g, 'letterSpacing'],
+    ] as const;
+    const offenders: string[] = [];
+    for (const file of SHELL) {
+      const src = stripTs(read(file));
+      for (const [re, what] of BAD) {
+        if (new RegExp(re.source).test(src)) offenders.push(`${file}: ${what}`);
+      }
+    }
+    expect([...new Set(offenders)]).toEqual([]);
+  });
+
+  /**
    * MOTION IS A PREFERENCE, AND A TRANSFORM IS NOT AN ANIMATION.
    *
    * The global reduced-motion rule only zeroes durations, so without this a

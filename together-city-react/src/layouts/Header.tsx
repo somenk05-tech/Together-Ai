@@ -71,10 +71,12 @@ function NotificationBell() {
   return (
     <div ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
       <button type="button" aria-label="Notifications" onClick={toggle}
-        style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
-          fontSize: 'var(--chip-fs)', letterSpacing: '.05em', fontWeight: 600, textTransform: 'uppercase', padding: 0,
-          border: 'none', color: 'var(--ink)', background: 'transparent', cursor: 'pointer' }}>
-        <Icon name="bell" size={17} /> <span className="lab">ALERTS</span>
+        // Geometry only — see the note on QuickActions' `pill`. `padding: 0` and
+        // `background: transparent` here beat relief.css and flattened this
+        // button against a page where everything else was raised.
+        style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6,
+          fontFamily: 'inherit', cursor: 'pointer' }}>
+        <Icon name="bell" size={17} /> <span className="lab">Alerts</span>
         <Badge count={unread.data ?? 0} />
       </button>
       {open && (
@@ -91,7 +93,8 @@ function NotificationBell() {
           ) : items.slice(0, 20).map((n) => (
             <button key={n.id} type="button" onClick={() => openItem(n.id, n.href, n.read)}
               style={{ display: 'flex', gap: 10, width: '100%', textAlign: 'left', padding: '11px 14px', border: 'none', borderBottom: '1px solid var(--line)',
-                background: n.read ? 'transparent' : 'var(--accent-soft)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                background: n.read ? undefined : 'var(--well)', boxShadow: n.read ? undefined : 'var(--carve)',
+                cursor: 'pointer', fontFamily: 'inherit' }}>
               <Icon name={ICON_FOR[n.kind] ?? 'bell'} size={16} style={{ marginTop: 1, color: 'var(--accent-ink)' }} />
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 13, fontWeight: n.read ? 500 : 700 }}>{n.title}</span>
@@ -101,7 +104,7 @@ function NotificationBell() {
             </button>
           ))}
           <button type="button" onClick={() => { setOpen(false); nav('/social/notifications'); }}
-            style={{ display: 'block', width: '100%', textAlign: 'center', padding: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--accent-ink)', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }}>
+            style={{ display: 'block', width: '100%', textAlign: 'center', padding: '11px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink)', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }}>
             See all notifications →
           </button>
         </div>
@@ -128,7 +131,7 @@ export function Header() {
         <button className="tc-burger" aria-label="Open menu" onClick={() => toggleSidebar()}><Icon name="menu" size={20} /></button>
         <Link to="/" className="tc-logo">
           <span className="mark"><img src="/assets/img/tc-logo.png" alt="Together City" width={34} height={34} /></span>
-          <span className="word">TOGETHER CITY</span>
+          <span className="word">Together City</span>
         </Link>
       </div>
       {/* Row 2 — hub tabs (left) + People · Mail · Chat · Alerts · Profile (right), one line. */}
@@ -159,11 +162,11 @@ export function Header() {
             <>
               {/* A visitor gets doors that open (consumer review #10) — not four
                   buttons that each end at the login wall. */}
-              <Link to="/sign-in" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--chip-fs)', letterSpacing: '.05em', fontWeight: 600, textTransform: 'uppercase' }}>
-                <Icon name="user" size={17} /> <span className="lab">SIGN IN</span>
+              <Link to="/sign-in" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="user" size={17} /> <span className="lab">Sign in</span>
               </Link>
-              <Link to="/sign-up" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--chip-fs)', letterSpacing: '.06em', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent-ink)' }}>
-                JOIN THE CITY
+              <Link to="/sign-up" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                Join the city
               </Link>
             </>
           )}

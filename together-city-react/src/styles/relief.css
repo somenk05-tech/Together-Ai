@@ -491,10 +491,16 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
    shadow, and the content is pushed off them by a gutter rather than by a
    colour change.                                                            */
 .tc-header {
-  background: var(--face);
+  background: var(--face-tall);
   border-bottom: 0;
-  box-shadow: var(--e1);
+  box-shadow: var(--e2);
   color: var(--ink);
+}
+/* A key 30px tall has almost no face to light. --face-2 has more travel between
+   its top and bottom than --face, which is the difference between a pill you
+   can see standing up and a rounded rectangle with a hairline round it. */
+.tc-nav a, .tc-actionbar a, .tc-actionbar button, .tc-actions a, .tc-actions button {
+  background: var(--face-2);
 }
 .tc-logo .word { color: var(--ink); font-weight: 700; letter-spacing: -.03em; }
 .tc-logo .mark {
@@ -520,11 +526,15 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .tc-nav a.on, .side-menu a.active {
   background: var(--well); box-shadow: var(--carve); color: var(--ink); font-weight: 700; transform: none;
 }
-.side-menu a.active .n, .side-menu a.active .s, .tc-nav a.on { color: var(--ink); }
-.side-menu a .l {
-  background: var(--face-2); box-shadow: var(--e1); border-radius: 9px;
+.side-menu a.active .l, .tc-nav a.on { color: var(--ink); }
+.side-menu a.active .s { color: var(--muted); }
+/* THE BADGE IS THE NUMBER, NOT THE LABEL. `.n` carries the index; `.l` carries
+   the words. Giving `.l` the badge treatment put every menu label inside a
+   30px box. */
+.side-menu a .n {
+  background: var(--face-2); box-shadow: var(--e1); border-radius: 9px; color: var(--muted);
 }
-.side-menu a.active .l { background: var(--well); box-shadow: var(--press); }
+.side-menu a.active .n { background: var(--well); box-shadow: var(--press); color: var(--ink); }
 
 .tc-side {
   background: var(--face-tall); border-right: 0; box-shadow: var(--e2);
@@ -534,9 +544,6 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .tc-side .hubtag { color: var(--faint); }
 .tc-side .back { color: var(--muted); }
 .tc-side .back:hover { color: var(--ink); }
-/* The help card is the one carved surface in the rail — it is not something
-   you press, it is something somebody left there for you. */
-.tc-side .helpcard { background: var(--well); box-shadow: var(--carve); border: 0; }
 
 .tc-actionbar, .tc-actions { color: var(--ink-soft); }
 .tc-actionbar a, .tc-actionbar button, .tc-actions a, .tc-actions button {
@@ -546,9 +553,33 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .tc-actionbar a:active, .tc-actionbar button:active, .tc-actions a:active, .tc-actions button:active { background: var(--well); box-shadow: var(--press); transform: translateY(1px); }
 
 .tc-bottomnav {
-  background: var(--face); border-top: 0; box-shadow: var(--e2);
+  background: var(--face-tall); border-top: 0; box-shadow: var(--e2);
+  gap: 6px; padding: 6px 8px;
 }
-.tc-bottomnav .on { color: var(--ink); font-weight: 700; }
+.tc-bottomnav a, .tc-bottomnav button {
+  border-radius: var(--r-2); background: var(--face-2); box-shadow: var(--e1);
+  color: var(--muted); font-size: 10.5px; font-weight: 600; letter-spacing: 0; border: 0;
+  transition: box-shadow var(--dur-base) var(--ease), color var(--dur-fast) linear;
+}
+.tc-bottomnav a:active, .tc-bottomnav button:active { background: var(--well); box-shadow: var(--press); }
+.tc-bottomnav .on { background: var(--well); box-shadow: var(--carve); color: var(--ink); font-weight: 700; }
+
+/* The scope toggle in the Nutrition rail. Raised is "you can switch to this";
+   carved is "this is the one you are in" — the same sentence the nav keys
+   speak, so a citizen only has to learn it once. */
+.mode-tab {
+  border-radius: var(--r-2); background: var(--face); box-shadow: var(--e1);
+  color: var(--ink); font-weight: 600; border: 0;
+  transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--spring);
+}
+.mode-tab:hover { transform: translateY(-1.5px); box-shadow: var(--e2); }
+.mode-tab[aria-pressed="true"] {
+  background: var(--well); box-shadow: var(--carve); transform: none; font-weight: 700;
+}
+.mode-tab[aria-pressed="true"]::after {
+  content: ''; margin-left: auto; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); box-shadow: var(--pip);
+}
 
 .tc-footer { border-top: 1px solid var(--line); background: var(--ground); color: var(--muted); }
 .tc-main, .tc-shell { background: var(--ground); }

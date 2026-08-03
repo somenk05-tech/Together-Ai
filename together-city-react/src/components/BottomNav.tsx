@@ -22,10 +22,12 @@ export function BottomNav() {
   const hidden = /^\/(sign-in|sign-up|reels|calls?)(\/|$)/.test(location.pathname) || location.pathname === '/';
   if (!user || hidden) return null;
 
+  // GEOMETRY ONLY — `.tc-bottomnav a/button` in relief.css owns the material.
+  // `background: 'transparent'` here beat the stylesheet and left these keys
+  // with a rim and no lit face, which is what flat looks like.
   const item: React.CSSProperties = {
     flex: 1, minHeight: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    gap: 2, fontSize: 10.5, fontWeight: 600, letterSpacing: '.04em', color: 'var(--muted)', textDecoration: 'none',
-    background: 'transparent', border: 'none', fontFamily: 'inherit', cursor: 'pointer',
+    gap: 2, textDecoration: 'none', fontFamily: 'inherit', cursor: 'pointer',
   };
 
   return (

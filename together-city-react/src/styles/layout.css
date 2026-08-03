@@ -5,7 +5,7 @@
    the old file mixed "the header is 78px tall" with "the header is white",
    so changing the material meant editing the layout.
    ================================================================== */
-.tc-header { --chip-fs: 11px; position: fixed; top: var(--safe-top); left: 0; right: 0; height: var(--header-h); z-index: 100; display: flex; flex-direction: column; justify-content: space-between; gap: 3px; padding: 8px 24px 2px; color: var(--ink); }
+.tc-header { --chip-fs: 12.5px; position: fixed; top: var(--safe-top); left: 0; right: 0; height: var(--header-h); z-index: 100; display: flex; flex-direction: column; justify-content: space-between; gap: 3px; padding: 8px 24px 2px; color: var(--ink); }
 /* Two-row header: Row 1 centred logo · Row 2 hub tabs (left) + actions (right) on one line.
    The burger is pinned left on Row 1 (mobile) without shifting the centred logo. */
 .tc-header-top { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 34px; }
@@ -22,13 +22,13 @@
 /* NOT UPPERCASE ANY MORE. Twelve shouted words in a row is a wall of caps that
    nobody reads as twelve separate places; sentence case plus depth does the
    same job and stays legible at --chip-fs 9px on a narrow desktop. */
-.tc-nav a { font-size: var(--chip-fs); letter-spacing: 0; font-weight: 600; padding: 5px 11px; white-space: nowrap; text-transform: none; }
+.tc-nav a { font-size: var(--chip-fs); letter-spacing: -.005em; font-weight: 500; height: 30px; display: inline-flex; align-items: center; padding: 0 13px; white-space: nowrap; text-transform: none; }
 .tc-actionbar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-left: auto; }
 .tc-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.tc-actionbar a, .tc-actions a, .tc-actions button { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; font-size: var(--chip-fs); letter-spacing: 0; font-weight: 600; white-space: nowrap; text-transform: none; position: relative; }
+.tc-actionbar a, .tc-actionbar button, .tc-actions a, .tc-actions button { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; font-size: var(--chip-fs); letter-spacing: 0; font-weight: 600; white-space: nowrap; text-transform: none; position: relative; }
 /* keep all 12 sectors + actions on one line — shrink tabs/gaps on narrower desktops */
-@media (max-width: 1560px) { .tc-header { --chip-fs: 10px; } .tc-navrow { gap: 14px; } .tc-nav { gap: 5px; padding-left: 24px; } .tc-actionbar, .tc-actions { gap: 8px; } }
-@media (max-width: 1340px) { .tc-header { --chip-fs: 9px; } .tc-navrow { gap: 12px; } .tc-nav { gap: 4px; padding-left: 14px; } .tc-actionbar, .tc-actions { gap: 6px; } }
+@media (max-width: 1560px) { .tc-header { --chip-fs: 11.5px; } .tc-navrow { gap: 14px; } .tc-nav { gap: 5px; padding-left: 24px; } .tc-actionbar, .tc-actions { gap: 8px; } }
+@media (max-width: 1340px) { .tc-header { --chip-fs: 10.5px; } .tc-navrow { gap: 12px; } .tc-nav { gap: 4px; padding-left: 14px; } .tc-actionbar, .tc-actions { gap: 6px; } }
 .tc-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; overflow: hidden; }
 
 .tc-main { padding-top: calc(var(--header-h) + var(--safe-top)); min-height: 100vh; }
@@ -41,10 +41,13 @@
 .tc-side .hubname { padding: 0 26px 4px; font-size: 21px; font-weight: 700; letter-spacing: -.03em; }
 .tc-side .hubtag { padding: 0 26px 22px; font-size: 12px; margin-bottom: 16px; }
 .side-menu a { display: flex; align-items: center; gap: 13px; padding: 11px 14px; margin: 3px 14px; font-size: 13.5px; }
-.side-menu a .n, .side-menu a .l { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; flex-shrink: 0; }
+/* `.n` IS THE NUMBER AND `.l` IS THE LABEL. Worth stating, because they were
+   styled as one rule once — the label inherited a 30x30 box meant for the
+   badge, so every menu word wrapped inside a square and printed over its own
+   sub-line. relief.spec.ts now checks these class names against Sidebar.tsx. */
+.side-menu a .n { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; flex-shrink: 0; }
+.side-menu a .l { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.25; }
 .side-menu a .s { display: block; font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 1px; }
-.tc-side .helpcard { margin: 26px 20px 0; padding: 18px; border-radius: var(--r-3); font-size: 12.5px; color: var(--ink-soft); }
-.tc-side .helpcard b { display: block; font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
 
 .tc-footer { padding: 40px 44px calc(40px + var(--safe-bottom)); display: flex; flex-direction: column; gap: 12px; }
 .tc-footer .word { letter-spacing: -.02em; font-size: 15px; font-weight: 700; color: var(--ink); }
