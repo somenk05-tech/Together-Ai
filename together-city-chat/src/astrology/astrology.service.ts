@@ -1,5 +1,5 @@
 import { swallow } from '../shared/swallow';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { FinancialService } from '../financial/financial.service';
@@ -7,12 +7,14 @@ import { AiService } from '../ai/ai.service';
 import {
   NatalChart, geocodeApprox, natalChart, scanMonth, tzOffsetMinutes, SIGNS,
 } from './astro-engine';
-import { composeAnswer, composeDailyBrief, composeMonthlyBrief, type GuidanceBrief } from './astro-content';
+import { composeAnswerBrief, composeDailyBrief, composeMonthlyBrief, type GuidanceBrief } from './astro-content';
 import { letterPrompt, letterProblems, letterRules, toLetter, type Letter } from './letter';
+import { answerProblems, consultationPrompt, consultationRules } from './consultation';
+import { PACK_SIZE, priceForNextQuestion, quotaFor, type QuestionQuota } from './question-quota';
 import { computeNumerology, vimshottariDasha } from './personal-factors';
 import { buildGemGuidance, buildRemedies } from './gem-remedy-content';
 import { healthFlagsFor } from './health-flags';
-import { CHAT_RULES, firstNameOf, inVoice } from './voice';
+import { firstNameOf } from './voice';
 
 export interface SaveAstroProfileDto {
   birthDate: string;          // YYYY-MM-DD
@@ -25,15 +27,11 @@ export interface SaveAstroProfileDto {
 export interface AskDto { topic: string; question: string; method?: 'wallet' | 'card' }
 
 /**
- * What a consultation costs. FREE FOR NOW — it was ₹75.
- *
- * Kept as a constant rather than deleted: the price is a product decision that
- * has changed once and will change again, and the controller, the service and
- * the screen all read it from here so none of them can hold a different
- * opinion. The free path below skips the financial service entirely rather than
- * charging a zero.
+ * What a consultation costs is no longer a constant — it depends on how many
+ * this citizen has already had. Five free, then ₹100 for the next five. The
+ * arithmetic lives in question-quota.ts, alone, so the controller, the service,
+ * the screen and the tests cannot hold four opinions about it.
  */
-export const ASK_PRICE_INR = 0;
 
 /**
  * A letter with the period it was written for.
@@ -53,6 +51,13 @@ interface AstroProfileRow {
   id: string; userId: string; birthDate: Date; birthTime: string | null;
   birthCountry: string; birthState: string | null; birthCity: string;
   timeZone: string; lat: number | null; lng: number | null; updatedAt: Date;
+  /**
+   * How many consultations this citizen has ever been given. Optional here for
+   * the same reason the db accessor below is loose: a generated client from
+   * before the column exists returns undefined for it, and the read has to
+   * survive that rather than crash the whole hub mid-deploy.
+   */
+  questionsAsked?: number | null;
 }
 interface AstroQuestionRow {
   id: string; userId: string; topic: string; question: string; answer: string;
@@ -83,10 +88,12 @@ export class AstrologyService {
       astroProfile: {
         findUnique: (a: unknown) => Promise<AstroProfileRow | null>;
         upsert: (a: unknown) => Promise<AstroProfileRow>;
+        update: (a: unknown) => Promise<unknown>;
       };
       astroQuestion: {
         create: (a: unknown) => Promise<AstroQuestionRow>;
         findMany: (a: unknown) => Promise<AstroQuestionRow[]>;
+        deleteMany: (a: unknown) => Promise<{ count: number }>;
       };
       astroReading: {
         findUnique: (a: unknown) => Promise<{ readingJson: string } | null>;
@@ -456,6 +463,29 @@ export class AstrologyService {
 
   // ───────────────────────── Tab 03 · Ask the Astrologer ─────────────────────────
 
+  /**
+   * How many consultations this citizen has been given, ever.
+   *
+   * THE ONE PLACE THE ALLOWANCE IS READ, and it reads a counter rather than
+   * counting rows. Consultations are deletable; a quota derived from deletable
+   * rows can be reset by deleting them, and would be free for ever to anybody
+   * who worked that out. `questionsAsked` only ever goes up.
+   *
+   * `?? 0` is not defensive noise: a generated client from before the column
+   * exists returns undefined here, and free is the right way to be wrong about
+   * that — it costs us one consultation, where guessing high bills somebody
+   * ₹100 for a deployment detail.
+   */
+  private async questionsAsked(userId: string): Promise<number> {
+    const row = await swallow(this.db.astroProfile.findUnique({ where: { userId } }), 'astro: quota read', { userId });
+    return row?.questionsAsked ?? 0;
+  }
+
+  /** What the next consultation will cost, and how many are already covered. */
+  async askQuota(userId: string): Promise<QuestionQuota> {
+    return quotaFor(await this.questionsAsked(userId));
+  }
+
   async ask(userId: string, dto: AskDto) {
     const row = await this.requireProfile(userId);
     if (!row) return { needsProfile: true as const };
@@ -463,59 +493,43 @@ export class AstrologyService {
     const local = this.userNow(row);
     const astro = scanMonth(chart, local.getUTCFullYear(), local.getUTCMonth() + 1);
 
+    // What this one costs — 0 inside the free five or inside a bought pack,
+    // ₹100 on the question that opens the next pack.
+    const asked = row.questionsAsked ?? 0;
+    const price = priceForNextQuestion(asked);
+
     // Pre-flight only, and only when there is something to pay: confirm the
     // wallet can cover this BEFORE spending an AI call on it, so someone short
     // of balance is told immediately rather than after a 1,600-token
     // generation. The real charge happens below, once there is an answer.
-    if (ASK_PRICE_INR > 0) await this.financial.assertCanPay(userId, ASK_PRICE_INR, dto.method);
+    if (price > 0) await this.financial.assertCanPay(userId, price, dto.method);
 
-    // Deterministic answer is the guaranteed floor; AI (when configured)
-    // rewrites it in a more natural voice without changing what it says.
     const firstName = await this.firstName(userId);
-    const fallback = composeAnswer(chart, userId, dto.topic, dto.question, new Date(), astro, firstName);
+    const brief = composeAnswerBrief(chart, userId, dto.topic, dto.question, new Date(), astro);
 
     // Continuity. The principles ask that a reply draw on everything already
     // known about this person, and what they have asked before is the most
-    // directly relevant of that — someone returning to the same worry a third
-    // time should not be answered as a stranger. Only the questions are sent,
-    // not the previous answers: the point is to know what has been on their
-    // mind, and replaying old prose invites the model to repeat itself.
-    const priorQuestions = (await swallow(this.db.astroQuestion
-      .findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 5, select: { topic: true, question: true } }), 'astro: prior questions read', { userId })) ?? ([] as AstroQuestionRow[]);
-    const history = priorQuestions.length
-      ? `\n\nThey have asked about this before. Earlier questions, most recent first:\n` +
-        priorQuestions.map((q) => `- (${q.topic}) ${q.question}`).join('\n') +
-        `\nIf this question continues a thread, acknowledge that naturally — never mechanically, and never by quoting it back.`
-      : '';
+    // directly relevant of that — somebody returning to the same worry a third
+    // time should not be answered as a stranger.
+    const priorRows = (await swallow(this.db.astroQuestion
+      .findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 5 }), 'astro: prior questions read', { userId })) ?? ([] as AstroQuestionRow[]);
+    const history = priorRows.map((q) => `(${q.topic}) ${q.question}`);
+    // And their last three ANSWERS, which is a different job: the questions are
+    // context, the answers are what this one must not sound like.
+    const previous = priorRows.slice(0, 3).map((q) => q.answer).filter(Boolean);
 
-    const ai = await this.ai.json<{ answer?: string }>(
-      `${CHAT_RULES}\n\n` +
-      '350-550 words of flowing prose, specific to what they asked, ending with one concrete next step. ' +
-      'Keep every observation from the draft — you are rewriting its voice, not its content. ' +
-      'Return {"answer": "..."}.',
-      `${firstName ? `Their name is ${firstName}. Use it once, naturally, where it adds warmth — not more.\n\n` : ''}` +
-      `Their question (topic: ${dto.topic}): ${dto.question}${history}\n\n` +
-      `Draft reply to rewrite (do not contradict it, do not add facts to it):\n${fallback}`,
-      { answer: fallback },
-      1600,
-    );
-    const candidate = (ai.answer ?? '').trim();
-    // Same guard as the daily. A paid consultation is the WORST place to leak
-    // the machinery, since it is the longest piece of prose in the hub and the
-    // one a citizen is most likely to read closely and share.
-    let answer = fallback;
-    if (candidate.length > 200 && inVoice(candidate)) {
-      answer = candidate;
-    } else if (candidate.length > 200) {
-      this.logger.warn(`Discarded an out-of-voice consultation rewrite for ${userId} · ${dto.topic}`);
-    }
+    const answer = await this.writeAnswer(dto.topic, dto.question, brief, firstName, history, previous);
+    if (!answer) return { needsProfile: false as const, pending: true as const };
 
     // Charge and save together, AFTER the answer exists. The AI call could not
     // go inside a transaction — it holds a connection open across the network —
     // and charging before it meant a failure anywhere in generation left the
-    // citizen billed ₹75 for a consultation they never received. Ordered this
-    // way the worst case is that we absorb the cost of a generation nobody paid
+    // citizen billed for a consultation they never received. Ordered this way
+    // the worst case is that we absorb the cost of a generation nobody paid
     // for, which is ours to lose rather than theirs.
+    //
+    // THE COUNTER MOVES ONLY WHEN A ROW IS SAVED, for the same reason. A
+    // consultation that could not be written must not spend one of the five.
     /**
      * A FREE CONSULTATION DOES NOT TOUCH THE WALLET AT ALL.
      *
@@ -527,11 +541,18 @@ export class AstrologyService {
      * `payment` is omitted rather than reported as a zero charge, because there
      * was no payment. The field is optional on the response for exactly this.
      */
-    if (ASK_PRICE_INR === 0) {
+    if (price === 0) {
       const free = await this.db.astroQuestion.create({
         data: { userId, topic: dto.topic, question: dto.question, answer, priceInr: 0 },
       });
-      this.logger.log(`Astrology consultation for ${userId} · ${dto.topic} · free`);
+      // Unconditional, because nothing is at stake in losing a race here: two
+      // consultations submitted in the same instant would cost the citizen one
+      // extra free question, and that is the direction to be wrong in. The paid
+      // path below claims conditionally, because there the same race is money.
+      await swallow(this.db.astroProfile.update({
+        where: { userId }, data: { questionsAsked: { increment: 1 } },
+      }), 'astro: free consultation counted', { userId });
+      this.logger.log(`Astrology consultation for ${userId} · ${dto.topic} · free (${asked + 1} given)`);
       return {
         needsProfile: false as const,
         id: free.id, topic: free.topic, question: free.question, answer: free.answer,
@@ -542,24 +563,122 @@ export class AstrologyService {
     const { saved, payment } = await this.financial.paid(
       userId,
       {
-        hub: 'Astrology', category: 'astrology', label: `Ask the Astrologer · ${dto.topic}`,
-        amountInr: ASK_PRICE_INR, method: dto.method,
+        hub: 'Astrology', category: 'astrology',
+        label: `Ask the Astrologer · ${dto.topic} · ${PACK_SIZE} consultations`,
+        amountInr: price, method: dto.method,
       },
       async (tx) => {
+        /**
+         * CLAIM THE PACK BEFORE SAVING THE ANSWER, AND ONLY IF NOBODY ELSE HAS.
+         *
+         * `where: { questionsAsked: asked }` is the whole guard. The price was
+         * decided from `asked` a couple of network round-trips ago; if a second
+         * submission has moved the counter since, this one is no longer the
+         * question that opens a pack and must not be charged for opening one.
+         * Throwing here rolls the transaction back — including the charge that
+         * `paid()` has already written — which is why the claim is in here
+         * rather than after.
+         *
+         * Cast because the generated client may predate the column, exactly as
+         * for `this.db` above.
+         */
+        const claim = await (tx as unknown as {
+          astroProfile: { updateMany: (a: unknown) => Promise<{ count: number }> };
+        }).astroProfile.updateMany({
+          where: { userId, questionsAsked: asked },
+          data: { questionsAsked: { increment: 1 } },
+        });
+        if (!claim?.count) {
+          throw new ConflictException('Another consultation was saved a moment ago. Nothing has been charged — please ask again.');
+        }
         const row = await tx.astroQuestion.create({
-          data: { userId, topic: dto.topic, question: dto.question, answer, priceInr: ASK_PRICE_INR },
+          data: { userId, topic: dto.topic, question: dto.question, answer, priceInr: price },
         });
         const wallet = await tx.cityWallet.findUnique({ where: { userId }, select: { balanceInr: true } });
         return { saved: row, payment: { method: dto.method === 'card' ? 'card' : 'wallet', balanceInr: wallet?.balanceInr ?? 0 } };
       },
     );
-    this.logger.log(`Astrology consultation for ${userId} · ${dto.topic} · ₹${ASK_PRICE_INR}`);
+    this.logger.log(`Astrology consultation for ${userId} · ${dto.topic} · ₹${price} for ${PACK_SIZE}`);
     return {
       needsProfile: false as const,
       id: saved.id, topic: saved.topic, question: saved.question, answer: saved.answer,
       priceInr: saved.priceInr, createdAt: saved.createdAt,
       payment: { method: payment.method, balanceInr: payment.balanceInr },
     };
+  }
+
+  /**
+   * Write one answer, or return null having said why in the log.
+   *
+   * Two attempts, and the second is told exactly what was wrong with the first
+   * — the same shape as the letter, for the same reason. The failures in
+   * practice are a worn phrase creeping back or an answer that reads like the
+   * last one, and both are fixed immediately once named.
+   *
+   * THERE IS NO TEMPLATE TO FALL BACK ON, AND THAT IS THE POINT OF THE WHOLE
+   * CHANGE. A deterministic five-paragraph draft is exactly what produced two
+   * identical replies to two unrelated questions. Returning nothing is honest;
+   * returning the template is the bug wearing a hat.
+   */
+  private async writeAnswer(
+    topic: string, question: string, brief: GuidanceBrief, firstName: string,
+    history: string[], previous: string[],
+  ): Promise<string | null> {
+    if (!this.ai.enabled) {
+      this.logger.warn('No consultation written — the writer is not configured, and this hub has no template to fall back on.');
+      return null;
+    }
+    // A stable seed per question, so re-asking the same thing reads the same
+    // way rather than rolling a new voice each time somebody reloads.
+    const seed = [...`${topic}:${question}`].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+    let feedback = '';
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const out = await this.ai.json<{ answer?: string }>(
+        consultationRules(topic, seed, firstName),
+        consultationPrompt(topic, question, brief.observations, history, previous)
+          + `\n\n${brief.note}${feedback}`
+          + '\n\nReturn JSON: {"answer": "the complete reply"}.',
+        {},
+        1800,
+      );
+      const candidate = (out.answer ?? '').trim();
+      const problems = answerProblems(candidate, previous);
+      if (!problems.length) return candidate;
+      const said = problems.map((p) => `${p.what} — ${p.why}`).join('; ');
+      this.logger.warn(`consultation rejected (attempt ${attempt}) · ${topic}: ${said}`);
+      feedback = `\n\nA previous attempt was rejected for: ${said}. Fix every one and keep everything else.`;
+    }
+    return null;
+  }
+
+  /**
+   * Delete one consultation, for good.
+   *
+   * A HARD DELETE, and deliberately. The Settings page tells every citizen
+   * "your data is yours — download or delete it any time", and this hub already
+   * carries the counter-example the codebase learned from: `thoughts.remove`
+   * sets `deletedAt` and nothing anywhere lists a deleted thought, so the row
+   * survives a deletion the citizen believes happened. A delete that leaves the
+   * text in the database is not a delete, it is a filter with a reassuring
+   * name.
+   *
+   * Scoped by userId in the WHERE clause rather than checked first and deleted
+   * after: two statements can be raced, one cannot. deleteMany rather than
+   * delete so a second click on the same row is a no-op instead of a 500 — the
+   * citizen has already got what they asked for.
+   *
+   * IT DOES NOT GIVE THE CONSULTATION BACK. The allowance is a counter on the
+   * profile and this touches only the row, deliberately: an allowance derived
+   * from deletable rows is not an allowance, and five deletes would buy five
+   * more free consultations for ever. The screen says so before the citizen
+   * confirms, because finding that out afterwards would be a nasty surprise
+   * dressed as a feature.
+   */
+  async deleteQuestion(userId: string, id: string): Promise<{ deleted: boolean }> {
+    const res = await this.db.astroQuestion.deleteMany({ where: { id, userId } });
+    if (!res?.count) throw new NotFoundException('That consultation is not there to delete.');
+    this.logger.log(`Astrology consultation ${id} deleted by its owner`);
+    return { deleted: true };
   }
 
   /** My Questions — every paid consultation, newest first. */

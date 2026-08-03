@@ -31,11 +31,38 @@ export function useAstroQuestions() {
   return useQuery({ queryKey: ['astrology', 'questions'], queryFn: astrologyApi.questions });
 }
 
+/** Five free consultations, then ₹100 for the next five — as the server counts it. */
+export function useAskQuota() {
+  return useQuery({ queryKey: ['astrology', 'ask-quota'], queryFn: astrologyApi.askQuota });
+}
+
+/**
+ * Delete one saved consultation. It is really deleted — see the service.
+ *
+ * The quota is deliberately NOT invalidated here. Deleting a consultation does
+ * not give the allowance back, so re-reading it would be a request that can
+ * only ever return the same number.
+ */
+export function useDeleteQuestion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => astrologyApi.deleteQuestion(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['astrology', 'questions'] }),
+  });
+}
+
 export function useAskAstrologer() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: astrologyApi.ask,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['astrology', 'questions'] }),
+    // The allowance moved, and so may the wallet — a consultation that opened a
+    // pack was charged to it, and the Financial hub would otherwise still be
+    // showing the balance from before.
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['astrology', 'questions'] });
+      void qc.invalidateQueries({ queryKey: ['astrology', 'ask-quota'] });
+      void qc.invalidateQueries({ queryKey: ['financial'] });
+    },
   });
 }
 

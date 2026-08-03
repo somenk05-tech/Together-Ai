@@ -1,11 +1,15 @@
 import { SPREAD_PRICE_INR } from './tarot.service';
-import { ASK_PRICE_INR } from './astrology.service';
+import { priceForNextQuestion } from './question-quota';
 
 /**
- * Nothing in this hub charges, and nothing pretends to.
+ * The cards charge nothing, and nothing pretends to.
  *
  * The paywall came down: the Celtic Cross was ₹149, Past·Present·Future ₹49,
- * and a consultation ₹75. All three are free for now.
+ * and a consultation ₹75. The spreads are still free. Consultations have since
+ * been given a price again — five free, then ₹100 for the next five — and the
+ * only thing this file asserts about them is that the first five really are
+ * free, so a price coming back for one part of the hub cannot quietly return
+ * for the rest.
  *
  * THE PRICE BEING ZERO IS NOT THE INTERESTING PART. The interesting part is
  * that the payment path is SKIPPED rather than called with a zero, and this
@@ -23,12 +27,12 @@ import { ASK_PRICE_INR } from './astrology.service';
  * So the test is not "is the price zero". It is "does a zero price mean the
  * wallet is never opened".
  */
-describe('the astrology hub charges nothing for now', () => {
-  it('every price is zero', () => {
-    expect(ASK_PRICE_INR).toBe(0);
+describe('the tarot readings charge nothing for now', () => {
+  it('every spread is zero, and the first consultation is too', () => {
     expect(SPREAD_PRICE_INR.daily).toBe(0);
     expect(SPREAD_PRICE_INR.three).toBe(0);
     expect(SPREAD_PRICE_INR.celtic).toBe(0);
+    expect(priceForNextQuestion(0)).toBe(0);
   });
 
   it('a free draw never opens the wallet', async () => {
@@ -52,7 +56,7 @@ describe('the astrology hub charges nothing for now', () => {
     const clock = { timezoneFor: () => Promise.resolve('Asia/Kolkata'), todayIn: () => '2026-08-03' };
     const svc = new TarotService(prisma as never, clock as never, financial as never);
 
-    const out = await svc.drawSpread('u1', { kind: 'three', question: 'What should I watch for at work?' });
+    const out = await svc.drawSpread('u1', { kind: 'three', question: 'What should I watch for at work?', picks: [4, 0, 9] });
     expect(out.priceInr).toBe(0);
     expect(out.cards).toHaveLength(3);
     expect(created).toHaveLength(1);
@@ -67,7 +71,7 @@ describe('the astrology hub charges nothing for now', () => {
     const clock = { timezoneFor: () => Promise.resolve('Asia/Kolkata'), todayIn: () => '2026-08-03' };
     const svc = new TarotService(prisma as never, clock as never, financial as never);
 
-    await expect(svc.drawSpread('u1', { kind: 'three', question: 'hi' })).rejects.toThrow();
-    await expect(svc.drawSpread('u1', { kind: 'three', question: 'x'.repeat(301) })).rejects.toThrow();
+    await expect(svc.drawSpread('u1', { kind: 'three', question: 'hi', picks: [4, 0, 9] })).rejects.toThrow();
+    await expect(svc.drawSpread('u1', { kind: 'three', question: 'x'.repeat(301), picks: [4, 0, 9] })).rejects.toThrow();
   });
 });

@@ -63,8 +63,12 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // away in a subtitle exactly what the prose spends 400 words not saying.
       { path: '/astrology/today', index: '01', label: 'Today', sub: 'Your letter for today' },
       { path: '/astrology/monthly', index: '02', label: 'This Month', sub: 'One letter, once a month' },
-      { path: '/astrology/ask', index: '03', label: 'Ask the Astrologer', sub: '₹75 · personal consultation' },
-      { path: '/astrology/tarot', index: '04', label: 'Tarot', sub: 'Free daily card · paid spreads' },
+      // NO PRICE IN A MENU. This said "₹75 · personal consultation" through a
+      // paywall coming down and a new one going up, and was wrong both times —
+      // a subtitle in a config file cannot know what the server will charge.
+      // The screen reads the real number from GET /astrology/ask.
+      { path: '/astrology/ask', index: '03', label: 'Ask the Astrologer', sub: 'A private consultation' },
+      { path: '/astrology/tarot', index: '04', label: 'Tarot', sub: 'A card a day, and full spreads' },
       { path: '/profile/astrology', index: '05', label: 'Astrology Profile', sub: 'Birth details, entered once' },
     ],
   },

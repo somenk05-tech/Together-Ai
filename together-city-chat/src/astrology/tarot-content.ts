@@ -55,6 +55,12 @@ export interface TarotReadingOut {
    * choosing existed has no position, and those readings are still theirs.
    */
   position?: number;
+  /**
+   * Which face-down cards were turned, in the order they were turned, for a
+   * spread the citizen picked. Absent on spreads dealt before picking existed —
+   * those were drawn off the top and it would be a lie to claim otherwise.
+   */
+  picks?: number[];
 }
 
 /**
@@ -177,20 +183,82 @@ function summarise(kind: SpreadKind, cards: DrawnCard[], question?: string): str
 }
 
 /**
+ * Which of the face-down cards the citizen turned, in the order they turned them.
+ *
+ * CARRIED IN THE SEED RATHER THAN AS A PARAMETER, so that "the same seed always
+ * yields this exact draw" stays literally true — a reading is regenerated from
+ * one string years later, and a draw that also depended on an argument nobody
+ * stored would not be reproducible at all.
+ *
+ * A seed with no `:picks:` suffix means the cards came off the top of the deck
+ * in order, which is what every reading drawn before choosing existed did. Those
+ * readings still regenerate exactly, because [0,1,2,…] is what this returns for
+ * them.
+ */
+function picksIn(seed: string, size: number): number[] {
+  const m = /:picks:([\d-]+)$/.exec(seed);
+  const picked = m ? m[1].split('-').map(Number) : [];
+  const usable = picked.length === size
+    && picked.every((n) => Number.isInteger(n) && n >= 0 && n < DECK.length)
+    && new Set(picked).size === size;
+  return usable ? picked : Array.from({ length: size }, (_, i) => i);
+}
+
+/**
  * Compose a reading. Pure and deterministic: same seed, same reading, always.
  *
  * `seed` is stored alongside the result so a reading can be regenerated and
  * checked years later.
  */
 export function composeTarot(kind: SpreadKind, seed: string, question?: string): TarotReadingOut {
-  const rng = mulberry32(hashSeed(seed));
+  /**
+   * THE DECK IS SHUFFLED BEFORE THE CARDS ARE TURNED, so the picks are stripped
+   * out of the seed before it is hashed.
+   *
+   * This is the difference between a table and a slot machine. Hashing the
+   * whole seed would re-shuffle the deck for every different set of picks — the
+   * outcome would still depend on the choice, but nothing would be lying face
+   * down when the choice was made, and "the third back was the Tower all along"
+   * would be false. Stripping the suffix means the fan is laid from the draw's
+   * own entropy, each back IS a particular card from that moment, and turning a
+   * different one turns a different card.
+   *
+   * A seed with no suffix hashes exactly as it always did, so every reading in
+   * the archive regenerates byte for byte.
+   */
+  const rng = mulberry32(hashSeed(seed.replace(/:picks:[\d-]+$/, '')));
   const deck = shuffle(rng);
   const slots = POSITIONS[kind];
+  /**
+   * THE CHOICE IS WHICH CARDS COME OUT, NOT WHICH ORDER THEY ARE SHOWN IN.
+   *
+   * The deck is shuffled once and laid face down; the citizen's Nth pick is
+   * what fills the Nth position. Turning the third back rather than the ninth
+   * therefore deals a different card into The Heart, which is exactly what
+   * choosing means at a table. Had the picks only reordered a set already
+   * decided, the fan would be a flourish and a citizen would find out by
+   * drawing twice.
+   */
+  const picks = picksIn(seed, slots.length);
+
+  /**
+   * Orientation belongs to the card on the table, not to the slot it ends up in.
+   *
+   * Drawn for the whole deck up front, from the same stream, so that the card
+   * lying under a given back is upright or reversed BEFORE anybody turns it —
+   * the same reason the shuffle happens before the picks. Turning it into Past
+   * rather than Future must not flip it.
+   *
+   * The first values off the stream are the same values the old loop drew in
+   * slot order, and a legacy seed picks [0,1,2,…], so every reading already
+   * stored composes identically. That is not a coincidence to rely on quietly:
+   * spread-choice.spec.ts asserts it against a real pre-picking seed.
+   */
+  const orientation = deck.map(() => rng() < 0.35);
 
   const cards: DrawnCard[] = slots.map((slot, i) => {
-    const card = deck[i];
-    // Orientation is drawn from the same stream, so it's part of the same seed.
-    const reversed = rng() < 0.35;
+    const card = deck[picks[i]];
+    const reversed = orientation[picks[i]];
     return {
       cardId: card.id,
       name: card.name,
@@ -212,5 +280,9 @@ export function composeTarot(kind: SpreadKind, seed: string, question?: string):
     summary: summarise(kind, cards, question),
     disclaimer: DISCLAIMER,
     seed,
+    // Only when they were really chosen. picksIn() falls back to the top of the
+    // deck for a seed that names none, and reporting that fallback as a choice
+    // would put "you turned cards 1, 2 and 3" under a reading nobody picked.
+    ...(/:picks:/.test(seed) ? { picks } : {}),
   };
 }

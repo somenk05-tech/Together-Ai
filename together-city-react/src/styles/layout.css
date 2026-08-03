@@ -353,6 +353,23 @@
 
 .ask-fineprint { font-size: 11.5px; line-height: 1.65; color: var(--ink-3); margin: 14px 2px 0; }
 
+/* ── the allowance, said before the button rather than on the receipt ────
+   Five consultations are free; the sixth opens a ₹100 set of five. This line
+   sits directly above the CTA so the price is read before it is agreed to, and
+   `is-due` is the only state that raises its voice — the ordinary case is a
+   count, and a count does not need to shout. */
+.ask-quota {
+  font-size: 12.5px; line-height: 1.7; color: var(--ink-2);
+  margin: 16px 2px 0; padding: 11px 14px;
+  border: 1px solid var(--edge); border-radius: 14px;
+  background: rgba(255, 255, 255, .03);
+}
+.ask-quota.is-due {
+  color: #f0e2c4;
+  border-color: rgba(216, 178, 109, .45);
+  background: rgba(216, 178, 109, .08);
+}
+
 /* ── notes: loading, refused, empty ───────────────────────────────────── */
 .ask-note {
   background: var(--glass); border: 1px solid var(--edge); border-radius: 20px;
@@ -520,6 +537,45 @@
   .tarot-back { margin-inline: calc(var(--card-w) * -0.3); }
 }
 
+/* ──────────────── The table — a spread the citizen turns themselves ────────
+   A grid, not an arc. The daily fan sweeps seven cards because seven fit in a
+   sweep; a spread lays out twelve or twenty-four, and twenty-four fanned on a
+   phone is a stack nobody can aim at. Same backs, different table.
+
+   The count comes from the server (`fan` on each spread option) for the same
+   reason the daily fan's does — the server also refuses a pick outside it, so a
+   number invented here would let somebody turn a card that was never dealt. */
+.tarot-table {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 10px;
+  margin: 14px 0 2px;
+}
+.tarot-pick {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  aspect-ratio: 1 / 1.62;
+  transition: transform .25s cubic-bezier(.22, .61, .36, 1), filter .25s ease, opacity .25s ease;
+}
+.tarot-pick:hover:not(:disabled) { transform: translateY(-7px); filter: brightness(1.12); }
+.tarot-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 10px; }
+.tarot-pick:disabled { cursor: default; }
+
+/* Turned, and still face down — because nothing has been dealt yet. The number
+   is the position it will fill, which is the one thing the citizen cannot see
+   from the back and the one thing that makes the order matter. */
+.tarot-pick.is-turned { transform: translateY(-10px); }
+.tarot-pick.is-turned .tarot-back-face {
+  border-color: rgba(216, 178, 109, .9);
+  box-shadow: 0 12px 26px rgba(216, 178, 109, .28), inset 0 0 0 3px rgba(216, 178, 109, .34);
+}
+.tarot-pick-no { font-family: var(--serif); font-size: 16px; color: #f2e7cd; }
+
+/* Dimmed only while the draw is in flight — an untouched card that cannot be
+   turned should look unavailable rather than merely unresponsive. */
+.tarot-pick:disabled:not(.is-turned) { opacity: .42; }
+
 /* A card's painting. `contain` rather than `cover` because the crops keep each
    card's own gold frame and their heights differ by a few pixels — cover would
    shave a different sliver off every one of them. The ground behind is the
@@ -580,3 +636,13 @@
   color: rgba(242, 231, 205, .6);
   margin: 0 0 18px;
 }
+
+/* Deleting a consultation: quiet until it is asked for, then unmistakable. */
+.ask-past-actions {
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  margin-top: 18px; padding-top: 14px;
+  border-top: 1px solid rgba(216, 178, 109, .12);
+}
+.ask-past-warn { font-size: 12.5px; color: rgba(255, 255, 255, .70); }
+.ask-link.is-danger { color: #e8836b; border-bottom-color: rgba(232, 131, 107, .45); }
+.ask-link.is-danger:hover, .ask-link.is-danger:focus-visible { color: #f4a48f; border-bottom-color: #f4a48f; }

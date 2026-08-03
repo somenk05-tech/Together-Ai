@@ -4,7 +4,7 @@
 removing a route. It is produced from the same parse the security guards in
 `src/security/` use, so it cannot describe a route that does not exist.
 
-Every path below is prefixed with `/api`. **384 routes** across
+Every path below is prefixed with `/api`. **386 routes** across
 **34 controllers**; **9** are reachable without a token.
 
 ## Conventions
@@ -47,6 +47,7 @@ _astrology/astrology.controller.ts_
 
 | Method | Path | Auth |
 |---|---|---|
+| GET | `/api/astrology/ask` | 🔒 |
 | POST | `/api/astrology/ask` | 🔒 |
 | GET | `/api/astrology/daily/history` | 🔒 |
 | GET | `/api/astrology/daily` | 🔒 |
@@ -54,6 +55,7 @@ _astrology/astrology.controller.ts_
 | GET | `/api/astrology/monthly` | 🔒 |
 | GET | `/api/astrology/profile` | 🔒 |
 | PUT | `/api/astrology/profile` | 🔒 |
+| DELETE | `/api/astrology/questions/:id` | 🔒 |
 | GET | `/api/astrology/questions` | 🔒 |
 | GET | `/api/astrology/remedies` | 🔒 |
 | POST | `/api/astrology/tarot/daily/choose` | 🔒 |

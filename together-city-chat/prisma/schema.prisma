@@ -1834,18 +1834,25 @@ model AstroProfile {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // How many consultations this citizen has ever been given. A COUNTER, not a
+  // count: five are free and the sixth opens a ₹100 set of five, and
+  // consultations are deletable, so an allowance derived from AstroQuestion
+  // rows could be reset by deleting them. This only ever goes up.
+  questionsAsked Int @default(0)
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// Paid "Ask the Astrologer" consultations (₹75/question) — every question and
-// its full answer is kept so users can revisit any consultation later.
+// "Ask the Astrologer" consultations — five free per citizen, then ₹100 for the
+// next five. Every question and its full answer is kept until the citizen
+// deletes it, which does not return the consultation to their allowance.
 model AstroQuestion {
   id        String   @id @default(uuid())
   userId    String
   topic     String
   question  String
   answer    String
-  priceInr  Int      @default(75)
+  priceInr  Int      @default(0) // what this one actually cost, kept as a record
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

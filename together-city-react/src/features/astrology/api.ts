@@ -60,7 +60,27 @@ export interface AstroQuestion {
 }
 export interface AskResult extends AstroQuestion {
   needsProfile: boolean;
+  /** No answer could be written this time. Nothing was saved and nothing charged. */
+  pending?: boolean;
   payment?: { method: string; balanceInr: number };
+}
+/**
+ * Where this citizen stands before they ask: five free consultations, then ₹100
+ * for the next five.
+ *
+ * Read from the server rather than worked out on the screen. The counter it
+ * comes from is the same one the charge is decided by, so the price shown and
+ * the price taken cannot drift apart — and a mirrored constant here would be
+ * one deploy away from advertising the wrong number.
+ */
+export interface AskQuota {
+  asked: number;
+  priceInr: number;
+  includedLeft: number;
+  onFreeAllowance: boolean;
+  packSize: number;
+  packPriceInr: number;
+  freeQuestions: number;
 }
 
 /* ─────────────────────────── Tarot ─────────────────────────── */
@@ -75,6 +95,10 @@ export interface TarotReading {
   /** Which of the face-down cards was turned. Absent on cards dealt before
    *  choosing existed, and on every paid spread. */
   position?: number;
+  /** Which face-down cards were turned, in order. Absent on spreads dealt
+   *  before picking existed — those came off the top and it would be a lie to
+   *  claim otherwise. */
+  picks?: number[];
   cards: TarotDrawnCard[]; summary: string; disclaimer: string; seed: string;
 }
 /**
@@ -89,7 +113,12 @@ export type TarotDaily =
   | { chosen: false; fan: number; priceInr: number; disclaimer: string }
   | (TarotReading & { chosen: true; saved: boolean; priceInr: number });
 export interface TarotSpreadResult extends TarotReading { id: string; priceInr: number }
-export interface TarotSpreadOption { kind: SpreadKind; name: string; cards: number; priceInr: number }
+export interface TarotSpreadOption {
+  kind: SpreadKind; name: string; cards: number; priceInr: number;
+  /** How many face-down cards this spread lays out to choose from. The server's
+   *  number, not the stylesheet's — it also refuses a pick outside it. */
+  fan: number;
+}
 export interface TarotHistoryItem {
   id: string; kind: string; spreadName: string; question: string | null;
   priceInr: number; createdAt: string; seed: string;
@@ -124,15 +153,18 @@ export const astrologyApi = {
   daily: () => api.get<DailyLetter>('/astrology/daily').then((r) => r.data),
   dailyHistory: () => api.get<Array<Omit<DailyLetter, 'needsProfile' | 'pending'>>>('/astrology/daily/history').then((r) => r.data),
   monthly: () => api.get<MonthlyLetter>('/astrology/monthly').then((r) => r.data),
+  askQuota: () => api.get<AskQuota>('/astrology/ask').then((r) => r.data),
   ask: (dto: { topic: string; question: string; method?: 'wallet' | 'card' }) =>
     api.post<AskResult>('/astrology/ask', dto).then((r) => r.data),
   questions: () => api.get<AstroQuestion[]>('/astrology/questions').then((r) => r.data),
+  deleteQuestion: (id: string) =>
+    api.delete<{ deleted: boolean }>(`/astrology/questions/${id}`).then((r) => r.data),
 
   tarotSpreads: () => api.get<{ disclaimer: string; spreads: TarotSpreadOption[] }>('/astrology/tarot/spreads').then((r) => r.data),
   tarotDaily: () => api.get<TarotDaily>('/astrology/tarot/daily').then((r) => r.data),
   tarotChooseDaily: (position: number) =>
     api.post<TarotDaily>('/astrology/tarot/daily/choose', { position }).then((r) => r.data),
-  tarotDraw: (dto: { kind: 'three' | 'celtic'; question: string; method?: 'wallet' | 'card' }) =>
+  tarotDraw: (dto: { kind: 'three' | 'celtic'; question: string; picks: number[]; method?: 'wallet' | 'card' }) =>
     api.post<TarotSpreadResult>('/astrology/tarot/draw', dto).then((r) => r.data),
   tarotHistory: () => api.get<TarotHistoryItem[]>('/astrology/tarot/history').then((r) => r.data),
 

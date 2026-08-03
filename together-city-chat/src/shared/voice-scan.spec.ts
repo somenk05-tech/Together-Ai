@@ -37,8 +37,11 @@ const SRC = join(__dirname, '..');
  * list to a writer. A module qualifies only if every banned phrase in it
  * appears as a thing being prohibited. `astrology/letter.ts` is the third: it
  * cannot tell a writer not to say "as an AI" without containing the words.
+ * `astrology/consultation.ts` is the fourth, for exactly the same reason — it
+ * hands a consultation writer the list of phrases the last one wore out, and
+ * naming a phrase to forbid it is the opposite of using it.
  */
-const ALLOW = ['shared/voice.ts', 'astrology/voice.ts', 'astrology/letter.ts'];
+const ALLOW = ['shared/voice.ts', 'astrology/voice.ts', 'astrology/letter.ts', 'astrology/consultation.ts'];
 
 function sourceFiles(): string[] {
   const out: string[] = [];

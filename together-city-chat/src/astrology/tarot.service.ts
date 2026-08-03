@@ -39,8 +39,27 @@ export type DailyCardOut =
 export interface DrawSpreadDto {
   kind: 'three' | 'celtic';
   question: string;
+  /** Which face-down cards were turned, in the order they were turned. Required. */
+  picks: number[];
   method?: 'wallet' | 'card';
 }
+
+/**
+ * How many face-down cards each spread lays out to choose from.
+ *
+ * Enough that choosing is choosing, few enough to lay on a phone. The Celtic
+ * Cross needs ten of them, so its table has to be wider than the three-card
+ * table or the last pick would be the only card left — a choice with one option
+ * is not one.
+ *
+ * These are part of the API, not a stylesheet detail: the client draws exactly
+ * this many backs, and the server refuses a pick outside the range, so the two
+ * cannot disagree about what was on the table.
+ */
+export const SPREAD_FAN: Record<'three' | 'celtic', number> = {
+  three: 12,
+  celtic: 24,
+};
 
 interface TarotRow {
   id: string; kind: string; period: string | null; question: string | null;
@@ -96,6 +115,9 @@ export class TarotService {
    * than in a stylesheet.
    */
   static readonly DAILY_FAN = 7;
+
+  /** The widest table any spread lays out — the outer bound a route can check. */
+  static readonly MAX_FAN = Math.max(SPREAD_FAN.three, SPREAD_FAN.celtic, 7);
 
   /**
    * Card of the Day — free, one per citizen per day, and CHOSEN rather than dealt.
@@ -210,7 +232,13 @@ export class TarotService {
   }
 
   /**
-   * A paid spread, drawn against a question.
+   * A spread, drawn against a question, from cards the citizen turned themselves.
+   *
+   * NOTHING IS DEALT UNTIL EVERY POSITION HAS BEEN CHOSEN, which is the same
+   * rule the Card of the Day already keeps and for the same reason. This used
+   * to deal all ten the moment the button was pressed; laying backs out in front
+   * of a reading that has already happened is theatre, and a citizen finds out
+   * the first time they notice their choice changed nothing.
    *
    * The draw happens BEFORE the charge and the charge happens with the save, so
    * a failure anywhere leaves the citizen either un-charged or holding the
@@ -223,14 +251,40 @@ export class TarotService {
     if (question.length < 5) throw new BadRequestException('Ask a question the cards can answer — a few words at least.');
     if (question.length > 300) throw new BadRequestException('Keep the question under 300 characters.');
 
+    /**
+     * The picks are checked here and not only at the controller, because this
+     * is the rule and the controller is a door. Three separate things can go
+     * wrong and they are three different sentences to a person:
+     *
+     *  · not enough turned — the reading is incomplete, and dealing the rest
+     *    ourselves is precisely what this change removed;
+     *  · the same card twice — the Tower cannot sit in two positions;
+     *  · a card that was not on the table — a client out of step with
+     *    SPREAD_FAN, which must fail rather than silently wrap.
+     */
+    const need = spreadSize(kind);
+    const fan = SPREAD_FAN[kind === 'celtic' ? 'celtic' : 'three'];
+    const picks = Array.isArray(dto.picks) ? dto.picks : [];
+    if (picks.length !== need) {
+      throw new BadRequestException(`Turn all ${need} cards before the reading is drawn.`);
+    }
+    if (new Set(picks).size !== need) {
+      throw new BadRequestException('Each position takes a different card — one of these was turned twice.');
+    }
+    if (picks.some((p) => !Number.isInteger(p) || p < 0 || p >= fan)) {
+      throw new BadRequestException('One of those is not a card on the table.');
+    }
+
     const price = SPREAD_PRICE_INR[kind];
     // Fail fast on an empty wallet rather than after the draw — but only when
     // there is something to pay.
     if (price > 0) await this.financial.assertCanPay(userId, price, dto.method);
 
     // Fresh entropy per draw: two identical questions must not deal identical
-    // cards. Stored, so this specific reading stays reproducible forever.
-    const seed = `tarot:${kind}:${userId}:${randomBytes(8).toString('hex')}`;
+    // cards. Stored, so this specific reading stays reproducible forever — and
+    // the picks ride in the seed for the same reason, so the whole draw is
+    // regenerable from one string. See picksIn() in tarot-content.ts.
+    const seed = `tarot:${kind}:${userId}:${randomBytes(8).toString('hex')}:picks:${picks.join('-')}`;
     const reading = composeTarot(kind, seed, question);
     const data = {
       userId, kind, period: null, question, seed,
@@ -298,6 +352,9 @@ export class TarotService {
       disclaimer: DISCLAIMER,
       spreads: (['daily', 'three', 'celtic'] as SpreadKind[]).map((k) => ({
         kind: k, name: SPREAD_NAME[k], cards: spreadSize(k), priceInr: SPREAD_PRICE_INR[k],
+        // How many backs to lay out. The daily card has its own fan, which is a
+        // different number for a different surface.
+        fan: k === 'daily' ? TarotService.DAILY_FAN : SPREAD_FAN[k],
       })),
     };
   }

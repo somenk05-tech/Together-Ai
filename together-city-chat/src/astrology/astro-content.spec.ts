@@ -1,5 +1,5 @@
 import { natalChart, scanMonth } from './astro-engine';
-import { composeAnswer, composeDailyBrief, composeMonthlyBrief, wordCount } from './astro-content';
+import { composeAnswerBrief, composeDailyBrief, composeMonthlyBrief } from './astro-content';
 import { computeNumerology, vimshottariDasha } from './personal-factors';
 import { bannedVocabulary } from './letter';
 import { violations } from './voice';
@@ -40,13 +40,20 @@ describe('astro-content', () => {
     expect(monthlyOn(chart2, born2, 'user-2', 7).observations).not.toEqual(m.observations);
   });
 
-  it('consultation answers are detailed (300+ words), on-topic and vary by topic', () => {
+  it('the consultation brief is notes, never a drafted answer', () => {
     const astro = scanMonth(chart, 2026, 7);
-    const ans = composeAnswer(chart, 'user-1', 'Career', 'Should I change my job this year or wait for a promotion?', new Date('2026-07-22T09:00:00Z'), astro);
-    expect(wordCount(ans)).toBeGreaterThanOrEqual(300);
-    expect(ans.toLowerCase()).toContain('career');
-    const ans2 = composeAnswer(chart, 'user-1', 'Marriage', 'When is a good period for my wedding?', new Date('2026-07-22T09:00:00Z'), astro);
-    expect(ans2).not.toBe(ans);
+    const b = composeAnswerBrief(chart, 'user-1', 'Career', 'Should I change my job this year?', new Date('2026-07-22T09:00:00Z'), astro);
+    expect(b.observations.length).toBeGreaterThanOrEqual(8);
+    // THE POINT OF THE CHANGE. A brief that is secretly a draft — one long
+    // paragraph per note, in the order they should be said — puts the template
+    // straight back, and the model would faithfully reproduce it again.
+    for (const o of b.observations) {
+      expect(o.split(/[.!?]/).filter((x) => x.trim()).length).toBeLessThanOrEqual(2);
+    }
+    expect(b.note.toLowerCase()).toContain('career');
+    // and it moves with the topic, not just with the person
+    const other = composeAnswerBrief(chart, 'user-1', 'Health', 'Should I change my job this year?', new Date('2026-07-22T09:00:00Z'), astro);
+    expect(other.note).not.toBe(b.note);
   });
 
   /**
@@ -89,13 +96,14 @@ describe('astro-content', () => {
       }
     });
 
-    it('consultation answers stay in voice across every topic', () => {
+    it('the consultation brief is safe to hand to a writer, across every topic', () => {
       const astro = scanMonth(chart, 2026, 7);
       const topics = ['Career', 'Marriage', 'Relationships', 'Business', 'Investments', 'Education',
         'Children', 'Foreign travel', 'Property', 'Health', 'Spiritual growth'];
       for (const topic of topics) {
-        const ans = composeAnswer(chart, 'user-1', topic, `What should I know about my ${topic.toLowerCase()} right now?`, new Date('2026-07-22T09:00:00Z'), astro, 'Somen');
-        expect({ topic, found: violations(ans) }).toEqual({ topic, found: [] });
+        const b = composeAnswerBrief(chart, 'user-1', topic, `What should I know about my ${topic.toLowerCase()} right now?`, new Date('2026-07-22T09:00:00Z'), astro);
+        const text = [...b.observations, b.note].join('\n');
+        expect({ topic, found: [...bannedVocabulary(text), ...violations(text)] }).toEqual({ topic, found: [] });
       }
     });
   });

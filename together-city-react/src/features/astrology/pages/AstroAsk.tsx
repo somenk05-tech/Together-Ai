@@ -1,21 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Spinner } from '@/components/ui';
-import { useAskAstrologer, useAstroProfile, useAstroQuestions } from '../hooks';
+import { useAskAstrologer, useAskQuota, useAstroProfile, useAstroQuestions, useDeleteQuestion } from '../hooks';
 
 const TOPICS = [
   'Career', 'Marriage', 'Relationships', 'Business', 'Investments', 'Education',
   'Children', 'Foreign Travel', 'Property', 'Health', 'Spiritual Growth',
 ];
-/**
- * What a consultation costs, mirrored from the API's ASK_PRICE_INR.
- *
- * Zero for now — the paywall across this hub came down. It is a constant rather
- * than a removed concept because the price has changed once already; every
- * place that mentions money on this screen asks it, so none of them can be left
- * saying ₹75 when the server has stopped charging it.
- */
-const PRICE: number = 0;
 /** The server's own rule, mirrored so the counter can say what it is:
  *  `question: z.string().min(10).max(600)` in astrology.controller.ts. */
 const MIN_CHARS = 10;
@@ -58,8 +49,34 @@ function useSlowParallax() {
 }
 
 /**
- * Tab 03 — Ask the Astrologer. ₹75 per question, charged to the city wallet;
- * every consultation is saved under My Questions.
+ * How this citizen's allowance reads, in one sentence.
+ *
+ * WRITTEN FROM THE SERVER'S NUMBERS, never from constants of its own. The
+ * counter that decides the charge is the same one that produces this line, so
+ * the screen cannot advertise a price the wallet is not about to take.
+ *
+ * The zero case is the one that matters: somebody about to be charged should
+ * see the amount, what it buys and that it is not a subscription, BEFORE they
+ * write anything — not on a receipt afterwards.
+ */
+function allowanceLine(q: {
+  includedLeft: number; onFreeAllowance: boolean;
+  packSize: number; packPriceInr: number; freeQuestions: number;
+}): string {
+  const some = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  if (q.includedLeft === 0) {
+    return `Your next consultation is ₹${q.packPriceInr}, and it covers that question and the `
+      + `${q.packSize - 1} after it. One payment, no subscription.`;
+  }
+  if (q.onFreeAllowance) {
+    return `${some(q.includedLeft, 'free consultation')} left of your ${q.freeQuestions}.`;
+  }
+  return `${some(q.includedLeft, 'consultation')} left in the set you have already paid for.`;
+}
+
+/**
+ * Tab 03 — Ask the Astrologer. Five free, then ₹100 for the next five, charged
+ * to the city wallet; every consultation is saved under My Questions.
  *
  * THE REDESIGN IS THE VIEW AND ONLY THE VIEW. Every hook, every piece of state,
  * the mutation, its success and error handling, the disabled rule, the history
@@ -85,17 +102,33 @@ function useSlowParallax() {
 export function AstroAsk() {
   const profile = useAstroProfile();
   const questions = useAstroQuestions();
+  const quota = useAskQuota();
   const ask = useAskAstrologer();
   const [topic, setTopic] = useState('Career');
   const [question, setQuestion] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [unwritten, setUnwritten] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const remove = useDeleteQuestion();
   const artRef = useSlowParallax();
 
   const submit = () => {
     setError(null);
+    setUnwritten(false);
     ask.mutate({ topic, question: question.trim() }, {
-      onSuccess: (res) => { setQuestion(''); setOpenId(res.id); },
+      /**
+       * `pending` means no answer could be written — the consultation was not
+       * saved, the allowance was not spent and nothing was charged. It arrives
+       * as a 200 because nothing failed; there is simply nothing to show, and
+       * the citizen has to be told that in those words rather than left looking
+       * at a question box that emptied itself for no visible reason.
+       */
+      onSuccess: (res) => {
+        if (res.pending) { setUnwritten(true); return; }
+        setQuestion('');
+        setOpenId(res.id);
+      },
       onError: (e) => {
         const msg = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
         setError(Array.isArray(msg) ? msg.join(' ') : msg ?? 'Something went wrong — you have not been charged.');
@@ -106,6 +139,7 @@ export function AstroAsk() {
   const needsProfile = profile.data && !profile.data.complete;
   const count = question.trim().length;
   const tooLong = count > MAX_CHARS;
+  const price = quota.data?.priceInr ?? 0;
 
   return (
     <div className="ask-stage">
@@ -174,18 +208,34 @@ export function AstroAsk() {
                   </span>
                 </div>
 
+                {/* Where they stand, above the button rather than beside the
+                    receipt. The button below only ever names a price this line
+                    has already explained. */}
+                {quota.data && (
+                  <p className={`ask-quota${price ? ' is-due' : ''}`}>{allowanceLine(quota.data)}</p>
+                )}
+
                 {error && <p className="ask-error" role="alert">{error}</p>}
 
+                {unwritten && (
+                  <p className="ask-error" role="alert">
+                    We couldn&rsquo;t write your consultation this time. Nothing has been saved and
+                    nothing has been charged &mdash; your question is still here, so please try again
+                    in a moment.
+                  </p>
+                )}
+
                 <button type="button" className="ask-cta"
-                  disabled={count < MIN_CHARS || tooLong || ask.isPending}
+                  disabled={count < MIN_CHARS || tooLong || ask.isPending || quota.isLoading}
                   onClick={submit}>
-                  {ask.isPending ? 'Writing your answer…' : PRICE ? `Pay ₹${PRICE} & Ask →` : 'Ask →'}
+                  {ask.isPending ? 'Writing your answer…' : price ? `Pay ₹${price} & Ask →` : 'Ask →'}
                 </button>
 
                 <p className="ask-fineprint">
-                  {PRICE
-                    ? 'Charged securely to your Together City Wallet. Your consultation will be permanently available inside My Questions.'
-                    : 'Free for now. Your consultation will be permanently available inside My Questions.'}
+                  {price
+                    ? `₹${price} is charged once to your Together City Wallet and covers this consultation and the `
+                      + `${(quota.data?.packSize ?? 5) - 1} after it. Every one is permanently available inside My Questions.`
+                    : 'Nothing to pay for this one. Your consultation will be permanently available inside My Questions.'}
                 </p>
               </section>
 
@@ -199,7 +249,7 @@ export function AstroAsk() {
                 <div className="ask-note">
                   <p>
                     We couldn&rsquo;t load your consultations. Nothing has been lost &mdash; every
-                    answer you&rsquo;ve paid for is still saved.
+                    answer written for you is still saved.
                   </p>
                   <button type="button" className="ask-link" onClick={() => void questions.refetch()}>Try again</button>
                 </div>
@@ -217,13 +267,54 @@ export function AstroAsk() {
                     <span className="ask-past-topic">{q.topic}</span>
                     <span className="ask-past-q">{q.question}</span>
                     <span className="ask-past-when">
-                      {new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · ₹{q.priceInr}
+                      {new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {/* What this one actually cost, kept as a record rather
+                          than recalculated — a consultation from the ₹75 era
+                          still says ₹75, because that is what happened. */}
+                      {q.priceInr > 0 ? ` · ₹${q.priceInr}` : ' · Free'}
                     </span>
                     <span className="ask-past-mark" aria-hidden>{openId === q.id ? '−' : '+'}</span>
                   </button>
                   {openId === q.id && (
                     <div className="ask-past-body">
                       {q.answer.split('\n\n').map((p, i) => <p key={i}>{p}</p>)}
+
+                      {/* Deleting is a two-step, in place. A browser confirm()
+                          blocks every later interaction if it is ever left
+                          open, and a modal over a consultation somebody is
+                          part-way through reading is the wrong shape for a
+                          decision this small. */}
+                      <div className="ask-past-actions">
+                        {confirmId === q.id ? (
+                          <>
+                            {/* Both halves of the truth, before the click. The
+                                second half is the one somebody would otherwise
+                                discover by deleting five answers and finding
+                                the sixth still costs money. */}
+                            <span className="ask-past-warn">
+                              Delete this permanently? It is not recoverable, and it does not give
+                              the consultation back to your allowance.
+                            </span>
+                            <button type="button" className="ask-link is-danger"
+                              disabled={remove.isPending}
+                              onClick={() => remove.mutate(q.id, {
+                                onSuccess: () => { setConfirmId(null); setOpenId(null); },
+                              })}>
+                              {remove.isPending ? 'Deleting…' : 'Yes, delete'}
+                            </button>
+                            <button type="button" className="ask-link" onClick={() => setConfirmId(null)}>Keep it</button>
+                          </>
+                        ) : (
+                          <button type="button" className="ask-link" onClick={() => setConfirmId(q.id)}>
+                            Delete this consultation
+                          </button>
+                        )}
+                      </div>
+                      {remove.isError && confirmId === q.id && (
+                        <p className="ask-error" role="alert">
+                          We couldn&rsquo;t delete it just now &mdash; it is still here. Try again in a moment.
+                        </p>
+                      )}
                     </div>
                   )}
                 </article>

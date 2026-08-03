@@ -210,14 +210,50 @@ export function AstroTarot() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<TarotReading | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  /**
+   * The cards turned so far, in the order they were turned, and whether the
+   * table is out.
+   *
+   * NOTHING IS DRAWN UNTIL THE LAST ONE. The spread used to be dealt the moment
+   * the button was pressed; laying backs in front of a reading that has already
+   * happened is theatre, and this state is what keeps it from being that — the
+   * request does not leave until `picks.length` reaches the spread's size, and
+   * the picks go with it, so which backs were turned is what decides which cards
+   * come out.
+   */
+  const [picks, setPicks] = useState<number[]>([]);
+  const [laid, setLaid] = useState(false);
 
   const options = spreads.data?.spreads ?? [];
   const chosen = options.find((o) => o.kind === kind);
+  const need = chosen?.cards ?? 3;
+  const fan = chosen?.fan ?? 12;
 
-  const submit = () => {
+  /** Put the table out. Still nothing dealt, nothing charged. */
+  const lay = () => {
     setError(null);
-    draw.mutate({ kind, question: question.trim() }, {
-      onSuccess: (res) => { setResult(res); setQuestion(''); },
+    setResult(null);
+    setPicks([]);
+    setLaid(true);
+  };
+
+  const pickSpread = (k: 'three' | 'celtic') => {
+    // A different spread is a different table. Clearing is honest rather than
+    // destructive: no cards have been dealt, so there is nothing to lose.
+    setKind(k);
+    setPicks([]);
+    setLaid(false);
+  };
+
+  const turn = (i: number) => {
+    if (draw.isPending || picks.includes(i) || picks.length >= need) return;
+    const next = [...picks, i];
+    setPicks(next);
+    if (next.length < need) return;
+
+    setError(null);
+    draw.mutate({ kind, question: question.trim(), picks: next }, {
+      onSuccess: (res) => { setResult(res); setLaid(false); setPicks([]); setQuestion(''); },
       onError: (e) => {
         const msg = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
         setError(Array.isArray(msg) ? msg.join(' ') : msg ?? 'Something went wrong — you have not been charged.');
@@ -229,7 +265,7 @@ export function AstroTarot() {
     <div>
       <AstroHeader
         title="Tarot"
-        lede="A card a day, free — or ask a question and draw a full spread. Every reading is reproducible: the same draw can be regenerated from its seed." />
+        lede="A card a day, free — or ask a question and turn a full spread yourself. Nothing is dealt until you have turned every card. Every reading is reproducible: the same draw can be regenerated from its seed." />
 
       {/* ── Card of the Day (free) ── */}
       <DailyCard />
@@ -243,7 +279,7 @@ export function AstroTarot() {
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
           {options.filter((o) => o.kind !== 'daily').map((o) => (
-            <button key={o.kind} type="button" onClick={() => setKind(o.kind as 'three' | 'celtic')}
+            <button key={o.kind} type="button" onClick={() => pickSpread(o.kind as 'three' | 'celtic')}
               style={{
                 flex: '1 1 220px', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
                 padding: '14px 16px', borderRadius: 14, background: kind === o.kind ? 'var(--accent-soft)' : 'var(--paper)',
@@ -255,23 +291,81 @@ export function AstroTarot() {
           ))}
         </div>
 
-        <textarea
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="What should I be paying attention to in my work right now?"
-          rows={3}
-          maxLength={300}
-          style={{
-            width: '100%', padding: '12px 14px', border: '1.5px solid var(--line)', borderRadius: 12,
-            fontFamily: 'inherit', fontSize: 14, resize: 'vertical', marginBottom: 10,
-          }} />
+        {!laid && (
+          <>
+            <textarea
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="What should I be paying attention to in my work right now?"
+              rows={3}
+              maxLength={300}
+              style={{
+                width: '100%', padding: '12px 14px', border: '1.5px solid var(--line)', borderRadius: 12,
+                fontFamily: 'inherit', fontSize: 14, resize: 'vertical', marginBottom: 10,
+              }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Button variant="accent" disabled={draw.isPending || question.trim().length < 5} onClick={submit}>
-            {draw.isPending ? 'Drawing…' : `Draw ${chosen?.name ?? 'spread'}${chosen?.priceInr ? ` · ₹${chosen.priceInr}` : ''}`}
-          </Button>
-          <span className="muted" style={{ fontSize: 12 }}>{question.trim().length}/300</span>
-        </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              {/* The button lays the table out. It does not draw, and it does
+                  not charge — that happens when the last card is turned, which
+                  is the only moment there is a reading to charge for. */}
+              <Button variant="accent" disabled={question.trim().length < 5} onClick={lay}>
+                Lay out the cards →
+              </Button>
+              <span className="muted" style={{ fontSize: 12 }}>{question.trim().length}/300</span>
+            </div>
+          </>
+        )}
+
+        {laid && (
+          <>
+            <p style={{ fontSize: 14, fontStyle: 'italic', margin: '0 0 4px' }}>“{question.trim()}”</p>
+            <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.65, margin: '0 0 4px', maxWidth: '58ch' }}>
+              {fan} cards, face down. Turn {need} of them &mdash; the first fills{' '}
+              {chosen?.name === 'The Celtic Cross' ? 'The Heart' : 'Past'}, and the rest follow in the
+              order you turn them. Nothing is drawn until the last one.
+            </p>
+
+            <div className="tarot-table" role="group"
+              aria-label={`${fan} face-down cards — turn ${need}`}>
+              {Array.from({ length: fan }, (_, i) => {
+                const at = picks.indexOf(i);
+                const turned = at >= 0;
+                return (
+                  <button key={i} type="button"
+                    className={`tarot-pick${turned ? ' is-turned' : ''}`}
+                    disabled={draw.isPending || turned}
+                    aria-pressed={turned}
+                    aria-label={turned
+                      ? `Card ${i + 1}, turned into position ${at + 1}`
+                      : `Turn card ${i + 1} of ${fan}`}
+                    onClick={() => turn(i)}>
+                    <span className="tarot-back-face" aria-hidden>
+                      {turned
+                        ? <span className="tarot-pick-no">{at + 1}</span>
+                        : <span className="tarot-back-mark" />}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginTop: 12 }}>
+              <span className="muted" style={{ fontSize: 12.5 }}>
+                {draw.isPending
+                  ? 'Reading the cards…'
+                  : `${picks.length} of ${need} turned${chosen?.priceInr ? ` · ₹${chosen.priceInr} when the last one turns` : ''}`}
+              </span>
+              {!draw.isPending && (
+                // Free, and said so: nothing has been dealt, so starting again
+                // costs nothing and takes nothing away.
+                <button type="button" onClick={() => { setPicks([]); setLaid(false); setError(null); }}
+                  style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, color: 'var(--accent)' }}>
+                  Start over &mdash; nothing has been drawn
+                </button>
+              )}
+            </div>
+          </>
+        )}
         {error && <p style={{ color: '#c0392b', fontSize: 13, marginTop: 10 }}>{error}</p>}
       </Card>
 
@@ -281,7 +375,12 @@ export function AstroTarot() {
             <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, margin: 0 }}>{result.spreadName}</h3>
             <span className="muted" style={{ fontSize: 12.5 }}>just drawn</span>
           </div>
-          {result.question && <p style={{ fontSize: 14, fontStyle: 'italic', margin: '6px 0 16px' }}>“{result.question}”</p>}
+          {result.question && <p style={{ fontSize: 14, fontStyle: 'italic', margin: '6px 0 6px' }}>“{result.question}”</p>}
+          {result.picks && result.picks.length > 0 && (
+            <p className="muted" style={{ fontSize: 12.5, margin: '0 0 16px' }}>
+              You turned cards {result.picks.map((p) => p + 1).join(', ')}.
+            </p>
+          )}
           <ReadingView reading={result} />
           <Disclaimer text={result.disclaimer} />
         </Card>

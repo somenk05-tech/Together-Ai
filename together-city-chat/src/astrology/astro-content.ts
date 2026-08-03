@@ -267,91 +267,68 @@ const TOPIC_PLANETS: Record<string, string[]> = {
   health: ['Mars', 'Sun', 'Saturn'], 'spiritual growth': ['Jupiter', 'Saturn', 'Moon'],
 };
 
-export function composeAnswer(
+/**
+ * Observations for one person's question. NOT an answer.
+ *
+ * composeAnswer() used to build the reply itself — five paragraphs, always in
+ * the same order — and the model was told to keep its content and rewrite only
+ * its voice. It did, and two unrelated questions came back with the same
+ * opening sentence and the same shape. The template was the deliverable; the
+ * model was the paint.
+ *
+ * So this returns notes. The same computation chooses every adjective, and
+ * nothing here decides what the answer looks like — consultation.ts does that,
+ * differently each time.
+ */
+export function composeAnswerBrief(
   chart: NatalChart, userSeed: string, topic: string, question: string, now: Date, monthAstro: MonthAstro,
-  firstName?: string | null,
-): string {
+): GuidanceBrief {
   const rng = mulberry32(hashSeed(userSeed + topic + question.slice(0, 64)));
   const key = Object.keys(TOPIC_PLANETS).find((k) => topic.toLowerCase().includes(k)) ?? 'career';
   const rulers = TOPIC_PLANETS[key];
   const transits = positionsAt(julianDay(now));
-  const sun = chart.sun.sign, moonS = chart.moon.sign;
-  const st = T[sun], mt = T[moonS];
+  const st = T[chart.sun.sign], mt = T[chart.moon.sign];
   const subject = topic.toLowerCase();
-  const name = (firstName ?? '').trim();
-  const paras: string[] = [];
 
-  // What this means for them. The chart still selects every adjective; it is
-  // simply never named, and the reply never becomes about the one writing it.
-  paras.push(
-    `${name ? `${name}, this` : 'This'} is a question you are asking from two places at once, and it is worth separating them. ` +
-    `Outwardly, you bring ${st.keywords[0]} to how you pursue ${subject} — that is your real advantage here. ` +
-    `Inwardly, what you need from it runs toward ${fmtList(mt.keywords.slice(0, 2))}, and that need is quieter but far less negotiable. ` +
-    `Any answer that satisfies only the first layer tends to get re-decided within a year.`,
-  );
-
-  // Why it is relevant right now. Same computation as before — the aspect
-  // between each ruling factor and its natal place — described as conditions
-  // the person is moving through rather than as planetary geometry.
+  // The same aspects the old composer read, described as conditions somebody is
+  // moving through rather than as geometry.
   const conditions = rulers.map((r) => {
     const t = transits.find((x) => x.planet === r)!;
     const natal = chart.planets.find((x) => x.planet === r);
     const asp = natal ? aspectBetween(t.lon, natal.lon) : null;
     if (!asp) {
       return t.retrograde
-        ? `there is a pull toward reworking ground you have already covered before breaking new`
-        : `conditions favour gradual, visible progress rather than a single decisive move`;
+        ? 'there is a pull toward reworking ground already covered before breaking new'
+        : 'conditions favour gradual, visible progress rather than one decisive move';
     }
-    if (HARMONIOUS.includes(asp.type)) return `this area is opening with less resistance than usual — doors that were stuck tend to give now`;
-    if (asp.type === 'conjunction') return `you are at the start of a cycle here: what you begin now sets a pattern that runs for a long stretch`;
-    return `this area is being tested rather than blocked — progress is available, but it will ask for revision, patience and proof`;
+    if (HARMONIOUS.includes(asp.type)) return 'this area is opening with less resistance than usual — doors that were stuck tend to give now';
+    if (asp.type === 'conjunction') return 'they are at the start of a cycle here: what begins now sets a pattern that runs a long stretch';
+    return 'this area is being tested rather than blocked — progress is available, but it asks for revision, patience and proof';
   });
-  paras.push(
-    `As for why it feels live right now: ${fmtList([...new Set(conditions)])}. ` +
-    `You may notice that reflected in how much effort the same action costs you this month compared to a few months ago.`,
-  );
 
-  const dateLine = (m: MonthAstro): string => {
-    const best = m.bestDates.length
-      ? `your strongest days this month are ${fmtList(m.bestDates.map(ordinal))}`
-      : `no days this month stand out as especially favourable, so preparation will matter more than timing`;
-    const caution = m.cautionDates.length ? `, while ${fmtList(m.cautionDates.map(ordinal))} deserve a slower hand` : '';
-    return best + caution + '.';
+  const dates = monthAstro.bestDates.length
+    ? `Their strongest days this month are the ${fmtList(monthAstro.bestDates.map(ordinal))}`
+      + (monthAstro.cautionDates.length ? `, and the ${fmtList(monthAstro.cautionDates.map(ordinal))} deserve a slower hand.` : '.')
+    : 'No days this month stand out as especially favourable, so preparation will matter more than timing.';
+
+  return {
+    observations: [
+      `They bring ${st.keywords[0]} to how they pursue ${subject}, and that is their real advantage here.`,
+      `What they need from ${subject} underneath that runs toward ${fmtList(mt.keywords.slice(0, 2))} — quieter, and far less negotiable.`,
+      `An answer that satisfies only the outward layer tends to get re-decided within a year.`,
+      ...[...new Set(conditions)].map((c) => `On this subject right now, ${c}.`),
+      `They may notice it in how much effort the same action costs compared with a few months ago.`,
+      dates,
+      `Their strongest asset in this matter is ${st.strength}.`,
+      `The one way they could undermine it is ${st.watchout}.`,
+      pick(rng, [
+        'A concrete step within seven days is worth more than a better decision made later — timing multiplies effort, it never replaces it.',
+        'Writing the wanted outcome in one sentence, and acting on its first step this week, is what turns this from a question into a decision.',
+        'Coming back to this in a month and comparing what actually changed will teach them more than any single answer.',
+      ]),
+      'The answer is saved under My Questions, so they can return to it as things unfold.',
+    ],
+    note: `The subject is ${subject}. Write about ${subject} the way somebody who knows that part of `
+      + 'life writes about it — not about life in general with the word swapped in.',
   };
-
-  // What they can practically do with it.
-  paras.push(
-    `Concretely, for the coming weeks: ${dateLine(monthAstro)}` +
-    ` ${pick(rng, [
-      `Move the significant step toward the stronger days and keep the slower ones for preparation only.`,
-      `Let paperwork, commitments and public moves cluster on the stronger days; use the slower ones to refine rather than launch.`,
-    ])}`,
-  );
-
-  paras.push(
-    `There is an inner test worth applying as you weigh the options. Whatever the outward result, you are unlikely to feel settled about ${subject} unless it also delivers ${fmtList(mt.keywords.slice(0, 2))}. ` +
-    `So hold each option against that private standard as well as the visible metrics. ` +
-    `${pick(rng, [
-      `Options that look right on paper but starve that need tend to come back around; the ones that feed it tend to stick.`,
-      `People who honour that need first usually find the outward decision makes itself afterwards.`,
-    ])}`,
-  );
-
-  paras.push(
-    `${pick(rng, [
-      `Your strongest asset in this matter is ${st.strength}, and the single risk worth naming is ${st.watchout}. `,
-      `One strength that stands out here: ${st.strength}. The one way you could undermine it is ${st.watchout}. `,
-    ])}` +
-    `${pick(rng, [
-      `Take one concrete step within seven days, however small — a decision that has not been made cannot be helped along by good timing.`,
-      `Write the outcome you want in one sentence and act on its first step this week; timing multiplies effort, it never replaces it.`,
-      `Revisit this question in a month and compare what actually changed — you will learn more from that than from any single answer.`,
-    ])}`,
-  );
-
-  paras.push(
-    `This is saved under My Questions, so you can come back to it as things unfold. If the situation changes shape, ask again with the new detail and the answer will change with it.`,
-  );
-
-  return paras.join('\n\n');
 }
