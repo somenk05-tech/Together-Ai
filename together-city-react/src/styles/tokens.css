@@ -52,7 +52,18 @@
      stays an edge at any height. Anything that can grow past ~300px uses it. */
   --face:      linear-gradient(180deg, #ffffff 0%, #fcfcfc 44%, #eeeeee 100%);
   --face-2:    linear-gradient(180deg, #ffffff 0%, #fafafa 48%, #e9e9e9 100%);
-  --face-tall: linear-gradient(180deg, #ffffff 0px, #ffffff calc(100% - 96px), #f1f1f1 100%);
+  /* min() IS LOad-BEARING. Without it the first white stop is calc(100% - 96px),
+     which on the 78px header is MINUS 18px — the gradient starts already grey
+     and washes the whole bar out. A token whose correctness depends on the
+     element being taller than a number buried inside it is a trap, so the shade
+     is now "the last 96px, or the last 40%, whichever is less". */
+  --face-tall: linear-gradient(180deg, #ffffff 0%, #ffffff calc(100% - min(96px, 40%)), #f1f1f1 100%);
+
+  /* A KEY IS NOT A CARD. At 30px tall there is almost no face to light, and
+     --e1's soft 13px shadow spreads to nothing. Small controls get a face with
+     more travel and a shadow that is tighter and darker — the same amount of
+     relief, compressed into the space they actually have. */
+  --face-key: linear-gradient(180deg, #ffffff 0%, #f8f8f8 52%, #e6e6e6 100%);
   --well:      linear-gradient(180deg, #ededed 0%, #f6f6f6 58%, #fdfdfd 100%);
 
   --rim:        inset 0 0 0 1px rgba(0,0,0,.055), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(0,0,0,.045);
@@ -67,6 +78,15 @@
   --e1: var(--rim),        0 1px 1px rgba(0,0,0,.055), 0 2px 4px rgba(0,0,0,.06), 0 6px 13px rgba(0,0,0,.07);
   --e2: var(--rim-strong), 0 1px 1px rgba(0,0,0,.06),  0 3px 6px rgba(0,0,0,.075), 0 11px 24px rgba(0,0,0,.10), 0 22px 48px rgba(0,0,0,.075);
   --e3: var(--rim-strong), 0 2px 2px rgba(0,0,0,.065), 0 7px 14px rgba(0,0,0,.085), 0 20px 42px rgba(0,0,0,.11), 0 40px 88px rgba(0,0,0,.095);
+
+  /* KEY SCALE — --e1 and --e2 compressed, not a sixth and seventh depth.
+     A 30px pill and a 300px card are the same distance off the page, but a
+     shadow that spreads 13px reads as depth on the card and as nothing on the
+     pill. Same step, less room: the blur tightens and the alpha rises so the
+     amount of relief a citizen SEES stays constant. Anything under about 36px
+     tall uses these. */
+  --e1-key: var(--rim),        0 1px 1px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.09), 0 5px 10px rgba(0,0,0,.06);
+  --e2-key: var(--rim-strong), 0 2px 3px rgba(0,0,0,.10), 0 5px 10px rgba(0,0,0,.12), 0 10px 20px rgba(0,0,0,.08);
 
   /* Carved — the trough a field, a slider or a segmented control sits in. */
   --carve:      inset 0 0 0 1px rgba(0,0,0,.075), inset 0 3px 6px rgba(0,0,0,.13), inset 0 -1px 0 rgba(255,255,255,.95), inset 3px 0 5px -3px rgba(0,0,0,.07), inset -3px 0 5px -3px rgba(0,0,0,.07);
@@ -140,7 +160,7 @@
   --ease: cubic-bezier(.22,.61,.36,1);
   --spring: cubic-bezier(.34,1.42,.5,1);
 
-  --header-h: 78px;
+  --header-h: 88px;   /* two rows: the logo, then the nav trough with room to be one */
 
   /* ── ONE TYPEFACE ───────────────────────────────────────────────────────
      General Sans, self-hosted. --serif and --mono still exist because they are

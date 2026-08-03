@@ -435,7 +435,7 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .tabrow a:hover, .console .tabs a:hover { color: var(--ink); background: transparent; }
 .tabrow a.on, .console .tabs a.on {
   background: var(--face); color: var(--ink); font-weight: 700;
-  box-shadow: var(--rim), 0 1px 1px rgba(0,0,0,.05), 0 3px 7px rgba(0,0,0,.09);
+  box-shadow: var(--e1-key);
 }
 
 /* ══ STEPPER, RING, CALENDAR ═════════════════════════════════════════════ */
@@ -490,25 +490,39 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
    instead of being handed one: they float on the same white with a real
    shadow, and the content is pushed off them by a gutter rather than by a
    colour change.                                                            */
+/* THE BAR IS PLAIN WHITE, AND EVERY BIT OF ITS DEPTH IS CUT INTO IT.
+   A white pill on a white bar has nothing to cast a shadow onto — both
+   surfaces are lit the same way, so the key reads as an outline and the bar
+   reads as paint. Giving the bar a gradient did not help; it only made the bar
+   grey. What creates depth here is CONTRAST, so the rows of keys sit in carved
+   troughs and stand up out of them, exactly like the segmented control. */
 .tc-header {
-  background: var(--face-tall);
+  background: var(--card);
   border-bottom: 0;
   box-shadow: var(--e2);
   color: var(--ink);
 }
-/* A key 30px tall has almost no face to light. --face-2 has more travel between
-   its top and bottom than --face, which is the difference between a pill you
-   can see standing up and a rounded rectangle with a hairline round it. */
-.tc-nav a, .tc-actionbar a, .tc-actionbar button, .tc-actions a, .tc-actions button {
-  background: var(--face-2);
+/* THE TROUGH IS THE NAV'S ALONE. QuickActions renders `.tc-actions` around
+   People/Mail/Chat but Alerts and the avatar are direct children of the bar, so
+   a groove there would hold three of the five keys and leave two standing
+   outside it — a grouping that means nothing. The actions are all buttons; they
+   all stand up. The nav is a place you are, so it is the one that is cut in. */
+.tc-nav {
+  background: var(--well); box-shadow: var(--carve);
+  border-radius: var(--r-full); padding: 4px; gap: 3px;
+  /* Fits its tabs. Left to grow it becomes a groove with a metre of empty
+     channel after the last hub. */
+  flex: 0 1 auto;
 }
+.tc-actionbar, .tc-actions { gap: 8px; }
 .tc-logo .word { color: var(--ink); font-weight: 700; letter-spacing: -.03em; }
 .tc-logo .mark {
   background: var(--face-2); box-shadow: var(--e1); border-radius: 12px;
   display: grid; place-items: center; padding: 5px;
 }
 .tc-burger {
-  background: var(--face); box-shadow: var(--e1); border: 0; border-radius: var(--r-2); color: var(--ink);
+  background: var(--face-key); border: 0; border-radius: var(--r-2); color: var(--ink);
+  box-shadow: var(--e1-key);
 }
 .tc-burger:active { background: var(--well); box-shadow: var(--press); }
 
@@ -516,15 +530,36 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
    then raised on hover — reads as "nothing is here until you touch it".
    Reversed, the nav is a keyboard: every key stands up, and the one you are
    on has been pressed in. */
-.tc-nav a, .side-menu a {
+.side-menu a {
   border-radius: var(--r-2); border: 0;
   background: var(--face); box-shadow: var(--e1); color: var(--ink-soft);
   font-weight: 500;
   transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--spring), color var(--dur-fast) linear;
 }
-.tc-nav a:hover, .side-menu a:hover { transform: translateY(-1.5px); box-shadow: var(--e2); color: var(--ink); }
-.tc-nav a.on, .side-menu a.active {
+.side-menu a:hover { transform: translateY(-1.5px); box-shadow: var(--e2); color: var(--ink); }
+.side-menu a.active {
   background: var(--well); box-shadow: var(--carve); color: var(--ink); font-weight: 700; transform: none;
+}
+
+/* IN THE TROUGH, ONLY THE ONE YOU ARE ON STANDS UP. Thirteen raised pills in a
+   row is thirteen things claiming to be the answer; one raised key in a groove
+   is a place you are, which is what a hub tab means. */
+.tc-nav a {
+  border-radius: var(--r-full); border: 0; background: transparent; box-shadow: none;
+  color: var(--muted); font-weight: 500;
+  transition: box-shadow var(--dur-base) var(--ease), color var(--dur-fast) linear, background var(--dur-base) linear;
+}
+.tc-nav a:hover { color: var(--ink); background: rgba(255,255,255,.6); }
+.tc-nav a.on {
+  background: var(--face-key); color: var(--ink); font-weight: 700;
+  box-shadow: var(--e2-key);
+}
+
+/* THE ACTIONS ARE ALL BUTTONS, so they all stand up — you press every one. */
+.tc-actionbar a, .tc-actionbar button, .tc-actions a, .tc-actions button {
+  border-radius: var(--r-full); border: 0; color: var(--ink-soft);
+  background: var(--face-key);
+  box-shadow: var(--e1-key);
 }
 .side-menu a.active .l, .tc-nav a.on { color: var(--ink); }
 .side-menu a.active .s { color: var(--muted); }
@@ -549,7 +584,9 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .tc-actionbar a, .tc-actionbar button, .tc-actions a, .tc-actions button {
   background: var(--face); box-shadow: var(--e1); border: 0; border-radius: var(--r-full); color: var(--ink-soft);
 }
-.tc-actionbar a:hover, .tc-actionbar button:hover, .tc-actions a:hover, .tc-actions button:hover { box-shadow: var(--e2); transform: translateY(-1px); color: var(--ink); }
+.tc-actionbar a:hover, .tc-actionbar button:hover, .tc-actions a:hover, .tc-actions button:hover {
+  box-shadow: var(--e2-key); transform: translateY(-1px); color: var(--ink);
+}
 .tc-actionbar a:active, .tc-actionbar button:active, .tc-actions a:active, .tc-actions button:active { background: var(--well); box-shadow: var(--press); transform: translateY(1px); }
 
 .tc-bottomnav {

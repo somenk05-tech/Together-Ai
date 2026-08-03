@@ -106,7 +106,12 @@ describe('Relief stays a system', () => {
     // darker line under a table head, and the two pip halos. Nothing stands on
     // an edge, so an edge is not a depth; naming them is what lets the rule
     // above stay literally true instead of true-with-a-list-of-exceptions.
-    const NAMED = /var\(--(e1|e2|e3|carve|carve-deep|press|rim|rim-strong|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok)\)/;
+    // A DEPTH TOKEN, NOT MERELY A RIM. --rim is the hairline that sits on top of
+    // a depth, not a depth itself, and while it counted here any hand-written
+    // shadow beginning `var(--rim), 0 2px 4px …` passed unread — which is
+    // exactly how three bespoke header shadows got in. It is no longer enough
+    // on its own.
+    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok)\)/;
     // A photograph, a filled black button and a text emboss are not surfaces —
     // they are ink and images, and they carry their own light.
     const ALLOWED = /(text-shadow|drop-shadow|\.hero|\.btn-accent|\.btn-gold|\.btn-primary|\.ask-cta|\.step\.|\.mincal|\.tag\.dark|\.knob|outline|inset 0 1px 0|no-case|img:not|video:not|\.case)/;
