@@ -4,9 +4,9 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useMyPostings, useApplicants, useUpdateApplicationStatus, useDeletePosting, type Posting } from '../api';
 
 const APPLICANT_STATUS: Record<string, { label: string; color: string }> = {
-  applied: { label: 'Applied', color: '#e65100' },
-  shortlisted: { label: 'Shortlisted', color: '#2e7d32' },
-  rejected: { label: 'Not selected', color: '#c62828' },
+  applied: { label: 'Applied', color: 'var(--warn-ink)' },
+  shortlisted: { label: 'Shortlisted', color: 'var(--ok-ink)' },
+  rejected: { label: 'Not selected', color: 'var(--danger-ink)' },
 };
 
 function Applicants({ posting }: { posting: Posting }) {
@@ -29,7 +29,7 @@ function Applicants({ posting }: { posting: Posting }) {
           </div>
           {a.matchedSkills.length > 0 && (
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 5 }}>
-              {a.matchedSkills.map((s) => <span key={s} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '1px 8px' }}>✓ {s}</span>)}
+              {a.matchedSkills.map((s) => <span key={s} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '1px 8px' }}>✓ {s}</span>)}
             </div>
           )}
           {a.coverNote && <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', margin: '6px 0 0' }}>“{a.coverNote}”</p>}
@@ -71,7 +71,7 @@ export function Postings() {
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                 <strong style={{ fontSize: 15 }}>{p.title}</strong>
                 <span className="muted" style={{ fontSize: 12.5 }}>{p.company} · {p.location}{p.remote ? ' · Remote' : ''} · ₹{p.salaryLpa} LPA</span>
-                <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 11px' }}>
+                <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 11px' }}>
                   {p.applicantCount} applicant{p.applicantCount === 1 ? '' : 's'}
                 </span>
               </div>
@@ -85,7 +85,7 @@ export function Postings() {
                 <Link to={`/jobs/post?edit=${p.id}`}><Button variant="line" size="sm">Edit</Button></Link>
                 <button type="button" disabled={del.isPending}
                   onClick={() => { if (window.confirm(`Delete "${p.title}"? This removes the posting and its ${p.applicantCount} application(s).`)) del.mutate(p.id); }}
-                  style={{ background: 'none', border: 'none', color: '#c0392b', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginLeft: 'auto', padding: '2px 4px' }}>
+                  style={{ background: 'none', border: 'none', color: 'var(--danger-ink)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginLeft: 'auto', padding: '2px 4px' }}>
                   Delete
                 </button>
               </div>

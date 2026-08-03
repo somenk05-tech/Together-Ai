@@ -105,9 +105,9 @@ export function Info({ slug }: { slug: Slug }) {
       ))}
       <p className="muted" style={{ fontSize: 12.5, marginTop: 28 }}>
         See also{' '}
-        <Link to="/legal/privacy" style={{ color: 'var(--accent)' }}>Privacy</Link>{' · '}
-        <Link to="/legal/terms" style={{ color: 'var(--accent)' }}>Terms</Link>{' · '}
-        <Link to="/settings/privacy" style={{ color: 'var(--accent)' }}>Privacy &amp; Permissions</Link>
+        <Link to="/legal/privacy" style={{ color: 'var(--accent-ink)' }}>Privacy</Link>{' · '}
+        <Link to="/legal/terms" style={{ color: 'var(--accent-ink)' }}>Terms</Link>{' · '}
+        <Link to="/settings/privacy" style={{ color: 'var(--accent-ink)' }}>Privacy &amp; Permissions</Link>
       </p>
     </div>
   );

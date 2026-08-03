@@ -117,7 +117,7 @@ function ProfileCompletionCard() {
               <span className="muted">{s.complete ? '✓' : `${s.percent}%`}</span>
             </div>
             <div style={{ height: 5, borderRadius: 3, background: 'var(--line)', overflow: 'hidden' }}>
-              <div style={{ width: `${s.percent}%`, height: '100%', background: s.complete ? '#2e7d4f' : 'var(--accent)' }} />
+              <div style={{ width: `${s.percent}%`, height: '100%', background: s.complete ? 'var(--ok-ink)' : 'var(--accent)' }} />
             </div>
           </Link>
         ))}
@@ -329,7 +329,7 @@ export function Profile() {
             aria-label="Change profile picture" title="Change profile picture"
             style={{ position: 'relative', border: 'none', background: 'none', padding: 0, cursor: photoBusy ? 'wait' : 'pointer', borderRadius: '50%', flexShrink: 0 }}>
             <Avatar src={photo} name={name} size={56} />
-            <span style={{ position: 'absolute', right: -2, bottom: -2, width: 22, height: 22, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 11, border: '2px solid var(--card,#fff)' }}>
+            <span style={{ position: 'absolute', right: -2, bottom: -2, width: 22, height: 22, borderRadius: '50%', background: 'var(--accent)', color: 'var(--on-accent)', display: 'grid', placeItems: 'center', fontSize: 11, border: '2px solid var(--card)' }}>
               {photoBusy ? '…' : '📷'}
             </span>
           </button>
@@ -359,7 +359,7 @@ export function Profile() {
           <div style={{ fontWeight: 600, fontSize: 15 }}>Calendar</div>
           <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>Your appointments, bookings and reminders across the city.</p>
         </div>
-        <span style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
+        <span style={{ color: 'var(--accent-ink)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
       </Link>
 
       {/* Astrology Profile — the shared birth-details profile (Astrology Zone,
@@ -370,7 +370,7 @@ export function Profile() {
           <div style={{ fontWeight: 600, fontSize: 15 }}>Astrology Profile</div>
           <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>Birth date, time and place — entered once, used by horoscopes, matchmaking and compatibility.</p>
         </div>
-        <span style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
+        <span style={{ color: 'var(--accent-ink)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
       </Link>
 
       {/* Avatar picker — a drawn face for people who would rather not use a photo. */}
@@ -380,7 +380,7 @@ export function Profile() {
           <div style={{ fontWeight: 600, fontSize: 15 }}>Avatar</div>
           <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>A drawn face to use beside your name and in calls, if you would rather not use a photo.</p>
         </div>
-        <span style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
+        <span style={{ color: 'var(--accent-ink)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
       </Link>
 
       {/* Tabs */}
@@ -391,7 +391,7 @@ export function Profile() {
               fontSize: 14, fontWeight: 600, color: tab === t.key ? 'var(--accent)' : 'var(--muted)',
               borderBottom: `2px solid ${tab === t.key ? 'var(--accent)' : 'transparent'}`, marginBottom: -1 }}>
             {t.label}
-            {t.badge ? <span className="tag" style={{ marginLeft: 6, background: '#e0342b', color: '#fff' }}>{t.badge}</span> : null}
+            {t.badge ? <span className="tag" style={{ marginLeft: 6, background: 'var(--danger-ink)', color: 'var(--on-accent)' }}>{t.badge}</span> : null}
           </button>
         ))}
       </div>

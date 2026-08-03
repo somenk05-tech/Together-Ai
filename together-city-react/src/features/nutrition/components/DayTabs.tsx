@@ -4,7 +4,7 @@ export function DayTabs({ days, current, onSelect }: { days: string[]; current: 
       {days.map((d, i) => (
         <button key={d} type="button" onClick={() => onSelect(i)}
           className="pill" data-active={i === current}
-          style={i === current ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff', fontWeight: 700 } : undefined}>
+          style={i === current ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 700 } : undefined}>
           {d.slice(0, 3)}
         </button>
       ))}

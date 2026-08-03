@@ -25,7 +25,7 @@ export function ProfileSummaryCard({ title, fields, onEdit, justSaved, editLabel
     <div className="card rise" style={{ padding: '20px 22px', ...style }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, marginBottom: 14 }}>
         <div style={{ minWidth: 0 }}>
-          {justSaved && <div className="eyebrow" style={{ color: 'var(--accent)' }}>Saved ✓</div>}
+          {justSaved && <div className="eyebrow" style={{ color: 'var(--accent-ink)' }}>Saved ✓</div>}
           <h3 style={{ margin: justSaved ? '2px 0 0' : 0, fontSize: 18 }}>{title}</h3>
         </div>
         <Button variant="line" size="sm" onClick={onEdit}>{editLabel}</Button>

@@ -116,12 +116,12 @@ export function Profile() {
         <input ref={fileRef} type="file" accept=".txt,.md,.text,.pdf,.doc,.docx,.rtf" onChange={onFile} style={{ display: 'none' }} />
       </div>
 
-      {readError && <p style={{ color: '#c0392b', fontSize: 12.5, margin: '0 0 12px' }}>{readError}</p>}
+      {readError && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: '0 0 12px' }}>{readError}</p>}
 
       {/* Secondary options */}
       <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
         <button type="button" onClick={() => setPasteOpen((o) => !o)}
-          style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+          style={{ background: 'none', border: 'none', color: 'var(--accent-ink)', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
           {pasteOpen ? '− Hide paste box' : '✎ Paste text instead'}
         </button>
         {/* "Use a sample" used to sit here and fill this box with an invented
@@ -166,7 +166,7 @@ export function Profile() {
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
             {p.skills.length === 0 ? <span className="muted" style={{ fontSize: 12.5 }}>No skills detected — add detail to your CV and re-upload.</span>
               : p.skills.map((s) => (
-                <span key={s.key} style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 11px' }}>{s.label}</span>
+                <span key={s.key} style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 11px' }}>{s.label}</span>
               ))}
           </div>
           <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>

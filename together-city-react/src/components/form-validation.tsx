@@ -61,7 +61,7 @@ export function useFormValidation(rules: FieldRule[]) {
 
   /** Red-border style for a missing field's input/container. */
   const errStyle = useCallback((key: string): React.CSSProperties =>
-    errors[key] ? { border: '1.5px solid #c0392b', borderRadius: 12, background: 'rgba(192,57,43,0.04)' } : {}, [errors]);
+    errors[key] ? { border: '1.5px solid var(--danger-ink)', borderRadius: 12, background: 'rgba(192,57,43,0.04)' } : {}, [errors]);
 
   return { errors, validate, clear, reg, missing, errStyle, hasErrors: missing.length > 0 };
 }
@@ -73,13 +73,13 @@ export function ValidationSummary({ missing, title = 'Please complete the follow
   if (!missing.length) return null;
   return (
     <div role="alert" style={{
-      border: '1.5px solid #e2b3a8', background: '#fdf3f1', borderRadius: 14,
+      border: '1.5px solid var(--danger-line)', background: 'var(--danger-soft)', borderRadius: 14,
       padding: '14px 18px', margin: '0 0 16px', animation: 'tcValIn .25s ease',
     }}>
       <style>{'@keyframes tcValIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}'}</style>
-      <div style={{ fontWeight: 700, fontSize: 13.5, color: '#b0503e', marginBottom: 6 }}>⚠ {title}</div>
+      <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--danger-ink)', marginBottom: 6 }}>⚠ {title}</div>
       <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {missing.map((m) => <li key={m.key} style={{ fontSize: 12.5, color: '#8a4436' }}>{m.message}</li>)}
+        {missing.map((m) => <li key={m.key} style={{ fontSize: 12.5, color: 'var(--danger-ink)' }}>{m.message}</li>)}
       </ul>
     </div>
   );
@@ -88,7 +88,7 @@ export function ValidationSummary({ missing, title = 'Please complete the follow
 /** Inline ⚠ message under a missing field. */
 export function FieldError({ msg }: { msg?: string }) {
   if (!msg) return null;
-  return <p style={{ fontSize: 11.5, color: '#b0503e', fontWeight: 600, margin: '4px 0 0' }}>⚠ {msg}</p>;
+  return <p style={{ fontSize: 11.5, color: 'var(--danger-ink)', fontWeight: 600, margin: '4px 0 0' }}>⚠ {msg}</p>;
 }
 
 /* ── success toast (self-contained — injects its own style once) ── */
@@ -97,7 +97,7 @@ export function successToast(msg: string) {
   if (!document.getElementById('tc-val-toast-css')) {
     const st = document.createElement('style');
     st.id = 'tc-val-toast-css';
-    st.textContent = '.tc-val-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(16px);z-index:10000;background:#2e5e40;color:#fff;font-size:13.5px;font-weight:600;padding:11px 22px;border-radius:999px;box-shadow:0 10px 32px rgba(0,0,0,.3);opacity:0;transition:opacity .25s ease,transform .25s ease;pointer-events:none;font-family:inherit}.tc-val-toast.on{opacity:1;transform:translateX(-50%) translateY(0)}';
+    st.textContent = '.tc-val-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(16px);z-index:10000;background:var(--ok-ink);color:var(--on-accent);font-size:13.5px;font-weight:600;padding:11px 22px;border-radius:999px;box-shadow:0 10px 32px rgba(0,0,0,.3);opacity:0;transition:opacity .25s ease,transform .25s ease;pointer-events:none;font-family:inherit}.tc-val-toast.on{opacity:1;transform:translateX(-50%) translateY(0)}';
     document.head.appendChild(st);
   }
   document.querySelectorAll('.tc-val-toast').forEach((n) => n.remove());

@@ -92,11 +92,11 @@ export function AddToPlan({ recipeId, recipeName }: { recipeId: string; recipeNa
 
       {done && (
         <div style={{ marginTop: 10 }}>
-          <p style={{ fontSize: 13, margin: 0, fontWeight: 600, color: '#2e7d4f' }}>
-            Added. <Link to="/nutrition/weekly" style={{ color: 'var(--accent)' }}>See it in your plan →</Link>
+          <p style={{ fontSize: 13, margin: 0, fontWeight: 600, color: 'var(--ok-ink)' }}>
+            Added. <Link to="/nutrition/weekly" style={{ color: 'var(--accent-ink)' }}>See it in your plan →</Link>
           </p>
           {done.warnings.map((w, i) => (
-            <p key={i} style={{ fontSize: 12.5, margin: '6px 0 0', lineHeight: 1.6, color: '#b0803a' }}>{w}</p>
+            <p key={i} style={{ fontSize: 12.5, margin: '6px 0 0', lineHeight: 1.6, color: 'var(--warn-ink)' }}>{w}</p>
           ))}
           {/* A choice you cannot undo is a trap, so the undo lives beside the
               confirmation rather than somewhere they have to go and find. */}

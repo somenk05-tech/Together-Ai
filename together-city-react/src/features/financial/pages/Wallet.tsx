@@ -15,7 +15,7 @@ function TxnRow({ t }: { t: Txn }) {
         <div style={{ fontWeight: 700, fontSize: 13.5 }}>{t.label}</div>
         <div className="muted" style={{ fontSize: 11.5 }}>{t.hub} · {t.date.slice(0, 10)}</div>
       </div>
-      <span style={{ fontWeight: 700, fontSize: 14, color: credit ? '#2e7d32' : 'var(--ink)' }}>{credit ? '+' : '−'}{inr(t.amountInr)}</span>
+      <span style={{ fontWeight: 700, fontSize: 14, color: credit ? 'var(--ok-ink)' : 'var(--ink)' }}>{credit ? '+' : '−'}{inr(t.amountInr)}</span>
     </div>
   );
 }
@@ -42,7 +42,7 @@ export function Wallet() {
       </p>
       <PrivacyNote hub="financial" style={{ marginBottom: 16 }} />
 
-      <div className="card" style={{ marginBottom: 14, background: 'linear-gradient(135deg, var(--accent) 0%, #3a1220 100%)', color: '#fff', border: 'none' }}>
+      <div className="card" style={{ marginBottom: 14, background: 'linear-gradient(135deg, var(--accent) 0%, var(--danger-ink) 100%)', color: 'var(--on-accent)', border: 'none' }}>
         <div style={{ fontSize: 12, opacity: .85, textTransform: 'uppercase', letterSpacing: '.08em' }}>Balance</div>
         <div style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1 }}>{inr(w.balanceInr)}</div>
         <div style={{ display: 'flex', gap: 24, marginTop: 12, fontSize: 12.5 }}>
@@ -93,7 +93,7 @@ export function Wallet() {
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <div className="eyebrow">Recent activity</div>
-          <Link to="/financial/transactions" style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--accent)', fontWeight: 600 }}>See all →</Link>
+          <Link to="/financial/transactions" style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--accent-ink)', fontWeight: 600 }}>See all →</Link>
         </div>
         {w.recent.length === 0 ? (
           <p className="muted" style={{ fontSize: 13, margin: '10px 0 0' }}>No activity yet. Top up, then pay across any hub — it all flows through here.</p>

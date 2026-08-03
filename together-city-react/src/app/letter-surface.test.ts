@@ -4,16 +4,18 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CSS = join(dirname(fileURLToPath(import.meta.url)), '..', 'styles', 'layout.css');
+const css = readFileSync(CSS, 'utf8');
 
 /**
- * The letter surface bleeds out of the shell WITHOUT negative margins.
+ * NOTHING BLEEDS OUT OF THE CONTENT COLUMN ANY MORE — and the reason this file
+ * still exists is that the way it used to is a trap somebody will fall into
+ * again.
  *
- * This exists because of what shipped first. The daily and monthly guidance
- * pages have to reach the edges of the content column, and `.tc-shell .tc-main
- * > *` pads every child of that column — so the first version cancelled the
- * padding with `margin: -36px -44px -80px`.
- *
- * That was wrong twice on the first look at a real browser.
+ * WHAT THIS GUARDED BEFORE. The daily and monthly guidance pages were a night
+ * surface that had to reach the edges of the content column, and
+ * `.tc-shell .tc-main > *` pads every child of that column. The first version
+ * cancelled that padding with `margin: -36px -44px -80px`, and it was wrong
+ * twice within a day of reaching a real browser:
  *
  *   - THE PADDING CHANGES AT 1100px AND THE MARGIN CHANGED AT 780px. Between
  *     those two widths the whole black surface sat offset from the column it
@@ -24,33 +26,33 @@ const CSS = join(dirname(fileURLToPath(import.meta.url)), '..', 'styles', 'layou
  *     sky behind it.
  *
  * Both are the same defect: a value that has to be kept in step with a value in
- * another rule, forever, with nothing checking. Overriding the padding is one
- * rule that is correct at every width by construction and cannot reach a
- * sibling. This test is what stops the negative margins coming back the next
- * time something needs to bleed.
+ * another rule, forever, with nothing checking.
  *
+ * WHAT CHANGED. Relief made every background white, so the letter no longer
+ * needs to reach the edges — it is a raised card sitting in the ordinary
+ * gutter, and depth does the work the bleed used to. The full-bleed assertion
+ * is therefore gone: asserting that a surface bleeds, when the design says it
+ * does not, is a test that fails for being right.
+ *
+ * THE TWO RULES THAT OUTLIVED IT are the ones that were never about the night
+ * palette, and both stay:
+ *   1. no negative margin cancels the shell's padding, on any surface;
+ *   2. a page does not restyle the site footer.
  */
-const css = readFileSync(CSS, 'utf8');
 
 /**
- * The dark surfaces' own rules — the letter, and the consultation room.
- *
- * BOUNDED, not global. The stylesheet's ordinary rules live above these blocks
- * and are none of this guard's business; everything appended from the letter
- * surface onward is.
- *
- * Anchored on a SELECTOR rather than on the block's comment banner — the first
- * attempt anchored on the heading, which is drawn with box characters that are
- * not the same width in the two blocks that now use them.
+ * Anchored on the letter's own selector rather than on a comment banner — the
+ * first attempt anchored on the heading, which is drawn with box characters
+ * that are not the same width in the two blocks that use them.
  */
 const surfaceCss = (): string => {
-  const start = css.indexOf('.tc-shell .tc-main > .letter-sky');
+  const start = css.indexOf('.letter-sky {');
   expect(start, 'the letter surface block is missing from layout.css').toBeGreaterThan(-1);
   return css.slice(start);
 };
 
 /**
- * The surfaces this guard is about, named rather than inferred.
+ * The surfaces this guard is about, NAMED rather than inferred.
  *
  * THIS LIST IS THE THIRD ATTEMPT AND THE FIRST HONEST ONE. The guard began by
  * reading from its own block to the END of the stylesheet, which meant every
@@ -61,10 +63,9 @@ const surfaceCss = (): string => {
  * with bleeding out of a shell.
  *
  * An accidental boundary that keeps swallowing new work is worse than a narrow
- * one that has to be widened on purpose. A new bleeding surface adds its prefix
- * here, and that is a decision somebody makes rather than a net they fall into.
+ * one that has to be widened on purpose.
  */
-const BLEEDING_SURFACES = /^\.(letter|ask|tarot-night|tarot-frame)-?|^\.tc-shell \.tc-main > \.(letter|ask|tarot)/;
+const BLEEDING_SURFACES = /^\.(letter|ask|astro-frame|tarot)-?|^\.tc-shell \.tc-main > \./;
 
 const rulesFor = (pattern: RegExp): Array<{ selector: string; body: string }> =>
   surfaceCss().replace(/\/\*[\s\S]*?\*\//g, ' ')
@@ -76,11 +77,6 @@ const rulesFor = (pattern: RegExp): Array<{ selector: string; body: string }> =>
     .filter((r): r is { selector: string; body: string } => !!r && pattern.test(r.selector));
 
 describe('the letter surface', () => {
-  it('bleeds by overriding the shell padding, not by cancelling it', () => {
-    expect(css).toMatch(/\.tc-shell\s+\.tc-main\s*>\s*\.letter-sky\s*\{[^}]*padding:\s*0/);
-    expect(css).toMatch(/\.tc-shell\s+\.tc-main\s*>\s*\.letter-past\s*\{[^}]*padding:/);
-  });
-
   it('uses no negative margin anywhere in it', () => {
     const own = rulesFor(BLEEDING_SURFACES);
     expect(own.length, 'these surfaces have no rules in layout.css').toBeGreaterThan(20);
@@ -93,27 +89,37 @@ describe('the letter surface', () => {
       .map((r) => r.selector);
     expect(offenders, [
       '',
-      'A negative margin here has to know the shell\'s padding at every',
+      "A negative margin here has to know the shell's padding at every",
       'breakpoint and be kept in step with it forever. It was wrong within a day',
       'the first time: offset between 780px and 1100px, and eating the',
       'breadcrumb row above it.',
       '',
-      'Override `.tc-shell .tc-main > *` instead. If this rule is not about',
-      'bleeding out of the shell at all, it does not belong to a surface in',
-      'BLEEDING_SURFACES — check the prefix before changing the CSS.',
+      'Override `.tc-shell .tc-main > *` instead — one rule that is correct at',
+      'every width by construction and cannot reach a sibling.',
       '',
     ].join('\n')).toEqual([]);
+  });
+
+  it('overrides the shell padding rather than cancelling it, where it overrides at all', () => {
+    // The tarot page is the one surface that still sets its own column padding,
+    // because it sets a DIFFERENT padding, not because it wants none. If that
+    // override ever appears as a margin instead, the test above catches it;
+    // this one only checks the override is still expressed as padding.
+    const overrides = rulesFor(/^\.tc-shell \.tc-main > \./);
+    for (const rule of overrides) {
+      expect(rule.body, `${rule.selector} should set padding, not margin`).toMatch(/padding\s*:/);
+    }
   });
 
   it('leaves the footer alone', () => {
     // Both dark surfaces briefly darkened `.tc-footer` so the foot of the page
     // would not turn cream under a night sky, and it was reverted: the footer is
     // site chrome and stays site chrome on every page. The reasoning is worth
-    // keeping, because the change is tempting every time somebody builds a dark
-    // screen — a global bar that changes colour on two screens out of a hundred
-    // and forty is not atmosphere, it is a bar that looks broken on the two.
+    // keeping, because the change is tempting every time somebody builds a
+    // distinctive screen — a global bar that changes colour on two screens out
+    // of a hundred and forty is not atmosphere, it is a bar that looks broken
+    // on the two.
     const touching = rulesFor(/\.tc-footer/).map((r) => r.selector);
-    expect(touching, 'a dark surface is restyling the site footer again').toEqual([]);
+    expect(touching, 'a page surface is restyling the site footer again').toEqual([]);
   });
-
 });

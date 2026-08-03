@@ -39,7 +39,7 @@ export function AllergyNote({ notice, manageTo = '/nutrition/preferences' }: {
     >
       <span aria-hidden="true">🛡</span>
       <span>{notice.sentence}</span>
-      <Link to={manageTo} style={{ fontWeight: 600, color: 'var(--accent)', textDecoration: 'none' }}>
+      <Link to={manageTo} style={{ fontWeight: 600, color: 'var(--accent-ink)', textDecoration: 'none' }}>
         Change this →
       </Link>
     </div>
@@ -56,7 +56,7 @@ export function AllergyMarkTag({ mark }: { mark: { label: string } | null | unde
     <span
       style={{
         display: 'inline-block', fontSize: 11.5, fontWeight: 600,
-        color: '#8a4b00', background: '#fff3e0', border: '1px solid #ffd9a8',
+        color: 'var(--warn-ink)', background: 'var(--warn-soft)', border: '1px solid var(--warn-soft)',
         borderRadius: 8, padding: '3px 9px', marginTop: 6,
       }}
     >

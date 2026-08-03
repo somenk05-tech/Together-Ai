@@ -3,7 +3,7 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useFitnessLog, useAddWorkout, type Intensity } from '../api';
 
 const INTENSITIES: Intensity[] = ['light', 'moderate', 'vigorous'];
-const color: Record<string, string> = { light: '#2e7d32', moderate: '#e65100', vigorous: '#c62828' };
+const color: Record<string, string> = { light: 'var(--ok-ink)', moderate: 'var(--warn-ink)', vigorous: 'var(--danger-ink)' };
 
 /** Activity Log — what you actually did this week. */
 export function Log() {
@@ -50,7 +50,7 @@ export function Log() {
           {INTENSITIES.map((i) => (
             <button key={i} type="button" onClick={() => setIntensity(i)}
               style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 14px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', textTransform: 'capitalize',
-                border: `1.5px solid ${intensity === i ? color[i] : 'var(--line)'}`, background: intensity === i ? color[i] : 'transparent', color: intensity === i ? '#fff' : 'var(--ink-soft)' }}>
+                border: `1.5px solid ${intensity === i ? color[i] : 'var(--line)'}`, background: intensity === i ? color[i] : 'transparent', color: intensity === i ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
               {i}
             </button>
           ))}

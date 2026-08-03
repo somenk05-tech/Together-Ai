@@ -26,7 +26,7 @@ export function PlannerModeToggle({
                 cursor: busy ? 'wait' : 'pointer', borderRadius: 999, padding: '8px 18px', fontSize: 13, fontFamily: 'inherit',
                 fontWeight: active ? 800 : 600, border: 'none', transition: 'background .15s, color .15s',
                 background: active ? 'var(--accent)' : 'transparent',
-                color: active ? '#fff' : 'var(--ink-soft)',
+                color: active ? 'var(--on-accent)' : 'var(--ink-soft)',
               }}>
               {o.label}
             </button>

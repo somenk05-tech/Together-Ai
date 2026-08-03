@@ -16,10 +16,10 @@ const GOALS: [string, string][] = [['lose', 'Lose weight'], ['maintain', 'Mainta
 const ACTIVITY: [number, string][] = [[1.2, 'Sedentary'], [1.375, 'Lightly active'], [1.55, 'Moderately active'], [1.725, 'Very active'], [1.9, 'Athlete']];
 const CONDITIONS = ['Diabetes', 'High cholesterol', 'Hypertension', 'Fatty liver', 'Kidney disease', 'PCOS', 'Thyroid'];
 const ROLE_META: Record<HouseholdRole, { label: string; color: string; soft: string }> = {
-  owner: { label: 'Owner', color: '#2e7d4f', soft: '#e6f2ea' },
-  adult: { label: 'Adult', color: '#2f6f8f', soft: '#e4eef4' },
-  child: { label: 'Child', color: '#b0803a', soft: '#f7efe1' },
-  guest: { label: 'Guest', color: '#7a7a72', soft: '#eeeee9' },
+  owner: { label: 'Owner', color: 'var(--ok-ink)', soft: 'var(--ok-soft)' },
+  adult: { label: 'Adult', color: 'var(--info-ink)', soft: 'var(--info-soft)' },
+  child: { label: 'Child', color: 'var(--warn-ink)', soft: 'var(--warn-soft)' },
+  guest: { label: 'Guest', color: 'var(--muted)', soft: 'var(--line)' },
 };
 const fld: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', fontSize: 13.5, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
 const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--muted)', display: 'block', marginBottom: 4 };
@@ -86,7 +86,7 @@ function FamilyProfileCard() {
     <div><div style={{ fontSize: 18, fontWeight: 800 }}>{n}</div><div className="muted" style={{ fontSize: 11 }}>{l}</div></div>
   );
   const c = p.compatibility;
-  const cColor = c.level === 'high' ? '#2e7d4f' : c.level === 'moderate' ? '#b0803a' : '#c0733a';
+  const cColor = c.level === 'high' ? 'var(--ok-ink)' : c.level === 'moderate' ? 'var(--warn-ink)' : 'var(--warn-ink)';
   return (
     <div className="card" style={{ marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
@@ -122,7 +122,7 @@ function FamilyProfileCard() {
       {(p.dietTypes.length > 0 || p.conditions.length > 0) && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
           {p.dietTypes.map((d) => <span key={d} style={{ fontSize: 11, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 999, padding: '3px 10px', fontWeight: 600 }}>{d}</span>)}
-          {p.conditions.map((c) => <span key={c} style={{ fontSize: 11, background: '#f7efe1', color: '#b0803a', borderRadius: 999, padding: '3px 10px', fontWeight: 600 }}>{c}</span>)}
+          {p.conditions.map((c) => <span key={c} style={{ fontSize: 11, background: 'var(--warn-soft)', color: 'var(--warn-ink)', borderRadius: 999, padding: '3px 10px', fontWeight: 600 }}>{c}</span>)}
         </div>
       )}
       {p.summary.medicalAlerts.length > 0 && (
@@ -366,7 +366,7 @@ function MemberCard({ m, onEdit, onRemove }: { m: FamilyMemberProfile; onEdit: (
 
       {m.healthConditions.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-          {m.healthConditions.map((c) => <span key={c} style={{ fontSize: 11, background: '#f7efe1', color: '#b0803a', borderRadius: 999, padding: '3px 9px', fontWeight: 600 }}>{c}</span>)}
+          {m.healthConditions.map((c) => <span key={c} style={{ fontSize: 11, background: 'var(--warn-soft)', color: 'var(--warn-ink)', borderRadius: 999, padding: '3px 9px', fontWeight: 600 }}>{c}</span>)}
         </div>
       )}
       {m.privacy.conditions && !m.isSelf && (

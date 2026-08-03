@@ -45,7 +45,7 @@ function SavedCard({ post, onRemove }: { post: Post; onRemove: () => void }) {
           <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}> @{post.author.handle}</span>
         </div>
         {post.placeName && (
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', marginTop: 2 }}>📍 {post.placeName}</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)', marginTop: 2 }}>📍 {post.placeName}</div>
         )}
         {post.text && (
           <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '6px 0 0',

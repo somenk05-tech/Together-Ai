@@ -140,8 +140,8 @@ function useCookEngine() {
 
 /* ---------- UI ---------- */
 
-const ctrl: React.CSSProperties = { borderRadius: 999, padding: '12px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: '#fff' };
-const ACCENT = '#8fd3a6';
+const ctrl: React.CSSProperties = { borderRadius: 999, padding: '12px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: 'var(--on-accent)' };
+const ACCENT = 'var(--ok-line)';
 
 function Overlay() {
   const s = useCookStore();
@@ -158,13 +158,13 @@ function Overlay() {
           <button type="button" onClick={s.end} className="btn btn-sm" style={endBtn}>✕ Exit</button></div>
         <div style={{ flex: 1, overflowY: 'auto', maxWidth: 620, margin: '0 auto', width: '100%', paddingTop: 8 }}>
           <div style={{ textAlign: 'center', marginBottom: 14 }}>
-            <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: '#e0b96a', fontWeight: 700 }}>Timer stopped</div>
+            <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--accent-ink)', fontWeight: 700 }}>Timer stopped</div>
             <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(20px,4vw,30px)', margin: '6px 0' }}>Which step have you finished?</h2>
             <p style={{ fontSize: 13.5, color: 'rgba(255,255,255,.75)' }}>Tell us where you got to and we'll pick the method back up from the next step — with its timer.</p>
           </div>
           {s.steps.map((st, i) => (
             <button key={i} type="button" onClick={() => s.resumeFrom(i)}
-              style={{ display: 'block', width: '100%', textAlign: 'left', margin: '0 0 8px', padding: '13px 15px', borderRadius: 12, cursor: 'pointer', color: '#fff', background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.18)', fontFamily: 'inherit', fontSize: 14 }}>
+              style={{ display: 'block', width: '100%', textAlign: 'left', margin: '0 0 8px', padding: '13px 15px', borderRadius: 12, cursor: 'pointer', color: 'var(--on-accent)', background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.18)', fontFamily: 'inherit', fontSize: 14 }}>
               <span style={{ color: ACCENT, fontWeight: 700 }}>{st.kind === 'prep' ? 'Prep' : `Step ${i}`} ✓ </span>{st.text.slice(0, 110)}{st.text.length > 110 ? '…' : ''}
             </button>
           ))}
@@ -188,7 +188,7 @@ function Overlay() {
       </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 12, overflowY: 'auto' }}>
-        <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: '#e0b96a', fontWeight: 700 }}>{eyebrow}</div>
+        <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--accent-ink)', fontWeight: 700 }}>{eyebrow}</div>
         <div style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(22px,4.4vw,38px)', lineHeight: 1.25, maxWidth: 760 }}>{step.text}</div>
 
         {/* attention hint */}
@@ -210,12 +210,12 @@ function Overlay() {
         {/* timer */}
         {timed && (
           <>
-            <div style={{ fontSize: 'clamp(48px,15vw,110px)', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.02em', color: s.rung ? ACCENT : '#fff' }}>{mmss(s.remain)}</div>
+            <div style={{ fontSize: 'clamp(48px,15vw,110px)', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.02em', color: s.rung ? ACCENT : 'var(--on-accent)' }}>{mmss(s.remain)}</div>
             <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,.15)', overflow: 'hidden', width: 260 }}>
               <div style={{ height: '100%', background: ACCENT, width: `${step.durationSec ? Math.round((1 - s.remain / step.durationSec) * 100) : 0}%`, transition: 'width .4s linear' }} />
             </div>
             {!s.ticking && !s.rung && (
-              <button type="button" style={{ ...ctrl, background: ACCENT, color: '#123', borderColor: ACCENT }} onClick={() => { if (!step.active) void requestNotify(); s.startTimer(); }}>▶ Start {mmss(step.durationSec)} timer</button>
+              <button type="button" style={{ ...ctrl, background: ACCENT, color: 'var(--ink)', borderColor: ACCENT }} onClick={() => { if (!step.active) void requestNotify(); s.startTimer(); }}>▶ Start {mmss(step.durationSec)} timer</button>
             )}
             {s.ticking && !step.active && (
               <button type="button" style={ctrl} onClick={() => { void requestNotify(); s.minimize(true); }}>⤵ Do other things — I'll chime you</button>
@@ -229,15 +229,15 @@ function Overlay() {
       </div>
 
       <div style={{ height: 4, borderRadius: 999, background: 'rgba(255,255,255,.12)', overflow: 'hidden', margin: '6px 0 14px' }}>
-        <div style={{ height: '100%', background: '#e0b96a', width: `${progress}%`, transition: 'width .3s' }} />
+        <div style={{ height: '100%', background: 'var(--accent-ink)', width: `${progress}%`, transition: 'width .3s' }} />
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
         <button type="button" style={ctrl} disabled={s.idx === 0} onClick={s.back}>◀ Back</button>
         {timed && s.ticking && <button type="button" style={ctrl} onClick={s.togglePause}>{s.paused ? '▶ Resume' : '⏸ Pause'}</button>}
         {timed && (s.ticking || s.rung) && <button type="button" style={ctrl} onClick={s.addMinute}>＋1 min</button>}
-        {timed && (s.ticking || s.paused) && <button type="button" style={{ ...ctrl, borderColor: '#e58e8e', color: '#ffd9d9' }} onClick={s.stop}>⏹ Stop</button>}
-        <button type="button" style={{ ...ctrl, background: ACCENT, color: '#123', borderColor: ACCENT }} onClick={s.next}>{next ? 'Next step ▸' : 'Finish ✓'}</button>
+        {timed && (s.ticking || s.paused) && <button type="button" style={{ ...ctrl, borderColor: 'var(--danger-line)', color: 'var(--danger-soft)' }} onClick={s.stop}>⏹ Stop</button>}
+        <button type="button" style={{ ...ctrl, background: ACCENT, color: 'var(--ink)', borderColor: ACCENT }} onClick={s.next}>{next ? 'Next step ▸' : 'Finish ✓'}</button>
       </div>
     </div>
   );
@@ -256,18 +256,18 @@ function Pill() {
   return (
     <button type="button" onClick={() => minimize(false)}
       style={{ position: 'fixed', left: 16, bottom: 16, zIndex: 9998, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
-        background: rung ? '#2e7d4f' : 'linear-gradient(160deg,#241a0c,#171207)', color: '#fff', border: '1px solid rgba(255,255,255,.25)',
+        background: rung ? 'var(--ok-ink)' : 'linear-gradient(160deg,var(--ink),var(--ink))', color: 'var(--on-accent)', border: '1px solid rgba(255,255,255,.25)',
         borderRadius: 999, padding: '11px 18px', boxShadow: '0 8px 24px rgba(0,0,0,.35)', fontFamily: 'inherit', fontWeight: 700, fontSize: 13.5 }}>
       <span style={{ fontSize: 18 }}>🍳</span>
       <span style={{ textAlign: 'left' }}><span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.7)' }}>{name}</span>{label}</span>
-      <span style={{ fontSize: 12, color: '#8fd3a6' }}>Open ▸</span>
+      <span style={{ fontSize: 12, color: 'var(--ok-line)' }}>Open ▸</span>
     </button>
   );
 }
 
-const shell: React.CSSProperties = { position: 'fixed', inset: 0, background: 'linear-gradient(160deg,#171207,#241a0c)', color: '#fff', display: 'flex', flexDirection: 'column', zIndex: 9999, padding: 22 };
+const shell: React.CSSProperties = { position: 'fixed', inset: 0, background: 'linear-gradient(160deg,var(--ink),var(--ink))', color: 'var(--on-accent)', display: 'flex', flexDirection: 'column', zIndex: 9999, padding: 22 };
 const topBar: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'rgba(255,255,255,.7)' };
-const endBtn: React.CSSProperties = { background: 'rgba(255,255,255,.14)', color: '#fff', border: '1px solid rgba(255,255,255,.3)' };
+const endBtn: React.CSSProperties = { background: 'rgba(255,255,255,.14)', color: 'var(--on-accent)', border: '1px solid rgba(255,255,255,.3)' };
 
 /** Mounted once at the app root: the timing engine + the overlay/pill. */
 export function CookRoot() {

@@ -113,7 +113,7 @@ export function SkippedMealCard({ dayIndex, slot }: { dayIndex: number; slot: st
       <span className="muted" style={{ fontSize: 13 }}>Skipped — not counted in today&rsquo;s totals or your grocery list.</span>
       <button type="button" disabled={skip.isPending}
         onClick={() => skip.mutate({ day: dayIndex, slot, skipped: false })}
-        style={{ minWidth: 44, minHeight: 44, padding: '0 14px', borderRadius: 10, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
+        style={{ minWidth: 44, minHeight: 44, padding: '0 14px', borderRadius: 10, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent-ink)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
         {skip.isPending ? 'Adding back…' : 'Add back'}
       </button>
     </div>
@@ -145,14 +145,14 @@ export function ComposedMealCard({ meal, dayIndex, readOnly, people = 1, skips =
   return (
     <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 20, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow)', opacity: busy ? 0.55 : 1 }}>
       <div style={{ padding: '14px 14px 0' }}>
-        <span style={{ display: 'inline-block', background: 'var(--ink)', color: '#fff', fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: 8 }}>{meal.label}</span>
+        <span style={{ display: 'inline-block', background: 'var(--ink)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: 8 }}>{meal.label}</span>
       </div>
       <div style={{ position: 'relative', margin: '12px 14px 0', width: 'calc(100% - 28px)' }}>
         <button type="button" onClick={open} aria-label={`Open ${meal.title}`} style={{ border: 'none', padding: 0, background: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'block', width: '100%' }}>
           <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: 14, overflow: 'hidden', background: photoBg(photo) }}>
             {img && <img src={img} alt={meal.title} loading="lazy" onError={() => setErr(true)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
             {!img && (
-              <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '22px 12px 10px', background: 'linear-gradient(transparent, rgba(0,0,0,.6))', color: '#fff', fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, textAlign: 'left', textShadow: '0 1px 4px rgba(0,0,0,.35)' }}>
+              <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '22px 12px 10px', background: 'linear-gradient(transparent, rgba(0,0,0,.6))', color: 'var(--on-accent)', fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, textAlign: 'left', textShadow: '0 1px 4px rgba(0,0,0,.35)' }}>
                 {(photo?.name ?? meal.title)}
               </span>
             )}
@@ -185,7 +185,7 @@ export function ComposedMealCard({ meal, dayIndex, readOnly, people = 1, skips =
                 style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', padding: '7px 0', cursor: 'pointer', fontFamily: 'inherit' }}>
                 <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: 'var(--ink)', fontWeight: 500, textDecoration: off ? 'line-through' : 'none' }}>{c.name}</span>
                 <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', textDecoration: off ? 'line-through' : 'none' }}>{c.kcal} kcal</span>
-                {!lineControls && <NIc name="chevR" size={13} style={{ color: 'var(--accent)' }} />}
+                {!lineControls && <NIc name="chevR" size={13} style={{ color: 'var(--accent-ink)' }} />}
               </button>
               {lineControls && (
                 <>

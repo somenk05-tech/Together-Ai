@@ -55,12 +55,12 @@ export function HubLanding({ hub }: { hub: HubKey }) {
   }
   return (
     <HubConsentGate hub={hub}>
-    <div className="gateway-lite" style={{ position: 'relative', minHeight: 'calc(100vh - var(--header-h))', display: 'flex', alignItems: 'flex-end', color: '#fff', overflow: 'hidden' }}>
+    <div className="gateway-lite" style={{ position: 'relative', minHeight: 'calc(100vh - var(--header-h))', display: 'flex', alignItems: 'flex-end', color: 'var(--on-accent)', overflow: 'hidden' }}>
       <img className="bg" src={heroSrc} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(8,9,8,.82),rgba(8,9,8,.2))' }} />
       <div style={{ position: 'relative', zIndex: 2, padding: '0 64px 72px', maxWidth: 900 }}>
         <div className="eyebrow" style={{ color: 'var(--gold-bright)' }}>{cfg.name}</div>
-        <h1 style={{ color: '#fff', fontSize: 'clamp(30px,4vw,52px)', maxWidth: '16ch', textShadow: '0 2px 24px rgba(0,0,0,.45)' }}>{cfg.tag}</h1>
+        <h1 style={{ color: 'var(--on-accent)', fontSize: 'clamp(30px,4vw,52px)', maxWidth: '16ch', textShadow: '0 2px 24px rgba(0,0,0,.45)' }}>{cfg.tag}</h1>
         <div style={{ marginTop: 28 }}>
           <Link to={firstInner}><Button variant="gold">Explore now</Button></Link>
         </div>

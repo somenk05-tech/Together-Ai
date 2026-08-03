@@ -28,7 +28,7 @@ function Avatar({ name, photo, size = 46 }: { name: string; photo: string | null
   if (photo) return <img src={photo} alt="" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flex: 'none' }} />;
   return (
     <div style={{ width: size, height: size, borderRadius: '50%', flex: 'none', display: 'grid', placeItems: 'center',
-      background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 700, fontSize: size * 0.36 }}>
+      background: 'var(--accent-soft)', color: 'var(--accent-ink)', fontWeight: 700, fontSize: size * 0.36 }}>
       {initials(name)}
     </div>
   );
@@ -52,7 +52,7 @@ function ChatRow({ c, active, onClick }: { c: DatingChatSummary; active: boolean
           {c.lastText ? `${c.lastFromMe ? 'You: ' : ''}${c.lastText}` : 'Say hello 👋'}
         </div>
       </div>
-      {c.unread > 0 && <span style={{ flex: 'none', minWidth: 20, height: 20, borderRadius: 999, background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 6px' }}>{c.unread}</span>}
+      {c.unread > 0 && <span style={{ flex: 'none', minWidth: 20, height: 20, borderRadius: 999, background: 'var(--accent)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 6px' }}>{c.unread}</span>}
     </button>
   );
 }
@@ -71,11 +71,11 @@ function MatchBubble({ c }: { c: DatingChatSummary }) {
           border: '2px solid var(--card)', display: 'grid', placeItems: 'center', background: 'var(--accent-soft)' }}>
           {c.photo
             ? <img src={c.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : <span style={{ fontWeight: 700, color: 'var(--accent)', fontSize: 20 }}>{initials(c.name)}</span>}
+            : <span style={{ fontWeight: 700, color: 'var(--accent-ink)', fontSize: 20 }}>{initials(c.name)}</span>}
         </div>
       </div>
       <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-      {c.score != null && <div style={{ fontSize: 10.5, color: 'var(--accent)', fontWeight: 700 }}>{c.score}%</div>}
+      {c.score != null && <div style={{ fontSize: 10.5, color: 'var(--accent-ink)', fontWeight: 700 }}>{c.score}%</div>}
     </Link>
   );
 }
@@ -126,7 +126,7 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
           {/* One identity: the name above is the profile's, the same one the
               match card showed. Nothing here changes anybody's name. */}
         </div>
-        {chat.score != null && <span className="tag" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 700 }}>{chat.score}%</span>}
+        {chat.score != null && <span className="tag" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)', fontWeight: 700 }}>{chat.score}%</span>}
         {/* A call here carries no more identity than the chat does: the avatar
             and name above are already whatever each person chose to show. */}
         <CallButtons conversationId={chat.conversationId} compact />
@@ -137,7 +137,7 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
         <span className="muted" style={{ fontSize: 12 }}>
           You appear as yourself — the same name and photos as your profile.
         </span>
-        <Button size="sm" variant="line" style={{ marginLeft: 'auto', color: '#c62828', borderColor: '#f0b0b0' }}
+        <Button size="sm" variant="line" style={{ marginLeft: 'auto', color: 'var(--danger-ink)', borderColor: 'var(--danger-line)' }}
           disabled={unmatch.isPending}
           onClick={() => { if (window.confirm('Unmatch and end this chat? This frees you to connect with someone new.')) unmatch.mutate(chat.otherUserId, { onSuccess: onBack }); }}>
           Unmatch
@@ -159,7 +159,7 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
           const mine = m.senderId === meId;
           return (
             <div key={m.id} style={{ ...bubbleBase, alignSelf: mine ? 'flex-end' : 'flex-start',
-              background: mine ? 'var(--accent)' : 'var(--paper)', color: mine ? '#fff' : 'var(--ink)',
+              background: mine ? 'var(--accent)' : 'var(--paper)', color: mine ? 'var(--on-accent)' : 'var(--ink)',
               borderBottomRightRadius: mine ? 5 : 14, borderBottomLeftRadius: mine ? 14 : 5 }}>
               {m.body}
             </div>

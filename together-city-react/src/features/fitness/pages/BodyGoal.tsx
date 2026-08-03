@@ -8,7 +8,7 @@ function Chips({ citations }: { citations: Citation[] }) {
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
       {citations.map((c) => (
-        <span key={c.id} title={c.ref} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 9px' }}>{c.label}</span>
+        <span key={c.id} title={c.ref} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 9px' }}>{c.label}</span>
       ))}
     </div>
   );
@@ -48,7 +48,7 @@ export function BodyGoal() {
           theirs, with the male sex constant if they had not said. The server
           returns nulls now, so there is nothing to caption. */}
       {p.missing.length > 0 && (
-        <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid #e65100' }}>
+        <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--warn-ink)' }}>
           <p style={{ fontSize: 13, margin: 0, lineHeight: 1.6 }}>
             We can't work out your calories and macros without your{' '}
             <strong>{p.missing.join(', ')}</strong>. We'd rather leave this blank than show you
@@ -79,11 +79,11 @@ export function BodyGoal() {
       </div>
 
       {p.healthImprovements.length > 0 && (
-        <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid #2e7d32' }}>
+        <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--ok-ink)' }}>
           <div className="eyebrow">What this improves in your health <span className="muted" style={{ fontWeight: 400 }}>· from your Medical data</span></div>
           {p.healthImprovements.map((h) => (
             <div key={h.title} style={{ padding: '10px 0', borderTop: '1px solid var(--line)' }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: '#2e7d32' }}>✓ {h.title}</div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ok-ink)' }}>✓ {h.title}</div>
               <p style={{ fontSize: 13, margin: '4px 0 0' }}>{h.detail}</p>
               <Chips citations={h.citations} />
             </div>
@@ -91,8 +91,8 @@ export function BodyGoal() {
         </div>
       )}
       {!p.consentGranted && (
-        <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid #e65100' }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5, color: '#e65100' }}>🔒 Health tailoring is off</div>
+        <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--warn-ink)' }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--warn-ink)' }}>🔒 Health tailoring is off</div>
           <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 8px' }}>
             Turn Fitness on in Medical → Privacy to let your program target your glucose, iron and lipids.
           </p>
@@ -109,8 +109,8 @@ export function BodyGoal() {
             {sync.isPending ? 'Syncing…' : '🍽️ Sync my diet to Nutrition'}
           </Button>
           {synced && (
-            <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>
-              ✓ Synced — <Link to="/nutrition/weekly" style={{ color: 'var(--accent)' }}>open your meal plan</Link>
+            <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>
+              ✓ Synced — <Link to="/nutrition/weekly" style={{ color: 'var(--accent-ink)' }}>open your meal plan</Link>
             </span>
           )}
         </div>

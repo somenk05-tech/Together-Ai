@@ -49,9 +49,13 @@ export function CityHeader() {
   const day = now.toLocaleDateString('en-IN', { weekday: 'short' });
   const date = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
-  // Plain black text, no panel. Softer weight/tone on secondary bits.
-  const ink = '#111';
-  const soft = 'rgba(17,17,17,.62)';
+  // IT SITS ON A PHOTOGRAPH, NOT ON THE PAGE. Near-black was chosen when the
+  // hero was assumed to be pale; it is a city video, and the only ink that
+  // survives every frame of it is white with a shadow underneath. This is one
+  // of the three places in the application where type is not black, and all
+  // three are type on an image.
+  const ink = 'var(--on-accent)';
+  const soft = 'rgba(255,255,255,.78)';
 
   const dot = <span aria-hidden style={{ color: soft, opacity: 0.7 }}>·</span>;
 
@@ -61,7 +65,7 @@ export function CityHeader() {
 
   return (
     <div aria-label={`${data?.city ?? 'Your city'}, ${day} ${date}${hasWeather ? `, ${data.temperatureC} degrees` : ''}`}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', lineHeight: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', lineHeight: 1, textShadow: '0 1px 3px rgba(0,0,0,.55)' }}>
         {data?.city && (
           <>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 700, fontSize: 12.5, color: ink, letterSpacing: '-.01em' }}>

@@ -33,7 +33,7 @@ function Person({ person }: { person: PostAuthor }) {
         ? <img src={person.profileImage} alt="" width={40} height={40} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
         : <span aria-hidden style={{
           width: 40, height: 40, borderRadius: '50%', flexShrink: 0, background: 'var(--accent-soft)',
-          display: 'grid', placeItems: 'center', fontWeight: 700, color: 'var(--accent)',
+          display: 'grid', placeItems: 'center', fontWeight: 700, color: 'var(--accent-ink)',
         }}>{(person.name || person.handle || '?').charAt(0).toUpperCase()}</span>}
 
       <div style={{ flex: 1, minWidth: 0 }}>

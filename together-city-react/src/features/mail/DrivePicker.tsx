@@ -44,7 +44,7 @@ export function DrivePicker({ onClose, onPick, alreadyPicked }: {
             <span key={b.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <span className="muted">/</span>
               <button type="button" onClick={() => setFolderId(b.id)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0, color: 'var(--accent)', fontWeight: 600 }}>{b.name}</button>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0, color: 'var(--accent-ink)', fontWeight: 600 }}>{b.name}</button>
             </span>
           ))}
         </div>
@@ -80,7 +80,7 @@ export function DrivePicker({ onClose, onPick, alreadyPicked }: {
                   <span style={{ display: 'block', fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
                   <span className="muted" style={{ fontSize: 11.5 }}>{fmtBytes(f.sizeBytes)}{dup ? ' · already attached' : ''}</span>
                 </span>
-                {on && <span style={{ color: 'var(--accent)', fontWeight: 700 }}>✓</span>}
+                {on && <span style={{ color: 'var(--accent-ink)', fontWeight: 700 }}>✓</span>}
               </button>
             );
           })}

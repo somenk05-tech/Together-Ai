@@ -197,7 +197,7 @@ export function OwnRecipes() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
                 <span style={labelS}>Your figures, for the whole dish</span>
                 <button type="button" onClick={() => { setShowNumbers(false); setNumbers({ kcal: '', protein: '', carbs: '', fat: '', fiber: '' }); }}
-                  style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                  style={{ background: 'none', border: 'none', color: 'var(--accent-ink)', fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
                   Work it out from the ingredients instead
                 </button>
               </div>

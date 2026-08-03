@@ -11,7 +11,7 @@ function ScoreRing({ score, band }: { score: number; band: string }) {
   const hue = score >= 85 ? 145 : score >= 70 ? 90 : score >= 55 ? 45 : 8;
   return (
     <div style={{ width: 82, height: 82, borderRadius: '50%', flex: '0 0 auto', background: `conic-gradient(hsl(${hue} 60% 45%) ${score * 3.6}deg, var(--line) 0)`, display: 'grid', placeItems: 'center' }}>
-      <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--card, #fff)', display: 'grid', placeItems: 'center', textAlign: 'center' }}>
+      <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', textAlign: 'center' }}>
         <div>
           <b style={{ fontSize: 21, lineHeight: 1 }}>{score}</b>
           <div className="muted" style={{ fontSize: 9, letterSpacing: '.02em' }}>{band}</div>
@@ -33,9 +33,9 @@ const FIELDS: { key: string; label: string; unit: string; ph: string }[] = [
   { key: 'crp', label: 'CRP (inflammation)', unit: 'mg/L', ph: '2' },
 ];
 const STATUS = {
-  low: { color: '#c62828', bg: '#ffebee', label: 'LOW' },
-  high: { color: '#e65100', bg: '#fff3e0', label: 'HIGH' },
-  normal: { color: '#2e7d32', bg: '#e8f5e9', label: 'NORMAL' },
+  low: { color: 'var(--danger-ink)', bg: 'var(--danger-soft)', label: 'LOW' },
+  high: { color: 'var(--warn-ink)', bg: 'var(--warn-soft)', label: 'HIGH' },
+  normal: { color: 'var(--ok-ink)', bg: 'var(--ok-soft)', label: 'NORMAL' },
 } as const;
 const TREND = { up: '▲', down: '▼', flat: '▬' } as const;
 
@@ -45,16 +45,16 @@ function Cites({ citations }: { citations: Citation[] }) {
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
       {citations.map((c) => (
-        <span key={c.id} title={c.ref} style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 9px' }}>{c.label}</span>
+        <span key={c.id} title={c.ref} style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 9px' }}>{c.label}</span>
       ))}
     </div>
   );
 }
 
 const trendColor = (k: TrendKind) =>
-  k === 'improving' || k === 'returned-normal' ? '#1b7a3a'
-  : k === 'worsening' || k === 'newly-abnormal' ? '#c0392b' : 'var(--muted)';
-const pointColor = (s: string) => (s === 'high' ? '#e65100' : s === 'low' ? '#c62828' : '#2e7d32');
+  k === 'improving' || k === 'returned-normal' ? 'var(--ok-ink)'
+  : k === 'worsening' || k === 'newly-abnormal' ? 'var(--danger-ink)' : 'var(--muted)';
+const pointColor = (s: string) => (s === 'high' ? 'var(--warn-ink)' : s === 'low' ? 'var(--danger-ink)' : 'var(--ok-ink)');
 
 /** Longitudinal trends — auto-shown once the user has 2+ saved panels. */
 function TrendsSection() {
@@ -92,11 +92,11 @@ function TrendsSection() {
 
       {/* Executive summary */}
       <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: '14px 0 0' }}>{s.narrative}</p>
-      {chipRow('Biggest improvements', s.improvements, '#1b7a3a')}
-      {chipRow('Needs focus', s.declines, '#c0392b')}
-      {chipRow('Returned to normal', s.returnedToNormal, '#1b7a3a')}
-      {chipRow('Newly out of range', s.newlyAbnormal, '#e65100')}
-      {chipRow('Holding steady', s.stable, '#6b6b6b')}
+      {chipRow('Biggest improvements', s.improvements, 'var(--ok-ink)')}
+      {chipRow('Needs focus', s.declines, 'var(--danger-ink)')}
+      {chipRow('Returned to normal', s.returnedToNormal, 'var(--ok-ink)')}
+      {chipRow('Newly out of range', s.newlyAbnormal, 'var(--warn-ink)')}
+      {chipRow('Holding steady', s.stable, 'var(--muted)')}
 
       {/* Per-biomarker trend rows */}
       <div style={{ marginTop: 16 }}>
@@ -131,9 +131,9 @@ function TrendsSection() {
 }
 
 const FIELD_STATUS = {
-  low: { c: '#c62828', bg: '#ffebee', label: 'LOW' },
-  high: { c: '#e65100', bg: '#fff3e0', label: 'HIGH' },
-  normal: { c: '#2e7d32', bg: '#e8f5e9', label: 'OK' },
+  low: { c: 'var(--danger-ink)', bg: 'var(--danger-soft)', label: 'LOW' },
+  high: { c: 'var(--warn-ink)', bg: 'var(--warn-soft)', label: 'HIGH' },
+  normal: { c: 'var(--ok-ink)', bg: 'var(--ok-soft)', label: 'OK' },
 } as const;
 /**
  * The typed value put into the unit the reference range is stated in.
@@ -183,7 +183,7 @@ function BiomarkerFields({ sections, form, setForm, units, setUnits }: {
             <button type="button" onClick={() => setOpen((o) => ({ ...o, [sec.key]: !isOpen }))}
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'var(--paper)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
               <span style={{ fontSize: 13, fontWeight: 700 }}>{isOpen ? '▾' : '▸'} {sec.label}</span>
-              {filled > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '1px 8px' }}>{filled}</span>}
+              {filled > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '1px 8px' }}>{filled}</span>}
               {sec.hint && <span className="muted" style={{ marginLeft: 'auto', fontSize: 10.5 }}>{sec.hint}</span>}
             </button>
             {isOpen && (
@@ -330,10 +330,10 @@ export function BloodAnalysis() {
       {data && data.alerts.length > 0 && (
         <div style={{ marginTop: 16 }}>
           {data.alerts.map((a) => (
-            <div key={a.key + a.value} style={{ display: 'flex', gap: 12, padding: '14px 16px', borderRadius: 14, marginBottom: 10, background: a.urgent ? '#fdecea' : '#fff3e0', border: `1.5px solid ${a.urgent ? '#c62828' : '#e65100'}` }}>
+            <div key={a.key + a.value} style={{ display: 'flex', gap: 12, padding: '14px 16px', borderRadius: 14, marginBottom: 10, background: a.urgent ? 'var(--danger-soft)' : 'var(--warn-soft)', border: `1.5px solid ${a.urgent ? 'var(--danger-ink)' : 'var(--warn-ink)'}` }}>
               <span style={{ fontSize: 20 }}>{a.urgent ? '🚑' : '⚠️'}</span>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 13.5, color: a.urgent ? '#c62828' : '#e65100' }}>{a.urgent ? 'Seek medical care' : 'Please see a doctor'} · {a.label} {a.value}</div>
+                <div style={{ fontWeight: 700, fontSize: 13.5, color: a.urgent ? 'var(--danger-ink)' : 'var(--warn-ink)' }}>{a.urgent ? 'Seek medical care' : 'Please see a doctor'} · {a.label} {a.value}</div>
                 <div style={{ fontSize: 13, marginTop: 2 }}>{a.message}</div>
               </div>
             </div>
@@ -358,7 +358,7 @@ export function BloodAnalysis() {
                 ) : (
                   // This used to assert every marker sat in range, naming a range
                   // the citizen does not have. The panel says what they cleared.
-                  <p style={{ fontSize: 13, color: '#2e7d32', marginTop: 6 }}>
+                  <p style={{ fontSize: 13, color: 'var(--ok-ink)', marginTop: 6 }}>
                     No priority flags.{data?.inRangeLine ? ` ${data.inRangeLine}` : ''}
                   </p>
                 )}
@@ -386,7 +386,7 @@ export function BloodAnalysis() {
               </div>
             )}
             {sum.discuss.length > 0 && (
-              <p style={{ marginTop: 12, padding: '10px 12px', background: '#fff8e1', borderLeft: '3px solid #f9a825', borderRadius: 6, fontSize: 13 }}>
+              <p style={{ marginTop: 12, padding: '10px 12px', background: 'var(--warn-soft)', borderLeft: '3px solid var(--warn-line)', borderRadius: 6, fontSize: 13 }}>
                 <b>Worth discussing with your doctor:</b> {sum.discuss.join('; ')}.
               </p>
             )}
@@ -412,7 +412,7 @@ export function BloodAnalysis() {
       <div className="card" style={{ marginTop: 18 }}>
         <div className="eyebrow">Upload your report — we read &amp; analyse it for you</div>
         <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
-          Upload a photo or PDF of your blood report. We read the values and analyse it automatically — no extra steps. The same report also appears in your <Link to="/medical/records" style={{ color: 'var(--accent)', fontWeight: 600 }}>Health Records</Link>. It extracts numbers only, never diagnoses; you can edit any reading below and re-analyse.
+          Upload a photo or PDF of your blood report. We read the values and analyse it automatically — no extra steps. The same report also appears in your <Link to="/medical/records" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Health Records</Link>. It extracts numbers only, never diagnoses; you can edit any reading below and re-analyse.
         </p>
         <label style={{ display: 'block', border: '1.5px dashed var(--line)', borderRadius: 14, padding: '22px', textAlign: 'center', cursor: extracting ? 'default' : 'pointer', marginTop: 12 }}>
           <input type="file" accept="image/*,.heic,.heif,.tiff,application/pdf" style={{ display: 'none' }} disabled={extracting}
@@ -421,11 +421,11 @@ export function BloodAnalysis() {
           <div style={{ fontWeight: 600, marginTop: 6 }}>{extracting ? 'Reading &amp; analysing your report…' : 'Tap to upload a photo or PDF'}</div>
           <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>Stored securely in your 10 GB health vault</div>
         </label>
-        {extractNote && <p style={{ fontSize: 12.5, marginTop: 10, padding: '8px 10px', background: '#e8f5e9', borderRadius: 8 }}>✓ {extractNote}</p>}
-        {uploadErr && <p style={{ fontSize: 12.5, marginTop: 10, color: '#c62828' }}>{uploadErr}</p>}
+        {extractNote && <p style={{ fontSize: 12.5, marginTop: 10, padding: '8px 10px', background: 'var(--ok-soft)', borderRadius: 8 }}>✓ {extractNote}</p>}
+        {uploadErr && <p style={{ fontSize: 12.5, marginTop: 10, color: 'var(--danger-ink)' }}>{uploadErr}</p>}
         {savedFile && (
           <p style={{ fontSize: 12.5, marginTop: 10, padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10 }}>
-            📎 <b>{savedFile.name}</b> is saved in your <Link to="/medical/records" style={{ color: 'var(--accent)', fontWeight: 600 }}>Health Records</Link> — you can delete it there anytime.
+            📎 <b>{savedFile.name}</b> is saved in your <Link to="/medical/records" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Health Records</Link> — you can delete it there anytime.
           </p>
         )}
       </div>
@@ -492,7 +492,7 @@ export function BloodAnalysis() {
                     {m.value} {m.unit} · ref {m.range}{m.rangeBasis === 'general-adult' ? '*' : ''}
                   </span>
                   {m.trend && m.previous != null && (
-                    <span title={m.previousDate ? `was ${m.previous} on ${m.previousDate}` : `was ${m.previous}`} style={{ fontSize: 11, color: m.trend === 'flat' ? 'var(--muted)' : (m.status === 'normal' ? '#2e7d32' : 'var(--accent)') }}>
+                    <span title={m.previousDate ? `was ${m.previous} on ${m.previousDate}` : `was ${m.previous}`} style={{ fontSize: 11, color: m.trend === 'flat' ? 'var(--muted)' : (m.status === 'normal' ? 'var(--ok-ink)' : 'var(--accent)') }}>
                       {TREND[m.trend]} from {m.previous}{m.previousDate ? ` (${m.previousDate})` : ''}
                     </span>
                   )}
@@ -500,7 +500,7 @@ export function BloodAnalysis() {
                 </div>
                 {m.lastTested && <div className="muted" style={{ fontSize: 11, marginTop: 3 }}>Last tested {m.lastTested}</div>}
                 {m.advice && <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '6px 0 0' }}>{m.advice}</p>}
-                {m.caveat && <p style={{ fontSize: 12.5, margin: '6px 0 0', padding: '8px 10px', background: '#fff8e1', borderLeft: '3px solid #f9a825', borderRadius: 6 }}>ⓘ {m.caveat}</p>}
+                {m.caveat && <p style={{ fontSize: 12.5, margin: '6px 0 0', padding: '8px 10px', background: 'var(--warn-soft)', borderLeft: '3px solid var(--warn-line)', borderRadius: 6 }}>ⓘ {m.caveat}</p>}
                 <Cites citations={m.citations} />
               </div>
             );
@@ -578,7 +578,7 @@ function PanelRow({ panel }: { panel: BloodTestSummary }) {
             type="button"
             onClick={() => del.mutate(panel.id)}
             disabled={del.isPending}
-            style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: '#c62828', padding: '6px 4px' }}
+            style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: 'var(--danger-ink)', padding: '6px 4px' }}
           >
             {del.isPending ? 'Removing…' : 'Remove'}
           </button>
@@ -594,8 +594,8 @@ function PanelRow({ panel }: { panel: BloodTestSummary }) {
         <>
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {panel.flagged.length === 0
-              ? <span style={{ fontSize: 11, color: '#2e7d32' }}>all in range</span>
-              : panel.flagged.map((f) => <span key={f.key} style={{ fontSize: 10.5, fontWeight: 600, color: '#c62828', background: '#ffebee', borderRadius: 999, padding: '1px 8px' }}>{f.label} {f.status}</span>)}
+              ? <span style={{ fontSize: 11, color: 'var(--ok-ink)' }}>all in range</span>
+              : panel.flagged.map((f) => <span key={f.key} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--danger-ink)', background: 'var(--danger-soft)', borderRadius: 999, padding: '1px 8px' }}>{f.label} {f.status}</span>)}
           </span>
           <button
             type="button"
@@ -609,7 +609,7 @@ function PanelRow({ panel }: { panel: BloodTestSummary }) {
       )}
 
       {del.isError && (
-        <span className="muted" style={{ fontSize: 11.5, color: '#c62828' }}>Could not remove it just now.</span>
+        <span className="muted" style={{ fontSize: 11.5, color: 'var(--danger-ink)' }}>Could not remove it just now.</span>
       )}
     </div>
   );

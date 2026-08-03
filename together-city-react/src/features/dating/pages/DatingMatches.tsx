@@ -39,7 +39,7 @@ function MatchGallery({ photos, name, age, theirSign, yourSign, score, href }: {
       <div style={{ position: 'absolute', top: 12, right: 12, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.45))' }}>
         <ScoreRing score={score} />
       </div>
-      <div style={{ position: 'absolute', left: 16, right: 16, bottom: 12, color: '#fff' }}>
+      <div style={{ position: 'absolute', left: 16, right: 16, bottom: 12, color: 'var(--on-accent)' }}>
         <div style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 700, lineHeight: 1.15, textShadow: '0 1px 10px rgba(0,0,0,.5)' }}>
           {name}{age ? `, ${age}` : ''}
         </div>
@@ -149,7 +149,7 @@ function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
       <div style={{ marginTop: 14 }}>
         {matched ? (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--accent)' }}>💫 It’s a match!</span>
+            <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--accent-ink)' }}>💫 It’s a match!</span>
             {match.conversationId
               ? <Link to={`/dating/chats?c=${match.conversationId}`}><Button variant="accent" size="sm">💬 Open chat</Button></Link>
               : <Link to={detailHref}><Button variant="accent" size="sm">💬 Connect to Chat</Button></Link>}
@@ -431,7 +431,7 @@ export function DatingMatches() {
           rather than repeated under every card — it is a rule about how this hub
           works, not a property of any one person. */}
       <div style={{ marginBottom: 18, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 14, padding: '13px 16px' }}>
-        <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid #caa94a', color: 'var(--muted)', flex: 'none' }}>🔒</span>
+        <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--accent-ink)', color: 'var(--muted)', flex: 'none' }}>🔒</span>
         <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
           <strong>We believe in intentional dating.</strong> You can have up to three conversations
           going at once. If one isn’t going anywhere, <strong>unmatch</strong> and move forward.
@@ -447,7 +447,7 @@ export function DatingMatches() {
         <section style={{ marginBottom: 26 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 12px', flexWrap: 'wrap' }}>
             <h2 style={{ fontSize: 18, margin: 0 }}>{matched.length === 1 ? 'Your match' : 'Your matches'}</h2>
-            <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: 999, padding: '3px 11px' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent-ink)', borderRadius: 999, padding: '3px 11px' }}>
               💫 You both liked each other
             </span>
           </div>
@@ -473,7 +473,7 @@ export function DatingMatches() {
           {/* Top match first */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 12px', flexWrap: 'wrap' }}>
             <h2 style={{ fontSize: 18, margin: 0 }}>Your top match</h2>
-            <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: 999, padding: '3px 11px' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent-ink)', borderRadius: 999, padding: '3px 11px' }}>
               {bandFor(top.score).name} · {top.score}%
             </span>
           </div>
@@ -521,7 +521,7 @@ export function DatingMatches() {
                     margin: '0 0 10px', paddingBottom: 6, borderBottom: '1px solid var(--line)',
                   }}>
                     <h3 style={{ fontSize: 15, margin: 0 }}>{group.name}</h3>
-                    <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: 999, padding: '3px 10px' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent-ink)', borderRadius: 999, padding: '3px 10px' }}>
                       {group.label}
                     </span>
                     <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>

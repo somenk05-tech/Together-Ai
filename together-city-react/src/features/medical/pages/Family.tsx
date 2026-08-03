@@ -4,22 +4,22 @@ import { useFamilyHealth } from '@/features/nutrition/hooks';
 import type { FamilyHealthMember, HealthStatus, AlertLevel } from '@/features/nutrition/api';
 
 const STATUS: Record<HealthStatus, { label: string; color: string; soft: string }> = {
-  excellent: { label: 'Excellent', color: '#2e7d4f', soft: '#e6f2ea' },
-  good: { label: 'Good', color: '#3f7d9a', soft: '#e6eff4' },
-  attention: { label: 'Needs Attention', color: '#b0803a', soft: '#f7efe1' },
-  'follow-up': { label: 'Requires Follow-up', color: '#b0503e', soft: '#f8eae6' },
+  excellent: { label: 'Excellent', color: 'var(--ok-ink)', soft: 'var(--ok-soft)' },
+  good: { label: 'Good', color: 'var(--info-ink)', soft: 'var(--info-soft)' },
+  attention: { label: 'Needs Attention', color: 'var(--warn-ink)', soft: 'var(--warn-soft)' },
+  'follow-up': { label: 'Requires Follow-up', color: 'var(--danger-ink)', soft: 'var(--danger-soft)' },
 };
 const ALERT: Record<AlertLevel, { bg: string; fg: string }> = {
-  green: { bg: '#e6f2ea', fg: '#2e7d4f' },
-  yellow: { bg: '#fbf3d9', fg: '#9a7d1f' },
-  orange: { bg: '#f7efe1', fg: '#b0803a' },
-  red: { bg: '#f8eae6', fg: '#b0503e' },
+  green: { bg: 'var(--ok-soft)', fg: 'var(--ok-ink)' },
+  yellow: { bg: 'var(--warn-soft)', fg: 'var(--warn-ink)' },
+  orange: { bg: 'var(--warn-soft)', fg: 'var(--warn-ink)' },
+  red: { bg: 'var(--danger-soft)', fg: 'var(--danger-ink)' },
 };
 const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 const initials = (n: string) => n.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
 function Score({ label, value }: { label: string; value: number | null }) {
-  const col = value == null ? 'var(--muted)' : value >= 85 ? '#2e7d4f' : value >= 70 ? '#b0803a' : '#b0503e';
+  const col = value == null ? 'var(--muted)' : value >= 85 ? 'var(--ok-ink)' : value >= 70 ? 'var(--warn-ink)' : 'var(--danger-ink)';
   return (
     <div style={{ minWidth: 84 }}>
       <div style={{ fontSize: 19, fontWeight: 800, color: col }}>{value == null ? '🔒' : `${value}`}</div>
@@ -89,7 +89,7 @@ function MemberCard({ m }: { m: FamilyHealthMember }) {
         <Field label="Latest diagnosis" value={m.privacy.diagnoses ? 'Private' : (m.latestDiagnosis ?? '—')} />
         <Field label="Next test" value={m.privacy.bloodTests ? 'Private' : (m.nextTest ?? '—')} />
       </div>
-      {m.reminder && <p style={{ fontSize: 11.5, color: '#b0503e', fontWeight: 600, margin: '10px 0 0' }}>⏰ {m.reminder}</p>}
+      {m.reminder && <p style={{ fontSize: 11.5, color: 'var(--danger-ink)', fontWeight: 600, margin: '10px 0 0' }}>⏰ {m.reminder}</p>}
 
       {/* actions */}
       <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
@@ -146,7 +146,7 @@ export function Family() {
         {summary.reminders.length > 0 && (
           <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
             <div className="muted" style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Upcoming reminders</div>
-            {summary.reminders.map((r, i) => <p key={i} style={{ fontSize: 12.5, margin: '2px 0', color: '#b0503e', fontWeight: 600 }}>⏰ {r}</p>)}
+            {summary.reminders.map((r, i) => <p key={i} style={{ fontSize: 12.5, margin: '2px 0', color: 'var(--danger-ink)', fontWeight: 600 }}>⏰ {r}</p>)}
           </div>
         )}
       </div>
@@ -161,7 +161,7 @@ export function Family() {
       </div>
 
       <p className="muted" style={{ fontSize: 11.5, marginTop: 18, lineHeight: 1.5 }}>
-        ◈ Household members are managed in <Link to="/family/connect" style={{ color: 'var(--accent)', fontWeight: 600 }}>Family Nutrition → Connect</Link>, where each person also controls what they share. The Family Dashboard reads summaries from each individual's Medical Hub but never stores the underlying records.
+        ◈ Household members are managed in <Link to="/family/connect" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Family Nutrition → Connect</Link>, where each person also controls what they share. The Family Dashboard reads summaries from each individual's Medical Hub but never stores the underlying records.
       </p>
     </div>
   );

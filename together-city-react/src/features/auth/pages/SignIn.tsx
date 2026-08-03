@@ -85,7 +85,7 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
 
   // Shared field shells (dark glass, gold-tinted icons).
   const wrap: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, border: '1.5px solid rgba(255,255,255,.16)', borderRadius: 14, padding: '2px 14px', marginBottom: 12, background: 'rgba(255,255,255,.05)' };
-  const inp: React.CSSProperties = { flex: 1, border: 'none', outline: 'none', padding: '14px 0', fontSize: 15, fontFamily: 'inherit', background: 'transparent', color: '#fff' };
+  const inp: React.CSSProperties = { flex: 1, border: 'none', outline: 'none', padding: '14px 0', fontSize: 15, fontFamily: 'inherit', background: 'transparent', color: 'var(--on-accent)' };
   const iconWrap: React.CSSProperties = { color: 'var(--gold-bright)', display: 'grid', placeItems: 'center', flexShrink: 0 };
 
   return (
@@ -103,7 +103,7 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
         .signin-glass ::placeholder { color: rgba(255,255,255,.5); }
         .signin-glass .link { color: var(--gold-bright); font-weight: 700; text-decoration: none; }
         .signin-glass .lnkbtn { background: none; border: none; color: var(--gold-bright); font-weight: 700; cursor: pointer; font-family: inherit; font-size: inherit; }
-        .signin-gold { background: linear-gradient(180deg,#e9cd82,#c49a44); }
+        .signin-gold { background: linear-gradient(180deg,var(--warn-line),var(--accent-ink)); }
         .signin-gold:hover:not(:disabled) { filter: brightness(1.05); box-shadow: 0 10px 34px rgba(201,162,78,.55); transform: translateY(-1px); }
         .signin-gold:active:not(:disabled) { transform: translateY(0) scale(.99); }
       `}</style>
@@ -113,7 +113,7 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
         background: 'rgba(255,255,255,.94)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
         border: '1px solid rgba(255,255,255,.7)', boxShadow: '0 28px 80px rgba(0,0,0,.4)',
       } : {
-        position: 'relative', zIndex: 1, width: 'min(430px, 92vw)', color: '#fff',
+        position: 'relative', zIndex: 1, width: 'min(430px, 92vw)', color: 'var(--on-accent)',
         background: 'rgba(14,15,17,.62)',
         backdropFilter: 'blur(28px) saturate(1.4)', WebkitBackdropFilter: 'blur(28px) saturate(1.4)',
         border: '1px solid rgba(255,255,255,.14)', boxShadow: '0 30px 90px rgba(0,0,0,.6)',
@@ -126,14 +126,14 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
             {/* Heading */}
             {mode === 'login' ? (
               <div style={{ textAlign: 'center', marginBottom: 6 }}>
-                <div style={{ fontFamily: 'var(--serif)', fontSize: 30, lineHeight: 1.08, color: '#fff' }}>Welcome to</div>
+                <div style={{ fontFamily: 'var(--serif)', fontSize: 30, lineHeight: 1.08, color: 'var(--on-accent)' }}>Welcome to</div>
                 <div style={{ fontFamily: 'var(--serif)', fontSize: 38, lineHeight: 1.05, fontWeight: 600,
-                  background: 'linear-gradient(180deg,#f0d99a,#c49a44)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                  background: 'linear-gradient(180deg,var(--warn-line),var(--accent-ink))', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                   Together City
                 </div>
               </div>
             ) : (
-              <h1 style={{ fontFamily: 'var(--serif)', fontSize: 28, marginBottom: 6, textAlign: 'center', color: '#fff' }}>
+              <h1 style={{ fontFamily: 'var(--serif)', fontSize: 28, marginBottom: 6, textAlign: 'center', color: 'var(--on-accent)' }}>
                 {mode === 'forgot' ? 'Recover your account' : 'Set a new password'}
               </h1>
             )}
@@ -206,7 +206,7 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
               <button type="submit" disabled={busy} className="signin-gold"
                 style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, border: 'none',
                   borderRadius: 999, padding: '15px 24px', marginTop: 4, cursor: busy ? 'not-allowed' : 'pointer',
-                  fontSize: 13, letterSpacing: '.16em', fontWeight: 700, textTransform: 'uppercase', color: '#fff',
+                  fontSize: 13, letterSpacing: '.16em', fontWeight: 700, textTransform: 'uppercase', color: 'var(--on-accent)',
                   boxShadow: '0 8px 26px rgba(201,162,78,.45)', opacity: busy ? 0.7 : 1, transition: 'transform .14s, box-shadow .2s, filter .2s' }}>
                 {cta}<ArrowRight />
               </button>
@@ -215,7 +215,7 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
             {mode === 'login' && <p style={{ fontSize: 11.5, marginTop: 10, textAlign: 'center', color: 'rgba(255,255,255,.55)' }}>You'll stay signed in on this device until you sign out.</p>}
             {mode === 'login' && handle && <p style={{ fontSize: 11.5, marginTop: 6, textAlign: 'center', color: 'rgba(255,255,255,.6)' }}>@{handle} · {handle}@togethercity.app</p>}
             {notice && <p style={{ color: 'var(--gold-bright)', fontSize: 12.5, marginTop: 12, textAlign: 'center' }}>{notice}</p>}
-            {error && <p className="tc-shake" style={{ color: '#e88', fontSize: 12.5, marginTop: 12, textAlign: 'center' }}>{error}</p>}
+            {error && <p className="tc-shake" style={{ color: 'var(--danger-line)', fontSize: 12.5, marginTop: 12, textAlign: 'center' }}>{error}</p>}
 
             {/* OR divider */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '18px 0 14px', color: 'rgba(255,255,255,.4)' }}>
@@ -228,7 +228,7 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
               <button type="button" onClick={() => { setMode('register'); setError(null); setNotice(null); }}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%',
                   background: 'transparent', border: '1px solid rgba(255,255,255,.38)', borderRadius: 999,
-                  padding: '14px 24px', marginBottom: 14, cursor: 'pointer', color: '#fff',
+                  padding: '14px 24px', marginBottom: 14, cursor: 'pointer', color: 'var(--on-accent)',
                   fontSize: 13, letterSpacing: '.16em', fontWeight: 700, textTransform: 'uppercase', fontFamily: 'inherit' }}>
                 Create your account<ArrowRight />
               </button>

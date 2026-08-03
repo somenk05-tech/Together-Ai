@@ -48,7 +48,7 @@ export function HubConsentGate({ hub, children }: { hub?: string; children: Reac
       <div className="card rise" style={{ padding: '30px 28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <span style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--accent-soft)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-            <Icon name={cfg.icon} size={22} style={{ color: 'var(--accent)' }} />
+            <Icon name={cfg.icon} size={22} style={{ color: 'var(--accent-ink)' }} />
           </span>
           <div>
             <div className="eyebrow">{cfg.label} · Your privacy</div>
@@ -61,7 +61,7 @@ export function HubConsentGate({ hub, children }: { hub?: string; children: Reac
         <div style={{ borderTop: '1px solid var(--line)' }}>
           {rows.map((r) => (
             <div key={r.label} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--line)' }}>
-              <Icon name="accepted" size={16} style={{ color: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
+              <Icon name="accepted" size={16} style={{ color: 'var(--accent-ink)', marginTop: 2, flexShrink: 0 }} />
               <div>
                 <div style={{ fontWeight: 700, fontSize: 13 }}>{r.label}</div>
                 <div className="muted" style={{ fontSize: 13, lineHeight: 1.55, marginTop: 2 }}>{r.body}</div>

@@ -240,7 +240,7 @@ export function Sell() {
             <Button variant="gold" onClick={addProperty}>＋ Add property to list</Button>
             <Button variant="line" onClick={resetDraft}>Reset form</Button>
           </div>
-          {warn && <p style={{ fontSize: 12.5, color: '#c62828', fontWeight: 600 }}>{warn}</p>}
+          {warn && <p style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600 }}>{warn}</p>}
 
           {list.length > 0 && (
             <div style={{ marginTop: 24 }}>
@@ -249,15 +249,15 @@ export function Sell() {
               {list.map((l) => (
                 <div key={l.id} className="card" style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 12 }}>
                   {l.photos[0]?.url
-                    ? <img className="thumb" src={l.photos[0].url} alt="" style={{ width: 74, height: 56, borderRadius: 9, objectFit: 'cover', flex: '0 0 auto', background: '#222' }} />
+                    ? <img className="thumb" src={l.photos[0].url} alt="" style={{ width: 74, height: 56, borderRadius: 9, objectFit: 'cover', flex: '0 0 auto', background: 'var(--ink-soft)' }} />
                     : <div style={{ width: 74, height: 56, borderRadius: 9, flex: '0 0 auto', background: 'var(--line)', display: 'grid', placeItems: 'center', fontSize: 18 }}>🏠</div>}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 3 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', padding: '2px 8px', borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent)' }}>{l.kind}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', padding: '2px 8px', borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent-ink)' }}>{l.kind}</span>
                       <b style={{ fontSize: 14 }}>{l.fields[SCHEMA[l.kind].titleKey] || KIND_LABEL[l.kind]}</b>
                     </div>
                     <div className="muted" style={{ fontSize: 12 }}>{summaryOf(l)}</div>
-                    <div style={{ fontSize: 12, marginTop: 3 }}>₹{l.asking || '—'}{l.photos.length > 0 && <span style={{ color: '#2e9e57' }}> · {l.photos.length} live photo{l.photos.length === 1 ? '' : 's'} ✓</span>}</div>
+                    <div style={{ fontSize: 12, marginTop: 3 }}>₹{l.asking || '—'}{l.photos.length > 0 && <span style={{ color: 'var(--ok-ink)' }}> · {l.photos.length} live photo{l.photos.length === 1 ? '' : 's'} ✓</span>}</div>
                   </div>
                   <Button variant="line" size="sm" onClick={() => setList((a) => a.filter((x) => x.id !== l.id))}>Remove</Button>
                 </div>
@@ -281,7 +281,7 @@ export function Sell() {
             <div style={{ fontSize: 13, lineHeight: 2 }}>
               {checklist.map((c) => (
                 <div key={c.txt} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ color: c.ok ? '#2e9e57' : 'var(--muted)' }}>{c.ok ? '✓' : '○'}</span>
+                  <span style={{ color: c.ok ? 'var(--ok-ink)' : 'var(--muted)' }}>{c.ok ? '✓' : '○'}</span>
                   <span style={{ color: c.ok ? 'var(--ink)' : 'var(--muted)' }}>{c.txt}</span>
                 </div>
               ))}

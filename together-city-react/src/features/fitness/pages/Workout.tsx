@@ -196,11 +196,11 @@ function healthFromPref(
 type Status = 'complete' | 'workout' | 'walk' | 'light' | 'none' | 'rest';
 const STATUS_LABEL: Record<Status, string> = { complete: 'Completed · workout + walk', workout: 'Workout done', walk: 'Walk done', light: 'Light activity', none: 'No physical activity today', rest: 'No activity logged yet' };
 const STATUS_STYLE: Record<Status, { bg: string; c: string }> = {
-  complete: { bg: '#eaf2ec', c: '#2e7d4f' }, workout: { bg: 'var(--accent-soft)', c: 'var(--accent)' }, walk: { bg: '#fbf3e2', c: '#7a5c00' },
-  light: { bg: 'var(--accent-soft)', c: 'var(--accent)' }, none: { bg: '#fbe7e4', c: '#a5372a' }, rest: { bg: 'var(--line)', c: 'var(--ink-soft)' },
+  complete: { bg: 'var(--ok-soft)', c: 'var(--ok-ink)' }, workout: { bg: 'var(--accent-soft)', c: 'var(--accent)' }, walk: { bg: 'var(--warn-soft)', c: 'var(--warn-ink)' },
+  light: { bg: 'var(--accent-soft)', c: 'var(--accent)' }, none: { bg: 'var(--danger-soft)', c: 'var(--danger-ink)' }, rest: { bg: 'var(--line)', c: 'var(--ink-soft)' },
 };
 const DAYNAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const DOT_COLOR: Record<string, string> = { complete: '#2e7d4f', workout: 'var(--accent)', walk: '#c6a15b', light: '#9bb0c9', none: '#d9534f', '': 'var(--line)' };
+const DOT_COLOR: Record<string, string> = { complete: 'var(--ok-ink)', workout: 'var(--accent)', walk: 'var(--accent-ink)', light: 'var(--info-line)', none: 'var(--danger-ink)', '': 'var(--line)' };
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 interface DayLog { status: Status; kcal: number }
 
@@ -308,13 +308,13 @@ export function Workout() {
   }, [log]);
 
   const Seg = ({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) => (
-    <button type="button" onClick={onClick} style={{ border: `1px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'var(--card)', color: on ? '#fff' : 'var(--ink)', borderRadius: 999, padding: '8px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{children}</button>
+    <button type="button" onClick={onClick} style={{ border: `1px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'var(--card)', color: on ? 'var(--on-accent)' : 'var(--ink)', borderRadius: 999, padding: '8px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{children}</button>
   );
   const exRow = (i: number, name: string, meta: string, tgt: string) => (
     <div key={`${name}-${i}`} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '9px 4px', borderBottom: '1px solid var(--line)' }}>
-      <span style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--accent-soft)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flex: '0 0 auto' }}>{i}</span>
+      <span style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--accent-soft)', color: 'var(--accent-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flex: '0 0 auto' }}>{i}</span>
       <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 13.5, fontWeight: 600 }}>{name}</div><div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{meta}</div></div>
-      <span style={{ fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--accent)' }}>{tgt}</span>
+      <span style={{ fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--accent-ink)' }}>{tgt}</span>
     </div>
   );
   const blkHead = (txt: string) => <div style={{ fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700, margin: '14px 0 2px' }}>{txt}</div>;
@@ -354,7 +354,7 @@ export function Workout() {
             <>🔗 Using default body stats — nothing here is yours yet. Set them once to personalise every workout.</>
           )}
         </div>
-        <Link to="/nutrition/preferences" style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
+        <Link to="/nutrition/preferences" style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent-ink)', whiteSpace: 'nowrap' }}>
           {hasProfile ? 'Edit profile →' : 'Set up profile →'}
         </Link>
       </div>
@@ -371,7 +371,7 @@ export function Workout() {
               {nutritionTargets.isError ? (
                 <p className="muted" style={{ fontSize: 11.5, marginBottom: 2 }}>Your Nutrition plan couldn't be loaded just now — the burn goal above still stands.</p>
               ) : nutritionTargets.data ? (
-                <p className="muted" style={{ fontSize: 11.5, marginBottom: 2 }}>Your daily calorie plan will appear here once your <Link to="/nutrition/preferences" style={{ color: 'var(--accent)' }}>Nutrition profile</Link> is complete.</p>
+                <p className="muted" style={{ fontSize: 11.5, marginBottom: 2 }}>Your daily calorie plan will appear here once your <Link to="/nutrition/preferences" style={{ color: 'var(--accent-ink)' }}>Nutrition profile</Link> is complete.</p>
               ) : null}
             </>
           )}
@@ -382,7 +382,7 @@ export function Workout() {
               { l: 'Total burn', v: inr(burnTotal), s: 'kcal today' },
             ].map((g) => (
               <div key={g.l} style={{ background: 'var(--accent-soft)', borderRadius: 12, padding: '14px 16px' }}>
-                <div style={{ fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>{g.l}</div>
+                <div style={{ fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent-ink)', fontWeight: 700 }}>{g.l}</div>
                 <div style={{ fontFamily: 'var(--serif)', fontSize: 22, marginTop: 3 }}>{g.v}</div>
                 <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 2 }}>{g.s}</div>
               </div>
@@ -475,18 +475,18 @@ export function Workout() {
 
       {/* live timer overlay */}
       {running && s && (
-        <div style={{ position: 'fixed', inset: 0, background: 'linear-gradient(160deg,#12141c,#1b2430)', color: '#fff', display: 'flex', flexDirection: 'column', zIndex: 9999, padding: 22 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'linear-gradient(160deg,var(--ink),var(--ink))', color: 'var(--on-accent)', display: 'flex', flexDirection: 'column', zIndex: 9999, padding: 22 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'rgba(255,255,255,.7)' }}>
             <span>Step {rt.current.idx + 1} of {rt.current.seq.length}</span>
-            <button type="button" onClick={() => finish(true)} className="btn btn-sm" style={{ background: 'rgba(255,255,255,.14)', color: '#fff', border: '1px solid rgba(255,255,255,.3)' }}>✕ End</button>
+            <button type="button" onClick={() => finish(true)} className="btn btn-sm" style={{ background: 'rgba(255,255,255,.14)', color: 'var(--on-accent)', border: '1px solid rgba(255,255,255,.3)' }}>✕ End</button>
           </div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 6 }}>
-            <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: '#c6a15b', fontWeight: 700 }}>{s.block}{s.round ? ` · round ${s.round}` : ''}</div>
+            <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--accent-ink)', fontWeight: 700 }}>{s.block}{s.round ? ` · round ${s.round}` : ''}</div>
             <div style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(30px,7vw,54px)', lineHeight: 1.1 }}>{s.rest ? 'Rest' : s.name}</div>
-            <div style={{ fontSize: 20, color: '#8fd3a6', fontWeight: 700 }}>{s.walk ? s.note : s.note ? `Target ${s.note}` : s.reps ? `Target ${s.reps} reps` : s.rest ? 'Recover' : `Hold / go for ${mmss(s.dur)}`}</div>
+            <div style={{ fontSize: 20, color: 'var(--ok-line)', fontWeight: 700 }}>{s.walk ? s.note : s.note ? `Target ${s.note}` : s.reps ? `Target ${s.reps} reps` : s.rest ? 'Recover' : `Hold / go for ${mmss(s.dur)}`}</div>
             <div style={{ fontSize: 'clamp(52px,16vw,120px)', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.02em' }}>{mmss(rt.current.remain)}</div>
             <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,.15)', overflow: 'hidden', marginTop: 8, width: 240 }}>
-              <div style={{ height: '100%', background: '#8fd3a6', width: `${s.dur ? Math.round((1 - rt.current.remain / s.dur) * 100) : 0}%` }} />
+              <div style={{ height: '100%', background: 'var(--ok-line)', width: `${s.dur ? Math.round((1 - rt.current.remain / s.dur) * 100) : 0}%` }} />
             </div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>{next ? `Up next: ${next.rest ? 'Rest' : next.name}` : 'Last one!'}</div>
           </div>
@@ -494,7 +494,7 @@ export function Workout() {
             <button type="button" style={ctrl} onClick={() => { rt.current.paused = !rt.current.paused; force(); }}>{rt.current.paused ? '▶ Resume' : '⏸ Pause'}</button>
             <button type="button" style={ctrl} onClick={advance}>⏭ Skip exercise</button>
             <button type="button" style={ctrl} onClick={skipToWalk}>🚶 Skip to walk</button>
-            <button type="button" style={{ ...ctrl, background: '#8fd3a6', color: '#10331f', borderColor: '#8fd3a6' }} onClick={() => { creditCurrent(); advance(); }}>Done ▸</button>
+            <button type="button" style={{ ...ctrl, background: 'var(--ok-line)', color: 'var(--ok-ink)', borderColor: 'var(--ok-line)' }} onClick={() => { creditCurrent(); advance(); }}>Done ▸</button>
           </div>
         </div>
       )}
@@ -502,4 +502,4 @@ export function Workout() {
   );
 }
 
-const ctrl: React.CSSProperties = { borderRadius: 999, padding: '12px 20px', fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: '#fff' };
+const ctrl: React.CSSProperties = { borderRadius: 999, padding: '12px 20px', fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: 'var(--on-accent)' };

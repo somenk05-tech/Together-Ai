@@ -10,7 +10,7 @@ const GENRE_FILTERS = ['Action', 'Drama', 'Comedy', 'Thriller', 'Romance', 'Sci-
 
 const CSS = KIT_CSS + `
 .ent-movies .searchbar{display:flex;gap:10px;margin:4px 0 18px}
-.ent-movies .searchbar input{flex:1;border:1.5px solid var(--line,#eee);border-radius:999px;padding:12px 20px;font-size:14px;font-family:inherit;background:var(--card,#fff);color:var(--ink);outline:none}
+.ent-movies .searchbar input{flex:1;border:1.5px solid var(--line);border-radius:999px;padding:12px 20px;font-size:14px;font-family:inherit;background:var(--card);color:var(--ink);outline:none}
 .ent-movies .searchbar input:focus{border-color:var(--accent)}
 `;
 
@@ -44,7 +44,7 @@ export function Movies() {
   const pill = (on: boolean, label: string, onClick: () => void) => (
     <button key={label} type="button" onClick={onClick}
       style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 14px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
-        border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? '#fff' : 'var(--ink-soft)' }}>
+        border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
       {label}
     </button>
   );

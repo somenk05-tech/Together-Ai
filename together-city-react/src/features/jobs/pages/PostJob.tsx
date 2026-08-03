@@ -82,7 +82,7 @@ export function PostJob() {
             {LEVELS.map((lv) => (
               <button key={lv} type="button" onClick={() => setSeniority((s) => (s === lv ? '' : lv))}
                 style={{ cursor: 'pointer', borderRadius: 999, padding: '5px 12px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
-                  border: `1.5px solid ${seniority === lv ? 'var(--accent)' : 'var(--line)'}`, background: seniority === lv ? 'var(--accent)' : 'transparent', color: seniority === lv ? '#fff' : 'var(--ink-soft)' }}>
+                  border: `1.5px solid ${seniority === lv ? 'var(--accent)' : 'var(--line)'}`, background: seniority === lv ? 'var(--accent)' : 'transparent', color: seniority === lv ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
                 {LEVEL_LABEL[lv]}
               </button>
             ))}
@@ -97,7 +97,7 @@ export function PostJob() {
           {SKILLS.map((k) => (
             <button key={k} type="button" onClick={() => toggle(k)}
               style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 13px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
-                border: `1.5px solid ${skills.includes(k) ? 'var(--accent)' : 'var(--line)'}`, background: skills.includes(k) ? 'var(--accent)' : 'transparent', color: skills.includes(k) ? '#fff' : 'var(--ink-soft)' }}>
+                border: `1.5px solid ${skills.includes(k) ? 'var(--accent)' : 'var(--line)'}`, background: skills.includes(k) ? 'var(--accent)' : 'transparent', color: skills.includes(k) ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
               {LABEL[k]}
             </button>
           ))}
@@ -109,8 +109,8 @@ export function PostJob() {
           {busy ? (editId ? 'Saving…' : 'Posting…') : (editId ? 'Save changes' : 'Publish role')}
         </Button>
         {editId && <Link to="/jobs/postings" style={{ fontSize: 13, color: 'var(--muted)' }}>Cancel</Link>}
-        {(post.error || edit.error) && <span style={{ fontSize: 12.5, color: '#c0392b' }}>Couldn't save — you may already have this posting.</span>}
-        {posted && !editId && <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>✓ Posted — <Link to="/jobs/postings" style={{ color: 'var(--accent)' }}>view applicants</Link></span>}
+        {(post.error || edit.error) && <span style={{ fontSize: 12.5, color: 'var(--danger-ink)' }}>Couldn't save — you may already have this posting.</span>}
+        {posted && !editId && <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>✓ Posted — <Link to="/jobs/postings" style={{ color: 'var(--accent-ink)' }}>view applicants</Link></span>}
       </div>
     </div>
   );

@@ -7,13 +7,13 @@ import { ShareToChat } from '@/features/chat/share';
 
 function ProductCard({ p, qty, onAdd, onRemove }: { p: RecommendedProduct; qty: number; onAdd: () => void; onRemove: () => void }) {
   const [why, setWhy] = useState(false);
-  const scoreColor = p.matchScore >= 80 ? '#2e7d32' : p.matchScore >= 55 ? 'var(--accent)' : 'var(--muted)';
+  const scoreColor = p.matchScore >= 80 ? 'var(--ok-ink)' : p.matchScore >= 55 ? 'var(--accent)' : 'var(--muted)';
   return (
     <article className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8, borderColor: p.matched ? 'var(--accent)' : 'var(--line)' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <strong style={{ fontSize: 15 }}>{p.name}</strong>
         {p.matched && (
-          <span style={{ fontSize: 10.5, fontWeight: 800, color: '#fff', background: scoreColor, borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--on-accent)', background: scoreColor, borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap' }}>
             {p.matchScore}% match
           </span>
         )}
@@ -28,7 +28,7 @@ function ProductCard({ p, qty, onAdd, onRemove }: { p: RecommendedProduct; qty: 
           <div className="muted" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Matched because</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {p.primaryReasons.map((r) => (
-              <span key={r} style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 10px' }}>{r}</span>
+              <span key={r} style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 10px' }}>{r}</span>
             ))}
           </div>
         </div>
@@ -52,7 +52,7 @@ function ProductCard({ p, qty, onAdd, onRemove }: { p: RecommendedProduct; qty: 
       </div>
 
       <button type="button" onClick={() => setWhy(!why)}
-        style={{ alignSelf: 'flex-start', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, color: 'var(--accent)', padding: 0 }}>
+        style={{ alignSelf: 'flex-start', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, color: 'var(--accent-ink)', padding: 0 }}>
         {why ? '▾ Hide explanation' : '✨ Why was this recommended?'}
       </button>
       {why && <p style={{ fontSize: 12, lineHeight: 1.55, margin: 0, padding: '8px 10px', background: 'var(--paper)', borderRadius: 10, color: 'var(--ink-soft)' }}>{p.explanation}</p>}
@@ -159,7 +159,7 @@ export function Market() {
           </div>
           <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
             {placed ? (
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--accent)' }}>✓ Paid</span>
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--accent-ink)' }}>✓ Paid</span>
             ) : (
               <Button variant="accent" onClick={() => setPayOpen(true)}>Checkout · ₹{total}</Button>
             )}

@@ -14,7 +14,7 @@ function Avatar({ name }: { name: string }) {
     <div
       style={{
         width: 44, height: 44, borderRadius: '50%', display: 'grid', placeItems: 'center', flexShrink: 0,
-        background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 700, fontSize: 15,
+        background: 'var(--accent-soft)', color: 'var(--accent-ink)', fontWeight: 700, fontSize: 15,
       }}
     >
       {name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
@@ -44,7 +44,7 @@ function Row({ c, actions, subtitle, children, collapsible, expanded, onToggle, 
           {hubCount === 0 ? null : collapsible ? (
             <>
               <button type="button" onClick={onToggle} aria-expanded={expanded}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--accent)' }}>
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--accent-ink)' }}>
                 <span aria-hidden style={{ display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>▸</span>
                 {expanded ? 'Hide' : `${hubCount} connected hub${hubCount > 1 ? 's' : ''}`}
               </button>
@@ -202,7 +202,7 @@ export function Connections() {
             const allExpanded = accepted.every((c) => expanded.has(c.id));
             return (
               <button type="button" onClick={() => setExpanded(allExpanded ? new Set() : new Set(accepted.map((c) => c.id)))}
-                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--accent)' }}>
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)' }}>
                 {allExpanded ? 'Collapse all' : 'Expand all'}
               </button>
             );

@@ -47,7 +47,7 @@ export function Family() {
         <h2>Welcome back, {firstName} 👪</h2>
         <div style={{ display: 'inline-flex', gap: 4, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 999, padding: 4 }}>
           <Link to="/nutrition" style={{ padding: '9px 22px', borderRadius: 999, fontSize: 12, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)' }}>Individual</Link>
-          <Link to="/family" style={{ padding: '9px 22px', borderRadius: 999, fontSize: 12, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', background: 'var(--accent)', color: '#fff' }}>Family</Link>
+          <Link to="/family" style={{ padding: '9px 22px', borderRadius: 999, fontSize: 12, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', background: 'var(--accent)', color: 'var(--on-accent)' }}>Family</Link>
         </div>
       </div>
       <p className="lede" style={{ marginBottom: 34 }}>
@@ -57,7 +57,7 @@ export function Family() {
       <section style={{ marginBottom: 40 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
           <h2>Your Family</h2>
-          <Link to="/family/connect" style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 13.5 }}>Manage members →</Link>
+          <Link to="/family/connect" style={{ color: 'var(--accent-ink)', fontWeight: 600, fontSize: 13.5 }}>Manage members →</Link>
         </div>
         <FamilyDashboard />
       </section>
@@ -66,10 +66,10 @@ export function Family() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16 }} className="tc-membergrid">
           {FEATURES.map((f) => (
             <Link key={f.n} to={f.to} style={featureCardStyle} className="lift">
-              <span style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--accent-soft)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>{f.n}</span>
+              <span style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--accent-soft)', color: 'var(--accent-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>{f.n}</span>
               <h4>{f.title}</h4>
               <p className="meta muted" style={{ fontSize: 12.5 }}>{f.blurb}</p>
-              <span style={{ marginTop: 'auto', fontSize: 12, fontWeight: 600, color: 'var(--accent)' }}>{f.cta}</span>
+              <span style={{ marginTop: 'auto', fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)' }}>{f.cta}</span>
             </Link>
           ))}
         </div>

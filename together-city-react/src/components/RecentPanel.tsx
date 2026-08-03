@@ -30,13 +30,13 @@ export function RecentPanel() {
 
       <Link to={top.path} className="card" style={{ display: 'flex', alignItems: 'center', gap: 14, textDecoration: 'none', color: 'inherit', padding: '16px 18px', marginBottom: others.length ? 14 : 0 }}>
         <span style={{ width: 42, height: 42, borderRadius: 11, background: 'var(--accent-soft)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-          <Icon name={iconFor(top.path)} size={20} style={{ color: 'var(--accent)' }} />
+          <Icon name={iconFor(top.path)} size={20} style={{ color: 'var(--accent-ink)' }} />
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span className="muted" style={{ display: 'block', fontSize: 11.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase' }}>Resume</span>
           <span style={{ display: 'block', fontSize: 16, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{top.label}</span>
         </span>
-        <span aria-hidden style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 20 }}>→</span>
+        <span aria-hidden style={{ color: 'var(--accent-ink)', fontWeight: 700, fontSize: 20 }}>→</span>
       </Link>
 
       {others.length > 0 && (
@@ -45,7 +45,7 @@ export function RecentPanel() {
             <Link key={r.path} to={r.path}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'inherit',
                 border: '1px solid var(--line)', borderRadius: 999, padding: '7px 13px', fontSize: 13, fontWeight: 600, background: 'var(--card)' }}>
-              <Icon name={iconFor(r.path)} size={14} style={{ color: 'var(--accent)' }} />
+              <Icon name={iconFor(r.path)} size={14} style={{ color: 'var(--accent-ink)' }} />
               {r.label}
             </Link>
           ))}

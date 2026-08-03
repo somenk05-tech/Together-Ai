@@ -128,11 +128,11 @@ export function CommandPalette() {
 
   return (
     <div role="dialog" aria-label="Command palette" onMouseDown={() => setOpen(false)}
-      style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(10,10,12,.45)', backdropFilter: 'blur(3px)',
+      style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(255,255,255,.72)', backdropFilter: 'blur(3px)',
         display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh' }}>
       <div onMouseDown={(e) => e.stopPropagation()}
         style={{ width: 'min(620px, 92vw)', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 16,
-          boxShadow: '0 24px 70px rgba(0,0,0,.32)', overflow: 'hidden' }}>
+          boxShadow: 'var(--e3)', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
           <Icon name="search" size={18} style={{ color: 'var(--muted)' }} />
           <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onListKey}
@@ -156,7 +156,7 @@ export function CommandPalette() {
                 borderRadius: 10, padding: '10px 12px', cursor: 'pointer', fontFamily: 'inherit',
                 background: i === active ? 'var(--accent-soft)' : 'transparent' }}>
               <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                <Icon name={d.icon ?? 'place'} size={16} style={{ color: 'var(--accent)' }} />
+                <Icon name={d.icon ?? 'place'} size={16} style={{ color: 'var(--accent-ink)' }} />
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</span>
@@ -176,7 +176,7 @@ export function CommandPalette() {
                   style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', border: 'none',
                     borderRadius: 10, padding: '10px 12px', cursor: 'pointer', fontFamily: 'inherit', background: 'transparent' }}>
                   <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                    <Icon name="comment" size={16} style={{ color: 'var(--accent)' }} />
+                    <Icon name="comment" size={16} style={{ color: 'var(--accent-ink)' }} />
                   </span>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: 'block', fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.text ?? 'Attachment'}</span>

@@ -23,11 +23,11 @@ export function PackageDetail() {
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '20px 16px' }}>
-      <Link to="/travel/explore" style={{ fontSize: 12.5, color: 'var(--accent)', fontWeight: 600 }}>← Explore</Link>
+      <Link to="/travel/explore" style={{ fontSize: 12.5, color: 'var(--accent-ink)', fontWeight: 600 }}>← Explore</Link>
 
       <div style={{ marginTop: 12, borderRadius: 16, overflow: 'hidden', aspectRatio: '16 / 8', position: 'relative' }}>
         <img src={p.heroUrl} alt={p.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        <div style={{ position: 'absolute', left: 18, bottom: 16, color: '#fff' }}>
+        <div style={{ position: 'absolute', left: 18, bottom: 16, color: 'var(--on-accent)' }}>
           <span style={{ fontSize: 12.5, fontWeight: 700 }}>{p.icon} {p.categoryLabel}</span>
           <h1 style={{ fontSize: 28, margin: '2px 0 0' }}>{p.title}</h1>
           <div style={{ fontSize: 13.5 }}>{p.destination}, {p.country} · {p.nights}N / {p.days}D</div>
@@ -52,7 +52,7 @@ export function PackageDetail() {
         <div className="eyebrow">Day-by-day itinerary</div>
         {p.itinerary.map((d) => (
           <div key={d.day} style={{ display: 'flex', gap: 12, padding: '10px 0', borderTop: '1px solid var(--line)' }}>
-            <div style={{ width: 44, flexShrink: 0 }}><div style={{ width: 34, height: 34, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 800, fontSize: 13 }}>D{d.day}</div></div>
+            <div style={{ width: 44, flexShrink: 0 }}><div style={{ width: 34, height: 34, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'var(--accent-soft)', color: 'var(--accent-ink)', fontWeight: 800, fontSize: 13 }}>D{d.day}</div></div>
             <div><div style={{ fontWeight: 700, fontSize: 14 }}>{d.title}</div><div className="muted" style={{ fontSize: 13 }}>{d.detail}</div></div>
           </div>
         ))}
@@ -69,7 +69,7 @@ export function PackageDetail() {
 
       {booked ? (
         <div className="card" style={{ marginTop: 16, borderLeft: '4px solid var(--accent)' }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--accent)' }}>🎉 Trip booked!</div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--accent-ink)' }}>🎉 Trip booked!</div>
           <p className="muted" style={{ fontSize: 13, margin: '4px 0 10px' }}>Paid from your city wallet — see it in My Trips.</p>
           <Link to="/travel/trips"><Button variant="accent" size="sm">View my trips</Button></Link>
         </div>

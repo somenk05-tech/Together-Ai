@@ -8,7 +8,7 @@ function BudgetRow({ b }: { b: Budget }) {
   const [editing, setEditing] = useState(false);
   useEffect(() => { setVal(String(b.monthlyInr)); }, [b.monthlyInr]);
 
-  const barColor = b.over ? '#c62828' : b.pct > 80 ? '#e65100' : catColor[b.category];
+  const barColor = b.over ? 'var(--danger-ink)' : b.pct > 80 ? 'var(--warn-ink)' : catColor[b.category];
   return (
     <div style={{ padding: '14px 0', borderTop: '1px solid var(--line)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -31,7 +31,7 @@ function BudgetRow({ b }: { b: Budget }) {
       <div style={{ height: 9, borderRadius: 999, background: 'var(--line)', marginTop: 8, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${Math.min(100, b.pct)}%`, background: barColor, transition: 'width .3s' }} />
       </div>
-      {b.over && <div style={{ fontSize: 11.5, color: '#c62828', fontWeight: 600, marginTop: 4 }}>Over budget by {inr(b.spentInr - b.monthlyInr)}</div>}
+      {b.over && <div style={{ fontSize: 11.5, color: 'var(--danger-ink)', fontWeight: 600, marginTop: 4 }}>Over budget by {inr(b.spentInr - b.monthlyInr)}</div>}
     </div>
   );
 }

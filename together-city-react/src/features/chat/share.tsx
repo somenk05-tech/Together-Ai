@@ -27,14 +27,14 @@ export function ShareCardView({ card, compact, clickable }: { card: ShareCard; c
   const asLink = Boolean(clickable && card.deepLink);
   const shell: React.CSSProperties = {
     display: 'block', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden',
-    background: 'var(--card, #fff)', width: compact ? '100%' : 280, maxWidth: '100%',
+    background: 'var(--card)', width: compact ? '100%' : 280, maxWidth: '100%',
     color: 'inherit', textDecoration: 'none', ...(asLink ? { cursor: 'pointer' } : null),
   };
   const body = (
     <>
       {card.image && <div style={{ aspectRatio: '16 / 9', background: 'var(--line)' }}><img src={card.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>}
       <div style={{ padding: '10px 12px' }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--accent)' }}>{meta.icon} {card.hub || meta.label}</div>
+        <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--accent-ink)' }}>{meta.icon} {card.hub || meta.label}</div>
         <div style={{ fontWeight: 700, fontSize: 14, marginTop: 2 }}>{card.title}</div>
         {card.subtitle && <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{card.subtitle}</div>}
         {card.meta && card.meta.length > 0 && (
@@ -115,14 +115,14 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
     }
   };
 
-  const row = (active: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 10, cursor: 'pointer', border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft, #f5efe0)' : 'transparent' });
+  const row = (active: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 10, cursor: 'pointer', border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft)' : 'transparent' });
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 100, display: 'grid', placeItems: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(460px, 96vw)', maxHeight: '88vh', overflow: 'auto' }}>
         {done ? (
           <div style={{ textAlign: 'center', padding: '22px 8px' }}>
-            <div style={{ fontSize: 30, color: '#2e7d4f', fontWeight: 800, lineHeight: 1 }}>✓</div>
+            <div style={{ fontSize: 30, color: 'var(--ok-ink)', fontWeight: 800, lineHeight: 1 }}>✓</div>
             <div style={{ fontWeight: 700, fontSize: 15, marginTop: 6 }}>Sent</div>
           </div>
         ) : (
@@ -145,9 +145,9 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
               <div style={{ display: 'grid', gap: 2, marginTop: 4 }}>
                 {(convos.data ?? []).slice(0, 4).map((c) => (
                   <div key={c.id} onClick={() => setTarget({ type: 'conversation', id: c.id, label: c.title ?? 'Chat' })} style={row(target?.type === 'conversation' && target.id === c.id)}>
-                    <div className="tc-avatar" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', width: 30, height: 30, fontSize: 12 }}>{c.isGroup ? '👥' : (c.title ?? 'C').slice(0, 2).toUpperCase()}</div>
+                    <div className="tc-avatar" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)', width: 30, height: 30, fontSize: 12 }}>{c.isGroup ? '👥' : (c.title ?? 'C').slice(0, 2).toUpperCase()}</div>
                     <span style={{ fontWeight: 600, fontSize: 13.5 }}>{c.title ?? 'Conversation'}</span>
-                    {c.isGroup && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft, #f5efe0)', borderRadius: 999, padding: '1px 7px' }}>GROUP</span>}
+                    {c.isGroup && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '1px 7px' }}>GROUP</span>}
                   </div>
                 ))}
               </div>
@@ -164,7 +164,7 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
             <div style={{ display: 'grid', gap: 2, maxHeight: 180, overflow: 'auto' }}>
               {contactList.slice(0, 20).map((c) => (
                 <div key={c.id} onClick={() => setTarget({ type: 'contact', id: c.id, handle: c.handle, label: c.name })} style={row(target?.type === 'contact' && target.id === c.id)}>
-                  <div className="tc-avatar" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', width: 30, height: 30, fontSize: 12 }}>{c.name.slice(0, 2).toUpperCase()}</div>
+                  <div className="tc-avatar" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)', width: 30, height: 30, fontSize: 12 }}>{c.name.slice(0, 2).toUpperCase()}</div>
                   <span style={{ fontWeight: 600, fontSize: 13.5 }}>{c.name}</span>
                   <span className="muted" style={{ fontSize: 12 }}>@{c.handle}</span>
                 </div>
@@ -176,7 +176,7 @@ export function ShareModal({ item, onClose }: { item: ShareCard; onClose: () => 
               <Button variant="line" onClick={onClose}>Cancel</Button>
             </div>
             {error && (
-              <p role="alert" style={{ color: '#c0392b', fontSize: 12.5, fontWeight: 600, margin: '10px 0 0' }}>{error}</p>
+              <p role="alert" style={{ color: 'var(--danger-ink)', fontSize: 12.5, fontWeight: 600, margin: '10px 0 0' }}>{error}</p>
             )}
           </>
         )}

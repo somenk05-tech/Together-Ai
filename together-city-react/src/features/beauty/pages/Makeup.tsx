@@ -78,8 +78,8 @@ function allocate(budget: number): Record<string, TierKey> {
 
 const TIER_LABEL: Record<TierKey, { text: string; bg: string; fg: string }> = {
   ai: { text: '', bg: '', fg: '' },
-  budget: { text: 'Budget', bg: '#eef4ee', fg: '#2e7d4f' },
-  premium: { text: 'Premium', bg: '#f3edf7', fg: '#7a4fa0' },
+  budget: { text: 'Budget', bg: 'var(--ok-soft)', fg: 'var(--ok-ink)' },
+  premium: { text: 'Premium', bg: 'var(--accent-soft)', fg: 'var(--accent-ink)' },
 };
 
 function Thumb({ it, tier }: { it: Item; tier: Tier }) {
@@ -95,8 +95,8 @@ function Thumb({ it, tier }: { it: Item; tier: Tier }) {
 }
 
 const finishChip = (fin: string): React.CSSProperties => {
-  const c = fin === 'matte' ? { background: '#eef1f4', color: '#5a6b7a' }
-    : fin === 'dewy' ? { background: '#eef5f0', color: '#2e7d4f' } : { background: '#f5f0ea', color: '#8a6d3a' };
+  const c = fin === 'matte' ? { background: 'var(--info-soft)', color: 'var(--info-ink)' }
+    : fin === 'dewy' ? { background: 'var(--info-soft)', color: 'var(--ok-ink)' } : { background: 'var(--accent-soft)', color: 'var(--warn-ink)' };
   return { fontSize: 10, fontWeight: 700, letterSpacing: '.03em', padding: '3px 8px', borderRadius: 999, textTransform: 'capitalize', ...c };
 };
 
@@ -164,7 +164,7 @@ export function Makeup() {
             <button key={o} type="button" onClick={() => setOccasion(o)}
               style={{ fontSize: 12, fontWeight: 600, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', font: 'inherit',
                 border: `1.5px solid ${occasion === o ? 'var(--accent)' : 'var(--line)'}`,
-                background: occasion === o ? 'var(--accent)' : 'transparent', color: occasion === o ? '#fff' : 'var(--ink-soft)' }}>
+                background: occasion === o ? 'var(--accent)' : 'transparent', color: occasion === o ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
               {o}
             </button>
           ))}
@@ -178,7 +178,7 @@ export function Makeup() {
             <b style={{ fontSize: 15 }}>💄 Your {look.data.occasion} look</b>
             <span className="muted" style={{ fontSize: 12 }}>{look.data.season} · {look.data.finish} finish</span>
             {!look.data.inputs.face && (
-              <Link to="/beauty/profile" style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 700, color: 'var(--accent)' }}>
+              <Link to="/beauty/profile" style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 700, color: 'var(--accent-ink)' }}>
                 Add photos for face-shape precision →
               </Link>
             )}
@@ -223,12 +223,12 @@ export function Makeup() {
             <b style={{ fontSize: 14 }}>Makeup budget</b>
             <p className="muted" style={{ fontSize: 12, marginTop: 2 }}>Allocated across a complete everyday look — base, eyes, lips &amp; cheeks.</p>
           </div>
-          <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 20, color: 'var(--accent)' }}>₹{inr(budget)}</span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 20, color: 'var(--accent-ink)' }}>₹{inr(budget)}</span>
         </div>
         <input type="range" aria-label="Makeup budget" min={1000} max={20000} step={500} value={budget} style={{ width: '100%', margin: '14px 0 2px', accentColor: 'var(--accent)' }}
           onChange={(e) => { const b = Number(e.target.value); setBudget(b); rebuild(b); }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--ink-soft)', marginTop: 4 }}><span>₹1,000</span><span>₹20,000</span></div>
-        <p style={{ fontSize: 12.5, marginTop: 8, color: over ? '#b0503e' : '#2e7d4f', fontWeight: over ? 600 : 400 }}>
+        <p style={{ fontSize: 12.5, marginTop: 8, color: over ? 'var(--danger-ink)' : 'var(--ok-ink)', fontWeight: over ? 600 : 400 }}>
           {over
             ? `A complete everyday look comes to ₹${inr(total)} — a little over your ₹${inr(budget)} budget. Raise it slightly, or switch a step to Budget.`
             : `Your ₹${inr(budget)} builds a complete look · ₹${inr(budget - total)} to spare. Raise it to upgrade tiers or add extras.`}
@@ -240,7 +240,7 @@ export function Makeup() {
           <button key={t.key} type="button" onClick={() => setTab(t.key)}
             style={{ fontSize: 12.5, fontWeight: 600, padding: '8px 15px', borderRadius: 999, cursor: 'pointer', font: 'inherit',
               border: `1px solid ${tab === t.key ? 'var(--accent)' : 'var(--line)'}`,
-              background: tab === t.key ? 'var(--accent)' : 'var(--card)', color: tab === t.key ? '#fff' : 'var(--ink)' }}>
+              background: tab === t.key ? 'var(--accent)' : 'var(--card)', color: tab === t.key ? 'var(--on-accent)' : 'var(--ink)' }}>
             {t.label}
           </button>
         ))}
@@ -268,10 +268,10 @@ export function Makeup() {
                       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                         <Thumb it={it} tier={eff} />
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--accent)' }}>{it.slot}</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--accent-ink)' }}>{it.slot}</div>
                           <h4 style={{ margin: '2px 0' }}>
-                            <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 800, color: 'var(--accent)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 999, marginRight: 6 }}>{eff.brand}</span>
-                            {eff.name} <span style={{ fontSize: 11, fontWeight: 700, color: '#e0a53e' }}>⭐ Recommended</span>
+                            <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 800, color: 'var(--accent-ink)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 999, marginRight: 6 }}>{eff.brand}</span>
+                            {eff.name} <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-ink)' }}>⭐ Recommended</span>
                             {lab.text && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, marginLeft: 6, background: lab.bg, color: lab.fg }}>{lab.text}</span>}
                           </h4>
                           <p className="muted" style={{ fontSize: 12 }}><span style={finishChip(it.finish)}>{it.finish}</span> · ★{it.derm} derm</p>
@@ -304,7 +304,7 @@ export function Makeup() {
                                 <span style={{ fontWeight: 600 }}>{icon}</span>
                                 <span style={{ color: 'var(--ink-soft)' }}>{tp.brand} {tp.name.split(' ').slice(0, 3).join(' ')}</span>
                                 <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, textAlign: 'right' }}>₹{inr(tp.price)}</span>
-                                <span style={{ fontSize: 11, textAlign: 'right', color: tk === 'budget' && diff > 0 ? '#2e7d4f' : 'var(--ink-soft)', fontWeight: tk === 'budget' && diff > 0 ? 600 : 400 }}>{noteTxt}</span>
+                                <span style={{ fontSize: 11, textAlign: 'right', color: tk === 'budget' && diff > 0 ? 'var(--ok-ink)' : 'var(--ink-soft)', fontWeight: tk === 'budget' && diff > 0 ? 600 : 400 }}>{noteTxt}</span>
                               </button>
                             );
                           })}
@@ -322,13 +322,13 @@ export function Makeup() {
           <h4 style={{ marginBottom: 4 }}>Your Kit ({inCartSlots.length})</h4>
           <p style={{ margin: '0 0 12px' }}>
             <button type="button" onClick={() => { rebuild(budget); setNote(''); }}
-              style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, fontSize: 12, cursor: 'pointer', padding: 0 }}>↺ Reset to my everyday look</button>
+              style={{ background: 'none', border: 'none', color: 'var(--accent-ink)', fontWeight: 600, fontSize: 12, cursor: 'pointer', padding: 0 }}>↺ Reset to my everyday look</button>
           </p>
-          {note && <p style={{ fontSize: 12, color: '#b0503e', fontWeight: 600, margin: '0 0 10px' }}>{note}</p>}
+          {note && <p style={{ fontSize: 12, color: 'var(--danger-ink)', fontWeight: 600, margin: '0 0 10px' }}>{note}</p>}
           <div className="rows" style={{ gap: 8 }}>
             {inCartSlots.length === 0 ? (
               <div style={{ fontSize: 13, color: 'var(--ink-soft)', padding: '16px 4px', textAlign: 'center' }}>
-                Cart empty. <button type="button" onClick={() => rebuild(budget)} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, cursor: 'pointer', padding: 0 }}>restore your everyday look</button>.
+                Cart empty. <button type="button" onClick={() => rebuild(budget)} style={{ background: 'none', border: 'none', color: 'var(--accent-ink)', fontWeight: 600, cursor: 'pointer', padding: 0 }}>restore your everyday look</button>.
               </div>
             ) : inCartSlots.map((s) => {
               const it = byId(s), t = tierOf(s), eff = it.tiers[t], lab = TIER_LABEL[t];
@@ -348,11 +348,11 @@ export function Makeup() {
           {inCartSlots.length > 0 && (
             <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginTop: 12, fontSize: 13 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}><span className="muted">Subtotal ({inCartSlots.length})</span><span>₹{inr(subtotal)}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, color: '#2e7d4f' }}><span>You Save</span><span>−₹{inr(save)}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontFamily: 'var(--serif)', borderTop: '1px solid var(--line)', paddingTop: 10 }}><span>Total</span><span style={over ? { color: '#b0503e', fontWeight: 600 } : undefined}>₹{inr(total)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, color: 'var(--ok-ink)' }}><span>You Save</span><span>−₹{inr(save)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontFamily: 'var(--serif)', borderTop: '1px solid var(--line)', paddingTop: 10 }}><span>Total</span><span style={over ? { color: 'var(--danger-ink)', fontWeight: 600 } : undefined}>₹{inr(total)}</span></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginTop: 6 }}>
                 <span className="muted">Budget</span>
-                <span style={{ color: over ? '#b0503e' : '#2e7d4f', fontWeight: over ? 600 : 400 }}>{over ? `over by ₹${inr(total - budget)}` : `₹${inr(budget - total)} to spare`} · ₹{inr(budget)}</span>
+                <span style={{ color: over ? 'var(--danger-ink)' : 'var(--ok-ink)', fontWeight: over ? 600 : 400 }}>{over ? `over by ₹${inr(total - budget)}` : `₹${inr(budget - total)} to spare`} · ₹{inr(budget)}</span>
               </div>
               {over && <div className="btn btn-line" style={{ width: '100%', justifyContent: 'center', marginTop: 10, opacity: .55, pointerEvents: 'none' }}>Over budget</div>}
               <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 14 }}>
@@ -361,7 +361,7 @@ export function Makeup() {
                 you already shop. We'll tell you the day that changes.
               </p>
               <p style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 8 }}>
-                Skincare you <em>can</em> order today: <Link to="/beauty/market" style={{ color: 'var(--accent)', fontWeight: 600 }}>the Beauty Market</Link> —
+                Skincare you <em>can</em> order today: <Link to="/beauty/market" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>the Beauty Market</Link> —
                 paid from your city wallet, and it turns up under My Orders.
               </p>
             </div>

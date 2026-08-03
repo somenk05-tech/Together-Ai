@@ -46,7 +46,7 @@ function Collage({ d }: { d: MatchDetail }) {
       <div style={{ ...photoBox, aspectRatio: '4 / 5', touchAction: 'pan-y' }} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {photos[active]
           ? <img src={photos[active]} alt={`${d.name} photo ${active + 1}`} style={cover} draggable={false} />
-          : <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 64, color: 'var(--accent)', background: 'var(--accent-soft)', fontFamily: 'var(--serif)' }}>{d.name.slice(0, 1)}</div>}
+          : <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 64, color: 'var(--accent-ink)', background: 'var(--accent-soft)', fontFamily: 'var(--serif)' }}>{d.name.slice(0, 1)}</div>}
 
         {/* tap zones for prev/next */}
         {n > 1 && <>
@@ -59,23 +59,23 @@ function Collage({ d }: { d: MatchDetail }) {
           <div style={{ position: 'absolute', top: 10, left: 12, right: 12, display: 'flex', gap: 4 }}>
             {photos.map((_, k) => (
               <button key={k} type="button" aria-label={`Photo ${k + 1}`} onClick={() => setI(k)}
-                style={{ minWidth: 44, minHeight: 44, flex: 1, height: 3, borderRadius: 2, border: 'none', padding: 0, cursor: 'pointer', background: k === active ? '#fff' : 'rgba(255,255,255,.42)' }} />
+                style={{ minWidth: 44, minHeight: 44, flex: 1, height: 3, borderRadius: 2, border: 'none', padding: 0, cursor: 'pointer', background: k === active ? 'var(--on-accent)' : 'rgba(255,255,255,.42)' }} />
             ))}
           </div>
         )}
 
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12,10,9,.86) 0%, rgba(12,10,9,.22) 46%, transparent 72%)', pointerEvents: 'none' }} />
-        <span style={{ position: 'absolute', top: 22, left: 12, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', fontSize: 11.5, fontWeight: 700, borderRadius: 999, padding: '6px 12px', boxShadow: '0 2px 8px rgba(0,0,0,.3)' }}>
+        <span style={{ position: 'absolute', top: 22, left: 12, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--on-accent)', fontSize: 11.5, fontWeight: 700, borderRadius: 999, padding: '6px 12px', boxShadow: '0 2px 8px rgba(0,0,0,.3)' }}>
           <span aria-hidden>✦</span> Intentional Dating
         </span>
-        <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: '#fff', pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: 'var(--on-accent)', pointerEvents: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--serif)', fontSize: 29, fontWeight: 700, lineHeight: 1.05, textShadow: '0 2px 14px rgba(0,0,0,.5)' }}>
             <span>{d.name}{d.age ? `, ${d.age}` : ''}</span>
             <SelfieOnFile on={d.verified} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 14, marginTop: 4, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
-            Looking for <strong style={{ color: '#f4a9b2', fontWeight: 700 }}>{goal}</strong>
-            <span aria-hidden style={{ color: '#f4a9b2' }}>♥</span>
+            Looking for <strong style={{ color: 'var(--danger-line)', fontWeight: 700 }}>{goal}</strong>
+            <span aria-hidden style={{ color: 'var(--danger-line)' }}>♥</span>
           </div>
           {location && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, marginTop: 6, textShadow: '0 1px 8px rgba(0,0,0,.6)' }}>
@@ -152,7 +152,7 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
           {stats.map(([icon, k, v], i) => (
             <div key={k} style={{ padding: '2px 16px', borderLeft: i ? '1px solid var(--line)' : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--muted)', fontSize: 12.5 }}>
-                <span aria-hidden style={{ color: 'var(--accent)' }}>{icon}</span>{k}
+                <span aria-hidden style={{ color: 'var(--accent-ink)' }}>{icon}</span>{k}
               </div>
               <div style={{ fontSize: 14, fontWeight: 700, marginTop: 5 }}>{v}</div>
             </div>
@@ -183,12 +183,12 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
 
         {/* Compatibility panel */}
         <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16, background: 'linear-gradient(135deg,var(--accent-soft),rgba(212,175,94,.12))', border: '1px solid var(--line)', borderRadius: 16, padding: '16px 18px' }}>
-          <div style={{ width: 58, height: 58, borderRadius: '50%', flex: 'none', display: 'grid', placeItems: 'center', background: 'var(--card)', border: '2px solid var(--accent)', color: 'var(--accent)', fontSize: 24 }}>♥</div>
+          <div style={{ width: 58, height: 58, borderRadius: '50%', flex: 'none', display: 'grid', placeItems: 'center', background: 'var(--card)', border: '2px solid var(--accent)', color: 'var(--accent-ink)', fontSize: 24 }}>♥</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
               <span className="muted" style={{ fontSize: 12.5 }}>Compatibility</span>
-              <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--accent)' }}>{d.score}%</span>
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: '#2e7d32' }}>{ml.label}</span>
+              <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--accent-ink)' }}>{d.score}%</span>
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ok-ink)' }}>{ml.label}</span>
             </div>
             <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>{d.reasons[0] ?? ml.blurb}</p>
           </div>
@@ -196,7 +196,7 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
 
         {/* Intentional-dating notice */}
         <div style={{ marginTop: 12, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--paper)', borderRadius: 14, padding: '13px 16px' }}>
-          <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid #caa94a', color: 'var(--muted)', flex: 'none' }}>🔒</span>
+          <span aria-hidden style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--accent-ink)', color: 'var(--muted)', flex: 'none' }}>🔒</span>
           <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
             <strong>We believe in intentional dating.</strong> You can have up to three conversations
             going at once. If one isn’t going anywhere, <strong>unmatch</strong> and move forward.
@@ -204,7 +204,7 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
         </div>
 
         {(connect.isError || unmatch.isError) && (
-          <p style={{ color: '#c62828', fontSize: 12.5, marginTop: 10 }}>{payError(connect.error ?? unmatch.error)}</p>
+          <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 10 }}>{payError(connect.error ?? unmatch.error)}</p>
         )}
 
         {/* Actions */}
@@ -217,7 +217,7 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
               </Button>
               <Button variant="line" size="md" disabled={unmatch.isPending}
                 onClick={() => { if (window.confirm('Unmatch this person? They’ll be removed from your matches.')) unmatch.mutate(targetUserId, { onSuccess: () => navigate('/dating/matches') }); }}
-                style={{ color: '#c62828', borderColor: '#f0b0b0' }}>
+                style={{ color: 'var(--danger-ink)', borderColor: 'var(--danger-line)' }}>
                 Unmatch
               </Button>
             </div>

@@ -7,7 +7,7 @@ import { KIT_CSS, TitleCard, TitleSheet, Pager, type TitleSel } from './movieKit
 
 const CSS = KIT_CSS + `
 .ent-ott .searchbar{display:flex;gap:10px;margin:4px 0 18px}
-.ent-ott .searchbar input{flex:1;border:1.5px solid var(--line,#eee);border-radius:999px;padding:12px 20px;font-size:14px;font-family:inherit;background:var(--card,#fff);color:var(--ink);outline:none}
+.ent-ott .searchbar input{flex:1;border:1.5px solid var(--line);border-radius:999px;padding:12px 20px;font-size:14px;font-family:inherit;background:var(--card);color:var(--ink);outline:none}
 .ent-ott .searchbar input:focus{border-color:var(--accent)}
 `;
 
@@ -49,7 +49,7 @@ export function Ott() {
   const pill = (on: boolean, label: string, onClick: () => void) => (
     <button key={label} type="button" onClick={onClick}
       style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 14px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
-        border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? '#fff' : 'var(--ink-soft)' }}>
+        border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
       {label}
     </button>
   );
@@ -83,13 +83,13 @@ export function Ott() {
           <div className="rise d1" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
             <button type="button" onClick={() => setGenre('')}
               style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 14px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
-                border: `1.5px solid ${!genre ? 'var(--accent)' : 'var(--line)'}`, background: !genre ? 'var(--accent)' : 'transparent', color: !genre ? '#fff' : 'var(--ink-soft)' }}>
+                border: `1.5px solid ${!genre ? 'var(--accent)' : 'var(--line)'}`, background: !genre ? 'var(--accent)' : 'transparent', color: !genre ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
               Trending
             </button>
             {TV_GENRES.map((g) => (
               <button key={g} type="button" onClick={() => setGenre(genre === g ? '' : g)}
                 style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 14px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
-                  border: `1.5px solid ${genre === g ? 'var(--accent)' : 'var(--line)'}`, background: genre === g ? 'var(--accent)' : 'transparent', color: genre === g ? '#fff' : 'var(--ink-soft)' }}>
+                  border: `1.5px solid ${genre === g ? 'var(--accent)' : 'var(--line)'}`, background: genre === g ? 'var(--accent)' : 'transparent', color: genre === g ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
                 {g}
               </button>
             ))}

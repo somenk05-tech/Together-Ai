@@ -35,7 +35,7 @@ export function Consent() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 15 }}>{c.label}</div>
             <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{c.reads}</div>
-            <div style={{ fontSize: 11.5, marginTop: 4, color: c.granted ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
+            <div style={{ fontSize: 11.5, marginTop: 4, color: c.granted ? 'var(--ok-ink)' : 'var(--danger-ink)', fontWeight: 600 }}>
               {c.granted ? '● Can read your biomarkers' : '○ Access revoked'}
             </div>
           </div>

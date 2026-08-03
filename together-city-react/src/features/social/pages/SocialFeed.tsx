@@ -86,7 +86,7 @@ export function SocialFeed() {
     <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
       {toast && (
         <div role="status" style={{ position: 'fixed', top: 18, left: '50%', transform: 'translateX(-50%)', zIndex: 80,
-          background: '#1f7a46', color: '#fff', borderRadius: 999, padding: '11px 20px', fontSize: 13.5, fontWeight: 600,
+          background: 'var(--ok-ink)', color: 'var(--on-accent)', borderRadius: 999, padding: '11px 20px', fontSize: 13.5, fontWeight: 600,
           boxShadow: '0 8px 28px rgba(0,0,0,.28)', animation: 'tc-rise .3s ease-out', display: 'flex', alignItems: 'center', gap: 8 }}>
           ✓ Your post has been shared to your city.
         </div>
@@ -112,7 +112,7 @@ export function SocialFeed() {
                 style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '7px 16px',
                   borderRadius: 999, border: `1.5px solid ${filter === f.key ? 'var(--accent)' : 'var(--line)'}`,
                   background: filter === f.key ? 'var(--accent)' : 'var(--card)',
-                  color: filter === f.key ? '#fff' : 'var(--ink)', whiteSpace: 'nowrap' }}>
+                  color: filter === f.key ? 'var(--on-accent)' : 'var(--ink)', whiteSpace: 'nowrap' }}>
                 {f.label}
               </button>
             ))}

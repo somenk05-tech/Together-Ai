@@ -82,7 +82,7 @@ export function PhotoCapture({ photos, onChange }: { photos: Photo[]; onChange: 
 
       {camOn ? (
         <div style={{ marginTop: 10 }}>
-          <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', background: '#111', aspectRatio: '4 / 3', maxWidth: 480 }}>
+          <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', background: 'var(--media-bg)', aspectRatio: '4 / 3', maxWidth: 480 }}>
             <video ref={videoRef} playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
@@ -98,7 +98,7 @@ export function PhotoCapture({ photos, onChange }: { photos: Photo[]; onChange: 
         </div>
       )}
 
-      {error && <p style={{ fontSize: 12, color: '#c62828', margin: '8px 0 0' }}>{error}</p>}
+      {error && <p style={{ fontSize: 12, color: 'var(--danger-ink)', margin: '8px 0 0' }}>{error}</p>}
 
       {photos.length > 0 && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
@@ -106,8 +106,8 @@ export function PhotoCapture({ photos, onChange }: { photos: Photo[]; onChange: 
             <div key={i} style={{ position: 'relative', width: 108, height: 80, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--line)' }}>
               <img src={p.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               <button type="button" onClick={() => remove(i)} aria-label="Remove"
-                style={{ minWidth: 44, minHeight: 44, position: 'absolute', top: 3, right: 3, width: 22, height: 22, borderRadius: '50%', border: 'none', cursor: 'pointer', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 13, lineHeight: '22px' }}>×</button>
-              {i === 0 && <span style={{ position: 'absolute', bottom: 3, left: 3, fontSize: 9, fontWeight: 700, color: '#fff', background: 'rgba(0,0,0,.55)', borderRadius: 4, padding: '1px 5px' }}>COVER</span>}
+                style={{ minWidth: 44, minHeight: 44, position: 'absolute', top: 3, right: 3, width: 22, height: 22, borderRadius: '50%', border: 'none', cursor: 'pointer', background: 'rgba(0,0,0,.6)', color: 'var(--on-accent)', fontSize: 13, lineHeight: '22px' }}>×</button>
+              {i === 0 && <span style={{ position: 'absolute', bottom: 3, left: 3, fontSize: 9, fontWeight: 700, color: 'var(--on-accent)', background: 'rgba(0,0,0,.55)', borderRadius: 4, padding: '1px 5px' }}>COVER</span>}
             </div>
           ))}
         </div>

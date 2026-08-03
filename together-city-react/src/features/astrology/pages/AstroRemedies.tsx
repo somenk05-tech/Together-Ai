@@ -53,7 +53,7 @@ function GemCard({ gem, lead }: { gem: GemEntry; lead: boolean }) {
           Also worn in its place: {gem.alternatives.join(', ')}.
         </p>
       )}
-      <p style={{ fontSize: 12.5, lineHeight: 1.55, margin: '10px 0 0', color: '#8a6d1f', background: '#fff8e1', border: '1px solid #f0d68a', borderRadius: 10, padding: '9px 12px' }}>
+      <p style={{ fontSize: 12.5, lineHeight: 1.55, margin: '10px 0 0', color: 'var(--warn-ink)', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 10, padding: '9px 12px' }}>
         {gem.caution}
       </p>
     </Card>

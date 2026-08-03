@@ -76,8 +76,8 @@ export function SafetyMenu({ userId, kind, compact = false }: {
                     </span>
                   </button>
                   <button type="button" onClick={() => setMode('block')}
-                    style={{ textAlign: 'left', padding: '12px 14px', borderRadius: 12, border: '1px solid #e6b4b4', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    <strong style={{ fontSize: 14, color: '#b3261e' }}>Block them</strong>
+                    style={{ textAlign: 'left', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--danger-line)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <strong style={{ fontSize: 14, color: 'var(--danger-ink)' }}>Block them</strong>
                     <span className="muted" style={{ display: 'block', fontSize: 12, marginTop: 2 }}>
                       Removes the match, closes any chat, and hides you from each other everywhere in the city.
                     </span>
@@ -99,14 +99,14 @@ export function SafetyMenu({ userId, kind, compact = false }: {
                   placeholder="Optional — what happened?"
                   style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
                 {report.isError && (
-                  <p style={{ color: '#c62828', fontSize: 12.5 }}>That didn’t send. Try again.</p>
+                  <p style={{ color: 'var(--danger-ink)', fontSize: 12.5 }}>That didn’t send. Try again.</p>
                 )}
                 <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
                   <button type="button" disabled={report.isPending}
                     onClick={() => report.mutate({ userId, kind, reason: reason.trim() || undefined }, {
                       onSuccess: () => { setDone('reported'); close(); },
                     })}
-                    style={{ minHeight: 44, padding: '0 18px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ minHeight: 44, padding: '0 18px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {report.isPending ? 'Sending…' : 'Send report'}
                   </button>
                   <button type="button" onClick={close} style={linkStyle}>Cancel</button>
@@ -126,12 +126,12 @@ export function SafetyMenu({ userId, kind, compact = false }: {
                   your blocked list in People.
                 </p>
                 {block.isError && (
-                  <p style={{ color: '#c62828', fontSize: 12.5 }}>That didn’t go through. Try again.</p>
+                  <p style={{ color: 'var(--danger-ink)', fontSize: 12.5 }}>That didn’t go through. Try again.</p>
                 )}
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <button type="button" disabled={block.isPending}
                     onClick={() => block.mutate({ userId, kind }, { onSuccess: () => { setDone('blocked'); close(); } })}
-                    style={{ minHeight: 44, padding: '0 18px', borderRadius: 10, border: 'none', background: '#b3261e', color: '#fff', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ minHeight: 44, padding: '0 18px', borderRadius: 10, border: 'none', background: 'var(--danger-ink)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {block.isPending ? 'Blocking…' : 'Yes, block them'}
                   </button>
                   <button type="button" onClick={close} style={linkStyle}>Cancel</button>

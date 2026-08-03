@@ -32,7 +32,7 @@ export function MedicalRecs() {
         </div>
       )}
       {cards.map((c) => (
-        <div key={c.condition} className="card" style={{ borderLeft: '4px solid #b0503e' }}>
+        <div key={c.condition} className="card" style={{ borderLeft: '4px solid var(--danger-ink)' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
             <span style={{ fontSize: 18 }}>{c.icon}</span>
             <h3 style={{ margin: 0, fontSize: 16.5 }}>{c.title}</h3>
@@ -42,7 +42,7 @@ export function MedicalRecs() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             {c.recs.map((r) => (
               <div key={r.key} style={{ fontSize: 13 }}>
-                <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{r.applyable ? '🟢' : '✓'}</span>{' '}
+                <span style={{ color: 'var(--accent-ink)', fontWeight: 700 }}>{r.applyable ? '🟢' : '✓'}</span>{' '}
                 <b>{r.label}</b>
                 <div className="muted" style={{ fontSize: 11.5, marginLeft: 22, lineHeight: 1.45 }}>{r.reason}</div>
               </div>
@@ -52,7 +52,7 @@ export function MedicalRecs() {
           {c.scoreAfter > c.scoreBefore && (
             <div style={{ marginTop: 12, padding: '9px 12px', background: 'var(--paper)', borderRadius: 10, fontSize: 12.5 }}>
               <span className="muted">Estimated improvement — {SCORE_LABEL[c.condition] ?? 'plan quality'}:</span>{' '}
-              <b>{c.scoreBefore}%</b> → <b style={{ color: 'var(--accent)' }}>{c.scoreAfter}%</b>
+              <b>{c.scoreBefore}%</b> → <b style={{ color: 'var(--accent-ink)' }}>{c.scoreAfter}%</b>
             </div>
           )}
 

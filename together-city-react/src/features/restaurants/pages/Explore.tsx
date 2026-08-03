@@ -15,7 +15,7 @@ function ScoreRing({ score }: { score: number }) {
   const hue = score >= 85 ? 145 : score >= 70 ? 90 : 45;
   return (
     <div style={{ width: 54, height: 54, borderRadius: '50%', flex: '0 0 auto', background: `conic-gradient(hsl(${hue} 60% 45%) ${score * 3.6}deg, var(--line) 0)`, display: 'grid', placeItems: 'center' }}>
-      <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--card, #fff)', display: 'grid', placeItems: 'center', flexDirection: 'column' }}>
+      <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', flexDirection: 'column' }}>
         <b style={{ fontSize: 15, lineHeight: 1 }}>{score}</b>
         <span style={{ fontSize: 7, color: 'var(--muted)', letterSpacing: '.04em' }}>TC</span>
       </div>
@@ -39,13 +39,13 @@ function CuratedCardView({ r }: { r: CuratedCard }) {
         {r.heroUrl
           ? <img src={r.heroUrl} alt={r.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', fontSize: 40 }}>{r.icon}</div>}
-        {r.rank ? <span style={{ position: 'absolute', top: 10, left: 10, background: '#111', color: '#fff', fontWeight: 800, fontSize: 12, borderRadius: 8, padding: '3px 8px' }}>#{r.rank}</span> : null}
+        {r.rank ? <span style={{ position: 'absolute', top: 10, left: 10, background: 'var(--media-bg)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12, borderRadius: 8, padding: '3px 8px' }}>#{r.rank}</span> : null}
         <div style={{ position: 'absolute', bottom: 10, left: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <span className="tag" style={{ background: 'rgba(0,0,0,.66)', color: '#fff' }}>{r.category}</span>
-          {r.tcChecked && <span className="tag" style={{ background: '#111', color: '#fff', fontWeight: 700 }}>✓ TC Checked</span>}
+          <span className="tag" style={{ background: 'rgba(0,0,0,.66)', color: 'var(--on-accent)' }}>{r.category}</span>
+          {r.tcChecked && <span className="tag" style={{ background: 'var(--media-bg)', color: 'var(--on-accent)', fontWeight: 700 }}>✓ TC Checked</span>}
         </div>
         <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 6 }}>
-          <span className="tag" style={{ background: r.openNow ? '#12631f' : '#7a1f1f', color: '#fff' }}>{r.openNow ? 'Open' : 'Closed'}</span>
+          <span className="tag" style={{ background: r.openNow ? 'var(--ok-ink)' : 'var(--danger-ink)', color: 'var(--on-accent)' }}>{r.openNow ? 'Open' : 'Closed'}</span>
         </div>
       </div>
 
@@ -75,7 +75,7 @@ function CuratedCardView({ r }: { r: CuratedCard }) {
           {r.menuAvailable && <span className="tag" style={{ fontSize: 11 }}>📖 Menu</span>}
           {r.reservations && <span className="tag" style={{ fontSize: 11 }}>🍽 Reserve</span>}
           {r.ordersOnline && <span className="tag" style={{ fontSize: 11 }}>🛵 Order</span>}
-          {r.pureVeg && <span className="tag" style={{ fontSize: 11, color: '#2e7d32' }}>Pure veg</span>}
+          {r.pureVeg && <span className="tag" style={{ fontSize: 11, color: 'var(--ok-ink)' }}>Pure veg</span>}
         </div>
 
         {r.reasons.length > 0 && (
@@ -107,7 +107,7 @@ function CollectionRail({ title, subtitle, items }: { title: string; subtitle: s
           <Link key={r.id} to={`/restaurants/${r.id}`} className="card" style={{ flex: '0 0 220px', scrollSnapAlign: 'start', overflow: 'hidden', padding: 0, textDecoration: 'none', color: 'inherit' }}>
             <div style={{ position: 'relative', height: 110, background: 'var(--line)' }}>
               {r.heroUrl ? <img src={r.heroUrl} alt={r.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ display: 'grid', placeItems: 'center', height: '100%', fontSize: 32 }}>{r.icon}</div>}
-              <span style={{ position: 'absolute', top: 8, right: 8, background: '#111', color: '#fff', fontWeight: 800, fontSize: 11, borderRadius: 7, padding: '2px 7px' }}>{r.tcScore}</span>
+              <span style={{ position: 'absolute', top: 8, right: 8, background: 'var(--media-bg)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 11, borderRadius: 7, padding: '2px 7px' }}>{r.tcScore}</span>
             </div>
             <div style={{ padding: '10px 12px' }}>
               <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>

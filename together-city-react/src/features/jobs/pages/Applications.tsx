@@ -3,9 +3,9 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useApplications, useWithdraw } from '../api';
 
 const statusStyle: Record<string, { color: string; label: string }> = {
-  applied: { color: '#e65100', label: 'Applied' },
-  shortlisted: { color: '#2e7d32', label: 'Shortlisted' },
-  rejected: { color: '#c62828', label: 'Not selected' },
+  applied: { color: 'var(--warn-ink)', label: 'Applied' },
+  shortlisted: { color: 'var(--ok-ink)', label: 'Shortlisted' },
+  rejected: { color: 'var(--danger-ink)', label: 'Not selected' },
 };
 
 /** My Applications — track everything you've applied to. */

@@ -5,9 +5,9 @@ import { useMealMatch, useCollections, inr, type DishMatch, type CuratedCard } f
 
 /** Match medal + label for a 0–100 dish match. */
 function medal(score: number): { icon: string; label: string; color: string } {
-  if (score >= 90) return { icon: '🥇', label: 'Perfect match', color: '#1b7a3a' };
-  if (score >= 80) return { icon: '🥈', label: 'Great match', color: '#2e7d4f' };
-  if (score >= 68) return { icon: '🥉', label: 'Good match', color: '#8a6d00' };
+  if (score >= 90) return { icon: '🥇', label: 'Perfect match', color: 'var(--ok-ink)' };
+  if (score >= 80) return { icon: '🥈', label: 'Great match', color: 'var(--ok-ink)' };
+  if (score >= 68) return { icon: '🥉', label: 'Good match', color: 'var(--warn-ink)' };
   return { icon: '•', label: 'Fair match', color: 'var(--muted)' };
 }
 
@@ -20,7 +20,7 @@ function TargetCard({ t }: { t: NonNullable<ReturnType<typeof useMealMatch>['dat
     </div>
   );
   return (
-    <div className="card" style={{ background: 'linear-gradient(135deg, #eef7f0, var(--card,#fff))' }}>
+    <div className="card" style={{ background: 'linear-gradient(135deg, var(--ok-soft), var(--card))' }}>
       <div className="eyebrow" style={{ marginTop: 0 }}>🥗 Today's {t.slotLabel} target · from your meal plan</div>
       <div style={{ fontSize: 14, margin: '2px 0 12px' }}>Planned: <strong>{t.recipeName}</strong></div>
       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
@@ -40,7 +40,7 @@ function MatchRow({ m, rank }: { m: DishMatch; rank: number }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 800, color: md.color }}>{rank <= 3 ? md.icon : ''} {m.matchScore}% {md.label}</span>
-          {m.bestseller && <span style={{ fontSize: 10, fontWeight: 700, color: '#8a6d00', background: '#fff3cf', borderRadius: 6, padding: '1px 6px' }}>★ Bestseller</span>}
+          {m.bestseller && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--warn-ink)', background: 'var(--warn-soft)', borderRadius: 6, padding: '1px 6px' }}>★ Bestseller</span>}
         </div>
         <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2 }}>{m.dishName}</div>
         <div className="muted" style={{ fontSize: 12.5 }}>{m.restaurantName} · {m.area} · {m.distanceKm} km</div>
@@ -49,7 +49,7 @@ function MatchRow({ m, rank }: { m: DishMatch; rank: number }) {
           <span className="muted" title="Nutrition is estimated from the dish, not lab-measured">~est.</span>
         </div>
         <ul style={{ margin: '7px 0 0', padding: 0, listStyle: 'none', display: 'flex', flexWrap: 'wrap', gap: '2px 12px' }}>
-          {m.why.map((w, i) => <li key={i} style={{ fontSize: 12, color: '#1b7a3a' }}>✓ {w}</li>)}
+          {m.why.map((w, i) => <li key={i} style={{ fontSize: 12, color: 'var(--ok-ink)' }}>✓ {w}</li>)}
         </ul>
         <Link className="btn btn-line btn-sm" to={`/restaurants/${m.restaurantId}`} style={{ marginTop: 8 }}>View menu →</Link>
       </div>
@@ -68,7 +68,7 @@ function CheatRail({ title, subtitle, items }: { title: string; subtitle: string
           <Link key={r.id} to={`/restaurants/${r.id}`} className="card" style={{ flex: '0 0 210px', overflow: 'hidden', padding: 0, textDecoration: 'none', color: 'inherit' }}>
             <div style={{ position: 'relative', height: 110, background: 'var(--line)' }}>
               {r.heroUrl ? <img src={r.heroUrl} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ display: 'grid', placeItems: 'center', height: '100%', fontSize: 30 }}>{r.icon}</div>}
-              <span style={{ position: 'absolute', top: 8, right: 8, background: '#111', color: '#fff', fontWeight: 800, fontSize: 11, borderRadius: 7, padding: '2px 7px' }}>{r.tcScore}</span>
+              <span style={{ position: 'absolute', top: 8, right: 8, background: 'var(--media-bg)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 11, borderRadius: 7, padding: '2px 7px' }}>{r.tcScore}</span>
             </div>
             <div style={{ padding: '10px 12px' }}>
               <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
@@ -155,7 +155,7 @@ export function Decide() {
       {/* Cheat Meal */}
       {mode === 'cheat' && (
         <div style={{ marginTop: 22 }}>
-          <div className="card" style={{ background: 'linear-gradient(135deg, #fff3e6, var(--card,#fff))' }}>
+          <div className="card" style={{ background: 'linear-gradient(135deg, var(--warn-soft), var(--card))' }}>
             <div className="eyebrow" style={{ marginTop: 0 }}>🍰 Treat yourself today</div>
             <p style={{ fontSize: 13.5, margin: '4px 0 0' }}>We're ignoring today's targets — here's what people are loving nearby. Nutrition still shows on each dish so you stay in control.</p>
           </div>

@@ -34,7 +34,7 @@ export function Avatar({
       style={{
         width: size, height: size, borderRadius: '50%', display: 'flex',
         alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        background: color || 'var(--accent)', color: '#fff', fontWeight: 600,
+        background: color || 'var(--accent)', color: 'var(--on-accent)', fontWeight: 600,
         fontSize: size <= 34 ? 12 : 14,
       }}
     >

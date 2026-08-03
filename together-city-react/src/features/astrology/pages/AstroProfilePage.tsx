@@ -19,7 +19,7 @@ function Avatar({ src, name, size = 56 }: { src?: string | null; name: string; s
   }
   const initials = name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--accent-soft)', color: 'var(--accent)',
+    <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--accent-soft)', color: 'var(--accent-ink)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: size / 2.6, border: '2px solid var(--line)' }}>
       {initials}
     </div>
@@ -256,7 +256,7 @@ function SummaryCard({ profile, justSaved, onEdit }: {
   return (
     <Card className="rise" style={{ padding: '24px 26px' }}>
       <MasterPhoto />
-      <p style={{ fontSize: 15, fontWeight: 800, color: '#2e7d4f', margin: '0 0 10px' }}>
+      <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--ok-ink)', margin: '0 0 10px' }}>
         ✓ Birth Details {justSaved ? 'Completed' : 'Saved'}
       </p>
       <p style={{ fontSize: 15, fontWeight: 600, margin: '0 0 2px' }}>{dateStr} • {timeStr}</p>
@@ -383,7 +383,7 @@ export function AstroProfilePage() {
           so nothing here can quietly become unreadable. */}
       <div className="rise" style={{ marginBottom: 18 }}>
         <div className="eyebrow" style={{ color: 'rgba(242,231,205,.72)' }}>Profile · Master Profile</div>
-        <h1 style={{ fontSize: 'clamp(24px,3vw,32px)', color: '#f2e7cd' }}>Birth Details</h1>
+        <h1 style={{ fontSize: 'clamp(24px,3vw,32px)', color: 'var(--accent-soft)' }}>Birth Details</h1>
       </div>
       <PrivacyNote hub="astrology" style={{ marginBottom: 16 }} />
       {view.isLoading && <Spinner label="Loading your details…" />}
@@ -391,7 +391,7 @@ export function AstroProfilePage() {
           though the stars had never been told — asking somebody to redo work
           the city already holds. */}
       {view.isError && (
-        <Card className="rise" style={{ padding: '20px 26px', marginBottom: 16, borderLeft: '4px solid #e65100' }}>
+        <Card className="rise" style={{ padding: '20px 26px', marginBottom: 16, borderLeft: '4px solid var(--warn-ink)' }}>
           <p style={{ fontSize: 13.5, margin: 0, lineHeight: 1.6 }}>
             We couldn’t load your birth details just now. Nothing you’ve saved is
             lost — it’s still on your profile. Try again in a moment.
@@ -480,7 +480,7 @@ export function AstroProfilePage() {
                 <div style={{ ...field, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--paper)' }}>
                   <span style={{ fontSize: 13.5 }}>{timeZone} <span className="muted" style={{ fontSize: 11 }}>(auto)</span></span>
                   <button type="button" onClick={() => setTzEdit(true)}
-                    style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 11.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                    style={{ background: 'none', border: 'none', color: 'var(--accent-ink)', fontSize: 11.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
                     Change timezone
                   </button>
                 </div>
@@ -492,14 +492,14 @@ export function AstroProfilePage() {
 
           {missing.length > 0 && (
             <div style={{ marginTop: 16, padding: '12px 16px', borderRadius: 10, background: 'rgba(192,57,43,.07)', border: '1px solid rgba(192,57,43,.25)' }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#c0392b', margin: 0 }}>Please complete:</p>
-              {missing.map((m) => <p key={m} style={{ fontSize: 12.5, color: '#c0392b', margin: '4px 0 0' }}>• {m}</p>)}
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--danger-ink)', margin: 0 }}>Please complete:</p>
+              {missing.map((m) => <p key={m} style={{ fontSize: 12.5, color: 'var(--danger-ink)', margin: '4px 0 0' }}>• {m}</p>)}
             </div>
           )}
-          {error && <p style={{ color: '#c0392b', fontSize: 13, marginTop: 12 }}>{error}</p>}
+          {error && <p style={{ color: 'var(--danger-ink)', fontSize: 13, marginTop: 12 }}>{error}</p>}
           {saved && (
             <div style={{ marginTop: 16, padding: '14px 16px', borderRadius: 10, background: 'rgba(46,125,79,.08)', border: '1px solid rgba(46,125,79,.3)' }}>
-              <p style={{ fontSize: 13.5, fontWeight: 700, color: '#2e7d4f', margin: 0 }}>✓ Birth details saved successfully.</p>
+              <p style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ok-ink)', margin: 0 }}>✓ Birth details saved successfully.</p>
               <p className="muted" style={{ fontSize: 12, margin: '6px 0 2px' }}>These details will be used for:</p>
               {['Daily Horoscope', 'Monthly Horoscope', 'Dating Compatibility', 'Kundli Matching', 'Future Astrology Features'].map((u) => (
                 <p key={u} className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>• {u}</p>

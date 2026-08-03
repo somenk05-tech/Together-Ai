@@ -439,7 +439,7 @@ export function AstroTarot() {
                 // Free, and said so: nothing has been dealt, so starting again
                 // costs nothing and takes nothing away.
                 <button type="button" onClick={() => { setPicks([]); setLaid(false); setError(null); }}
-                  style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, color: 'var(--accent)' }}>
+                  style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, color: 'var(--accent-ink)' }}>
                   Start over &mdash; nothing has been drawn
                 </button>
               )}
@@ -513,13 +513,13 @@ export function AstroTarot() {
                       {removeReading.isPending ? 'Deleting…' : 'Yes, delete'}
                     </button>
                     <button type="button" onClick={() => { setConfirmId(null); setDeleteError(null); }}
-                      style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, color: 'var(--accent)' }}>
+                      style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, color: 'var(--accent-ink)' }}>
                       Keep it
                     </button>
                   </>
                 ) : (
                   <button type="button" onClick={() => { setConfirmId(h.id); setDeleteError(null); }}
-                    style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, color: 'var(--accent)' }}>
+                    style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, color: 'var(--accent-ink)' }}>
                     Delete this reading
                   </button>
                 )}

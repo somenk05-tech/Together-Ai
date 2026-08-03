@@ -121,7 +121,7 @@ function EditForm({ t, onCancel }: { t: Thought; onCancel: () => void }) {
         placeholder="Mood (optional)" aria-label="Mood"
         style={{ ...fieldBase, borderRadius: 999, maxWidth: 200, fontSize: 12.5 }} />
       <TagField tags={tags} onChange={setTags} />
-      {error && <p style={{ color: '#c0392b', fontSize: 12.5, margin: 0 }}>{error}</p>}
+      {error && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: 0 }}>{error}</p>}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <Button size="sm" variant="accent" disabled={update.isPending || !body.trim()} onClick={save}>
           {update.isPending ? 'Saving…' : 'Save changes'}
@@ -171,7 +171,7 @@ function Entry({ t, onDelete, busy }: { t: Thought; onDelete: (id: string) => vo
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button size="sm" variant="line" onClick={() => setConfirming(false)}>Keep it</Button>
                 <Button size="sm" variant="line" disabled={busy}
-                  style={{ color: '#c62828', borderColor: '#f0b0b0' }}
+                  style={{ color: 'var(--danger-ink)', borderColor: 'var(--danger-line)' }}
                   onClick={() => onDelete(t.id)}>
                   {busy ? 'Deleting…' : 'Delete'}
                 </Button>
@@ -181,7 +181,7 @@ function Entry({ t, onDelete, busy }: { t: Thought; onDelete: (id: string) => vo
             <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
               <Button size="sm" variant="line" onClick={() => setEditing(true)}>Edit</Button>
               <Button size="sm" variant="line" disabled={busy}
-                style={{ color: '#c62828', borderColor: '#f0b0b0' }}
+                style={{ color: 'var(--danger-ink)', borderColor: 'var(--danger-line)' }}
                 onClick={() => setConfirming(true)}>
                 Delete
               </Button>

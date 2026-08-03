@@ -16,7 +16,7 @@ import { FamilyPortions } from '../components/FamilyPortions';
 const chipStyle: React.CSSProperties = {
   fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase',
   margin: '0 0 6px', display: 'inline-block', padding: '2px 8px', borderRadius: 999,
-  background: '#e7f3ec', color: '#2e7d4f',
+  background: 'var(--ok-soft)', color: 'var(--ok-ink)',
 };
 
 /**

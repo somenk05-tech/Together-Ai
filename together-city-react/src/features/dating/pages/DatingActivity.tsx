@@ -41,10 +41,10 @@ function ConnectedParty({ party, compatibility, trustLevel, conversationId, myRe
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>{party.interests.slice(0, 8).map((i) => <span key={i} className="pill" style={{ border: '1px solid var(--line)', borderRadius: 999, padding: '3px 10px', fontSize: 11.5 }}>{i}</span>)}</div>
       )}
       <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        {conversationId && <Link to={`/chats?c=${conversationId}`} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent)' }}>💬 {trustLevel < 2 ? 'Anonymous chat' : 'Open chat'} →</Link>}
+        {conversationId && <Link to={`/chats?c=${conversationId}`} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent-ink)' }}>💬 {trustLevel < 2 ? 'Anonymous chat' : 'Open chat'} →</Link>}
         {trustLevel < 2 && <Button size="sm" variant={myReveal ? 'line' : 'accent'} disabled={busy || myReveal} onClick={() => onTrust('reveal')}>{myReveal ? (otherReveal ? 'Revealing…' : 'Waiting for them…') : 'Reveal identities'}</Button>}
         {trustLevel === 2 && <Button size="sm" variant={myFriends ? 'line' : 'accent'} disabled={busy || myFriends} onClick={() => onTrust('friends')}>{myFriends ? (otherFriends ? '…' : 'Waiting for them…') : 'Become friends'}</Button>}
-        {trustLevel >= 3 && <span className="tag" style={{ background: '#e8f5e9', color: '#2e7d32' }}>✓ Friends — full profile unlocked</span>}
+        {trustLevel >= 3 && <span className="tag" style={{ background: 'var(--ok-soft)', color: 'var(--ok-ink)' }}>✓ Friends — full profile unlocked</span>}
       </div>
       <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>
         {trustLevel === 1 ? 'Anonymous — real name, socials, phone & email stay hidden.'
@@ -64,7 +64,7 @@ function InviteCard({ inv }: { inv: ReceivedInvite }) {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <span style={{ fontSize: 22 }}>{CAT_ICON[a.category] ?? '📍'}</span>
         <h3 style={{ fontSize: 16, margin: 0 }}>{a.text}</h3>
-        <span style={{ marginLeft: 'auto', fontWeight: 800, color: 'var(--accent)' }}>{inv.compatibility}%</span>
+        <span style={{ marginLeft: 'auto', fontWeight: 800, color: 'var(--accent-ink)' }}>{inv.compatibility}%</span>
       </div>
       <div className="muted" style={{ fontSize: 12.5, display: 'flex', gap: 14, flexWrap: 'wrap', margin: '6px 0' }}>
         <span>📅 {new Date(a.date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}</span>
@@ -116,15 +116,15 @@ function CreateForm() {
         <label style={{ display: 'block' }}><span style={fl}>Time</span><input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={fi} /></label>
       </div>
       <span style={fl}>Location</span>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{CATEGORIES.map(([k, l]) => <button key={k} type="button" onClick={() => setCategory(k)} style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 12px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${category === k ? 'var(--accent)' : 'var(--line)'}`, background: category === k ? 'var(--accent)' : 'transparent', color: category === k ? '#fff' : 'var(--ink-soft)' }}>{l}</button>)}</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{CATEGORIES.map(([k, l]) => <button key={k} type="button" onClick={() => setCategory(k)} style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 12px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${category === k ? 'var(--accent)' : 'var(--line)'}`, background: category === k ? 'var(--accent)' : 'transparent', color: category === k ? 'var(--on-accent)' : 'var(--ink-soft)' }}>{l}</button>)}</div>
       <span style={fl}>Number of people</span>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{GROUPS.map(([k, l]) => <button key={k} type="button" onClick={() => setGroupSize(k)} style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 12px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${groupSize === k ? 'var(--accent)' : 'var(--line)'}`, background: groupSize === k ? 'var(--accent)' : 'transparent', color: groupSize === k ? '#fff' : 'var(--ink-soft)' }}>{l}</button>)}</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{GROUPS.map(([k, l]) => <button key={k} type="button" onClick={() => setGroupSize(k)} style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 12px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${groupSize === k ? 'var(--accent)' : 'var(--line)'}`, background: groupSize === k ? 'var(--accent)' : 'transparent', color: groupSize === k ? 'var(--on-accent)' : 'var(--ink-soft)' }}>{l}</button>)}</div>
       <span style={fl}>Description</span>
       <textarea value={description} rows={3} maxLength={500} onChange={(e) => setDescription(e.target.value)} placeholder="Looking for someone who enjoys good movies and better conversation…" style={{ ...fi, resize: 'vertical' }} />
       <div style={{ marginTop: 14 }}>
         <Button variant="accent" disabled={create.isPending || text.trim().length < 3 || !date} onClick={submit}>{create.isPending ? 'Finding people…' : 'Post & invite compatible people'}</Button>
       </div>
-      {done !== null && <p style={{ color: 'var(--accent)', fontSize: 13, marginTop: 10 }}>{done > 0 ? `✨ Invited ${done} highly-compatible ${done === 1 ? 'person' : 'people'}. They appear under “My plans” as they connect.` : 'Posted — no strong matches right now, but the AI will invite people as more join.'}</p>}
+      {done !== null && <p style={{ color: 'var(--accent-ink)', fontSize: 13, marginTop: 10 }}>{done > 0 ? `✨ Invited ${done} highly-compatible ${done === 1 ? 'person' : 'people'}. They appear under “My plans” as they connect.` : 'Posted — no strong matches right now, but the AI will invite people as more join.'}</p>}
     </div>
   );
 }

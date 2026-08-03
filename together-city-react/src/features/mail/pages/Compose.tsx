@@ -33,7 +33,7 @@ export function Compose() {
   const pick = (d: DirectoryEntry) => { setTo(d.address); setShowSug(false); };
   const canSend = to.trim() && !send.isPending;
 
-  const inp = { padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const, background: 'var(--card, #fff)' };
+  const inp = { padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const, background: 'var(--card)' };
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
@@ -100,7 +100,7 @@ export function Compose() {
           )}
         </div>
 
-        {send.isError && <div style={{ fontSize: 13, color: '#c62828', background: '#fdecec', borderRadius: 8, padding: '8px 12px' }}>{payError(send.error)}</div>}
+        {send.isError && <div style={{ fontSize: 13, color: 'var(--danger-ink)', background: 'var(--danger-soft)', borderRadius: 8, padding: '8px 12px' }}>{payError(send.error)}</div>}
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Button variant="accent" disabled={!canSend}

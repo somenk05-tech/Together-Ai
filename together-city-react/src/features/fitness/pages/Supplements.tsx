@@ -41,7 +41,7 @@ export function Supplements() {
 
   const priBadge = (p: Priority) => {
     const cfg: Record<Priority, { bg: string; c: string; l: string }> = {
-      core: { bg: '#eaf2ec', c: '#2e7d4f', l: 'Essential' },
+      core: { bg: 'var(--ok-soft)', c: 'var(--ok-ink)', l: 'Essential' },
       goal: { bg: 'var(--accent-soft)', c: 'var(--accent)', l: 'For your goal' },
       opt: { bg: 'var(--line)', c: 'var(--ink-soft)', l: 'Optional' },
     };

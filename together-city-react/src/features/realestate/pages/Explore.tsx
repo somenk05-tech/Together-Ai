@@ -42,7 +42,7 @@ export function Explore() {
       {/* live search over city / locality / title */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 28 }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Search by locality, city or listing title…"
-          style={{ flex: 1, border: '1.5px solid var(--line)', borderRadius: 999, padding: '12px 20px', fontSize: 14, fontFamily: 'inherit', background: 'var(--card,#fff)', color: 'var(--ink)', outline: 'none' }} />
+          style={{ flex: 1, border: '1.5px solid var(--line)', borderRadius: 999, padding: '12px 20px', fontSize: 14, fontFamily: 'inherit', background: 'var(--card)', color: 'var(--ink)', outline: 'none' }} />
         {q && <button type="button" className="btn btn-line btn-sm" onClick={() => setQ('')}>Clear</button>}
       </div>
 

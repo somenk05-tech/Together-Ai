@@ -367,14 +367,14 @@ export function CallCenter({ children }: { children: ReactNode }) {
                 <video
                   ref={remoteVideo} autoPlay playsInline
                   aria-label={`Video from ${callerLabel}`}
-                  style={{ width: '100%', borderRadius: 12, background: '#000', aspectRatio: '4 / 3' }}
+                  style={{ width: '100%', borderRadius: 12, background: 'var(--media-bg)', aspectRatio: '4 / 3' }}
                 />
                 <video
                   ref={localVideo} autoPlay playsInline muted
                   aria-label="Your camera"
                   style={{
                     position: 'absolute', right: 10, bottom: 10, width: 92, borderRadius: 8,
-                    background: '#000', border: '1px solid rgba(255,255,255,.35)',
+                    background: 'var(--media-bg)', border: '1px solid rgba(255,255,255,.35)',
                   }}
                 />
               </div>
@@ -386,7 +386,7 @@ export function CallCenter({ children }: { children: ReactNode }) {
               role="status"
               aria-live="polite"
               style={{
-                fontSize: 12.5, lineHeight: 1.5, color: '#c62828',
+                fontSize: 12.5, lineHeight: 1.5, color: 'var(--danger-ink)',
                 margin: problem ? '0 0 12px' : 0,
               }}
             >
@@ -421,7 +421,7 @@ export function CallCenter({ children }: { children: ReactNode }) {
                   <button
                     ref={primaryAction}
                     className="btn btn-line"
-                    style={{ color: '#c62828', borderColor: '#f0b0b0' }}
+                    style={{ color: 'var(--danger-ink)', borderColor: 'var(--danger-line)' }}
                     onClick={() => void hangUp()}
                   >
                     Hang up

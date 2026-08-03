@@ -86,9 +86,9 @@ function Choice({
               tabIndex={active ? 0 : -1}
               onClick={() => onPick(v)}
               style={{
-                border: `1px solid ${active ? 'var(--accent, #4a6fa5)' : 'var(--line)'}`,
-                background: active ? 'var(--accent, #4a6fa5)' : 'transparent',
-                color: active ? '#fff' : 'inherit',
+                border: `1px solid ${active ? 'var(--accent)' : 'var(--line)'}`,
+                background: active ? 'var(--accent)' : 'transparent',
+                color: active ? 'var(--on-accent)' : 'inherit',
                 borderRadius: 999, padding: '4px 12px', fontSize: 12.5, cursor: 'pointer',
               }}
             >
@@ -112,7 +112,7 @@ function SavedAvatar({
       className="card"
       style={{
         padding: 12, textAlign: 'center',
-        outline: avatar.isSelected ? '2px solid var(--accent, #4a6fa5)' : 'none',
+        outline: avatar.isSelected ? '2px solid var(--accent)' : 'none',
       }}
     >
       <div style={{ width: 96, height: 96, margin: '0 auto 8px' }}>
@@ -129,7 +129,7 @@ function SavedAvatar({
           : <div style={{ width: 96, height: 96, borderRadius: '50%', background: 'var(--line)' }} role="presentation" />}
       </div>
       {avatar.isSelected && (
-        <div style={{ fontSize: 11.5, marginBottom: 6, color: 'var(--accent, #4a6fa5)' }}>In use</div>
+        <div style={{ fontSize: 11.5, marginBottom: 6, color: 'var(--accent-ink)' }}>In use</div>
       )}
       <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
         {!avatar.isSelected && (
@@ -137,7 +137,7 @@ function SavedAvatar({
         )}
         <Button
           size="sm" variant="line" disabled={busy}
-          style={{ color: '#c62828', borderColor: '#f0b0b0' }}
+          style={{ color: 'var(--danger-ink)', borderColor: 'var(--danger-line)' }}
           onClick={() => { if (window.confirm('Delete this avatar?')) onDelete(avatar.id); }}
         >
           Delete
@@ -217,7 +217,7 @@ export function Avatars() {
             {create.isPending ? 'Saving…' : 'Save this avatar'}
           </Button>
           {create.isError && (
-            <p style={{ color: '#c62828', fontSize: 12, margin: '8px 0 0' }}>
+            <p style={{ color: 'var(--danger-ink)', fontSize: 12, margin: '8px 0 0' }}>
               {(create.error as { response?: { data?: { message?: string } } })?.response?.data?.message
                 ?? 'That could not be saved.'}
             </p>

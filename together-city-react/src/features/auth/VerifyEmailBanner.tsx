@@ -66,7 +66,7 @@ export function VerifyEmailBanner() {
         style={{
           fontSize: 12, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase',
           padding: '7px 14px', borderRadius: 999, textDecoration: 'none',
-          background: 'var(--gold)', color: '#fff',
+          background: 'var(--gold)', color: 'var(--on-accent)',
         }}
       >
         Verify now

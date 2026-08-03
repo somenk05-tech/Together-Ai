@@ -16,11 +16,11 @@ export function PrivacyNote({ hub, text, learnMore = true, style }: {
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '10px 12px', borderRadius: 12,
       background: 'var(--accent-soft)', border: '1px solid var(--line)', fontSize: 12.5, lineHeight: 1.55, ...style }}>
-      <Icon name="shield" size={15} style={{ color: 'var(--accent)', marginTop: 1 }} />
+      <Icon name="shield" size={15} style={{ color: 'var(--accent-ink)', marginTop: 1 }} />
       <span style={{ flex: 1, minWidth: 0, color: 'var(--ink)' }}>
         {message}{' '}
         {learnMore && (
-          <Link to="/settings/privacy" style={{ color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>Learn more</Link>
+          <Link to="/settings/privacy" style={{ color: 'var(--accent-ink)', fontWeight: 600, whiteSpace: 'nowrap' }}>Learn more</Link>
         )}
       </span>
     </div>

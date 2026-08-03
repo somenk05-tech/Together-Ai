@@ -10,12 +10,12 @@ function ProjectCard({ p }: { p: PropertyDetail }) {
           <div style={{ aspectRatio: '4 / 3', background: 'var(--line)' }}>
             {p.coverPhoto && <img src={p.coverPhoto} alt={p.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
           </div>
-          <span style={{ position: 'absolute', top: 10, left: 10, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: '#fff', background: '#e65100', borderRadius: 999, padding: '3px 9px' }}>Under construction</span>
+          <span style={{ position: 'absolute', top: 10, left: 10, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--on-accent)', background: 'var(--warn-ink)', borderRadius: 999, padding: '3px 9px' }}>Under construction</span>
         </Link>
         <div style={{ flex: 1, minWidth: 240, padding: '14px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
             <strong style={{ fontSize: 16 }}>{p.projectName ?? p.title}</strong>
-            {p.postedByYou && <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: 999, padding: '1px 6px' }}>Yours</span>}
+            {p.postedByYou && <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent-ink)', border: '1px solid var(--accent)', borderRadius: 999, padding: '1px 6px' }}>Yours</span>}
           </div>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
             {p.developer ? `${p.developer} · ` : ''}{bhkLabel(p)} · {p.areaSqft.toLocaleString('en-IN')} sqft · {p.locality}, {p.city}
@@ -31,7 +31,7 @@ function ProjectCard({ p }: { p: PropertyDetail }) {
               <span className="muted">Construction progress</span><strong>{p.progressPct}%</strong>
             </div>
             <div style={{ height: 8, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${p.progressPct}%`, background: '#e65100' }} />
+              <div style={{ height: '100%', width: `${p.progressPct}%`, background: 'var(--warn-ink)' }} />
             </div>
           </div>
 

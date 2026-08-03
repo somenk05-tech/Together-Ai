@@ -79,7 +79,7 @@ export function Home() {
   return (
     <div>
       {/* ============ THE PAVILION CITY ============ */}
-      <div className="citymap" style={{ position: 'relative', background: '#0f1012' }}>
+      <div className="citymap" style={{ position: 'relative', background: 'var(--media-bg)' }}>
         {/* Dynamic city strip — location · date · live weather, top-left in the sky.
             z-index above the clickable map SVG (which is z-index 5). */}
         <div style={{ position: 'absolute', top: 18, left: 18, zIndex: 20, pointerEvents: 'none' }}>
@@ -154,11 +154,11 @@ export function Home() {
         {PANELS.map((p, panelIndex) => {
           const panelStyle: React.CSSProperties = {
             position: 'relative', display: 'flex', alignItems: 'flex-end',
-            minHeight: 'clamp(460px, 84vh, 900px)', color: '#fff', overflow: 'hidden', textDecoration: 'none',
+            minHeight: 'clamp(460px, 84vh, 900px)', color: 'var(--on-accent)', overflow: 'hidden', textDecoration: 'none',
             // A panel waiting on its photo is a lit stage, not a grey hole
             // (consumer review #4): the copy is readable immediately and the
             // image fades in over this backdrop when it arrives.
-            background: 'linear-gradient(165deg, #1a1c1f 0%, #101113 70%)',
+            background: 'linear-gradient(165deg, var(--ink) 0%, var(--ink) 70%)',
           };
           const copy = (eyebrow: string, tag: string, label: string, soon: boolean) => (
             <>
@@ -168,7 +168,7 @@ export function Home() {
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(8,9,8,.84) 0%, rgba(8,9,8,.28) 42%, rgba(8,9,8,.08) 100%)' }} />
               <div style={{ position: 'relative', zIndex: 2, padding: '0 clamp(24px,6vw,96px) clamp(44px,7vh,84px)', maxWidth: 1000 }}>
                 <div className="eyebrow" style={{ color: 'var(--gold-bright)' }}>{eyebrow}</div>
-                <h2 style={{ color: '#fff', fontSize: 'clamp(30px,4.6vw,58px)', lineHeight: 1.08, maxWidth: '16ch', margin: '6px 0 0', textShadow: '0 2px 24px rgba(0,0,0,.45)' }}>{tag}</h2>
+                <h2 style={{ color: 'var(--on-accent)', fontSize: 'clamp(30px,4.6vw,58px)', lineHeight: 1.08, maxWidth: '16ch', margin: '6px 0 0', textShadow: '0 2px 24px rgba(0,0,0,.45)' }}>{tag}</h2>
                 <span className="btn btn-gold" style={{ marginTop: 26, display: 'inline-block' }}>{label}{soon ? '' : ' →'}</span>
               </div>
             </>

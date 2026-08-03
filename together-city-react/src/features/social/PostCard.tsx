@@ -19,7 +19,7 @@ export function Avatar({ name, src }: { name: string; src?: string | null }) {
   return (
     <div className="tc-avatar" style={{
       width: 40, height: 40, borderRadius: '50%', display: 'grid', placeItems: 'center',
-      background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 700, fontSize: 14, flexShrink: 0,
+      background: 'var(--accent-soft)', color: 'var(--accent-ink)', fontWeight: 700, fontSize: 14, flexShrink: 0,
     }}>
       {name.split(' ').map((w) => w[0]).slice(0, 2).join('')}
     </div>
@@ -89,7 +89,7 @@ function ImgCell({ url, adaptive, overlay, alt }: { url: string; adaptive: boole
   const [ar, setAr] = useState(16 / 9); // width / height
   const shown = adaptive ? ar : 16 / 9;
   return (
-    <div style={{ position: 'relative', aspectRatio: String(shown), maxHeight: adaptive ? 720 : undefined, background: '#000' }}>
+    <div style={{ position: 'relative', aspectRatio: String(shown), maxHeight: adaptive ? 720 : undefined, background: 'var(--media-bg)' }}>
       <img src={url} alt={alt} onLoad={(e) => { if (adaptive) setAr(e.currentTarget.naturalWidth / Math.max(1, e.currentTarget.naturalHeight)); }}
         style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
       {overlay}
@@ -111,7 +111,7 @@ function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName
   return (
     <div style={{ position: 'relative', marginTop: 12 }}>
       <div ref={ref} onScroll={onScroll} className="tc-hscroll"
-        style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', borderRadius: 14, scrollbarWidth: 'none', aspectRatio: String(shown), maxHeight: 640, background: '#000' }}>
+        style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', borderRadius: 14, scrollbarWidth: 'none', aspectRatio: String(shown), maxHeight: 640, background: 'var(--media-bg)' }}>
         {images.map((m, i) => (
           <div key={m.id} style={{ flex: '0 0 100%', scrollSnapAlign: 'center', height: '100%' }}>
             {/* contain, so portrait photos are never cropped (letterboxed if the
@@ -122,12 +122,12 @@ function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName
           </div>
         ))}
       </div>
-      <div style={{ position: 'absolute', top: 8, right: 10, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', top: 8, right: 10, background: 'rgba(0,0,0,.55)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, pointerEvents: 'none' }}>
         {idx + 1} / {images.length}
       </div>
       <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 5, pointerEvents: 'none' }}>
         {images.map((m, i) => (
-          <span key={m.id} style={{ width: 6, height: 6, borderRadius: '50%', background: i === idx ? '#fff' : 'rgba(255,255,255,.5)' }} />
+          <span key={m.id} style={{ width: 6, height: 6, borderRadius: '50%', background: i === idx ? 'var(--on-accent)' : 'rgba(255,255,255,.5)' }} />
         ))}
       </div>
     </div>
@@ -160,7 +160,7 @@ function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: bool
   return (
     <video ref={setRefs} src={url} controls playsInline autoPlay={isNew} muted={isNew || autoInView} loop={isNew || autoInView}
       onLoadedMetadata={(e) => setAr((e.currentTarget.videoWidth || 16) / Math.max(1, e.currentTarget.videoHeight || 9))}
-      style={{ width: '100%', aspectRatio: String(ar), maxHeight: 720, objectFit: 'contain', borderRadius: 14, marginTop: 12, background: '#000', display: 'block' }} />
+      style={{ width: '100%', aspectRatio: String(ar), maxHeight: 720, objectFit: 'contain', borderRadius: 14, marginTop: 12, background: 'var(--media-bg)', display: 'block' }} />
   );
 }
 
@@ -227,14 +227,14 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
             </button>
             <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}> @{post.author.handle}</span>
             {aud && <span title={post.audience} style={{ fontSize: 12, marginLeft: 6 }}>{aud}</span>}
-            {isNew && <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#fff', background: 'var(--accent)', borderRadius: 999, padding: '2px 8px', marginLeft: 8 }}>New</span>}
+            {isNew && <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--on-accent)', background: 'var(--accent)', borderRadius: 999, padding: '2px 8px', marginLeft: 8 }}>New</span>}
           </div>
           <div className="muted" style={{ fontSize: 11.5 }}>
             {isNew ? 'Just now' : `${timeAgo(post.createdAt)} ago`}
             {post.feeling ? ` · feeling ${post.feeling}` : ''}
           </div>
           {post.placeName && (
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', marginTop: 2 }}>📍 {post.placeName}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)', marginTop: 2 }}>📍 {post.placeName}</div>
           )}
         </div>
         {manage && isMine && (
@@ -249,7 +249,7 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
                     style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--ink)' }}>✏️ Edit post</button>
                   <button type="button" disabled={del.isPending}
                     onClick={() => { setMenuOpen(false); if (window.confirm('Delete this post? This cannot be undone.')) del.mutate(post.id); }}
-                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: '#c0392b' }}>🗑 Delete post</button>
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--danger-ink)' }}>🗑 Delete post</button>
                 </div>
               </>
             )}

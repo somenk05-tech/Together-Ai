@@ -46,7 +46,7 @@ export const KIT_CSS = `
 .mvk-mb{padding:14px 16px 16px}
 .mvk-mb .star{color:var(--gold-bright,#d4af5e);font-weight:600;font-size:13px}
 .mvk-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.mvk-pills span{font-size:10.5px;font-weight:600;padding:4px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.mvk-pills span{font-size:10.5px;font-weight:600;padding:4px 9px;border-radius:999px;background:var(--accent-soft);color: var(--accent-ink)}
 .mvk-modal{position:fixed;inset:0;z-index:9000;background:rgba(10,8,20,.72);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:18px}
 .mvk-sheet{width:min(760px,100%);max-height:88vh;overflow-y:auto;background:var(--card,#fff);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,.5)}
 .mvk-hero{position:relative;aspect-ratio:16/7;background:linear-gradient(150deg,#241a3d,#5b4b8a)}

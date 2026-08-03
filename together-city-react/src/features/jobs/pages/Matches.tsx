@@ -5,11 +5,11 @@ import { useJobMatches, useApply, type JobMatch } from '../api';
 import { ShareToChat } from '@/features/chat/share';
 import type { ShareCard } from '@/types';
 
-const scoreColor = (s: number) => (s >= 75 ? '#2e7d32' : s >= 50 ? '#e65100' : 'var(--muted)');
+const scoreColor = (s: number) => (s >= 75 ? 'var(--ok-ink)' : s >= 50 ? 'var(--warn-ink)' : 'var(--muted)');
 const FIT: Record<string, { label: string; color: string }> = {
-  strong: { label: 'Strong fit', color: '#2e7d32' },
-  good: { label: 'Good fit', color: '#2e7d32' },
-  fair: { label: 'Fair fit', color: '#e65100' },
+  strong: { label: 'Strong fit', color: 'var(--ok-ink)' },
+  good: { label: 'Good fit', color: 'var(--ok-ink)' },
+  fair: { label: 'Fair fit', color: 'var(--warn-ink)' },
   weak: { label: 'Low fit', color: 'var(--muted)' },
 };
 
@@ -42,13 +42,13 @@ function JobCard({ job }: { job: JobMatch }) {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
             <strong style={{ fontSize: 15.5 }}>{job.title}</strong>
             {job.fitLabel && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: FIT[job.fitLabel]?.color, border: `1px solid ${FIT[job.fitLabel]?.color}`, borderRadius: 999, padding: '1px 7px' }}>{FIT[job.fitLabel]?.label}</span>}
-            {job.postedByYou && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: 999, padding: '1px 7px' }}>Your posting</span>}
+            {job.postedByYou && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent-ink)', border: '1px solid var(--accent)', borderRadius: 999, padding: '1px 7px' }}>Your posting</span>}
           </div>
           <div className="muted" style={{ fontSize: 12.5 }}>{job.company} · {job.location}{job.remote ? ' · Remote' : ''} · ₹{job.salaryLpa} LPA</div>
           <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '8px 0 0' }}>{job.blurb}</p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
             {job.matchedSkills.map((s) => (
-              <span key={s.key} style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 9px' }}>✓ {s.label}</span>
+              <span key={s.key} style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 9px' }}>✓ {s.label}</span>
             ))}
             {job.missingSkills.map((s) => (
               <span key={s.key} style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '2px 9px' }}>{s.label}</span>
@@ -58,7 +58,7 @@ function JobCard({ job }: { job: JobMatch }) {
 
           <div style={{ marginTop: 12 }}>
             {applied ? (
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>✓ Applied · <Link to="/jobs/applications" style={{ color: 'var(--accent)' }}>Track it</Link></span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-ink)' }}>✓ Applied · <Link to="/jobs/applications" style={{ color: 'var(--accent-ink)' }}>Track it</Link></span>
             ) : open ? (
               <div>
                 <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Add a short note to the recruiter (optional)"
@@ -122,7 +122,7 @@ export function Matches() {
         <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
           <div style={{ fontWeight: 700, fontSize: 14 }}>No strong matches yet</div>
           <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
-            Add more skills or experience to your <Link to="/jobs/profile" style={{ color: 'var(--accent)' }}>resume</Link>, or broaden your preferences — better roles will surface here.
+            Add more skills or experience to your <Link to="/jobs/profile" style={{ color: 'var(--accent-ink)' }}>resume</Link>, or broaden your preferences — better roles will surface here.
           </p>
         </div>
       )}

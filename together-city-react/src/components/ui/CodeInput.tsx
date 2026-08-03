@@ -64,7 +64,7 @@ export function CodeInput({
 
   const dark = tone === 'dark';
   const palette = dark
-    ? { idle: 'rgba(255,255,255,.22)', active: 'var(--gold-bright, #d9b871)', bg: 'rgba(255,255,255,.05)', ink: '#fff', caret: 'var(--gold-bright, #d9b871)' }
+    ? { idle: 'rgba(255,255,255,.22)', active: 'var(--gold-bright)', bg: 'rgba(255,255,255,.05)', ink: 'var(--on-accent)', caret: 'var(--gold-bright)' }
     : { idle: 'var(--line)', active: 'var(--accent)', bg: 'var(--card)', ink: 'var(--ink)', caret: 'var(--accent)' };
 
   const digits = Array.from({ length }, (_, i) => value[i] ?? '');
@@ -106,9 +106,9 @@ export function CodeInput({
                 width: 44, height: 56, display: 'grid', placeItems: 'center',
                 fontSize: 24, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
                 borderRadius: 12,
-                border: `1.5px solid ${invalid ? 'var(--red, #c0392b)' : isActive ? palette.active : palette.idle}`,
+                border: `1.5px solid ${invalid ? 'var(--red)' : isActive ? palette.active : palette.idle}`,
                 background: disabled ? palette.idle : palette.bg,
-                color: invalid ? 'var(--red, #c0392b)' : palette.ink,
+                color: invalid ? 'var(--red)' : palette.ink,
                 transition: 'border-color .12s ease',
               }}
             >

@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import type { MedicalAdvisory, HealthScore } from '../types';
 
 const LEVEL: Record<number, { label: string; color: string; soft: string }> = {
-  1: { label: 'Good to know', color: '#3f7d5a', soft: '#eaf3ee' },
-  2: { label: 'Recommended', color: '#b0803a', soft: '#f7efe1' },
-  3: { label: 'Safety alert', color: '#b0503e', soft: '#f8eae6' },
+  1: { label: 'Good to know', color: 'var(--ok-ink)', soft: 'var(--ok-soft)' },
+  2: { label: 'Recommended', color: 'var(--warn-ink)', soft: 'var(--warn-soft)' },
+  3: { label: 'Safety alert', color: 'var(--danger-ink)', soft: 'var(--danger-soft)' },
 };
 
 /** §21 — medical recommendations shown as advice. The plan already follows the
@@ -64,7 +64,7 @@ export function MedicalAdvisories({ advisories, healthScore }: { advisories?: Me
               ) : (
                 <div style={{ display: 'flex', gap: 8, marginTop: 11, flexWrap: 'wrap' }}>
                   <Link to="/nutrition/preferences"
-                    style={{ fontSize: 12.5, fontWeight: 700, textDecoration: 'none', color: '#fff', background: 'var(--accent)', borderRadius: 999, padding: '7px 14px' }}>
+                    style={{ fontSize: 12.5, fontWeight: 700, textDecoration: 'none', color: 'var(--on-accent)', background: 'var(--accent)', borderRadius: 999, padding: '7px 14px' }}>
                     Update food preferences
                   </Link>
                   <button type="button" onClick={() => setKept((s) => new Set(s).add(a.key))}
@@ -82,7 +82,7 @@ export function MedicalAdvisories({ advisories, healthScore }: { advisories?: Me
 }
 
 function ScorePill({ label, value, strong }: { label: string; value: number; strong?: boolean }) {
-  const col = value >= 85 ? 'var(--accent)' : value >= 70 ? '#b0803a' : '#b0503e';
+  const col = value >= 85 ? 'var(--accent)' : value >= 70 ? 'var(--warn-ink)' : 'var(--danger-ink)';
   return (
     <div style={{ minWidth: 96 }}>
       <div style={{ fontSize: strong ? 22 : 18, fontWeight: 800, color: strong ? 'var(--ink)' : col, fontFamily: 'var(--serif)' }}>{value}%</div>

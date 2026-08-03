@@ -120,7 +120,7 @@ export function Dashboard() {
       <section className="card" style={{ marginTop: 22, padding: '18px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <h2 style={{ fontSize: 17, margin: 0 }}>Your profile is {c.percent}% complete</h2>
-            <Link to="/profile" style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 700, color: 'var(--accent)' }}>Open your profile →</Link>
+            <Link to="/profile" style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 700, color: 'var(--accent-ink)' }}>Open your profile →</Link>
           </div>
           <div style={{ height: 8, borderRadius: 999, background: 'var(--line)', marginTop: 10, overflow: 'hidden' }}>
             <div style={{ width: `${c.percent}%`, height: '100%', background: 'var(--accent)' }} />
@@ -153,7 +153,7 @@ export function Dashboard() {
         <section style={{ marginTop: 22 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
             <h2 style={{ fontSize: 17, margin: 0 }}>Today’s meals</h2>
-            <Link to="/nutrition/weekly" style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 700, color: 'var(--accent)' }}>The whole week →</Link>
+            <Link to="/nutrition/weekly" style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 700, color: 'var(--accent-ink)' }}>The whole week →</Link>
           </div>
           <div className="card" style={{ marginTop: 10, padding: '6px 18px' }}>
             {meals.map((m) => (
@@ -172,7 +172,7 @@ export function Dashboard() {
         <section style={{ marginTop: 22 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
             <h2 style={{ fontSize: 17, margin: 0 }}>Your last blood panel</h2>
-            <Link to="/medical/blood" style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 700, color: 'var(--accent)' }}>Read it →</Link>
+            <Link to="/medical/blood" style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 700, color: 'var(--accent-ink)' }}>Read it →</Link>
           </div>
           <div className="card" style={{ marginTop: 10, padding: '16px 18px' }}>
             <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>
@@ -280,6 +280,6 @@ function Waiting({ to, n, one, many }: { to: string; n: number; one: string; man
 
 const startStyle: React.CSSProperties = {
   minHeight: 44, display: 'inline-flex', alignItems: 'center', padding: '0 16px',
-  borderRadius: 10, border: '1px solid var(--accent)', color: 'var(--accent)',
+  borderRadius: 10, border: '1px solid var(--accent)', color: 'var(--accent-ink)',
   fontSize: 13, fontWeight: 700, textDecoration: 'none',
 };

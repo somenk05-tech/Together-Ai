@@ -102,8 +102,8 @@ function StateTag({ verified, hasTarget }: { verified: boolean; hasTarget: boole
       className="tag"
       style={{
         fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, flex: '0 0 auto',
-        background: verified ? 'var(--green-soft, #e8f3ea)' : 'var(--amber-soft, #fdf3e0)',
-        color: verified ? 'var(--green, #2e7d43)' : 'var(--ink-soft)',
+        background: verified ? 'var(--green-soft)' : 'var(--amber-soft)',
+        color: verified ? 'var(--green)' : 'var(--ink-soft)',
       }}
     >
       {verified ? 'Verified' : 'Unverified'}

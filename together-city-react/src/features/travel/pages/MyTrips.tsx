@@ -6,12 +6,12 @@ function TripPass({ t }: { t: Trip }) {
   const d = t.detail as { airline?: string; flightNo?: string; departTime?: string; arriveTime?: string; durationLabel?: string; stopLabel?: string; date?: string; destination?: string; startDate?: string | null };
   return (
     <article className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14, display: 'flex' }}>
-      <div style={{ width: 8, background: t.kind === 'flight' ? '#1565c0' : 'var(--accent)' }} />
+      <div style={{ width: 8, background: t.kind === 'flight' ? 'var(--info-ink)' : 'var(--accent)' }} />
       <div style={{ flex: 1, padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 20 }}>{t.icon}</span>
           <strong style={{ fontSize: 16 }}>{t.title}</strong>
-          <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: '#2e7d32', background: '#e8f5e9', borderRadius: 999, padding: '2px 10px' }}>{t.status}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 999, padding: '2px 10px' }}>{t.status}</span>
         </div>
         <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{t.subtitle}</div>
         {t.kind === 'flight' && d.departTime && (

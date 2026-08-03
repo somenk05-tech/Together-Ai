@@ -172,8 +172,8 @@ export function MasterProfile() {
     <label key={k} style={{ display: 'block', marginBottom: 14 }}>
       <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)' }}>
         {label}
-        {saved === k && <span style={{ color: '#2e7d32', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}>saved</span>}
-        {k in draft && saved !== k && <span style={{ color: 'var(--accent)', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}>unsaved</span>}
+        {saved === k && <span style={{ color: 'var(--ok-ink)', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}>saved</span>}
+        {k in draft && saved !== k && <span style={{ color: 'var(--accent-ink)', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}>unsaved</span>}
       </span>
       <div style={{ marginTop: 4 }}>{input}</div>
       {hint && <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, display: 'block', marginTop: 4 }}>{hint}</span>}
@@ -223,7 +223,7 @@ export function MasterProfile() {
           {(completion.data?.nextUp ?? []).length > 0 && (
             <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {(completion.data?.nextUp ?? []).slice(0, 3).map((n) => (
-                <Link key={n.key} to={n.href} style={{ fontSize: 11.5, color: 'var(--accent)', fontWeight: 600 }}>{n.label} →</Link>
+                <Link key={n.key} to={n.href} style={{ fontSize: 11.5, color: 'var(--accent-ink)', fontWeight: 600 }}>{n.label} →</Link>
               ))}
             </div>
           )}
@@ -232,12 +232,12 @@ export function MasterProfile() {
 
       <nav style={{ display: 'flex', gap: 14, flexWrap: 'wrap', margin: '18px 0 6px' }}>
         {SECTIONS.map((s) => (
-          <a key={s.id} href={`#${s.id}`} style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>{s.label}</a>
+          <a key={s.id} href={`#${s.id}`} style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-ink)' }}>{s.label}</a>
         ))}
       </nav>
 
       {save.isError && (
-        <p style={{ color: '#c62828', fontSize: 12.5 }}>
+        <p style={{ color: 'var(--danger-ink)', fontSize: 12.5 }}>
           That didn’t save. Your change is still here — try again, or reload if someone else edited this profile.
         </p>
       )}
@@ -308,7 +308,7 @@ export function MasterProfile() {
         <div style={{ marginBottom: 16 }}>
           <span style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)' }}>
             Cuisines
-            {mixDirty && <span style={{ color: 'var(--accent)', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}> · unsaved</span>}
+            {mixDirty && <span style={{ color: 'var(--accent-ink)', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}> · unsaved</span>}
           </span>
           <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: '4px 0 8px' }}>
             How much of your meal plan comes from each kitchen. This is the same setting the
@@ -377,7 +377,7 @@ export function MasterProfile() {
         <div style={{ margin: '18px 0 4px' }}>
           <span style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)' }}>
             Health conditions
-            {healthDirty && <span style={{ color: 'var(--accent)', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}> · unsaved</span>}
+            {healthDirty && <span style={{ color: 'var(--accent-ink)', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}> · unsaved</span>}
           </span>
           <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: '4px 0 8px' }}>
             Tick anything a doctor has told you about. All optional — and saving with nothing
@@ -447,7 +447,7 @@ export function MasterProfile() {
             )}
           </div>
           {saveConditions.isError && (
-            <p style={{ color: '#c62828', fontSize: 12.5, margin: '8px 0 0' }}>
+            <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: '8px 0 0' }}>
               That didn&rsquo;t save. Your ticks are still here — try again.
             </p>
           )}
@@ -458,7 +458,7 @@ export function MasterProfile() {
           <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: '10px 0 0' }}>
             One thing to know: your meal plan does not read this list yet. The conditions your
             plan uses are still the ones on{' '}
-            <Link to="/nutrition/preferences" style={{ color: 'var(--accent)', fontWeight: 600 }}>Food preferences</Link>,
+            <Link to="/nutrition/preferences" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Food preferences</Link>,
             so ticking a box here changes what your profile says and not yet what you are served.
             We are joining the two up; until then, set both.
           </p>
@@ -502,7 +502,7 @@ function Elsewhere({ what, where, label }: { what: string; where: string; label:
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
       <span style={{ fontSize: 13, flex: 1, minWidth: 180 }}>{what}</span>
       <Link to={where}
-        style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', padding: '0 14px', borderRadius: 10, border: '1px solid var(--accent)', color: 'var(--accent)', fontSize: 12.5, fontWeight: 700, textDecoration: 'none' }}>
+        style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', padding: '0 14px', borderRadius: 10, border: '1px solid var(--accent)', color: 'var(--accent-ink)', fontSize: 12.5, fontWeight: 700, textDecoration: 'none' }}>
         {label} →
       </Link>
     </div>

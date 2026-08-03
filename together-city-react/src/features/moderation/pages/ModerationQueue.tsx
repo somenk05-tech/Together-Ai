@@ -36,9 +36,9 @@ function Subject({ group }: { group: ReportGroup }) {
     return (
       <>
         <div style={{ fontSize: 12.5, marginTop: 2 }} className="muted">
-          <Link to={`/social/u/${s.author.handle}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>@{s.author.handle}</Link>
+          <Link to={`/social/u/${s.author.handle}`} style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>@{s.author.handle}</Link>
           {' · '}{when(s.createdAt)}
-          {s.moderation === 'removed' && <> · <strong style={{ color: '#c62828' }}>already removed</strong></>}
+          {s.moderation === 'removed' && <> · <strong style={{ color: 'var(--danger-ink)' }}>already removed</strong></>}
         </div>
         <p style={{ fontSize: 13.5, margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>
           {s.text?.trim() ? s.text : <span className="muted">No text — the report is about the media or the account.</span>}
@@ -50,7 +50,7 @@ function Subject({ group }: { group: ReportGroup }) {
   if (s.kind === 'user') {
     return (
       <div style={{ fontSize: 13, marginTop: 4 }}>
-        <Link to={`/social/u/${s.user.handle}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>@{s.user.handle}</Link>
+        <Link to={`/social/u/${s.user.handle}`} style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>@{s.user.handle}</Link>
         <span className="muted"> · {s.user.name}</span>
       </div>
     );
@@ -59,7 +59,7 @@ function Subject({ group }: { group: ReportGroup }) {
   return (
     <>
       <div style={{ fontSize: 12.5, marginTop: 2 }} className="muted">
-        <Link to={`/social/u/${s.comment.author.handle}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>@{s.comment.author.handle}</Link>
+        <Link to={`/social/u/${s.comment.author.handle}`} style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>@{s.comment.author.handle}</Link>
         {' · '}{when(s.comment.createdAt)}
       </div>
       <p style={{ fontSize: 13.5, margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>{s.comment.text}</p>
@@ -96,8 +96,8 @@ function Group({ group }: { group: ReportGroup }) {
         <strong style={{ fontSize: 13.5, textTransform: 'capitalize' }}>{group.targetType}</strong>
         <span style={{
           fontSize: 11.5, fontWeight: 700, borderRadius: 999, padding: '2px 9px',
-          background: group.distinctReporters >= 3 ? '#ffebee' : 'var(--accent-soft)',
-          color: group.distinctReporters >= 3 ? '#c62828' : 'var(--accent)',
+          background: group.distinctReporters >= 3 ? 'var(--danger-soft)' : 'var(--accent-soft)',
+          color: group.distinctReporters >= 3 ? 'var(--danger-ink)' : 'var(--accent)',
         }}>
           {group.distinctReporters} {group.distinctReporters === 1 ? 'person' : 'people'}
         </span>
@@ -141,7 +141,7 @@ function Group({ group }: { group: ReportGroup }) {
         </p>
       )}
       {decide.isError && (
-        <p className="muted" style={{ fontSize: 12, color: '#c62828', marginTop: 8 }}>
+        <p className="muted" style={{ fontSize: 12, color: 'var(--danger-ink)', marginTop: 8 }}>
           That did not go through. Try again in a moment.
         </p>
       )}

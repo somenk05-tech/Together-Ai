@@ -127,7 +127,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
     <button type="button" onClick={onClick} style={{
       cursor: 'pointer', borderRadius: 999, padding: '7px 14px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
       border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`,
-      background: on ? 'var(--accent)' : 'transparent', color: on ? '#fff' : 'var(--ink-soft)',
+      background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)',
     }}>{children}</button>
   );
 }
@@ -177,7 +177,7 @@ function TargetsCard() {
         ))}
       </div>
       <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
-        These targets personalise every planner. <Link to="/nutrition/weekly" style={{ color: 'var(--accent)', fontWeight: 600 }}>Regenerate your week →</Link>
+        These targets personalise every planner. <Link to="/nutrition/weekly" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Regenerate your week →</Link>
       </p>
     </div>
   );
@@ -445,7 +445,7 @@ export function Preferences() {
         <div className="card" style={{ marginTop: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
             <div>
-              <div className="eyebrow" style={{ color: 'var(--accent)' }}>Saved ✓</div>
+              <div className="eyebrow" style={{ color: 'var(--accent-ink)' }}>Saved ✓</div>
               <h3 style={{ margin: '2px 0 0' }}>Your food profile</h3>
             </div>
             <Button type="button" variant="line" size="sm" onClick={() => { setCollapsed(false); setSaved(false); }}>Edit Food Preference Profile</Button>
@@ -459,7 +459,7 @@ export function Preferences() {
             ))}
           </div>
           <p className="muted" style={{ fontSize: 11.5, marginTop: 12 }}>
-            This profile powers your meal plans, recipes and your <Link to="/fitness/workout" style={{ color: 'var(--accent)', fontWeight: 600 }}>Fitness hub</Link> — and appears on your <Link to="/profile" style={{ color: 'var(--accent)', fontWeight: 600 }}>profile</Link>.
+            This profile powers your meal plans, recipes and your <Link to="/fitness/workout" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Fitness hub</Link> — and appears on your <Link to="/profile" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>profile</Link>.
           </p>
         </div>
       )}
@@ -471,7 +471,7 @@ export function Preferences() {
           <div style={{ flex: 1, minWidth: 200 }}>
             <div className="eyebrow">Health profile</div>
             {bloodConnected ? (
-              <p style={{ fontSize: 14, margin: '4px 0 0', fontWeight: 600, color: '#2e7d32' }}>✓ Blood test connected</p>
+              <p style={{ fontSize: 14, margin: '4px 0 0', fontWeight: 600, color: 'var(--ok-ink)' }}>✓ Blood test connected</p>
             ) : (
               <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>Connect a blood test so your plans adapt to your biomarkers.</p>
             )}
@@ -483,7 +483,7 @@ export function Preferences() {
         <div className="card" style={{ marginTop: 16 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
             <div className="eyebrow">Cuisine mix</div>
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: mixTotal === 100 ? 'var(--accent)' : mixTotal === 0 ? 'var(--muted)' : '#b8860b' }}>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: mixTotal === 100 ? 'var(--accent)' : mixTotal === 0 ? 'var(--muted)' : 'var(--accent-ink)' }}>
               {mixTotal}% {mixTotal === 100 ? '✓' : 'of 100%'}
             </span>
           </div>
@@ -549,7 +549,7 @@ export function Preferences() {
                     cursor: 'pointer', borderRadius: 999, padding: '7px 16px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: active ? 700 : 600,
                     border: `1.5px solid ${active ? color : 'var(--line)'}`,
                     background: active ? color : 'transparent',
-                    color: active ? '#fff' : 'var(--ink)',
+                    color: active ? 'var(--on-accent)' : 'var(--ink)',
                   }}>{d.label}</button>
               );
             })}
@@ -602,7 +602,7 @@ export function Preferences() {
                     <div style={{ fontSize: 11.5, fontWeight: 700, marginBottom: 4 }}>{d}</div>
                     <button type="button" disabled={isVegDiet} onClick={() => setWeekly(d, v === 'veg' ? 'nonveg' : 'veg')}
                       style={{ width: '100%', cursor: isVegDiet ? 'default' : 'pointer', opacity: isVegDiet ? 0.75 : 1, borderRadius: 10, padding: '7px 0', fontSize: 11.5, fontWeight: 600, fontFamily: 'inherit',
-                        border: `1.5px solid ${v === 'veg' ? '#2e7d32' : '#c62828'}`, background: v === 'veg' ? 'var(--ok-soft)' : 'var(--danger-soft)', color: v === 'veg' ? '#2e7d32' : '#c62828' }}>
+                        border: `1.5px solid ${v === 'veg' ? 'var(--ok-ink)' : 'var(--danger-ink)'}`, background: v === 'veg' ? 'var(--ok-soft)' : 'var(--danger-soft)', color: v === 'veg' ? 'var(--ok-ink)' : 'var(--danger-ink)' }}>
                       {v === 'veg' ? 'Veg' : 'Non-veg'}
                     </button>
                   </div>
@@ -650,7 +650,7 @@ export function Preferences() {
         <div className="card" style={{ marginTop: 16 }}>
           <div className="eyebrow">Body &amp; targets</div>
           <p className="muted" style={{ fontSize: 11.5, margin: '4px 0 0' }}>
-            🔗 Shared with your <Link to="/fitness/workout" style={{ color: 'var(--accent)', fontWeight: 600 }}>Fitness hub</Link> — set your body stats once here and workouts use them automatically.
+            🔗 Shared with your <Link to="/fitness/workout" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Fitness hub</Link> — set your body stats once here and workouts use them automatically.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
             <div ref={v.reg('age')}>
@@ -694,7 +694,7 @@ export function Preferences() {
               <button key={g} type="button" onClick={() => setForm({ ...form, goal: g })}
                 style={{ flex: 1, cursor: 'pointer', borderRadius: 12, padding: '10px 0', fontSize: 13, fontFamily: 'inherit',
                   border: '1.5px solid var(--line)', fontWeight: form.goal === g ? 700 : 400,
-                  background: form.goal === g ? 'var(--accent)' : 'transparent', color: form.goal === g ? '#fff' : 'var(--ink-soft)' }}>
+                  background: form.goal === g ? 'var(--accent)' : 'transparent', color: form.goal === g ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
                 {g === 'lose' ? 'Weight loss' : g === 'gain' ? 'Muscle gain' : 'Maintain'}
               </button>
             ))}

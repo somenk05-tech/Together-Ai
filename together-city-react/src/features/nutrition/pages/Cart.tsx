@@ -8,10 +8,10 @@ function Stepper({ qty, onChange }: { qty: number; onChange: (q: number) => void
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', border: '1.3px solid var(--accent)', borderRadius: 9, overflow: 'hidden' }}>
       <button type="button" onClick={() => onChange(qty - 1)} aria-label="Decrease quantity"
-        style={{ minWidth: 44, minHeight: 44, background: 'var(--accent)', color: '#fff', border: 'none', width: 26, height: 30, fontSize: 16, lineHeight: 1, cursor: 'pointer' }}>−</button>
-      <b style={{ minWidth: 26, textAlign: 'center', fontSize: 13, color: 'var(--accent)' }}>{qty}</b>
+        style={{ minWidth: 44, minHeight: 44, background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', width: 26, height: 30, fontSize: 16, lineHeight: 1, cursor: 'pointer' }}>−</button>
+      <b style={{ minWidth: 26, textAlign: 'center', fontSize: 13, color: 'var(--accent-ink)' }}>{qty}</b>
       <button type="button" onClick={() => onChange(qty + 1)} aria-label="Increase quantity"
-        style={{ minWidth: 44, minHeight: 44, background: 'var(--accent)', color: '#fff', border: 'none', width: 26, height: 30, fontSize: 16, lineHeight: 1, cursor: 'pointer' }}>+</button>
+        style={{ minWidth: 44, minHeight: 44, background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', width: 26, height: 30, fontSize: 16, lineHeight: 1, cursor: 'pointer' }}>+</button>
     </span>
   );
 }
@@ -77,14 +77,14 @@ export function Cart() {
       <h1 style={{ marginBottom: 6 }}>Your Cart 🛍️</h1>
       <p className="lede" style={{ marginBottom: 18 }}>
         Your grocery cart, pre-filled from your saved meal plan.{' '}
-        <Link to="/nutrition/grocery" style={{ color: 'var(--accent)', fontWeight: 600 }}>← add more from the store</Link>
+        <Link to="/nutrition/grocery" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>← add more from the store</Link>
       </p>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '16px 18px 10px' }}>
           <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             🛍️ My Cart
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: 'var(--accent)', borderRadius: 999, padding: '1px 9px' }}>{count}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--on-accent)', background: 'var(--accent)', borderRadius: 999, padding: '1px 9px' }}>{count}</span>
           </h4>
           <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0', lineHeight: 1.4 }}>
             Adjust quantities or rebuild from your meal plan, then place your order.
@@ -95,7 +95,7 @@ export function Cart() {
           {live.length === 0 ? (
             <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
               Your cart is empty.{' '}
-              <Link to="/nutrition/grocery" style={{ color: 'var(--accent)', fontWeight: 600 }}>Browse the store →</Link>
+              <Link to="/nutrition/grocery" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Browse the store →</Link>
             </div>
           ) : (
             <>

@@ -1,95 +1,190 @@
-/* Design tokens ported 1:1 from the vanilla site (assets/css/tc.css :root). */
+/* ═══════════════════════════════════════════════════════════════════════════
+   RELIEF — the token layer.
+
+   Every background in this application is white. Everything a citizen can read
+   is black or a grey derived from black. Colour survives in exactly three
+   places: a hub's identity dot, a status ink, and the one black button on a
+   screen. That is the whole palette.
+
+   WHAT REPLACED WHAT. The old token set described a warm-paper site with a
+   gold accent, a full dark theme, and a green-tinted Nutrition hub. All three
+   are gone, on purpose:
+
+     · the dark theme, because "every background white" and a night ground
+       cannot both be true, and a half-converted dark mode looks like a bug
+       rather than a choice;
+     · the Nutrition surface tint, because a hub that changes the colour of the
+       page reads as a different product rather than a different room;
+     · --serif / --mono, because the site is one typeface now.
+
+   Anything that still needs those names finds them here pointing at Relief
+   values, so nothing has to be renamed at 300 call sites to stop being gold.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 :root {
-  /* --muted darkened from #8a8a80 (~3.1:1) to meet WCAG AA (~4.9:1 on paper) for small text (audit 5.2). */
-  --ink: #141412; --ink-soft: #45453f; --muted: #63635b;
-  --paper: #faf9f6; --card: #ffffff; --line: #e8e6df;
-  /* --gold is a fill colour (white text on gold). For gold-coloured TEXT use --gold-ink, which passes AA on light backgrounds. */
-  --gold: #b08d3e; --gold-soft: #f3ead6; --gold-bright: #d4af5e; --gold-ink: #856210;
-  --green: #2e5c3f; --green-soft: #eaf2ec;
-  --blue: #3a6ea5; --blue-soft: #e9f1f8;
-  --rose: #b76e79; --rose-soft: #f9eef0;
-  --purple: #5b4b8a; --purple-soft: #efecf7;
-  --navy: #16283c; --emerald: #1d5c4d;
-  /* Status washes. These existed as hardcoded hexes in a dozen screens — the
-     amber "heads up", the pink "this failed", the green "all good" — which meant
-     every one of them stayed light-mode-coloured in dark mode, and stayed
-     cream-and-pink inside a hub themed green. Naming them is what lets a banner
-     follow the theme it is sitting in. */
-  --warn-soft: #faf3e0; --warn-line: #e6d3a3; --warn-ink: #6b5310;
-  --danger-soft: #fdecec; --danger-line: #e0a0a0; --danger-ink: #9c2b2b;
-  --ok-soft: #e8f5e9; --ok-line: #b7ddbc; --ok-ink: #1b5e28;
-  --accent: var(--gold); --accent-soft: var(--gold-soft);
-  --radius: 14px; --radius-lg: 20px;
-  --shadow: 0 1px 2px rgba(20,20,18,.04), 0 8px 24px rgba(20,20,18,.06);
-  --shadow-deep: 0 2px 4px rgba(20,20,18,.06), 0 16px 40px rgba(20,20,18,.12);
-  --header-h: 78px; /* two-row header: logo on top · [hub tabs left + actions right] one line, compact */
-  --serif: Georgia, "Times New Roman", serif;
-  --sans: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --mono: "SF Mono", Menlo, Consolas, monospace;
-  /* iOS/Android safe areas for Capacitor */
+  /* ── GROUND AND INK ─────────────────────────────────────────────────────
+     --paper and --card are the same white. They used to differ (#faf9f6 vs
+     #ffffff) because the page was warm and the card was not; with one ground
+     the difference is carried by relief instead of by tint, and keeping them
+     apart would put a seam down the middle of every full-bleed section. */
+  --ground: #ffffff;
+  --paper: #ffffff;
+  --card: #ffffff;
+
+  --ink: #000000;
+  --ink-soft: #1c1c1c;
+  --muted: #6b6b6b;
+  --faint: #9b9b9b;
+  --line: #ededed;
+  --line-2: #e2e2e2;
+
+  /* ── THE FACES ──────────────────────────────────────────────────────────
+     Classic neumorphism sits on a mid-grey ground so that a WHITE highlight
+     has something to be brighter than. On white that highlight is invisible,
+     so relief here is carried by three other things: a gradient down the face
+     (a lit convex surface), a real layered drop shadow, and a hairline rim
+     that is brighter at the top edge and darker at the bottom.
+
+     --face-tall exists because a percentage stop is a wash on a tall box. At
+     44% the shade sits in the last few pixels of a button and reads as the
+     underside of an edge; on a 700px article it greys out a third of the page.
+     Tall surfaces measure their shade in PIXELS FROM THE BOTTOM, so an edge
+     stays an edge at any height. Anything that can grow past ~300px uses it. */
+  --face:      linear-gradient(180deg, #ffffff 0%, #fcfcfc 44%, #eeeeee 100%);
+  --face-2:    linear-gradient(180deg, #ffffff 0%, #fafafa 48%, #e9e9e9 100%);
+  --face-tall: linear-gradient(180deg, #ffffff 0px, #ffffff calc(100% - 96px), #f1f1f1 100%);
+  --well:      linear-gradient(180deg, #ededed 0%, #f6f6f6 58%, #fdfdfd 100%);
+
+  --rim:        inset 0 0 0 1px rgba(0,0,0,.055), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(0,0,0,.045);
+  --rim-strong: inset 0 0 0 1px rgba(0,0,0,.075), inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(0,0,0,.06);
+
+  /* ── FIVE DEPTHS, AND THERE IS NO SIXTH ─────────────────────────────────
+     Raised one, two, three; carved; pressed. Every surface in the application
+     is one of these. The moment a screen invents its own shadow the page stops
+     being one object with things standing on it and becomes a collage, which
+     is the failure mode this whole layer exists to prevent. relief.spec.ts
+     fails the build on a box-shadow that is not one of these tokens. */
+  --e1: var(--rim),        0 1px 1px rgba(0,0,0,.055), 0 2px 4px rgba(0,0,0,.06), 0 6px 13px rgba(0,0,0,.07);
+  --e2: var(--rim-strong), 0 1px 1px rgba(0,0,0,.06),  0 3px 6px rgba(0,0,0,.075), 0 11px 24px rgba(0,0,0,.10), 0 22px 48px rgba(0,0,0,.075);
+  --e3: var(--rim-strong), 0 2px 2px rgba(0,0,0,.065), 0 7px 14px rgba(0,0,0,.085), 0 20px 42px rgba(0,0,0,.11), 0 40px 88px rgba(0,0,0,.095);
+
+  /* Carved — the trough a field, a slider or a segmented control sits in. */
+  --carve:      inset 0 0 0 1px rgba(0,0,0,.075), inset 0 3px 6px rgba(0,0,0,.13), inset 0 -1px 0 rgba(255,255,255,.95), inset 3px 0 5px -3px rgba(0,0,0,.07), inset -3px 0 5px -3px rgba(0,0,0,.07);
+  --carve-deep: inset 0 0 0 1px rgba(0,0,0,.09),  inset 0 4px 10px rgba(0,0,0,.18), inset 0 -1px 0 rgba(255,255,255,.95);
+
+  /* Pressed — a RAISED thing pushed in. Not the same as carved: carved was
+     always a hole, pressed is a key that has travelled down. */
+  --press: inset 0 0 0 1px rgba(0,0,0,.10), inset 0 3px 6px rgba(0,0,0,.16), 0 1px 0 rgba(255,255,255,.9);
+
+  /* EDGES ARE NOT DEPTHS. A one-pixel white line under a rule, the darker
+     line under a table head, and the halo around a hub dot are not surfaces —
+     nothing stands on them, and they have no lit face. They are named here so
+     that "there are five depths" stays literally true and the guard does not
+     need a list of exceptions. */
+  --edge-up: 0 1px 0 #fff;
+  --edge-in: inset 0 -1px 0 rgba(0,0,0,.06);
+  --pip: 0 0 0 3px var(--accent-soft), inset 0 1px 1px rgba(0,0,0,.3);
+  --pip-ok: 0 0 0 2px #fff, 0 1px 2px rgba(0,0,0,.3);
+
+  /* Legacy names. Several hundred call sites read --shadow and --shadow-deep;
+     renaming them would put a 300-file rename inside a commit about materials. */
+  --shadow: var(--e1);
+  --shadow-deep: var(--e2);
+
+  /* ── STATUS ─────────────────────────────────────────────────────────────
+     The only colour a citizen reads. Inks are darkened to clear AA on white:
+     a status that cannot be read is worse than one that is not coloured. The
+     soft washes are near-white on purpose — a status banner is a raised card
+     with a coloured ink and a coloured hairline, not a coloured rectangle. */
+  --ok-ink: #1a6b2e;     --ok-soft: #f1f8f2;    --ok-line: #cfe6d4;
+  --warn-ink: #7a5410;   --warn-soft: #fbf6ea;  --warn-line: #e8dcbe;
+  --danger-ink: #a5231f; --danger-soft: #fdf1f0; --danger-line: #eecac7;
+  --info-ink: #14568f;   --info-soft: #eff5fb;  --info-line: #c9dcee;
+
+  /* ── HUB IDENTITY ───────────────────────────────────────────────────────
+     A hue, used as a dot, a hairline and a small pill fill. Never a page
+     background, never body text. --accent is the fill (white text sits on it),
+     --accent-ink is the same hue darkened until it can be read on white.
+     Two names because one colour cannot do both jobs and pass AA. */
+  --accent: #1c1c1c;
+  --accent-ink: #1c1c1c;
+  --accent-soft: #f2f2f2;
+  --accent-line: #e0e0e0;
+
+  /* --on-accent is the foreground for anything sitting ON a filled accent or
+     a status ink. 177 call sites hard-coded #fff for this and had no name for
+     it, which is why they all broke the moment a surface stopped being dark. */
+  --on-accent: #ffffff;
+
+  /* A video letterbox and a camera viewfinder are black in every theme,
+     because the alternative is a white flash around somebody's face. This is
+     the one background in the application that is not white, and it is not a
+     surface — it is the absence of one. */
+  --media-bg: #0a0a0a;
+
+  /* Legacy accent names, kept pointing at ink so nothing renders gold. */
+  --gold: var(--accent); --gold-soft: var(--accent-soft); --gold-bright: var(--accent); --gold-ink: var(--accent-ink);
+  --green: var(--ok-ink);    --green-soft: var(--ok-soft);
+  --blue: var(--info-ink);   --blue-soft: var(--info-soft);
+  --rose: var(--accent-ink); --rose-soft: var(--accent-soft);
+  --purple: var(--accent-ink); --purple-soft: var(--accent-soft);
+  --navy: var(--ink); --emerald: var(--ok-ink);
+
+  /* ── SHAPE, RHYTHM, MOTION ──────────────────────────────────────────── */
+  --r-1: 10px; --r-2: 14px; --r-3: 20px; --r-4: 28px; --r-5: 36px; --r-full: 999px;
+  --radius: var(--r-2); --radius-lg: var(--r-3);
+
+  --sp-1: 6px; --sp-2: 10px; --sp-3: 16px; --sp-4: 24px; --sp-5: 36px; --sp-6: 52px; --sp-7: 76px;
+
+  --dur-fast: 130ms; --dur-base: 220ms; --dur-slow: 420ms;
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --spring: cubic-bezier(.34,1.42,.5,1);
+
+  --header-h: 78px;
+
+  /* ── ONE TYPEFACE ───────────────────────────────────────────────────────
+     General Sans, self-hosted. --serif and --mono still exist because they are
+     read in a few dozen places, and they resolve to the same family: a heading
+     is a heading because of its size and weight, not because it changed font
+     halfway down the page. --num is the same family with tabular figures. */
+  --sans: 'General Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --serif: var(--sans);
+  --mono: var(--sans);
+
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Dark theme — same tokens, night values. Set by store/theme.store.ts via
-   [data-theme] on <html>; every component that reads tokens follows for free.
-   Accents (gold/green/blue/rose/purple) keep their hue; the soft washes darken. */
-[data-theme="dark"] {
-  --ink: #ecebe6; --ink-soft: #c6c5bc; --muted: #9b9a90;
-  --paper: #131312; --card: #1d1d1b; --line: #302f2a;
-  --gold-soft: #2b2415; --gold-ink: #d4af5e;
-  --green-soft: #182619; --blue-soft: #172230;
-  --rose-soft: #2b1d20; --purple-soft: #211d2e;
-  --warn-soft: #2a2312; --warn-line: #4a3d1c; --warn-ink: #e8cf8e;
-  --danger-soft: #2c1a1a; --danger-line: #4d2a2a; --danger-ink: #f0a9a9;
-  --ok-soft: #16261a; --ok-line: #27452e; --ok-ink: #8fd3a6;
-  --shadow: 0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.4);
-  --shadow-deep: 0 2px 4px rgba(0,0,0,.45), 0 16px 40px rgba(0,0,0,.55);
-}
+/* ── PER-HUB IDENTITY ──────────────────────────────────────────────────────
+   One line each. --accent is the fill; --accent-ink is the readable version;
+   --accent-soft is the pill wash; --accent-line is the hairline.
 
-/* Per-hub accent theming — the shell sets data-hub on <body>, exactly like tc.js. */
-[data-hub="nutrition"], [data-hub="family"], [data-hub="fitness"] { --accent: var(--green); --accent-soft: var(--green-soft); }
-
-/* ── Nutrition: green all the way down, not just the accent ────────────────
-   The hub already borrowed --accent from green; its SURFACES stayed the same
-   paper-and-white as everywhere else, so "the nutrition section" never actually
-   felt like anywhere in particular.
-
-   These tint the surfaces themselves, and they are written as overrides of the
-   existing tokens rather than a parallel palette, so every component that
-   already reads --paper/--card/--line follows for free — the same property that
-   made dark mode a single block on 1 Aug.
-
-   IT RESPECTS LIGHT AND DARK. A hub that forced one or the other would override
-   a choice the citizen made in Settings, and read as a bug to anybody who picked
-   Light. Light gets a pale herb wash; dark gets the deep green of the design. */
-[data-hub="nutrition"] {
-  --paper: #f2f7f2;
-  --card: #ffffff;
-  --line: #dde8de;
-  --ink-soft: #3d4a3f;
-  --muted: #5d6b5f;
-  --green-soft: #e4f0e6;
-  --ok-soft: #dff0e2; --ok-line: #b0d9b7;
-  --warn-soft: #f6f2e2; --warn-line: #ddd2a8;
-  --shadow: 0 1px 2px rgba(20,40,24,.05), 0 8px 24px rgba(20,40,24,.07);
-}
-[data-theme="dark"][data-hub="nutrition"] {
-  --paper: #0e1710;
-  --card: #16241a;
-  --line: #24382a;
-  --ink: #e8f0e8;
-  --ink-soft: #c2d2c4;
-  --muted: #93a596;
-  --green: #5aa06e;          /* lifted: #2e5c3f has too little contrast on #16241a */
-  --green-soft: #1c2e21;
-  --gold-bright: #d9c07a;
-  --ok-soft: #17301e; --ok-line: #2a4d33; --ok-ink: #9adfb0;
-  --warn-soft: #2a2814; --warn-line: #46421f;
-  --danger-soft: #2d1d1d; --danger-line: #4f2e2e;
-  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.45);
-}
-[data-hub="medical"] { --accent: var(--blue); --accent-soft: var(--blue-soft); }
-[data-hub="dating"], [data-hub="beauty"] { --accent: var(--rose); --accent-soft: var(--rose-soft); }
-[data-hub="entertainment"], [data-hub="social"] { --accent: var(--purple); --accent-soft: var(--purple-soft); }
-[data-hub="financial"], [data-hub="realestate"], [data-hub="jobs"], [data-hub="travel"], [data-hub="restaurants"] { --accent: var(--gold); --accent-soft: var(--gold-soft); }
+   Nutrition's surface tint is deliberately NOT here. It used to re-point
+   --paper, --card and --line so the whole hub went green, which is exactly
+   the thing this design stopped doing. Nutrition is green in its dot, its
+   hairline and its chips, and white everywhere a citizen reads.             */
+[data-hub="astrology"]     { --accent:#8a6a12; --accent-ink:#6f5510; --accent-soft:#f7f3e8; --accent-line:#e6dcc2; }
+[data-hub="dating"]        { --accent:#a83553; --accent-ink:#8e2743; --accent-soft:#fbeff2; --accent-line:#eed3da; }
+[data-hub="beauty"]        { --accent:#96406b; --accent-ink:#7d3358; --accent-soft:#faf0f5; --accent-line:#ecd4e0; }
+[data-hub="nutrition"]     { --accent:#2f6b3d; --accent-ink:#255730; --accent-soft:#eff6f1; --accent-line:#d3e5d8; }
+[data-hub="restaurants"]   { --accent:#8a4a1c; --accent-ink:#733c16; --accent-soft:#faf2ec; --accent-line:#e9d8c8; }
+[data-hub="medical"]       { --accent:#1f5f78; --accent-ink:#194f64; --accent-soft:#eef5f8; --accent-line:#cfe1e9; }
+[data-hub="medicines"]     { --accent:#1f5f78; --accent-ink:#194f64; --accent-soft:#eef5f8; --accent-line:#cfe1e9; }
+[data-hub="fitness"]       { --accent:#2d6357; --accent-ink:#245349; --accent-soft:#eef5f3; --accent-line:#d0e2dd; }
+[data-hub="family"]        { --accent:#3d6b2f; --accent-ink:#325826; --accent-soft:#f1f6ef; --accent-line:#d8e6d3; }
+[data-hub="social"]        { --accent:#5b4b8a; --accent-ink:#4b3d74; --accent-soft:#f3f1f9; --accent-line:#dcd6ec; }
+[data-hub="entertainment"] { --accent:#5a3f7a; --accent-ink:#4a3366; --accent-soft:#f4f0f8; --accent-line:#ded3ea; }
+[data-hub="travel"]        { --accent:#1d5b74; --accent-ink:#174b60; --accent-soft:#eef5f8; --accent-line:#cee0e8; }
+[data-hub="realestate"]    { --accent:#4a5a72; --accent-ink:#3d4b60; --accent-soft:#f1f3f7; --accent-line:#d9dee7; }
+[data-hub="jobs"]          { --accent:#5c4a2a; --accent-ink:#4c3d22; --accent-soft:#f6f3ec; --accent-line:#e4dcc9; }
+[data-hub="financial"]     { --accent:#3f5136; --accent-ink:#34432d; --accent-soft:#f2f5f0; --accent-line:#dce3d8; }
+[data-hub="legal"]         { --accent:#4a4a52; --accent-ink:#3d3d44; --accent-soft:#f3f3f4; --accent-line:#dedee1; }
+[data-hub="mail"]          { --accent:#2f5470; --accent-ink:#27455c; --accent-soft:#eff4f8; --accent-line:#d2e0ea; }
+[data-hub="drive"]         { --accent:#4a4a52; --accent-ink:#3d3d44; --accent-soft:#f3f3f4; --accent-line:#dedee1; }
+[data-hub="calendar"]      { --accent:#6a4a2a; --accent-ink:#573d22; --accent-soft:#f7f3ee; --accent-line:#e7dbcc; }
+[data-hub="thoughts"]      { --accent:#4a4a52; --accent-ink:#3d3d44; --accent-soft:#f3f3f4; --accent-line:#dedee1; }
+[data-hub="connections"]   { --accent:#3f5b6b; --accent-ink:#344b58; --accent-soft:#f0f4f6; --accent-line:#d7e2e8; }
+[data-hub="chat"]          { --accent:#3f5b6b; --accent-ink:#344b58; --accent-soft:#f0f4f6; --accent-line:#d7e2e8; }
+[data-hub="cars"]          { --accent:#4a4a52; --accent-ink:#3d3d44; --accent-soft:#f3f3f4; --accent-line:#dedee1; }
+[data-hub="profile"]       { --accent:#4a4a52; --accent-ink:#3d3d44; --accent-soft:#f3f3f4; --accent-line:#dedee1; }
+[data-hub="settings"]      { --accent:#4a4a52; --accent-ink:#3d3d44; --accent-soft:#f3f3f4; --accent-line:#dedee1; }

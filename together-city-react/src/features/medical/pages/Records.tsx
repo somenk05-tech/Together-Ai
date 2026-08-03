@@ -9,9 +9,9 @@ import { declaredSummary, wasAsked } from '@/features/profile/healthConditions';
 import { useAddRecord, useRecords, useStorageUsage, useDeleteRecord, useLatestPanel, useBloodHistory, useIngestBlood, useHealthSummary, medicalApi } from '../api';
 
 const MSTATUS: Record<string, { color: string; bg: string; label: string }> = {
-  low: { color: '#c62828', bg: '#ffebee', label: 'LOW' },
-  high: { color: '#e65100', bg: '#fff3e0', label: 'HIGH' },
-  normal: { color: '#2e7d32', bg: '#e8f5e9', label: 'OK' },
+  low: { color: 'var(--danger-ink)', bg: 'var(--danger-soft)', label: 'LOW' },
+  high: { color: 'var(--warn-ink)', bg: 'var(--warn-soft)', label: 'HIGH' },
+  normal: { color: 'var(--ok-ink)', bg: 'var(--ok-soft)', label: 'OK' },
 };
 
 const KINDS: { key: string; label: string; icon: string }[] = [
@@ -153,7 +153,7 @@ export function Records() {
   const panelCount = history.data?.total ?? (hasPanel ? 1 : 0);
   const tile = (value: string | number, label: string, alert = false) => (
     <div style={{ textAlign: 'center', padding: '10px 6px', border: '1px solid var(--line)', borderRadius: 12 }}>
-      <div style={{ fontSize: 20, fontWeight: 700, color: alert ? '#c0392b' : 'var(--ink)' }}>{value}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: alert ? 'var(--danger-ink)' : 'var(--ink)' }}>{value}</div>
       <div className="muted" style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</div>
     </div>
   );
@@ -231,10 +231,10 @@ export function Records() {
       <p className="muted" style={{ fontSize: 12.5, margin: '10px 0 0' }}>
         <strong>Blood group</strong>{' · '}
         {master.data?.bloodGroup === 'unknown'
-          ? <>You told us you don’t know it. <Link to="/profile/master#medical" style={{ color: 'var(--accent)', fontWeight: 600 }}>Update</Link></>
+          ? <>You told us you don’t know it. <Link to="/profile/master#medical" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Update</Link></>
           : master.data?.bloodGroup
             ? bloodGroupLabel(master.data.bloodGroup)
-            : <>Not recorded. <Link to="/profile/master#medical" style={{ color: 'var(--accent)', fontWeight: 600 }}>Add it</Link></>}
+            : <>Not recorded. <Link to="/profile/master#medical" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Add it</Link></>}
       </p>
 
       {/* Health conditions. Asked once on the Master Profile and read here, for
@@ -248,16 +248,16 @@ export function Records() {
           ? <>
               {declaredSummary(master.data?.healthConditions, master.data?.pregnancyTrimester, master.data?.kidneyStage)}
               {'. '}
-              <Link to="/profile/master#medical" style={{ color: 'var(--accent)', fontWeight: 600 }}>Update</Link>
+              <Link to="/profile/master#medical" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Update</Link>
             </>
-          : <>Not recorded. <Link to="/profile/master#medical" style={{ color: 'var(--accent)', fontWeight: 600 }}>Add them</Link></>}
+          : <>Not recorded. <Link to="/profile/master#medical" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Add them</Link></>}
       </p>
 
       {/* Health highlights — analysis across your reports/panels */}
       <div className="card" style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
           <div className="eyebrow" style={{ margin: 0 }}>Health highlights</div>
-          {hasPanel && <Link to="/medical/blood" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)' }}>Full analysis →</Link>}
+          {hasPanel && <Link to="/medical/blood" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)' }}>Full analysis →</Link>}
         </div>
 
         {hasPanel && panel ? (
@@ -275,9 +275,9 @@ export function Records() {
             {panel.alerts.length > 0 && (
               <div style={{ marginTop: 12 }}>
                 {panel.alerts.map((a) => (
-                  <div key={a.key + a.value} style={{ display: 'flex', gap: 10, padding: '10px 12px', borderRadius: 12, marginBottom: 8, background: a.urgent ? '#fdecea' : '#fff3e0', border: `1.5px solid ${a.urgent ? '#c62828' : '#e65100'}` }}>
+                  <div key={a.key + a.value} style={{ display: 'flex', gap: 10, padding: '10px 12px', borderRadius: 12, marginBottom: 8, background: a.urgent ? 'var(--danger-soft)' : 'var(--warn-soft)', border: `1.5px solid ${a.urgent ? 'var(--danger-ink)' : 'var(--warn-ink)'}` }}>
                     <span style={{ fontSize: 17 }}>{a.urgent ? '🚑' : '⚠️'}</span>
-                    <div style={{ fontSize: 12.5 }}><b style={{ color: a.urgent ? '#c62828' : '#e65100' }}>{a.label} {a.value}</b> — {a.message}</div>
+                    <div style={{ fontSize: 12.5 }}><b style={{ color: a.urgent ? 'var(--danger-ink)' : 'var(--warn-ink)' }}>{a.label} {a.value}</b> — {a.message}</div>
                   </div>
                 ))}
               </div>
@@ -299,7 +299,7 @@ export function Records() {
               // about the citizen made from a band that is not theirs. The server
               // states what the markers actually cleared, and names the band.
               // See range-basis.ts; the old wording is banned by its spec.
-              <p style={{ fontSize: 12.5, marginTop: 12, color: '#2e7d32' }}>✓ {panel.inRangeLine}</p>
+              <p style={{ fontSize: 12.5, marginTop: 12, color: 'var(--ok-ink)' }}>✓ {panel.inRangeLine}</p>
             )}
 
             {panel.rangeNote && (
@@ -329,7 +329,7 @@ export function Records() {
                 {summary.data.interpretation[0] && (
                   <p style={{ fontSize: 12.5, margin: '8px 0 0', color: 'var(--ink-soft)' }}>{summary.data.interpretation[0]}</p>
                 )}
-                <Link to="/medical/blood" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)', display: 'inline-block', marginTop: 8 }}>Read the full analysis →</Link>
+                <Link to="/medical/blood" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)', display: 'inline-block', marginTop: 8 }}>Read the full analysis →</Link>
               </div>
             )}
 
@@ -345,7 +345,7 @@ export function Records() {
           </p>
         ) : (
           <p className="muted" style={{ fontSize: 13, margin: '6px 0 0' }}>
-            No blood panels analysed yet. Upload a <strong>Blood Tests</strong> report below (or on <Link to="/medical/blood" style={{ color: 'var(--accent)', fontWeight: 600 }}>Blood Test Analysis</Link>) — it's read and analysed automatically, and your key markers, flags and trends appear here.
+            No blood panels analysed yet. Upload a <strong>Blood Tests</strong> report below (or on <Link to="/medical/blood" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Blood Test Analysis</Link>) — it's read and analysed automatically, and your key markers, flags and trends appear here.
           </p>
         )}
       </div>
@@ -358,7 +358,7 @@ export function Records() {
             <span className="muted" style={{ fontSize: 12 }}>{fmtBytes(s.usedBytes)} of {fmtBytes(s.quotaBytes)} used</span>
           </div>
           <div style={{ height: 8, borderRadius: 999, background: 'var(--line)', marginTop: 10, overflow: 'hidden' }}>
-            <div style={{ width: `${Math.max(1, s.usedPct)}%`, height: '100%', background: s.usedPct > 90 ? '#c62828' : 'var(--accent)' }} />
+            <div style={{ width: `${Math.max(1, s.usedPct)}%`, height: '100%', background: s.usedPct > 90 ? 'var(--danger-ink)' : 'var(--accent)' }} />
           </div>
           <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
             Shared with your city mailbox · Mail {fmtBytes(s.mailBytes)} · Health documents {fmtBytes(s.healthBytes)}
@@ -372,7 +372,7 @@ export function Records() {
           {KINDS.map((k) => (
             <button key={k.key} type="button" onClick={() => setKind(k.key)}
               style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 14px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
-                border: '1.5px solid var(--line)', background: kind === k.key ? 'var(--accent)' : 'transparent', color: kind === k.key ? '#fff' : 'var(--ink-soft)' }}>
+                border: '1.5px solid var(--line)', background: kind === k.key ? 'var(--accent)' : 'transparent', color: kind === k.key ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
               {k.icon} {k.label}
             </button>
           ))}
@@ -390,8 +390,8 @@ export function Records() {
           Attach a report, prescription or scan (JPG, PNG, PDF) — it's stored in your vault.
           {kind === 'blood-test' && <> A <strong>Blood Tests</strong> report is read and analysed automatically, and shared with Blood Test Analysis.</>}
         </p>
-        {err && <p style={{ fontSize: 12.5, color: '#c62828', marginTop: 8 }}>{err}</p>}
-        {ingestNote && <p style={{ fontSize: 12.5, marginTop: 8, padding: '8px 10px', background: '#e8f5e9', borderRadius: 8 }}>✓ {ingestNote}</p>}
+        {err && <p style={{ fontSize: 12.5, color: 'var(--danger-ink)', marginTop: 8 }}>{err}</p>}
+        {ingestNote && <p style={{ fontSize: 12.5, marginTop: 8, padding: '8px 10px', background: 'var(--ok-soft)', borderRadius: 8 }}>✓ {ingestNote}</p>}
         <div style={{ marginTop: 12 }}>
           <Button type="submit" variant="accent" disabled={busy || add.isPending}>
             {busy ? (kind === 'blood-test' && file ? 'Reading & analysing…' : 'Uploading…') : add.isPending ? 'Saving…' : file ? (kind === 'blood-test' ? 'Upload & analyse' : 'Upload & save') : 'Add record'}
@@ -424,17 +424,17 @@ export function Records() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
                       {r.hasFile && (
                         <button type="button" onClick={() => void openFile(r.id)}
-                          style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontSize: 12.5, fontWeight: 600, color: 'var(--accent)', fontFamily: 'inherit' }}>
+                          style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)', fontFamily: 'inherit' }}>
                           View file{r.sizeBytes ? ` · ${fmtBytes(r.sizeBytes)}` : ''} ↗
                         </button>
                       )}
                       {r.analyzed && (
-                        <Link to="/medical/blood" style={{ fontSize: 12.5, fontWeight: 600, color: '#2e7d32' }}>
+                        <Link to="/medical/blood" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ok-ink)' }}>
                           Analysis ready →
                         </Link>
                       )}
                       <button type="button" onClick={() => del.mutate(r.id)} disabled={del.isPending}
-                        style={{ marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', color: '#c62828', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit' }}>
+                        style={{ marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--danger-ink)', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit' }}>
                         Delete
                       </button>
                     </div>

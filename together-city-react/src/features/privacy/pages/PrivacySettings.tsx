@@ -63,21 +63,21 @@ export function PrivacySettings() {
       {Object.values(SENSITIVE_HUBS).map((h) => (
         <div key={h.hub} className="card" style={{ marginBottom: 10, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           <span style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--accent-soft)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-            <Icon name={h.icon} size={17} style={{ color: 'var(--accent)' }} />
+            <Icon name={h.icon} size={17} style={{ color: 'var(--accent-ink)' }} />
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 14 }}>{h.label}</div>
             <div className="muted" style={{ fontSize: 12.5, marginTop: 2, lineHeight: 1.55 }}>{h.promise}</div>
           </div>
-          <span style={{ fontSize: 11, fontWeight: 700, color: acks[h.hub] ? '#2e7d32' : 'var(--muted)', flexShrink: 0, marginTop: 3 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: acks[h.hub] ? 'var(--ok-ink)' : 'var(--muted)', flexShrink: 0, marginTop: 3 }}>
             {acks[h.hub] ? '● Reviewed' : '○ Not yet'}
           </span>
         </div>
       ))}
 
       <p className="muted" style={{ fontSize: 12, marginTop: 22 }}>
-        Read the full <Link to="/legal/privacy" style={{ color: 'var(--accent)' }}>Privacy Policy</Link> and{' '}
-        <Link to="/legal/terms" style={{ color: 'var(--accent)' }}>Terms of Service</Link>.
+        Read the full <Link to="/legal/privacy" style={{ color: 'var(--accent-ink)' }}>Privacy Policy</Link> and{' '}
+        <Link to="/legal/terms" style={{ color: 'var(--accent-ink)' }}>Terms of Service</Link>.
         {tos ? ' You accepted these when you joined.' : ''}
       </p>
     </div>

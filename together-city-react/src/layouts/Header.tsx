@@ -20,7 +20,7 @@ function Badge({ count }: { count: number }) {
   return (
     <span aria-label={`${count} pending requests`} style={{
       position: 'absolute', top: -6, right: -8, minWidth: 16, height: 16, padding: '0 4px',
-      borderRadius: 999, background: '#e0342b', color: '#fff', fontSize: 10, fontWeight: 700,
+      borderRadius: 999, background: 'var(--danger-ink)', color: 'var(--on-accent)', fontSize: 10, fontWeight: 700,
       display: 'grid', placeItems: 'center', lineHeight: 1,
     }}>{count > 9 ? '9+' : count}</span>
   );
@@ -79,11 +79,11 @@ function NotificationBell() {
       </button>
       {open && (
         <div style={{ position: 'absolute', top: 'calc(100% + 10px)', right: 0, width: 340, maxHeight: 460, overflowY: 'auto',
-          background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, boxShadow: '0 12px 40px rgba(0,0,0,.18)', zIndex: 90 }}>
+          background: 'var(--card)', border: 0, borderRadius: 20, boxShadow: 'var(--e3)', zIndex: 90 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
             <strong style={{ fontSize: 14 }}>Notifications</strong>
             {items.some((n) => !n.read) && (
-              <button type="button" onClick={() => markAll.mutate()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}>Mark all read</button>
+              <button type="button" onClick={() => markAll.mutate()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-ink)', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}>Mark all read</button>
             )}
           </div>
           {items.length === 0 ? (
@@ -92,7 +92,7 @@ function NotificationBell() {
             <button key={n.id} type="button" onClick={() => openItem(n.id, n.href, n.read)}
               style={{ display: 'flex', gap: 10, width: '100%', textAlign: 'left', padding: '11px 14px', border: 'none', borderBottom: '1px solid var(--line)',
                 background: n.read ? 'transparent' : 'var(--accent-soft)', cursor: 'pointer', fontFamily: 'inherit' }}>
-              <Icon name={ICON_FOR[n.kind] ?? 'bell'} size={16} style={{ marginTop: 1, color: 'var(--accent)' }} />
+              <Icon name={ICON_FOR[n.kind] ?? 'bell'} size={16} style={{ marginTop: 1, color: 'var(--accent-ink)' }} />
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 13, fontWeight: n.read ? 500 : 700 }}>{n.title}</span>
                 {n.body && <span className="muted" style={{ display: 'block', fontSize: 12, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.body}</span>}
@@ -101,7 +101,7 @@ function NotificationBell() {
             </button>
           ))}
           <button type="button" onClick={() => { setOpen(false); nav('/social/notifications'); }}
-            style={{ display: 'block', width: '100%', textAlign: 'center', padding: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--accent)', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }}>
+            style={{ display: 'block', width: '100%', textAlign: 'center', padding: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--accent-ink)', fontWeight: 600, fontSize: 13, fontFamily: 'inherit' }}>
             See all notifications →
           </button>
         </div>
@@ -162,7 +162,7 @@ export function Header() {
               <Link to="/sign-in" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--chip-fs)', letterSpacing: '.05em', fontWeight: 600, textTransform: 'uppercase' }}>
                 <Icon name="user" size={17} /> <span className="lab">SIGN IN</span>
               </Link>
-              <Link to="/sign-up" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--chip-fs)', letterSpacing: '.06em', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)' }}>
+              <Link to="/sign-up" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--chip-fs)', letterSpacing: '.06em', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent-ink)' }}>
                 JOIN THE CITY
               </Link>
             </>

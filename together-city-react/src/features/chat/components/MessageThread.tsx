@@ -7,7 +7,7 @@ function Ticks({ status }: { status?: Message['status'] }) {
   if (!status) return null;
   const read = status === 'READ';
   const double = status === 'DELIVERED' || status === 'READ';
-  const color = read ? '#2f9fe0' : 'var(--muted, #8a8a8a)';
+  const color = read ? 'var(--info-ink)' : 'var(--muted)';
   return (
     <span aria-label={status.toLowerCase()} style={{ color, marginLeft: 4, letterSpacing: -2, fontSize: 12, fontWeight: 700 }}>
       {double ? '✓✓' : '✓'}
@@ -17,11 +17,11 @@ function Ticks({ status }: { status?: Message['status'] }) {
 
 const CSS = `
 .tc-msg-row{position:relative}
-.tc-msg-actions{opacity:0;pointer-events:none;transition:opacity .15s ease;position:absolute;top:-14px;display:flex;gap:2px;background:var(--card,#fff);border:1px solid var(--line,#e5e2da);border-radius:999px;padding:2px 4px;box-shadow:0 4px 14px rgba(0,0,0,.1);z-index:5}
+.tc-msg-actions{opacity:0;pointer-events:none;transition:opacity .15s ease;position:absolute;top:-14px;display:flex;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:2px 4px;box-shadow:0 4px 14px rgba(0,0,0,.1);z-index:5}
 .tc-msg-row:hover .tc-msg-actions,.tc-msg-row.touch-open .tc-msg-actions{opacity:1;pointer-events:auto}
-.tc-msg-actions button{border:none;background:none;cursor:pointer;font-size:12px;padding:4px 7px;border-radius:999px;font-family:inherit;color:var(--ink-soft,#555);line-height:1}
-.tc-msg-actions button:hover{background:var(--paper,#f4f1ea)}
-.tc-msg-actions button.danger{color:#b0503e}
+.tc-msg-actions button{border:none;background:none;cursor:pointer;font-size:12px;padding:4px 7px;border-radius:999px;font-family:inherit;color:var(--ink-soft);line-height:1}
+.tc-msg-actions button:hover{background:var(--paper)}
+.tc-msg-actions button.danger{color:var(--danger-ink)}
 .tc-msg-collapse{overflow:visible;max-height:2000px;transition:max-height .25s ease,opacity .25s ease,margin .25s ease}
 .tc-msg-collapsing{max-height:0!important;opacity:0;margin:0!important;overflow:hidden}
 `;
@@ -47,9 +47,9 @@ function ConfirmDelete({ mine, canEveryone, onCancel, onDelete }: {
         </p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <button type="button" className="btn btn-line btn-sm" onClick={onCancel}>Cancel</button>
-          <button type="button" className="btn btn-line btn-sm" style={{ color: '#b0503e', borderColor: '#e2b3a8' }} onClick={() => onDelete('ME')}>Delete for me</button>
+          <button type="button" className="btn btn-line btn-sm" style={{ color: 'var(--danger-ink)', borderColor: 'var(--danger-line)' }} onClick={() => onDelete('ME')}>Delete for me</button>
           {canEveryone && (
-            <button type="button" className="btn btn-sm" style={{ background: '#b0503e', color: '#fff', border: 'none' }} onClick={() => onDelete('EVERYONE')}>Delete for everyone</button>
+            <button type="button" className="btn btn-sm" style={{ background: 'var(--danger-ink)', color: 'var(--on-accent)', border: 'none' }} onClick={() => onDelete('EVERYONE')}>Delete for everyone</button>
           )}
         </div>
       </div>
@@ -134,7 +134,7 @@ export function MessageThread({ messages, currentUserId, typing, onDelete, onEdi
               <>
                 {m.body && (
                   <div style={{
-                    background: mine ? 'var(--accent)' : 'var(--card)', color: mine ? '#fff' : 'var(--ink)',
+                    background: mine ? 'var(--accent)' : 'var(--card)', color: mine ? 'var(--on-accent)' : 'var(--ink)',
                     border: mine ? 'none' : '1px solid var(--line)', borderRadius: 16, padding: '9px 14px', fontSize: 14,
                     marginBottom: m.share ? 6 : 0,
                   }}>{m.body}</div>

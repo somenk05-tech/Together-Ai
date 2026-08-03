@@ -5,7 +5,7 @@ import { useDatingAdminStats } from '../api';
 function Stat({ label, value, hint }: { label: string; value: number | string; hint?: string }) {
   return (
     <div className="card" style={{ padding: '16px 18px' }}>
-      <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--accent-ink)', lineHeight: 1 }}>{value}</div>
       <div style={{ fontWeight: 700, fontSize: 13.5, marginTop: 6 }}>{label}</div>
       {hint && <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{hint}</div>}
     </div>

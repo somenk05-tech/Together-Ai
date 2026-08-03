@@ -151,7 +151,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
                 {suggestions.map((s) => (
                   <button key={s} type="button" onClick={() => setHandle(s)} className="tc-pop"
-                    style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, border: '1.5px solid var(--line)', borderRadius: 999, padding: '4px 11px', background: 'var(--paper)', fontFamily: 'inherit', color: 'var(--accent)' }}>@{s}</button>
+                    style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, border: '1.5px solid var(--line)', borderRadius: 999, padding: '4px 11px', background: 'var(--paper)', fontFamily: 'inherit', color: 'var(--accent-ink)' }}>@{s}</button>
                 ))}
               </div>
             </div>
@@ -196,7 +196,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
         {/* Phone (progressive) */}
         {!showPhone ? (
           <button type="button" onClick={() => setShowPhone(true)}
-            style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>+ Add phone number (optional)</button>
+            style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--accent-ink)', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>+ Add phone number (optional)</button>
         ) : (
           <input type="tel" value={phone} placeholder="Phone (optional)" name="tel" autoComplete="tel" inputMode="tel" aria-label="Phone"
             onChange={(e) => setPhone(e.target.value)} className="tc-field" style={{ ...field, marginTop: 12 }} />
@@ -208,8 +208,8 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
             style={{ marginTop: 2, width: 16, height: 16, accentColor: 'var(--accent)', flexShrink: 0 }} />
           <span>
             I agree to the{' '}
-            <Link to="/legal/terms" target="_blank" style={{ color: 'var(--accent)', fontWeight: 600 }}>Terms of Service</Link>{' '}and{' '}
-            <Link to="/legal/privacy" target="_blank" style={{ color: 'var(--accent)', fontWeight: 600 }}>Privacy Policy</Link>.
+            <Link to="/legal/terms" target="_blank" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Terms of Service</Link>{' '}and{' '}
+            <Link to="/legal/privacy" target="_blank" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Privacy Policy</Link>.
             <span id="tos-note" className="muted" style={{ display: 'block', marginTop: 3 }}>
               Your data is yours. Sensitive information — health, dating, finances — stays private by default and is only used to personalize the features you choose.
             </span>
@@ -225,7 +225,7 @@ export function RegisterForm({ onBackToLogin, from }: { onBackToLogin: () => voi
 
       <p className="muted" style={{ fontSize: 12.5, marginTop: 16, textAlign: 'center' }}>
         Already have an account?{' '}
-        <button type="button" onClick={onBackToLogin} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, cursor: 'pointer' }}>Sign In</button>
+        <button type="button" onClick={onBackToLogin} style={{ background: 'none', border: 'none', color: 'var(--accent-ink)', fontWeight: 600, cursor: 'pointer' }}>Sign In</button>
       </p>
     </>
   );

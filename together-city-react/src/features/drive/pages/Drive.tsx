@@ -25,13 +25,13 @@ function UsageBar() {
       </div>
       <div style={{ height: 8, borderRadius: 999, background: 'var(--paper)', border: '1px solid var(--line)', overflow: 'hidden', display: 'flex' }}>
         <div style={{ width: `${Math.min(100, (u.driveBytes / u.quotaBytes) * 100)}%`, background: 'var(--accent)' }} />
-        <div style={{ width: `${Math.min(100, (u.healthBytes / u.quotaBytes) * 100)}%`, background: '#3a6ea5' }} />
-        <div style={{ width: `${Math.min(100, (u.mailBytes / u.quotaBytes) * 100)}%`, background: '#b08d3e' }} />
+        <div style={{ width: `${Math.min(100, (u.healthBytes / u.quotaBytes) * 100)}%`, background: 'var(--info-ink)' }} />
+        <div style={{ width: `${Math.min(100, (u.mailBytes / u.quotaBytes) * 100)}%`, background: 'var(--accent-ink)' }} />
       </div>
       <div style={{ display: 'flex', gap: 14, marginTop: 7, fontSize: 11.5, flexWrap: 'wrap' }}>
         {seg('Drive', u.driveBytes, 'var(--accent)')}
-        {seg('Health', u.healthBytes, '#3a6ea5')}
-        {seg('Mail', u.mailBytes, '#b08d3e')}
+        {seg('Health', u.healthBytes, 'var(--info-ink)')}
+        {seg('Mail', u.mailBytes, 'var(--accent-ink)')}
         {u.usedBytes === 0 && <span className="muted">Nothing stored yet.</span>}
       </div>
     </div>
@@ -154,7 +154,7 @@ export function Drive() {
       </div>
 
       {error && (
-        <p role="alert" style={{ color: '#c0392b', fontSize: 13, margin: '0 0 12px' }}>{error}</p>
+        <p role="alert" style={{ color: 'var(--danger-ink)', fontSize: 13, margin: '0 0 12px' }}>{error}</p>
       )}
 
       {listing.isLoading && <Spinner label="Loading your drive…" />}
@@ -180,7 +180,7 @@ export function Drive() {
               <button type="button" onClick={() => renameFolder(d)} title="Rename"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 13 }}>Rename</button>
               <button type="button" onClick={() => removeFolder(d)} title="Delete"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', fontSize: 13 }}>Delete</button>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger-ink)', fontSize: 13 }}>Delete</button>
             </div>
           ))}
 
@@ -197,11 +197,11 @@ export function Drive() {
                 </span>
               </button>
               <button type="button" onClick={() => void openFile(f)} title="Download"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 13 }}>Download</button>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-ink)', fontSize: 13 }}>Download</button>
               <button type="button" onClick={() => renameFile(f)} title="Rename"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 13 }}>Rename</button>
               <button type="button" onClick={() => removeFile(f)} title="Delete"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', fontSize: 13 }}>Delete</button>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger-ink)', fontSize: 13 }}>Delete</button>
             </div>
           ))}
         </div>

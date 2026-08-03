@@ -24,8 +24,8 @@ function ItemRow({ item, checked, onToggle }: { item: GroceryPlanItem; checked: 
           style={{ minWidth: 44, minHeight: 44, 
             flex: 'none', width: 22, height: 22, borderRadius: 7, cursor: 'pointer',
             border: checked ? 'none' : '1.8px solid var(--line)',
-            background: checked ? 'var(--accent, #1e8449)' : 'transparent',
-            color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: checked ? 'var(--accent)' : 'transparent',
+            color: 'var(--on-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 13, fontWeight: 900, transition: 'all .12s', padding: 0,
           }}
         >
@@ -53,7 +53,7 @@ function ItemRow({ item, checked, onToggle }: { item: GroceryPlanItem; checked: 
           <span style={{ fontWeight: 700, fontSize: 13.5 }}>{item.qtyLabel}</span>
           {/* Pantry-aware: don't ask them to re-buy what's already on the shelf. */}
           {item.inPantry && (item.haveGrams ?? 0) > 0 && (
-            <span style={{ display: 'block', fontSize: 10.5, fontWeight: 700, color: '#2e7d47' }}>
+            <span style={{ display: 'block', fontSize: 10.5, fontWeight: 700, color: 'var(--ok-ink)' }}>
               {(item.toBuyGrams ?? 0) > 0 ? `have ${item.haveQtyLabel} · buy ${item.toBuyQtyLabel}` : '✓ already in pantry'}
             </span>
           )}
@@ -204,7 +204,7 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
       <span style={{ flex: 1, minWidth: 200 }}>
         This list is built from the days you have locked in your meal plan.
       </span>
-      <Link to="/nutrition/weekly" style={{ fontWeight: 600, color: 'var(--accent)', textDecoration: 'none' }}>
+      <Link to="/nutrition/weekly" style={{ fontWeight: 600, color: 'var(--accent-ink)', textDecoration: 'none' }}>
         Open meal plan →
       </Link>
     </div>
@@ -317,7 +317,7 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
             <span className="muted" style={{ fontSize: 12.5 }}>items checked off</span>
           </div>
           <div style={{ height: 6, borderRadius: 999, background: 'var(--line)', marginTop: 6, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${itemCount ? (checkedCount / itemCount) * 100 : 0}%`, background: 'var(--accent, #1e8449)', borderRadius: 999, transition: 'width .2s' }} />
+            <div style={{ height: '100%', width: `${itemCount ? (checkedCount / itemCount) * 100 : 0}%`, background: 'var(--accent)', borderRadius: 999, transition: 'width .2s' }} />
           </div>
         </div>
         <div style={{ display: 'inline-flex', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 999, padding: 3 }}>
@@ -327,7 +327,7 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
               onClick={() => setView(v)}
               style={{
                 border: 'none', cursor: 'pointer', borderRadius: 999, padding: '6px 16px', fontSize: 12.5, fontWeight: 700,
-                background: view === v ? 'var(--card, #fff)' : 'transparent',
+                background: view === v ? 'var(--card)' : 'transparent',
                 color: view === v ? 'var(--ink)' : 'var(--muted)',
                 boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none', transition: 'all .12s',
               }}
@@ -343,7 +343,7 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
           {/* A tick that silently did not save is worse than one that visibly
               failed — in a shop you act on what the list says. */}
           {failedNote && (
-            <p style={{ fontSize: 12.5, color: '#c62828', margin: '0 0 10px' }}>{failedNote}</p>
+            <p style={{ fontSize: 12.5, color: 'var(--danger-ink)', margin: '0 0 10px' }}>{failedNote}</p>
           )}
           {aisles.map((a) => <Aisle key={a.key} aisle={a} checked={checked} toggle={toggle} />)}
         </>

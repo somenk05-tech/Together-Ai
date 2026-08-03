@@ -64,7 +64,7 @@ export function Blood() {
             </p>
             <p className="muted" style={{ fontSize: 12.5, margin: '10px 0 0', lineHeight: 1.6 }}>
               If you came here to turn it off, you can read and change the same setting in{' '}
-              <Link to="/medical/consent" style={{ color: 'var(--accent)', fontWeight: 600 }}>Medical Hub · Privacy &amp; Consent</Link>.
+              <Link to="/medical/consent" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Medical Hub · Privacy &amp; Consent</Link>.
             </p>
             <div style={{ marginTop: 12 }}>
               <Button variant="line" onClick={() => void consents.refetch()}>Try again</Button>
@@ -98,13 +98,13 @@ export function Blood() {
           <p style={{ fontSize: 12.5, marginTop: 12, padding: '10px 12px', background: 'var(--ok-soft)', borderRadius: 10, lineHeight: 1.55 }}>
             ✓ Connected — your plans are personalised from your blood test.{' '}
             {hasPanel
-              ? <Link to="/medical/blood" style={{ color: 'var(--accent)', fontWeight: 600 }}>View your analysis →</Link>
-              : <>No panel yet — <Link to="/medical/blood" style={{ color: 'var(--accent)', fontWeight: 600 }}>upload a report in the Medical Hub →</Link></>}
+              ? <Link to="/medical/blood" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>View your analysis →</Link>
+              : <>No panel yet — <Link to="/medical/blood" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>upload a report in the Medical Hub →</Link></>}
           </p>
         ) : (
           <p className="muted" style={{ fontSize: 12.5, marginTop: 12, lineHeight: 1.55 }}>
             Turn on to design recipes and plans around your biology. You can switch this off anytime — here or in{' '}
-            <Link to="/medical/consent" style={{ color: 'var(--accent)', fontWeight: 600 }}>Medical Hub · Privacy &amp; Consent</Link>.
+            <Link to="/medical/consent" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Medical Hub · Privacy &amp; Consent</Link>.
           </p>
         )}
           </>

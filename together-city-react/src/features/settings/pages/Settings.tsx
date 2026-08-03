@@ -6,7 +6,6 @@ import { Card, Button } from '@/components/ui';
 import { authApi, type SessionInfo } from '@/api/auth.api';
 import { http } from '@/api/client';
 import { useMyProfile } from '@/features/social/myProfile.api';
-import { useThemeStore } from '@/store/theme.store';
 
 
 /** A labelled row inside a settings card. */
@@ -29,7 +28,7 @@ function SectionTitle({ eyebrow, title, link }: { eyebrow?: string; title: strin
         {eyebrow && <div className="eyebrow">{eyebrow}</div>}
         <h3 style={{ margin: 0 }}>{title}</h3>
       </div>
-      {link && <Link to={link.to} style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>{link.label} →</Link>}
+      {link && <Link to={link.to} style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 600 }}>{link.label} →</Link>}
     </div>
   );
 }
@@ -77,7 +76,7 @@ function DevicesCard() {
           title={labelUA(s.device)}
           desc={`${s.current ? 'This device · ' : ''}Active ${timeAgo(s.lastUsedAt)}${s.ip ? ` · ${s.ip}` : ''}`}
           right={s.current
-            ? <span className="tag" style={{ background: 'var(--accent)', color: '#fff' }}>Current</span>
+            ? <span className="tag" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>Current</span>
             : <Button size="sm" variant="line" disabled={busy} onClick={() => void act(() => authApi.revokeSession(s.id))}>Log out</Button>}
         />
       ))}
@@ -100,8 +99,6 @@ export function Settings() {
   // every read of this profile rather than carried in the token, so revoking it
   // takes effect on the next request instead of on the next sign-in.
   const me = useMyProfile();
-  const themeMode = useThemeStore((s) => s.mode);
-  const setThemeMode = useThemeStore((s) => s.setMode);
 
   const [exporting, setExporting] = useState(false);
   // GET /privacy/export has existed server-side since the purge work — the
@@ -156,7 +153,7 @@ export function Settings() {
       <Card style={{ marginTop: 22 }}>
         <SectionTitle eyebrow="Privacy" title="Which hubs may read your Medical data" link={{ to: '/medical/records', label: 'Medical Records' }} />
         <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 4px' }}>
-          Sharing is consent-scoped. Grant or revoke each connection from your <Link to="/medical/consent" style={{ color: 'var(--accent)' }}>consent centre</Link>.
+          Sharing is consent-scoped. Grant or revoke each connection from your <Link to="/medical/consent" style={{ color: 'var(--accent-ink)' }}>consent centre</Link>.
         </p>
         <Row title="Nutrition" desc="Blood reports adjust meal plans & supplement dosage" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
         <Row title="Family" desc="Share conditions with linked family TC-IDs" right={<Link to="/medical/consent" className="tag">Manage</Link>} />
@@ -183,24 +180,6 @@ export function Settings() {
             A control that only remembers being touched is an invented feature;
             the golden rule applies to switches too. */}
         <Row title="Muting a conversation" desc="Lives in each chat's own menu — it silences that thread everywhere, including here." right={<span className="tag">In chat</span>} />
-      </Card>
-
-      {/* Appearance — light / dark / follow the OS */}
-      <Card style={{ marginTop: 18 }}>
-        <SectionTitle eyebrow="Appearance" title="Light or dark" />
-        <Row title="Theme" desc="Dark mode rests the eyes at night; System follows your device."
-          right={
-            <div style={{ display: 'flex', gap: 6 }}>
-              {(['light', 'dark', 'system'] as const).map((m) => (
-                <button key={m} type="button" onClick={() => setThemeMode(m)}
-                  className="tag"
-                  style={{ cursor: 'pointer', fontFamily: 'inherit', border: themeMode === m ? '1px solid var(--accent)' : '1px solid transparent',
-                    color: themeMode === m ? 'var(--accent)' : undefined, textTransform: 'capitalize' }}>
-                  {m}
-                </button>
-              ))}
-            </div>
-          } />
       </Card>
 
       {/* Devices — real, backend-driven session manager */}
@@ -267,13 +246,13 @@ export function Settings() {
             style={{ flex: 1, minWidth: 170, padding: '9px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'inherit', fontSize: 14 }}
           />
           <Button size="sm" variant="line" disabled={confirmText !== 'DELETE' || !deletePassword || deleting}
-            style={confirmText === 'DELETE' && deletePassword ? { borderColor: '#e0342b', color: '#e0342b' } : undefined}
+            style={confirmText === 'DELETE' && deletePassword ? { borderColor: 'var(--danger-ink)', color: 'var(--danger-ink)' } : undefined}
             onClick={() => void deleteAccount()}>
             {deleting ? 'Deleting…' : 'Delete my account'}
           </Button>
         </div>
         {deleteError && (
-          <p role="alert" style={{ fontSize: 12.5, marginTop: 10, color: '#e0342b' }}>{deleteError}</p>
+          <p role="alert" style={{ fontSize: 12.5, marginTop: 10, color: 'var(--danger-ink)' }}>{deleteError}</p>
         )}
       </Card>
     </div>

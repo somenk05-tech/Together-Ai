@@ -19,7 +19,7 @@ export function Spending() {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
           <div style={{ fontSize: 34, fontWeight: 800 }}>{inr(s.totalInr)}</div>
           {s.trendPct !== null && (
-            <span style={{ fontSize: 13, fontWeight: 700, color: s.trendPct > 0 ? '#c62828' : '#2e7d32' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: s.trendPct > 0 ? 'var(--danger-ink)' : 'var(--ok-ink)' }}>
               {s.trendPct > 0 ? '▲' : '▼'} {Math.abs(s.trendPct)}% vs last month
             </span>
           )}

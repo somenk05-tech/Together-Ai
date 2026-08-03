@@ -47,12 +47,12 @@ export function SharedMeal() {
         <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', background: meal.i ? 'var(--line)' : tint(meal.t) }}>
           {meal.i && <img src={meal.i} alt={meal.t} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
           {meal.l && (
-            <span style={{ position: 'absolute', top: 12, left: 12, background: 'var(--ink)', color: '#fff', fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: 8 }}>{meal.l}</span>
+            <span style={{ position: 'absolute', top: 12, left: 12, background: 'var(--ink)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: 8 }}>{meal.l}</span>
           )}
         </div>
 
         <div style={{ padding: '18px 20px 22px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent)' }}>Shared meal</div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-ink)' }}>Shared meal</div>
           <h1 style={{ fontSize: 22, margin: '4px 0 0', lineHeight: 1.25, letterSpacing: '-.01em' }}>{meal.t}</h1>
 
           {(meal.k || (meal.m && meal.m.length > 0)) && (
@@ -75,7 +75,7 @@ export function SharedMeal() {
                   <span aria-hidden style={{ width: 40, height: 40, borderRadius: 10, background: tint(recipeId || name), flex: '0 0 auto' }} />
                   <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{name}</span>
                   <span style={{ fontSize: 12.5, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{Math.round(kcal)} kcal</span>
-                  {clickable && <span aria-hidden style={{ color: 'var(--accent)', fontSize: 16 }}>›</span>}
+                  {clickable && <span aria-hidden style={{ color: 'var(--accent-ink)', fontSize: 16 }}>›</span>}
                 </>
               );
               const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 12, padding: '11px 4px', borderTop: i ? '1px solid var(--line)' : 'none', textAlign: 'left', width: '100%' };
@@ -90,7 +90,7 @@ export function SharedMeal() {
       </div>
 
       <p className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 16, lineHeight: 1.5 }}>
-        Like this plate? <Link to="/nutrition/weekly" style={{ color: 'var(--accent)', fontWeight: 600 }}>Build your own meal plan →</Link>
+        Like this plate? <Link to="/nutrition/weekly" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Build your own meal plan →</Link>
       </p>
     </div>
   );

@@ -20,7 +20,7 @@ function Choice({ on, label, onClick }: { on: boolean; label: string; onClick: (
   return (
     <button type="button" onClick={onClick}
       style={{ cursor: 'pointer', borderRadius: 999, padding: '8px 15px', fontSize: 13, fontFamily: 'inherit', fontWeight: 600,
-        border: '1.5px solid var(--line)', background: on ? 'var(--accent)' : 'transparent', color: on ? '#fff' : 'var(--ink-soft)' }}>
+        border: '1.5px solid var(--line)', background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
       {label}
     </button>
   );
@@ -103,7 +103,7 @@ export function Profile() {
               <span style={{ fontSize: 13, textAlign: 'right' }}>{val}</span>
             </div>
           ))}
-          <p className="muted" style={{ fontSize: 11.5, marginTop: 12 }}>Shared details (age, height, weight) also live in your <Link to="/profile" style={{ color: 'var(--accent)', fontWeight: 600 }}>Master Profile</Link>.</p>
+          <p className="muted" style={{ fontSize: 11.5, marginTop: 12 }}>Shared details (age, height, weight) also live in your <Link to="/profile" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Master Profile</Link>.</p>
         </div>
       </div>
     );
@@ -180,12 +180,12 @@ export function Profile() {
           <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             Height
             <input ref={(el) => v.reg('height')(el)} type="number" min={120} max={230} value={heightCm} onChange={(e) => { setHeightCm(e.target.value === '' ? '' : Number(e.target.value)); v.clear('height'); }} placeholder="cm"
-              style={{ width: 84, padding: '8px 10px', border: `1.5px solid ${v.errors.height ? '#c0392b' : 'var(--line)'}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+              style={{ width: 84, padding: '8px 10px', border: `1.5px solid ${v.errors.height ? 'var(--danger-ink)' : 'var(--line)'}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
           </label>
           <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             Weight
             <input ref={(el) => v.reg('weight')(el)} type="number" min={30} max={300} value={weightKg} onChange={(e) => { setWeightKg(e.target.value === '' ? '' : Number(e.target.value)); v.clear('weight'); }} placeholder="kg"
-              style={{ width: 84, padding: '8px 10px', border: `1.5px solid ${v.errors.weight ? '#c0392b' : 'var(--line)'}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
+              style={{ width: 84, padding: '8px 10px', border: `1.5px solid ${v.errors.weight ? 'var(--danger-ink)' : 'var(--line)'}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit' }} />
           </label>
           <span className="muted" style={{ fontSize: 11.5, alignSelf: 'center', maxWidth: 260 }}>Needed for your calorie & macro targets — used to build the diet plan.</span>
         </div>
@@ -197,7 +197,7 @@ export function Profile() {
           onClick={() => { if (!v.validate()) return; save.mutate({ age, sex, level, mode, goal, conditions, heightCm: num(heightCm), weightKg: num(weightKg), bodyGoal }, { onSuccess: () => { setCollapsed(true); successToast('Fitness profile saved successfully.'); } }); }}>
           {save.isPending ? 'Saving…' : 'Save & build my plan'}
         </Button>
-        {save.isSuccess && <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>✓ Saved — see My Plan & Body Goal</span>}
+        {save.isSuccess && <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>✓ Saved — see My Plan & Body Goal</span>}
       </div>
     </div>
   );

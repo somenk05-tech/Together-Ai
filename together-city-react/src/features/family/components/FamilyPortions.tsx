@@ -30,7 +30,7 @@ export function FamilyPortions({ dayIndex }: { dayIndex: number }) {
 
       {soloOnly && (
         <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-          It's just you right now. <Link to="/family/connect" style={{ color: 'var(--accent)', fontWeight: 600 }}>Add family members</Link> and every shared dish will show a portion for each person.
+          It's just you right now. <Link to="/family/connect" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Add family members</Link> and every shared dish will show a portion for each person.
         </p>
       )}
 
@@ -41,7 +41,7 @@ export function FamilyPortions({ dayIndex }: { dayIndex: number }) {
             <span className="muted" style={{ fontSize: 11 }}>{meal.name}</span>
           </div>
           {meal.sharedBase && (
-            <p style={{ fontSize: 10.5, color: '#2e7d4f', background: '#e7f3ec', borderRadius: 8, padding: '4px 8px', margin: '0 0 6px', fontWeight: 600 }}>
+            <p style={{ fontSize: 10.5, color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 8, padding: '4px 8px', margin: '0 0 6px', fontWeight: 600 }}>
               🍲 One base gravy — proteins added per person
             </p>
           )}
@@ -56,8 +56,8 @@ export function FamilyPortions({ dayIndex }: { dayIndex: number }) {
                 </div>
                 {(p.swap || p.note) && (
                   <div style={{ marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {p.swap && <span style={{ fontSize: 10.5, background: '#eef3f8', color: '#3f6b8f', borderRadius: 999, padding: '1px 8px', fontWeight: 600 }}>{p.swap.to} instead of {p.swap.from}</span>}
-                    {p.note && <span style={{ fontSize: 10.5, background: '#f7efe1', color: '#b0803a', borderRadius: 999, padding: '1px 8px', fontWeight: 600 }}>{p.note}</span>}
+                    {p.swap && <span style={{ fontSize: 10.5, background: 'var(--info-soft)', color: 'var(--info-ink)', borderRadius: 999, padding: '1px 8px', fontWeight: 600 }}>{p.swap.to} instead of {p.swap.from}</span>}
+                    {p.note && <span style={{ fontSize: 10.5, background: 'var(--warn-soft)', color: 'var(--warn-ink)', borderRadius: 999, padding: '1px 8px', fontWeight: 600 }}>{p.note}</span>}
                   </div>
                 )}
               </div>

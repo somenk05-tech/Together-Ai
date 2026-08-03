@@ -12,7 +12,7 @@ export function ConversationList({ items, activeId, onSelect }: {
             border: 'none', borderBottom: '1px solid var(--line)', cursor: 'pointer',
             background: c.id === activeId ? 'var(--accent-soft)' : 'transparent',
           }}>
-          <div className="tc-avatar" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+          <div className="tc-avatar" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)' }}>
             {c.anonymous ? '🎭' : (c.title ?? 'C').slice(0, 2).toUpperCase()}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>

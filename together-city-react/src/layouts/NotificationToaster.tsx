@@ -45,7 +45,7 @@ export function NotificationToaster() {
           style={{ display: 'flex', gap: 10, alignItems: 'flex-start', textAlign: 'left', width: '100%', cursor: 'pointer',
             background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, padding: '11px 13px',
             boxShadow: '0 10px 32px rgba(0,0,0,.18)', fontFamily: 'inherit', animation: 'tc-rise .28s ease-out' }}>
-          <Icon name={t.icon} size={17} style={{ marginTop: 1, color: 'var(--accent)' }} />
+          <Icon name={t.icon} size={17} style={{ marginTop: 1, color: 'var(--accent-ink)' }} />
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: 'block', fontSize: 13, fontWeight: 700 }}>{t.title}</span>
             {t.body && <span className="muted" style={{ display: 'block', fontSize: 12, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.body}</span>}

@@ -9,7 +9,7 @@ export function MasterLockedNote({ label = 'This' }: { label?: string }) {
   return (
     <p className="muted" style={{ fontSize: 11, margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: 4 }}>
       🔒 {label} is set in your{' '}
-      <Link to="/profile/astrology" style={{ color: 'var(--accent)', fontWeight: 600 }}>Master Profile</Link>.
+      <Link to="/profile/astrology" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Master Profile</Link>.
     </p>
   );
 }

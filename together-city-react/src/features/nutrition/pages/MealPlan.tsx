@@ -157,14 +157,14 @@ function DailyOverviewPanel({ d, date, note }: { d: ComposedDay; date: Date; not
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {rows.map(([ic, v, l]) => (
             <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ color: 'var(--accent)' }}><NIc name={ic} size={20} /></span>
+              <span style={{ color: 'var(--accent-ink)' }}><NIc name={ic} size={20} /></span>
               <div><div style={{ fontSize: 17, fontWeight: 800, lineHeight: 1 }}>{v}</div><div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{l}</div></div>
             </div>
           ))}
         </div>
       </div>
       <div style={{ marginTop: 14, border: '1px dashed var(--line)', borderRadius: 14, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        <span style={{ color: 'var(--accent)' }}><NIc name="heart" size={16} /></span>
+        <span style={{ color: 'var(--accent-ink)' }}><NIc name="heart" size={16} /></span>
         <span style={{ fontSize: 12.5, color: 'var(--ink-soft)', lineHeight: 1.5 }}>{note}</span>
       </div>
     </div>
@@ -250,7 +250,7 @@ function DayShoppingPanel({ d, dayIndex, locked, skips }: {
       )}
       <p style={{ fontSize: 11.5, margin: '11px 0 0', lineHeight: 1.55, color: 'var(--ink-soft)' }}>
         {locked
-          ? <>This day is locked, so these are already on your{' '}<Link to="/nutrition/grocery" style={{ color: 'var(--accent)', fontWeight: 600 }}>grocery list</Link>.</>
+          ? <>This day is locked, so these are already on your{' '}<Link to="/nutrition/grocery" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>grocery list</Link>.</>
           : <>Not on your grocery list yet &mdash; lock the day to add them.</>}
       </p>
     </div>
@@ -295,7 +295,7 @@ function AboutThisMenu({ d }: { d: ComposedDay }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {facts.map((f) => (
           <div key={f} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12.5, color: 'var(--ink-soft)', lineHeight: 1.45 }}>
-            <span style={{ color: 'var(--accent)', marginTop: 1 }}><NIc name="check" size={14} stroke={2.2} /></span>{f}
+            <span style={{ color: 'var(--accent-ink)', marginTop: 1 }}><NIc name="check" size={14} stroke={2.2} /></span>{f}
           </div>
         ))}
       </div>
@@ -355,7 +355,7 @@ function DayLock({ dayIndex, date, locked, lastDay, onMoveTo }: {
         <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
           Locking stops this day changing and puts its ingredients on your grocery list.
         </div>
-        {said && <div style={{ fontSize: 12.5, marginTop: 6, color: 'var(--accent)' }}>{said}</div>}
+        {said && <div style={{ fontSize: 12.5, marginTop: 6, color: 'var(--accent-ink)' }}>{said}</div>}
       </div>
       {/* The date sits beside the button, not only in the heading, because the
           button is the thing being pressed and "which day am I committing?" is
@@ -484,11 +484,11 @@ function DayView({ wk, d, dayIndex, date, readOnly }: { wk: ComposedWeek; d: Com
         <AboutThisMenu d={d} />
 
         <div style={card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, color: 'var(--accent)', fontWeight: 800, fontSize: 12.5, letterSpacing: '.06em', textTransform: 'uppercase' }}><NIc name="bulb" size={16} /> Tips for the day</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, color: 'var(--accent-ink)', fontWeight: 800, fontSize: 12.5, letterSpacing: '.06em', textTransform: 'uppercase' }}><NIc name="bulb" size={16} /> Tips for the day</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
             {DAY_TIPS.map((tip) => (
               <div key={tip} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12.5, color: 'var(--ink-soft)', lineHeight: 1.45 }}>
-                <span style={{ color: 'var(--accent)', marginTop: 1 }}><NIc name="check" size={14} stroke={2.2} /></span>{tip}
+                <span style={{ color: 'var(--accent-ink)', marginTop: 1 }}><NIc name="check" size={14} stroke={2.2} /></span>{tip}
               </div>
             ))}
           </div>
@@ -748,7 +748,7 @@ export function MealPlan() {
               question, disagreeing, is worse than either alone. This says what
               is wrong and what to do about it; the scorecard says how far off. */}
           <strong>Medical guidance:</strong> {wk.compliance.concerns[0].message} You can keep your preferences, or
-          {' '}<button type="button" onClick={() => setMode('optimal')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5 }}>see the Optimal Health plan →</button>
+          {' '}<button type="button" onClick={() => setMode('optimal')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent-ink)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5 }}>see the Optimal Health plan →</button>
         </div>
       )}
 

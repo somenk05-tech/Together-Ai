@@ -39,7 +39,7 @@ export function PaymentSheet({
 
   return (
     <div onClick={onCancel} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'grid', placeItems: 'end center', zIndex: 1000 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 440, background: 'var(--card, #fff)', borderRadius: '18px 18px 0 0', padding: '20px 18px 24px', boxShadow: '0 -8px 40px rgba(0,0,0,.2)' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 440, background: 'var(--card)', borderRadius: '18px 18px 0 0', padding: '20px 18px 24px', boxShadow: '0 -8px 40px rgba(0,0,0,.2)' }}>
         <div className="eyebrow">Confirm payment</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '4px 0 2px' }}>
           <div style={{ fontSize: 30, fontWeight: 800 }}>{inr(amountInr)}</div>
@@ -62,7 +62,7 @@ export function PaymentSheet({
         )}
 
         {(error || (method === 'wallet' && walletShort)) && (
-          <div style={{ fontSize: 12, color: '#c62828', fontWeight: 600, margin: '4px 0 8px' }}>
+          <div style={{ fontSize: 12, color: 'var(--danger-ink)', fontWeight: 600, margin: '4px 0 8px' }}>
             {error || 'Wallet balance is too low — top up or pay by card.'}
           </div>
         )}

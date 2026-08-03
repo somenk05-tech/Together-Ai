@@ -3,7 +3,7 @@ import { Spinner } from '@/components/ui';
 import { useFamilyDashboard } from '@/features/nutrition/hooks';
 import type { FamilyMemberStatus } from '@/features/nutrition/api';
 
-const STATUS_COL: Record<string, string> = { on: 'var(--accent)', met: 'var(--accent)', over: '#c0392b', under: '#b0803a', low: '#b0803a', none: 'var(--muted)' };
+const STATUS_COL: Record<string, string> = { on: 'var(--accent)', met: 'var(--accent)', over: 'var(--danger-ink)', under: 'var(--warn-ink)', low: 'var(--warn-ink)', none: 'var(--muted)' };
 const STATUS_TXT: Record<string, string> = { on: 'On target', met: 'Met', over: 'Over', under: 'Under', low: 'Low', none: '—' };
 
 function Bar({ pct, col }: { pct: number; col: string }) {
@@ -23,7 +23,7 @@ function MemberStatusCard({ m }: { m: FamilyMemberStatus }) {
           <h4 style={{ margin: 0, fontSize: 15 }}>{m.name}{m.isSelf && <span className="muted" style={{ fontSize: 11, fontWeight: 400 }}> · You</span>}</h4>
           <p className="muted" style={{ fontSize: 11.5, margin: '1px 0 0', textTransform: 'capitalize' }}>{m.role}</p>
         </div>
-        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: m.medicalOk ? 'var(--accent)' : '#b0803a', background: m.medicalOk ? '#e7f3ec' : '#f7efe1', borderRadius: 999, padding: '3px 9px' }}>
+        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: m.medicalOk ? 'var(--accent)' : 'var(--warn-ink)', background: m.medicalOk ? 'var(--ok-soft)' : 'var(--warn-soft)', borderRadius: 999, padding: '3px 9px' }}>
           {m.medicalOk ? '✓ On track' : '⚠ Check'}
         </span>
       </div>
@@ -45,7 +45,7 @@ function MemberStatusCard({ m }: { m: FamilyMemberStatus }) {
 
       {m.flags.length > 0 && (
         <div style={{ marginTop: 10 }}>
-          {m.flags.map((fl, i) => <p key={i} style={{ fontSize: 11, color: '#b0503e', margin: '2px 0', lineHeight: 1.4 }}>• {fl}</p>)}
+          {m.flags.map((fl, i) => <p key={i} style={{ fontSize: 11, color: 'var(--danger-ink)', margin: '2px 0', lineHeight: 1.4 }}>• {fl}</p>)}
         </div>
       )}
       {m.adjustments.length > 0 && (
@@ -75,7 +75,7 @@ export function FamilyDashboard() {
   return (
     <div>
       {d.hasPlan && (
-        <div className="card" style={{ padding: '10px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, background: d.familyStatus === 'all-on-track' ? '#e7f3ec' : '#f7efe1' }}>
+        <div className="card" style={{ padding: '10px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, background: d.familyStatus === 'all-on-track' ? 'var(--ok-soft)' : 'var(--warn-soft)' }}>
           <span style={{ fontSize: 18 }}>{d.familyStatus === 'all-on-track' ? '✅' : '⚠️'}</span>
           <span style={{ fontSize: 13, fontWeight: 600 }}>
             {d.familyStatus === 'all-on-track'
@@ -86,7 +86,7 @@ export function FamilyDashboard() {
       )}
       {!d.hasPlan && (
         <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>
-          No family plan yet. <Link to="/family/weekly" style={{ color: 'var(--accent)', fontWeight: 600 }}>Generate the week</Link> and each member's nutrition will be validated here.
+          No family plan yet. <Link to="/family/weekly" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Generate the week</Link> and each member's nutrition will be validated here.
         </p>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 14 }}>

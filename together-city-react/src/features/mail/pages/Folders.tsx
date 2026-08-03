@@ -19,8 +19,8 @@ function DeliveryLog() {
           <span style={{ fontWeight: 600 }}>{d.subject}</span>
           <span className="muted">→ {d.to}</span>
           <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: '#555', background: 'var(--line)', borderRadius: 999, padding: '1px 8px' }}>via {d.provider}</span>
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: d.status === 'sent' ? '#2e7d32' : d.status === 'failed' ? '#c62828' : '#8a6d00', background: d.status === 'sent' ? '#e8f5e9' : d.status === 'failed' ? '#fdecec' : '#fff7e0', borderRadius: 999, padding: '1px 8px', textTransform: 'uppercase' }}>{d.status}</span>
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--ink-soft)', background: 'var(--line)', borderRadius: 999, padding: '1px 8px' }}>via {d.provider}</span>
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: d.status === 'sent' ? 'var(--ok-ink)' : d.status === 'failed' ? 'var(--danger-ink)' : 'var(--warn-ink)', background: d.status === 'sent' ? 'var(--ok-soft)' : d.status === 'failed' ? 'var(--danger-soft)' : 'var(--warn-soft)', borderRadius: 999, padding: '1px 8px', textTransform: 'uppercase' }}>{d.status}</span>
           </span>
         </div>
       ))}
@@ -45,7 +45,7 @@ export function AccountBar() {
   return (
     <div className="card">
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ width: 42, height: 42, borderRadius: 12, background: 'var(--accent)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 20 }}>✉️</div>
+        <div style={{ width: 42, height: 42, borderRadius: 12, background: 'var(--accent)', color: 'var(--on-accent)', display: 'grid', placeItems: 'center', fontSize: 20 }}>✉️</div>
         <div>
           <div className="eyebrow" style={{ margin: 0 }}>Your city address</div>
           <div style={{ fontWeight: 800, fontSize: 16, fontFamily: 'monospace' }}>{a?.address ?? '…'}</div>
@@ -56,7 +56,7 @@ export function AccountBar() {
             <span>{a ? `${humanBytes(a.usedBytes)} of ${humanBytes(a.quotaBytes)}` : '…'}</span>
           </div>
           <div style={{ height: 7, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', marginTop: 4 }}>
-            <div style={{ width: `${Math.min(100, Math.max(pct, a && a.usedBytes ? 2 : 0))}%`, height: '100%', background: pct > 90 ? '#c62828' : 'var(--accent)' }} />
+            <div style={{ width: `${Math.min(100, Math.max(pct, a && a.usedBytes ? 2 : 0))}%`, height: '100%', background: pct > 90 ? 'var(--danger-ink)' : 'var(--accent)' }} />
           </div>
         </div>
         <Link to="/mail/compose"><Button variant="accent" size="sm">✍️ Compose</Button></Link>
@@ -71,9 +71,9 @@ export function AccountBar() {
               <span className="muted">No primary email set — add one so bills & recovery reach you outside the city.</span>
             )}
             {a && a.counts.emailed > 0 && (
-              <button type="button" onClick={() => setShowLog((v) => !v)} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, cursor: 'pointer', fontSize: 12.5 }}>{showLog ? 'Hide' : `${a.counts.emailed} sent`}</button>
+              <button type="button" onClick={() => setShowLog((v) => !v)} style={{ background: 'none', border: 'none', color: 'var(--accent-ink)', fontWeight: 600, cursor: 'pointer', fontSize: 12.5 }}>{showLog ? 'Hide' : `${a.counts.emailed} sent`}</button>
             )}
-            <button type="button" onClick={openEdit} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, cursor: 'pointer', fontSize: 12.5 }}>{a?.primaryEmail ? 'Edit' : 'Add primary email'}</button>
+            <button type="button" onClick={openEdit} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--accent-ink)', fontWeight: 600, cursor: 'pointer', fontSize: 12.5 }}>{a?.primaryEmail ? 'Edit' : 'Add primary email'}</button>
           </div>
         ) : (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -111,10 +111,10 @@ function Row({ m, folder }: { m: MailItem; folder: Folder }) {
       style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid var(--line)', cursor: 'pointer', background: !m.read && folder === 'inbox' ? 'rgba(179,138,44,.06)' : 'transparent' }}
     >
       <button type="button" title="Star" onClick={(e) => { e.stopPropagation(); flag.mutate({ id: m.id, starred: !m.starred }); }}
-        style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: m.starred ? '#e6a817' : 'var(--line)', flexShrink: 0 }}>
+        style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: m.starred ? 'var(--warn-ink)' : 'var(--line)', flexShrink: 0 }}>
         {m.starred ? '★' : '☆'}
       </button>
-      <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 800, color: '#fff', background: m.system ? 'var(--accent)' : `hsl(${hue},52%,45%)` }}>
+      <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 800, color: 'var(--on-accent)', background: m.system ? 'var(--accent)' : `hsl(${hue},52%,45%)` }}>
         {m.system ? '🏙' : initials(person.name)}
       </div>
       <div style={{ minWidth: 0, flex: 1 }}>
@@ -129,7 +129,7 @@ function Row({ m, folder }: { m: MailItem; folder: Folder }) {
         {/* The provider's own words. A failure the citizen cannot read the
             reason for is one they cannot do anything about. */}
         {m.failureReason && (
-          <div style={{ fontSize: 11.5, color: '#c62828', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: 11.5, color: 'var(--danger-ink)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             ⚠ {m.failureReason}
           </div>
         )}
@@ -137,7 +137,7 @@ function Row({ m, folder }: { m: MailItem; folder: Folder }) {
       {folder === 'failed' && (
         <button type="button" disabled={retry.isPending} title="Try sending this again"
           onClick={(e) => { e.stopPropagation(); retry.mutate(m.id); }}
-          style={{ minWidth: 44, minHeight: 44, padding: '0 12px', borderRadius: 9, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+          style={{ minWidth: 44, minHeight: 44, padding: '0 12px', borderRadius: 9, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent-ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
           {retry.isPending ? 'Sending…' : 'Try again'}
         </button>
       )}

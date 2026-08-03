@@ -256,7 +256,7 @@ const SHEET_CSS = `
    avoids the 100vh URL-bar bug) and a hard px ceiling so it never gets huge. */
 .uss-sheet{position:relative;display:flex;flex-direction:column;width:min(480px,100%);
   max-height:min(86vh,760px);max-height:min(86dvh,760px);
-  background:var(--card,#fff);background:color-mix(in srgb,var(--card,#fff) 92%,transparent);
+  background:var(--card);background:color-mix(in srgb,var(--card) 92%,transparent);
   -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
   border:1px solid var(--line);border-radius:22px;
   box-shadow:0 24px 80px rgba(0,0,0,.45),0 2px 8px rgba(0,0,0,.12);
@@ -274,7 +274,7 @@ const SHEET_CSS = `
   padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
 .uss-foot .btn{padding:11px 22px;font-size:11px;flex:0 0 auto}
 .uss-count{font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.uss-err{color:#c0392b;font-size:12.5px;font-weight:600;margin:0;padding:8px 18px 0}
+.uss-err{color:var(--danger-ink);font-size:12.5px;font-weight:600;margin:0;padding:8px 18px 0}
 .uss-close{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;
   background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:var(--muted);transition:background .15s,color .15s}
 .uss-close:hover{background:var(--accent-soft);color:var(--ink)}
@@ -474,7 +474,7 @@ export function UniversalShareSheet({
         <span aria-hidden style={{
           flex: '0 0 auto', width: 22, height: 22, borderRadius: 6,
           border: `2px solid ${on ? 'var(--accent)' : 'var(--line)'}`,
-          background: on ? 'var(--accent)' : 'transparent', color: '#fff',
+          background: on ? 'var(--accent)' : 'transparent', color: 'var(--on-accent)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800,
         }}>{on ? '✓' : ''}</span>
       </button>
@@ -513,7 +513,7 @@ export function UniversalShareSheet({
       >
         {phase === 'sent' ? (
           <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-            <div style={{ fontSize: 40, color: '#2e7d4f', fontWeight: 800, lineHeight: 1 }}>{'✓'}</div>
+            <div style={{ fontSize: 40, color: 'var(--ok-ink)', fontWeight: 800, lineHeight: 1 }}>{'✓'}</div>
             <p style={{ fontWeight: 700, fontSize: 16, marginTop: 10 }}>Sent</p>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>
               Shared with {count} {count === 1 ? 'person' : 'people'}.
@@ -544,7 +544,7 @@ export function UniversalShareSheet({
                   {previewMeta.length > 0 && (
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
                       {previewMeta.map((m, i) => (
-                        <span key={i} style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 8px' }}>{m}</span>
+                        <span key={i} style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 8px' }}>{m}</span>
                       ))}
                     </div>
                   )}
@@ -561,7 +561,7 @@ export function UniversalShareSheet({
                 rows={2}
                 maxLength={8192}
                 placeholder="Say something…"
-                style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical', background: 'var(--card,#fff)', color: 'var(--ink)' }}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical', background: 'var(--card)', color: 'var(--ink)' }}
               />
 
               {/* Prominent search */}
@@ -577,7 +577,7 @@ export function UniversalShareSheet({
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search people, chats, groups…"
                   aria-label="Search people, chats and groups"
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '11px 12px 11px 36px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', background: 'var(--card,#fff)', color: 'var(--ink)' }}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '11px 12px 11px 36px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', background: 'var(--card)', color: 'var(--ink)' }}
                 />
               </div>
             </div>
@@ -624,7 +624,7 @@ export function UniversalShareSheet({
               >
                 {phase === 'sending'
                   ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                      <span aria-hidden style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,.5)', borderTopColor: '#fff', borderRadius: '50%', animation: 'uss-spin .7s linear infinite' }} />
+                      <span aria-hidden style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,.5)', borderTopColor: 'var(--card)', borderRadius: '50%', animation: 'uss-spin .7s linear infinite' }} />
                       Sending…
                     </span>
                   : `Send${count ? ` (${count})` : ''}`}

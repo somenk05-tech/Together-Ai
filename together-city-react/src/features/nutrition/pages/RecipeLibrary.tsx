@@ -23,7 +23,7 @@ const DIETS = ['', 'vegetarian', 'vegan', 'eggetarian'];
 const SORTS: Array<[string, string]> = [['recent', 'Recently Added'], ['health', 'AI Health Score'], ['name', 'A–Z']];
 const INGREDIENT_CHIPS = ['Paneer', 'Spinach', 'Chicken', 'Oats', 'Chickpeas', 'Rice', 'Yogurt', 'Mushroom'];
 
-function healthColor(s: number | null) { return s == null ? 'var(--muted)' : s >= 80 ? '#2e7d32' : s >= 60 ? '#8a6a1f' : '#c0392b'; }
+function healthColor(s: number | null) { return s == null ? 'var(--muted)' : s >= 80 ? 'var(--ok-ink)' : s >= 60 ? 'var(--warn-ink)' : 'var(--danger-ink)'; }
 
 function RecipeTile({ r, picked, onPick }: { r: RecipeCard; picked: boolean; onPick: () => void }) {
   return (
@@ -34,7 +34,7 @@ function RecipeTile({ r, picked, onPick }: { r: RecipeCard; picked: boolean; onP
           display: 'grid', placeItems: 'center' }}>
           {r.imageUrl
             ? <img src={r.imageUrl} alt={r.name} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-            : <span style={{ color: '#fff', fontWeight: 700, fontSize: 14, textAlign: 'center', padding: '0 12px', textShadow: '0 1px 6px rgba(0,0,0,.35)' }}>{r.name}</span>}
+            : <span style={{ color: 'var(--on-accent)', fontWeight: 700, fontSize: 14, textAlign: 'center', padding: '0 12px', textShadow: '0 1px 6px rgba(0,0,0,.35)' }}>{r.name}</span>}
           <span style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(255,255,255,.92)', borderRadius: 5, padding: 2, lineHeight: 0, boxShadow: '0 1px 3px rgba(0,0,0,.22)' }}><VegMark diet={r.diet} size={15} /></span>
           {r.healthScore != null && (
             <span style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(255,255,255,.92)', color: healthColor(r.healthScore),
@@ -64,7 +64,7 @@ function RecipeTile({ r, picked, onPick }: { r: RecipeCard; picked: boolean; onP
         style={{
           position: 'absolute', left: 8, bottom: 8, minHeight: 44, minWidth: 44, cursor: 'pointer',
           border: `1.5px solid ${picked ? 'var(--accent)' : 'var(--line)'}`, borderRadius: 999,
-          background: picked ? 'var(--accent)' : 'var(--card)', color: picked ? '#fff' : 'var(--ink-soft)',
+          background: picked ? 'var(--accent)' : 'var(--card)', color: picked ? 'var(--on-accent)' : 'var(--ink-soft)',
           fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '0 14px',
         }}
       >
@@ -122,10 +122,10 @@ export function RecipeLibrary() {
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
           {ingredients.map((ing) => (
             <button key={ing} type="button" onClick={() => removeIngredient(ing)} aria-label={`Remove ${ing}`}
-              style={{ cursor: 'pointer', border: 'none', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: '#fff', background: 'var(--accent)', borderRadius: 999, padding: '5px 12px' }}>{ing} ×</button>
+              style={{ cursor: 'pointer', border: 'none', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--on-accent)', background: 'var(--accent)', borderRadius: 999, padding: '5px 12px' }}>{ing} ×</button>
           ))}
           <button type="button" onClick={() => { setIngredients([]); setPage(1); }}
-            style={{ cursor: 'pointer', border: 'none', background: 'none', color: 'var(--accent)', fontWeight: 600, fontSize: 12, fontFamily: 'inherit' }}>Clear all</button>
+            style={{ cursor: 'pointer', border: 'none', background: 'none', color: 'var(--accent-ink)', fontWeight: 600, fontSize: 12, fontFamily: 'inherit' }}>Clear all</button>
         </div>
       )}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -134,7 +134,7 @@ export function RecipeLibrary() {
           return (
             <button key={ing} type="button" onClick={() => (on ? removeIngredient(ing.toLowerCase()) : addIngredient(ing))}
               style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 13px', fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
-                border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? '#fff' : 'var(--ink-soft)' }}>
+                border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
               {ing}
             </button>
           );

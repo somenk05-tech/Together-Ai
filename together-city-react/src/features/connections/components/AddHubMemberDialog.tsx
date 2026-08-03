@@ -108,7 +108,7 @@ export function AddHubMemberDialog({
           <Button type="submit" variant="accent" size="sm" disabled={busy || !query.trim()}>{busy ? 'Searching…' : 'Search'}</Button>
         </form>
 
-        {error && <p style={{ color: '#c0392b', fontSize: 12.5, marginTop: 12 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 12 }}>{error}</p>}
         {busy && <div style={{ marginTop: 12 }}><Spinner /></div>}
         {!busy && searched && !result && !error && (
           <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>No member found with that exact handle.</p>
@@ -124,7 +124,7 @@ export function AddHubMemberDialog({
               </div>
               {result.relationship === 'pending_out' && <Button variant="line" size="sm" disabled>Requested</Button>}
               {result.relationship === 'pending_in' && <Button variant="accent" size="sm" disabled={respondConn.isPending} onClick={() => void accept()}>Accept request</Button>}
-              {result.relationship === 'accepted' && <span style={{ fontSize: 12.5, color: '#2e7d4f', fontWeight: 700 }}>✓ Connected</span>}
+              {result.relationship === 'accepted' && <span style={{ fontSize: 12.5, color: 'var(--ok-ink)', fontWeight: 700 }}>✓ Connected</span>}
               {result.relationship === 'blocked' && <Button variant="line" size="sm" disabled>Unavailable</Button>}
             </div>
 
@@ -158,13 +158,13 @@ export function AddHubMemberDialog({
             )}
 
             {done && result.relationship === 'pending_out' && (
-              <p style={{ fontSize: 12.5, marginTop: 12, color: 'var(--accent)', fontWeight: 600 }}>✓ Request sent. They’ll accept it in People, and {def.label} connects automatically.</p>
+              <p style={{ fontSize: 12.5, marginTop: 12, color: 'var(--accent-ink)', fontWeight: 600 }}>✓ Request sent. They’ll accept it in People, and {def.label} connects automatically.</p>
             )}
           </div>
         )}
 
         <p className="muted" style={{ fontSize: 11.5, marginTop: 14, lineHeight: 1.5 }}>
-          Manage everyone in one place under <button type="button" onClick={() => navigate('/connections')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5 }}>People</button>. This dialog only adds someone; removing them is done there, and it disconnects them from every hub at once.
+          Manage everyone in one place under <button type="button" onClick={() => navigate('/connections')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent-ink)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5 }}>People</button>. This dialog only adds someone; removing them is done there, and it disconnects them from every hub at once.
         </p>
       </div>
     </div>

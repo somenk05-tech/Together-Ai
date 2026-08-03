@@ -162,7 +162,7 @@ export function Trainer() {
     for (const [i, j] of SKELETON) {
       if (lm[i] && lm[j]) { ctx.beginPath(); ctx.moveTo(lm[i].x * w, lm[i].y * h); ctx.lineTo(lm[j].x * w, lm[j].y * h); ctx.stroke(); }
     }
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = 'var(--on-accent)';
     for (const p of lm) { ctx.beginPath(); ctx.arc(p.x * w, p.y * h, 4, 0, Math.PI * 2); ctx.fill(); }
   };
 
@@ -219,7 +219,7 @@ export function Trainer() {
             {EXERCISES.map((e) => (
               <button key={e.key} type="button" onClick={() => setExercise(e)}
                 style={{ cursor: 'pointer', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
-                  border: '1.5px solid var(--line)', background: exercise.key === e.key ? 'var(--accent)' : 'transparent', color: exercise.key === e.key ? '#fff' : 'var(--ink-soft)' }}>
+                  border: '1.5px solid var(--line)', background: exercise.key === e.key ? 'var(--accent)' : 'transparent', color: exercise.key === e.key ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
                 {e.label}
               </button>
             ))}
@@ -242,7 +242,7 @@ export function Trainer() {
       <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
         <div className="eyebrow">Fitness · Trainer Mode</div>
         <h1 style={{ fontSize: 26 }}>Camera needed</h1>
-        <div className="card" style={{ marginTop: 14, borderLeft: '4px solid #e65100' }}>
+        <div className="card" style={{ marginTop: 14, borderLeft: '4px solid var(--warn-ink)' }}>
           <p style={{ fontSize: 13.5, margin: 0 }}>
             I couldn't access your camera. Allow camera access in your browser's address bar and try again —
             the video is processed locally and never uploaded.
@@ -279,21 +279,21 @@ export function Trainer() {
         </div>
       </div>
 
-      <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', background: '#111', aspectRatio: '4 / 3' }}>
+      <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', background: 'var(--media-bg)', aspectRatio: '4 / 3' }}>
         <video ref={videoRef} playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
         <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', transform: 'scaleX(-1)' }} />
-        <div style={{ position: 'absolute', left: 14, top: 14, background: 'rgba(0,0,0,.55)', color: '#fff', borderRadius: 12, padding: '10px 14px' }}>
+        <div style={{ position: 'absolute', left: 14, top: 14, background: 'rgba(0,0,0,.55)', color: 'var(--on-accent)', borderRadius: 12, padding: '10px 14px' }}>
           <div style={{ fontSize: 11, opacity: .8, textTransform: 'uppercase', letterSpacing: '.06em' }}>{exercise.label} reps</div>
           <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1 }}>{reps}</div>
         </div>
-        <div style={{ position: 'absolute', left: 14, right: 14, bottom: 14, background: 'rgba(0,0,0,.6)', color: '#fff', borderRadius: 12, padding: '10px 14px', fontSize: 14, fontWeight: 600 }}>
+        <div style={{ position: 'absolute', left: 14, right: 14, bottom: 14, background: 'rgba(0,0,0,.6)', color: 'var(--on-accent)', borderRadius: 12, padding: '10px 14px', fontSize: 14, fontWeight: 600 }}>
           {feedback}
         </div>
         {!poseReady && !poseError && (
-          <div style={{ position: 'absolute', right: 14, top: 14, background: 'rgba(0,0,0,.55)', color: '#fff', borderRadius: 10, padding: '6px 10px', fontSize: 11.5 }}>Loading pose model…</div>
+          <div style={{ position: 'absolute', right: 14, top: 14, background: 'rgba(0,0,0,.55)', color: 'var(--on-accent)', borderRadius: 10, padding: '6px 10px', fontSize: 11.5 }}>Loading pose model…</div>
         )}
         {poseError && (
-          <div style={{ position: 'absolute', right: 14, top: 14, background: 'rgba(230,81,0,.85)', color: '#fff', borderRadius: 10, padding: '6px 10px', fontSize: 11.5, maxWidth: 220 }}>
+          <div style={{ position: 'absolute', right: 14, top: 14, background: 'rgba(230,81,0,.85)', color: 'var(--on-accent)', borderRadius: 10, padding: '6px 10px', fontSize: 11.5, maxWidth: 220 }}>
             Pose detection unavailable — running as a timed, voice-guided session.
           </div>
         )}
@@ -303,7 +303,7 @@ export function Trainer() {
         {EXERCISES.map((e) => (
           <button key={e.key} type="button" onClick={() => { setExercise(e); repState.current = 'up'; speak(`Switching to ${e.label}s.`); }}
             style={{ cursor: 'pointer', borderRadius: 999, padding: '7px 15px', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
-              border: '1.5px solid var(--line)', background: exercise.key === e.key ? 'var(--accent)' : 'transparent', color: exercise.key === e.key ? '#fff' : 'var(--ink-soft)' }}>
+              border: '1.5px solid var(--line)', background: exercise.key === e.key ? 'var(--accent)' : 'transparent', color: exercise.key === e.key ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
             {e.label}
           </button>
         ))}

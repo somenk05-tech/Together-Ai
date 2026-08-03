@@ -29,7 +29,7 @@ const PAD_X = 4;
 const PAD_Y = 6;
 
 const STATUS_COLOR: Record<string, string> = {
-  low: '#e65100', high: '#c62828', normal: '#2e7d32',
+  low: 'var(--warn-ink)', high: 'var(--danger-ink)', normal: 'var(--ok-ink)',
 };
 
 export interface SparklineGeometry {
@@ -103,12 +103,12 @@ export function TrendSparkline({ points, min, max, label, unit }: {
     >
       <rect
         x={0} y={bandTop} width={W} height={Math.max(1, bandBottom - bandTop)}
-        fill="#2e7d32" opacity={0.09} rx={3}
+        fill="var(--ok-ink)" opacity={0.09} rx={3}
       />
-      <line x1={0} y1={bandTop} x2={W} y2={bandTop} stroke="#2e7d32" strokeOpacity={0.25} strokeWidth={1} />
-      <line x1={0} y1={bandBottom} x2={W} y2={bandBottom} stroke="#2e7d32" strokeOpacity={0.25} strokeWidth={1} />
+      <line x1={0} y1={bandTop} x2={W} y2={bandTop} stroke="var(--ok-ink)" strokeOpacity={0.25} strokeWidth={1} />
+      <line x1={0} y1={bandBottom} x2={W} y2={bandBottom} stroke="var(--ok-ink)" strokeOpacity={0.25} strokeWidth={1} />
 
-      <path d={line} fill="none" stroke="var(--ink-soft, #5a5a55)" strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" />
+      <path d={line} fill="none" stroke="var(--ink-soft)" strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" />
 
       {dots.map((d, i) => {
         const latest = i === dots.length - 1;
@@ -116,8 +116,8 @@ export function TrendSparkline({ points, min, max, label, unit }: {
           <circle
             key={`${points[i].date}-${i}`}
             cx={d.x} cy={d.y} r={latest ? 4 : 2.6}
-            fill={STATUS_COLOR[d.status] ?? '#5a5a55'}
-            stroke="var(--paper, #fff)" strokeWidth={latest ? 1.6 : 1}
+            fill={STATUS_COLOR[d.status] ?? 'var(--muted)'}
+            stroke="var(--paper)" strokeWidth={latest ? 1.6 : 1}
           />
         );
       })}

@@ -40,7 +40,7 @@ function resizeToDataUrl(file: File, size = 240): Promise<string> {
 function Avatar({ src, name, size = 96 }: { src?: string | null; name: string; size?: number }) {
   if (src) return <img src={src} alt="" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />;
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: 'var(--serif)', fontSize: size / 3, flexShrink: 0, background: 'var(--accent)' }}>
+    <div style={{ width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)', fontFamily: 'var(--serif)', fontSize: size / 3, flexShrink: 0, background: 'var(--accent)' }}>
       {initials(name)}
     </div>
   );
@@ -49,7 +49,7 @@ function Avatar({ src, name, size = 96 }: { src?: string | null; name: string; s
 /** Blue verified check — shown when the account's email is verified. */
 function VerifiedBadge() {
   return (
-    <span title="Verified member" aria-label="Verified" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: '50%', background: '#2f8fce', color: '#fff', fontSize: 11, fontWeight: 900, flexShrink: 0 }}>✓</span>
+    <span title="Verified member" aria-label="Verified" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: '50%', background: 'var(--info-ink)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 900, flexShrink: 0 }}>✓</span>
   );
 }
 
@@ -79,30 +79,30 @@ function PostTile({ p }: { p: ProfilePost }) {
   return (
     <div style={{ aspectRatio: '1/1', borderRadius: 8, overflow: 'hidden', position: 'relative', background: 'var(--paper)' }}>
       {imgSrc ? (
-        <img src={imgSrc} alt={p.text ?? ''} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', background: isVideo ? '#000' : undefined }} />
+        <img src={imgSrc} alt={p.text ?? ''} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', background: isVideo ? 'var(--ink)' : undefined }} />
       ) : isVideo && first ? (
         // No server thumbnail — show a STILL FRAME via preload="metadata" seeked
         // to 0.1s (#t=0.1). The browser fetches only metadata + that one frame,
         // not the whole video, and it never plays here (muted, no autoplay).
         <video src={`${first.url}#t=0.1`} preload="metadata" muted playsInline
-          style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000', pointerEvents: 'none' }} />
+          style={{ width: '100%', height: '100%', objectFit: 'cover', background: 'var(--media-bg)', pointerEvents: 'none' }} />
       ) : (
-        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, textAlign: 'center', fontSize: 13, lineHeight: 1.4, color: '#fff', background: 'linear-gradient(140deg,var(--accent),#7a4fa0)' }}>
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, textAlign: 'center', fontSize: 13, lineHeight: 1.4, color: 'var(--on-accent)', background: 'linear-gradient(140deg,var(--accent),var(--accent-ink))' }}>
           <span style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.feeling ? `${p.feeling} · ` : ''}{p.text || 'Post'}</span>
         </div>
       )}
       {isVideo && (
-        <span aria-hidden style={{ position: 'absolute', inset: 0, margin: 'auto', width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111', fontSize: 18, paddingLeft: 3 }}>▶</span>
+        <span aria-hidden style={{ position: 'absolute', inset: 0, margin: 'auto', width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink)', fontSize: 18, paddingLeft: 3 }}>▶</span>
       )}
       {p.outdoor && <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 14 }}>📍</span>}
       {/* Work/Personal category badge (when the post has been sorted) */}
       {(p.category === 'personal' || p.category === 'work') && (
-        <span style={{ position: 'absolute', top: 6, left: 6, fontSize: 10.5, fontWeight: 700, color: '#fff', background: 'rgba(0,0,0,.55)', borderRadius: 6, padding: '1px 7px' }}>
+        <span style={{ position: 'absolute', top: 6, left: 6, fontSize: 10.5, fontWeight: 700, color: 'var(--on-accent)', background: 'rgba(0,0,0,.55)', borderRadius: 6, padding: '1px 7px' }}>
           {p.category === 'work' ? '💼 Work' : '🏖 Personal'}
         </span>
       )}
       {/* Every post shows its date */}
-      <span style={{ position: 'absolute', bottom: 6, left: 6, fontSize: 11, fontWeight: 600, color: '#fff', background: 'rgba(0,0,0,.5)', borderRadius: 6, padding: '1px 7px' }}>
+      <span style={{ position: 'absolute', bottom: 6, left: 6, fontSize: 11, fontWeight: 600, color: 'var(--on-accent)', background: 'rgba(0,0,0,.5)', borderRadius: 6, padding: '1px 7px' }}>
         {tileDate(p.createdAt)}
       </span>
     </div>
@@ -145,7 +145,7 @@ function PostLightbox({ post, category, onClose }: { post: Post; category?: stri
       onClick={() => choose(key === '' ? null : key)}
       style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
         border: `1.5px solid ${cur === key ? 'var(--accent)' : 'var(--line)'}`,
-        background: cur === key ? 'var(--accent)' : 'var(--card)', color: cur === key ? '#fff' : 'var(--ink)' }}>
+        background: cur === key ? 'var(--accent)' : 'var(--card)', color: cur === key ? 'var(--on-accent)' : 'var(--ink)' }}>
       {label}
     </button>
   );
@@ -300,7 +300,7 @@ function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'phot
               }}
             >
               <PostTile p={p} />
-              <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 14, color: '#fff', background: 'rgba(0,0,0,.5)', borderRadius: 6, padding: '0 6px', lineHeight: 1.6 }}>⠿</span>
+              <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 14, color: 'var(--on-accent)', background: 'rgba(0,0,0,.5)', borderRadius: 6, padding: '0 6px', lineHeight: 1.6 }}>⠿</span>
             </div>
           ) : (
             <button key={p.id} type="button" onClick={() => setOpenId(p.id)}
@@ -388,7 +388,7 @@ function SafetyActions({ id, handle, onBlocked }: { id: string; handle: string; 
   return (
     <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginRight: 'auto' }}>
       <button type="button" onClick={doBlock} disabled={block.isPending}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit', color: '#c0392b', padding: 0 }}>
+        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit', color: 'var(--danger-ink)', padding: 0 }}>
         {block.isPending ? 'Blocking…' : '🚫 Block'}
       </button>
       <button type="button" onClick={doReport} disabled={report.isPending || reported}
@@ -420,7 +420,7 @@ export function PublicProfileModal({ handle, onClose }: { handle: string; onClos
               </div>
             </div>
             {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '12px 0 0' }}>{p.bio}</p>}
-            {p.website && <a href={p.website} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--accent)' }}>{p.website.replace(/^https?:\/\//, '')}</a>}
+            {p.website && <a href={p.website} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--accent-ink)' }}>{p.website.replace(/^https?:\/\//, '')}</a>}
             <div style={{ display: 'flex', gap: 22, margin: '14px 0' }}>
               <StatCell n={p.stats.posts} label="posts" />
               <StatCell n={p.stats.cityPoints} label="city points" />
@@ -431,7 +431,7 @@ export function PublicProfileModal({ handle, onClose }: { handle: string; onClos
                   without a way through would remove the only route from a
                   followers list to somebody's posts. */}
               <Link to={`/social/u/${encodeURIComponent(p.handle)}`} onClick={onClose}
-                style={{ marginRight: 'auto', fontSize: 12.5, fontWeight: 600, color: 'var(--accent)' }}>
+                style={{ marginRight: 'auto', fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)' }}>
                 View full profile →
               </Link>
               <SafetyActions id={p.id} handle={p.handle} onBlocked={onClose} />
@@ -575,7 +575,7 @@ export function PublicProfilePage() {
           </p>
           {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 1 }}>📍 {p.city}</p>}
           {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '8px 0 0', maxWidth: 560 }}>{p.bio}</p>}
-          {p.website && <p style={{ margin: '4px 0 0' }}><a href={p.website} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--accent)' }}>{p.website.replace(/^https?:\/\//, '')}</a></p>}
+          {p.website && <p style={{ margin: '4px 0 0' }}><a href={p.website} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--accent-ink)' }}>{p.website.replace(/^https?:\/\//, '')}</a></p>}
           <div style={{ display: 'flex', gap: 22, margin: '12px 0 0', flexWrap: 'wrap' }}>
             <StatCell n={p.stats.posts} label="posts" />
             <StatCell n={p.stats.followers} label="followers" />
@@ -722,7 +722,7 @@ function EditProfileModal({ me, onClose }: { me: MyProfile; onClose: () => void 
         <label style={label}>Website</label>
         <input value={website} onChange={(e) => setWebsite(e.target.value)} style={field} placeholder="https://…" />
 
-        {err && <p style={{ color: '#c0392b', fontSize: 12.5, marginTop: 12 }}>{err}</p>}
+        {err && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 12 }}>{err}</p>}
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
           <Button variant="line" size="sm" onClick={onClose} disabled={busy}>Cancel</Button>
@@ -760,7 +760,7 @@ function EarnView({ posts }: { posts: ProfilePost[] }) {
   ];
   return (
     <div>
-      <div style={{ background: 'linear-gradient(135deg,var(--accent),#7a4fa0)', color: '#fff', borderRadius: 'var(--radius-lg)', padding: '22px 24px', marginBottom: 16 }}>
+      <div style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-ink))', color: 'var(--on-accent)', borderRadius: 'var(--radius-lg)', padding: '22px 24px', marginBottom: 16 }}>
         <div style={{ fontSize: 12, opacity: 0.9, textTransform: 'uppercase', letterSpacing: '.05em' }}>Post &amp; Earn</div>
         <div style={{ fontFamily: 'var(--serif)', fontSize: 28, lineHeight: 1.2, marginTop: 4 }}>Not open yet</div>
         <div style={{ fontSize: 13, opacity: 0.95, marginTop: 6, maxWidth: '54ch' }}>
@@ -784,7 +784,7 @@ function EarnView({ posts }: { posts: ProfilePost[] }) {
         <div className="blk-head"><h3>The kinds of stories we mean</h3></div>
         <div style={{ marginTop: 10 }}>
           {TOPICS.map((t) => (
-            <span key={t} style={{ display: 'inline-block', background: 'var(--surface-2,#f2eee9)', border: '1px solid var(--line,#e5ddd3)', borderRadius: 999, padding: '5px 11px', fontSize: 12, margin: '0 6px 6px 0' }}>{t}</span>
+            <span key={t} style={{ display: 'inline-block', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 999, padding: '5px 11px', fontSize: 12, margin: '0 6px 6px 0' }}>{t}</span>
           ))}
         </div>
         <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
@@ -899,7 +899,7 @@ export function SocialProfile() {
           </p>
           {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 1 }}>📍 {p.city}</p>}
           {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '8px 0 0', maxWidth: 560 }}>{p.bio}</p>}
-          {p.website && <p style={{ margin: '4px 0 0' }}><a href={p.website} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--accent)' }}>{p.website.replace(/^https?:\/\//, '')}</a></p>}
+          {p.website && <p style={{ margin: '4px 0 0' }}><a href={p.website} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--accent-ink)' }}>{p.website.replace(/^https?:\/\//, '')}</a></p>}
           <div style={{ display: 'flex', gap: 22, margin: '12px 0 0', flexWrap: 'wrap' }}>
             <StatCell n={p.stats.posts} label="posts" />
             <button type="button" onClick={() => setTab('followers')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit' }}>

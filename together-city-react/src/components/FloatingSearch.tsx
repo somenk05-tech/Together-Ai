@@ -90,12 +90,12 @@ export function FloatingSearch() {
         display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 16px',
         borderRadius: 999, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink)',
         fontSize: 11, letterSpacing: '.06em', fontWeight: 700, textTransform: 'uppercase', fontFamily: 'inherit',
-        boxShadow: '0 8px 26px rgba(0,0,0,.18)', cursor: 'grab', touchAction: 'none', userSelect: 'none',
+        boxShadow: 'var(--e2)', cursor: 'grab', touchAction: 'none', userSelect: 'none',
       }}
       onPointerDownCapture={(e) => { (e.currentTarget as HTMLElement).style.cursor = 'grabbing'; }}
       onPointerUpCapture={(e) => { (e.currentTarget as HTMLElement).style.cursor = 'grab'; }}
     >
-      <Icon name="search" size={17} style={{ color: 'var(--accent)' }} /> Search
+      <Icon name="search" size={17} style={{ color: 'var(--accent-ink)' }} /> Search
     </button>
   );
 }

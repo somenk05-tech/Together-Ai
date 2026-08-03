@@ -4,10 +4,10 @@ import { useMyListings, type PropertyCard } from '../api';
 import { PropertyCardView } from '../components/PropertyCardView';
 
 const MOD: Record<string, { label: string; bg: string; c: string }> = {
-  approved: { label: '● Live in Explore', bg: '#e8f5e9', c: '#2e7d32' },
-  pending: { label: '◌ Pending review', bg: '#fff8e1', c: '#9a7b2e' },
-  review: { label: '⏳ In manual review', bg: '#fff8e1', c: '#9a7b2e' },
-  rejected: { label: '✕ Not published', bg: '#ffebee', c: '#c62828' },
+  approved: { label: '● Live in Explore', bg: 'var(--ok-soft)', c: 'var(--ok-ink)' },
+  pending: { label: '◌ Pending review', bg: 'var(--warn-soft)', c: 'var(--warn-ink)' },
+  review: { label: '⏳ In manual review', bg: 'var(--warn-soft)', c: 'var(--warn-ink)' },
+  rejected: { label: '✕ Not published', bg: 'var(--danger-soft)', c: 'var(--danger-ink)' },
 };
 
 /** A listing card with its moderation status + reasons. */

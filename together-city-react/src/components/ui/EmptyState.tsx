@@ -25,7 +25,7 @@ export function EmptyState({ icon = '◈', title, hint, action }: EmptyStateProp
       {action && <div style={{ marginTop: 16 }}>{action}</div>}
       {icon === '⚠️' && (
         <p style={{ fontSize: 12.5, marginTop: 14 }}>
-          Keeps happening? <Link to="/help" style={{ color: 'var(--accent)', fontWeight: 700 }}>Help</Link> has a way to reach us.
+          Keeps happening? <Link to="/help" style={{ color: 'var(--accent-ink)', fontWeight: 700 }}>Help</Link> has a way to reach us.
         </p>
       )}
     </div>

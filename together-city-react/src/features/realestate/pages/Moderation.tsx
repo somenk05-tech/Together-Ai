@@ -31,7 +31,7 @@ export function Moderation() {
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
                 <h3 style={{ fontSize: 16, margin: 0 }}>{p.title}</h3>
                 <span className="muted" style={{ fontSize: 12 }}>{p.locality}, {p.city} · {priceLabel(p.priceInr, p.listingType)} · {p.areaSqft} sqft · {p.photoCount} photos</span>
-                <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: p.moderation === 'review' ? '#9a7b2e' : '#9a7b2e' }}>
+                <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: p.moderation === 'review' ? 'var(--warn-ink)' : 'var(--warn-ink)' }}>
                   {p.moderation} · conf {p.result ? Math.round(p.result.confidence * 100) : '—'}% · risk {p.result?.score ?? '—'}
                 </span>
               </div>
@@ -40,7 +40,7 @@ export function Moderation() {
                 <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 6 }}>
                   {p.result.checks.map((c) => (
                     <div key={c.name} style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'baseline' }}>
-                      <span style={{ color: c.pass ? '#2e7d32' : '#c62828', fontWeight: 700 }}>{c.pass ? '✓' : '✕'}</span>
+                      <span style={{ color: c.pass ? 'var(--ok-ink)' : 'var(--danger-ink)', fontWeight: 700 }}>{c.pass ? '✓' : '✕'}</span>
                       <span><strong>{c.name}</strong> — {c.detail}</span>
                     </div>
                   ))}

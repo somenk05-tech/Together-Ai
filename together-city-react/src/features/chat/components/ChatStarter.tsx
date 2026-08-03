@@ -52,7 +52,7 @@ function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; o
     } finally { setBusy(false); }
   };
 
-  const rowStyle = (active: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 10, cursor: 'pointer', border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft, #f5efe0)' : 'transparent' });
+  const rowStyle = (active: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 10, cursor: 'pointer', border: `1.5px solid ${active ? 'var(--accent)' : 'transparent'}`, background: active ? 'var(--accent-soft)' : 'transparent' });
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 100, display: 'grid', placeItems: 'center', padding: 16 }}>
@@ -67,7 +67,7 @@ function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; o
         )}
         {mode === 'group' && picked.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '6px 0' }}>
-            {picked.map((c) => <span key={c.id} onClick={() => toggle(c)} style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft, #f5efe0)', borderRadius: 999, padding: '3px 10px' }}>{c.name} ×</span>)}
+            {picked.map((c) => <span key={c.id} onClick={() => toggle(c)} style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 10px' }}>{c.name} ×</span>)}
           </div>
         )}
 
@@ -85,17 +85,17 @@ function StarterModal({ mode, onClose, onOpened }: { mode: 'direct' | 'group'; o
               const active = picked.some((x) => x.id === c.id);
               return (
                 <div key={c.id} onClick={() => (mode === 'direct' ? setPicked([c]) : toggle(c))} style={rowStyle(active)}>
-                  <div className="tc-avatar" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', width: 30, height: 30, fontSize: 12 }}>{c.name.slice(0, 2).toUpperCase()}</div>
+                  <div className="tc-avatar" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)', width: 30, height: 30, fontSize: 12 }}>{c.name.slice(0, 2).toUpperCase()}</div>
                   <span style={{ fontWeight: 600, fontSize: 13.5 }}>{c.name}</span>
                   <span className="muted" style={{ fontSize: 12 }}>@{c.handle}</span>
-                  {active && <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontWeight: 800 }}>✓</span>}
+                  {active && <span style={{ marginLeft: 'auto', color: 'var(--accent-ink)', fontWeight: 800 }}>✓</span>}
                 </div>
               );
             })}
           </div>
         )}
 
-        {error && <p style={{ color: '#c0392b', fontSize: 12.5, marginTop: 10 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 10 }}>{error}</p>}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
           <Button variant="accent" disabled={busy || !picked.length} onClick={() => void submit()}>

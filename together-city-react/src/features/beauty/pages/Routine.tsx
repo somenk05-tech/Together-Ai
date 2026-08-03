@@ -11,7 +11,7 @@ function Step({ s }: { s: ProductRoutineStep }) {
         aria-hidden
         style={{
           flex: 'none', width: 26, height: 26, borderRadius: '50%', display: 'grid', placeItems: 'center',
-          background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: 12, fontWeight: 800,
+          background: 'var(--accent-soft)', color: 'var(--accent-ink)', fontSize: 12, fontWeight: 800,
         }}
       >
         {s.order}
@@ -29,7 +29,7 @@ function Step({ s }: { s: ProductRoutineStep }) {
         {s.warnings.length > 0 && (
           <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
             {s.warnings.map((w) => (
-              <li key={w} style={{ fontSize: 12, lineHeight: 1.5, color: '#8a6d1f', background: '#fff8e1', border: '1px solid #f0d68a', borderRadius: 8, padding: '6px 10px' }}>
+              <li key={w} style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--warn-ink)', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 8, padding: '6px 10px' }}>
                 {w}
               </li>
             ))}

@@ -81,7 +81,7 @@ function InsightBadge({ insight, listingType }: { insight: PriceInsight; listing
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 20, fontWeight: 800 }}>{inr(insight.pricePerSqft)}<span className="muted" style={{ fontSize: 12, fontWeight: 400 }}> {unit}</span></div>
         {insight.deltaPct !== 0 && (
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: below ? '#2e7d32' : '#c62828' }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: below ? 'var(--ok-ink)' : 'var(--danger-ink)' }}>
             {below ? '▼' : '▲'} {Math.abs(insight.deltaPct)}% {below ? 'below' : 'above'} area average
           </span>
         )}
@@ -99,7 +99,7 @@ function Neighbourhood({ points, score, basis }: { points: NearbyPoint[]; score:
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div className="eyebrow" style={{ margin: 0 }}>Neighbourhood & livability</div>
         <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-          <strong style={{ fontSize: 18, color: score >= 65 ? '#2e7d32' : '#e65100' }}>{score}</strong><span className="muted">/100 · {band}</span>
+          <strong style={{ fontSize: 18, color: score >= 65 ? 'var(--ok-ink)' : 'var(--warn-ink)' }}>{score}</strong><span className="muted">/100 · {band}</span>
         </span>
       </div>
       {/* What the number counted — otherwise it reads as a rating of the area. */}
@@ -146,12 +146,12 @@ export function PropertyDetail() {
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '20px 16px' }}>
-      <Link to={uc ? '/realestate/under-construction' : '/realestate/explore'} style={{ fontSize: 12.5, color: 'var(--accent)', fontWeight: 600 }}>← Back</Link>
+      <Link to={uc ? '/realestate/under-construction' : '/realestate/explore'} style={{ fontSize: 12.5, color: 'var(--accent-ink)', fontWeight: 600 }}>← Back</Link>
 
       {/* Gallery */}
-      <div style={{ marginTop: 12, borderRadius: 16, overflow: 'hidden', background: '#111', aspectRatio: '16 / 9', position: 'relative' }}>
+      <div style={{ marginTop: 12, borderRadius: 16, overflow: 'hidden', background: 'var(--media-bg)', aspectRatio: '16 / 9', position: 'relative' }}>
         {p.photos[active]?.url && <img src={p.photos[active].url} alt={p.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-        {uc && <span style={{ position: 'absolute', top: 12, left: 12, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#fff', background: '#e65100', borderRadius: 999, padding: '4px 11px' }}>Under construction</span>}
+        {uc && <span style={{ position: 'absolute', top: 12, left: 12, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--on-accent)', background: 'var(--warn-ink)', borderRadius: 999, padding: '4px 11px' }}>Under construction</span>}
       </div>
       {p.photos.length > 1 && (
         <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
@@ -165,7 +165,7 @@ export function PropertyDetail() {
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: 26, margin: 0 }}>{priceLabel(p.priceInr, p.listingType)}</h1>
-        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', color: '#fff', background: p.listingType === 'rent' ? '#1565c0' : '#2e7d32', borderRadius: 999, padding: '3px 10px' }}>{p.listingType === 'rent' ? 'For rent' : 'For sale'}</span>
+        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', color: 'var(--on-accent)', background: p.listingType === 'rent' ? 'var(--info-ink)' : 'var(--ok-ink)', borderRadius: 999, padding: '3px 10px' }}>{p.listingType === 'rent' ? 'For rent' : 'For sale'}</span>
         <span style={{ marginLeft: 'auto' }}>
           <ShareToChat item={{
             kind: 'property', hub: 'Real Estate', title: p.title, subtitle: `${p.locality}, ${p.city}`,
@@ -179,8 +179,8 @@ export function PropertyDetail() {
 
       {/* Trust & verification badges */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-        {p.verified.photo && <span style={{ fontSize: 11.5, fontWeight: 700, color: '#2e7d32', background: '#e8f5e9', borderRadius: 999, padding: '3px 11px' }}>✓ Photo-verified</span>}
-        {p.verified.rera && <span style={{ fontSize: 11.5, fontWeight: 700, color: '#1565c0', background: '#e3f2fd', borderRadius: 999, padding: '3px 11px' }}>✓ RERA-registered</span>}
+        {p.verified.photo && <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 999, padding: '3px 11px' }}>✓ Photo-verified</span>}
+        {p.verified.rera && <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--info-ink)', background: 'var(--info-soft)', borderRadius: 999, padding: '3px 11px' }}>✓ RERA-registered</span>}
         <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-soft)', border: '1px solid var(--line)', borderRadius: 999, padding: '3px 11px' }}>{p.verified.listedBy === 'owner' ? 'Listed by owner' : 'Platform listing'}</span>
       </div>
 
@@ -208,8 +208,8 @@ export function PropertyDetail() {
       <Neighbourhood points={p.neighbourhood} score={p.livabilityScore} basis={p.livabilityBasis} />
 
       {uc && (
-        <div className="card" style={{ marginTop: 14, borderLeft: '4px solid #e65100' }}>
-          <div className="eyebrow" style={{ color: '#e65100' }}>Project status</div>
+        <div className="card" style={{ marginTop: 14, borderLeft: '4px solid var(--warn-ink)' }}>
+          <div className="eyebrow" style={{ color: 'var(--warn-ink)' }}>Project status</div>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 8, alignItems: 'flex-start' }}>
             <Fact label="Project" value={p.projectName} />
             <Fact label="Developer" value={p.developer} />
@@ -219,7 +219,7 @@ export function PropertyDetail() {
           </div>
           <div style={{ marginTop: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}><span className="muted">Construction progress</span><strong>{p.progressPct}%</strong></div>
-            <div style={{ height: 9, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}><div style={{ height: '100%', width: `${p.progressPct}%`, background: '#e65100' }} /></div>
+            <div style={{ height: 9, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}><div style={{ height: '100%', width: `${p.progressPct}%`, background: 'var(--warn-ink)' }} /></div>
           </div>
 
           {p.milestones.length > 0 && (
@@ -229,9 +229,9 @@ export function PropertyDetail() {
                 <div key={i} style={{ padding: '8px 0', borderTop: '1px solid var(--line)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                     <span style={{ fontWeight: 600 }}>{m.label}{m.note ? <span className="muted" style={{ fontWeight: 400 }}> · {m.note}</span> : ''}</span>
-                    <strong style={{ color: m.pct === 100 ? '#2e7d32' : m.pct > 0 ? '#e65100' : 'var(--muted)' }}>{m.pct}%</strong>
+                    <strong style={{ color: m.pct === 100 ? 'var(--ok-ink)' : m.pct > 0 ? 'var(--warn-ink)' : 'var(--muted)' }}>{m.pct}%</strong>
                   </div>
-                  <div style={{ height: 5, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', marginTop: 4 }}><div style={{ height: '100%', width: `${m.pct}%`, background: m.pct === 100 ? '#2e7d32' : '#e65100' }} /></div>
+                  <div style={{ height: 5, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', marginTop: 4 }}><div style={{ height: '100%', width: `${m.pct}%`, background: m.pct === 100 ? 'var(--ok-ink)' : 'var(--warn-ink)' }} /></div>
                 </div>
               ))}
             </div>

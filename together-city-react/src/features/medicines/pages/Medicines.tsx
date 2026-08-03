@@ -34,7 +34,7 @@ function AddMedicine({ prescriptionId }: { prescriptionId: string }) {
       <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>
         Frequency sets the times: 1-0-1 becomes 09:00 and 21:00, 1-1-1 becomes 08:00, 14:00 and 21:00.
       </p>
-      {add.isError && <p style={{ color: '#c62828', fontSize: 12.5, marginTop: 8 }}>Couldn’t add that — check the fields and try again.</p>}
+      {add.isError && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 8 }}>Couldn’t add that — check the fields and try again.</p>}
       <Button
         variant="accent" size="sm" style={{ marginTop: 10 }}
         disabled={!ready || add.isPending}
@@ -72,9 +72,9 @@ function AddMedicine({ prescriptionId }: { prescriptionId: string }) {
  * app does not keep.
  */
 const DOSE_STATE: Record<string, { label: string; color: string; bg: string }> = {
-  taken: { label: 'Taken', color: '#2e7d32', bg: '#e8f5e9' },
-  skipped: { label: 'Skipped', color: '#6b6b6b', bg: '#f0f0ee' },
-  missed: { label: 'Not recorded', color: '#c0392b', bg: '#ffebee' },
+  taken: { label: 'Taken', color: 'var(--ok-ink)', bg: 'var(--ok-soft)' },
+  skipped: { label: 'Skipped', color: 'var(--muted)', bg: 'var(--line)' },
+  missed: { label: 'Not recorded', color: 'var(--danger-ink)', bg: 'var(--danger-soft)' },
 };
 
 function DoseRow({ d }: { d: TodayDose }) {
@@ -194,7 +194,7 @@ function PrescriptionCard({ p }: { p: Prescription }) {
                     Deliberately not styled as an alarm: it is worth a look, and
                     the app is not in a position to say more than that. */}
                 {i.allergyMatches.map((m) => (
-                  <div key={m.allergyId} style={{ fontSize: 12, lineHeight: 1.5, marginTop: 4, color: 'var(--accent)' }}>
+                  <div key={m.allergyId} style={{ fontSize: 12, lineHeight: 1.5, marginTop: 4, color: 'var(--accent-ink)' }}>
                     Matches an allergy you recorded — <strong>{m.title}</strong>. Worth checking before you confirm.
                   </div>
                 ))}
@@ -246,7 +246,7 @@ function PrescriptionCard({ p }: { p: Prescription }) {
         <>
           <AddMedicine prescriptionId={p.id} />
           {confirm.isError && (
-            <p style={{ color: '#c62828', fontSize: 12.5, marginTop: 10 }}>
+            <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, marginTop: 10 }}>
               {(confirm.error as { response?: { data?: { message?: string } } })?.response?.data?.message
                 ?? 'Couldn’t confirm — check every medicine has a dosage and a frequency.'}
             </p>
@@ -319,7 +319,7 @@ export function Medicines() {
             const dot: Record<string, { bg: string; label: string }> = {
               clear: { bg: 'var(--accent)', label: 'all taken' },
               partial: { bg: 'var(--gold-bright)', label: 'some taken' },
-              missed: { bg: '#e0342b', label: 'none taken' },
+              missed: { bg: 'var(--danger-ink)', label: 'none taken' },
               none: { bg: 'var(--line)', label: 'nothing due' },
             };
             return (

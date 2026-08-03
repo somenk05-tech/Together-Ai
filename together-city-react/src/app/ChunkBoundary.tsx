@@ -88,7 +88,7 @@ export class ChunkBoundary extends Component<{ children: ReactNode }, State> {
           <button
             type="button"
             onClick={() => { sessionStorage.removeItem(RELOAD_FLAG); window.location.reload(); }}
-            style={{ marginTop: 14, cursor: 'pointer', border: 'none', borderRadius: 12, padding: '11px 20px', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, background: 'var(--accent)', color: '#fff' }}
+            style={{ marginTop: 14, cursor: 'pointer', border: 'none', borderRadius: 12, padding: '11px 20px', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             Reload
           </button>

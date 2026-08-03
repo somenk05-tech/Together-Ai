@@ -4,10 +4,10 @@ type ChipTone = 'default' | 'accent' | 'green' | 'red' | 'amber';
 
 const TONES: Record<ChipTone, { bg: string; fg: string; bd: string }> = {
   default: { bg: 'var(--card)', fg: 'var(--ink)', bd: 'var(--line)' },
-  accent: { bg: 'var(--accent-soft)', fg: 'var(--accent)', bd: 'transparent' },
-  green: { bg: 'var(--green-soft)', fg: '#2e7d32', bd: 'transparent' },
-  red: { bg: '#fdecec', fg: '#c0392b', bd: 'transparent' },
-  amber: { bg: '#faf3e0', fg: '#8a6a1f', bd: 'transparent' },
+  accent: { bg: 'var(--card)', fg: 'var(--accent-ink)', bd: 'var(--accent-line)' },
+  green: { bg: 'var(--card)', fg: 'var(--ok-ink)', bd: 'var(--ok-line)' },
+  red: { bg: 'var(--card)', fg: 'var(--danger-ink)', bd: 'var(--danger-line)' },
+  amber: { bg: 'var(--card)', fg: 'var(--warn-ink)', bd: 'var(--warn-line)' },
 };
 
 export interface ChipProps {

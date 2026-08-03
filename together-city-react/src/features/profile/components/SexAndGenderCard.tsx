@@ -130,7 +130,7 @@ export function SexAndGenderCard() {
         <Button variant="ghost" size="sm" disabled={save.isPending} onClick={() => setEditing(false)}>Cancel</Button>
       </div>
       {save.isError && (
-        <p role="alert" style={{ fontSize: 13, color: 'var(--red, #c0392b)', margin: '10px 0 0' }}>
+        <p role="alert" style={{ fontSize: 13, color: 'var(--red)', margin: '10px 0 0' }}>
           Couldn&rsquo;t save that just now. Try again in a moment.
         </p>
       )}
@@ -195,7 +195,7 @@ function Choices({ options, value, onChange }: {
               padding: '9px 14px', borderRadius: 999,
               border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`,
               background: on ? 'var(--accent)' : 'var(--card)',
-              color: on ? '#fff' : 'var(--ink-soft)',
+              color: on ? 'var(--on-accent)' : 'var(--ink-soft)',
             }}
           >
             {o.label}

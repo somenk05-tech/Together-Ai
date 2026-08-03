@@ -13,7 +13,7 @@ export function PlanGuidanceBanner({ guidance }: { guidance?: PlanGuidance | nul
         {guidance.modes.map((m) => (
           <span
             key={m.key}
-            style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', color: 'var(--accent)', background: 'var(--card)', border: '1px solid var(--accent)', borderRadius: 999, padding: '2px 12px' }}
+            style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', color: 'var(--accent-ink)', background: 'var(--card)', border: '1px solid var(--accent)', borderRadius: 999, padding: '2px 12px' }}
           >
             {m.label}
           </span>

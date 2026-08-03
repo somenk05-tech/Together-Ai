@@ -106,7 +106,7 @@ export function MemberFinder() {
         </Button>
       </form>
 
-      {error && <p style={{ color: '#c0392b', fontSize: 12.5 }}>{error}</p>}
+      {error && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5 }}>{error}</p>}
 
       {busy && <Spinner />}
 

@@ -28,7 +28,7 @@ export function FamilySnacks({ recipes, family, dayIndex }: { recipes: Recipe[];
   const members = activeMembers(family);
   return (
     <div className="card" style={{ padding: '14px 16px' }}>
-      <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 999 }}>Personal snacks</span>
+      <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-ink)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 999 }}>Personal snacks</span>
       <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 2px' }}>One per member, tuned to their health need</p>
       {members.map((m) => {
         const pool = snackPool(recipes, m.need, m.veg);
@@ -37,7 +37,7 @@ export function FamilySnacks({ recipes, family, dayIndex }: { recipes: Recipe[];
           <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: '1px solid var(--line)' }}>
             <div style={{ minWidth: 0 }}>
               <b style={{ fontSize: 12.5 }}>{m.name}</b>{' '}
-              <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', color: 'var(--accent)', background: 'var(--accent-soft)', padding: '1px 6px', borderRadius: 999 }}>{NEED_LABEL[m.need]}</span>
+              <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', color: 'var(--accent-ink)', background: 'var(--accent-soft)', padding: '1px 6px', borderRadius: 999 }}>{NEED_LABEL[m.need]}</span>
               <div className="muted" style={{ fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {sr ? `${sr.name} · ${sr.kcal} kcal` : '—'}
               </div>

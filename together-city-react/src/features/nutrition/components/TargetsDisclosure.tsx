@@ -34,7 +34,7 @@ export function TargetsDisclosure({ p }: { p: Prescription }) {
     <div style={{ marginTop: 10 }}>
       <button type="button" onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        style={{ minWidth: 44, minHeight: 44, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--accent)' }}>
+        style={{ minWidth: 44, minHeight: 44, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)' }}>
         {open ? '▾' : '▸'} How we calculated this
       </button>
 
@@ -108,7 +108,7 @@ export function TargetsRefusal({ r }: { r: Extract<NonNullable<Prescription['rea
               style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44, padding: '6px 12px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--card)', textDecoration: 'none', color: 'inherit' }}>
               <span style={{ fontSize: 13, fontWeight: 700, minWidth: 92 }}>{m.label}</span>
               <span className="muted" style={{ fontSize: 11.5, flex: 1, lineHeight: 1.45 }}>{m.why}</span>
-              <span style={{ color: 'var(--accent)', fontSize: 13, fontWeight: 700 }}>Add →</span>
+              <span style={{ color: 'var(--accent-ink)', fontSize: 13, fontWeight: 700 }}>Add →</span>
             </Link>
           ))}
         </div>

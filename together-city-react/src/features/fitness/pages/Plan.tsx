@@ -3,7 +3,7 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { AiSuggestions } from '@/components/AiSuggestions';
 import { useFitnessPlan, type Session, type ConditionAdjustment, type Citation } from '../api';
 
-const intensityColor: Record<string, string> = { light: '#2e7d32', moderate: '#e65100', vigorous: '#c62828' };
+const intensityColor: Record<string, string> = { light: 'var(--ok-ink)', moderate: 'var(--warn-ink)', vigorous: 'var(--danger-ink)' };
 const kindIcon: Record<string, string> = { aerobic: '🏃', strength: '🏋️', balance: '🧘', mobility: '🤸', recovery: '😌' };
 
 function Chips({ citations }: { citations: Citation[] }) {
@@ -11,7 +11,7 @@ function Chips({ citations }: { citations: Citation[] }) {
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
       {citations.map((c) => (
-        <span key={c.id} title={c.ref} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 9px' }}>{c.label}</span>
+        <span key={c.id} title={c.ref} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '2px 9px' }}>{c.label}</span>
       ))}
     </div>
   );
@@ -71,8 +71,8 @@ export function Plan() {
       <AiSuggestions kind="fitness" />
 
       {!p.consentGranted && (
-        <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid #e65100' }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5, color: '#e65100' }}>🔒 Lab tailoring is off</div>
+        <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--warn-ink)' }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--warn-ink)' }}>🔒 Lab tailoring is off</div>
           <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 8px' }}>
             Fitness can't read your biomarkers (consent revoked in Medical). Your plan is built from age and
             declared conditions only — turn Fitness on to tailor by iron, glucose and inflammation.

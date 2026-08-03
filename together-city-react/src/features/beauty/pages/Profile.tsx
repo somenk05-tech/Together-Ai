@@ -8,12 +8,12 @@ import { MasterLockedNote, masterLockedStyle } from '@/features/profile/MasterLo
 
 /** Assessment-level display meta for the timeline. */
 const LEVEL_META: Record<string, { c: string; label: string }> = {
-  good: { c: '#2e7d32', label: 'Good' }, monitor: { c: '#8a6d00', label: 'Monitor' },
-  attention: { c: '#e65100', label: 'Attention' }, priority: { c: '#c62828', label: 'Priority' },
+  good: { c: 'var(--ok-ink)', label: 'Good' }, monitor: { c: 'var(--warn-ink)', label: 'Monitor' },
+  attention: { c: 'var(--warn-ink)', label: 'Attention' }, priority: { c: 'var(--danger-ink)', label: 'Priority' },
 };
 const dirMeta = (d: string) =>
-  d === 'improved' ? { icon: '▲', c: '#1b7a3a' }
-  : d === 'worse' ? { icon: '▼', c: '#c0392b' }
+  d === 'improved' ? { icon: '▲', c: 'var(--ok-ink)' }
+  : d === 'worse' ? { icon: '▼', c: 'var(--danger-ink)' }
   : d === 'new' ? { icon: '＋', c: 'var(--muted)' } : { icon: '▬', c: 'var(--muted)' };
 
 /** Permanent skin & hair timeline — baseline + every follow-up, with progress
@@ -30,7 +30,7 @@ function SkinHairTimeline() {
       <div className="eyebrow">🗓️ Skin &amp; hair timeline</div>
 
       {d.followUpDue && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 8, padding: '11px 14px', background: '#fff8e1', border: '1px solid #f0d68a', borderRadius: 12, fontSize: 12.5 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 8, padding: '11px 14px', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 12, fontSize: 12.5 }}>
           <span style={{ fontSize: 16 }}>📸</span>
           <span>It's been {d.daysSinceLast} days since your last assessment — upload a new set of photos to measure your progress. Optional, whenever you're ready.</span>
         </div>
@@ -40,8 +40,8 @@ function SkinHairTimeline() {
         <div style={{ marginTop: 10, padding: '12px 14px', background: 'var(--accent-soft)', borderRadius: 12 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
             <div className="eyebrow" style={{ margin: 0 }}>Progress vs last assessment</div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: d.comparison.skinDelta >= 0 ? '#1b7a3a' : '#c0392b' }}>Skin {d.comparison.skinDelta >= 0 ? '+' : ''}{d.comparison.skinDelta}</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: d.comparison.hairDelta >= 0 ? '#1b7a3a' : '#c0392b' }}>Hair {d.comparison.hairDelta >= 0 ? '+' : ''}{d.comparison.hairDelta}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: d.comparison.skinDelta >= 0 ? 'var(--ok-ink)' : 'var(--danger-ink)' }}>Skin {d.comparison.skinDelta >= 0 ? '+' : ''}{d.comparison.skinDelta}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: d.comparison.hairDelta >= 0 ? 'var(--ok-ink)' : 'var(--danger-ink)' }}>Hair {d.comparison.hairDelta >= 0 ? '+' : ''}{d.comparison.hairDelta}</span>
           </div>
           <p style={{ fontSize: 13, lineHeight: 1.55, margin: '8px 0 0' }}>{d.comparison.summary}</p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
@@ -61,7 +61,7 @@ function SkinHairTimeline() {
               <button type="button" onClick={() => setOpenId(isOpen ? null : e.id)}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
                 <span style={{ fontSize: 12.5, fontWeight: 700, minWidth: 92 }}>{fmt(e.date)}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: e.baseline ? '#8a4b00' : 'var(--accent)', background: e.baseline ? '#fff3e0' : 'var(--accent-soft)', borderRadius: 999, padding: '1px 9px' }}>{e.baseline ? 'Baseline · Month 0' : e.label}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: e.baseline ? 'var(--warn-ink)' : 'var(--accent)', background: e.baseline ? 'var(--warn-soft)' : 'var(--accent-soft)', borderRadius: 999, padding: '1px 9px' }}>{e.baseline ? 'Baseline · Month 0' : e.label}</span>
                 <span className="muted" style={{ fontSize: 11.5, marginLeft: 'auto' }}>Skin {e.skinScore} · Hair {e.hairScore} {isOpen ? '▾' : '▸'}</span>
               </button>
               {isOpen && (
@@ -113,7 +113,7 @@ function BiomarkerCorrelation() {
       <div className="card" style={{ marginTop: 14 }}>
         <div className="eyebrow">🩸 Biomarker correlation</div>
         <p className="muted" style={{ fontSize: 13, margin: '6px 0 0', lineHeight: 1.55 }}>
-          Add a blood test in the <Link to="/medical/blood" style={{ color: 'var(--accent)', fontWeight: 600 }}>Medical Hub</Link> and we'll link markers like ferritin, vitamin D, HbA1c and CRP to your skin & hair here — for example, low ferritin → increased shedding, or raised HbA1c → glycation and loss of firmness.
+          Add a blood test in the <Link to="/medical/blood" style={{ color: 'var(--accent-ink)', fontWeight: 600 }}>Medical Hub</Link> and we'll link markers like ferritin, vitamin D, HbA1c and CRP to your skin & hair here — for example, low ferritin → increased shedding, or raised HbA1c → glycation and loss of firmness.
         </p>
       </div>
     );
@@ -125,14 +125,14 @@ function BiomarkerCorrelation() {
         {d.takenOn && <span className="muted" style={{ fontSize: 11.5 }}>from your panel · {d.takenOn}</span>}
       </div>
       {d.insights.length === 0 ? (
-        <p style={{ fontSize: 13, marginTop: 8, color: '#2e7d32' }}>✓ No biomarker flags are affecting your skin or hair right now — a good foundation.</p>
+        <p style={{ fontSize: 13, marginTop: 8, color: 'var(--ok-ink)' }}>✓ No biomarker flags are affecting your skin or hair right now — a good foundation.</p>
       ) : (
         <div style={{ marginTop: 8 }}>
           {d.insights.map((i) => (
             <div key={i.marker} style={{ padding: '11px 0', borderTop: '1px solid var(--line)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <strong style={{ fontSize: 13.5 }}>{MARKER_LABEL[i.marker] ?? i.marker} {i.status === 'high' ? '↑' : '↓'}</strong>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#8a4b00', background: '#fff3e0', borderRadius: 999, padding: '1px 8px' }}>{i.concern}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--warn-ink)', background: 'var(--warn-soft)', borderRadius: 999, padding: '1px 8px' }}>{i.concern}</span>
                 {typeof i.value === 'number' && <span className="muted" style={{ fontSize: 11.5 }}>{i.value}</span>}
               </div>
               <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', margin: '6px 0 0', lineHeight: 1.5 }}>{i.mechanism}</p>
@@ -170,10 +170,10 @@ const PHOTO_SLOTS = [
 ];
 
 const LEVEL: Record<AssessLevel, { color: string; soft: string; label: string }> = {
-  good: { color: '#2e7d4f', soft: '#e6f2ea', label: 'Good' },
-  monitor: { color: '#3f7d9a', soft: '#e6eff4', label: 'Monitor' },
-  attention: { color: '#b0803a', soft: '#f7efe1', label: 'Needs Attention' },
-  priority: { color: '#b0503e', soft: '#f8eae6', label: 'Priority' },
+  good: { color: 'var(--ok-ink)', soft: 'var(--ok-soft)', label: 'Good' },
+  monitor: { color: 'var(--info-ink)', soft: 'var(--info-soft)', label: 'Monitor' },
+  attention: { color: 'var(--warn-ink)', soft: 'var(--warn-soft)', label: 'Needs Attention' },
+  priority: { color: 'var(--danger-ink)', soft: 'var(--danger-soft)', label: 'Priority' },
 };
 
 interface Form {
@@ -202,7 +202,7 @@ function Chip({ on, label, onClick }: { on: boolean; label: string; onClick: () 
   return (
     <button type="button" onClick={onClick}
       style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 13px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
-        border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? '#fff' : 'var(--ink-soft)' }}>
+        border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
       {on ? '✓ ' : ''}{label}
     </button>
   );
@@ -289,7 +289,7 @@ function AssessmentView({ a, analyzedAt }: { a: BeautyAssessment; analyzedAt?: s
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {a.ingredients.map((ing, i) => (
               <div key={i} style={{ borderTop: i ? '1px solid var(--line)' : 'none', paddingTop: i ? 8 : 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>{ing.name}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-ink)' }}>{ing.name}</div>
                 <div className="muted" style={{ fontSize: 12 }}>{ing.why}</div>
               </div>
             ))}
@@ -298,7 +298,7 @@ function AssessmentView({ a, analyzedAt }: { a: BeautyAssessment; analyzedAt?: s
       )}
 
       {a.cautions.length > 0 && (
-        <div className="card" style={{ background: '#fff8e1', borderLeft: '3px solid #f9a825' }}>
+        <div className="card" style={{ background: 'var(--warn-soft)', borderLeft: '3px solid var(--warn-line)' }}>
           <div className="eyebrow" style={{ marginBottom: 6 }}>Good to know</div>
           {a.cautions.map((c, i) => <p key={i} className="muted" style={{ fontSize: 12, margin: '3px 0' }}>· {c}</p>)}
         </div>
@@ -326,7 +326,7 @@ function ProgressView({ entries }: { entries: BeautyProgressEntry[] }) {
       </select>
       <div style={{ aspectRatio: '1 / 1', borderRadius: 12, border: '1px solid var(--line)', background: e.thumb ? `center/cover no-repeat url(${e.thumb})` : 'var(--paper)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
         {!e.thumb && <span className="muted" style={{ fontSize: 11, paddingBottom: 8 }}>no photo</span>}
-        <span style={{ background: 'rgba(20,18,14,.7)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, margin: 6 }}>Score {e.score}</span>
+        <span style={{ background: 'rgba(20,18,14,.7)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, margin: 6 }}>Score {e.score}</span>
       </div>
     </div>
   );
@@ -351,14 +351,14 @@ function ProgressView({ entries }: { entries: BeautyProgressEntry[] }) {
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             <Pane title="Before" e={before} idx={bi} set={setBi} />
             <div style={{ alignSelf: 'center', textAlign: 'center', flex: 'none' }}>
-              <div style={{ fontSize: 20, fontWeight: 800, color: delta > 0 ? '#2e7d4f' : delta < 0 ? '#b0503e' : 'var(--muted)' }}>{delta > 0 ? `+${delta}` : delta}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: delta > 0 ? 'var(--ok-ink)' : delta < 0 ? 'var(--danger-ink)' : 'var(--muted)' }}>{delta > 0 ? `+${delta}` : delta}</div>
               <div className="muted" style={{ fontSize: 10 }}>score</div>
             </div>
             <Pane title="After" e={after} idx={ai} set={setAi} />
           </div>
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 10, fontSize: 12 }}>
-            {resolved.length > 0 && <span style={{ color: '#2e7d4f', fontWeight: 600 }}>✓ Improved: {resolved.join(', ')}</span>}
-            {appeared.length > 0 && <span style={{ color: '#b0803a', fontWeight: 600 }}>▲ New: {appeared.join(', ')}</span>}
+            {resolved.length > 0 && <span style={{ color: 'var(--ok-ink)', fontWeight: 600 }}>✓ Improved: {resolved.join(', ')}</span>}
+            {appeared.length > 0 && <span style={{ color: 'var(--warn-ink)', fontWeight: 600 }}>▲ New: {appeared.join(', ')}</span>}
             {resolved.length === 0 && appeared.length === 0 && <span className="muted">No change in detected concerns between these check-ins.</span>}
           </div>
         </div>
@@ -538,16 +538,16 @@ export function Profile() {
       <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--accent)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <strong style={{ fontSize: 13.5 }}>Unlock your AI Skin & Hair Assessment</strong>
-          <span style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 800, color: 'var(--accent)' }}>{overallPct}%</span>
+          <span style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 800, color: 'var(--accent-ink)' }}>{overallPct}%</span>
         </div>
         <div style={{ height: 7, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', margin: '8px 0 10px' }}>
           <div style={{ height: '100%', width: `${overallPct}%`, background: 'var(--accent)', transition: 'width .3s ease' }} />
         </div>
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 12.5 }}>
-          <span style={{ fontWeight: 600, color: photosComplete ? '#2e7d32' : 'var(--ink-soft)' }}>
+          <span style={{ fontWeight: 600, color: photosComplete ? 'var(--ok-ink)' : 'var(--ink-soft)' }}>
             {photosComplete ? '✅' : '1️⃣'} Photos: {Math.min(picsCount, 6)} / 6
           </span>
-          <span style={{ fontWeight: 600, color: profileComplete ? '#2e7d32' : 'var(--ink-soft)' }}>
+          <span style={{ fontWeight: 600, color: profileComplete ? 'var(--ok-ink)' : 'var(--ink-soft)' }}>
             {profileComplete ? '✅' : '2️⃣'} Profile: {answered} / {profileTotal}
           </span>
         </div>
@@ -650,7 +650,7 @@ export function Profile() {
                   <div key={s.key} onClick={() => fileRefs.current[s.key]?.click()}
                     style={{ cursor: 'pointer', border: '2px dashed var(--line)', borderRadius: 12, aspectRatio: '1 / 1', overflow: 'hidden', position: 'relative', background: pic ? `center/cover no-repeat url(${pic.preview})` : 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {!pic && <div style={{ textAlign: 'center', padding: 8 }}><div style={{ fontSize: 22 }}>＋</div><div className="muted" style={{ fontSize: 11 }}>{s.label}</div></div>}
-                    {pic && <span style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(20,18,14,.6)', color: '#fff', fontSize: 10.5, padding: '3px 6px', textAlign: 'center' }}>{s.label}</span>}
+                    {pic && <span style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(20,18,14,.6)', color: 'var(--on-accent)', fontSize: 10.5, padding: '3px 6px', textAlign: 'center' }}>{s.label}</span>}
                     <input ref={(el) => { fileRefs.current[s.key] = el; }} type="file" accept="image/*" onChange={(e) => onPic(s.key, e)} style={{ display: 'none' }} />
                   </div>
                 );
@@ -663,7 +663,7 @@ export function Profile() {
               </p>
             </div>
             {warning && (
-              <p style={{ fontSize: 12.5, color: '#b0503e', fontWeight: 600, margin: '10px 0 0' }}>⚠️ {warning}</p>
+              <p style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600, margin: '10px 0 0' }}>⚠️ {warning}</p>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
               <Button variant="accent" disabled={analyze.isPending || !photosComplete || !profileComplete || (profile.data?.uploads?.remaining === 0)} onClick={() => void runAnalysis()}>
@@ -671,7 +671,7 @@ export function Profile() {
               </Button>
               {!photosComplete && picsCount > 0 && <span className="muted" style={{ fontSize: 11.5 }}>Add {6 - picsCount} more photo{6 - picsCount > 1 ? 's' : ''} to continue</span>}
               {photosComplete && !profileComplete && (
-                <button type="button" onClick={() => setTab('profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, color: 'var(--accent)', padding: 0 }}>
+                <button type="button" onClick={() => setTab('profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, color: 'var(--accent-ink)', padding: 0 }}>
                   Complete your profile to unlock your assessment →
                 </button>
               )}
@@ -683,13 +683,13 @@ export function Profile() {
               {progress.length > 0 && (
                 <button type="button" disabled={del.isPending}
                   onClick={() => { if (window.confirm('Delete your latest photo check-in? Your current assessment will be cleared and stays empty until you upload new photos and re-analyse. Earlier timeline entries stay; this does not refund a weekly analysis.')) del.mutate(); }}
-                  style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: '#b0503e', padding: 0 }}>
+                  style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--danger-ink)', padding: 0 }}>
                   {del.isPending ? 'Deleting…' : '🗑 Delete latest & re-upload'}
                 </button>
               )}
             </div>
             {analyze.isError && (
-              <p style={{ fontSize: 12.5, color: '#b0503e', fontWeight: 600, margin: '10px 0 0' }}>
+              <p style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600, margin: '10px 0 0' }}>
                 ⚠️ The analysis didn't go through — please check your connection and tap Analyse again. If it keeps failing, try re-adding the photos.
               </p>
             )}
@@ -712,10 +712,10 @@ export function Profile() {
       {tab === 'profile' && (
         <div>
           {photoBanner && (
-            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 14, padding: '12px 14px', background: '#e8f5e9', border: '1px solid #c8e6c9', borderRadius: 12, fontSize: 13 }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 14, padding: '12px 14px', background: 'var(--ok-soft)', border: '1px solid var(--ok-line)', borderRadius: 12, fontSize: 13 }}>
               <span>✅</span>
               <span>Photos uploaded successfully. Now complete your Skin &amp; Hair Profile to generate your personalised AI assessment.</span>
-              <button type="button" onClick={() => setPhotoBanner(false)} aria-label="Dismiss this message" style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#2e7d32' }}>✕</button>
+              <button type="button" onClick={() => setPhotoBanner(false)} aria-label="Dismiss this message" style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--ok-ink)' }}>✕</button>
             </div>
           )}
           <OnboardingProgress />
@@ -800,8 +800,8 @@ export function Profile() {
                     return (
                       <button key={x} type="button" onClick={() => multi('medicalConditions', x)} title={reason || undefined}
                         style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 13px', fontSize: 12.5, fontFamily: 'inherit', fontWeight: 600,
-                          border: `1.5px solid ${on ? 'var(--accent)' : reason ? '#c026d3' : 'var(--line)'}`,
-                          background: on ? 'var(--accent)' : 'transparent', color: on ? '#fff' : reason ? '#a21caf' : 'var(--ink-soft)' }}>
+                          border: `1.5px solid ${on ? 'var(--accent)' : reason ? 'var(--accent-ink)' : 'var(--line)'}`,
+                          background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--on-accent)' : reason ? 'var(--accent-ink)' : 'var(--ink-soft)' }}>
                         {on ? '✓ ' : ''}{x}{reason ? ' 🩸' : ''}
                       </button>
                     );
@@ -810,7 +810,7 @@ export function Profile() {
                 </div>
                 {(labNotes.length > 0 || preSelected.length > 0 || sug?.alopeciaHint) && (
                   <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(192,38,211,0.06)', border: '1px solid rgba(192,38,211,0.2)' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#a21caf', marginBottom: 6 }}>🩸 From your labs</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-ink)', marginBottom: 6 }}>🩸 From your labs</div>
                     {preSelected.length > 0 && (
                       <div className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, marginBottom: (labNotes.length || sug?.alopeciaHint) ? 6 : 0 }}>
                         We pre-selected {preSelected.join(', ')} based on your blood tests. Every pick is editable — uncheck any that don't apply.
@@ -839,7 +839,7 @@ export function Profile() {
               </Button>
             )}
             {!profileComplete && <span className="muted" style={{ fontSize: 12 }}>{profileTotal - answered} question{profileTotal - answered === 1 ? '' : 's'} left — "Don't know" counts as an answer.</span>}
-            {save.isSuccess && profileComplete && <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>✓ Saved</span>}
+            {save.isSuccess && profileComplete && <span style={{ fontSize: 13, color: 'var(--accent-ink)', fontWeight: 700 }}>✓ Saved</span>}
           </div>
           </>
           )}

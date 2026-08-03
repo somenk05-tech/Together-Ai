@@ -54,7 +54,7 @@ function TrailMessage({ m, mine }: { m: MailMessage; mine: boolean }) {
   return (
     <div style={{ padding: '14px 0', borderTop: '1px solid var(--line)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 800, color: '#fff', background: m.system ? 'var(--accent)' : `hsl(${hue},52%,45%)` }}>
+        <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 800, color: 'var(--on-accent)', background: m.system ? 'var(--accent)' : `hsl(${hue},52%,45%)` }}>
           {m.system ? '🏙' : initials(m.fromName)}
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>

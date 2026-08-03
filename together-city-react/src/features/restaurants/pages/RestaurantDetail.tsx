@@ -29,10 +29,10 @@ function DishRow({ d, qty, onAdd, onSub }: { d: Dish; qty: number; onAdd: () => 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <DietTag d={d} />
           <strong style={{ fontSize: 14.5 }}>{d.name}</strong>
-          {d.bestseller && <span style={{ fontSize: 10, fontWeight: 700, color: '#8a6d00', background: '#fff3cf', borderRadius: 6, padding: '1px 6px' }}>★ Bestseller</span>}
+          {d.bestseller && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--warn-ink)', background: 'var(--warn-soft)', borderRadius: 6, padding: '1px 6px' }}>★ Bestseller</span>}
           {d.spicy && <span title="Spicy" style={{ fontSize: 11 }}>🌶️</span>}
-          {d.fitsYourDiet === true && <span style={{ fontSize: 10, fontWeight: 700, color: '#1b7a3a', background: '#e8f5e9', borderRadius: 6, padding: '1px 6px' }}>fits your plan</span>}
-          {d.fitsYourDiet === false && <span style={{ fontSize: 10, fontWeight: 700, color: '#b23', background: '#fdecec', borderRadius: 6, padding: '1px 6px' }}>off your plan</span>}
+          {d.fitsYourDiet === true && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 6, padding: '1px 6px' }}>fits your plan</span>}
+          {d.fitsYourDiet === false && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--danger-ink)', background: 'var(--danger-soft)', borderRadius: 6, padding: '1px 6px' }}>off your plan</span>}
         </div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>{d.desc}</div>
         <div><AllergyMarkTag mark={d.allergen} /></div>
@@ -43,9 +43,9 @@ function DishRow({ d, qty, onAdd, onSub }: { d: Dish; qty: number; onAdd: () => 
           ? <Button variant="line" size="sm" onClick={onAdd}>Add</Button>
           : (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, border: '1.5px solid var(--accent)', borderRadius: 10, padding: '4px 10px' }}>
-              <button type="button" onClick={onSub} aria-label="Decrease quantity" style={{ cursor: 'pointer', border: 'none', background: 'none', fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>−</button>
+              <button type="button" onClick={onSub} aria-label="Decrease quantity" style={{ cursor: 'pointer', border: 'none', background: 'none', fontSize: 16, fontWeight: 700, color: 'var(--accent-ink)' }}>−</button>
               <span style={{ fontWeight: 700, minWidth: 14, textAlign: 'center' }}>{qty}</span>
-              <button type="button" onClick={onAdd} aria-label="Increase quantity" style={{ cursor: 'pointer', border: 'none', background: 'none', fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>+</button>
+              <button type="button" onClick={onAdd} aria-label="Increase quantity" style={{ cursor: 'pointer', border: 'none', background: 'none', fontSize: 16, fontWeight: 700, color: 'var(--accent-ink)' }}>+</button>
             </div>
           )}
       </div>
@@ -94,11 +94,11 @@ export function RestaurantDetail() {
       <div className="card" style={{ padding: 0, overflow: 'hidden', marginTop: 8 }}>
         <div style={{ position: 'relative', aspectRatio: '20 / 7', background: 'var(--line)' }}>
           <img src={r.heroUrl} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          <div style={{ position: 'absolute', left: 16, bottom: 12, color: '#fff' }}>
+          <div style={{ position: 'absolute', left: 16, bottom: 12, color: 'var(--on-accent)' }}>
             <div style={{ fontSize: 12, fontWeight: 700, opacity: .95 }}>{r.icon} {r.cuisineLabel}</div>
             <div style={{ fontSize: 24, fontWeight: 800 }}>{r.name}</div>
           </div>
-          <span style={{ position: 'absolute', top: 12, right: 12, fontSize: 13, fontWeight: 800, color: '#fff', background: 'rgba(27,122,58,.92)', borderRadius: 8, padding: '4px 10px' }}>★ {r.rating.toFixed(1)}</span>
+          <span style={{ position: 'absolute', top: 12, right: 12, fontSize: 13, fontWeight: 800, color: 'var(--on-accent)', background: 'rgba(27,122,58,.92)', borderRadius: 8, padding: '4px 10px' }}>★ {r.rating.toFixed(1)}</span>
         </div>
         <div style={{ padding: '12px 16px', display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           <span className="muted" style={{ fontSize: 13 }}>{r.tagline}</span>
@@ -114,7 +114,7 @@ export function RestaurantDetail() {
       </div>
 
       {r.dietProfile && (
-        <div style={{ marginTop: 12, fontSize: 12.5, color: '#1b7a3a', background: '#e8f5e9', borderRadius: 10, padding: '9px 13px' }}>
+        <div style={{ marginTop: 12, fontSize: 12.5, color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 10, padding: '9px 13px' }}>
           🥗 Personalised for your <strong>{r.dietProfile}</strong> plan from the Nutrition hub — dishes that don’t fit are dimmed and tagged.
         </div>
       )}
@@ -123,8 +123,8 @@ export function RestaurantDetail() {
       {r.breakdown && (
         <div className="card" style={{ marginTop: 12 }}>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', flex: '0 0 auto', background: `conic-gradient(#1b7a3a ${r.breakdown.tcScore * 3.6}deg, var(--line) 0)`, display: 'grid', placeItems: 'center' }}>
-              <div style={{ width: 50, height: 50, borderRadius: '50%', background: 'var(--card,#fff)', display: 'grid', placeItems: 'center', textAlign: 'center', lineHeight: 1 }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', flex: '0 0 auto', background: `conic-gradient(var(--ok-ink) ${r.breakdown.tcScore * 3.6}deg, var(--line) 0)`, display: 'grid', placeItems: 'center' }}>
+              <div style={{ width: 50, height: 50, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', textAlign: 'center', lineHeight: 1 }}>
                 <div><b style={{ fontSize: 17 }}>{r.breakdown.tcScore}</b><div style={{ fontSize: 7.5, color: 'var(--muted)', letterSpacing: '.04em' }}>TC SCORE</div></div>
               </div>
             </div>
@@ -143,7 +143,7 @@ export function RestaurantDetail() {
 
       {/* AI editorial overview */}
       {overview.data && (
-        <div className="card" style={{ marginTop: 12, background: 'var(--accent-soft, #f5f1ff)' }}>
+        <div className="card" style={{ marginTop: 12, background: 'var(--accent-soft)' }}>
           <div className="eyebrow" style={{ marginTop: 0 }}>✨ What to expect{overview.data.aiPowered ? ' · AI overview' : ''}</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '6px 0 10px' }}>
             {overview.data.highlights.map((h, i) => <span key={i} className="tag">{h}</span>)}
@@ -178,7 +178,7 @@ export function RestaurantDetail() {
                 <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>{d.desc}</div>
                 <div><AllergyMarkTag mark={d.allergen} /></div>
                 <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
-                  {d.bestseller && <span style={{ fontSize: 10, fontWeight: 700, color: '#8a6d00', background: '#fff3cf', borderRadius: 6, padding: '1px 6px' }}>★ Bestseller</span>}
+                  {d.bestseller && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--warn-ink)', background: 'var(--warn-soft)', borderRadius: 6, padding: '1px 6px' }}>★ Bestseller</span>}
                   <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>{d.dietLabel}</span>
                 </div>
               </div>
@@ -191,7 +191,7 @@ export function RestaurantDetail() {
       <div className="card" style={{ marginTop: 14 }}>
         <div className="eyebrow" style={{ marginTop: 0 }}>Book a table</div>
         {reserved ? (
-          <div style={{ fontSize: 14, color: '#1b7a3a' }}>✅ Table reserved — see it under <Link to="/restaurants/reservations">Reservations</Link>.</div>
+          <div style={{ fontSize: 14, color: 'var(--ok-ink)' }}>✅ Table reserved — see it under <Link to="/restaurants/reservations">Reservations</Link>.</div>
         ) : (
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label style={{ fontSize: 12 }}>Date<br /><input type="date" value={rDate} onChange={(e) => setRDate(e.target.value)} style={inp} /></label>
@@ -210,7 +210,7 @@ export function RestaurantDetail() {
         <h2 style={{ fontSize: 19, margin: 0 }}>Menu</h2>
         <div style={{ marginLeft: 'auto', display: 'inline-flex', border: '1.5px solid var(--line)', borderRadius: 10, overflow: 'hidden' }}>
           {(['delivery', 'dinein'] as const).map((m) => (
-            <button key={m} type="button" onClick={() => setMode(m)} style={{ cursor: 'pointer', border: 'none', padding: '7px 14px', fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit', textTransform: 'capitalize', background: mode === m ? 'var(--accent)' : 'transparent', color: mode === m ? '#fff' : 'var(--ink-soft)' }}>{m === 'dinein' ? 'Dine-in' : 'Delivery'}</button>
+            <button key={m} type="button" onClick={() => setMode(m)} style={{ cursor: 'pointer', border: 'none', padding: '7px 14px', fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit', textTransform: 'capitalize', background: mode === m ? 'var(--accent)' : 'transparent', color: mode === m ? 'var(--on-accent)' : 'var(--ink-soft)' }}>{m === 'dinein' ? 'Dine-in' : 'Delivery'}</button>
           ))}
         </div>
       </div>
@@ -224,7 +224,7 @@ export function RestaurantDetail() {
 
       {/* Sticky cart bar */}
       {itemCount > 0 && (
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, background: 'var(--card, #fff)', borderTop: '1px solid var(--line)', boxShadow: '0 -6px 20px rgba(0,0,0,.08)', padding: '12px 16px', zIndex: 30 }}>
+        <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, background: 'var(--card)', borderTop: '1px solid var(--line)', boxShadow: '0 -6px 20px rgba(0,0,0,.08)', padding: '12px 16px', zIndex: 30 }}>
           <div style={{ maxWidth: 820, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontWeight: 800, fontSize: 16 }}>{inr(total)}</div>
@@ -249,4 +249,4 @@ export function RestaurantDetail() {
   );
 }
 
-const inp = { padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', background: 'var(--card, #fff)' } as const;
+const inp = { padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', background: 'var(--card)' } as const;

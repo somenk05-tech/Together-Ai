@@ -5,13 +5,13 @@ import { useMyOrders, inr, type DiningOrder } from '../api';
 function OrderCard({ o }: { o: DiningOrder }) {
   return (
     <article className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14, display: 'flex' }}>
-      <div style={{ width: 8, background: o.mode === 'delivery' ? 'var(--accent)' : '#1565c0' }} />
+      <div style={{ width: 8, background: o.mode === 'delivery' ? 'var(--accent)' : 'var(--info-ink)' }} />
       <div style={{ flex: 1, padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <strong style={{ fontSize: 16 }}>{o.restaurantName}</strong>
           <span className="muted" style={{ fontSize: 12.5 }}>{o.area}</span>
-          <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: '#2e7d32', background: '#e8f5e9', borderRadius: 999, padding: '2px 10px' }}>{o.status}</span>
-          <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: '#555', background: 'var(--line)', borderRadius: 999, padding: '2px 10px', textTransform: 'capitalize' }}>{o.mode === 'dinein' ? 'Dine-in' : 'Delivery'}</span>
+          <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 999, padding: '2px 10px' }}>{o.status}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--ink-soft)', background: 'var(--line)', borderRadius: 999, padding: '2px 10px', textTransform: 'capitalize' }}>{o.mode === 'dinein' ? 'Dine-in' : 'Delivery'}</span>
         </div>
         <div style={{ marginTop: 8 }}>
           {o.items.map((l) => (

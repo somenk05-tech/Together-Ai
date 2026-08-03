@@ -36,7 +36,7 @@ function FamilyRecipeCard({ r, headN, onBasket, basketing }: { r: Recipe; headN:
 
   return (
     <div className="pcard card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ position: 'relative', aspectRatio: '16 / 9', overflow: 'hidden', background: 'linear-gradient(140deg, #2e7d3218, #2e7d3238)' }}>
+      <div style={{ position: 'relative', aspectRatio: '16 / 9', overflow: 'hidden', background: 'var(--well)' }}>
         {hasImg ? (
           <img src={img} alt={r.name} loading="lazy" onError={() => setImgOk(false)}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />

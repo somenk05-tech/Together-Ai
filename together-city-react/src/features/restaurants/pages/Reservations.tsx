@@ -7,13 +7,13 @@ const fmtDate = (d: string) => { const [y, m, day] = d.split('-'); const months 
 function ResCard({ v }: { v: Reservation }) {
   return (
     <article className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14, display: 'flex' }}>
-      <div style={{ width: 8, background: '#8a5a2b' }} />
+      <div style={{ width: 8, background: 'var(--warn-ink)' }} />
       <div style={{ flex: 1, padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 18 }}>📅</span>
           <strong style={{ fontSize: 16 }}>{v.restaurantName}</strong>
           <span className="muted" style={{ fontSize: 12.5 }}>{v.area}</span>
-          <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: '#2e7d32', background: '#e8f5e9', borderRadius: 999, padding: '2px 10px' }}>{v.status}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 999, padding: '2px 10px' }}>{v.status}</span>
         </div>
         <div style={{ display: 'flex', gap: 20, marginTop: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div><div className="eyebrow" style={{ margin: 0 }}>Date</div><div style={{ fontWeight: 700, fontSize: 14 }}>{fmtDate(v.date)}</div></div>

@@ -94,7 +94,7 @@ function ImageEditor({ src, onClose, onApply }: { src: string; onClose: () => vo
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 90, display: 'grid', placeItems: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(560px,96vw)', maxHeight: '92vh', overflow: 'auto' }}>
         <h3 style={{ margin: '0 0 10px', fontSize: 17 }}>Edit photo</h3>
-        <div style={{ borderRadius: 12, overflow: 'hidden', background: '#000', marginBottom: 12 }}>
+        <div style={{ borderRadius: 12, overflow: 'hidden', background: 'var(--media-bg)', marginBottom: 12 }}>
           <img src={src} alt="" style={{ width: '100%', maxHeight: '46vh', objectFit: 'contain', display: 'block', filter }} />
         </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -151,7 +151,7 @@ function CoverPicker({ item, onClose, onPick }: { item: MediaItem; onClose: () =
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: 'min(560px,96vw)', maxHeight: '92vh', overflow: 'auto' }}>
         <h3 style={{ margin: '0 0 8px', fontSize: 17 }}>Choose cover frame</h3>
         <video ref={vref} src={item.src} controls playsInline muted
-          style={{ width: '100%', borderRadius: 10, background: '#000', maxHeight: '60vh', display: 'block' }} />
+          style={{ width: '100%', borderRadius: 10, background: 'var(--media-bg)', maxHeight: '60vh', display: 'block' }} />
         <p className="muted" style={{ fontSize: 12.5, margin: '10px 0' }}>Scrub to the frame you want, pause, then set it as the cover.</p>
         <div style={{ display: 'flex', gap: 10 }}>
           <button type="button" className="btn btn-accent btn-sm" onClick={capture}>Use this frame</button>
@@ -296,13 +296,13 @@ function MusicPicker({ selected, onSelect, stopSignal }: { selected: Track | nul
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
         <span className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>🎵 Music:</span>
         <span title="Every track is royalty-free and cleared for use. Uploading your own (possibly copyrighted) audio is not allowed."
-          style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(34,197,94,.14)', color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(34,197,94,.14)', color: 'var(--ok-ink)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
           🛡 Copyright-safe · Royalty-free
         </span>
         <button type="button" onClick={() => { stop(); onSelect(null); }}
           style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
             border: `1.5px solid ${!selected ? 'var(--accent)' : 'var(--line)'}`,
-            background: !selected ? 'var(--accent)' : 'var(--card)', color: !selected ? '#fff' : 'var(--ink)' }}>
+            background: !selected ? 'var(--accent)' : 'var(--card)', color: !selected ? 'var(--on-accent)' : 'var(--ink)' }}>
           None
         </button>
       </div>
@@ -316,7 +316,7 @@ function MusicPicker({ selected, onSelect, stopSignal }: { selected: Track | nul
                 background: active ? 'color-mix(in srgb, var(--accent) 12%, var(--card))' : 'var(--card)' }}>
               <button type="button" onClick={() => preview(t)}
                 style={{ minWidth: 44, minHeight: 44, width: 30, height: 30, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                  background: 'var(--accent)', color: '#fff', fontSize: 13, flex: '0 0 auto' }}>
+                  background: 'var(--accent)', color: 'var(--on-accent)', fontSize: 13, flex: '0 0 auto' }}>
                 {previewId === t.id ? '⏸' : '▶'}
               </button>
               <button type="button" onClick={() => { onSelect(active ? null : t); }}
@@ -324,7 +324,7 @@ function MusicPicker({ selected, onSelect, stopSignal }: { selected: Track | nul
                 <div style={{ fontSize: 13, fontWeight: 700 }}>{t.title}</div>
                 <div className="muted" style={{ fontSize: 11 }}>{t.mood ?? t.artist ?? 'Track'}{t.license ? ` · ${t.license}` : ''}</div>
               </button>
-              {active && <span style={{ fontSize: 13, color: 'var(--accent)' }}>✓</span>}
+              {active && <span style={{ fontSize: 13, color: 'var(--accent-ink)' }}>✓</span>}
             </div>
           );
         })}
@@ -545,34 +545,34 @@ export function CreatePost() {
             {media.map((m, i) => {
               const badge = m.type === 'video' ? fmtBadge(m.dur) : null;
               return (
-                <div key={i} style={{ position: 'relative', aspectRatio: frameRatio(m.portrait), maxHeight: 320, borderRadius: 12, overflow: 'hidden', background: '#000' }}>
+                <div key={i} style={{ position: 'relative', aspectRatio: frameRatio(m.portrait), maxHeight: 320, borderRadius: 12, overflow: 'hidden', background: 'var(--media-bg)' }}>
                   {m.type === 'video'
                     ? <video src={m.src} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : <img src={m.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                   {m.type === 'video' && m.file && (
-                    <span style={{ position: 'absolute', top: 6, left: 6, color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(0,0,0,.6)' }}>
+                    <span style={{ position: 'absolute', top: 6, left: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(0,0,0,.6)' }}>
                       {fileFmt(m.file)} · {sizeMB(m.file.size)} MB
                     </span>
                   )}
                   {badge && (
-                    <span style={{ position: 'absolute', bottom: 6, left: 6, color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: badge.eligible ? 'rgba(46,125,70,.92)' : 'rgba(180,105,31,.92)' }}>
+                    <span style={{ position: 'absolute', bottom: 6, left: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: badge.eligible ? 'rgba(46,125,70,.92)' : 'rgba(180,105,31,.92)' }}>
                       {badge.text}
                     </span>
                   )}
                   <button type="button" onClick={() => setMedia((prev) => prev.filter((_, j) => j !== i))}
                     aria-label={`Remove this ${m.type === 'video' ? 'video' : 'photo'}`}
-                    style={{ minWidth: 44, minHeight: 44, position: 'absolute', top: 5, right: 5, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,.65)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>
+                    style={{ minWidth: 44, minHeight: 44, position: 'absolute', top: 5, right: 5, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,.65)', color: 'var(--on-accent)', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>
                     ✕
                   </button>
                   {m.type === 'video' && (
                     <button type="button" onClick={() => setCoverPick(i)}
-                      style={{ position: 'absolute', bottom: 6, right: 6, color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: 'rgba(0,0,0,.65)', border: 'none', cursor: 'pointer' }}>
+                      style={{ position: 'absolute', bottom: 6, right: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: 'rgba(0,0,0,.65)', border: 'none', cursor: 'pointer' }}>
                       {m.poster ? '✓ Cover set' : '🖼 Choose cover'}
                     </button>
                   )}
                   {m.type === 'image' && (
                     <button type="button" onClick={() => setEditPick(i)}
-                      style={{ position: 'absolute', bottom: 6, right: 6, color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: 'rgba(0,0,0,.65)', border: 'none', cursor: 'pointer' }}>
+                      style={{ position: 'absolute', bottom: 6, right: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: 'rgba(0,0,0,.65)', border: 'none', cursor: 'pointer' }}>
                       ✎ Edit
                     </button>
                   )}
@@ -595,7 +595,7 @@ export function CreatePost() {
         {hashtags.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
             {hashtags.map((h) => (
-              <span key={h} style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft)', padding: '3px 10px', borderRadius: 999 }}>
+              <span key={h} style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', padding: '3px 10px', borderRadius: 999 }}>
                 {h} <button type="button" onClick={() => setHashtags((x) => x.filter((y) => y !== h))} aria-label={`Remove ${h}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', padding: 0, marginLeft: 2 }}>✕</button>
               </span>
             ))}
@@ -642,7 +642,7 @@ export function CreatePost() {
             <button key={key || 'none'} type="button" onClick={() => setCategory(key)}
               style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
                 border: `1.5px solid ${category === key ? 'var(--accent)' : 'var(--line)'}`,
-                background: category === key ? 'var(--accent)' : 'var(--card)', color: category === key ? '#fff' : 'var(--ink)' }}>
+                background: category === key ? 'var(--accent)' : 'var(--card)', color: category === key ? 'var(--on-accent)' : 'var(--ink)' }}>
               {label}
             </button>
           ))}
@@ -679,7 +679,7 @@ export function CreatePost() {
               <button key={f} type="button" onClick={() => setFeeling(feeling === f ? null : f)}
                 style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, padding: '6px 12px', borderRadius: 999,
                   border: `1.5px solid ${feeling === f ? 'var(--accent)' : 'var(--line)'}`,
-                  background: feeling === f ? 'var(--accent)' : 'var(--card)', color: feeling === f ? '#fff' : 'var(--ink)' }}>
+                  background: feeling === f ? 'var(--accent)' : 'var(--card)', color: feeling === f ? 'var(--on-accent)' : 'var(--ink)' }}>
                 {f}
               </button>
             ))}
@@ -701,7 +701,7 @@ export function CreatePost() {
             {tagged.length > 0 && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                 {tagged.map((t) => (
-                  <span key={t.id} style={{ fontSize: 12, fontWeight: 600, background: 'var(--accent-soft)', color: 'var(--accent)', padding: '3px 10px', borderRadius: 999 }}>
+                  <span key={t.id} style={{ fontSize: 12, fontWeight: 600, background: 'var(--accent-soft)', color: 'var(--accent-ink)', padding: '3px 10px', borderRadius: 999 }}>
                     {t.name} <button type="button" onClick={() => setTagged((x) => x.filter((y) => y.id !== t.id))} aria-label={`Remove ${t.name}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}>✕</button>
                   </span>
                 ))}
@@ -742,15 +742,15 @@ export function CreatePost() {
         )}
       </div>
 
-      <div className="rise d1" style={{ background: 'linear-gradient(135deg,var(--accent),#7a4fa0)', color: '#fff', borderRadius: 14, padding: '12px 16px', margin: '14px 0' }}>
+      <div className="rise d1" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-ink))', color: 'var(--on-accent)', borderRadius: 14, padding: '12px 16px', margin: '14px 0' }}>
         <b style={{ fontSize: 13 }}>💰 Post &amp; Earn — up to ₹100 per video</b>
         <div style={{ fontSize: 11.5, opacity: 0.95, marginTop: 2 }}>
-          Original videos 3 min+ earn ₹100 after review (max 15/day). <Link to="/social/profile" style={{ color: '#fff', textDecoration: 'underline' }}>Rules →</Link>
+          Original videos 3 min+ earn ₹100 after review (max 15/day). <Link to="/social/profile" style={{ color: 'var(--on-accent)', textDecoration: 'underline' }}>Rules →</Link>
         </div>
       </div>
 
       {(phase === 'error' || mediaError) && (
-        <div role="alert" style={{ background: '#fdecea', color: '#b3261e', border: '1px solid #f4c7c3', borderRadius: 12, padding: '11px 14px', margin: '0 0 12px', fontSize: 13, fontWeight: 500 }}>
+        <div role="alert" style={{ background: 'var(--danger-soft)', color: 'var(--danger-ink)', border: '1px solid var(--danger-line)', borderRadius: 12, padding: '11px 14px', margin: '0 0 12px', fontSize: 13, fontWeight: 500 }}>
           {mediaError ?? errMsg ?? 'Something went wrong publishing your post. Please try again.'}
         </div>
       )}
@@ -765,8 +765,8 @@ export function CreatePost() {
             flex: busy ? 'none' : 2, width: busy ? 150 : undefined, justifyContent: 'center',
             display: 'flex', alignItems: 'center', gap: 8, borderRadius: 999, padding: '11px 18px',
             fontFamily: 'inherit', fontWeight: 700, fontSize: 14, cursor: busy || !canShare ? 'default' : 'pointer',
-            border: 'none', color: '#fff',
-            background: phase === 'success' ? '#2e7d4f' : 'var(--accent)',
+            border: 'none', color: 'var(--on-accent)',
+            background: phase === 'success' ? 'var(--ok-ink)' : 'var(--accent)',
             opacity: !busy && !canShare ? 0.5 : 1,
             transition: 'flex .35s ease, width .35s ease, background .25s ease',
           }}>

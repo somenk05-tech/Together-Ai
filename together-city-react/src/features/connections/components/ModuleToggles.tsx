@@ -52,7 +52,7 @@ export function ModuleToggles({ relationship, selected, onChange }: {
           connections are unaffected.
         </p>
         <button type="button" onClick={() => void refetch()}
-          style={{ minHeight: 44, background: 'none', border: '1px solid var(--line)', borderRadius: 8, padding: '0 14px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: 'var(--accent)' }}>
+          style={{ minHeight: 44, background: 'none', border: '1px solid var(--line)', borderRadius: 8, padding: '0 14px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: 'var(--accent-ink)' }}>
           Try again
         </button>
       </div>
