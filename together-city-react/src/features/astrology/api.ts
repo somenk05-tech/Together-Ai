@@ -20,30 +20,39 @@ export interface SaveAstroProfileInput {
   birthDate: string; birthTime: string | null; birthCountry: string;
   birthState?: string | null; birthCity: string; timeZone: string;
 }
-export interface GuidanceSection { key: string; title: string; icon: string; body: string }
-export interface LuckyElements { number: number; color: string; time: string; direction: string }
-export interface DailyReading {
-  needsProfile: boolean; date: string; theme: string; text: string;
-  /** "Dear {First}," — every report opens as a letter. Optional: history rows
-   *  written before the voice change won't carry one. */
-  greeting?: string;
-  moonPhase: string; sunSign: string; words: number;
-  // Personal Guidance Engine (optional — older history rows won't have these).
-  framing?: string;
-  numerology?: { lifePath: number; personalYear: number; personalMonth: number; personalDay: number };
-  dasha?: { maha: string; antar: string };
-  sections?: GuidanceSection[];
-  lucky?: LuckyElements;
-  reflection?: string;
+/**
+ * A letter.
+ *
+ * `sections`, `lucky`, `theme`, `moonPhase`, `sunSign`, `numerology`, `dasha`,
+ * `reflection` and `framing` were all removed here rather than left unread. The
+ * screen stopped rendering them, and a field nothing renders is a field that
+ * quietly stops being true — the same rule that took the grocery ordering flow
+ * out in B.18.
+ *
+ * `pending` is the one addition, and it carries real weight: it means the letter
+ * for this period has not been successfully written. It is NOT an error, and it
+ * is NOT "you have nothing". Those are three different sentences and the screen
+ * says whichever one is true.
+ */
+export interface Letter {
+  /** "Dear Somen," — always the opening line, always on its own. */
+  salutation: string;
+  /** The letter. Paragraphs separated by a blank line, and nothing else in it. */
+  body: string;
+  signOff: string;
+  words: number;
 }
-export interface MonthlySection { key: string; title: string; body: string }
-export interface MonthlyReading {
-  needsProfile: boolean; month: string; title: string; sections: MonthlySection[];
-  greeting?: string;
-  words: number; bestDates: number[]; cautionDates: number[];
-  framing?: string;
-  numerology?: { lifePath: number; personalYear: number; personalMonth: number };
-  dasha?: { maha: string; antar: string };
+export interface DailyLetter extends Letter {
+  needsProfile: boolean;
+  pending?: boolean;
+  date: string;
+}
+export interface MonthlyLetter extends Letter {
+  needsProfile: boolean;
+  pending?: boolean;
+  date: string;
+  /** "August 2026" — the month it was written for, ready to show. */
+  month?: string;
 }
 export interface AstroQuestion {
   id: string; topic: string; question: string; answer: string;
@@ -99,9 +108,9 @@ export const astrologyApi = {
   profile: () => api.get<AstroProfileView>('/astrology/profile').then((r) => r.data),
   saveProfile: (dto: SaveAstroProfileInput) =>
     api.put<{ saved: boolean; profile: AstroProfile }>('/astrology/profile', dto).then((r) => r.data),
-  daily: () => api.get<DailyReading>('/astrology/daily').then((r) => r.data),
-  dailyHistory: () => api.get<Array<Omit<DailyReading, 'needsProfile'>>>('/astrology/daily/history').then((r) => r.data),
-  monthly: () => api.get<MonthlyReading>('/astrology/monthly').then((r) => r.data),
+  daily: () => api.get<DailyLetter>('/astrology/daily').then((r) => r.data),
+  dailyHistory: () => api.get<Array<Omit<DailyLetter, 'needsProfile' | 'pending'>>>('/astrology/daily/history').then((r) => r.data),
+  monthly: () => api.get<MonthlyLetter>('/astrology/monthly').then((r) => r.data),
   ask: (dto: { topic: string; question: string; method?: 'wallet' | 'card' }) =>
     api.post<AskResult>('/astrology/ask', dto).then((r) => r.data),
   questions: () => api.get<AstroQuestion[]>('/astrology/questions').then((r) => r.data),

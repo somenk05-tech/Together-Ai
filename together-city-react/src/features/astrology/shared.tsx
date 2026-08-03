@@ -21,8 +21,8 @@ export function NeedsProfileCard() {
 }
 
 const TABS = [
-  { path: '/astrology/today', label: "01 · Today's Horoscope" },
-  { path: '/astrology/monthly', label: '02 · Monthly Horoscope' },
+  { path: '/astrology/today', label: '01 · Today' },
+  { path: '/astrology/monthly', label: '02 · This Month' },
   { path: '/astrology/ask', label: '03 · Ask the Astrologer' },
   { path: '/astrology/tarot', label: '04 · Tarot' },
   { path: '/astrology/remedies', label: '05 · Gems & Remedies' },

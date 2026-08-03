@@ -1,11 +1,27 @@
 import { useState } from 'react';
-import { Card, EmptyState, Spinner, Tag } from '@/components/ui';
 import { useAstroDaily, useAstroDailyHistory } from '../hooks';
-import { AstroHeader, NeedsProfileCard } from '../shared';
+import { LetterBody, LetterNote, LetterSky, NeedsBirthDetails } from '../components/Letter';
 
-/** Tab 01 — Today's Horoscope. One saved prediction per user per day, written
- *  from the birth chart + today's transits; a new one begins at the user's
- *  own midnight and every past day stays on the profile. */
+const dayLabel = (iso: string) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+
+/**
+ * Today's letter.
+ *
+ * One letter per person per day, written at their own midnight and kept. The
+ * page is the letter and nothing else — see components/Letter.tsx for why the
+ * card, the header, the chips, the five sections, the lucky strip and the
+ * reflection box are all gone rather than hidden.
+ *
+ * FOUR THINGS CAN BE TRUE HERE and the page says which:
+ *   · we have not asked for their birth details yet,
+ *   · the request failed, so we do not know whether there is a letter,
+ *   · the letter for today has not been successfully written,
+ *   · there is a letter.
+ * The middle two used to collapse into one another. A failed request rendered
+ * "Couldn't reach the stars", which told somebody their letter was missing when
+ * what had actually happened was that we could not see it.
+ */
 export function AstroToday() {
   const daily = useAstroDaily();
   const history = useAstroDailyHistory();
@@ -14,85 +30,48 @@ export function AstroToday() {
   const past = (history.data ?? []).filter((h) => h.date !== d?.date).slice(0, 7);
 
   return (
-    <div>
-      <AstroHeader title="Today's Guidance" lede="Personal guidance from your Vedic birth chart, today's transits, your Dasha period and numerology — practical reflection and encouragement, offered as guidance rather than fixed prediction." />
-      {daily.isLoading && <Spinner label="Reading today's sky…" />}
-      {daily.isError && <EmptyState title="Couldn't reach the stars" hint="Reload in a moment." />}
-      {d && d.needsProfile && <NeedsProfileCard />}
-      {d && !d.needsProfile && (
-        <>
-          <Card className="rise" style={{ padding: '26px 26px 22px' }}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-              <Tag>☀️ {d.sunSign}</Tag>
-              <Tag>🌙 {d.moonPhase}</Tag>
-              {d.numerology && <Tag>🔢 Life Path {d.numerology.lifePath}</Tag>}
-              {d.numerology && <Tag>Personal Day {d.numerology.personalDay}</Tag>}
-              {d.dasha && <Tag>🪐 {d.dasha.maha} Dasha</Tag>}
-              <Tag>{new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</Tag>
-            </div>
-            {d.greeting && (
-              <p style={{ fontFamily: 'var(--serif)', fontSize: 16, margin: '0 0 8px', color: 'var(--ink-soft)' }}>{d.greeting}</p>
-            )}
-            <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(20px,2.4vw,26px)', marginBottom: 6 }}>{d.theme}</h2>
+    <>
+      <LetterSky>
+        {daily.isLoading && <LetterNote>Opening today&rsquo;s letter&hellip;</LetterNote>}
 
-            {d.sections && d.sections.length > 0 ? (
-              <>
-                <div style={{ marginTop: 10 }}>
-                  {d.sections.map((s) => (
-                    <div key={s.key} style={{ marginTop: 16 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14.5 }}>
-                        <span aria-hidden>{s.icon}</span>{s.title}
-                      </div>
-                      <p style={{ fontSize: 14.5, lineHeight: 1.7, margin: '4px 0 0', color: 'var(--ink-soft)' }}>{s.body}</p>
-                    </div>
-                  ))}
-                </div>
+        {daily.isError && (
+          <LetterNote action={<button type="button" className="letter-link" onClick={() => void daily.refetch()}>Try again</button>}>
+            We could not reach your letter just now. This is not a message that there isn&rsquo;t
+            one &mdash; only that we could not get to it from here.
+          </LetterNote>
+        )}
 
-                {d.lucky && (
-                  <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center', marginTop: 20, background: 'var(--accent-soft)', borderRadius: 12, padding: '12px 16px' }}>
-                    <span style={{ fontWeight: 700, fontSize: 13.5 }}>✨ Lucky today</span>
-                    <span style={{ fontSize: 13 }}>Number <b>{d.lucky.number}</b></span>
-                    <span style={{ fontSize: 13 }}>Colour <b style={{ textTransform: 'capitalize' }}>{d.lucky.color}</b></span>
-                    <span style={{ fontSize: 13 }}>Best time <b>{d.lucky.time}</b></span>
-                    <span style={{ fontSize: 13 }}>Direction <b style={{ textTransform: 'capitalize' }}>{d.lucky.direction}</b></span>
-                  </div>
-                )}
+        {d?.needsProfile && <NeedsBirthDetails />}
 
-                {d.reflection && (
-                  <div style={{ marginTop: 16, borderLeft: '3px solid var(--accent)', padding: '6px 0 6px 14px' }}>
-                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>🪞 Daily Reflection</div>
-                    <p style={{ fontSize: 14, lineHeight: 1.65, margin: '4px 0 0' }}>{d.reflection}</p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p style={{ fontSize: 15.5, lineHeight: 1.75, marginTop: 10 }}>{d.text}</p>
-            )}
+        {d && !d.needsProfile && d.pending && (
+          <LetterNote action={<button type="button" className="letter-link" onClick={() => void daily.refetch()}>Check again</button>}>
+            Today&rsquo;s letter isn&rsquo;t ready yet. It is written fresh each morning rather than
+            assembled from parts, and that hasn&rsquo;t finished &mdash; so rather than hand you
+            something that only looks like it, we would rather you came back in a little while.
+          </LetterNote>
+        )}
 
-            <p className="muted" style={{ fontSize: 11.5, marginTop: 18, fontStyle: 'italic' }}>
-              {d.framing ?? `Written for you once for ${d.date}, and saved to your profile.`}
-            </p>
-          </Card>
+        {d && !d.needsProfile && !d.pending && d.body && (
+          <LetterBody salutation={d.salutation} body={d.body} signOff={d.signOff} />
+        )}
+      </LetterSky>
 
-          {past.length > 0 && (
-            <div style={{ marginTop: 26 }}>
-              <button type="button" onClick={() => setShowPast((v) => !v)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontWeight: 600, fontSize: 13.5, padding: 0, fontFamily: 'inherit' }}>
-                {showPast ? '▾ Hide previous days' : `▸ Previous days (${past.length})`}
-              </button>
-              {showPast && past.map((h) => (
-                <Card key={h.date} style={{ marginTop: 12, padding: '16px 20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
-                    <b style={{ fontSize: 13.5 }}>{new Date(h.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</b>
-                    <span className="muted" style={{ fontSize: 12 }}>{h.theme}</span>
-                  </div>
-                  <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6 }}>{h.text}</p>
-                </Card>
-              ))}
-            </div>
-          )}
-        </>
+      {/* Below the artwork, never over it. */}
+      {past.length > 0 && (
+        <div className="letter-past">
+          <div className="letter-past-inner">
+            <button type="button" className="letter-link" onClick={() => setShowPast((v) => !v)}>
+              {showPast ? 'Hide earlier letters' : `Earlier letters (${past.length})`}
+            </button>
+            {showPast && past.map((h) => (
+              <div key={h.date}>
+                <p className="letter-date">{dayLabel(h.date)}</p>
+                <LetterBody salutation={h.salutation} body={h.body} signOff={h.signOff} />
+              </div>
+            ))}
+          </div>
+        </div>
       )}
-    </div>
+    </>
   );
 }

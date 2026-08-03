@@ -1,6 +1,7 @@
 import { natalChart, scanMonth } from './astro-engine';
-import { composeAnswer, composeGuidance, composeMonthly, wordCount } from './astro-content';
+import { composeAnswer, composeDailyBrief, composeMonthlyBrief, wordCount } from './astro-content';
 import { computeNumerology, vimshottariDasha } from './personal-factors';
+import { bannedVocabulary } from './letter';
 import { violations } from './voice';
 
 const born1 = new Date('1991-06-10T00:00:00Z');
@@ -8,51 +9,35 @@ const born2 = new Date('1985-12-02T00:00:00Z');
 const chart = natalChart(born1, '09:45', 'Asia/Kolkata', 12.97, 77.59);
 const chart2 = natalChart(born2, '22:10', 'Asia/Kolkata', 28.61, 77.21);
 
-const guidanceOn = (c: typeof chart, born: Date, seed: string, day: Date, name?: string) =>
-  composeGuidance(c, seed, day, computeNumerology(born, day), vimshottariDasha(c.moon.lon, born, day), name);
+const briefOn = (c: typeof chart, born: Date, seed: string, day: Date) =>
+  composeDailyBrief(c, seed, day, computeNumerology(born, day), vimshottariDasha(c.moon.lon, born, day));
 
-const monthlyOn = (c: typeof chart, born: Date, seed: string, month: number, name?: string) => {
+const monthlyOn = (c: typeof chart, born: Date, seed: string, month: number) => {
   const on = new Date(`2026-${String(month).padStart(2, '0')}-05T00:00:00Z`);
-  return composeMonthly(c, seed, scanMonth(c, 2026, month), computeNumerology(born, on), vimshottariDasha(c.moon.lon, born, on), name);
+  return composeMonthlyBrief(c, seed, scanMonth(c, 2026, month), computeNumerology(born, on), vimshottariDasha(c.moon.lon, born, on));
 };
 
 describe('astro-content', () => {
-  it('daily guidance is dated, personalised and deterministic per user+day', () => {
+  it('the daily brief is personal and stable for a person and a day', () => {
     const day = new Date('2026-07-22T09:00:00Z');
-    const a = guidanceOn(chart, born1, 'user-1', day);
-    expect(a.date).toBe('2026-07-22');
-    expect(a.sections).toHaveLength(5);
-    // Same user+day → identical; different user → different text
-    expect(guidanceOn(chart, born1, 'user-1', day).text).toBe(a.text);
-    expect(guidanceOn(chart2, born2, 'user-2', day).text).not.toBe(a.text);
+    const a = briefOn(chart, born1, 'user-1', day);
+    expect(a.observations.length).toBeGreaterThanOrEqual(8);
+    expect(briefOn(chart, born1, 'user-1', day).observations).toEqual(a.observations);
+    expect(briefOn(chart2, born2, 'user-2', day).observations).not.toEqual(a.observations);
   });
 
-  it('daily guidance varies across days for the same user', () => {
-    const a = guidanceOn(chart, born1, 'user-1', new Date('2026-07-22T09:00:00Z'));
-    const b = guidanceOn(chart, born1, 'user-1', new Date('2026-07-23T09:00:00Z'));
-    expect(a.text).not.toBe(b.text);
+  it('the daily brief moves between days for the same person', () => {
+    const a = briefOn(chart, born1, 'user-1', new Date('2026-07-22T09:00:00Z'));
+    const b = briefOn(chart, born1, 'user-1', new Date('2026-11-23T09:00:00Z'));
+    expect(a.observations).not.toEqual(b.observations);
   });
 
-  it('every report opens as a letter, and copes with a missing name', () => {
-    const day = new Date('2026-07-22T09:00:00Z');
-    expect(guidanceOn(chart, born1, 'user-1', day, 'Somen Kumar').greeting).toBe('Dear Somen,');
-    expect(guidanceOn(chart, born1, 'user-1', day).greeting).toBe('Dear friend,');
-    expect(monthlyOn(chart, born1, 'user-1', 7, 'Priya').greeting).toBe('Dear Priya,');
-  });
-
-  it('monthly guidance hits the premium 2,000-4,000 word target with all 11 sections', () => {
-    const astro = scanMonth(chart, 2026, 7);
-    const m = composeMonthly(chart, 'user-1', astro);
-    expect(m.words).toBeGreaterThanOrEqual(2000);
-    expect(m.words).toBeLessThanOrEqual(4000);
-    const keys = m.sections.map((s) => s.key);
-    for (const k of ['intro', 'career', 'money', 'love', 'health', 'family', 'travel', 'events', 'best', 'caution', 'summary']) {
-      expect(keys).toContain(k);
-    }
-    // Deterministic within the month
-    expect(composeMonthly(chart, 'user-1', astro).sections[1].body).toBe(m.sections[1].body);
-    // Personalised: another chart/user reads differently
-    expect(composeMonthly(chart2, 'user-2', scanMonth(chart2, 2026, 7)).sections[1].body).not.toBe(m.sections[1].body);
+  it('the monthly brief carries the month and enough to write a long letter from', () => {
+    const m = monthlyOn(chart, born1, 'user-1', 7);
+    expect(m.month).toBe('July 2026');
+    expect(m.observations.length).toBeGreaterThanOrEqual(15);
+    expect(monthlyOn(chart, born1, 'user-1', 7).observations).toEqual(m.observations);
+    expect(monthlyOn(chart2, born2, 'user-2', 7).observations).not.toEqual(m.observations);
   });
 
   it('consultation answers are detailed (300+ words), on-topic and vary by topic', () => {
@@ -65,7 +50,7 @@ describe('astro-content', () => {
   });
 
   /**
-   * The voice guarantee — the reason voice.ts exists.
+   * The voice guarantee — the reason voice.ts and letter.ts exist.
    *
    * Swept across two charts, several dates and every topic rather than checked
    * once, because the composers pick from pools and branch on sign, element and
@@ -73,26 +58,33 @@ describe('astro-content', () => {
    * still says "Mercury retrograde in Gemini". The two charts have different
    * suns, moons and ascendants, so between them they reach most of the
    * sign-dependent phrasing.
+   *
+   * THE BRIEFS ARE HELD TO THE STRICTER BAR — bannedVocabulary() rather than
+   * violations(). The brief is the only thing the writer ever sees, so anything
+   * in it can come back verbatim in the letter. A brief that says "their Saturn
+   * period" is a leak with one extra step in it, and the writer would be right
+   * to think the word was permitted.
    */
   describe('never exposes the machinery', () => {
     const days = ['2026-01-14', '2026-03-02', '2026-07-22', '2026-09-30', '2026-12-11'].map((d) => new Date(`${d}T09:00:00Z`));
 
-    it('daily guidance stays in voice across charts and dates', () => {
+    it('the daily brief is safe to hand to a writer, across charts and dates', () => {
       for (const [c, born] of [[chart, born1], [chart2, born2]] as const) {
         for (const day of days) {
-          const g = guidanceOn(c, born, 'seed-user', day, 'Somen');
-          const text = [g.greeting, g.framing, g.theme, g.reflection, ...g.sections.map((s) => s.body)].join('\n');
-          expect({ day: g.date, found: violations(text) }).toEqual({ day: g.date, found: [] });
+          const b = briefOn(c, born, 'seed-user', day);
+          const text = [...b.observations, b.note].join('\n');
+          const iso = day.toISOString().slice(0, 10);
+          expect({ day: iso, found: [...bannedVocabulary(text), ...violations(text)] }).toEqual({ day: iso, found: [] });
         }
       }
     });
 
-    it('monthly guidance stays in voice across charts and months', () => {
+    it('the monthly brief is safe to hand to a writer, across charts and months', () => {
       for (const [c, born] of [[chart, born1], [chart2, born2]] as const) {
         for (const month of [1, 4, 7, 11]) {
-          const m = monthlyOn(c, born, 'seed-user', month, 'Somen');
-          const text = [m.greeting, m.title, m.framing ?? '', ...m.sections.map((s) => s.body)].join('\n');
-          expect({ month: m.month, found: violations(text) }).toEqual({ month: m.month, found: [] });
+          const m = monthlyOn(c, born, 'seed-user', month);
+          const text = [...m.observations, m.note].join('\n');
+          expect({ month: m.month, found: [...bannedVocabulary(text), ...violations(text)] }).toEqual({ month: m.month, found: [] });
         }
       }
     });

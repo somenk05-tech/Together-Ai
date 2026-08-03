@@ -58,8 +58,11 @@ export const HUBS: Record<HubKey, HubConfig> = {
   astrology: {
     key: 'astrology', name: 'Astrology Zone', tag: 'Read the stars, together', backPath: '/astrology', dark: true,
     items: [
-      { path: '/astrology/today', index: '01', label: "Today's Horoscope", sub: 'Your day, from your chart' },
-      { path: '/astrology/monthly', index: '02', label: 'Monthly Horoscope', sub: 'Premium month-ahead reading' },
+      // These two lead to letters, and a letter may not name what produced it.
+      // A menu entry sitting four inches away that says "from your chart" gives
+      // away in a subtitle exactly what the prose spends 400 words not saying.
+      { path: '/astrology/today', index: '01', label: 'Today', sub: 'Your letter for today' },
+      { path: '/astrology/monthly', index: '02', label: 'This Month', sub: 'One letter, once a month' },
       { path: '/astrology/ask', index: '03', label: 'Ask the Astrologer', sub: '₹75 · personal consultation' },
       { path: '/astrology/tarot', index: '04', label: 'Tarot', sub: 'Free daily card · paid spreads' },
       { path: '/profile/astrology', index: '05', label: 'Astrology Profile', sub: 'Birth details, entered once' },

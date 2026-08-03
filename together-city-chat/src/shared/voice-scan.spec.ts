@@ -30,8 +30,15 @@ const SRC = join(__dirname, '..');
 /**
  * Files that legitimately contain the banned phrases: the rule modules
  * themselves, which have to name what they forbid.
+ *
+ * THIS IS A NARROW EXEMPTION AND MUST STAY ONE. It is not "files where the
+ * guard is inconvenient" — it is files whose entire content is the statement of
+ * what may not be said, in a regex table and in the prompt that hands the same
+ * list to a writer. A module qualifies only if every banned phrase in it
+ * appears as a thing being prohibited. `astrology/letter.ts` is the third: it
+ * cannot tell a writer not to say "as an AI" without containing the words.
  */
-const ALLOW = ['shared/voice.ts', 'astrology/voice.ts'];
+const ALLOW = ['shared/voice.ts', 'astrology/voice.ts', 'astrology/letter.ts'];
 
 function sourceFiles(): string[] {
   const out: string[] = [];

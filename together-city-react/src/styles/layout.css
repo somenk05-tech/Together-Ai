@@ -63,3 +63,116 @@
   .tc-side.open { transform: translateX(0); }
   .tc-shell .tc-main > * { padding: 24px 20px 60px; }
 }
+
+/* ─────────────────────────── The letter surface ───────────────────────────
+   Used by the daily and monthly guidance pages, and by nothing else.
+
+   The brief for those two screens was that the page should feel like opening a
+   letter from someone who knows you: the illustration below, the writing in the
+   negative space above it, and no furniture anywhere. That rules out the card
+   this app puts around everything else, so this is the one place with a dark
+   ground and its own type scale.
+
+   THE ARTWORK IS A SEPARATE ELEMENT RATHER THAN A BACKGROUND, deliberately. As
+   `background-size: cover` it would scale with the height of the letter — a
+   long letter would magnify the solar system and crop it sideways, so the
+   picture would be a different picture on a long day than on a short one. As an
+   <img> at natural aspect it is the same artwork every time, the ground above
+   it is flat, and the writing can never collide with it.
+
+   The flat ground is #010104, sampled from the top edge of the illustration
+   itself, so the seam where one becomes the other is not visible.
+   ────────────────────────────────────────────────────────────────────────── */
+.letter-sky {
+  /* Out of the hub shell's content padding — this surface is edge to edge. */
+  margin: -36px -44px -80px;
+  min-height: calc(100vh - var(--header-h) - var(--safe-top));
+  display: flex;
+  flex-direction: column;
+  background: #010104;
+  color: #eceade;
+}
+.letter-sky-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: auto;   /* the artwork sits at the foot, whatever the letter's length */
+  pointer-events: none;
+  user-select: none;
+}
+.letter-sky-body {
+  width: 100%;
+  max-width: 660px;
+  margin: 0 auto;
+  padding: clamp(48px, 8vh, 104px) 24px clamp(40px, 7vh, 96px);
+}
+.letter-sky .letter-open {
+  font-family: var(--serif);
+  font-size: clamp(18px, 1.7vw, 21px);
+  letter-spacing: .01em;
+  margin: 0 0 26px;
+  color: #f4f1e6;
+}
+.letter-sky .letter-p {
+  font-family: var(--serif);
+  font-size: clamp(16px, 1.35vw, 17.5px);
+  line-height: 1.95;
+  letter-spacing: .004em;
+  margin: 0 0 26px;
+  color: rgba(236, 234, 222, .84);
+}
+.letter-sky .letter-p:last-of-type { margin-bottom: 34px; }
+.letter-sky .letter-sign {
+  font-family: var(--serif);
+  font-size: 14.5px;
+  letter-spacing: .04em;
+  color: rgba(236, 234, 222, .52);
+  margin: 0;
+}
+/* Quiet, text-only, and never a button that looks like a button. */
+.letter-sky .letter-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 13.5px;
+  letter-spacing: .02em;
+  color: rgba(236, 234, 222, .58);
+  cursor: pointer;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(236, 234, 222, .22);
+  min-height: 44px;   /* the tap target is the row, not the ink */
+}
+.letter-sky .letter-link:hover,
+.letter-sky .letter-link:focus-visible { color: #f4f1e6; border-bottom-color: rgba(236, 234, 222, .6); }
+.letter-sky :focus-visible { outline: 2px solid rgba(236, 234, 222, .7); outline-offset: 3px; }
+
+/* Earlier letters live BELOW the artwork, so nothing ever floats over it. */
+.letter-past {
+  background: #010104;
+  margin: -80px -44px -80px;
+  padding: 0 24px 96px;
+  color: #eceade;
+}
+.letter-past-inner { max-width: 660px; margin: 0 auto; }
+.letter-past .letter-date {
+  font-size: 11.5px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: rgba(236, 234, 222, .42);
+  margin: 44px 0 12px;
+}
+
+@media (max-width: 780px) {
+  .letter-sky { margin: -24px -20px -60px; }
+  .letter-past { margin: -60px -20px -60px; }
+  .letter-sky-body { padding: clamp(36px, 6vh, 72px) 20px 40px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .letter-sky .letter-open, .letter-sky .letter-p, .letter-sky .letter-sign { animation: letterIn .9s ease both; }
+  .letter-sky .letter-p:nth-of-type(2) { animation-delay: .08s; }
+  .letter-sky .letter-p:nth-of-type(3) { animation-delay: .16s; }
+  .letter-sky .letter-p:nth-of-type(n+4) { animation-delay: .24s; }
+  .letter-sky .letter-sign { animation-delay: .32s; }
+}
+@keyframes letterIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

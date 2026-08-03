@@ -1,48 +1,45 @@
-import { Card, EmptyState, Spinner, Tag } from '@/components/ui';
 import { useAstroMonthly } from '../hooks';
-import { AstroHeader, NeedsProfileCard } from '../shared';
+import { LetterBody, LetterNote, LetterSky, NeedsBirthDetails } from '../components/Letter';
 
-/** Tab 02 — Monthly Horoscope. A premium magazine-style reading (2,000–4,000
- *  words) written once per user per month from their chart and the month's
- *  real planetary events. */
+/**
+ * The month ahead, as one letter.
+ *
+ * This was eleven labelled sections and two to four thousand words — career,
+ * money, love, health, family, travel, turning points, best dates, caution
+ * dates, summary — under a strip of chips naming the running period and the
+ * numbers behind it. It is longer than the daily and still is, because a month
+ * genuinely has more in it; what changed is that it is one continuous piece of
+ * writing rather than twelve readings stacked up, and the specific days that
+ * matter arrive in prose instead of as data.
+ */
 export function AstroMonthly() {
   const monthly = useAstroMonthly();
   const m = monthly.data;
 
   return (
-    <div>
-      <AstroHeader title="Monthly Horoscope" lede="Your month ahead — career, money, love, health, family and travel, written from your Vedic (sidereal) birth chart like a premium astrology magazine." />
-      {monthly.isLoading && <Spinner label="Composing your month…" />}
-      {monthly.isError && <EmptyState title="Couldn't load the monthly reading" hint="Reload in a moment." />}
-      {m && m.needsProfile && <NeedsProfileCard />}
-      {m && !m.needsProfile && (
-        <>
-          <Card className="rise" style={{ padding: '26px 26px 18px', marginBottom: 18 }}>
-            {m.greeting && (
-              <p style={{ fontFamily: 'var(--serif)', fontSize: 16.5, margin: '0 0 8px', color: 'var(--ink-soft)' }}>{m.greeting}</p>
-            )}
-            <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(21px,2.6vw,28px)', marginBottom: 10 }}>{m.title}</h2>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {m.numerology && <Tag>🔢 Personal Year {m.numerology.personalYear}</Tag>}
-              {m.numerology && <Tag>Personal Month {m.numerology.personalMonth}</Tag>}
-              {m.dasha && <Tag>🪐 {m.dasha.maha} Dasha</Tag>}
-              {m.bestDates.length > 0 && <Tag>✨ Best: {m.bestDates.join(', ')}</Tag>}
-              {m.cautionDates.length > 0 && <Tag>⚠️ Caution: {m.cautionDates.join(', ')}</Tag>}
-            </div>
-            <p className="muted" style={{ fontSize: 11.5, marginTop: 12, fontStyle: 'italic' }}>
-              {m.framing ?? `Written for you once for ${m.month}, and saved to your profile.`}
-            </p>
-          </Card>
-          {m.sections.map((s, i) => (
-            <Card key={s.key} className={`rise d${Math.min(i, 4)}`} style={{ padding: '22px 26px', marginBottom: 14 }}>
-              <h3 style={{ fontFamily: 'var(--serif)', fontSize: 19, marginBottom: 10 }}>{s.title}</h3>
-              {s.body.split('\n\n').map((p, j) => (
-                <p key={j} style={{ fontSize: 14.5, lineHeight: 1.75, marginBottom: 10 }}>{p}</p>
-              ))}
-            </Card>
-          ))}
-        </>
+    <LetterSky>
+      {monthly.isLoading && <LetterNote>Opening your letter for the month&hellip;</LetterNote>}
+
+      {monthly.isError && (
+        <LetterNote action={<button type="button" className="letter-link" onClick={() => void monthly.refetch()}>Try again</button>}>
+          We could not reach your letter just now. This is not a message that there isn&rsquo;t one
+          &mdash; only that we could not get to it from here.
+        </LetterNote>
       )}
-    </div>
+
+      {m?.needsProfile && <NeedsBirthDetails />}
+
+      {m && !m.needsProfile && m.pending && (
+        <LetterNote action={<button type="button" className="letter-link" onClick={() => void monthly.refetch()}>Check again</button>}>
+          Your letter for the month isn&rsquo;t ready yet. It is written once, properly, rather than
+          assembled from parts &mdash; and until it is, there is nothing here worth your time.
+          Please come back a little later.
+        </LetterNote>
+      )}
+
+      {m && !m.needsProfile && !m.pending && m.body && (
+        <LetterBody salutation={m.salutation} body={m.body} signOff={m.signOff} />
+      )}
+    </LetterSky>
   );
 }

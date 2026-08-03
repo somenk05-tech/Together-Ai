@@ -7,11 +7,12 @@ import { AiService } from '../ai/ai.service';
 import {
   NatalChart, geocodeApprox, natalChart, scanMonth, tzOffsetMinutes, SIGNS,
 } from './astro-engine';
-import { composeAnswer, composeGuidance, composeMonthly, wordCount, type DailyGuidance } from './astro-content';
+import { composeAnswer, composeDailyBrief, composeMonthlyBrief, type GuidanceBrief } from './astro-content';
+import { letterPrompt, letterProblems, letterRules, toLetter, type Letter } from './letter';
 import { computeNumerology, vimshottariDasha } from './personal-factors';
 import { buildGemGuidance, buildRemedies } from './gem-remedy-content';
 import { healthFlagsFor } from './health-flags';
-import { CHAT_RULES, VOICE_RULES, acceptOrFallback, firstNameOf, inVoice } from './voice';
+import { CHAT_RULES, firstNameOf, inVoice } from './voice';
 
 export interface SaveAstroProfileDto {
   birthDate: string;          // YYYY-MM-DD
@@ -24,6 +25,20 @@ export interface SaveAstroProfileDto {
 export interface AskDto { topic: string; question: string; method?: 'wallet' | 'card' }
 
 export const ASK_PRICE_INR = 75;
+
+/**
+ * A letter with the period it was written for.
+ *
+ * The date is what makes the archive readable and what the cache is keyed to
+ * remember; `month` rides along on monthly letters so a client can say
+ * "August 2026" without re-deriving it from a key.
+ */
+export type DatedLetter = Letter & { date: string; month?: string };
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+/** The month a local date falls in, for the one place that needs it without a brief. */
+const monthNameOf = (local: Date) => `${MONTH_NAMES[local.getUTCMonth()]} ${local.getUTCFullYear()}`;
 
 interface AstroProfileRow {
   id: string; userId: string; birthDate: Date; birthTime: string | null;
@@ -73,9 +88,6 @@ export class AstrologyService {
     };
   }
 
-  /** One saved reading per user per period (daily flips at the user's midnight,
-   *  monthly is fixed from the 1st). Deterministic composers mean the lazy
-   *  write stores exactly what a scheduled batch would have produced. */
   /**
    * Reading engine version. Bumped whenever the OUTPUT changes shape or voice,
    * because readings are cached per period — without a bump, everyone who has
@@ -83,29 +95,43 @@ export class AstrologyService {
    * tomorrow, and this month's until the 1st.
    *
    * v2: the Vedic (sidereal) switch. v3: guidance sections. v4: the voice — no
-   * reading may name a planet, sign, number or period any more, so every cached
-   * v3 reading is now non-compliant and must regenerate.
+   * reading may name a planet, sign, number or period any more. v5: the letter —
+   * sections, lucky elements, themes and chips are gone entirely, so a cached v4
+   * reading is not merely off-voice, it is the wrong shape.
    */
-  private static readonly READING_VER = 'v4';
+  private static readonly READING_VER = 'v5';
 
-  private async cachedReading<T extends object>(
-    userId: string, kind: 'daily' | 'monthly', periodKey: string, compute: () => T | Promise<T>,
-  ): Promise<T & { saved: boolean }> {
+  /**
+   * One saved letter per user per period — daily flips at the user's own
+   * midnight, monthly is fixed from the 1st.
+   *
+   * A NULL RESULT IS NEVER CACHED, and that is the whole reason this is not the
+   * old cachedReading(). Failure here means the letter could not be written
+   * properly; storing that would turn one bad minute into a whole day without a
+   * letter, and the next request would not even try.
+   */
+  private async cachedLetter(
+    userId: string, kind: 'daily' | 'monthly', periodKey: string,
+    compute: () => Promise<DatedLetter | null>,
+  ): Promise<DatedLetter | null> {
     const period = `${AstrologyService.READING_VER}:${periodKey}`;
     const hit = await swallow(this.db.astroReading.findUnique({
       where: { userId_kind_period: { userId, kind, period } },
-    }), 'astro: reading cache read', { userId, kind });
+    }), 'astro: letter cache read', { userId, kind });
     if (hit) {
-      try { return { ...(JSON.parse(hit.readingJson) as T), saved: true }; }
-      catch { /* recompute below */ }
+      try {
+        const cached = JSON.parse(hit.readingJson) as DatedLetter;
+        if (cached?.body) return cached;
+      } catch { /* unreadable row — write over it below */ }
     }
-    const reading = await compute();
+    const letter = await compute();
+    if (!letter) return null;
     await swallow(this.db.astroReading.upsert({
       where: { userId_kind_period: { userId, kind, period } },
-      update: { readingJson: JSON.stringify(reading) },
-      create: { userId, kind, period, readingJson: JSON.stringify(reading) },
-    }), 'astro: reading cache write', { userId, kind }); // table may not exist mid-deploy — reading still returns
-    return { ...reading, saved: true };
+      update: { readingJson: JSON.stringify(letter) },
+      create: { userId, kind, period, readingJson: JSON.stringify(letter) },
+    }), 'astro: letter cache write', { userId, kind }); // table may not exist mid-deploy — the letter still returns
+    return letter;
   }
 
   // ───────────────────────── Profile ─────────────────────────
@@ -247,77 +273,112 @@ export class AstrologyService {
     return firstNameOf(u?.name);
   }
 
-  // ───────────────────────── Tab 01 · Today's Horoscope ─────────────────────────
+  // ───────────────────────── Tab 01 · Today's letter ─────────────────────────
 
+  /**
+   * Today's letter, or an honest admission that it is not ready.
+   *
+   * `pending` is not an error and is not an empty state. It means the letter for
+   * this person and this day has not been successfully written — the model is
+   * unavailable, or what came back broke one of the rules in letter.ts — and
+   * NOTHING IS CACHED when that happens, so the next request tries again.
+   *
+   * The alternative was a deterministic letter assembled from a fixed skeleton,
+   * which is what the old five-section daily fell back to. That was right for
+   * labelled panels and is wrong here. A letter is a claim about how it was
+   * made: one continuous piece of writing, for you, this morning. A template
+   * wearing that claim is the same species of comfortable untruth as an empty
+   * state that says you have nothing when nobody asked — and it would be
+   * invisible for exactly as long as somebody kept only one day's letter.
+   */
   async daily(userId: string) {
     const row = await this.requireProfile(userId);
     if (!row) return { needsProfile: true as const }; // only for stored birth details
     const local = this.userNow(row);
-    const dateKey = local.toISOString().slice(0, 10); // the user's OWN calendar day
-    const reading = await this.cachedReading(userId, 'daily', dateKey,
-      () => this.buildDailyGuidance(row, userId, local));
-    return { needsProfile: false as const, ...reading };
+    const date = local.toISOString().slice(0, 10); // the user's OWN calendar day
+    const letter = await this.cachedLetter(userId, 'daily', date, () => this.writeDailyLetter(row, userId, local));
+    if (!letter) return { needsProfile: false as const, pending: true as const, date };
+    return { needsProfile: false as const, pending: false as const, ...letter };
   }
 
-  /**
-   * Personal Guidance Engine — build structured, emotionally-intelligent daily
-   * guidance from the chart + transits + numerology + Dasha, then let the AI
-   * warm the wording WITHOUT changing the facts or turning it into prediction.
-   * The deterministic composition is the guaranteed floor if AI is off/ fails.
-   */
-  private async buildDailyGuidance(row: AstroProfileRow, userId: string, local: Date): Promise<DailyGuidance> {
+  private async writeDailyLetter(row: AstroProfileRow, userId: string, local: Date): Promise<DatedLetter | null> {
     const chart = this.chartOf(row);
     const num = computeNumerology(row.birthDate, local);
     const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
-    const g = composeGuidance(chart, userId, local, num, dasha, await this.firstName(userId));
-
-    const draft = g.sections.map((s) => `${s.title}: ${s.body}`).join('\n') + `\nReflection: ${g.reflection}`;
-
-    const fallback = {
-      career: g.sections[0].body, relationships: g.sections[1].body, health: g.sections[2].body,
-      finance: g.sections[3].body, growth: g.sections[4].body, reflection: g.reflection,
-    };
-    // The AI is given the INTERPRETATION, never the inputs. It used to receive
-    // "Sun Taurus, Moon Pisces, Life Path 7, Jupiter Mahādasha" as facts to
-    // stay faithful to — which is precisely the vocabulary that must never
-    // reach the citizen, and handing it over was an invitation to repeat it.
-    // The deterministic draft already encodes every one of those factors in
-    // ordinary language, so nothing is lost by withholding their names.
-    const ai = await this.ai.json<typeof fallback>(
-      `${VOICE_RULES}\n\n` +
-      'Rewrite each section below in a natural, encouraging voice, 2-3 sentences each, no headers inside the text. ' +
-      'Keep the meaning and every observation exactly as given — you are warming the wording, not changing the reading. ' +
-      'Return JSON {"career","relationships","health","finance","growth","reflection"}.',
-      `Draft to warm up (do not contradict it, do not add to it):\n${draft}`,
-      fallback,
-      1400,
-    );
-    // acceptOrFallback discards any rewrite that drifts back into naming the
-    // machinery. The deterministic text is verified in voice by the spec, so a
-    // rejection costs warmth, never correctness.
-    g.sections[0].body = acceptOrFallback(ai.career, fallback.career);
-    g.sections[1].body = acceptOrFallback(ai.relationships, fallback.relationships);
-    g.sections[2].body = acceptOrFallback(ai.health, fallback.health);
-    g.sections[3].body = acceptOrFallback(ai.finance, fallback.finance);
-    g.sections[4].body = acceptOrFallback(ai.growth, fallback.growth);
-    g.reflection = acceptOrFallback(ai.reflection, fallback.reflection);
-    g.text = g.sections.map((s) => s.body).join('\n\n');
-    g.words = wordCount(g.text);
-    return g;
+    const brief = composeDailyBrief(chart, userId, local, num, dasha);
+    const previous = (await this.recentLetters(userId, 'daily', 3)).map((l) => l.body);
+    const letter = await this.writeLetter('daily', brief, await this.firstName(userId), previous, 1600);
+    return letter ? { date: local.toISOString().slice(0, 10), ...letter } : null;
   }
 
-  /** Saved daily predictions on the profile — the archive, newest first. */
+  /** Past letters, newest first — the same letters, on the days they were for. */
   async dailyHistory(userId: string) {
-    const rows = (await swallow(this.db.astroReading.findMany({
-      where: { userId, kind: 'daily', period: { startsWith: `${AstrologyService.READING_VER}:` } },
-      orderBy: { period: 'desc' }, take: 30,
-    }), 'astro: daily history read', { userId })) ?? ([] as Array<{ period: string; readingJson: string }>);
-    return rows.map((r) => {
-      try { return JSON.parse(r.readingJson); } catch { return { date: r.period, text: '' }; }
-    }).filter((r) => r.text);
+    return this.recentLetters(userId, 'daily', 30);
   }
 
-  // ───────────────────────── Tab 02 · Monthly Horoscope ─────────────────────────
+  /**
+   * The letters this person has most recently been sent.
+   *
+   * Used for two things that look unrelated and are not: rendering the archive,
+   * and stopping the next letter from repeating the last one. The second is why
+   * this reads the bodies rather than a summary — letterProblems() compares
+   * five-word runs, and it can only do that against the real text.
+   */
+  private async recentLetters(userId: string, kind: 'daily' | 'monthly', take: number): Promise<DatedLetter[]> {
+    const rows = (await swallow(this.db.astroReading.findMany({
+      where: { userId, kind, period: { startsWith: `${AstrologyService.READING_VER}:` } },
+      orderBy: { period: 'desc' }, take,
+    }), `astro: ${kind} history read`, { userId })) ?? ([] as Array<{ period: string; readingJson: string }>);
+    const out: DatedLetter[] = [];
+    for (const r of rows) {
+      try {
+        const parsed = JSON.parse(r.readingJson) as DatedLetter;
+        if (parsed?.body) out.push(parsed);
+      } catch { /* a row that will not parse is a row we cannot show */ }
+    }
+    return out;
+  }
+
+  /**
+   * Write one letter, or return null having said why in the log.
+   *
+   * Two attempts, and the second is told exactly what was wrong with the first.
+   * That is worth the extra call: the failures in practice are a heading
+   * creeping in or a word from the banned list, both of which a writer fixes
+   * immediately once named, and the cost of giving up is that somebody opens
+   * their letter and there isn't one.
+   *
+   * There is no third attempt and no relaxing of the rules on the way down. A
+   * letter that still names the machinery on the second try is not a letter
+   * that should be sent slightly more leniently.
+   */
+  private async writeLetter(
+    kind: 'daily' | 'monthly', brief: GuidanceBrief, firstName: string, previous: string[], maxTokens: number,
+  ): Promise<Letter | null> {
+    if (!this.ai.enabled) {
+      this.logger.warn(`No ${kind} letter written — the writer is not configured, and this hub has no template to fall back on.`);
+      return null;
+    }
+    let feedback = '';
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const out = await this.ai.json<{ letter?: string }>(
+        letterRules(kind, firstName),
+        letterPrompt(brief.observations, firstName, previous, brief.note + feedback) +
+          '\n\nReturn JSON: {"letter": "the complete letter, opening line included"}.',
+        {},
+        maxTokens,
+      );
+      const candidate = (out.letter ?? '').trim();
+      const problems = letterProblems(candidate, kind, firstName, previous);
+      if (!problems.length) return toLetter(candidate, firstName);
+      const said = problems.map((p) => `${p.what} — ${p.why}`).join('; ');
+      this.logger.warn(`${kind} letter rejected (attempt ${attempt}): ${said}`);
+      feedback = `\n\nA previous attempt was rejected for: ${said}. Fix every one of those and keep everything else.`;
+    }
+    return null;
+  }
+
+  // ───────────────────────── Gems & practices ─────────────────────────
 
   /**
    * Gemstones for the current period.
@@ -352,20 +413,36 @@ export class AstrologyService {
     return { needsProfile: false as const, ...buildRemedies({ maha: dasha.maha, antar: dasha.antar }, flags) };
   }
 
+  /**
+   * The month ahead as one letter.
+   *
+   * Longer than the daily and written once per calendar month, but the same
+   * object rather than a bigger one: not twelve readings stacked into sections
+   * with best-and-caution chips on top, but one person thinking about the weeks
+   * ahead for somebody they know. The specific days still appear — they are the
+   * most useful thing in it — as days of the month, in prose.
+   *
+   * `pending` behaves exactly as it does for the daily, and for the same reason.
+   */
   async monthly(userId: string) {
     const row = await this.requireProfile(userId);
     if (!row) return { needsProfile: true as const }; // only for stored birth details
     const local = this.userNow(row);
     const monthKey = local.toISOString().slice(0, 7); // one per user per calendar month
-    const firstName = await this.firstName(userId);
-    const reading = await this.cachedReading(userId, 'monthly', monthKey, () => {
-      const chart = this.chartOf(row);
-      const astro = scanMonth(chart, local.getUTCFullYear(), local.getUTCMonth() + 1);
-      const num = computeNumerology(row.birthDate, local);
-      const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
-      return composeMonthly(chart, userId, astro, num, dasha, firstName);
-    });
-    return { needsProfile: false as const, ...reading };
+    const letter = await this.cachedLetter(userId, 'monthly', monthKey, () => this.writeMonthlyLetter(row, userId, local));
+    if (!letter) return { needsProfile: false as const, pending: true as const, date: monthKey, month: monthNameOf(local) };
+    return { needsProfile: false as const, pending: false as const, ...letter };
+  }
+
+  private async writeMonthlyLetter(row: AstroProfileRow, userId: string, local: Date): Promise<DatedLetter | null> {
+    const chart = this.chartOf(row);
+    const astro = scanMonth(chart, local.getUTCFullYear(), local.getUTCMonth() + 1);
+    const num = computeNumerology(row.birthDate, local);
+    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
+    const brief = composeMonthlyBrief(chart, userId, astro, num, dasha);
+    const previous = (await this.recentLetters(userId, 'monthly', 2)).map((l) => l.body);
+    const letter = await this.writeLetter('monthly', brief, await this.firstName(userId), previous, 4000);
+    return letter ? { date: local.toISOString().slice(0, 7), month: brief.month, ...letter } : null;
   }
 
   // ───────────────────────── Tab 03 · Ask the Astrologer ─────────────────────────
