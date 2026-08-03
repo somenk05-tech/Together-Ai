@@ -1,10 +1,8 @@
 import { Link } from 'react-router-dom';
-import { useDarkChrome } from './useDarkChrome';
 import type { ReactNode } from 'react';
 
 /** The sky, and whatever is written on it. */
 export function LetterSky({ children }: { children: ReactNode }) {
-  useDarkChrome();
   return (
     <section className="letter-sky">
       <div className="letter-sky-body">{children}</div>

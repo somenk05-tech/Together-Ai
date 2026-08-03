@@ -181,27 +181,6 @@
   margin: 52px 0 12px;
 }
 
-/* ── The foot of the page, on these two screens only ──────────────────────
-   A cream utility bar butted straight against the bottom of a night sky is the
-   join showing. The footer is global chrome and is NOT restyled globally — the
-   other three screens in this hub are ordinary light pages and need the
-   ordinary light footer.
-
-   `data-surface="letter"` is set on <html> while the letter surface is mounted
-   and removed when it unmounts, which is the same mechanism useHubTheme()
-   already uses for `data-hub`. Scoped this way the rule cannot leak to a page
-   that is not a letter, and it cannot survive one. */
-[data-surface="letter"] .tc-footer {
-  background: #010104;
-  border-top-color: rgba(236, 234, 222, .12);
-  color: rgba(236, 234, 222, .6);
-}
-[data-surface="letter"] .tc-footer .word { color: #f4f1e6; }
-[data-surface="letter"] .tc-footer nav { color: rgba(236, 234, 222, .72); }
-[data-surface="letter"] .tc-footer a { color: rgba(236, 234, 222, .72); }
-[data-surface="letter"] .tc-footer a:hover { color: #f4f1e6; }
-[data-surface="letter"] .tc-footer > span:last-child { color: rgba(236, 234, 222, .42); }
-
 @media (max-width: 1100px) {
   .tc-shell .tc-main > .letter-past { padding: 0 20px 72px; }
   .letter-sky-body { padding: clamp(36px, 6vh, 72px) 20px 40px; }
@@ -219,11 +198,16 @@
    A split surface: the asking on the left, the sky on the right, and nothing
    laid over the sky.
 
-   It shares the letter surface's two structural decisions because both were
-   paid for once already. It OVERRIDES `.tc-shell .tc-main > *`'s padding rather
-   than cancelling it with negative margins — see Trap 23; and it borrows
-   `data-surface="letter"` for the footer, set on mount and cleared on unmount,
-   so the foot of the page does not turn cream underneath a night sky.
+   It OVERRIDES `.tc-shell .tc-main > *`'s padding rather than cancelling it
+   with negative margins — the letter surface paid for that lesson once already,
+   see Trap 23.
+
+   THE FOOTER IS LEFT ALONE. Both dark surfaces briefly darkened it so the foot
+   of the page would not turn cream under a night sky, and the owner's answer was
+   that the footer is site chrome and stays site chrome on every page. It is the
+   right call for a reason worth writing down: a global bar that changes colour
+   on two screens out of a hundred and forty is not atmosphere, it is a bar that
+   looks broken on the two.
 
    No web font is loaded. The brief named Playfair and Cormorant; `var(--serif)`
    is already an editorial serif that every other page uses, and a second font

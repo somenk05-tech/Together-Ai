@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Spinner } from '@/components/ui';
 import { useAskAstrologer, useAstroProfile, useAstroQuestions } from '../hooks';
-import { useDarkChrome } from '../components/useDarkChrome';
 
 const TOPICS = [
   'Career', 'Marriage', 'Relationships', 'Business', 'Investments', 'Education',
@@ -84,7 +83,6 @@ export function AstroAsk() {
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const artRef = useSlowParallax();
-  useDarkChrome();
 
   const submit = () => {
     setError(null);

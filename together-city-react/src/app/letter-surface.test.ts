@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CSS = join(dirname(fileURLToPath(import.meta.url)), '..', 'styles', 'layout.css');
@@ -29,44 +29,21 @@ const CSS = join(dirname(fileURLToPath(import.meta.url)), '..', 'styles', 'layou
  * sibling. This test is what stops the negative margins coming back the next
  * time something needs to bleed.
  *
- * The second half checks the footer rule stays SCOPED. Darkening `.tc-footer`
- * globally would work perfectly on these two screens and quietly wreck the
- * three light ones in the same hub — the kind of change that looks right in the
- * only place anybody looks.
  */
 const css = readFileSync(CSS, 'utf8');
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const e of readdirSync(dir)) {
-    const p = join(dir, e);
-    if (statSync(p).isDirectory()) walk(p, out);
-    else if (/\.tsx?$/.test(p) && !/\.(test|spec)\.tsx?$/.test(p)) out.push(p);
-  }
-  return out;
-}
-
 /**
- * The letter surface's own rules — selected, not sliced.
+ * The dark surfaces' own rules — the letter, and the consultation room.
  *
- * THE FIRST VERSION TOOK EVERYTHING FROM ITS BLOCK TO THE END OF THE FILE, and
- * the next surface appended after it inherited the whole guard. Its
- * screen-reader utility carries `margin: -1px` — the standard clip pattern,
- * correct, and nothing at all to do with bleeding out of a shell — and the
- * guard failed on it. A rule that fires on correct code is a rule somebody
- * switches off, and this one was one stylesheet away from that.
+ * BOUNDED, not global. The stylesheet's ordinary rules live above these blocks
+ * and are none of this guard's business; everything appended from the letter
+ * surface onward is.
  *
- * So the rules are matched by SELECTOR. Comments are stripped first: they
- * describe the bug by name, and a check that reads its own documentation can
- * never go red.
+ * Anchored on a SELECTOR rather than on the block's comment banner — the first
+ * attempt anchored on the heading, which is drawn with box characters that are
+ * not the same width in the two blocks that now use them.
  */
 const surfaceCss = (): string => {
-  // Bounded AND selected. Bounded, because `.tc-footer` has perfectly good base
-  // rules further up that these surfaces are not allowed to touch and are not
-  // being asked about. Selected, because the region keeps growing as surfaces
-  // are appended to it.
-  // Anchored on a SELECTOR, not on a comment banner. The first attempt anchored
-  // on the block's heading, which is drawn with box characters that are not the
-  // same width in the two blocks that now use them.
   const start = css.indexOf('.tc-shell .tc-main > .letter-sky');
   expect(start, 'the letter surface block is missing from layout.css').toBeGreaterThan(-1);
   return css.slice(start);
@@ -109,27 +86,15 @@ describe('the letter surface', () => {
     ].join('\n')).toEqual([]);
   });
 
-  it('darkens the footer only while a dark surface is on screen', () => {
-    const rules = rulesFor(/\.tc-footer/);
-    expect(rules.length, 'nothing styles the footer for these surfaces').toBeGreaterThan(0);
-    const unscoped = rules
-      .map((r) => r.selector)
-      .filter((sel) => !sel.includes('[data-surface="letter"]'));
-    expect(unscoped, 'a global .tc-footer rule would break the light screens in the same hub').toEqual([]);
+  it('leaves the footer alone', () => {
+    // Both dark surfaces briefly darkened `.tc-footer` so the foot of the page
+    // would not turn cream under a night sky, and it was reverted: the footer is
+    // site chrome and stays site chrome on every page. The reasoning is worth
+    // keeping, because the change is tempting every time somebody builds a dark
+    // screen — a global bar that changes colour on two screens out of a hundred
+    // and forty is not atmosphere, it is a bar that looks broken on the two.
+    const touching = rulesFor(/\.tc-footer/).map((r) => r.selector);
+    expect(touching, 'a dark surface is restyling the site footer again').toEqual([]);
   });
 
-  it('sets and clears the attribute those rules depend on, in exactly one place', () => {
-    const src = join(dirname(fileURLToPath(import.meta.url)), '..');
-    const hook = readFileSync(join(src, 'features', 'astrology', 'components', 'useDarkChrome.ts'), 'utf8');
-    expect(hook).toContain("setAttribute('data-surface', 'letter')");
-    // Set without removed is a light page wearing a dark footer for the rest of
-    // the session — the failure nobody notices until they navigate away.
-    expect(hook).toContain("removeAttribute('data-surface')");
-
-    // And it stays one place. Two surfaces use this now; a third that writes
-    // the attribute itself is a second chance to forget the clearing half.
-    const writers = walk(src).filter((p) => /setAttribute\(\s*'data-surface'/.test(readFileSync(p, 'utf8')));
-    expect(writers.map((p) => relative(src, p).split('\\').join('/')))
-      .toEqual(['features/astrology/components/useDarkChrome.ts']);
-  });
 });
