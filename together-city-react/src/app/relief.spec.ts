@@ -111,7 +111,7 @@ describe('Relief stays a system', () => {
     // shadow beginning `var(--rim), 0 2px 4px …` passed unread — which is
     // exactly how three bespoke header shadows got in. It is no longer enough
     // on its own.
-    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft)\)/;
+    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft|lens|lens-key|lamp|lamp-badge|rail-well-shadow)\)/;
     // A photograph, a filled black button and a text emboss are not surfaces —
     // they are ink and images, and they carry their own light.
     const ALLOWED = /(text-shadow|drop-shadow|\.hero|\.btn-accent|\.btn-gold|\.btn-primary|\.ask-cta|\.step\.|\.mincal|\.tag\.dark|\.knob|outline|inset 0 1px 0|no-case|img:not|video:not|\.case)/;

@@ -115,6 +115,60 @@
   --pip: 0 0 0 3px var(--accent-soft), inset 0 1px 1px rgba(0,0,0,.3);
   --pip-ok: 0 0 0 2px #fff, 0 1px 2px rgba(0,0,0,.3);
 
+  /* ── THE RAIL IS GLASS ──────────────────────────────────────────────────
+     One deliberate exception to "every background is white", and it is not a
+     preference — it is physics. A transparent object on a white page refracts
+     white into white and disappears. Everything that makes glass read as glass
+     is the ground being bent, so the rail sits in a faint cool well and the
+     keys have something to bend. Nothing else in the application does this.
+
+     THE LENS IS FIVE LAYERS AND THE SECOND ONE IS THE POINT:
+       1 a lit outer wall — the rim catching the room
+       2 THE WALL'S OWN THICKNESS, seen through the body. Leave this out and
+         you have a translucent rectangle, not glass. It is the layer everyone
+         forgets because it is the one you only notice by its absence.
+       3 the near wall shading the body — darker under the top rim, because
+         you are looking through more glass there
+       4 light pooling at the far wall — the bottom inside is brighter
+       5 a COOL contact shadow. Glass tints what it drops; a neutral shadow
+         under glass reads as a sticker. */
+  --rail-well: linear-gradient(180deg, #e9edf3, #e2e7ee);
+  --rail-well-shadow: inset 0 2px 7px rgba(70,95,130,.16), inset 0 -1px 0 rgba(255,255,255,.9);
+
+  --lens-face: linear-gradient(180deg,
+    rgba(255,255,255,.94) 0%, rgba(228,237,248,.52) 34%,
+    rgba(216,229,245,.40) 56%, rgba(246,250,255,.80) 82%, rgba(255,255,255,.94) 100%);
+  --lens: inset 0 0 0 1.5px rgba(255,255,255,.98),
+          inset 0 0 0 4px rgba(158,184,216,.28),
+          inset 0 8px 12px -8px rgba(112,144,186,.50),
+          inset 0 -10px 14px -7px rgba(255,255,255,.98),
+          0 1px 1px rgba(70,95,130,.10), 0 6px 16px rgba(70,95,130,.14), 0 18px 40px rgba(70,95,130,.12);
+  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.98),
+              inset 0 0 0 3px rgba(158,184,216,.26),
+              inset 0 6px 9px -7px rgba(112,144,186,.45),
+              inset 0 -8px 11px -6px rgba(255,255,255,.98),
+              0 1px 1px rgba(70,95,130,.08), 0 3px 8px rgba(70,95,130,.10);
+
+  /* ── THE LAMP ───────────────────────────────────────────────────────────
+     The key you are on is the same lens with a tinted body — it is not a glow
+     added to a row, it is the row made of orange glass, which is what makes
+     the bloom look like light leaking rather than a shadow that went wrong.
+
+     THE BODY IS NOT THE REFERENCE ORANGE. #f4682b carries white at 3.06:1 and
+     the label here is 13.5px bold — small text, which needs 4.5. The body is
+     #c94c18, where white measures 4.64. The top of the gradient stays bright,
+     because that is above the words and is what sells the glass. Wanting the
+     exact reference hue means a dark label, not a white one; it cannot be
+     both. */
+  --lamp-face: linear-gradient(180deg, #ef7a3a 0%, #c94c18 46%, #a83a10 100%);
+  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50),
+          inset 0 0 0 4px rgba(255,190,140,.26),
+          inset 0 8px 12px -8px rgba(105,35,8,.45),
+          inset 0 -10px 14px -7px rgba(255,215,175,.60),
+          0 1px 1px rgba(150,55,20,.20), 0 8px 20px rgba(201,76,24,.34), 0 20px 46px rgba(201,76,24,.22);
+  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.45),
+                inset 0 -3px 6px rgba(120,40,10,.30);
+
   /* Legacy names. Several hundred call sites read --shadow and --shadow-deep;
      renaming them would put a 300-file rename inside a commit about materials. */
   --shadow: var(--e1);

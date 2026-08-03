@@ -543,49 +543,45 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
    then raised on hover — reads as "nothing is here until you touch it".
    Reversed, the nav is a keyboard: every key stands up, and the one you are
    on has been pressed in. */
+/* ── THE HUB RAIL, IN GLASS ───────────────────────────────────────────────
+   Every key is a lens; the one you are on is the same lens with an orange
+   body. See tokens.css for the five layers and for why the orange is not the
+   reference orange.
+
+   PRESSED AND LIT AGREE HERE, which is the thing that took three attempts to
+   get right. A row that lights up like a primary button says "press me", not
+   "you are here". So the lamp keeps the recess: its top rim is the DARK one
+   and its bottom rim is the bright one, exactly inverted from the keys above
+   and below it. It glows, and it is still pressed in. */
 .side-menu a {
-  border-radius: var(--r-2); border: 0;
-  background: var(--face); box-shadow: var(--e1); color: var(--ink-soft);
-  font-weight: 500;
-  transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--spring), color var(--dur-fast) linear;
+  border-radius: 16px; border: 0;
+  background: var(--lens-face); box-shadow: var(--lens-key);
+  color: var(--ink-soft); font-weight: 500;
+  -webkit-backdrop-filter: blur(10px) saturate(180%);
+  backdrop-filter: blur(10px) saturate(180%);
+  transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--spring), background var(--dur-base) linear;
 }
-.side-menu a:hover { transform: translateY(-1.5px); box-shadow: var(--e2); color: var(--ink); }
+.side-menu a:hover { transform: translateY(-1.5px); box-shadow: var(--lens); color: var(--ink); }
 .side-menu a.active {
-  background: var(--well); box-shadow: var(--carve); color: var(--ink); font-weight: 700; transform: none;
+  background: var(--lamp-face); box-shadow: var(--lamp); transform: none;
 }
+.side-menu a.active .l { color: var(--on-accent); font-weight: 700; }
+.side-menu a.active .s { color: rgba(255,255,255,.88); }
+.side-menu a.active:hover { transform: none; box-shadow: var(--lamp); }
 
-/* IN THE TROUGH, ONLY THE ONE YOU ARE ON STANDS UP. Thirteen raised pills in a
-   row is thirteen things claiming to be the answer; one raised key in a groove
-   is a place you are, which is what a hub tab means. */
-.tc-nav a {
-  border-radius: var(--r-full); border: 0; background: transparent; box-shadow: none;
-  color: var(--muted); font-weight: 500;
-  transition: box-shadow var(--dur-base) var(--ease), color var(--dur-fast) linear, background var(--dur-base) linear;
-}
-.tc-nav a:hover { color: var(--ink); background: rgba(255,255,255,.6); }
-.tc-nav a.on {
-  background: var(--face-key); color: var(--ink); font-weight: 700;
-  box-shadow: var(--e2-key);
-}
-
-/* THE ACTIONS ARE ALL BUTTONS, so they all stand up — you press every one. */
-.tc-actionbar a, .tc-actionbar button, .tc-actions a, .tc-actions button {
-  border-radius: var(--r-full); border: 0; color: var(--ink-soft);
-  background: var(--face-key);
-  box-shadow: var(--e1-key);
-}
-.side-menu a.active .l, .tc-nav a.on { color: var(--ink); }
-.side-menu a.active .s { color: var(--muted); }
-/* THE BADGE IS THE NUMBER, NOT THE LABEL. `.n` carries the index; `.l` carries
-   the words. Giving `.l` the badge treatment put every menu label inside a
-   30px box. */
 .side-menu a .n {
-  background: var(--face-2); box-shadow: var(--e1); border-radius: 9px; color: var(--muted);
+  background: var(--lens-face); box-shadow: var(--lens-key); border-radius: 10px; color: var(--ink-soft);
 }
-.side-menu a.active .n { background: var(--well); box-shadow: var(--press); color: var(--ink); }
+.side-menu a.active .n {
+  background: rgba(255,255,255,.22); color: var(--on-accent); box-shadow: var(--lamp-badge);
+}
 
+.tc-nav a.on { color: var(--ink); }
+
+/* The well the glass sits in. Without it there is nothing behind the keys to
+   refract and every lens above collapses to a pale rectangle. */
 .tc-side {
-  background: var(--face-tall); border-right: 0; box-shadow: var(--e2);
+  background: var(--rail-well); border-right: 0; box-shadow: var(--rail-well-shadow);
   border-radius: 0 var(--r-5) var(--r-5) 0;
 }
 .tc-side .hubname { color: var(--ink); }
