@@ -5,6 +5,8 @@ import { CityHeader } from '@/components/CityHeader';
 import { RecentPanel } from '@/components/RecentPanel';
 import { HUBS } from '@/config/hubs';
 import type { HubKey } from '@/types';
+import { HUB_ICON } from '@/nav/registry';
+import { Icon } from '@/components/ui/Icon';
 
 /** A clickable building silhouette on the pavilion-city map. */
 interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: string; cx?: number; cy?: number; rx?: number; ry?: number; }
@@ -148,39 +150,44 @@ export function Home() {
 
       {/* ============ WALK THE DISTRICTS — full-bleed hub heroes, stacked ============ */}
       <section aria-label="Walk the districts">
-        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '8px 32px 22px' }}>
+        <div className="district-head">
           <div className="blk-head"><h2>Walk the districts</h2><Link className="more" to="/social/feed">Your city today →</Link></div>
         </div>
-        {PANELS.map((p, panelIndex) => {
-          const panelStyle: React.CSSProperties = {
-            position: 'relative', display: 'flex', alignItems: 'flex-end',
-            minHeight: 'clamp(460px, 84vh, 900px)', color: 'var(--on-accent)', overflow: 'hidden', textDecoration: 'none',
-            // A panel waiting on its photo is a lit stage, not a grey hole
-            // (consumer review #4): the copy is readable immediately and the
-            // image fades in over this backdrop when it arrives.
-            background: 'linear-gradient(165deg, var(--ink) 0%, var(--ink) 70%)',
-          };
-          const copy = (eyebrow: string, tag: string, label: string, soon: boolean) => (
-            <>
-              <img src={img(p.img)} alt="" loading={panelIndex < 2 ? 'eager' : 'lazy'} decoding="async"
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0, transition: 'opacity .5s ease' }}
-                onLoad={(e) => { e.currentTarget.style.opacity = '1'; }} />
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(8,9,8,.84) 0%, rgba(8,9,8,.28) 42%, rgba(8,9,8,.08) 100%)' }} />
-              <div style={{ position: 'relative', zIndex: 2, padding: '0 clamp(24px,6vw,96px) clamp(44px,7vh,84px)', maxWidth: 1000 }}>
-                <div className="eyebrow" style={{ color: 'var(--gold-bright)' }}>{eyebrow}</div>
-                <h2 style={{ color: 'var(--on-accent)', fontSize: 'clamp(30px,4.6vw,58px)', lineHeight: 1.08, maxWidth: '16ch', margin: '6px 0 0', textShadow: '0 2px 24px rgba(0,0,0,.45)' }}>{tag}</h2>
-                <span className="btn btn-gold" style={{ marginTop: 26, display: 'inline-block' }}>{label}{soon ? '' : ' →'}</span>
-              </div>
-            </>
-          );
-          if (p.key === 'ecommerce') {
-            return <div key="ecommerce" style={{ ...panelStyle, cursor: 'default' }}>{copy('E-Commerce', 'Vetted products. Only the best.', 'Coming soon', true)}</div>;
-          }
-          const cfg = HUBS[p.key];
-          const soon = cfg.items.length === 0;              // cars (teaser) has no inner pages yet
-          const cta = cfg.items[0]?.path ?? cfg.backPath;   // straight into the hub, not its landing
-          return <Link key={p.key} to={cta} style={panelStyle}>{copy(cfg.name, cfg.tag, soon ? 'Coming soon' : 'Explore now', soon)}</Link>;
-        })}
+        <div className="district-run">
+          {PANELS.map((p, panelIndex) => {
+            const cfg = p.key === 'ecommerce' ? null : HUBS[p.key];
+            const soon = !cfg || cfg.items.length === 0;   // cars (teaser) has no inner pages yet
+            const name = cfg ? cfg.name : 'E-Commerce';
+            const tag = cfg ? cfg.tag : 'Vetted products. Only the best.';
+            const to = cfg ? (cfg.items[0]?.path ?? cfg.backPath) : null;
+            const inner = (
+              <>
+                <div className="hub-plate-art">
+                  {/* A panel waiting on its photo is a lit stage, not a grey hole
+                      (consumer review #4): the well is already there and the
+                      picture fades onto it when it arrives. */}
+                  <img className="no-case" src={img(p.img)} alt=""
+                    loading={panelIndex < 2 ? 'eager' : 'lazy'} decoding="async"
+                    style={{ opacity: 0, transition: 'opacity .5s ease' }}
+                    onLoad={(e) => { e.currentTarget.style.opacity = '1'; }} />
+                </div>
+                <div className="hub-plate-foot">
+                  <span className="hub-plate-icon" aria-hidden>
+                    <Icon name={(p.key !== 'ecommerce' && HUB_ICON[p.key]) || 'product'} size={30} strokeWidth={2} />
+                  </span>
+                  <div className="hub-plate-said">
+                    <h2>{name}</h2>
+                    <p>{tag}</p>
+                  </div>
+                  <span className="hub-plate-cta">{soon ? 'Coming soon' : <>Explore now<span aria-hidden> →</span></>}</span>
+                </div>
+              </>
+            );
+            return to
+              ? <Link key={p.key} to={to} className="hub-plate district-plate">{inner}</Link>
+              : <div key={p.key} className="hub-plate district-plate is-soon">{inner}</div>;
+          })}
+        </div>
       </section>
 
       <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '48px 32px 24px' }}>
