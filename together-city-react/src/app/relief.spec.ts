@@ -213,7 +213,10 @@ describe('Relief stays a system', () => {
    */
   it('cases every image, and cases it with an outline', () => {
     const code = strip(relief);
-    expect(code).toMatch(/img:not\(\.no-case\)/);
+    // Matched on `img:not(.no-case)` once, which quietly encoded the bug: written
+    // that way the rule outscores every exemption in its own list. It must be
+    // :where(), which contributes no specificity.
+    expect(code).toMatch(/img:not\(:where\([^)]*\.no-case/);
     expect(code).toMatch(/outline-offset:\s*-1px/);
     // and the double-rim exclusions exist, or a photo inside a case gets two
     expect(code).toMatch(/\.case > img[\s\S]{0,400}outline:\s*none/);

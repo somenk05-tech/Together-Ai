@@ -540,7 +540,6 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
   background: none; box-shadow: none; border-radius: 0; padding: 0;
   display: grid; place-items: center;
 }
-.tc-logo .mark img { background: none; }
 .tc-burger {
   background: var(--face-key); border: 0; border-radius: var(--r-2); color: var(--ink);
   box-shadow: var(--e1-key);
@@ -673,18 +672,38 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 
    The exclusions are the pictures that are not pictures — the logo, an svg
    used as an icon, and anything that opts out by name.                       */
-img:not(.no-case):not(.bg), video:not(.no-case):not(.bg), .case-auto > img, .case-auto > video {
+/* :where() SO THE EXEMPTIONS CAN WIN.
+   Written as `img:not(.no-case):not(.bg)` this selector scores TWO classes of
+   specificity — :not() contributes its argument's weight — while every
+   exemption below it (`.tc-logo img`, `.av img`) scores one. The exemption list
+   lost every time, silently, wherever it sat in the file; the logo kept its
+   grey backing and no amount of reordering could have fixed it. :where()
+   contributes nothing, so this is plain `img` and anything more specific
+   overrides it, which is what an exemption list is for. */
+img:not(:where(.no-case, .bg)), video:not(:where(.no-case, .bg)), .case-auto > img, .case-auto > video {
   outline: 1px solid rgba(0,0,0,.10);
   outline-offset: -1px;
   box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 5px 12px rgba(0,0,0,.08);
   background: var(--well);
 }
 /* A full-bleed image inside a container that is already a case gets the rim
-   from the container, not from itself — two rims is two frames. */
+   from the container, not from itself — two rims is two frames.
+
+   `background: none` IS PART OF THE EXEMPTION, and leaving it out is what put a
+   grey tile behind the logo. The rule above gives every picture `--well` as a
+   backing so a transparent PNG or a slow-loading photo sits in something rather
+   than on nothing. A logo IS a transparent PNG, so the backing is the whole
+   image as far as anyone looking at it is concerned. Cancelling the outline and
+   the shadow but not the fill left the one part that was actually visible.
+
+   The earlier `.tc-logo .mark img { background: none }` did not help: it has the
+   same specificity as `img:not(.no-case):not(.bg)` and sits ABOVE it, so source
+   order handed the win to the rule it was trying to override. */
 .tc-logo img, .mark img, .av img, .tc-avatar img, .icon img, svg image,
 .case > img, .case > video, .case > picture > img,
-.pcard .ph img, .hero .bg, .poster-hero img, .cityfallback a img, .citymap .bg {
-  outline: none; box-shadow: none;
+.pcard .ph img, .hero .bg, .poster-hero img, .cityfallback a img, .citymap .bg,
+img[src$=".svg"], .no-case {
+  outline: none; box-shadow: none; background: none;
 }
 
 /* ══ MOTION ══════════════════════════════════════════════════════════════
