@@ -35,7 +35,7 @@
 .tc-main { padding-top: calc(var(--header-h) + var(--safe-top)); min-height: 100vh; }
 .tc-shell { display: flex; min-height: 100vh; padding-top: calc(var(--header-h) + var(--safe-top)); }
 .tc-shell .tc-main { padding-top: 0; }
-.tc-shell .tc-main > * { padding: 40px 44px 84px; display: block; }
+.tc-shell .tc-main > * { padding: 28px 36px 52px; display: block; }
 
 .tc-side { width: 280px; flex-shrink: 0; padding: 28px 0 40px; position: sticky; top: calc(var(--header-h) + var(--safe-top)); height: calc(100vh - var(--header-h)); overflow-y: auto; }
 .tc-side .back { display: block; font-size: 10.5px; letter-spacing: .16em; font-weight: 700; text-transform: uppercase; padding: 0 26px 18px; background: none; border: none; cursor: pointer; }
@@ -65,7 +65,7 @@
   .tc-actionbar .lab, .tc-actions .lab { display: none; }
   .tc-side { position: fixed; top: 0; left: 0; bottom: 0; z-index: 200; transform: translateX(-100%); transition: transform .28s ease; padding-top: calc(28px + var(--safe-top)); border-radius: 0 var(--r-5) var(--r-5) 0; }
   .tc-side.open { transform: translateX(0); }
-  .tc-shell .tc-main > * { padding: 24px 20px 60px; }
+  .tc-shell .tc-main > * { padding: 20px 16px 40px; }
 }
 
 
@@ -88,7 +88,7 @@
 .letter-sky {
   position: relative; border-radius: var(--r-5); overflow: hidden;
   background: var(--face-tall); box-shadow: var(--e3);
-  padding: clamp(30px, 4vw, 56px) clamp(26px, 4vw, 60px);
+  padding: clamp(22px, 2.6vw, 38px) clamp(20px, 2.8vw, 44px);
 }
 /* The hub's hairline across the top — the only colour on the surface. */
 .letter-sky::after {
@@ -99,8 +99,14 @@
    sky was a 5:1 ribbon — too short to read as a picture and too tall to read as
    a rule. Aspect-ratio lets it scale with the letter instead of holding one
    height at every width. */
+/* THE HEIGHT LIVES ON THE FRAME, NOT THE PICTURE. `aspect-ratio: 3/1` plus
+   `max-height` on the <img> does not crop it — the browser shrinks the WIDTH to
+   keep the ratio, so the letterhead came out 900px wide inside a 1300px letter
+   and sat there looking mis-set. The frame takes a plain height, the picture
+   fills it, and object-fit does the cropping. */
 .letter-sky-frame {
   display: block; position: relative; border-radius: var(--r-3);
+  height: clamp(170px, 21vw, 300px);
   background: var(--well); box-shadow: var(--carve-deep);
   overflow: hidden; margin-bottom: clamp(20px, 2.4vw, 30px);
 }
@@ -109,7 +115,7 @@
   box-shadow: var(--case-rim);
 }
 .letter-sky-art {
-  display: block; width: 100%; aspect-ratio: 3 / 1; max-height: 300px; object-fit: cover;
+  display: block; width: 100%; height: 100%; object-fit: cover;
   border-radius: inherit;
 }
 .letter-sky-body { position: relative; z-index: 1; max-width: 68ch; }
@@ -157,7 +163,7 @@
 .ask-lede { font-size: 18px; line-height: 1.55; color: var(--muted); max-width: 56ch; margin-top: 14px; }
 
 .ask-card {
-  margin-top: clamp(26px, 3.4vw, 44px); padding: clamp(24px, 3vw, 36px);
+  margin-top: clamp(20px, 2.4vw, 32px); padding: clamp(20px, 2.2vw, 30px);
   border-radius: var(--r-5); background: var(--face-tall); box-shadow: var(--e3);
 }
 .ask-card-title { font-size: 19px; font-weight: 700; letter-spacing: -.03em; margin-bottom: 16px; color: var(--ink); }
@@ -205,7 +211,7 @@
 .ask-link:hover { color: var(--ink); }
 .ask-link.is-danger { color: var(--danger-ink); }
 
-.ask-history-title { font-size: clamp(22px, 2.4vw, 30px); font-weight: 700; letter-spacing: -.035em; margin: clamp(38px, 4vw, 56px) 0 16px; color: var(--ink); }
+.ask-history-title { font-size: clamp(22px, 2.4vw, 30px); font-weight: 700; letter-spacing: -.035em; margin: clamp(28px, 3vw, 40px) 0 14px; color: var(--ink); }
 .ask-past { border-radius: var(--r-4); background: var(--face-tall); box-shadow: var(--e1); padding: 20px 22px; margin-bottom: 12px;
   transition: transform var(--dur-base) var(--spring), box-shadow var(--dur-base) var(--ease); }
 .ask-past:hover { transform: translateY(-2px); box-shadow: var(--e2); }
@@ -274,7 +280,7 @@
 .astro-frame {
   position: relative; border-radius: var(--r-5);
   background: var(--face-tall); box-shadow: var(--e3);
-  padding: clamp(30px, 4vw, 56px) clamp(26px, 4vw, 52px);
+  padding: clamp(22px, 2.6vw, 40px) clamp(20px, 2.6vw, 40px);
 }
 .astro-frame::before {
   content: ''; position: absolute; inset: clamp(14px, 1.6vw, 22px); border-radius: var(--r-4);
@@ -330,5 +336,5 @@
    the artwork — which is dark, and painted, and sits in a case.
    ═══════════════════════════════════════════════════════════════════════════ */
 .tarot-night { background: var(--ground); color: var(--ink); }
-.tc-shell .tc-main > .tarot-night { padding: 40px 44px 84px; }
-@media (max-width: 560px) { .tc-shell .tc-main > .tarot-night { padding: 24px 18px 60px; } }
+.tc-shell .tc-main > .tarot-night { padding: 28px 36px 52px; }
+@media (max-width: 560px) { .tc-shell .tc-main > .tarot-night { padding: 20px 16px 40px; } }
