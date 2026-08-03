@@ -137,11 +137,13 @@ function DailyCard() {
   };
 
   return (
-    <Card className="rise" style={{ padding: '24px 26px', marginBottom: 22 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
-        <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, margin: 0 }}>Card of the Day</h3>
-        <span className="muted" style={{ fontSize: 12.5 }}>Free · one card, yours until midnight</span>
-      </div>
+    // The frame is a mat, not a container for text — the card inside keeps the
+    // app's ordinary light surface, so nothing here has to be re-coloured for a
+    // dark ground and nothing can quietly become unreadable.
+    <div className="astro-frame">
+      <h3 className="astro-frame-title">Card of the Day</h3>
+      <p className="astro-frame-sub">Free · one card, yours until midnight</p>
+      <Card className="rise" style={{ padding: '24px 26px', marginBottom: 0 }}>
 
       {daily.isLoading && <Spinner label="Laying out the cards…" />}
       {daily.isError && (
@@ -193,7 +195,8 @@ function DailyCard() {
           <Disclaimer text={d.disclaimer} />
         </>
       )}
-    </Card>
+      </Card>
+    </div>
   );
 }
 

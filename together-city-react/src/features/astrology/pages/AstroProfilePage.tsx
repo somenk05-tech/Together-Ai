@@ -377,10 +377,13 @@ export function AstroProfilePage() {
   const chart = view.data?.profile?.chart;
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
+    <div className="astro-frame" style={{ maxWidth: 780, margin: '0 auto' }}>
+      {/* The frame is a mat. Only the two lines that sit directly ON it are
+          re-coloured; every card inside keeps the app's ordinary light surface,
+          so nothing here can quietly become unreadable. */}
       <div className="rise" style={{ marginBottom: 18 }}>
-        <div className="eyebrow">Profile · Master Profile</div>
-        <h1 style={{ fontSize: 'clamp(24px,3vw,32px)' }}>Birth Details</h1>
+        <div className="eyebrow" style={{ color: 'rgba(242,231,205,.72)' }}>Profile · Master Profile</div>
+        <h1 style={{ fontSize: 'clamp(24px,3vw,32px)', color: '#f2e7cd' }}>Birth Details</h1>
       </div>
       <PrivacyNote hub="astrology" style={{ marginBottom: 16 }} />
       {view.isLoading && <Spinner label="Loading your details…" />}

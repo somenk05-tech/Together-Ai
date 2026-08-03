@@ -534,3 +534,49 @@
   margin-bottom: 12px;
   transition: transform .3s;
 }
+
+/* ───────────────────────── The celestial frame ───────────────────────────
+   A decorative mat behind the Card of the Day and the Astrology Profile.
+
+   TWO FILES, ONE FRAME. The wide and tall artworks are the same border drawn at
+   two aspects, and the media query picks whichever is closer to the container's
+   shape. That matters because the background is stretched to `100% 100%` rather
+   than covered: a frame has to touch all four edges of what it frames, and
+   `cover` would crop the border off exactly when the content is a shape the
+   artwork is not. Stretching a 2:1 border into a 1.4:1 box distorts the corner
+   suns a little; cropping them away is not a subtler version of the same
+   problem, it is losing the thing.
+
+   The padding is what keeps content off the ornament. It is generous on purpose
+   — a card butted against the border reads as a mistake, and this surface has no
+   job other than to look composed. */
+.astro-frame {
+  background-color: #05070c;
+  background-image: url('/assets/img/celestial-frame-wide.webp');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  border-radius: 18px;
+  padding: clamp(40px, 5.5vw, 78px) clamp(26px, 4vw, 64px);
+  margin-bottom: 22px;
+}
+@media (max-width: 900px) {
+  .astro-frame {
+    background-image: url('/assets/img/celestial-frame-tall.webp');
+    padding: clamp(32px, 7vw, 56px) clamp(20px, 5vw, 38px);
+  }
+}
+
+/* The heading that sits ON the frame rather than inside a card — light, because
+   the mat is night. Everything else inside stays the app's ordinary card. */
+.astro-frame > .astro-frame-title {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(19px, 2vw, 23px);
+  color: #f2e7cd;
+  margin: 0 0 4px;
+}
+.astro-frame > .astro-frame-sub {
+  font-size: 12.5px;
+  color: rgba(242, 231, 205, .6);
+  margin: 0 0 18px;
+}
