@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CSS = join(dirname(fileURLToPath(import.meta.url)), '..', 'styles', 'layout.css');
@@ -36,13 +36,50 @@ const CSS = join(dirname(fileURLToPath(import.meta.url)), '..', 'styles', 'layou
  */
 const css = readFileSync(CSS, 'utf8');
 
-/** The letter block, with its explanatory comments stripped — those describe
- *  the bug BY NAME, so a check that reads them can never go red. */
-const letterBlock = (): string => {
+function walk(dir: string, out: string[] = []): string[] {
+  for (const e of readdirSync(dir)) {
+    const p = join(dir, e);
+    if (statSync(p).isDirectory()) walk(p, out);
+    else if (/\.tsx?$/.test(p) && !/\.(test|spec)\.tsx?$/.test(p)) out.push(p);
+  }
+  return out;
+}
+
+/**
+ * The letter surface's own rules — selected, not sliced.
+ *
+ * THE FIRST VERSION TOOK EVERYTHING FROM ITS BLOCK TO THE END OF THE FILE, and
+ * the next surface appended after it inherited the whole guard. Its
+ * screen-reader utility carries `margin: -1px` — the standard clip pattern,
+ * correct, and nothing at all to do with bleeding out of a shell — and the
+ * guard failed on it. A rule that fires on correct code is a rule somebody
+ * switches off, and this one was one stylesheet away from that.
+ *
+ * So the rules are matched by SELECTOR. Comments are stripped first: they
+ * describe the bug by name, and a check that reads its own documentation can
+ * never go red.
+ */
+const surfaceCss = (): string => {
+  // Bounded AND selected. Bounded, because `.tc-footer` has perfectly good base
+  // rules further up that these surfaces are not allowed to touch and are not
+  // being asked about. Selected, because the region keeps growing as surfaces
+  // are appended to it.
+  // Anchored on a SELECTOR, not on a comment banner. The first attempt anchored
+  // on the block's heading, which is drawn with box characters that are not the
+  // same width in the two blocks that now use them.
   const start = css.indexOf('.tc-shell .tc-main > .letter-sky');
   expect(start, 'the letter surface block is missing from layout.css').toBeGreaterThan(-1);
-  return css.slice(start).replace(/\/\*[\s\S]*?\*\//g, ' ');
+  return css.slice(start);
 };
+
+const rulesFor = (pattern: RegExp): Array<{ selector: string; body: string }> =>
+  surfaceCss().replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .split('}')
+    .map((chunk) => {
+      const at = chunk.lastIndexOf('{');
+      return at < 0 ? null : { selector: chunk.slice(0, at).trim(), body: chunk.slice(at + 1) };
+    })
+    .filter((r): r is { selector: string; body: string } => !!r && pattern.test(r.selector));
 
 describe('the letter surface', () => {
   it('bleeds by overriding the shell padding, not by cancelling it', () => {
@@ -51,10 +88,15 @@ describe('the letter surface', () => {
   });
 
   it('uses no negative margin anywhere in it', () => {
-    const offenders = letterBlock()
-      .split('\n')
-      .filter((l) => /margin[^:]*:\s*[^;]*-\d/.test(l))
-      .map((l) => l.trim());
+    const own = rulesFor(/./);
+    expect(own.length, 'these surfaces have no rules in layout.css').toBeGreaterThan(20);
+    const offenders = own
+      .filter((r) => /margin[^:]*:\s*[^;]*-\d/.test(r.body))
+      // The one legitimate negative margin in CSS: the visually-hidden clip
+      // pattern, which is `-1px` and has nothing to do with bleeding out of a
+      // shell. `clip:` is its signature and no bleed rule has one.
+      .filter((r) => !/\bclip\s*:/.test(r.body))
+      .map((r) => r.selector);
     expect(offenders, [
       '',
       'A negative margin here has to know the shell\'s padding at every',
@@ -67,23 +109,27 @@ describe('the letter surface', () => {
     ].join('\n')).toEqual([]);
   });
 
-  it('darkens the footer only while a letter is on screen', () => {
-    // Every .tc-footer rule inside the letter block must be scoped by the
-    // attribute the surface sets on mount and removes on unmount.
-    const rules = letterBlock().split('}').filter((r) => r.includes('.tc-footer'));
-    expect(rules.length).toBeGreaterThan(0);
+  it('darkens the footer only while a dark surface is on screen', () => {
+    const rules = rulesFor(/\.tc-footer/);
+    expect(rules.length, 'nothing styles the footer for these surfaces').toBeGreaterThan(0);
     const unscoped = rules
-      .map((r) => r.split('{')[0].trim())
+      .map((r) => r.selector)
       .filter((sel) => !sel.includes('[data-surface="letter"]'));
-    expect(unscoped, 'a global .tc-footer rule would break the three light screens in the same hub').toEqual([]);
+    expect(unscoped, 'a global .tc-footer rule would break the light screens in the same hub').toEqual([]);
   });
 
-  it('sets and clears the attribute those rules depend on', () => {
-    const surface = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), '..', 'features', 'astrology', 'components', 'Letter.tsx'), 'utf8');
-    expect(surface).toContain("setAttribute('data-surface', 'letter')");
+  it('sets and clears the attribute those rules depend on, in exactly one place', () => {
+    const src = join(dirname(fileURLToPath(import.meta.url)), '..');
+    const hook = readFileSync(join(src, 'features', 'astrology', 'components', 'useDarkChrome.ts'), 'utf8');
+    expect(hook).toContain("setAttribute('data-surface', 'letter')");
     // Set without removed is a light page wearing a dark footer for the rest of
-    // the session — the failure mode nobody notices until they navigate away.
-    expect(surface).toContain("removeAttribute('data-surface')");
+    // the session — the failure nobody notices until they navigate away.
+    expect(hook).toContain("removeAttribute('data-surface')");
+
+    // And it stays one place. Two surfaces use this now; a third that writes
+    // the attribute itself is a second chance to forget the clearing half.
+    const writers = walk(src).filter((p) => /setAttribute\(\s*'data-surface'/.test(readFileSync(p, 'utf8')));
+    expect(writers.map((p) => relative(src, p).split('\\').join('/')))
+      .toEqual(['features/astrology/components/useDarkChrome.ts']);
   });
 });

@@ -1,16 +1,80 @@
-import { useState } from 'react';
-import { Button, Card, EmptyState, Spinner, Tag } from '@/components/ui';
+import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Spinner } from '@/components/ui';
 import { useAskAstrologer, useAstroProfile, useAstroQuestions } from '../hooks';
-import { AstroHeader, NeedsProfileCard } from '../shared';
+import { useDarkChrome } from '../components/useDarkChrome';
 
 const TOPICS = [
   'Career', 'Marriage', 'Relationships', 'Business', 'Investments', 'Education',
   'Children', 'Foreign Travel', 'Property', 'Health', 'Spiritual Growth',
 ];
 const PRICE = 75;
+/** The server's own rule, mirrored so the counter can say what it is:
+ *  `question: z.string().min(10).max(600)` in astrology.controller.ts. */
+const MIN_CHARS = 10;
+const MAX_CHARS = 600;
 
-/** Tab 03 — Ask the Astrologer. ₹75 per question, charged to the city wallet;
- *  every consultation is saved under My Questions. */
+/**
+ * A parallax so slight you should not be able to point at it.
+ *
+ * Six pixels at the far corner of the viewport, written to a CSS custom
+ * property and applied with translate3d, so the whole thing is one composited
+ * layer and no React state changes on mouse move — a re-render per pointer
+ * event would cost more than the effect is worth.
+ *
+ * It does nothing at all for someone who has asked for less motion, and nothing
+ * on a device with no pointer to move.
+ */
+function useSlowParallax() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      || !window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    if (still) return;
+    let frame = 0;
+    const onMove = (e: MouseEvent) => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const x = (e.clientX / window.innerWidth - 0.5) * 2;
+        const y = (e.clientY / window.innerHeight - 0.5) * 2;
+        el.style.setProperty('--px', `${(-x * 6).toFixed(2)}px`);
+        el.style.setProperty('--py', `${(-y * 6).toFixed(2)}px`);
+      });
+    };
+    window.addEventListener('mousemove', onMove, { passive: true });
+    return () => { window.removeEventListener('mousemove', onMove); if (frame) cancelAnimationFrame(frame); };
+  }, []);
+  return ref;
+}
+
+/**
+ * Tab 03 — Ask the Astrologer. ₹75 per question, charged to the city wallet;
+ * every consultation is saved under My Questions.
+ *
+ * THE REDESIGN IS THE VIEW AND ONLY THE VIEW. Every hook, every piece of state,
+ * the mutation, its success and error handling, the disabled rule, the history
+ * list and its three states are the same code they were — moved, restyled, and
+ * otherwise untouched. No endpoint, schema, price or validation changed.
+ *
+ * Three things are genuinely new, and all three are visible on the screen
+ * rather than behind it:
+ *
+ *  · A CHARACTER COUNTER, which the brief asked to keep and which did not
+ *    exist. The server has always required 10–600; the page only ever
+ *    mentioned it in placeholder text, so somebody who wrote 700 characters
+ *    found out by being refused after pressing the button.
+ *  · THE SUBMIT BUTTON NOW ALSO REFUSES OVER 600. That mirrors the server's
+ *    own rule exactly, so it cannot block anything the server would have
+ *    accepted — it only moves a rejection from after the click to before it.
+ *  · A FAILURE BRANCH FOR THE BIRTH PROFILE. `profile` had `isLoading` and
+ *    `data` and no `isError`, so a failed read rendered a heading over an empty
+ *    page: no question box, no explanation, nothing to do. It said the same
+ *    thing an unfinished profile says, which is a claim about the citizen's own
+ *    record that nobody had checked.
+ */
 export function AstroAsk() {
   const profile = useAstroProfile();
   const questions = useAstroQuestions();
@@ -19,6 +83,8 @@ export function AstroAsk() {
   const [question, setQuestion] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const artRef = useSlowParallax();
+  useDarkChrome();
 
   const submit = () => {
     setError(null);
@@ -32,86 +98,145 @@ export function AstroAsk() {
   };
 
   const needsProfile = profile.data && !profile.data.complete;
+  const count = question.trim().length;
+  const tooLong = count > MAX_CHARS;
 
   return (
-    <div>
-      <AstroHeader title="Ask the Astrologer" lede={`A private, personal consultation — ₹${PRICE} per question, answered for your situation and saved forever under My Questions.`} />
-      {profile.isLoading && <Spinner label="Loading…" />}
-      {needsProfile && <NeedsProfileCard />}
-      {profile.data?.complete && (
-        <>
-          <Card className="rise" style={{ padding: '24px 26px', marginBottom: 20 }}>
-            <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, marginBottom: 4 }}>Ask About Your Life</h3>
-            <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>
-              Your chart — Sun {profile.data.profile?.chart.sunSign}, Moon {profile.data.profile?.chart.moonSign}
-              {profile.data.profile?.chart.ascendant ? `, ${profile.data.profile.chart.ascendant} rising` : ''} — is applied automatically.
-            </p>
-            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 14 }}>
-              {TOPICS.map((t) => (
-                <button key={t} type="button" onClick={() => setTopic(t)}
-                  style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px',
-                    borderRadius: 999, border: `1.5px solid ${topic === t ? 'var(--accent)' : 'var(--line)'}`,
-                    background: topic === t ? 'var(--accent-soft)' : 'var(--card)',
-                    color: topic === t ? 'var(--accent)' : 'var(--ink)' }}>
-                  {t}
-                </button>
-              ))}
-            </div>
-            <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={4}
-              placeholder={`Ask anything about your ${topic.toLowerCase()} — the more specific, the sharper the reading. (10–600 characters)`}
-              style={{ width: '100%', resize: 'vertical', padding: '12px 14px', borderRadius: 10, border: '1.5px solid var(--line)',
-                background: 'var(--card)', color: 'var(--ink)', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.6 }} />
-            {error && <p style={{ color: '#c0392b', fontSize: 13, margin: '10px 0 0' }}>{error}</p>}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
-              <Button variant="accent" disabled={question.trim().length < 10 || ask.isPending} onClick={submit}>
-                {ask.isPending ? 'Writing your answer…' : `Pay ₹${PRICE} & Ask`}
-              </Button>
-              <span className="muted" style={{ fontSize: 12 }}>Charged to your city wallet · the full reading is saved to My Questions.</span>
-            </div>
-          </Card>
+    <div className="ask-stage">
+      <div className="ask-panel">
+        <div className="ask-panel-inner">
+          <p className="ask-eyebrow">Astrology Zone</p>
+          <h1 className="ask-title">Ask the Astrologer</h1>
+          <p className="ask-lede">
+            A private consultation drawn from your birth profile and your own question. Every answer
+            is written for you and kept permanently under My Questions.
+          </p>
 
-          <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, margin: '0 0 12px' }}>My Questions</h3>
-          {questions.isLoading && <Spinner />}
-          {/* This list guarded on `questions.data?.length === 0`, so a failed
-              read rendered NOTHING — the heading "My Questions" above an empty
-              gap. These are answers the citizen paid for; a blank space where
-              they should be is the worst possible way to not say something. */}
-          {questions.isError && (
-            <EmptyState
-              icon="⚠️"
-              title="We couldn’t load your consultations"
-              hint="Nothing has been lost — every answer you’ve paid for is still saved. Try again in a moment."
-            />
+          {profile.isLoading && <div className="ask-note"><Spinner label="Opening the room…" /></div>}
+
+          {profile.isError && (
+            <div className="ask-note">
+              <p>
+                We couldn&rsquo;t reach your birth profile just now. This isn&rsquo;t a message that
+                it&rsquo;s missing &mdash; only that we couldn&rsquo;t read it from here, so there is
+                nothing to ask with until we can.
+              </p>
+              <button type="button" className="ask-link" onClick={() => void profile.refetch()}>Try again</button>
+            </div>
           )}
-          {questions.data?.length === 0 && (
-            <EmptyState icon="🪐" title="No consultations yet" hint="Your first paid question and its full answer will be saved here." />
+
+          {needsProfile && (
+            <div className="ask-note">
+              <p>
+                A consultation is written from when and where you were born, and we don&rsquo;t have
+                that yet. It&rsquo;s asked once and shared across everything else you use.
+              </p>
+              <Link className="ask-link" to="/profile/astrology">Add your details</Link>
+            </div>
           )}
-          {(questions.data ?? []).map((q) => (
-            <Card key={q.id} style={{ padding: '16px 20px', marginBottom: 12 }}>
-              <button type="button" onClick={() => setOpenId(openId === q.id ? null : q.id)}
-                style={{ all: 'unset', cursor: 'pointer', display: 'block', width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <Tag>{q.topic}</Tag>
-                    <p style={{ fontSize: 14, fontWeight: 600, margin: '8px 0 2px' }}>{q.question}</p>
-                    <p className="muted" style={{ fontSize: 11.5 }}>
-                      {new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · ₹{q.priceInr}
-                    </p>
-                  </div>
-                  <span style={{ color: 'var(--accent)', fontSize: 18 }}>{openId === q.id ? '▾' : '▸'}</span>
-                </div>
-              </button>
-              {openId === q.id && (
-                <div style={{ marginTop: 12, borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-                  {q.answer.split('\n\n').map((p, i) => (
-                    <p key={i} style={{ fontSize: 14, lineHeight: 1.7, marginBottom: 10 }}>{p}</p>
+
+          {profile.data?.complete && (
+            <>
+              <section className="ask-card">
+                <h2 className="ask-card-title">Ask About Your Life</h2>
+                <p className="ask-card-sub">
+                  Your birth profile is already connected. Ask one thoughtful question &mdash; the
+                  more specific it is, the more the answer can be about you.
+                </p>
+
+                <div className="ask-topics" role="group" aria-label="Consultation topic">
+                  {TOPICS.map((t) => (
+                    <button key={t} type="button" onClick={() => setTopic(t)}
+                      aria-pressed={topic === t}
+                      className={`ask-chip${topic === t ? ' is-on' : ''}`}>
+                      {t}
+                    </button>
                   ))}
                 </div>
+
+                <label className="ask-field">
+                  <span className="ask-sr">Your question</span>
+                  <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={5}
+                    className="ask-textarea"
+                    placeholder="Ask about your current situation. The more specific your question, the more personalized your guidance will be." />
+                </label>
+
+                <div className="ask-meta">
+                  <span className={`ask-count${tooLong ? ' is-over' : ''}`}>
+                    {count} / {MAX_CHARS}
+                    {count > 0 && count < MIN_CHARS ? ` · ${MIN_CHARS - count} more to go` : ''}
+                  </span>
+                </div>
+
+                {error && <p className="ask-error" role="alert">{error}</p>}
+
+                <button type="button" className="ask-cta"
+                  disabled={count < MIN_CHARS || tooLong || ask.isPending}
+                  onClick={submit}>
+                  {ask.isPending ? 'Writing your answer…' : `Pay ₹${PRICE} & Ask →`}
+                </button>
+
+                <p className="ask-fineprint">
+                  Charged securely to your Together City Wallet. Your consultation will be
+                  permanently available inside My Questions.
+                </p>
+              </section>
+
+              <h2 className="ask-history-title">My Questions</h2>
+              {questions.isLoading && <div className="ask-note"><Spinner /></div>}
+              {/* This list guarded on `questions.data?.length === 0`, so a failed
+                  read rendered NOTHING — the heading "My Questions" above an empty
+                  gap. These are answers the citizen paid for; a blank space where
+                  they should be is the worst possible way to not say something. */}
+              {questions.isError && (
+                <div className="ask-note">
+                  <p>
+                    We couldn&rsquo;t load your consultations. Nothing has been lost &mdash; every
+                    answer you&rsquo;ve paid for is still saved.
+                  </p>
+                  <button type="button" className="ask-link" onClick={() => void questions.refetch()}>Try again</button>
+                </div>
               )}
-            </Card>
-          ))}
-        </>
-      )}
+              {questions.data?.length === 0 && (
+                <div className="ask-note">
+                  <p>No consultations yet. Your first question and its full answer will be kept here.</p>
+                </div>
+              )}
+              {(questions.data ?? []).map((q) => (
+                <article key={q.id} className="ask-past">
+                  <button type="button" className="ask-past-head"
+                    aria-expanded={openId === q.id}
+                    onClick={() => setOpenId(openId === q.id ? null : q.id)}>
+                    <span className="ask-past-topic">{q.topic}</span>
+                    <span className="ask-past-q">{q.question}</span>
+                    <span className="ask-past-when">
+                      {new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · ₹{q.priceInr}
+                    </span>
+                    <span className="ask-past-mark" aria-hidden>{openId === q.id ? '−' : '+'}</span>
+                  </button>
+                  {openId === q.id && (
+                    <div className="ask-past-body">
+                      {q.answer.split('\n\n').map((p, i) => <p key={i}>{p}</p>)}
+                    </div>
+                  )}
+                </article>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Atmosphere only. Nothing is ever laid over it, and it carries no
+          information — hence the empty alt: a screen reader has nothing to gain
+          from it and a list of planet names to lose. */}
+      <div className="ask-art" ref={artRef} aria-hidden>
+        <picture>
+          <source media="(max-width: 900px)" srcSet="/assets/img/ask-sky-wide.webp" />
+          <img className="ask-art-img" src="/assets/img/ask-sky-tall.webp" alt=""
+            loading="lazy" decoding="async" />
+        </picture>
+        <span className="ask-art-fade" />
+      </div>
     </div>
   );
 }
