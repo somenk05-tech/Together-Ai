@@ -3,6 +3,7 @@ import { medicalFoodAllergenTerms } from '../shared/medical-allergies';
 import { RECORD_CAP } from '../shared/paging';
 import { swallowed } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { readiness } from '../shared/readiness';
 import { demoDataEnabled } from '../shared/demo-data';
 import { answeredNow } from '../shared/prisma/answered-at';
 import { randomBytes } from 'crypto';
@@ -332,7 +333,11 @@ type PoolRow = {
   id: string; name: string; country: string; slot: string; diet: string; recipeNo?: number | null;
   kcal: number; protein: number; carbs: number; fat: number; fiber: number;
   minutes: number; gramsPerServing: number; servings?: number;
-  steps?: string | null; cookSteps?: string | null; image?: string | null; imageUrl?: string | null;
+  steps?: string | null; cookSteps?: string | null;
+  // NOTE: Recipe has no image/imageUrl column — the picture comes from
+  // recipeImageUrl(recipeNo). The two fields that used to be declared here were
+  // always undefined, and the `?? r.imageUrl ?? r.image` fallback below never
+  // once had anything to fall back to.
   ingredients: Array<{ name: string; grams?: number | null }>;
 };
 
@@ -1434,13 +1439,20 @@ export class NutritionService implements OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
+    // TRAFFIC WAITS FOR THESE. Until both settle, /api/health answers 503 and
+    // Render holds the instance out of rotation — which during a deploy means
+    // the previous instance keeps serving and nobody sees a boot at all.
+    readiness.expect('recipe-corpus');
+    readiness.expect('dataset-pool');
     // The corpus is the FIRST thing generatePlan reads, so it warms FIRST —
     // in parallel with everything below, not at the end of the QA chain. We
     // deployed eight times in two hours today and every deploy left the first
     // planner open paying the whole cold pipeline; the in-flight promise
     // sharing means anyone arriving mid-warm joins this read instead of
     // timing out behind it.
-    void this.recipeCorpus().catch(swallowed('nutrition.onModuleInit', undefined));
+    void this.recipeCorpus()
+      .catch(swallowed('nutrition.onModuleInit', undefined))
+      .finally(() => readiness.settle('recipe-corpus'));
     await this.ensureRecipes();
     await this.ensureDietitians();
     // Recipe data: adopt the v2 dataset (per-serving, cleaned) on an existing DB,
@@ -1455,7 +1467,8 @@ export class NutritionService implements OnModuleInit {
       // so without this the first citizen to open the planner after a deploy
       // pays for it — which on Railway is every deploy.
       .then(() => { this.warmDatasetPool(); void this.recipeCorpus().catch(swallowed('nutrition.onModuleInit', undefined)); })
-      .catch(swallowed('nutrition.onModuleInit', undefined));
+      .catch(swallowed('nutrition.onModuleInit', undefined))
+      .finally(() => { void (this.datasetPoolPromise ?? Promise.resolve()).finally(() => readiness.settle('dataset-pool')); });
     void this.warnAboutQuickCommerceCharges();
     void this.warnAboutGroceryOrderCharges();
   }
@@ -1719,7 +1732,19 @@ export class NutritionService implements OnModuleInit {
       // would have put it on everybody else's plate. Own dishes are appended
       // per request in poolFor().
       where: { authorId: null },
-      include: { ingredients: { select: { name: true, grams: true } } },
+      // NAMED, NOT `include`. `include` with no `select` returns every column of
+      // every row — and this is 11,000 rows held for the life of the process,
+      // on an instance with 512MB. The columns below are exactly PoolRow, which
+      // is exactly what shapePoolRows reads; healthGrade, healthPercent,
+      // qaVersion, nutritionSource, coveragePct and authorId were being carried
+      // for all 11,000 and read for none.
+      select: {
+        id: true, name: true, country: true, slot: true, diet: true, recipeNo: true,
+        kcal: true, protein: true, carbs: true, fat: true, fiber: true,
+        minutes: true, gramsPerServing: true, servings: true,
+        steps: true, cookSteps: true,
+        ingredients: { select: { name: true, grams: true } },
+      },
     })) as unknown as PoolRow[];
     const out = this.shapePoolRows(rows);
     this.datasetPoolCache = out;
@@ -1754,7 +1779,7 @@ export class NutritionService implements OnModuleInit {
         ingredients,
         nutrients: { sodiumMg: n.na, potassiumMg: n.k, phosphorusMg: n.p, sugarG: n.sug, addedSugarG: n.addedSug, satFatG: n.sfat },
         nutrientComplete: n.complete,
-        steps: this.parseSteps(r.cookSteps ?? r.steps), imageUrl: recipeImageUrl(r.recipeNo) ?? r.imageUrl ?? r.image ?? null,
+        steps: this.parseSteps(r.cookSteps ?? r.steps), imageUrl: recipeImageUrl(r.recipeNo) ?? null,
       });
     }
     return out;
@@ -1826,6 +1851,15 @@ export class NutritionService implements OnModuleInit {
    * to their own calorie target — same dishes/times, portions + grocery scaled,
    * read-only. Everyone else gets their own composition.
    */
+  /** Give a promise a deadline. Rejects rather than hanging; the caller decides. */
+  private bounded<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+    let t: NodeJS.Timeout;
+    return Promise.race([
+      p.finally(() => clearTimeout(t)),
+      new Promise<never>((_, rej) => { t = setTimeout(() => rej(new Error(`${what} timeout (${ms}ms)`)), ms); }),
+    ]);
+  }
+
   async composedPlan(
     userId: string,
     mode: 'preferred' | 'optimal' = 'preferred',
@@ -1834,11 +1868,18 @@ export class NutritionService implements OnModuleInit {
     // Food Preference Profile is the master source of truth — never generate a
     // plan until it's saved. Members of a family with shared planning inherit the
     // owner's saved profile, so they're allowed through.
-    const pref0 = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(swallowed('nutrition.composedPlan', null));
+    // BOUNDED, because .catch() does not rescue a query that never settles.
+    // The 8s race below was added for exactly that reason — and it wraps only
+    // buildComposedPlan, leaving this read and familyContext() outside it. A
+    // hang here holds the request open until the proxy kills it, which is a
+    // blank planner and no server-side error to explain it.
+    const pref0 = await this.bounded(
+      this.prisma.foodPref.findUnique({ where: { userId } }), 4000, 'foodPref',
+    ).catch(swallowed('nutrition.composedPlan', null));
     const ex0 = parseExtras((pref0 as { extras?: string | null } | null)?.extras);
     const profileSaved = !!pref0 && Object.keys(ex0).length > 0;
     if (!profileSaved) {
-      const ctx0 = await this.familyContext(userId).catch(swallowed('nutrition.composedPlan', null));
+      const ctx0 = await this.bounded(this.familyContext(userId), 4000, 'familyContext').catch(swallowed('nutrition.composedPlan', null));
       const sharedMember = !!ctx0 && ctx0.role === 'member' && !!ctx0.familyMealPlanning;
       if (!sharedMember) return { needsProfile: true as const };
     }
@@ -1858,7 +1899,11 @@ export class NutritionService implements OnModuleInit {
       this.logger.error(`composedPlan failed for user=${userId}: ${(e as Error)?.stack ?? String(e)}`);
       try {
         // Even the fallback honours the user's diet (never veg for a non-veg user).
-        const prefF = await this.prisma.foodPref.findUnique({ where: { userId } }).catch(swallowed('nutrition.composedPlan', null));
+        // The fallback is the thing that stops the planner blanking, so it is
+        // the last place that may be allowed to hang.
+        const prefF = await this.bounded(
+          this.prisma.foodPref.findUnique({ where: { userId } }), 3000, 'foodPref(fallback)',
+        ).catch(swallowed('nutrition.composedPlan', null));
         // Same rule on the degraded path. A starter plan that already admits it
         // is general must not also claim to be sized for a body we never read.
         const t = computeTargets({

@@ -6,7 +6,15 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: starter                     # free tier spins down; use starter+ for production
-    healthCheckPath: ""               # leave empty -> Render does a TCP port check (no /health route yet)
+    # THIS WAS EMPTY, with the note "no /health route yet" — which stopped being
+    # true long ago. Empty means Render does a TCP port check: the instant Nest
+    # binds the port the instance is "healthy" and citizens are routed onto it,
+    # minutes before it can answer. /api/health now returns 503 while the recipe
+    # corpus and the composer pool are still loading, so Render holds the
+    # instance out of rotation — and during a deploy keeps the previous one
+    # serving until the new one is genuinely ready. That is what makes a deploy
+    # invisible instead of a two-minute outage on the planner.
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
