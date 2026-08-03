@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Icon } from '@/components/ui/Icon';
 import { Link } from 'react-router-dom';
-import { EmptyState } from '@/components/ui';
+
 import type { Post } from '../api';
 
 /** Social Life · Saved — bookmarked posts kept on this device.
@@ -45,7 +46,7 @@ function SavedCard({ post, onRemove }: { post: Post; onRemove: () => void }) {
           <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}> @{post.author.handle}</span>
         </div>
         {post.placeName && (
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)', marginTop: 2 }}>📍 {post.placeName}</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="place" size={13} />{post.placeName}</div>
         )}
         {post.text && (
           <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '6px 0 0',
@@ -54,8 +55,8 @@ function SavedCard({ post, onRemove }: { post: Post; onRemove: () => void }) {
         <div style={{ display: 'flex', gap: 14, marginTop: 8, alignItems: 'center' }}>
           <Link to="/social/feed" className="btn btn-line btn-sm">Open feed</Link>
           <button type="button" onClick={onRemove}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--muted)', padding: 0 }}>
-            🔖 Remove
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--muted)', padding: 0, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="save" size={14} /> Remove
           </button>
         </div>
       </div>
@@ -82,8 +83,16 @@ export function SocialSaved() {
       </div>
 
       {posts.length === 0 ? (
-        <EmptyState icon="🔖" title="Nothing saved yet"
-          hint="Tap 🔖 Save on any post in the feed and it’ll collect here." />
+        <div className="g-slab g-empty">
+          <span className="g-well big" style={{ margin: '0 auto 16px' }}><Icon name="save" size={30} /></span>
+          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.025em' }}>Nothing saved yet</div>
+          <p className="muted" style={{ fontSize: 14, margin: '7px 0 0' }}>
+            Tap Save on any post in the feed and it will collect here.
+          </p>
+          <Link to="/social/feed" className="g-key g-edge" style={{ marginTop: 20, textDecoration: 'none' }}>
+            Go to the feed<Icon name="next" size={16} />
+          </Link>
+        </div>
       ) : (
         <div style={{ display: 'grid', gap: 12 }}>
           {posts.map((p) => <SavedCard key={p.id} post={p} onRemove={() => remove(p.id)} />)}

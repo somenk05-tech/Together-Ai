@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useConnections } from '@/api';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { useCreatePost } from '../api';
 import { MUSIC_LIBRARY, type Track } from '../musicLibrary';
 
@@ -213,10 +214,10 @@ const compressImage = (f: File): Promise<{ src: string; portrait: boolean }> => 
 const FEELINGS = ['😊 Happy', '😌 Relaxed', '🤩 Excited', '🙏 Grateful', '✨ Blessed', '❤️ Loved', '🧭 Adventurous', '🌇 Nostalgic', '🎉 Celebrating', '☕ Cosy'];
 
 export const AUDIENCES = [
-  { key: 'public', label: 'Public', emoji: '🌍', hint: 'Everyone in your city network' },
-  { key: 'friends', label: 'Friends', emoji: '👥', hint: 'Your accepted connections' },
-  { key: 'family', label: 'Family', emoji: '👨‍👩‍👧', hint: 'Connections marked Family in People' },
-  { key: 'private', label: 'Only Me', emoji: '🔒', hint: 'Visible only to you' },
+  { key: 'public', label: 'Public', icon: 'globe', hint: 'Everyone in your city network' },
+  { key: 'friends', label: 'Friends', icon: 'people', hint: 'Your accepted connections' },
+  { key: 'family', label: 'Family', icon: 'connection', hint: 'Connections marked Family in People' },
+  { key: 'private', label: 'Only Me', icon: 'shield', hint: 'Visible only to you' },
 ] as const;
 export type AudienceKey = typeof AUDIENCES[number]['key'];
 
@@ -253,8 +254,11 @@ function fmtBadge(dur: number | undefined): { text: string; eligible: boolean } 
   const mm = Math.floor(d / 60);
   const ss = d % 60;
   const el = d >= 180;
-  if (!d) return { text: '▶ video', eligible: false };
-  return { text: `${el ? '✓ ₹100 · ' : '⏱ '}${mm}:${ss < 10 ? '0' : ''}${ss}${el ? '' : ' (need 3:00)'}`, eligible: el };
+  if (!d) return { text: 'video', eligible: false };
+  // The badge used to read "✓ ₹100" past three minutes, and "(need 3:00)" below
+  // it — a target for a payment that does not exist. It is a duration now,
+  // because that is the only true thing it ever knew.
+  return { text: `${mm}:${ss < 10 ? '0' : ''}${ss}`, eligible: el };
 }
 
 const inputStyle: React.CSSProperties = {
@@ -263,7 +267,7 @@ const inputStyle: React.CSSProperties = {
 };
 
 /** 🎵 Music picker — pick a royalty-free library track to play over a video
- *  post's reel. Tap a chip to select; tap ▶/⏸ to preview. Only one track
+ *  post's reel. Tap a chip to select; tap play/pause to preview. Only one track
  *  previews at a time. Tracks whose file 404s are hidden automatically. */
 function MusicPicker({ selected, onSelect, stopSignal }: { selected: Track | null; onSelect: (t: Track | null) => void; stopSignal?: boolean }) {
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -294,10 +298,10 @@ function MusicPicker({ selected, onSelect, stopSignal }: { selected: Track | nul
   return (
     <div style={{ marginTop: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-        <span className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>🎵 Music:</span>
+        <span className="muted" style={{ fontSize: 12.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="music" size={14} />Music</span>
         <span title="Every track is royalty-free and cleared for use. Uploading your own (possibly copyrighted) audio is not allowed."
           style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(34,197,94,.14)', color: 'var(--ok-ink)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          🛡 Copyright-safe · Royalty-free
+          <Icon name="shield" size={13} /> Copyright-safe · Royalty-free
         </span>
         <button type="button" onClick={() => { stop(); onSelect(null); }}
           style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
@@ -317,14 +321,14 @@ function MusicPicker({ selected, onSelect, stopSignal }: { selected: Track | nul
               <button type="button" onClick={() => preview(t)}
                 style={{ minWidth: 44, minHeight: 44, width: 30, height: 30, borderRadius: '50%', border: 'none', cursor: 'pointer',
                   background: 'var(--accent)', color: 'var(--on-accent)', fontSize: 13, flex: '0 0 auto' }}>
-                {previewId === t.id ? '⏸' : '▶'}
+                <Icon name={previewId === t.id ? 'pause' : 'play'} size={13} />
               </button>
               <button type="button" onClick={() => { onSelect(active ? null : t); }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)', fontFamily: 'inherit' }}>
                 <div style={{ fontSize: 13, fontWeight: 700 }}>{t.title}</div>
                 <div className="muted" style={{ fontSize: 11 }}>{t.mood ?? t.artist ?? 'Track'}{t.license ? ` · ${t.license}` : ''}</div>
               </button>
-              {active && <span style={{ fontSize: 13, color: 'var(--accent-ink)' }}>✓</span>}
+              {active && <span style={{ color: 'var(--accent-ink)', display: 'inline-flex' }}><Icon name="accepted" size={15} /></span>}
             </div>
           );
         })}
@@ -408,11 +412,11 @@ export function CreatePost() {
   };
 
   const useLocation = () => {
-    setGeoStat('📡 Getting your location…');
-    if (!navigator.geolocation) { setGeoStat('⚠ Geolocation not supported — type the place name instead.'); return; }
+    setGeoStat('Getting your location…');
+    if (!navigator.geolocation) { setGeoStat('Geolocation is not supported here — type the place name instead.'); return; }
     navigator.geolocation.getCurrentPosition(
-      (pos) => { setGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGeoStat(`✓ Pinned: ${pos.coords.latitude.toFixed(3)}, ${pos.coords.longitude.toFixed(3)}`); },
-      () => setGeoStat('⚠ Couldn’t get a fix — the place name still shows on your post.'),
+      (pos) => { setGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGeoStat(`Pinned: ${pos.coords.latitude.toFixed(3)}, ${pos.coords.longitude.toFixed(3)}`); },
+      () => setGeoStat('Couldn’t get a fix — the place name still shows on your post.'),
       { enableHighAccuracy: true, timeout: 8000 },
     );
   };
@@ -501,17 +505,17 @@ export function CreatePost() {
     );
   };
 
-  const tool = (key: string, label: string, active = false) => (
+  const tool = (key: string, label: string, icon: IconName, active = false) => (
     <button key={key} type="button"
       onClick={() => {
         if (key === 'photos') { photoPicker.current?.click(); return; }
         if (key === 'video') { videoPicker.current?.click(); return; }
         setOpen(open === key ? null : key);
       }}
-      style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '8px 12px',
-        borderRadius: 999, border: `1.5px solid ${open === key || active ? 'var(--accent)' : 'var(--line)'}`,
-        background: open === key || active ? 'var(--accent-soft)' : 'var(--card)', color: 'var(--ink)', whiteSpace: 'nowrap' }}>
-      {label}
+      aria-pressed={open === key || active}
+      className={`g-key sm g-edge${open === key || active ? ' picked' : ''}`}
+      style={{ whiteSpace: 'nowrap' }}>
+      {!(open === key || active) && <Icon name={icon} size={15} />}{label}
     </button>
   );
 
@@ -535,7 +539,7 @@ export function CreatePost() {
         {(feeling || placeName || tagged.length > 0) && (
           <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0' }}>
             {feeling && <>feeling {feeling}&nbsp;&nbsp;</>}
-            {placeName && <>📍 {placeName}&nbsp;&nbsp;</>}
+            {placeName && <><Icon name="place" size={13} /> {placeName}&nbsp;&nbsp;</>}
             {tagged.length > 0 && <>with {tagged.map((t) => t.name.split(' ')[0]).join(', ')}</>}
           </p>
         )}
@@ -555,25 +559,25 @@ export function CreatePost() {
                     </span>
                   )}
                   {badge && (
-                    <span style={{ position: 'absolute', bottom: 6, left: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: badge.eligible ? 'rgba(46,125,70,.92)' : 'rgba(180,105,31,.92)' }}>
+                    <span style={{ position: 'absolute', bottom: 6, left: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(0,0,0,.62)' }}>
                       {badge.text}
                     </span>
                   )}
                   <button type="button" onClick={() => setMedia((prev) => prev.filter((_, j) => j !== i))}
                     aria-label={`Remove this ${m.type === 'video' ? 'video' : 'photo'}`}
                     style={{ minWidth: 44, minHeight: 44, position: 'absolute', top: 5, right: 5, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,.65)', color: 'var(--on-accent)', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>
-                    ✕
+                    <Icon name="close" size={14} />
                   </button>
                   {m.type === 'video' && (
                     <button type="button" onClick={() => setCoverPick(i)}
                       style={{ position: 'absolute', bottom: 6, right: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: 'rgba(0,0,0,.65)', border: 'none', cursor: 'pointer' }}>
-                      {m.poster ? '✓ Cover set' : '🖼 Choose cover'}
+                      {m.poster ? <><Icon name="accepted" size={13} /> Cover set</> : <><Icon name="image" size={13} /> Choose cover</>}
                     </button>
                   )}
                   {m.type === 'image' && (
                     <button type="button" onClick={() => setEditPick(i)}
                       style={{ position: 'absolute', bottom: 6, right: 6, color: 'var(--on-accent)', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: 'rgba(0,0,0,.65)', border: 'none', cursor: 'pointer' }}>
-                      ✎ Edit
+                      <Icon name="edit" size={13} /> Edit
                     </button>
                   )}
                 </div>
@@ -596,7 +600,7 @@ export function CreatePost() {
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
             {hashtags.map((h) => (
               <span key={h} style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', padding: '3px 10px', borderRadius: 999 }}>
-                {h} <button type="button" onClick={() => setHashtags((x) => x.filter((y) => y !== h))} aria-label={`Remove ${h}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', padding: 0, marginLeft: 2 }}>✕</button>
+                {h} <button type="button" onClick={() => setHashtags((x) => x.filter((y) => y !== h))} aria-label={`Remove ${h}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', padding: 0, marginLeft: 2, display: 'inline-flex', verticalAlign: '-.15em' }}><Icon name="close" size={12} /></button>
               </span>
             ))}
           </div>
@@ -614,7 +618,7 @@ export function CreatePost() {
             {suggestions.place && (
               <button type="button" onClick={() => { setPlaceName(suggestions.place!); setOpen('location'); }}
                 style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--paper)', marginRight: 6, color: 'var(--ink)' }}>
-                📍 {suggestions.place}
+                <Icon name="place" size={13} /> {suggestions.place}
               </button>
             )}
             {suggestions.mood && (
@@ -627,23 +631,22 @@ export function CreatePost() {
         )}
 
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 14, borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-          {tool('photos', '📷 Photos', media.some((m) => m.type === 'image'))}
-          {tool('video', '🎥 Video', media.some((m) => m.type === 'video'))}
-          {tool('location', placeName ? `📍 ${placeName.slice(0, 18)}` : '📍 Location', Boolean(placeName))}
-          {tool('feeling', feeling ? feeling : '😊 Feeling', Boolean(feeling))}
-          {tool('tag', tagged.length ? `👥 ${tagged.length} tagged` : '👥 Tag People', tagged.length > 0)}
-          {tool('hashtags', '# Hashtags', hashtags.length > 0)}
-          {tool('audience', `${audDef.emoji} ${audDef.label}`, audience !== 'public')}
+          {tool('photos', 'Photos', 'camera', media.some((m) => m.type === 'image'))}
+          {tool('video', 'Video', 'video', media.some((m) => m.type === 'video'))}
+          {tool('location', placeName ? placeName.slice(0, 18) : 'Location', 'place', Boolean(placeName))}
+          {tool('feeling', feeling || 'Feeling', 'mood', Boolean(feeling))}
+          {tool('tag', tagged.length ? `${tagged.length} tagged` : 'Tag people', 'people', tagged.length > 0)}
+          {tool('hashtags', 'Hashtags', 'hash', hashtags.length > 0)}
+          {tool('audience', audDef.label, audDef.icon, audience !== 'public')}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-          <span className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>Category:</span>
-          {([['', 'None'], ['personal', '🏖 Personal'], ['work', '💼 Work']] as const).map(([key, label]) => (
+          <span className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>Category</span>
+          {([['', 'None', undefined], ['personal', 'Personal', 'personal'], ['work', 'Work', 'job']] as const).map(([key, label, icon]) => (
             <button key={key || 'none'} type="button" onClick={() => setCategory(key)}
-              style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
-                border: `1.5px solid ${category === key ? 'var(--accent)' : 'var(--line)'}`,
-                background: category === key ? 'var(--accent)' : 'var(--card)', color: category === key ? 'var(--on-accent)' : 'var(--ink)' }}>
-              {label}
+              aria-pressed={category === key}
+              className={`g-key sm g-edge${category === key ? ' picked' : ''}`}>
+              {icon && category !== key && <Icon name={icon} size={15} />}{label}
             </button>
           ))}
         </div>
@@ -653,7 +656,8 @@ export function CreatePost() {
         )}
 
         <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>
-          🎥 Video: {VIDEO_FORMATS} · up to {mb(MAX_VIDEO_BYTES)} MB each (MP4 plays on every device). 📷 Photos are optimised automatically.
+          <Icon name="video" size={14} /> {VIDEO_FORMATS} · up to {mb(MAX_VIDEO_BYTES)} MB each. MP4 plays on
+          every device, and photos are optimised automatically.
         </p>
 
         <input ref={photoPicker} type="file" accept="image/*" multiple style={{ display: 'none' }}
@@ -702,7 +706,7 @@ export function CreatePost() {
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                 {tagged.map((t) => (
                   <span key={t.id} style={{ fontSize: 12, fontWeight: 600, background: 'var(--accent-soft)', color: 'var(--accent-ink)', padding: '3px 10px', borderRadius: 999 }}>
-                    {t.name} <button type="button" onClick={() => setTagged((x) => x.filter((y) => y.id !== t.id))} aria-label={`Remove ${t.name}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}>✕</button>
+                    {t.name} <button type="button" onClick={() => setTagged((x) => x.filter((y) => y.id !== t.id))} aria-label={`Remove ${t.name}`} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', padding: 0, display: 'inline-flex', verticalAlign: '-.15em' }}><Icon name="close" size={12} /></button>
                   </span>
                 ))}
               </div>
@@ -728,13 +732,13 @@ export function CreatePost() {
         )}
         {open === 'audience' && (
           <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
-            <p style={{ fontSize: 12.5, fontWeight: 700, margin: 0 }}>🌍 Who can see this?</p>
+            <p style={{ fontSize: 12.5, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="globe" size={15} />Who can see this?</p>
             {AUDIENCES.map((a) => (
               <label key={a.key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '8px 12px',
                 borderRadius: 10, border: `1.5px solid ${audience === a.key ? 'var(--accent)' : 'var(--line)'}`,
                 background: audience === a.key ? 'var(--accent-soft)' : 'transparent' }}>
                 <input type="radio" name="aud" checked={audience === a.key} onChange={() => setAudience(a.key)} style={{ accentColor: 'var(--accent)' }} />
-                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{a.emoji} {a.label}</span>
+                <span style={{ fontSize: 13.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name={a.icon} size={15} />{a.label}</span>
                 <span className="muted" style={{ fontSize: 11.5 }}>{a.hint}</span>
               </label>
             ))}
@@ -742,10 +746,20 @@ export function CreatePost() {
         )}
       </div>
 
-      <div className="rise d1" style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-ink))', color: 'var(--on-accent)', borderRadius: 14, padding: '12px 16px', margin: '14px 0' }}>
-        <b style={{ fontSize: 13 }}>💰 Post &amp; Earn — up to ₹100 per video</b>
-        <div style={{ fontSize: 11.5, opacity: 0.95, marginTop: 2 }}>
-          Original videos 3 min+ earn ₹100 after review (max 15/day). <Link to="/social/profile" style={{ color: 'var(--on-accent)', textDecoration: 'underline' }}>Rules →</Link>
+      {/* POST & EARN, TOLD THE TRUTH — the same correction already shipped on the
+          profile tab, which this screen missed. It used to read "up to ₹100 per
+          video · earn ₹100 after review (max 15/day)". There is no payout model
+          in the schema, no route, no review queue: nothing that could ever pay
+          anybody or look at a video. Of everything in the invented-data sweep,
+          this was the one that asked people for work. */}
+      <div className="rise d1 g-slab no-bubble" style={{ padding: '16px 18px', margin: '14px 0' }}>
+        <div className="g-note">
+          <span className="g-well"><Icon name="wallet" size={18} /></span>
+          <span>
+            <b>Post &amp; Earn is not open yet</b><br />
+            There is no way to earn from your videos on Together City today — no rate, no review,
+            no payout. Post because you want to. The day that changes, you will be told here first.
+          </span>
         </div>
       </div>
 
@@ -771,8 +785,8 @@ export function CreatePost() {
             transition: 'flex .35s ease, width .35s ease, background .25s ease',
           }}>
           {phase === 'sharing' && (<><span className="tc-spin" /> Sharing…</>)}
-          {phase === 'success' && (<>✓ Shared</>)}
-          {(phase === 'idle' || phase === 'error') && (<>Share {audDef.emoji}</>)}
+          {phase === 'success' && (<><Icon name="accepted" size={16} /> Shared</>)}
+          {(phase === 'idle' || phase === 'error') && (<>Share <Icon name={audDef.icon} size={16} /></>)}
         </button>
       </div>
     </div>

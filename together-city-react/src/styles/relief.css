@@ -918,3 +918,93 @@ img[src$=".svg"], .no-case {
     transform: none;
   }
 }
+
+/* ══ GROUND GLASS — SOCIAL LIFE ══════════════════════════════════════════
+   The lens the sidebar already uses, thickened into a body you can build a
+   whole screen out of. Every one of these is opaque: the ground here is white,
+   and clear glass on white has nothing behind it to bend.
+
+   THESE CLASSES ARE NOT GLOBAL ON PURPOSE. They are the Social Life material,
+   not a second design system — the rest of the application keeps the plates
+   and wells it already has. If this earns its place, it gets promoted then,
+   deliberately, rather than leaking hub by hub. */
+.g-slab {
+  position: relative;
+  background: var(--glass-face); border-radius: var(--r-5);
+  box-shadow: var(--glass); padding: 26px 28px;
+}
+/* The bubble in the corner: a small lens in the slab's own body. Decoration
+   that earns its keep by telling you the surface is glass and not paper. */
+.g-slab::before {
+  content: ''; position: absolute; right: 20px; top: 20px; width: 34px; height: 34px;
+  border-radius: 50%; pointer-events: none;
+  background: var(--glass-bubble); box-shadow: var(--glass-bubble-shadow);
+}
+.g-slab.no-bubble::before { content: none; }
+
+/* the prism edge — an ::after, so it never fights a border-radius */
+.g-edge { position: relative; }
+.g-edge::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; box-shadow: var(--prism);
+}
+
+/* ── keys ────────────────────────────────────────────────────────────── */
+.g-key {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  gap: 9px; border: 0; cursor: pointer; font-family: var(--sans); font-weight: 600;
+  font-size: 14px; height: 46px; padding: 0 22px; border-radius: var(--r-full);
+  color: var(--ink-soft); background: var(--glass-face); box-shadow: var(--glass-key);
+  transition: transform var(--dur-base) var(--spring), box-shadow var(--dur-base) var(--ease);
+}
+.g-key.sm { height: 38px; padding: 0 16px; font-size: 12.5px; }
+.g-key.lg { height: 54px; padding: 0 30px; font-size: 15.5px; }
+.g-key:not(:disabled):hover { transform: translateY(-1.5px); }
+.g-key.on { background: var(--lamp-face); box-shadow: var(--lamp); color: var(--on-accent); font-weight: 700; }
+.g-key.on:hover { transform: none; }
+/* Chosen, not primary. A form with two lit keys has no primary — the tray says
+   where you are, the pip says what you picked, and only one may be a lamp. */
+.g-key.picked {
+  background: var(--glass-well); box-shadow: var(--glass-in);
+  color: var(--ink); font-weight: 700;
+}
+.g-key.picked::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--lamp-face); box-shadow: var(--lamp-pip);
+}
+.g-key:disabled {
+  background: var(--glass-well); box-shadow: var(--glass-in);
+  color: var(--muted); cursor: not-allowed; transform: none;
+}
+
+/* ── the tray the keys sit in ────────────────────────────────────────── */
+.g-tray {
+  display: flex; gap: 11px; flex-wrap: wrap; padding: 11px;
+  border-radius: var(--r-full); width: max-content; max-width: 100%;
+  background: var(--glass-tray); box-shadow: var(--glass-tray-shadow);
+}
+
+/* ── fields ──────────────────────────────────────────────────────────── */
+.g-field {
+  width: 100%; border: 0; border-radius: var(--r-3); padding: 16px 19px;
+  font-family: var(--sans); font-size: 14.5px; color: var(--ink); outline: none;
+  background: var(--glass-well); box-shadow: var(--glass-in);
+}
+.g-field::placeholder { color: var(--muted); }
+textarea.g-field { resize: none; line-height: 1.55; }
+.g-field:focus-visible { box-shadow: var(--glass-in), var(--focus-ring); }
+
+/* ── a carved well holding an icon: empty states, notices ────────────── */
+.g-well {
+  display: grid; place-items: center; flex: 0 0 auto;
+  background: var(--glass-well); box-shadow: var(--glass-in);
+  color: var(--muted); width: 42px; height: 42px; border-radius: var(--r-2);
+}
+.g-well.big { width: 82px; height: 82px; border-radius: var(--r-4); }
+.g-note { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.g-note b { color: var(--ink); font-weight: 700; font-size: 14px; }
+.g-empty { text-align: center; padding: 44px 24px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .g-key:not(:disabled):hover { transform: none; }
+}

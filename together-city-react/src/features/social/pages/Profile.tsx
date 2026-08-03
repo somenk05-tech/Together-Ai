@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Icon } from '@/components/ui/Icon';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Spinner } from '@/components/ui';
@@ -49,7 +50,7 @@ function Avatar({ src, name, size = 96 }: { src?: string | null; name: string; s
 /** Blue verified check — shown when the account's email is verified. */
 function VerifiedBadge() {
   return (
-    <span title="Verified member" aria-label="Verified" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: '50%', background: 'var(--info-ink)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 900, flexShrink: 0 }}>✓</span>
+    <span title="Verified member" aria-label="Verified" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: '50%', background: 'var(--info-ink)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 900, flexShrink: 0 }}><Icon name="accepted" size={12} /></span>
   );
 }
 
@@ -92,13 +93,13 @@ function PostTile({ p }: { p: ProfilePost }) {
         </div>
       )}
       {isVideo && (
-        <span aria-hidden style={{ position: 'absolute', inset: 0, margin: 'auto', width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink)', fontSize: 18, paddingLeft: 3 }}>▶</span>
+        <span aria-hidden style={{ position: 'absolute', inset: 0, margin: 'auto', width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink)' }}><Icon name="play" size={19} /></span>
       )}
-      {p.outdoor && <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 14 }}>📍</span>}
+      {p.outdoor && <span style={{ position: 'absolute', top: 6, right: 6, color: 'var(--on-accent)', filter: 'drop-shadow(0 1px 3px rgba(0,0,0,.6))' }}><Icon name="place" size={15} /></span>}
       {/* Work/Personal category badge (when the post has been sorted) */}
       {(p.category === 'personal' || p.category === 'work') && (
         <span style={{ position: 'absolute', top: 6, left: 6, fontSize: 10.5, fontWeight: 700, color: 'var(--on-accent)', background: 'rgba(0,0,0,.55)', borderRadius: 6, padding: '1px 7px' }}>
-          {p.category === 'work' ? '💼 Work' : '🏖 Personal'}
+          <Icon name={p.category === 'work' ? 'job' : 'personal'} size={12} />{p.category === 'work' ? 'Work' : 'Personal'}
         </span>
       )}
       {/* Every post shows its date */}
@@ -157,12 +158,12 @@ function PostLightbox({ post, category, onClose }: { post: Post; category?: stri
           coverBusy={setCover.isPending} />
         <div className="card" style={{ margin: '8px 0', padding: '12px 14px', border: '1.5px solid var(--accent)' }}>
           <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>
-            📂 Sort this post {setCategory.isPending && <span className="muted" style={{ fontWeight: 500 }}>· Saving…</span>}
+            <Icon name="sort" size={14} /> Sort this post {setCategory.isPending && <span className="muted" style={{ fontWeight: 500 }}>· Saving…</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {chip('', 'None')}
-            {chip('personal', '🏖 Personal')}
-            {chip('work', '💼 Work')}
+            {chip('personal', 'Personal')}
+            {chip('work', 'Work')}
           </div>
         </div>
         <div style={{ textAlign: 'center' }}>
@@ -214,7 +215,7 @@ function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'phot
   if (!count) {
     return (
       <div className="blk rise d1" style={{ textAlign: 'center', padding: '56px 24px', marginTop: 16 }}>
-        <div style={{ fontSize: 38, marginBottom: 8 }}>🌆</div>
+        <span className="g-well big" style={{ margin: '0 auto 14px' }}><Icon name="grid" size={30} /></span>
         <h2 style={{ fontSize: 20, margin: '0 0 6px' }}>No posts yet</h2>
         <p className="muted" style={{ fontSize: 14, margin: '0 0 16px' }}>Share a photo, video or thought with your city.</p>
         <Link className="btn btn-accent btn-sm" to="/social/create">+ New post</Link>
@@ -258,7 +259,7 @@ function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'phot
           {!arranging ? (
             <>
               <span className="muted" style={{ fontSize: 12 }}>{view.length} {noun}{view.length === 1 ? '' : 's'}{posts.hasNextPage ? '+' : ''}</span>
-              {canArrange && view.length > 1 && <Button variant="line" size="sm" onClick={startArranging}>↕ Rearrange</Button>}
+              {canArrange && view.length > 1 && <Button variant="line" size="sm" onClick={startArranging}><Icon name="reorder" size={14} /> Rearrange</Button>}
             </>
           ) : (
             <>
@@ -278,7 +279,7 @@ function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'phot
 
       {view.length === 0 && (
         <div className="blk rise d1" style={{ textAlign: 'center', padding: '44px 24px', marginTop: 16 }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>{filter === 'video' ? '🎬' : '🖼'}</div>
+          <span className="g-well big" style={{ margin: '0 auto 14px' }}><Icon name={filter === 'video' ? 'video' : 'camera'} size={30} /></span>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>No {noun}s yet.</p>
         </div>
       )}
@@ -389,11 +390,11 @@ function SafetyActions({ id, handle, onBlocked }: { id: string; handle: string; 
     <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginRight: 'auto' }}>
       <button type="button" onClick={doBlock} disabled={block.isPending}
         style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit', color: 'var(--danger-ink)', padding: 0 }}>
-        {block.isPending ? 'Blocking…' : '🚫 Block'}
+        {block.isPending ? 'Blocking…' : <><Icon name="block" size={14} /> Block</>}
       </button>
       <button type="button" onClick={doReport} disabled={report.isPending || reported}
         style={{ background: 'none', border: 'none', cursor: reported ? 'default' : 'pointer', fontSize: 12.5, fontFamily: 'inherit', color: 'var(--muted)', padding: 0 }}>
-        {reported ? '✓ Reported' : '⚑ Report'}
+        {reported ? <><Icon name="accepted" size={14} /> Reported</> : <><Icon name="flag" size={14} /> Report</>}
       </button>
     </div>
   );
@@ -416,7 +417,7 @@ export function PublicProfileModal({ handle, onClose }: { handle: string; onClos
                   <h3 style={{ margin: 0, fontSize: 19 }}>{p.name}</h3>{p.verified && <VerifiedBadge />}
                 </div>
                 <div className="muted" style={{ fontSize: 12.5, fontFamily: 'monospace' }}>@{p.handle}</div>
-                {p.city && <div className="muted" style={{ fontSize: 12 }}>📍 {p.city}</div>}
+                {p.city && <div className="muted" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="place" size={13} />{p.city}</div>}
               </div>
             </div>
             {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '12px 0 0' }}>{p.bio}</p>}
@@ -432,7 +433,7 @@ export function PublicProfileModal({ handle, onClose }: { handle: string; onClos
                   followers list to somebody's posts. */}
               <Link to={`/social/u/${encodeURIComponent(p.handle)}`} onClick={onClose}
                 style={{ marginRight: 'auto', fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)' }}>
-                View full profile →
+                View full profile <Icon name="next" size={14} />
               </Link>
               <SafetyActions id={p.id} handle={p.handle} onBlocked={onClose} />
               <Button variant="line" size="sm" onClick={onClose}>Close</Button>
@@ -509,7 +510,7 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
   if (view.length === 0) {
     return (
       <div className="blk rise d1" style={{ textAlign: 'center', padding: '44px 24px', marginTop: 16 }}>
-        <div style={{ fontSize: 32, marginBottom: 8 }}>{filter === 'video' ? '🎬' : filter === 'photo' ? '🖼' : '🌆'}</div>
+        <span className="g-well big" style={{ margin: '0 auto 14px' }}><Icon name={filter === 'video' ? 'video' : filter === 'photo' ? 'camera' : 'grid'} size={30} /></span>
         <p className="muted" style={{ fontSize: 14, margin: 0 }}>No {noun}s to show.</p>
       </div>
     );
@@ -551,7 +552,7 @@ export function PublicProfilePage() {
   if (q.isError || !p) {
     return (
       <div style={{ maxWidth: 980, margin: '0 auto', padding: 40 }}>
-        <button type="button" className="btn btn-line btn-sm" onClick={() => navigate(-1)}>← Back</button>
+        <button type="button" className="btn btn-line btn-sm" onClick={() => navigate(-1)}><Icon name="back" size={15} /> Back</button>
         <p className="muted" style={{ marginTop: 16 }}>Couldn't load that profile.</p>
       </div>
     );
@@ -560,9 +561,9 @@ export function PublicProfilePage() {
 
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
-      <button type="button" className="btn btn-line btn-sm" style={{ marginBottom: 18 }} onClick={() => navigate(-1)}>← Back</button>
+      <button type="button" className="btn btn-line btn-sm" style={{ marginBottom: 18 }} onClick={() => navigate(-1)}><Icon name="back" size={15} /> Back</button>
 
-      <div className="rise" style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+      <div className="rise g-slab" style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
         <Avatar src={p.profileImage} name={p.name} size={96} />
         <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -573,7 +574,7 @@ export function PublicProfilePage() {
           <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>
             <span style={{ fontFamily: 'monospace' }}>@{p.handle}</span> · Joined {joined}
           </p>
-          {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 1 }}>📍 {p.city}</p>}
+          {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="place" size={14} />{p.city}</p>}
           {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '8px 0 0', maxWidth: 560 }}>{p.bio}</p>}
           {p.website && <p style={{ margin: '4px 0 0' }}><a href={p.website} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--accent-ink)' }}>{p.website.replace(/^https?:\/\//, '')}</a></p>}
           <div style={{ display: 'flex', gap: 22, margin: '12px 0 0', flexWrap: 'wrap' }}>
@@ -613,7 +614,7 @@ function PeopleTab() {
         <h4 style={{ margin: '0 0 4px' }}>Find people</h4>
         <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>Search by name, @handle or Together City ID, then connect.</p>
         <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid var(--line)', borderRadius: 12, padding: '0 12px' }}>
-          <span className="muted">🔍</span>
+          <span className="muted" style={{ display: 'inline-flex' }}><Icon name="search" size={15} /></span>
           <input value={q} autoCapitalize="off" autoCorrect="off" spellCheck={false}
             onChange={(e) => setQ(e.target.value)} placeholder="Search name or @handle"
             style={{ flex: 1, border: 'none', outline: 'none', padding: '13px 8px', fontSize: 14, fontFamily: 'inherit', background: 'transparent' }} />
@@ -760,10 +761,10 @@ function EarnView({ posts }: { posts: ProfilePost[] }) {
   ];
   return (
     <div>
-      <div style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent-ink))', color: 'var(--on-accent)', borderRadius: 'var(--radius-lg)', padding: '22px 24px', marginBottom: 16 }}>
-        <div style={{ fontSize: 12, opacity: 0.9, textTransform: 'uppercase', letterSpacing: '.05em' }}>Post &amp; Earn</div>
-        <div style={{ fontFamily: 'var(--serif)', fontSize: 28, lineHeight: 1.2, marginTop: 4 }}>Not open yet</div>
-        <div style={{ fontSize: 13, opacity: 0.95, marginTop: 6, maxWidth: '54ch' }}>
+      <div className="g-slab" style={{ marginBottom: 16 }}>
+        <div className="eyebrow">Post &amp; Earn</div>
+        <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-.035em', lineHeight: 1.2, marginTop: 6 }}>Not open yet</div>
+        <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.65, marginTop: 8, maxWidth: '54ch' }}>
           We would rather tell you this plainly than show you a balance. There is no way to earn
           from your videos on Together City today — no rate, no review, no payout. The day that
           changes, you will be told, and it will be told to you here first.
@@ -879,25 +880,33 @@ export function SocialProfile() {
 
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
-      <div className="rise" style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+      <div className="rise g-slab" style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
         <Avatar src={p.profileImage} name={p.name} size={96} />
         <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <h1 style={{ fontSize: 24, display: 'flex', alignItems: 'center', gap: 7 }}>{p.name}{p.verified && <VerifiedBadge />}</h1>
-            <button type="button" className="btn btn-line btn-sm" onClick={() => setEditing(true)}>Edit profile</button>
-            <Link className="btn btn-accent btn-sm" to="/social/create">+ New post</Link>
+            <button type="button" className="btn btn-line btn-sm" onClick={() => setEditing(true)}>
+              <Icon name="edit" size={15} /> Edit profile
+            </button>
+            <Link className="btn btn-accent btn-sm" to="/social/create"><Icon name="plus" size={15} /> New post</Link>
           </div>
           {/* Account tabs sit right beside Edit profile (moved out of the content
               tab bar below). */}
-          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-            <button type="button" className={`pill ${tab === 'followers' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('followers')}>Followers</button>
-            <button type="button" className={`pill ${tab === 'following' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('following')}>Following</button>
-            <button type="button" className={`pill ${tab === 'earn' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('earn')}>💰 Post &amp; Earn</button>
+          <div style={{ display: 'flex', gap: 9, marginTop: 12, flexWrap: 'wrap' }}>
+            <button type="button" className={`g-key sm g-edge ${tab === 'followers' ? 'on' : ''}`} onClick={() => setTab('followers')} aria-pressed={tab === 'followers'}>
+              <Icon name="people" size={15} />Followers
+            </button>
+            <button type="button" className={`g-key sm g-edge ${tab === 'following' ? 'on' : ''}`} onClick={() => setTab('following')} aria-pressed={tab === 'following'}>
+              <Icon name="follow" size={15} />Following
+            </button>
+            <button type="button" className={`g-key sm g-edge ${tab === 'earn' ? 'on' : ''}`} onClick={() => setTab('earn')} aria-pressed={tab === 'earn'}>
+              <Icon name="wallet" size={15} />Post &amp; Earn
+            </button>
           </div>
           <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>
             <span style={{ fontFamily: 'monospace' }}>@{p.handle}</span> · Joined {joined}
           </p>
-          {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 1 }}>📍 {p.city}</p>}
+          {p.city && <p className="muted" style={{ fontSize: 12.5, marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="place" size={14} />{p.city}</p>}
           {p.bio && <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: '8px 0 0', maxWidth: 560 }}>{p.bio}</p>}
           {p.website && <p style={{ margin: '4px 0 0' }}><a href={p.website} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: 'var(--accent-ink)' }}>{p.website.replace(/^https?:\/\//, '')}</a></p>}
           <div style={{ display: 'flex', gap: 22, margin: '12px 0 0', flexWrap: 'wrap' }}>
@@ -913,12 +922,22 @@ export function SocialProfile() {
         </div>
       </div>
 
-      <div className="rise d1" style={{ display: 'flex', gap: 8, marginTop: 20, flexWrap: 'wrap' }}>
-        <button type="button" className={`pill ${tab === 'posts' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('posts')}>Posts</button>
-        <button type="button" className={`pill ${tab === 'photos' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('photos')}>Photos</button>
-        <button type="button" className={`pill ${tab === 'videos' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('videos')}>Videos</button>
-        <button type="button" className={`pill ${tab === 'personal' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('personal')}>🏖 Personal</button>
-        <button type="button" className={`pill ${tab === 'work' ? 'on' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setTab('work')}>💼 Work</button>
+      <div className="rise d1 g-tray" style={{ marginTop: 20 }}>
+        <button type="button" className={`g-key sm g-edge ${tab === 'posts' ? 'on' : ''}`} onClick={() => setTab('posts')} aria-pressed={tab === 'posts'}>
+          <Icon name="grid" size={15} />Posts
+        </button>
+        <button type="button" className={`g-key sm g-edge ${tab === 'photos' ? 'on' : ''}`} onClick={() => setTab('photos')} aria-pressed={tab === 'photos'}>
+          <Icon name="camera" size={15} />Photos
+        </button>
+        <button type="button" className={`g-key sm g-edge ${tab === 'videos' ? 'on' : ''}`} onClick={() => setTab('videos')} aria-pressed={tab === 'videos'}>
+          <Icon name="video" size={15} />Videos
+        </button>
+        <button type="button" className={`g-key sm g-edge ${tab === 'personal' ? 'on' : ''}`} onClick={() => setTab('personal')} aria-pressed={tab === 'personal'}>
+          <Icon name="personal" size={15} />Personal
+        </button>
+        <button type="button" className={`g-key sm g-edge ${tab === 'work' ? 'on' : ''}`} onClick={() => setTab('work')} aria-pressed={tab === 'work'}>
+          <Icon name="job" size={15} />Work
+        </button>
       </div>
 
       {tab === 'posts' && <PostsTab />}

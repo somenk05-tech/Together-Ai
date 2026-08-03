@@ -111,7 +111,7 @@ describe('Relief stays a system', () => {
     // shadow beginning `var(--rim), 0 2px 4px …` passed unread — which is
     // exactly how three bespoke header shadows got in. It is no longer enough
     // on its own.
-    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft|lens|lens-key|lamp|lamp-badge|rail-well-shadow)\)/;
+    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft|lens|lens-key|lamp|lamp-badge|lamp-pip|rail-well-shadow|glass|glass-key|glass-in|glass-tray-shadow|glass-bubble-shadow|prism|focus-ring)\)/;
     // A photograph, a filled black button and a text emboss are not surfaces —
     // they are ink and images, and they carry their own light.
     const ALLOWED = /(text-shadow|drop-shadow|\.hero|\.btn-accent|\.btn-gold|\.btn-primary|\.ask-cta|\.step\.|\.mincal|\.tag\.dark|\.knob|outline|inset 0 1px 0|no-case|img:not|video:not|\.case)/;
@@ -508,6 +508,52 @@ describe('Relief stays a system', () => {
       }
     }
     expect([...new Set(offenders)]).toEqual([]);
+  });
+
+  /**
+   * SOCIAL LIFE LABELS ITS OWN CONTROLS WITH ICONS, NOT EMOJI.
+   *
+   * This is not a taste rule — it is Icon.tsx's, written in that file since it
+   * was created: "chrome — navigation, tabs, buttons and cards — uses these
+   * consistent line icons instead of emoji. Emoji stay reserved for
+   * user-generated content, chat reactions, mood/journal entries and AI-written
+   * messages, where personality helps."
+   *
+   * Five Social Life screens broke it anyway, for months, in the places a
+   * citizen looks first: the feed's filter tabs, every attach control on Create
+   * Post, the category chips, the profile tabs. A rule nobody checks is a
+   * comment, so this is the check.
+   *
+   * WHAT IS STILL ALLOWED, deliberately: the FEELINGS list and anything a
+   * citizen typed. A mood is content. A tab is not.
+   */
+  it('labels Social Life chrome with icons rather than emoji', () => {
+    const SCREENS = [
+      'src/features/social/pages/SocialFeed.tsx',
+      'src/features/social/pages/CreatePost.tsx',
+      'src/features/social/pages/Profile.tsx',
+      'src/features/social/pages/Saved.tsx',
+      'src/features/thoughts/pages/Thoughts.tsx',
+    ];
+    /** A mood is something somebody chose to feel — content, not chrome. Both
+     *  the list they pick from and the map that guesses one from their words
+     *  are the same thing wearing different hats. */
+    const CONTENT = [
+      /const FEELINGS\s*=\s*\[[^\]]*\]/g,
+      /const MOOD_HINTS[\s\S]*?\n\];/g,
+    ];
+    const EMOJI = /\p{Extended_Pictographic}|[\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/gu;
+
+    const offenders: string[] = [];
+    for (const file of SCREENS) {
+      let src = stripTs(read(file));
+      for (const skip of CONTENT) src = src.replace(skip, ' ');
+      for (const m of src.matchAll(EMOJI)) {
+        const line = src.slice(0, m.index).split('\n').length;
+        offenders.push(`${file}:${line} → ${m[0]}`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 
   it('references a font file the build can actually serve', () => {

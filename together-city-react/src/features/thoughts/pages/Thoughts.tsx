@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button, EmptyState, Spinner } from '@/components/ui';
+import { Icon } from '@/components/ui/Icon';
 import {
   TAG_LEN, TAG_MAX,
   useCreateThought, useDeleteThought, useThoughts, useUpdateThought, type Thought,
@@ -223,41 +224,53 @@ export function Thoughts() {
         A private journal. Only you can read these — they never reach the social feed, and no one is notified.
       </p>
 
-      <div className="card" style={{ padding: '16px 18px', marginBottom: 20 }}>
-        <input
-          value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140}
-          placeholder="Title (optional)" aria-label="Title"
-          style={{ width: '100%', border: 'none', borderBottom: '1px solid var(--line)', padding: '6px 0', fontSize: 15, fontWeight: 600, fontFamily: 'inherit', background: 'transparent', outline: 'none' }}
-        />
-        <textarea
-          value={body} onChange={(e) => setBody(e.target.value)} rows={4} maxLength={20000}
-          placeholder="What's on your mind?" aria-label="What's on your mind"
-          style={{ width: '100%', border: 'none', padding: '10px 0', fontSize: 13.5, lineHeight: 1.6, fontFamily: 'inherit', background: 'transparent', outline: 'none', resize: 'vertical' }}
-        />
-        <div style={{ marginBottom: 10 }}>
-          <TagField tags={tags} onChange={setTags} />
-        </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      {/* Every field is a carved well now rather than a hairline underline. On a
+          page this quiet the underline read as decoration, not as somewhere to
+          type — and the Save key looked disabled at rest because a filled
+          accent at 50% opacity is indistinguishable from a broken one. It is a
+          pressed key with the reason beside it instead. */}
+      <div className="g-slab" style={{ marginBottom: 20 }}>
+        <div style={{ display: 'grid', gap: 12 }}>
           <input
+            className="g-field"
+            value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140}
+            placeholder="Title (optional)" aria-label="Title"
+          />
+          <textarea
+            className="g-field"
+            value={body} onChange={(e) => setBody(e.target.value)} rows={5} maxLength={20000}
+            placeholder="What's on your mind?" aria-label="What's on your mind"
+          />
+          <TagField tags={tags} onChange={setTags} />
+          <input
+            className="g-field"
             value={mood} onChange={(e) => setMood(e.target.value)} maxLength={24}
             placeholder="Mood (optional)" aria-label="Mood"
-            style={{ flex: '0 1 160px', border: '1px solid var(--line)', borderRadius: 999, padding: '6px 12px', fontSize: 12.5, fontFamily: 'inherit', background: 'transparent', outline: 'none' }}
           />
-          <Button
-            variant="accent" size="sm" style={{ marginLeft: 'auto' }}
+        </div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginTop: 16 }}>
+          <span className="g-key sm" style={{ cursor: 'default' }}>
+            <Icon name="journal" size={14} />Private to you
+          </span>
+          {!body.trim() && !create.isPending && (
+            <span className="muted" style={{ fontSize: 12.5 }}>Write something to save it.</span>
+          )}
+          <button
+            type="button" className="g-key g-edge" style={{ marginLeft: 'auto' }}
             disabled={create.isPending || !body.trim()}
             onClick={submit}
           >
             {create.isPending ? 'Saving…' : 'Save thought'}
-          </Button>
+          </button>
         </div>
       </div>
 
       {(items.length > 0 || q) && (
         <input
+          className="g-field"
           value={q} onChange={(e) => setQ(e.target.value)} maxLength={120}
           placeholder="Search your thoughts" aria-label="Search your thoughts"
-          style={{ width: '100%', border: '1px solid var(--line)', borderRadius: 12, padding: '9px 12px', fontSize: 13, fontFamily: 'inherit', background: 'var(--card)', outline: 'none', marginBottom: 14 }}
+          style={{ marginBottom: 14 }}
         />
       )}
 
@@ -270,16 +283,19 @@ export function Thoughts() {
         // writing is gone. So this says the opposite thing explicitly, because
         // that is the question actually in somebody's head.
         <EmptyState
-          icon="⚠️"
           title="We couldn’t open your journal"
           hint="Nothing has been lost — every entry is still there, we just couldn’t read them just now. Try again in a moment."
         />
       ) : items.length === 0 ? (
-        <EmptyState
-          icon="📓"
-          title={q ? 'Nothing matches that' : 'Your journal is empty'}
-          hint={q ? 'Try a different word.' : 'Write the first thing above — it stays private to you.'}
-        />
+        <div className="g-slab g-empty">
+          <span className="g-well big" style={{ margin: '0 auto 16px' }}><Icon name="journal" size={30} /></span>
+          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.025em' }}>
+            {q ? 'Nothing matches that' : 'Your journal is empty'}
+          </div>
+          <p className="muted" style={{ fontSize: 14, margin: '7px 0 0' }}>
+            {q ? 'Try a different word.' : 'Write the first thing above — it stays private to you.'}
+          </p>
+        </div>
       ) : (
         <>
           {items.map((t) => (

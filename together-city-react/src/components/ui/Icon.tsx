@@ -3,7 +3,15 @@ import {
   Bell, Heart, MessageCircle, MessageSquare, UserPlus, Users, Handshake, CheckCircle2,
   Sparkles, AtSign, Mail, Menu, User, Share2, Star, MapPin, Film, Tv, UtensilsCrossed,
   Salad, Briefcase, Home, Ticket, ShoppingBag, Plane, Luggage, CalendarDays, Bookmark,
-  Search, Clock, ShieldCheck, type LucideIcon,
+  Search, Clock, ShieldCheck,
+  // Social Life chrome. Added because those screens were labelling their own
+  // controls with emoji — camera, film, speech bubble, people, pin, smile,
+  // briefcase, globe, money bag — which this file's own rule has always
+  // forbidden for chrome. A name had to exist before the rule could be obeyed.
+  Camera, Video, Globe2, Hash, Smile, Sun, Wallet, Pencil, Image, ArrowUpDown,
+  LayoutGrid, Plus, ArrowLeft, ChevronRight, Notebook, MoreHorizontal,
+  Music, X, Flag, Ban, FolderOpen, Satellite, TriangleAlert, Play, Pause,
+  type LucideIcon,
 } from 'lucide-react';
 
 /**
@@ -18,7 +26,11 @@ export type IconName =
   | 'bell' | 'heart' | 'comment' | 'follow' | 'connection' | 'accepted' | 'sparkles' | 'mention'
   | 'mail' | 'menu' | 'user' | 'people' | 'chat' | 'share'
   | 'star' | 'place' | 'movie' | 'tv' | 'restaurant' | 'recipe' | 'job' | 'property' | 'ticket'
-  | 'product' | 'flight' | 'trip' | 'calendar' | 'save' | 'search' | 'clock' | 'shield';
+  | 'product' | 'flight' | 'trip' | 'calendar' | 'save' | 'search' | 'clock' | 'shield'
+  | 'camera' | 'video' | 'globe' | 'hash' | 'mood' | 'personal' | 'wallet' | 'edit'
+  | 'image' | 'reorder' | 'grid' | 'plus' | 'back' | 'next' | 'journal' | 'more'
+  | 'music' | 'close' | 'flag' | 'block' | 'sort' | 'locating' | 'warn'
+  | 'play' | 'pause';
 
 const MAP: Record<IconName, LucideIcon> = {
   bell: Bell, heart: Heart, comment: MessageCircle, follow: UserPlus, connection: Handshake,
@@ -27,6 +39,11 @@ const MAP: Record<IconName, LucideIcon> = {
   movie: Film, tv: Tv, restaurant: UtensilsCrossed, recipe: Salad, job: Briefcase,
   property: Home, ticket: Ticket, product: ShoppingBag, flight: Plane, trip: Luggage,
   calendar: CalendarDays, save: Bookmark, search: Search, clock: Clock, shield: ShieldCheck,
+  camera: Camera, video: Video, globe: Globe2, hash: Hash, mood: Smile, personal: Sun,
+  wallet: Wallet, edit: Pencil, image: Image, reorder: ArrowUpDown, grid: LayoutGrid,
+  plus: Plus, back: ArrowLeft, next: ChevronRight, journal: Notebook, more: MoreHorizontal,
+  music: Music, close: X, flag: Flag, block: Ban, sort: FolderOpen,
+  locating: Satellite, warn: TriangleAlert, play: Play, pause: Pause,
 };
 
 export function Icon({ name, size = 18, strokeWidth = 1.75, className, style }: {

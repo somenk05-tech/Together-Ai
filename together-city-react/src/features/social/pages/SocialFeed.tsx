@@ -3,19 +3,23 @@ import { informalName } from '@/lib/salutation';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { useAuth } from '@/hooks/useAuth';
 import { PostCard } from '../PostCard';
 import { ReelsView } from '../ReelsView';
 import { useFeed } from '../api';
 
 
-const FILTERS = [
+/* The icon is a NAME, not a picture, and never an emoji. Icon.tsx's own rule:
+ * chrome uses the line set; emoji are for what a citizen writes. These five are
+ * tabs, which is chrome, and they carried emoji until now. */
+const FILTERS: ReadonlyArray<{ key: string; label: string; icon?: IconName }> = [
   { key: 'foryou', label: 'For You' },
-  { key: 'photos', label: '📷 Photos' },
-  { key: 'videos', label: '🎥 Videos' },
-  { key: 'thoughts', label: '💭 Thoughts' },
-  { key: 'friends', label: '👥 Friends' },
-] as const;
+  { key: 'photos', label: 'Photos', icon: 'camera' },
+  { key: 'videos', label: 'Videos', icon: 'video' },
+  { key: 'thoughts', label: 'Thoughts', icon: 'chat' },
+  { key: 'friends', label: 'Friends', icon: 'people' },
+];
 
 /** Social Life — one intelligent feed: friends, check-ins, travel moments,
  *  videos, business updates and community posts in a single clean stream. */
@@ -57,18 +61,15 @@ export function SocialFeed() {
   if (filter === 'videos') {
     return createPortal(
       <div style={{ position: 'fixed', inset: 0, background: 'var(--card)', zIndex: 1000 }}>
-        <button type="button" onClick={() => setFilter('foryou')}
-          style={{ position: 'absolute', top: 14, left: 14, zIndex: 4, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700,
-            color: 'var(--ink)', background: 'var(--card)', border: '1px solid var(--line)',
-            borderRadius: 999, padding: '8px 14px', boxShadow: '0 2px 10px rgba(0,0,0,.08)' }}>
-          ← City Feed
+        <button type="button" onClick={() => setFilter('foryou')} className="g-key sm"
+          style={{ position: 'absolute', top: 14, left: 14, zIndex: 4 }}>
+          <Icon name="back" size={15} /> City Feed
         </button>
         {feed.isLoading && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}><Spinner label="Loading videos…" /></div>}
         {!feed.isLoading && !feed.isError && items.length === 0 && (
           <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center', padding: 24 }}>
             <div>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>🎬</div>
+              <span className="g-well big" style={{ margin: '0 auto 14px' }}><Icon name="video" size={30} /></span>
               <p style={{ fontSize: 15, margin: 0 }}>No videos yet — post one and it'll play here, reels-style.</p>
             </div>
           </div>
@@ -88,7 +89,7 @@ export function SocialFeed() {
         <div role="status" style={{ position: 'fixed', top: 18, left: '50%', transform: 'translateX(-50%)', zIndex: 80,
           background: 'var(--ok-ink)', color: 'var(--on-accent)', borderRadius: 999, padding: '11px 20px', fontSize: 13.5, fontWeight: 600,
           boxShadow: '0 8px 28px rgba(0,0,0,.28)', animation: 'tc-rise .3s ease-out', display: 'flex', alignItems: 'center', gap: 8 }}>
-          ✓ Your post has been shared to your city.
+          <Icon name="accepted" size={16} /> Your post has been shared to your city.
         </div>
       )}
       <div className="eyebrow">Social Life</div>
@@ -101,19 +102,20 @@ export function SocialFeed() {
         <div>
           {filter !== 'videos' && (
             <div style={{ marginBottom: 16 }}>
-              <Link to="/social/create" className="btn btn-accent btn-sm">+ New post</Link>
+              <Link to="/social/create" className="btn btn-accent">
+                <Icon name="plus" size={18} /> New post
+              </Link>
             </div>
           )}
 
-          {/* Filters — wrap to fit instead of horizontal scrolling */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+          {/* The tray is the point: the keys are raised out of a carved well, so
+              "which one am I on" is a question about depth rather than colour. */}
+          <div className="g-tray" style={{ marginBottom: 18 }}>
             {FILTERS.map((f) => (
               <button key={f.key} type="button" onClick={() => setFilter(f.key)}
-                style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '7px 16px',
-                  borderRadius: 999, border: `1.5px solid ${filter === f.key ? 'var(--accent)' : 'var(--line)'}`,
-                  background: filter === f.key ? 'var(--accent)' : 'var(--card)',
-                  color: filter === f.key ? 'var(--on-accent)' : 'var(--ink)', whiteSpace: 'nowrap' }}>
-                {f.label}
+                className={`g-key sm g-edge${filter === f.key ? ' on' : ''}`}
+                aria-pressed={filter === f.key}>
+                {f.icon && <Icon name={f.icon} size={15} />}{f.label}
               </button>
             ))}
           </div>
@@ -124,7 +126,7 @@ export function SocialFeed() {
           {filter === 'videos' ? (
             <>
               {!feed.isLoading && !feed.isError && items.length === 0 && (
-                <EmptyState icon="🎬" title="No videos yet" hint="Post a video and it'll play here, reels-style." />
+                <EmptyState title="No videos yet" hint="Post a video and it'll play here, reels-style." />
               )}
               {items.length > 0 && (
                 <ReelsView items={items} onOpenAuthor={openAuthor}
@@ -134,7 +136,7 @@ export function SocialFeed() {
           ) : (
             <>
               {!feed.isLoading && !feed.isError && items.length === 0 && (
-                <EmptyState icon="🌆" title={filter === 'foryou' ? 'No moments yet' : 'Nothing here yet'} hint="Be the first to share one." />
+                <EmptyState title={filter === 'foryou' ? 'No moments yet' : 'Nothing here yet'} hint="Be the first to share one." />
               )}
               {items.map((p) => <PostCard key={p.key ?? p.id} post={p} isNew={p.id === newPostId} onOpenAuthor={openAuthor} />)}
               {feed.hasNextPage && (
