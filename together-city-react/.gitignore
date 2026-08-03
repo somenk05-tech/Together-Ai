@@ -11,3 +11,9 @@ android
 vite.config.js
 vite.config.d.ts
 *.tsbuildinfo
+
+# Vite/Vitest write these next to the config while resolving it and unlink them
+# when they are done. Reached through a folder mount that cannot unlink, they
+# are left behind — build scratch, never a change, and they have now stopped a
+# landing gate twice by turning up as untracked files nobody put there.
+*.timestamp-*.mjs

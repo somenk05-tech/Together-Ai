@@ -82,10 +82,26 @@
 
    The flat ground is #010104, sampled from the top edge of the illustration
    itself, so the seam where one becomes the other is not visible.
+
+   IT OVERRIDES THE SHELL'S PADDING RATHER THAN CANCELLING IT WITH NEGATIVE
+   MARGINS, and that is a correction rather than a preference. The first version
+   bled out with `margin: -36px -44px -80px`, which has to know the shell's
+   padding at every breakpoint and be kept in step with it forever. It was wrong
+   twice over on the first look: the padding changes at 1100px and the margin
+   changed at 780px, so between the two the whole black block sat offset from
+   the column it belonged to; and the breadcrumb strip above it carries an
+   INLINE `padding: 0 16px` that beats the shell rule, so there was no 36px of
+   padding above to eat — the -36px ate the breadcrumbs instead, which is why
+   they ended up sitting on the night sky.
+
+   `.tc-shell .tc-main > *` is what pads every child. Overriding it for these
+   two elements is one rule, is correct at every width by construction, and
+   cannot reach a sibling.
    ────────────────────────────────────────────────────────────────────────── */
+.tc-shell .tc-main > .letter-sky { padding: 0; }
+.tc-shell .tc-main > .letter-past { padding: 0 24px 96px; }
+
 .letter-sky {
-  /* Out of the hub shell's content padding — this surface is edge to edge. */
-  margin: -36px -44px -80px;
   min-height: calc(100vh - var(--header-h) - var(--safe-top));
   display: flex;
   flex-direction: column;
@@ -130,7 +146,8 @@
   margin: 0;
 }
 /* Quiet, text-only, and never a button that looks like a button. */
-.letter-sky .letter-link {
+.letter-sky .letter-link,
+.letter-past .letter-link {
   background: none;
   border: 0;
   padding: 0;
@@ -143,29 +160,50 @@
   border-bottom: 1px solid rgba(236, 234, 222, .22);
   min-height: 44px;   /* the tap target is the row, not the ink */
 }
-.letter-sky .letter-link:hover,
-.letter-sky .letter-link:focus-visible { color: #f4f1e6; border-bottom-color: rgba(236, 234, 222, .6); }
-.letter-sky :focus-visible { outline: 2px solid rgba(236, 234, 222, .7); outline-offset: 3px; }
+.letter-sky .letter-link:hover, .letter-sky .letter-link:focus-visible,
+.letter-past .letter-link:hover, .letter-past .letter-link:focus-visible {
+  color: #f4f1e6; border-bottom-color: rgba(236, 234, 222, .6);
+}
+.letter-sky :focus-visible, .letter-past :focus-visible { outline: 2px solid rgba(236, 234, 222, .7); outline-offset: 3px; }
 
 /* Earlier letters live BELOW the artwork, so nothing ever floats over it. */
-.letter-past {
-  background: #010104;
-  margin: -80px -44px -80px;
-  padding: 0 24px 96px;
-  color: #eceade;
-}
+.letter-past { background: #010104; color: #eceade; }
 .letter-past-inner { max-width: 660px; margin: 0 auto; }
+.letter-past .letter-open, .letter-past .letter-p, .letter-past .letter-sign { font-family: var(--serif); }
+.letter-past .letter-open { font-size: 17px; margin: 0 0 18px; color: #f4f1e6; }
+.letter-past .letter-p { font-size: 15px; line-height: 1.9; margin: 0 0 18px; color: rgba(236, 234, 222, .74); }
+.letter-past .letter-sign { font-size: 13px; color: rgba(236, 234, 222, .4); margin: 0; }
 .letter-past .letter-date {
   font-size: 11.5px;
   letter-spacing: .18em;
   text-transform: uppercase;
   color: rgba(236, 234, 222, .42);
-  margin: 44px 0 12px;
+  margin: 52px 0 12px;
 }
 
-@media (max-width: 780px) {
-  .letter-sky { margin: -24px -20px -60px; }
-  .letter-past { margin: -60px -20px -60px; }
+/* ── The foot of the page, on these two screens only ──────────────────────
+   A cream utility bar butted straight against the bottom of a night sky is the
+   join showing. The footer is global chrome and is NOT restyled globally — the
+   other three screens in this hub are ordinary light pages and need the
+   ordinary light footer.
+
+   `data-surface="letter"` is set on <html> while the letter surface is mounted
+   and removed when it unmounts, which is the same mechanism useHubTheme()
+   already uses for `data-hub`. Scoped this way the rule cannot leak to a page
+   that is not a letter, and it cannot survive one. */
+[data-surface="letter"] .tc-footer {
+  background: #010104;
+  border-top-color: rgba(236, 234, 222, .12);
+  color: rgba(236, 234, 222, .6);
+}
+[data-surface="letter"] .tc-footer .word { color: #f4f1e6; }
+[data-surface="letter"] .tc-footer nav { color: rgba(236, 234, 222, .72); }
+[data-surface="letter"] .tc-footer a { color: rgba(236, 234, 222, .72); }
+[data-surface="letter"] .tc-footer a:hover { color: #f4f1e6; }
+[data-surface="letter"] .tc-footer > span:last-child { color: rgba(236, 234, 222, .42); }
+
+@media (max-width: 1100px) {
+  .tc-shell .tc-main > .letter-past { padding: 0 20px 72px; }
   .letter-sky-body { padding: clamp(36px, 6vh, 72px) 20px 40px; }
 }
 @media (prefers-reduced-motion: no-preference) {

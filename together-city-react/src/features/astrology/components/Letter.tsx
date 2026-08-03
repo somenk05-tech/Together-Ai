@@ -1,5 +1,23 @@
 import { Link } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+
+/**
+ * Marks the page as a letter for as long as one is on screen.
+ *
+ * The footer is global chrome and is not restyled globally — the other three
+ * screens in this hub are ordinary light pages and need the ordinary light
+ * footer. This sets `data-surface="letter"` on <html> while the surface is
+ * mounted and removes it on the way out, which is the same mechanism
+ * useHubTheme() already uses for `data-hub`. A rule scoped to it cannot leak to
+ * a page that is not a letter, and cannot survive one.
+ */
+function useLetterSurface(): void {
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-surface', 'letter');
+    return () => root.removeAttribute('data-surface');
+  }, []);
+}
 
 /**
  * The letter surface — the whole of the daily and monthly guidance screens.
@@ -18,6 +36,7 @@ import type { ReactNode } from 'react';
 
 /** The sky, and whatever is written on it. */
 export function LetterSky({ children }: { children: ReactNode }) {
+  useLetterSurface();
   return (
     <section className="letter-sky">
       <div className="letter-sky-body">{children}</div>
