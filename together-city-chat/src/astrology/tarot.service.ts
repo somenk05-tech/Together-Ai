@@ -1,5 +1,5 @@
 import { swallow } from '../shared/swallow';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService } from '../shared/clock/clock.service';
@@ -97,6 +97,7 @@ export class TarotService {
         findFirst: (a: unknown) => Promise<TarotRow | null>;
         findMany: (a: unknown) => Promise<TarotRow[]>;
         upsert: (a: unknown) => Promise<TarotRow>;
+        deleteMany: (a: unknown) => Promise<{ count: number }>;
       };
     };
   }
@@ -324,6 +325,49 @@ export class TarotService {
 
     this.logger.log(`Tarot ${kind} for ${userId} · ₹${price} · ${spreadSize(kind)} cards`);
     return { ...reading, id: row.id, priceInr: price };
+  }
+
+  /**
+   * Delete one saved reading, for good.
+   *
+   * A hard delete, scoped by userId in the WHERE clause rather than checked
+   * first and deleted after — two statements can be raced, one cannot. The
+   * Settings page tells every citizen their data is theirs to remove, and a
+   * `deletedAt` that nothing lists is a filter with a reassuring name.
+   *
+   * TODAY'S CARD OF THE DAY IS THE ONE THING THAT CANNOT GO, and refusing it is
+   * the whole reason this method is longer than one line.
+   *
+   * The daily card is deliberately un-retakeable: nothing is dealt until a back
+   * is turned, the first turn is written with `update: {}`, and the card is
+   * yours until midnight. All of that is enforced by the existence of the row.
+   * Delete the row and todaysCard() finds nothing, so the fan comes back and a
+   * citizen who did not like their card can simply keep deleting until they get
+   * one they do. That is not a delete button, it is a reroll button with a
+   * delete button's label.
+   *
+   * Yesterday's card has no such problem — the day it belonged to is over — so
+   * only TODAY'S is refused, and the message says which and why rather than
+   * failing silently.
+   */
+  async deleteReading(userId: string, id: string): Promise<{ deleted: boolean }> {
+    const row = await this.db.tarotReading.findFirst({ where: { id, userId } });
+    if (!row) throw new NotFoundException('That reading is not there to delete.');
+
+    if (row.kind === 'daily' && row.period) {
+      const stored = TarotService.parseRow(row);
+      const tz = stored?.tz ?? (await this.clock.timezoneFor(userId));
+      if (this.clock.todayIn(tz) === row.period) {
+        throw new BadRequestException(
+          "Today's card stays until midnight. It can be deleted from tomorrow — a card you can delete and draw again is not a card you chose.",
+        );
+      }
+    }
+
+    const res = await this.db.tarotReading.deleteMany({ where: { id, userId } });
+    if (!res?.count) throw new NotFoundException('That reading is not there to delete.');
+    this.logger.log(`Tarot reading ${id} (${row.kind}) deleted by its owner`);
+    return { deleted: true };
   }
 
   /** Past readings, newest first. */

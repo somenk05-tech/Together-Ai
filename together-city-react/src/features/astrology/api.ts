@@ -167,6 +167,8 @@ export const astrologyApi = {
   tarotDraw: (dto: { kind: 'three' | 'celtic'; question: string; picks: number[]; method?: 'wallet' | 'card' }) =>
     api.post<TarotSpreadResult>('/astrology/tarot/draw', dto).then((r) => r.data),
   tarotHistory: () => api.get<TarotHistoryItem[]>('/astrology/tarot/history').then((r) => r.data),
+  deleteTarotReading: (id: string) =>
+    api.delete<{ deleted: boolean }>(`/astrology/tarot/${id}`).then((r) => r.data),
 
   gems: () => api.get<GemResponse>('/astrology/gems').then((r) => r.data),
   remedies: () => api.get<RemedyResponse>('/astrology/remedies').then((r) => r.data),

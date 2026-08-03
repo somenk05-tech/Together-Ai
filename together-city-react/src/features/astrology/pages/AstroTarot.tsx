@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import { Button, Card, EmptyState, Spinner, Tag } from '@/components/ui';
-import { useChooseDailyCard, useDrawTarot, useTarotDaily, useTarotHistory, useTarotSpreads } from '../hooks';
+import { useChooseDailyCard, useDeleteTarotReading, useDrawTarot, useTarotDaily, useTarotHistory, useTarotSpreads } from '../hooks';
 import { AstroHeader } from '../shared';
 import type { TarotDrawnCard, TarotReading } from '../api';
 import { artFor } from '../cardArt';
@@ -73,8 +73,67 @@ function CardFace({ card, index }: { card: TarotDrawnCard; index: number }) {
   );
 }
 
-/** A whole reading: its cards, then the line that ties them together. */
+/**
+ * ONE CARD IS NOT A ONE-ITEM GRID.
+ *
+ * `repeat(auto-fill, minmax(240px, 1fr))` with a single child fills the first
+ * column and leaves every other one empty — on a wide screen that is a card in
+ * the top-left corner and three-quarters of a panel of white. The grid is right
+ * for three cards and for ten; it is wrong for one, and the fix is a different
+ * layout rather than a narrower grid.
+ *
+ * So a solo card is laid out as a card BESIDE its reading: the painting at a
+ * size worth looking at, and the name, keywords and prose in the space the grid
+ * was wasting. It stacks under 640px, where there is no space to waste.
+ */
+function SoloCard({ card }: { card: TarotDrawnCard }) {
+  const glyph = card.arcana === 'major' ? '✦' : SUIT_GLYPH[card.suit ?? ''] ?? '✦';
+  const art = artFor(card.cardId);
+  return (
+    <div className="tarot-solo">
+      <div className="tarot-solo-art">
+        {art ? (
+          <img src={art} alt="" loading="lazy" decoding="async"
+            style={{ transform: card.reversed ? 'rotate(180deg)' : 'none' }} />
+        ) : (
+          <div className="tarot-solo-glyph" style={{ transform: card.reversed ? 'rotate(180deg)' : 'none' }}>
+            {glyph}
+          </div>
+        )}
+      </div>
+      <div className="tarot-solo-body">
+        <p className="tarot-solo-eyebrow">
+          {card.position}
+          {card.reversed && <span className="tarot-solo-rev">Reversed</span>}
+        </p>
+        <h3 className="tarot-solo-name">{card.name}</h3>
+        <div className="tarot-solo-keys">
+          {card.keywords.map((k) => <Tag key={k}>{k}</Tag>)}
+        </div>
+        <p className="tarot-solo-read">{card.reading}</p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A whole reading: its cards, and — only when there is one — the line that ties
+ * them together.
+ *
+ * THE SUMMARY IS NOT ALWAYS THERE, AND THE BOX MUST NOT BE EITHER. A single
+ * card has no spread to draw together: every line the server can write is about
+ * how several cards sit with each other. So a Card of the Day used to render
+ * the heading "Reading the spread" over one sentence that said nothing, sitting
+ * directly beneath the card's own reading, which had already said it.
+ *
+ * Checked on the TEXT rather than on the card count, so every daily reading
+ * already saved — with that sentence baked into its stored JSON — loses the box
+ * too.
+ */
 function ReadingView({ reading }: { reading: TarotReading }) {
+  const summary = (reading.summary ?? '').trim();
+  if (reading.cards.length === 1) return <SoloCard card={reading.cards[0]} />;
+
   const wide = reading.cards.length > 3;
   return (
     <>
@@ -84,10 +143,12 @@ function ReadingView({ reading }: { reading: TarotReading }) {
       }}>
         {reading.cards.map((c, i) => <CardFace key={c.position} card={c} index={i} />)}
       </div>
-      <Card style={{ padding: '18px 22px', marginBottom: 16 }}>
-        <h4 style={{ fontFamily: 'var(--serif)', fontSize: 16, marginBottom: 8 }}>Reading the spread</h4>
-        <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0 }}>{reading.summary}</p>
-      </Card>
+      {summary && (
+        <Card style={{ padding: '18px 22px', marginBottom: 16 }}>
+          <h4 style={{ fontFamily: 'var(--serif)', fontSize: 16, marginBottom: 8 }}>Reading the spread</h4>
+          <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0 }}>{summary}</p>
+        </Card>
+      )}
     </>
   );
 }
@@ -140,10 +201,15 @@ function DailyCard() {
     // The frame is a mat, not a container for text — the card inside keeps the
     // app's ordinary light surface, so nothing here has to be re-coloured for a
     // dark ground and nothing can quietly become unreadable.
+    <>
+    {/* ABOVE THE FRAME, NOT ON IT. The ornament has deep corner flourishes and
+        a crescent that hangs into the top edge, and the heading sat straight
+        across them — unreadable at some widths, and colliding at others. A
+        frame frames one thing; the label belongs outside it. */}
+    <h3 className="astro-frame-heading">Card of the Day</h3>
+    <p className="astro-frame-note">Free · one card, yours until midnight</p>
     <div className="astro-frame">
-      <h3 className="astro-frame-title">Card of the Day</h3>
-      <p className="astro-frame-sub">Free · one card, yours until midnight</p>
-      <Card className="rise" style={{ padding: '24px 26px', marginBottom: 0 }}>
+      <Card className="rise" style={{ padding: '26px 28px', marginBottom: 0 }}>
 
       {daily.isLoading && <Spinner label="Laying out the cards…" />}
       {daily.isError && (
@@ -197,6 +263,7 @@ function DailyCard() {
       )}
       </Card>
     </div>
+    </>
   );
 }
 
@@ -210,6 +277,9 @@ export function AstroTarot() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<TarotReading | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const removeReading = useDeleteTarotReading();
   /**
    * The cards turned so far, in the order they were turned, and whether the
    * table is out.
@@ -410,6 +480,45 @@ export function AstroTarot() {
             <div style={{ marginTop: 16 }}>
               <ReadingView reading={{ ...h, kind: h.kind as TarotReading['kind'], question: h.question ?? undefined }} />
               <Disclaimer text={h.disclaimer} />
+
+              {/* Two steps, in place. A browser confirm() blocks every later
+                  interaction if it is ever left open, and a modal over a
+                  reading somebody is part-way through is the wrong shape for a
+                  decision this small. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginTop: 14 }}>
+                {confirmId === h.id ? (
+                  <>
+                    <span className="muted" style={{ fontSize: 12.5 }}>
+                      Delete this reading permanently? It is not recoverable.
+                    </span>
+                    <button type="button" disabled={removeReading.isPending}
+                      onClick={() => removeReading.mutate(h.id, {
+                        onSuccess: () => { setConfirmId(null); setOpenId(null); setDeleteError(null); },
+                        onError: (e) => {
+                          const msg = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
+                          setDeleteError(Array.isArray(msg) ? msg.join(' ') : msg ?? 'It could not be deleted just now — it is still here.');
+                        },
+                      })}
+                      style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, color: '#c0392b', fontWeight: 600 }}>
+                      {removeReading.isPending ? 'Deleting…' : 'Yes, delete'}
+                    </button>
+                    <button type="button" onClick={() => { setConfirmId(null); setDeleteError(null); }}
+                      style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, color: 'var(--accent)' }}>
+                      Keep it
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => { setConfirmId(h.id); setDeleteError(null); }}
+                    style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, color: 'var(--accent)' }}>
+                    Delete this reading
+                  </button>
+                )}
+              </div>
+              {/* The server's own sentence, not ours — today's Card of the Day
+                  is refused, and the reason is worth reading. */}
+              {deleteError && confirmId === h.id && (
+                <p style={{ color: '#c0392b', fontSize: 12.5, marginTop: 10, lineHeight: 1.6 }} role="alert">{deleteError}</p>
+              )}
             </div>
           )}
         </Card>

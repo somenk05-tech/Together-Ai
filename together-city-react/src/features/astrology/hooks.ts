@@ -94,6 +94,24 @@ export function useTarotHistory() {
   return useQuery({ queryKey: ['astrology', 'tarot', 'history'], queryFn: astrologyApi.tarotHistory });
 }
 
+/**
+ * Delete one saved reading.
+ *
+ * The daily card is invalidated as well as the history, because today's card
+ * lives in both and the server refuses to delete it — if that ever changes, the
+ * fan must come back on the same screen rather than after a reload.
+ */
+export function useDeleteTarotReading() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => astrologyApi.deleteTarotReading(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['astrology', 'tarot', 'history'] });
+      void qc.invalidateQueries({ queryKey: ['astrology', 'tarot', 'daily'] });
+    },
+  });
+}
+
 export function useDrawTarot() {
   const qc = useQueryClient();
   return useMutation({

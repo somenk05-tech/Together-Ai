@@ -646,3 +646,91 @@
 .ask-past-warn { font-size: 12.5px; color: rgba(255, 255, 255, .70); }
 .ask-link.is-danger { color: #e8836b; border-bottom-color: rgba(232, 131, 107, .45); }
 .ask-link.is-danger:hover, .ask-link.is-danger:focus-visible { color: #f4a48f; border-bottom-color: #f4a48f; }
+
+/* ─────────── The frame's label, outside the frame ───────────
+   The celestial border has deep corner flourishes and a crescent that hangs
+   into the top edge. A heading placed ON it collided with both — light text
+   across a busy ornament, unreadable at some widths and overlapping at others.
+   A frame frames one thing. The label sits above it, on the page's own ground,
+   in the page's own ink. */
+.astro-frame-heading {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(19px, 2vw, 23px);
+  color: var(--ink);
+  margin: 0 0 2px;
+}
+.astro-frame-note {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+
+/* ─────────── One card, laid out as one card ───────────
+   `repeat(auto-fill, minmax(240px, 1fr))` with a single child fills the first
+   column and leaves the rest empty — a card in the corner and three-quarters of
+   a panel of white. The grid is right for three cards and for ten. This is what
+   is right for one: the painting at a size worth looking at, and the reading in
+   the space the grid was wasting. */
+.tarot-solo {
+  display: grid;
+  grid-template-columns: minmax(190px, 250px) minmax(0, 1fr);
+  gap: clamp(22px, 3.5vw, 40px);
+  align-items: center;
+  /* CENTRED, NOT STRETCHED. The panel is as wide as the frame, and a two-column
+     layout allowed to fill it puts the prose in a 60-character line with a
+     hand's width of white beyond it — the same emptiness the grid left, moved
+     to the right. Capping the pair and centring it balances the space instead
+     of dumping it on one side. */
+  max-width: 820px;
+  margin: 0 auto;
+}
+.tarot-solo-art {
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0b1020;
+  box-shadow: 0 18px 44px rgba(8, 12, 22, .22);
+}
+.tarot-solo-art img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transition: transform .3s;
+}
+.tarot-solo-glyph {
+  display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 1 / 1.62;
+  font-size: 54px; color: rgba(216, 178, 109, .8);
+  transition: transform .3s;
+}
+
+.tarot-solo-eyebrow {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px; font-weight: 800; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted);
+  margin: 0 0 8px;
+}
+.tarot-solo-rev {
+  font-size: 10.5px; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; color: #a4551f;
+}
+.tarot-solo-name {
+  font-family: var(--serif); font-weight: 400;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.14; margin: 0 0 14px; color: var(--ink);
+}
+.tarot-solo-keys {
+  display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 16px;
+}
+.tarot-solo-read {
+  font-size: 15px; line-height: 1.75; margin: 0;
+  max-width: 46ch; color: var(--ink-2, var(--muted));
+}
+
+/* Under 640px there is no space to waste, so there is nothing to fix: the card
+   goes back on top of its own reading, which is what it does everywhere else. */
+@media (max-width: 640px) {
+  .tarot-solo { grid-template-columns: 1fr; gap: 20px; }
+  .tarot-solo-art { max-width: 260px; margin: 0 auto; }
+  .tarot-solo-read { max-width: none; }
+}

@@ -148,8 +148,9 @@ function readInPosition(card: TarotCard, reversed: boolean, position: string, as
   return `${opener} — you may recognise ${list}. ${card.theme}${suitLine}`;
 }
 
-/** One line drawing the spread together, from what actually came up. */
-function summarise(kind: SpreadKind, cards: DrawnCard[], question?: string): string {
+/** One line drawing the spread together, from what actually came up.
+ *  Empty for a single card — there is no spread to draw together. */
+function summarise(cards: DrawnCard[], question?: string): string {
   const majors = cards.filter((c) => c.arcana === 'major').length;
   const reversed = cards.filter((c) => c.reversed).length;
   const suits = cards.map((c) => c.suit).filter(Boolean) as string[];
@@ -160,14 +161,26 @@ function summarise(kind: SpreadKind, cards: DrawnCard[], question?: string): str
   // The counts still drive every branch below; none of them are stated as
   // counts. "Majors dominate (3 of 5)" is a fact about the deck — true, and of
   // no use to the person reading it. What they need is what it implies.
-  const parts: string[] = [];
-  if (kind === 'daily') {
-    parts.push(cards[0].reversed
-      ? `Today asks for a lighter hand than usual.`
-      : `Here is what today seems to be asking of you.`);
-  } else {
-    parts.push(question ? `On what you asked, a few things stand out.` : `A few things stand out here.`);
-  }
+  /**
+   * ONE CARD HAS NO SPREAD TO READ.
+   *
+   * Every line below is guarded by `cards.length > 1`, because each of them is
+   * about how the cards sit TOGETHER — which suit dominates, how many are
+   * major, how many are reversed. With a single card none of them fire, so a
+   * daily reading used to be a heading, "Reading the spread", over one sentence
+   * that said nothing: *"Here is what today seems to be asking of you."* The
+   * card's own reading is directly above it and has already said it.
+   *
+   * An empty summary is the honest answer, and the screen renders nothing at
+   * all rather than a box with a promise in it. This also cleans up every daily
+   * card already in the archive, because the view checks the text rather than
+   * the date.
+   */
+  if (cards.length < 2) return '';
+
+  const parts: string[] = [
+    question ? `On what you asked, a few things stand out.` : `A few things stand out here.`,
+  ];
   if (majors >= Math.ceil(cards.length / 2) && cards.length > 1) {
     parts.push(`This reads as a matter larger than the day-to-day — one that feels more decided than chosen, and where your part may be how you meet it rather than whether it happens.`);
   } else if (majors === 0 && cards.length > 1) {
@@ -277,7 +290,7 @@ export function composeTarot(kind: SpreadKind, seed: string, question?: string):
     spreadName: SPREAD_NAME[kind],
     question,
     cards,
-    summary: summarise(kind, cards, question),
+    summary: summarise(cards, question),
     disclaimer: DISCLAIMER,
     seed,
     // Only when they were really chosen. picksIn() falls back to the top of the

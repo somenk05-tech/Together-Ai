@@ -28,7 +28,11 @@ const SaveProfileSchema = z.object({
 const DrawSpreadSchema = z.object({
   kind: z.enum(['three', 'celtic']),
   question: z.string().min(5).max(300),
-  picks: z.array(z.number().int().min(0).max(TarotService.MAX_FAN - 1)).min(1).max(10),
+  picks: z.array(
+    z.number({ required_error: 'Turn the cards before the reading is drawn.' })
+      .int().min(0).max(TarotService.MAX_FAN - 1),
+    { required_error: 'Turn the cards before the reading is drawn.' },
+  ).min(1, 'Turn the cards before the reading is drawn.').max(10),
   method: z.enum(['wallet', 'card']).optional(),
 });
 
@@ -153,6 +157,15 @@ export class AstrologyController {
   @UsePipes(new ZodValidationPipe(DrawSpreadSchema))
   tarotDraw(@CurrentUser() user: JwtUser, @Body() dto: DrawSpreadDto) {
     return this.tarot.drawSpread(user.sub, dto);
+  }
+
+  /**
+   * Delete one saved reading. Really delete it — and see the service for the
+   * one reading that cannot go, and why.
+   */
+  @Delete('tarot/:id')
+  deleteReading(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.tarot.deleteReading(user.sub, id);
   }
 
   /** Past readings, newest first. */
