@@ -1933,9 +1933,11 @@ model MasterProfile {
   weightKg     Int?
   occupation   String?
   phone        String?
-  /// Where deliveries go. Collected once, at the grocery checkout, and kept
-  /// here so no hub has to ask again — the Master Profile is the one record
-  /// every hub reads.
+  /// Where deliveries go — and NO WRITER TODAY (B.18). It was collected at the
+  /// grocery checkout, for a delivery that does not happen; the checkout now
+  /// stops at the shopping list and asks for nothing. Existing values are the
+  /// citizens' own answers and are left alone. The hub that starts delivering
+  /// is the one that earns the right to ask again.
   address      String?
   /// Declared food allergens, csv, as the citizen wrote them (canonicalised by
   /// declaredTerm() — "nut allergy" is stored as "nut").

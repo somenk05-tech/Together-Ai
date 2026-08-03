@@ -1,6 +1,6 @@
 import { conditionMatcher, hasCondition } from './condition-match';
 import { medicalFoodAllergenTerms } from '../shared/medical-allergies';
-import { ORDER_HISTORY_CAP, RECORD_CAP } from '../shared/paging';
+import { RECORD_CAP } from '../shared/paging';
 import { swallowed } from '../shared/swallow';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { demoDataEnabled } from '../shared/demo-data';
@@ -43,10 +43,13 @@ import { recipeImageUrl } from './recipe-image-set';
 import { resolveSchedule, fastingSafety, categorizeRecipe, type MealCategory } from './meal-engine';
 import { computeNutrients, computeMicros, ingredientBatchServings, isSalt, perServingIngredients } from './ingredient-nutrients';
 import { dietKeyFrom } from '../shared/diet';
-// Quoting and ordering came out with the quick-commerce flow (B.12). What is
-// left reads the tracking metadata already stored on orders that were charged
-// while it existed — this service can no longer produce a quote or place one.
-import { trackFromMeta, type QcMeta } from './quick-commerce';
+// Nothing is imported from './quick-commerce' any more. Quoting and ordering
+// came out with the quick-commerce flow (B.12), and the reader that turned a
+// charged order's stored qcJson back into a story went out with the grocery
+// ordering flow (B.18) — shapeOrder was its only caller. `trackFromMeta` still
+// exists, and still has a test, because the rows it interprets are still there
+// and somebody has to refund them by hand. It is simply not wired to a route,
+// which is the honest state of every one of those orders.
 
 const SLOTS: Slot[] = ['b', 'l', 's', 'd'];
 
@@ -800,7 +803,7 @@ export function parseSharing(raw: unknown): HouseholdSharing {
 export const HOUSEHOLD_ROLES = ['owner', 'adult', 'child', 'guest'] as const;
 export type HouseholdRole = (typeof HOUSEHOLD_ROLES)[number];
 export const HOUSEHOLD_CAPS: Record<HouseholdRole, string[]> = {
-  owner: ['invite', 'remove', 'editSettings', 'generatePlan', 'placeOrder', 'editOwnProfile', 'viewPlan', 'viewGrocery', 'addPantry'],
+  owner: ['invite', 'remove', 'editSettings', 'generatePlan', 'editOwnProfile', 'viewPlan', 'viewGrocery', 'addPantry'],
   adult: ['editOwnProfile', 'acceptPlan', 'viewPlan', 'viewGrocery', 'addPantry'],
   child: ['viewPlan'],
   guest: ['viewPlan'],
@@ -1454,6 +1457,7 @@ export class NutritionService implements OnModuleInit {
       .then(() => { this.warmDatasetPool(); void this.recipeCorpus().catch(swallowed('nutrition.onModuleInit', undefined)); })
       .catch(swallowed('nutrition.onModuleInit', undefined));
     void this.warnAboutQuickCommerceCharges();
+    void this.warnAboutGroceryOrderCharges();
   }
 
   /**
@@ -1472,6 +1476,31 @@ export class NutritionService implements OnModuleInit {
     if (!charged) return;
     this.logger.error(
       `${charged} grocery order(s) were placed through the removed quick-commerce flow. Those citizens were charged from the city wallet at simulated prices shown under real retailers' names, and no store was ever sent the order — there is no screen left on which they can see, track or cancel it. These need refunding by hand; the rows are left in place as the record of it.`,
+    );
+  }
+
+  /**
+   * B.18: every grocery order in this table was CHARGED TO THE CITY WALLET and
+   * rendered on no screen.
+   *
+   * placeOrder took the money, wrote seven FreshDelivery rows across the
+   * following week, and cancelDelivery existed to refund a day of it — reachable
+   * from nothing. The flow is gone; the rows are the record of what was taken,
+   * so they stay, and they are counted at boot and named out loud rather than
+   * left to be discovered again.
+   *
+   * These need refunding by hand. The count is the number of citizens owed.
+   */
+  private async warnAboutGroceryOrderCharges(): Promise<void> {
+    const charged = await this.prisma.nutritionOrder
+      .count()
+      .catch(swallowed('nutrition.warnAboutGroceryOrderCharges', null));
+    if (!charged) return;
+    this.logger.error(
+      `${charged} grocery order(s) were charged to the city wallet through the removed ordering flow. `
+      + 'Each also scheduled seven fresh deliveries that nothing ever delivered, and no screen in the '
+      + 'app could show, track or cancel any of it. These need refunding by hand; the rows are left in '
+      + 'place as the record of what was taken.',
     );
   }
 
@@ -5732,142 +5761,6 @@ export class NutritionService implements OnModuleInit {
   // ─────────────── orders ───────────────
   /** Place an order from the latest grocery cart: pantry ships once, fresh splits
    *  into 7 daily deliveries; total is debited from the wallet. */
-  /**
-   * The address the citizen last had something delivered to, so the checkout can
-   * offer it back instead of asking again. Null before their first order.
-   */
-  async lastDeliveryAddress(userId: string): Promise<string | null> {
-    // The Master Profile first: it is the one record every hub reads, and an
-    // address belongs to the person rather than to any one order. The last
-    // order is the fallback for citizens who ordered before the profile field
-    // existed.
-    const profile = await this.prisma.masterProfile
-      .findUnique({ where: { userId }, select: { address: true } })
-      .catch(swallowed('nutrition.lastDeliveryAddress', null));
-    const saved = (profile as { address?: string | null } | null)?.address;
-    if (saved) return saved;
-    const last = await this.prisma.nutritionOrder
-      .findFirst({ where: { userId, deliveryAddress: { not: null } }, orderBy: { createdAt: 'desc' }, select: { deliveryAddress: true } })
-      .catch(swallowed('nutrition.lastDeliveryAddress', null));
-    return (last as { deliveryAddress?: string | null } | null)?.deliveryAddress ?? null;
-  }
-
-  async placeOrder(userId: string, method?: 'wallet' | 'card', deliveryAddress?: string) {
-    const cart = await this.prisma.groceryCart.findFirst({
-      where: { userId }, orderBy: { createdAt: 'desc' }, include: { items: true },
-    });
-    if (!cart || cart.items.length === 0) throw new NotFoundException('build a grocery cart first');
-
-    // An order that is going to be delivered needs somewhere to go. This used
-    // to be collected by a decorative input on the checkout, pre-filled with an
-    // address nobody typed and read by nothing — so every order in the table
-    // was charged, scheduled across seven days, and addressed nowhere.
-    const address = (deliveryAddress ?? '').trim().replace(/\s+/g, ' ');
-    if (address.length < 10) {
-      throw new BadRequestException('Where should this go? Add a delivery address before paying.');
-    }
-    if (address.length > 300) throw new BadRequestException('That address is too long — 300 characters is the limit.');
-
-    // Remember it on the Master Profile, so no other hub has to ask again.
-    // Best-effort: a citizen who has paid should not see their order fail
-    // because we could not write a convenience field.
-    await this.prisma.masterProfile
-      .upsert({ where: { userId }, update: { address }, create: { userId, address } })
-      .catch(swallowed('nutrition.placeOrder', undefined));
-
-    const total = cart.items.reduce((s, i) => s + i.priceInr, 0);
-    // Unified payment: charge the one city wallet via the Financial hub.
-    const freshTotal = cart.items.filter((i) => i.category === 'fresh').reduce((s, i) => s + i.priceInr, 0);
-    const perDay = Math.round(freshTotal / 7);
-    const today = new Date();
-
-    // Charge and order in one transaction. The order carries its line items and
-    // seven delivery rows as nested writes, so a failure part-way used to be
-    // able to leave the wallet debited against nothing at all.
-    const order = await this.financial.paid(
-      userId,
-      { hub: 'Nutrition', category: 'nutrition', label: 'Grocery & meal order', amountInr: total, method },
-      (tx) => tx.nutritionOrder.create({
-      data: {
-        userId,
-        totalInr: total,
-        // `as never` on the data object below: the generated client only learns
-        // about deliveryAddress after the next `prisma generate`, and a service
-        // should not fail to compile on the order two build steps happen to run
-        // in. Same loose-accessor pattern as the rest of this file.
-        deliveryAddress: address,
-        items: {
-          create: cart.items.map((i) => ({ name: i.name, category: i.category, qty: i.qty, priceInr: i.priceInr })),
-        },
-        deliveries: {
-          create: Array.from({ length: 7 }, (_v, dayIndex) => ({
-            dayIndex,
-            date: new Date(today.getTime() + dayIndex * 86_400_000),
-            amountInr: dayIndex === 6 ? freshTotal - perDay * 6 : perDay,
-          })),
-        },
-      },
-      include: { items: true, deliveries: { orderBy: { dayIndex: 'asc' } } },
-      }),
-    );
-    // Pantry stocking stays outside the transaction: it's a best-effort side
-    // effect that already swallows its own errors, and it must never be the
-    // reason a paid-for order rolls back.
-    await this.stockPantryFromItems(userId, cart.items.map((i) => ({ name: i.name, grams: (i as { grams?: number }).grams ?? 0 }))).catch(swallowed('nutrition.placeOrder', undefined));
-    return this.shapeOrder(order);
-  }
-
-  async orders(userId: string) {
-    const rows = await this.prisma.nutritionOrder.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: ORDER_HISTORY_CAP,
-      include: { items: true, deliveries: { orderBy: { dayIndex: 'asc' } } },
-    });
-    return rows.map((o) => this.shapeOrder(o));
-  }
-
-  /** Cancel a scheduled fresh delivery — its amount refunds to the wallet. */
-  async cancelDelivery(userId: string, orderId: string, deliveryId: string) {
-    const delivery = await this.prisma.freshDelivery.findFirst({
-      where: { id: deliveryId, orderId, order: { userId } },
-    });
-    if (!delivery) throw new NotFoundException('delivery not found');
-    if (delivery.status !== 'scheduled') throw new NotFoundException('only scheduled deliveries can be cancelled');
-    await this.prisma.freshDelivery.update({ where: { id: delivery.id }, data: { status: 'cancelled' } });
-    if (delivery.amountInr > 0) {
-      await this.prisma.walletLedger.create({
-        data: { userId, amountInr: delivery.amountInr, kind: 'refund', note: `Delivery day ${delivery.dayIndex + 1} cancelled` },
-      });
-    }
-    return this.orders(userId);
-  }
-
-  private shapeOrder(o: {
-    id: string; totalInr: number; status: string; createdAt: Date;
-    items: { id: string; name: string; category: string; qty: number; priceInr: number }[];
-    deliveries: { id: string; dayIndex: number; date: Date; status: string; amountInr: number }[];
-  }) {
-    // Quick-commerce orders carry provider + live tracking (computed from time).
-    let qc: (QcMeta & { tracking: ReturnType<typeof trackFromMeta> }) | null = null;
-    const rawQc = (o as { qcJson?: string | null }).qcJson;
-    if (rawQc) {
-      try { const meta = JSON.parse(rawQc) as QcMeta; qc = { ...meta, tracking: trackFromMeta(meta) }; }
-      catch { qc = null; }
-    }
-    return {
-      id: o.id,
-      totalInr: o.totalInr,
-      status: o.status,
-      qc,
-      createdAt: o.createdAt.toISOString(),
-      items: o.items.map((i) => ({ id: i.id, name: i.name, category: i.category, qty: i.qty, priceInr: i.priceInr })),
-      deliveries: o.deliveries.map((d) => ({
-        id: d.id, dayIndex: d.dayIndex, date: d.date.toISOString().slice(0, 10), status: d.status, amountInr: d.amountInr,
-      })),
-    };
-  }
-
   // ─────────────── blood panel (Medical bridge) ───────────────
   async bloodPanel(userId: string) {
     // unbounded: the panel view maps every marker on file — a computation

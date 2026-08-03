@@ -48,10 +48,20 @@ describe('the quick-commerce flow', () => {
     expect(existsSync(join(HERE, 'quick-commerce-client.ts'))).toBe(false);
   });
 
-  it('keeps the grocery list and the city-fulfilled orders, which were never the problem', () => {
-    for (const kept of ['async groceryPlan(', 'async orders(', 'async cancelDelivery(']) {
-      expect(serviceRaw).toContain(kept);
-    }
+  it('keeps the grocery list, which was never the problem', () => {
+    // This used to pin `async orders(` and `async cancelDelivery(` alongside
+    // the list, because B.12's job was to remove the simulated retailer flow
+    // WITHOUT taking the city-fulfilled one with it.
+    //
+    // B.18 then answered the question B.12 had left open, and the answer was
+    // that the city-fulfilled flow had a different problem of its own: it
+    // charged the wallet, wrote seven deliveries a week, and no screen in the
+    // app rendered an order, a delivery or that refund. So `orders()`,
+    // `cancelDelivery()`, `placeOrder()` and `lastDeliveryAddress()` are gone
+    // on purpose, and `grocery-orders-removed.spec.ts` is the guard that says
+    // so. Two decisions, not a regression — which is why this line changed
+    // rather than the test being deleted.
+    expect(serviceRaw).toContain('async groceryPlan(');
   });
 });
 
@@ -69,11 +79,19 @@ describe('the refund alarm', () => {
     expect(service).not.toMatch(/nutritionOrder\.deleteMany/);
   });
 
-  it('leaves a paid order still readable', () => {
-    // shapeOrder renders tracking from the stored qcJson. Without it the charge
-    // becomes a number with no story attached to it.
-    expect(service).toMatch(/trackFromMeta\(/);
+  it('leaves a paid order interpretable, with nothing left to serve it', () => {
+    // `shapeOrder` turned a row's stored qcJson back into a delivery story, and
+    // it was the only caller of `trackFromMeta`. It went with the grocery
+    // ordering flow in B.18, so NO ROUTE READS A PAID ORDER ANY MORE — the
+    // service does not import from this engine at all.
+    expect(service).not.toMatch(/from '\.\/quick-commerce'/);
+    // The interpreter itself stays, and keeps its own test. The rows are still
+    // in the table, they are still owed refunds, and whoever does that refund
+    // by hand needs the code that says what each one was. Deleting it would
+    // leave the evidence unreadable, which is the one thing B.12 removed the
+    // flow in order not to do.
     expect(engine).toMatch(/export function trackFromMeta/);
+    expect(existsSync(join(HERE, 'quick-commerce.spec.ts'))).toBe(true);
   });
 });
 

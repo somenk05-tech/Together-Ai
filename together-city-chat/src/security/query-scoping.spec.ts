@@ -161,14 +161,22 @@ const REVIEWED_UNSCOPED = [
   'nutrition/nutrition.service.ts  MealPlan.count x2',
   'nutrition/nutrition.service.ts  MealPlan.findFirst x1',
   'nutrition/nutrition.service.ts  MealPlan.findUnique x2',
-  // onModuleInit() — the same startup alarm as TicketBooking above. The
-  // quick-commerce flow was removed (B.12, 2 Aug); every NutritionOrder still
-  // carrying qcJson was charged at simulated prices under a real retailer's
-  // name, and the question the count asks is "does ANY citizen hold one". The
-  // NutritionOrder.update that used to sit here was qcOrder writing the
-  // tracking metadata onto the row it had just created inside its own
-  // transaction; it went with the flow.
-  'nutrition/nutrition.service.ts  NutritionOrder.count x1',
+  // onModuleInit() — the same startup alarm as TicketBooking above, TWICE, for
+  // two removals that each left charged rows behind.
+  //
+  // The first: the quick-commerce flow was removed (B.12, 2 Aug); every
+  // NutritionOrder still carrying qcJson was charged at simulated prices under
+  // a real retailer's name. The NutritionOrder.update that used to sit here was
+  // qcOrder writing the tracking metadata onto the row it had just created
+  // inside its own transaction; it went with the flow.
+  //
+  // The second: the grocery ordering flow was removed (B.18, 2 Aug), which had
+  // charged the city wallet and scheduled seven deliveries nothing delivered.
+  //
+  // Both ask the same question — "does ANY citizen hold one" — and neither has
+  // a current user to scope to, because the answer is needed before anybody
+  // asks. Both return a number: no row, no field, nothing to leak.
+  'nutrition/nutrition.service.ts  NutritionOrder.count x2',
   // upload(), addItem() and confirm() write by an id either created in the same
   // call or read a line earlier via findFirst({ id, userId }). Request-path, so
   // it counts against the size budget below — unlike the cron queries.

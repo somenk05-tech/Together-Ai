@@ -88,12 +88,6 @@ export const nutritionApi = {
   updatePreferences: (input: Partial<FoodPref>) =>
     api.patch<FoodPref>('/nutrition/preferences', input).then((r) => r.data),
   wallet: () => api.get<Wallet>('/nutrition/wallet').then((r) => r.data),
-  orders: () => api.get<NutritionOrder[]>('/nutrition/orders').then((r) => r.data),
-  lastDeliveryAddress: () => api.get<{ deliveryAddress: string | null }>('/nutrition/orders/last-address').then((r) => r.data),
-  placeOrder: (method: 'wallet' | 'card' = 'wallet', deliveryAddress = '') =>
-    api.post<NutritionOrder>('/nutrition/orders', { method, deliveryAddress }).then((r) => r.data),
-  cancelDelivery: (orderId: string, deliveryId: string) =>
-    api.post<NutritionOrder[]>(`/nutrition/orders/${orderId}/deliveries/${deliveryId}/cancel`, {}).then((r) => r.data),
 };
 
 export type CalorieType = 'Meal Plan' | 'Extra' | 'Alcohol';

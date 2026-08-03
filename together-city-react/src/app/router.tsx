@@ -103,7 +103,6 @@ const DatingMatchDetail = lazy(() => import('@/features/dating/pages/DatingMatch
 // Nutrition sub-pages
 const NutCart = lazy(() => import('@/features/nutrition/pages/Cart').then((m) => ({ default: m.Cart })));
 const NutCheckout = lazy(() => import('@/features/nutrition/pages/Checkout').then((m) => ({ default: m.Checkout })));
-const NutConfirm = lazy(() => import('@/features/nutrition/pages/Confirm').then((m) => ({ default: m.Confirm })));
 // Batch 3 sub-pages (ported from the static site)
 const REExplore = lazy(() => import('@/features/realestate/pages/Explore').then((m) => ({ default: m.Explore })));
 const REModeration = lazy(() => import('@/features/realestate/pages/Moderation').then((m) => ({ default: m.Moderation })));
@@ -208,7 +207,6 @@ export const router = createBrowserRouter([
       { path: '/nutrition/shared-meal', element: wrap(<SharedMeal />) },
       { path: '/nutrition/cart', element: <RequireAuth>{wrap(<NutCart />)}</RequireAuth> },
       { path: '/nutrition/checkout', element: <RequireAuth>{wrap(<NutCheckout />)}</RequireAuth> },
-      { path: '/nutrition/confirm', element: <RequireAuth>{wrap(<NutConfirm />)}</RequireAuth> },
     ],
   },
   {

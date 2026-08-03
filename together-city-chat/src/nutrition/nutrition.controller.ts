@@ -594,46 +594,6 @@ export class NutritionController {
     return this.nutrition.bookDietitian(user.sub, id);
   }
 
-  // Behind a removed tab: the My Orders tab was removed by the review (p26).
-  @Deprecated({
-    since: '2026-07-30', sunset: '2026-08-30',
-    replacement: '/api/nutrition/grocery',
-  })
-  @Get('orders')
-  orders(@CurrentUser() user: JwtUser) {
-    return this.nutrition.orders(user.sub);
-  }
-
-  @Post('orders')
-  // deliveryAddress is OPTIONAL here and required in the service, which is not
-  // an oversight. The service's own check says "Where should this go? Add a
-  // delivery address before paying."; Zod would say the shape was wrong. The
-  // only caller that omits it is a browser tab opened before this deployed, and
-  // the person holding it deserves the sentence rather than the schema.
-  @UsePipes(new ZodValidationPipe(z.object({
-    method: z.enum(['wallet', 'card']).optional(),
-    deliveryAddress: z.string().max(300).optional(),
-  })))
-  placeOrder(@CurrentUser() user: JwtUser, @Body() body: { method?: 'wallet' | 'card'; deliveryAddress?: string }) {
-    return this.nutrition.placeOrder(user.sub, body?.method, body?.deliveryAddress);
-  }
-
-  /** The address this citizen last had an order sent to, for the checkout to
-   *  offer back. Null before their first one — the checkout then asks. */
-  @Get('orders/last-address')
-  lastDeliveryAddress(@CurrentUser() user: JwtUser) {
-    return this.nutrition.lastDeliveryAddress(user.sub).then((deliveryAddress) => ({ deliveryAddress }));
-  }
-
-  @Post('orders/:orderId/deliveries/:deliveryId/cancel')
-  cancelDelivery(
-    @CurrentUser() user: JwtUser,
-    @Param('orderId') orderId: string,
-    @Param('deliveryId') deliveryId: string,
-  ) {
-    return this.nutrition.cancelDelivery(user.sub, orderId, deliveryId);
-  }
-
   @Post('cart')
   @UsePipes(new ZodValidationPipe(AddToCartSchema))
   addToCart(@CurrentUser() user: JwtUser, @Body() dto: AddToCartDto) {
