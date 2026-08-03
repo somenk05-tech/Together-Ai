@@ -533,10 +533,14 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .tc-actionbar, .tc-actions { gap: 8px; }
 
 .tc-logo .word { color: var(--ink); font-weight: 700; letter-spacing: -.03em; }
+/* THE MARK IS ARTWORK, NOT A KEY. It sits on the one flat surface in the
+   application, so a raised tile behind it was a button nobody can press —
+   and it boxed a logo that already has its own shape. Flat, like the bar. */
 .tc-logo .mark {
-  background: var(--face-2); box-shadow: var(--e1); border-radius: 12px;
-  display: grid; place-items: center; padding: 5px;
+  background: none; box-shadow: none; border-radius: 0; padding: 0;
+  display: grid; place-items: center;
 }
+.tc-logo .mark img { background: none; }
 .tc-burger {
   background: var(--face-key); border: 0; border-radius: var(--r-2); color: var(--ink);
   box-shadow: var(--e1-key);
