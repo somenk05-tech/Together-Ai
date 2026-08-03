@@ -92,6 +92,15 @@
   --carve:      inset 0 0 0 1px rgba(0,0,0,.075), inset 0 3px 6px rgba(0,0,0,.13), inset 0 -1px 0 rgba(255,255,255,.95), inset 3px 0 5px -3px rgba(0,0,0,.07), inset -3px 0 5px -3px rgba(0,0,0,.07);
   --carve-deep: inset 0 0 0 1px rgba(0,0,0,.09),  inset 0 4px 10px rgba(0,0,0,.18), inset 0 -1px 0 rgba(255,255,255,.95);
 
+  /* THE CASE RIM — the edge drawn OVER a photograph.
+     Not a depth: it is the inside edge of a well that happens to have an opaque
+     bitmap in it. It needs its own name because an inset box-shadow paints
+     BEHIND a replaced element, so a carved well around an <img> is invisible
+     and this has to be drawn on a ::after above it — in four separate places
+     before it had a name, each with slightly different numbers. */
+  --case-rim: inset 0 0 0 1px rgba(0,0,0,.14), inset 0 4px 12px rgba(0,0,0,.24), inset 0 -2px 8px rgba(0,0,0,.10);
+  --case-rim-soft: inset 0 0 0 1px rgba(0,0,0,.10), inset 0 3px 7px rgba(0,0,0,.22), inset 0 -1px 0 rgba(255,255,255,.28);
+
   /* Pressed — a RAISED thing pushed in. Not the same as carved: carved was
      always a hole, pressed is a key that has travelled down. */
   --press: inset 0 0 0 1px rgba(0,0,0,.10), inset 0 3px 6px rgba(0,0,0,.16), 0 1px 0 rgba(255,255,255,.9);

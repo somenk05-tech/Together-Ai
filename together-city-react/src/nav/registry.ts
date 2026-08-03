@@ -17,7 +17,9 @@ export interface Dest {
 }
 
 /** Hub → a representative icon for the palette / crumbs. */
-const HUB_ICON: Partial<Record<HubKey, IconName>> = {
+/** Exported because the hub landing plates draw the same glyph. One map, so a
+ *  hub cannot be a heart in the command palette and a star on its own page. */
+export const HUB_ICON: Partial<Record<HubKey, IconName>> = {
   travel: 'trip', astrology: 'sparkles', nutrition: 'recipe', entertainment: 'movie',
   social: 'people', dating: 'heart', realestate: 'property', jobs: 'job', medical: 'heart',
   financial: 'product', beauty: 'sparkles', fitness: 'star', mail: 'mail', family: 'people',

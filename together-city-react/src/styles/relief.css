@@ -172,10 +172,7 @@ h1, .hero-num, .stat .val, .blk-head h2 {
 .case::after {
   content: ''; position: absolute; inset: 7px; border-radius: calc(var(--r-3) - 7px);
   pointer-events: none; z-index: 2;
-  box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,.10),
-    inset 0 3px 7px rgba(0,0,0,.22),
-    inset 0 -1px 0 rgba(255,255,255,.28);
+  box-shadow: var(--case-rim-soft);
 }
 .case:hover { transform: translateY(-3px); box-shadow: var(--e2); }
 
@@ -207,12 +204,8 @@ h1, .hero-num, .stat .val, .blk-head h2 {
   /* THE RIM WAS TOO POLITE. Three pixels of shadow across the 500px edge of a
      16:10 photograph is a gradient, not an edge. The full .case gets its depth
      from the padding around the picture; these auto-cased slots have none, so
-     the rim carries all of it. */
-  box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,.16),
-    inset 0 5px 14px rgba(0,0,0,.34),
-    inset 0 -3px 10px rgba(0,0,0,.14),
-    inset 0 -1px 0 rgba(255,255,255,.24);
+     the rim carries all of it — one step deeper than --case-rim. */
+  box-shadow: var(--case-rim), inset 0 -3px 10px rgba(0,0,0,.14);
 }
 .pcard .ph { background: var(--well); }
 
@@ -704,6 +697,98 @@ img:not(:where(.no-case, .bg)), video:not(:where(.no-case, .bg)), .case-auto > i
 .pcard .ph img, .hero .bg, .poster-hero img, .cityfallback a img, .citymap .bg,
 img[src$=".svg"], .no-case {
   outline: none; box-shadow: none; background: none;
+}
+
+/* ══ THE HUB PLATE ═══════════════════════════════════════════════════════
+   One immersive picture, then a surface that tells you where you are.
+
+   TWO LAYERS AND NOTHING ELSE. The photograph is the emotional half and it is
+   given the room to be that; everything a citizen has to READ lives underneath
+   it on white, at the size the words deserve rather than the size the darkest
+   corner of somebody's photograph would allow. That is the whole reason this
+   stopped being white type on a scrim: a scrim is a tax you pay on every
+   picture so that text can survive the worst of it, and the text still loses.
+
+   THE ROOM IS THE DESIGN. The plate is the only thing on the page. If it ever
+   grows a second column, a stat strip or a row of tiles, this stops being a
+   threshold and becomes a dashboard, which is the one thing it must not be. */
+.hub-stage {
+  min-height: calc(100vh - var(--header-h));
+  display: grid; place-items: center;
+  padding: clamp(28px, 5vw, 72px) clamp(20px, 5vw, 64px) clamp(48px, 7vw, 96px);
+  background: var(--ground);
+}
+.hub-plate {
+  width: 100%; max-width: 1180px;
+  background: var(--face-tall);
+  border-radius: clamp(28px, 3vw, 44px);
+  box-shadow: var(--e3);
+  padding: clamp(14px, 1.4vw, 22px);
+  animation: hubPlateIn .5s var(--ease) both;
+}
+@media (prefers-reduced-motion: reduce) { .hub-plate { animation: none; } }
+@keyframes hubPlateIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* The picture, set into the plate. The rim is drawn here rather than by the
+   global image case, so it lands at the plate's radius instead of 1px inside
+   somebody else's. */
+.hub-plate-art { position: relative; border-radius: clamp(18px, 2.2vw, 30px); overflow: hidden; background: var(--well); }
+.hub-plate-art img {
+  display: block; width: 100%; aspect-ratio: 16 / 7; object-fit: cover;
+  border-radius: inherit;
+}
+.hub-plate-art::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: var(--case-rim);
+}
+
+.hub-plate-foot {
+  display: flex; align-items: center; gap: clamp(16px, 2vw, 26px);
+  padding: clamp(22px, 2.6vw, 36px) clamp(12px, 1.6vw, 24px) clamp(12px, 1.4vw, 18px);
+}
+.hub-plate-icon {
+  flex: 0 0 auto; width: clamp(54px, 5vw, 68px); height: clamp(54px, 5vw, 68px);
+  border-radius: clamp(15px, 1.6vw, 20px);
+  background: var(--face-2); box-shadow: var(--e1);
+  display: grid; place-items: center; color: var(--ink);
+}
+.hub-plate-said { min-width: 0; flex: 1 1 auto; }
+.hub-plate-said h1 {
+  font-size: clamp(28px, 3.6vw, 46px); font-weight: 700;
+  letter-spacing: .01em; text-transform: uppercase; line-height: 1.05; color: var(--ink);
+  text-shadow: 0 1px 0 #fff, 0 2px 1px rgba(0,0,0,.055), 0 4px 10px rgba(0,0,0,.05);
+}
+.hub-plate-said p {
+  margin-top: 8px; font-size: clamp(14px, 1.15vw, 17px); color: var(--muted); font-weight: 400;
+}
+
+/* THE ONE PLACE GLASS EARNS ITS KEEP. It sits over white here, not over a
+   photograph, so the blur is doing nothing optically — what it buys is a face
+   that is not quite the plate's, which is how the button reads as a separate
+   object rather than a shape drawn on the surface. */
+.hub-plate-cta {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 10px;
+  height: clamp(48px, 4.4vw, 58px); padding: 0 clamp(22px, 2.2vw, 32px);
+  border-radius: var(--r-full);
+  font-size: clamp(14px, 1.1vw, 16px); font-weight: 600; color: var(--ink);
+  background: rgba(255,255,255,.72);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
+  box-shadow: var(--e1);
+  transition: transform var(--dur-base) var(--spring), box-shadow var(--dur-base) var(--ease);
+}
+.hub-plate-cta:hover { transform: translateY(-2px); box-shadow: var(--e2); color: var(--ink); }
+.hub-plate-cta:active { transform: translateY(1px); background: var(--well); box-shadow: var(--press); }
+.hub-plate-cta:focus-visible { outline: none; box-shadow: var(--e1), 0 0 0 3px rgba(0,0,0,.14); }
+
+/* Stacked, and the button goes full width — a 58px pill floating alone on the
+   right of a phone is a target nobody can reach with a thumb. */
+@media (max-width: 720px) {
+  .hub-plate-foot { flex-wrap: wrap; }
+  .hub-plate-said { flex-basis: calc(100% - 80px); }
+  .hub-plate-cta { flex: 1 1 100%; justify-content: center; margin-top: 6px; }
+  .hub-plate-art img { aspect-ratio: 4 / 3; }
 }
 
 /* ══ MOTION ══════════════════════════════════════════════════════════════

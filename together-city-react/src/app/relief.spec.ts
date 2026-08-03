@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -111,7 +111,7 @@ describe('Relief stays a system', () => {
     // shadow beginning `var(--rim), 0 2px 4px …` passed unread — which is
     // exactly how three bespoke header shadows got in. It is no longer enough
     // on its own.
-    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok)\)/;
+    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft)\)/;
     // A photograph, a filled black button and a text emboss are not surfaces —
     // they are ink and images, and they carry their own light.
     const ALLOWED = /(text-shadow|drop-shadow|\.hero|\.btn-accent|\.btn-gold|\.btn-primary|\.ask-cta|\.step\.|\.mincal|\.tag\.dark|\.knob|outline|inset 0 1px 0|no-case|img:not|video:not|\.case)/;
@@ -294,6 +294,30 @@ describe('Relief stays a system', () => {
       }
     }
     expect([...new Set(offenders)]).toEqual([]);
+  });
+
+  /**
+   * EVERY HUB LANDING HAS A PICTURE THAT EXISTS.
+   *
+   * HUB_HERO is a Partial map with a `${hub}.webp` fallback, so a hub missing
+   * from it does not fail — it points at a filename nobody ever created and
+   * renders an empty frame. /mail did exactly that, and nothing anywhere said
+   * so: not the typecheck, not a test, not an audit. The picture IS the hub
+   * landing; half of that page is the photograph.
+   */
+  it('gives every hub landing a hero file that is actually on disk', () => {
+    const page = read('src/pages/HubLanding.tsx');
+    const routed = [...new Set([...read('src/app/router.tsx')
+      .matchAll(/HubLanding hub="([a-z]+)"/g)].map((m) => m[1]))];
+    expect(routed.length).toBeGreaterThan(10);
+    const map = Object.fromEntries(
+      [...page.matchAll(/^\s*([a-z]+):\s*'([^']+\.webp)'/gm)].map((m) => [m[1], m[2]]),
+    );
+    const missing = routed
+      .map((h) => [h, map[h] ?? `${h}.webp`] as const)
+      .filter(([, file]) => !existsSync(join(APP, 'public/assets/img', file)))
+      .map(([h, file]) => `${h} → ${file}`);
+    expect(missing).toEqual([]);
   });
 
   /**

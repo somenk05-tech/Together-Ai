@@ -3,8 +3,9 @@ import { Link, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 import type { HubKey } from '@/types';
 import { HUBS } from '@/config/hubs';
+import { HUB_ICON } from '@/nav/registry';
 import { useHubTheme } from '@/hooks/useHubTheme';
-import { Button } from '@/components/ui';
+import { Icon } from '@/components/ui/Icon';
 import { HubConsentGate } from '@/features/privacy/HubConsentGate';
 
 /**
@@ -25,11 +26,31 @@ const HUB_HERO: Partial<Record<HubKey, string>> = {
   financial: 'financial-district.webp',
   beauty: 'beautymarket.webp',
   fitness: 'fitness-hero.webp',
+  // Mail has no commissioned hero of its own, and the fallback below resolved
+  // to mail.webp — a file that has never existed, so /mail rendered an empty
+  // frame. Correspondence is people you are in touch with, and this is the
+  // nearest thing in the library; it is a stand-in, not the right picture, and
+  // it should be replaced when Mail gets art of its own.
+  mail: 'connections-hero.webp',
 };
 
 /**
  * One component that renders every hub's landing page from config — the vanilla
  * site had 12 near-identical hub homepages; here it's a single data-driven page.
+ *
+ * ── THE PHOTOGRAPH STOPPED BEING THE BACKGROUND ──
+ *
+ * It used to be full-bleed, with the hub's name, its line and its button set in
+ * white on top of a dark scrim. That worked when the whole application was warm
+ * paper and gold; on a white one it was the only screen where a citizen read
+ * light type over a picture, and the scrim existed purely to make somebody
+ * else's photograph safe to write on.
+ *
+ * Now the picture is a picture. It sits in a case at the top of a plate, and
+ * everything that has to be READ sits below it on white, at the size and weight
+ * it deserves rather than the size the darkest part of the image allowed. The
+ * hierarchy is the same — image first, words second — but nothing is competing
+ * for the same pixels.
  */
 export function HubLanding({ hub }: { hub: HubKey }) {
   useHubTheme(hub);
@@ -55,17 +76,27 @@ export function HubLanding({ hub }: { hub: HubKey }) {
   }
   return (
     <HubConsentGate hub={hub}>
-    <div className="gateway-lite" style={{ position: 'relative', minHeight: 'calc(100vh - var(--header-h))', display: 'flex', alignItems: 'flex-end', color: 'var(--on-accent)', overflow: 'hidden' }}>
-      <img className="bg" src={heroSrc} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(8,9,8,.82),rgba(8,9,8,.2))' }} />
-      <div style={{ position: 'relative', zIndex: 2, padding: '0 64px 72px', maxWidth: 900 }}>
-        <div className="eyebrow" style={{ color: 'var(--gold-bright)' }}>{cfg.name}</div>
-        <h1 style={{ color: 'var(--on-accent)', fontSize: 'clamp(30px,4vw,52px)', maxWidth: '16ch', textShadow: '0 2px 24px rgba(0,0,0,.45)' }}>{cfg.tag}</h1>
-        <div style={{ marginTop: 28 }}>
-          <Link to={firstInner}><Button variant="gold">Explore now</Button></Link>
-        </div>
+      <div className="hub-stage">
+        <article className="hub-plate">
+          {/* `.no-case` because the plate draws the rim itself, at the radius the
+              plate uses. The global image case would draw a second one 1px in. */}
+          <div className="hub-plate-art">
+            <img className="no-case" src={heroSrc} alt="" />
+          </div>
+          <div className="hub-plate-foot">
+            <span className="hub-plate-icon" aria-hidden>
+              <Icon name={HUB_ICON[hub] ?? 'place'} size={30} strokeWidth={2} />
+            </span>
+            <div className="hub-plate-said">
+              <h1>{cfg.name}</h1>
+              <p>{cfg.tag}</p>
+            </div>
+            <Link to={firstInner} className="hub-plate-cta">
+              Explore now<span aria-hidden> →</span>
+            </Link>
+          </div>
+        </article>
       </div>
-    </div>
     </HubConsentGate>
   );
 }
