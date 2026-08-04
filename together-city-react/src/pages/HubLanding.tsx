@@ -11,8 +11,10 @@ import { HubConsentGate } from '@/features/privacy/HubConsentGate';
 /**
  * Hub → hero image, matching the vanilla website's hub landings 1:1
  * (assets/img filenames taken from the original *.html hub pages).
+ * Exported: the mobile Hubs grid (pages/Hubs.tsx) draws the same pictures —
+ * one art list, not two that drift.
  */
-const HUB_HERO: Partial<Record<HubKey, string>> = {
+export const HUB_HERO: Partial<Record<HubKey, string>> = {
   travel: 'travel-hub.webp',
   restaurants: 'resturants.webp',
   astrology: 'astrology-hub.webp',

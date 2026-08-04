@@ -86,6 +86,7 @@ const BeautyRoutine = lazy(() => import('@/features/beauty/pages/Routine').then(
 // Social sub-pages
 const SocCreate = lazy(() => import('@/features/social/pages/CreatePost').then((m) => ({ default: m.CreatePost })));
 const SocNotifications = lazy(() => import('@/features/social/pages/Notifications').then((m) => ({ default: m.SocialNotifications })));
+const HubsPage = lazy(() => import('@/pages/Hubs').then((m) => ({ default: m.Hubs })));
 const SocProfile = lazy(() => import('@/features/social/pages/Profile').then((m) => ({ default: m.SocialProfile })));
 const SocPublicProfile = lazy(() => import('@/features/social/pages/Profile').then((m) => ({ default: m.PublicProfilePage })));
 const SocSaved = lazy(() => import('@/features/social/pages/Saved').then((m) => ({ default: m.SocialSaved })));
@@ -187,6 +188,10 @@ export const router = createBrowserRouter([
       { path: '/contact', element: wrap(<Info slug="contact" />) },
       { path: '/calendar', element: <RequireAuth>{wrap(<Calendar />)}</RequireAuth> },
       { path: '/chats', element: <RequireAuth>{wrap(<Chats />)}</RequireAuth> },
+      // The mobile bottom bar's doors: the whole city on one screen, and the
+      // bell as a full page (the header dropdown does not exist on a phone).
+      { path: '/hubs', element: <RequireAuth>{wrap(<HubsPage />)}</RequireAuth> },
+      { path: '/alerts', element: <RequireAuth>{wrap(<SocNotifications />)}</RequireAuth> },
       { path: '/connections', element: <RequireAuth>{wrap(<Connections />)}</RequireAuth> },
       { path: '/dashboard', element: <Dashboard /> },
     ],

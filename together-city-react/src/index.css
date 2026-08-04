@@ -285,3 +285,14 @@ table.tc td b { color: var(--ink); }
 @keyframes tc-caret-blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
 .tc-caret { display:block; animation: tc-caret-blink 1s step-end infinite; }
 @media (prefers-reduced-motion: reduce) { .tc-caret { animation: none; } }
+
+/* ============ mobile hub chip rail (mobile shell, phase 1) ============ */
+.hub-chips { display: none; }
+@media (max-width: 899px) {
+  .hub-chips {
+    display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: 4px 16px 10px; scrollbar-width: none;
+  }
+  .hub-chips::-webkit-scrollbar { display: none; }
+  .hub-chips .chip { flex: 0 0 auto; white-space: nowrap; }
+}
