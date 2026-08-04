@@ -46,9 +46,20 @@ export interface ProviderResult {
   error?: string;
 }
 
+/** The parts of a received email that the webhook does not carry. */
+export interface ReceivedBody { text: string; html: string | null; subject: string }
+
 export interface MessagingProvider {
   readonly name: string;
   send(msg: OutboundMessage): Promise<ProviderResult>;
+  /**
+   * Fetch a received email's BODY by the provider's id.
+   *
+   * Optional because it is meaningless for a provider that cannot receive — the
+   * stub has nothing to fetch from. Callers must handle its absence rather than
+   * assume the configured provider can do this.
+   */
+  fetchReceived?(id: string): Promise<ReceivedBody | null>;
 }
 
 /**
@@ -158,6 +169,31 @@ export class ResendEmailProvider implements MessagingProvider {
       // eslint-disable-next-line no-console
       console.warn(`[messaging:resend] EMAIL_FROM was missing its closing ">" and has been repaired to ${JSON.stringify(verdict.value)}. Fix the variable — this repair is a safety net, not the intended configuration.`);
       this.from = verdict.value as string;
+    }
+  }
+
+  /**
+   * Pull a received email's body from Resend.
+   *
+   * The `email.received` webhook is metadata only — from, to, subject, an id,
+   * and attachment descriptions. The text and html live behind this call, so a
+   * reply cannot be filed without it. Returns null rather than throwing: a
+   * webhook must not 500 because one fetch failed, and the caller says so in
+   * the message it writes instead of leaving a blank one.
+   */
+  async fetchReceived(id: string): Promise<ReceivedBody | null> {
+    try {
+      const { data, error } = await this.client.emails.receiving.get(id);
+      if (error || !data) {
+        // eslint-disable-next-line no-console
+        console.error(`[messaging:resend] receiving.get(${id}) failed — ${error?.message ?? 'no data returned'}`);
+        return null;
+      }
+      return { text: data.text ?? '', html: data.html ?? null, subject: data.subject ?? '' };
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(`[messaging:resend] receiving.get(${id}) threw — ${(e as Error).message}`);
+      return null;
     }
   }
 

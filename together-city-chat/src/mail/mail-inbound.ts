@@ -66,6 +66,18 @@ export interface InboundMail {
   text: string;
   html?: string;
   providerMessageId?: string;
+  /**
+   * Resend's own id for the received email — `data.email_id` on the
+   * `email.received` event.
+   *
+   * THE WEBHOOK DOES NOT CARRY THE BODY. Resend's docs are explicit: "Webhooks
+   * do not include the email body, headers, or attachments, only their
+   * metadata." The payload has from, to, subject and this id, and no text or
+   * html at all — so parsing alone would file every reply with the right sender
+   * and subject and nothing inside it, which looks like the feature working.
+   * MailService uses this id to fetch the body before writing the row.
+   */
+  emailId?: string;
 }
 
 /**
@@ -95,5 +107,7 @@ export function normalizeInbound(payload: unknown): InboundMail | null {
     text: typeof d.text === 'string' ? d.text : typeof d.plain === 'string' ? d.plain : '',
     html: typeof d.html === 'string' ? d.html : undefined,
     providerMessageId: String(idRaw) || undefined,
+    emailId: typeof d.email_id === 'string' ? d.email_id
+      : typeof d.emailId === 'string' ? d.emailId : undefined,
   };
 }

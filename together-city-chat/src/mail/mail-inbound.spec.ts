@@ -66,6 +66,53 @@ describe('normalizeInbound — a reply is parsed to route to the right citizen',
   });
 });
 
+describe('normalizeInbound — the body is NOT in the webhook', () => {
+  /**
+   * Resend's own payload for email.received, field for field: from, to,
+   * subject, message_id, email_id, attachment METADATA — and no text, no html.
+   * "Webhooks do not include the email body, headers, or attachments, only
+   * their metadata."
+   */
+  const REAL_PAYLOAD = {
+    type: 'email.received',
+    data: {
+      email_id: '5e4d5e4d-5e4d-5e4d-5e4d-5e4d5e4d5e4d',
+      created_at: '2026-08-04T10:40:00.000Z',
+      from: 'somenk05@gmail.com',
+      to: ['somen2@togethercity.app'],
+      bcc: [], cc: [], received_for: [],
+      message_id: '<CAF=abc@mail.gmail.com>',
+      subject: 'Re: hi',
+      attachments: [],
+    },
+  };
+
+  it('routes correctly and carries the id the body must be fetched with', () => {
+    const out = normalizeInbound(REAL_PAYLOAD);
+    expect(out?.to).toEqual(['somen2@togethercity.app']);
+    expect(out?.from.addr).toBe('somenk05@gmail.com');
+    expect(out?.subject).toBe('Re: hi');
+    expect(out?.emailId).toBe('5e4d5e4d-5e4d-5e4d-5e4d-5e4d5e4d5e4d');
+  });
+
+  it('has no body to read, which is the whole point', () => {
+    const out = normalizeInbound(REAL_PAYLOAD);
+    // If this ever starts passing with a body, Resend changed the contract and
+    // the fetch in MailService.inboundBody can be reconsidered. Until then, a
+    // parser that trusts data.text files empty mail.
+    expect(out?.text).toBe('');
+    expect(out?.html).toBeUndefined();
+  });
+
+  it('still honours a payload that DOES carry text', () => {
+    // A different provider, or a replayed fixture, should not need a network
+    // round trip to be filed.
+    const out = normalizeInbound({ to: 'a@togethercity.app', from: 'b@x.com', text: 'inline body' });
+    expect(out?.text).toBe('inline body');
+    expect(out?.emailId).toBeUndefined();
+  });
+});
+
 describe('timingSafeEqualStr', () => {
   it('true for equal secrets', () => {
     expect(timingSafeEqualStr('s3cret', 's3cret')).toBe(true);

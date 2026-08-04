@@ -27,7 +27,7 @@ import {
   MAIL_DOMAIN, CITY_DOMAINS, QUOTA_BYTES, addressFor, handleFromAddress, snippetOf, sizeOf, welcomeMail, humanBytes,
 } from './mail.constants';
 import { createMessagingProvider, messagingConfigured, type Channel } from './messaging-provider';
-import { cityFromHeader, normalizeInbound } from './mail-inbound';
+import { cityFromHeader, normalizeInbound, type InboundMail } from './mail-inbound';
 import type { FlagDto, FolderQueryDto, SendMailDto } from './dto/mail.dto';
 
 @Injectable()
@@ -534,7 +534,7 @@ export class MailService {
       await this.ensureAccount(user.id);
 
       const subject = (mail.subject || '(no subject)').slice(0, 200);
-      const body = (mail.text || mail.html?.replace(/<[^>]*>/g, ' ') || '').slice(0, 50000);
+      const body = (await this.inboundBody(mail)).slice(0, 50000);
       const size = sizeOf(subject, body);
 
       // An inbound message a citizen has no room for is dropped rather than
@@ -559,6 +559,47 @@ export class MailService {
       delivered++;
     }
     return { ok: true, delivered };
+  }
+
+  /**
+   * The text of an inbound message — fetched, not read off the webhook.
+   *
+   * Resend's `email.received` payload is metadata: from, to, subject, an id,
+   * attachment descriptions. "Webhooks do not include the email body, headers,
+   * or attachments, only their metadata." A parser that reads `data.text` gets
+   * nothing, every reply is filed with the right sender and subject and an
+   * empty body, and the feature looks like it works. So the body comes from
+   * emails.receiving.get(email_id).
+   *
+   * A payload that DOES carry text is still honoured first — a different
+   * provider, or a replay from a fixture, should not need a network round trip
+   * to be filed.
+   *
+   * WHEN THE FETCH FAILS THE MESSAGE STILL ARRIVES, AND SAYS SO. Dropping it
+   * loses a reply the citizen was sent and never learns about; filing it blank
+   * is the quiet wrong answer this whole method exists to avoid. The mail
+   * postmortem's rule — the failure path is louder than the success path —
+   * settles it: file the message, say the body could not be retrieved, and log
+   * an error a human can act on.
+   */
+  private async inboundBody(mail: InboundMail): Promise<string> {
+    const inline = mail.text || (mail.html ? mail.html.replace(/<[^>]*>/g, ' ') : '');
+    if (inline.trim()) return inline;
+    if (!mail.emailId) return inline;
+
+    const provider = createMessagingProvider('email');
+    if (!provider.fetchReceived) {
+      this.logger.warn(`inbound mail: ${provider.name} cannot fetch a received body`);
+      return inline;
+    }
+    const fetched = await provider.fetchReceived(mail.emailId);
+    if (fetched) {
+      const text = fetched.text || (fetched.html ? fetched.html.replace(/<[^>]*>/g, ' ') : '');
+      if (text.trim()) return text;
+    }
+    this.logger.error(`inbound mail: could not retrieve the body of ${mail.emailId} — filing the message without it`);
+    return '(This message arrived but its contents could not be retrieved. '
+      + 'Reply to the sender directly, or ask an administrator to check the mail provider.)';
   }
 
   /** Reuse an existing trail when this citizen already corresponds with this
