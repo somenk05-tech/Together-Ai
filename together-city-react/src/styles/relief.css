@@ -960,7 +960,7 @@ img[src$=".svg"], .no-case {
 .g-key.sm { height: 38px; padding: 0 16px; font-size: 12.5px; }
 .g-key.lg { height: 54px; padding: 0 30px; font-size: 15.5px; }
 .g-key:not(:disabled):hover { transform: translateY(-1.5px); }
-.g-key.on { background: var(--lamp-face); box-shadow: var(--lamp); color: var(--on-accent); font-weight: 700; }
+.g-key.on { background: var(--key-lit-face); box-shadow: var(--key-lit); color: var(--on-accent); font-weight: 700; }
 .g-key.on:hover { transform: none; }
 /* Chosen, not primary. A form with two lit keys has no primary — the tray says
    where you are, the pip says what you picked, and only one may be a lamp. */
@@ -970,7 +970,7 @@ img[src$=".svg"], .no-case {
 }
 .g-key.picked::before {
   content: ''; width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto;
-  background: var(--lamp-face); box-shadow: var(--lamp-pip);
+  background: var(--key-lit-face); box-shadow: var(--key-lit-pip);
 }
 .g-key:disabled {
   background: var(--glass-well); box-shadow: var(--glass-in);

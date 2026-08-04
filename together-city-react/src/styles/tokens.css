@@ -211,18 +211,40 @@
      gradient stays bright, because that is above the words and is what sells
      the glass. Wanting the exact reference hue means a dark label, not a white
      one; it cannot be both. */
-  --lamp-face: linear-gradient(180deg, #5b9bff 0%, #2563eb 46%, #1a4fc0 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.56),
-          inset 0 0 0 4px rgba(168,201,255,.30),
-          inset 0 8px 12px -8px rgba(10,38,100,.48),
-          inset 0 -10px 14px -7px rgba(200,222,255,.66),
-          0 1px 1px rgba(20,60,150,.22), 0 8px 20px rgba(37,99,235,.40), 0 20px 46px rgba(37,99,235,.26);
+  --lamp-face: linear-gradient(180deg, #ef7a3a 0%, #c94c18 46%, #a83a10 100%);
+  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50),
+          inset 0 0 0 4px rgba(255,190,140,.26),
+          inset 0 8px 12px -8px rgba(105,35,8,.45),
+          inset 0 -10px 14px -7px rgba(255,215,175,.60),
+          0 1px 1px rgba(150,55,20,.20), 0 8px 20px rgba(201,76,24,.34), 0 20px 46px rgba(201,76,24,.22);
   --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.45),
-                inset 0 -3px 6px rgba(12,42,105,.32);
-  /* The lamp reduced to a pip, for a choice inside a form. A form with two lit
-     keys has no primary — the tray tells you where you ARE, the pip tells you
-     what you PICKED, and only one of them is allowed to be a lamp. */
-  --lamp-pip: 0 0 0 2px rgba(37,99,235,.16), 0 0 8px rgba(37,99,235,.55);
+                inset 0 -3px 6px rgba(120,40,10,.30);
+
+  /* ══ THE LIT KEY — SOCIAL LIFE'S GROUND GLASS ════════════════════════════
+     A SECOND lit colour, and the reason there are two rather than one.
+
+     The lamp is the CITY's: the key you are on in a hub rail, orange, in all
+     twenty-five hubs. It went blue for a while because Social Life's glass keys
+     and the sidebar read the same token, and moving one moved the other. They
+     are not the same thing — the rail says which room you are in, the glass key
+     says which filter you are looking through — so they get their own tokens
+     and can differ without one dragging the other.
+
+     THE BODY IS #2563EB, NOT THE REFERENCE #3B82F6. White on the reference blue
+     measures 3.68:1 and these labels are 14px semibold — small text, which needs
+     4.5. #2563eb measures 5.17. The top of the gradient stays bright, because
+     that is above the words and is what sells the glass; only the part behind
+     the text is deepened. */
+  --key-lit-face: linear-gradient(180deg, #5b9bff 0%, #2563eb 46%, #1a4fc0 100%);
+  --key-lit: inset 0 0 0 1.5px rgba(255,255,255,.56),
+             inset 0 0 0 4px rgba(168,201,255,.30),
+             inset 0 8px 12px -8px rgba(10,38,100,.48),
+             inset 0 -10px 14px -7px rgba(200,222,255,.66),
+             0 1px 1px rgba(20,60,150,.22), 0 8px 20px rgba(37,99,235,.40), 0 20px 46px rgba(37,99,235,.26);
+  /* The lit key reduced to a pip, for a choice inside a form. A form with two
+     lit keys has no primary — the tray tells you where you ARE, the pip tells
+     you what you PICKED, and only one of them may be lit. */
+  --key-lit-pip: 0 0 0 2px rgba(37,99,235,.16), 0 0 8px rgba(37,99,235,.55);
 
   /* Legacy names. Several hundred call sites read --shadow and --shadow-deep;
      renaming them would put a 300-file rename inside a commit about materials. */
