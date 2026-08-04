@@ -30,6 +30,12 @@ import { createMessagingProvider, messagingConfigured, type Channel } from './me
 import { cityFromHeader, normalizeInbound, type InboundMail } from './mail-inbound';
 import type { FlagDto, FolderQueryDto, SendMailDto } from './dto/mail.dto';
 
+/** What a citizen reads when the body could not be retrieved. One sentence, and
+ *  never an empty message — a blank arrival is indistinguishable from a blank
+ *  email, and only one of those is a bug worth reporting. */
+const UNRETRIEVABLE = '(This message arrived but its contents could not be retrieved. '
+  + 'Reply to the sender directly, or ask an administrator to check the mail provider.)';
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger('Mail');
@@ -585,12 +591,19 @@ export class MailService {
   private async inboundBody(mail: InboundMail): Promise<string> {
     const inline = mail.text || (mail.html ? mail.html.replace(/<[^>]*>/g, ' ') : '');
     if (inline.trim()) return inline;
-    if (!mail.emailId) return inline;
 
+    // NO BODY AND NO ID IS STILL A BLANK MESSAGE. Both of the next two branches
+    // used to `return inline` — an empty string — which files exactly the silent
+    // blank this method exists to prevent, and says nothing about it anywhere.
+    // Every route out of here now either has text or admits it does not.
+    if (!mail.emailId) {
+      this.logger.error('inbound mail: no body in the payload and no email_id to fetch one with');
+      return UNRETRIEVABLE;
+    }
     const provider = createMessagingProvider('email');
     if (!provider.fetchReceived) {
-      this.logger.warn(`inbound mail: ${provider.name} cannot fetch a received body`);
-      return inline;
+      this.logger.error(`inbound mail: ${provider.name} cannot fetch a received body`);
+      return UNRETRIEVABLE;
     }
     const fetched = await provider.fetchReceived(mail.emailId);
     if (fetched) {
@@ -598,8 +611,7 @@ export class MailService {
       if (text.trim()) return text;
     }
     this.logger.error(`inbound mail: could not retrieve the body of ${mail.emailId} — filing the message without it`);
-    return '(This message arrived but its contents could not be retrieved. '
-      + 'Reply to the sender directly, or ask an administrator to check the mail provider.)';
+    return UNRETRIEVABLE;
   }
 
   /** Reuse an existing trail when this citizen already corresponds with this
