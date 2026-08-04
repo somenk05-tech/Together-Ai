@@ -181,14 +181,37 @@ export function useFoodPref() {
   return useQuery({ queryKey: ['nutrition', 'preferences'], queryFn: () => nutritionApi.preferences() });
 }
 
+/**
+ * THE FOOD PREFERENCE PROFILE IS THE SOURCE OF TRUTH FOR THE WHOLE HUB.
+ *
+ * This used to invalidate three keys: targets, weekly, profile. It did NOT
+ * invalidate `['nutrition','composed']` — the plan the Weekly Meal Planner
+ * actually renders — or `['nutrition','grocery-plan']`, the list that shops it.
+ * `weekly` is the older stored plan; the planner moved to the composed one and
+ * this never followed.
+ *
+ * So a citizen could change their diet from non-vegetarian to vegetarian, see
+ * "Preferences saved successfully", walk back to the planner and be served the
+ * same chicken — until the cache happened to expire or they hard-refreshed.
+ * Not a stale figure: the plan contradicting the profile it claims to be built
+ * from, which is the one thing this hub may never do.
+ *
+ * The fix is the prefix, and the prefix is the point. Every query under
+ * `nutrition` is downstream of this profile — targets, macros, the composed
+ * week, the family week, portions, groceries, quantities, the cart, medical
+ * recommendations, saved recipes, the day summary. Naming them individually is
+ * how the list went stale the first time: the next feature adds a key and
+ * nobody remembers to come back here. There is no key it would be correct to
+ * leave out.
+ */
 export function useUpdateFoodPref() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: Parameters<typeof nutritionApi.updatePreferences>[0]) => nutritionApi.updatePreferences(input),
     onSuccess: (pref) => {
       qc.setQueryData(['nutrition', 'preferences'], pref);
-      void qc.invalidateQueries({ queryKey: ['nutrition', 'targets'] });
-      void qc.invalidateQueries({ queryKey: ['nutrition', 'weekly'] });
+      // Everything the profile decides, which is everything in this hub.
+      void qc.invalidateQueries({ queryKey: ['nutrition'] });
       void qc.invalidateQueries({ queryKey: ['profile'] });
     },
   });

@@ -377,7 +377,7 @@ function DayView({ wk, d, dayIndex, date, readOnly }: { wk: ComposedWeek; d: Com
   // goals, cuisine and history, and this page's only job is to survive the
   // range of what that returns.
   return (
-    <div data-press className="press-sheet">
+    <div className="press-sheet">
 
       <header className="press-hero">
         <div className="press-hero-row">
@@ -691,7 +691,7 @@ export function MealPlan() {
   const d = wk.days[day];
 
   return (
-    <div style={{ maxWidth: 1240, margin: '0 auto', padding: '20px 16px 60px' }}>
+    <div data-press className="press-page" style={{ maxWidth: 1240, margin: '0 auto', padding: '20px 16px 60px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div className="eyebrow">Nutrition · Meal Plan</div>

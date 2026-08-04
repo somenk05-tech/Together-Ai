@@ -1161,3 +1161,61 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .press-acts { justify-content: flex-start; padding-top: 0; border-bottom: 0; }
   .press-dish > .press-name-cell { padding-bottom: 8px; border-bottom: 0; }
 }
+
+/* ══ THE MASTHEAD, ON THE SAME PAPER ═════════════════════════════════════
+   The press used to start at the menu, which left a white masthead sitting on
+   an ivory day — two pages stapled together. The paper now runs the length of
+   the screen, so everything above the menu has to be re-skinned to sit on it.
+
+   THIS IS A RE-SKIN, NOT A REBUILD. Every control up there keeps its markup and
+   its behaviour: the mode toggle, the scorecard, the plan banner, the day strip,
+   the lock bar, Meal settings. They are Relief components being handed printed
+   material for the length of one page. `.press-page` never leaves MealPlan. */
+[data-press].press-page { padding-top: 34px; }
+[data-press] .eyebrow { color: var(--press-ink-3); }
+[data-press] h1 { font-family: var(--press-serif); font-weight: 400; letter-spacing: -.018em; }
+[data-press] .muted { color: var(--press-ink-2); }
+
+/* A card on paper is a ruled block, not a raised one — shadow is the material
+   this page traded away. */
+[data-press] .card,
+[data-press] .blk {
+  background: transparent; box-shadow: none;
+  border: 1px solid var(--press-rule); border-radius: 4px;
+}
+[data-press] .card { padding: 20px 22px; }
+
+/* Keys keep their shape and lose their lift. The one you are on is filled with
+   the ink, because on paper that is the only emphasis there is. */
+[data-press] .pill, [data-press] .chip, [data-press] .btn, [data-press] .tag {
+  background: transparent; box-shadow: none; border: 1px solid var(--press-rule);
+  color: var(--press-ink); border-radius: var(--r-full); transition: none;
+}
+[data-press] .pill:hover, [data-press] .chip:hover,
+[data-press] .btn:not(:disabled):hover { transform: none; border-color: var(--press-ink-3); }
+[data-press] .pill.on, [data-press] .chip.on,
+[data-press] .pill[aria-pressed="true"], [data-press] .chip[aria-pressed="true"] {
+  background: var(--press-ink); color: var(--press-paper); border-color: var(--press-ink); font-weight: 600;
+}
+[data-press] .btn-accent, [data-press] .btn-primary, [data-press] .btn-gold {
+  background: var(--press-green); color: var(--press-paper); border-color: var(--press-green);
+  box-shadow: none;
+}
+[data-press] .btn-line { background: transparent; }
+[data-press] .btn:disabled { opacity: .45; }
+
+/* Fields and wells flatten to a ruled box. */
+[data-press] input, [data-press] select, [data-press] textarea {
+  background: transparent; box-shadow: none;
+  border: 1px solid var(--press-rule); border-radius: 4px; color: var(--press-ink);
+}
+
+/* The day strip: a row of dates on a rule, with today underlined rather than
+   filled — a filled tab on paper looks like a redaction. */
+[data-press] .tc-daystrip, [data-press] .tc-daystrip > * { background: transparent; box-shadow: none; }
+
+/* Nothing on this page casts a shadow. This is the sweep, and it is last so it
+   wins: any Relief surface that wanders in gets flattened rather than sitting
+   on the paper like a sticker. */
+[data-press] *:not(svg):not(path):not(circle):not(rect):not(text) { text-shadow: none; }
+[data-press] .press-sheet, [data-press] .press-sheet * { box-shadow: none; }
