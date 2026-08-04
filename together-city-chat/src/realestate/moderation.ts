@@ -6,7 +6,10 @@
 
 export type CheckSeverity = 'hard' | 'soft';
 export interface Check { name: string; pass: boolean; severity: CheckSeverity; detail: string }
-export type Decision = 'approved' | 'rejected' | 'review';
+// 'removed' is not something the pipeline ever decides — it is the seller
+// closing their own listing (sold / rented / withdrawn). It lives in the same
+// column because it is the same question: may Explore show this row?
+export type Decision = 'approved' | 'rejected' | 'review' | 'removed';
 
 export interface ModerationResult {
   decision: Decision;

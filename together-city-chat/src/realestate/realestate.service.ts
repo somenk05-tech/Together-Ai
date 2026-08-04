@@ -244,6 +244,73 @@ export class RealEstateService implements OnModuleInit {
     return { ...detail, moderation: result.decision, moderationResult: result, notice: this.noticeFor(result) };
   }
 
+  /** The listing, if and only if it is this citizen's. 404 otherwise — a
+   *  non-owner must not be able to tell somebody else's id from a typo. */
+  private async assertOwn(id: string, userId: string): Promise<PropRow> {
+    const p = await this.prisma.property.findUnique({ where: { id } }) as PropRow | null;
+    if (!p || p.sellerId !== userId) throw new NotFoundException('property not found');
+    return p;
+  }
+
+  /**
+   * Edit a listing (owner only). The edited content goes back through the
+   * same moderation pipeline as a new listing — an edit is a new claim to the
+   * marketplace, and "approved" describes the words that were approved, not
+   * the row. A clean edit is live again immediately; a dirty one reads its
+   * reasons in My Listings exactly like a fresh submission.
+   *
+   * This is also how a closed listing comes back: edit and save relists it
+   * (through moderation), so "closed" is never a dead end.
+   */
+  async update(userId: string, id: string, dto: PostPropertyDto) {
+    await this.assertOwn(id, userId);
+    const p = await this.prisma.property.update({
+      where: { id },
+      data: {
+        listingType: dto.listingType, propertyType: dto.propertyType, status: dto.status,
+        title: dto.title, city: dto.city, locality: dto.locality, priceInr: dto.priceInr, areaSqft: dto.areaSqft,
+        bedrooms: dto.bedrooms, bathrooms: dto.bathrooms, furnishing: dto.furnishing ?? null,
+        floor: dto.floor ?? null, totalFloors: dto.totalFloors ?? null, facing: dto.facing ?? null,
+        amenities: dto.amenities.join(','), description: dto.description ?? null,
+        photosJson: JSON.stringify(dto.photos),
+        projectName: dto.projectName ?? null, developer: dto.developer ?? null, reraId: dto.reraId ?? null,
+        possessionDate: dto.possessionDate ?? null, progressPct: dto.progressPct ?? null,
+        floorPlansJson: dto.floorPlans ? JSON.stringify(dto.floorPlans) : null,
+        milestonesJson: dto.milestones ? JSON.stringify(dto.milestones) : null,
+      },
+    }) as PropRow;
+
+    const result = await this.moderate(userId, p, dto);
+    await this.prisma.property.update({
+      where: { id },
+      data: { moderation: result.decision, moderationJson: JSON.stringify(result) },
+    });
+    await this.logModeration(id, 'system', result.decision, `edit: ${result.reasons.join(' · ')}`);
+
+    const detail = await this.shapeDetail({ ...p, moderation: result.decision, moderationJson: JSON.stringify(result) }, userId);
+    return { ...detail, moderation: result.decision, moderationResult: result, notice: this.noticeFor(result) };
+  }
+
+  /**
+   * Close a listing (owner only): sold, rented, or simply no longer offered.
+   * The row stays — it is the seller's history and the moderation log's
+   * anchor — but `moderation: 'removed'` takes it out of Explore and detail
+   * for everyone but the seller (detail() already treats non-approved as
+   * not-found for strangers). Editing it later relists it through moderation.
+   */
+  async close(userId: string, id: string) {
+    const p = await this.assertOwn(id, userId);
+    const prev = parse<ModerationResult | null>(p.moderationJson ?? null, null);
+    const next: ModerationResult = {
+      decision: 'removed',
+      confidence: 1, score: prev?.score ?? 0, checks: prev?.checks ?? [],
+      reasons: ['Closed by you. Edit & save to relist it.'], decidedAt: new Date().toISOString(),
+    };
+    await this.prisma.property.update({ where: { id }, data: { moderation: 'removed', moderationJson: JSON.stringify(next) } });
+    await this.logModeration(id, userId, 'removed', 'closed by seller');
+    return { id, moderation: 'removed' as const };
+  }
+
   private noticeFor(r: ModerationResult): string {
     if (r.decision === 'approved') return 'Your property is now live in Explore Properties.';
     if (r.decision === 'review') return 'Thanks — your listing is in manual review. We’ll notify you shortly.';

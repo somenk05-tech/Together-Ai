@@ -288,7 +288,12 @@ export function PropertyDetail() {
           {connectErr && <div style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600, marginTop: 4 }}>{connectErr}</div>}
         </div>
         {p.postedByYou
-          ? <Link to="/realestate/mine"><Button variant="accent" size="sm">My Listings</Button></Link>
+          ? (
+            <span style={{ display: 'flex', gap: 8 }}>
+              <Link to={`/realestate/edit/${p.id}`}><Button variant="accent" size="sm">✎ Edit listing</Button></Link>
+              <Link to="/realestate/mine"><Button variant="line" size="sm">My Listings</Button></Link>
+            </span>
+          )
           : p.verified.listedBy === 'owner' && (
             <Button variant="accent" size="sm" disabled={enquire.isPending} onClick={connect}>
               {enquire.isPending ? 'Opening chat…' : '💬 Connect & chat'}

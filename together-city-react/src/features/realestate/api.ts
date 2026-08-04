@@ -17,14 +17,14 @@ export interface PropertyCard {
   coverPhoto: string | null; photoCount: number; pricePerSqft: number; verified: Verified;
   projectName: string | null; developer: string | null; possessionDate: string | null; progressPct: number | null;
   postedByYou: boolean; createdOn: string;
-  moderation: 'approved' | 'pending' | 'rejected' | 'review';
+  moderation: 'approved' | 'pending' | 'rejected' | 'review' | 'removed';
   moderationReasons: string[];
 }
 
 export interface ModerationCheck { name: string; pass: boolean; severity: 'hard' | 'soft'; detail: string }
 export interface ModerationResult { decision: 'approved' | 'rejected' | 'review'; confidence: number; score: number; checks: ModerationCheck[]; reasons: string[]; decidedAt: string }
 export interface PostPropertyResult extends PropertyDetail {
-  moderation: 'approved' | 'pending' | 'rejected' | 'review';
+  moderation: 'approved' | 'pending' | 'rejected' | 'review' | 'removed';
   moderationResult: ModerationResult;
   notice: string;
 }
@@ -59,6 +59,10 @@ export const realestateApi = {
     api.post<{ id: string; moderation: string }>(`/realestate/moderation/${id}/decision`, { decision, reason }).then((r) => r.data),
   enquire: (id: string, message?: string) =>
     api.post<{ conversationId: string; alreadyOpen: boolean }>(`/realestate/properties/${id}/enquire`, { message }).then((r) => r.data),
+  update: (id: string, input: PostPropertyInput) =>
+    api.put<PostPropertyResult>(`/realestate/properties/${id}`, input).then((r) => r.data),
+  close: (id: string) =>
+    api.delete<{ id: string; moderation: string }>(`/realestate/properties/${id}`).then((r) => r.data),
 };
 
 export function useListings(q: ListingQuery) {
@@ -76,6 +80,22 @@ export function useProperty(id: string) {
 /** Connect with the seller — opens (or reuses) the chat and returns its id. */
 export function useEnquire() {
   return useMutation({ mutationFn: ({ id, message }: { id: string; message?: string }) => realestateApi.enquire(id, message) });
+}
+/** Edit a listing — the edited content re-runs moderation. */
+export function useUpdateProperty() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: PostPropertyInput }) => realestateApi.update(id, input),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['realestate'] }); },
+  });
+}
+/** Close a listing (sold / rented / withdrawn). Edit & save relists it. */
+export function useCloseProperty() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => realestateApi.close(id),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['realestate'] }); },
+  });
 }
 export function usePostProperty() {
   const qc = useQueryClient();

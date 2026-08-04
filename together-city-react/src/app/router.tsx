@@ -58,6 +58,7 @@ const JobsPostings = lazy(() => import('@/features/jobs/pages/Postings').then((m
 const REUnderConstruction = lazy(() => import('@/features/realestate/pages/UnderConstruction').then((m) => ({ default: m.UnderConstruction })));
 const REMine = lazy(() => import('@/features/realestate/pages/MyListings').then((m) => ({ default: m.MyListings })));
 const REDetail = lazy(() => import('@/features/realestate/pages/PropertyDetail').then((m) => ({ default: m.PropertyDetail })));
+const REEdit = lazy(() => import('@/features/realestate/pages/EditListing').then((m) => ({ default: m.EditListing })));
 const TravelExplore = lazy(() => import('@/features/travel/pages/Explore').then((m) => ({ default: m.Explore })));
 const TravelPackage = lazy(() => import('@/features/travel/pages/PackageDetail').then((m) => ({ default: m.PackageDetail })));
 const TravelFlights = lazy(() => import('@/features/travel/pages/Flights').then((m) => ({ default: m.Flights })));
@@ -342,6 +343,7 @@ export const router = createBrowserRouter([
       { path: '/realestate/explore', element: <RequireAuth>{wrap(<REExplore />)}</RequireAuth> },
       { path: '/realestate/sell', element: <RequireAuth>{wrap(<RESell />)}</RequireAuth> },
       { path: '/realestate/property/:id', element: <RequireAuth>{wrap(<REDetail />)}</RequireAuth> },
+      { path: '/realestate/edit/:id', element: <RequireAuth>{wrap(<REEdit />)}</RequireAuth> },
     ],
   },
   {

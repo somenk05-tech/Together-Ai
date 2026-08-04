@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -38,6 +38,21 @@ export class RealEstateController {
   @UsePipes(new ZodValidationPipe(PostPropertySchema))
   post(@CurrentUser() user: JwtUser, @Body() dto: PostPropertyDto) {
     return this.realestate.post(user.sub, dto);
+  }
+
+  // Edit a listing (owner only). The edited content re-runs moderation, so a
+  // clean edit is live again immediately and a dirty one reads its reasons.
+  @Put('properties/:id')
+  @UsePipes(new ZodValidationPipe(PostPropertySchema))
+  update(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: PostPropertyDto) {
+    return this.realestate.update(user.sub, id, dto);
+  }
+
+  // Close a listing (owner only): sold / rented / withdrawn. The row stays in
+  // My Listings; Explore and strangers stop seeing it. Edit & save relists.
+  @Delete('properties/:id')
+  close(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.realestate.close(user.sub, id);
   }
 
   // Connect with the seller: opens (or reuses) a direct chat carrying the

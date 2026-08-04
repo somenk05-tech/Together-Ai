@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useMyListings, type PropertyCard } from '../api';
+import { useMyListings, useCloseProperty, type PropertyCard } from '../api';
 import { PropertyCardView } from '../components/PropertyCardView';
 
 const MOD: Record<string, { label: string; bg: string; c: string }> = {
@@ -8,11 +9,14 @@ const MOD: Record<string, { label: string; bg: string; c: string }> = {
   pending: { label: '◌ Pending review', bg: 'var(--warn-soft)', c: 'var(--warn-ink)' },
   review: { label: '⏳ In manual review', bg: 'var(--warn-soft)', c: 'var(--warn-ink)' },
   rejected: { label: '✕ Not published', bg: 'var(--danger-soft)', c: 'var(--danger-ink)' },
+  removed: { label: '◎ Closed by you', bg: 'var(--line)', c: 'var(--ink-soft)' },
 };
 
-/** A listing card with its moderation status + reasons. */
+/** A listing card with its moderation status, reasons, and owner actions. */
 function ListingWithStatus({ p }: { p: PropertyCard }) {
   const m = MOD[p.moderation] ?? MOD.approved;
+  const close = useCloseProperty();
+  const [confirm, setConfirm] = useState(false);
   return (
     <div>
       <PropertyCardView p={p} />
@@ -23,9 +27,20 @@ function ListingWithStatus({ p }: { p: PropertyCard }) {
             {p.moderationReasons.slice(0, 4).map((r, i) => <li key={i} style={{ marginBottom: 2 }}>{r}</li>)}
           </ul>
         )}
-        {p.moderation === 'rejected' && (
-          <Link to="/realestate/sell" style={{ display: 'inline-block', marginTop: 6, color: m.c, fontWeight: 700 }}>Edit &amp; resubmit →</Link>
-        )}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
+          {/* Edit & resubmit used to open a BLANK Sell form. It now opens the
+              listing itself, prefilled — including a closed one, to relist. */}
+          <Link to={`/realestate/edit/${p.id}`} style={{ color: m.c, fontWeight: 700 }}>
+            {p.moderation === 'rejected' ? 'Edit & resubmit →' : p.moderation === 'removed' ? 'Edit & relist →' : 'Edit →'}
+          </Link>
+          {p.moderation !== 'removed' && (
+            <button type="button" disabled={close.isPending}
+              onClick={() => (confirm ? close.mutate(p.id, { onError: () => setConfirm(false) }) : setConfirm(true))}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: m.c, fontWeight: 700, fontSize: 12, fontFamily: 'inherit', textDecoration: 'underline' }}>
+              {close.isPending ? 'Closing…' : confirm ? 'Yes — close it' : 'Close (sold / withdrawn)'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
