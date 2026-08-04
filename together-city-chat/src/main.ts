@@ -14,6 +14,22 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: false, bodyParser: false });
   const config = app.get(ConfigService);
 
+  /**
+   * TRUST THE PLATFORM PROXY, AND EXACTLY ONE HOP.
+   *
+   * TLS terminates at Render's edge and the request reaches this process over
+   * the loopback, so without this `req.ip` is the proxy's address for EVERY
+   * caller. Rate limiting keyed on that is not rate limiting: the whole city
+   * shares one bucket, so one busy citizen throttles everybody and an attacker
+   * is indistinguishable from the crowd they are hiding in.
+   *
+   * `1`, not `true`. `true` tells Express to believe the whole
+   * X-Forwarded-For chain, which the client controls the left-hand end of — so
+   * anyone could present a fresh "IP" per request and never be limited at all.
+   * One hop means: take the address the proxy itself appended, and no further.
+   */
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   // Raised to fit a 75 MB video posted inline as base64 (~100 MB encoded) until
   // object storage (R2/S3) credentials are configured and direct-to-bucket
   // uploads take over. Photo/report base64 uploads sit comfortably under this.

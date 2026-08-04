@@ -39,6 +39,12 @@ export class RedisService implements OnModuleDestroy {
     return this.client;
   }
 
+  /** Is the connection live? Callers that must degrade rather than throw read
+   *  this before reaching for `raw` — see throttler-redis.storage.ts. */
+  get up(): boolean {
+    return this.healthy;
+  }
+
   /** Register a live socket for a user; returns the new socket count. */
   async addSocket(userId: string, socketId: string): Promise<number> {
     if (!this.healthy) return 1;

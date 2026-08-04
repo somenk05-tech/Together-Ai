@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { RedisService } from './shared/redis/redis.service';
+import { RedisThrottlerStorage } from './shared/redis/throttler-redis.storage';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { NoStoreInterceptor } from './shared/interceptors/no-store.interceptor';
 import { DeprecationInterceptor } from './shared/interceptors/deprecation.interceptor';
@@ -49,7 +51,18 @@ import { AvatarsModule } from './avatars/avatars.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
+    // The counter lives in Redis, not in this process. forRootAsync because the
+    // storage needs RedisService, and RedisModule is @Global but still has to be
+    // resolved before the factory runs. See throttler-redis.storage.ts for what
+    // the in-process default was actually limiting.
+    ThrottlerModule.forRootAsync({
+      imports: [RedisModule],
+      inject: [RedisService],
+      useFactory: (redis: RedisService) => ({
+        throttlers: [{ ttl: 60_000, limit: 120 }],
+        storage: new RedisThrottlerStorage(redis),
+      }),
+    }),
     HealthModule,
     AstrologyModule,
     PrismaModule,
