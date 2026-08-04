@@ -141,10 +141,24 @@ export const composedApi = {
   saveSettings: (patch: Partial<MealSettings>) => api.patch<MealSettings>('/nutrition/meal-settings', patch).then((r) => r.data),
 };
 
-export function useComposedPlan(mode: PlanMode = 'preferred', scope: PlanScope = 'self') {
+export function useComposedPlan(
+  mode: PlanMode = 'preferred',
+  scope: PlanScope = 'self',
+  opts: { enabled?: boolean } = {},
+) {
   // Scope is part of the key: a household plan and a personal plan are different
   // food and must never share a cache entry.
-  return useQuery({ queryKey: ['nutrition', 'composed', mode, scope], queryFn: () => composedApi.plan(mode, scope) });
+  //
+  // `enabled` exists so a caller that does not YET know which scope applies can
+  // hold the request rather than fire the wrong one. The planner learns whether
+  // a shared plan is even on offer from a second query; without this it built
+  // the personal week, then discarded it a tick later and built the household
+  // one — the expensive call, twice, on every load.
+  return useQuery({
+    queryKey: ['nutrition', 'composed', mode, scope],
+    queryFn: () => composedApi.plan(mode, scope),
+    enabled: opts.enabled ?? true,
+  });
 }
 export function useMealSettings() {
   return useQuery({ queryKey: ['nutrition', 'meal-settings'], queryFn: () => composedApi.settings() });

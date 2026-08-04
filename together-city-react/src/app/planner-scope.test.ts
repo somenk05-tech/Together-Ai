@@ -45,14 +45,21 @@ describe('the planner asks for the plan the citizen chose', () => {
     .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n');
 
   it('passes a scope, not just a mode', () => {
-    expect(code).toMatch(/useComposedPlan\(mode,\s*scope\)/);
+    expect(code).toMatch(/useComposedPlan\(mode,\s*scope,/);
     // The regression this replaces, spelled out so it cannot come back unnoticed.
     expect(code).not.toMatch(/useComposedPlan\(mode\)/);
   });
 
   it('derives that scope from the planner mode, and from whether family is even offered', () => {
     expect(plan).toMatch(/const planner = usePlannerMode\(\)/);
-    expect(plan).toMatch(/planner\.canUseFamily && planner\.mode === 'family' \? 'household' : 'self'/);
+    // `planner.ready` guards the derivation. canUseFamily comes from a query, so
+    // before it settles the scope resolves to 'self' — and a tick later flips to
+    // 'household', which is a different query key. The planner used to build the
+    // personal week and throw it away on every load. The guard is that the scope
+    // is not chosen until we know whether a shared plan is even on offer.
+    expect(plan).toMatch(/planner\.ready && planner\.canUseFamily && planner\.mode === 'family'/);
+    expect(plan).toMatch(/\? 'household' : 'self'/);
+    expect(plan).toMatch(/useComposedPlan\(mode, scope, \{ enabled: planner\.ready \}\)/);
   });
 
   it('draws the switch only for a household that has a shared plan', () => {
@@ -61,11 +68,30 @@ describe('the planner asks for the plan the citizen chose', () => {
     expect(plan).toMatch(/<PlannerModeToggle/);
   });
 
+  /**
+   * A FAILED FAMILY PLAN MUST NOT TAKE THE SWITCH DOWN WITH IT.
+   *
+   * The planner opens on the SHARED plan whenever the household has Family Meal
+   * Planning on — that is usePlannerMode's default, not a choice the citizen
+   * made. So when the household build was the one that failed, the error state
+   * replaced the entire page, toggle included, and somebody whose own plan was
+   * building perfectly well had no way to reach it. The only exit was knowing
+   * the switch existed on a page that had stopped rendering it.
+   */
+  it('leaves a way back to the individual plan when the family plan fails', () => {
+    const err = plan.slice(plan.indexOf('if (plan.isError'), plan.indexOf('if (plan.data.needsProfile'));
+    expect(err).toMatch(/<PlannerModeToggle/);
+    expect(err).toMatch(/Show my own plan/);
+    expect(err).toMatch(/plan\.refetch\(\)/);
+    // and it must say WHICH plan failed, rather than guessing at a cause
+    expect(err).toMatch(/Couldn't build your family's plan/);
+  });
+
   it('is asking for something the API can actually serve', () => {
     // The wire is only real if the other end exists. 'household' is the server's
     // word, not one invented here.
     expect(api).toMatch(/export type PlanScope = 'self' \| 'household'/);
-    expect(api).toMatch(/useComposedPlan\(mode: PlanMode = 'preferred', scope: PlanScope = 'self'\)/);
+    expect(api).toMatch(/mode: PlanMode = 'preferred',\s*\n\s*scope: PlanScope = 'self',/);
   });
 
   it('caches the two scopes apart', () => {

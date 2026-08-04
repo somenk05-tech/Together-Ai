@@ -4,7 +4,7 @@ import { AllergyNote, Card, Spinner, EmptyState, Button, Chip, Modal } from '@/c
 import {
   useComposedPlan, useMealSettings, useSaveMealSettings,
   useRestoreSkips, useRenewPlan, useLockDay, useUnlockDay,
-  type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard,
+  type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard, type PlanScope,
 } from '../composed.api';
 import { useHealthScore } from '@/features/profile/hooks';
 import { ComposedMealCard, SkippedMealCard } from '../components/ComposedMealCard';
@@ -601,8 +601,15 @@ export function MealPlan() {
   // with Family Meal Planning switched ON could not reach its shared plan from
   // the planner at all. Not a dead export: an unreachable feature.
   const planner = usePlannerMode();
-  const scope = planner.canUseFamily && planner.mode === 'family' ? 'household' : 'self';
-  const plan = useComposedPlan(mode, scope);
+  // WAIT FOR `ready`. canUseFamily is derived from a query, so on the first
+  // paint it is false and the scope resolves to 'self'; a tick later the family
+  // query settles, canUseFamily flips true, and the scope becomes 'household'.
+  // That is a different query key, so the planner fired TWO composed builds and
+  // threw the first away — the expensive one, on every single load. `ready` has
+  // been returned by this hook since it was written and nothing read it.
+  const scope: PlanScope = planner.ready && planner.canUseFamily && planner.mode === 'family'
+    ? 'household' : 'self';
+  const plan = useComposedPlan(mode, scope, { enabled: planner.ready });
   const settingsSave = useSaveMealSettings();
   const setDay = (i: number) => setSp((p) => { p.set('day', String(i)); return p; }, { replace: true });
   const [showSettings, setShowSettings] = useState(false);
@@ -622,11 +629,40 @@ export function MealPlan() {
 
   if (plan.isLoading) return <Spinner label="Composing your plan…" />;
   if (plan.isError || !plan.data) {
+    // A DEAD END WITH A DOOR IN IT.
+    //
+    // The planner opens on the SHARED plan whenever the household has Family
+    // Meal Planning on — that is `usePlannerMode`'s default. So when the
+    // household build is the one that fails, this early return replaced the
+    // whole page, toggle and all, and a citizen whose own individual plan was
+    // building perfectly well had no way to reach it. The only exit was to
+    // know that the switch existed, on a page that was no longer rendering it.
+    //
+    // The switch comes with the error now, and the message says which plan
+    // failed rather than guessing at a cause it cannot know.
+    const householdFailed = scope === 'household';
     return (
-      <EmptyState
-        title="Couldn't build your plan"
-        hint="Either your food preferences aren't filled in yet, or building the week took longer than we allow. Reload to try again — if it keeps happening, tell us and we'll look."
-      />
+      <div>
+        {planner.canUseFamily && (
+          <PlannerModeToggle mode={planner.mode} onChange={planner.setMode} busy={plan.isFetching} />
+        )}
+        <EmptyState
+          title={householdFailed ? "Couldn't build your family's plan" : "Couldn't build your plan"}
+          hint={householdFailed
+            ? 'Your own plan may still be fine — switch to Individual Plan above to check. If the family plan keeps failing, tell us and we will look.'
+            : "Either your food preferences aren't filled in yet, or building the week took longer than we allow. Reload to try again — if it keeps happening, tell us and we'll look."}
+        />
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14, flexWrap: 'wrap' }}>
+          <Button variant="line" size="sm" disabled={plan.isFetching} onClick={() => void plan.refetch()}>
+            {plan.isFetching ? 'Trying again…' : 'Try again'}
+          </Button>
+          {householdFailed && (
+            <Button variant="accent" size="sm" onClick={() => planner.setMode('individual')}>
+              Show my own plan
+            </Button>
+          )}
+        </div>
+      </div>
     );
   }
   if (plan.data.needsProfile) return <ProfileGate />;
