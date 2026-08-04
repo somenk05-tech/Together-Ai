@@ -1,8 +1,10 @@
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { mailApi } from '../api';
 import { fmtBytes, fileIcon } from '@/features/drive/api';
+import { splitQuoted, stripCityFooter } from '../quoted';
 import {
   useMailMessage, useMailThread, useMailAccount, useFlagMail, useRemoveMail,
   humanBytes, initials, avatarHue, type MailMessage,
@@ -45,6 +47,57 @@ function ThreadAttachments({ threadId }: { threadId?: string | null }) {
   );
 }
 
+/**
+ * A message body, with the conversation it quotes folded away.
+ *
+ * The reply is what somebody wrote; everything under it is what they were
+ * replying to, which is already on this page, above, in full. Showing both
+ * meant a four-word reply rendered as fifty lines and each exchange buried the
+ * one before it. The history is one click away and never thrown out — it is
+ * what actually arrived, and a thread that quietly discards part of a message
+ * is not a mail client.
+ */
+function MailBody({ body }: { body: string }) {
+  const [open, setOpen] = useState(false);
+  const { latest, quoted } = useMemo(() => splitQuoted(stripCityFooter(body)), [body]);
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ whiteSpace: 'pre-wrap', fontSize: 14.5, lineHeight: 1.6 }}>{latest}</div>
+      {quoted && (
+        <>
+          {/* The control is Gmail's small pill; the TARGET is 44px. Drawing the
+              pill on the button itself made a 22px tap target and the a11y
+              ceiling caught it — correctly, this is exactly the control a thumb
+              reaches for. The button is transparent and full height, the pill
+              is a span inside it, and the two are the same click. */}
+          <button type="button" onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-label={open ? 'Hide quoted messages' : 'Show quoted messages'}
+            title={open ? 'Hide quoted messages' : 'Show quoted messages'}
+            style={{
+              display: 'flex', alignItems: 'center', minHeight: 44, minWidth: 44,
+              padding: 0, marginTop: 2, border: 'none', background: 'none', cursor: 'pointer',
+            }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', height: 22, padding: '0 9px', lineHeight: 1,
+              borderRadius: 9, border: '1px solid var(--line-2)', background: 'var(--well)',
+              color: 'var(--muted)', fontFamily: 'inherit', fontSize: 13, letterSpacing: '.08em',
+            }}>•••</span>
+          </button>
+          {open && (
+            <div style={{
+              whiteSpace: 'pre-wrap', fontSize: 13.5, lineHeight: 1.6, marginTop: 10,
+              paddingLeft: 12, borderLeft: '2px solid var(--line-2)', color: 'var(--muted)',
+            }}>
+              {quoted}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 /** One message inside a trail. */
 function TrailMessage({ m, mine }: { m: MailMessage; mine: boolean }) {
   const hue = avatarHue(m.fromAddr);
@@ -65,7 +118,7 @@ function TrailMessage({ m, mine }: { m: MailMessage; mine: boolean }) {
         </div>
         <div className="muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{when}</div>
       </div>
-      <div style={{ whiteSpace: 'pre-wrap', fontSize: 14.5, lineHeight: 1.6, marginTop: 10 }}>{m.body}</div>
+      <MailBody body={m.body} />
     </div>
   );
 }

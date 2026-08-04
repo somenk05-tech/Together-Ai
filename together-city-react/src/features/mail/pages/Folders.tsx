@@ -3,8 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import {
   useMailAccount, useMailList, useFlagMail, useRemoveMail, useSetPrimary, useOutbox,
-  humanBytes, mailTime, initials, avatarHue, useRetryMail, type Folder, type MailItem,
+  humanBytes, mailTime, initials, avatarHue, useRetryMail, type Folder,
 } from '../api';
+import { groupByThread, type Convo } from '../threading';
 
 /** Outbound delivery log — every email/SMS sent through the messaging provider. */
 function DeliveryLog() {
@@ -97,7 +98,8 @@ const FOLDER_META: Record<Folder, { title: string; icon: string; eyebrow: string
   trash: { title: 'Trash', icon: '🗑', eyebrow: 'Mail · Trash', empty: 'Trash is empty' },
 };
 
-function Row({ m, folder }: { m: MailItem; folder: Folder }) {
+function Row({ convo, folder }: { convo: Convo; folder: Folder }) {
+  const { head: m, count } = convo;
   const nav = useNavigate();
   const flag = useFlagMail();
   const remove = useRemoveMail();
@@ -108,7 +110,7 @@ function Row({ m, folder }: { m: MailItem; folder: Folder }) {
   return (
     <div
       onClick={() => nav(`/mail/message/${m.id}`)}
-      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid var(--line)', cursor: 'pointer', background: !m.read && folder === 'inbox' ? 'rgba(179,138,44,.06)' : 'transparent' }}
+      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid var(--line)', cursor: 'pointer', background: convo.unread && folder === 'inbox' ? 'rgba(179,138,44,.06)' : 'transparent' }}
     >
       <button type="button" title="Star" onClick={(e) => { e.stopPropagation(); flag.mutate({ id: m.id, starred: !m.starred }); }}
         style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: m.starred ? 'var(--warn-ink)' : 'var(--line)', flexShrink: 0 }}>
@@ -119,11 +121,14 @@ function Row({ m, folder }: { m: MailItem; folder: Folder }) {
       </div>
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontWeight: !m.read && folder === 'inbox' ? 800 : 600, fontSize: 13.5, whiteSpace: 'nowrap' }}>{isSent ? `To: ${person.name}` : person.name}</span>
+          <span style={{ fontWeight: convo.unread && folder === 'inbox' ? 800 : 600, fontSize: 13.5, whiteSpace: 'nowrap' }}>
+            {isSent ? `To: ${person.name}` : person.name}
+            {count > 1 && <span className="muted" style={{ fontWeight: 600, marginLeft: 6 }}>{count}</span>}
+          </span>
           <span style={{ marginLeft: 'auto', fontSize: 11.5, whiteSpace: 'nowrap' }} className="muted">{mailTime(m.createdAt)}</span>
         </div>
         <div style={{ display: 'flex', gap: 8, minWidth: 0 }}>
-          <span style={{ fontWeight: !m.read && folder === 'inbox' ? 700 : 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '42%' }}>{m.subject}</span>
+          <span style={{ fontWeight: convo.unread && folder === 'inbox' ? 700 : 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '42%' }}>{m.subject}</span>
           <span className="muted" style={{ fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>— {m.snippet}</span>
         </div>
         {/* The provider's own words. A failure the citizen cannot read the
@@ -159,7 +164,9 @@ function FolderView({ folder }: { folder: Folder }) {
       {q.isLoading ? <Spinner label="Loading mail…" />
         : q.isError ? <EmptyState title="Couldn't load mail" hint="Nothing has been deleted — we couldn’t reach your mailbox. Try again in a moment." />
         : (q.data ?? []).length === 0 ? <EmptyState icon={meta.icon} title={meta.empty} hint={folder === 'inbox' ? 'City mail will appear here.' : undefined} />
-        : <div className="card" style={{ padding: 0, overflow: 'hidden' }}>{q.data?.map((m) => <Row key={m.id} m={m} folder={folder} />)}</div>}
+        : <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            {groupByThread(q.data ?? []).map((c) => <Row key={c.head.id} convo={c} folder={folder} />)}
+          </div>}
     </div>
   );
 }
