@@ -1,10 +1,22 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button, Spinner } from '@/components/ui';
-import { useDrive, fmtBytes, fileIcon, type DriveFile } from '@/features/drive/api';
+import { uploadErrorMessage } from '@/api/media.api';
+import { useDrive, useUploadFile, fmtBytes, fileIcon, type DriveFile } from '@/features/drive/api';
 
 /**
- * Pick files from the citizen's Drive to attach to a message. Browses the same
- * folder tree as /drive (read-only) and hands back the chosen files.
+ * Pick files from the citizen's Drive to attach to a message — or put one there
+ * without leaving the message you are writing.
+ *
+ * IT USED TO BE READ-ONLY, AND ITS EMPTY STATE SAID SO: "This folder is empty.
+ * Upload files in Drive first." Which is a dialog, opened from Compose, telling
+ * somebody to go somewhere else, do a thing, and come back — for the single
+ * most common reason anyone opens an attachment picker. Every mail client in
+ * the world attaches from the device here.
+ *
+ * Uploads land in the folder being browsed and are selected the moment they
+ * arrive, so the next click is Attach. One at a time and in order, because the
+ * Drive page does it that way and a half-finished batch should say which file
+ * it stopped on.
  */
 export function DrivePicker({ onClose, onPick, alreadyPicked }: {
   onClose: () => void;
@@ -13,6 +25,10 @@ export function DrivePicker({ onClose, onPick, alreadyPicked }: {
 }) {
   const [folderId, setFolderId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, DriveFile>>({});
+  const [busyMsg, setBusyMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const upload = useUploadFile();
   const listing = useDrive(folderId);
   const data = listing.data;
   // An empty picker on a failed read looks like the Drive is EMPTY — files
@@ -26,6 +42,28 @@ export function DrivePicker({ onClose, onPick, alreadyPicked }: {
   });
 
   const chosen = Object.values(selected);
+
+  const onFiles = async (list: FileList | null) => {
+    const files = Array.from(list ?? []);
+    if (!files.length) return;
+    setError(null);
+    for (let i = 0; i < files.length; i++) {
+      setBusyMsg(files.length > 1 ? `Uploading ${i + 1} of ${files.length}: ${files[i].name}` : `Uploading ${files[i].name}…`);
+      try {
+        const saved = await upload.mutateAsync({ file: files[i], folderId });
+        // Selected on arrival: somebody who just picked a file off their desk
+        // has already chosen it, and making them click it again is a step that
+        // exists only because the dialog was built to browse.
+        setSelected((cur) => ({ ...cur, [saved.id]: saved }));
+      } catch (e) {
+        const server = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        setError(server ?? uploadErrorMessage(e));
+        break;   // say which file it stopped on rather than press on quietly
+      }
+    }
+    setBusyMsg(null);
+    if (fileInput.current) fileInput.current.value = '';   // same file twice must work
+  };
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,16,.55)', display: 'grid', placeItems: 'center', padding: 18, zIndex: 80 }}>
@@ -58,9 +96,14 @@ export function DrivePicker({ onClose, onPick, alreadyPicked }: {
             </p>
           )}
           {data && data.folders.length === 0 && data.files.length === 0 && (
-            <p className="muted" style={{ fontSize: 13, textAlign: 'center', padding: '32px 16px' }}>
-              This folder is empty. Upload files in <strong>Drive</strong> first.
-            </p>
+            <div style={{ textAlign: 'center', padding: '30px 16px' }}>
+              <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}>
+                This folder is empty — add a file from this device and it will be
+                attached and saved to your Drive.
+              </p>
+              <Button size="sm" variant="line" disabled={Boolean(busyMsg)}
+                onClick={() => fileInput.current?.click()}>Choose a file</Button>
+            </div>
           )}
           {(data?.folders ?? []).map((d) => (
             <button key={d.id} type="button" onClick={() => setFolderId(d.id)}
@@ -86,11 +129,26 @@ export function DrivePicker({ onClose, onPick, alreadyPicked }: {
           })}
         </div>
 
-        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--line)', display: 'flex', gap: 10, alignItems: 'center' }}>
-          <span className="muted" style={{ fontSize: 12.5 }}>{chosen.length} selected</span>
+        {error && (
+          <p role="alert" style={{ margin: 0, padding: '10px 16px', fontSize: 12.5, lineHeight: 1.5, color: 'var(--danger-ink)', background: 'var(--danger-soft)', borderTop: '1px solid var(--danger-line)' }}>
+            {error}
+          </p>
+        )}
+
+        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--line)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input ref={fileInput} type="file" multiple hidden
+            onChange={(e) => void onFiles(e.target.files)} />
+          <Button size="sm" variant="line" disabled={Boolean(busyMsg)}
+            onClick={() => fileInput.current?.click()}>
+            {busyMsg ? 'Uploading…' : '↑ Upload from this device'}
+          </Button>
+          <span className="muted" style={{ fontSize: 12.5, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {busyMsg ?? `${chosen.length} selected`}
+          </span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
             <Button size="sm" variant="line" onClick={onClose}>Cancel</Button>
-            <Button size="sm" variant="accent" disabled={!chosen.length} onClick={() => { onPick(chosen); onClose(); }}>Attach</Button>
+            <Button size="sm" variant="accent" disabled={!chosen.length || Boolean(busyMsg)}
+              onClick={() => { onPick(chosen); onClose(); }}>Attach</Button>
           </div>
         </div>
       </div>
