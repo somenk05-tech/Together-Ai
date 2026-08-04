@@ -248,7 +248,7 @@ function AboutThisMenu({ d }: { d: ComposedDay }) {
  * becomes a shopping trip, and asking somebody to press a second button to say
  * so is the app failing to notice what they just decided.
  *
- * Then it moves on. Staying on a day you have just settled leaves you looking
+ * Then it moves on. Staying on a day you have just locked leaves you looking
  * at a screen with nothing left to do on it; the next unlocked day is where the
  * work is. The server decides which day that is, because the server knows which
  * ones are already locked.
@@ -334,7 +334,7 @@ function LockedDaySummary({ d, date }: { d: ComposedDay; date: Date }) {
   return (
     <div className="card" style={{ padding: '16px 18px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <strong style={{ fontSize: 15 }}>{weekdayFull(date)} is settled</strong>
+        <strong style={{ fontSize: 15 }}>{weekdayFull(date)}'s menu is locked</strong>
         <span className="muted" style={{ fontSize: 12.5 }}>{meals.length} meal{meals.length === 1 ? '' : 's'}</span>
       </div>
       <ul style={{ margin: '10px 0 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>

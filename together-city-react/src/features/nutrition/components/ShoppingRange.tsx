@@ -5,8 +5,13 @@ import { useComposedPlan } from '../composed.api';
 /**
  * WHICH DAYS AM I SHOPPING FOR?
  *
- * A week of dates, starting today, showing which of them are settled. The list
- * below is built from the settled ones and from nothing else.
+ * A week of dates, starting today, showing whose menus are LOCKED. The list
+ * below is built from the locked ones and from nothing else.
+ *
+ * "Locked" and not "settled": the button on the meal plan says "Lock menu & add
+ * to grocery list", the plan carries `locks`, the day card says "This menu is
+ * locked". Settled was a second word for a thing that already had one, and two
+ * words for one state is how somebody comes to believe there are two states.
  *
  * WHY THIS ONLY SHOWS AND DOES NOT SETTLE. The basket follows the LOCKS —
  * a deliberate decision, and the reasoning in nutrition.service.ts still holds:
@@ -14,9 +19,9 @@ import { useComposedPlan } from '../composed.api';
  * not decided on yet, so it churned every time the planner rerolled a meal they
  * were still browsing, and it bought food for a Thursday they might never cook."
  *
- * Settling a day means reading its menu and accepting it. That belongs on the
+ * Locking a day means reading its menu and accepting it. That belongs on the
  * meal plan, next to the food it is about — not behind one button on a shopping
- * screen that can lock seven days' meals somebody has never seen. So this panel
+ * screen that can lock seven days' menus somebody has never seen. So this panel
  * points at the days that need deciding and links to them.
  *
  * The endpoint has always taken `days` and `startDate` — groceryPlan(userId,
@@ -64,8 +69,8 @@ export function ShoppingRange({ mode, days, onDays }: {
   }), [maxDays, base, chosen, locks]);
 
   const inRange = week.filter((d) => d.inRange);
-  const unsettled = inRange.filter((d) => !d.locked);
-  const settled = inRange.length - unsettled.length;
+  const unlocked = inRange.filter((d) => !d.locked);
+  const locked = inRange.length - unlocked.length;
 
   if (plan.isLoading) return null;
   // A CONTROL THAT VANISHES IS NOT A HANDLED FAILURE. Returning null here meant
@@ -78,7 +83,7 @@ export function ShoppingRange({ mode, days, onDays }: {
         <h3 style={{ margin: 0, fontSize: 16 }}>Shopping for</h3>
         <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0', lineHeight: 1.6 }}>
           We couldn’t read your meal plan just now, so you can’t change the range from here.
-          The list below still shows the days you have already settled.
+          The list below still shows the menus you have already locked.
         </p>
         <button type="button" className="btn btn-line btn-sm" style={{ marginTop: 12 }}
           disabled={plan.isFetching} onClick={() => void plan.refetch()}>
@@ -102,49 +107,49 @@ export function ShoppingRange({ mode, days, onDays }: {
       </div>
 
       {/* The dates themselves, not a count of them. Tapping one sets how far the
-          range reaches; the padlock says whether that day is settled, which is
+          range reaches; "locked" says whether that menu is fixed, which is
           the only thing that decides if its ingredients are on the list. */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
         {week.map((d) => (
           <button key={d.dayIndex} type="button" onClick={() => onDays(d.i + 1)}
             aria-pressed={d.inRange}
-            aria-label={`${longLabel(d.date)}${d.locked ? ', settled' : ', not settled yet'}`}
+            aria-label={`${longLabel(d.date)}${d.locked ? ', menu locked' : ', menu not locked yet'}`}
             className={`pill ${d.inRange ? 'on' : ''}`}
             style={{ cursor: 'pointer', flexDirection: 'column', height: 'auto', padding: '8px 14px', gap: 2 }}>
             <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.02em' }}>
               {d.i === 0 ? 'Today' : dayLabel(d.date)}
             </span>
             <span style={{ fontSize: 11, opacity: .75 }}>
-              {dateLabel(d.date)}{d.locked ? ' · settled' : ''}
+              {dateLabel(d.date)}{d.locked ? ' · locked' : ''}
             </span>
           </button>
         ))}
       </div>
 
       <p className="muted" style={{ fontSize: 12.5, margin: '14px 0 0', lineHeight: 1.65 }}>
-        Only ingredients from <strong>settled</strong> days appear below — a day you have not
-        settled can still change, and buying for it would buy food you may never cook.
+        Only ingredients from <strong>locked menus</strong> appear below — a menu you have not
+        locked can still change, and buying for it would buy food you may never cook.
       </p>
 
-      {unsettled.length > 0 ? (
+      {unlocked.length > 0 ? (
         <div style={{ marginTop: 10 }}>
           <p style={{ fontSize: 13, margin: 0, lineHeight: 1.65 }}>
-            {settled === 0
-              ? `None of these ${inRange.length} day${inRange.length === 1 ? '' : 's'} is settled yet, so there is nothing to shop for.`
-              : `${settled} of ${inRange.length} settled. ${unsettled.length} still to go.`}
-            {' '}Open the meal plan, read the menu for {unsettled.length === 1 ? 'that day' : 'each of these days'}, and lock the ones you are happy with.
+            {locked === 0
+              ? `None of these ${inRange.length} menu${inRange.length === 1 ? '' : 's'} is locked yet, so there is nothing to shop for.`
+              : `${locked} of ${inRange.length} menus locked. ${unlocked.length} still to go.`}
+            {' '}Open the meal plan, read the menu for {unlocked.length === 1 ? 'that day' : 'each of these days'}, and lock the ones you are happy with.
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-            {unsettled.map((d) => (
+            {unlocked.map((d) => (
               <Link key={d.dayIndex} to={`/nutrition/weekly?day=${d.dayIndex}`} className="btn btn-line btn-sm">
-                Settle {d.i === 0 ? 'today' : `${dayLabel(d.date)} ${dateLabel(d.date)}`}
+                Lock {d.i === 0 ? "today's menu" : `${dayLabel(d.date)} ${dateLabel(d.date)}`}
               </Link>
             ))}
           </div>
         </div>
       ) : (
         <p style={{ fontSize: 13, margin: '10px 0 0', lineHeight: 1.65 }}>
-          All {inRange.length} day{inRange.length === 1 ? '' : 's'} in this range {inRange.length === 1 ? 'is' : 'are'} settled,
+          All {inRange.length} menu{inRange.length === 1 ? '' : 's'} in this range {inRange.length === 1 ? 'is' : 'are'} locked,
           so this list is fixed — nothing in it will change under you.
         </p>
       )}
