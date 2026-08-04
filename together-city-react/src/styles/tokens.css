@@ -340,9 +340,17 @@
      three deliberately, all three scoped to `[data-press]` and reachable from
      nowhere else:
 
-       · the ground is IVORY, not white
        · the material is HAIRLINES, not shadow
        · there are THREE faces, not one
+
+     THE GROUND IS NO LONGER ONE OF THEM. It was ivory — #faf7f0, with two
+     radial washes of warm grey over it — because printed paper is warm and the
+     page is a menu. On the screen it did not read as paper, it read as a tint:
+     the one room in the city with a colour behind the words, which is exactly
+     what the Nutrition surface tint was removed for at the top of this file.
+     So the exception gives the ground back. What made the page a menu was
+     never the beige; it was the hairlines, the serif and the tabular figures,
+     and all three still stand on white.
 
      WHY THIS IS ALLOWED HERE AND NOWHERE ELSE. A meal plan is read the way a
      menu is read — down a column, comparing figures — and Relief's material is
@@ -355,24 +363,28 @@
 
      Every value on that page comes from the personalisation engine. These are
      the only colours it may use, and none of them is a number. */
-  --press-paper:  #faf7f0;
-  --press-ink:    #24231f;   /* 13.4:1 on the paper */
-  --press-ink-2:  #57544c;   /*  6.6:1 — descriptions */
-  --press-ink-3:  #8a857a;   /*  3.4:1 — labels and metadata ONLY, never body copy */
-  --press-rule:   #ddd8cb;
-  --press-rule-2: #ebe6da;
-  --press-green:  #1f5d43;   /*  8.0:1 — deep emerald */
+  --press-paper:  #ffffff;
+  --press-ink:    #24231f;   /* 15.7:1 on the paper */
+  --press-ink-2:  #57544c;   /*  7.6:1 — descriptions */
+  --press-ink-3:  #8a857a;   /*  3.7:1 — labels and metadata ONLY, never body copy */
+  /* THE RULES CAME OFF THE BEIGE TOO. A warm hairline on warm paper is just a
+     hairline; the same line on white is the only warm thing left on the page,
+     and it reads as a stain rather than a rule. These are the old values with
+     the same lightness and none of the yellow. */
+  --press-rule:   #d9d9d9;
+  --press-rule-2: #e8e8e8;
+  --press-green:  #1f5d43;   /*  7.8:1 — deep emerald */
   --press-macro-1:#1f5d43;
   --press-macro-2:#5b957a;
   --press-macro-3:#b7cec1;
-  --press-macro-0:#e7e2d6;
+  --press-macro-0:#e6e6e6;   /* the unfilled part of a macro bar */
   --press-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
   --press-mono:  'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
-  /* Paper is two layers of almost nothing. Anything stronger stops being paper
-     and becomes wallpaper. */
-  --press-grain:
-    radial-gradient(circle at 18% 10%, rgba(122,106,72,.05), transparent 44%),
-    radial-gradient(circle at 84% 76%, rgba(122,106,72,.04), transparent 46%);
+  /* The grain was two radial washes of warm grey — the mottle of real paper.
+     It goes with the ivory: a wash that light on white is either invisible or
+     a smudge, and there is no third outcome. The token stays so nothing that
+     asks for it breaks, and it now asks for nothing. */
+  --press-grain: none;
 
   --sans: 'General Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --serif: var(--sans);

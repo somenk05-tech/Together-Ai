@@ -1031,9 +1031,12 @@ textarea.g-field { resize: none; line-height: 1.55; }
 
 /* ══ THE PRINTED DAY ═════════════════════════════════════════════════════
    Everything below is inside [data-press] and cannot escape it. This is a
-   PRINTED page: hairlines instead of shadow, ivory instead of white, three
-   faces instead of one. All three are Relief rules broken on purpose, in one
-   room, for a page whose whole job is to be read like a menu.
+   PRINTED page: hairlines instead of shadow, three faces instead of one. Both
+   are Relief rules broken on purpose, in one room, for a page whose whole job
+   is to be read like a menu.
+
+   THE GROUND IS NOT ONE OF THE BREAKS ANY MORE. It was ivory; it is white,
+   like every other background in the city. See tokens.css.
 
    NOTHING HERE CARRIES A VALUE. Every number, name, portion and percentage on
    this page comes from composedPlan — the personalisation engine decides them
@@ -1043,8 +1046,9 @@ textarea.g-field { resize: none; line-height: 1.55; }
 [data-press] {
   background: var(--press-paper);
   color: var(--press-ink);
-  /* Paper is two layers of almost nothing: a fine mottle and a broad tonal
-     drift. Anything stronger stops being paper and becomes wallpaper. */
+  /* --press-grain is `none`. The declaration stays because the grain is a
+     property of the paper, and the paper is decided one file over — not here,
+     where deleting it would put that decision in two places. */
   background-image: var(--press-grain);
 }
 [data-press] .press-num,
