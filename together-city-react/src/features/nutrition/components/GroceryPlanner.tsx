@@ -229,11 +229,17 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
     return (
       <div>
         {lockedNote}
+        {/* The range panel belongs HERE most of all. This is the state where a
+            citizen has nothing to shop for, and it is the only thing on the
+            page that says WHICH days are unsettled and links to each of them.
+            Returning early without it left them with "lock a day" and no
+            indication of which day, or where. */}
+        <ShoppingRange mode={mode} days={days} onDays={setDays} />
         <EmptyState
           icon="🔒"
           title={nothingLocked ? 'Lock a day to start your list' : 'Nothing to buy for the days you locked'}
           hint={nothingLocked
-            ? 'Open your meal plan, settle a day you are happy with, and lock it — its ingredients land here.'
+            ? 'Open your meal plan, read a day you are happy with, and lock it — its ingredients land here.'
             : 'The days you locked need nothing you do not already have.'}
         />
       </div>

@@ -1,28 +1,27 @@
-import { useMemo, useState } from 'react';
-import { useComposedPlan, useLockDay } from '../composed.api';
+import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { useComposedPlan } from '../composed.api';
 
 /**
- * HOW MANY DAYS AM I SHOPPING FOR?
+ * WHICH DAYS AM I SHOPPING FOR?
  *
- * The endpoint has always taken `days` and `startDate` — `groceryPlan(userId,
- * mode, days = 7, startDate?)`, clamped to 1–28. The web app never sent either,
- * so the citizen had no say at all. Not a dead parameter: an unreachable
- * control, the same shape of miss as the planner's scope.
+ * A week of dates, starting today, showing which of them are settled. The list
+ * below is built from the settled ones and from nothing else.
  *
- * BUT A WINDOW ALONE WOULD UNDO A DECISION MADE ON PURPOSE. The service note,
- * 1 Aug: "the basket follows the LOCKS, not a window. A start-date-plus-length
- * window meant the list described days the citizen had not decided on yet — so
- * it churned every time the planner rerolled a meal they were still browsing,
- * and it bought food for a Thursday they might never cook."
+ * WHY THIS ONLY SHOWS AND DOES NOT SETTLE. The basket follows the LOCKS —
+ * a deliberate decision, and the reasoning in nutrition.service.ts still holds:
+ * "a start-date-plus-length window meant the list described days the citizen had
+ * not decided on yet, so it churned every time the planner rerolled a meal they
+ * were still browsing, and it bought food for a Thursday they might never cook."
  *
- * That reasoning still holds, so this does not fight it. Choosing a range here
- * LOCKS the days in it. Locking is the act of deciding; the range is just how
- * many decisions you are making at once. The liberty is real — today through
- * any day up to a week — and the basket still cannot churn underneath you,
- * because every day in it has been settled.
+ * Settling a day means reading its menu and accepting it. That belongs on the
+ * meal plan, next to the food it is about — not behind one button on a shopping
+ * screen that can lock seven days' meals somebody has never seen. So this panel
+ * points at the days that need deciding and links to them.
  *
- * Days already locked are left alone. Nothing is ever unlocked here: taking a
- * decision back belongs on the planner, beside the food it is about.
+ * The endpoint has always taken `days` and `startDate` — groceryPlan(userId,
+ * mode, days = 7, startDate?), clamped 1–28 — and the web app sent neither, so
+ * the range was fixed at a week with no say in it. It sends them now.
  */
 
 const DAY_MS = 86_400_000;
@@ -43,8 +42,6 @@ export function ShoppingRange({ mode, days, onDays }: {
   onDays: (n: number) => void;
 }) {
   const plan = useComposedPlan('preferred', mode === 'family' ? 'household' : 'self');
-  const lock = useLockDay();
-  const [busy, setBusy] = useState(false);
 
   const wk = plan.data;
   const planDays = wk?.days?.length ?? 0;
@@ -53,28 +50,22 @@ export function ShoppingRange({ mode, days, onDays }: {
   // Friday has two days left, and a control that offers seven is lying.
   const maxDays = Math.max(1, Math.min(7, planDays ? planDays - base : 7));
   const chosen = Math.min(Math.max(1, days), maxDays);
+  const locks = useMemo(() => new Set(wk?.locks ?? []), [wk]);
 
-  const wanted = useMemo(
-    () => Array.from({ length: chosen }, (_, i) => base + i).filter((d) => d < planDays || !planDays),
-    [chosen, base, planDays],
-  );
-  const locks = wk?.locks ?? [];
-  const unsettled = wanted.filter((d) => !locks.includes(d));
+  const week = useMemo(() => Array.from({ length: maxDays }, (_, i) => {
+    const dayIndex = base + i;
+    return {
+      i,
+      dayIndex,
+      date: new Date(midnight(new Date()).getTime() + i * DAY_MS),
+      inRange: i < chosen,
+      locked: locks.has(dayIndex),
+    };
+  }), [maxDays, base, chosen, locks]);
 
-  const last = new Date(midnight(new Date()).getTime() + (chosen - 1) * DAY_MS);
-  const fmt = (d: Date) => d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-
-  const settleAll = async () => {
-    setBusy(true);
-    try {
-      // One at a time, in plan order. Each lock returns the whole week, and the
-      // server is the only thing that knows what a lock does to the basket —
-      // firing them in parallel would race that.
-      for (const day of unsettled) await lock.mutateAsync({ day, mode });
-    } finally {
-      setBusy(false);
-    }
-  };
+  const inRange = week.filter((d) => d.inRange);
+  const unsettled = inRange.filter((d) => !d.locked);
+  const settled = inRange.length - unsettled.length;
 
   if (plan.isLoading) return null;
   // A CONTROL THAT VANISHES IS NOT A HANDLED FAILURE. Returning null here meant
@@ -97,47 +88,64 @@ export function ShoppingRange({ mode, days, onDays }: {
     );
   }
 
+  const dayLabel = (d: Date) => d.toLocaleDateString('en-IN', { weekday: 'short' });
+  const dateLabel = (d: Date) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  const longLabel = (d: Date) => d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+
   return (
     <div className="card" style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>Shopping for</h3>
-        <span className="muted" style={{ fontSize: 12 }}>from today, up to a week</span>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginTop: 12 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {Array.from({ length: maxDays }, (_, i) => i + 1).map((n) => (
-            <button key={n} type="button" onClick={() => onDays(n)}
-              aria-pressed={n === chosen}
-              className={`pill ${n === chosen ? 'on' : ''}`}
-              style={{ cursor: 'pointer', minWidth: 44 }}>
-              {n}{n === 1 ? ' day' : ' days'}
-            </button>
-          ))}
-        </div>
-        <span className="muted" style={{ fontSize: 12.5 }}>
-          {chosen === 1 ? `Today · ${fmt(new Date())}` : `Today → ${fmt(last)}`}
+        <span className="muted" style={{ fontSize: 12 }}>
+          from today to {dateLabel(week[week.length - 1].date)}
         </span>
       </div>
 
-      <p className="muted" style={{ fontSize: 12.5, margin: '12px 0 0', lineHeight: 1.6 }}>
-        {unsettled.length === 0
-          ? `All ${wanted.length} day${wanted.length === 1 ? '' : 's'} in this range are settled, so this list is fixed — nothing in it will change under you.`
-          : `${wanted.length - unsettled.length} of ${wanted.length} settled. Settling the other ${unsettled.length} fixes ${unsettled.length === 1 ? 'its menu' : 'their menus'} and puts every ingredient on one list.`}
+      {/* The dates themselves, not a count of them. Tapping one sets how far the
+          range reaches; the padlock says whether that day is settled, which is
+          the only thing that decides if its ingredients are on the list. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+        {week.map((d) => (
+          <button key={d.dayIndex} type="button" onClick={() => onDays(d.i + 1)}
+            aria-pressed={d.inRange}
+            aria-label={`${longLabel(d.date)}${d.locked ? ', settled' : ', not settled yet'}`}
+            className={`pill ${d.inRange ? 'on' : ''}`}
+            style={{ cursor: 'pointer', flexDirection: 'column', height: 'auto', padding: '8px 14px', gap: 2 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.02em' }}>
+              {d.i === 0 ? 'Today' : dayLabel(d.date)}
+            </span>
+            <span style={{ fontSize: 11, opacity: .75 }}>
+              {dateLabel(d.date)}{d.locked ? ' · settled' : ''}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <p className="muted" style={{ fontSize: 12.5, margin: '14px 0 0', lineHeight: 1.65 }}>
+        Only ingredients from <strong>settled</strong> days appear below — a day you have not
+        settled can still change, and buying for it would buy food you may never cook.
       </p>
 
-      {unsettled.length > 0 && (
-        <button type="button" className="btn btn-accent" style={{ marginTop: 12 }}
-          disabled={busy || lock.isPending}
-          onClick={() => void settleAll()}>
-          {busy || lock.isPending
-            ? `Settling ${unsettled.length} day${unsettled.length === 1 ? '' : 's'}…`
-            : `Settle ${unsettled.length} day${unsettled.length === 1 ? '' : 's'} & build the list`}
-        </button>
-      )}
-      {unsettled.length > 0 && (
-        <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>
-          Only the days in this range are settled. You can undo any of them from the meal plan.
+      {unsettled.length > 0 ? (
+        <div style={{ marginTop: 10 }}>
+          <p style={{ fontSize: 13, margin: 0, lineHeight: 1.65 }}>
+            {settled === 0
+              ? `None of these ${inRange.length} day${inRange.length === 1 ? '' : 's'} is settled yet, so there is nothing to shop for.`
+              : `${settled} of ${inRange.length} settled. ${unsettled.length} still to go.`}
+            {' '}Open the meal plan, read the menu for {unsettled.length === 1 ? 'that day' : 'each of these days'}, and lock the ones you are happy with.
+          </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+            {unsettled.map((d) => (
+              <Link key={d.dayIndex} to={`/nutrition/weekly?day=${d.dayIndex}`} className="btn btn-line btn-sm">
+                Settle {d.i === 0 ? 'today' : `${dayLabel(d.date)} ${dateLabel(d.date)}`}
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p style={{ fontSize: 13, margin: '10px 0 0', lineHeight: 1.65 }}>
+          All {inRange.length} day{inRange.length === 1 ? '' : 's'} in this range {inRange.length === 1 ? 'is' : 'are'} settled,
+          so this list is fixed — nothing in it will change under you.
         </p>
       )}
     </div>
