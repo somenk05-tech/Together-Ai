@@ -28,6 +28,14 @@ export interface OutboundMessage {
   html?: string;       // email only — rich HTML body (falls back to `body`)
   kind: string;        // receipt | recovery | security | welcome
   attachments?: OutboundAttachment[]; // email only — real MIME attachments
+  // email only — per-message sender identity. User-composed city mail sends AS
+  // the citizen's own "<Name> <handle@togethercity.app>" (covered by the
+  // domain's DKIM), so it arrives from them, not from the shared branded box.
+  // Omitted for system mail (OTP/receipts), which uses the provider default.
+  from?: string;
+  // email only — where replies go. Set to the citizen's city address so a reply
+  // lands back in THEIR inbox (via the inbound webhook), not the shared box.
+  replyTo?: string;
 }
 
 export interface ProviderResult {
@@ -157,8 +165,22 @@ export class ResendEmailProvider implements MessagingProvider {
     if (msg.channel !== 'email') {
       throw new Error('ResendEmailProvider handles the email channel only');
     }
+    // Per-message sender: user-composed city mail carries its own `from` (the
+    // citizen's @togethercity.app address, covered by domain DKIM). System mail
+    // passes none and uses the branded default. A malformed per-message from is
+    // refused back to the default rather than sent as the wrong identity — the
+    // same "never guess a sender" rule the default is checked by.
+    const perMsgFrom = msg.from?.trim() ? describeFromAddress(msg.from) : null;
+    if (perMsgFrom && !perMsgFrom.ok) {
+      // eslint-disable-next-line no-console
+      console.error(`[messaging:resend] per-message from invalid — ${perMsgFrom.reason} Falling back to ${this.from}.`);
+    }
+    const fromToUse = perMsgFrom?.ok ? (perMsgFrom.value as string) : this.from;
     const { data, error } = await this.client.emails.send({
-      from: this.from,
+      from: fromToUse,
+      // Replies go where the sender can actually receive them (their city
+      // inbox), not to the envelope default.
+      ...(msg.replyTo ? { replyTo: msg.replyTo } : {}),
       to: msg.to,
       subject: msg.subject ?? '(no subject)',
       // Send both: HTML for clients that render it, plain text as the fallback.
@@ -187,7 +209,7 @@ export class ResendEmailProvider implements MessagingProvider {
       // an error log into a list of people's email addresses.
       const domain = msg.to.includes('@') ? msg.to.split('@').pop() : 'unknown';
       // eslint-disable-next-line no-console
-      console.error(`[messaging:resend] send REJECTED — ${reason} (from: ${this.from}, to domain: ${domain}, kind: ${msg.kind})`);
+      console.error(`[messaging:resend] send REJECTED — ${reason} (from: ${fromToUse}, to domain: ${domain}, kind: ${msg.kind})`);
       return { provider: 'resend', providerMessageId: '', status: 'failed', error: reason };
     }
     return { provider: 'resend', providerMessageId: data?.id ?? '', status: 'queued' };

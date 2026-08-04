@@ -8,6 +8,17 @@ export type Route = {
   path: string;        // route path as written ('' for a bare @Get())
   id: string;          // "prefix METHOD path" — stable identity used by the guards
   isPublic: boolean;   // carries @Public()
+  /**
+   * Guard class names from @UseGuards(...) on this handler.
+   *
+   * `isPublic` alone cannot tell "unauthenticated" from "authenticated by
+   * something other than a JWT". The inbound mail webhook is the first route
+   * that needs the distinction: Resend cannot present a token, so the route is
+   * @Public(), and it is guarded by a shared secret instead. Recording the guard
+   * lets route-exposure.spec assert THAT rather than granting a blanket
+   * exemption — a public mutation still has to name what protects it.
+   */
+  guards: string[];
   takesRouteParam: boolean; // handler declares an @Param(...) the caller controls
   takesCurrentUser: boolean; // handler receives @CurrentUser()
   signature: string;   // the handler's parameter list, for failure messages
@@ -54,13 +65,19 @@ export function parseController(file: string): Route[] {
     const method = m[1].toUpperCase();
     const path = (m[2] ?? m[3] ?? '').trim();
 
-    // Walk backwards over this handler's contiguous decorator block to find @Public().
+    // Walk backwards over this handler's contiguous decorator block to find
+    // @Public() and any @UseGuards(...). Both, not either: a route can be opted
+    // out of the JWT and still be guarded, and the pair is the whole answer to
+    // "what does it take to reach this".
     let isPublic = false;
+    const guards: string[] = [];
     for (let j = i - 1; j >= 0; j--) {
       const line = lines[j].trim();
       if (line === '' || line.startsWith('//') || line.startsWith('*') || line.startsWith('/*')) continue;
       if (DECORATOR_LINE.test(lines[j])) {
-        if (line.startsWith('@Public()')) { isPublic = true; break; }
+        if (line.startsWith('@Public()')) { isPublic = true; continue; }
+        const g = /^@UseGuards\(([^)]*)\)/.exec(line);
+        if (g) guards.push(...g[1].split(',').map((x) => x.trim()).filter(Boolean));
         continue;
       }
       break; // hit code — the decorator block is done
@@ -83,6 +100,7 @@ export function parseController(file: string): Route[] {
       path,
       id: `${prefix} ${method} ${path}`.trim(),
       isPublic,
+      guards,
       takesRouteParam: /@Param\(/.test(sig),
       takesCurrentUser: /@CurrentUser\(/.test(sig),
       signature: sig.trim().replace(/\s+/g, ' ').slice(0, 200),

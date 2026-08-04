@@ -51,6 +51,12 @@ const ALLOW: Array<{ id: string; why: string }> = [
       + 'a rule that quietly excuses a whole class.',
   })),
   {
+    id: 'mail/mail-inbound.controller.ts  POST /mail/inbound',
+    why: 'The Resend inbound-mail webhook. Its caller is a mail provider, not a '
+      + 'page — a reply someone sends from Gmail arrives here, and no browser '
+      + 'will ever ask for it.',
+  },
+  {
     id: 'media/media-status.controller.ts  GET /media/cors-status',
     why: 'A diagnostic for a human with curl, added when cross-origin media was '
       + 'failing silently. It answers a question you ask by hand.',

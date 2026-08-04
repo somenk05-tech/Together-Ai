@@ -27,6 +27,7 @@ import {
   MAIL_DOMAIN, CITY_DOMAINS, QUOTA_BYTES, addressFor, handleFromAddress, snippetOf, sizeOf, welcomeMail, humanBytes,
 } from './mail.constants';
 import { createMessagingProvider, messagingConfigured, type Channel } from './messaging-provider';
+import { cityFromHeader, normalizeInbound } from './mail-inbound';
 import type { FlagDto, FolderQueryDto, SendMailDto } from './dto/mail.dto';
 
 @Injectable()
@@ -425,8 +426,13 @@ export class MailService {
     const provider = createMessagingProvider('email');
     // Real MIME attachments so external recipients get the actual files.
     const { attachments, linkFooter } = await this.loadOutboundAttachments(userId, dto.attachmentFileIds);
+    // Leave AS the citizen: From is their own city address, and replies are
+    // directed back to it so they land in THEIR inbox (via the inbound webhook),
+    // not the shared branded box. fromAddr is always a verified-domain
+    // @togethercity.app address, so this is DKIM-aligned and deliverable.
+    const fromHeader = cityFromHeader(fromName, fromAddr);
     const res = await provider
-      .send({ channel: 'email', to: toEmail, subject, body: dto.body + linkFooter + footer, kind: 'mail', ...(attachments.length ? { attachments } : {}) })
+      .send({ channel: 'email', to: toEmail, subject, body: dto.body + linkFooter + footer, kind: 'mail', from: fromHeader, replyTo: fromAddr, ...(attachments.length ? { attachments } : {}) })
       .catch((e: Error) => ({ provider: provider.name, providerMessageId: null as string | null, status: 'failed' as const, error: e.message }));
     // The delivery audit row is how an outage gets diagnosed (see the mail
     // postmortem) — losing it silently blinds exactly that investigation.
@@ -490,6 +496,85 @@ export class MailService {
     if (m.folder === 'trash') await this.prisma.mailMessage.delete({ where: { id } });
     else await this.prisma.mailMessage.update({ where: { id }, data: { folder: 'trash', starred: false } });
     return { ok: true };
+  }
+
+  /**
+   * File an INBOUND external email (typically a reply to a citizen's
+   * <handle>@togethercity.app address) into THAT citizen's inbox — and nobody
+   * else's. Called by the Resend inbound webhook (MailInboundController).
+   *
+   * AUTHENTICATION IS NOT HERE. It is InboundSecretGuard, on the route. This
+   * method assumes the caller has already been proven to be the provider, and
+   * must never be reachable any other way — see that guard for why the check
+   * moved out of this function.
+   */
+  async ingestInbound(payload: unknown) {
+    const mail = normalizeInbound(payload);
+    if (!mail) {
+      this.logger.warn('inbound mail: unrecognised payload shape');
+      return { ok: false, reason: 'unparseable' };
+    }
+
+    // The reply is addressed to one or more city handles; deliver a copy to each
+    // matching citizen. An address we don't recognise is ignored — it was never
+    // ours to receive. handleFromAddress returns null for any domain outside
+    // CITY_DOMAINS, so a stranger's address cannot name a mailbox here.
+    const handles = [...new Set(mail.to.map(handleFromAddress).filter((h): h is string => Boolean(h)))];
+    if (!handles.length) {
+      this.logger.warn('inbound mail: no city recipient in To');
+      return { ok: false, reason: 'no-city-recipient' };
+    }
+
+    let delivered = 0;
+    for (const handle of handles) {
+      const user = await this.prisma.user.findUnique({ where: { handle }, select: { id: true, name: true, deletedAt: true } });
+      // A deleted account keeps its row so other citizens' conversations survive
+      // (see User.deletedAt). It must not keep receiving mail.
+      if (!user || user.deletedAt) continue;
+      await this.ensureAccount(user.id);
+
+      const subject = (mail.subject || '(no subject)').slice(0, 200);
+      const body = (mail.text || mail.html?.replace(/<[^>]*>/g, ' ') || '').slice(0, 50000);
+      const size = sizeOf(subject, body);
+
+      // An inbound message a citizen has no room for is dropped rather than
+      // failing the whole webhook — the sender is external and cannot be bounced
+      // from here.
+      const used = await this.usedBytes(user.id);
+      if (used + size > QUOTA_BYTES) {
+        this.logger.warn(`inbound mail dropped: ${handle}'s mailbox is full`);
+        continue;
+      }
+
+      const threadId = await this.resolveInboundThread(user.id, mail.from.addr, subject);
+      await this.prisma.mailMessage.create({
+        data: {
+          ownerId: user.id, boxUserId: user.id, folder: 'inbox', read: false, system: false,
+          fromAddr: mail.from.addr, fromName: mail.from.name || mail.from.addr,
+          toAddr: addressFor(handle), toName: user.name ?? '',
+          subject, body, snippet: snippetOf(body), sizeBytes: size, threadId,
+          ...(mail.providerMessageId ? { providerMessageId: mail.providerMessageId } : {}),
+        },
+      });
+      delivered++;
+    }
+    return { ok: true, delivered };
+  }
+
+  /** Reuse an existing trail when this citizen already corresponds with this
+   *  external address under the same (normalised) subject; otherwise a new
+   *  thread. Best-effort, since an inbound reply's headers can't be relied on to
+   *  echo the id we sent. */
+  private async resolveInboundThread(userId: string, fromAddr: string, subject: string): Promise<string> {
+    const strip = (t: string) => t.replace(/^\s*(re|fwd?)\s*:\s*/i, '').trim().toLowerCase();
+    const norm = strip(subject);
+    const prior = await this.prisma.mailMessage.findFirst({
+      where: { ownerId: userId, OR: [{ fromAddr }, { toAddr: fromAddr }] },
+      orderBy: { createdAt: 'desc' },
+      select: { threadId: true, subject: true },
+    });
+    if (prior?.threadId && strip(prior.subject) === norm) return prior.threadId;
+    return randomUUID();
   }
 
   /**

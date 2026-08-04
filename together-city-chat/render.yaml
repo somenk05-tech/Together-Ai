@@ -48,6 +48,12 @@ services:
       # published at MEDIA_PUBLIC_BASE_URL. assertProductionConfig() refuses
       # to boot rather than let that happen quietly, so a deploy that forgets
       # this fails loudly here instead of succeeding and leaking.
+      # The inbound-mail webhook secret. POST /api/mail/inbound writes into a
+      # citizen's mailbox and cannot carry a user JWT, so this is what
+      # authenticates it. Unset, InboundSecretGuard refuses every call — the
+      # feature is off rather than open.
+      - key: RESEND_INBOUND_SECRET
+        sync: false
       - key: MEDIA_PROVIDER
         value: r2
       - key: MEDIA_BUCKET

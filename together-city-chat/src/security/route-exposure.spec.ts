@@ -36,7 +36,27 @@ const PUBLIC_ALLOWLIST = [
   'auth POST reset',
   'city GET header',
   'health GET',
+  // The inbound mail webhook. Resend has no user session and cannot mint a
+  // token, so this route cannot be JWT-authenticated — but it is NOT
+  // unauthenticated: InboundSecretGuard checks a shared secret in constant time
+  // before the handler runs. It is on this list because it is JWT-public; the
+  // mutation guard below is what holds it to naming its own protection.
+  'mail POST inbound',
 ].sort();
+
+/**
+ * Public routes that mutate, and the guard that authenticates each instead.
+ *
+ * The rule this API has kept is "no unauthenticated mutation", and for a long
+ * time that was the same sentence as "no public POST outside auth". A webhook
+ * breaks the second without breaking the first. So the rule is now written as
+ * what it always meant: a public mutation must NAME the mechanism that guards
+ * it, and that mechanism must be a real guard on the route — where the
+ * inventory, and a reviewer skimming the controller, can see it.
+ */
+const GUARDED_PUBLIC_MUTATIONS: Record<string, string> = {
+  'mail POST inbound': 'InboundSecretGuard',
+};
 
 /**
  * Authenticated routes that take a caller-supplied id but deliberately do NOT
@@ -91,10 +111,24 @@ describe('API surface — structural security guards', () => {
 
   it('keeps every mutation authenticated', () => {
     const publicMutations = routes
-      .filter((r) => r.isPublic && ['POST', 'PATCH', 'DELETE', 'PUT'].includes(r.method))
-      .map((r) => r.id);
-    // The only unauthenticated POSTs are the credential flows themselves.
-    expect(publicMutations.every((id) => id.startsWith('auth '))).toBe(true);
+      .filter((r) => r.isPublic && ['POST', 'PATCH', 'DELETE', 'PUT'].includes(r.method));
+    // Unauthenticated POSTs are the credential flows themselves. Anything else
+    // that mutates without a JWT must carry the guard that authenticates it
+    // instead — declared above, and actually present on the route.
+    const unprotected = publicMutations
+      .filter((r) => !r.id.startsWith('auth '))
+      .filter((r) => {
+        const expected = GUARDED_PUBLIC_MUTATIONS[r.id];
+        return !expected || !r.guards.includes(expected);
+      })
+      .map((r) => `${r.id} (guards: ${r.guards.join(', ') || 'none'})`);
+    expect(unprotected).toEqual([]);
+  });
+
+  it('does not let the guarded-mutation list name a route that is gone', () => {
+    // A named exception that outlives its route is a hole with a comment on it.
+    const ids = new Set(routes.map((r) => r.id));
+    expect(Object.keys(GUARDED_PUBLIC_MUTATIONS).filter((id) => !ids.has(id))).toEqual([]);
   });
 });
 
