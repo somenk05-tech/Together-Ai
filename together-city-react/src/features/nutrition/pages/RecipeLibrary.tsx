@@ -162,14 +162,20 @@ export function RecipeLibrary() {
   );
 
   /**
-   * TODAY'S PLAN, ON THE PAGE THAT BUILDS IT.
+   * THE PLAN, AT THE TOP OF THE PAGE THAT BUILDS IT.
    *
    * This was a sticky bar counting picks and a button that turned them into a
    * grocery list — so the page called "Create Your Own Meal Plan" produced
-   * everything except a meal plan. It shows the day instead, in the same four
+   * everything except a meal plan. It shows the days instead, in the same four
    * courses and the same typesetting as the Weekly Meal Planner, because a
    * citizen reading their Tuesday should not have to learn two layouts
    * depending on who chose the food.
+   *
+   * IT IS FIRST ON THE PAGE, on both the cuisine landing and inside a cuisine.
+   * It sat under a paginated grid of two hundred recipes, which is the one
+   * place somebody looking for the plan they are building will not scroll to —
+   * and after locking a day, the confirmation that anything happened was three
+   * screens down. What you are making comes before what you might add to it.
    */
   const buildBar = (
     <OwnDayView
@@ -210,10 +216,12 @@ export function RecipeLibrary() {
         <div className="eyebrow">Nutrition</div>
         <h1 style={{ fontSize: 26 }}>{LABELS.createYourOwnMealPlan}</h1>
         <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
-          Search by name or by what is in your kitchen, add the dishes you like, and turn them into
-          one grocery list. Browse a cuisine for ideas — or add a dish you cook yourself, further
-          down this page.
+          Add the dishes you want and they build the day below. Lock a day and its ingredients go
+          straight to your grocery list — then the next dish you add starts the day after. Browse a
+          cuisine for ideas, or add a dish you cook yourself, further down this page.
         </p>
+
+        {buildBar}
         <form onSubmit={(e) => { e.preventDefault(); if (search) setCuisine(''); }} style={{ marginBottom: 18 }}>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="🔍 Search all recipes…" aria-label="Search recipes"
             style={{ width: '100%', padding: '12px 14px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', background: 'var(--card)', boxSizing: 'border-box' }} />
@@ -248,6 +256,8 @@ export function RecipeLibrary() {
         style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 999, padding: '4px 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', marginBottom: 12 }}>← All cuisines</button>
       <h1 style={{ fontSize: 24 }}>{cuisine || (ingredients.length ? 'Matching' : 'Search')} Recipes {lib.data && <span className="muted" style={{ fontSize: 14, fontWeight: 400 }}>· {lib.data.total.toLocaleString()}</span>}
         {lib.isFetching && !lib.isLoading && <span className="muted" style={{ fontSize: 12.5, fontWeight: 400, marginLeft: 8 }}>Updating…</span>}</h1>
+
+      {buildBar}
 
       <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="🔍 Search recipes…" aria-label="Search recipes"
         style={{ width: '100%', padding: '11px 14px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', background: 'var(--card)', boxSizing: 'border-box', margin: '10px 0 12px' }} />
@@ -287,8 +297,6 @@ export function RecipeLibrary() {
           <Button variant="line" size="sm" disabled={page >= lib.data.pages} onClick={() => setPage((p) => p + 1)}>Next →</Button>
         </div>
       )}
-
-      {buildBar}
     </div>
   );
 }

@@ -1,9 +1,9 @@
 import { Button, Spinner } from '@/components/ui';
 import { VegMark } from './VegMark';
-import type { OwnPlan } from '../composed.api';
+import type { OwnDay, OwnPlan } from '../composed.api';
 
 /**
- * THE DAY A CITIZEN BUILT, PRINTED ON THE SAME PRESS AS THE ONE THE ENGINE
+ * THE DAYS A CITIZEN BUILT, PRINTED ON THE SAME PRESS AS THE ONE THE ENGINE
  * BUILDS.
  *
  * "Create Your Own Meal Plan" used to end in a sticky bar counting picks and a
@@ -14,8 +14,11 @@ import type { OwnPlan } from '../composed.api';
  * `press-aside`, `press-foot`. Not a lookalike built out of inline styles: the
  * same classes, so the two days cannot drift apart when the press is retouched.
  *
- * Somebody reading their Tuesday should not have to learn two layouts depending
- * on who chose the food.
+ * IT KEEPS EVERY DAY THEY SETTLED. Locking used to make a day disappear from
+ * the page — the plan moved to tomorrow and yesterday's work was somewhere
+ * else, or nowhere. A locked day stays here, on its date, exactly as it was
+ * printed, because a plan you cannot look at afterwards is a receipt for a
+ * decision rather than a plan.
  *
  * IT DOES NOT TOP THE DAY UP. The totals are the honest sum of what they put on
  * it, and the figures say how that compares to their prescription. A hand-built
@@ -30,73 +33,33 @@ const round = (n: number | null | undefined): string =>
 const grams = (n: number | null | undefined): string =>
   typeof n === 'number' && Number.isFinite(n) ? `${Math.round(n)}g` : '—';
 
-export function OwnDayView({ plan, loading, failed, onRetry, onRemove, onLock, onUnlock, busy }: {
-  plan?: OwnPlan;
-  loading: boolean;
-  failed: boolean;
-  onRetry: () => void;
+const dateOf = (iso: string) => new Date(`${iso}T00:00:00`);
+const weekday = (iso: string) => dateOf(iso).toLocaleDateString('en-IN', { weekday: 'long' });
+const longDate = (iso: string) => dateOf(iso).toLocaleDateString('en-IN', {
+  day: 'numeric', month: 'long', year: 'numeric',
+});
+
+type Targets = OwnPlan['targets'];
+
+/** One built day, set as a printed page. */
+function DaySheet({ day, targets, busy, onRemove, onLock, onUnlock }: {
+  day: OwnDay;
+  targets: Targets;
+  busy: boolean;
   onRemove: (day: number, recipeId: string) => void;
   onLock: (day: number) => void;
   onUnlock: (day: number) => void;
-  busy: boolean;
 }) {
-  if (loading) return <div style={{ padding: 24 }}><Spinner label="Opening your plan…" /></div>;
-
-  // A plan that cannot be read must not render as a plan with nothing in it —
-  // "you have added nothing" and "we could not look" are different sentences.
-  if (failed || !plan) {
-    return (
-      <div className="card" style={{ marginTop: 18 }}>
-        <h3 style={{ margin: 0, fontSize: 16 }}>We couldn’t open your plan</h3>
-        <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 12px', lineHeight: 1.6 }}>
-          Nothing has been lost — anything you added is still there. This is only the reading of it.
-        </p>
-        <Button variant="line" size="sm" onClick={onRetry}>Try again</Button>
-      </div>
-    );
-  }
-
-  const day = plan.days.find((d) => d.dayIndex === plan.targetDay);
-  const settled = plan.days.filter((d) => d.locked).length;
-  const dateOf = (iso: string) => new Date(`${iso}T00:00:00`);
-  const weekday = (iso: string) => dateOf(iso).toLocaleDateString('en-IN', { weekday: 'long' });
-  const longDate = (iso: string) => dateOf(iso).toLocaleDateString('en-IN', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  });
-
-  if (!day || !day.meals.length) {
-    const iso = day?.dayISO ?? plan.days[0]?.dayISO;
-    return (
-      <div data-press style={{ marginTop: 18, padding: '30px 0 8px' }}>
-        <header className="press-hero" style={{ marginBottom: 0 }}>
-          <div className="press-hero-row">
-            <div>
-              <h1 className="press-day">{iso ? weekday(iso) : 'Today'}</h1>
-              <div className="press-date">{iso ? longDate(iso) : 'Nothing on it yet'}</div>
-            </div>
-            <p className="press-quote">
-              Nothing on it yet. Add a dish below and it lands here, in the course it belongs to.
-            </p>
-          </div>
-          <p className="press-desc" style={{ marginTop: 22 }}>
-            When the day looks right, lock it — its ingredients join your grocery list and the
-            next dish you add starts the following day.
-            {settled > 0 && ` ${settled} day${settled === 1 ? '' : 's'} already locked.`}
-          </p>
-        </header>
-      </div>
-    );
-  }
-
   const t = day.totals;
-  const target = plan.targets ?? undefined;
+  const target = targets ?? undefined;
   // A percentage against a target we do not have is a made-up number, so the
   // whole `press-pc` line is absent rather than showing 0% or 100%.
   const pc = (v: number, of?: number | null) =>
     typeof of === 'number' && of > 0 ? `${Math.min(999, Math.round((v / of) * 100))}%` : null;
   const kcalPc = pc(t.kcal, target?.kcal);
-  const share = (grams_: number, perGram: number) =>
-    t.kcal > 0 ? `${Math.round((grams_ * perGram / t.kcal) * 100)}%` : null;
+  const share = (g: number, perGram: number) =>
+    t.kcal > 0 ? `${Math.round((g * perGram / t.kcal) * 100)}%` : null;
+  const capped = (v: string | null) => (v ? `${Math.min(100, parseInt(v, 10))}%` : null);
 
   const dishes = day.meals.reduce((n, m) => n + m.components.length, 0);
   const note = day.locked
@@ -110,17 +73,19 @@ export function OwnDayView({ plan, loading, failed, onRetry, onRemove, onLock, o
       <span className="press-val">{value}</span>
     </div>
   );
-  const capped = (v: string | null) => (v ? `${Math.min(100, parseInt(v, 10))}%` : null);
 
   return (
-    <div data-press style={{ marginTop: 18, padding: '30px 0 8px' }}>
+    <div data-press style={{ padding: '26px 0 8px' }}>
       <div className="press-sheet">
 
         <header className="press-hero">
           <div className="press-hero-row">
             <div>
               <h1 className="press-day">{weekday(day.dayISO)}</h1>
-              <div className="press-date">{longDate(day.dayISO)}</div>
+              {/* THE DATE IS THE RECORD. A settled day is filed under the day it
+                  is for, not "day 3" — which is the only label that still means
+                  something a week later. */}
+              <div className="press-date">{day.locked ? `Locked · ${longDate(day.dayISO)}` : longDate(day.dayISO)}</div>
             </div>
             <p className="press-quote">{note}</p>
           </div>
@@ -235,11 +200,6 @@ export function OwnDayView({ plan, loading, failed, onRetry, onRemove, onLock, o
                 </div>
               </>
             )}
-            {settled > 0 && (
-              <p className="press-desc" style={{ marginTop: 14 }}>
-                {settled} day{settled === 1 ? '' : 's'} locked so far.
-              </p>
-            )}
           </section>
         </aside>
 
@@ -251,6 +211,78 @@ export function OwnDayView({ plan, loading, failed, onRetry, onRemove, onLock, o
           <div><dt>Fibre</dt><dd>{grams(t.fiber)}</dd></div>
         </footer>
       </div>
+    </div>
+  );
+}
+
+export function OwnDayView({ plan, loading, failed, onRetry, onRemove, onLock, onUnlock, busy }: {
+  plan?: OwnPlan;
+  loading: boolean;
+  failed: boolean;
+  onRetry: () => void;
+  onRemove: (day: number, recipeId: string) => void;
+  onLock: (day: number) => void;
+  onUnlock: (day: number) => void;
+  busy: boolean;
+}) {
+  if (loading) return <div style={{ padding: 24 }}><Spinner label="Opening your plan…" /></div>;
+
+  // A plan that cannot be read must not render as a plan with nothing in it —
+  // "you have added nothing" and "we could not look" are different sentences.
+  if (failed || !plan) {
+    return (
+      <div className="card" style={{ marginBottom: 22 }}>
+        <h3 style={{ margin: 0, fontSize: 16 }}>We couldn’t open your plan</h3>
+        <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 12px', lineHeight: 1.6 }}>
+          Nothing has been lost — anything you added is still there. This is only the reading of it.
+        </p>
+        <Button variant="line" size="sm" onClick={onRetry}>Try again</Button>
+      </div>
+    );
+  }
+
+  const open = plan.days.find((d) => d.dayIndex === plan.targetDay);
+  // Every day they have settled, oldest first — a plan reads forward.
+  const settled = plan.days
+    .filter((d) => d.locked && d.dayIndex !== plan.targetDay)
+    .sort((a, b) => a.dayIndex - b.dayIndex);
+
+  const sheet = (day: OwnDay) => (
+    <DaySheet key={day.dayIndex} day={day} targets={plan.targets} busy={busy}
+      onRemove={onRemove} onLock={onLock} onUnlock={onUnlock} />
+  );
+
+  return (
+    <div style={{ marginBottom: 26 }}>
+      {open && open.meals.length ? sheet(open) : (
+        <div data-press style={{ padding: '26px 0 8px' }}>
+          <header className="press-hero" style={{ marginBottom: 0 }}>
+            <div className="press-hero-row">
+              <div>
+                <h1 className="press-day">{open ? weekday(open.dayISO) : 'Today'}</h1>
+                <div className="press-date">{open ? longDate(open.dayISO) : 'Nothing on it yet'}</div>
+              </div>
+              <p className="press-quote">
+                Nothing on it yet. Add a dish below and it lands here, in the course it belongs to.
+              </p>
+            </div>
+            <p className="press-desc" style={{ marginTop: 22 }}>
+              When the day looks right, lock it — its ingredients join your grocery list and the
+              next dish you add starts the following day.
+            </p>
+          </header>
+        </div>
+      )}
+
+      {settled.length > 0 && (
+        <section style={{ marginTop: 30 }}>
+          <div className="wall-rule" style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+            <span>Days you have locked</span>
+            <span>{settled.length} saved</span>
+          </div>
+          {settled.map(sheet)}
+        </section>
+      )}
     </div>
   );
 }

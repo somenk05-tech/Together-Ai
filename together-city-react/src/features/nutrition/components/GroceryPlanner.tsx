@@ -212,10 +212,18 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
     <div className="card" style={{ marginBottom: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', fontSize: 12.5 }}>
       <span aria-hidden="true" style={{ fontSize: 15 }}>🔒</span>
       <span style={{ flex: 1, minWidth: 200 }}>
-        This list is built from the days you have locked in your meal plan.
+        {/* TWO PLANS FEED THIS ONE LIST. The engine's week and the days a
+            citizen assembles by hand both write into the same basket, so the
+            note has to name both — somebody who only ever builds their own days
+            was being told to go and look at a planner they do not use. */}
+        This list is built from the days you have locked — in your meal plan, and in the
+        days you built yourself.
       </span>
       <Link to="/nutrition/weekly" style={{ fontWeight: 600, color: 'var(--accent-ink)', textDecoration: 'none' }}>
         Open meal plan →
+      </Link>
+      <Link to="/nutrition/recipes" style={{ fontWeight: 600, color: 'var(--accent-ink)', textDecoration: 'none' }}>
+        Build a day →
       </Link>
     </div>
   );
@@ -239,7 +247,7 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
           icon="🔒"
           title={nothingLocked ? 'Lock a day to start your list' : 'Nothing to buy for the days you locked'}
           hint={nothingLocked
-            ? 'Open your meal plan, read a day you are happy with, and lock it — its ingredients land here.'
+            ? 'Lock a day and its ingredients land here — either a day of your meal plan, or one you built yourself out of the recipe library.'
             : 'The days you locked need nothing you do not already have.'}
         />
       </div>

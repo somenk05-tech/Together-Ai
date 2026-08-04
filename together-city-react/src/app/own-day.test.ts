@@ -75,6 +75,32 @@ describe('a citizen builds a day, not a basket', () => {
     expect(view).toMatch(/Nothing on it yet/);
   });
 
+  it('puts the plan first on the page, on both of its views', () => {
+    // It sat under a paginated grid of two hundred recipes — the one place
+    // somebody looking for the plan they are building will not scroll to. After
+    // locking a day, the confirmation that anything happened was three screens
+    // down.
+    const first = page.indexOf('{buildBar}');
+    expect(first).toBeGreaterThan(-1);
+    // Twice: once on the cuisine landing, once inside a cuisine.
+    expect((page.match(/\{buildBar\}/g) ?? []).length).toBe(2);
+    // …and before the tile grid in both places.
+    const grid = page.indexOf('lib.data?.items.map');
+    expect(page.lastIndexOf('{buildBar}')).toBeLessThan(grid);
+  });
+
+  it('keeps every day it has locked on the page, under its date', () => {
+    // Locking used to make a day disappear: the plan moved on and yesterday's
+    // work was somewhere else, or nowhere. A plan you cannot look at afterwards
+    // is a receipt for a decision rather than a plan.
+    expect(view).toMatch(/plan\.days\s*\n?\s*\.filter\(\(d\) => d\.locked && d\.dayIndex !== plan\.targetDay\)/);
+    expect(view).toMatch(/Days you have locked/);
+    expect(view).toMatch(/`Locked · \$\{longDate\(day\.dayISO\)\}`/);
+    // Filed under the calendar date, not "day 3" — the only label that still
+    // means something a week later.
+    expect(view).toMatch(/day: 'numeric', month: 'long', year: 'numeric'/);
+  });
+
   it('states no percentage it has no target for', () => {
     // 0% and 100% are both claims about a prescription that is not on file.
     expect(view).toMatch(/typeof of === 'number' && of > 0/);

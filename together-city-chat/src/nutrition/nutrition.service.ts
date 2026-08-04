@@ -5538,6 +5538,54 @@ export class NutritionService implements OnModuleInit {
     }
   }
 
+  /**
+   * SHOPPING SOURCE: THE DAYS A CITIZEN BUILT AND LOCKED THEMSELVES.
+   *
+   * The basket read the composed plan and only the composed plan, so somebody
+   * who assembled Tuesday by hand out of their own recipes, locked it, and went
+   * to the grocery list found it empty — or worse, full of the engine's food.
+   * The page that says "lock this day and add to your grocery list" was telling
+   * the truth about the button and not about the basket.
+   *
+   * It emits the SAME shape composedMealsForShopping does — one entry per dish,
+   * ingredients already at one portion — so groceryPlan aggregates both through
+   * exactly one code path: canonical names, merged units, aisles, pantry
+   * offsets, the citizen's ticks. A second way to turn meals into a basket is
+   * how the two drift.
+   *
+   * LOCKED DAYS ONLY, like everywhere else. A day still being assembled is a
+   * day nobody has decided on, and buying food for it is the churn the lock
+   * rule exists to stop.
+   */
+  private async ownMealsForShopping(userId: string): Promise<{
+    dayCount: number;
+    meals: Array<{ slot: string; recipeName: string; dayISO?: string; ingredients: Array<{ name: string; grams: number }> }>;
+  }> {
+    const empty = { dayCount: 0, meals: [] as Array<{ slot: string; recipeName: string; dayISO?: string; ingredients: Array<{ name: string; grams: number }> }> };
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const entries = (ex.ownDays ?? {}) as Record<string, OwnEntry[]>;
+    const locks = (ex.ownLocks ?? []) as number[];
+    // A lock on a day that has since been emptied buys nothing.
+    const days = locks.filter((d) => (entries[String(d)] ?? []).length);
+    if (!days.length) return empty;
+
+    const startISO = (typeof ex.planStartDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ex.planStartDate))
+      ? ex.planStartDate : await this.today(userId);
+    const pool = await this.poolFor(userId);
+
+    const meals = days.flatMap((d) => buildOwnDay(entries[String(d)] ?? [], pool)
+      .flatMap((m) => m.components.map((c) => ({
+        slot: m.slot as string,
+        recipeName: c.name,
+        dayISO: addDaysISO(startISO, d),
+        ingredients: (c.ingredients ?? [])
+          .filter((i) => !i.toTaste && (i.grams ?? 0) > 0)
+          .map((i) => ({ name: i.name, grams: i.grams })),
+      }))));
+    return meals.length ? { dayCount: days.length, meals } : empty;
+  }
+
   /** Fallback source: the stored weekly MealPlan (per-serving grams → one portion). */
   private async storedPlanMealsForShopping(userId: string, days: number) {
     const latest = await this.prisma.mealPlan.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' } });
@@ -5599,6 +5647,15 @@ export class NutritionService implements OnModuleInit {
     // exclusions applied, so the basket can never buy an ingredient for a dish
     // one of them can't eat.
     const composed = await this.composedMealsForShopping(userId, window, fromISO, mode === 'family', locked);
+    // AND THE DAYS THEY BUILT BY HAND. Individual only: an own day is one
+    // person's dishes chosen for themselves, and the household multiplier below
+    // would buy five portions of a lunch one citizen picked. A household that
+    // wants to cook it together adds it to the family planner, which is the
+    // thing that knows how many people are eating.
+    const own = mode === 'family'
+      ? { dayCount: 0, meals: [] as typeof composed.meals }
+      : await this.ownMealsForShopping(userId).catch(swallowed('nutrition.groceryPlan own', { dayCount: 0, meals: [] as typeof composed.meals }, { userId }));
+    const sourceMeals = [...composed.meals, ...own.meals];
 
     // Household scaling factor. Individual = 1. Family = the SUM of each member's
     // portion multiplier (their daily calorie target ÷ a 2,000-kcal standard
@@ -5625,20 +5682,20 @@ export class NutritionService implements OnModuleInit {
     // breakfast, lunch and dinner and silently omitted the evening course, so
     // the meal count it reported was never the number of meals in the plan.
     const slotCounts: Record<string, number> = { b: 0, l: 0, es: 0, d: 0 };
-    const activeDays = composed.dayCount;
+    const activeDays = composed.dayCount + own.dayCount;
     const headcount = mode === 'family' ? Math.max(1, memberScales.length) : 1;
-    if (!composed.meals.length) {
+    if (!sourceMeals.length) {
       // Distinguish "nothing locked" from "we could not build a list" — the
       // first is a thing the citizen can act on and the second is our failure.
       return {
         aisles: [], recipes: [], itemCount: 0,
-        lockedDays: locked.length,
-        note: locked.length
+        lockedDays: locked.length + own.dayCount,
+        note: (locked.length + own.dayCount)
           ? 'The days you locked have no ingredients to buy.'
-          : 'Nothing is locked yet. Lock a day in your meal plan and its ingredients appear here.',
+          : 'Nothing is locked yet. Lock a day — in your meal plan or in one you built yourself — and its ingredients appear here.',
       };
     }
-    for (const meal of composed.meals) {
+    for (const meal of sourceMeals) {
       slotCounts[meal.slot] = (slotCounts[meal.slot] ?? 0) + headcount;   // meals served = per-slot × people
       const rname = cleanRecipeName(meal.recipeName);
       const mealDay = meal.dayISO;
