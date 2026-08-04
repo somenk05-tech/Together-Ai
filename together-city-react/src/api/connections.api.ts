@@ -5,6 +5,7 @@ import { apiDelete, apiGet, apiPatch, apiPost } from './http';
 import { socketClient } from './socket';
 import { WS } from './events';
 import { ConnectionSchema, ConnectionStatusSchema, type Connection, type ConnectionStatus } from './schemas';
+import { useAuthed } from '@/store/useAuthed';
 
 /** Master hubs registry served by GET /connections/hubs. */
 export const HubSchema = z.object({
@@ -36,9 +37,13 @@ export const connectionsApi = {
 };
 
 export function useConnections(status?: ConnectionStatus) {
+  // The nav's request badge reads this, so it polls on every page. Signed out
+  // that is a 401 every twenty seconds, for ever. See useAuthed.
+  const authed = useAuthed();
   return useQuery({
     queryKey: ['connections', status ?? 'all'],
     queryFn: () => connectionsApi.list(status),
+    enabled: authed,
     // Poll so incoming requests / acceptances surface without a manual reload.
     refetchInterval: 20_000,
     refetchOnWindowFocus: true,

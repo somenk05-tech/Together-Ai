@@ -3,6 +3,7 @@ import { useCallback, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiDelete, apiGet, apiPost, apiPut } from './http';
 import { socketClient, WS } from './socket';
+import { useAuthed } from '@/store/useAuthed';
 import {
   ConversationSchema, MessagePageSchema, MessageSchema,
   type Conversation, type Message, type MessagePage, type ShareCard,
@@ -37,9 +38,14 @@ export const chatApi = {
 
 /* ---------------- React Query hooks ---------------- */
 export function useConversations() {
+  // Signed out, there is nobody to have conversations. Without this the header's
+  // unread badge polls this endpoint every fifteen seconds on every page,
+  // including the sign-in page, and every call is a 401. See useAuthed.
+  const authed = useAuthed();
   return useQuery({
     queryKey: ['chat', 'conversations'],
     queryFn: () => chatApi.conversations(),
+    enabled: authed,
     // Poll so new messages / unread counts surface as a badge without a reload.
     refetchInterval: 15_000,
     refetchOnWindowFocus: true,

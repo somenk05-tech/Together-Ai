@@ -5,6 +5,7 @@ import { apiGet, apiPost } from './http';
 import { NotificationSchema, type NotificationItem } from './schemas';
 import { socketClient } from './socket';
 import { WS } from './events';
+import { useAuthed } from '@/store/useAuthed';
 
 export const notificationsApi = {
   list: (): Promise<NotificationItem[]> => apiGet('/notifications', z.array(NotificationSchema)),
@@ -20,7 +21,10 @@ export function useNotifications() {
   return useQuery({ queryKey: LIST_KEY, queryFn: () => notificationsApi.list() });
 }
 export function useUnreadNotificationCount() {
-  return useQuery({ queryKey: COUNT_KEY, queryFn: () => notificationsApi.unreadCount(), refetchInterval: 60_000 });
+  // Same reason as chat and connections: the header badge mounts everywhere,
+  // and a signed-out visitor has no unread anything. See useAuthed.
+  const authed = useAuthed();
+  return useQuery({ queryKey: COUNT_KEY, queryFn: () => notificationsApi.unreadCount(), enabled: authed, refetchInterval: 60_000 });
 }
 export function useMarkNotificationRead() {
   const qc = useQueryClient();
