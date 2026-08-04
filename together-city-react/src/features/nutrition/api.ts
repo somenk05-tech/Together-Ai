@@ -67,8 +67,11 @@ export const nutritionApi = {
   groceryClearChecked: () =>
     api.post<{ ok: true; cleared: number }>('/nutrition/grocery/clear-checked', {}).then((r) => r.data),
   // No days/startDate: the server builds the basket from the locked plan days.
-  groceryPlan: (mode: 'individual' | 'family' = 'individual') =>
-    api.get<GroceryPlan>('/nutrition/grocery/plan', { params: { mode } }).then((r) => r.data),
+  /** `days` and `startDate` have been on this endpoint since it was written —
+   *  groceryPlan(userId, mode, days = 7, startDate?), clamped 1–28 — and the web
+   *  app sent neither, so the citizen had no say in how far ahead they shop. */
+  groceryPlan: (mode: 'individual' | 'family' = 'individual', days?: number, startDate?: string) =>
+    api.get<GroceryPlan>('/nutrition/grocery/plan', { params: { mode, days, startDate } }).then((r) => r.data),
   cart: () => api.get<GroceryCart>('/nutrition/cart').then((r) => r.data),
   prepAlerts: (mode: 'individual' | 'family' = 'individual') =>
     api.get<{ alerts: Array<{ mealKey: string; title: string; what: string; startBy: string; notified: boolean }> }>(

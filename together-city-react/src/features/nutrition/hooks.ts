@@ -156,10 +156,16 @@ export function useRecipeVariants(id: string | undefined, type: string | null) {
  * The basket. Keyed by mode alone — there is no window any more: the server
  * builds it from the days the citizen has locked (owner decision, 1 Aug).
  */
-export function useGroceryPlan(mode: 'individual' | 'family' = 'individual') {
+export function useGroceryPlan(
+  mode: 'individual' | 'family' = 'individual',
+  days?: number,
+  startDate?: string,
+) {
+  // days/startDate are part of the key: three days of shopping and seven days
+  // of shopping are different baskets and must never share a cache entry.
   return useQuery({
-    queryKey: ['nutrition', 'grocery-plan', mode],
-    queryFn: () => nutritionApi.groceryPlan(mode),
+    queryKey: ['nutrition', 'grocery-plan', mode, days ?? null, startDate ?? null],
+    queryFn: () => nutritionApi.groceryPlan(mode, days, startDate),
   });
 }
 

@@ -2,11 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, Spinner } from '@/components/ui';
 import { useGroceryPlan } from '../hooks';
+import { ShoppingRange } from './ShoppingRange';
 import { nutritionApi } from '../api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { GroceryAisle, GroceryPlanItem } from '../api';
 
 type View = 'grocery' | 'recipe';
+
+/** A week. The longest range offered, and the one most people shop to. */
+const DEFAULT_DAYS = 7;
 
 /** One shopping item row — checkbox, name, real-unit quantity, and an
  *  expandable "used in" breakdown of which recipes need it. */
@@ -118,10 +122,16 @@ function Aisle({ aisle, checked, toggle }: { aisle: GroceryAisle; checked: Set<s
  * view toggle, check-off, and per-aisle shelf life + storage tips.
  */
 export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
-  // Shopping window: starts TODAY or TOMORROW (live date — you can't shop for a
-  // day that's gone), for a chosen number of days.
-  // No window state: the basket follows the locks, which the server reads.
-  const plan = useGroceryPlan(mode);
+  // HOW FAR AHEAD AM I SHOPPING? Today through any day up to a week — the
+  // citizen's choice, which they never had, because the web app sent neither
+  // `days` nor `startDate` to an endpoint that has always taken both.
+  //
+  // The basket still follows the LOCKS (server-side, and rightly — see the
+  // 1 Aug note in nutrition.service.ts). ShoppingRange is what reconciles the
+  // two: choosing a range SETTLES the days in it, so the window is real and
+  // the list still cannot churn underneath somebody mid-shop.
+  const [days, setDays] = useState(DEFAULT_DAYS);
+  const plan = useGroceryPlan(mode, days);
   const qc = useQueryClient();
   const schedule = plan.data?.deliverySchedule;
   const [view, setView] = useState<View>('grocery');
@@ -281,6 +291,7 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
   return (
     <div>
       {lockedNote}
+      <ShoppingRange mode={mode} days={days} onDays={setDays} />
       {deliveryCard}
       {/* Shopping summary — household scaling + estimated cost & waste (family) */}
       {mode === 'family' && summary && summary.householdSize > 1 && (
