@@ -5,6 +5,27 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { JwtUser } from '../shared/types';
 import { PrismaService } from '../shared/prisma/prisma.service';
 
+/**
+ * Was this token minted after sessions were revoked?
+ *
+ * BOTH SIDES ARE TRUNCATED TO THE SECOND, which is the whole of the care here.
+ * `iat` is seconds; the cutoff is a millisecond timestamp. Comparing them raw
+ * means a token issued at 12:00:00.000 looks OLDER than a revocation at
+ * 12:00:00.750 and a freshly-signed token is refused on sight. Flooring the
+ * cutoff makes the comparison "was this issued in an earlier second", which is
+ * the question, and leaves a sub-second grace that no attacker can aim at.
+ *
+ * A MISSING `iat` FAILS CLOSED, and only for accounts that have actually
+ * revoked. We sign every token ourselves and jsonwebtoken always stamps `iat`,
+ * so absent means something unaccounted-for is presenting a token to an account
+ * that has asked to be signed out of everything. The cost of being wrong is one
+ * sign-in; the cost the other way is the hole this exists to close.
+ */
+function issuedAfter(iat: number | undefined, revokedAt: Date): boolean {
+  if (iat === undefined) return false;
+  return iat >= Math.floor(revokedAt.getTime() / 1000);
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(config: ConfigService, private readonly prisma: PrismaService) {
@@ -35,14 +56,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * change takes effect immediately, which matters because admin authorisation
    * is currently a handle test.
    */
-  async validate(payload: JwtUser): Promise<JwtUser> {
+  async validate(payload: JwtUser & { iat?: number }): Promise<JwtUser> {
     if (!payload?.sub) throw new UnauthorizedException('malformed token');
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, handle: true, deletedAt: true },
+      select: { id: true, handle: true, deletedAt: true, sessionsRevokedAt: true },
     });
     if (!user) throw new UnauthorizedException('account no longer exists');
     if (user.deletedAt) throw new UnauthorizedException('account deleted');
+    if (user.sessionsRevokedAt && !issuedAfter(payload.iat, user.sessionsRevokedAt)) {
+      // "Signed out of all sessions" now includes this one. Revoking marked the
+      // refresh tokens; without this line the access token in a thief's hand went
+      // on working for the rest of its fifteen minutes.
+      throw new UnauthorizedException('session revoked — please sign in again');
+    }
     return { sub: user.id, handle: user.handle };
   }
 }

@@ -35,6 +35,11 @@ function build() {
       },
       updateMany: async ({ data }: { data: Partial<Row> }) => { rows.forEach((r) => Object.assign(r, data)); return { count: rows.length }; },
     },
+    // revokeAll also stamps User.sessionsRevokedAt, so that an ACCESS token
+    // issued before the sign-out stops working too — see session-revocation.spec.
+    // Both writes go in one transaction, so the fake has to model both.
+    user: { updateMany: async () => ({ count: 1 }) },
+    $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
   };
   return { svc, rows };
 }

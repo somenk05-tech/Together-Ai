@@ -106,6 +106,17 @@ model User {
   /// When this account's data was actually destroyed (30 days after deletedAt).
   /// Null means the purge has not run for them yet. See src/privacy/purge-plan.ts.
   purgedAt  DateTime?
+  /// The moment every session for this account was revoked — a password reset,
+  /// "sign out everywhere", or account deletion.
+  ///
+  /// Revoking sessions marks the REFRESH tokens revoked, which stops the next
+  /// silent refresh. It does nothing to an ACCESS token already in a thief's
+  /// hands: those are signed, stateless and valid for their full fifteen
+  /// minutes, so "you have been signed out of all sessions" was true of the
+  /// next quarter of an hour and not of this one. JwtStrategy compares this
+  /// against the token's `iat` on every request and refuses anything issued
+  /// before it. Null for accounts that have never revoked.
+  sessionsRevokedAt DateTime?
 
   connectionsInitiated Connection[]         @relation("ConnectionUserOne")
   connectionsReceived  Connection[]         @relation("ConnectionUserTwo")

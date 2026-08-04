@@ -146,10 +146,31 @@ export class TokenService {
     await this.prisma.refreshToken.updateMany({ where: { id: sessionId, userId }, data: { revoked: true } });
   }
 
-  /** Revoke every session for a user (log out of all devices / password change). */
+  /**
+   * Revoke every session for a user (log out of all devices / password change).
+   *
+   * THE REFRESH TOKENS WERE ONLY HALF OF IT. Marking them revoked stops the next
+   * silent refresh, and does nothing at all to an ACCESS token already issued:
+   * those are signed, stateless, and valid for their full fifteen minutes with
+   * no database anywhere in the path. So after a password reset the email said
+   * "you've been signed out of all sessions" and whoever held a stolen access
+   * token kept full read/write on the account — Medical vault included — for up
+   * to another quarter of an hour.
+   *
+   * `sessionsRevokedAt` is the cutoff JwtStrategy checks on every request. It is
+   * stamped in the same transaction as the revocation because a half-applied
+   * sign-out is the failure this is fixing: two facts about one account that
+   * disagree.
+   *
+   * updateMany rather than update — account deletion calls this, and a row that
+   * has gone must not turn a sign-out into a thrown exception.
+   */
   async revokeAll(userId: string): Promise<void> {
     this.recentlyRotated.clear();
-    await this.prisma.refreshToken.updateMany({ where: { userId }, data: { revoked: true } });
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.updateMany({ where: { userId }, data: { revoked: true } }),
+      this.prisma.user.updateMany({ where: { id: userId }, data: { sessionsRevokedAt: new Date() } }),
+    ]);
   }
 
   /** Revoke every OTHER session, keeping the caller's current one. */

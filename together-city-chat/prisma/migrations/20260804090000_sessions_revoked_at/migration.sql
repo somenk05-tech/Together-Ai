@@ -1,0 +1,18 @@
+-- "You've been signed out of all sessions" was true fifteen minutes late.
+--
+-- Revoking sessions marks every RefreshToken revoked, which stops the next
+-- silent refresh. An ACCESS token is signed, stateless and good for its full
+-- fifteen minutes, and nothing consulted the database about it — so after a
+-- password reset, whoever held a stolen access token kept full read/write
+-- access to the account for up to another quarter of an hour, including the
+-- Medical vault, while the email said they had been signed out.
+--
+-- This column is the cutoff. JwtStrategy already re-reads the user row on every
+-- request (it has done since the deleted-account fix), so the check costs
+-- nothing new: reject any token whose `iat` predates this timestamp.
+--
+-- NULL, not now(), for the backfill. Stamping every existing account with the
+-- deploy time would sign the entire city out mid-session to fix a hole none of
+-- them are currently being exploited through. Null means "never revoked", which
+-- is the truth for every account that has not asked for it.
+ALTER TABLE "User" ADD COLUMN "sessionsRevokedAt" TIMESTAMP(3);
