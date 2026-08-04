@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Headers, Controller, Delete, Get, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { JwtUser } from '../shared/types';
@@ -18,8 +18,14 @@ export class FinancialController {
 
   @Post('wallet/top-up')
   @UsePipes(new ZodValidationPipe(TopUpSchema))
-  topUp(@CurrentUser() user: JwtUser, @Body() dto: TopUpDto) {
-    return this.financial.topUp(user.sub, dto.amountInr);
+  topUp(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: TopUpDto,
+    // The standard header, so a client retrying a request it is not sure landed
+    // says so the way every payment API expects to be told.
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.financial.topUp(user.sub, dto.amountInr, idempotencyKey);
   }
 
   @Post('pay')

@@ -32,6 +32,19 @@ export interface ChargeInput { hub: string; category: string; label: string; amo
 
 const monthKey = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
 
+/**
+ * A unique-constraint violation, whatever shape the client reports it in.
+ *
+ * Prisma raises `PrismaClientKnownRequestError` with `code === 'P2002'`. Reading
+ * the code off an `unknown` rather than importing the error class keeps this
+ * true when the generated client is regenerated, and keeps the tests free of a
+ * real Prisma dependency — they throw an object with the code, which is exactly
+ * what the driver does.
+ */
+export function isUniqueViolation(e: unknown): boolean {
+  return Boolean(e && typeof e === 'object' && (e as { code?: unknown }).code === 'P2002');
+}
+
 @Injectable()
 export class FinancialService {
   constructor(private readonly prisma: PrismaService) {}
@@ -214,11 +227,58 @@ export class FinancialService {
     };
   }
 
-  async topUp(userId: string, amountInr: number) {
+  /**
+   * Put money in. ONCE, and either both halves or neither.
+   *
+   * This was two statements outside a transaction: write the ledger row, then
+   * increment the balance. Two things follow from that, and both are money.
+   *
+   * FIRST, IT WAS NOT ATOMIC. A failure between them left a ledger row saying
+   * ₹500 arrived and a balance that never moved — the reconciliation the audit
+   * asks for would report a discrepancy nobody could act on, because the money
+   * was never real. Now the row and the balance move in one transaction, so the
+   * ledger is a description of the balance rather than a claim beside it.
+   *
+   * SECOND, IT WAS NOT REPLAY-SAFE. A charge has been safe since the conditional
+   * decrement landed — the balance is in the WHERE, so a second charge takes
+   * nothing. A top-up had no such guard, so two taps on "Add ₹500" credited
+   * ₹1,000. That is free money, and a double tap on a slow connection is all it
+   * takes. A PSP webhook is worse: every processor delivers at least once and
+   * therefore sometimes twice, and the audit asks for this BEFORE one is wired,
+   * which is the only point at which it is cheap.
+   *
+   * THE UNIQUE INDEX IS THE MECHANISM, not a lookup. Checking for an existing
+   * key and then inserting is a read-then-write, which is the same race this
+   * exists to close: two retries arriving together both find nothing and both
+   * insert. Postgres refuses the second one, and that refusal is the answer.
+   *
+   * A replay returns the CURRENT balance and does not throw. The caller is a
+   * client that already believes it topped up; telling it "duplicate" invites a
+   * retry loop, and telling it the balance is the truth it was asking for.
+   */
+  async topUp(userId: string, amountInr: number, idempotencyKey?: string) {
     await this.ensureWallet(userId);
-    await this.prisma.walletTxn.create({ data: { userId, kind: 'topup', amountInr, hub: 'Wallet', category: 'wallet', label: 'Wallet top-up' } });
-    const wallet = await this.prisma.cityWallet.update({ where: { userId }, data: { balanceInr: { increment: amountInr } } });
-    return { balanceInr: wallet.balanceInr };
+    const key = (idempotencyKey ?? '').trim().slice(0, 120) || null;
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // idempotencyKey is a new column the sandbox Prisma client's types do
+        // not carry yet; the cast is the same one writeCart uses for its own.
+        await (tx.walletTxn.create as unknown as (a: { data: Record<string, unknown> }) => Promise<unknown>)({
+          data: { userId, kind: 'topup', amountInr, hub: 'Wallet', category: 'wallet', label: 'Wallet top-up', idempotencyKey: key },
+        });
+        const wallet = await tx.cityWallet.update({ where: { userId }, data: { balanceInr: { increment: amountInr } } });
+        return { balanceInr: wallet.balanceInr };
+      });
+    } catch (e) {
+      // P2002 on (userId, idempotencyKey) means this exact attempt already
+      // landed. Nothing was credited a second time — which is the entire point
+      // — so report where the money actually stands.
+      if (key && isUniqueViolation(e)) {
+        const w = await this.prisma.cityWallet.findUnique({ where: { userId }, select: { balanceInr: true } });
+        return { balanceInr: w?.balanceInr ?? 0, replayed: true as const };
+      }
+      throw e;
+    }
   }
 
   /** Spend by category for the current month, with previous-month trend. */

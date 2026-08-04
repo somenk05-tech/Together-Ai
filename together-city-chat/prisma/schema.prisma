@@ -1348,8 +1348,16 @@ model WalletTxn {
   label     String?
   createdAt DateTime @default(now())
 
+  /// The caller's own name for this attempt, from an `Idempotency-Key` header.
+  /// A retry — a double tap, a flaky connection, a PSP webhook delivered twice —
+  /// carries the key of the attempt it is repeating, and the unique index below
+  /// is what makes the second one credit nothing. NULL for everything that
+  /// predates this and for callers that send no key.
+  idempotencyKey String?
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, idempotencyKey])
   @@index([userId, createdAt])
 }
 
