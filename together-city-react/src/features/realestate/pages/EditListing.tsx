@@ -23,6 +23,17 @@ const PTYPES = [
   { key: 'apartment', label: 'Apartment' }, { key: 'villa', label: 'Villa' },
   { key: 'plot', label: 'Plot' }, { key: 'commercial', label: 'Commercial' },
 ];
+// The listing's amenity vocabulary — mirrors AMENITIES/AMENITY_LABEL in
+// realestate.constants.ts on the API. A key the API doesn't know is rejected
+// by its zod enum, so this list can lag the server's but never corrupt it.
+const AMENITIES: Array<{ key: string; label: string }> = [
+  { key: 'lift', label: 'Lift' }, { key: 'parking', label: 'Covered parking' },
+  { key: 'power-backup', label: 'Power backup' }, { key: 'security', label: '24×7 security' },
+  { key: 'gym', label: 'Gym' }, { key: 'pool', label: 'Swimming pool' },
+  { key: 'clubhouse', label: 'Clubhouse' }, { key: 'park', label: 'Park' },
+  { key: 'gas-pipeline', label: 'Gas pipeline' }, { key: 'water-supply', label: '24×7 water' },
+  { key: 'kids-play', label: "Kids' play area" }, { key: 'cctv', label: 'CCTV' },
+];
 
 const inputS = { width: '100%', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px', fontSize: 14, background: 'var(--card)', color: 'var(--ink)', fontFamily: 'inherit', outline: 'none' } as const;
 const labelS = { display: 'block', fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 600, marginBottom: 6 } as const;
@@ -31,6 +42,9 @@ interface Draft {
   title: string; city: string; locality: string; propertyType: string; listingType: string;
   price: string; area: string; bedrooms: string; bathrooms: string;
   furnishing: string; facing: string; floor: string; totalFloors: string; description: string;
+  reraId: string;
+  // Under-construction project fields — shown only when the listing is UC.
+  projectName: string; developer: string; possessionDate: string; progressPct: string;
 }
 
 export function EditListing() {
@@ -42,6 +56,7 @@ export function EditListing() {
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [amenities, setAmenities] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [warn, setWarn] = useState('');
   const [confirmClose, setConfirmClose] = useState(false);
@@ -56,8 +71,12 @@ export function EditListing() {
       furnishing: p.furnishing ? (FURNISH_LABEL[p.furnishing] ?? '') : '', facing: facingLabel(p.facing),
       floor: p.floor != null ? String(p.floor) : '', totalFloors: p.totalFloors != null ? String(p.totalFloors) : '',
       description: p.description ?? '',
+      reraId: p.reraId ?? '',
+      projectName: p.projectName ?? '', developer: p.developer ?? '',
+      possessionDate: p.possessionDate ?? '', progressPct: p.progressPct != null ? String(p.progressPct) : '',
     });
     setPhotos(p.photos);
+    setAmenities(p.amenities.map((a) => a.key));
   }, [q.data, draft]);
 
   if (q.isLoading || (q.data && !draft)) return <Spinner label="Loading your listing…" />;
@@ -80,9 +99,16 @@ export function EditListing() {
     furnishing: FURNISH_API[draft.furnishing], facing: draft.facing ? draft.facing.toLowerCase() : undefined,
     floor: draft.floor ? Math.min(num(draft.floor), 200) : undefined,
     totalFloors: draft.totalFloors ? Math.min(num(draft.totalFloors), 200) : undefined,
-    amenities: p.amenities.map((a) => a.key), description: draft.description.trim() || undefined, photos,
-    projectName: p.projectName ?? undefined, developer: p.developer ?? undefined, reraId: p.reraId ?? undefined,
-    possessionDate: p.possessionDate ?? undefined, progressPct: p.progressPct ?? undefined,
+    amenities, description: draft.description.trim() || undefined, photos,
+    reraId: draft.reraId.trim() || undefined,
+    // UC project fields are editable while the listing is under construction;
+    // for a ready listing they carry through untouched.
+    projectName: (p.status === 'under_construction' ? draft.projectName.trim() : p.projectName ?? '') || undefined,
+    developer: (p.status === 'under_construction' ? draft.developer.trim() : p.developer ?? '') || undefined,
+    possessionDate: (p.status === 'under_construction' ? draft.possessionDate.trim() : p.possessionDate ?? '') || undefined,
+    progressPct: p.status === 'under_construction'
+      ? (draft.progressPct !== '' ? Math.min(num(draft.progressPct), 100) : undefined)
+      : (p.progressPct ?? undefined),
     floorPlans: p.floorPlans.length ? p.floorPlans : undefined, milestones: p.milestones.length ? p.milestones : undefined,
   });
 
@@ -155,7 +181,41 @@ export function EditListing() {
         {select('Facing', 'facing', FACINGS.map((f) => ({ key: f, label: f })))}
         {field('Floor', 'floor', { numeric: true })}
         {field('Total floors', 'totalFloors', { numeric: true })}
+        {field('RERA ID (if registered)', 'reraId')}
       </div>
+
+      {/* Under-construction listings edit their project facts here too. */}
+      {p.status === 'under_construction' && (
+        <>
+          <h3 style={{ margin: '8px 0 10px' }}>Project status</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+            {field('Project name', 'projectName')}
+            {field('Developer', 'developer')}
+            {field('Possession (e.g. Dec 2026)', 'possessionDate')}
+            {field('Construction progress (%)', 'progressPct', { numeric: true })}
+          </div>
+        </>
+      )}
+
+      <h3 style={{ margin: '8px 0 6px' }}>Amenities</h3>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        {AMENITIES.map((a) => {
+          const on = amenities.includes(a.key);
+          return (
+            <button key={a.key} type="button" aria-pressed={on}
+              onClick={() => setAmenities((cur) => (on ? cur.filter((k) => k !== a.key) : [...cur, a.key]))}
+              style={{
+                fontSize: 12.5, borderRadius: 999, padding: '6px 14px', cursor: 'pointer', fontFamily: 'inherit',
+                border: `1.5px solid ${on ? 'var(--accent)' : 'var(--line)'}`,
+                background: on ? 'var(--accent-soft)' : 'var(--card)',
+                color: on ? 'var(--accent-ink)' : 'var(--ink)', fontWeight: on ? 700 : 400,
+              }}>
+              {on ? '✓ ' : ''}{a.label}
+            </button>
+          );
+        })}
+      </div>
+
       <div style={{ marginBottom: 16 }}>
         <label style={labelS}>Description</label>
         <textarea aria-label="Description" rows={3} value={draft.description} onChange={set('description')} style={inputS} />
