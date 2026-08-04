@@ -6,6 +6,7 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { useAuth } from '@/hooks/useAuth';
 import { PostCard } from '../PostCard';
+import { Poster } from '../Poster';
 import { ReelsView } from '../ReelsView';
 import { useFeed } from '../api';
 
@@ -29,12 +30,17 @@ export function SocialFeed() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<string>('foryou');
   const feed = useFeed(filter);
+  const showFilter = (key: string) => { setOpenKey(null); setFilter(key); };
   const items = feed.data?.pages.flatMap((p) => p.items) ?? [];
   const openAuthor = (h: string) => navigate(`/social/u/${encodeURIComponent(h)}`);
 
   // Post-share landing: highlight the new post, scroll to top, flash a toast.
   const navState = location.state as { newPostId?: string; justShared?: boolean } | null;
   const [newPostId, setNewPostId] = useState<string | null>(null);
+  // Which poster is open, by FEED KEY rather than post id — a repost and its
+  // original are two entries carrying the same post, and keying on the id would
+  // open both.
+  const [openKey, setOpenKey] = useState<string | null>(null);
   const [toast, setToast] = useState(false);
   useEffect(() => {
     if (!navState?.justShared) return;
@@ -84,7 +90,7 @@ export function SocialFeed() {
   }
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
+    <div style={{ maxWidth: 1180, margin: '0 auto', padding: '28px 16px' }}>
       {toast && (
         <div role="status" style={{ position: 'fixed', top: 18, left: '50%', transform: 'translateX(-50%)', zIndex: 80,
           background: 'var(--ok-ink)', color: 'var(--on-accent)', borderRadius: 999, padding: '11px 20px', fontSize: 13.5, fontWeight: 600,
@@ -98,7 +104,9 @@ export function SocialFeed() {
       </h1>
       <p className="lede" style={{ marginBottom: 16 }}>Discover what's happening around you.</p>
 
-      <div style={{ maxWidth: 640, margin: '0 auto' }}>
+      {/* The column was 640 wide, which is one poster and a lot of margin. The
+          wall takes the page. */}
+      <div>
         <div>
           {filter !== 'videos' && (
             <div style={{ marginBottom: 16 }}>
@@ -112,7 +120,7 @@ export function SocialFeed() {
               "which one am I on" is a question about depth rather than colour. */}
           <div className="g-tray" style={{ marginBottom: 18 }}>
             {FILTERS.map((f) => (
-              <button key={f.key} type="button" onClick={() => setFilter(f.key)}
+              <button key={f.key} type="button" onClick={() => showFilter(f.key)}
                 className={`g-key sm g-edge${filter === f.key ? ' on' : ''}`}
                 aria-pressed={filter === f.key}>
                 {f.icon && <Icon name={f.icon} size={15} />}{f.label}
@@ -138,13 +146,45 @@ export function SocialFeed() {
               {!feed.isLoading && !feed.isError && items.length === 0 && (
                 <EmptyState title={filter === 'foryou' ? 'No moments yet' : 'Nothing here yet'} hint="Be the first to share one." />
               )}
-              {items.map((p) => <PostCard key={p.key ?? p.id} post={p} isNew={p.id === newPostId} onOpenAuthor={openAuthor} />)}
-              {feed.hasNextPage && (
-                <div style={{ display: 'grid', placeItems: 'center', margin: '18px 0 4px' }}>
-                  <Button variant="line" size="sm" disabled={feed.isFetchingNextPage} onClick={() => void feed.fetchNextPage()}>
-                    {feed.isFetchingNextPage ? 'Loading…' : 'Load more'}
-                  </Button>
-                </div>
+              {items.length > 0 && (
+                <>
+                  <div className="wall-rule">
+                    <span>{FILTERS.find((f) => f.key === filter)?.label ?? 'For you'}</span>
+                    <span>Together City</span>
+                  </div>
+
+                  {/* THE WALL. An opened poster takes the full width in the
+                      place it already occupied and shows the post whole —
+                      caption, likes, comments, share, save — so nothing is lost
+                      by making the tile small, and closing it puts you back
+                      exactly where you were without restoring a scroll
+                      position. */}
+                  <div className="wall">
+                    {items.map((p) => {
+                      const key = p.key ?? p.id;
+                      return key === openKey ? (
+                        <div className="wall-open" key={key}>
+                          <PostCard post={p} isNew={p.id === newPostId} onOpenAuthor={openAuthor} />
+                          <div style={{ display: 'grid', placeItems: 'center', margin: '-4px 0 4px' }}>
+                            <Button variant="line" size="sm" onClick={() => setOpenKey(null)}>Close</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Poster key={key} post={p} isNew={p.id === newPostId} onOpen={() => setOpenKey(key)} />
+                      );
+                    })}
+                  </div>
+
+                  <div className="wall-rule foot">
+                    <span>{items.length} {items.length === 1 ? 'moment' : 'moments'}</span>
+                    {feed.hasNextPage ? (
+                      <button type="button" className="wall-more" disabled={feed.isFetchingNextPage}
+                        onClick={() => void feed.fetchNextPage()}>
+                        {feed.isFetchingNextPage ? 'Loading…' : 'Load more'}
+                      </button>
+                    ) : <span>That's everything</span>}
+                  </div>
+                </>
               )}
             </>
           )}

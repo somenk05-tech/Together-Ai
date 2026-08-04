@@ -1232,3 +1232,111 @@ textarea.g-field { resize: none; line-height: 1.55; }
    on the paper like a sticker. */
 [data-press] *:not(svg):not(path):not(circle):not(rect):not(text) { text-shadow: none; }
 [data-press] .press-sheet, [data-press] .press-sheet * { box-shadow: none; }
+
+/* ══ THE WALL ═══════════════════════════════════════════════════════════
+   THE CITY FEED IS A WALL OF POSTERS, NOT A COLUMN OF CARDS.
+
+   A single 640px column showed one moment at a time and spent most of the
+   screen on the author line, the caption and five action buttons — chrome
+   repeated once per post. The photograph, which is the entire reason anybody
+   scrolls a feed, got what was left. Three posts filled a laptop screen.
+
+   So: a three-up wall of full-bleed posters, each framed 3:4, with the words
+   set over the picture and the chrome held back until it is wanted. A screen
+   now carries nine moments instead of three, and each one is bigger than it
+   was.
+
+   IT IS STILL RELIEF. The ground stays white, the depths are the named ones,
+   and every colour is a token. The only thing that changes is the shape the
+   content arrives in — which is what was asked for.
+
+   NOTHING ON A POSTER IS DECORATION. The picture is the post's own first
+   image (or a video's own cover frame), the headline is the post's own words,
+   and the numbers are its likes and comments. A poster with no picture is not
+   invented one: a text post keeps the card it already had and simply takes a
+   shorter place on the wall. */
+.wall { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px;
+  /* Tiles top-align rather than stretch: a text card is shorter than a poster
+     and stretching it would put a card-shaped hole under every caption. */
+  align-items: start; }
+@media (max-width: 900px) { .wall { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .wall { grid-template-columns: minmax(0, 1fr); } }
+
+/* The rails above and below the wall. Small, letterspaced, and each side says
+   something true — the left names what is being shown, the right counts it. */
+.wall-rule { display: flex; align-items: baseline; justify-content: space-between; gap: 18px;
+  font-size: 10.5px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--muted); padding: 0 2px 13px; }
+.wall-rule.foot { padding: 16px 2px 0; border-top: 1px solid var(--line); margin-top: 18px; }
+/* "Load more" is a rail item, not a button in a box: the wall ends on a rule
+   and the way to extend it sits on that rule. It is still a real button with a
+   real hit area — 44px tall, spelled out, because a 10px word is not a target. */
+.wall-more { font: inherit; font-size: 10.5px; font-weight: 600; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--accent-ink); background: none; border: 0;
+  padding: 0 2px; min-height: 44px; cursor: pointer; }
+.wall-more:disabled { color: var(--muted); cursor: default; }
+.wall-more:not(:disabled):hover { color: var(--ink); }
+
+/* An opened poster takes the whole width and pushes the wall down, rather than
+   floating over it in a lightbox: the moment stays in the place you found it,
+   and closing it puts you back exactly there without a scroll restore. */
+.wall-open { grid-column: 1 / -1; }
+
+.poster { position: relative; display: block; width: 100%; padding: 0; border: 0;
+  aspect-ratio: 3 / 4; overflow: hidden; border-radius: var(--r-2); cursor: pointer;
+  background: var(--media-bg); color: var(--on-accent); text-align: left;
+  box-shadow: var(--e1); transition: box-shadow .18s ease, transform .18s ease; }
+.poster:hover { box-shadow: var(--e2); transform: translateY(-2px); }
+.poster:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.poster > img { position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; display: block; }
+
+/* The scrim is what makes type on a photograph legible, and it is the reason
+   this can be a poster at all. Two stops top and bottom, nothing in the middle,
+   so the picture is untouched where the words are not. */
+.poster-scrim { position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(0,0,0,.46) 0%, rgba(0,0,0,0) 30%),
+    linear-gradient(to top,    rgba(0,0,0,.76) 0%, rgba(0,0,0,.30) 26%, rgba(0,0,0,0) 52%); }
+
+.poster-top { position: absolute; top: 0; left: 0; right: 0; display: flex;
+  align-items: flex-start; justify-content: space-between; gap: 10px;
+  padding: 12px 13px; font-size: 11px; font-weight: 500; letter-spacing: .02em; }
+.poster-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.poster-who span { opacity: .72; font-weight: 400; }
+.poster-when { flex: none; opacity: .72; font-variant-numeric: tabular-nums; }
+
+.poster-foot { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 14px 15px; }
+.poster-head { margin: 0; font-size: clamp(14.5px, 1.35vw, 18px); font-weight: 600;
+  line-height: 1.28; letter-spacing: -.005em;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.poster-place { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .13em;
+  text-transform: uppercase; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.poster-meta { display: flex; align-items: center; gap: 15px; margin-top: 9px;
+  font-size: 11.5px; opacity: .8; font-variant-numeric: tabular-nums; }
+.poster-meta .grow { margin-left: auto; opacity: .9; }
+
+/* A video poster is its own cover frame with a mark on it, because a still that
+   does not say it is a video reads as a badly composed photograph. */
+.poster-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(0,0,0,.42); border: 1.5px solid rgba(255,255,255,.85); pointer-events: none; }
+.poster-play::after { content: ''; width: 0; height: 0; margin-left: 3px;
+  border-left: 12px solid rgba(255,255,255,.95);
+  border-top: 7.5px solid transparent; border-bottom: 7.5px solid transparent; }
+
+/* A poster with no picture. Not a generated image and not an empty frame: the
+   author's own words at poster size on the city's own paper, which is what a
+   Thought is. It keeps the card shape it always had. */
+.poster.words { background: var(--paper); color: var(--ink); aspect-ratio: auto;
+  border: 1px solid var(--line); padding: 17px 18px; min-height: 168px;
+  display: flex; flex-direction: column; gap: 10px; }
+.poster.words .poster-top { position: static; padding: 0; color: var(--muted); }
+.poster.words .poster-head { -webkit-line-clamp: 7; font-size: 15px; font-weight: 500;
+  line-height: 1.5; letter-spacing: 0; margin: 0; }
+.poster.words .poster-meta { opacity: 1; color: var(--muted); margin-top: auto; }
+.poster.words .poster-who span, .poster.words .poster-when { opacity: 1; color: var(--muted); }
+
+/* Just-posted. The wall is the first thing a citizen sees after sharing, so the
+   new poster has to be findable without a toast pointing at it. */
+.poster.fresh { box-shadow: var(--e2); outline: 2px solid var(--accent); outline-offset: 1px; }
