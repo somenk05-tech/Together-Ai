@@ -256,7 +256,9 @@ function PrescriptionCard({ p }: { p: Prescription }) {
               onClick={() => confirm.mutate(p.id)}>
               {confirm.isPending ? 'Setting reminders…' : 'Confirm & set reminders'}
             </Button>
-            <span className="muted" style={{ fontSize: 11.5 }}>You’ll be reminded 5 minutes before each dose.</span>
+            <span className="muted" style={{ fontSize: 11.5 }}>
+              A reminder lands in your Alerts 5 minutes before each dose.
+            </span>
           </div>
         </>
       )}
@@ -279,8 +281,18 @@ export function Medicines() {
       <div className="eyebrow">Medical Hub · Medicines</div>
       <h1 style={{ fontSize: 26 }}>Medicines & reminders</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
-        Add what you’ve been prescribed and we’ll remind you 5 minutes before every dose, in your own timezone.
-        Nothing becomes a reminder until you’ve confirmed it.
+        {/* WHERE THE REMINDER ARRIVES IS PART OF THE PROMISE.
+            This said "we'll remind you", which is true — a job fires five
+            minutes before every dose, in the citizen's own timezone, and files
+            an alert. What it cannot yet do is reach a phone that is not looking
+            at the app: there is no push and no SMS fallback (TODO #41). For a
+            reminder to take medicine, the difference between "you will be
+            reminded" and "you will see it when you open the app" is the whole
+            of whether somebody takes the dose, so the sentence says which one
+            this is until the other one is built. */}
+        Add what you’ve been prescribed and we’ll put a reminder in your Alerts 5 minutes before
+        every dose, in your own timezone. Nothing becomes a reminder until you’ve confirmed it.
+        Alerts don’t reach your phone yet — you’ll see them when the app is open.
       </p>
 
       {pending.length === 0 && (

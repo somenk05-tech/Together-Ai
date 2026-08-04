@@ -371,6 +371,54 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
   background: var(--well); box-shadow: var(--press); transform: none; color: var(--ink); font-weight: 700;
 }
 
+/* ══ THE TARGET IS BIGGER THAN THE CONTROL ═══════════════════════════════
+   WCAG asks for 44×44 CSS pixels of TARGET, not of paint. Five controls here
+   are smaller than that and always have been: `.btn-sm` at 35, `.btn-icon.btn-sm`
+   at 35×35, `.pill` and `.chip` at 33, `.g-key.sm` at 38. The earlier tap-target
+   sweep fixed twenty-three call sites that stated their height in an inline
+   style and could not see these, because a class carries no height the scanner
+   can read — which is also why the a11y ceiling reports zero for them.
+
+   GROWING THE PAINT WAS THE WRONG FIX. A 44px pill is a different design: the
+   filter rows, the chip trays and the day strip are built on the proportions of
+   a 33px key, and enlarging every one of them to satisfy a rule about fingers
+   would redraw half the application to fix something nobody can see.
+
+   So the target grows and the control does not. Each of these gets a
+   transparent ::after centred on it, at least 44 by 44, which is part of the
+   element and therefore part of what a tap hits. Nothing moves, nothing
+   reflows — an absolutely positioned pseudo-element is out of flow — and the
+   finger gets what the standard asks for.
+
+   IT IS BEHIND THE CONTENT, at z-index 0 against the label's auto stacking, so
+   it can never sit over an icon or a span and swallow a click meant for a child
+   button. `pointer-events` stays default: the whole point is that it receives
+   the tap, on behalf of the element it belongs to.
+
+   The gap this leaves: two of these stacked less than 9px apart have targets
+   that overlap by a few pixels, and the later one in the DOM wins the overlap.
+   That is a smaller problem than a 33px target, and it is the reason the rule
+   is a centred pseudo-element rather than padding, which WOULD reflow. */
+.btn-sm, .btn-icon.btn-sm, .pill, .chip, .g-key.sm { position: relative; }
+.btn-sm::after,
+.btn-icon.btn-sm::after,
+.pill::after,
+.chip::after,
+.g-key.sm::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%; height: 100%;
+  min-width: 44px; min-height: 44px;
+  border-radius: inherit;
+  z-index: 0;
+}
+/* A tag is a label, not a control — it is in the same rule block as the pill
+   and must not grow a target for a press that does nothing. */
+.tag::after { content: none; }
+
+
 /* Status tags keep their ink and gain a hairline of the same hue. They are
    raised cards with a coloured ink, never coloured rectangles. */
 .tag.green, .tag-ok      { color: var(--ok-ink);     box-shadow: var(--e1), inset 0 0 0 1px var(--ok-line); }
