@@ -7,6 +7,11 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const APP = join(HERE, '..', '..');
 const read = (p: string) => readFileSync(join(APP, p), 'utf8');
 
+/** An @font-face body DECLARES a family — naming it there is the only way to
+ *  load the file. Every rule about which faces a page may USE has to read past
+ *  these, or it flags the declaration that makes the face exist at all. */
+const stripFaces = (css: string) => css.replace(/@font-face\s*\{[^}]*\}/g, ' ');
+
 /** A file is allowed to explain itself. Comments are not code. */
 const strip = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, ' ');
 const stripTs = (src: string) =>
@@ -198,9 +203,56 @@ describe('Relief stays a system', () => {
     expect(strip(tokens)).toMatch(/--serif:\s*var\(--sans\)/);
     expect(strip(tokens)).toMatch(/--mono:\s*var\(--sans\)/);
     expect(strip(tokens)).toMatch(/--sans:\s*'General Sans'/);
-    const families = [...strip(relief).matchAll(/font-family:\s*([^;]+);/g)].map((m) => m[1].trim());
-    const foreign = families.filter((f) => !/var\(--(sans|serif|mono)\)|inherit|'General Sans'/.test(f));
+    const families = [...stripFaces(strip(relief)).matchAll(/font-family:\s*([^;]+);/g)].map((m) => m[1].trim());
+    const foreign = families.filter((f) =>
+      !/var\(--(sans|serif|mono)\)|inherit|'General Sans'/.test(f)
+      // THE PRESS. Two faces exist for the nutrition day and nowhere else. The
+      // exception is named in tokens.css with its reason; the test below is
+      // what makes it an exception rather than a drift, because it proves
+      // nothing outside [data-press] can reach them.
+      && !/var\(--press-(serif|mono)\)/.test(f));
     expect(foreign).toEqual([]);
+  });
+
+  /**
+   * THE EXCEPTION IS SCOPED, OR IT IS NOT AN EXCEPTION.
+   *
+   * A second and third typeface were allowed into this application exactly
+   * once, for one page, because a meal plan is read the way a menu is read.
+   * That argument holds for the nutrition day and for nothing else — and the
+   * way a rule like this dies is not a decision, it is a second page picking
+   * up one of the three broken rules because the class was simply there.
+   *
+   * So: every press face, every press colour and every press class must sit
+   * behind `[data-press]` or start with `press-`, and `[data-press]` itself
+   * must be reachable from exactly one screen.
+   */
+  it('keeps the press inside the one page it was granted to', () => {
+    const code = strip(relief);
+
+    // 1. the two faces are declared, and only ever read through their tokens
+    expect(strip(tokens)).toMatch(/--press-serif:\s*'Instrument Serif'/);
+    expect(strip(tokens)).toMatch(/--press-mono:\s*'IBM Plex Mono'/);
+    for (const m of stripFaces(code).matchAll(/font-family:\s*([^;]+);/g)) {
+      expect(m[1]).not.toMatch(/'Instrument Serif'|'IBM Plex Mono'/);
+    }
+    // and the two files must actually ship, like every other face here
+    expect(code).toMatch(/instrument-serif-400\.woff2/);
+    expect(code).toMatch(/ibm-plex-mono-400\.woff2/);
+
+    // 2. every press rule is scoped — by attribute, or by its own prefix
+    const selectors = [...code.matchAll(/(^|\})\s*([^{}@]+)\{/g)].map((m) => m[2].trim());
+    // `aria-pressed` is not the press. Match the prefix and the attribute, not
+    // the word — the first version of this caught every pressed pill in Relief.
+    const pressRules = selectors.filter((sel) => /\.press-|\[data-press\]/.test(sel));
+    expect(pressRules.length).toBeGreaterThan(20);
+    const leaked = pressRules.filter((sel) =>
+      !sel.includes('[data-press]') && !/(^|[\s,>])\.press-/.test(sel));
+    expect(leaked).toEqual([]);
+
+    // 3. and it is switched on in exactly one place in the whole application
+    const wearers = PAGES.filter((f) => /data-press/.test(stripTs(read(f))));
+    expect(wearers).toEqual(['src/features/nutrition/pages/MealPlan.tsx']);
   });
 
   /**

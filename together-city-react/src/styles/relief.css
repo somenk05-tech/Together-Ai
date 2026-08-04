@@ -1008,3 +1008,156 @@ textarea.g-field { resize: none; line-height: 1.55; }
 @media (prefers-reduced-motion: reduce) {
   .g-key:not(:disabled):hover { transform: none; }
 }
+
+/* ══ THE PRESS ═══════════════════════════════════════════════════════════
+   Two faces that exist ONLY inside `[data-press]`, and nowhere else in the
+   city. See the block of the same name in tokens.css for why this exception
+   was granted, what it is scoped to, and what happens if it spreads. */
+@font-face {
+  font-family: 'Instrument Serif';
+  src: url('/assets/fonts/instrument-serif-400.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/assets/fonts/ibm-plex-mono-400.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/assets/fonts/ibm-plex-mono-500.woff2') format('woff2');
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+
+/* ══ THE PRINTED DAY ═════════════════════════════════════════════════════
+   Everything below is inside [data-press] and cannot escape it. This is a
+   PRINTED page: hairlines instead of shadow, ivory instead of white, three
+   faces instead of one. All three are Relief rules broken on purpose, in one
+   room, for a page whose whole job is to be read like a menu.
+
+   NOTHING HERE CARRIES A VALUE. Every number, name, portion and percentage on
+   this page comes from composedPlan — the personalisation engine decides them
+   per citizen, and two people will not see the same page. The CSS only has to
+   survive that: a one-dish breakfast and a six-dish thali, a name in Malayalam
+   and a name in Persian, a missing macro, a skipped dish, a blocked fast. */
+[data-press] {
+  background: var(--press-paper);
+  color: var(--press-ink);
+  /* Paper is two layers of almost nothing: a fine mottle and a broad tonal
+     drift. Anything stronger stops being paper and becomes wallpaper. */
+  background-image: var(--press-grain);
+}
+[data-press] .press-num,
+[data-press] .press-figure { font-family: var(--press-mono); font-variant-numeric: tabular-nums; }
+
+/* ── the hero ─────────────────────────────────────────────────────────── */
+.press-hero { margin-bottom: clamp(28px, 4vw, 50px); }
+.press-hero-row { display: flex; gap: 52px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; }
+.press-day { font-family: var(--press-serif); font-weight: 400; margin: 0;
+  font-size: clamp(46px, 8vw, 100px); line-height: .9; letter-spacing: -.018em; }
+.press-date { font-family: var(--press-mono); font-size: 11.5px; letter-spacing: .24em;
+  text-transform: uppercase; color: var(--press-green); margin-top: 15px; }
+.press-quote { font-family: var(--press-serif); font-style: italic; font-size: 20px; line-height: 1.5;
+  color: var(--press-ink-2); max-width: 32ch; margin: 0 0 6px; }
+
+/* The statistics rule wraps rather than squeezes: five figures at 320px would
+   be five columns of two characters each. */
+.press-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  margin: 34px 0 0; border-top: 1px solid var(--press-ink);
+  border-bottom: 1px solid var(--press-rule); padding: 21px 0; gap: 18px 0; }
+.press-stats > div { padding: 0 24px; border-left: 1px solid var(--press-rule-2); }
+.press-stats > div:first-child { padding-left: 0; border-left: 0; }
+.press-stats dt { font-size: 9.5px; font-weight: 500; letter-spacing: .19em; text-transform: uppercase;
+  color: var(--press-ink-3); margin: 0 0 10px; }
+.press-stats dd { margin: 0; font-family: var(--press-mono); font-size: clamp(20px, 2.2vw, 26px); letter-spacing: -.02em; }
+.press-stats dd small { font-family: var(--sans); font-size: 11.5px; font-weight: 500; color: var(--press-ink-3); margin-left: 5px; }
+.press-stats .press-pc { display: block; font-family: var(--press-mono); font-size: 11px; color: var(--press-green); margin-top: 6px; }
+
+/* ── a course ─────────────────────────────────────────────────────────── */
+.press-course { margin-bottom: clamp(30px, 4vw, 50px); }
+.press-course-head { display: flex; align-items: baseline; justify-content: space-between; gap: 20px;
+  border-bottom: 1px solid var(--press-ink); padding-bottom: 9px; }
+.press-course-head h2 { font-family: var(--press-serif); font-weight: 400; margin: 0;
+  font-size: clamp(24px, 3vw, 33px); letter-spacing: 0; }
+.press-course-head .press-kcal { font-family: var(--press-mono); font-size: 18px; color: var(--press-green); white-space: nowrap; }
+.press-course-head .press-kcal small { font-family: var(--sans); font-size: 10.5px; color: var(--press-ink-3); margin-left: 4px; }
+
+/* display:contents on the row, so a dish's six cells sit on the SECTION's grid
+   and every course in the day shares one set of column edges. A per-row grid
+   would let a long dish name in one course shift the numbers out of line with
+   the course above it, which is the one thing a printed menu may not do. */
+.press-grid { display: grid; grid-template-columns: minmax(0,1fr) 62px 46px 46px 46px 178px; column-gap: 10px; }
+.press-colhead { display: contents; }
+.press-colhead span { font-size: 9px; font-weight: 500; letter-spacing: .17em; text-transform: uppercase;
+  color: var(--press-ink-3); text-align: right; padding: 10px 0 9px; border-bottom: 1px solid var(--press-rule-2); }
+.press-colhead span:first-child { text-align: left; }
+.press-dish { display: contents; }
+.press-dish > * { padding: 17px 0; border-bottom: 1px solid var(--press-rule-2); align-self: baseline; }
+.press-grid > .press-dish:last-child > * { border-bottom: 0; }
+.press-name { font-size: 16px; font-weight: 600; letter-spacing: -.012em; line-height: 1.3; }
+.press-name a, .press-name button.press-link { color: inherit; text-decoration: none; background: none;
+  border: 0; padding: 0; font: inherit; text-align: left; cursor: pointer; border-bottom: 1px solid transparent; }
+.press-name a:hover, .press-name button.press-link:hover { border-bottom-color: var(--press-ink-3); }
+.press-desc { font-size: 12.5px; color: var(--press-ink-2); line-height: 1.5; margin-top: 3px; max-width: 54ch; }
+.press-v { font-family: var(--press-mono); font-size: 13px; text-align: right; }
+.press-v.dim { color: var(--press-ink-2); font-size: 12px; }
+.press-acts { display: flex; gap: 15px; justify-content: flex-end; flex-wrap: wrap; }
+.press-acts button { font-family: var(--sans); font-size: 11px; font-weight: 500; letter-spacing: .05em;
+  color: var(--press-ink-3); background: none; border: 0; padding: 0; cursor: pointer;
+  border-bottom: 1px solid transparent; white-space: nowrap; }
+.press-acts button:hover:not(:disabled) { color: var(--press-green); border-bottom-color: var(--press-green); }
+.press-acts button:disabled { opacity: .45; cursor: default; }
+/* A skipped dish stays on the page and comes off the total. It is struck, not
+   hidden — you can see what you decided, and undo it. */
+.press-dish.is-off .press-name,
+.press-dish.is-off .press-desc,
+.press-dish.is-off .press-v { opacity: .4; text-decoration: line-through; text-decoration-thickness: 1px; }
+
+/* ── the sidebar ──────────────────────────────────────────────────────── */
+.press-aside h3 { font-size: 9.5px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--press-ink-3); margin: 0 0 16px; padding-bottom: 10px; border-bottom: 1px solid var(--press-rule); }
+.press-aside section { margin-bottom: 42px; }
+.press-bar { display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: center;
+  padding: 11px 0; border-bottom: 1px solid var(--press-rule-2); font-size: 12.5px; }
+.press-bar:last-of-type { border-bottom: 0; }
+.press-bar .press-lab { font-weight: 500; }
+.press-bar .press-track { height: 2px; background: var(--press-rule); position: relative; }
+.press-bar .press-track i { position: absolute; inset: 0 auto 0 0; background: var(--press-green); }
+.press-bar .press-val { font-family: var(--press-mono); font-size: 12px; }
+.press-bar .press-val em { font-style: normal; color: var(--press-ink-3); margin-left: 6px; }
+.press-ring { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.press-key { display: grid; gap: 9px; font-size: 12.5px; }
+.press-key > div { display: grid; grid-template-columns: 9px 1fr auto; gap: 11px; align-items: center; }
+.press-key i { width: 9px; height: 9px; border-radius: 50%; }
+.press-key .press-n { font-family: var(--press-mono); font-size: 11.5px; }
+.press-key .press-l { color: var(--press-ink-2); }
+.press-shop { columns: 2; column-gap: 24px; }
+.press-shop .press-grp { break-inside: avoid; margin-bottom: 19px; }
+.press-shop .press-grp h4 { font-size: 9px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--press-green); margin: 0 0 7px; }
+.press-shop .press-grp p { margin: 0; font-size: 12.5px; line-height: 1.8; color: var(--press-ink-2); }
+.press-shop .press-grp p span { font-family: var(--press-mono); font-size: 10.5px; color: var(--press-ink-3); }
+.press-note { font-family: var(--press-serif); font-style: italic; font-size: 18px; line-height: 1.6;
+  color: var(--press-ink-2); margin: 0; }
+
+/* ── the foot ─────────────────────────────────────────────────────────── */
+.press-foot { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--press-ink);
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 18px 0; }
+.press-foot > div { padding: 0 22px; border-left: 1px solid var(--press-rule-2); }
+.press-foot > div:first-child { padding-left: 0; border-left: 0; }
+.press-foot dt { font-size: 9px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--press-ink-3); margin: 0 0 8px; }
+.press-foot dd { margin: 0; font-family: var(--press-mono); font-size: 18px; }
+
+/* ── the sheet ────────────────────────────────────────────────────────── */
+.press-sheet { display: grid; grid-template-columns: minmax(0,1fr) 336px; column-gap: 62px; align-items: start; }
+.press-sheet > .press-hero, .press-sheet > .press-foot { grid-column: 1 / -1; }
+.press-aside { position: sticky; top: 54px; }
+@media (max-width: 1040px) {
+  .press-sheet { grid-template-columns: minmax(0,1fr); }
+  .press-aside { position: static; }
+  .press-grid { grid-template-columns: minmax(0,1fr) 56px 42px 42px 42px; }
+  .press-colhead span:last-child, .press-acts { grid-column: 1 / -1; }
+  .press-acts { justify-content: flex-start; padding-top: 0; border-bottom: 0; }
+  .press-dish > .press-name-cell { padding-bottom: 8px; border-bottom: 0; }
+}

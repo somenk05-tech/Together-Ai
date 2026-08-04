@@ -312,6 +312,46 @@
      read in a few dozen places, and they resolve to the same family: a heading
      is a heading because of its size and weight, not because it changed font
      halfway down the page. --num is the same family with tabular figures. */
+  /* ══ THE PRESS — A NAMED EXCEPTION, NOT A DRIFT ══════════════════════════
+     One page in this city is not a screen: the nutrition day. It is a menu,
+     and it is set rather than built. Three Relief rules are broken there, all
+     three deliberately, all three scoped to `[data-press]` and reachable from
+     nowhere else:
+
+       · the ground is IVORY, not white
+       · the material is HAIRLINES, not shadow
+       · there are THREE faces, not one
+
+     WHY THIS IS ALLOWED HERE AND NOWHERE ELSE. A meal plan is read the way a
+     menu is read — down a column, comparing figures — and Relief's material is
+     built for things you press. The exception buys a page that reads; it earns
+     nothing anywhere else, and if it spreads the city stops looking like one
+     thing. The guard in relief.spec.ts enforces the scope, not the taste.
+
+     THE MONO IS NOT A FOURTH MOOD. Four columns of figures cannot be scanned
+     in a proportional face; tabular numerals are the entire reason it is here.
+
+     Every value on that page comes from the personalisation engine. These are
+     the only colours it may use, and none of them is a number. */
+  --press-paper:  #faf7f0;
+  --press-ink:    #24231f;   /* 13.4:1 on the paper */
+  --press-ink-2:  #57544c;   /*  6.6:1 — descriptions */
+  --press-ink-3:  #8a857a;   /*  3.4:1 — labels and metadata ONLY, never body copy */
+  --press-rule:   #ddd8cb;
+  --press-rule-2: #ebe6da;
+  --press-green:  #1f5d43;   /*  8.0:1 — deep emerald */
+  --press-macro-1:#1f5d43;
+  --press-macro-2:#5b957a;
+  --press-macro-3:#b7cec1;
+  --press-macro-0:#e7e2d6;
+  --press-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --press-mono:  'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+  /* Paper is two layers of almost nothing. Anything stronger stops being paper
+     and becomes wallpaper. */
+  --press-grain:
+    radial-gradient(circle at 18% 10%, rgba(122,106,72,.05), transparent 44%),
+    radial-gradient(circle at 84% 76%, rgba(122,106,72,.04), transparent 46%);
+
   --sans: 'General Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --serif: var(--sans);
   --mono: var(--sans);

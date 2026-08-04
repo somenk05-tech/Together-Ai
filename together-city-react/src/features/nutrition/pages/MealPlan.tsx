@@ -7,7 +7,8 @@ import {
   type CuisineBucket, type ComposedDay, type ComposedWeek, type Scorecard, type PlanScope,
 } from '../composed.api';
 import { useHealthScore } from '@/features/profile/hooks';
-import { ComposedMealCard, SkippedMealCard } from '../components/ComposedMealCard';
+import { SkippedMealCard } from '../components/ComposedMealCard';
+import { PressCourse } from '../components/PressCourse';
 import { PlannerModeToggle } from '../components/PlannerModeToggle';
 import { usePlannerMode } from '../plannerMode';
 import { skippedSlotsFor, skippedRolesFor } from '../skips';
@@ -85,32 +86,7 @@ function PlanScorecard({ sc }: { sc: Scorecard }) {
 }
 
 type Totals = { kcal: number; protein: number; carbs: number; fat: number; fiber: number; sodiumMg?: number };
-function macroKcal(t: Totals) { const p = t.protein * 4, c = t.carbs * 4, f = t.fat * 9; return { p, c, f, tot: p + c + f || 1 }; }
 
-/** Calorie-goal donut with macro segments (carbs/protein/fat). */
-function Donut({ t, goalPct }: { t: Totals; goalPct: number }) {
-  const { p, c, f, tot } = macroKcal(t);
-  const R = 52, C = 2 * Math.PI * R;
-  const segs = [{ v: c, color: '#3a8a4a' }, { v: p, color: '#2f6fd0' }, { v: f, color: '#e0a53b' }];
-  let off = 0;
-  return (
-    <svg width="128" height="128" viewBox="0 0 130 130" role="img" aria-label={`${Math.round(t.kcal)} kcal, ${goalPct}% of goal`}>
-      <circle cx="65" cy="65" r={R} fill="none" stroke="var(--line)" strokeWidth="14" />
-      {segs.map((s, i) => { const dash = (s.v / tot) * C; const el = (<circle key={i} cx="65" cy="65" r={R} fill="none" stroke={s.color} strokeWidth="14" strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-off} transform="rotate(-90 65 65)" strokeLinecap="butt" />); off += dash; return el; })}
-      <text x="65" y="62" textAnchor="middle" fontSize="20" fontWeight="800" fill="var(--ink)">{Math.round(t.kcal)}</text>
-      <text x="65" y="80" textAnchor="middle" fontSize="10.5" fill="var(--muted)">kcal · {goalPct}%</text>
-    </svg>
-  );
-}
-function Legend({ color, label, g, pct }: { color: string; label: string; g: number; pct?: number }) {
-  return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5 }}>
-      <span style={{ width: 9, height: 9, borderRadius: 3, background: color, flex: '0 0 auto' }} />
-      <span style={{ minWidth: 52 }}>{label}</span>
-      <strong>{Math.round(g)}g</strong>{pct != null && <span className="muted">({pct}%)</span>}
-    </span>
-  );
-}
 const PROTOCOLS = ['12:12', '14:10', '16:8', '18:6', '20:4', 'omad'];
 const BUCKETS: { key: CuisineBucket; label: string }[] = [
   { key: 'breakfast', label: 'Breakfast' }, { key: 'lunch', label: 'Lunch' },
@@ -141,46 +117,7 @@ const shortDate = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', m
 const longDate = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
 
-/** Left rail — day name, date, daily overview stats, balance note. */
-function DailyOverviewPanel({ d, date, note }: { d: ComposedDay; date: Date; note: string }) {
-  const t = d.totals as Totals;
-  const rows: [string, string, string][] = [
-    ['flame', `${Math.round(t.kcal)}`, 'Calories'], ['leaf', `${Math.round(t.protein)}g`, 'Protein'],
-    ['wheat', `${Math.round(t.carbs)}g`, 'Carbs'], ['drop', `${Math.round(t.fat)}g`, 'Fat'], ['sprout', `${Math.round(t.fiber)}g`, 'Fibre'],
-  ];
-  return (
-    <div>
-      <h2 style={{ fontFamily: 'var(--serif)', fontSize: 30, fontWeight: 600, margin: '0 0 6px', letterSpacing: '-.01em' }}>{weekdayFull(date)}</h2>
-      <div style={{ display: 'inline-block', background: 'var(--ink)', color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', padding: '4px 12px', borderRadius: 999, marginBottom: 18 }}>{longDate(date)}</div>
-      <div style={{ border: '1px solid var(--line)', borderRadius: 18, padding: '16px 18px', background: 'var(--card)', boxShadow: 'var(--shadow)' }}>
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginBottom: 15 }}>Daily overview</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {rows.map(([ic, v, l]) => (
-            <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ color: 'var(--accent-ink)' }}><NIc name={ic} size={20} /></span>
-              <div><div style={{ fontSize: 17, fontWeight: 800, lineHeight: 1 }}>{v}</div><div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{l}</div></div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ marginTop: 14, border: '1px dashed var(--line)', borderRadius: 14, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        <span style={{ color: 'var(--accent-ink)' }}><NIc name="heart" size={16} /></span>
-        <span style={{ fontSize: 12.5, color: 'var(--ink-soft)', lineHeight: 1.5 }}>{note}</span>
-      </div>
-    </div>
-  );
-}
 
-function MacroLine({ ic, label, grams, pct }: { ic: string; label: string; grams: number; pct: number }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '20px 66px 1fr auto', alignItems: 'center', gap: 10 }}>
-      <span style={{ color: 'var(--muted)' }}><NIc name={ic} size={16} /></span>
-      <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{label}</span>
-      <span style={{ height: 6, borderRadius: 4, background: 'var(--paper)', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${Math.min(100, pct)}%`, background: 'var(--accent)', borderRadius: 4 }} /></span>
-      <span style={{ fontSize: 12.5, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{Math.round(grams)}g <span style={{ color: 'var(--muted)' }}>({pct}%)</span></span>
-    </div>
-  );
-}
 
 /**
  * What this day's menu would put in the basket.
@@ -303,9 +240,7 @@ function AboutThisMenu({ d }: { d: ComposedDay }) {
   );
 }
 
-const DAY_TIPS = ['Drink at least 2\u20133 litres of water.', 'Include a variety of colourful vegetables.', 'Choose whole grains over refined grains.', 'Stay active and get good-quality sleep.'];
 
-/** The full premium day layout: left overview · meal grid · right nutrition/donut/tips. */
 /**
  * Lock this day — and put its shopping in the basket.
  *
@@ -415,6 +350,7 @@ function LockedDaySummary({ d, date }: { d: ComposedDay; date: Date }) {
   );
 }
 
+
 function DayView({ wk, d, dayIndex, date, readOnly }: { wk: ComposedWeek; d: ComposedDay; dayIndex: number; date: Date; readOnly?: boolean }) {
   const t = d.totals as Totals;
   const kcal = Math.max(1, t.kcal);
@@ -422,6 +358,7 @@ function DayView({ wk, d, dayIndex, date, readOnly }: { wk: ComposedWeek; d: Com
   const cPct = Math.round((t.carbs * 4 / kcal) * 100);
   const fPct = Math.round((t.fat * 9 / kcal) * 100);
   const fibPct = Math.min(100, Math.round((t.fiber / Math.max(1, wk.prescription.fiber)) * 100));
+  const kcalPct = Math.min(100, Math.round((t.kcal / Math.max(1, wk.prescription.kcal)) * 100));
   // THIS day against the prescription, each macro on its own. It used to be the
   // WEEK's single compliance score against 80 — so a day nothing like the week
   // it came from was told "Great balance of protein, carbs & healthy fats!" on
@@ -429,74 +366,119 @@ function DayView({ wk, d, dayIndex, date, readOnly }: { wk: ComposedWeek; d: Com
   // dayBalance.ts for why the bands are not symmetric.
   const note = balanceNote(dayBalance(t, wk.prescription, wk.prescription.assumed));
   const skips = wk.skips ?? [];
-  const card: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, padding: '16px 18px', boxShadow: 'var(--shadow)' };
-  const capTitle: React.CSSProperties = { fontSize: 11, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center', marginBottom: 12 };
+  const n = (v: number) => Math.round(v).toLocaleString('en-IN');
+
+  // THE PRINTED DAY. See tokens.css → THE PRESS for why this one page is set
+  // rather than built, and relief.spec.ts for the guard that keeps it here.
+  //
+  // Everything below is the engine's output, typeset. Not one figure, name or
+  // portion is written into this file: composedPlan builds a different week for
+  // every citizen out of their body, bloods, conditions, diet, allergies,
+  // goals, cuisine and history, and this page's only job is to survive the
+  // range of what that returns.
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '200px minmax(0,1fr) 300px', gap: 22, alignItems: 'start' }} className="tc-planday">
-      <DailyOverviewPanel d={d} date={date} note={note} />
+    <div data-press className="press-sheet">
 
-      <div>
-        {d.fasting && <p className="muted" style={{ fontSize: 12.5, margin: '0 0 12px' }}>Eating window {d.window.start}–{d.window.end}</p>}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(215px, 1fr))', gap: 16 }} className="tc-mealgrid2">
-          {d.meals.map((m) => <ComposedMealCard key={m.slot} meal={m} dayIndex={dayIndex} readOnly={readOnly} skips={skips} />)}
-          {/* A skipped meal leaves the composer's output entirely, so without
-              this its slot is simply a gap and the only way back is the
-              restore-everything banner. The placeholder holds its place. */}
-          {!readOnly && skippedSlotsFor(skips, dayIndex).map((slot) => (
-            <SkippedMealCard key={`skipped-${slot}`} dayIndex={dayIndex} slot={slot} />
-          ))}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={card}>
-          <div style={capTitle}>Daily nutrition</div>
-          <div style={{ textAlign: 'center', marginBottom: 14 }}>
-            <div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1 }}>{Math.round(t.kcal).toLocaleString('en-IN')}</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)' }}>Calories</div>
+      <header className="press-hero">
+        <div className="press-hero-row">
+          <div>
+            <h1 className="press-day">{weekdayFull(date)}</h1>
+            <div className="press-date">{longDate(date)}</div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-            <MacroLine ic="leaf" label="Protein" grams={t.protein} pct={pPct} />
-            <MacroLine ic="wheat" label="Carbs" grams={t.carbs} pct={cPct} />
-            <MacroLine ic="drop" label="Fat" grams={t.fat} pct={fPct} />
-            <MacroLine ic="sprout" label="Fibre" grams={t.fiber} pct={fibPct} />
-          </div>
+          {/* The engine's own reading of this day, not a decoration. */}
+          <p className="press-quote">{note}</p>
         </div>
+        <dl className="press-stats">
+          <div><dt>Daily calories</dt><dd>{n(t.kcal)}<small>kcal</small></dd><span className="press-pc">{kcalPct}% of target</span></div>
+          <div><dt>Protein</dt><dd>{n(t.protein)}<small>g</small></dd><span className="press-pc">{pPct}%</span></div>
+          <div><dt>Carbohydrate</dt><dd>{n(t.carbs)}<small>g</small></dd><span className="press-pc">{cPct}%</span></div>
+          <div><dt>Fat</dt><dd>{n(t.fat)}<small>g</small></dd><span className="press-pc">{fPct}%</span></div>
+          <div><dt>Fibre</dt><dd>{n(t.fiber)}<small>g</small></dd><span className="press-pc">{fibPct}%</span></div>
+        </dl>
+      </header>
 
-        <div style={card}>
-          <div style={capTitle}>Macro breakdown</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <Donut t={t} goalPct={Math.round((t.kcal / Math.max(1, wk.prescription.kcal)) * 100)} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <Legend color="#3a8a4a" label="Protein" g={t.protein} pct={pPct} />
-              <Legend color="#e0a53b" label="Carbs" g={t.carbs} pct={cPct} />
-              <Legend color="#7a6ff0" label="Fat" g={t.fat} pct={fPct} />
-              <Legend color="#5aa9a0" label="Fibre" g={t.fiber} />
+      <main>
+        {d.fasting && (
+          <p className="press-desc" style={{ margin: '0 0 20px' }}>
+            Eating window {d.window.start}–{d.window.end}.
+          </p>
+        )}
+        {d.meals.map((m) => (
+          <PressCourse key={m.slot} meal={m} dayIndex={dayIndex} readOnly={readOnly} skips={skips} />
+        ))}
+        {/* A skipped MEAL leaves the composer's output entirely, so without this
+            its course is simply absent and the only way back is the
+            restore-everything banner. */}
+        {!readOnly && skippedSlotsFor(skips, dayIndex).map((slot) => (
+          <SkippedMealCard key={`skipped-${slot}`} dayIndex={dayIndex} slot={slot} />
+        ))}
+      </main>
+
+      <aside className="press-aside">
+        <section>
+          <h3>Nutrition summary</h3>
+          <div className="press-bar"><span className="press-lab">Calories</span><span className="press-track"><i style={{ width: `${kcalPct}%` }} /></span><span className="press-val">{n(t.kcal)}<em>kcal</em></span></div>
+          <div className="press-bar"><span className="press-lab">Protein</span><span className="press-track"><i style={{ width: `${pPct}%` }} /></span><span className="press-val">{n(t.protein)}g<em>{pPct}%</em></span></div>
+          <div className="press-bar"><span className="press-lab">Carbs</span><span className="press-track"><i style={{ width: `${cPct}%` }} /></span><span className="press-val">{n(t.carbs)}g<em>{cPct}%</em></span></div>
+          <div className="press-bar"><span className="press-lab">Fat</span><span className="press-track"><i style={{ width: `${fPct}%` }} /></span><span className="press-val">{n(t.fat)}g<em>{fPct}%</em></span></div>
+          <div className="press-bar"><span className="press-lab">Fibre</span><span className="press-track"><i style={{ width: `${fibPct}%` }} /></span><span className="press-val">{n(t.fiber)}g<em>{fibPct}%</em></span></div>
+        </section>
+
+        <section>
+          <h3>Macro breakdown</h3>
+          <div className="press-ring">
+            <PressRing kcal={t.kcal} p={pPct} c={cPct} f={fPct} />
+            <div className="press-key">
+              <div><i style={{ background: 'var(--press-macro-1)' }} /><span className="press-l">Protein</span><span className="press-n">{n(t.protein)}g · {pPct}%</span></div>
+              <div><i style={{ background: 'var(--press-macro-2)' }} /><span className="press-l">Carbs</span><span className="press-n">{n(t.carbs)}g · {cPct}%</span></div>
+              <div><i style={{ background: 'var(--press-macro-3)' }} /><span className="press-l">Fat</span><span className="press-n">{n(t.fat)}g · {fPct}%</span></div>
             </div>
           </div>
-        </div>
+          {/* Fibre is in the summary and the footer but never a slice: it carries
+              no energy to plot beside the three that do, and a fourth wedge in
+              the same green said it did. */}
+          <p className="press-desc" style={{ marginTop: 16 }}>
+            Fibre sits outside the ring — {n(t.fiber)}&nbsp;g today, against {n(wk.prescription.fiber)}&nbsp;g.
+          </p>
+        </section>
 
-        {/* The rail carries the day's shopping and what can honestly be said
-            about the menu, so the two questions a menu raises — "what do I have
-            to buy" and "what am I actually looking at" — are answered beside it
-            rather than on another screen. */}
         <DayShoppingPanel d={d} dayIndex={dayIndex} locked={(wk.locks ?? []).includes(dayIndex)} skips={skips} />
         <AboutThisMenu d={d} />
+      </aside>
 
-        <div style={card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, color: 'var(--accent-ink)', fontWeight: 800, fontSize: 12.5, letterSpacing: '.06em', textTransform: 'uppercase' }}><NIc name="bulb" size={16} /> Tips for the day</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-            {DAY_TIPS.map((tip) => (
-              <div key={tip} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12.5, color: 'var(--ink-soft)', lineHeight: 1.45 }}>
-                <span style={{ color: 'var(--accent-ink)', marginTop: 1 }}><NIc name="check" size={14} stroke={2.2} /></span>{tip}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <style>{`@media (max-width: 1040px){ .tc-planday{ grid-template-columns:1fr !important; } }`}</style>
+      <footer className="press-foot">
+        <div><dt>Total calories</dt><dd>{n(t.kcal)}</dd></div>
+        <div><dt>Protein</dt><dd>{n(t.protein)}g</dd></div>
+        <div><dt>Carbs</dt><dd>{n(t.carbs)}g</dd></div>
+        <div><dt>Fat</dt><dd>{n(t.fat)}g</dd></div>
+        <div><dt>Fibre</dt><dd>{n(t.fiber)}g</dd></div>
+      </footer>
     </div>
+  );
+}
+
+/** The macro ring: one hue at three values, because it is a proportion and not
+ *  a palette. Percentages come in already computed against the day's energy. */
+function PressRing({ kcal, p, c, f }: { kcal: number; p: number; c: number; f: number }) {
+  const label = `Of today's energy: protein ${p} per cent, carbohydrate ${c} per cent, fat ${f} per cent`;
+  return (
+    <svg width="126" height="126" viewBox="0 0 42 42" role="img" aria-label={label}>
+      <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--press-macro-0)" strokeWidth="2.6" />
+      <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--press-macro-1)" strokeWidth="2.6"
+        strokeDasharray={`${p} ${100 - p}`} strokeDashoffset="25" />
+      <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--press-macro-2)" strokeWidth="2.6"
+        strokeDasharray={`${c} ${100 - c}`} strokeDashoffset={String(25 - p)} />
+      <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--press-macro-3)" strokeWidth="2.6"
+        strokeDasharray={`${f} ${100 - f}`} strokeDashoffset={String(25 - p - c)} />
+      <text x="21" y="20.3" textAnchor="middle"
+        style={{ fontFamily: 'var(--press-mono)', fontSize: '6px', fill: 'var(--press-ink)' }}>
+        {Math.round(kcal).toLocaleString('en-IN')}
+      </text>
+      <text x="21" y="25" textAnchor="middle"
+        style={{ fontFamily: 'var(--sans)', fontSize: '2.9px', fill: 'var(--press-ink-3)', letterSpacing: '.14em' }}>
+        KCAL
+      </text>
+    </svg>
   );
 }
 
