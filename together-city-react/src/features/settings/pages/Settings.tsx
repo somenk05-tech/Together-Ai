@@ -6,6 +6,7 @@ import { Card, Button } from '@/components/ui';
 import { authApi, type SessionInfo } from '@/api/auth.api';
 import { http } from '@/api/client';
 import { useMyProfile } from '@/features/social/myProfile.api';
+import { DeleteAccountCard } from '../components/DeleteAccountCard';
 
 
 /** A labelled row inside a settings card. */
@@ -119,29 +120,7 @@ export function Settings() {
     }
   };
 
-  const [confirmText, setConfirmText] = useState('');
-  const [deletePassword, setDeletePassword] = useState('');
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const pushOn = push.permission === 'granted';
-
-  /** Extracted from the button: an async onClick returns a promise React
-   *  never looks at, so a failure here would have been silent. */
-  const deleteAccount = async () => {
-    if (!window.confirm('Permanently delete your Together City account? This cannot be undone.')) return;
-    setDeleting(true); setDeleteError(null);
-    try {
-      await authApi.deleteAccount(deletePassword);
-      // Session is already revoked server-side; clear the client and
-      // land on a clean sign-in screen.
-      signOut();
-      window.location.assign('/sign-in');
-    } catch (err) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setDeleteError(msg ?? "Couldn't delete the account just now — please try again.");
-      setDeleting(false);
-    }
-  };
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '36px 20px 90px' }}>
@@ -223,38 +202,8 @@ export function Settings() {
         </div>
       </Card>
 
-      {/* Danger zone */}
-      <Card style={{ marginTop: 18, borderColor: 'rgba(224,52,43,.4)' }}>
-        <SectionTitle title="Delete account" />
-        <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>
-          This permanently removes your Together City identity: your posts, photos, listings and
-          social connections are erased, your profile stops existing for other citizens, and every
-          device is signed out. It cannot be undone. Type <strong>DELETE</strong> and confirm your
-          password to continue.
-        </p>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
-          <input
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.target.value)}
-            placeholder="Type DELETE to confirm"
-            style={{ flex: 1, minWidth: 170, padding: '9px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'inherit', fontSize: 14 }}
-          />
-          <input
-            type="password" value={deletePassword} autoComplete="current-password"
-            onChange={(e) => setDeletePassword(e.target.value)}
-            placeholder="Your password"
-            style={{ flex: 1, minWidth: 170, padding: '9px 12px', border: '1px solid var(--line)', borderRadius: 8, fontFamily: 'inherit', fontSize: 14 }}
-          />
-          <Button size="sm" variant="line" disabled={confirmText !== 'DELETE' || !deletePassword || deleting}
-            style={confirmText === 'DELETE' && deletePassword ? { borderColor: 'var(--danger-ink)', color: 'var(--danger-ink)' } : undefined}
-            onClick={() => void deleteAccount()}>
-            {deleting ? 'Deleting…' : 'Delete my account'}
-          </Button>
-        </div>
-        {deleteError && (
-          <p role="alert" style={{ fontSize: 12.5, marginTop: 10, color: 'var(--danger-ink)' }}>{deleteError}</p>
-        )}
-      </Card>
+      {/* Danger zone — shared with the Profile page's Delete account tab. */}
+      <DeleteAccountCard />
     </div>
   );
 }

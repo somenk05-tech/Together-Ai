@@ -12,8 +12,9 @@ import { useConnections, useRespondConnection, useUnreadChatCount, useIncomingRe
 import { useMailAccount } from '@/features/mail/api';
 import { VerificationCard } from '@/features/auth/components/VerificationCard';
 import { SexAndGenderCard } from '../components/SexAndGenderCard';
+import { DeleteAccountCard } from '@/features/settings/components/DeleteAccountCard';
 
-type Tab = 'overview' | 'photo' | 'notifications';
+type Tab = 'overview' | 'photo' | 'notifications' | 'account';
 
 /** Round avatar — the uploaded photo (data URL) or the user's initials. */
 function Avatar({ src, name, size = 56 }: { src?: string | null; name: string; size?: number }) {
@@ -314,6 +315,7 @@ export function Profile() {
     { key: 'overview', label: 'Overview' },
     { key: 'photo', label: 'Photo' },
     { key: 'notifications', label: 'Notifications', badge: reqCount },
+    { key: 'account', label: 'Delete account' },
   ];
 
   return (
@@ -436,6 +438,17 @@ export function Profile() {
 
       {tab === 'photo' && <PhotoTab current={photo} name={name} />}
       {tab === 'notifications' && <NotificationsTab />}
+      {tab === 'account' && (
+        <>
+          {/* The same protections as Settings — one shared component, so the
+              danger zone cannot drift between its two doors. */}
+          <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
+            Leaving Together City deletes your one identity across every hub. If you only want a
+            quieter city, you can sign out instead — nothing is lost.
+          </p>
+          <DeleteAccountCard />
+        </>
+      )}
     </div>
   );
 }
