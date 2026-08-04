@@ -31,7 +31,7 @@ import { assignDietPlans, planLabel, DIET_PLAN_CATALOG } from './diet-plans';
 import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntAvoidKeywords } from './clinical-mnt';
-import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, cuisineAliases, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
+import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, cuisineAliases, resolveDayDiets, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
 import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from './diet-tags';
 import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
 import { canonicaliseDeclared, findAllergen, isAllergenSafe } from '../shared/allergens';
@@ -2131,10 +2131,31 @@ export class NutritionService implements OnModuleInit {
     //    Optimal genuinely meets nutrition guidelines and scores ~100 on health.
     //    Protein-source and cook-time nudges are dropped so health leads; diet,
     //    allergies and cuisine taste are still respected.
+    /**
+     * Weekly Planning, finally wired. `ex.weekly` is Mon..Sun → veg/nonveg and
+     * it reached exactly one consumer before now: medical-recs.ts, which counts
+     * veg days for a recommendation score. The composer never saw it, so the
+     * control on the preferences page changed a number nobody reads and nothing
+     * about the food. The calendar lives here, so the mapping is done here and
+     * the composer is handed a plain array.
+     *
+     * Both modes. Optimal Health drops the citizen's protein-source and
+     * cook-time nudges because health leads — but a veg day is not a nudge, it
+     * is a fast or an observance, and serving meat on it because the clinically
+     * ideal plan preferred meat would be the same failure in a politer voice.
+     */
+    const dayDiets = resolveDayDiets(
+      composerDiet,
+      ex.weekly as Record<string, 'veg' | 'nonveg'> | undefined,
+      planStartDate,
+      PLAN_DAYS,
+    );
+
     const cprefsFor = (m: 'preferred' | 'optimal'): ComposerPrefs => {
       const optimal = m === 'optimal';
       return {
         diet: composerDiet,
+        dayDiets,
         excluded,
         cuisineBySlot,
         cuisineLocks: ex.cuisineLocks,

@@ -108,6 +108,21 @@ export interface ComposerPrefs {
    * drift out of step with the filters everything else obeys.
    */
   pins?: Record<string, string>;
+  /**
+   * WEEKLY PLANNING — the diet for each day of the plan, by day index.
+   *
+   * "Set veg or non-veg days (e.g. for fasting or religious days)" has been on
+   * the preferences page the whole time, and it decided nothing. `ex.weekly`
+   * was read in exactly one place — medical-recs.ts, to count veg days for a
+   * recommendation SCORE — and never reached the composer, which took a single
+   * `diet` for the whole week. A citizen marked Tuesday veg, saved, and was
+   * served a chicken curry on Tuesday.
+   *
+   * Resolved by the service rather than here, because mapping day 0 to a
+   * weekday needs planStartDate and the composer has no calendar. Undefined,
+   * or short, means "use `diet`" — a plan longer than the array is not an error.
+   */
+  dayDiets?: Diet[];
 }
 
 /** "Inform, don't force" — how the user's preferred plan compares to the clinical ideal. */
@@ -251,6 +266,53 @@ const dietRank: Record<Diet, Diet[]> = {
   eggetarian: ['vegan', 'vegetarian', 'eggetarian'],
   nonveg: ['vegan', 'vegetarian', 'eggetarian', 'nonveg'],
 };
+
+/** Mon-first, matching the keys the preferences page writes. */
+const WEEKDAY_KEY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+/**
+ * Turn Weekly Planning into a diet per day index.
+ *
+ * A VEG DAY ONLY EVER TIGHTENS, AND ONLY FROM NONVEG. That is the whole rule
+ * and it is deliberately narrow:
+ *
+ *   · marking a day 'nonveg' can never loosen the base diet. A vegetarian who
+ *     somehow has a stray 'nonveg' in their saved weekly map — and they do,
+ *     because the page writes all-veg when the diet is veg and the old value
+ *     may predate that — must not be served meat by a control they cannot even
+ *     see;
+ *   · 'veg' tightens ONLY a 'nonveg' base. An eggetarian's week is already
+ *     forced to all-'veg' by the page (VEG_DIETS includes 'egg'), so reading
+ *     that literally would strip eggs from an egg-eater's entire plan — a
+ *     control they never touched silently removing the food they chose.
+ *
+ * Anything the citizen cannot express through the control cannot change their
+ * food. Returns undefined when there is nothing to say, so the composer keeps
+ * its single-diet path and nothing downstream has to care.
+ */
+export function resolveDayDiets(
+  base: Diet,
+  weekly: Record<string, 'veg' | 'nonveg'> | undefined,
+  planStartDate: string | undefined,
+  days: number,
+): Diet[] | undefined {
+  if (base !== 'nonveg' || !weekly || !Object.keys(weekly).length) return undefined;
+  if (!planStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(planStartDate)) return undefined;
+  const start = Date.parse(`${planStartDate}T00:00:00Z`);
+  if (!Number.isFinite(start)) return undefined;
+  const out: Diet[] = [];
+  let anyVeg = false;
+  for (let d = 0; d < days; d++) {
+    // UTC throughout: the only thing being asked is "which weekday is this
+    // date", and doing that in local time makes the answer depend on the
+    // server's timezone rather than on the citizen's calendar.
+    const key = WEEKDAY_KEY[new Date(start + d * 86_400_000).getUTCDay()];
+    const veg = weekly[key] === 'veg';
+    if (veg) anyVeg = true;
+    out.push(veg ? 'vegetarian' : base);
+  }
+  return anyVeg ? out : undefined;
+}
 
 function dietOk(recipeDiet: Diet, userDiet: Diet): boolean {
   return (dietRank[userDiet] ?? dietRank.vegetarian).includes(recipeDiet);   // unknown diet → safe default, never crash
@@ -811,6 +873,14 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
    *  remaining meals so the day still hits its target. */
   const buildDayMeals = (dayIndex: number, attemptIdx: number, banL: string, banD: string): ComposedMeal[] => {
     let ll = banL; let ld = banD;
+    // Weekly Planning. Swapping the whole prefs object rather than threading a
+    // second diet through is what makes this total: every diet decision in the
+    // selector — dietOk, dishAllowed, the dairy skip, the meal's own name —
+    // reads ctx.prefs.diet, so all of them move together and none can be
+    // forgotten. `prefs` itself is untouched; a day that matches the base diet
+    // keeps the identical object.
+    const dayDiet = prefs.dayDiets?.[dayIndex] ?? prefs.diet;
+    const dprefs: ComposerPrefs = dayDiet === prefs.diet ? prefs : { ...prefs, diet: dayDiet };
     const active = schedule.meals.filter((sm) => !skips.has(`d${dayIndex}:${sm.code}`));
     const eSum = active.reduce((t, sm) => t + sm.energy, 0) || 1;
     const meals: ComposedMeal[] = [];
@@ -818,7 +888,7 @@ export function composeWeek(targets: DayTargets, prefs: ComposerPrefs, days = 7,
       const energy = sm.energy / eSum;                 // renormalised after any skip
       const bump = prefs.bumps?.[`d${dayIndex}:${sm.code}`] ?? 0;
       const mealSeed = (v: number) => (seed ^ Math.imul(dayIndex + 1, 2654435761) ^ Math.imul(slotHash(sm.code) + 1, 40503) ^ Math.imul(bump + 1, 2246822519) ^ Math.imul(attemptIdx * 11 + v + 1, 374761393)) >>> 0;
-      const mkCtx = (v: number): SelectCtx => ({ slot: sm.code, prefs, rnd: mulberry(mealSeed(v)), used, pool, banMain: (sm.code === 'l' ? ll : sm.code === 'd' ? ld : undefined) || undefined, dayIndex, seed: mealSeed(v) });
+      const mkCtx = (v: number): SelectCtx => ({ slot: sm.code, prefs: dprefs, rnd: mulberry(mealSeed(v)), used, pool, banMain: (sm.code === 'l' ? ll : sm.code === 'd' ? ld : undefined) || undefined, dayIndex, seed: mealSeed(v) });
       const mealKcal = targets.kcal * energy; const mealProtein = targets.protein * energy; const mealFibre = targets.fiber * energy;
       let v = 0;
       let meal = composeMeal(sm.code, mealKcal, mealProtein, mealFibre, energy, sm.scheduledTime, mkCtx(v));

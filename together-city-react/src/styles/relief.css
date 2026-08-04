@@ -1098,7 +1098,13 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .press-dish { display: contents; }
 .press-dish > * { padding: 17px 0; border-bottom: 1px solid var(--press-rule-2); align-self: baseline; }
 .press-grid > .press-dish:last-child > * { border-bottom: 0; }
-.press-name { font-size: 16px; font-weight: 600; letter-spacing: -.012em; line-height: 1.3; }
+/* The dish name carries the veg/non-veg/egg mark beside it. Flex rather than an
+   inline SVG so the mark stays on the first line and aligned when a long name
+   wraps — a symbol that says what the food is has to sit with the name, not
+   drift to the bottom of a two-line title. */
+.press-name { font-size: 16px; font-weight: 600; letter-spacing: -.012em; line-height: 1.3;
+  display: flex; align-items: baseline; gap: 8px; }
+.press-name > svg { position: relative; top: 2px; }
 .press-name a, .press-name button.press-link { color: inherit; text-decoration: none; background: none;
   border: 0; padding: 0; font: inherit; text-align: left; cursor: pointer; border-bottom: 1px solid transparent; }
 .press-name a:hover, .press-name button.press-link:hover { border-bottom-color: var(--press-ink-3); }
@@ -1116,6 +1122,9 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .press-dish.is-off .press-name,
 .press-dish.is-off .press-desc,
 .press-dish.is-off .press-v { opacity: .4; text-decoration: line-through; text-decoration-thickness: 1px; }
+/* The mark is an SVG with its own stroke colour, so the strike-through above
+   does not touch it — it fades with the row instead. */
+.press-dish.is-off .press-name > svg { opacity: .4; }
 
 /* ── the sidebar ──────────────────────────────────────────────────────── */
 .press-aside h3 { font-size: 9.5px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase;

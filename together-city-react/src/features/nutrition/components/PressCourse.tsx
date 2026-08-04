@@ -4,6 +4,7 @@ import {
   type ComposedMeal,
 } from '../composed.api';
 import { skippedRolesFor } from '../skips';
+import { VegMark } from './VegMark';
 
 /**
  * ONE COURSE OF THE PRINTED DAY.
@@ -83,6 +84,13 @@ export function PressCourse({ meal, dayIndex, readOnly, skips = [] }: {
             <div className={`press-dish${off ? ' is-off' : ''}`} key={c.recipeId + c.role}>
               <div className="press-name-cell">
                 <div className="press-name">
+                  {/* EVERY DISH SAYS WHAT IT IS. The mark was already on the
+                      recipe library, the recipe page and the old meal card, and
+                      the printed day — the surface people actually read their
+                      week on — was the one place it never reached. `diet` has
+                      always been on the component; nothing here asks the server
+                      for anything new. */}
+                  <VegMark diet={c.diet} size={14} />
                   <button type="button" className="press-link"
                     onClick={() => openRecipe(c.recipeId)}
                     disabled={!c.recipeId}>
