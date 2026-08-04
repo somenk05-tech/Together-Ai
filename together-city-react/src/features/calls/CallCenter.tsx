@@ -3,6 +3,7 @@ import { socketClient, WS, useConversations } from '@/api';
 import { useAuthStore } from '@/store/auth.store';
 import { callsApi, type Call, type CallType, type IceConfig } from './api';
 import { CallPeer, type SignalKind } from './peer';
+import { callRinger } from './ring';
 import { CallCenterContext, type CallCenterValue, type CallPhase } from './context';
 
 /**
@@ -198,6 +199,19 @@ export function CallCenter({ children }: { children: ReactNode }) {
     if (phase !== 'connected') return;
     const t = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(t);
+  }, [phase]);
+
+  // The sound of the call: ring while it is incoming, ringback while it is
+  // outgoing, silence the moment either side acts. Driven by phase — the same
+  // truth every other part of this dialog renders from — so the sound can
+  // never keep ringing after the screen says the call is over. Best-effort:
+  // a browser that refuses audio before a user gesture rings silently, which
+  // is exactly the behaviour this replaced.
+  useEffect(() => {
+    if (phase === 'incoming') callRinger.start('ring');
+    else if (phase === 'outgoing') callRinger.start('ringback');
+    else callRinger.stop();
+    return () => callRinger.stop();
   }, [phase]);
 
   // Never leave a ringing sheet on screen forever. The server's sweep closes an
