@@ -4,6 +4,9 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { ClockService, DEFAULT_TIMEZONE } from '../shared/clock/clock.service';
 import { AdminService } from '../auth/admin';
 import { AiService } from '../ai/ai.service';
+import { ConversationsService } from '../conversations/conversations.service';
+import { MessagesService } from '../messages/messages.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { AMENITY_LABEL, livabilityScore, livabilityBasis } from './realestate.constants';
 import { ruleChecks, decide, normalizeDesc, type ListingInput, type ModerationResult } from './moderation';
 import type { PostPropertyDto, ListingQueryDto } from './dto/realestate.dto';
@@ -29,6 +32,9 @@ export class RealEstateService implements OnModuleInit {
     private readonly ai: AiService,
     private readonly admin: AdminService,
     private readonly clock: ClockService,
+    private readonly conversations: ConversationsService,
+    private readonly messages: MessagesService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -138,6 +144,66 @@ export class RealEstateService implements OnModuleInit {
     const rows = await this.prisma.property.findMany({ where: { sellerId: userId }, orderBy: { createdAt: 'desc' } }) as PropRow[];
     const tz = await this.clock.timezoneFor(userId);
     return rows.map((p) => ({ ...this.shapeCard(p, tz), postedByYou: true }));
+  }
+
+  /**
+   * Connect with the seller — the Real Estate version of the Dating hub's
+   * "Connect to Chat". Opens (or reuses) the DIRECT conversation between the
+   * enquirer and the seller and drops the listing in as a rich card, so the
+   * chat starts from the property rather than from a blank screen.
+   *
+   * The conversation is authorised by the enquiry itself, not by a prior
+   * connection: trust level 2 on the conversation is what lets two strangers
+   * talk (the same mechanism dating matches use), while staying ≥2 keeps the
+   * chat under real names and in the main Chats list — an enquiry is not
+   * anonymous, and it must not leak into the Dating hub.
+   *
+   * Free, unlike dating: an enquiry IS the marketplace working; charging for
+   * it would price the funnel's one conversion step.
+   */
+  async enquire(userId: string, id: string, message?: string) {
+    const p = await this.prisma.property.findUnique({ where: { id } }) as PropRow | null;
+    // Same visibility rule as detail(): a non-approved listing does not exist
+    // for anyone but its seller — and the seller has nobody to enquire to.
+    if (!p || (p.moderation ?? 'approved') !== 'approved') throw new NotFoundException('property not found');
+    if (!p.sellerId) throw new BadRequestException('This is a platform listing — there is no seller to chat with.');
+    if (p.sellerId === userId) throw new BadRequestException('This is your own listing.');
+
+    const conversationId = await this.conversations.getOrCreateDirectByIds(userId, p.sellerId, 2);
+
+    // Send the listing card once per enquirer per listing — pressing Connect
+    // twice must not paste the same card into the chat again.
+    const deepLink = `/realestate/property/${p.id}`;
+    const already = await this.prisma.message.findFirst({
+      where: { conversationId, senderId: userId, shareJson: { contains: deepLink } },
+      select: { id: true },
+    }).catch(swallowed('realestate.enquire.already', null));
+
+    if (!already) {
+      const photos = parse<{ url: string }[]>(p.photosJson, []);
+      await this.messages.send(userId, {
+        conversationId,
+        messageType: 'TEXT',
+        body: (message ?? '').trim() || `Hi — I'm interested in "${p.title}" (${p.locality}, ${p.city}).`,
+        share: {
+          kind: 'property', hub: 'Real Estate',
+          title: p.title, subtitle: `${p.locality}, ${p.city}`,
+          image: photos[0]?.url ?? null, priceInr: p.priceInr, deepLink,
+          meta: [p.propertyType, `${p.areaSqft} sqft`, p.listingType === 'rent' ? 'For rent' : 'For sale'],
+        },
+      });
+      void this.notifications.create({
+        userId: p.sellerId, actorId: userId, kind: 'realestate_enquiry', entityId: p.id,
+        title: 'New enquiry on your listing 🏠',
+        body: `Someone is interested in “${p.title}” — reply in Chats.`,
+        href: `/chats?c=${conversationId}`,
+      });
+    } else if ((message ?? '').trim()) {
+      // A repeat Connect with a fresh message is a message, not a new card.
+      await this.messages.send(userId, { conversationId, messageType: 'TEXT', body: (message as string).trim() });
+    }
+
+    return { conversationId, alreadyOpen: Boolean(already) };
   }
 
   async post(userId: string, dto: PostPropertyDto) {

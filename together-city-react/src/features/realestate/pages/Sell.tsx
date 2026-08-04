@@ -81,6 +81,19 @@ interface Listing { id: string; kind: Kind; fields: Record<string, string>; desc
 const inputS = { width: '100%', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px', fontSize: 14, background: 'var(--card)', color: 'var(--ink)', fontFamily: 'inherit', outline: 'none' } as const;
 const digits = (s: string) => Number(String(s).replace(/[^\d]/g, '')) || 0;
 
+// The form speaks in labels ("Semi Furnished", "North-East"); the API speaks
+// in enum keys ("semi", "north-east"). Sending the label 400'd the whole POST
+// — silently, so the listing never existed, My Listings stayed empty, and the
+// seller was told "Submitted for review". Same family as the Pune constant:
+// values the seller chose, translated wrongly on the way out.
+const FURNISH_API: Record<string, 'unfurnished' | 'semi' | 'furnished'> = {
+  'Unfurnished': 'unfurnished', 'Semi Furnished': 'semi', 'Fully Furnished': 'furnished',
+};
+const facingApi = (s?: string) => (s ? s.toLowerCase() : undefined);
+// "5 of 12" is a floor and a total, not the number 512 (which the API rejects
+// outright — floors max out at 200).
+const floorNums = (s?: string) => (s?.match(/\d+/g) ?? []).map(Number).filter((n) => n <= 200);
+
 /** List Your Property — schema-driven multi-property seller flow with live photos; publishes to the real listings API. */
 export function Sell() {
   const post = usePostProperty();
@@ -143,34 +156,49 @@ export function Sell() {
       city: f.city?.trim() || '', locality: f.locality?.trim() || f.city?.trim() || '',
       priceInr: digits(l.asking), areaSqft: digits(f.carpet),
       bedrooms: l.kind === 'house' ? digits(f.config) : 0, bathrooms: l.kind === 'house' ? digits(f.bath) : 0,
-      furnishing: f.furnish, floor: f.floor ? digits(f.floor) : undefined, facing: f.facing,
+      furnishing: FURNISH_API[f.furnish], floor: floorNums(f.floor)[0], totalFloors: floorNums(f.floor)[1], facing: facingApi(f.facing),
       amenities: [], description: l.desc.trim() || undefined, photos: l.photos,
     };
   };
 
+  const errText = (e: unknown) => {
+    const m = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
+    return Array.isArray(m) ? m.join(' · ') : m;
+  };
+
   const publishAll = async () => {
     if (!list.length) { setWarn('Add a property first'); return; }
-    try {
-      const results = [];
-      for (const l of list) { try { results.push(await post.mutateAsync(toInput(l))); } catch { results.push(null); } }
-      const approved = results.filter((r) => r?.moderation === 'approved').length;
-      const review = results.filter((r) => r?.moderation === 'review').length;
-      const rejected = results.filter((r) => r?.moderation === 'rejected');
-      setList([]);
-      const parts: string[] = [];
-      if (approved) parts.push(`${approved} live in Explore now`);
-      if (review) parts.push(`${review} in manual review`);
-      if (rejected.length) parts.push(`${rejected.length} not published`);
-      const rej = rejected.length
-        ? ` Rejected: ${rejected.map((r) => r?.moderationResult?.reasons?.join(' ')).filter(Boolean).join(' | ')} — edit & resubmit from My Listings.`
-        : '';
-      setNote(`Submitted for review — ${parts.join(' · ')}.${rej} Every listing passes an automated safety & quality check before going live. Track status in My Listings.`);
-    } catch {
-      // Was "start the backend and try again" — an instruction only we could
-      // follow, given to somebody who has just typed out a property listing and
-      // needs to know whether they have to type it again. They do not.
-      setNote('Couldn’t submit — that didn’t reach us. Nothing you’ve typed has been lost; try again in a moment.');
+    // Every failure used to become a silent `null`: the note then said
+    // "Submitted for review — ." and setList([]) threw away everything typed.
+    // A listing that never reached the server is not "submitted" — it stays on
+    // the list, and the server's actual reason is read out.
+    const outcomes: { l: Listing; r: Awaited<ReturnType<typeof post.mutateAsync>> | null; err?: string }[] = [];
+    for (const l of list) {
+      try { outcomes.push({ l, r: await post.mutateAsync(toInput(l)) }); }
+      catch (e) { outcomes.push({ l, r: null, err: errText(e) }); }
     }
+    const approved = outcomes.filter((x) => x.r?.moderation === 'approved').length;
+    const review = outcomes.filter((x) => x.r?.moderation === 'review').length;
+    const rejected = outcomes.filter((x) => x.r?.moderation === 'rejected');
+    const failed = outcomes.filter((x) => !x.r);
+    // The server accepted the rest (whatever moderation said) — they live in
+    // My Listings now, so they leave the draft list.
+    setList(failed.map((x) => x.l));
+    if (failed.length === outcomes.length) {
+      setNote(`Couldn’t submit${failed[0].err ? ` — ${failed[0].err}` : ' — that didn’t reach us'}. Your ${failed.length === 1 ? 'property is' : 'properties are'} still listed below; nothing you’ve typed has been lost.`);
+      return;
+    }
+    const parts: string[] = [];
+    if (approved) parts.push(`${approved} live in Explore now`);
+    if (review) parts.push(`${review} in manual review`);
+    if (rejected.length) parts.push(`${rejected.length} not published`);
+    const rej = rejected.length
+      ? ` Rejected: ${rejected.map((x) => x.r?.moderationResult?.reasons?.join(' ')).filter(Boolean).join(' | ')} — edit & resubmit from My Listings.`
+      : '';
+    const fail = failed.length
+      ? ` ${failed.length} didn’t reach us${failed[0].err ? ` (${failed[0].err})` : ''} — still in your list below, try again.`
+      : '';
+    setNote(`Submitted for review — ${parts.join(' · ')}.${rej}${fail} Every listing passes an automated safety & quality check before going live. Track status in My Listings.`);
   };
 
   const summaryOf = (l: Listing) => {
@@ -181,12 +209,13 @@ export function Sell() {
   };
 
   const checklist = useMemo(() => ([
+    { ok: cityOk, txt: 'City' },
     { ok: titleOk, txt: 'Name / building' },
     ...(kind === 'house' ? [{ ok: bhkOk, txt: 'Configuration (BHK)' }] : []),
     { ok: areaOk, txt: 'Carpet area' },
     { ok: photos.length > 0, txt: photos.length > 0 ? `${photos.length} live photo${photos.length === 1 ? '' : 's'}` : 'Live photos (optional)' },
     { ok: priceOk, txt: 'Asking price' },
-  ]), [titleOk, bhkOk, kind, areaOk, photoOk, priceOk, photos.length, schema.min]);
+  ]), [cityOk, titleOk, bhkOk, kind, areaOk, photoOk, priceOk, photos.length, schema.min]);
 
   return (
     <div style={{ maxWidth: 1040, margin: '0 auto', padding: '20px 16px 40px' }}>

@@ -46,7 +46,7 @@ export function MyListings() {
 
       {q.isLoading ? <Spinner label="Loading your listings…" />
         : q.isError ? <EmptyState title="Couldn't load your listings" hint="Please check your connection and try again." />
-        : (q.data ?? []).length === 0 ? <EmptyState icon="🏡" title="You haven't posted anything yet" hint="Post a property — photos are required." />
+        : (q.data ?? []).length === 0 ? <EmptyState icon="🏡" title="You haven't posted anything yet" hint="Post a property from List a Property — it appears here the moment you submit, with its review status." />
         : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16, marginTop: 16 }}>
             {q.data?.map((p) => <ListingWithStatus key={p.id} p={p} />)}

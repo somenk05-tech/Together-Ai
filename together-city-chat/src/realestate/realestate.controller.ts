@@ -40,6 +40,14 @@ export class RealEstateController {
     return this.realestate.post(user.sub, dto);
   }
 
+  // Connect with the seller: opens (or reuses) a direct chat carrying the
+  // listing as a rich card. Free — see RealEstateService.enquire.
+  @Post('properties/:id/enquire')
+  @UsePipes(new ZodValidationPipe(z.object({ message: z.string().max(600).optional() })))
+  enquire(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: { message?: string }) {
+    return this.realestate.enquire(user.sub, id, body.message);
+  }
+
   // ─── moderation (admin only; gated by MODERATION_ADMINS handles) ───
   @Get('moderation/queue')
   moderationQueue(@CurrentUser() user: JwtUser) {

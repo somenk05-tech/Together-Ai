@@ -1,8 +1,25 @@
-import { Link } from 'react-router-dom';
-import { priceLabel, bhkLabel, type PropertyCard } from '../api';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { priceLabel, bhkLabel, useEnquire, type PropertyCard } from '../api';
 
 /** A property card for the browse / my-listings grids. */
 export function PropertyCardView({ p }: { p: PropertyCard }) {
+  const navigate = useNavigate();
+  const enquire = useEnquire();
+  const [err, setErr] = useState('');
+  // Connect lives on the card too (like dating): straight from Explore into a
+  // chat with the seller. Hidden on your own listings and platform listings.
+  const canConnect = !p.postedByYou && p.verified.listedBy === 'owner';
+  const connect = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation(); // the whole card is a Link
+    setErr('');
+    enquire.mutate({ id: p.id }, {
+      onSuccess: (r) => navigate(`/chats?c=${r.conversationId}`),
+      onError: (ex) => setErr(
+        (ex as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Couldn’t open the chat — please try again.'),
+    });
+  };
   return (
     <Link to={`/realestate/property/${p.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
       <article className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -25,10 +42,17 @@ export function PropertyCardView({ p }: { p: PropertyCard }) {
           <div style={{ fontWeight: 600, fontSize: 14, marginTop: 2 }}>{p.title}</div>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{bhkLabel(p)} · {p.areaSqft.toLocaleString('en-IN')} sqft · ₹{p.pricePerSqft.toLocaleString('en-IN')}/sqft</div>
           <div className="muted" style={{ fontSize: 12, marginTop: 1 }}>{p.locality}, {p.city}</div>
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 6 }}>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
             {p.verified.photo && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--ok-ink)', background: 'var(--ok-soft)', borderRadius: 999, padding: '1px 7px' }}>✓ Photo-verified</span>}
             {p.verified.rera && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--info-ink)', background: 'var(--info-soft)', borderRadius: 999, padding: '1px 7px' }}>✓ RERA</span>}
+            {canConnect && (
+              <button type="button" className="btn btn-accent btn-sm" disabled={enquire.isPending} onClick={connect}
+                style={{ marginLeft: 'auto', fontSize: 11.5, padding: '4px 12px' }}>
+                {enquire.isPending ? 'Opening…' : '💬 Connect'}
+              </button>
+            )}
           </div>
+          {err && <div style={{ fontSize: 11.5, color: 'var(--danger-ink)', fontWeight: 600, marginTop: 4 }}>{err}</div>}
           {p.status === 'under_construction' && p.progressPct != null && (
             <div style={{ marginTop: 8 }}>
               <div style={{ height: 6, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}>

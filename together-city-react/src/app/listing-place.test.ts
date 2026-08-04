@@ -57,3 +57,37 @@ describe('a property is listed where it is', () => {
     expect(sell).toMatch(/!titleOk \|\| !areaOk \|\| !cityOk \? 0/);
   });
 });
+
+/**
+ * SAME FAMILY, SECOND MEMBER: values the seller chose, translated wrongly on
+ * the way out.
+ *
+ * The form's selects speak in labels ("Semi Furnished", "North-East"); the
+ * API's zod enums speak in keys ("semi", "north-east"). Sending the label
+ * 400'd the ENTIRE post — silently, because every failure became a `null` —
+ * so the listing never existed, My Listings stayed empty, and the seller read
+ * "Submitted for review". And a floor typed as "5 of 12", stripped of its
+ * non-digits, is 512 — past the API's ceiling of 200, same silent 400.
+ */
+describe('the listing crosses the wire as the seller said it', () => {
+  const sell = strip(read('src/features/realestate/pages/Sell.tsx'));
+
+  it('furnishing and facing are sent as API enum keys, not labels', () => {
+    expect(sell).toMatch(/FURNISH_API\[/);
+    expect(sell).toMatch(/facingApi\(/);
+    expect(sell).not.toMatch(/furnishing:\s*f\.furnish\b/);
+    expect(sell).not.toMatch(/facing:\s*f\.facing\b/);
+  });
+
+  it('a floor written as "5 of 12" is a floor and a total, never five hundred and twelve', () => {
+    expect(sell).toMatch(/floorNums\(/);
+    expect(sell).not.toMatch(/floor:\s*f\.floor\s*\?\s*digits\(/);
+  });
+
+  it('a submit that never reached the server keeps what was typed and says why', () => {
+    // setList must survive failures: only what the server accepted may leave
+    // the draft list, and the server's message must reach the seller's eyes.
+    expect(sell).toMatch(/setList\(failed\.map\(/);
+    expect(sell).not.toMatch(/catch \{ results\.push\(null\); \}/);
+  });
+});

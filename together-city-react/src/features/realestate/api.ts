@@ -57,6 +57,8 @@ export const realestateApi = {
   moderationQueue: () => api.get<QueueItem[]>('/realestate/moderation/queue').then((r) => r.data),
   moderationDecide: (id: string, decision: 'approved' | 'rejected', reason?: string) =>
     api.post<{ id: string; moderation: string }>(`/realestate/moderation/${id}/decision`, { decision, reason }).then((r) => r.data),
+  enquire: (id: string, message?: string) =>
+    api.post<{ conversationId: string; alreadyOpen: boolean }>(`/realestate/properties/${id}/enquire`, { message }).then((r) => r.data),
 };
 
 export function useListings(q: ListingQuery) {
@@ -70,6 +72,10 @@ export function useMyListings() {
 }
 export function useProperty(id: string) {
   return useQuery({ queryKey: ['realestate', 'property', id], queryFn: () => realestateApi.property(id), enabled: !!id });
+}
+/** Connect with the seller — opens (or reuses) the chat and returns its id. */
+export function useEnquire() {
+  return useMutation({ mutationFn: ({ id, message }: { id: string; message?: string }) => realestateApi.enquire(id, message) });
 }
 export function usePostProperty() {
   const qc = useQueryClient();

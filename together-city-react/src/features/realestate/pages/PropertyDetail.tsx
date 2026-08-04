@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useProperty, priceLabel, bhkLabel, type PriceInsight, type NearbyPoint } from '../api';
+import { useProperty, useEnquire, priceLabel, bhkLabel, type PriceInsight, type NearbyPoint } from '../api';
 import { ShareToChat } from '@/features/chat/share';
 
 function Fact({ label, value }: { label: string; value: string | number | null }) {
@@ -138,6 +138,19 @@ export function PropertyDetail() {
   const { id = '' } = useParams();
   const q = useProperty(id);
   const [active, setActive] = useState(0);
+  const navigate = useNavigate();
+  const enquire = useEnquire();
+  const [connectErr, setConnectErr] = useState('');
+
+  const connect = () => {
+    setConnectErr('');
+    enquire.mutate({ id }, {
+      onSuccess: (r) => navigate(`/chats?c=${r.conversationId}`),
+      onError: (e) => setConnectErr(
+        (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Couldn’t open the chat — please try again.'),
+    });
+  };
 
   if (q.isLoading) return <Spinner label="Loading property…" />;
   if (q.isError || !q.data) return <EmptyState title="Couldn't load this property" hint="It may have been removed." />;
@@ -267,9 +280,20 @@ export function PropertyDetail() {
       <div className="card" style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{ fontWeight: 700, fontSize: 14 }}>{p.postedByYou ? 'This is your listing' : 'Interested?'}</div>
-          <div className="muted" style={{ fontSize: 12.5 }}>{p.postedByYou ? 'Manage it from My Listings.' : 'Share it into a chat to discuss with the seller or your circle.'}</div>
+          <div className="muted" style={{ fontSize: 12.5 }}>
+            {p.postedByYou ? 'Manage it from My Listings.'
+              : p.verified.listedBy === 'owner' ? 'Connect with the seller — the listing opens in a private chat, and your contact details stay on Together City.'
+              : 'Share it into a chat to discuss with your circle.'}
+          </div>
+          {connectErr && <div style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600, marginTop: 4 }}>{connectErr}</div>}
         </div>
-        {p.postedByYou && <Link to="/realestate/mine"><Button variant="accent" size="sm">My Listings</Button></Link>}
+        {p.postedByYou
+          ? <Link to="/realestate/mine"><Button variant="accent" size="sm">My Listings</Button></Link>
+          : p.verified.listedBy === 'owner' && (
+            <Button variant="accent" size="sm" disabled={enquire.isPending} onClick={connect}>
+              {enquire.isPending ? 'Opening chat…' : '💬 Connect & chat'}
+            </Button>
+          )}
       </div>
     </div>
   );
