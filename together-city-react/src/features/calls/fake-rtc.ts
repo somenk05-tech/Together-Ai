@@ -8,8 +8,17 @@
 export class FakeTrack {
   enabled = true;
   stopped = false;
-  constructor(public kind: 'audio' | 'video') {}
+  onended: (() => void) | null = null;
+  constructor(public kind: 'audio' | 'video', public label = '') {}
   stop() { this.stopped = true; }
+  /** The browser's own "Stop sharing" chrome, from a test. */
+  emitEnded() { this.onended?.(); }
+}
+
+/** What addTrack returns in the real API — the handle replaceTrack works on. */
+export class FakeSender {
+  constructor(public track: FakeTrack | null) {}
+  async replaceTrack(t: FakeTrack | null) { this.track = t; }
 }
 
 export class FakeStream {
@@ -37,7 +46,9 @@ export class FakePeerConnection {
 
   constructor(public config: any) { FakePeerConnection.instances.push(this); }
 
-  addTrack(t: FakeTrack) { this.addedTracks.push(t); }
+  senders: FakeSender[] = [];
+  addTrack(t: FakeTrack) { this.addedTracks.push(t); this.senders.push(new FakeSender(t)); }
+  getSenders() { return this.senders; }
 
   async setLocalDescription(desc?: any) {
     if (this.failLocalDescription) throw new Error('setLocalDescription failed');
@@ -67,7 +78,7 @@ export class FakePeerConnection {
   async fireNegotiationNeeded() { await this.onnegotiationneeded?.(); }
 }
 
-export function installFakeRtc(opts: { failMedia?: string } = {}) {
+export function installFakeRtc(opts: { failMedia?: string; failDisplay?: string } = {}) {
   FakePeerConnection.instances = [];
   const g = globalThis as any;
   g.RTCPeerConnection = FakePeerConnection;
@@ -84,8 +95,16 @@ export function installFakeRtc(opts: { failMedia?: string } = {}) {
           throw e;
         }
         const tracks = [new FakeTrack('audio')];
-        if (video) tracks.push(new FakeTrack('video'));
+        if (video) tracks.push(new FakeTrack('video', 'camera'));
         return new FakeStream(tracks);
+      },
+      getDisplayMedia: async () => {
+        if (opts.failDisplay) {
+          const e = new Error('refused');
+          e.name = opts.failDisplay;
+          throw e;
+        }
+        return new FakeStream([new FakeTrack('video', 'screen')]);
       },
     },
     },

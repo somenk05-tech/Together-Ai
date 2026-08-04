@@ -37,6 +37,9 @@ export interface PeerOptions {
   onStateChange: (state: RTCPeerConnectionState) => void;
   /** Something went wrong the citizen needs told about, in their words. */
   onFailure: (message: string) => void;
+  /** Screen sharing started or stopped — including when the BROWSER stopped it
+   *  via its own "Stop sharing" chrome, which the UI cannot see any other way. */
+  onScreenShare?: (sharing: boolean) => void;
 }
 
 export class CallPeer {
@@ -45,6 +48,9 @@ export class CallPeer {
   private makingOffer = false;
   private ignoreOffer = false;
   private closed = false;
+  /** The camera track parked while its sender carries the screen instead. */
+  private parkedCamera: MediaStreamTrack | null = null;
+  private screen: MediaStream | null = null;
   /** Candidates that arrived before the remote description did. */
   private pending: RTCIceCandidateInit[] = [];
   /**
@@ -64,6 +70,17 @@ export class CallPeer {
 
   get localStream(): MediaStream | null {
     return this.local;
+  }
+
+  /** The screen being shared, while one is. The self-view shows this instead of
+   *  the camera, because a preview that shows your face while the other person
+   *  sees your screen is a preview lying about what is being sent. */
+  get screenStream(): MediaStream | null {
+    return this.screen;
+  }
+
+  get sharingScreen(): boolean {
+    return this.screen !== null;
   }
 
   /**
@@ -189,6 +206,65 @@ export class CallPeer {
   }
 
   /**
+   * Put the screen where the camera was.
+   *
+   * `replaceTrack` on the existing video sender, not `addTrack`: same kind of
+   * track on the same transceiver means NO renegotiation — nothing signalled,
+   * nothing for glare to tangle — and the far side simply sees the picture
+   * change. It also means this only works where a video sender exists, so
+   * screen share is a video-call feature; on an audio call the far side's UI
+   * draws no video surface and a track added mid-call would arrive unwatched.
+   *
+   * Returns whether the screen is now being shared. A citizen pressing Cancel
+   * on the browser's picker is a decision, not a failure — it returns false
+   * and says nothing, because they know what they just did.
+   */
+  async shareScreen(): Promise<boolean> {
+    if (this.closed || this.screen) return this.sharingScreen;
+    const sender = this.pc?.getSenders().find((x) => x.track?.kind === 'video');
+    if (!sender || !sender.track) {
+      this.opts.onFailure('Screen sharing needs a video call — start one and try again.');
+      return false;
+    }
+    let captured: MediaStream;
+    try {
+      captured = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    } catch (e) {
+      const name = (e as { name?: string }).name ?? '';
+      if (name !== 'NotAllowedError' && name !== 'AbortError') {
+        this.opts.onFailure('Could not start screen sharing on this device.');
+      }
+      return false;
+    }
+    const track = captured.getVideoTracks()[0];
+    if (!track) return false;
+
+    this.parkedCamera = sender.track;
+    this.screen = captured;
+    await sender.replaceTrack(track);
+    // Every browser puts its own "Stop sharing" button in the chrome, outside
+    // this app entirely. Ending there must restore the camera exactly as our
+    // own button does, or the call is left sending a frozen last frame.
+    track.onended = () => { void this.stopScreenShare(); };
+    this.opts.onScreenShare?.(true);
+    return true;
+  }
+
+  /** Put the camera back. Safe to call twice — the browser's own stop and ours
+   *  can race, and the second arrival must find nothing left to do. */
+  async stopScreenShare(): Promise<void> {
+    const screen = this.screen;
+    if (!screen) return;
+    this.screen = null;
+    for (const t of screen.getTracks()) { t.onended = null; t.stop(); }
+    const camera = this.parkedCamera;
+    this.parkedCamera = null;
+    const sender = this.pc?.getSenders().find((x) => x.track?.kind === 'video');
+    if (sender && camera) await sender.replaceTrack(camera).catch(() => undefined);
+    this.opts.onScreenShare?.(false);
+  }
+
+  /**
    * Stop everything.
    *
    * Releasing the tracks matters more than closing the connection: a camera
@@ -198,6 +274,11 @@ export class CallPeer {
   close(): void {
     this.closed = true;
     this.beforeStart = [];
+    // The screen capture is a track like any other: left running it keeps the
+    // browser's "sharing this screen" banner up after the call is gone.
+    this.screen?.getTracks().forEach((t) => { t.onended = null; t.stop(); });
+    this.screen = null;
+    this.parkedCamera = null;
     this.local?.getTracks().forEach((t) => t.stop());
     this.local = null;
     try {

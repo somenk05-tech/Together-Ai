@@ -39,6 +39,7 @@ export function CallCenter({ children }: { children: ReactNode }) {
   const [problem, setProblem] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [seconds, setSeconds] = useState(0);
 
   const peerRef = useRef<CallPeer | null>(null);
@@ -83,6 +84,7 @@ export function CallCenter({ children }: { children: ReactNode }) {
     setCall(null);
     setMuted(false);
     setCameraOff(false);
+    setSharing(false);
     setSeconds(0);
   }, []);
 
@@ -117,6 +119,18 @@ export function CallCenter({ children }: { children: ReactNode }) {
         if (state === 'connected') setPhase('connected');
       },
       onFailure: (message) => setProblem(message),
+      onScreenShare: (on) => {
+        setSharing(on);
+        // The self-view shows what is being SENT. A preview showing your face
+        // while the other person watches your screen is a preview lying —
+        // and it runs through this callback (not the button handler) so the
+        // browser's own "Stop sharing" chrome swaps it back too.
+        if (localVideo.current) {
+          localVideo.current.srcObject = on
+            ? (peerRef.current?.screenStream ?? null)
+            : (peerRef.current?.localStream ?? null);
+        }
+      },
     });
     peerRef.current = peer;
 
@@ -271,6 +285,13 @@ export function CallCenter({ children }: { children: ReactNode }) {
     }
   }, [call, connectPeer, teardown]);
 
+  const toggleShare = useCallback(async () => {
+    const peer = peerRef.current;
+    if (!peer) return;
+    if (peer.sharingScreen) await peer.stopScreenShare();
+    else await peer.shareScreen();
+  }, []);
+
   const hangUp = useCallback(async () => {
     const id = call?.id;
     // Tear down locally first: the citizen pressed a button and the microphone
@@ -416,6 +437,18 @@ export function CallCenter({ children }: { children: ReactNode }) {
                       onClick={() => setCameraOff(peerRef.current?.toggleCamera() ?? true)}
                     >
                       {cameraOff ? 'Camera on' : 'Camera off'}
+                    </button>
+                  )}
+                  {/* Video calls only: the screen rides the video sender via
+                      replaceTrack, so nothing is renegotiated — and on an audio
+                      call the far side draws no surface to watch it on. */}
+                  {showVideo && phase === 'connected' && (
+                    <button
+                      className="btn btn-line"
+                      aria-pressed={sharing}
+                      onClick={() => void toggleShare()}
+                    >
+                      {sharing ? 'Stop sharing' : 'Share screen'}
                     </button>
                   )}
                   <button

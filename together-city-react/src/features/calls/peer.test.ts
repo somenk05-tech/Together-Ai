@@ -291,3 +291,103 @@ describe('signals that arrive while the microphone prompt is still open', () => 
     expect(pc().addedCandidates).toEqual([{ candidate: 'early' }]);
   });
 });
+
+describe('sharing the screen', () => {
+  /**
+   * The design constraint every test here leans on: the screen rides the
+   * EXISTING video sender via replaceTrack. Same kind, same transceiver — so
+   * nothing is signalled, nothing renegotiated, and nothing new for glare to
+   * tangle. If a test below ever sees an offer go out during share/stop, the
+   * implementation has drifted onto addTrack and these should start failing.
+   */
+  const videoSender = () => pc().getSenders().find((x) => x.track?.kind === 'video')!;
+
+  async function connected() {
+    const built = build({ wantsVideo: true });
+    await built.peer.start();
+    return built;
+  }
+
+  it('puts the screen where the camera was, without renegotiating', async () => {
+    const { peer, sent } = await connected();
+    expect(await peer.shareScreen()).toBe(true);
+    expect((videoSender().track as unknown as FakeTrack).label).toBe('screen');
+    expect(peer.sharingScreen).toBe(true);
+    // No offer, no answer, no anything: replaceTrack is silent by design.
+    expect(sent).toEqual([]);
+  });
+
+  it('puts the camera back when sharing stops', async () => {
+    const { peer } = await connected();
+    await peer.shareScreen();
+    const screen = videoSender().track as unknown as FakeTrack;
+    await peer.stopScreenShare();
+    expect((videoSender().track as unknown as FakeTrack).label).toBe('camera');
+    expect(screen.stopped).toBe(true);
+    expect(peer.sharingScreen).toBe(false);
+  });
+
+  it("restores the camera when the BROWSER's own Stop sharing button is used", async () => {
+    // That button lives in the browser chrome, outside the app entirely. The
+    // only notice we get is the track ending — miss it and the call keeps
+    // sending a frozen last frame while our button still says "Stop sharing".
+    const shares: boolean[] = [];
+    const built = build({ wantsVideo: true, onScreenShare: (on) => shares.push(on) });
+    await built.peer.start();
+    await built.peer.shareScreen();
+    const screen = videoSender().track as unknown as FakeTrack;
+    screen.emitEnded();
+    await new Promise((r) => setTimeout(r, 0));
+    expect((videoSender().track as unknown as FakeTrack).label).toBe('camera');
+    expect(shares).toEqual([true, false]);
+  });
+
+  it('treats Cancel on the picker as a decision, not a failure', async () => {
+    installFakeRtc({ failDisplay: 'NotAllowedError' });
+    const { peer, failures } = await connected();
+    expect(await peer.shareScreen()).toBe(false);
+    // They pressed Cancel. They know. An error toast would be the app arguing.
+    expect(failures).toEqual([]);
+    expect((videoSender().track as unknown as FakeTrack).label).toBe('camera');
+  });
+
+  it('does say so when the capture genuinely breaks', async () => {
+    installFakeRtc({ failDisplay: 'NotReadableError' });
+    const { peer, failures } = await connected();
+    expect(await peer.shareScreen()).toBe(false);
+    expect(failures).toEqual(['Could not start screen sharing on this device.']);
+  });
+
+  it('refuses politely on an audio call, where there is no video sender', async () => {
+    const { peer, failures } = build();
+    await peer.start();
+    expect(await peer.shareScreen()).toBe(false);
+    expect(failures[0]).toMatch(/video call/);
+  });
+
+  it('sharing twice is one share', async () => {
+    const { peer } = await connected();
+    await peer.shareScreen();
+    const first = videoSender().track;
+    expect(await peer.shareScreen()).toBe(true);
+    expect(videoSender().track).toBe(first);
+  });
+
+  it('stopping twice — our button racing the browser chrome — is safe', async () => {
+    const { peer } = await connected();
+    await peer.shareScreen();
+    await Promise.all([peer.stopScreenShare(), peer.stopScreenShare()]);
+    expect((videoSender().track as unknown as FakeTrack).label).toBe('camera');
+  });
+
+  it('close() stops the screen capture with everything else', async () => {
+    // Left running, the browser keeps its "sharing this screen" banner up
+    // after the call is gone — a camera-light bug wearing a different hat.
+    const { peer } = await connected();
+    await peer.shareScreen();
+    const screen = peer.screenStream!.getTracks()[0] as unknown as FakeTrack;
+    peer.close();
+    expect(screen.stopped).toBe(true);
+    expect(peer.sharingScreen).toBe(false);
+  });
+});
