@@ -47,9 +47,21 @@ export class StorageProvider implements OnModuleInit {
     this.corsOrigins = originsCsv.split(',').map((s) => s.trim()).filter(Boolean);
     if (!this.corsOrigins.length) this.corsOrigins = DEFAULT_CORS_ORIGINS;
     this.bucket = this.config.get<string>('media.bucket') ?? '';
-    // Private vault for medical documents. Falls back to the main bucket when a
-    // dedicated private bucket isn't configured — health docs are still served
-    // ONLY via short-lived signed links (never a stored public URL) either way.
+    /**
+     * The private vault: health documents, Drive files and dating photos.
+     *
+     * THIS FALLBACK IS A DEVELOPMENT CONVENIENCE AND NOTHING MORE. It used to
+     * carry the note "health docs are still served ONLY via short-lived signed
+     * links (never a stored public URL) either way", which is true of this code
+     * and beside the point: the signing discipline protects the LINK, and the
+     * fallback moves the OBJECT into a bucket published at
+     * MEDIA_PUBLIC_BASE_URL. A signed link to a file anyone can already GET is
+     * a lock on an open door.
+     *
+     * Production can no longer reach this line with an empty private bucket —
+     * assertProductionConfig() in shared/config/configuration.ts refuses to
+     * boot, in the same block as the JWT secrets and for the same reason.
+     */
     this.healthBucket = this.config.get<string>('media.privateBucket') || this.bucket;
     this.publicBase = this.config.get<string>('media.publicBaseUrl') ?? '';
     const endpoint = this.config.get<string>('media.endpoint') ?? '';

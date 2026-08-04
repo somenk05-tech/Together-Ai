@@ -61,8 +61,43 @@ function assertProductionConfig(): void {
   if (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === DEV_REFRESH_SECRET) {
     fatal.push('JWT_REFRESH_SECRET is missing/default — set a strong unique value (≥32 random chars).');
   }
+
+  /**
+   * THE PRIVATE VAULT IS FATAL FOR THE SAME REASON THE SECRETS ARE.
+   *
+   * StorageProvider reads MEDIA_PRIVATE_BUCKET and, when it is empty, falls
+   * back to the PUBLIC bucket: `this.healthBucket = privateBucket || bucket`.
+   * Three things are written to that bucket — blood tests and prescriptions
+   * (`health/`), every Drive file (`drive/`), and every dating photo
+   * (`dating/`) — and all three are served through short-lived signed GETs, a
+   * discipline the code keeps carefully and which becomes irrelevant the moment
+   * the object itself sits somewhere anyone can fetch without a signature.
+   *
+   * The keys are UUIDs, so this is not enumerable from outside. It is still a
+   * permanent unauthenticated URL for anything that ever leaks one, under a
+   * MEDIA_PUBLIC_BASE_URL that exists to be read by the public. Health data and
+   * dating photos in a public bucket is worse than downtime, which is this
+   * file's own standing test for what may be fatal.
+   *
+   * It is only fatal when object storage is actually CONFIGURED. With no
+   * endpoint or keys nothing is uploaded anywhere, so there is nothing to
+   * expose and a refusal would only be config pedantry — that case warns below.
+   */
+  const storageOn = Boolean(process.env.S3_ENDPOINT && process.env.S3_ACCESS_KEY_ID
+    && process.env.S3_SECRET_ACCESS_KEY && process.env.MEDIA_BUCKET);
+  if (storageOn) {
+    const priv = (process.env.MEDIA_PRIVATE_BUCKET ?? '').trim();
+    if (!priv) {
+      fatal.push('MEDIA_PRIVATE_BUCKET is unset — health documents, Drive files and dating photos '
+        + 'would be written to the PUBLIC media bucket. Create a private bucket and set it.');
+    } else if (priv === (process.env.MEDIA_BUCKET ?? '').trim()) {
+      fatal.push('MEDIA_PRIVATE_BUCKET is the same bucket as MEDIA_BUCKET — the private vault must be '
+        + 'a SEPARATE bucket with no public access, or signed links protect nothing.');
+    }
+  }
+
   if (fatal.length) {
-    throw new Error(`Refusing to start with insecure JWT config:\n  - ${fatal.join('\n  - ')}`);
+    throw new Error(`Refusing to start with insecure config:\n  - ${fatal.join('\n  - ')}`);
   }
   const problems: string[] = [];
   if ((process.env.JWT_ACCESS_SECRET ?? '').length < 32 || (process.env.JWT_REFRESH_SECRET ?? '').length < 32) {
@@ -70,6 +105,10 @@ function assertProductionConfig(): void {
   }
   const cors = process.env.CORS_ORIGIN ?? '';
   if (!cors || cors === '*') problems.push('CORS_ORIGIN is unset/"*" — set an explicit origin list.');
+  if (!storageOn) {
+    problems.push('Object storage is not configured (S3_ENDPOINT / S3 keys / MEDIA_BUCKET) — every upload '
+      + 'returns an unsigned placeholder URL and no file is actually stored.');
+  }
   const emailProvider = (process.env.EMAIL_PROVIDER ?? process.env.MESSAGING_PROVIDER ?? 'stub').toLowerCase();
   if (emailProvider === 'stub' && process.env.ALLOW_STUB_MESSAGING !== 'true') {
     problems.push('EMAIL_PROVIDER is unset (stub) — verification & OTP emails will NOT send. Set EMAIL_PROVIDER=resend + RESEND_API_KEY (or ALLOW_STUB_MESSAGING=true to acknowledge).');
