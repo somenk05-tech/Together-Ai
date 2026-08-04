@@ -136,17 +136,86 @@ export function formatGroceryQty(name: string, grams: number): { qtyLabel: strin
 // ─────────── supermarket grocery: filter, normalise, aisle, units (redesign) ───────────
 // Cooking-only / non-purchased items never shown on the shopping list.
 const GROCERY_SKIP = /\b(water|ice|salt|cooking spray|non[- ]?stick spray|as needed|as required)\b|to taste|for greasing|for garnish|to garnish|\bgarnish\b|\boptional\b|pinch of/i;
+
+/**
+ * A RECIPE'S SECTION HEADING IS NOT AN INGREDIENT.
+ *
+ * The corpus is a scrape, and a scrape flattens structure: "For the marinade"
+ * and the bare word "Sauce" arrive as ingredient rows with a gram weight, the
+ * same as an onion. Measured across the 11,217-recipe corpus: 561 rows resolve
+ * to 76 heading words, and because they merge like any other item, the largest
+ * of them reached a real shopping list as **"Sauce — 7.2 kg", filed under
+ * Oils**. That is not a wrong quantity, it is a line that means nothing, and it
+ * is the first thing somebody sees when they open the list this whole hub
+ * builds towards.
+ *
+ * The test is that the WHOLE name is a heading, once "For the" / "To serve" are
+ * taken off the front. `Tomato sauce`, `soy sauce` and `salad leaves` are
+ * ingredients and keep every letter — only a name that is nothing but the
+ * heading goes.
+ */
+const SECTION_LEAD = /^\s*(?:for\s+(?:the\s+)?|to\s+(?:serve|garnish|finish|assemble)\b\s*|ingredients?\s+for\s+(?:the\s+)?)/i;
+const SECTION_WORD = /^(?:sauce|dressing|filling|marinade|dough|batter|garnish|topping|toppings|glaze|crust|base|salad|meatballs|gravy|stuffing|assembly|serving|optional|extras?|others?|rest|method|instructions?|ingredients?|sauce ingredients|salad ingredients|for serving|the rest)$/i;
+function isSectionHeading(n: string): boolean {
+  const trimmed = n.replace(/[\s:.\-–—]+$/, '').trim();
+  // "For the kebabs", "For the bhaji mix", "To serve" — the LEAD is the tell,
+  // and what follows it names a component of the dish, not a thing to buy. No
+  // ingredient in the corpus opens with "for" or "to serve"; several dozen
+  // headings do, and listing their nouns would have meant chasing every dish a
+  // recipe writer ever sectioned.
+  if (SECTION_LEAD.test(trimmed)) return true;
+  // A heading often carries a cross-reference: "Filling (recipe follows)",
+  // "marinade (recipe above)". Read it with the aside taken off as well —
+  // "chimichurri sauce (recipe follows)" survives that test, because chimichurri
+  // sauce is a thing you buy and Filling is not.
+  for (const v of [trimmed, trimmed.replace(/\(.*?\)/g, ' ').replace(/\s{2,}/g, ' ').trim()]) {
+    const bare = v.replace(SECTION_LEAD, '').trim();
+    if (bare.length > 0 && SECTION_WORD.test(bare)) return true;
+  }
+  return false;
+}
+
+/**
+ * EQUIPMENT IS NOT SHOPPING EITHER.
+ *
+ * Foil, parchment, skewers and toothpicks are listed by recipes that need them
+ * and given a gram weight by the same parser that weighs flour, so the list
+ * offered "Bakers Paper — 30 g".
+ *
+ * IT MATCHES THE THING, NOT THE PACKAGING WORD. "bag Fritos", "tea bag" and
+ * "string beans" are food; a rule reaching for `bag`, `wrap` or `string` takes
+ * all three out with the foil. Every branch below names an object nobody eats.
+ */
+const NOT_FOOD = new RegExp([
+  '\\b(?:aluminium|aluminum|tin|kitchen)\\s+foil\\b', '\\bfoil\\b(?=[^a-z]*$)',
+  '\\breynolds\\s+wrap\\b',
+  '\\b(?:baking|parchment|greaseproof|wax|waxed|bakers?|kitchen|absorbent|tissue)\\s+paper\\b',
+  '\\bpaper\\s+towels?\\b',
+  '\\b(?:bamboo|wooden|metal)?\\s*skewers?\\b', '\\btoothpicks?\\b', '\\bcocktail\\s+sticks?\\b',
+  '\\bkitchen\\s+(?:string|twine)\\b', '\\btwine\\b', '\\bcheesecloth\\b', '\\bmuslin\\b',
+  '\\bthermometer\\b', '\\boven\\s+cooking\\s+bag\\b',
+].join('|'), 'i');
+
 export function skipGroceryIngredient(name: string): boolean {
   const n = (name || '').toLowerCase();
   if (!n.trim()) return true;
   // keep "salted butter" etc. — only skip when salt/water is the item itself
   if (/\bsalt\b/.test(n) && !/\b(salted|salt[- ]?free)\b/.test(n) && /^\s*(sea\s+|rock\s+|table\s+|black\s+|pink\s+|kosher\s+)?salt\b/.test(n)) return true;
+  if (isSectionHeading(n)) return true;
+  if (NOT_FOOD.test(n)) return true;
   return GROCERY_SKIP.test(n) && !/\bsalted\b/.test(n);
 }
 
 // Prep descriptors stripped when deriving the canonical shopping item (identity
 // qualifiers like "kidney", "olive", "greek", colours on chillies are KEPT).
-const PREP_WORDS = /\b(chopped|diced|minced|sliced|finely|roughly|grated|shredded|crushed|peeled|halved|cubed|julienned|fresh|frozen|cooked|raw|ripe|large|small|medium|boneless|skinless|whole|organic|washed|trimmed|cleaned|deveined|beaten|softened|melted|warm|cold|hot|room temperature)\b/gi;
+// `hot` IS NOT A TEMPERATURE HERE, IT IS PART OF THE NAME. Stripping it turned
+// `hot sauce` into `sauce` — 150 rows, the largest single line the grocery list
+// produced, sitting in the Oils aisle meaning nothing. Same for hot dogs, hot
+// curry paste, hot picante sauce. Measured across the corpus: 222 rows carry
+// `hot` and exactly three of them (`hot cooked couscous`) mean warm. Those three
+// now merge as `Hot Couscous` rather than `Couscous` — a duplicate line, not a
+// lie. `warm` and `cold` stay: two rows each, both genuinely temperature.
+const PREP_WORDS = /\b(chopped|diced|minced|sliced|finely|roughly|grated|shredded|crushed|peeled|halved|cubed|julienned|fresh|frozen|cooked|raw|ripe|large|small|medium|boneless|skinless|whole|organic|washed|trimmed|cleaned|deveined|beaten|softened|melted|warm|cold|room temperature)\b/gi;
 const INGREDIENT_SYNONYM: Record<string, string> = {
   matoes: 'Tomatoes', tomato: 'Tomatoes', tomatoes: 'Tomatoes', cilantro: 'Coriander',
   'chicken breast': 'Chicken', 'chicken fillet': 'Chicken', 'chicken thigh': 'Chicken', 'chicken thighs': 'Chicken', chicken: 'Chicken',
@@ -155,9 +224,45 @@ const INGREDIENT_SYNONYM: Record<string, string> = {
   brinjal: 'Eggplant', aubergine: 'Eggplant', eggplant: 'Eggplant', shrimp: 'Prawns', prawn: 'Prawns', prawns: 'Prawns',
   scallions: 'Spring Onion', coriander: 'Coriander',
 };
+/**
+ * A NAME THAT WAS CUT OFF MID-SENTENCE MUST NOT BECOME A SHOPPING LINE.
+ *
+ * The upstream corpus caps ingredient text at 60 characters — 166 rows end
+ * inside an unclosed bracket, so `(.*?)` finds no partner and leaves the whole
+ * aside standing. The list then reads "Bottle Red Thai Curry Sauce (Such As
+ * Trader Joe'S" and "Channa Masala (Mixture Of Different Spices".
+ *
+ * An unmatched `(` is the truncation, visible: everything from it onwards is
+ * the start of a parenthetical nobody finished, and dropping it leaves the item
+ * — "Channa Masala" — which is what somebody buys.
+ */
+const dropUnclosedParen = (s: string): string => {
+  let depth = 0, cut = -1;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '(') { if (depth === 0) cut = i; depth++; }
+    else if (s[i] === ')') { depth = Math.max(0, depth - 1); if (depth === 0) cut = -1; }
+  }
+  return cut >= 0 ? s.slice(0, cut) : s;
+};
+
+/**
+ * "Envelope taco seasoning" is taco seasoning; the envelope is how it is sold.
+ *
+ * Only ever a LEADING word, and only when TWO more words follow. `bottle gourd`
+ * is a vegetable and `tin fish` is a fish: strip on one word and the list starts
+ * asking for "gourd". Every real packaging case in the corpus carries at least
+ * two — "envelope taco seasoning mix", "bottle clam juice", "container creme
+ * fraiche" — so the count is the whole distinction, and this test found the
+ * gourd before the shopper did.
+ */
+const CONTAINER_LEAD = /^(?:bottles?|cans?|jars?|packets?|packages?|pkgs?|envelopes?|tubes?|tins?|boxes|box|cartons?|containers?|bags?)\s+(?=\S+\s+\S)/i;
+
 export function canonicalIngredient(name: string): string {
-  let s = (name || '').toLowerCase().replace(/\(.*?\)/g, ' ').replace(/,.*$/, ' ').trim(); // drop parens + trailing ", chopped"
+  let s = dropUnclosedParen((name || '').toLowerCase())
+    .replace(/\(.*?\)/g, ' ').replace(/,.*$/, ' ').trim();   // drop parens + trailing ", chopped"
   s = s.replace(/^matoes\b/, 'tomatoes');
+  const unpacked = s.replace(CONTAINER_LEAD, '').trim();
+  if (unpacked) s = unpacked;
   s = s.replace(PREP_WORDS, ' ').replace(/\s{2,}/g, ' ').trim();
   if (!s) return '';
   if (INGREDIENT_SYNONYM[s]) return INGREDIENT_SYNONYM[s];
