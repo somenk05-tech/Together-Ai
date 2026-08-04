@@ -89,6 +89,7 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'NutritionHistory', by: 'userId', action: 'purge', reason: 'Snapshots of past weeks, personal to them.' },
   { model: 'CalorieEntry', by: 'userId', action: 'purge', reason: 'What they logged eating.' },
   { model: 'FoodPref', by: 'userId', action: 'purge', reason: 'Diet, allergies and health conditions — sensitive, and theirs alone.' },
+  { model: 'FoodJournalEntry', by: 'userId', action: 'purge', reason: 'A meal-by-meal record of what they ate — theirs alone, and nobody else ever saw it.' },
   { model: 'GroceryCart', by: 'userId', action: 'purge', reason: 'Grocery baskets, built from their own plans.' },
   // Placed AFTER the MealPlan rules on purpose: the retired Meal table still
   // holds a plain FK to Recipe (no cascade), and a citizen's own Meal rows

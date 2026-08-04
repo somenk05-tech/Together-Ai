@@ -167,6 +167,80 @@ export class AiService {
   }
 
   /**
+   * Read a meal — from a photo, a sentence, or both — into per-item nutrition
+   * ESTIMATES for the Food Journal. Same honesty contract as the blood
+   * extraction: the AI identifies and estimates, it never measures. Every item
+   * carries a confidence, the note says what could not be seen, and the
+   * citizen reviews and can adjust every quantity before anything is logged.
+   * Returns null when the key is unset or the call fails — the journal then
+   * offers manual entry instead of inventing numbers.
+   */
+  async analyzeMeal(
+    input: { image?: { base64: string; mediaType: string }; text?: string },
+  ): Promise<{ items: Array<{ name: string; qty: number; unit: string; grams?: number; kcal: number; proteinG: number; carbG: number; fatG: number; fibreG?: number; sugarG?: number; sodiumMg?: number; waterMl?: number; confidence: number }>; note: string } | null> {
+    if (!this.client) return null;
+    if (!input.image && !(input.text ?? '').trim()) return null;
+    const system =
+      'You are a nutrition estimator for a food journal. Identify every DISTINCT food or drink item actually present ' +
+      '(including sides, sauces, garnishes and drinks), estimate the portion in a household measure, and estimate its nutrition. ' +
+      'Return ONLY JSON: {"items":[{"name":string,"qty":number,"unit":string,"grams":number,"kcal":number,"proteinG":number,' +
+      '"carbG":number,"fatG":number,"fibreG":number,"sugarG":number,"sodiumMg":number,"waterMl":number,"confidence":0..1}],"note":string}. ' +
+      'Rules: units are household measures ("roti","bowl","cup","tbsp","piece","ml","g"). Estimates are per the WHOLE stated qty, not per unit. ' +
+      'waterMl is the drinking-water contribution (plain water/most of a clear drink; 0 for solid food). ' +
+      'Never invent an item that is not clearly present. If the image is not food, return {"items":[],"note":"<why>"}. ' +
+      'Confidence below 0.5 means you are guessing at the dish or the portion — say which in the note. Keep the note to two short sentences.';
+    try {
+      const content: Anthropic.ContentBlockParam[] = [];
+      if (input.image) {
+        content.push({
+          type: 'image',
+          source: { type: 'base64', media_type: (input.image.mediaType || 'image/jpeg') as 'image/jpeg', data: input.image.base64 },
+        } as unknown as Anthropic.ContentBlockParam);
+      }
+      content.push({
+        type: 'text',
+        text: input.text?.trim()
+          ? `Meal to log${input.image ? ' (photo attached; the text is the citizen’s own description)' : ''}: ${input.text.trim().slice(0, 800)}`
+          : 'Identify and estimate this meal as JSON.',
+      });
+      const res = await this.createWithFallback({
+        model: this.model,
+        max_tokens: 1500,
+        system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
+        messages: [{ role: 'user', content }],
+      });
+      const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('');
+      const parsed = this.extractJson(text) as { items?: unknown[]; note?: string } | null;
+      if (!parsed || !Array.isArray(parsed.items)) return null;
+      const num = (v: unknown, max: number): number => (typeof v === 'number' && isFinite(v) && v >= 0 ? Math.min(v, max) : 0);
+      const items = parsed.items.slice(0, 20).flatMap((raw) => {
+        const it = raw as Record<string, unknown>;
+        const name = typeof it.name === 'string' ? it.name.trim().slice(0, 80) : '';
+        if (!name) return [];
+        return [{
+          name,
+          qty: num(it.qty, 50) || 1,
+          unit: typeof it.unit === 'string' ? it.unit.trim().slice(0, 20) : 'serving',
+          ...(num(it.grams, 5000) ? { grams: Math.round(num(it.grams, 5000)) } : {}),
+          kcal: Math.round(num(it.kcal, 5000)),
+          proteinG: Math.round(num(it.proteinG, 500)),
+          carbG: Math.round(num(it.carbG, 1000)),
+          fatG: Math.round(num(it.fatG, 500)),
+          ...(num(it.fibreG, 200) ? { fibreG: Math.round(num(it.fibreG, 200)) } : {}),
+          ...(num(it.sugarG, 500) ? { sugarG: Math.round(num(it.sugarG, 500)) } : {}),
+          ...(num(it.sodiumMg, 20000) ? { sodiumMg: Math.round(num(it.sodiumMg, 20000)) } : {}),
+          ...(num(it.waterMl, 3000) ? { waterMl: Math.round(num(it.waterMl, 3000)) } : {}),
+          confidence: Math.max(0, Math.min(1, typeof it.confidence === 'number' ? it.confidence : 0.5)),
+        }];
+      });
+      return { items, note: typeof parsed.note === 'string' ? parsed.note.slice(0, 400) : '' };
+    } catch (e) {
+      this.logger.warn(`Meal analysis failed: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
    * AI review of skin/scalp/hair photos. First judges the image: rejects photos
    * that are unclear (blurry/dark/cropped) or that look beauty-filtered or
    * AI-generated, so the analysis is only run on authentic, usable photos.

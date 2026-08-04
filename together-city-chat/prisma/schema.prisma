@@ -132,6 +132,7 @@ model User {
   ownRecipes           Recipe[]             @relation("RecipeAuthor")
   mealPlans            MealPlan[]
   calorieEntries       CalorieEntry[]
+  foodJournalEntries   FoodJournalEntry[]
   groceryCarts         GroceryCart[]
   walletLedger         WalletLedger[]
   nutritionOrders      NutritionOrder[]
@@ -425,6 +426,33 @@ model Recipe {
 
 // A single logged food/drink item in the My Health Profile calorie tracker.
 // Persisted per user per local day so the week strip builds over time.
+model FoodJournalEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  /// When the meal was eaten (the citizen's claim, defaulting to "now").
+  at        DateTime
+  /// breakfast | morning-snack | lunch | evening-snack | dinner | other
+  mealType  String
+  /// photo | text | voice | plan | manual — how this entry was captured.
+  source    String
+  /// JSON: [{ name, qty, unit, grams?, kcal, proteinG, carbG, fatG, fibreG?,
+  /// sugarG?, sodiumMg?, waterMl?, confidence? }] — per-item AI ESTIMATES the
+  /// citizen reviewed (and could adjust) before logging. Estimates, not
+  /// measurements; every surface that shows them says so.
+  itemsJson String
+  /// JSON: summed totals of itemsJson, computed SERVER-side at write time.
+  totalsJson String
+  photoUrl  String?
+  /// The AI's read of the photo/text (confidence caveats, what it could not
+  /// see). Kept verbatim so the citizen can judge the estimate later.
+  note      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, at])
+}
+
 model CalorieEntry {
   id        String   @id @default(uuid())
   userId    String

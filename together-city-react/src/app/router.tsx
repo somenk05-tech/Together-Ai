@@ -32,6 +32,7 @@ const SharedMeal = lazy(() => import('@/features/nutrition/pages/SharedMeal').th
 const Grocery = lazy(() => import('@/features/nutrition/pages/Grocery').then((m) => ({ default: m.Grocery })));
 const Preferences = lazy(() => import('@/features/nutrition/pages/Preferences').then((m) => ({ default: m.Preferences })));
 const Blood = lazy(() => import('@/features/nutrition/pages/Blood').then((m) => ({ default: m.Blood })));
+const FoodJournal = lazy(() => import('@/features/nutrition/pages/FoodJournal').then((m) => ({ default: m.FoodJournal })));
 const Connections = lazy(() => import('@/features/connections/pages/Connections').then((m) => ({ default: m.Connections })));
 const BloodAnalysis = lazy(() => import('@/features/medical/pages/BloodAnalysis').then((m) => ({ default: m.BloodAnalysis })));
 const MedSupplementPlan = lazy(() => import('@/features/medical/pages/SupplementPlan').then((m) => ({ default: m.SupplementPlan })));
@@ -197,6 +198,7 @@ export const router = createBrowserRouter([
       { path: '/nutrition/weekly', element: <RequireAuth>{wrap(<MealPlan />)}</RequireAuth> },
       { path: '/nutrition/weekly-classic', element: <Navigate to="/nutrition/weekly" replace /> },
       { path: '/nutrition/blood', element: <RequireAuth>{wrap(<Blood />)}</RequireAuth> },
+      { path: '/nutrition/journal', element: <RequireAuth>{wrap(<FoodJournal />)}</RequireAuth> },
       { path: '/nutrition/preferences', element: <RequireAuth>{wrap(<Preferences />)}</RequireAuth> },
       { path: '/nutrition/grocery', element: <RequireAuth>{wrap(<Grocery />)}</RequireAuth> },
       { path: '/nutrition/recipes', element: <RequireAuth>{wrap(<RecipeLibrary />)}</RequireAuth> },

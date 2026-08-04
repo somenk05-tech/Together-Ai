@@ -83,6 +83,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/nutrition/weekly', index: '03', label: 'Weekly Meal Planner', sub: 'Personalised 7-day plan' },
       { path: '/nutrition/grocery', index: '04', label: LABELS.groceryLists, sub: 'Built from your plan' },
       { path: '/nutrition/recipes', index: '05', label: LABELS.createYourOwnMealPlan, sub: 'Browse, add your own, build a list' },
+      { path: '/nutrition/journal', index: '06', label: 'AI Food Journal', sub: 'Photo in — logged & counted' },
       // NEITHER HUB LISTS A CART ANY MORE. A key for a basket sat between the
       // grocery list and the plan on two menus; checkout moved onto the grocery
       // list itself, which is where somebody holding a list actually looks for
