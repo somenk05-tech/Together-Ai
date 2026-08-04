@@ -5480,7 +5480,10 @@ export class NutritionService implements OnModuleInit {
     const items = new Map<string, Acc>();               // canonicalKey → merged item
     const recipeView = new Map<string, Map<string, number>>(); // recipeName → canonical → grams
     // Meal counts for the shopping summary.
-    const slotCounts: Record<string, number> = { b: 0, l: 0, s: 0, d: 0 };
+    // 'es' was missing and 's' no longer exists: the basket summary counted
+    // breakfast, lunch and dinner and silently omitted the evening course, so
+    // the meal count it reported was never the number of meals in the plan.
+    const slotCounts: Record<string, number> = { b: 0, l: 0, es: 0, d: 0 };
     const activeDays = composed.dayCount;
     const headcount = mode === 'family' ? Math.max(1, memberScales.length) : 1;
     if (!composed.meals.length) {
@@ -5626,7 +5629,7 @@ export class NutritionService implements OnModuleInit {
       startDate: fromISO, endDate: windowEndISO,
       householdSize: headcount,
       days: activeDays,
-      meals: { breakfast: slotCounts.b, lunch: slotCounts.l, dinner: slotCounts.d, snacks: slotCounts.s },
+      meals: { breakfast: slotCounts.b, lunch: slotCounts.l, evening: slotCounts.es, dinner: slotCounts.d },
       estimatedCostInr: Math.round(estCostInr),
       wastePct,                                  // overage from rounding to retail packs
       scale: Math.round(scale * 100) / 100,      // total household portions per serving

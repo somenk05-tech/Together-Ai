@@ -311,7 +311,7 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
               [`${summary.householdSize}`, 'members'],
               [`${summary.days} days`, 'planned'],
               [`${summary.meals.breakfast + summary.meals.lunch + summary.meals.dinner}`, 'main meals'],
-              [`${summary.meals.snacks}`, 'snacks'],
+              [`${summary.meals.evening}`, 'evening'],
               [`₹${summary.estimatedCostInr.toLocaleString('en-IN')}`, 'est. cost'],
               [`<${Math.max(3, Math.ceil(summary.wastePct))}%`, 'est. waste'],
             ] as [string, string][]).map(([n, l]) => (

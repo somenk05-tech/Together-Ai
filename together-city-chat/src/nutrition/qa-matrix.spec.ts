@@ -174,7 +174,7 @@ describe('Nutrition Hub — Round-2 large matrix (real 11k pool)', () => {
         if (day.totals.protein >= targets.protein * 0.9) m.proteinMetDays++;
 
         const slots = day.meals.map((mm) => mm.slot).join(',');
-        if (!prefs.fasting && slots !== 'b,l,s,es,d') m.structureBad++;
+        if (!prefs.fasting && slots !== 'b,l,es,d') m.structureBad++;
 
         for (const meal of day.meals) {
           for (const c of meal.components) {
@@ -228,7 +228,7 @@ describe('Nutrition Hub — Round-2 large matrix (real 11k pool)', () => {
       '',
       `Calorie adherence  ±10%: ${pct(m.kcalWithin10, m.kcalDays)}   ±20%: ${pct(m.kcalWithin20, m.kcalDays)}`,
       `Protein target met (≥90%): ${pct(m.proteinMetDays, m.kcalDays)} of days`,
-      `Structure broken (≠5 slots): ${m.structureBad} days`,
+      `Structure broken (≠4 slots): ${m.structureBad} days`,
       `Diet violations: ${m.dietViolations}   e.g. ${dietExamples.slice(0, 4).join(' | ') || 'none'}`,
       `Exclusion/allergen leaks: ${m.exclusionLeaks}`,
       `Consecutive-day duplicate main: ${m.dupMainDays} day-pairs`,

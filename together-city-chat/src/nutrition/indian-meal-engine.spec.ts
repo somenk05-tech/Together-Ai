@@ -1,4 +1,4 @@
-import { categorizeRecipe, SLOTS, resolveSchedule } from './meal-engine';
+import { categorizeRecipe, FASTING_PROTOCOLS, SLOTS, resolveSchedule } from './meal-engine';
 import { composeWeek, type PoolRecipe, type ComposerPrefs, type DayTargets } from './meal-composer';
 
 /** Spec §1–§5: categorizeRecipe places recipes the way Indian families eat. */
@@ -69,22 +69,46 @@ describe('Indian meal classification (categorizeRecipe)', () => {
   });
 });
 
-/** The day is structured Breakfast → Lunch → Snack → Evening Soup → Dinner. */
+/** The day is structured Breakfast → Lunch → Evening Soup → Dinner. */
 describe('daily structure = authentic Indian eating order', () => {
-  it('five slots in eating order with a dedicated evening soup', () => {
-    expect(SLOTS.map((s) => s.key)).toEqual(['breakfast', 'lunch', 'snack', 'evening', 'dinner']);
+  it('four slots in eating order with a dedicated evening soup', () => {
+    expect(SLOTS.map((s) => s.key)).toEqual(['breakfast', 'lunch', 'evening', 'dinner']);
     const soupSlot = SLOTS.find((s) => s.key === 'evening')!;
     expect(soupSlot.categories).toContain('soup');
     expect(soupSlot.start).toBe('18:30');
   });
-  it('energy split sums to 1.0 and respects guardrails', () => {
-    const sum = SLOTS.reduce((t, s) => t + s.energy, 0);
-    expect(Math.abs(sum - 1)).toBeLessThan(1e-9);
-    for (const s of SLOTS) { expect(s.energy).toBeGreaterThanOrEqual(0.08); expect(s.energy).toBeLessThanOrEqual(0.35); }
-  });
-  it('standard schedule surfaces all five meals', () => {
+
+  it('the SCHEDULE sums to 1.0 — the table is weights, not percentages', () => {
+    /**
+     * This used to assert that the SLOTS table itself summed to 1, which made
+     * the table's absolute figures load-bearing: removing a row silently
+     * shrank the day by that row's share. resolveSchedule normalises now, in
+     * both the standard and fasting branches, so the invariant belongs where
+     * the citizen actually meets it — on the schedule.
+     */
     const sched = resolveSchedule(undefined);
-    expect(sched.meals.map((m) => m.key)).toEqual(['breakfast', 'lunch', 'snack', 'evening', 'dinner']);
+    const sum = sched.meals.reduce((t, m) => t + m.energy, 0);
+    expect(Math.abs(sum - 1)).toBeLessThan(1e-9);
+    for (const m of sched.meals) { expect(m.energy).toBeGreaterThanOrEqual(0.08); expect(m.energy).toBeLessThanOrEqual(0.35); }
+  });
+
+  it('a fasting window also delivers the whole prescription', () => {
+    // The normalisation was always right here; the point is that both branches
+    // now obey one rule rather than one of them relying on hand arithmetic.
+    const sched = resolveSchedule({ enabled: true, protocol: '16:8' });
+    expect(Math.abs(sched.meals.reduce((t, m) => t + m.energy, 0) - 1)).toBeLessThan(1e-9);
+  });
+
+  it('standard schedule surfaces all four meals', () => {
+    const sched = resolveSchedule(undefined);
+    expect(sched.meals.map((m) => m.key)).toEqual(['breakfast', 'lunch', 'evening', 'dinner']);
+  });
+
+  it('no protocol offers a snack, because there is no snack', () => {
+    for (const key of Object.keys(FASTING_PROTOCOLS)) {
+      const sched = resolveSchedule({ enabled: true, protocol: key });
+      expect(sched.meals.map((m) => m.key)).not.toContain('snack');
+    }
   });
 });
 
@@ -94,10 +118,10 @@ describe('composed week respects the Indian meal model', () => {
   const prefs: ComposerPrefs = { diet: 'vegetarian' };
   const week = composeWeek(targets, prefs, 7, 7);
 
-  it('every day has breakfast, lunch, snack, evening soup, dinner', () => {
+  it('every day has breakfast, lunch, evening soup, dinner', () => {
     for (const day of week.days) {
       const slots = day.meals.map((m) => m.slot);
-      expect(slots).toEqual(['b', 'l', 's', 'es', 'd']);
+      expect(slots).toEqual(['b', 'l', 'es', 'd']);
     }
   });
   it('breakfast is a real breakfast dish, not a heavy curry', () => {

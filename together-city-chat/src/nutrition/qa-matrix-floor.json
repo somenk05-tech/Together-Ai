@@ -1,7 +1,7 @@
 {
-  "_": "The hardest population's numbers, ratcheted. See qa-matrix.spec.ts. Re-measured 31 Jul 2026 after BE-8.5 (the harness stopped feeding the engine whole-recipe quantities) and BE-8.6 (the protein top-up repeats): calorie ±10% 66.4→87.5, protein 66.9→69.5, cap-breach days 127→22.",
+  "_": "The hardest population's numbers, ratcheted. See qa-matrix.spec.ts. Re-measured 31 Jul 2026 after BE-8.5 (the harness stopped feeding the engine whole-recipe quantities) and BE-8.6 (the protein top-up repeats): calorie ±10% 66.4→87.5, protein 66.9→69.5, cap-breach days 127→22. Re-measured 4 Aug 2026 after the afternoon snack slot was removed: cap-breach days 22→12 — one fewer course is one fewer chance to breach a sodium or saturated-fat cap. Calorie (88.7) and protein (69.9) both moved less than the tolerance and their floors are unchanged.",
   "calorieWithin10Pct": 87.5,
   "proteinMetPct": 69.5,
-  "capBreachDays": 22,
+  "capBreachDays": 12,
   "tolerancePoints": 2
 }

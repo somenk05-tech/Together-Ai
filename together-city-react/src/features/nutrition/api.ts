@@ -275,7 +275,7 @@ export interface GrocerySummary {
   /** The exact dates this basket covers (always today or later). */
   startDate?: string; endDate?: string;
   householdSize: number; days: number;
-  meals: { breakfast: number; lunch: number; dinner: number; snacks: number };
+  meals: { breakfast: number; lunch: number; evening: number; dinner: number };
   estimatedCostInr: number; wastePct: number; scale: number; members: GroceryScaleMember[];
   perishableCount?: number; pantryCount?: number;
 }

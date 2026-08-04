@@ -596,10 +596,6 @@ function mealTitle(slot: SlotCode, comps: MealComponentOut[], prefs: ComposerPre
   const clin = prefs.clinicalTag ? `${prefs.clinicalTag} ` : '';
   const dietWord = prefs.diet === 'vegan' ? 'Vegan' : prefs.diet === 'nonveg' ? '' : 'Veg';
   if (slot === 'b') return `${clin}${dietWord ? dietWord + ' ' : ''}Breakfast`.trim();
-  if (slot === 's') {
-    const snack = comps[0];
-    return `${clin}${snack ? snack.name.split('(')[0].trim() : 'Snack'}`.replace(/\s+/g, ' ').trim();
-  }
   if (slot === 'es') {
     const soup = comps.find((c) => c.role === 'soup') ?? comps[0];
     return `${clin}${soup ? soup.name.split('(')[0].trim() : 'Evening Soup'}`.replace(/\s+/g, ' ').trim();
@@ -682,17 +678,6 @@ function fitMeal(sel: Sel[], targetKcal: number, proteinTarget: number): MealCom
 }
 
 /** Fresh-fruit names — the default afternoon snack (spec §3). */
-const FRUIT_NAME = /\b(apple|banana|orange|papaya|water ?melon|musk ?melon|guava|\bpear\b|mango|grapes?|pomegranate|pineapple|kiwi|chikoo|sapota|litchi|lychee|peach|apricot|berries|strawberr|blueberr|\bfruit\b)\b/i;
-
-/** Pick a fresh-fruit snack (least-used first for variety); null if none qualify. */
-function pickFruit(ctx: SelectCtx): PoolRecipe | null {
-  const cands = candidates('snack', ctx).filter((c) => FRUIT_NAME.test(c.name));
-  if (!cands.length) return null;
-  cands.sort((a, b) => (ctx.used.get(a.id) ?? 0) - (ctx.used.get(b.id) ?? 0));
-  const minUse = ctx.used.get(cands[0].id) ?? 0;
-  const top = cands.filter((c) => (ctx.used.get(c.id) ?? 0) === minUse);
-  return top[Math.floor(ctx.rnd() * top.length)] ?? cands[0];
-}
 
 function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, fibreTarget: number, energyPct: number, scheduledTime: string, ctx: SelectCtx): ComposedMeal {
   const def = SLOT_BY_CODE[slot];
@@ -718,10 +703,23 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
     const bf = pinnedFor('breakfast', ctx) ?? pick('breakfast', ctx);
     take(bf, 'breakfast');
     // If breakfast alone can't reach ~85% of target even at max scale, add a light side.
+    /**
+     * FRUIT IS NOT FORCED HERE, AND THAT WAS MEASURED, NOT ASSUMED.
+     *
+     * When the afternoon snack was removed I made this side prefer fruit,
+     * reasoning that a citizen who dropped a course had not asked to drop fruit.
+     * qa-matrix disagreed: protein-target adherence on the hardest profiles fell
+     * from 69.5% to 66.6%, because fruit displaces the protein-bearing snack
+     * that would otherwise fill this slot. Reverting it put the number back to
+     * 69.9% and calorie adherence to 88.7%.
+     *
+     * Fruit is still reachable — it is in the snack category and this picker
+     * draws from it. What is gone is my preference for it over something with
+     * protein in it, which is a nutrition decision I had no business making on
+     * an intuition when a 150-profile harness was sitting right there. The
+     * fruit-first picker went with it rather than sitting here unused.
+     */
     if (bf && bf.kcal * 1.6 < targetKcal * 0.85) take(pick('snack', ctx), 'side');
-  } else if (slot === 's') {
-    // Afternoon snack — fresh fruit by default (spec §3), else a light snack/drink.
-    take(pinnedFor('snack', ctx) ?? pickFruit(ctx) ?? pick('snack', ctx) ?? pick('drink', ctx), 'snack');
   } else if (slot === 'es') {
     // Dedicated ~7 PM evening course — a soup by default (spec §4), else a light drink.
     take(pick('soup', ctx) ?? pick('drink', ctx) ?? pick('snack', ctx), 'soup');
@@ -1086,10 +1084,10 @@ export function validateWeek(days: ComposedDay[], grocery: GroceryItem[], target
         issues.push(`Day ${day.dayIndex + 1}: breakfast contains a lunch/dinner recipe`);
       }
       // Meal title must not be a bare recipe name (Rule 16) — this catches a
-      // composite plate that collapsed to one dish. The single-dish courses
-      // (afternoon Snack, Evening Soup) are legitimately named after their dish,
-      // so they're exempt.
-      if (m.components.length && m.slot !== 's' && m.slot !== 'es' && m.components.some((c) => c.name === m.title)) {
+      // composite plate that collapsed to one dish. Evening Soup is the one
+      // single-dish course left and is legitimately named after its dish, so it
+      // is exempt. (The afternoon Snack was the other; it no longer exists.)
+      if (m.components.length && m.slot !== 'es' && m.components.some((c) => c.name === m.title)) {
         issues.push(`Day ${day.dayIndex + 1} ${m.label}: title equals a recipe name`);
       }
     }

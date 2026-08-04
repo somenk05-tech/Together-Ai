@@ -4,20 +4,35 @@ const TARGETS: DayTargets = { kcal: 2000, protein: 90, carbs: 240, fat: 60, fibe
 const base: ComposerPrefs = { diet: 'vegetarian' };
 
 describe('meal composer — structure rules', () => {
-  it('every day has all five mandatory slots (Rule 1)', () => {
+  it('every day has all four mandatory slots (Rule 1)', () => {
+    // Four since 4 Aug 2026: the afternoon snack was removed. See SLOTS.
     const wk = composeWeek(TARGETS, base);
     for (const d of wk.days) {
-      expect(d.meals.map((m) => m.slot)).toEqual(['b', 'l', 's', 'es', 'd']);
+      expect(d.meals.map((m) => m.slot)).toEqual(['b', 'l', 'es', 'd']);
       expect(d.meals.every((m) => m.components.length >= 1)).toBe(true);
     }
   });
 
-  it('energy split roughly 25/10/30/10/25 with each meal 8–35% (Rule 3)', () => {
+  it('the day always adds up to the whole prescription (Rule 3)', () => {
+    /**
+     * THE ASSERTION THAT MATTERS, AND IT IS NOT THE ONE THAT USED TO BE HERE.
+     *
+     * This checked b ≈ 0.25 and l ≈ 0.30 — the literal figures in the SLOTS
+     * table — which passed only because those five numbers happened to add to
+     * exactly 1.00. Removing the snack left them summing to 0.92 and every
+     * non-fasting day would have come in 8% under target with nothing saying so.
+     *
+     * What a citizen is owed is the WHOLE prescription across the day, however
+     * many courses it is divided into. So that is what is asserted, plus the
+     * per-meal guardrail and the relative order the split has always had.
+     */
     const wk = composeWeek(TARGETS, base);
     const day = wk.days[0];
+    const sum = day.meals.reduce((t, m) => t + m.energyPct, 0);
+    expect(sum).toBeCloseTo(1, 6);
     const pct = Object.fromEntries(day.meals.map((m) => [m.slot, m.energyPct]));
-    expect(pct.b).toBeCloseTo(0.25, 2);
-    expect(pct.l).toBeCloseTo(0.30, 2);
+    expect(pct.l).toBeGreaterThan(pct.b);          // lunch is the biggest meal
+    expect(pct.b).toBeGreaterThan(pct.es);         // the evening course is the lightest
     expect(day.meals.every((m) => m.energyPct >= 0.08 && m.energyPct <= 0.35)).toBe(true);
   });
 

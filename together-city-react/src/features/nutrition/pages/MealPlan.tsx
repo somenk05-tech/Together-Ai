@@ -90,7 +90,7 @@ type Totals = { kcal: number; protein: number; carbs: number; fat: number; fiber
 const PROTOCOLS = ['12:12', '14:10', '16:8', '18:6', '20:4', 'omad'];
 const BUCKETS: { key: CuisineBucket; label: string }[] = [
   { key: 'breakfast', label: 'Breakfast' }, { key: 'lunch', label: 'Lunch' },
-  { key: 'dinner', label: 'Dinner' }, { key: 'snack', label: 'Snacks' },
+  { key: 'dinner', label: 'Dinner' },
 ];
 
 

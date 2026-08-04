@@ -13,9 +13,10 @@
 
 /** The daily meal slots, modelled on how Indian families actually eat (eating
  *  order): Breakfast → Lunch → (afternoon) Snack → Evening soup (~7 PM) → Dinner.
- *  'es' is the dedicated evening soup course; 's' is the light afternoon snack
+ *  'es' is the dedicated evening soup course. There is no snack slot: it was
+ *  removed on 4 Aug 2026 — see the note on SLOTS.
  *  (fresh fruit by default). */
-export type SlotCode = 'b' | 'l' | 's' | 'es' | 'd';
+export type SlotCode = 'b' | 'l' | 'es' | 'd';
 
 export interface SlotDef {
   code: SlotCode;
@@ -39,10 +40,26 @@ export interface SlotDef {
 export const ENERGY_MAX = 0.35;
 export const ENERGY_MIN = 0.08;
 
+/**
+ * THE DAY'S COURSES. There is no afternoon snack, by decision on 4 Aug 2026.
+ *
+ * It was 8% of the day and it was serving a mango cranberry SAUCE and a
+ * chickpea CURRY — a condiment and a main, in a slot defined as one or two
+ * light things. The pool behind it never matched the shape of the slot, and the
+ * owner's call was to remove the course rather than keep repairing what it
+ * offered.
+ *
+ * `snack` survives as a CATEGORY — breakfast still admits one, and the recipe
+ * corpus still tags them — because a dish being snack-shaped is a fact about the
+ * dish. What is gone is the course at four in the afternoon.
+ *
+ * These numbers are WEIGHTS, not percentages. resolveSchedule normalises them,
+ * so they no longer have to add up to 1 and removing a row cannot quietly
+ * shrink somebody's day.
+ */
 export const SLOTS: SlotDef[] = [
   { code: 'b',  key: 'breakfast', label: 'Breakfast',    energy: 0.25, start: '07:00', end: '09:30', categories: ['breakfast', 'drink', 'salad', 'snack'],       minComponents: 1, maxComponents: 2, cuisineBucket: 'breakfast' },
   { code: 'l',  key: 'lunch',     label: 'Lunch',        energy: 0.30, start: '12:30', end: '14:00', categories: ['lunch', 'side', 'salad', 'dessert', 'drink'], minComponents: 3, maxComponents: 6, cuisineBucket: 'lunch' },
-  { code: 's',  key: 'snack',     label: 'Snack',        energy: 0.08, start: '16:00', end: '17:30', categories: ['snack', 'drink', 'salad'],                    minComponents: 1, maxComponents: 2, cuisineBucket: 'snack' },
   { code: 'es', key: 'evening',   label: 'Evening Soup', energy: 0.10, start: '18:30', end: '19:30', categories: ['soup', 'drink'],                              minComponents: 1, maxComponents: 2, cuisineBucket: 'dinner' },
   { code: 'd',  key: 'dinner',    label: 'Dinner',       energy: 0.27, start: '20:00', end: '21:30', categories: ['dinner', 'side', 'salad', 'drink'],           minComponents: 3, maxComponents: 5, cuisineBucket: 'dinner' },
 ];
@@ -65,8 +82,14 @@ export const MEAL_CATEGORIES: MealCategory[] = [
 ];
 
 /** Cuisine-preference buckets (Rule 11): each slot reads one. */
-export type CuisineBucket = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-export const CUISINE_BUCKETS: CuisineBucket[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+export type CuisineBucket = 'breakfast' | 'lunch' | 'dinner';
+/**
+ * No snack bucket: no slot carries one since the afternoon course was removed,
+ * and a cuisine weight nothing reads is a control that decides nothing — the
+ * exact shape of bug Weekly Planning was. Saved profiles may still hold a
+ * `cuisineBySlot.snack`; it is inert data, and nothing writes a new one.
+ */
+export const CUISINE_BUCKETS: CuisineBucket[] = ['breakfast', 'lunch', 'dinner'];
 
 /**
  * Foods that must never be a breakfast — heavy lunch/dinner mains and restaurant
@@ -251,8 +274,8 @@ export interface FastingProtocol {
   key: string; label: string; window: [string, string]; slots: SlotCode[];
 }
 export const FASTING_PROTOCOLS: Record<string, FastingProtocol> = {
-  '12:12': { key: '12:12', label: '12:12', window: ['08:00', '20:00'], slots: ['b', 'l', 's', 'es', 'd'] },
-  '14:10': { key: '14:10', label: '14:10', window: ['10:00', '20:00'], slots: ['l', 's', 'es', 'd'] },
+  '12:12': { key: '12:12', label: '12:12', window: ['08:00', '20:00'], slots: ['b', 'l', 'es', 'd'] },
+  '14:10': { key: '14:10', label: '14:10', window: ['10:00', '20:00'], slots: ['l', 'es', 'd'] },
   '16:8':  { key: '16:8',  label: '16:8',  window: ['12:00', '20:00'], slots: ['l', 'es', 'd'] },
   '18:6':  { key: '18:6',  label: '18:6',  window: ['13:00', '19:00'], slots: ['l', 'es', 'd'] },
   '20:4':  { key: '20:4',  label: '20:4',  window: ['14:00', '18:00'], slots: ['l', 'd'] },
@@ -286,26 +309,41 @@ function customSlots(hours: number): SlotCode[] {
   if (hours <= 3) return ['l'];
   if (hours <= 5) return ['l', 'd'];
   if (hours <= 8) return ['l', 'es', 'd'];
-  if (hours <= 11) return ['l', 's', 'es', 'd'];
-  return ['b', 'l', 's', 'es', 'd'];
+  if (hours <= 11) return ['l', 'es', 'd'];
+  return ['b', 'l', 'es', 'd'];
 }
 
 /**
  * Resolve the day's eating schedule BEFORE composing meals (spec IF principle):
- * standard = five slots at their default/edited times with the 25/10/30/10/25
- * split; fasting = only the slots inside the eating window, evenly timed, with
- * energy redistributed across them so the daily prescription is still met.
+ * standard = every slot at its default/edited time; fasting = only the slots
+ * inside the eating window, evenly timed. BOTH normalise the energy weights to
+ * the day, so the daily prescription is met either way and no branch depends on
+ * the table adding up to 1 by hand.
  */
 export function resolveSchedule(prefs?: FastingPrefs): DaySchedule {
   const times = prefs?.mealTimes ?? {};
   const timeFor = (s: SlotDef, fallback: string) => times[s.key] || fallback;
 
   if (!prefs?.enabled) {
-    // Standard: default time = midpoint of each slot window (user override wins).
+    /**
+     * Standard: default time = midpoint of each slot window (user override wins).
+     *
+     * NORMALISED, LIKE THE FASTING PATH BELOW. This used SLOT_ENERGY raw, which
+     * was correct only because the five slots happened to add to exactly 1.00 —
+     * an invariant held by arithmetic in a literal table and by nobody
+     * remembering it. Removing the snack left them summing to 0.92, and every
+     * non-fasting day would have come in 8% under the citizen's prescription
+     * with nothing anywhere saying so.
+     *
+     * The numbers in SLOTS are WEIGHTS now, in both branches, under one rule:
+     * relative shares, normalised to the day. Editing the table can no longer
+     * quietly change how much somebody eats.
+     */
+    const rawTotal = SLOTS.reduce((t, s) => t + SLOT_ENERGY[s.code], 0) || 1;
     const meals: ScheduledMeal[] = SLOTS.map((s) => ({
       code: s.code, key: s.key, label: s.label,
       scheduledTime: timeFor(s, toHHMM(Math.round((toMin(s.start) + toMin(s.end)) / 2))),
-      energy: SLOT_ENERGY[s.code],
+      energy: SLOT_ENERGY[s.code] / rawTotal,
     }));
     return { fasting: false, protocol: null, window: { start: '07:00', end: '21:00' }, meals };
   }

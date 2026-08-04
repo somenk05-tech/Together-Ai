@@ -95,7 +95,7 @@ const uniq = (a: string[]) => [...new Set(a)];
 interface Extras {
   cuisines?: string[];               // legacy multi-select (migrated to cuisineMix)
   cuisineMix?: Record<string, number>; // cuisine → % share of the plan
-  cuisineLocks?: Partial<Record<'breakfast' | 'lunch' | 'dinner' | 'snack', boolean>>; // strict single/'set'-cuisine weeks
+  cuisineLocks?: Partial<Record<'breakfast' | 'lunch' | 'dinner', boolean>>; // strict single/'set'-cuisine weeks
   healthConditions?: string[];       // Diabetes, Hypertension, … (or none)
   equipment?: string[];              // kitchen equipment the user owns
   healthGoals?: string[];            // wellness goals (multi-select)
@@ -523,7 +523,7 @@ export function Preferences() {
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 12, cursor: 'pointer', fontSize: 12.5 }}>
             <input type="checkbox"
               checked={!!(ex.cuisineLocks && Object.values(ex.cuisineLocks).some(Boolean))}
-              onChange={(e) => setEx({ ...ex, cuisineLocks: e.target.checked ? { breakfast: true, lunch: true, dinner: true, snack: true } : undefined })}
+              onChange={(e) => setEx({ ...ex, cuisineLocks: e.target.checked ? { breakfast: true, lunch: true, dinner: true } : undefined })}
               style={{ marginTop: 2, accentColor: 'var(--accent)', cursor: 'pointer' }} />
             <span>
               <strong>Lock to these cuisines</strong>
