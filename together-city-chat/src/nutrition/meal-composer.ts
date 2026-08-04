@@ -23,6 +23,47 @@ function dishAllowed(r: PoolRecipe, diet: string): boolean {
   ALLOWED_CACHE.set(key, ok);
   return ok;
 }
+
+/**
+ * P0-B's two opt-in proteins, and the memo that makes the screen affordable.
+ *
+ * Named explicitly and kept short on purpose: this is a list of things that
+ * must be CHOSEN, not a guess at what a citizen dislikes. Anything broader
+ * belongs in Foods to avoid, which they control.
+ *
+ * WHY IT IS CACHED, AND WHAT IT COST TO LEARN. Screening these inside passes()
+ * — which is what shipped in 8a12721 — took the engine from 50.8 ms/plan to
+ * 3,464 ms/plan on the shipped 10,013-recipe corpus. Sixty-eight times slower.
+ * perf.spec.ts and perf-load.spec.ts both failed, and they were right to.
+ *
+ * The reason is where passes() sits. It is the composer's inner loop: the whole
+ * pool is re-screened for every role of every slot of every day, and again on
+ * every relax retry — of the order of a million calls per plan. Everything else
+ * in that function is a field comparison or a cached lookup. This one was
+ * sixteen terms matched against a dish name plus every ingredient name, each
+ * lowercased and re-tokenised on the spot, ~160 string normalisations deep.
+ *
+ * A dish either contains beef or it does not, and that cannot change within a
+ * run — so it is memoised exactly like dishAllowed above, which exists for the
+ * same reason. The key space is closed: the corpus times the four possible
+ * denied sets (neither / beef / pork / both), so the map cannot grow with
+ * users the way a cache keyed on somebody's exclusions would.
+ */
+const OPT_IN_PROTEINS: Record<string, readonly string[]> = {
+  beef: ['beef', 'steak', 'veal', 'ox tail', 'oxtail', 'brisket', 'corned beef'],
+  pork: ['pork', 'bacon', 'ham', 'gammon', 'lard', 'pancetta', 'prosciutto', 'chorizo', 'salami'],
+};
+const OPT_IN_KEYS = Object.keys(OPT_IN_PROTEINS);
+const OPT_IN_CACHE = new Map<string, boolean>();
+function optInOk(r: PoolRecipe, terms: readonly string[], deniedKey: string): boolean {
+  if (!terms.length) return true;
+  const key = `${r.id}|${deniedKey}`;
+  const hit = OPT_IN_CACHE.get(key);
+  if (hit !== undefined) return hit;
+  const ok = isAllergenSafe(r.name, r.ingredients.map((i) => i.name), terms);
+  OPT_IN_CACHE.set(key, ok);
+  return ok;
+}
 import { computeNutrients, isSalt } from './ingredient-nutrients';
 
 /** Clinically-capped nutrients tracked on every recipe/meal/day (Workstream A). */
@@ -326,18 +367,13 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
    * cannot eat, cooked, on a day they had locked.
    *
    * So these are opt-in: absent from the chosen list, they are excluded like an
-   * allergen, on every role. Named explicitly and kept short on purpose — this
-   * is a list of things that must be CHOSEN, not a guess at what a citizen
-   * dislikes. Anything broader belongs in Foods to avoid, which they control.
+   * allergen, on every role. The table itself is OPT_IN_PROTEINS at the top of
+   * this file, with the memo that keeps the screen off the engine's clock.
    */
-  const OPT_IN_PROTEINS: Record<string, readonly string[]> = {
-    beef: ['beef', 'steak', 'veal', 'ox tail', 'oxtail', 'brisket', 'corned beef'],
-    pork: ['pork', 'bacon', 'ham', 'gammon', 'lard', 'pancetta', 'prosciutto', 'chorizo', 'salami'],
-  };
   const chosen = (prefs.favourites ?? []).map((f) => f.toLowerCase());
-  const optInDenied = Object.entries(OPT_IN_PROTEINS)
-    .filter(([key]) => !chosen.some((f) => f.includes(key)))
-    .flatMap(([, terms]) => terms);
+  const optInDenied = OPT_IN_KEYS.filter((k) => !chosen.some((f) => f.includes(k)));
+  const optInTerms = optInDenied.flatMap((k) => OPT_IN_PROTEINS[k]);
+  const optInKey = optInDenied.join('+');
 
   // Renal ceilings: only genuinely low-potassium/phosphorus food may enter a
   // renal plate, per role (the last lever to meet the strict K/P cap).
@@ -387,10 +423,14 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
       // the 4 Aug basket was full of.
       if (mixIsAuthoritative && cu !== 'Global') return false;
     }
-    if (!isAllergenSafe(r.name, r.ingredients.map((i) => i.name), excluded)) return false;
+    // `excluded.length &&` is not a micro-optimisation, it is the same lesson in
+    // miniature: without it every candidate allocates an array of ingredient
+    // names to hand to a matcher that returns true immediately, and almost
+    // every citizen has an empty exclusion list.
+    if (excluded.length
+      && !isAllergenSafe(r.name, r.ingredients.map((i) => i.name), excluded)) return false;
     // Opt-in proteins, screened exactly like an exclusion: name and ingredients.
-    if (optInDenied.length
-      && !isAllergenSafe(r.name, r.ingredients.map((i) => i.name), optInDenied)) return false;
+    if (!optInOk(r, optInTerms, optInKey)) return false;
     return true;
   };
 
