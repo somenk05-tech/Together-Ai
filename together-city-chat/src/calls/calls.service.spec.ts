@@ -264,3 +264,33 @@ describe('history', () => {
     expect(await h.svc.list('carol', {})).toEqual([]);
   });
 });
+
+describe('ring recovery — the phone is still ringing for a tab that just woke', () => {
+  it('hands the callee the live ring, and nobody else anything', async () => {
+    const h = harness({ members: ['alice', 'bob'] });
+    const call = await h.svc.start('alice', { conversationId: 'c1', type: 'video' });
+    const inWindow = new Date(NOW.getTime() + 10_000);
+    // The callee's freshly-opened tab finds the ring…
+    const forBob = await h.svc.ringingFor('bob', inWindow);
+    expect(forBob?.id).toBe(call.id);
+    expect(forBob?.status).toBe('ringing');
+    // …the CALLER's own outgoing ring is not an incoming call…
+    expect(await h.svc.ringingFor('alice', inWindow)).toBeNull();
+    // …and a stranger was never a participant, so there is nothing to find.
+    expect(await h.svc.ringingFor('carol', inWindow)).toBeNull();
+  });
+
+  it('a ring past its window is a missed call, not a ringing one', async () => {
+    const h = harness({ members: ['alice', 'bob'] });
+    await h.svc.start('alice', { conversationId: 'c1', type: 'audio' });
+    const late = new Date(NOW.getTime() + 46_000); // RING_TIMEOUT_MS is 45s
+    expect(await h.svc.ringingFor('bob', late)).toBeNull();
+  });
+
+  it('an answered call is no longer ringing — recovery stays quiet', async () => {
+    const h = harness({ members: ['alice', 'bob'] });
+    const call = await h.svc.start('alice', { conversationId: 'c1', type: 'audio' });
+    await h.svc.join('bob', call.id);
+    expect(await h.svc.ringingFor('bob', new Date(NOW.getTime() + 10_000))).toBeNull();
+  });
+});

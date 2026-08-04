@@ -25,6 +25,16 @@ export class CallsController {
     return this.calls.ice();
   }
 
+  /**
+   * GET /api/calls/ringing — the call ringing for you right now, or null.
+   * Ring recovery for tabs that were not alive when CALL_RINGING was emitted
+   * (opened from the push, reloaded, woken). Declared before ':id'.
+   */
+  @Get('ringing')
+  ringing(@CurrentUser() user: JwtUser) {
+    return this.calls.ringingFor(user.sub);
+  }
+
   /** GET /api/calls — your call history, newest first. */
   @Get()
   @UsePipes(new ZodValidationPipe(ListCallsSchema))

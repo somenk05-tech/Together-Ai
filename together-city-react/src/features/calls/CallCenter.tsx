@@ -44,6 +44,9 @@ export function CallCenter({ children }: { children: ReactNode }) {
   const [seconds, setSeconds] = useState(0);
 
   const peerRef = useRef<CallPeer | null>(null);
+  /** The phase as an effect can read it without re-subscribing per change. */
+  const phaseRef = useRef<CallPhase>('idle');
+  phaseRef.current = phase;
   /**
    * Set synchronously, before the first await in connectPeer.
    *
@@ -192,6 +195,38 @@ export function CallCenter({ children }: { children: ReactNode }) {
 
     return () => { offRinging(); offUpdated(); offSignal(); };
   }, [meId, phase, connectPeer, teardown]);
+
+  /**
+   * Ring recovery. The CALL_RINGING frame only reaches tabs alive at the
+   * instant it is emitted — a receiver who opens the app from the push
+   * notification, reloads, or whose phone wakes a suspended tab arrives
+   * AFTER it, and without this their phone is ringing everywhere except on
+   * the screen in their hand. So ask the server "is anything ringing for
+   * me?" at the three moments a tab (re)joins the world: mount, socket
+   * reconnect, and the tab becoming visible again.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    const recover = () => {
+      if (peerRef.current || phaseRef.current !== 'idle') return; // already busy
+      void callsApi.ringing().then((ringing) => {
+        if (cancelled || !ringing || peerRef.current || phaseRef.current !== 'idle') return;
+        setProblem(null);
+        setCall(ringing);
+        setPhase('incoming');
+      }).catch(() => undefined);
+    };
+    recover();
+    const s = socketClient.raw();
+    s.on('connect', recover);
+    const onVisible = () => { if (document.visibilityState === 'visible') recover(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      s.off('connect', recover);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
 
   // A call that connected counts its own time, so the label agrees with what
   // the history will say afterwards.

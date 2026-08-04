@@ -150,6 +150,30 @@ export class CallsService {
     return this.shape(await this.loadAuthorised(userId, callId));
   }
 
+  /**
+   * The call ringing FOR this citizen right now, if any — or null.
+   *
+   * The CALL_RINGING socket frame only reaches tabs that exist when it is
+   * emitted. A receiver who opens the app from the push notification, reloads,
+   * or whose phone wakes a suspended tab arrives AFTER that instant — and a
+   * phone that is still ringing must still be answerable. The client asks this
+   * on load, on socket reconnect, and when its tab becomes visible.
+   *
+   * Their own outgoing ring is not an incoming call, and a ring past its
+   * window is a missed call, not a ringing one — both answer null.
+   */
+  async ringingFor(userId: string, now: Date = new Date()) {
+    // unbounded: one citizen's simultaneously-ringing calls — one, in practice
+    const rows = await this.callSession.findMany({
+      where: { status: 'ringing', participants: { some: { userId } } },
+      include: { participants: true },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+    const live = rows.find((r) => r.createdById !== userId && !ringExpired(r.createdAt, now));
+    return live ? this.shape(live) : null;
+  }
+
   /** Call history — only calls in conversations the citizen was part of. */
   async list(userId: string, dto: ListCallsDto) {
     const rows = await this.callSession.findMany({
