@@ -284,9 +284,60 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
   const mix = prefs.cuisineBySlot?.[bucket];
   const locked = prefs.cuisineLocks?.[bucket];
   const allowedCuisines = mix ? Object.keys(mix).filter((k) => (mix[k] ?? 0) > 0).map(normCuisine) : null;
+  /**
+   * P0-A — A MIX IS A STATEMENT, NOT A LEAN.
+   *
+   * `cuisineLocks` is set only from the Meal-settings drawer. The Food
+   * Preference Profile's cuisine mix wrote `cuisineBySlot` and nothing else, so
+   * a citizen who set **Indian 100%** got Indian merely WEIGHTED — and pick()
+   * gives a cuisine that is absent from the mix a default weight of 1, and
+   * Global a weight of 5. A cuisine they had given zero was still five times
+   * more likely than nothing. Live proof, 4 Aug: "38/59 mains in your cuisines
+   * (64%)" on a 100%-Indian profile, with teriyaki, jerk seasoning, galangal,
+   * Thai red curry paste and parmesan in the basket.
+   *
+   * Expressing a mix at all is the lock. If a citizen names cuisines and gives
+   * one of them zero, zero is the answer — there is no other reading of the
+   * control. A mix of Indian 60 / Italian 40 still admits both, because both
+   * carry weight; it only ever removes what was set to nothing.
+   *
+   * This cannot strand a slot. When a bucket cannot be filled the composer
+   * already retries with `cuisineLocks: undefined` (see the relax paths below),
+   * so the strict pass is an attempt, not a cliff.
+   */
+  const mixIsAuthoritative = Boolean(allowedCuisines && allowedCuisines.length);
   const slotCats = SLOT_BY_CODE[slot].categories;
   const userDiet = prefs.diet ?? 'vegetarian';
   const excluded = prefs.excluded ?? [];
+
+  /**
+   * P0-B — TWO PROTEINS ARE NEVER ASSUMED.
+   *
+   * The chosen-protein list was a POSITIVE preference on two roles: prefer a
+   * main or dal that matches it, and if none does, fall through to everything.
+   * Nothing anywhere forbade a protein the citizen had not chosen, on any role.
+   * Live proof, 4 Aug: a profile listing Chicken, Egg, Fish, Prawns, Mutton,
+   * Paneer, Cheese, Curd, Milk — and a basket buying beef 128 g, pork 76 g and
+   * bacon 104 g.
+   *
+   * "Everything" as a diet means no dietary restriction. It does not mean
+   * consent to the two meats most often refused on religious grounds, and the
+   * cost of getting this wrong is not a taste miss — it is a plate somebody
+   * cannot eat, cooked, on a day they had locked.
+   *
+   * So these are opt-in: absent from the chosen list, they are excluded like an
+   * allergen, on every role. Named explicitly and kept short on purpose — this
+   * is a list of things that must be CHOSEN, not a guess at what a citizen
+   * dislikes. Anything broader belongs in Foods to avoid, which they control.
+   */
+  const OPT_IN_PROTEINS: Record<string, readonly string[]> = {
+    beef: ['beef', 'steak', 'veal', 'ox tail', 'oxtail', 'brisket', 'corned beef'],
+    pork: ['pork', 'bacon', 'ham', 'gammon', 'lard', 'pancetta', 'prosciutto', 'chorizo', 'salami'],
+  };
+  const chosen = (prefs.favourites ?? []).map((f) => f.toLowerCase());
+  const optInDenied = Object.entries(OPT_IN_PROTEINS)
+    .filter(([key]) => !chosen.some((f) => f.includes(key)))
+    .flatMap(([, terms]) => terms);
 
   // Renal ceilings: only genuinely low-potassium/phosphorus food may enter a
   // renal plate, per role (the last lever to meet the strict K/P cap).
@@ -324,11 +375,22 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
     }
     const cu = normCuisine(r.cuisine);
     if (allowedCuisines && allowedCuisines.length && !allowedCuisines.includes(cu)) {
-      // out-of-cuisine (incl. Global) is excluded when the bucket is LOCKED (QA L3);
-      // when unlocked it's merely down-weighted in pick().
+      // An explicit bucket LOCK (Meal settings) is strict about everything,
+      // Global included — QA L3, unchanged.
       if (locked) return false;
+      // A MIX is strict about competing cuisines only. `Global` is not a rival
+      // cuisine, it is the absence of one: a fruit bowl, a handful of nuts, two
+      // boiled eggs. Excluding those from an Indian profile would be reading
+      // "Indian 100%" as "nothing that isn't a curry", and would strand whole
+      // roles — every snack seed in the component library is Global. What the
+      // mix must remove is Thailand, Italy and Jamaica, which is exactly what
+      // the 4 Aug basket was full of.
+      if (mixIsAuthoritative && cu !== 'Global') return false;
     }
     if (!isAllergenSafe(r.name, r.ingredients.map((i) => i.name), excluded)) return false;
+    // Opt-in proteins, screened exactly like an exclusion: name and ingredients.
+    if (optInDenied.length
+      && !isAllergenSafe(r.name, r.ingredients.map((i) => i.name), optInDenied)) return false;
     return true;
   };
 

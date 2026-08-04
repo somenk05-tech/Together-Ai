@@ -886,7 +886,30 @@ export function computeTargets(inp: TargetInput) {
   const h = height / 100;
   const bmi = h > 0 ? weight / (h * h) : 22;
   const overweight = bmi >= 27;
-  const adj0 = goal === 'gain' && overweight ? 0 : GOAL_DELTA[goal as 'lose' | 'maintain' | 'gain'] ?? 0;
+  /**
+   * P0-C, and it is NOT the bug the 4 Aug audit took it for.
+   *
+   * The audit read "Adjusted for gain +0 kcal" and 148 g protein on a 102 kg
+   * body, concluded the goal was being ignored, and filed it as an engine bug —
+   * "a muscle-gain goal that adds no surplus isn't a gain plan". Both numbers
+   * are two deliberate clinical rules firing, and reproduce exactly:
+   *
+   *   BMI 102/1.81² = 31.1, so `overweight` is true and the gain surplus is
+   *   withheld. Adding a surplus to a body at BMI 31 asking to gain is the one
+   *   thing this rule exists to refuse.
+   *
+   *   refWeight = 25·h² = 82 kg, and protein is 1.8 g/kg of THAT — 148 g. The
+   *   audit divided 148 by the actual 102 kg, read 1.45 g/kg, and concluded the
+   *   gain prescription was missing. It is not: protein is dosed on reference
+   *   weight, because you do not prescribe protein for adipose tissue.
+   *
+   * So the numbers stay. What was genuinely wrong is that the screen showed a
+   * bare "+0 kcal" with no reason, and it was convincing enough to persuade a
+   * careful reader the engine was broken. A withheld surplus has to SAY it was
+   * withheld — see the note passed to energyTarget below.
+   */
+  const gainWithheld = goal === 'gain' && overweight;
+  const adj0 = gainWithheld ? 0 : GOAL_DELTA[goal as 'lose' | 'maintain' | 'gain'] ?? 0;
   // No calorie deficit during pregnancy, lactation or childhood/adolescence.
   const adj = (pregnant || lactating || pediatric) ? Math.max(0, adj0) : adj0;
   let energyExtra = 0;
@@ -914,6 +937,11 @@ export function computeTargets(inp: TargetInput) {
     sex: sex === 'female' ? 'female' : 'male',
     activity, goal: goal as 'lose' | 'maintain' | 'gain',
     deltaPct: adj, extraKcal: energyExtra,
+    // Why the adjustment is zero, in the citizen's own trace. Silence here is
+    // what made a correct refusal look like a missing feature.
+    withheldNote: gainWithheld
+      ? 'No surplus added: at a BMI of 27 or above, a gain goal is met by training and protein rather than extra calories. Your protein target is set for muscle gain.'
+      : undefined,
   });
   // `bmr` and `tdee` used to be pulled out here and were read by nobody:
   // energy.trace carries "Resting energy (BMR)" as a labelled step and the

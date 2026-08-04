@@ -156,6 +156,8 @@ export interface EnergyResult {
 export function energyTarget(inp: {
   weightKg: number; heightCm: number; age: number; sex: Sex;
   activity: number; goal: Goal; deltaPct: number; extraKcal?: number;
+  /** Why the adjustment is zero, when zero was a decision rather than a default. */
+  withheldNote?: string;
 }): EnergyResult {
   const bmr = basalMetabolicRate(inp);
   const tdee = bmr * inp.activity;
@@ -183,6 +185,10 @@ export function energyTarget(inp: {
       + 'Eating below that makes it hard to meet your nutrient needs, so the plan does not go lower.');
   }
   if (extra) notes.push(`${extra} kcal added for pregnancy or breastfeeding, on top of the adjustment.`);
+  // A zero that is a DECISION must say so. Without this the trace read
+  // "Adjusted for gain +0 kcal" and looked exactly like a rule that had failed
+  // to fire — convincingly enough to be filed as a P0 engine bug on 4 Aug.
+  if (inp.withheldNote) notes.push(inp.withheldNote);
 
   return {
     kcal, bmr: Math.round(bmr), tdee: Math.round(tdee),
@@ -196,7 +202,9 @@ export function energyTarget(inp: {
       steps: [
         { label: 'Resting energy (BMR)', value: `${Math.round(bmr)} kcal` },
         { label: `Times your activity level (${level}, ×${inp.activity})`, value: `${Math.round(tdee)} kcal` },
-        { label: inp.goal === 'maintain' ? 'No adjustment for maintaining' : `Adjusted for ${inp.goal}`, value: `${capped >= 0 ? '+' : ''}${Math.round(capped)} kcal` },
+        { label: inp.withheldNote ? `No surplus for ${inp.goal} at this BMI`
+          : inp.goal === 'maintain' ? 'No adjustment for maintaining' : `Adjusted for ${inp.goal}`,
+          value: `${capped >= 0 ? '+' : ''}${Math.round(capped)} kcal` },
         ...(extra ? [{ label: 'Pregnancy / breastfeeding', value: `+${extra} kcal` }] : []),
         { label: 'Daily target', value: `${kcal} kcal` },
       ],
