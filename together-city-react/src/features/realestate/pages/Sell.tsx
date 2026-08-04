@@ -56,6 +56,24 @@ const SCHEMA: Record<Kind, Schema> = {
 };
 
 const STEPS = ['Property details', 'Live photos', 'Pricing', 'Add property'];
+
+/**
+ * WHERE THE PROPERTY IS, ASKED ONCE.
+ *
+ * This form never asked. Every listing published through it went to the API as
+ * `city: 'Pune'` with the BUILDING NAME as the locality — so a flat in Indore
+ * was filed in Pune, and "search by locality" searched a list of society names.
+ * Explore filters on city, which means a seller anywhere else published into a
+ * city their buyers were not looking at.
+ *
+ * It belongs outside `SCHEMA` because it is the same question for a house, an
+ * office and a shop, and a field duplicated into three schemas is a field that
+ * gets fixed in two of them.
+ */
+const PLACE: Field[] = [
+  { key: 'city', label: 'City', type: 'text' },
+  { key: 'locality', label: 'Locality / Area', type: 'text' },
+];
 const KIND_LABEL: Record<Kind, string> = { house: 'Houses', office: 'Offices', shop: 'Shops' };
 
 interface Listing { id: string; kind: Kind; fields: Record<string, string>; desc: string; asking: string; perSqft: string; photos: Photo[] }
@@ -91,15 +109,18 @@ export function Sell() {
 
   const titleOk = !!fields[schema.titleKey]?.trim();
   const areaOk = !!fields.carpet?.trim();
+  // A listing with no city cannot be found by anybody, so it is not a listing.
+  const cityOk = !!fields.city?.trim();
   // Homes (except plots) must carry a BHK configuration — the backend rejects bedroom-less
   // apartment/villa listings, and a rejected listing never reaches Explore.
   const bhkOk = kind !== 'house' || fields.ptype === 'Plot' || !!fields.config?.trim();
   const photoOk = true; // photos are optional for now (product decision 2026-07-27)
   const priceOk = !!asking.trim();
-  const currentStep = !titleOk || !areaOk ? 0 : !photoOk ? 1 : !priceOk ? 2 : 3;
+  const currentStep = !titleOk || !areaOk || !cityOk ? 0 : !photoOk ? 1 : !priceOk ? 2 : 3;
 
   const addProperty = () => {
     if (!titleOk) { setWarn('Add the name / building first'); return; }
+    if (!cityOk) { setWarn('Add the city — buyers search by it'); return; }
     if (!bhkOk) { setWarn('Select the configuration (BHK) first'); return; }
     if (!priceOk) { setWarn('Add an asking price'); return; }
     setWarn('');
@@ -114,7 +135,12 @@ export function Sell() {
       : 'commercial';
     return {
       listingType: 'sale', propertyType: pt, status: 'ready',
-      title: f[SCHEMA[l.kind].titleKey] || KIND_LABEL[l.kind], city: 'Pune', locality: f[SCHEMA[l.kind].titleKey] || 'Pune',
+      title: f[SCHEMA[l.kind].titleKey] || KIND_LABEL[l.kind],
+      // The seller's own city and area. The API requires both non-empty, and
+      // the locality falls back to the city rather than to the building name —
+      // a society is not an area, and filing it as one made locality search
+      // meaningless.
+      city: f.city?.trim() || '', locality: f.locality?.trim() || f.city?.trim() || '',
       priceInr: digits(l.asking), areaSqft: digits(f.carpet),
       bedrooms: l.kind === 'house' ? digits(f.config) : 0, bathrooms: l.kind === 'house' ? digits(f.bath) : 0,
       furnishing: f.furnish, floor: f.floor ? digits(f.floor) : undefined, facing: f.facing,
@@ -191,7 +217,7 @@ export function Sell() {
 
           <h3 style={{ marginBottom: 16 }}>{schema.heading}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-            {schema.fields.map((f) => (
+            {[...PLACE, ...schema.fields].map((f) => (
               <div key={f.key} style={{ marginBottom: 16 }}>
                 <label style={labelS}>{f.label}</label>
                 {f.type === 'select'
