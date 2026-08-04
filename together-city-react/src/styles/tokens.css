@@ -132,8 +132,16 @@
        4 light pooling at the far wall — the bottom inside is brighter
        5 a COOL contact shadow. Glass tints what it drops; a neutral shadow
          under glass reads as a sticker. */
-  --rail-well: linear-gradient(180deg, #e9edf3, #e2e7ee);
-  --rail-well-shadow: inset 0 2px 7px rgba(70,95,130,.16), inset 0 -1px 0 rgba(255,255,255,.9);
+  /* THE WELL WENT WHITE (owner's call, 5 Aug, chosen from a three-way preview).
+     The blue-grey recess above was the ground the glass keys refracted; the
+     owner chose a pure white rail with a hairline at its right edge instead —
+     one bright surface with the page, the keys carrying all the depth
+     themselves. The physics note above still explains what was traded away:
+     the keys now bend white into white, so their own five layers are doing
+     ALL of the work. If glass ever stops reading as glass on the rail, this
+     is the decision to revisit — not the lens. */
+  --rail-well: #ffffff;
+  --rail-well-shadow: inset -1px 0 0 #ececec;
 
   --lens-face: linear-gradient(180deg,
     rgba(255,255,255,.94) 0%, rgba(228,237,248,.52) 34%,
