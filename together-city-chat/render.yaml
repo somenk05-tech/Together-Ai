@@ -1,5 +1,16 @@
 # Render Blueprint — one web service + managed Postgres + managed Redis (Key Value).
 # Verify field names against current Render docs; the schema evolves.
+#
+# THIS IS THE ALTERNATIVE HOST, NOT THE LIVE ONE. togethercity.app's API runs on
+# RAILWAY (see together-city-deployment-runbook.md — "Backend + Postgres + Redis
+# → Railway", with Render listed as the alternative). Nothing deploys from this
+# file today, so adding a variable HERE sets it nowhere: the runbook's
+# environment-variable reference is what a real deploy is read from, and every
+# variable added here must be added there too.
+#
+# Kept, rather than deleted, because the blueprint is genuinely the fallback if
+# Railway ever has to be left in a hurry — and a stale fallback is worse than
+# none.
 services:
   - type: web
     name: together-city-api

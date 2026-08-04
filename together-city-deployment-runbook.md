@@ -202,8 +202,10 @@ them; they're quick, isolated fixes. Verify chat connects (WSS) and a message ro
 | `CORS_ORIGIN` | ✅ | Exact frontend origin |
 | `PORT` / `NODE_ENV` | ✅ | `4000` / `production` |
 | `MEDIA_PROVIDER=r2`, `MEDIA_BUCKET`, `MEDIA_PUBLIC_BASE_URL` | media | Your R2 bucket + public base URL (custom domain or r2.dev) |
+| `MEDIA_PRIVATE_BUCKET` | ✅ **if media is on** | A SEPARATE bucket with **no public access**. Blood tests, prescriptions, Drive files and dating photos are written here and served only through short-lived signed links. Leave it unset, or point it at `MEDIA_BUCKET`, and all three land in the bucket published at `MEDIA_PUBLIC_BASE_URL` — so **the API refuses to boot** rather than let that happen quietly |
 | `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION=auto` | media | R2 endpoint `https://<accountid>.r2.cloudflarestorage.com` + R2 API token |
-| `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM` | email | `EMAIL_FROM` must be a Resend-verified sender |
+| `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM` | email | `EMAIL_FROM` must be a Resend-verified sender. Used for SYSTEM mail only — a citizen's own message now leaves as `<handle>@togethercity.app` |
+| `RESEND_INBOUND_SECRET` | inbound mail | Long random string, shared with the Resend Inbound webhook. `POST /api/mail/inbound` writes into a citizen's mailbox and cannot carry a user JWT, so this is the only thing authenticating it. Unset → inbound is refused everywhere (the feature is off, not open). Point Resend at `https://api.togethercity.app/api/mail/inbound` with `Authorization: Bearer <secret>` — preferred over `?secret=`, which ends up in access logs |
 | `FCM_ENABLED=true`, `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY` | push | From your Firebase service-account JSON (keep the key's `\n`s) |
 | `SMS_PROVIDER=twilio`, `TWILIO_*` | ⛔ optional | Only if you add the Twilio SMS adapter for phone-OTP recovery |
 
