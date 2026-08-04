@@ -224,8 +224,15 @@ describe('Relief stays a system', () => {
    * up one of the three broken rules because the class was simply there.
    *
    * So: every press face, every press colour and every press class must sit
-   * behind `[data-press]` or start with `press-`, and `[data-press]` itself
-   * must be reachable from exactly one screen.
+   * behind `[data-press]` or start with `press-`, and the list of screens that
+   * switch it on is written out below rather than counted.
+   *
+   * THE SECOND WEARER IS THE SAME DAY, BUILT BY HAND. OwnDayView renders the
+   * citizen's own dishes for a day, and it was asked for explicitly so that a
+   * day you compose is read on the same paper as the day the engine composed —
+   * one meal plan, two authors. That is the argument, and it is the only one
+   * accepted so far: a third entry needs its own line here and its own reason,
+   * not a nod to this one.
    */
   it('keeps the press inside the one page it was granted to', () => {
     const code = strip(relief);
@@ -250,9 +257,13 @@ describe('Relief stays a system', () => {
       !sel.includes('[data-press]') && !/(^|[\s,>])\.press-/.test(sel));
     expect(leaked).toEqual([]);
 
-    // 3. and it is switched on in exactly one place in the whole application
-    const wearers = PAGES.filter((f) => /data-press/.test(stripTs(read(f))));
-    expect(wearers).toEqual(['src/features/nutrition/pages/MealPlan.tsx']);
+    // 3. and it is switched on only where it has been granted. Sorted, because
+    // the walk returns directory order and a rename must not read as a breach.
+    const wearers = PAGES.filter((f) => /data-press/.test(stripTs(read(f)))).sort();
+    expect(wearers).toEqual([
+      'src/features/nutrition/components/OwnDayView.tsx',
+      'src/features/nutrition/pages/MealPlan.tsx',
+    ]);
   });
 
   /**

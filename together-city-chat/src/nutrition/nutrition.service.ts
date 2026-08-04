@@ -32,6 +32,8 @@ import { auditRecipe, type QaRecipe } from './nutrition-qa';
 import { buildMedicalRecs, applyPatch, type MedPrefs } from './medical-recs';
 import { activeMntRules, mntAvoidKeywords } from './clinical-mnt';
 import { composeWeek, scaleComposedWeek, complianceReport, normCuisine, cuisineAliases, resolveDayDiets, SEED_POOL, type ComposerPrefs, type Diet as ComposerDiet, type PoolRecipe } from './meal-composer';
+import { buildOwnDay, ownDayComponents, slotForRecipe, targetDay, type OwnEntry } from './own-plan';
+import { sumTotals } from './meal-composer';
 import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from './diet-tags';
 import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
 import { canonicaliseDeclared, findAllergen, isAllergenSafe } from '../shared/allergens';
@@ -306,6 +308,14 @@ interface PrefExtras {
   /** Dishes the citizen chose for a slot themselves. Keys "d{index}:{slotCode}"
    *  → recipeId. Honoured only while the dish still passes their filters. */
   composedPins?: Record<string, string>;
+  /**
+   * The plan the citizen builds by hand — day index → the dishes they put on it.
+   * Separate from composedPins on purpose: a pin steers the ENGINE's day, this
+   * IS the day. See own-plan.ts.
+   */
+  ownDays?: Record<string, Array<{ slot: string; recipeId: string }>>;
+  /** Built days they have settled. Locking one moves the next dish to the day after. */
+  ownLocks?: number[];
   /** 3-week plan anchor: the plan runs PLAN_DAYS days from this date (YYYY-MM-DD).
    *  Lazily set to "today" on first plan, so day 0 is the day the user started. */
   planStartDate?: string;
@@ -346,6 +356,14 @@ const PLAN_DAYS = 21;
 // "today" is not a property of the server, it is a property of the citizen, and
 // a module-level function has no way to know whose day it is asking about. Use
 // this.today(userId). addDaysISO stays — ISO date arithmetic is zone-free.
+/** Whole days from `from` to `to`, both ISO dates. Zone-free, like addDaysISO. */
+const daysBetweenISO = (from: string, to: string): number => {
+  const a = Date.parse(`${from}T00:00:00Z`);
+  const b = Date.parse(`${to}T00:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.round((b - a) / 86_400_000);
+};
+
 const addDaysISO = (iso: string, n: number): string => {
   const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
@@ -2637,6 +2655,129 @@ export class NutritionService implements OnModuleInit {
    * merges quantities into real units, assigns aisles, and folds the result
    * into the list the citizen is already shopping from, keeping their ticks.
    */
+  /* ─────────────────── the day a citizen builds themselves ─────────────────── */
+
+  /**
+   * Read the citizen-built plan: every day they have put something in, plus the
+   * day the next dish will join.
+   *
+   * Shares planStartDate with the composed plan on purpose — two plans on two
+   * calendars, both called "today", is the drift this hub has spent a week
+   * removing.
+   */
+  async ownPlan(userId: string) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const entries = (ex.ownDays ?? {}) as Record<string, OwnEntry[]>;
+    const locks = (ex.ownLocks ?? []) as number[];
+
+    let planStartDate = (typeof ex.planStartDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ex.planStartDate))
+      ? ex.planStartDate : '';
+    if (!planStartDate) { planStartDate = await this.today(userId); await this.mergeExtras(userId, { planStartDate }); }
+
+    const todayIdx = Math.max(0, daysBetweenISO(planStartDate, await this.today(userId)));
+    const pool = await this.poolFor(userId);
+
+    const days = Object.keys(entries)
+      .map((k) => Number(k))
+      .filter((d) => Number.isFinite(d) && (entries[String(d)] ?? []).length)
+      .sort((a, b) => a - b)
+      .map((dayIndex) => {
+        const meals = buildOwnDay(entries[String(dayIndex)] ?? [], pool);
+        const comps = ownDayComponents(meals);
+        return {
+          dayIndex,
+          dayISO: addDaysISO(planStartDate, dayIndex),
+          locked: locks.includes(dayIndex),
+          meals,
+          totals: comps.length ? sumTotals(comps) : { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodiumMg: 0, potassiumMg: 0, phosphorusMg: 0, sugarG: 0, addedSugarG: 0, satFatG: 0 },
+        };
+      });
+
+    // What the day is measured AGAINST. The page states the gap rather than
+    // closing it — a hand-built day that quietly gets topped up is not one.
+    const prescription = await this.targets(userId).catch(swallowed('nutrition.ownPlan targets', null, { userId }));
+
+    return {
+      planStartDate,
+      todayIndex: todayIdx,
+      targetDay: targetDay(todayIdx, locks, PLAN_DAYS),
+      locks: [...locks].sort((a, b) => a - b),
+      days,
+      targets: prescription,
+    };
+  }
+
+  /** Add a dish to the day currently being built. */
+  async addToOwnPlan(userId: string, recipeId: string) {
+    const pool = await this.poolFor(userId);
+    const recipe = pool.find((r) => r.id === recipeId);
+    if (!recipe) throw new NotFoundException('recipe not found');
+
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const entries = { ...((ex.ownDays ?? {}) as Record<string, OwnEntry[]>) };
+    const locks = (ex.ownLocks ?? []) as number[];
+    const planStartDate = (typeof ex.planStartDate === 'string' && ex.planStartDate) || (await this.today(userId));
+    const todayIdx = Math.max(0, daysBetweenISO(planStartDate, await this.today(userId)));
+    const day = targetDay(todayIdx, locks, PLAN_DAYS);
+
+    const list = [...(entries[String(day)] ?? [])];
+    // The same dish twice in one course is almost always a double tap, not an
+    // order for two servings; portions are what a serving count is for.
+    if (!list.some((e) => e.recipeId === recipeId)) list.push({ slot: slotForRecipe(recipe), recipeId });
+    entries[String(day)] = list;
+
+    await this.mergeExtras(userId, { ownDays: entries });
+    return this.ownPlan(userId);
+  }
+
+  /** Take a dish back out. A locked day is settled and does not change. */
+  async removeFromOwnPlan(userId: string, day: number, recipeId: string) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const locks = (ex.ownLocks ?? []) as number[];
+    if (locks.includes(day)) throw new BadRequestException('That day is locked. Unlock it first to change what is on it.');
+
+    const entries = { ...((ex.ownDays ?? {}) as Record<string, OwnEntry[]>) };
+    entries[String(day)] = (entries[String(day)] ?? []).filter((e) => e.recipeId !== recipeId);
+    if (!entries[String(day)].length) delete entries[String(day)];
+    await this.mergeExtras(userId, { ownDays: entries });
+    return this.ownPlan(userId);
+  }
+
+  /**
+   * Settle a built day. Its dishes stop changing, its ingredients join the
+   * grocery list, and the next dish added starts the following day.
+   */
+  async lockOwnDay(userId: string, day: number) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const entries = (ex.ownDays ?? {}) as Record<string, OwnEntry[]>;
+    if (!(entries[String(day)] ?? []).length) {
+      throw new BadRequestException('There is nothing on that day to lock yet.');
+    }
+    const locks = new Set((ex.ownLocks ?? []) as number[]);
+    locks.add(day);
+    await this.mergeExtras(userId, { ownLocks: [...locks].sort((a, b) => a - b) });
+
+    // Same rule as the composed lock: the basket must never be the reason a
+    // lock fails. They can rebuild the list from the Grocery page.
+    await this.groceryPlan(userId, 'individual')
+      .catch(swallowed('nutrition.lockOwnDay grocery', null, { userId, day }));
+
+    return this.ownPlan(userId);
+  }
+
+  /** Take a settled day back. */
+  async unlockOwnDay(userId: string, day: number) {
+    const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
+    const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);
+    const locks = ((ex.ownLocks ?? []) as number[]).filter((d) => d !== day);
+    await this.mergeExtras(userId, { ownLocks: locks });
+    return this.ownPlan(userId);
+  }
+
   async lockComposedDay(userId: string, day: number, mode: PlanMode = 'individual') {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
     const ex = parseExtras((pref as { extras?: string | null } | null)?.extras);

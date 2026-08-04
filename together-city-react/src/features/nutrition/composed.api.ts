@@ -249,3 +249,54 @@ export function useUnlockDay() {
 /** Per-line (single-dish) Refresh / Skip — reroll or drop one dish by its plate role. */
 export function useRefreshComponent() { return useComposedMutation<{ day: number; slot: string; role: string }>('/nutrition/plan/composed/refresh-item'); }
 export function useSkipComponent() { return useComposedMutation<{ day: number; slot: string; role: string; skipped: boolean }>('/nutrition/plan/composed/skip-item'); }
+
+/* ─────────────────── the day a citizen builds themselves ─────────────────── */
+
+/**
+ * "Create Your Own Meal Plan" used to add dishes to a grocery CART: you chose
+ * food and got a shopping list, never a plan. These read and write the plan.
+ *
+ * THE SERVER DECIDES WHICH DAY. `add` sends only a recipeId — the day is the
+ * first unlocked one from today, worked out server-side. Letting the client name
+ * it would let two tabs disagree about what "today" means, which is the drift
+ * this hub has spent a week removing.
+ */
+export interface OwnDay {
+  dayIndex: number;
+  dayISO: string;
+  locked: boolean;
+  meals: ComposedMeal[];
+  totals: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
+}
+export interface OwnPlan {
+  planStartDate: string;
+  todayIndex: number;
+  targetDay: number;
+  locks: number[];
+  days: OwnDay[];
+  targets?: { kcal?: number; protein?: number; carb?: number; fat?: number; fiber?: number } | null;
+}
+
+const OWN_KEY = ['nutrition', 'own-plan'] as const;
+
+export function useOwnPlan() {
+  return useQuery({ queryKey: OWN_KEY, queryFn: () => api.get<OwnPlan>('/nutrition/plan/own').then((r) => r.data) });
+}
+
+function useOwnMutation<TArgs>(path: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: TArgs) => api.post<OwnPlan>(path, v as Record<string, unknown>).then((r) => r.data),
+    onSuccess: (plan) => {
+      qc.setQueryData(OWN_KEY, plan);
+      // Locking a day pushes its ingredients into the basket, so the grocery
+      // list on the next screen must not still be yesterday's.
+      void qc.invalidateQueries({ queryKey: ['nutrition', 'grocery'] });
+    },
+  });
+}
+
+export const useAddToOwnPlan = () => useOwnMutation<{ recipeId: string }>('/nutrition/plan/own/add');
+export const useRemoveFromOwnPlan = () => useOwnMutation<{ day: number; recipeId: string }>('/nutrition/plan/own/remove');
+export const useLockOwnDay = () => useOwnMutation<{ day: number }>('/nutrition/plan/own/lock');
+export const useUnlockOwnDay = () => useOwnMutation<{ day: number }>('/nutrition/plan/own/unlock');

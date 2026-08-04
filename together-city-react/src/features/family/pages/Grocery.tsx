@@ -35,6 +35,13 @@ export function FamilyGrocery() {
 
       <GroceryPlanner mode="family" />
 
+      {/* Same reason as the individual list: the Cart left this hub's sidebar
+          on 4 Aug 2026, and a removed menu entry must not orphan the page. */}
+      <div style={{ marginTop: 22, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <Link to="/family/cart"><Button variant="line" size="sm">Review &amp; checkout →</Button></Link>
+        <span className="muted" style={{ fontSize: 12.5 }}>Order what is on this list.</span>
+      </div>
+
       <div className="trust">
         <span>◈ Portioned for your family</span><span>◈ No duplicates, no waste</span><span>◈ Supermarket-organised</span><span>◈ Ordering coming soon</span>
       </div>

@@ -193,6 +193,51 @@ export class NutritionController {
    * Lock a day. Its meals stop moving, and its shopping joins the grocery list
    * — the moment a plan becomes a shopping trip.
    */
+  /* ── the day a citizen builds themselves ─────────────────────────────────
+     "Create Your Own Meal Plan" used to add dishes to a grocery CART: you chose
+     food and got a shopping list, never a plan. These four build the plan. */
+
+  /** GET /api/nutrition/plan/own — every day they have filled, and the day the
+   *  next dish will join. */
+  @Get('plan/own')
+  ownPlan(@CurrentUser() user: JwtUser) {
+    return this.nutrition.ownPlan(user.sub);
+  }
+
+  /** POST /api/nutrition/plan/own/add — put a dish on the day being built. The
+   *  day is decided by the server, not the caller: it is the first unlocked day
+   *  from today, and letting a client name it would let two tabs disagree. */
+  @Post('plan/own/add')
+  @UsePipes(new ZodValidationPipe(z.object({ recipeId: z.string().min(1).max(120) })))
+  addToOwnPlan(@CurrentUser() user: JwtUser, @Body() dto: { recipeId: string }) {
+    return this.nutrition.addToOwnPlan(user.sub, dto.recipeId);
+  }
+
+  /** POST /api/nutrition/plan/own/remove — take a dish back off an unsettled day. */
+  @Post('plan/own/remove')
+  @UsePipes(new ZodValidationPipe(z.object({
+    day: z.number().int().min(0).max(60),
+    recipeId: z.string().min(1).max(120),
+  })))
+  removeFromOwnPlan(@CurrentUser() user: JwtUser, @Body() dto: { day: number; recipeId: string }) {
+    return this.nutrition.removeFromOwnPlan(user.sub, dto.day, dto.recipeId);
+  }
+
+  /** POST /api/nutrition/plan/own/lock — settle a built day. Its ingredients
+   *  join the grocery list and the next dish starts the following day. */
+  @Post('plan/own/lock')
+  @UsePipes(new ZodValidationPipe(z.object({ day: z.number().int().min(0).max(60) })))
+  lockOwnDay(@CurrentUser() user: JwtUser, @Body() dto: { day: number }) {
+    return this.nutrition.lockOwnDay(user.sub, dto.day);
+  }
+
+  /** POST /api/nutrition/plan/own/unlock — take a settled day back. */
+  @Post('plan/own/unlock')
+  @UsePipes(new ZodValidationPipe(z.object({ day: z.number().int().min(0).max(60) })))
+  unlockOwnDay(@CurrentUser() user: JwtUser, @Body() dto: { day: number }) {
+    return this.nutrition.unlockOwnDay(user.sub, dto.day);
+  }
+
   @Post('plan/composed/lock')
   @UsePipes(new ZodValidationPipe(z.object({
     day: z.number().int().min(0).max(60),

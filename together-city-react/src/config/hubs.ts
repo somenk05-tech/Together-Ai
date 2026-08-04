@@ -83,9 +83,11 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/nutrition/weekly', index: '03', label: 'Weekly Meal Planner', sub: 'Personalised 7-day plan' },
       { path: '/nutrition/grocery', index: '04', label: LABELS.groceryLists, sub: 'Built from your plan' },
       { path: '/nutrition/recipes', index: '05', label: LABELS.createYourOwnMealPlan, sub: 'Browse, add your own, build a list' },
-      // The Family hub has always listed its Cart. This one did not, so the
-      // individual grocery flow had no visible way to check out.
-      { path: '/nutrition/cart', index: '06', label: 'Cart', sub: 'Review & checkout' },
+      // NEITHER HUB LISTS A CART ANY MORE. A key for a basket sat between the
+      // grocery list and the plan on two menus; checkout moved onto the grocery
+      // list itself, which is where somebody holding a list actually looks for
+      // it. Both /nutrition/cart and /family/cart still resolve — Grocery.tsx
+      // links to them — they just no longer take a numbered key.
     ],
   },
   family: {
@@ -95,7 +97,6 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/family/weekly', index: '02', label: 'Weekly Planner', sub: 'Portioned per member' },
       { path: '/family/daily', index: '03', label: 'Daily Planner', sub: "Today's plate for all" },
       { path: '/family/grocery', index: '04', label: LABELS.groceryLists, sub: 'One combined list' },
-      { path: '/family/cart', index: '05', label: 'Cart', sub: 'Review & checkout' },
       { path: '/family/orders', index: '06', label: 'My Orders', sub: 'Empty until ordering goes live' },
       { path: '/family/pantry', index: '07', label: 'Shared Pantry', sub: 'One household pantry' },
       { path: '/family/search', index: '08', label: 'Search by Ingredients', sub: "Cook from what's in" },

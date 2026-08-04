@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui';
+import { Link } from 'react-router-dom';
 import { GroceryPlanner } from '../components/GroceryPlanner';
 
 /**
@@ -25,6 +27,16 @@ export function Grocery() {
       </p>
 
       <GroceryPlanner mode="individual" />
+
+      {/* WHERE THE CART WENT. It was item 06 in this hub's sidebar and was
+          removed from there on 4 Aug 2026. Removing a menu entry does not
+          delete a feature, and nav-audit caught that nothing else linked to it
+          — so checkout would have become reachable only by typing the URL. It
+          belongs at the bottom of the list it is for. */}
+      <div style={{ marginTop: 22, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <Link to="/nutrition/cart"><Button variant="line" size="sm">Review &amp; checkout →</Button></Link>
+        <span className="muted" style={{ fontSize: 12.5 }}>Order what is on this list.</span>
+      </div>
     </div>
   );
 }

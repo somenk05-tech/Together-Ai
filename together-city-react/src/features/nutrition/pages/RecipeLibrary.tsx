@@ -1,9 +1,10 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Card, Spinner, EmptyState, Button, Chip } from '@/components/ui';
 import { LABELS } from '@/config/labels';
 import { useRecipeLibrary, type RecipeCard } from '../library.api';
-import { useBuildCart } from '../hooks';
+import { useAddToOwnPlan, useLockOwnDay, useOwnPlan, useRemoveFromOwnPlan, useUnlockOwnDay } from '../composed.api';
+import { OwnDayView } from '../components/OwnDayView';
 import { VegMark } from '../components/VegMark';
 import { OwnRecipes } from '../components/OwnRecipes';
 
@@ -88,17 +89,31 @@ export function RecipeLibrary() {
   const [page, setPage] = useState(1);
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [typed, setTyped] = useState('');
-  const [picked, setPicked] = useState<Record<string, string>>({});
-  const buildCart = useBuildCart();
-  const navigate = useNavigate();
+  const own = useOwnPlan();
+  const addDish = useAddToOwnPlan();
+  const removeDish = useRemoveFromOwnPlan();
+  const lockDay = useLockOwnDay();
+  const unlockDay = useUnlockOwnDay();
+  // What is already on the day being built — the tiles read this so "Added" is
+  // the plan's own answer rather than a second list that can drift from it.
+  const target = own.data?.days.find((d) => d.dayIndex === own.data?.targetDay);
+  const picked: Record<string, string> = Object.fromEntries(
+    (target?.meals ?? []).flatMap((m) => m.components.map((c) => [c.recipeId, c.name])),
+  );
 
-  const pickedIds = Object.keys(picked);
-  const togglePick = (r: RecipeCard) => setPicked((p) => {
-    if (!p[r.id]) return { ...p, [r.id]: r.name };
-    const rest = { ...p };
-    delete rest[r.id];
-    return rest;
-  });
+  /**
+   * Add, or take back. There is no local "picked" list any more — the plan on
+   * the server is the state, so a tile reading "Added" and a day that does not
+   * contain the dish cannot happen. The cost is a round trip per tap; the thing
+   * it buys is that the two can never disagree.
+   */
+  const togglePick = (r: RecipeCard) => {
+    if (picked[r.id]) {
+      if (target) removeDish.mutate({ day: target.dayIndex, recipeId: r.id });
+    } else {
+      addDish.mutate({ recipeId: r.id });
+    }
+  };
   const addIngredient = (raw: string) => {
     const v = raw.trim().toLowerCase();
     if (v && !ingredients.includes(v)) { setIngredients([...ingredients, v]); setPage(1); }
@@ -146,27 +161,28 @@ export function RecipeLibrary() {
     </div>
   );
 
-  /** The bar that turns what you picked into a real grocery list. */
-  const buildBar = pickedIds.length > 0 ? (
-    <div className="card" style={{ position: 'sticky', bottom: 14, zIndex: 5, marginTop: 18, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', boxShadow: '0 8px 30px rgba(0,0,0,.12)' }}>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 14 }}>{pickedIds.length} recipe{pickedIds.length === 1 ? '' : 's'} picked</div>
-        <div className="muted" style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{Object.values(picked).join(', ')}</div>
-      </div>
-      <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Button variant="line" size="sm" onClick={() => setPicked({})}>Clear</Button>
-        <Button variant="accent" size="sm" disabled={buildCart.isPending}
-          onClick={() => buildCart.mutate({ recipeIds: pickedIds }, { onSuccess: () => navigate('/nutrition/grocery') })}>
-          {buildCart.isPending ? 'Building…' : '🛒 Build my grocery list'}
-        </Button>
-      </div>
-      {buildCart.isError && (
-        <p style={{ flexBasis: '100%', margin: 0, fontSize: 12.5, color: 'var(--danger-ink)' }}>
-          That didn’t go through. Your picks are still here — try again.
-        </p>
-      )}
-    </div>
-  ) : null;
+  /**
+   * TODAY'S PLAN, ON THE PAGE THAT BUILDS IT.
+   *
+   * This was a sticky bar counting picks and a button that turned them into a
+   * grocery list — so the page called "Create Your Own Meal Plan" produced
+   * everything except a meal plan. It shows the day instead, in the same four
+   * courses and the same typesetting as the Weekly Meal Planner, because a
+   * citizen reading their Tuesday should not have to learn two layouts
+   * depending on who chose the food.
+   */
+  const buildBar = (
+    <OwnDayView
+      plan={own.data}
+      loading={own.isLoading}
+      failed={own.isError}
+      onRetry={() => void own.refetch()}
+      onRemove={(day: number, recipeId: string) => removeDish.mutate({ day, recipeId })}
+      onLock={(day: number) => lockDay.mutate({ day })}
+      onUnlock={(day: number) => unlockDay.mutate({ day })}
+      busy={removeDish.isPending || lockDay.isPending || unlockDay.isPending || addDish.isPending}
+    />
+  );
 
   // Debounce only the value that feeds the query key — the input stays fully
   // controlled/responsive, but we fire one request per typing pause, not per key.

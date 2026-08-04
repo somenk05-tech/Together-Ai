@@ -564,7 +564,16 @@ function pick(role: string, ctx: SelectCtx): PoolRecipe | null {
   return scored[0].r;
 }
 
-function scaleComponent(r: PoolRecipe, portionPct: number, role: string): MealComponentOut {
+/**
+ * One recipe as a plated component at a given portion.
+ *
+ * Exported for the citizen-built day (`plan/own`), which assembles meals from
+ * dishes somebody chose rather than from dishes the composer picked. Both paths
+ * must produce the SAME shape and the same arithmetic — a day the citizen built
+ * and a day the engine built are read on one screen, and two ways of turning a
+ * recipe into a row is how the numbers on them start to disagree.
+ */
+export function scaleComponent(r: PoolRecipe, portionPct: number, role: string): MealComponentOut {
   const f = portionPct / 100;
   const round = (n: number) => Math.round(n * 10) / 10;
   return {
@@ -581,7 +590,7 @@ function scaleComponent(r: PoolRecipe, portionPct: number, role: string): MealCo
   };
 }
 
-const sumTotals = (cs: MealComponentOut[]): MealTotals => cs.reduce(
+export const sumTotals = (cs: MealComponentOut[]): MealTotals => cs.reduce(
   (t, c) => ({
     kcal: t.kcal + c.kcal, protein: t.protein + c.protein, carbs: t.carbs + c.carbs, fat: t.fat + c.fat, fiber: t.fiber + c.fiber,
     sodiumMg: t.sodiumMg + c.sodiumMg, potassiumMg: t.potassiumMg + c.potassiumMg, phosphorusMg: t.phosphorusMg + c.phosphorusMg,
