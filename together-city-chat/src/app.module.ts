@@ -34,6 +34,7 @@ import { FitnessModule } from './fitness/fitness.module';
 import { FinancialModule } from './financial/financial.module';
 import { JobsModule } from './jobs/jobs.module';
 import { RealEstateModule } from './realestate/realestate.module';
+import { LocalServicesModule } from './local-services/local-services.module';
 import { EntertainmentModule } from './entertainment/entertainment.module';
 import { TravelModule } from './travel/travel.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
@@ -92,6 +93,7 @@ import { AvatarsModule } from './avatars/avatars.module';
     FinancialModule,
     JobsModule,
     RealEstateModule,
+    LocalServicesModule,
     EntertainmentModule,
     TravelModule,
     RestaurantsModule,

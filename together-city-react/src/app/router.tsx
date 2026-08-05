@@ -7,8 +7,11 @@ import { REMOVED_ROUTES } from '@/config/labels';
 import { ChunkBoundary } from './ChunkBoundary';
 import { Home } from '@/pages/Home';
 import { Dashboard } from '@/pages/Dashboard';
+import { ServicesBrowse } from '@/features/services/pages/Browse';
+import { ListBusiness } from '@/features/services/pages/ListBusiness';
+import { MyBusiness } from '@/features/services/pages/MyBusiness';
+import { ServiceMessages, ServiceThreadView } from '@/features/services/pages/Messages';
 import { HubLanding } from '@/pages/HubLanding';
-import { CarsComingSoon } from '@/pages/CarsComingSoon';
 import { AstroToday } from '@/features/astrology/pages/AstroToday';
 import { AstroMonthly } from '@/features/astrology/pages/AstroMonthly';
 import { AstroAsk } from '@/features/astrology/pages/AstroAsk';
@@ -170,7 +173,15 @@ export const router = createBrowserRouter([
       { path: '/financial', element: <HubLanding hub="financial" /> },
       { path: '/beauty', element: <HubLanding hub="beauty" /> },
       { path: '/fitness', element: <HubLanding hub="fitness" /> },
-      { path: '/cars', element: <CarsComingSoon /> },
+      // NO BILLBOARD LANDING. Every other hub opens onto a full-viewport render
+      // with an "Explore now" button under it — a door onto another door, and
+      // the first finding of the 5 Aug design audit. A hub being built today
+      // does not inherit that; /services opens onto the directory itself.
+      { path: '/services', element: <Navigate to="/services/browse" replace /> },
+      // Cars was a nav tab and a map building with a coming-soon page behind it
+      // and nothing else. Somebody may still have the URL; a redirect into the
+      // hub that took its place beats a 404 for a page that never had content.
+      { path: '/cars', element: <Navigate to="/services" replace /> },
       { path: '/profile', element: <RequireAuth>{wrap(<Profile />)}</RequireAuth> },
       { path: '/profile/master', element: <RequireAuth>{wrap(<MasterProfile />)}</RequireAuth> },
       { path: '/profile/avatar', element: <RequireAuth>{wrap(<Avatars />)}</RequireAuth> },
@@ -351,6 +362,21 @@ export const router = createBrowserRouter([
       { path: '/realestate/sell', element: <RequireAuth>{wrap(<RESell />)}</RequireAuth> },
       { path: '/realestate/property/:id', element: <RequireAuth>{wrap(<REDetail />)}</RequireAuth> },
       { path: '/realestate/edit/:id', element: <RequireAuth>{wrap(<REEdit />)}</RequireAuth> },
+    ],
+  },
+  {
+    // Local Services hub inner pages. Its own block, and not a few lines added
+    // to the one above: a route parked in another hub's block renders with that
+    // hub's sidebar, which nav-audit caught within a minute of it happening.
+    element: <HubLayout hub={HUBS.services} />,
+    children: [
+      { path: '/services/browse', element: <RequireAuth>{wrap(<ServicesBrowse />)}</RequireAuth> },
+      { path: '/services/list', element: <RequireAuth>{wrap(<ListBusiness />)}</RequireAuth> },
+      { path: '/services/mine', element: <RequireAuth>{wrap(<MyBusiness />)}</RequireAuth> },
+      // The thread route is declared BEFORE the index, or React Router reads
+      // "messages" as an id on the way past.
+      { path: '/services/messages/:id', element: <RequireAuth>{wrap(<ServiceThreadView />)}</RequireAuth> },
+      { path: '/services/messages', element: <RequireAuth>{wrap(<ServiceMessages />)}</RequireAuth> },
     ],
   },
   {

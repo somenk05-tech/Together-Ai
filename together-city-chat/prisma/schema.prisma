@@ -159,6 +159,8 @@ model User {
   jobsPosted           Job[]
   jobApplications      JobApplication[]
   properties           Property[]
+  serviceListings      ServiceListing[]
+  serviceEnquiries     ServiceEnquiry[]
   ticketBookings       TicketBooking[]
   tripBookings         TripBooking[]
   diningOrders         DiningOrder[]
@@ -2420,4 +2422,77 @@ model CallParticipant {
 
   @@unique([callId, userId])
   @@index([userId])
+}
+
+// ───────────────────── Local Services Hub ─────────────────────
+// A citizen's own business, advertised by category and by where it works.
+// Nothing here is seeded: every row is somebody who chose to list themselves,
+// which is why an empty directory is the honest first state rather than a bug.
+model ServiceListing {
+  id           String   @id @default(uuid())
+  ownerId      String
+  businessName String
+  categoryKey  String // one of the keys in local-services/categories.ts
+  about        String? // what they do, in their words
+  city         String
+  areas        String   @default("") // csv of localities served — the "local" in Local Services
+  phone        String? // NEVER returned to a browser; the anonymous thread is the only channel
+  priceFrom    Int? // ₹, optional — "from" and not a quote
+  photosJson   String   @default("[]") // JSON [{url,caption?}]
+  moderation   String   @default("approved") // approved | pending | rejected | removed
+  moderationJson String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner     User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  enquiries ServiceEnquiry[]
+
+  @@index([moderation, city])
+  @@index([categoryKey, city])
+  @@index([ownerId])
+}
+
+// The thread between somebody looking and somebody offering.
+//
+// IT IS NOT A Conversation. Reusing the chat hub's model would have put these
+// in /chats beside the citizen's real conversations and carried their name into
+// a room where the whole point is that it does not go. A separate pair of
+// tables is what "anonymous, and only inside this hub" actually costs.
+//
+// `alias` is minted once per (seeker, listing) and is the only name the
+// business ever sees. It is stored rather than derived so the same person is
+// recognisably the same person across a conversation, and so a rename of the
+// scheme does not rewrite history.
+model ServiceEnquiry {
+  id            String   @id @default(uuid())
+  listingId     String
+  seekerId      String
+  alias         String // e.g. "Neighbour 4821" — the business sees this and nothing else
+  lastMessageAt DateTime @default(now())
+  seekerUnread  Int      @default(0)
+  ownerUnread   Int      @default(0)
+  closed        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  listing  ServiceListing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  seeker   User             @relation(fields: [seekerId], references: [id], onDelete: Cascade)
+  messages ServiceMessage[]
+
+  @@unique([listingId, seekerId]) // one thread per person per business, forever
+  @@index([seekerId, lastMessageAt])
+  @@index([listingId, lastMessageAt])
+}
+
+model ServiceMessage {
+  id         String   @id @default(uuid())
+  enquiryId  String
+  // 'seeker' | 'owner'. A SIDE, not a user id — the row itself must not be able
+  // to tell the business who wrote it.
+  senderSide String
+  body       String
+  createdAt  DateTime @default(now())
+
+  enquiry ServiceEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+
+  @@index([enquiryId, createdAt])
 }

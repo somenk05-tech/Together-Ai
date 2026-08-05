@@ -78,6 +78,29 @@ const PROBES: Probe[] = [
     ],
   },
   {
+    /**
+     * Local Services is probeable in a way most hubs are not: a bare account can
+     * put up a business page in one call, with no upload, no second party and no
+     * external key. So it gets a real probe rather than a line on the UNPROBED
+     * list — the hub whose whole promise is "the other side does not know who you
+     * are" should be the last one taken on trust.
+     *
+     * GET /services/:id is deliberately NOT attempted. The directory is public by
+     * design; a stranger reading a listing is the feature. What must not work is
+     * a stranger EDITING or CLOSING one.
+     */
+    hub: 'services',
+    create: {
+      path: '/api/services',
+      body: { businessName: 'Sharma Plumbing', categoryKey: 'plumbers', city: 'Mumbai', areas: 'Bandra' },
+    },
+    list: '/api/services/mine',
+    attempts: (id) => [
+      { method: 'PATCH', path: `/api/services/${id}`, body: { businessName: 'mine now' } },
+      { method: 'DELETE', path: `/api/services/${id}` },
+    ],
+  },
+  {
     hub: 'drive',
     create: { path: '/api/drive/folders', body: { name: 'Private papers' } },
     list: '/api/drive',
@@ -104,6 +127,9 @@ const UNPROBED = [
   'connections', 'conversations', 'messages', 'chat', 'dating', 'social', 'calls',
   // Need an uploaded file, an external key, or a paid provider to create.
   'medical', 'prescriptions', 'media', 'mail', 'beauty', 'nutrition',
+  // The food journal reads and writes the caller's own entries only; there is
+  // no other citizen's id to pass it. Landed 4 Aug and never listed here.
+  'nutrition/journal',
   // Operate on the caller's own record only — there is no other citizen's id to pass.
   'auth', 'users', 'profile', 'privacy', 'notifications', 'push', 'health', 'hub',
   'astrology', 'financial', 'fitness', 'ai', 'admin', '',

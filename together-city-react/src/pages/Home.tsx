@@ -12,13 +12,14 @@ import { Icon } from '@/components/ui/Icon';
 interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: string; cx?: number; cy?: number; rx?: number; ry?: number; }
 // Clickable building zones, mapped to the new homepage video (buildings are
 // static; only the billboards animate). Coords are in the SVG viewBox (1903x826).
-// News, Cars and E-Commerce buildings have no hub route yet, so they're not zoned.
+// News and E-Commerce buildings have no hub route, so they're not zoned. The
+// Cars building is still in the render and no longer clickable — the hub it led
+// to is gone, and a zone onto a redirect is a link that lies about where it goes.
 const ZONES: Zone[] = [
   { to: '/travel', label: 'Travel Hub', shape: 'poly', points: '264.9,227.9 488.7,227.9 488.7,343.8 264.9,343.8' },
   { to: '/nutrition', label: 'Nutrition & Groceries', shape: 'poly', points: '178.4,364.2 461.2,364.2 461.2,496.4 178.4,496.4' },
   { to: '/social', label: 'Social Life', shape: 'poly', points: '173.3,502.5 381.9,502.5 381.9,652.1 173.3,652.1' },
   { to: '/astrology', label: 'Astrology Hub', shape: 'poly', points: '183.5,665.3 381.9,665.3 381.9,794.5 183.5,794.5' },
-  { to: '/cars', label: 'Cars Hub', shape: 'poly', points: '575.2,659.2 768.4,659.2 768.4,789.4 575.2,789.4' },
   { to: '/dating', label: 'Matchmaking Hub', shape: 'ellipse', cx: 951.5, cy: 524.9, rx: 132.2, ry: 73.2 },
   { to: '/medical', label: 'Medical Hub', shape: 'poly', points: '1144.8,290.9 1441.8,290.9 1441.8,415.0 1144.8,415.0' },
   { to: '/jobs', label: 'Jobs Hub', shape: 'poly', points: '1195.6,504.6 1401.1,504.6 1401.1,652.1 1195.6,652.1' },
@@ -67,7 +68,9 @@ const PANELS: Panel[] = [
   { key: 'beauty', img: 'beautymarket.webp' },
   { key: 'fitness', img: 'fitness-hero.webp' },
   { key: 'financial', img: 'financial-district.webp' },
-  { key: 'cars', img: 'cars-hub.webp' },
+  // Waiting on its photograph. The plate is built for that — the well is lit
+  // and the picture fades onto it when local-services.webp lands in assets/img.
+  { key: 'services', img: 'local-services.webp' },
   { key: 'ecommerce', img: 'e-commerce.webp' },
 ];
 
@@ -156,7 +159,7 @@ export function Home() {
         <div className="district-run">
           {PANELS.map((p, panelIndex) => {
             const cfg = p.key === 'ecommerce' ? null : HUBS[p.key];
-            const soon = !cfg || cfg.items.length === 0;   // cars (teaser) has no inner pages yet
+            const soon = !cfg || cfg.items.length === 0;   // a hub with no inner pages is not yet a room
             const name = cfg ? cfg.name : 'E-Commerce';
             const tag = cfg ? cfg.tag : 'Vetted products. Only the best.';
             const to = cfg ? (cfg.items[0]?.path ?? cfg.backPath) : null;

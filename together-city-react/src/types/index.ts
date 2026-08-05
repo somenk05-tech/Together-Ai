@@ -3,7 +3,7 @@
 export type HubKey =
   | 'travel' | 'restaurants' | 'astrology' | 'nutrition' | 'entertainment' | 'social'
   | 'dating' | 'realestate' | 'jobs' | 'medical' | 'financial'
-  | 'beauty' | 'fitness' | 'cars' | 'family' | 'mail';
+  | 'beauty' | 'fitness' | 'services' | 'family' | 'mail';
 
 export type AuthProvider = 'email' | 'google' | 'phone';
 

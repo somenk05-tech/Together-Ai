@@ -26,15 +26,25 @@ export const NAV: NavItem[] = [
   { key: 'financial', label: 'Financial', path: '/financial' },
   { key: 'beauty', label: 'Beauty', path: '/beauty' },
   { key: 'fitness', label: 'Fitness', path: '/fitness' },
-  { key: 'cars', label: 'Cars', path: '/cars' },
+  { key: 'services', label: 'Local services', path: '/services' },
   { key: 'mail', label: 'Mail', path: '/mail' },
 ];
 
 /** Hub metadata — names/taglines ported 1:1 from tc.js SIDE. */
 export const HUBS: Record<HubKey, HubConfig> = {
-  // Cars is a coming-soon teaser (see CarsComingSoon): a nav tab + map building,
-  // no inner pages yet, so `items` is empty.
-  cars: { key: 'cars', name: 'Cars Hub', tag: 'Drive the future.', backPath: '/cars', items: [] },
+  // LOCAL SERVICES replaced Cars, which was a nav tab and a map building with
+  // no rooms behind it — a door onto a coming-soon page for four months. This
+  // hub is the opposite shape: everything in it is put there by a citizen, so
+  // it is empty on the day it ships and honest about it.
+  services: {
+    key: 'services', name: 'Local Services', tag: 'The people who fix, teach and take care of things near you', backPath: '/services',
+    items: [
+      { path: '/services/browse', index: '01', label: 'Find a service', sub: 'By trade and by where you are' },
+      { path: '/services/list', index: '02', label: 'List your business', sub: 'Pick a category, name your areas' },
+      { path: '/services/mine', index: '03', label: 'My business', sub: 'Edit, close, see who asked' },
+      { path: '/services/messages', index: '04', label: 'Messages', sub: 'Anonymous, and only in this hub' },
+    ],
+  },
   travel: {
     key: 'travel', name: 'Travel Hub', tag: 'Explore. Dream. Discover. Together.', backPath: '/travel',
     items: [

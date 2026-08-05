@@ -91,6 +91,24 @@ export const PURGE_RULES: PurgeRule[] = [
   { model: 'FoodPref', by: 'userId', action: 'purge', reason: 'Diet, allergies and health conditions — sensitive, and theirs alone.' },
   { model: 'FoodJournalEntry', by: 'userId', action: 'purge', reason: 'A meal-by-meal record of what they ate — theirs alone, and nobody else ever saw it.' },
   { model: 'GroceryCart', by: 'userId', action: 'purge', reason: 'Grocery baskets, built from their own plans.' },
+
+  // ── Local Services ──────────────────────────────────────────────────────
+  // A business page is a shopfront the citizen put up. Taking the account away
+  // has to take the shopfront down: a directory advertising a plumber who has
+  // deleted themselves is a phone number that rings nowhere.
+  //
+  // ServiceEnquiry and ServiceMessage are NOT listed here, and that is
+  // deliberate rather than an omission. They carry no `userId`-shaped column,
+  // so the spec does not require a rule and a rule for them would read as
+  // stale. What happens to them is decided by two facts instead:
+  //   · deleting a listing cascades its threads away with it, which is right —
+  //     a conversation about a business that no longer exists has no second
+  //     side left to keep it for;
+  //   · a SEEKER's threads survive their own deletion, because the business
+  //     side of that conversation belongs to somebody who deleted nothing, and
+  //     there is no identity in those rows to destroy. The seeker was
+  //     "Neighbour 3" the whole time.
+  { model: 'ServiceListing', by: 'ownerId', action: 'purge', reason: 'Their own business page, and the threads hanging off it — a shopfront for somebody who has left is a door onto nothing.' },
   // Placed AFTER the MealPlan rules on purpose: the retired Meal table still
   // holds a plain FK to Recipe (no cascade), and a citizen's own Meal rows
   // cascade away with their individual plans above — so by the time this rule

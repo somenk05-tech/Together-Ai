@@ -441,6 +441,8 @@
 [data-hub="thoughts"]      { --accent:#4a4a52; --accent-ink:#3d3d44; --accent-soft:#f3f3f4; --accent-line:#dedee1; }
 [data-hub="connections"]   { --accent:#3f5b6b; --accent-ink:#344b58; --accent-soft:#f0f4f6; --accent-line:#d7e2e8; }
 [data-hub="chat"]          { --accent:#3f5b6b; --accent-ink:#344b58; --accent-soft:#f0f4f6; --accent-line:#d7e2e8; }
-[data-hub="cars"]          { --accent:#4a4a52; --accent-ink:#3d3d44; --accent-soft:#f3f3f4; --accent-line:#dedee1; }
+/* Local Services — a working terracotta. Warm because the hub is people
+   rather than assets, and distinct from Jobs' brown and Calendar's ochre. */
+[data-hub="services"]      { --accent:#7a4a34; --accent-ink:#633c2a; --accent-soft:#f8f2ef; --accent-line:#e9d8d0; }
 [data-hub="profile"]       { --accent:#4a4a52; --accent-ink:#3d3d44; --accent-soft:#f3f3f4; --accent-line:#dedee1; }
 [data-hub="settings"]      { --accent:#4a4a52; --accent-ink:#3d3d44; --accent-soft:#f3f3f4; --accent-line:#dedee1; }
