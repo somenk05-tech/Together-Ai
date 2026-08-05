@@ -34,7 +34,21 @@
 
 .tc-main { padding-top: calc(var(--header-h) + var(--safe-top)); min-height: 100vh; }
 .tc-shell { display: flex; min-height: 100vh; padding-top: calc(var(--header-h) + var(--safe-top)); }
-.tc-shell .tc-main { padding-top: 0; }
+/* THE MAIN COLUMN HAS TO CLAIM THE ROW.
+   `.tc-shell` is a flex row and `.tc-main` carried no flex property, so it fell
+   to `flex: 0 1 auto` and sized itself to its CONTENT rather than to the space
+   beside the sidebar. Measured on the live site at 1720px: the opening was
+   1425px and the column drew itself 647px wide. Every hub interior in the
+   application was working in 45% of the room it had, and the `maxWidth: 1180`
+   that most pages ask for could never be reached — the City Feed's three-up
+   wall was rendering at 615px with 778px of white beside it.
+
+   `min-width: 0` is the other half and is not optional. A flex item's automatic
+   minimum size is its content's min-content width, so one long unbroken string
+   or one wide grid child sets a floor that flex-shrink cannot get under, and
+   the page overflows sideways instead of wrapping. That is the single most
+   common cause of a horizontal scrollbar on a phone. */
+.tc-shell .tc-main { padding-top: 0; flex: 1 1 auto; min-width: 0; }
 .tc-shell .tc-main > * { padding: 28px 36px 52px; display: block; }
 
 .tc-side { width: 280px; flex-shrink: 0; padding: 28px 0 40px; position: sticky; top: calc(var(--header-h) + var(--safe-top)); height: calc(100vh - var(--header-h)); overflow-y: auto; }
@@ -66,6 +80,43 @@
   .tc-side { position: fixed; top: 0; left: 0; bottom: 0; z-index: 200; transform: translateX(-100%); transition: transform .28s ease; padding-top: calc(28px + var(--safe-top)); border-radius: 0 var(--r-5) var(--r-5) 0; }
   .tc-side.open { transform: translateX(0); }
   .tc-shell .tc-main > * { padding: 20px 16px 40px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE PHONE HEADER STOPS PRETENDING IT IS A DESKTOP HEADER
+
+   Below 900px the bottom bar exists — Home · Hubs · Chats · Alerts · Profile,
+   always under the thumb. The header had not been told. It went on rendering
+   fourteen hub tabs as a horizontally-scrolling strip of 9.5px capitals, above
+   a burger that opens the same list, above a bottom bar carrying three of the
+   same destinations again. Three routes to the same rooms, stacked in 78px of
+   a 390px screen, and the tab strip was the one nobody scrolled because a
+   scrolling row with no visible edge does not read as scrollable.
+
+   So on a phone: the tab row goes (the burger and the Hubs tab both reach it),
+   the action-bar entries the bottom bar already owns go, and the two header
+   rows collapse into one. What is left is the burger, the wordmark, and the
+   doors that have no other way in — People, Mail, Search.
+
+   The header height is a token, and everything that clears it — the main
+   column's padding, the sidebar's sticky offset — reads that token, so
+   shrinking it here moves the whole page up without touching anything else.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 899px) {
+  :root { --header-h: 54px; }
+  .tc-header { flex-direction: row; align-items: center; gap: 6px; padding: 6px 12px; }
+  .tc-header-top { flex: 1 1 auto; justify-content: flex-start; padding-left: 40px; min-height: 0; }
+  .tc-nav { display: none; }
+  .tc-navrow { width: auto; flex: 0 0 auto; gap: 0; }
+  /* Chats, Alerts and Profile are bottom-bar tabs at this width. A second copy
+     in the header is not redundancy, it is two places to look. Alerts is a
+     button rather than a link — it opens a panel — so it is matched by the
+     label it already announces to a screen reader rather than by an href it
+     does not have. */
+  .tc-actionbar a[href="/chats"],
+  .tc-actionbar a[href="/profile"],
+  .tc-actionbar button[aria-label="Notifications"] { display: none; }
+  .tc-footer { padding: 28px 16px calc(28px + var(--safe-bottom)); }
 }
 
 

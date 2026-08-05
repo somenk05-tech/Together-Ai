@@ -288,7 +288,24 @@ table.tc td b { color: var(--ink); }
 
 /* ============ mobile hub chip rail (mobile shell, phase 1) ============ */
 .hub-chips { display: none; }
-@media (max-width: 899px) {
+/* A ROW OF STAT TILES, WHEREVER IT APPEARS.
+   Four numbers across a 360px phone leave 82px per tile, which is narrower than
+   the labels on them, so the words wrap to three lines and the row stops being
+   readable at a glance — which is the entire job of a stat row. The page still
+   declares its own desktop column count inline; this only takes over where
+   there is no room for it. */
+.stat-row { min-width: 0; }
+@media (max-width: 560px) {
+  .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+/* 1100, NOT 899 — it matches the breakpoint where the sidebar becomes a drawer.
+   The two were 200px apart, and in the band between them the rail was hidden
+   behind the burger while the chips had not yet appeared, so on a small laptop
+   or a landscape tablet the only way to another section of the hub you were
+   standing in was to open a drawer. Whenever the sidebar is not on screen,
+   these are. */
+@media (max-width: 1100px) {
   .hub-chips {
     display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;
     padding: 4px 16px 10px; scrollbar-width: none;

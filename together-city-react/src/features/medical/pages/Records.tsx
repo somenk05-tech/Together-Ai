@@ -265,7 +265,10 @@ export function Records() {
             <p className="muted" style={{ fontSize: 12, margin: '4px 0 12px' }}>
               Latest panel · {panel.takenOn}{panel.lab ? ` · ${panel.lab}` : ''}
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+            {/* `stat-row` and not a bare repeat(4): four tiles across a 360px
+                phone leave 82px each, which is narrower than the words on them.
+                The class drops to two-up under 560. */}
+            <div className="stat-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
               {tile(panel.markers.length, 'Markers')}
               {tile(flagged.length, 'Out of range', flagged.length > 0)}
               {tile(panel.alerts.length, 'Alerts', panel.alerts.length > 0)}
