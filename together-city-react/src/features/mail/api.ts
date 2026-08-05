@@ -6,12 +6,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
  * provider refused was written to Sent before dispatch and left there, so the
  * sender got an error and a Sent copy of the same message.
  */
-export type Folder = 'inbox' | 'sent' | 'failed' | 'starred' | 'trash';
+/**
+ * `unsent` is one room holding drafts AND failed mail: two states, one
+ * question — what is still waiting on me? `draft` and `failed` remain
+ * addressable on their own for counts and the retry path.
+ */
+export type Folder = 'inbox' | 'sent' | 'draft' | 'failed' | 'unsent' | 'starred' | 'trash';
 
 export interface MailAccount {
   address: string; primaryEmail: string | null; phone: string | null;
   quotaBytes: number; usedBytes: number; usedPct: number;
-  counts: { inbox: number; inboxUnread: number; sent: number; failed: number; starred: number; trash: number; emailed: number };
+  counts: { inbox: number; inboxUnread: number; sent: number; draft: number; failed: number; unsent: number; starred: number; trash: number; emailed: number };
 }
 export interface OutboxEntry {
   id: string; channel: 'email' | 'sms'; to: string | null; kind: string; subject: string;
@@ -33,7 +38,10 @@ export const mailApi = {
   list: (folder: Folder) => api.get<MailItem[]>('/mail', { params: { folder } }).then((r) => r.data),
   get: (id: string) => api.get<MailMessage>(`/mail/${id}`).then((r) => r.data),
   thread: (threadId: string) => api.get<MailMessage[]>(`/mail/thread/${threadId}`).then((r) => r.data),
-  send: (input: { to: string; subject: string; body: string; threadId?: string; attachmentFileIds?: string[] }) => api.post<MailItem[]>('/mail/send', input).then((r) => r.data),
+  send: (input: { to: string; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string }) => api.post<MailItem[]>('/mail/send', input).then((r) => r.data),
+  saveDraft: (input: { id?: string; to: string; subject: string; body: string; threadId?: string }) =>
+    api.post<MailMessage>('/mail/draft', input).then((r) => r.data),
+  discardDraft: (id: string) => api.delete<MailItem[]>(`/mail/draft/${id}`).then((r) => r.data),
   retry: (id: string) => api.post<MailItem[]>(`/mail/${id}/retry`, {}).then((r) => r.data),
   threadAttachments: (threadId: string) =>
     api.get<{ items: Array<{ id: string; name: string; mimeType: string | null; sizeBytes: number }> }>(`/mail/thread/${threadId}/attachments`).then((r) => r.data),
@@ -77,7 +85,26 @@ export function useMailThread(threadId?: string | null) {
 export function useSendMail() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { to: string; subject: string; body: string; threadId?: string; attachmentFileIds?: string[] }) => mailApi.send(v),
+    mutationFn: (v: { to: string; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string }) => mailApi.send(v),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['mail'] }); },
+  });
+}
+
+/**
+ * Autosave. Deliberately NOT invalidating the mail queries on every keystroke —
+ * a folder list refetching while somebody types is work nobody asked for, and
+ * the composer already holds the only copy that matters. The Unsent folder
+ * refetches when it is next opened.
+ */
+export function useSaveDraft() {
+  return useMutation({
+    mutationFn: (v: { id?: string; to: string; subject: string; body: string; threadId?: string }) => mailApi.saveDraft(v),
+  });
+}
+export function useDiscardDraft() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => mailApi.discardDraft(id),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['mail'] }); },
   });
 }

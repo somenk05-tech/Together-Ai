@@ -201,7 +201,10 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/mail/inbox', index: '01', label: 'Inbox', sub: 'Mail from around the city' },
       { path: '/mail/compose', index: '02', label: 'Compose', sub: 'Write a new message' },
       { path: '/mail/sent', index: '03', label: 'Sent', sub: 'Messages that were accepted' },
-      { path: '/mail/failed', index: '04', label: 'Failed', sub: 'Rejected — see why and try again' },
+      // One room for everything still waiting on the citizen: what they were
+      // still writing, and what the provider refused. /mail/failed still
+      // resolves for old links — see router.
+      { path: '/mail/unsent', index: '04', label: 'Drafts & Failed', sub: 'Unfinished, and rejected — pick either up' },
       { path: '/mail/starred', index: '05', label: 'Starred', sub: 'Flagged for later' },
       { path: '/mail/trash', index: '06', label: 'Trash', sub: 'Deleted mail' },
       { path: '/mail/drive', index: '07', label: 'Drive', sub: 'Upload & attach your files' },

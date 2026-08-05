@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import {
   useMailAccount, useMailList, useFlagMail, useRemoveMail, useSetPrimary, useOutbox,
-  humanBytes, mailTime, initials, avatarHue, useRetryMail, type Folder,
+  humanBytes, mailTime, initials, avatarHue, useRetryMail, useDiscardDraft, type Folder,
 } from '../api';
 import { groupByThread, type Convo } from '../threading';
 
@@ -93,7 +93,10 @@ export function AccountBar() {
 const FOLDER_META: Record<Folder, { title: string; icon: string; eyebrow: string; empty: string }> = {
   inbox: { title: 'Inbox', icon: '📥', eyebrow: 'Mail · Inbox', empty: 'Your inbox is empty' },
   sent: { title: 'Sent', icon: '📤', eyebrow: 'Mail · Sent', empty: 'Nothing sent yet' },
+  draft: { title: 'Drafts', icon: '✏️', eyebrow: 'Mail · Drafts', empty: 'Nothing half-written' },
   failed: { title: 'Failed', icon: '⚠️', eyebrow: 'Mail · Failed', empty: 'Nothing has failed to send' },
+  // Two states, one question: what is still waiting on me?
+  unsent: { title: 'Drafts & Failed', icon: '✏️', eyebrow: 'Mail · Unsent', empty: 'Nothing waiting — no drafts, nothing rejected' },
   starred: { title: 'Starred', icon: '⭐', eyebrow: 'Mail · Starred', empty: 'No starred mail' },
   trash: { title: 'Trash', icon: '🗑', eyebrow: 'Mail · Trash', empty: 'Trash is empty' },
 };
@@ -104,12 +107,16 @@ function Row({ convo, folder }: { convo: Convo; folder: Folder }) {
   const flag = useFlagMail();
   const remove = useRemoveMail();
   const retry = useRetryMail();
-  const isSent = folder === 'sent' || folder === 'failed';
+  const discard = useDiscardDraft();
+  // A draft is not correspondence: it opens in the composer where it was left,
+  // never in the reader, and it is thrown away rather than filed in Trash.
+  const isDraft = m.folder === 'draft';
+  const isSent = folder === 'sent' || folder === 'failed' || folder === 'unsent';
   const person = isSent ? { name: m.toName, addr: m.toAddr } : { name: m.fromName, addr: m.fromAddr };
   const hue = avatarHue(person.addr);
   return (
     <div
-      onClick={() => nav(`/mail/message/${m.id}`)}
+      onClick={() => nav(isDraft ? `/mail/compose?draft=${m.id}` : `/mail/message/${m.id}`)}
       style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid var(--line)', cursor: 'pointer', background: convo.unread && folder === 'inbox' ? 'rgba(179,138,44,.06)' : 'transparent' }}
     >
       <button type="button" title="Star" onClick={(e) => { e.stopPropagation(); flag.mutate({ id: m.id, starred: !m.starred }); }}
@@ -121,14 +128,17 @@ function Row({ convo, folder }: { convo: Convo; folder: Folder }) {
       </div>
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          {isDraft && (
+            <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--warn-ink)', background: 'var(--warn-soft)', borderRadius: 999, padding: '2px 7px' }}>Draft</span>
+          )}
           <span style={{ fontWeight: convo.unread && folder === 'inbox' ? 800 : 600, fontSize: 13.5, whiteSpace: 'nowrap' }}>
-            {isSent ? `To: ${person.name}` : person.name}
+            {isSent ? (person.name ? `To: ${person.name}` : 'No recipient yet') : person.name}
             {count > 1 && <span className="muted" style={{ fontWeight: 600, marginLeft: 6 }}>{count}</span>}
           </span>
           <span style={{ marginLeft: 'auto', fontSize: 11.5, whiteSpace: 'nowrap' }} className="muted">{mailTime(m.createdAt)}</span>
         </div>
         <div style={{ display: 'flex', gap: 8, minWidth: 0 }}>
-          <span style={{ fontWeight: convo.unread && folder === 'inbox' ? 700 : 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '42%' }}>{m.subject}</span>
+          <span style={{ fontWeight: convo.unread && folder === 'inbox' ? 700 : 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '42%' }}>{m.subject || (isDraft ? '(no subject)' : m.subject)}</span>
           <span className="muted" style={{ fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>— {m.snippet}</span>
         </div>
         {/* The provider's own words. A failure the citizen cannot read the
@@ -139,15 +149,19 @@ function Row({ convo, folder }: { convo: Convo; folder: Folder }) {
           </div>
         )}
       </div>
-      {folder === 'failed' && (
+      {m.folder === 'failed' && (
         <button type="button" disabled={retry.isPending} title="Try sending this again"
           onClick={(e) => { e.stopPropagation(); retry.mutate(m.id); }}
           style={{ minWidth: 44, minHeight: 44, padding: '0 12px', borderRadius: 9, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent-ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
           {retry.isPending ? 'Sending…' : 'Try again'}
         </button>
       )}
-      <button type="button" title={folder === 'trash' ? 'Delete forever' : 'Move to trash'} onClick={(e) => { e.stopPropagation(); remove.mutate(m.id); }}
-        style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, opacity: .6, flexShrink: 0 }}>🗑</button>
+      <button type="button"
+        title={isDraft ? 'Discard this draft' : folder === 'trash' ? 'Delete forever' : 'Move to trash'}
+        aria-label={isDraft ? 'Discard this draft' : folder === 'trash' ? 'Delete forever' : 'Move to trash'}
+        disabled={discard.isPending}
+        onClick={(e) => { e.stopPropagation(); if (isDraft) discard.mutate(m.id); else remove.mutate(m.id); }}
+        style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, opacity: .6, flexShrink: 0, minWidth: 44, minHeight: 44 }}>🗑</button>
     </div>
   );
 }
@@ -174,5 +188,6 @@ function FolderView({ folder }: { folder: Folder }) {
 export function Inbox() { return <FolderView folder="inbox" />; }
 export function Sent() { return <FolderView folder="sent" />; }
 export function Failed() { return <FolderView folder="failed" />; }
+export function Unsent() { return <FolderView folder="unsent" />; }
 export function Starred() { return <FolderView folder="starred" />; }
 export function Trash() { return <FolderView folder="trash" />; }

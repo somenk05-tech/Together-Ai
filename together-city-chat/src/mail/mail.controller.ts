@@ -5,7 +5,7 @@ import { JwtUser } from '../shared/types';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { MailService } from './mail.service';
-import { FlagSchema, type FlagDto, FolderQuerySchema, type FolderQueryDto, SendMailSchema, type SendMailDto } from './dto/mail.dto';
+import { FlagSchema, type FlagDto, FolderQuerySchema, type FolderQueryDto, SendMailSchema, type SendMailDto, SaveDraftSchema, type SaveDraftDto } from './dto/mail.dto';
 
 @Controller('mail')
 @UseGuards(JwtAuthGuard)
@@ -45,6 +45,19 @@ export class MailController {
   @Get('thread/:threadId')
   thread(@CurrentUser() user: JwtUser, @Param('threadId') threadId: string) {
     return this.mail.thread(user.sub, threadId);
+  }
+
+  /** Save (or update) what somebody is still writing. Idempotent by id. */
+  @Post('draft')
+  @UsePipes(new ZodValidationPipe(SaveDraftSchema))
+  saveDraft(@CurrentUser() user: JwtUser, @Body() dto: SaveDraftDto) {
+    return this.mail.saveDraft(user.sub, dto);
+  }
+
+  /** Throw a draft away. Deleted outright — Trash is for correspondence. */
+  @Delete('draft/:id')
+  discardDraft(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.mail.discardDraft(user.sub, id);
   }
 
   @Post('send')

@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui';
-import { useDirectory, useSendMail, useMailAccount, type DirectoryEntry } from '../api';
+import { useDirectory, useSendMail, useMailAccount, useSaveDraft, useMailMessage, type DirectoryEntry } from '../api';
 import { payError } from '@/features/financial/api';
 import { DrivePicker } from '../DrivePicker';
 import { fmtBytes, fileIcon, type DriveFile } from '@/features/drive/api';
@@ -15,6 +15,16 @@ export function Compose() {
   const dir = useDirectory();
   const acct = useMailAccount();
   const send = useSendMail();
+  const saveDraft = useSaveDraft();
+
+  /**
+   * Resuming a draft. `?draft=<id>` loads what was left; the fields are seeded
+   * ONCE, when it arrives, and never again — re-seeding on every render would
+   * overwrite what the citizen is typing with what they had typed.
+   */
+  const draftParam = params.get('draft') ?? undefined;
+  const loaded = useMailMessage(draftParam ?? '');
+  const [seeded, setSeeded] = useState(!draftParam);
 
   const [to, setTo] = useState(params.get('to') ?? '');
   const [subject, setSubject] = useState(params.get('subject') ?? '');
@@ -22,7 +32,48 @@ export function Compose() {
   const [showSug, setShowSug] = useState(false);
   const [attachments, setAttachments] = useState<DriveFile[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const threadId = params.get('threadId') ?? undefined; // set when replying → append to trail
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  /** The draft row these words live in. Set on resume, or on first autosave. */
+  const draftId = useRef<string | undefined>(draftParam);
+  const threadId = params.get('threadId') ?? (loaded.data?.threadId ?? undefined); // reply → append to trail
+
+  useEffect(() => {
+    if (seeded || !loaded.data) return;
+    setTo(loaded.data.toAddr ?? '');
+    setSubject(loaded.data.subject ?? '');
+    setBody(loaded.data.body ?? '');
+    setSeeded(true);
+  }, [loaded.data, seeded]);
+
+  /**
+   * AUTOSAVE — the promise a draft folder makes.
+   *
+   * Debounced 1.2s after the last keystroke, and skipped entirely while the
+   * message is empty: a citizen who opens Compose, reads it and leaves should
+   * not find a blank draft waiting for them. It is also skipped while sending,
+   * because a draft saved during a send is a draft that outlives it.
+   */
+  const sending = send.isPending;
+  useEffect(() => {
+    if (!seeded || sending) return;
+    const hasSomething = Boolean(to.trim() || subject.trim() || body.trim());
+    if (!hasSomething) return;
+    const t = setTimeout(() => {
+      saveDraft.mutate(
+        { id: draftId.current, to, subject, body, threadId },
+        {
+          onSuccess: (d) => { draftId.current = d.id; setSavedAt(new Date()); },
+          // A failed autosave is not worth a red box over somebody's writing —
+          // the words are still in the box, and the next keystroke retries.
+          onError: () => undefined,
+        },
+      );
+    }, 1200);
+    return () => clearTimeout(t);
+    // saveDraft is a stable mutation object; including it would re-arm the
+    // timer on every render and never save.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [to, subject, body, threadId, seeded, sending]);
 
   const suggestions = useMemo(() => {
     const term = to.trim().toLowerCase().replace(/@.*/, '');
@@ -38,7 +89,10 @@ export function Compose() {
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div><div className="eyebrow">Mail · Compose</div><h1 style={{ fontSize: 24, margin: 0 }}>✍️ New message</h1></div>
+        <div>
+          <div className="eyebrow">Mail · Compose</div>
+          <h1 style={{ fontSize: 24, margin: 0 }}>✍️ {draftParam ? 'Continue your draft' : threadId ? 'Reply' : 'New message'}</h1>
+        </div>
         <span className="muted" style={{ marginLeft: 'auto', fontSize: 12.5, fontFamily: 'monospace' }}>from {acct.data?.address ?? '…'}</span>
       </div>
 
@@ -105,13 +159,18 @@ export function Compose() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Button variant="accent" disabled={!canSend}
             onClick={() => send.mutate(
-              { to, subject: subject || '(no subject)', body, threadId, attachmentFileIds: attachments.map((f) => f.id) },
+              { to, subject: subject || '(no subject)', body, threadId, attachmentFileIds: attachments.map((f) => f.id), draftId: draftId.current },
               { onSuccess: () => { if (threadId) nav(-1); else nav('/mail/sent'); } },
             )}>
             {send.isPending ? 'Sending…' : threadId ? 'Send reply' : 'Send'}
           </Button>
           <Button variant="line" onClick={() => nav(-1)}>Cancel</Button>
-          <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>Delivers to citizens and external emails · up to 1 GB of attachments</span>
+          {/* Says what actually happened, and where to find it. */}
+          <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }} role="status" aria-live="polite">
+            {savedAt
+              ? `Draft saved ${savedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · in Drafts & Failed`
+              : 'Delivers to citizens and external emails · up to 1 GB of attachments'}
+          </span>
         </div>
       </div>
 

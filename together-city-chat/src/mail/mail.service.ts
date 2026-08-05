@@ -28,7 +28,7 @@ import {
 } from './mail.constants';
 import { createMessagingProvider, messagingConfigured, type Channel } from './messaging-provider';
 import { cityFromHeader, normalizeInbound, type InboundMail } from './mail-inbound';
-import type { FlagDto, FolderQueryDto, SendMailDto } from './dto/mail.dto';
+import type { FlagDto, FolderQueryDto, SaveDraftDto, SendMailDto } from './dto/mail.dto';
 
 /** What a citizen reads when the body could not be retrieved. One sentence, and
  *  never an empty message — a blank arrival is indistinguishable from a blank
@@ -222,10 +222,11 @@ export class MailService {
   async account(userId: string) {
     const acct = await this.ensureAccount(userId);
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, phone: true } });
-    const [inboxUnread, inbox, sent, failed, starred, trash, used, emailed] = await Promise.all([
+    const [inboxUnread, inbox, sent, draft, failed, starred, trash, used, emailed] = await Promise.all([
       this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'inbox', read: false } }),
       this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'inbox' } }),
       this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'sent' } }),
+      this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'draft' } }),
       this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'failed' } }),
       this.prisma.mailMessage.count({ where: { ownerId: userId, starred: true, NOT: { folder: 'trash' } } }),
       this.prisma.mailMessage.count({ where: { ownerId: userId, folder: 'trash' } }),
@@ -236,7 +237,9 @@ export class MailService {
       address: acct.address, primaryEmail: user?.email ?? null, phone: user?.phone ?? null,
       quotaBytes: QUOTA_BYTES, usedBytes: used,
       usedPct: Math.min(100, +((used / QUOTA_BYTES) * 100).toFixed(4)),
-      counts: { inbox, inboxUnread, sent, failed, starred, trash, emailed },
+      // `unsent` is what the menu shows; `draft` and `failed` stay separate so
+      // a screen can say WHICH kind of waiting it found.
+      counts: { inbox, inboxUnread, sent, draft, failed, unsent: draft + failed, starred, trash, emailed },
     };
   }
 
@@ -315,10 +318,15 @@ export class MailService {
   async list(userId: string, q: FolderQueryDto) {
     await this.ensureAccount(userId);
     const where =
+      // Starred deliberately excludes trash only — a starred draft is still
+      // something the citizen marked, and hiding it would lose the mark.
       q.folder === 'starred' ? { ownerId: userId, starred: true, NOT: { folder: 'trash' } }
       : q.folder === 'inbox' ? { ownerId: userId, folder: 'inbox' }
       : q.folder === 'sent' ? { ownerId: userId, folder: 'sent' }
+      : q.folder === 'draft' ? { ownerId: userId, folder: 'draft' }
       : q.folder === 'failed' ? { ownerId: userId, folder: 'failed' }
+      // One room for everything still waiting on the citizen.
+      : q.folder === 'unsent' ? { ownerId: userId, folder: { in: ['draft', 'failed'] } }
       : { ownerId: userId, folder: 'trash' };
     // A mailbox only grows. Capped rather than paginated so the response shape
     // is unchanged; the cap is far above any current inbox.
@@ -331,6 +339,96 @@ export class MailService {
     if (!m) throw new NotFoundException('message not found');
     if (!m.read) await this.prisma.mailMessage.update({ where: { id }, data: { read: true } });
     return { ...this.shape({ ...m, read: true }), body: m.body };
+  }
+
+  /**
+   * Save what somebody is still writing.
+   *
+   * A draft is a working copy, not correspondence: it is addressed to nobody
+   * until it is sent, so none of the send-time rules apply here. Not the
+   * connection check (you may draft a note to somebody you have not connected
+   * with yet), not the valid-address check (half an address is what a half
+   * written message has), not thread ownership. Those all run at send.
+   *
+   * The QUOTA still applies, because a draft occupies the same mailbox — but
+   * it is checked against the delta only, so editing a draft down in size
+   * never fails on a full mailbox.
+   *
+   * Idempotent by id: the composer calls this every few seconds, and a
+   * client that autosaves must not leave a trail of thirty near-identical
+   * drafts behind it.
+   */
+  async saveDraft(userId: string, dto: SaveDraftDto) {
+    const sender = await this.ensureAccount(userId);
+    const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+    const subject = dto.subject.trim();
+    const size = sizeOf(subject, dto.body);
+
+    if (dto.id) {
+      const existing = await this.prisma.mailMessage.findFirst({ where: { id: dto.id, ownerId: userId, folder: 'draft' } });
+      if (!existing) throw new NotFoundException('draft not found');
+      const delta = size - existing.sizeBytes;
+      if (delta > 0 && (await this.usedBytes(userId)) + delta > QUOTA_BYTES) {
+        throw new BadRequestException('Your 10 GB mailbox is full. Delete some mail and try again.');
+      }
+      const updated = await this.prisma.mailMessage.update({
+        where: { id: dto.id },
+        data: {
+          toAddr: dto.to.trim(), toName: dto.to.trim(), subject, body: dto.body,
+          snippet: snippetOf(dto.body), sizeBytes: size,
+        },
+      });
+      return { ...this.shape(updated), body: updated.body };
+    }
+
+    if ((await this.usedBytes(userId)) + size > QUOTA_BYTES) {
+      throw new BadRequestException('Your 10 GB mailbox is full. Delete some mail and try again.');
+    }
+    const created = await this.prisma.mailMessage.create({
+      data: {
+        ownerId: userId, boxUserId: userId, folder: 'draft',
+        fromAddr: sender.address, fromName: me?.name ?? 'You',
+        toAddr: dto.to.trim(), toName: dto.to.trim(),
+        subject, body: dto.body, snippet: snippetOf(dto.body), sizeBytes: size,
+        // Read: a draft is your own words — there is nothing here you have not
+        // seen, and an unread badge on your own unfinished note is noise.
+        read: true, system: false, threadId: dto.threadId ?? null,
+      },
+    });
+    return { ...this.shape(created), body: created.body };
+  }
+
+  /**
+   * Throw a draft away — deleted outright rather than moved to Trash.
+   *
+   * Trash is where correspondence goes to be recoverable: things other people
+   * sent, or that were actually sent. A draft nobody ever received is a
+   * working copy, and filing every abandoned one in Trash turns Trash into a
+   * junk drawer of half-sentences. `remove()` keeps its own behaviour for
+   * everything else, including failed messages, which ARE a record of an
+   * attempt and stay recoverable.
+   */
+  async discardDraft(userId: string, id: string) {
+    const m = await this.prisma.mailMessage.findFirst({ where: { id, ownerId: userId, folder: 'draft' } });
+    if (!m) throw new NotFoundException('draft not found');
+    await this.prisma.mailMessage.delete({ where: { id } });
+    return this.list(userId, { folder: 'unsent' });
+  }
+
+  /**
+   * The draft a send came from, removed once the message is away.
+   *
+   * Deliberately forgiving: a draft that is already gone (two tabs, a double
+   * tap) is not an error worth failing a delivered message over. What must
+   * never happen is the opposite — a sent message that still has a draft,
+   * which the citizen would later resume and send a second time.
+   */
+  private async clearDraft(userId: string, draftId?: string): Promise<void> {
+    if (!draftId) return;
+    await swallow(
+      this.prisma.mailMessage.deleteMany({ where: { id: draftId, ownerId: userId, folder: 'draft' } }),
+      'mail: clear draft after send', { userId, draftId },
+    );
   }
 
   /** Send a message to another citizen — writes a Sent copy for the sender and an Inbox copy for the recipient. */
@@ -402,6 +500,7 @@ export class MailService {
         : []),
     ]);
     await this.linkAttachments(userId, threadId, dto.attachmentFileIds);
+    await this.clearDraft(userId, dto.draftId);
     return this.list(userId, { folder: 'sent' });
   }
 
@@ -476,6 +575,7 @@ export class MailService {
 
     // Keep the attachments visible on whichever copy was written.
     await this.linkAttachments(userId, threadId, dto.attachmentFileIds);
+    await this.clearDraft(userId, dto.draftId);
 
     if (failed) {
       throw new BadRequestException(
