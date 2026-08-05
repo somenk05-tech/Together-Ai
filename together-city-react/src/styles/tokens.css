@@ -38,6 +38,15 @@
   --line: #ededed;
   --line-2: #e2e2e2;
 
+  /* A BLOCK THAT IS NOT THE SAME AS THE ONE BELOW IT.
+     Unread mail is carried by weight — the sender and the subject go bold —
+     and this only has to separate a run of unread rows from a run of read
+     ones. It replaces rgba(179,138,44,.06), a wash left behind when the gold
+     theme was removed and the only warm pixel left in the application. Cool by
+     a hair rather than neutral grey, because a pure grey tint on a pure white
+     ground reads as a rendering artefact rather than a decision. */
+  --wash: #f7f8f9;
+
   /* ── THE FACES ──────────────────────────────────────────────────────────
      Classic neumorphism sits on a mid-grey ground so that a WHITE highlight
      has something to be brighter than. On white that highlight is invisible,

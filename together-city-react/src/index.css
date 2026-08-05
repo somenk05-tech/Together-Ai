@@ -313,3 +313,106 @@ table.tc td b { color: var(--ink); }
   .hub-chips::-webkit-scrollbar { display: none; }
   .hub-chips .chip { flex: 0 0 auto; white-space: nowrap; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAIL — THE LIST, AND THE SHAPE IT TAKES ON A PHONE
+
+   On a desktop a mail row puts the subject and the snippet on one line and
+   that reads fine across 800px. At 390px the same row spent roughly 150 of
+   those pixels on a star, an avatar, a retry button and a bin before the words
+   began, then capped the subject at 42% of what was left — about eighty
+   pixels. Nobody has read an email subject in eighty pixels.
+
+   Below 560 the row takes the shape every mail client on a phone has arrived
+   at independently, which is a strong hint that it is the right one: the
+   avatar on the left, then sender / subject / snippet each on a line of their
+   own, each truncated once, and the star moved to the right edge where a thumb
+   reaches it without crossing the words.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.mail-row { display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+  border-bottom: 1px solid var(--line); cursor: pointer; }
+.mail-row:last-child { border-bottom: 0; }
+/* The unread wash used to be rgba(179,138,44,.06) — a gold left behind when the
+   gold theme was removed, and the only warm pixel in a monochrome application.
+   Unread is carried by weight; the wash is now a neutral that only has to say
+   "this block is not the same as that one". */
+.mail-row.unread { background: var(--wash); }
+.mail-av { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; font-size: 12px; font-weight: 800; color: var(--on-accent); }
+.mail-body { min-width: 0; flex: 1; }
+.mail-l1 { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+/* flex:1 with min-width:0 — without it the name is a shrink-to-nothing item
+   between the Draft chip and the timestamp, and on a draft row it vanished
+   entirely rather than truncating. */
+.mail-from { flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: 13.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mail-row.unread .mail-from { font-weight: 800; }
+.mail-time { margin-left: auto; font-size: 11.5px; white-space: nowrap; flex-shrink: 0; }
+.mail-l2 { display: flex; gap: 8px; min-width: 0; }
+.mail-subj { font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: 42%; }
+.mail-row.unread .mail-subj { font-weight: 700; }
+.mail-snip { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mail-fail { font-size: 11.5px; color: var(--danger-ink); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mail-draft { flex-shrink: 0; font-size: 9.5px; font-weight: 800; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--warn-ink); background: var(--warn-soft);
+  border-radius: 999px; padding: 2px 7px; }
+.mail-star, .mail-bin { border: 0; background: none; cursor: pointer; flex-shrink: 0;
+  min-width: 44px; min-height: 44px; font-family: inherit; }
+.mail-star { font-size: 17px; }
+.mail-bin { font-size: 14px; opacity: .6; }
+.mail-retry { min-width: 44px; min-height: 44px; padding: 0 12px; border-radius: 9px;
+  border: 1px solid var(--accent); background: none; color: var(--accent-ink);
+  font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+
+.mail-account-top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.mail-account-mark { width: 42px; height: 42px; border-radius: 12px; background: var(--accent);
+  color: var(--on-accent); display: grid; place-items: center; font-size: 20px; flex-shrink: 0; }
+.mail-account-addr { font-weight: 800; font-size: 16px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden; text-overflow: ellipsis; }
+.mail-account-meter { margin-left: auto; min-width: 220px; }
+.mail-account-toggle { display: none; }
+.mail-fab { display: none; }
+
+@media (max-width: 560px) {
+  .mail-row { align-items: flex-start; gap: 11px; padding: 12px 12px 13px; }
+  .mail-av { width: 40px; height: 40px; font-size: 13px; margin-top: 2px; }
+  /* Subject and snippet each take a line. `display: block` on the row is what
+     un-shares them; the truncation on each is already there and starts working
+     the moment it has a whole line to work with. */
+  .mail-l2 { display: block; }
+  .mail-subj { max-width: none; display: block; font-size: 13.5px; }
+  .mail-snip { display: block; margin-top: 1px; }
+  .mail-dash { display: none; }
+  /* All three controls live in one right-hand column, centred against the
+     words rather than pinned to the top of them. Ordered so the destructive
+     one is furthest from the thumb's resting place. */
+  .mail-star { order: 2; align-self: center; }
+  .mail-bin { order: 4; align-self: center; }
+  /* The bin goes only where the same job has another door — a message carries
+     Delete inside it. A draft has no Discard in the composer yet, so a draft
+     keeps its bin rather than becoming undeleteable on a phone. */
+  .mail-bin.has-another-door { display: none; }
+  .mail-retry { order: 3; align-self: center; min-width: 0; padding: 0 10px; font-size: 11.5px; }
+
+  .mail-account { padding: 12px 14px; }
+  .mail-account-top { gap: 10px; flex-wrap: nowrap; }
+  .mail-account-mark { width: 32px; height: 32px; border-radius: 9px; font-size: 15px; }
+  .mail-account-eyebrow { display: none; }
+  .mail-account-addr { font-size: 13.5px; white-space: nowrap; }
+  .mail-account-meter, .mail-account-compose { display: none; }
+  .mail-account-toggle { display: inline-flex; align-items: center; margin-left: auto;
+    min-height: 44px; padding: 0 4px; background: none; border: 0; cursor: pointer;
+    font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--accent-ink); flex-shrink: 0; }
+  .mail-account-rest { display: none; }
+  .mail-account-rest.open { display: block; }
+  .mail-account-rest.open .mail-account-meter { display: block; margin: 0 0 12px; }
+
+  /* Above the bottom bar, clear of the home indicator. */
+  .mail-fab { display: inline-flex; align-items: center; gap: 8px;
+    position: fixed; right: 16px; bottom: calc(var(--safe-bottom) + 70px); z-index: 55;
+    min-height: 48px; padding: 0 20px; border-radius: 999px;
+    background: var(--ink); color: var(--on-accent); text-decoration: none;
+    font-size: 14px; font-weight: 700; box-shadow: var(--e2); }
+}

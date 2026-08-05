@@ -36,6 +36,8 @@ export function AccountBar() {
   const a = q.data;
   const [editing, setEditing] = useState(false);
   const [showLog, setShowLog] = useState(false);
+  /** Phone-only disclosure — CSS keeps the rest open on a desktop regardless. */
+  const [detail, setDetail] = useState(false);
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const pct = a ? Math.max(a.usedPct, a.usedBytes > 0 ? 0.5 : 0) : 0;
@@ -43,15 +45,29 @@ export function AccountBar() {
 
   const openEdit = () => { setEmail(a?.primaryEmail ?? ''); setPhone(a?.phone ?? ''); setEditing(true); };
 
+  /**
+   * ON A PHONE THIS CARD IS NOT THE MAIL.
+   *
+   * At 390px the account card ran to roughly two hundred pixels — a 42px
+   * envelope tile, the address, a storage meter, a Compose button and a
+   * primary-email line — all of it above the first message. Every mail client
+   * on a phone puts one thin bar at the top and then the mail, because the
+   * mail is what you opened the app for; your own address is not news to you.
+   *
+   * Nothing is removed. Below 560 the meter, the primary-email row and the
+   * delivery log fold behind "Details", and Compose becomes the floating
+   * button the folder itself draws. On a desktop the card is exactly as it
+   * was — there the space is free.
+   */
   return (
-    <div className="card">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ width: 42, height: 42, borderRadius: 12, background: 'var(--accent)', color: 'var(--on-accent)', display: 'grid', placeItems: 'center', fontSize: 20 }}>✉️</div>
-        <div>
-          <div className="eyebrow" style={{ margin: 0 }}>Your city address</div>
-          <div style={{ fontWeight: 800, fontSize: 16, fontFamily: 'monospace' }}>{a?.address ?? '…'}</div>
+    <div className="card mail-account">
+      <div className="mail-account-top">
+        <div className="mail-account-mark">✉️</div>
+        <div style={{ minWidth: 0 }}>
+          <div className="eyebrow mail-account-eyebrow" style={{ margin: 0 }}>Your city address</div>
+          <div className="mail-account-addr">{a?.address ?? '…'}</div>
         </div>
-        <div style={{ marginLeft: 'auto', minWidth: 220 }}>
+        <div className="mail-account-meter">
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5 }} className="muted">
             <span>Storage</span>
             <span>{a ? `${humanBytes(a.usedBytes)} of ${humanBytes(a.quotaBytes)}` : '…'}</span>
@@ -60,10 +76,12 @@ export function AccountBar() {
             <div style={{ width: `${Math.min(100, Math.max(pct, a && a.usedBytes ? 2 : 0))}%`, height: '100%', background: pct > 90 ? 'var(--danger-ink)' : 'var(--accent)' }} />
           </div>
         </div>
-        <Link to="/mail/compose"><Button variant="accent" size="sm">✍️ Compose</Button></Link>
+        <Link to="/mail/compose" className="mail-account-compose"><Button variant="accent" size="sm">✍️ Compose</Button></Link>
+        <button type="button" className="mail-account-toggle" aria-expanded={detail}
+          onClick={() => setDetail((v) => !v)}>{detail ? 'Hide' : 'Details'}</button>
       </div>
 
-      <div style={{ borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 12 }}>
+      <div className={`mail-account-rest${detail ? ' open' : ''}`} style={{ borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 12 }}>
         {!editing ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 12.5 }}>
             {a?.primaryEmail ? (
@@ -114,54 +132,67 @@ function Row({ convo, folder }: { convo: Convo; folder: Folder }) {
   const isSent = folder === 'sent' || folder === 'failed' || folder === 'unsent';
   const person = isSent ? { name: m.toName, addr: m.toAddr } : { name: m.fromName, addr: m.fromAddr };
   const hue = avatarHue(person.addr);
+  const unread = convo.unread && folder === 'inbox';
+  /**
+   * THE ROW IS CLASSES NOW, NOT INLINE GEOMETRY, BECAUSE A PHONE NEEDS A
+   * DIFFERENT SHAPE OF IT.
+   *
+   * On a desktop the subject and the snippet share one line and that reads
+   * fine at 800px. On a 390px screen the same row spent about 150px on a star,
+   * an avatar, a retry button and a bin before the words started — and then
+   * capped the subject at 42% of what was left, which is roughly eighty
+   * pixels. Nobody has ever read an email subject in eighty pixels.
+   *
+   * So below 560 the row takes the shape every mail client on a phone has
+   * settled on: avatar, then sender / subject / snippet on three lines of
+   * their own, each truncated once, with the star moved to the right edge
+   * where a thumb reaches it without crossing the text.
+   *
+   * The bin leaves the row on a phone — but ONLY where there is another way to
+   * do it. A message has Delete inside it; a draft has nothing yet, so the
+   * draft keeps its bin. A control removed with no replacement is not a
+   * simplification, it is a lost capability.
+   */
+  const binHasAnotherDoor = !isDraft; // MessageView carries Delete; the composer does not carry Discard
   return (
-    <div
-      onClick={() => nav(isDraft ? `/mail/compose?draft=${m.id}` : `/mail/message/${m.id}`)}
-      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid var(--line)', cursor: 'pointer', background: convo.unread && folder === 'inbox' ? 'rgba(179,138,44,.06)' : 'transparent' }}
-    >
-      <button type="button" title="Star" onClick={(e) => { e.stopPropagation(); flag.mutate({ id: m.id, starred: !m.starred }); }}
-        style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: m.starred ? 'var(--warn-ink)' : 'var(--line)', flexShrink: 0 }}>
-        {m.starred ? '★' : '☆'}
-      </button>
-      <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 800, color: 'var(--on-accent)', background: m.system ? 'var(--accent)' : `hsl(${hue},52%,45%)` }}>
+    <div className={`mail-row${unread ? ' unread' : ''}`}
+      onClick={() => nav(isDraft ? `/mail/compose?draft=${m.id}` : `/mail/message/${m.id}`)}>
+      <div className="mail-av" style={{ background: m.system ? 'var(--accent)' : `hsl(${hue},52%,45%)` }}>
         {m.system ? '🏙' : initials(person.name)}
       </div>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          {isDraft && (
-            <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--warn-ink)', background: 'var(--warn-soft)', borderRadius: 999, padding: '2px 7px' }}>Draft</span>
-          )}
-          <span style={{ fontWeight: convo.unread && folder === 'inbox' ? 800 : 600, fontSize: 13.5, whiteSpace: 'nowrap' }}>
+      <div className="mail-body">
+        <div className="mail-l1">
+          {isDraft && <span className="mail-draft">Draft</span>}
+          <span className="mail-from">
             {isSent ? (person.name ? `To: ${person.name}` : 'No recipient yet') : person.name}
             {count > 1 && <span className="muted" style={{ fontWeight: 600, marginLeft: 6 }}>{count}</span>}
           </span>
-          <span style={{ marginLeft: 'auto', fontSize: 11.5, whiteSpace: 'nowrap' }} className="muted">{mailTime(m.createdAt)}</span>
+          <span className="mail-time muted">{mailTime(m.createdAt)}</span>
         </div>
-        <div style={{ display: 'flex', gap: 8, minWidth: 0 }}>
-          <span style={{ fontWeight: convo.unread && folder === 'inbox' ? 700 : 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '42%' }}>{m.subject || (isDraft ? '(no subject)' : m.subject)}</span>
-          <span className="muted" style={{ fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>— {m.snippet}</span>
+        <div className="mail-l2">
+          <span className="mail-subj">{m.subject || (isDraft ? '(no subject)' : m.subject)}</span>
+          <span className="mail-snip muted"><span className="mail-dash">— </span>{m.snippet}</span>
         </div>
         {/* The provider's own words. A failure the citizen cannot read the
             reason for is one they cannot do anything about. */}
-        {m.failureReason && (
-          <div style={{ fontSize: 11.5, color: 'var(--danger-ink)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            ⚠ {m.failureReason}
-          </div>
-        )}
+        {m.failureReason && <div className="mail-fail">⚠ {m.failureReason}</div>}
       </div>
       {m.folder === 'failed' && (
-        <button type="button" disabled={retry.isPending} title="Try sending this again"
-          onClick={(e) => { e.stopPropagation(); retry.mutate(m.id); }}
-          style={{ minWidth: 44, minHeight: 44, padding: '0 12px', borderRadius: 9, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent-ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+        <button type="button" className="mail-retry" disabled={retry.isPending} title="Try sending this again"
+          onClick={(e) => { e.stopPropagation(); retry.mutate(m.id); }}>
           {retry.isPending ? 'Sending…' : 'Try again'}
         </button>
       )}
-      <button type="button"
+      <button type="button" className="mail-star" title="Star" aria-label={m.starred ? 'Unstar' : 'Star'}
+        style={{ color: m.starred ? 'var(--warn-ink)' : 'var(--line-2)' }}
+        onClick={(e) => { e.stopPropagation(); flag.mutate({ id: m.id, starred: !m.starred }); }}>
+        {m.starred ? '★' : '☆'}
+      </button>
+      <button type="button" className={`mail-bin${binHasAnotherDoor ? ' has-another-door' : ''}`}
         title={isDraft ? 'Discard this draft' : folder === 'trash' ? 'Delete forever' : 'Move to trash'}
         aria-label={isDraft ? 'Discard this draft' : folder === 'trash' ? 'Delete forever' : 'Move to trash'}
         disabled={discard.isPending}
-        onClick={(e) => { e.stopPropagation(); if (isDraft) discard.mutate(m.id); else remove.mutate(m.id); }}
-        style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, opacity: .6, flexShrink: 0, minWidth: 44, minHeight: 44 }}>🗑</button>
+        onClick={(e) => { e.stopPropagation(); if (isDraft) discard.mutate(m.id); else remove.mutate(m.id); }}>🗑</button>
     </div>
   );
 }
@@ -178,9 +209,15 @@ function FolderView({ folder }: { folder: Folder }) {
       {q.isLoading ? <Spinner label="Loading mail…" />
         : q.isError ? <EmptyState title="Couldn't load mail" hint="Nothing has been deleted — we couldn’t reach your mailbox. Try again in a moment." />
         : (q.data ?? []).length === 0 ? <EmptyState icon={meta.icon} title={meta.empty} hint={folder === 'inbox' ? 'City mail will appear here.' : undefined} />
-        : <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        : <div className="card mail-list" style={{ padding: 0, overflow: 'hidden' }}>
             {groupByThread(q.data ?? []).map((c) => <Row key={c.head.id} convo={c} folder={folder} />)}
           </div>}
+      {/* The thing you came to do, under your thumb. Phone-only — on a desktop
+          Compose is already in the account bar, and a button floating over a
+          page with room to spare is just a button in the way. */}
+      <Link to="/mail/compose" className="mail-fab" aria-label="Compose">
+        <span aria-hidden>✍️</span><span>Compose</span>
+      </Link>
     </div>
   );
 }
