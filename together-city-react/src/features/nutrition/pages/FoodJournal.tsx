@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Button, EmptyState, Hero, Spinner } from '@/components/ui';
+import { Button, EmptyState, Spinner } from '@/components/ui';
 import {
   useJournalDay, useJournalWeek, useAnalyzeMeal, useLogMeal, useRemoveMeal, mealTypeForHour,
   MEAL_LABEL, type JournalItem, type MealType,
@@ -206,8 +206,26 @@ export function FoodJournal() {
 
   return (
     <div style={{ maxWidth: 1040, margin: '0 auto', padding: '20px 16px 40px' }}>
-      <Hero image="/assets/img/nutrition-hub--main-pages--individual--4.-daily-meal-planner.webp" eyebrow="Nutrition Hub · 06" title="AI Food Journal"
-        sub="Photograph your meal — or say it, or type it. We identify it, estimate its nutrition, and log it into your day. Estimates you can always adjust." />
+      {/*
+        THE HEADER PICTURE IS GONE, AND IT WAS WORSE THAN DECORATION.
+
+        It was a screenshot of ANOTHER PAGE in this hub — the daily planner —
+        laid behind the words "AI Food
+        Journal" as wallpaper. So the largest thing on the page was a picture of
+        a different feature, printed at about 380px, pushing the one control
+        anybody came here for below the fold. Nothing on the screen was more
+        prominent and nothing on the screen was less relevant.
+
+        What replaces it is the page saying what it is. The sentence is the same
+        sentence; it is just legible now, on white, instead of in white over a
+        photograph of somebody else's screen.
+      */}
+      <div className="eyebrow">Nutrition Hub · 06</div>
+      <h1 style={{ fontSize: 28, letterSpacing: '-.02em' }}>AI Food Journal</h1>
+      <p className="muted" style={{ fontSize: 14.5, margin: '8px 0 26px', maxWidth: '62ch' }}>
+        Photograph your meal — or say it, or type it. We identify it, estimate its
+        nutrition, and log it into your day. Estimates you can always adjust.
+      </p>
 
       {/* ── Log a meal ─────────────────────────────────────────── */}
       <section className="blk">

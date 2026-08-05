@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useIncomingRequestCount, useUnreadChatCount } from '@/api';
+import { useUnreadChatCount } from '@/api';
 import { Icon } from '@/components/ui/Icon';
 
 /** Small red count bubble (shared with the header). */
@@ -27,14 +27,16 @@ const pill: React.CSSProperties = {
 };
 
 /**
- * Search · People · Mail · Chat quick-action pills (same aesthetics wherever
- * used). `show` selects which pills to render: 'all' (default), just the
- * 'search' pill, or the 'links' trio (People/Mail/Chat). On the city home the
- * Search pill sits in a bar below the hero video while People/Mail/Chat stay in
- * the header; inner pages keep all four in the header.
+ * Search · Mail · Chat quick-action pills. `show` selects which to render:
+ * 'all' (default), just the 'search' pill, or the 'links' pair (Mail/Chat).
+ *
+ * PEOPLE LEFT THIS BAR on 5 Aug and now lives on the profile page as "Other
+ * citizens", the same move Calendar made before it. A top bar is for the two or
+ * three things somebody does many times a day; a directory of everybody else in
+ * the city is something you go and look at, not something you glance at — and
+ * the header was already carrying fourteen hub tabs, four pills and an avatar.
  */
 export function QuickActions({ show = 'all' }: { show?: 'all' | 'search' | 'links' }) {
-  const requests = useIncomingRequestCount();
   const unreadChats = useUnreadChatCount();
   const searchOn = show === 'all' || show === 'search';
   const linksOn = show === 'all' || show === 'links';
@@ -49,10 +51,6 @@ export function QuickActions({ show = 'all' }: { show?: 'all' | 'search' | 'link
       )}
       {linksOn && (
         <>
-          <Link to="/connections" aria-label="Requests" style={pill}>
-            <Icon name="connection" size={17} /> <span className="lab">People</span>
-            <Badge count={requests} />
-          </Link>
           <Link to="/mail/inbox" aria-label="Mail" style={pill}>
             <Icon name="mail" size={17} /> <span className="lab">Mail</span>
           </Link>

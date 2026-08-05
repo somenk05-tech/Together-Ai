@@ -31,6 +31,7 @@ export function ListBusiness() {
   const create = useCreateService();
 
   const [businessName, setName] = useState('');
+  const [group, setGroup] = useState('');
   const [categoryKey, setCategory] = useState('');
   const [about, setAbout] = useState('');
   const [city, setCity] = useState('');
@@ -84,20 +85,39 @@ export function ListBusiness() {
             placeholder="Sharma Plumbing" maxLength={90} />
         </div>
 
-        <div>
-          <label htmlFor="svc-cat" style={label}>What you do</label>
-          <select id="svc-cat" style={field} value={categoryKey} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">Choose a category…</option>
-            {(cats.data?.groups ?? []).map((g) => (
-              <optgroup key={g.group} label={g.group}>
-                {g.items.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </optgroup>
-            ))}
-          </select>
-          <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>
-            Not listed? Tell us — the list grows from what people actually do here.
-          </p>
+        {/*
+          TWO STEPS, THE SAME TWO STEPS AS FINDING ONE.
+
+          One select holding a hundred and forty options is a scroll, not a
+          choice — and it is the wrong shape besides, because the directory
+          people will browse is organised by group first. Listing and finding
+          now ask the same question in the same order, so a business owner
+          picking "Home Services › Plumbers" has already seen where they will
+          appear.
+        */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
+          <div>
+            <label htmlFor="svc-group" style={label}>What kind of business</label>
+            <select id="svc-group" style={field} value={group}
+              onChange={(e) => { setGroup(e.target.value); setCategory(''); }}>
+              <option value="">Choose…</option>
+              {(cats.data?.groups ?? []).map((g) => <option key={g.group} value={g.group}>{g.group}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="svc-cat" style={label}>What you do</label>
+            <select id="svc-cat" style={field} value={categoryKey} disabled={!group}
+              onChange={(e) => setCategory(e.target.value)}>
+              <option value="">{group ? 'Choose…' : 'Pick a kind first'}</option>
+              {(cats.data?.groups.find((g) => g.group === group)?.items ?? [])
+                .map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+          </div>
         </div>
+        <p className="muted" style={{ fontSize: 11.5, margin: '-6px 0 0' }}>
+          Nothing here fits? Choose <strong>Other → Something else</strong> and say what you do
+          in About — people search that text too, so you are still findable.
+        </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
           <div>

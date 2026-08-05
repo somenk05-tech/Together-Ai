@@ -34,7 +34,7 @@ const ACCOUNT: Dest[] = [
   { id: 'privacy', kind: 'account', label: 'Privacy & Permissions', path: '/settings/privacy', hub: 'account', icon: 'bell', keywords: 'consent data permissions opt-in' },
   { id: 'calendar', kind: 'account', label: 'Calendar', path: '/calendar', hub: 'account', icon: 'calendar', keywords: 'schedule events' },
   { id: 'chats', kind: 'account', label: 'Chats', path: '/chats', hub: 'account', icon: 'chat', keywords: 'messages dm' },
-  { id: 'connections', kind: 'account', label: 'People & Connections', path: '/connections', hub: 'account', icon: 'connection', keywords: 'friends family requests network' },
+  { id: 'connections', kind: 'account', label: 'Other citizens', path: '/connections', hub: 'account', icon: 'connection', keywords: 'friends family requests network' },
   { id: 'notifications', kind: 'account', label: 'Notifications', path: '/social/notifications', hub: 'account', icon: 'bell', keywords: 'alerts' },
 ];
 
@@ -97,7 +97,7 @@ export function hubMeta(hub: HubKey): { name: string; path: string } {
 const TITLE_OVERRIDE: Record<string, string> = {
   '/': 'City Home', '/profile': 'My Profile', '/settings': 'Settings',
   '/settings/privacy': 'Privacy & Permissions', '/calendar': 'Calendar', '/chats': 'Chats',
-  '/connections': 'People & Connections',
+  '/connections': 'Other citizens',
 };
 
 /** Best human title for a pathname (exact page label, else title-cased tail). */

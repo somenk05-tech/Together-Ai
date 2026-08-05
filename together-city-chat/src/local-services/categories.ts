@@ -201,6 +201,17 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
   { key: 'nearby_hospitals', label: 'Nearby hospitals', group: 'Emergency' },
   { key: 'blood_donors', label: 'Blood donors', group: 'Emergency' },
   { key: 'disaster_alerts', label: 'Disaster alerts', group: 'Emergency' },
+
+  // Other
+  // LAST ON PURPOSE, and one entry rather than eighteen. Somebody whose trade is
+  // not on this list should still be able to put themselves up — a directory
+  // that turns people away at the category picker is a directory that stays
+  // empty. What they actually do goes in About, in their own words, where the
+  // search already reads it.
+  //
+  // It also earns its keep as a signal: a run of listings filed under `other`
+  // with the same word in About is the list telling you what to add next.
+  { key: 'other', label: 'Something else', group: 'Other' },
 ];
 
 const BY_KEY = new Map(SERVICE_CATEGORIES.map((c) => [c.key, c]));

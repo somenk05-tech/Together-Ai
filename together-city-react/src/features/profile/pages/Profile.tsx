@@ -354,6 +354,27 @@ export function Profile() {
       <ProfileCompletionCard />
       <HealthScoreCard />
 
+      {/* OTHER CITIZENS — moved off the top bar on 5 Aug, the same journey
+          Calendar made. It is called what it is now: "People" in a header next
+          to Mail and Chat read as a fourth inbox, when it is actually the
+          directory of everybody else in the city. The pending count comes with
+          it, because a request nobody can see is a request nobody answers. */}
+      <Link to="/connections" className="card lift" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12, textDecoration: 'none', color: 'inherit' }}>
+        <span style={{ fontSize: 22 }}>👥</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 15 }}>
+            Other citizens
+            {reqCount > 0 && (
+              <span style={{ marginLeft: 8, background: 'var(--danger-ink)', color: 'var(--on-accent)', borderRadius: 999, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>
+                {reqCount > 9 ? '9+' : reqCount} waiting
+              </span>
+            )}
+          </div>
+          <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>Find people, follow them, and answer the requests waiting on you.</p>
+        </div>
+        <span style={{ color: 'var(--accent-ink)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
+      </Link>
+
       {/* Quick access — Calendar lives here now (moved out of the top bar) */}
       <Link to="/calendar" className="card lift" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12, textDecoration: 'none', color: 'inherit' }}>
         <span style={{ fontSize: 22 }}>🗓</span>

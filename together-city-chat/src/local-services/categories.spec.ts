@@ -49,7 +49,12 @@ describe('the service vocabulary', () => {
     // Not a count for its own sake: this is the list supplied on 5 Aug, and a
     // group quietly disappearing in a merge is the kind of thing that shows up
     // as "the directory feels smaller" six weeks later.
-    expect(CATEGORY_GROUPS).toHaveLength(18);
+    // Eighteen from the owner, plus "Other" — which must be LAST, or it lands
+    // in the middle of the browse chips and reads as a trade rather than an
+    // escape hatch.
+    expect(CATEGORY_GROUPS).toHaveLength(19);
+    expect(CATEGORY_GROUPS[CATEGORY_GROUPS.length - 1]).toBe('Other');
+    expect(SERVICE_CATEGORIES[SERVICE_CATEGORIES.length - 1].key).toBe('other');
     const want = ['Healthcare', 'Food & Daily Needs', 'Home Services', 'Emergency', 'Learning', 'Experiences'];
     expect(want.filter((g) => !CATEGORY_GROUPS.includes(g))).toEqual([]);
   });
