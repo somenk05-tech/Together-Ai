@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Chip, EmptyState, Spinner, Button } from '@/components/ui';
-import { ListingPanel } from '../ListingPanel';
 import { useBrowseServices, useServiceCategories, useServiceFacets, useEnquire, useToggleRegular, rupees, humanDistance, currentPosition, stars, type ServiceCard } from '../api';
 
 /**
@@ -20,28 +19,24 @@ function Tile({ s, onChat, busy, saved, onKeep, keeping }: {
   s: ServiceCard; onChat: (id: string) => void; busy: boolean;
   saved: boolean; onKeep: (id: string, saved: boolean) => void; keeping: boolean;
 }) {
-  // Closed until asked. Twenty-four cards each fetching a price list and a
-  // review page, on a directory nobody has opened, is a hundred requests spent
-  // rendering nothing.
-  const [open, setOpen] = useState(false);
   return (
     <Card style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 0, overflow: 'hidden' }}>
-      {!open && s.photos.length > 0 && (
-        <button type="button" onClick={() => setOpen(true)} aria-label={`Open ${s.businessName}`}
-          style={{ display: 'block', width: '100%', padding: 0, border: 0, background: 'none', cursor: 'pointer' }}>
+      {s.photos.length > 0 && (
+        <Link to={`/services/${s.id}`} aria-label={`Open ${s.businessName}`} style={{ display: 'block' }}>
           <img src={s.photos[0].url} alt="" loading="lazy"
             style={{ display: 'block', width: '100%', aspectRatio: '16 / 10', objectFit: 'cover' }} />
-        </button>
+        </Link>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '14px 18px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        {/* The name is the way in. A card that looks like a page and is not one
-            is the commonest small betrayal in a directory. */}
-        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
-          style={{ padding: 0, border: 0, background: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                   fontSize: 16, fontWeight: 700, color: 'var(--ink)', textAlign: 'left' }}>
+        {/* The name is the way in, and it goes to a real page — one that can
+            be linked, bookmarked and sent to somebody. A card that looks like a
+            way in and is not one is the commonest small betrayal in a
+            directory. */}
+        <Link to={`/services/${s.id}`}
+          style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', textDecoration: 'none' }}>
           {s.businessName}
-        </button>
+        </Link>
         <span className="muted" style={{ fontSize: 12.5 }}>{s.categoryLabel}</span>
       </div>
       {/* An average below three reviews is withheld and the count shown instead:
@@ -64,7 +59,7 @@ function Tile({ s, onChat, busy, saved, onKeep, keeping }: {
         {s.areas.length ? s.areas.join(' · ') : s.city}
         {s.priceFrom != null && <> · from {rupees(s.priceFrom)}</>}
       </div>
-      {!open && s.about && (
+      {s.about && (
         <p style={{ fontSize: 13.5, margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {s.about}
         </p>
@@ -77,14 +72,11 @@ function Tile({ s, onChat, busy, saved, onKeep, keeping }: {
         <Button variant="line" size="sm" disabled={keeping} onClick={() => onKeep(s.id, saved)}>
           {saved ? '✓ Kept' : 'Keep'}
         </Button>
-        <Button variant="line" size="sm" onClick={() => setOpen((v) => !v)}>
-          {open ? 'Close' : 'See more'}
-        </Button>
+        <Link to={`/services/${s.id}`}><Button variant="line" size="sm">See their page</Button></Link>
       </div>
       <p className="muted" style={{ fontSize: 11.5, margin: 0 }}>
         They will see you as a neighbour, not by name.
       </p>
-      {open && <ListingPanel s={s} />}
       </div>
     </Card>
   );

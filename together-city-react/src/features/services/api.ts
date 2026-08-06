@@ -311,6 +311,14 @@ export function useToggleRegular() {
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
   });
 }
+/** One business, its own page. */
+export function useService(id?: string) {
+  return useQuery({
+    queryKey: ['services', 'detail', id],
+    queryFn: () => servicesApi.detail(id as string),
+    enabled: !!id,
+  });
+}
 export function useOffersToday() {
   return useQuery({ queryKey: ['services', 'offers', 'today'], queryFn: () => servicesApi.offersToday() });
 }

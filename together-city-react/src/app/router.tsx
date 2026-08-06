@@ -10,6 +10,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { ServicesBrowse } from '@/features/services/pages/Browse';
 import { ListBusiness } from '@/features/services/pages/ListBusiness';
 import { EditBusiness } from '@/features/services/pages/EditBusiness';
+import { BusinessPage } from '@/features/services/pages/BusinessPage';
 import { MyBusiness } from '@/features/services/pages/MyBusiness';
 import { ServiceMessages, ServiceThreadView } from '@/features/services/pages/Messages';
 import { Regulars } from '@/features/services/pages/Regulars';
@@ -382,6 +383,9 @@ export const router = createBrowserRouter([
       { path: '/services/list', element: <RequireAuth>{wrap(<ListBusiness />)}</RequireAuth> },
       { path: '/services/mine', element: <RequireAuth>{wrap(<MyBusiness />)}</RequireAuth> },
       { path: '/services/:id/edit', element: <RequireAuth>{wrap(<EditBusiness />)}</RequireAuth> },
+      // Declared last: every static /services/* path above wins on rank, so
+      // 'browse' and 'mine' are never mistaken for a listing id.
+      { path: '/services/:id', element: <RequireAuth>{wrap(<BusinessPage />)}</RequireAuth> },
       { path: '/services/regulars', element: <RequireAuth>{wrap(<Regulars />)}</RequireAuth> },
       { path: '/services/offers', element: <RequireAuth>{wrap(<DailyOffers />)}</RequireAuth> },
       // The thread route is declared BEFORE the index, or React Router reads

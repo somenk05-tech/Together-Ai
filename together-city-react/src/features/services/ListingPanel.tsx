@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Spinner } from '@/components/ui';
-import { MenuView } from './MenuView';
-import { useReviews, stars, type ServiceCard } from './api';
+import { useReviews, stars } from './api';
 
 /**
  * THE BUSINESS, OPENED.
@@ -21,7 +20,7 @@ import { useReviews, stars, type ServiceCard } from './api';
  * fetching a menu and a review list on a directory page nobody has expanded is
  * a hundred requests to render nothing.
  */
-function Gallery({ photos, name }: { photos: Array<{ url: string; caption?: string }>; name: string }) {
+export function Gallery({ photos, name }: { photos: Array<{ url: string; caption?: string }>; name: string }) {
   const [big, setBig] = useState(0);
   if (photos.length === 0) return null;
   return (
@@ -51,7 +50,7 @@ function Gallery({ photos, name }: { photos: Array<{ url: string; caption?: stri
   );
 }
 
-function Reviews({ listingId }: { listingId: string }) {
+export function Reviews({ listingId }: { listingId: string }) {
   const q = useReviews(listingId);
   if (q.isLoading) return <Spinner label="Loading reviews…" />;
   // Not silence. An unreachable review list is not the same as a business
@@ -101,15 +100,3 @@ function Reviews({ listingId }: { listingId: string }) {
   );
 }
 
-export function ListingPanel({ s, onSent }: { s: ServiceCard; onSent?: (threadId: string) => void }) {
-  return (
-    <div style={{ borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 14, display: 'grid', gap: 12 }}>
-      <Gallery photos={s.photos} name={s.businessName} />
-      {/* The full text. The card clamps About to three lines, which is right for
-          scanning a list and wrong for deciding. */}
-      {s.about && <p style={{ fontSize: 13.5, margin: 0, whiteSpace: 'pre-wrap' }}>{s.about}</p>}
-      <MenuView listingId={s.id} group={s.categoryGroup} onSent={onSent} />
-      <Reviews listingId={s.id} />
-    </div>
-  );
-}
