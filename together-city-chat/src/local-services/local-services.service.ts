@@ -2,10 +2,11 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { swallowed } from '../shared/swallow';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AiService } from '../ai/ai.service';
 import { categoryLabel, isCategory } from './categories';
 import { mintAlias } from './alias';
 import { boundingBox, haversineKm, parsePoint } from './geo';
-import type { BrowseDto, CreateListingDto, UpdateListingDto, PostOfferDto } from './dto/local-services.dto';
+import type { BrowseDto, CreateListingDto, UpdateListingDto, PostOfferDto, SaveMenuDto } from './dto/local-services.dto';
 
 type ListingRow = {
   id: string; ownerId: string; businessName: string; categoryKey: string; about: string | null;
@@ -65,6 +66,7 @@ export class LocalServicesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly ai: AiService,
   ) {}
 
   // ───────────────────────── shaping ─────────────────────────
@@ -745,5 +747,119 @@ export class LocalServicesService {
       };
     }
     return out;
+  }
+
+  // ───────────────────────── the menu ─────────────────────────
+
+  /**
+   * READ THE MENU, PROPOSE IT, STORE NOTHING.
+   *
+   * This is the half people get wrong. An extraction that writes straight to
+   * the table looks like magic on the demo and produces a business held to a
+   * price a model misread — so `scanMenu` returns a DRAFT and has no write path
+   * at all. The only way into `ServiceMenuItem` is `saveMenu`, which the owner
+   * calls after they have looked at every line.
+   */
+  async scanMenu(ownerId: string, listingId: string, dataUrl: string) {
+    await this.own(ownerId, listingId);
+    const m = /^data:(image\/[a-zA-Z+]+);base64,(.+)$/.exec(dataUrl.trim());
+    if (!m) throw new BadRequestException('That does not look like an image.');
+    const out = await this.ai.extractMenu({ mediaType: m[1], base64: m[2] });
+    if (!out) {
+      throw new BadRequestException('The menu reader is unavailable right now — you can still type the items in yourself.');
+    }
+    return {
+      // Draft, and the shape says so: no ids, because nothing has been stored.
+      items: out.items,
+      note: out.note,
+      // Said on the screen too, but the API should not be the only place this
+      // is true — a caller that stores `items` without a review step is a bug.
+      review: 'Read from your photo. Check every price before you publish it — this was transcribed, not confirmed.',
+    };
+  }
+
+  /** The corrected menu, replacing whatever was there. */
+  async saveMenu(ownerId: string, listingId: string, dto: SaveMenuDto) {
+    await this.own(ownerId, listingId);
+    await this.prisma.serviceMenuItem.deleteMany({ where: { listingId } });
+    if (dto.items.length) {
+      await this.prisma.serviceMenuItem.createMany({
+        data: dto.items.map((it, i) => ({
+          listingId,
+          section: it.section ?? null,
+          name: it.name,
+          description: it.description ?? null,
+          priceInr: it.priceInr ?? null,
+          sortOrder: i,
+        })),
+      });
+    }
+    if (dto.scanUrl !== undefined) {
+      await this.prisma.serviceListing.update({ where: { id: listingId }, data: { menuScanUrl: dto.scanUrl } });
+    }
+    return this.menu(listingId, ownerId);
+  }
+
+  /** The menu as anybody sees it, grouped by the headings the menu itself used. */
+  async menu(listingId: string, viewerId: string) {
+    const [rows, listing] = await Promise.all([
+      this.prisma.serviceMenuItem.findMany({
+        where: { listingId }, orderBy: { sortOrder: 'asc' }, take: 300,
+      }) as unknown as Promise<Array<{ id: string; section: string | null; name: string; description: string | null; priceInr: number | null }>>,
+      this.prisma.serviceListing.findUnique({ where: { id: listingId } }) as unknown as Promise<{ menuScanUrl: string | null; ownerId: string; moderation: string } | null>,
+    ]);
+    // The same visibility rule as the listing page it hangs off: a menu belongs
+    // to a business, and a business that is closed or waiting on moderation is
+    // visible to nobody but the person who wrote it. Reading the menu must not
+    // be the back door to a page the citizen cannot open.
+    if (!listing || (listing.moderation !== 'approved' && listing.ownerId !== viewerId)) {
+      throw new NotFoundException('listing not found');
+    }
+    const sections: Array<{ section: string | null; items: typeof rows }> = [];
+    for (const r of rows) {
+      let bucket = sections.find((x) => x.section === (r.section ?? null));
+      if (!bucket) { bucket = { section: r.section ?? null, items: [] }; sections.push(bucket); }
+      bucket.items.push(r);
+    }
+    return { count: rows.length, sections, scanUrl: listing?.menuScanUrl ?? null };
+  }
+
+  /**
+   * PICK ITEMS OFF A MENU AND ASK ABOUT THEM.
+   *
+   * It posts a message into the thread that already exists, in the citizen's
+   * own words plus the lines they picked — it does NOT place an order. There is
+   * no payment here, no stock, no confirmation, and pretending otherwise would
+   * be the worst kind of half-feature: a business acting on an "order" the app
+   * never actually took.
+   *
+   * The message is plain text on purpose. It has to be readable by the
+   * shopkeeper on a bad connection, and it is the record both sides keep.
+   */
+  async sendMenuItems(seekerId: string, listingId: string, itemIds: string[], note?: string) {
+    const thread = await this.enquire(seekerId, listingId);
+    const rows = await this.prisma.serviceMenuItem.findMany({
+      where: { id: { in: itemIds.slice(0, 30) }, listingId }, orderBy: { sortOrder: 'asc' }, take: 30,
+    }) as unknown as Array<{ name: string; priceInr: number | null }>;
+    if (!rows.length) throw new BadRequestException('Those items are no longer on the menu.');
+
+    const lines = rows.map((r) => `· ${r.name}${r.priceInr != null ? ` — ₹${r.priceInr}` : ''}`);
+    const known = rows.filter((r) => r.priceInr != null);
+    // Only totalled when every line has a price. A total that silently omits
+    // the "ask" items is a number the citizen will hold the business to.
+    const total = known.length === rows.length
+      ? `\nThat comes to ₹${known.reduce((n, r) => n + (r.priceInr as number), 0)} at the listed prices.`
+      : '\nSome of these have no listed price.';
+
+    const body = [
+      'Asking about:',
+      ...lines,
+      total,
+      (note ?? '').trim() ? `\n${(note as string).trim()}` : '',
+      '\nThis is a question, not an order.',
+    ].filter(Boolean).join('\n');
+
+    await this.post(seekerId, thread.id, body);
+    return { threadId: thread.id };
   }
 }

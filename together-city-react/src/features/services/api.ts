@@ -98,6 +98,27 @@ export interface ReviewPage {
   mine: ServiceReview | null;
 }
 
+export interface MenuItem {
+  id: string;
+  section: string | null;
+  name: string;
+  description: string | null;
+  /** null is "ask", and it is not the same as free. */
+  priceInr: number | null;
+}
+/** What the reader proposed. No ids, because nothing has been stored. */
+export interface MenuDraftItem {
+  section?: string;
+  name: string;
+  description?: string;
+  priceInr: number | null;
+}
+export interface MenuPage {
+  count: number;
+  sections: Array<{ section: string | null; items: MenuItem[] }>;
+  scanUrl: string | null;
+}
+
 export interface RegularCard extends ServiceCard {
   savedAt: string;
   note: string | null;
@@ -151,7 +172,61 @@ export const servicesApi = {
     api.delete<{ ok: true }>(`/services/${listingId}/reviews`).then((r) => r.data),
   replyToReview: (reviewId: string, reply: string) =>
     api.post<ServiceReview>(`/services/reviews/${reviewId}/reply`, { reply }).then((r) => r.data),
+
+  menu: (listingId: string) => api.get<MenuPage>(`/services/${listingId}/menu`).then((r) => r.data),
+  scanMenu: (listingId: string, image: string) =>
+    api.post<{ items: MenuDraftItem[]; note: string; review: string }>(`/services/${listingId}/menu/scan`, { image }).then((r) => r.data),
+  saveMenu: (listingId: string, input: { scanUrl?: string; items: MenuDraftItem[] }) =>
+    api.post<MenuPage>(`/services/${listingId}/menu`, input).then((r) => r.data),
+  askAboutMenu: (listingId: string, itemIds: string[], note?: string) =>
+    api.post<{ threadId: string }>(`/services/${listingId}/menu/ask`, { itemIds, note }).then((r) => r.data),
 };
+
+export function useMenu(listingId?: string) {
+  return useQuery({
+    queryKey: ['services', 'menu', listingId],
+    queryFn: () => servicesApi.menu(listingId as string),
+    enabled: !!listingId,
+  });
+}
+export function useScanMenu(listingId?: string) {
+  return useMutation({ mutationFn: (image: string) => servicesApi.scanMenu(listingId as string, image) });
+}
+export function useSaveMenu(listingId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { scanUrl?: string; items: MenuDraftItem[] }) => servicesApi.saveMenu(listingId as string, v),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services', 'menu'] }); },
+  });
+}
+export function useAskAboutMenu(listingId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { itemIds: string[]; note?: string }) => servicesApi.askAboutMenu(listingId as string, v.itemIds, v.note),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
+  });
+}
+
+/** Downscale a menu photo before it goes to the reader. 1600px because a menu
+ *  is text and text is what gets lost first — the food journal's 1280 is tuned
+ *  for a plate, not for 9pt prices in a bottom corner. */
+export function menuPhotoToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.88));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('That image could not be read.')); };
+    img.src = url;
+  });
+}
 
 export function useReviews(listingId?: string) {
   return useQuery({

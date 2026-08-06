@@ -84,3 +84,33 @@ export const ReplyReviewSchema = z.object({
   reply: z.string().trim().min(1).max(1200),
 });
 export type ReplyReviewDto = z.infer<typeof ReplyReviewSchema>;
+
+/** A photo to read a menu off. Data URL, same shape the food journal uses. */
+export const ScanMenuSchema = z.object({
+  image: z.string().min(32).max(9_000_000),
+});
+export type ScanMenuDto = z.infer<typeof ScanMenuSchema>;
+
+/**
+ * The CORRECTED menu. This is what gets stored — never the extraction. Sent
+ * whole rather than as a diff, because a menu is a small document and "these
+ * are the items now" cannot get out of step with itself the way a patch can.
+ */
+export const SaveMenuSchema = z.object({
+  scanUrl: z.string().url().optional(),
+  items: z.array(z.object({
+    section: z.string().trim().max(60).optional(),
+    name: z.string().trim().min(1).max(90),
+    description: z.string().trim().max(140).optional(),
+    // null is "ask", and it is not the same as free.
+    priceInr: z.number().int().min(0).max(500_000).nullable().optional(),
+  })).max(200),
+});
+export type SaveMenuDto = z.infer<typeof SaveMenuSchema>;
+
+/** Items a citizen picked off a menu and wants to ask about. */
+export const SendMenuItemsSchema = z.object({
+  itemIds: z.array(z.string().uuid()).min(1).max(30),
+  note: z.string().trim().max(500).optional(),
+});
+export type SendMenuItemsDto = z.infer<typeof SendMenuItemsSchema>;

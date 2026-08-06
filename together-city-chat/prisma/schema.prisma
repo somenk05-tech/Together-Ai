@@ -2463,6 +2463,9 @@ model ServiceListing {
   regulars  ServiceRegular[]
   offers    ServiceOffer[]
   reviews   ServiceReview[]
+  menu      ServiceMenuItem[]
+  menuScanUrl String? // the photograph the menu was read from — kept so a
+                      // citizen can check the transcription against the original
 
   @@index([moderation, city])
   @@index([categoryKey, city])
@@ -2576,6 +2579,32 @@ model ServiceReview {
 
   @@unique([listingId, reviewerId])
   @@index([listingId, createdAt])
+}
+
+// A MENU THAT WAS READ OFF A PHOTOGRAPH AND THEN CORRECTED BY A HUMAN.
+//
+// The AI's output is a DRAFT and never reaches this table on its own. Prices are
+// the thing people act on, and a model that misreads ₹180 as ₹160 has produced
+// a number the business will be held to. So extraction proposes, the owner
+// disposes, and only what they confirmed is stored.
+//
+// The scan itself is kept on the listing (menuScanUrl) so anyone can check the
+// typed menu against the photograph it came from.
+model ServiceMenuItem {
+  id          String   @id @default(uuid())
+  listingId   String
+  section     String? // "Starters", "South Indian" — the menu's own headings
+  name        String
+  description String?
+  // Paise-free rupees. Null is "ask" rather than free — a menu that prints
+  // "seasonal" must not become ₹0 on a card.
+  priceInr    Int?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  listing ServiceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, sortOrder])
 }
 
 model ServiceMessage {

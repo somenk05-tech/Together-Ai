@@ -15,6 +15,9 @@ import {
   PostOfferSchema, type PostOfferDto,
   PostReviewSchema, type PostReviewDto,
   ReplyReviewSchema, type ReplyReviewDto,
+  ScanMenuSchema, type ScanMenuDto,
+  SaveMenuSchema, type SaveMenuDto,
+  SendMenuItemsSchema, type SendMenuItemsDto,
 } from './dto/local-services.dto';
 
 @Controller('services')
@@ -109,6 +112,30 @@ export class LocalServicesController {
   @Delete(':id')
   close(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.services.close(user.sub, id);
+  }
+
+  @Get(':id/menu')
+  menu(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.services.menu(id, user.sub);
+  }
+
+  /** Proposes a draft. Nothing is stored — see the note on scanMenu. */
+  @Post(':id/menu/scan')
+  @UsePipes(new ZodValidationPipe(ScanMenuSchema))
+  scanMenu(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: ScanMenuDto) {
+    return this.services.scanMenu(user.sub, id, dto.image);
+  }
+
+  @Post(':id/menu')
+  @UsePipes(new ZodValidationPipe(SaveMenuSchema))
+  saveMenu(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: SaveMenuDto) {
+    return this.services.saveMenu(user.sub, id, dto);
+  }
+
+  @Post(':id/menu/ask')
+  @UsePipes(new ZodValidationPipe(SendMenuItemsSchema))
+  askAboutMenu(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: SendMenuItemsDto) {
+    return this.services.sendMenuItems(user.sub, id, dto.itemIds, dto.note);
   }
 
   @Get(':id/reviews')

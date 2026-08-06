@@ -5,6 +5,7 @@ import {
   useCloseService, useMyServices, useServiceInbox, useMyOffers, usePostOffer, useRemoveOffer,
   useReviews, useReplyToReview, rupees, offerWhen, stars,
 } from '../api';
+import { MenuEditor } from '../MenuEditor';
 
 /**
  * WHAT NEIGHBOURS SAID, AND THE ONE ANSWER YOU GET.
@@ -215,6 +216,7 @@ export function MyBusiness() {
                 {n === 0 ? 'Nobody has messaged this listing yet.' : `${n} ${n === 1 ? 'neighbour has' : 'neighbours have'} messaged you.`}
                 {l.phone && <> · Your number on file: {l.phone} (never shown)</>}
               </div>
+              {!removed && <MenuEditor listingId={l.id} />}
               {!removed && <Offers listingId={l.id} />}
               <ReviewsReceived listingId={l.id} />
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>

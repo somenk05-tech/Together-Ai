@@ -175,6 +175,82 @@ export class AiService {
    * Returns null when the key is unset or the call fails — the journal then
    * offers manual entry instead of inventing numbers.
    */
+  /**
+   * READ A MENU OFF A PHOTOGRAPH.
+   *
+   * The output is a DRAFT and the caller must never store it unreviewed. Prices
+   * are the thing people act on, and a model that reads ₹180 as ₹160 has
+   * produced a number a business will be held to — so extraction proposes and
+   * the owner disposes. `local-services` enforces that; this method only has to
+   * be honest about what it saw.
+   *
+   * Two rules do most of the work here:
+   *
+   *   · a price it cannot read comes back NULL, not zero. A menu that prints
+   *     "seasonal" or a smudged number must not become ₹0 on somebody's card.
+   *   · nothing is invented. A photograph of a wall is an empty list with a
+   *     note saying so, which is a better answer than a plausible menu.
+   *
+   * Haiku with vision, 3000 tokens — a menu is long and a truncated one is a
+   * menu with the desserts missing. That is roughly a cent a scan, paid once
+   * per business rather than once per visitor.
+   */
+  async extractMenu(
+    image: { base64: string; mediaType: string },
+  ): Promise<{ items: Array<{ section?: string; name: string; description?: string; priceInr: number | null }>; note: string } | null> {
+    if (!this.client) return null;
+    const system =
+      'You transcribe a photographed restaurant or service menu into structured items. ' +
+      'Return ONLY JSON: {"items":[{"section":string,"name":string,"description":string,"priceInr":number|null}],"note":string}. ' +
+      'Rules: TRANSCRIBE, never invent — every item must be legible in the image. ' +
+      'section is the menu\'s own heading above the item ("Starters", "South Indian"); omit it if the menu has none. ' +
+      'priceInr is a whole number of rupees. If the price is unreadable, absent, or says something like "seasonal" or "market price", ' +
+      'use null — NEVER 0, and never a guess. Strip currency symbols and any decimal paise. ' +
+      'description is the menu\'s own words under the item, if any, up to 140 characters. ' +
+      'If the image is not a menu, return {"items":[],"note":"<what it is instead>"}. ' +
+      'The note names anything you could not read — a blurred column, a cut-off section — in one or two short sentences, ' +
+      'because the person correcting this needs to know where to look.';
+    try {
+      const res = await this.createWithFallback({
+        model: this.model,
+        max_tokens: 3000,
+        system: `${system}\n\nRespond with ONLY valid JSON — no prose, no markdown fences.`,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: (image.mediaType || 'image/jpeg') as 'image/jpeg', data: image.base64 },
+            } as unknown as Anthropic.ContentBlockParam,
+            { type: 'text', text: 'Transcribe this menu as JSON.' },
+          ],
+        }],
+      });
+      const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('');
+      const parsed = this.extractJson(text) as { items?: unknown[]; note?: string } | null;
+      if (!parsed || !Array.isArray(parsed.items)) return null;
+      const items = parsed.items.slice(0, 200).flatMap((raw) => {
+        const it = raw as Record<string, unknown>;
+        const name = typeof it.name === 'string' ? it.name.trim().slice(0, 90) : '';
+        if (!name) return [];
+        // A price is a number or it is nothing. Bounded because a misread of a
+        // phone number as a price is the failure that produces ₹9,82,110 dosa.
+        const p = typeof it.priceInr === 'number' && isFinite(it.priceInr) && it.priceInr > 0 && it.priceInr <= 500000
+          ? Math.round(it.priceInr) : null;
+        return [{
+          ...(typeof it.section === 'string' && it.section.trim() ? { section: it.section.trim().slice(0, 60) } : {}),
+          name,
+          ...(typeof it.description === 'string' && it.description.trim() ? { description: it.description.trim().slice(0, 140) } : {}),
+          priceInr: p,
+        }];
+      });
+      return { items, note: typeof parsed.note === 'string' ? parsed.note.slice(0, 300) : '' };
+    } catch (e) {
+      this.logger.warn(`menu extraction failed: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
   async analyzeMeal(
     input: { image?: { base64: string; mediaType: string }; text?: string },
   ): Promise<{ items: Array<{ name: string; qty: number; unit: string; grams?: number; kcal: number; proteinG: number; carbG: number; fatG: number; fibreG?: number; sugarG?: number; sodiumMg?: number; waterMl?: number; confidence: number }>; note: string } | null> {

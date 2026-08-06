@@ -5,6 +5,7 @@ import {
   useSendServiceMessage, useServiceInbox, useServiceThread,
   useReviews, usePostReview, useRemoveReview, stars, type ServiceThread,
 } from '../api';
+import { MenuView } from '../MenuView';
 
 /**
  * REVIEWING FROM THE CONVERSATION YOU HAD.
@@ -241,6 +242,10 @@ export function ServiceThreadView() {
         ))}
         <div ref={endRef} />
       </Card>
+
+      {/* The menu sits in the conversation because that is where asking about
+          it happens — picking items writes a message into this same thread. */}
+      {!isOwner && <MenuView listingId={thread.listingId} />}
 
       {/* Only the seeker side reviews — a business cannot review itself, and the
           server refuses it anyway. */}

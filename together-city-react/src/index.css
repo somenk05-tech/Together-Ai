@@ -416,3 +416,20 @@ table.tc td b { color: var(--ink); }
     background: var(--ink); color: var(--on-accent); text-decoration: none;
     font-size: 14px; font-weight: 700; box-shadow: var(--e2); }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MENU EDITOR ROWS (Local Services)
+
+   A menu line is four short fields and a description that is usually empty, so
+   on a wide screen it reads as one row and the description sits under it. On a
+   phone the name takes the whole width — squeezing "Ghee roast dosa" into a
+   third of 360px is how an owner gives up halfway through typing their menu.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.menu-edit-row { display: grid; gap: 6px; align-items: center;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 92px 34px; }
+.menu-edit-row .menu-edit-desc { grid-column: 1 / -1; }
+
+@media (max-width: 620px) {
+  .menu-edit-row { grid-template-columns: minmax(0, 1fr) 88px 34px; }
+  .menu-edit-row .menu-edit-name { grid-column: 1 / -1; }
+}
