@@ -9,6 +9,7 @@ import { Home } from '@/pages/Home';
 import { Dashboard } from '@/pages/Dashboard';
 import { ServicesBrowse } from '@/features/services/pages/Browse';
 import { ListBusiness } from '@/features/services/pages/ListBusiness';
+import { EditBusiness } from '@/features/services/pages/EditBusiness';
 import { MyBusiness } from '@/features/services/pages/MyBusiness';
 import { ServiceMessages, ServiceThreadView } from '@/features/services/pages/Messages';
 import { Regulars } from '@/features/services/pages/Regulars';
@@ -380,6 +381,7 @@ export const router = createBrowserRouter([
       { path: '/services/browse', element: <RequireAuth>{wrap(<ServicesBrowse />)}</RequireAuth> },
       { path: '/services/list', element: <RequireAuth>{wrap(<ListBusiness />)}</RequireAuth> },
       { path: '/services/mine', element: <RequireAuth>{wrap(<MyBusiness />)}</RequireAuth> },
+      { path: '/services/:id/edit', element: <RequireAuth>{wrap(<EditBusiness />)}</RequireAuth> },
       { path: '/services/regulars', element: <RequireAuth>{wrap(<Regulars />)}</RequireAuth> },
       { path: '/services/offers', element: <RequireAuth>{wrap(<DailyOffers />)}</RequireAuth> },
       // The thread route is declared BEFORE the index, or React Router reads

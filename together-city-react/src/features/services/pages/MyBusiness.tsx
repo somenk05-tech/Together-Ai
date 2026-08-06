@@ -220,6 +220,12 @@ export function MyBusiness() {
               {!removed && <Offers listingId={l.id} />}
               <ReviewsReceived listingId={l.id} />
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                {/* First, and accented. Everything else on this card acts on a
+                    part of the listing; this is the listing itself, and it is
+                    the thing an owner comes back here to do. */}
+                {!removed && (
+                  <Link to={`/services/${l.id}/edit`}><Button variant="accent" size="sm">Edit business page</Button></Link>
+                )}
                 <Link to="/services/messages"><Button variant="line" size="sm">Messages</Button></Link>
                 {!removed && (
                   <Button variant="line" size="sm" disabled={close.isPending}

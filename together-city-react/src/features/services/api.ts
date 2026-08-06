@@ -367,6 +367,18 @@ export function useCreateService() {
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
   });
 }
+/**
+ * Editing a listing. Every field the form holds is sent, empty ones included:
+ * to the PATCH handler `undefined` means "leave it alone", so an owner who
+ * cleared their starting price would watch it reappear.
+ */
+export function useUpdateService(id?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: Partial<ListingInput>) => servicesApi.update(id as string, v),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
+  });
+}
 export function useCloseService() {
   const qc = useQueryClient();
   return useMutation({
