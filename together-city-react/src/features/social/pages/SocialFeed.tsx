@@ -41,6 +41,17 @@ export function SocialFeed() {
   // original are two entries carrying the same post, and keying on the id would
   // open both.
   const [openKey, setOpenKey] = useState<string | null>(null);
+  /**
+   * SCROLL MODE, OPENED WHERE THEY TAPPED.
+   *
+   * A tile is a thumbnail of something, and the thing it is a thumbnail of is
+   * the whole post at full size. Expanding it in place kept the citizen's
+   * scroll position but made every post a separate decision to open and close;
+   * scroll mode makes the feed one continuous thing, which is what a feed is.
+   *
+   * Null means the wall. A number means scroll mode, opened on that index.
+   */
+  const [reelAt, setReelAt] = useState<number | null>(null);
   const [toast, setToast] = useState(false);
   useEffect(() => {
     if (!navState?.justShared) return;
@@ -57,13 +68,33 @@ export function SocialFeed() {
 
   // Lock the page behind the full-screen reels so only the reels scroll.
   useEffect(() => {
-    if (filter !== 'videos') return;
+    if (filter !== 'videos' && reelAt == null) return;
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
-  }, [filter]);
+  }, [filter, reelAt]);
 
   // Videos = full-screen immersive reels: nothing else on the page. A single
   // back button returns to the City Feed (For You).
+  /**
+   * Scroll mode is the same full-screen player the Videos tab uses, opened out
+   * of any tab and on any post. One implementation, so the two cannot end up
+   * behaving differently — and closing it returns to the wall exactly where it
+   * was, because the wall was never unmounted.
+   */
+  if (reelAt != null && items.length > 0) {
+    return createPortal(
+      <div style={{ position: 'fixed', inset: 0, background: 'var(--card)', zIndex: 1000 }}>
+        <button type="button" onClick={() => setReelAt(null)} className="g-key sm"
+          style={{ position: 'absolute', top: 14, left: 14, zIndex: 4 }}>
+          <Icon name="back" size={15} /> Back to the feed
+        </button>
+        <ReelsView items={items} onOpenAuthor={openAuthor} fullScreen startAt={Math.max(0, reelAt)}
+          hasNextPage={feed.hasNextPage} fetchNextPage={() => void feed.fetchNextPage()} isFetchingNextPage={feed.isFetchingNextPage} />
+      </div>,
+      document.body,
+    );
+  }
+
   if (filter === 'videos') {
     return createPortal(
       <div style={{ position: 'fixed', inset: 0, background: 'var(--card)', zIndex: 1000 }}>
@@ -170,7 +201,8 @@ export function SocialFeed() {
                           </div>
                         </div>
                       ) : (
-                        <Poster key={key} post={p} isNew={p.id === newPostId} onOpen={() => setOpenKey(key)} />
+                        <Poster key={key} post={p} isNew={p.id === newPostId}
+                          onOpen={() => setReelAt(items.findIndex((x) => (x.key ?? x.id) === key))} />
                       );
                     })}
                   </div>

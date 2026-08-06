@@ -41,15 +41,33 @@ let sharedMuted = false;
 
 /** Instagram-Reels-style vertical player for the Videos tab: one video per
  *  screen, snap-scroll up/down, autoplay in view, side action rail. */
-export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isFetchingNextPage, fullScreen }: {
+export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isFetchingNextPage, fullScreen, startAt }: {
   items: Post[];
   onOpenAuthor?: (handle: string) => void;
   hasNextPage: boolean;
   fetchNextPage: () => void;
   isFetchingNextPage: boolean;
   fullScreen?: boolean;
+  /** Open on this one. Tapping the fourth tile and landing on the first is the
+   *  fastest way to make a viewer feel like it lost your place. */
+  startAt?: number;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
+  /**
+   * Jump once, before paint, and without smooth scrolling.
+   *
+   * A smooth scroll through forty screens takes seconds and plays every video
+   * it passes; `behavior: 'auto'` puts the viewer where they asked to be with
+   * nothing in between. Once only — re-running it on every render would fight
+   * the citizen's own thumb.
+   */
+  const jumped = useRef(false);
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || jumped.current || !startAt) return;
+    jumped.current = true;
+    el.scrollTo({ top: startAt * el.clientHeight, behavior: 'auto' });
+  }, [startAt]);
   // One mute state shared by every reel. Toggling it here re-renders all reels.
   const [muted, setMuted] = useState(sharedMuted);
   const toggleMute = () => setMuted((m) => { sharedMuted = !m; return !m; });
@@ -86,6 +104,13 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
 
 function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenAuthor?: (handle: string) => void; muted: boolean; onToggleMute: () => void }) {
   const video = post.media.find((m) => m.kind === 'video');
+  /**
+   * Scroll mode is no longer only for videos, so it has to render what a post
+   * actually is: a photo shows the photo, a text post shows the words. A
+   * viewer that opens on a photograph and renders a black rectangle is worse
+   * than not opening at all.
+   */
+  const photo = !video ? post.media.find((m) => m.kind === 'image') : undefined;
   const vref = useRef<HTMLVideoElement>(null);
   const aref = useRef<HTMLAudioElement>(null);
   const hasMusic = Boolean(post.musicUrl);
@@ -172,9 +197,32 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
           the side rail and nav arrows. */}
       <div style={{ position: 'relative', width: 'fit-content', height: 'fit-content', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)', background: '#000', borderRadius: 14, overflow: 'hidden', lineHeight: 0 }}>
         {video && (
-          <video ref={vref} src={video.url} poster={video.thumbUrl ?? undefined} muted={hasMusic ? true : muted} loop playsInline preload={near ? 'auto' : 'metadata'}
+          /*
+            THE SRC IS NOT SET UNTIL THE REEL IS NEAR.
+            
+            A `src` on every reel is a network request on every reel: forty
+            posts in the feed opened forty connections the moment the viewer
+            did, and the one video the citizen is actually looking at queued
+            behind them. The poster still paints immediately, so a distant
+            reel looks finished rather than empty — it simply has not asked
+            for the bytes yet.
+          */
+          <video ref={vref} src={near ? video.url : undefined} poster={video.thumbUrl ?? undefined}
+            muted={hasMusic ? true : muted} loop playsInline preload={near ? 'auto' : 'none'}
             onClick={togglePlay}
+            style={{ display: 'block', width: 'auto', height: 'auto', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)', minWidth: 260, minHeight: 200, background: 'var(--media-bg)' }} />
+        )}
+        {photo && (
+          <img src={photo.url} alt="" loading="lazy"
             style={{ display: 'block', width: 'auto', height: 'auto', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)' }} />
+        )}
+        {!video && !photo && (
+          /* A text post still deserves a screen of its own rather than being
+             skipped, or scroll mode would silently drop posts from the feed
+             it was opened out of. */
+          <div style={{ display: 'grid', placeItems: 'center', width: 'min(560px, 80vw)', minHeight: 320, padding: 28, background: 'var(--card)' }}>
+            <p style={{ fontSize: 20, lineHeight: 1.45, textAlign: 'center', margin: 0, color: 'var(--ink)' }}>{post.text}</p>
+          </div>
         )}
         {hasMusic && <audio ref={aref} src={post.musicUrl ?? undefined} loop muted={muted} preload="auto" />}
 

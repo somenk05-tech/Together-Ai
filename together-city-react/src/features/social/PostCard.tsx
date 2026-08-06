@@ -139,12 +139,33 @@ function ImageCarousel({ images, authorName }: { images: PostMedia[]; authorName
  *  it leaves — used by the "Videos" feed section. */
 function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: boolean; vref?: Ref<HTMLVideoElement>; autoInView?: boolean }) {
   const [ar, setAr] = useState(16 / 9); // real width / height
+  /**
+   * THE SRC WAITS UNTIL THE VIDEO IS NEARLY ON SCREEN.
+   *
+   * Every card in the wall carried a `src`, so opening the feed opened a
+   * connection for every video in it — and the browser, with six per host,
+   * queued the one the citizen was actually looking at behind a dozen they
+   * would never reach. A just-posted video is the exception: it is the reason
+   * the citizen is on this page, and it loads at once.
+   */
+  const [near, setNear] = useState(isNew);
   const localRef = useRef<HTMLVideoElement | null>(null);
   const setRefs = useCallback((el: HTMLVideoElement | null) => {
     localRef.current = el;
     if (typeof vref === 'function') vref(el);
     else if (vref) (vref as MutableRefObject<HTMLVideoElement | null>).current = el;
   }, [vref]);
+  useEffect(() => {
+    if (near) return;
+    const el = localRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) { setNear(true); io.disconnect(); }
+    }, { rootMargin: '200% 0px 200% 0px', threshold: 0 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near]);
+
   useEffect(() => {
     if (!autoInView) return;
     const el = localRef.current;
@@ -158,7 +179,8 @@ function VideoFrame({ url, isNew, vref, autoInView }: { url: string; isNew: bool
     return () => io.disconnect();
   }, [autoInView]);
   return (
-    <video ref={setRefs} src={url} controls playsInline autoPlay={isNew} muted={isNew || autoInView} loop={isNew || autoInView}
+    <video ref={setRefs} src={near ? url : undefined} preload={near ? 'metadata' : 'none'}
+      controls playsInline autoPlay={isNew} muted={isNew || autoInView} loop={isNew || autoInView}
       onLoadedMetadata={(e) => setAr((e.currentTarget.videoWidth || 16) / Math.max(1, e.currentTarget.videoHeight || 9))}
       style={{ width: '100%', aspectRatio: String(ar), maxHeight: 720, objectFit: 'contain', borderRadius: 14, marginTop: 12, background: 'var(--media-bg)', display: 'block' }} />
   );
