@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Chip, EmptyState, Spinner, Button } from '@/components/ui';
-import { useBrowseServices, useServiceCategories, useServiceFacets, useEnquire, useToggleRegular, rupees, humanDistance, currentPosition, stars, type ServiceCard } from '../api';
+import { serviceHref, useBrowseServices, useServiceCategories, useServiceFacets, useEnquire, useToggleRegular, rupees, humanDistance, currentPosition, stars, type ServiceCard } from '../api';
 
 /**
  * FIND A SERVICE.
@@ -22,7 +22,7 @@ function Tile({ s, onChat, busy, saved, onKeep, keeping }: {
   return (
     <Card style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 0, overflow: 'hidden' }}>
       {s.photos.length > 0 && (
-        <Link to={`/services/${s.id}`} aria-label={`Open ${s.businessName}`} style={{ display: 'block' }}>
+        <Link to={serviceHref(s)} aria-label={`Open ${s.businessName}`} style={{ display: 'block' }}>
           <img src={s.photos[0].url} alt="" loading="lazy"
             style={{ display: 'block', width: '100%', aspectRatio: '16 / 10', objectFit: 'cover' }} />
         </Link>
@@ -33,7 +33,7 @@ function Tile({ s, onChat, busy, saved, onKeep, keeping }: {
             be linked, bookmarked and sent to somebody. A card that looks like a
             way in and is not one is the commonest small betrayal in a
             directory. */}
-        <Link to={`/services/${s.id}`}
+        <Link to={serviceHref(s)}
           style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', textDecoration: 'none' }}>
           {s.businessName}
         </Link>
@@ -72,7 +72,7 @@ function Tile({ s, onChat, busy, saved, onKeep, keeping }: {
         <Button variant="line" size="sm" disabled={keeping} onClick={() => onKeep(s.id, saved)}>
           {saved ? '✓ Kept' : 'Keep'}
         </Button>
-        <Link to={`/services/${s.id}`}><Button variant="line" size="sm">See their page</Button></Link>
+        <Link to={serviceHref(s)}><Button variant="line" size="sm">See their page</Button></Link>
       </div>
       <p className="muted" style={{ fontSize: 11.5, margin: 0 }}>
         They will see you as a neighbour, not by name.

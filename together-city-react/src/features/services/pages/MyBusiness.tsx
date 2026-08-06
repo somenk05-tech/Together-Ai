@@ -214,7 +214,11 @@ export function MyBusiness() {
               {l.about && <p style={{ fontSize: 13.5, margin: 0 }}>{l.about}</p>}
               <div className="muted" style={{ fontSize: 12.5 }}>
                 {n === 0 ? 'Nobody has messaged this listing yet.' : `${n} ${n === 1 ? 'neighbour has' : 'neighbours have'} messaged you.`}
-                {l.phone && <> · Your number on file: {l.phone} (never shown)</>}
+                {l.phone && (
+                  <> · Your number: {l.phone} {l.phonePublic
+                    ? <strong>(shown on your page — people can ring you)</strong>
+                    : <>(private — nobody sees it)</>}</>
+                )}
               </div>
               {!removed && <MenuEditor listingId={l.id} />}
               {!removed && <Offers listingId={l.id} />}

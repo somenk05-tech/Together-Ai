@@ -229,3 +229,43 @@ describe('closing a business does not close the conversations in it', () => {
     await expect(svc.messages(SEEKER, enquiries[0].id)).resolves.toBeDefined();
   });
 });
+
+/**
+ * A NUMBER GIVEN UNDER ONE PROMISE, PUBLISHED ONLY UNDER ANOTHER.
+ *
+ * The listing form said, in as many words, "Only you ever see this. It is not
+ * shown on your listing." Then citizens asked to be able to ring a shop. Both
+ * are reasonable and they cannot both be true of the same stored value, so the
+ * owner decides per listing — and the default is off, because the alternative
+ * is publishing a phone number on the strength of a promise the application
+ * made and then quietly withdrew.
+ *
+ * The field is ABSENT from a public card rather than blanked. A present-but-
+ * empty field invites the next person to fill it in.
+ */
+describe('a business phone is published only when its owner published it', () => {
+  const row = (phonePublic: boolean) => ({
+    id: 'L9', ownerId: 'u1', businessName: 'Anna Idli', categoryKey: 'restaurants',
+    about: null, city: 'Chennai', areas: '', phone: '+919000000000', priceFrom: null,
+    photosJson: '[]', lat: null, lng: null, radiusKm: null, phonePublic,
+    moderation: 'approved', createdAt: new Date(), updatedAt: new Date(),
+  });
+  // The private method is the one every public shape is built from, so it is
+  // the right place to hold the line.
+  const cardOf = (r: unknown) =>
+    (LocalServicesService.prototype as unknown as { card(l: unknown): Record<string, unknown> }).card(r);
+
+  it('withholds it by default, and withholds the key as well as the value', () => {
+    const c = cardOf(row(false));
+    expect('phone' in c).toBe(false);
+  });
+
+  it('publishes it once, and only once, the owner has said so', () => {
+    expect(cardOf(row(true)).phone).toBe('+919000000000');
+  });
+
+  it('publishes nothing when there is nothing to publish, whatever the flag says', () => {
+    const c = cardOf({ ...row(true), phone: null });
+    expect('phone' in c).toBe(false);
+  });
+});

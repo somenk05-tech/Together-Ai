@@ -46,6 +46,14 @@
      a hair rather than neutral grey, because a pure grey tint on a pure white
      ground reads as a rendering artefact rather than a decision. */
   --wash: #f7f8f9;
+  /* The gradient that lets white type sit on somebody's photograph. Two stops
+     rather than a flat wash: a flat one greys the whole picture out to protect
+     four words at the bottom of it, and the picture is the point. */
+  --scrim-top: rgba(0, 0, 0, .22);
+  --scrim-clear: rgba(0, 0, 0, 0);
+  --scrim-deep: rgba(0, 0, 0, .72);
+  --glass: rgba(255, 255, 255, .16);
+  --glass-line: rgba(255, 255, 255, .28);
 
   /* ── THE FACES ──────────────────────────────────────────────────────────
      Classic neumorphism sits on a mid-grey ground so that a WHITE highlight

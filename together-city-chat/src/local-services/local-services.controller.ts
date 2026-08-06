@@ -51,6 +51,12 @@ export class LocalServicesController {
   @Get('regulars')
   regulars(@CurrentUser() user: JwtUser) { return this.services.regulars(user.sub); }
 
+  // Declared before ':id' for the same reason as the two above.
+  @Get('slug/available')
+  slugAvailable(@CurrentUser() _user: JwtUser, @Query('slug') slug: string) {
+    return this.services.slugAvailable(slug ?? '');
+  }
+
   @Get('offers/today')
   offersToday() { return this.services.offersToday(); }
 

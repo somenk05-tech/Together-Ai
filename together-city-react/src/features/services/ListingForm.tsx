@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
-import { useServiceCategories, currentPosition } from './api';
+import { servicesApi, useServiceCategories, currentPosition } from './api';
 
 /**
  * THE ONE FORM A LISTING HAS.
@@ -35,11 +35,13 @@ const MAX_PHOTOS = 5;
 /** What the form hands back. Empty strings are real answers, not absences. */
 export interface ListingValues {
   businessName: string;
+  slug: string;
   categoryKey: string;
   about: string;
   city: string;
   areas: string;
   phone: string;
+  phonePublic: boolean;
   priceFrom?: number;
   photoUrls: string[];
   lat?: number;
@@ -50,11 +52,13 @@ export interface ListingValues {
 /** What it starts from — the shape a listing comes back in. */
 export interface ListingDraft {
   businessName?: string;
+  slug?: string | null;
   categoryKey?: string;
   about?: string | null;
   city?: string;
   areas?: string[];
   phone?: string | null;
+  phonePublic?: boolean;
   priceFrom?: number | null;
   photos?: Array<{ url: string }>;
   lat?: number | null;
@@ -76,12 +80,15 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
   const cats = useServiceCategories();
 
   const [businessName, setName] = useState(str(initial?.businessName));
+  const [slug, setSlug] = useState(str(initial?.slug));
+  const [slugCheck, setSlugCheck] = useState<{ available: boolean; reason: string | null } | null>(null);
   const [group, setGroup] = useState('');
   const [categoryKey, setCategory] = useState(str(initial?.categoryKey));
   const [about, setAbout] = useState(str(initial?.about));
   const [city, setCity] = useState(str(initial?.city));
   const [areas, setAreas] = useState((initial?.areas ?? []).join(', '));
   const [phone, setPhone] = useState(str(initial?.phone));
+  const [phonePublic, setPhonePublic] = useState(initial?.phonePublic ?? false);
   const [priceFrom, setPrice] = useState(str(initial?.priceFrom));
   const [lat, setLat] = useState(str(initial?.lat));
   const [lng, setLng] = useState(str(initial?.lng));
@@ -92,6 +99,28 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
   const [photos, setPhotos] = useState<string[]>((initial?.photos ?? []).map((p) => p.url));
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoErr, setPhotoErr] = useState<string | null>(null);
+
+  /**
+   * ASK AS THEY TYPE, BUT ONLY ONCE THEY HAVE STOPPED.
+   *
+   * A web address is the one field where finding out at save time is too late:
+   * the owner has already told somebody the name. So the answer arrives while
+   * they are still deciding — 400ms after the last keystroke, and never for an
+   * address that is already theirs.
+   */
+  useEffect(() => {
+    const v = slug.trim();
+    if (!v || v === (initial?.slug ?? '')) { setSlugCheck(null); return; }
+    let live = true;
+    const t = setTimeout(() => {
+      servicesApi.slugAvailable(v)
+        .then((r) => { if (live) setSlugCheck({ available: r.available, reason: r.reason }); })
+        // Silence beats a red line the citizen cannot act on: the address is
+        // checked again on save, by the server, which is the one that decides.
+        .catch(() => { if (live) setSlugCheck(null); });
+    }, 400);
+    return () => { live = false; clearTimeout(t); };
+  }, [slug, initial?.slug]);
 
   /**
    * The group is derived, not stored. A listing knows its category key; which
@@ -141,6 +170,10 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
   const pinned = lat !== '' && lng !== '' && Number.isFinite(latN) && Number.isFinite(lngN)
     && latN >= -90 && latN <= 90 && lngN >= -180 && lngN <= 180;
 
+  /** A live preview of what the address will be if they leave it blank. */
+  const normalisedName = businessName.trim().toLowerCase()
+    .normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '');
+
   const ready = businessName.trim().length >= 2 && !!categoryKey && city.trim().length >= 2;
 
   /**
@@ -154,11 +187,16 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
   const submit = () => {
     onSubmit({
       businessName: businessName.trim(),
+      slug: slug.trim(),
       categoryKey,
       about: about.trim(),
       city: city.trim(),
       areas: areas.trim(),
       phone: phone.trim(),
+      // A number with nowhere to be shown cannot be public. Otherwise an owner
+      // who clears the field leaves a tick behind that publishes nothing and
+      // will publish the next number they type without being asked again.
+      phonePublic: phone.trim() ? phonePublic : false,
       priceFrom: priceFrom.trim() ? Number(priceFrom.replace(/[^\d]/g, '')) : undefined,
       photoUrls: photos,
       ...(pinned ? { lat: latN, lng: lngN } : {}),
@@ -175,6 +213,44 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
           <label htmlFor="svc-name" style={label}>Business name</label>
           <input id="svc-name" style={field} value={businessName} onChange={(e) => setName(e.target.value)}
             placeholder="Sharma Plumbing" maxLength={90} />
+        </div>
+
+        {/*
+          THE ADDRESS THEY WILL PRINT ON A CARD.
+
+          togethercity.app/services/sharma-plumbing reads like a shop's own
+          site; the same page addressed by its id reads like a database row the
+          citizen was not meant to see. It is shown as a whole URL rather than a
+          bare field, because what the owner is choosing is the thing they will
+          say down a phone and paint on a shutter.
+
+          Left blank on a new listing, one is derived from the business name.
+          Nobody's first link should be a UUID.
+        */}
+        <div>
+          <label htmlFor="svc-slug" style={label}>
+            Your web address <span className="muted" style={{ fontWeight: 400 }}>(people can type this straight in)</span>
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'wrap' }}>
+            <span className="muted" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>togethercity.app/services/</span>
+            <input id="svc-slug" style={{ ...field, width: 'auto', flex: '1 1 180px', minWidth: 0 }}
+              value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())}
+              placeholder={normalisedName || 'sharma-plumbing'} maxLength={40}
+              autoCapitalize="off" autoCorrect="off" spellCheck={false} />
+          </div>
+          {slugCheck && (
+            <p style={{ fontSize: 12.5, margin: '6px 0 0',
+              color: slugCheck.available ? 'var(--ok-ink)' : 'var(--danger-ink)' }}
+              role={slugCheck.available ? undefined : 'alert'}>
+              {slugCheck.available ? 'That address is free.' : slugCheck.reason}
+            </p>
+          )}
+          {!slug.trim() && (
+            <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>
+              Leave it blank and we will make one from your business name. You can change it later
+              — but anyone who has your old address will stop finding you, so change it early.
+            </p>
+          )}
         </div>
 
         {/*
@@ -337,10 +413,25 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
             <label htmlFor="svc-phone" style={label}>Your phone <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label>
             <input id="svc-phone" style={field} value={phone} onChange={(e) => setPhone(e.target.value)}
               inputMode="tel" placeholder="+91…" maxLength={20} />
-            <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>
-              Only you ever see this. It is not shown on your listing — people reach you
-              through the message room.
-            </p>
+            {/*
+              THE ONE FIELD WHERE THE DEFAULT IS THE PROMISE.
+
+              This number is private unless the owner says otherwise, and the
+              tick is the only thing that changes that. Nothing publishes it for
+              them, and clearing the field un-publishes it — otherwise a stale
+              tick would publish the next number typed into an empty box.
+            */}
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 8, minHeight: 44, cursor: phone.trim() ? 'pointer' : 'default' }}>
+              <input type="checkbox" checked={phonePublic && !!phone.trim()} disabled={!phone.trim()}
+                onChange={(e) => setPhonePublic(e.target.checked)} style={{ marginTop: 3, flexShrink: 0 }} />
+              <span style={{ fontSize: 12.5 }}>
+                Show this number on my page so people can ring me
+                <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>
+                  Leave it off and people reach you only through the message room, where they
+                  stay anonymous and so does your number.
+                </span>
+              </span>
+            </label>
           </div>
         </div>
 

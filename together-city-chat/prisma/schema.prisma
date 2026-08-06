@@ -2448,7 +2448,14 @@ model ServiceListing {
   // How far they will travel. Null means "they did not say", which reads
   // differently from 0 and must keep reading differently.
   radiusKm     Int?
-  phone        String? // NEVER returned to a browser; the anonymous thread is the only channel
+  /// Returned to a browser ONLY when phonePublic is true. The owner typed this
+  /// under "only you ever see this", so it stays private until they say
+  /// otherwise — a number republished by a migration is a broken promise.
+  /// The business's own address: /services/anna-idli. Nullable because every
+  /// listing made before slugs existed has none and is still reachable by id.
+  slug         String?  @unique
+  phone        String?
+  phonePublic  Boolean  @default(false)
   priceFrom    Int? // ₹, optional — "from" and not a quote
   photosJson   String   @default("[]") // JSON [{url,caption?}]
   moderation   String   @default("approved") // approved | pending | rejected | removed

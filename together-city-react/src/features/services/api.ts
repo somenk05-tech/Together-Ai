@@ -11,6 +11,9 @@ export interface CategoryGroup { group: string; items: ServiceCategory[] }
  */
 export interface ServiceCard {
   id: string;
+  /** Their own address: /services/anna-idli. Null on listings older than
+   *  slugs, which the screens address by id instead. */
+  slug: string | null;
   businessName: string;
   categoryKey: string;
   categoryLabel: string;
@@ -29,11 +32,15 @@ export interface ServiceCard {
    *  not a five-star business. The count is always honest. */
   rating?: number | null;
   count?: number;
+  /** Present only when the owner chose to publish it. Absent, never blank. */
+  phone?: string;
   createdAt: string;
 }
-/** Your own listing, read back — this is the one place a phone number exists. */
-export interface MyServiceCard extends ServiceCard {
+/** Your own listing, read back — your number is here whether or not it is public. */
+export interface MyServiceCard extends Omit<ServiceCard, 'phone'> {
+  /** Yours, whether or not it is published. Null means you never gave one. */
   phone: string | null;
+  phonePublic: boolean;
   moderation: string;
   updatedAt: string;
 }
@@ -58,7 +65,9 @@ export interface ListingInput {
   about?: string;
   city: string;
   areas?: string;
+  slug?: string;
   phone?: string;
+  phonePublic?: boolean;
   priceFrom?: number;
   photoUrls?: string[];
   lat?: number;
@@ -128,7 +137,11 @@ export const servicesApi = {
   facets: (city?: string) => api.get<Record<string, number>>('/services/facets', { params: { city } }).then((r) => r.data),
   browse: (q: { category?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) =>
     api.get<{ items: ServiceCard[]; total: number; page: number; pages: number; saved: string[] }>('/services', { params: q }).then((r) => r.data),
-  detail: (id: string) => api.get<ServiceCard>(`/services/${id}`).then((r) => r.data),
+  detail: (idOrSlug: string) => api.get<ServiceCard>(`/services/${idOrSlug}`).then((r) => r.data),
+  slugAvailable: (slug: string) =>
+    api.get<{ slug: string; available: boolean; reason: string | null }>(
+      '/services/slug/available', { params: { slug } },
+    ).then((r) => r.data),
   mine: () => api.get<MyServiceCard[]>('/services/mine').then((r) => r.data),
   create: (input: ListingInput) => api.post<MyServiceCard>('/services', input).then((r) => r.data),
   // PATCH exists on the server and is exercised by the cross-user probe. There
@@ -311,6 +324,13 @@ export function useToggleRegular() {
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
   });
 }
+/**
+ * The address to link to. Their own name when they have chosen one, their id
+ * when they have not — never a link that 404s because a slug was assumed.
+ */
+export const serviceHref = (s: { slug?: string | null; id: string }): string =>
+  `/services/${s.slug ?? s.id}`;
+
 /** One business, its own page. */
 export function useService(id?: string) {
   return useQuery({

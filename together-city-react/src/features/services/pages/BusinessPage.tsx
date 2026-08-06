@@ -9,26 +9,38 @@ import {
 } from '../api';
 
 /**
- * ONE BUSINESS, ITS OWN PAGE.
+ * ONE BUSINESS, ITS OWN PAGE — AND IT READS LIKE THEIR SITE, NOT LIKE A ROW.
  *
- * A directory card is a summary. This is the thing it summarises — the page a
- * shopkeeper would send somebody who asked "where can I see what you do?", and
- * it has to survive being that: a picture at the top, what they do, what it
- * costs, what is on today, what people said, and one obvious way to talk to
- * them.
+ * A directory card is a summary. This is the thing it summarises: the page a
+ * shopkeeper would send somebody who asked "where can I see what you do?" So it
+ * is built the way a small business site is built — one large photograph with
+ * the name on it, the handful of facts that decide anything laid along the foot
+ * of it, and section headings that name themselves in two weights.
  *
  * It is a real route, so it can be linked, bookmarked, sent to a friend and
  * reopened tomorrow. That is most of what "a page of their own" means and none
- * of it works from a panel that only exists while a list is scrolled to the
+ * of it works from a panel that exists only while a list is scrolled to the
  * right place.
  *
- * The one thing this page does NOT become is a shopfront that takes money.
- * Picking items writes a message; there is no basket, no payment and no
- * confirmed time anywhere on it, and every button that could be mistaken for
- * one says what it actually does.
+ * THE PHOTOGRAPH IS THE DESIGN. There is no invented colour, no decorative
+ * gradient, no stock furniture — a page that dresses up thin content is a page
+ * that looks the same for a business that filled the form in and one that did
+ * not. Every fact cell, every section, appears only when the owner gave it
+ * something to show. A shop with one line of About gets a short page, honestly.
+ *
+ * The one thing it never becomes is a shopfront that takes money. No basket, no
+ * payment, no confirmed time; picking items writes a message, and every control
+ * that could be mistaken for an order says what it actually does.
  */
-const section: React.CSSProperties = { marginTop: 22 };
-const h2: React.CSSProperties = { fontSize: 17, margin: '0 0 8px' };
+const section: React.CSSProperties = { marginTop: 30 };
+
+/** "About / Sharma Plumbing" — light word names the section, heavy word names
+ *  the thing. One heading doing two jobs, which is why it can be this large. */
+function Head({ lite, bold }: { lite: string; bold: string }) {
+  return (
+    <h2 className="biz-h"><span className="lite">{lite} </span><span className="bold">{bold}</span></h2>
+  );
+}
 
 export function BusinessPage() {
   const { id } = useParams<{ id: string }>();
@@ -43,8 +55,8 @@ export function BusinessPage() {
 
   if (q.isLoading) return <Spinner label="Opening the page…" />;
   // A page that cannot be loaded says so. Rendering an empty shell would tell
-  // the citizen this business has nothing on it, which is a claim about
-  // somebody else's shop that was never checked.
+  // the citizen this business has nothing on it — a claim about somebody else's
+  // shop that was never checked.
   if (q.isError || !q.data) {
     return (
       <EmptyState title="That business page could not be opened"
@@ -55,8 +67,10 @@ export function BusinessPage() {
 
   const s = q.data;
   const saved = (regulars.data?.items ?? []).some((r) => r.id === s.id);
-  const mine = (offers.data?.items ?? []).filter((o) => o.listingId === s.id);
+  const running = (offers.data?.items ?? []).filter((o) => o.listingId === s.id);
   const cover = s.photos[0]?.url;
+  const rating = reviews.data?.rating ?? null;
+  const count = reviews.data?.count ?? 0;
 
   const chat = () => {
     setErr(null);
@@ -66,99 +80,132 @@ export function BusinessPage() {
     });
   };
 
+  /** Only the cells with an answer. An empty "from ₹—" is a business admitting
+   *  in its own shopfront that it did not finish the form. */
+  const facts: Array<{ k: string; v: string }> = [];
+  if (count > 0) {
+    facts.push({
+      k: 'What people say',
+      v: rating != null ? `${stars(Math.round(rating))}  ${rating} from ${count} reviews`
+        : `${count} ${count === 1 ? 'review' : 'reviews'} — too few for an average`,
+    });
+  }
+  facts.push({
+    k: s.distanceKm != null ? 'How far' : 'Where',
+    v: s.distanceKm != null
+      ? `${humanDistance(s.distanceKm)} away · ${s.areas[0] ?? s.city}`
+      : (s.areas.length ? s.areas.join(' · ') : s.city),
+  });
+  if (s.priceFrom != null) facts.push({ k: 'Starting from', v: rupees(s.priceFrom) });
+
   return (
-    <div style={{ maxWidth: 820, margin: '0 auto', width: '100%' }}>
+    <div style={{ maxWidth: 880, margin: '0 auto', width: '100%' }}>
       <div style={{ marginBottom: 12 }}>
         <Link to="/services/browse" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)' }}>
           ← All local services
         </Link>
       </div>
 
-      {/* The shopfront. A business with no picture gets a band in the hub's own
-          colour rather than a grey box apologising for the absence. */}
-      <div style={{
-        position: 'relative', borderRadius: 16, overflow: 'hidden',
-        background: 'var(--accent-soft)', minHeight: cover ? 0 : 128,
-      }}>
-        {cover && (
-          <img src={cover} alt="" style={{ display: 'block', width: '100%', aspectRatio: '21 / 9', objectFit: 'cover' }} />
-        )}
-      </div>
-
-      <div style={{ marginTop: 14 }}>
-        <div className="eyebrow">{s.categoryLabel}</div>
-        <h1 style={{ fontSize: 30, margin: '4px 0 0' }}>{s.businessName}</h1>
-        <div className="muted" style={{ fontSize: 13.5, marginTop: 6 }}>
-          {s.distanceKm != null && <strong style={{ color: 'var(--accent-ink)' }}>{humanDistance(s.distanceKm)} away · </strong>}
-          {s.areas.length ? s.areas.join(' · ') : s.city}
-          {s.priceFrom != null && <> · from {rupees(s.priceFrom)}</>}
-        </div>
-        {(reviews.data?.count ?? 0) > 0 && (
-          <div style={{ fontSize: 13, marginTop: 6 }}>
-            {reviews.data?.rating != null ? (
-              <>
-                <span style={{ color: 'var(--warn-ink)', letterSpacing: 1 }}>{stars(Math.round(reviews.data.rating))}</span>
-                <span style={{ fontWeight: 700, marginLeft: 6 }}>{reviews.data.rating}</span>
-                <span className="muted"> · {reviews.data.count} reviews</span>
-              </>
-            ) : (
-              <span className="muted">
-                {reviews.data?.count} {reviews.data?.count === 1 ? 'review' : 'reviews'} — too few for an average
-              </span>
-            )}
+      <div className={`biz-hero${cover ? '' : ' is-bare'}`}>
+        {cover
+          ? <img className="biz-hero-img" src={cover} alt={`${s.businessName}, photographed by them`} />
+          : <div className="biz-hero-img" aria-hidden />}
+        <div className="biz-hero-scrim" aria-hidden />
+        <div className="biz-hero-inner">
+          <div className="biz-hero-top">
+            <span className="biz-mark">{s.businessName}</span>
+            {/* The BOOK NOW of a page that cannot take a booking — so it says
+                what it does instead, in the same place the eye looks for it. */}
+            <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {/* Only when the owner published it. A tel: link on a number the
+                  business asked to keep private is the breach, not the button. */}
+              {s.phone && (
+                <a className="biz-pill" href={`tel:${s.phone.replace(/[^\d+]/g, '')}`}>
+                  <span aria-hidden>📞</span> Call
+                </a>
+              )}
+              <button type="button" className="biz-pill" onClick={chat} disabled={enquire.isPending}>
+                {enquire.isPending ? 'Opening…' : 'Message them'} <span aria-hidden>→</span>
+              </button>
+            </span>
           </div>
-        )}
+          <div>
+            <p className="biz-hero-eyebrow">{s.categoryLabel}</p>
+            <h1 className="biz-hero-title">{s.businessName}</h1>
+            <div className="biz-facts">
+              {facts.map((f) => (
+                <div className="biz-fact" key={f.k}>
+                  <div className="biz-fact-k">{f.k}</div>
+                  <div className="biz-fact-v">{f.v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* The one obvious thing to do, kept above everything a citizen has to
-          scroll for. */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16, alignItems: 'center' }}>
         <Button variant="accent" disabled={enquire.isPending} onClick={chat}>
           {enquire.isPending ? 'Opening…' : 'Chat with this business'}
         </Button>
-        <Button variant="line" disabled={keep.isPending}
-          onClick={() => keep.mutate({ id: s.id, saved })}>
+        {s.phone && (
+          <a href={`tel:${s.phone.replace(/[^\d+]/g, '')}`}>
+            <Button variant="line">Call {s.phone}</Button>
+          </a>
+        )}
+        <Button variant="line" disabled={keep.isPending} onClick={() => keep.mutate({ id: s.id, saved })}>
           {saved ? '✓ Kept' : 'Keep'}
         </Button>
       </div>
-      {err && <p style={{ color: 'var(--danger-ink)', fontSize: 13, marginTop: 8 }} role="alert">{err}</p>}
-      <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
-        They will see you as a neighbour, not by name. The conversation stays in this hub and
-        never reaches your Chats.
+      {/*
+        THE TRADE, STATED BEFORE IT IS MADE.
+
+        A phone call carries a number. This hub's whole promise is that a
+        citizen can approach a business without being identifiable, and dialling
+        is the moment that ends — not because anything leaks, but because that
+        is what a telephone is. Saying so at the button is the difference
+        between a citizen choosing to be known and finding out afterwards.
+      */}
+      <p className="muted" style={{ fontSize: 12, margin: '10px 0 0', maxWidth: '68ch' }}>
+        Messaging keeps you anonymous — they see you as a neighbour, and it never reaches your
+        Chats.{s.phone && ' Ringing them shows them your number, the way any call does.'}
       </p>
+      {err && <p style={{ color: 'var(--danger-ink)', fontSize: 13, marginTop: 8 }} role="alert">{err}</p>}
 
       {s.about && (
-        <div style={section}>
-          <h2 style={h2}>About</h2>
-          <p style={{ fontSize: 14, margin: 0, whiteSpace: 'pre-wrap' }}>{s.about}</p>
+        <div style={section} className="biz-split">
+          <Head lite="About" bold={s.businessName} />
+          <p style={{ fontSize: 14.5, lineHeight: 1.65, margin: 0, whiteSpace: 'pre-wrap' }}>{s.about}</p>
         </div>
       )}
 
-      {mine.length > 0 && (
+      {running.length > 0 && (
         <div style={section}>
-          <h2 style={h2}>On today</h2>
+          <Head lite="On" bold="today" />
           <div style={{ display: 'grid', gap: 8 }}>
-            {mine.map((o) => (
-              <Card key={o.id} style={{ padding: '12px 16px' }}>
+            {running.map((o) => (
+              <Card key={o.id} style={{ padding: '13px 17px' }}>
                 <strong style={{ fontSize: 14 }}>{o.title}</strong>
                 {o.detail && <p className="muted" style={{ fontSize: 13, margin: '3px 0 0' }}>{o.detail}</p>}
               </Card>
             ))}
           </div>
           <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>
-            Offers are what the business says they are running. Ask them before you set out.
+            An offer is what the business says it is running. Ask them before you set out.
           </p>
         </div>
       )}
 
       {/* Menu for a restaurant, price list for everyone else — MenuView takes
-          its words from the category group. Renders nothing at all when the
+          its words from the category group, and renders nothing at all when the
           business has not published one. */}
       <MenuView listingId={s.id} group={s.categoryGroup} onSent={() => nav('/services/messages')} />
 
+      {/* Photographs on a dark ground, which is where photographs look their
+          best and the only reason this band exists. */}
       {s.photos.length > 1 && (
-        <div style={section}>
-          <h2 style={h2}>Photos</h2>
+        <div style={section} className="biz-dark">
+          <Head lite="Their" bold="place" />
           <Gallery photos={s.photos} name={s.businessName} />
         </div>
       )}
@@ -173,15 +220,30 @@ export function BusinessPage() {
         </p>
       )}
 
+      {s.slug && (
+        <div style={section}>
+          <Head lite="Their" bold="address" />
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+            togethercity.app/services/<strong style={{ color: 'var(--ink)' }}>{s.slug}</strong>
+          </p>
+        </div>
+      )}
+
       {(s.lat != null && s.lng != null) && (
         <div style={section}>
-          <h2 style={h2}>Where they are</h2>
+          <Head lite="Where" bold="they are" />
           <p className="muted" style={{ fontSize: 13, margin: 0 }}>
             Pinned at {s.lat.toFixed(5)}, {s.lng.toFixed(5)}
             {s.radiusKm != null && ` · travels about ${s.radiusKm} km`}
           </p>
         </div>
       )}
+
+      <div style={{ ...section, borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 8 }}>
+        <Button variant="accent" disabled={enquire.isPending} onClick={chat}>
+          {enquire.isPending ? 'Opening…' : `Chat with ${s.businessName}`}
+        </Button>
+      </div>
     </div>
   );
 }

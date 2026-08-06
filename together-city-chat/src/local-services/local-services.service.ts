@@ -6,12 +6,15 @@ import { AiService } from '../ai/ai.service';
 import { categoryGroup, categoryLabel, isCategory } from './categories';
 import { mintAlias } from './alias';
 import { boundingBox, haversineKm, parsePoint } from './geo';
+import { looksLikeId, normaliseSlug, slugProblem, SLUG_MESSAGES, suggestSlug } from './slug';
 import type { BrowseDto, CreateListingDto, UpdateListingDto, PostOfferDto, SaveMenuDto } from './dto/local-services.dto';
 
 type ListingRow = {
   id: string; ownerId: string; businessName: string; categoryKey: string; about: string | null;
   city: string; areas: string; phone: string | null; priceFrom: number | null; photosJson: string;
   lat: number | null; lng: number | null; radiusKm: number | null;
+  slug: string | null;
+  phonePublic: boolean;
   moderation: string; createdAt: Date; updatedAt: Date;
 };
 type ReviewRow = {
@@ -82,6 +85,9 @@ export class LocalServicesService {
   private card(l: ListingRow) {
     return {
       id: l.id,
+      // The address a citizen sees. Null on listings older than slugs, and the
+      // screens fall back to the id rather than inventing one.
+      slug: l.slug,
       businessName: l.businessName,
       categoryKey: l.categoryKey,
       categoryLabel: categoryLabel(l.categoryKey),
@@ -97,12 +103,24 @@ export class LocalServicesService {
       // The pin. Public on purpose — a shopfront's address is not a secret, and
       // a directory that will not say where anybody is cannot be walked to.
       lat: l.lat, lng: l.lng, radiusKm: l.radiusKm,
+      /**
+       * THE NUMBER, AND THE ONE CONDITION ON IT.
+       *
+       * `phone` is absent unless the owner published it — absent, not blanked.
+       * A field that is present and empty invites the next person to fill it
+       * in; a field that was never in the object cannot be rendered by
+       * accident, and this is the field where an accident is a citizen's shop
+       * number on a page they asked to keep off.
+       *
+       * The owner reads their own number back through `mine()` regardless.
+       */
+      ...(l.phonePublic && l.phone ? { phone: l.phone } : {}),
       createdAt: l.createdAt.toISOString(),
     };
   }
 
   private ownerCard(l: ListingRow) {
-    return { ...this.card(l), phone: l.phone, moderation: l.moderation, updatedAt: l.updatedAt.toISOString() };
+    return { ...this.card(l), phone: l.phone, phonePublic: l.phonePublic, moderation: l.moderation, updatedAt: l.updatedAt.toISOString() };
   }
 
   /**
@@ -234,13 +252,68 @@ export class LocalServicesService {
     return counts;
   }
 
-  async detail(id: string, viewerId?: string) {
-    const l = await this.prisma.serviceListing.findUnique({ where: { id } }) as ListingRow | null;
+  /**
+   * BY NAME OR BY ID, AND THE NAME IS TRIED FIRST.
+   *
+   * A slug is what a citizen has in their hands — printed on a card, sent in a
+   * message. An id is what an old link holds. Both must reach the same shop, so
+   * both are accepted and neither is redirected: a URL somebody already shared
+   * that quietly changes under them is its own small betrayal.
+   */
+  async detail(idOrSlug: string, viewerId?: string) {
+    const where = looksLikeId(idOrSlug) ? { id: idOrSlug } : { slug: idOrSlug };
+    const l = await this.prisma.serviceListing.findUnique({ where } as { where: { id: string } }) as ListingRow | null;
     // An owner can always see their own, including while it is closed — it is
     // their page, and a page that 404s to the person who wrote it is a bug.
     const ownIt = viewerId != null && l?.ownerId === viewerId;
     if (!l || (l.moderation !== 'approved' && !ownIt)) throw new NotFoundException('listing not found');
     return ownIt ? this.ownerCard(l) : this.card(l);
+  }
+
+  /**
+   * Claim an address, or say plainly why it cannot be claimed.
+   *
+   * Uniqueness is checked here AND enforced by a unique index, because a check
+   * followed by a write is a race — two shops pressing save in the same second
+   * both see the name free. The index is what actually decides; this is what
+   * produces a sentence a person can act on rather than a Prisma error.
+   */
+  /**
+   * A new listing always leaves with an address. If the owner typed one it is
+   * theirs; otherwise one is derived from the name, made unique against what
+   * exists. Suggesting beats leaving it blank — a blank one means a shop's
+   * first link, the one they send to ten people on day one, is a UUID.
+   */
+  private async slugForNew(typed: string | undefined, businessName: string): Promise<string | null> {
+    if (typed?.trim()) return this.claimSlug(typed);
+    // unbounded: the whole slug column, and it is one short string per row —
+    // a suggestion that collides is worse than a page of reads.
+    const rows = await this.prisma.serviceListing.findMany({
+      where: { slug: { not: null } }, select: { slug: true }, take: 20000,
+    }) as unknown as Array<{ slug: string }>;
+    return suggestSlug(businessName, rows.map((r) => r.slug)) || null;
+  }
+
+  private async claimSlug(raw: string, ownListingId?: string): Promise<string> {
+    const slug = normaliseSlug(raw);
+    const problem = slugProblem(slug);
+    if (problem) throw new BadRequestException(SLUG_MESSAGES[problem]);
+    const existing = await this.prisma.serviceListing.findUnique({ where: { slug } }) as { id: string } | null;
+    if (existing && existing.id !== ownListingId) {
+      throw new BadRequestException('Another business already has that web address.');
+    }
+    return slug;
+  }
+
+  /** Is this address free? The screen asks as the owner types. */
+  async slugAvailable(raw: string) {
+    const slug = normaliseSlug(raw);
+    const problem = slugProblem(slug);
+    if (problem) return { slug, available: false, reason: SLUG_MESSAGES[problem] };
+    const existing = await this.prisma.serviceListing.findUnique({ where: { slug } });
+    return existing
+      ? { slug, available: false, reason: 'Another business already has that web address.' }
+      : { slug, available: true, reason: null };
   }
 
   // ───────────────────────── being a business ─────────────────────────
@@ -265,7 +338,9 @@ export class LocalServicesService {
         about: dto.about ?? null,
         city: dto.city,
         areas: (dto.areas ?? '').trim(),
+        slug: await this.slugForNew(dto.slug, dto.businessName),
         phone: dto.phone ?? null,
+        phonePublic: dto.phonePublic ?? false,
         priceFrom: dto.priceFrom ?? null,
         photosJson: JSON.stringify((dto.photoUrls ?? []).map((url) => ({ url }))),
         lat: dto.lat ?? null,
@@ -291,7 +366,13 @@ export class LocalServicesService {
     if (dto.about !== undefined) data.about = dto.about;
     if (dto.city !== undefined) data.city = dto.city;
     if (dto.areas !== undefined) data.areas = dto.areas.trim();
+    if (dto.slug !== undefined) {
+      // An empty string means "take it off", which returns the listing to being
+      // reachable by id only. It is a strange thing to want, and it is theirs.
+      data.slug = dto.slug.trim() ? await this.claimSlug(dto.slug, id) : null;
+    }
     if (dto.phone !== undefined) data.phone = dto.phone;
+    if (dto.phonePublic !== undefined) data.phonePublic = dto.phonePublic;
     if (dto.priceFrom !== undefined) data.priceFrom = dto.priceFrom;
     if (dto.photoUrls !== undefined) data.photosJson = JSON.stringify(dto.photoUrls.map((url) => ({ url })));
     if (dto.lat !== undefined) data.lat = dto.lat;

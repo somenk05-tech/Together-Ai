@@ -5,7 +5,6 @@ import {
   useSendServiceMessage, useServiceInbox, useServiceThread,
   useReviews, usePostReview, useRemoveReview, stars, type ServiceThread,
 } from '../api';
-import { MenuView } from '../MenuView';
 
 /**
  * REVIEWING FROM THE CONVERSATION YOU HAD.
@@ -224,6 +223,18 @@ export function ServiceThreadView() {
         {isOwner
           ? `Someone near you, about ${business.businessName}. You do not see their name, and they do not see yours.`
           : `${business.categoryLabel} · ${business.city}. They see you as “${thread.alias}” — your name, handle and photo are not shared.`}
+        {/* The way to their page, and so to their number if they published one.
+            The thread deliberately carries only four fields about the business;
+            widening it to hold a phone would put a number in a payload whose
+            whole job is to carry as little as possible. */}
+        {!isOwner && business.id && (
+          <>
+            {' '}
+            <Link to={`/services/${business.id}`} style={{ fontWeight: 600, color: 'var(--accent-ink)' }}>
+              See their page and prices
+            </Link>
+          </>
+        )}
       </p>
 
       <Card style={{ padding: 14, display: 'grid', gap: 10, maxHeight: '52vh', overflowY: 'auto' }}>
@@ -243,9 +254,13 @@ export function ServiceThreadView() {
         <div ref={endRef} />
       </Card>
 
-      {/* The menu sits in the conversation because that is where asking about
-          it happens — picking items writes a message into this same thread. */}
-      {!isOwner && <MenuView listingId={thread.listingId} />}
+      {/* THE PRICE LIST IS NOT IN HERE.
+         It lived in the thread while the thread was the only surface a
+         business had. A business has a page now, the list belongs on it, and
+         sixty-two ticked rows underneath a conversation make a chat window
+         you have to scroll past a catalogue to reach. Picking items there
+         still writes a message into this same thread — the header links
+         straight to it. */}
 
       {/* Only the seeker side reviews — a business cannot review itself, and the
           server refuses it anyway. */}

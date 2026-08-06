@@ -433,3 +433,82 @@ table.tc td b { color: var(--ink); }
   .menu-edit-row { grid-template-columns: minmax(0, 1fr) 88px 34px; }
   .menu-edit-row .menu-edit-name { grid-column: 1 / -1; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   A BUSINESS PAGE (Local Services)
+
+   A listing's own page has to read like the shop's own site, not like a row
+   from a database that grew. So: one cinematic photograph with the name on it,
+   the facts that matter laid along the bottom of it, and section headings that
+   name themselves in two weights.
+
+   The type is the only decoration. Nothing here invents a colour, a shadow or
+   a gradient beyond the scrim tokens — the photograph the owner uploaded is
+   what is meant to carry the page.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.biz-hero { position: relative; border-radius: 20px; overflow: hidden;
+  background: var(--accent-soft); }
+/* The picture is behind, not beside. The INNER content sets the height, so a
+   phone that has to stack three facts gets a taller hero rather than three
+   lines pushed out through the bottom of the photograph. */
+.biz-hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.biz-hero-scrim { position: absolute; inset: 0;
+  background: linear-gradient(to bottom, var(--scrim-top) 0%, var(--scrim-clear) 26%,
+    var(--scrim-clear) 40%, var(--scrim-deep) 100%); }
+/* No photograph: the scrim would darken an empty accent panel to no purpose,
+   and white on accent-soft is unreadable. The band keeps its own ink instead. */
+.biz-hero.is-bare .biz-hero-scrim { display: none; }
+.biz-hero.is-bare .biz-hero-inner { color: var(--ink); }
+
+.biz-hero-inner { position: relative; min-height: 340px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 18px 20px; color: var(--on-accent); }
+.biz-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.biz-mark { font-size: 14px; font-weight: 800; letter-spacing: -.01em; }
+.biz-pill { display: inline-flex; align-items: center; gap: 7px; min-height: 40px;
+  padding: 0 16px; border-radius: 999px; border: 1px solid var(--glass-line);
+  background: var(--glass); backdrop-filter: blur(10px);
+  color: inherit; font-family: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer; text-decoration: none; }
+.biz-pill[disabled] { cursor: default; opacity: .7; }
+.biz-hero.is-bare .biz-pill { border-color: var(--line); background: var(--card); }
+
+.biz-hero-title { font-size: 34px; line-height: 1.05; font-weight: 800;
+  letter-spacing: -.02em; margin: 0; max-width: 15ch; }
+.biz-hero-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .1em;
+  text-transform: uppercase; opacity: .85; margin: 0 0 6px; }
+
+/* The strip along the foot of the hero. Only the cells that have an answer are
+   rendered — an empty "from ₹—" cell is a shop admitting it did not fill the
+   form in, printed in its own shopfront. */
+.biz-facts { display: flex; flex-wrap: wrap; gap: 0; margin-top: 16px;
+  border-top: 1px solid var(--glass-line); padding-top: 12px; }
+.biz-fact { flex: 1 1 150px; min-width: 0; padding-right: 16px; }
+.biz-fact + .biz-fact { border-left: 1px solid var(--glass-line); padding-left: 16px; }
+.biz-fact-k { font-size: 10.5px; font-weight: 800; letter-spacing: .09em;
+  text-transform: uppercase; opacity: .8; }
+.biz-fact-v { font-size: 13.5px; font-weight: 600; margin-top: 2px; }
+
+/* "About / Eff Beauty" — the light word names the section, the heavy word names
+   the thing. One heading doing two jobs, which is why it can be this large. */
+.biz-h { margin: 0 0 10px; font-size: 27px; line-height: 1.12; letter-spacing: -.02em; }
+.biz-h .lite { color: var(--muted); font-weight: 500; }
+.biz-h .bold { font-weight: 800; }
+
+.biz-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 26px;
+  align-items: start; }
+
+.biz-dark { background: var(--ink); color: var(--on-accent); border-radius: 20px;
+  padding: 26px 24px; }
+.biz-dark .biz-h .lite { color: var(--on-accent); opacity: .55; }
+
+@media (max-width: 760px) {
+  .biz-hero-inner { min-height: 320px; padding: 14px 16px; }
+  .biz-hero-title { font-size: 26px; }
+  .biz-facts { margin-top: 12px; padding-top: 10px; }
+  .biz-fact { flex: 1 1 100%; padding: 0; }
+  .biz-fact + .biz-fact { border-left: 0; border-top: 1px solid var(--glass-line);
+    padding: 8px 0 0; margin-top: 8px; }
+  .biz-split { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .biz-dark { padding: 20px 16px; }
+}

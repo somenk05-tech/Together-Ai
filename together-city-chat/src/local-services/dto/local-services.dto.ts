@@ -15,7 +15,13 @@ export const CreateListingSchema = z.object({
   areas: areasSchema,
   // Stored, never returned to anyone but the owner. The anonymous thread is the
   // channel; a phone number in a public listing is the anonymity walking out.
+  // Validated properly in claimSlug — the shape rules live in slug.ts so the
+  // web app and the server cannot disagree about what a valid address is.
+  slug: z.string().trim().max(60).optional(),
   phone: z.string().trim().max(20).optional(),
+  // Off unless the owner says so. See the migration note: this number was
+  // given under a promise that it stays private.
+  phonePublic: z.boolean().optional(),
   priceFrom: z.number().int().min(0).max(10_000_000).optional(),
   photoUrls: z.array(z.string().url()).max(6).optional(),
   // Bounded to the real world. A swapped lat/lng pair is the classic bug here

@@ -33,6 +33,7 @@ export function ListBusiness() {
           setErr(null);
           create.mutate({
             businessName: v.businessName,
+            ...(v.slug ? { slug: v.slug } : {}),
             categoryKey: v.categoryKey,
             about: v.about || undefined,
             city: v.city,
