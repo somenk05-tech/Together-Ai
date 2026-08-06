@@ -512,3 +512,74 @@ table.tc td b { color: var(--ink); }
   .biz-split { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .biz-dark { padding: 20px 16px; }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE MAIL LIST ON A DESKTOP, AGAINST GMAIL
+
+   The phone row was built against Gmail on iOS and is right: avatar, then
+   sender / subject / snippet each on a line of its own, because 390px cannot
+   hold them side by side.
+
+   A desktop has 900px of row and Gmail spends it differently — ONE line.
+   Sender in a fixed column, then the subject and the snippet running together
+   in the space that is left, then the date hard against the right edge. That
+   single line is the whole reason a Gmail list reads fast: the eye tracks one
+   horizontal band per message instead of a two-line block, so twice as many
+   messages fit a screen and scanning is one movement rather than two.
+
+   The avatar goes. Gmail's web list has none, and at this density it is
+   34px of colour per row competing with the only thing anybody is reading.
+   It stays on the phone, where Gmail keeps its own.
+
+   And unread inverts. Gmail's web list gives UNREAD rows the white ground and
+   the weight, and tints the READ ones grey — the opposite of what this list
+   did. Read mail receding is the correct direction: the wash should mark what
+   is finished, not what is waiting.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 900px) {
+  .mail-row { gap: 0; padding: 0 8px 0 14px; min-height: 40px; background: var(--wash); }
+  .mail-row.unread { background: var(--card); }
+  .mail-row:hover { box-shadow: var(--e1); position: relative; z-index: 1; background: var(--card); }
+
+  .mail-av { display: none; }
+
+  /* One line: sender column, then everything else. */
+  .mail-body { display: flex; align-items: center; gap: 0; min-width: 0; }
+
+  /* Wide enough for a full name at 13.5px and no wider — the subject is what
+     the remaining pixels are for. */
+  .mail-l1 { flex: 0 0 200px; min-width: 0; padding-right: 14px; }
+  /* A read sender carries no weight. The list's whole job is to say what is
+     waiting, and 600 on every row says "everything" — which says nothing. */
+  .mail-from { font-size: 13.5px; font-weight: 400; }
+  .mail-row.unread .mail-from { font-weight: 700; }
+
+  /* Subject and snippet share one baseline. The subject takes only what it
+     needs; the snippet takes the rest and truncates, which is why a long
+     subject never pushes the snippet off the row entirely. */
+  .mail-l2 { flex: 1 1 auto; min-width: 0; align-items: baseline; gap: 6px; }
+  .mail-subj { max-width: none; flex: 0 1 auto; font-size: 13.5px; font-weight: 400; }
+  .mail-row.unread .mail-subj { font-weight: 700; }
+  .mail-snip { flex: 1 1 auto; font-size: 13.5px; }
+
+  .mail-time { margin-left: 0; padding-left: 12px; font-size: 12px; align-self: center;
+    min-width: 62px; text-align: right; }
+  .mail-row.unread .mail-time { font-weight: 700; color: var(--ink); }
+
+  /* Gmail reveals row actions on hover and keeps the date in their place.
+     Keyboard focus counts as hover here, or the buttons become mouse-only. */
+  .mail-row .mail-star, .mail-row .mail-bin { opacity: 0; transition: opacity .12s; }
+  .mail-row:hover .mail-star, .mail-row:hover .mail-bin,
+  .mail-row:focus-within .mail-star, .mail-row:focus-within .mail-bin { opacity: 1; }
+  /* A starred message is starred whether or not a pointer is over it. */
+  .mail-row .mail-star[aria-label="Unstar"] { opacity: 1; }
+
+  .mail-fail { margin-top: 0; padding-left: 12px; flex-shrink: 0; }
+}
+
+@media (max-width: 899px) {
+  /* The phone keeps the two-line row, so the date returns to the top right of
+     it rather than centring against a block it is no longer inside. */
+  .mail-time { align-self: flex-start; margin-top: 2px; }
+}

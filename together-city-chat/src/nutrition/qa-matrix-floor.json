@@ -1,7 +1,7 @@
 {
-  "_": "The hardest population's numbers, ratcheted. See qa-matrix.spec.ts. Re-measured 31 Jul 2026 after BE-8.5 (the harness stopped feeding the engine whole-recipe quantities) and BE-8.6 (the protein top-up repeats): calorie ±10% 66.4→87.5, protein 66.9→69.5, cap-breach days 127→22. Re-measured 4 Aug 2026 after the afternoon snack slot was removed: cap-breach days 22→12 — one fewer course is one fewer chance to breach a sodium or saturated-fat cap. Calorie (88.7) and protein (69.9) both moved less than the tolerance and their floors are unchanged.",
-  "calorieWithin10Pct": 87.5,
-  "proteinMetPct": 69.5,
+  "_": "The hardest population's numbers, ratcheted. See qa-matrix.spec.ts. Re-measured 31 Jul 2026 after BE-8.5 (the harness stopped feeding the engine whole-recipe quantities) and BE-8.6 (the protein top-up repeats): calorie \u00b110% 66.4\u219287.5, protein 66.9\u219269.5, cap-breach days 127\u219222. Re-measured 4 Aug 2026 after the afternoon snack slot was removed: cap-breach days 22\u219212 \u2014 one fewer course is one fewer chance to breach a sodium or saturated-fat cap. Calorie (88.7) and protein (69.9) both moved less than the tolerance and their floors are unchanged. Re-measured 6 Aug 2026 after nutrient density entered dish selection (protein*4 + fibre, per kcal): calorie \u00b110% 87.5\u219290.2, protein 69.5\u219272.4, breaches unchanged at 12. The density term is withheld from citizens under clinical caps \u2014 with it applied to everyone, protein reached 78.9% and breaches rose 12\u219222, which is the trade the caps exist to prevent.",
+  "calorieWithin10Pct": 90.2,
+  "proteinMetPct": 72.4,
   "capBreachDays": 12,
   "tolerancePoints": 2
 }

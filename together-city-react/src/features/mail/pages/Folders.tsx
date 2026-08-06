@@ -167,7 +167,6 @@ function Row({ convo, folder }: { convo: Convo; folder: Folder }) {
             {isSent ? (person.name ? `To: ${person.name}` : 'No recipient yet') : person.name}
             {count > 1 && <span className="muted" style={{ fontWeight: 600, marginLeft: 6 }}>{count}</span>}
           </span>
-          <span className="mail-time muted">{mailTime(m.createdAt)}</span>
         </div>
         <div className="mail-l2">
           <span className="mail-subj">{m.subject || (isDraft ? '(no subject)' : m.subject)}</span>
@@ -177,6 +176,12 @@ function Row({ convo, folder }: { convo: Convo; folder: Folder }) {
             reason for is one they cannot do anything about. */}
         {m.failureReason && <div className="mail-fail">⚠ {m.failureReason}</div>}
       </div>
+      {/* The time is a child of the ROW, not of the sender line.
+          Gmail's desktop list is one line — sender, then subject and snippet
+          running together, then the date hard against the right edge. With the
+          date nested inside the sender line it can only ever sit next to the
+          name, which is the two-line shape and not this one. */}
+      <span className="mail-time muted">{mailTime(m.createdAt)}</span>
       {m.folder === 'failed' && (
         <button type="button" className="mail-retry" disabled={retry.isPending} title="Try sending this again"
           onClick={(e) => { e.stopPropagation(); retry.mutate(m.id); }}>
