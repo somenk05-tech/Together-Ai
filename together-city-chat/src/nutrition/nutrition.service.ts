@@ -2095,7 +2095,47 @@ export class NutritionService implements OnModuleInit {
       // Resilience (load-issue fix): never blank the planner on an unexpected
       // error. Log the real cause (visible in server logs) and fall back to a
       // safe general plan the user can reload to personalise.
-      this.logger.error(`composedPlan failed for user=${userId}: ${(e as Error)?.stack ?? String(e)}`);
+      this.logger.error(`composedPlan failed for user=${userId} household=${!!opts.household}: ${(e as Error)?.stack ?? String(e)}`);
+
+      /**
+       * THE FAMILY PLAN FALLS BACK TO YOUR OWN PLAN, NOT TO NOTHING.
+       *
+       * A shared plan has strictly more that can go wrong than a personal one:
+       * every member's diet, every member's allergies, and a linked member's
+       * medical records, any of which can be missing or malformed. When that
+       * build failed, the citizen got a dead end — and their OWN plan, which
+       * had nothing wrong with it, was one toggle away on a page that told
+       * them to go and find it.
+       *
+       * That is the wrong shape. Failing to compose the table is not a reason
+       * to withhold the plan somebody already has. So the household build
+       * retries once as the individual build, and says which plan this is —
+       * a plan labelled "yours, because the family one would not build" is
+       * honest and useful; a blank page is neither.
+       *
+       * Once only, and only in this direction. Retrying the household build
+       * would just fail again more slowly.
+       */
+      if (opts.household) {
+        try {
+          const own = await Promise.race([
+            this.buildComposedPlan(userId, mode, {}),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('own-plan timeout (8s)')), 8000)),
+          ]);
+          return {
+            ...(own as Record<string, unknown>),
+            degraded: true,
+            householdFellBack: true,
+            degradedReason: 'We could not build your family\'s shared plan, so this is your own plan. '
+              + 'It is complete and personalised — only the household step failed. '
+              + 'If it keeps happening, check that everyone in your family has their diet and allergies saved.',
+          };
+        } catch (e2) {
+          this.logger.error(`composedPlan household→own retry failed for user=${userId}: ${(e2 as Error)?.stack ?? String(e2)}`);
+          // Fall through to the general starter plan below.
+        }
+      }
+
       try {
         // Even the fallback honours the user's diet (never veg for a non-veg user).
         // The fallback is the thing that stops the planner blanking, so it is

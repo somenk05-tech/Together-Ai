@@ -71,6 +71,10 @@ export interface ComposedWeek {
   /** Resilience fallback: a general plan shown because the full profile couldn't be read. */
   degraded?: boolean;
   degradedReason?: string;
+  /** The shared plan would not build, so this is the citizen's own. The banner
+   *  says so; this flag is here so a screen can tell the two degraded cases
+   *  apart rather than reading the sentence. */
+  householdFellBack?: boolean;
   /** Master-source-of-truth gate: true when no Food Preference Profile is saved. */
   needsProfile?: boolean;
   /** Skipped meal keys ("d{index}:{slot}") for this week. */

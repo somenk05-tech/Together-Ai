@@ -197,7 +197,24 @@ export class BeautyService {
       concerns: row.concerns ? row.concerns.split(',').filter(Boolean) : [],
       saved: true,
       profile: await this.withMasterDemographics(userId, safeJson<Record<string, unknown>>(row.extras, {})),
-      analysis: safeJson<unknown>(row.analysisJson, null),
+      /**
+       * AN ASSESSMENT NEEDS SOMETHING TO HAVE ASSESSED.
+       *
+       * Every reading on that screen is a claim about a citizen's face:
+       * "No active acne reported", "Even tone", "Firm, few lines" — seven of
+       * them, all reading GOOD, on an account that had uploaded no photographs
+       * at all. Those are not readings. They are the ABSENCE of a complaint in
+       * an unanswered questionnaire, printed as a finding, which is the one
+       * thing this codebase does not do: no screen asserts an absence it never
+       * established.
+       *
+       * `analyzedAt` is the record that an analysis actually happened. Without
+       * it a stored analysisJson is a leftover — from an older code path, a
+       * deleted photo set, or a profile save that used to generate one — and a
+       * leftover is not evidence. The screen already handles null by inviting
+       * the citizen to upload; that is the honest state.
+       */
+      analysis: row.analyzedAt ? safeJson<unknown>(row.analysisJson, null) : null,
       photos: safeJson<unknown[]>(row.photosJson, []),
       progress: safeJson<ProgressEntry[]>(row.progressJson, []),
       analyzedAt: row.analyzedAt ? row.analyzedAt.toISOString() : null,
