@@ -5,7 +5,7 @@ import { MenuView } from '../MenuView';
 import { Gallery, Reviews } from '../ListingPanel';
 import { ReviewBox } from '../ReviewBox';
 import {
-  useService, useEnquire, useToggleRegular, useRegulars, useOffersToday, useReviews,
+  useService, useEnquire, useToggleRegular, useRegulars, useOffersToday, useReviews, useMyServices,
   rupees, humanDistance, stars,
 } from '../api';
 
@@ -51,6 +51,7 @@ export function BusinessPage() {
   const keep = useToggleRegular();
   const regulars = useRegulars();
   const offers = useOffersToday();
+  const mineList = useMyServices();
   const reviews = useReviews(id);
   const [err, setErr] = useState<string | null>(null);
 
@@ -70,6 +71,8 @@ export function BusinessPage() {
   const saved = (regulars.data?.items ?? []).some((r) => r.id === s.id);
   const running = (offers.data?.items ?? []).filter((o) => o.listingId === s.id);
   const cover = s.photos[0]?.url;
+  /** Your own listing, if this page is yours. Nothing here is shown to anybody else. */
+  const mine = (mineList.data ?? []).find((l) => l.id === s.id) ?? null;
   const rating = reviews.data?.rating ?? null;
   const count = reviews.data?.count ?? 0;
 
@@ -143,9 +146,11 @@ export function BusinessPage() {
         <Button variant="accent" disabled={enquire.isPending} onClick={chat}>
           {enquire.isPending ? 'Opening…' : 'Chat with this business'}
         </Button>
+        {/* Published numbers only. A tel: link on a number a business asked to
+            keep private is the breach, not the button. */}
         {s.phone && (
-          <a href={`tel:${s.phone.replace(/[^\d+]/g, '')}`}>
-            <Button variant="line">Call {s.phone}</Button>
+          <a href={`tel:${s.phone.replace(/[^\d+]/g, '')}`} style={{ textDecoration: 'none' }}>
+            <Button variant="line">📞 Call {s.phone}</Button>
           </a>
         )}
         <Button variant="line" disabled={keep.isPending} onClick={() => keep.mutate({ id: s.id, saved })}>
@@ -166,6 +171,25 @@ export function BusinessPage() {
         Chats.{s.phone && ' Ringing them shows them your number, the way any call does.'}
       </p>
       {err && <p style={{ color: 'var(--danger-ink)', fontSize: 13, marginTop: 8 }} role="alert">{err}</p>}
+
+      {/*
+        THE MISSING LINK BETWEEN WANTING A CALL BUTTON AND HAVING ONE.
+
+        The button is not absent because it was never built; it is absent
+        because this business has not published a number, which is the correct
+        default and the promise the listing form made. Only the owner sees this
+        line, and only when they have a number that is switched off — anybody
+        else seeing it would be told a phone number exists, which is most of
+        what withholding it was for.
+      */}
+      {mine && mine.phone && !mine.phonePublic && (
+        <p className="muted" style={{ fontSize: 12.5, margin: '10px 0 0' }}>
+          Your number is on file but private, so nobody can ring you.{' '}
+          <Link to={`/services/${s.id}/edit`} style={{ fontWeight: 600, color: 'var(--accent-ink)' }}>
+            Turn on “Show this number on my page”
+          </Link>{' '}and a Call button appears here for everyone.
+        </p>
+      )}
 
       {/*
         AT A GLANCE.
@@ -216,15 +240,23 @@ export function BusinessPage() {
       {/* Menu for a restaurant, price list for everyone else — MenuView takes
           its words from the category group, and renders nothing at all when the
           business has not published one. */}
-      {/* Menu or price list — the schema says which, and a type that declares
-          neither renders nothing here at all. */}
-      {(s.sections.includes('menu') || s.sections.includes('priceList')) && (
-        <MenuView listingId={s.id} group={s.categoryGroup} onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
-      )}
+      {/*
+        SECTIONS DECIDE WHAT TO ASK FOR, NEVER WHAT TO HIDE.
+        
+        This was gated on the type declaring a menu, and it hid sixty-two
+        published prices from a salon whose owner had not yet picked a type —
+        the listing predates the schema, so it declared nothing, so the page
+        showed nothing. A business that took the trouble to publish a price
+        list has said what it wants shown, and no schema of ours outranks that.
+        MenuView renders nothing of its own accord when there is nothing.
+      */}
+      <MenuView listingId={s.id} group={s.categoryGroup} onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
 
       {/* Photographs on a dark ground, which is where photographs look their
           best and the only reason this band exists. */}
-      {s.sections.includes('gallery') && s.photos.length > 1 && (
+      {/* Same rule: photographs the owner uploaded are shown because they
+          exist, not because a type remembered to ask for them. */}
+      {s.photos.length > 1 && (
         <div style={section} className="biz-dark">
           <Head lite="Their" bold="place" />
           <Gallery photos={s.photos} name={s.businessName} />
