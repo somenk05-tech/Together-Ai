@@ -31,6 +31,22 @@ describe('the two hubs cannot disagree about one body', () => {
     expect(rawReads).toEqual([]);
   });
 
+  it('treats an off-scale activity value as no answer at all', () => {
+    // The bug this exists to stop, and it survived the first fix. FoodPref
+    // .activity is a float, and three different forms have written to it: the
+    // note in energy.ts records that "Athlete" once meant 2.0 in Nutrition and
+    // 1.75 in Fitness. Unifying the scales did not migrate the column, so
+    // accounts still carry values like 1.32 that match no level anybody can
+    // choose. A stale number is not null, so the Master Profile fallback was
+    // never reached and one account kept seeing 2,588 against 3,040.
+    const s = src('nutrition/nutrition.service.ts');
+    expect(s).toMatch(/ON_SCALE/);
+    // The check must be membership of the CURRENT factor table, not a range or
+    // a rounding — a range would readmit 1.32 the day somebody widens it.
+    expect(s).toMatch(/new Set<number>\(Object\.values\(ACTIVITY_FACTORS\)\)/);
+    expect(s).toMatch(/ON_SCALE\.has\(pref\.activity\)/);
+  });
+
   it('Fitness asks Nutrition for the protein target rather than keeping a second rule', () => {
     const s = src('fitness/fitness.service.ts');
     expect(s).toMatch(/clinicalProtein\(/);

@@ -1749,7 +1749,29 @@ export class NutritionService implements OnModuleInit {
    * row and their own answer. This is about the account holder.
    */
   private async activityOf(userId: string, pref: { activity?: number | null } | null): Promise<number | undefined> {
-    if (pref?.activity != null) return pref.activity;
+    /**
+     * A NUMBER OFF THE SCALE IS NOT AN ANSWER.
+     *
+     * `FoodPref.activity` is a float, and three different forms have written
+     * to it over this application's life — the note in energy.ts records that
+     * "Athlete" once meant 2.0 here and 1.75 in Fitness. When the scales were
+     * unified the column was not migrated, so accounts still carry values like
+     * 1.32 that correspond to no level anybody can choose today.
+     *
+     * Such a value is not a preference. It is a fossil of a form that no
+     * longer exists, and treating it as an answer is why one account still saw
+     * 2,588 kcal in Nutrition and 3,040 in Fitness after the activity fallback
+     * was fixed: the fallback was never reached, because a stale number is not
+     * null. The Preferences screen already knew — it renders Activity as "—",
+     * because it resolves the float through nearestActivityLevel and finds
+     * nothing.
+     *
+     * So the column is trusted only when it holds a factor from the CURRENT
+     * scale. Anything else falls through to the Master Profile, and then to the
+     * reference body, exactly as an unanswered column would.
+     */
+    const ON_SCALE = new Set<number>(Object.values(ACTIVITY_FACTORS));
+    if (pref?.activity != null && ON_SCALE.has(pref.activity)) return pref.activity;
     const m = await this.masterProfile.get(userId).catch(swallowed('nutrition.activityOf', null));
     const level = (m as { activityLevel?: string | null } | null)?.activityLevel;
     if (!level) return undefined;
