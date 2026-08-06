@@ -60,10 +60,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!payload?.sub) throw new UnauthorizedException('malformed token');
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, handle: true, deletedAt: true, sessionsRevokedAt: true },
+      select: { id: true, handle: true, deletedAt: true, suspendedAt: true, sessionsRevokedAt: true },
     });
     if (!user) throw new UnauthorizedException('account no longer exists');
     if (user.deletedAt) throw new UnauthorizedException('account deleted');
+    // A suspension the citizen can outlast is not a suspension. Because this
+    // row is re-read on every request, the console's decision takes effect on
+    // the suspended person's NEXT request rather than in fifteen minutes, and
+    // without an admin having to touch sessionsRevokedAt — which belongs to
+    // the citizen's own password reset and "sign out everywhere".
+    //
+    // The message says nothing about why. The reason is recorded for the next
+    // admin, not published to the suspended account, and a refusal that argues
+    // its case is a refusal somebody argues back with through a text field
+    // that does not exist.
+    if (user.suspendedAt) throw new UnauthorizedException('account suspended');
     if (user.sessionsRevokedAt && !issuedAfter(payload.iat, user.sessionsRevokedAt)) {
       // "Signed out of all sessions" now includes this one. Revoking marked the
       // refresh tokens; without this line the access token in a thief's hand went

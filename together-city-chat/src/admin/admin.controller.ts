@@ -14,6 +14,15 @@ const DecisionSchema = z.object({
 });
 type DecisionDto = z.infer<typeof DecisionSchema>;
 
+/** Same rule as a moderation decision: a reason long enough to be a sentence.
+ *  Suspending somebody's account on the word "spam" is not a record anybody
+ *  can defend three months later. */
+const SuspendSchema = z.object({
+  suspended: z.boolean(),
+  reason: z.string().trim().min(8).max(1000),
+});
+type SuspendDto = z.infer<typeof SuspendSchema>;
+
 /**
  * The console's surface. Every route below is behind a permission — the guard
  * is in AdminAccessService and it reads the grants table, so a role revoked a
@@ -41,6 +50,38 @@ export class AdminController {
     @Req() req: { ip?: string },
   ) {
     return this.admin.decide(user.sub, id, dto.decision, dto.reason, req.ip ?? null);
+  }
+
+  // Declared before ':id'-shaped routes for the usual reason, and named in
+  // the plural so "citizens" can never be read as a citizen id.
+  @Get('citizens')
+  citizens(
+    @CurrentUser() user: JwtUser,
+    @Query('q') q?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.admin.citizens(user.sub, { query: q, status });
+  }
+
+  @Get('citizens/:id')
+  citizen(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.admin.citizen(user.sub, id);
+  }
+
+  @Post('citizens/:id/suspension')
+  @UsePipes(new ZodValidationPipe(SuspendSchema))
+  suspend(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+    @Body() dto: SuspendDto,
+    @Req() req: { ip?: string },
+  ) {
+    return this.admin.setSuspended(user.sub, id, dto.suspended, dto.reason, req.ip ?? null);
+  }
+
+  @Get('businesses/:id')
+  business(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.admin.business(user.sub, id);
   }
 
   @Get('audit')

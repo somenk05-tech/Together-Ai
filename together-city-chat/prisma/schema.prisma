@@ -117,6 +117,19 @@ model User {
   /// against the token's `iat` on every request and refuses anything issued
   /// before it. Null for accounts that have never revoked.
   sessionsRevokedAt DateTime?
+  /// Suspended by the console. NOT a deletion and not reversible by the citizen:
+  /// they keep their data, they cannot sign in, and restoring is one field.
+  ///
+  /// Separate from deletedAt on purpose. Reusing that column would have made a
+  /// suspension indistinguishable from an account the citizen closed themselves
+  /// — in the purge plan, in the "already gone" branches of auth, and in every
+  /// count anybody runs afterwards. A punishment and a departure are not the
+  /// same event.
+  suspendedAt     DateTime?
+  /// Why, in the suspending admin's words. Never shown to the citizen by this
+  /// column — the sign-in refusal is deliberately plain — but it is what the
+  /// next admin reads before deciding whether to restore.
+  suspendedReason String?
 
   connectionsInitiated Connection[]         @relation("ConnectionUserOne")
   connectionsReceived  Connection[]         @relation("ConnectionUserTwo")

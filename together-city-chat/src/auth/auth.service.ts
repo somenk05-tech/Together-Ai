@@ -237,6 +237,18 @@ export class AuthService {
     if ((user as unknown as { deletedAt?: Date | null }).deletedAt) {
       throw new UnauthorizedException('Invalid credentials');
     }
+    // A suspended account is refused at the door as well as at every request.
+    // JwtStrategy already stops a token that exists; this stops a new one
+    // being minted, which otherwise gives a suspended person a working refresh
+    // token and a session that dies one request later — a confusing loop that
+    // looks like a fault in the app rather than a decision about their account.
+    //
+    // The SAME generic message, deliberately. Telling an unauthenticated
+    // caller "that account is suspended" answers "does this handle exist" and
+    // "is this password right" for anybody typing handles into a form.
+    if ((user as unknown as { suspendedAt?: Date | null }).suspendedAt) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
     const pair = await this.tokens.issuePair({ sub: user.id, handle: user.handle }, meta);
     return { ...pair, userId: user.id };
   }

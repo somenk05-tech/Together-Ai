@@ -19,6 +19,45 @@ export interface AuditItem {
   actor: { name: string; handle: string } | null;
 }
 
+/**
+ * A person, as this console is allowed to see them.
+ *
+ * `email` and `phone` arrive MASKED from the server and there is no unmasked
+ * variant to fetch. That is a decision recorded in citizen-view.ts on the API
+ * side, not a rendering choice here — see the note there before adding a field
+ * to this interface.
+ */
+export interface CitizenView {
+  id: string; handle: string; name: string;
+  city: string | null; profileImage: string | null;
+  joinedAt: string; lastSeen: string;
+  email: string | null; emailVerified: boolean;
+  phone: string | null; phoneVerified: boolean;
+  status: 'live' | 'suspended' | 'deleted' | 'purged';
+  suspendedAt: string | null; suspendedReason: string | null;
+  moderator: boolean;
+}
+export interface CitizenRecord {
+  citizen: CitizenView;
+  listings: Array<{ id: string; slug: string | null; businessName: string; categoryKey: string; city: string; moderation: string; createdAt: string }>;
+  reportsMade: number;
+  reportsAbout: Array<{ id: string; reason: string | null; status: string; createdAt: string }>;
+  grants: Array<{ role: string; grantedAt: string; grantedBy: string; reason: string }>;
+  history: Array<{ id: string; action: string; reason: string; at: string; actor: { name: string; handle: string } | null }>;
+}
+export interface BusinessRecord {
+  listing: {
+    id: string; slug: string | null; businessName: string; categoryKey: string;
+    city: string; areas: string[]; about: string | null; photos: string[];
+    moderation: string; createdAt: string; reviewCount: number;
+  };
+  owner: CitizenView | null;
+  alsoOwns: Array<{ id: string; businessName: string; moderation: string }>;
+  autoModeration: string | null;
+  moderationLog: Array<{ id: string; actor: string; decision: string; reason: string; at: string }>;
+  history: Array<{ id: string; action: string; reason: string; at: string; actor: { name: string; handle: string } | null }>;
+}
+
 export const adminApi = {
   me: () => api.get<AdminMe>('/admin/me').then((r) => r.data),
   queue: () => api.get<{ items: QueueItem[]; waiting: number }>('/admin/queue').then((r) => r.data),
@@ -26,6 +65,14 @@ export const adminApi = {
     api.post<{ id: string; moderation: string }>(`/admin/queue/${id}/decision`, { decision, reason }).then((r) => r.data),
   audit: (q: { entity?: string; entityId?: string } = {}) =>
     api.get<{ items: AuditItem[] }>('/admin/audit', { params: q }).then((r) => r.data),
+  citizens: (q: { q?: string; status?: string } = {}) =>
+    api.get<{ items: CitizenView[]; limit: number; truncated: boolean }>('/admin/citizens', { params: q }).then((r) => r.data),
+  citizen: (id: string) =>
+    api.get<CitizenRecord>(`/admin/citizens/${id}`).then((r) => r.data),
+  setSuspended: (id: string, suspended: boolean, reason: string) =>
+    api.post<{ id: string; suspended: boolean }>(`/admin/citizens/${id}/suspension`, { suspended, reason }).then((r) => r.data),
+  business: (id: string) =>
+    api.get<BusinessRecord>(`/admin/businesses/${id}`).then((r) => r.data),
 };
 
 /** Who you are in console terms. Everything else on this screen waits on it —
@@ -50,5 +97,42 @@ export function useDecide() {
       // The decision changes what citizens see, so the directory is stale too.
       void qc.invalidateQueries({ queryKey: ['services'] });
     },
+  });
+}
+
+/** The search. Debouncing lives in the screen; this only runs when there is
+ *  something to run on, so an empty box is not a full-table scan per keystroke. */
+export function useCitizens(enabled: boolean, q: { q?: string; status?: string }) {
+  return useQuery({
+    queryKey: ['admin', 'citizens', q],
+    queryFn: () => adminApi.citizens(q),
+    enabled: enabled && Boolean(q.q?.trim() || q.status),
+    retry: false,
+  });
+}
+export function useCitizen(id: string | null) {
+  return useQuery({
+    queryKey: ['admin', 'citizen', id],
+    queryFn: () => adminApi.citizen(id as string),
+    enabled: Boolean(id),
+    retry: false,
+  });
+}
+export function useBusinessRecord(id: string | null) {
+  return useQuery({
+    queryKey: ['admin', 'business', id],
+    queryFn: () => adminApi.business(id as string),
+    enabled: Boolean(id),
+    retry: false,
+  });
+}
+export function useSetSuspended() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; suspended: boolean; reason: string }) =>
+      adminApi.setSuspended(v.id, v.suspended, v.reason),
+    // The whole console, not just this record: a suspension changes the audit
+    // log and the search results as well as the person's own page.
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin'] }); },
   });
 }
