@@ -2436,6 +2436,18 @@ model ServiceListing {
   about        String? // what they do, in their words
   city         String
   areas        String   @default("") // csv of localities served — the "local" in Local Services
+  // WHERE IT ACTUALLY IS. A city and a list of locality names is how a person
+  // describes where they work; it is not something a map can draw or a
+  // "within 2 km" filter can answer. Nullable because a listing made before
+  // this existed has no coordinates and must not become invisible — the
+  // directory falls back to city and areas for those.
+  lat          Float?
+  lng          Float?
+  // How far they will travel. Null means "they did not say", which reads
+  // differently from 0 and must keep reading differently.
+  radiusKm     Int?
+  homeVisit    Boolean  @default(false)
+  onlineOk     Boolean  @default(false)
   phone        String? // NEVER returned to a browser; the anonymous thread is the only channel
   priceFrom    Int? // ₹, optional — "from" and not a quote
   photosJson   String   @default("[]") // JSON [{url,caption?}]

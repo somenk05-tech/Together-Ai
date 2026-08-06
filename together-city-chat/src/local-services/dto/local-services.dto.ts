@@ -18,6 +18,14 @@ export const CreateListingSchema = z.object({
   phone: z.string().trim().max(20).optional(),
   priceFrom: z.number().int().min(0).max(10_000_000).optional(),
   photoUrls: z.array(z.string().url()).max(6).optional(),
+  // Bounded to the real world. A swapped lat/lng pair is the classic bug here
+  // and it lands the business in the sea off West Africa; the ranges catch the
+  // half of those where the longitude exceeds 90.
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
+  radiusKm: z.number().int().min(0).max(500).optional(),
+  homeVisit: z.boolean().optional(),
+  onlineOk: z.boolean().optional(),
 });
 export type CreateListingDto = z.infer<typeof CreateListingSchema>;
 
@@ -26,6 +34,11 @@ export type UpdateListingDto = z.infer<typeof UpdateListingSchema>;
 
 export const BrowseSchema = z.object({
   category: z.string().trim().max(40).optional(),
+  // "Near me" — a point and a distance. Both or neither; a radius with no
+  // centre is a filter that cannot be applied and should say so rather than
+  // silently returning everything.
+  near: z.string().trim().max(48).optional(), // "lat,lng"
+  withinKm: z.coerce.number().min(0.1).max(200).optional(),
   city: z.string().trim().max(60).optional(),
   area: z.string().trim().max(60).optional(),
   q: z.string().trim().max(80).optional(),

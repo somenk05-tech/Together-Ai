@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Chip, EmptyState, Spinner, Button } from '@/components/ui';
-import { useBrowseServices, useServiceCategories, useServiceFacets, useEnquire, rupees, type ServiceCard } from '../api';
+import { useBrowseServices, useServiceCategories, useServiceFacets, useEnquire, rupees, humanDistance, currentPosition, type ServiceCard } from '../api';
 
 /**
  * FIND A SERVICE.
@@ -23,8 +23,11 @@ function Tile({ s, onChat, busy }: { s: ServiceCard; onChat: (id: string) => voi
         <span className="muted" style={{ fontSize: 12.5 }}>{s.categoryLabel}</span>
       </div>
       <div className="muted" style={{ fontSize: 12.5 }}>
+        {s.distanceKm != null && <strong style={{ color: 'var(--accent-ink)' }}>{humanDistance(s.distanceKm)} away · </strong>}
         {s.areas.length ? s.areas.join(' · ') : s.city}
         {s.priceFrom != null && <> · from {rupees(s.priceFrom)}</>}
+        {s.homeVisit && <> · comes to you</>}
+        {s.onlineOk && <> · online too</>}
       </div>
       {s.about && (
         <p style={{ fontSize: 13.5, margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -47,9 +50,25 @@ export function ServicesBrowse() {
   const [city, setCity] = useState('');
   const [area, setArea] = useState('');
   const [q, setQ] = useState('');
+  // "Near me" is off until somebody asks for it. The permission prompt is the
+  // cost of this feature and it is only worth paying when it was requested.
+  const [near, setNear] = useState<{ lat: number; lng: number } | null>(null);
+  const [withinKm, setWithinKm] = useState(2);
+  const [locBusy, setLocBusy] = useState(false);
+  const [locErr, setLocErr] = useState<string | null>(null);
   const cats = useServiceCategories();
   const facets = useServiceFacets(city || undefined);
-  const list = useBrowseServices({ category: category || undefined, city: city || undefined, area: area || undefined, q: q || undefined });
+  const list = useBrowseServices({
+    category: category || undefined, city: city || undefined, area: area || undefined, q: q || undefined,
+    ...(near ? { near: `${near.lat},${near.lng}`, withinKm } : {}),
+  });
+
+  const findMe = async () => {
+    setLocBusy(true); setLocErr(null);
+    try { const p = await currentPosition(); setNear({ lat: p.lat, lng: p.lng }); }
+    catch (e) { setLocErr((e as Error).message); }
+    finally { setLocBusy(false); }
+  };
   const enquire = useEnquire();
   const [openedThread, setOpenedThread] = useState<string | null>(null);
 
@@ -86,6 +105,28 @@ export function ServicesBrowse() {
         <input value={area} onChange={(e) => setArea(e.target.value)} placeholder="Area or locality" aria-label="Area"
           style={{ flex: '0 1 180px', minWidth: 0, padding: '11px 14px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', background: 'var(--card)' }} />
       </div>
+
+      {/* NEAR ME. A point and a distance — a radius with no centre is a filter
+          that cannot be applied, so the distances only appear once there is a
+          point to measure from. A listing that has not said where it is drops
+          out of this search rather than being guessed at. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+        {near ? (
+          <>
+            <Chip selected onClick={() => setNear(null)}>📍 Near me ✕</Chip>
+            {[0.5, 1, 2, 5, 10].map((km) => (
+              <Chip key={km} selected={withinKm === km} onClick={() => setWithinKm(km)}>
+                {km < 1 ? `${km * 1000} m` : `${km} km`}
+              </Chip>
+            ))}
+          </>
+        ) : (
+          <Button variant="line" size="sm" disabled={locBusy} onClick={() => void findMe()}>
+            {locBusy ? 'Finding you…' : '📍 Show what is near me'}
+          </Button>
+        )}
+      </div>
+      {locErr && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: '0 0 10px' }} role="alert">{locErr}</p>}
 
       {/* GROUPS FIRST, THEN TRADES.
           There are a hundred and forty categories. A hundred and forty chips is

@@ -19,6 +19,13 @@ export interface ServiceCard {
   areas: string[];
   priceFrom: number | null;
   photos: Array<{ url: string; caption?: string }>;
+  lat: number | null;
+  lng: number | null;
+  radiusKm: number | null;
+  homeVisit: boolean;
+  onlineOk: boolean;
+  /** Present only on a "near me" search — the server measured it. */
+  distanceKm?: number;
   createdAt: string;
 }
 /** Your own listing, read back — this is the one place a phone number exists. */
@@ -51,12 +58,17 @@ export interface ListingInput {
   phone?: string;
   priceFrom?: number;
   photoUrls?: string[];
+  lat?: number;
+  lng?: number;
+  radiusKm?: number;
+  homeVisit?: boolean;
+  onlineOk?: boolean;
 }
 
 export const servicesApi = {
   categories: () => api.get<{ groups: CategoryGroup[] }>('/services/categories').then((r) => r.data),
   facets: (city?: string) => api.get<Record<string, number>>('/services/facets', { params: { city } }).then((r) => r.data),
-  browse: (q: { category?: string; city?: string; area?: string; q?: string; page?: number }) =>
+  browse: (q: { category?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) =>
     api.get<{ items: ServiceCard[]; total: number; page: number; pages: number }>('/services', { params: q }).then((r) => r.data),
   detail: (id: string) => api.get<ServiceCard>(`/services/${id}`).then((r) => r.data),
   mine: () => api.get<MyServiceCard[]>('/services/mine').then((r) => r.data),
@@ -85,7 +97,7 @@ export function useServiceCategories() {
 export function useServiceFacets(city?: string) {
   return useQuery({ queryKey: ['services', 'facets', city ?? ''], queryFn: () => servicesApi.facets(city) });
 }
-export function useBrowseServices(q: { category?: string; city?: string; area?: string; q?: string; page?: number }) {
+export function useBrowseServices(q: { category?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) {
   return useQuery({ queryKey: ['services', 'browse', q], queryFn: () => servicesApi.browse(q) });
 }
 export function useMyServices() {
@@ -138,3 +150,30 @@ export function useSendServiceMessage(id?: string) {
 
 export const rupees = (n: number | null): string =>
   n == null ? '' : `₹${n.toLocaleString('en-IN')}`;
+
+/** Metres under a kilometre, one decimal above — the way a person says it.
+ *  Mirrors the server's own `humanDistance`; both are three lines and a shared
+ *  package for three lines costs more than it saves. */
+export const humanDistance = (km: number): string =>
+  km < 1 ? `${Math.round((km * 1000) / 10) * 10} m`
+    : km < 10 ? `${km.toFixed(1)} km`
+    : `${Math.round(km)} km`;
+
+/**
+ * The browser's own location, asked for once and only when somebody presses a
+ * button. Never on page load: a permission prompt nobody invited is a prompt
+ * most people decline, and a declined prompt is hard to ask for again.
+ */
+export function currentPosition(): Promise<{ lat: number; lng: number; accuracyM: number }> {
+  return new Promise((resolve, reject) => {
+    if (!('geolocation' in navigator)) { reject(new Error('This browser cannot share a location.')); return; }
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracyM: Math.round(p.coords.accuracy) }),
+      (e) => reject(new Error(
+        e.code === e.PERMISSION_DENIED
+          ? 'Location permission was declined — you can type the coordinates instead.'
+          : 'Could not read your location just now. Try again, or type the coordinates.')),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
+    );
+  });
+}

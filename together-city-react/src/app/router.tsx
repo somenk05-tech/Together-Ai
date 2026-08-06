@@ -173,11 +173,16 @@ export const router = createBrowserRouter([
       { path: '/financial', element: <HubLanding hub="financial" /> },
       { path: '/beauty', element: <HubLanding hub="beauty" /> },
       { path: '/fitness', element: <HubLanding hub="fitness" /> },
-      // NO BILLBOARD LANDING. Every other hub opens onto a full-viewport render
-      // with an "Explore now" button under it — a door onto another door, and
-      // the first finding of the 5 Aug design audit. A hub being built today
-      // does not inherit that; /services opens onto the directory itself.
-      { path: '/services', element: <Navigate to="/services/browse" replace /> },
+      // THIS ONE EARNS ITS LANDING, and the distinction is worth stating
+      // because the 5 Aug design audit argued against exactly this pattern.
+      //
+      // The objection was never to pictures. It was that a hub door showed a
+      // photoreal render of a building with nothing in it — atmosphere charged
+      // at a full viewport and a click. The picture the owner commissioned for
+      // this hub is different in kind: the billboards on it are the eighteen
+      // category groups, so it tells somebody arriving what is inside before
+      // they read a word. It is a directory board, not a mood.
+      { path: '/services', element: <HubLanding hub="services" /> },
       // Cars was a nav tab and a map building with a coming-soon page behind it
       // and nothing else. Somebody may still have the URL; a redirect into the
       // hub that took its place beats a 404 for a page that never had content.

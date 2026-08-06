@@ -28,6 +28,11 @@ export const HUB_HERO: Partial<Record<HubKey, string>> = {
   financial: 'financial-district.webp',
   beauty: 'beautymarket.webp',
   fitness: 'fitness-hero.webp',
+  // Commissioned for this hub and genuinely informative rather than
+  // atmospheric: the billboards on it ARE the eighteen category groups, so the
+  // picture tells a first-time visitor what is inside before they read a word.
+  // That is why /services gets a landing after all — see the note in router.tsx.
+  services: 'local-services.webp',
   // Mail has no commissioned hero of its own, and the fallback below resolved
   // to mail.webp — a file that has never existed, so /mail rendered an empty
   // frame. Correspondence is people you are in touch with, and this is the

@@ -4,11 +4,13 @@ import { PrismaService } from '../shared/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { categoryLabel, isCategory } from './categories';
 import { mintAlias } from './alias';
+import { boundingBox, haversineKm, parsePoint } from './geo';
 import type { BrowseDto, CreateListingDto, UpdateListingDto } from './dto/local-services.dto';
 
 type ListingRow = {
   id: string; ownerId: string; businessName: string; categoryKey: string; about: string | null;
   city: string; areas: string; phone: string | null; priceFrom: number | null; photosJson: string;
+  lat: number | null; lng: number | null; radiusKm: number | null; homeVisit: boolean; onlineOk: boolean;
   moderation: string; createdAt: Date; updatedAt: Date;
 };
 type EnquiryRow = {
@@ -53,6 +55,10 @@ export class LocalServicesService {
       areas: csv(l.areas),
       priceFrom: l.priceFrom,
       photos: parse<Array<{ url: string; caption?: string }>>(l.photosJson, []),
+      // The pin. Public on purpose — a shopfront's address is not a secret, and
+      // a directory that will not say where anybody is cannot be walked to.
+      lat: l.lat, lng: l.lng, radiusKm: l.radiusKm,
+      homeVisit: l.homeVisit, onlineOk: l.onlineOk,
       createdAt: l.createdAt.toISOString(),
     };
   }
@@ -116,6 +122,41 @@ export class LocalServicesService {
       ];
     }
 
+    /**
+     * NEAR ME. The box goes in the query because an index can use it; the exact
+     * circle is trimmed afterwards, in memory, on the rows the box returned.
+     * Filtering by haversine in SQL reads every row in the table on every pan.
+     *
+     * A listing with no coordinates is excluded from a distance search rather
+     * than assumed to be far away — it has not said where it is, and inventing
+     * an answer for it is the one thing this codebase does not do.
+     */
+    const centre = parsePoint(q.near);
+    const near = centre && q.withinKm ? { centre, km: q.withinKm } : null;
+    if (near) {
+      const b = boundingBox(near.centre.lat, near.centre.lng, near.km);
+      where.lat = { gte: b.minLat, lte: b.maxLat };
+      where.lng = { gte: b.minLng, lte: b.maxLng };
+    }
+
+    if (near) {
+      // Paginating a set that is about to be trimmed would drop rows silently,
+      // so the box is read whole (capped) and the page is cut after the trim.
+      const boxRows = await this.prisma.serviceListing.findMany({
+        where, orderBy: { createdAt: 'desc' }, take: 500,
+      }) as unknown as ListingRow[];
+      const withDist = boxRows
+        .map((r) => ({ r, km: haversineKm(near.centre.lat, near.centre.lng, r.lat as number, r.lng as number) }))
+        .filter((x) => x.km <= near.km)
+        .sort((a, b2) => a.km - b2.km);
+      const total = withDist.length;
+      const slice = withDist.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+      return {
+        items: slice.map((x) => ({ ...this.card(x.r), distanceKm: Math.round(x.km * 100) / 100 })),
+        total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+      };
+    }
+
     const [rows, total] = await Promise.all([
       this.prisma.serviceListing.findMany({
         where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE,
@@ -172,6 +213,11 @@ export class LocalServicesService {
         phone: dto.phone ?? null,
         priceFrom: dto.priceFrom ?? null,
         photosJson: JSON.stringify((dto.photoUrls ?? []).map((url) => ({ url }))),
+        lat: dto.lat ?? null,
+        lng: dto.lng ?? null,
+        radiusKm: dto.radiusKm ?? null,
+        homeVisit: dto.homeVisit ?? false,
+        onlineOk: dto.onlineOk ?? false,
       },
     }) as unknown as ListingRow;
     return this.ownerCard(row);
@@ -195,6 +241,11 @@ export class LocalServicesService {
     if (dto.phone !== undefined) data.phone = dto.phone;
     if (dto.priceFrom !== undefined) data.priceFrom = dto.priceFrom;
     if (dto.photoUrls !== undefined) data.photosJson = JSON.stringify(dto.photoUrls.map((url) => ({ url })));
+    if (dto.lat !== undefined) data.lat = dto.lat;
+    if (dto.lng !== undefined) data.lng = dto.lng;
+    if (dto.radiusKm !== undefined) data.radiusKm = dto.radiusKm;
+    if (dto.homeVisit !== undefined) data.homeVisit = dto.homeVisit;
+    if (dto.onlineOk !== undefined) data.onlineOk = dto.onlineOk;
     const row = await this.prisma.serviceListing.update({ where: { id }, data }) as unknown as ListingRow;
     return this.ownerCard(row);
   }
