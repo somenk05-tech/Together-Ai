@@ -63,10 +63,20 @@ export function BodyGoal() {
         <div className="eyebrow">Your daily diet targets</div>
         <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginTop: 10 }}>
           <Stat label="Calories" value={`${p.calorieTarget}`} sub={`TDEE ${p.tdee} kcal`} />
-          <Stat label="Protein" value={`${p.macros.proteinG} g`} sub={`${p.proteinPerKg} g/kg`} />
+          {/* The sub-label follows the number. Showing "1.8 g/kg" under a
+              figure dosed against reference weight is a unit that does not
+              divide into the gram count, and somebody will check. */}
+          <Stat label="Protein" value={`${p.macros.proteinG} g`}
+            sub={p.proteinNote ? 'clinical dose' : `${p.proteinPerKg} g/kg`} />
           <Stat label="Carbs" value={`${p.macros.carbG} g`} />
           <Stat label="Fat" value={`${p.macros.fatG} g`} />
         </div>
+        {/* Training explains; clinical wins. The number this hub would have
+            asked for is not hidden — it is named, with the reason it was not
+            the one chosen, so the citizen has one target and knows why. */}
+        {p.proteinNote && (
+          <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{p.proteinNote}</p>
+        )}
         <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>Safe rate: {p.rate}. Base metabolic rate ≈ {p.bmr} kcal.</p>
         <Chips citations={p.citations} />
       </div>

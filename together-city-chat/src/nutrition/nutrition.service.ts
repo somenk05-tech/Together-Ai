@@ -38,7 +38,7 @@ import { JAIN_EXCLUSION_HINTS, explainScreen, screenRecipe, type DietKey } from 
 import { normaliseDietKey, stricterThanOwner, strictestDiet } from './household-diet';
 import { canonicaliseDeclared, findAllergen, isAllergenSafe } from '../shared/allergens';
 import { allergyNotice } from '../shared/allergen-voice';
-import { ACTIVITY_CHOICES, GOAL_DELTA, energyTarget, nearestActivityLevel } from '../shared/energy';
+import { ACTIVITY_CHOICES, ACTIVITY_FACTORS, GOAL_DELTA, energyTarget, nearestActivityLevel } from '../shared/energy';
 import { itemKey, mergeGroceryList } from './grocery-merge';
 import { targetReadiness } from './target-readiness';
 import { scoreDual, buildScorecard, guidelineCaps } from './plan-score';
@@ -1730,6 +1730,32 @@ export class NutritionService implements OnModuleInit {
     }
   }
 
+  /**
+   * THE ACTIVITY LEVEL, READ FROM THE ONE PLACE IT LIVES.
+   *
+   * Fitness and Nutrition were showing the same person two different calorie
+   * targets — 3,040 against 2,588 — off the same equation and the same body.
+   * The whole gap was this input. Fitness read the activity level from the
+   * Master Profile; Nutrition read `FoodPref.activity`, and on an account that
+   * has never opened the Preferences form that column is null, so the target
+   * fell through to REFERENCE_BODY's stand-in factor.
+   *
+   * A fictional body is the LAST resort, not the second. If the citizen has
+   * told the Master Profile how active they are, that answer is theirs and it
+   * is used. Only when nobody anywhere has been asked does the reference body
+   * come out, and `assumed` still names it so the screen can say so.
+   *
+   * Household members keep their own per-member activity — they have their own
+   * row and their own answer. This is about the account holder.
+   */
+  private async activityOf(userId: string, pref: { activity?: number | null } | null): Promise<number | undefined> {
+    if (pref?.activity != null) return pref.activity;
+    const m = await this.masterProfile.get(userId).catch(swallowed('nutrition.activityOf', null));
+    const level = (m as { activityLevel?: string | null } | null)?.activityLevel;
+    if (!level) return undefined;
+    return ACTIVITY_FACTORS[level as keyof typeof ACTIVITY_FACTORS] ?? undefined;
+  }
+
   // ─────────────── targets (Mifflin-St Jeor) ───────────────
   async targets(userId: string) {
     const pref = await this.prisma.foodPref.findUnique({ where: { userId } });
@@ -1744,7 +1770,7 @@ export class NutritionService implements OnModuleInit {
       heightCm: pref?.heightCm ?? undefined,
       age: pref?.age ?? undefined,
       sex: pref?.sex ?? undefined,
-      activity: pref?.activity ?? undefined,
+      activity: await this.activityOf(userId, pref),
       goal: pref?.goal ?? undefined,
       conditions: ex.healthConditions ?? [], flags,
     });
@@ -2060,7 +2086,7 @@ export class NutritionService implements OnModuleInit {
         const t = computeTargets({
           weightKg: prefF?.weightKg ?? undefined, heightCm: prefF?.heightCm ?? undefined,
           age: prefF?.age ?? undefined, sex: prefF?.sex ?? undefined,
-          activity: prefF?.activity ?? undefined, goal: prefF?.goal ?? undefined,
+          activity: await this.activityOf(userId, prefF), goal: prefF?.goal ?? undefined,
           conditions: [], flags: {},
         });
         const pool = await this.datasetPoolReady();
@@ -2189,7 +2215,7 @@ export class NutritionService implements OnModuleInit {
     const t = computeTargets({
       weightKg: pref?.weightKg ?? undefined, heightCm: pref?.heightCm ?? undefined,
       age: pref?.age ?? undefined, sex: pref?.sex ?? undefined,
-      activity: pref?.activity ?? undefined, goal: pref?.goal ?? undefined,
+      activity: await this.activityOf(userId, pref), goal: pref?.goal ?? undefined,
       conditions, flags,
     });
     // Jain is vegetarian + automatic exclusion of onion, garlic and root vegetables.

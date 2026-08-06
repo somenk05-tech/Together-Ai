@@ -426,6 +426,10 @@ export interface BodyProgram {
   /** What we would need and do not have: weight, height, sex, activity. */
   missing: string[];
   proteinPerKg: number;
+  /** The training dose this body goal asks for, kept for the explanation even
+   *  when the clinical prescription is the one on the screen. */
+  trainingProteinG: number | null;
+  proteinNote: string | null;
   rate: string;
   emphasis: string;
   nutrition: { goal: 'lose' | 'maintain' | 'gain'; proteinTarget: number; note: string };
@@ -440,6 +444,16 @@ export function computeBodyProgram(input: {
   /** The citizen's activity factor from the Master Profile. Not their ability. */
   activity?: number | null;
   bodyGoal: string; labFlags?: Record<string, string>; labValues?: Record<string, number>;
+  /**
+   * The protein target Nutrition already computed for this person, in grams.
+   *
+   * Passed in rather than recomputed here on purpose: the clinical rule reads
+   * conditions, pregnancy, age and kidney staging, and a second copy of it in
+   * this file is a second copy that will drift. When it is absent — the engine
+   * called with nothing but a body — this page falls back to the training dose
+   * and says so.
+   */
+  clinicalProteinG?: number | null;
 }): BodyProgram {
   const g = bodyGoalDef(input.bodyGoal);
   const hasMetrics = Boolean(input.heightCm && input.weightKg);
@@ -476,7 +490,8 @@ export function computeBodyProgram(input: {
     return {
       goalKey: g.key, goalLabel: g.label[input.sex] ?? g.label.other, tag: g.tag,
       hasMetrics, bmr: null, tdee: null, calorieTarget: null, macros: null, missing,
-      proteinPerKg: g.proteinPerKg, rate: g.rate, emphasis: g.emphasis,
+      proteinPerKg: g.proteinPerKg, trainingProteinG: null, proteinNote: null,
+      rate: g.rate, emphasis: g.emphasis,
       nutrition: {
         goal: g.nutritionGoal, proteinTarget: 0,
         note: `Your goal is synced to Nutrition as "${g.nutritionGoal}", so your meal plans follow it. Calorie and protein numbers need your ${missing.join(', ')}.`,
@@ -497,7 +512,28 @@ export function computeBodyProgram(input: {
   const bmr = Math.round(energy.bmr);
   const tdee = Math.round(energy.tdee);
   const calorieTarget = energy.kcal;
-  const proteinG = Math.round(g.proteinPerKg * weight);
+  /**
+   * ONE PROTEIN NUMBER PER PERSON, AND IT IS THE CLINICAL ONE.
+   *
+   * This page used to dose `proteinPerKg × actual weight` — 1.8 × 103 = 185 g —
+   * while Nutrition doses against REFERENCE weight, on the principle that you
+   * do not prescribe protein for adipose tissue. Both are cited and both are
+   * right about different questions, and the citizen saw 185 g on one screen
+   * and 74 g on another with nothing to tell them which to eat.
+   *
+   * Safety rules are the final word, the same call already made when the gain
+   * surplus is withheld at BMI ≥ 27. So the clinical dose is the number, and
+   * the training dose becomes a sentence explaining what it would have asked
+   * for and why this is lower. Nothing is hidden; one of them is just no
+   * longer pretending to be a second target.
+   */
+  const trainingProteinG = Math.round(g.proteinPerKg * weight);
+  const proteinG = input.clinicalProteinG ?? trainingProteinG;
+  const proteinNote = input.clinicalProteinG != null && input.clinicalProteinG !== trainingProteinG
+    ? `Training for this goal would ask for about ${trainingProteinG} g (${g.proteinPerKg} g/kg of your current weight). `
+      + `Your target is ${proteinG} g, dosed against a reference weight for your height — protein is prescribed for lean mass, not for body fat. `
+      + 'Nutrition, your meal plans and your grocery list all use this same figure.'
+    : null;
   const fatG = Math.round((calorieTarget * g.fatPct) / 9);
   const carbG = Math.max(0, Math.round((calorieTarget - proteinG * 4 - fatG * 9) / 4));
 
@@ -516,6 +552,7 @@ export function computeBodyProgram(input: {
     hasMetrics, bmr, tdee, calorieTarget, missing,
     macros: { proteinG, fatG, carbG },
     proteinPerKg: g.proteinPerKg,
+    trainingProteinG, proteinNote,
     rate: g.rate,
     emphasis: g.emphasis,
     nutrition: {
@@ -524,7 +561,10 @@ export function computeBodyProgram(input: {
       // protein target, so your meal plans, targets and grocery list adapt
       // automatically" — named a number that syncNutrition does not write.
       // The goal genuinely does sync. The protein figure is this hub's own.
-      note: `Your goal is synced to Nutrition as "${g.nutritionGoal}", so your meal plans and grocery list follow it. The ${proteinG} g/day protein target is this page's; Nutrition sets its own from your profile.`,
+      // No longer two numbers with a note apologising for the gap: this page
+      // shows the figure Nutrition computed, so there is one target to sync to
+      // and one to eat.
+      note: `Your goal is synced to Nutrition as "${g.nutritionGoal}", so your meal plans and grocery list follow it. The ${proteinG} g/day protein target is the same one Nutrition uses.`,
     },
     healthImprovements: health,
     citations: cite([...new Set([...g.citations, 'MIFFLIN'])]),

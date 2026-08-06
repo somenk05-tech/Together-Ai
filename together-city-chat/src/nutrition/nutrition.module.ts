@@ -14,5 +14,8 @@ import { ConnectionsModule } from '../connections/connections.module';
   imports: [PrismaModule, NotificationsModule, ProfileModule, ConversationsModule, FinancialModule, ConnectionsModule],
   controllers: [NutritionController, FoodJournalController],
   providers: [NutritionService, FoodJournalService],
+  // Exported for Fitness, which asks for the protein target rather than
+  // computing a second one. See FitnessService.clinicalProtein().
+  exports: [NutritionService],
 })
 export class NutritionModule {}

@@ -17,7 +17,12 @@ export interface BodyProgram {
   bmr: number | null; tdee: number | null; calorieTarget: number | null;
   missing: string[];
   macros: { proteinG: number; fatG: number; carbG: number };
-  proteinPerKg: number; rate: string; emphasis: string;
+  proteinPerKg: number;
+  /** What training for this goal would ask for, kept so the page can explain
+   *  why the clinical number on the screen is lower. */
+  trainingProteinG: number | null;
+  proteinNote: string | null;
+  rate: string; emphasis: string;
   nutrition: { goal: 'lose' | 'maintain' | 'gain'; proteinTarget: number; note: string };
   healthImprovements: { title: string; detail: string; citations: Citation[] }[];
   citations: Citation[]; disclaimer: string; consentGranted: boolean;

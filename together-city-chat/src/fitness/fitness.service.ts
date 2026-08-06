@@ -7,6 +7,7 @@ import { MasterProfileService } from '../profile/master-profile.service';
 import { clinicalSex } from '../profile/sex-and-gender';
 import { MedicalService } from '../medical/medical.service';
 import { flagsFor } from '../nutrition/clinical-engine';
+import { NutritionService } from '../nutrition/nutrition.service';
 import {
   buildPlan, conditionsFromLabs, conditionsFromDeclared, computeBodyProgram, LEVELS, MODES, BODY_GOALS,
   type ConditionAdjustment,
@@ -22,6 +23,10 @@ export class FitnessService {
     private readonly masterProfile: MasterProfileService,
     // Fitness reads biomarkers only through the Medical Hub's consent gate.
     private readonly medical: MedicalService,
+    // One protein prescription per person, and Nutrition owns it. See
+    // clinicalProtein() — this hub asks rather than keeping a second copy of a
+    // clinical rule that reads conditions, pregnancy, age and kidney staging.
+    private readonly nutrition: NutritionService,
   ) {}
 
   private optionsFor(sex: string) {
@@ -143,9 +148,29 @@ export class FitnessService {
     const program = computeBodyProgram({
       age: p.age, sex: p.sex, heightCm: p.heightCm, weightKg: p.weightKg,
       activity: await this.activityFor(userId),
+      // ONE NUMBER PER PERSON. Asked for rather than recomputed: the clinical
+      // protein rule reads conditions, pregnancy, age and kidney staging, and a
+      // second copy of it in this hub is a second copy that drifts. This hub
+      // used to dose 1.8 g/kg of actual weight and print 185 g beside
+      // Nutrition's 74 g, with nothing to tell the citizen which to eat.
+      clinicalProteinG: await this.clinicalProtein(userId),
       bodyGoal: p.bodyGoal, labFlags: flags, labValues: values,
     });
     return { ...program, consentGranted: granted };
+  }
+
+  /**
+   * Nutrition's protein target for this citizen, in grams.
+   *
+   * Best-effort. If Nutrition cannot answer, this hub falls back to its own
+   * training dose and labels it — a page that refuses to show a number because
+   * the other hub is slow is worse than a page showing the number it can
+   * defend.
+   */
+  private async clinicalProtein(userId: string): Promise<number | null> {
+    const t = await this.nutrition.targets(userId).catch(swallowed('fitness.clinicalProtein', null));
+    const g = (t as { protein?: unknown } | null)?.protein;
+    return typeof g === 'number' && g > 0 ? g : null;
   }
 
   /** Reverse-connect: push the body-goal-derived nutrition target into the Nutrition Hub. */
