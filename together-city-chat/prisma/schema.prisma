@@ -2448,8 +2448,6 @@ model ServiceListing {
   // How far they will travel. Null means "they did not say", which reads
   // differently from 0 and must keep reading differently.
   radiusKm     Int?
-  homeVisit    Boolean  @default(false)
-  onlineOk     Boolean  @default(false)
   phone        String? // NEVER returned to a browser; the anonymous thread is the only channel
   priceFrom    Int? // ₹, optional — "from" and not a quote
   photosJson   String   @default("[]") // JSON [{url,caption?}]

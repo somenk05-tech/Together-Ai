@@ -24,8 +24,6 @@ export const CreateListingSchema = z.object({
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
   radiusKm: z.number().int().min(0).max(500).optional(),
-  homeVisit: z.boolean().optional(),
-  onlineOk: z.boolean().optional(),
 });
 export type CreateListingDto = z.infer<typeof CreateListingSchema>;
 

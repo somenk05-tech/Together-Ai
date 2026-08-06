@@ -3,7 +3,7 @@ import { swallowed } from '../shared/swallow';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
-import { categoryLabel, isCategory } from './categories';
+import { categoryGroup, categoryLabel, isCategory } from './categories';
 import { mintAlias } from './alias';
 import { boundingBox, haversineKm, parsePoint } from './geo';
 import type { BrowseDto, CreateListingDto, UpdateListingDto, PostOfferDto, SaveMenuDto } from './dto/local-services.dto';
@@ -11,7 +11,7 @@ import type { BrowseDto, CreateListingDto, UpdateListingDto, PostOfferDto, SaveM
 type ListingRow = {
   id: string; ownerId: string; businessName: string; categoryKey: string; about: string | null;
   city: string; areas: string; phone: string | null; priceFrom: number | null; photosJson: string;
-  lat: number | null; lng: number | null; radiusKm: number | null; homeVisit: boolean; onlineOk: boolean;
+  lat: number | null; lng: number | null; radiusKm: number | null;
   moderation: string; createdAt: Date; updatedAt: Date;
 };
 type ReviewRow = {
@@ -85,6 +85,10 @@ export class LocalServicesService {
       businessName: l.businessName,
       categoryKey: l.categoryKey,
       categoryLabel: categoryLabel(l.categoryKey),
+      // The group travels with the card so the screen can pick its words: a
+      // restaurant has a menu you order from, a plumber a price list you book
+      // off. The rows are identical; the sentence is not.
+      categoryGroup: categoryGroup(l.categoryKey),
       about: l.about,
       city: l.city,
       areas: csv(l.areas),
@@ -93,7 +97,6 @@ export class LocalServicesService {
       // The pin. Public on purpose — a shopfront's address is not a secret, and
       // a directory that will not say where anybody is cannot be walked to.
       lat: l.lat, lng: l.lng, radiusKm: l.radiusKm,
-      homeVisit: l.homeVisit, onlineOk: l.onlineOk,
       createdAt: l.createdAt.toISOString(),
     };
   }
@@ -268,8 +271,6 @@ export class LocalServicesService {
         lat: dto.lat ?? null,
         lng: dto.lng ?? null,
         radiusKm: dto.radiusKm ?? null,
-        homeVisit: dto.homeVisit ?? false,
-        onlineOk: dto.onlineOk ?? false,
       },
     }) as unknown as ListingRow;
     return this.ownerCard(row);
@@ -296,8 +297,6 @@ export class LocalServicesService {
     if (dto.lat !== undefined) data.lat = dto.lat;
     if (dto.lng !== undefined) data.lng = dto.lng;
     if (dto.radiusKm !== undefined) data.radiusKm = dto.radiusKm;
-    if (dto.homeVisit !== undefined) data.homeVisit = dto.homeVisit;
-    if (dto.onlineOk !== undefined) data.onlineOk = dto.onlineOk;
     const row = await this.prisma.serviceListing.update({ where: { id }, data }) as unknown as ListingRow;
     return this.ownerCard(row);
   }

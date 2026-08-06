@@ -27,7 +27,7 @@ function harness(opts: { reviews?: any[]; enquiries?: any[] } = {}) {
   const listings = [{
     id: 'L1', ownerId: OWNER, businessName: 'Sharma Plumbing', categoryKey: 'plumbers',
     about: null, city: 'Mumbai', areas: '', phone: null, priceFrom: null, photosJson: '[]',
-    lat: null, lng: null, radiusKm: null, homeVisit: false, onlineOk: false,
+    lat: null, lng: null, radiusKm: null,
     moderation: 'approved', createdAt: new Date('2026-08-01'), updatedAt: new Date('2026-08-01'),
   }];
   const enquiries = opts.enquiries ?? [];

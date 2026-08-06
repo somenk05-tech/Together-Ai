@@ -46,8 +46,6 @@ export function ListBusiness() {
   const [locBusy, setLocBusy] = useState(false);
   const [locErr, setLocErr] = useState<string | null>(null);
   const [radiusKm, setRadius] = useState('');
-  const [homeVisit, setHomeVisit] = useState(false);
-  const [onlineOk, setOnlineOk] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoErr, setPhotoErr] = useState<string | null>(null);
@@ -104,7 +102,6 @@ export function ListBusiness() {
       ...(photos.length ? { photoUrls: photos } : {}),
       ...(pinned ? { lat: latN, lng: lngN } : {}),
       ...(radiusKm.trim() ? { radiusKm: Number(radiusKm.replace(/[^\d]/g, '')) } : {}),
-      homeVisit, onlineOk,
     }, {
       onSuccess: () => nav('/services/mine'),
       // The error the server actually gave, not a shrug. A form that says
@@ -240,16 +237,6 @@ export function ListBusiness() {
               and they are easy to swap round.
             </p>
           )}
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 10 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, minHeight: 44 }}>
-              <input type="checkbox" checked={homeVisit} onChange={(e) => setHomeVisit(e.target.checked)} />
-              I come to you
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, minHeight: 44 }}>
-              <input type="checkbox" checked={onlineOk} onChange={(e) => setOnlineOk(e.target.checked)} />
-              I work online too
-            </label>
-          </div>
         </div>
 
         {/* A listing with no picture is a line of text competing with a

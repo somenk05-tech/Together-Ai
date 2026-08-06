@@ -24,7 +24,7 @@ function harness(opts: { menu?: any[]; extract?: any } = {}) {
   const listings: any[] = [{
     id: 'L1', ownerId: OWNER, businessName: 'Anna Idli', categoryKey: 'restaurants',
     about: null, city: 'Chennai', areas: '', phone: null, priceFrom: null, photosJson: '[]',
-    lat: null, lng: null, radiusKm: null, homeVisit: false, onlineOk: false, menuScanUrl: null,
+    lat: null, lng: null, radiusKm: null, menuScanUrl: null,
     moderation: 'approved', createdAt: new Date(), updatedAt: new Date(),
   }];
   const menu = opts.menu ?? [];

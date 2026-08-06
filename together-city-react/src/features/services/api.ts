@@ -15,6 +15,7 @@ export interface ServiceCard {
   categoryKey: string;
   categoryLabel: string;
   about: string | null;
+  categoryGroup: string;
   city: string;
   areas: string[];
   priceFrom: number | null;
@@ -22,8 +23,6 @@ export interface ServiceCard {
   lat: number | null;
   lng: number | null;
   radiusKm: number | null;
-  homeVisit: boolean;
-  onlineOk: boolean;
   /** Present only on a "near me" search — the server measured it. */
   distanceKm?: number;
   /** Withheld below three reviews — one five-star review is one happy customer,
@@ -65,8 +64,6 @@ export interface ListingInput {
   lat?: number;
   lng?: number;
   radiusKm?: number;
-  homeVisit?: boolean;
-  onlineOk?: boolean;
 }
 
 export interface ServiceOffer {
@@ -226,6 +223,44 @@ export function menuPhotoToDataUrl(file: File): Promise<string> {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('That image could not be read.')); };
     img.src = url;
   });
+}
+
+/**
+ * WHAT TO CALL THE LIST, AND WHAT PRESSING THE BUTTON MEANS.
+ *
+ * A restaurant has a menu and you order from it. A plumber, a tutor and a
+ * salon have a price list and you book off it. It is the same table of rows
+ * underneath, and asking a plumber to "order" from his menu is the app telling
+ * the citizen it has not understood what the business does.
+ *
+ * Both verbs stop at the same place: a MESSAGE in the thread. Nothing here
+ * takes money, holds stock or confirms a time, and the button says so.
+ */
+export interface MenuVoice {
+  heading: string;
+  blurb: string;
+  action: string;
+  caveat: string;
+  unit: (n: number) => string;
+}
+const FOOD = 'Food & Daily Needs';
+export function menuVoice(group: string): MenuVoice {
+  if (group === FOOD) {
+    return {
+      heading: 'Menu',
+      blurb: 'Pick what you want and send it across. It starts a message, not an order.',
+      action: 'Ask about these',
+      caveat: 'It is a question, not an order',
+      unit: (n) => (n === 1 ? 'item' : 'items'),
+    };
+  }
+  return {
+    heading: 'What they do, and what it costs',
+    blurb: 'Pick what you need and send it across. It starts a message, not a booking.',
+    action: 'Ask to book these',
+    caveat: 'It is a question, not a booking',
+    unit: (n) => (n === 1 ? 'service' : 'services'),
+  };
 }
 
 export function useReviews(listingId?: string) {

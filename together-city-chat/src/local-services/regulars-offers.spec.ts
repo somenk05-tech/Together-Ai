@@ -27,7 +27,7 @@ function harness(opts: { listings?: any[]; regulars?: any[]; offers?: any[] } = 
   const listings = opts.listings ?? [{
     id: 'L1', ownerId: OWNER, businessName: 'Sharma Plumbing', categoryKey: 'plumbers',
     about: null, city: 'Mumbai', areas: 'Bandra', phone: null, priceFrom: null, photosJson: '[]',
-    lat: null, lng: null, radiusKm: null, homeVisit: false, onlineOk: false,
+    lat: null, lng: null, radiusKm: null,
     moderation: 'approved', createdAt: D('2026-08-01'), updatedAt: D('2026-08-01'),
   }];
   const regulars = opts.regulars ?? [];

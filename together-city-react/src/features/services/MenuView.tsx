@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Spinner } from '@/components/ui';
-import { useMenu, useAskAboutMenu, rupees } from './api';
+import { useMenu, useAskAboutMenu, menuVoice, rupees } from './api';
 
 /**
  * THE MENU, AND ASKING ABOUT SOME OF IT.
@@ -14,20 +14,21 @@ import { useMenu, useAskAboutMenu, rupees } from './api';
  * silently leaves out the "ask" items is a number the citizen will hold the
  * business to, and it is wrong in the direction that causes an argument.
  */
-export function MenuView({ listingId, onSent }: { listingId: string; onSent?: (threadId: string) => void }) {
+export function MenuView({ listingId, group, onSent }: { listingId: string; group?: string; onSent?: (threadId: string) => void }) {
+  const voice = menuVoice(group ?? '');
   const q = useMenu(listingId);
   const ask = useAskAboutMenu(listingId);
   const [picked, setPicked] = useState<string[]>([]);
   const [note, setNote] = useState('');
 
-  if (q.isLoading) return <Spinner label="Loading the menu…" />;
+  if (q.isLoading) return <Spinner label="Loading…" />;
   // A menu that failed to load says so. Falling through to `count === 0` would
   // render nothing at all, which reads as "this business has no menu" — a claim
   // about somebody else's business that was never checked.
   if (q.isError) {
     return (
       <p className="muted" style={{ fontSize: 12.5, marginTop: 14 }} role="alert">
-        The menu could not be loaded just now.
+        That list could not be loaded just now.
       </p>
     );
   }
@@ -46,8 +47,8 @@ export function MenuView({ listingId, onSent }: { listingId: string; onSent?: (t
   return (
     <div style={{ borderTop: '1px solid var(--line)', marginTop: 16, paddingTop: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <strong style={{ fontSize: 14 }}>Menu</strong>
-        <span className="muted" style={{ fontSize: 12.5 }}>{q.data.count} items</span>
+        <strong style={{ fontSize: 14 }}>{voice.heading}</strong>
+        <span className="muted" style={{ fontSize: 12.5 }}>{q.data.count} {voice.unit(q.data.count)}</span>
         {q.data.scanUrl && (
           <a href={q.data.scanUrl} target="_blank" rel="noreferrer"
             style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)' }}>See the original</a>
@@ -97,13 +98,13 @@ export function MenuView({ listingId, onSent }: { listingId: string; onSent?: (t
               onClick={() => ask.mutate({ itemIds: picked, note: note.trim() || undefined }, {
                 onSuccess: (r) => { setPicked([]); setNote(''); onSent?.(r.threadId); },
               })}>
-              {ask.isPending ? 'Sending…' : 'Ask about these'}
+              {ask.isPending ? 'Sending…' : voice.action}
             </Button>
             <Button variant="line" size="sm" onClick={() => setPicked([])}>Clear</Button>
           </div>
           <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>
-            This sends a message to the business. It is a question, not an order — nothing is
-            reserved and nothing is paid.
+            This sends a message to the business. {voice.caveat} — nothing is reserved and
+            nothing is paid.
           </p>
         </div>
       )}

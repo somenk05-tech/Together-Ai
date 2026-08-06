@@ -220,6 +220,16 @@ export const isCategory = (key: string): boolean => BY_KEY.has(key);
 export const categoryLabel = (key: string): string => BY_KEY.get(key)?.label ?? key;
 export const CATEGORY_KEYS: string[] = SERVICE_CATEGORIES.map((c) => c.key);
 
+/**
+ * The group a category sits in, which the screens use to choose their words.
+ *
+ * A restaurant has a MENU and you order from it; a plumber has a price list and
+ * you book off it. Same table, same rows, two different sentences — and using
+ * the restaurant's sentence on a plumber makes the app sound like it has not
+ * understood what the business does.
+ */
+export const categoryGroup = (key: string): string => BY_KEY.get(key)?.group ?? 'Other';
+
 /** Grouped for the picker, in the order the groups first appear above. */
 export function categoriesByGroup(): Array<{ group: string; items: ServiceCategory[] }> {
   const out: Array<{ group: string; items: ServiceCategory[] }> = [];
