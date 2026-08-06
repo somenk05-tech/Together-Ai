@@ -83,6 +83,14 @@ function harness(opts: { listings?: any[]; regulars?: any[]; offers?: any[] } = 
       delete: async ({ where }: any) => { const i = offers.findIndex((o) => o.id === where.id); return offers.splice(i, 1)[0]; },
     },
     serviceEnquiry: { findMany: async () => [], count: async () => 0 },
+    // browse() now reads a rating per card. The harness has to answer, or a
+    // spec about anonymity fails for a reason that has nothing to do with it.
+    serviceReview: {
+      groupBy: async () => [],
+      findMany: async () => [],
+      findUnique: async () => null,
+      count: async () => 0,
+    },
   };
   const svc: any = Object.create(LocalServicesService.prototype);
   svc.prisma = prisma;

@@ -3,8 +3,64 @@ import { Link } from 'react-router-dom';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
 import {
   useCloseService, useMyServices, useServiceInbox, useMyOffers, usePostOffer, useRemoveOffer,
-  rupees, offerWhen,
+  useReviews, useReplyToReview, rupees, offerWhen, stars,
 } from '../api';
+
+/**
+ * WHAT NEIGHBOURS SAID, AND THE ONE ANSWER YOU GET.
+ *
+ * The owner sees the alias — the same one from the conversation, so they can
+ * connect the review to the exchange they remember — and nothing else. There is
+ * no name to see because the server never put one in the object.
+ *
+ * One reply per review. A thread under a rating is a second conversation in a
+ * place built for one, and the room for that already exists.
+ */
+function ReviewsReceived({ listingId }: { listingId: string }) {
+  const q = useReviews(listingId);
+  const reply = useReplyToReview();
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [text, setText] = useState('');
+
+  const rows = q.data?.items ?? [];
+  if (q.isLoading || rows.length === 0) return null;
+
+  return (
+    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10, marginTop: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+        <strong style={{ fontSize: 13.5 }}>Reviews</strong>
+        <span className="muted" style={{ fontSize: 12.5 }}>
+          {q.data?.rating != null ? `${q.data.rating} out of 5 · ${q.data.count}` : `${q.data?.count} — too few for an average`}
+        </span>
+      </div>
+      <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
+        {rows.map((r) => (
+          <div key={r.id} style={{ fontSize: 13 }}>
+            <span style={{ color: 'var(--warn-ink)', letterSpacing: 1 }}>{stars(r.rating)}</span>
+            <span className="muted" style={{ marginLeft: 8 }}>{r.alias}</span>
+            {r.body && <p style={{ margin: '3px 0 0' }}>{r.body}</p>}
+            {r.ownerReply ? (
+              <p style={{ margin: '5px 0 0', paddingLeft: 10, borderLeft: '2px solid var(--line)' }}>
+                <span className="muted" style={{ fontSize: 12 }}>You replied: </span>{r.ownerReply}
+              </p>
+            ) : openId === r.id ? (
+              <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                <input value={text} onChange={(e) => setText(e.target.value)} maxLength={1200}
+                  aria-label={`Reply to ${r.alias}`} placeholder="Answer them…"
+                  style={{ flex: 1, minWidth: 0, padding: '8px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', background: 'var(--card)' }} />
+                <Button variant="accent" size="sm" disabled={!text.trim() || reply.isPending}
+                  onClick={() => reply.mutate({ reviewId: r.id, reply: text.trim() }, { onSuccess: () => { setText(''); setOpenId(null); } })}>Reply</Button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => { setOpenId(r.id); setText(''); }}
+                style={{ marginTop: 4, background: 'none', border: 0, cursor: 'pointer', color: 'var(--accent-ink)', fontWeight: 600, fontFamily: 'inherit', fontSize: 12.5 }}>Reply</button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -160,6 +216,7 @@ export function MyBusiness() {
                 {l.phone && <> · Your number on file: {l.phone} (never shown)</>}
               </div>
               {!removed && <Offers listingId={l.id} />}
+              <ReviewsReceived listingId={l.id} />
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                 <Link to="/services/messages"><Button variant="line" size="sm">Messages</Button></Link>
                 {!removed && (

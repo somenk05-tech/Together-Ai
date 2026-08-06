@@ -13,6 +13,8 @@ import {
   EnquireSchema, type EnquireDto,
   SaveRegularSchema, type SaveRegularDto,
   PostOfferSchema, type PostOfferDto,
+  PostReviewSchema, type PostReviewDto,
+  ReplyReviewSchema, type ReplyReviewDto,
 } from './dto/local-services.dto';
 
 @Controller('services')
@@ -52,6 +54,12 @@ export class LocalServicesController {
   @Get('offers/mine/:listingId')
   myOffers(@CurrentUser() user: JwtUser, @Param('listingId') listingId: string) {
     return this.services.myOffers(user.sub, listingId);
+  }
+
+  @Post('reviews/:reviewId/reply')
+  @UsePipes(new ZodValidationPipe(ReplyReviewSchema))
+  replyToReview(@CurrentUser() user: JwtUser, @Param('reviewId') reviewId: string, @Body() dto: ReplyReviewDto) {
+    return this.services.replyToReview(user.sub, reviewId, dto.reply);
   }
 
   @Delete('offers/:offerId')
@@ -101,6 +109,22 @@ export class LocalServicesController {
   @Delete(':id')
   close(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.services.close(user.sub, id);
+  }
+
+  @Get(':id/reviews')
+  reviews(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.services.reviews(id, user.sub);
+  }
+
+  @Post(':id/reviews')
+  @UsePipes(new ZodValidationPipe(PostReviewSchema))
+  postReview(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: PostReviewDto) {
+    return this.services.postReview(user.sub, id, dto.rating, dto.body);
+  }
+
+  @Delete(':id/reviews')
+  removeReview(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.services.removeReview(user.sub, id);
   }
 
   @Post(':id/regular')

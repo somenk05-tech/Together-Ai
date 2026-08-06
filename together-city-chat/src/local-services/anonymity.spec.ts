@@ -82,6 +82,14 @@ function harness(opts: { listings?: any[]; enquiries?: any[]; messages?: any[] }
         return r;
       },
     },
+    // browse() now reads a rating per card. The harness has to answer, or a
+    // spec about anonymity fails for a reason that has nothing to do with it.
+    serviceReview: {
+      groupBy: async () => [],
+      findMany: async () => [],
+      findUnique: async () => null,
+      count: async () => 0,
+    },
     serviceMessage: {
       findMany: async ({ where }: any) => messages.filter((m) => m.enquiryId === where.enquiryId),
       create: async ({ data }: any) => { const r = { id: `M${++seq}`, createdAt: new Date('2026-08-05T10:05:00Z'), ...data }; messages.push(r); return r; },

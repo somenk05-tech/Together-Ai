@@ -26,6 +26,10 @@ export interface ServiceCard {
   onlineOk: boolean;
   /** Present only on a "near me" search — the server measured it. */
   distanceKm?: number;
+  /** Withheld below three reviews — one five-star review is one happy customer,
+   *  not a five-star business. The count is always honest. */
+  rating?: number | null;
+  count?: number;
   createdAt: string;
 }
 /** Your own listing, read back — this is the one place a phone number exists. */
@@ -75,6 +79,25 @@ export interface ServiceOffer {
   startsToday: boolean;
   live?: boolean;
 }
+export interface ServiceReview {
+  id: string;
+  listingId: string;
+  /** The signature, and there is nothing else — no id, no name, no photo. */
+  alias: string;
+  rating: number;
+  body: string | null;
+  ownerReply: string | null;
+  createdAt: string;
+  mine: boolean;
+}
+export interface ReviewPage {
+  rating: number | null;
+  count: number;
+  items: ServiceReview[];
+  canReview: boolean;
+  mine: ServiceReview | null;
+}
+
 export interface RegularCard extends ServiceCard {
   savedAt: string;
   note: string | null;
@@ -119,7 +142,48 @@ export const servicesApi = {
     api.post<ServiceOffer>(`/services/${listingId}/offers`, input).then((r) => r.data),
   removeOffer: (offerId: string) =>
     api.delete<{ ok: true }>(`/services/offers/${offerId}`).then((r) => r.data),
+
+  reviews: (listingId: string) =>
+    api.get<ReviewPage>(`/services/${listingId}/reviews`).then((r) => r.data),
+  postReview: (listingId: string, input: { rating: number; body?: string }) =>
+    api.post<ServiceReview>(`/services/${listingId}/reviews`, input).then((r) => r.data),
+  removeReview: (listingId: string) =>
+    api.delete<{ ok: true }>(`/services/${listingId}/reviews`).then((r) => r.data),
+  replyToReview: (reviewId: string, reply: string) =>
+    api.post<ServiceReview>(`/services/reviews/${reviewId}/reply`, { reply }).then((r) => r.data),
 };
+
+export function useReviews(listingId?: string) {
+  return useQuery({
+    queryKey: ['services', 'reviews', listingId],
+    queryFn: () => servicesApi.reviews(listingId as string),
+    enabled: !!listingId,
+  });
+}
+export function usePostReview(listingId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { rating: number; body?: string }) => servicesApi.postReview(listingId as string, v),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
+  });
+}
+export function useRemoveReview(listingId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => servicesApi.removeReview(listingId as string),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
+  });
+}
+export function useReplyToReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { reviewId: string; reply: string }) => servicesApi.replyToReview(v.reviewId, v.reply),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services', 'reviews'] }); },
+  });
+}
+
+/** ★★★☆☆ as text. Not colour-only, and it reads aloud correctly. */
+export const stars = (n: number): string => '★'.repeat(n) + '☆'.repeat(Math.max(0, 5 - n));
 
 export function useRegulars() {
   return useQuery({ queryKey: ['services', 'regulars'], queryFn: () => servicesApi.regulars() });

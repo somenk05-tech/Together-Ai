@@ -13,6 +13,26 @@ type ListingRow = {
   lat: number | null; lng: number | null; radiusKm: number | null; homeVisit: boolean; onlineOk: boolean;
   moderation: string; createdAt: Date; updatedAt: Date;
 };
+type ReviewRow = {
+  id: string; listingId: string; reviewerId: string; alias: string;
+  rating: number; body: string | null; ownerReply: string | null;
+  createdAt: Date; updatedAt: Date;
+};
+/**
+ * A star average, and the reason it is not shown under three reviews.
+ *
+ * One five-star review is not a five-star business, it is one happy customer —
+ * and a card showing ★5.0 on a sample of one is a claim the data cannot carry.
+ * Below the floor the count is shown and the average is withheld, which is the
+ * honest shape: "2 reviews" tells you exactly what is known.
+ */
+export const MIN_REVIEWS_FOR_AVERAGE = 3;
+export function ratingOf(rows: Array<{ rating: number }>): { rating: number | null; count: number } {
+  if (rows.length < MIN_REVIEWS_FOR_AVERAGE) return { rating: null, count: rows.length };
+  const avg = rows.reduce((n, r) => n + r.rating, 0) / rows.length;
+  return { rating: Math.round(avg * 10) / 10, count: rows.length };
+}
+
 type EnquiryRow = {
   id: string; listingId: string; seekerId: string; alias: string;
   lastMessageAt: Date; seekerUnread: number; ownerUnread: number; closed: boolean; createdAt: Date;
@@ -165,9 +185,14 @@ export class LocalServicesService {
       const total = withDist.length;
       const slice = withDist.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
       const items = slice.map((x) => ({ ...this.card(x.r), distanceKm: Math.round(x.km * 100) / 100 }));
+      const nearIds = items.map((i) => i.id);
+      const [savedNear, ratingsNear] = await Promise.all([
+        viewerId ? this.savedIds(viewerId, nearIds) : Promise.resolve([] as string[]),
+        this.ratingsFor(nearIds),
+      ]);
       return {
-        items, total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
-        saved: viewerId ? await this.savedIds(viewerId, items.map((i) => i.id)) : [],
+        items: items.map((i) => ({ ...i, ...(ratingsNear[i.id] ?? { rating: null, count: 0 }) })),
+        total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)), saved: savedNear,
       };
     }
 
@@ -178,12 +203,16 @@ export class LocalServicesService {
       this.prisma.serviceListing.count({ where }),
     ]);
     const items = rows.map((r) => this.card(r));
-    // Which of these the caller already keeps, so a Save button knows whether it
-    // is already pressed. One extra indexed read, and the alternative is a
-    // second round trip per card.
+    // Which of these the caller already keeps, and how each is rated — two
+    // grouped reads for the page, rather than two per card.
+    const ids = items.map((i) => i.id);
+    const [saved, ratings] = await Promise.all([
+      viewerId ? this.savedIds(viewerId, ids) : Promise.resolve([] as string[]),
+      this.ratingsFor(ids),
+    ]);
     return {
-      items, total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
-      saved: viewerId ? await this.savedIds(viewerId, items.map((i) => i.id)) : [],
+      items: items.map((i) => ({ ...i, ...(ratings[i.id] ?? { rating: null, count: 0 }) })),
+      total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)), saved,
     };
   }
 
@@ -604,5 +633,117 @@ export class LocalServicesService {
     await this.own(ownerId, o.listingId);
     await this.prisma.serviceOffer.delete({ where: { id: offerId } });
     return { ok: true };
+  }
+
+  // ───────────────────────── reviews ─────────────────────────
+
+  /**
+   * A REVIEW YOU HAD TO EARN, UNDER THE NAME THEY ALREADY KNOW YOU BY.
+   *
+   * The thread is the gate. It is the only proof of contact this hub has, and
+   * it is a real one — you cannot review a plumber you never spoke to. It is
+   * NOT proof the work was done, and nothing on the screen claims it is; the
+   * honest description is "spoke to them", which is what it says.
+   *
+   * The alias is copied onto the review rather than joined through the thread,
+   * because a thread can be closed or a listing re-read and the signature must
+   * not go missing when it is. It is the same alias the business already sees,
+   * so a shopkeeper can connect the review to the exchange they remember and
+   * answer it, without ever learning who wrote it.
+   */
+  async postReview(reviewerId: string, listingId: string, rating: number, body?: string) {
+    const l = await this.prisma.serviceListing.findUnique({ where: { id: listingId } }) as ListingRow | null;
+    if (!l || l.moderation !== 'approved') throw new NotFoundException('listing not found');
+    if (l.ownerId === reviewerId) throw new BadRequestException('You cannot review your own business.');
+
+    const thread = await this.prisma.serviceEnquiry.findUnique({
+      where: { listingId_seekerId: { listingId, seekerId: reviewerId } },
+    }) as EnquiryRow | null;
+    if (!thread) {
+      throw new BadRequestException('Only someone who has messaged this business can review it. Start a conversation first.');
+    }
+
+    const row = await this.prisma.serviceReview.upsert({
+      where: { listingId_reviewerId: { listingId, reviewerId } },
+      create: { listingId, reviewerId, alias: thread.alias, rating, body: body ?? null },
+      // The alias is NOT rewritten on edit — it is the signature on a review the
+      // business may already have replied to.
+      update: { rating, body: body ?? null },
+    }) as unknown as ReviewRow;
+
+    void this.notifications.create({
+      userId: l.ownerId, kind: 'service_review', entityId: listingId,
+      title: `${thread.alias} rated ${l.businessName} ${rating}★`,
+      body: (body ?? '').slice(0, 120) || 'No words, just the rating.',
+      href: `/services/mine`,
+    });
+    return this.reviewCard(row, 'reviewer');
+  }
+
+  async removeReview(reviewerId: string, listingId: string) {
+    await this.prisma.serviceReview.deleteMany({ where: { listingId, reviewerId } });
+    return { ok: true };
+  }
+
+  /** The owner answers. One reply per review — a thread under a rating is a
+   *  second conversation in a place built for one. */
+  async replyToReview(ownerId: string, reviewId: string, reply: string) {
+    const r = await this.prisma.serviceReview.findUnique({ where: { id: reviewId } }) as ReviewRow | null;
+    if (!r) throw new NotFoundException('review not found');
+    await this.own(ownerId, r.listingId);
+    const row = await this.prisma.serviceReview.update({
+      where: { id: reviewId }, data: { ownerReply: reply },
+    }) as unknown as ReviewRow;
+    return this.reviewCard(row, 'owner');
+  }
+
+  private reviewCard(r: ReviewRow, side: 'reviewer' | 'owner' | 'public') {
+    return {
+      id: r.id,
+      listingId: r.listingId,
+      // The signature, and there is nothing else. No id, no name, no photo.
+      alias: r.alias,
+      rating: r.rating,
+      body: r.body,
+      ownerReply: r.ownerReply,
+      createdAt: r.createdAt.toISOString(),
+      mine: side === 'reviewer',
+    };
+  }
+
+  async reviews(listingId: string, viewerId?: string) {
+    const rows = await this.prisma.serviceReview.findMany({
+      where: { listingId }, orderBy: { createdAt: 'desc' }, take: 200,
+    }) as unknown as ReviewRow[];
+    const mineRow = viewerId ? rows.find((r) => r.reviewerId === viewerId) : undefined;
+    // Whether the caller is ALLOWED to review — the screen needs to know before
+    // it offers a form nobody can submit.
+    const thread = viewerId
+      ? await this.prisma.serviceEnquiry.findUnique({ where: { listingId_seekerId: { listingId, seekerId: viewerId } } })
+      : null;
+    return {
+      ...ratingOf(rows),
+      items: rows.map((r) => this.reviewCard(r, viewerId && r.reviewerId === viewerId ? 'reviewer' : 'public')),
+      canReview: Boolean(thread),
+      mine: mineRow ? this.reviewCard(mineRow, 'reviewer') : null,
+    };
+  }
+
+  /** Ratings for a page of cards, in one read rather than one per card. */
+  private async ratingsFor(listingIds: string[]): Promise<Record<string, { rating: number | null; count: number }>> {
+    if (!listingIds.length) return {};
+    const rows = await this.prisma.serviceReview.groupBy({
+      by: ['listingId'],
+      where: { listingId: { in: listingIds.slice(0, 200) } },
+      _avg: { rating: true }, _count: { _all: true },
+    }) as unknown as Array<{ listingId: string; _avg: { rating: number | null }; _count: { _all: number } }>;
+    const out: Record<string, { rating: number | null; count: number }> = {};
+    for (const r of rows) {
+      out[r.listingId] = {
+        rating: r._avg.rating == null ? null : Math.round(r._avg.rating * 10) / 10,
+        count: r._count._all,
+      };
+    }
+    return out;
   }
 }

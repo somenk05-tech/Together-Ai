@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
+import { mediaApi, uploadErrorMessage } from '@/api/media.api';
 import { useCreateService, useServiceCategories, currentPosition } from '../api';
 
 /**
@@ -24,6 +25,7 @@ const field: React.CSSProperties = {
   background: 'var(--card)',
 };
 const label: React.CSSProperties = { display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 };
+const MAX_PHOTOS = 5;
 
 export function ListBusiness() {
   const nav = useNavigate();
@@ -46,7 +48,34 @@ export function ListBusiness() {
   const [radiusKm, setRadius] = useState('');
   const [homeVisit, setHomeVisit] = useState(false);
   const [onlineOk, setOnlineOk] = useState(false);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoErr, setPhotoErr] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  /**
+   * FIVE AT MOST, AND THE STRIP HAPPENS BEFORE THE UPLOAD.
+   *
+   * `mediaApi.upload` scrubs the image first — a photo taken on a phone carries
+   * the coordinates it was taken at, and this hub is the one place in the
+   * application where a business is ALSO publishing a deliberate pin. A shop
+   * that chose not to give its location must not give it away in the EXIF of
+   * its own shopfront photo.
+   */
+  const addPhotos = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setPhotoErr(null);
+    const room = MAX_PHOTOS - photos.length;
+    if (room <= 0) { setPhotoErr(`Five photos is the most a listing can carry.`); return; }
+    setPhotoBusy(true);
+    try {
+      const picked = Array.from(files).slice(0, room);
+      const urls = await Promise.all(picked.map((f) => mediaApi.upload(f)));
+      setPhotos((p) => [...p, ...urls]);
+      if (files.length > room) setPhotoErr(`Only the first ${room} were added — five is the most a listing can carry.`);
+    } catch (e) { setPhotoErr(uploadErrorMessage(e)); }
+    finally { setPhotoBusy(false); }
+  };
 
   const locateMe = async () => {
     setLocBusy(true); setLocErr(null);
@@ -72,6 +101,7 @@ export function ListBusiness() {
       areas: areas.trim() || undefined,
       phone: phone.trim() || undefined,
       priceFrom: priceFrom.trim() ? Number(priceFrom.replace(/[^\d]/g, '')) : undefined,
+      ...(photos.length ? { photoUrls: photos } : {}),
       ...(pinned ? { lat: latN, lng: lngN } : {}),
       ...(radiusKm.trim() ? { radiusKm: Number(radiusKm.replace(/[^\d]/g, '')) } : {}),
       homeVisit, onlineOk,
@@ -220,6 +250,45 @@ export function ListBusiness() {
               I work online too
             </label>
           </div>
+        </div>
+
+        {/* A listing with no picture is a line of text competing with a
+            directory of them. One is worth more than four of the rest. */}
+        <div>
+          <span style={label}>Photos <span className="muted" style={{ fontWeight: 400 }}>(up to five — the first one is your cover)</span></span>
+          {photos.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+              {photos.map((url, i) => (
+                <div key={url} style={{ position: 'relative' }}>
+                  <img src={url} alt={i === 0 ? 'Cover photo' : `Photo ${i + 1}`} width={92} height={70}
+                    style={{ objectFit: 'cover', borderRadius: 10, display: 'block', border: '1px solid var(--line)' }} />
+                  {i === 0 && (
+                    <span style={{ position: 'absolute', left: 4, bottom: 4, fontSize: 9.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', background: 'var(--ink)', color: 'var(--on-accent)', borderRadius: 5, padding: '1px 5px' }}>Cover</span>
+                  )}
+                  {/* The TARGET is 44px and the PAINT is 22px. A 22px button is
+                      a 22px button on a desktop and a miss on a phone; the
+                      transparent frame around it is what the thumb actually
+                      hits, which is the same trick .btn-sm uses in relief.css. */}
+                  <button type="button" aria-label={`Remove photo ${i + 1}`}
+                    onClick={() => setPhotos((p) => p.filter((x) => x !== url))}
+                    style={{ position: 'absolute', top: -17, right: -17, width: 44, height: 44,
+                      display: 'grid', placeItems: 'center', border: 0, background: 'none',
+                      cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                    <span aria-hidden style={{ width: 22, height: 22, borderRadius: 999, border: '1px solid var(--line)', background: 'var(--card)', display: 'grid', placeItems: 'center', fontSize: 12, lineHeight: 1 }}>×</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <input id="svc-photos" type="file" accept="image/*" multiple
+            disabled={photoBusy || photos.length >= MAX_PHOTOS}
+            onChange={(e) => { void addPhotos(e.target.files); e.target.value = ''; }}
+            style={{ fontSize: 13, fontFamily: 'inherit' }} />
+          {photoBusy && <p className="muted" style={{ fontSize: 12.5, margin: '6px 0 0' }}>Uploading…</p>}
+          {photoErr && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: '6px 0 0' }} role="alert">{photoErr}</p>}
+          <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>
+            Location data is stripped from every photo before it leaves your device.
+          </p>
         </div>
 
         <div>

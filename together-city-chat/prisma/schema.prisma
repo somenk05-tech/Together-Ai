@@ -162,6 +162,7 @@ model User {
   serviceListings      ServiceListing[]
   serviceEnquiries     ServiceEnquiry[]
   serviceRegulars      ServiceRegular[]
+  serviceReviews       ServiceReview[]
   ticketBookings       TicketBooking[]
   tripBookings         TripBooking[]
   diningOrders         DiningOrder[]
@@ -2461,6 +2462,7 @@ model ServiceListing {
   enquiries ServiceEnquiry[]
   regulars  ServiceRegular[]
   offers    ServiceOffer[]
+  reviews   ServiceReview[]
 
   @@index([moderation, city])
   @@index([categoryKey, city])
@@ -2539,6 +2541,41 @@ model ServiceOffer {
 
   @@index([startsOn, endsOn])
   @@index([listingId, endsOn])
+}
+
+// A REVIEW YOU HAD TO EARN, UNDER THE NAME THEY ALREADY KNOW YOU BY.
+//
+// Two rules, and they are the whole design.
+//
+// EARNED: a review requires an existing enquiry thread with that business. The
+// thread is the only proof of contact this hub has, and it is a real one — you
+// cannot review a plumber you never spoke to. It is not proof the work was
+// done, and nothing here pretends otherwise.
+//
+// PSEUDONYMOUS: the review is signed with the SAME alias the business already
+// sees in the conversation — "Neighbour 3". So a shopkeeper can connect the
+// review to the exchange they remember and answer it, without ever learning who
+// wrote it. The alias is copied onto the row rather than joined, because a
+// thread can be deleted and a review must not lose its signature when it is.
+//
+// One review per person per business, editable. A rating is a current opinion,
+// not a log of every opinion somebody has ever held.
+model ServiceReview {
+  id         String   @id @default(uuid())
+  listingId  String
+  reviewerId String
+  alias      String
+  rating     Int // 1..5
+  body       String?
+  ownerReply String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  listing  ServiceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reviewer User           @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, reviewerId])
+  @@index([listingId, createdAt])
 }
 
 model ServiceMessage {

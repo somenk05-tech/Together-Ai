@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Chip, EmptyState, Spinner, Button } from '@/components/ui';
-import { useBrowseServices, useServiceCategories, useServiceFacets, useEnquire, useToggleRegular, rupees, humanDistance, currentPosition, type ServiceCard } from '../api';
+import { useBrowseServices, useServiceCategories, useServiceFacets, useEnquire, useToggleRegular, rupees, humanDistance, currentPosition, stars, type ServiceCard } from '../api';
 
 /**
  * FIND A SERVICE.
@@ -20,11 +20,31 @@ function Tile({ s, onChat, busy, saved, onKeep, keeping }: {
   saved: boolean; onKeep: (id: string, saved: boolean) => void; keeping: boolean;
 }) {
   return (
-    <Card style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px' }}>
+    <Card style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 0, overflow: 'hidden' }}>
+      {s.photos.length > 0 && (
+        <img src={s.photos[0].url} alt="" loading="lazy"
+          style={{ display: 'block', width: '100%', aspectRatio: '16 / 10', objectFit: 'cover' }} />
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '14px 18px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
         <strong style={{ fontSize: 16 }}>{s.businessName}</strong>
         <span className="muted" style={{ fontSize: 12.5 }}>{s.categoryLabel}</span>
       </div>
+      {/* An average below three reviews is withheld and the count shown instead:
+          ★5.0 on a sample of one is a claim the data cannot carry. */}
+      {(s.count ?? 0) > 0 && (
+        <div style={{ fontSize: 12.5 }}>
+          {s.rating != null ? (
+            <>
+              <span style={{ color: 'var(--warn-ink)', letterSpacing: 1 }}>{stars(Math.round(s.rating))}</span>
+              <span style={{ fontWeight: 700, marginLeft: 6 }}>{s.rating}</span>
+              <span className="muted"> · {s.count} reviews</span>
+            </>
+          ) : (
+            <span className="muted">{s.count} {s.count === 1 ? 'review' : 'reviews'} — too few for an average</span>
+          )}
+        </div>
+      )}
       <div className="muted" style={{ fontSize: 12.5 }}>
         {s.distanceKm != null && <strong style={{ color: 'var(--accent-ink)' }}>{humanDistance(s.distanceKm)} away · </strong>}
         {s.areas.length ? s.areas.join(' · ') : s.city}
@@ -49,6 +69,7 @@ function Tile({ s, onChat, busy, saved, onKeep, keeping }: {
       <p className="muted" style={{ fontSize: 11.5, margin: 0 }}>
         They will see you as a neighbour, not by name.
       </p>
+      </div>
     </Card>
   );
 }

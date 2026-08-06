@@ -110,6 +110,13 @@ export const PURGE_RULES: PurgeRule[] = [
   //     "Neighbour 3" the whole time.
   { model: 'ServiceListing', by: 'ownerId', action: 'purge', reason: 'Their own business page, and the threads hanging off it — a shopfront for somebody who has left is a door onto nothing.' },
   { model: 'ServiceRegular', by: 'userId', action: 'purge', reason: 'A private shortlist of the businesses they kept going back to. Nobody else has ever seen it, and it says a great deal about a person.' },
+  // ServiceReview carries `reviewerId`, which is not one of the link columns the
+  // spec scans for, so it needs no rule here — and a rule would read as stale.
+  // What happens to it is a decision all the same, so it is written down:
+  // reviews are KEPT. Other people read them and a business may already have
+  // replied; removing one rewrites a public record and takes the reply with it.
+  // Nothing identifying is lost by keeping it, because a review is signed with
+  // an alias and never carried a name in the first place.
   // Placed AFTER the MealPlan rules on purpose: the retired Meal table still
   // holds a plain FK to Recipe (no cascade), and a citizen's own Meal rows
   // cascade away with their individual plans above — so by the time this rule

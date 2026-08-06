@@ -73,3 +73,14 @@ export const PostOfferSchema = z.object({
   endsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 export type PostOfferDto = z.infer<typeof PostOfferSchema>;
+
+export const PostReviewSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  body: z.string().trim().max(1200).optional(),
+});
+export type PostReviewDto = z.infer<typeof PostReviewSchema>;
+
+export const ReplyReviewSchema = z.object({
+  reply: z.string().trim().min(1).max(1200),
+});
+export type ReplyReviewDto = z.infer<typeof ReplyReviewSchema>;
