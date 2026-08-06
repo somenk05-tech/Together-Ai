@@ -323,6 +323,7 @@ const UNREACHABLE_ON_PURPOSE = new Map([
   // now links to it (#medical) to add or change a blood group, so there IS a
   // client-side way in. It was here because the only reference was an href the
   // API handed over in profile-completion nextUp.
+  ['/console', 'the admin console. Staff-only, and absent from every menu ON PURPOSE — a link in a citizen\'s navigation is an invitation to a door that will not open. The server checks the permission per request; the route existing is not access.'],
   ['/dating/admin', 'operator page, deliberately absent from every menu'],
   ['/realestate/admin', 'operator page, deliberately absent from every menu'],
   ['/dating/match', 'UNRESOLVED. The singular sibling of /dating/chat, which was removed for serving a hardcoded conversation. Nothing opens this one either. Decide: delete it, or link it from a match card.'],

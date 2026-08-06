@@ -200,6 +200,8 @@ model User {
   @@index([onlineStatus])
   dailyTargets      DailyTargetSnapshot[]
   groceryList       GroceryListItem[]
+  adminGrants  AdminGrant[] @relation("adminGrantHolder")
+  adminAudits  AdminAudit[] @relation("adminAuditActor")
 }
 
 model RefreshToken {
@@ -1694,6 +1696,58 @@ model MailAccount {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// An admin role held by one person, granted by another.
+///
+/// A row rather than a column on User, because WHO GRANTED IT and WHEN are
+/// part of the fact. A role that appeared in a column has no author; a role
+/// with no author is one nobody can be asked about.
+///
+/// Revoking sets revokedAt rather than deleting. The history of who could do
+/// what, when, is the only way to read an old audit entry correctly.
+model AdminGrant {
+  id        String    @id @default(uuid())
+  userId    String
+  role      String
+  grantedBy String
+  grantedAt DateTime  @default(now())
+  revokedAt DateTime?
+  reason    String    @default("")
+
+  user User @relation("adminGrantHolder", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+}
+
+/// Every admin action that changed something.
+///
+/// before/after are JSON snapshots of the field that moved, not the whole row:
+/// a diff somebody can read beats a dump nobody opens, and a whole-row copy of
+/// a citizen's record duplicates their data into a table with different access
+/// rules.
+///
+/// `reason` is required by the API, not by the column. A schema cannot tell an
+/// empty string from a considered one; a form that will not submit without a
+/// sentence can. The column exists so the sentence has somewhere to live.
+model AdminAudit {
+  id        String   @id @default(uuid())
+  actorId   String
+  action    String
+  /// What was acted on: "user", "listing", "ticket", "flag".
+  entity    String
+  entityId  String
+  before    String?
+  after     String?
+  reason    String   @default("")
+  ip        String?
+  at        DateTime @default(now())
+
+  actor User @relation("adminAuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([entity, entityId])
+  @@index([actorId, at])
+  @@index([at])
 }
 
 model MailMessage {

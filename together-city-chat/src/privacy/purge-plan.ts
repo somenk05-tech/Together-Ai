@@ -108,7 +108,28 @@ export const PURGE_RULES: PurgeRule[] = [
   //     side of that conversation belongs to somebody who deleted nothing, and
   //     there is no identity in those rows to destroy. The seeker was
   //     "Neighbour 3" the whole time.
-  { model: 'ServiceListing', by: 'ownerId', action: 'purge', reason: 'Their own business page, and the threads hanging off it — a shopfront for somebody who has left is a door onto nothing.' },
+    /**
+   * ADMIN GRANTS AND THE AUDIT TRAIL.
+   *
+   * AdminGrant is purged with the account: a role held by somebody who no
+   * longer exists is a permission with no holder, and leaving it behind means
+   * a re-registered handle could inherit it.
+   *
+   * AdminAudit is KEPT. An audit trail exists precisely so that an action
+   * cannot be made to disappear, and an admin who could erase their own record
+   * by deleting their own account has a trail that answers nothing. The rows
+   * carry what a staff member DID in that role, not what a citizen is — and
+   * the citizen data inside them is already reduced to the field that moved
+   * rather than a copy of anybody's record.
+   *
+   * This is a deliberate exception to "your data is yours", and it applies to
+   * staff acting as staff, never to a citizen's own use of the app.
+   */
+  { model: 'AdminGrant', by: 'userId', action: 'purge', reason: 'A role held by an account that no longer exists is a permission with no holder.' },
+  // AdminAudit carries `actorId`, which is not one of the link columns the spec
+  // scans, so it needs no rule and a rule would read as stale. The decision is
+  // written down all the same: audit rows are KEPT.
+{ model: 'ServiceListing', by: 'ownerId', action: 'purge', reason: 'Their own business page, and the threads hanging off it — a shopfront for somebody who has left is a door onto nothing.' },
   { model: 'ServiceRegular', by: 'userId', action: 'purge', reason: 'A private shortlist of the businesses they kept going back to. Nobody else has ever seen it, and it says a great deal about a person.' },
   // ServiceReview carries `reviewerId`, which is not one of the link columns the
   // spec scans for, so it needs no rule here — and a rule would read as stale.

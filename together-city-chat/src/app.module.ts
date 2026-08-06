@@ -13,6 +13,7 @@ import { EventsModule } from './shared/events/events.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { AdminModule } from './auth/admin.module';
+import { AdminConsoleModule } from './admin/admin.module';
 import { ClockModule } from './shared/clock/clock.module';
 import { TasksModule } from './tasks/tasks.module';
 import { UsersModule } from './users/users.module';
@@ -72,6 +73,7 @@ import { AvatarsModule } from './avatars/avatars.module';
     AiModule,
     AuthModule,
     AdminModule,
+    AdminConsoleModule,
     ClockModule,
     TasksModule,
     UsersModule,
