@@ -1,6 +1,101 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
-import { useCloseService, useMyServices, useServiceInbox, rupees } from '../api';
+import {
+  useCloseService, useMyServices, useServiceInbox, useMyOffers, usePostOffer, useRemoveOffer,
+  rupees, offerWhen,
+} from '../api';
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * TODAY'S OFFER, POSTED BY THE PERSON WHO IS OFFERING IT.
+ *
+ * Dates, not a switch. An offer with an on/off flag is one somebody has to
+ * remember to turn off, and the ones nobody remembers are exactly the ones that
+ * make a Daily Offers page not worth opening. The end date defaults to the
+ * start, so "today only" is the least work to say and forever is the most.
+ */
+function Offers({ listingId }: { listingId: string }) {
+  const q = useMyOffers(listingId);
+  const post = usePostOffer();
+  const remove = useRemoveOffer();
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [detail, setDetail] = useState('');
+  const [startsOn, setStarts] = useState(today());
+  const [endsOn, setEnds] = useState(today());
+  const [err, setErr] = useState<string | null>(null);
+
+  const field = { padding: '9px 11px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', background: 'var(--card)', width: '100%', boxSizing: 'border-box' as const };
+
+  const submit = () => {
+    setErr(null);
+    post.mutate({ listingId, input: { title: title.trim(), detail: detail.trim() || undefined, startsOn, endsOn } }, {
+      onSuccess: () => { setTitle(''); setDetail(''); setOpen(false); },
+      onError: (e: unknown) => {
+        const raw = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
+        setErr(Array.isArray(raw) ? raw.join(', ') : raw ?? 'Could not post that offer.');
+      },
+    });
+  };
+
+  const rows = q.data?.items ?? [];
+  const live = rows.filter((o) => o.live);
+
+  return (
+    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10, marginTop: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <strong style={{ fontSize: 13.5 }}>Offers</strong>
+        <span className="muted" style={{ fontSize: 12.5 }}>
+          {live.length === 0 ? 'Nothing running' : `${live.length} running`}
+        </span>
+        <Button variant="line" size="sm" onClick={() => setOpen((v) => !v)}>
+          {open ? 'Cancel' : 'Post an offer'}
+        </Button>
+      </div>
+
+      {open && (
+        <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+          <input style={field} value={title} onChange={(e) => setTitle(e.target.value)}
+            aria-label="Offer" placeholder="20% off drain cleaning" maxLength={90} />
+          <input style={field} value={detail} onChange={(e) => setDetail(e.target.value)}
+            aria-label="Offer detail" placeholder="Anything worth adding — conditions, timings" maxLength={400} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 8 }}>
+            <label style={{ fontSize: 12 }}>
+              <span className="muted">From</span>
+              <input type="date" style={field} value={startsOn} onChange={(e) => { setStarts(e.target.value); if (endsOn < e.target.value) setEnds(e.target.value); }} />
+            </label>
+            <label style={{ fontSize: 12 }}>
+              <span className="muted">Until</span>
+              <input type="date" style={field} value={endsOn} min={startsOn} onChange={(e) => setEnds(e.target.value)} />
+            </label>
+          </div>
+          {err && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: 0 }} role="alert">{err}</p>}
+          <div>
+            <Button variant="accent" size="sm" disabled={title.trim().length < 3 || post.isPending} onClick={submit}>
+              {post.isPending ? 'Posting…' : 'Post it'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {rows.length > 0 && (
+        <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
+          {rows.map((o) => (
+            <div key={o.id} style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 13, opacity: o.live ? 1 : 0.55 }}>
+              <span style={{ fontWeight: 600 }}>{o.title}</span>
+              <span className="muted" style={{ fontSize: 11.5 }}>{o.live ? offerWhen(o) : 'Finished'}</span>
+              <button type="button" onClick={() => remove.mutate(o.id)} disabled={remove.isPending}
+                aria-label={`Remove offer ${o.title}`}
+                style={{ marginLeft: 'auto', background: 'none', border: 0, cursor: 'pointer', color: 'var(--muted)', fontFamily: 'inherit', fontSize: 12.5 }}>Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * MY BUSINESS.
@@ -64,6 +159,7 @@ export function MyBusiness() {
                 {n === 0 ? 'Nobody has messaged this listing yet.' : `${n} ${n === 1 ? 'neighbour has' : 'neighbours have'} messaged you.`}
                 {l.phone && <> · Your number on file: {l.phone} (never shown)</>}
               </div>
+              {!removed && <Offers listingId={l.id} />}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                 <Link to="/services/messages"><Button variant="line" size="sm">Messages</Button></Link>
                 {!removed && (

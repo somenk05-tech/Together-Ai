@@ -48,6 +48,37 @@ export function CommandPalette() {
   // side scope rules apply — dating chats never surface here. The /chats page
   // opens a thread via its ?c= deep link.
   const [msgHits, setMsgHits] = useState<Array<{ id: string; conversationId: string; text: string | null; senderName: string | null }>>([]);
+  /**
+   * LOCAL BUSINESSES JOIN THE CITY SEARCH.
+   *
+   * A citizen who lists their shop should be findable by typing its name into
+   * the same box that finds everything else — otherwise "list your business"
+   * means "be findable in one hub if somebody thinks to open it", which is not
+   * what anybody hears when they list a business.
+   *
+   * The server's own browse endpoint does the matching (name OR the About text)
+   * and already returns only approved listings, so there is nothing to filter
+   * here and no second search implementation to keep in step with the first.
+   */
+  const [bizHits, setBizHits] = useState<Array<{ id: string; businessName: string; categoryLabel: string; city: string }>>([]);
+  useEffect(() => {
+    const kw = q.trim();
+    if (!open || !authed || kw.length < 2) { setBizHits([]); return; }
+    const t = setTimeout(() => {
+      http.get<{ items?: Array<Record<string, unknown>> }>('/services', { params: { q: kw } })
+        .then((r) => {
+          const rows = Array.isArray(r.data?.items) ? r.data.items : [];
+          setBizHits(rows.slice(0, 5).map((b) => ({
+            id: String(b.id ?? ''),
+            businessName: String(b.businessName ?? ''),
+            categoryLabel: String(b.categoryLabel ?? ''),
+            city: String(b.city ?? ''),
+          })).filter((b) => b.id));
+        })
+        .catch(() => setBizHits([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q, open, authed]);
   useEffect(() => {
     const kw = q.trim();
     if (!open || !authed || kw.length < 3) { setMsgHits([]); return; }
@@ -165,6 +196,27 @@ export function CommandPalette() {
               <span className="muted" style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', flexShrink: 0 }}>{KIND_LABEL[d.kind]}</span>
             </button>
           ))}
+
+          {bizHits.length > 0 && (
+            <>
+              <div className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', padding: '10px 10px 4px' }}>
+                Local businesses
+              </div>
+              {bizHits.map((b) => (
+                <button key={b.id} type="button" onClick={() => { setOpen(false); nav('/services/browse'); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', border: 'none',
+                    borderRadius: 10, padding: '10px 12px', cursor: 'pointer', fontFamily: 'inherit', background: 'transparent' }}>
+                  <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <Icon name="connection" size={16} style={{ color: 'var(--accent-ink)' }} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.businessName}</span>
+                    <span className="muted" style={{ display: 'block', fontSize: 12 }}>{b.categoryLabel}{b.city ? ` · ${b.city}` : ''}</span>
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
 
           {msgHits.length > 0 && (
             <>

@@ -11,6 +11,8 @@ import { ServicesBrowse } from '@/features/services/pages/Browse';
 import { ListBusiness } from '@/features/services/pages/ListBusiness';
 import { MyBusiness } from '@/features/services/pages/MyBusiness';
 import { ServiceMessages, ServiceThreadView } from '@/features/services/pages/Messages';
+import { Regulars } from '@/features/services/pages/Regulars';
+import { DailyOffers } from '@/features/services/pages/DailyOffers';
 import { HubLanding } from '@/pages/HubLanding';
 import { AstroToday } from '@/features/astrology/pages/AstroToday';
 import { AstroMonthly } from '@/features/astrology/pages/AstroMonthly';
@@ -378,6 +380,8 @@ export const router = createBrowserRouter([
       { path: '/services/browse', element: <RequireAuth>{wrap(<ServicesBrowse />)}</RequireAuth> },
       { path: '/services/list', element: <RequireAuth>{wrap(<ListBusiness />)}</RequireAuth> },
       { path: '/services/mine', element: <RequireAuth>{wrap(<MyBusiness />)}</RequireAuth> },
+      { path: '/services/regulars', element: <RequireAuth>{wrap(<Regulars />)}</RequireAuth> },
+      { path: '/services/offers', element: <RequireAuth>{wrap(<DailyOffers />)}</RequireAuth> },
       // The thread route is declared BEFORE the index, or React Router reads
       // "messages" as an id on the way past.
       { path: '/services/messages/:id', element: <RequireAuth>{wrap(<ServiceThreadView />)}</RequireAuth> },

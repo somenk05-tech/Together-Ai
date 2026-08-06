@@ -109,6 +109,7 @@ export const PURGE_RULES: PurgeRule[] = [
   //     there is no identity in those rows to destroy. The seeker was
   //     "Neighbour 3" the whole time.
   { model: 'ServiceListing', by: 'ownerId', action: 'purge', reason: 'Their own business page, and the threads hanging off it — a shopfront for somebody who has left is a door onto nothing.' },
+  { model: 'ServiceRegular', by: 'userId', action: 'purge', reason: 'A private shortlist of the businesses they kept going back to. Nobody else has ever seen it, and it says a great deal about a person.' },
   // Placed AFTER the MealPlan rules on purpose: the retired Meal table still
   // holds a plain FK to Recipe (no cascade), and a citizen's own Meal rows
   // cascade away with their individual plans above — so by the time this rule

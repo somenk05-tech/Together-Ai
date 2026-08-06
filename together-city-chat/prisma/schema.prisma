@@ -161,6 +161,7 @@ model User {
   properties           Property[]
   serviceListings      ServiceListing[]
   serviceEnquiries     ServiceEnquiry[]
+  serviceRegulars      ServiceRegular[]
   ticketBookings       TicketBooking[]
   tripBookings         TripBooking[]
   diningOrders         DiningOrder[]
@@ -2458,6 +2459,8 @@ model ServiceListing {
 
   owner     User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   enquiries ServiceEnquiry[]
+  regulars  ServiceRegular[]
+  offers    ServiceOffer[]
 
   @@index([moderation, city])
   @@index([categoryKey, city])
@@ -2493,6 +2496,49 @@ model ServiceEnquiry {
   @@unique([listingId, seekerId]) // one thread per person per business, forever
   @@index([seekerId, lastMessageAt])
   @@index([listingId, lastMessageAt])
+}
+
+// SOMEBODY'S OWN SHORTLIST.
+//
+// A citizen who has found their plumber does not want to find them again. This
+// is the private list of the businesses they keep going back to — a personal
+// marketplace assembled out of the public directory, and visible only to them.
+// The business is never told: being saved is not a relationship, it is a
+// bookmark, and telling a shopkeeper who has bookmarked them would turn one
+// into the other.
+model ServiceRegular {
+  id        String   @id @default(uuid())
+  userId    String
+  listingId String
+  note      String? // "the one who actually turns up" — their words, for their eyes
+  createdAt DateTime @default(now())
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing ServiceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId]) // saving twice is still saved once
+  @@index([userId, createdAt])
+}
+
+// WHAT A BUSINESS IS OFFERING TODAY.
+//
+// Dated rather than a flag, because "today's offer" that nobody remembers to
+// take down becomes last month's offer with today's date on it — and a
+// directory full of stale discounts is worse than one with none. An offer
+// carries the days it runs and disappears on its own.
+model ServiceOffer {
+  id        String   @id @default(uuid())
+  listingId String
+  title     String
+  detail    String?
+  startsOn  DateTime @db.Date
+  endsOn    DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  listing ServiceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([startsOn, endsOn])
+  @@index([listingId, endsOn])
 }
 
 model ServiceMessage {

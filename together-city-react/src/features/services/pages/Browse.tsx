@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Chip, EmptyState, Spinner, Button } from '@/components/ui';
-import { useBrowseServices, useServiceCategories, useServiceFacets, useEnquire, rupees, humanDistance, currentPosition, type ServiceCard } from '../api';
+import { useBrowseServices, useServiceCategories, useServiceFacets, useEnquire, useToggleRegular, rupees, humanDistance, currentPosition, type ServiceCard } from '../api';
 
 /**
  * FIND A SERVICE.
@@ -15,7 +15,10 @@ import { useBrowseServices, useServiceCategories, useServiceFacets, useEnquire, 
  * empty category reads as "nobody here yet" rather than as a filter that
  * returned nothing.
  */
-function Tile({ s, onChat, busy }: { s: ServiceCard; onChat: (id: string) => void; busy: boolean }) {
+function Tile({ s, onChat, busy, saved, onKeep, keeping }: {
+  s: ServiceCard; onChat: (id: string) => void; busy: boolean;
+  saved: boolean; onKeep: (id: string, saved: boolean) => void; keeping: boolean;
+}) {
   return (
     <Card style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
@@ -34,8 +37,14 @@ function Tile({ s, onChat, busy }: { s: ServiceCard; onChat: (id: string) => voi
           {s.about}
         </p>
       )}
-      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+      <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
         <Button variant="accent" size="sm" disabled={busy} onClick={() => onChat(s.id)}>Chat</Button>
+        {/* "Keep" rather than a heart. A heart means liked; this means "I will
+            want this person again", which is a different and more useful thing
+            for the list it builds. */}
+        <Button variant="line" size="sm" disabled={keeping} onClick={() => onKeep(s.id, saved)}>
+          {saved ? '✓ Kept' : 'Keep'}
+        </Button>
       </div>
       <p className="muted" style={{ fontSize: 11.5, margin: 0 }}>
         They will see you as a neighbour, not by name.
@@ -70,6 +79,7 @@ export function ServicesBrowse() {
     finally { setLocBusy(false); }
   };
   const enquire = useEnquire();
+  const keep = useToggleRegular();
   const [openedThread, setOpenedThread] = useState<string | null>(null);
 
   const onChat = (id: string) => {
@@ -170,7 +180,12 @@ export function ServicesBrowse() {
           />
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
-            {list.data?.items.map((s) => <Tile key={s.id} s={s} onChat={onChat} busy={enquire.isPending} />)}
+            {list.data?.items.map((s) => (
+              <Tile key={s.id} s={s} onChat={onChat} busy={enquire.isPending}
+                saved={(list.data?.saved ?? []).includes(s.id)}
+                onKeep={(id, isSaved) => keep.mutate({ id, saved: isSaved })}
+                keeping={keep.isPending} />
+            ))}
           </div>
         )}
 

@@ -5,7 +5,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { categoryLabel, isCategory } from './categories';
 import { mintAlias } from './alias';
 import { boundingBox, haversineKm, parsePoint } from './geo';
-import type { BrowseDto, CreateListingDto, UpdateListingDto } from './dto/local-services.dto';
+import type { BrowseDto, CreateListingDto, UpdateListingDto, PostOfferDto } from './dto/local-services.dto';
 
 type ListingRow = {
   id: string; ownerId: string; businessName: string; categoryKey: string; about: string | null;
@@ -26,6 +26,19 @@ const csv = (s?: string): string[] =>
 
 const PAGE_SIZE = 24;
 const MAX_LISTINGS_PER_OWNER = 5;
+const MAX_LIVE_OFFERS = 5;
+
+/** A calendar day, not an instant. Offers are dated, and a DATE column compared
+ *  against a timestamp with a time on it silently excludes the whole of today. */
+const startOfDayUtc = (d: Date): Date =>
+  new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+const ymd = (d: Date): string => d.toISOString().slice(0, 10);
+const parseYmd = (s: string): Date | null => {
+  const [y, m, day] = s.split('-').map(Number);
+  if (!y || !m || !day) return null;
+  const d = new Date(Date.UTC(y, m - 1, day));
+  return Number.isNaN(d.getTime()) ? null : d;
+};
 
 @Injectable()
 export class LocalServicesService {
@@ -104,7 +117,7 @@ export class LocalServicesService {
 
   // ───────────────────────── the directory ─────────────────────────
 
-  async browse(q: BrowseDto) {
+  async browse(q: BrowseDto, viewerId?: string) {
     const page = Math.max(1, q.page ?? 1);
     if (q.category && !isCategory(q.category)) throw new BadRequestException('unknown category');
 
@@ -151,9 +164,10 @@ export class LocalServicesService {
         .sort((a, b2) => a.km - b2.km);
       const total = withDist.length;
       const slice = withDist.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+      const items = slice.map((x) => ({ ...this.card(x.r), distanceKm: Math.round(x.km * 100) / 100 }));
       return {
-        items: slice.map((x) => ({ ...this.card(x.r), distanceKm: Math.round(x.km * 100) / 100 })),
-        total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+        items, total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+        saved: viewerId ? await this.savedIds(viewerId, items.map((i) => i.id)) : [],
       };
     }
 
@@ -163,7 +177,14 @@ export class LocalServicesService {
       }) as unknown as Promise<ListingRow[]>,
       this.prisma.serviceListing.count({ where }),
     ]);
-    return { items: rows.map((r) => this.card(r)), total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
+    const items = rows.map((r) => this.card(r));
+    // Which of these the caller already keeps, so a Save button knows whether it
+    // is already pressed. One extra indexed read, and the alternative is a
+    // second round trip per card.
+    return {
+      items, total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+      saved: viewerId ? await this.savedIds(viewerId, items.map((i) => i.id)) : [],
+    };
   }
 
   /** What the directory currently holds, per category — so an empty hub can say
@@ -407,6 +428,181 @@ export class LocalServicesService {
   async closeThread(userId: string, enquiryId: string) {
     const { e } = await this.sideOf(userId, enquiryId);
     await this.prisma.serviceEnquiry.update({ where: { id: e.id }, data: { closed: true } });
+    return { ok: true };
+  }
+
+  // ───────────────────────── regulars ─────────────────────────
+
+  /**
+   * YOUR OWN SHORTLIST, AND THE BUSINESS IS NEVER TOLD.
+   *
+   * Being saved is a bookmark, not a relationship. A shopkeeper who could see
+   * who had bookmarked them would have a list of warm leads, and the citizen
+   * who saved them would have made a disclosure they did not intend. So there
+   * is no notification here and no count on the owner's card — deliberately,
+   * and this comment is the reason a later "engagement" feature should not add
+   * one without saying so out loud.
+   */
+  async saveRegular(userId: string, listingId: string, note?: string) {
+    const l = await this.prisma.serviceListing.findUnique({ where: { id: listingId } }) as ListingRow | null;
+    if (!l || l.moderation !== 'approved') throw new NotFoundException('listing not found');
+    // Upsert, because pressing Save twice from two devices is one bookmark.
+    await this.prisma.serviceRegular.upsert({
+      where: { userId_listingId: { userId, listingId } },
+      create: { userId, listingId, note: note ?? null },
+      update: note !== undefined ? { note } : {},
+    });
+    return { saved: true };
+  }
+
+  async forgetRegular(userId: string, listingId: string) {
+    await this.prisma.serviceRegular.deleteMany({ where: { userId, listingId } });
+    return { saved: false };
+  }
+
+  /**
+   * The personal marketplace: the businesses they keep, with whatever is on
+   * today from each of them attached. A closed listing stays in the list and
+   * says so — the citizen chose to keep it, and quietly dropping it would look
+   * like the app lost their bookmark rather than the shop shutting.
+   */
+  async regulars(userId: string, today = new Date()) {
+    const rows = await this.prisma.serviceRegular.findMany({
+      where: { userId }, orderBy: { createdAt: 'desc' }, take: 200,
+    }) as unknown as Array<{ id: string; listingId: string; note: string | null; createdAt: Date }>;
+    if (!rows.length) return { items: [] };
+
+    const ids = rows.map((r) => r.listingId);
+    const [listings, offers] = await Promise.all([
+      this.prisma.serviceListing.findMany({ where: { id: { in: ids } }, take: 200 }) as unknown as Promise<ListingRow[]>,
+      this.liveOffers(today, ids),
+    ]);
+    const byId = new Map(listings.map((l) => [l.id, l]));
+    const offersFor = new Map<string, ReturnType<LocalServicesService['offerCard']>[]>();
+    for (const o of offers) {
+      const list = offersFor.get(o.listingId) ?? [];
+      list.push(o);
+      offersFor.set(o.listingId, list);
+    }
+    return {
+      items: rows.flatMap((r) => {
+        const l = byId.get(r.listingId);
+        if (!l) return [];
+        return [{
+          ...this.card(l),
+          savedAt: r.createdAt.toISOString(),
+          note: r.note,
+          closed: l.moderation !== 'approved',
+          offersToday: offersFor.get(l.id) ?? [],
+        }];
+      }),
+    };
+  }
+
+  /** Which of these listings the caller has kept — so a browse card knows
+   *  whether its Save button is already pressed. */
+  async savedIds(userId: string, listingIds: string[]): Promise<string[]> {
+    if (!listingIds.length) return [];
+    const rows = await this.prisma.serviceRegular.findMany({
+      where: { userId, listingId: { in: listingIds.slice(0, 200) } },
+      select: { listingId: true }, take: 200,
+    }) as unknown as Array<{ listingId: string }>;
+    return rows.map((r) => r.listingId);
+  }
+
+  // ───────────────────────── offers ─────────────────────────
+
+  private offerCard(o: { id: string; listingId: string; title: string; detail: string | null; startsOn: Date; endsOn: Date }) {
+    return {
+      id: o.id,
+      listingId: o.listingId,
+      title: o.title,
+      detail: o.detail,
+      startsOn: ymd(o.startsOn),
+      endsOn: ymd(o.endsOn),
+      /** True when it started today — "new today" is worth saying, "still on" is not. */
+      startsToday: false,
+    };
+  }
+
+  private async liveOffers(today: Date, listingIds?: string[]) {
+    const d = startOfDayUtc(today);
+    const rows = await this.prisma.serviceOffer.findMany({
+      where: {
+        startsOn: { lte: d }, endsOn: { gte: d },
+        ...(listingIds ? { listingId: { in: listingIds.slice(0, 200) } } : {}),
+      },
+      orderBy: { createdAt: 'desc' }, take: 200,
+    }) as unknown as Array<{ id: string; listingId: string; title: string; detail: string | null; startsOn: Date; endsOn: Date }>;
+    return rows.map((o) => ({ ...this.offerCard(o), startsToday: ymd(o.startsOn) === ymd(d) }));
+  }
+
+  /**
+   * Everything on in the city today, with the business attached.
+   *
+   * An offer whose listing has since been closed is dropped rather than shown:
+   * the discount is real but the shop is not, and sending somebody to a door
+   * that no longer opens is worse than showing them nothing.
+   */
+  async offersToday(today = new Date()) {
+    const offers = await this.liveOffers(today);
+    if (!offers.length) return { items: [] };
+    const listings = await this.prisma.serviceListing.findMany({
+      where: { id: { in: [...new Set(offers.map((o) => o.listingId))] }, moderation: 'approved' },
+      take: 200,
+    }) as unknown as ListingRow[];
+    const byId = new Map(listings.map((l) => [l.id, l]));
+    return {
+      items: offers.flatMap((o) => {
+        const l = byId.get(o.listingId);
+        return l ? [{ ...o, business: this.card(l) }] : [];
+      }),
+    };
+  }
+
+  /** What this owner has running, including what has already finished — a
+   *  business needs to see the offer that expired to know why it stopped. */
+  async myOffers(ownerId: string, listingId: string) {
+    await this.own(ownerId, listingId);
+    const rows = await this.prisma.serviceOffer.findMany({
+      where: { listingId }, orderBy: { startsOn: 'desc' }, take: 100,
+    }) as unknown as Array<{ id: string; listingId: string; title: string; detail: string | null; startsOn: Date; endsOn: Date }>;
+    const d = ymd(startOfDayUtc(new Date()));
+    return {
+      items: rows.map((o) => ({
+        ...this.offerCard(o),
+        live: ymd(o.startsOn) <= d && ymd(o.endsOn) >= d,
+      })),
+    };
+  }
+
+  async postOffer(ownerId: string, listingId: string, dto: PostOfferDto) {
+    const l = await this.own(ownerId, listingId);
+    if (l.moderation !== 'approved') throw new BadRequestException('This listing is closed — reopen it before posting an offer.');
+
+    const starts = dto.startsOn ? parseYmd(dto.startsOn) : startOfDayUtc(new Date());
+    const ends = dto.endsOn ? parseYmd(dto.endsOn) : starts;
+    if (!starts || !ends) throw new BadRequestException('Those dates could not be read.');
+    if (ends < starts) throw new BadRequestException('An offer cannot end before it starts.');
+    // Two months is a season, not an offer. A cap here is what stops "today's
+    // deal" quietly becoming permanent pricing.
+    if ((ends.getTime() - starts.getTime()) / 86_400_000 > 60) {
+      throw new BadRequestException('An offer can run for at most 60 days. Post it again when it ends.');
+    }
+    const live = await this.prisma.serviceOffer.count({ where: { listingId, endsOn: { gte: startOfDayUtc(new Date()) } } });
+    if (live >= MAX_LIVE_OFFERS) throw new BadRequestException(`You can have ${MAX_LIVE_OFFERS} offers running at once.`);
+
+    const row = await this.prisma.serviceOffer.create({
+      data: { listingId, title: dto.title, detail: dto.detail ?? null, startsOn: starts, endsOn: ends },
+    }) as unknown as { id: string; listingId: string; title: string; detail: string | null; startsOn: Date; endsOn: Date };
+    return this.offerCard(row);
+  }
+
+  async removeOffer(ownerId: string, offerId: string) {
+    const o = await this.prisma.serviceOffer.findUnique({ where: { id: offerId } }) as { id: string; listingId: string } | null;
+    if (!o) throw new NotFoundException('offer not found');
+    await this.own(ownerId, o.listingId);
+    await this.prisma.serviceOffer.delete({ where: { id: offerId } });
     return { ok: true };
   }
 }

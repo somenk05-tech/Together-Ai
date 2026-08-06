@@ -55,3 +55,21 @@ export const EnquireSchema = z.object({
   message: z.string().trim().max(4000).optional(),
 });
 export type EnquireDto = z.infer<typeof EnquireSchema>;
+
+export const SaveRegularSchema = z.object({
+  note: z.string().trim().max(200).optional(),
+});
+export type SaveRegularDto = z.infer<typeof SaveRegularSchema>;
+
+/**
+ * An offer runs for days, not forever. `endsOn` defaults to `startsOn`, which
+ * makes the common case — "today only" — the shortest thing to say, and makes
+ * an offer that outlives its usefulness impossible rather than merely unlikely.
+ */
+export const PostOfferSchema = z.object({
+  title: z.string().trim().min(3).max(90),
+  detail: z.string().trim().max(400).optional(),
+  startsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  endsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+export type PostOfferDto = z.infer<typeof PostOfferSchema>;

@@ -11,6 +11,8 @@ import {
   UpdateListingSchema, type UpdateListingDto,
   SendServiceMessageSchema, type SendServiceMessageDto,
   EnquireSchema, type EnquireDto,
+  SaveRegularSchema, type SaveRegularDto,
+  PostOfferSchema, type PostOfferDto,
 } from './dto/local-services.dto';
 
 @Controller('services')
@@ -27,7 +29,9 @@ export class LocalServicesController {
 
   @Get()
   @UsePipes(new ZodValidationPipe(BrowseSchema))
-  browse(@Query() query: BrowseDto) { return this.services.browse(query); }
+  browse(@CurrentUser() user: JwtUser, @Query() query: BrowseDto) {
+    return this.services.browse(query, user.sub);
+  }
 
   // Declared BEFORE ':id' or React-Router-style path collisions bite on the
   // server too: "mine" would be read as a listing id and 404 from the database.
@@ -36,6 +40,24 @@ export class LocalServicesController {
 
   @Get('inbox')
   inbox(@CurrentUser() user: JwtUser) { return this.services.inbox(user.sub); }
+
+  // Both declared before ':id' — "regulars" and "offers" are not listing ids,
+  // and a router that reads them as one 404s from the database instead.
+  @Get('regulars')
+  regulars(@CurrentUser() user: JwtUser) { return this.services.regulars(user.sub); }
+
+  @Get('offers/today')
+  offersToday() { return this.services.offersToday(); }
+
+  @Get('offers/mine/:listingId')
+  myOffers(@CurrentUser() user: JwtUser, @Param('listingId') listingId: string) {
+    return this.services.myOffers(user.sub, listingId);
+  }
+
+  @Delete('offers/:offerId')
+  removeOffer(@CurrentUser() user: JwtUser, @Param('offerId') offerId: string) {
+    return this.services.removeOffer(user.sub, offerId);
+  }
 
   @Get('threads/:id')
   thread(@CurrentUser() user: JwtUser, @Param('id') id: string) {
@@ -79,6 +101,23 @@ export class LocalServicesController {
   @Delete(':id')
   close(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.services.close(user.sub, id);
+  }
+
+  @Post(':id/regular')
+  @UsePipes(new ZodValidationPipe(SaveRegularSchema))
+  saveRegular(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: SaveRegularDto) {
+    return this.services.saveRegular(user.sub, id, dto.note);
+  }
+
+  @Delete(':id/regular')
+  forgetRegular(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.services.forgetRegular(user.sub, id);
+  }
+
+  @Post(':id/offers')
+  @UsePipes(new ZodValidationPipe(PostOfferSchema))
+  postOffer(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() dto: PostOfferDto) {
+    return this.services.postOffer(user.sub, id, dto);
   }
 
   @Post(':id/enquire')

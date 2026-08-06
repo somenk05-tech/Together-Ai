@@ -42,7 +42,9 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/services/browse', index: '01', label: 'Find a service', sub: 'By trade and by where you are' },
       { path: '/services/list', index: '02', label: 'List your business', sub: 'Pick a category, name your areas' },
       { path: '/services/mine', index: '03', label: 'My business', sub: 'Edit, close, see who asked' },
-      { path: '/services/messages', index: '04', label: 'Messages', sub: 'Anonymous, and only in this hub' },
+      { path: '/services/regulars', index: '04', label: 'Regulars', sub: 'The businesses you keep' },
+      { path: '/services/offers', index: '05', label: 'Daily offers', sub: 'What is on today' },
+      { path: '/services/messages', index: '06', label: 'Messages', sub: 'Anonymous, and only in this hub' },
     ],
   },
   travel: {

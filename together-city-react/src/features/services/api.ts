@@ -65,11 +65,28 @@ export interface ListingInput {
   onlineOk?: boolean;
 }
 
+export interface ServiceOffer {
+  id: string;
+  listingId: string;
+  title: string;
+  detail: string | null;
+  startsOn: string;
+  endsOn: string;
+  startsToday: boolean;
+  live?: boolean;
+}
+export interface RegularCard extends ServiceCard {
+  savedAt: string;
+  note: string | null;
+  closed: boolean;
+  offersToday: ServiceOffer[];
+}
+
 export const servicesApi = {
   categories: () => api.get<{ groups: CategoryGroup[] }>('/services/categories').then((r) => r.data),
   facets: (city?: string) => api.get<Record<string, number>>('/services/facets', { params: { city } }).then((r) => r.data),
   browse: (q: { category?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) =>
-    api.get<{ items: ServiceCard[]; total: number; page: number; pages: number }>('/services', { params: q }).then((r) => r.data),
+    api.get<{ items: ServiceCard[]; total: number; page: number; pages: number; saved: string[] }>('/services', { params: q }).then((r) => r.data),
   detail: (id: string) => api.get<ServiceCard>(`/services/${id}`).then((r) => r.data),
   mine: () => api.get<MyServiceCard[]>('/services/mine').then((r) => r.data),
   create: (input: ListingInput) => api.post<MyServiceCard>('/services', input).then((r) => r.data),
@@ -87,7 +104,73 @@ export const servicesApi = {
     api.post<ServiceMessage>(`/services/threads/${id}/messages`, { body }).then((r) => r.data),
   closeThread: (id: string) =>
     api.post<{ ok: true }>(`/services/threads/${id}/close`, {}).then((r) => r.data),
+
+  saveRegular: (id: string, note?: string) =>
+    api.post<{ saved: boolean }>(`/services/${id}/regular`, { note }).then((r) => r.data),
+  forgetRegular: (id: string) =>
+    api.delete<{ saved: boolean }>(`/services/${id}/regular`).then((r) => r.data),
+  regulars: () => api.get<{ items: RegularCard[] }>('/services/regulars').then((r) => r.data),
+
+  offersToday: () =>
+    api.get<{ items: Array<ServiceOffer & { business: ServiceCard }> }>('/services/offers/today').then((r) => r.data),
+  myOffers: (listingId: string) =>
+    api.get<{ items: ServiceOffer[] }>(`/services/offers/mine/${listingId}`).then((r) => r.data),
+  postOffer: (listingId: string, input: { title: string; detail?: string; startsOn?: string; endsOn?: string }) =>
+    api.post<ServiceOffer>(`/services/${listingId}/offers`, input).then((r) => r.data),
+  removeOffer: (offerId: string) =>
+    api.delete<{ ok: true }>(`/services/offers/${offerId}`).then((r) => r.data),
 };
+
+export function useRegulars() {
+  return useQuery({ queryKey: ['services', 'regulars'], queryFn: () => servicesApi.regulars() });
+}
+/**
+ * One mutation for both directions. A separate save and forget hook means two
+ * places that have to remember to invalidate the same three queries, and the
+ * day one of them forgets, a heart stays filled after it was emptied.
+ */
+export function useToggleRegular() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; saved: boolean }) =>
+      v.saved ? servicesApi.forgetRegular(v.id) : servicesApi.saveRegular(v.id),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services'] }); },
+  });
+}
+export function useOffersToday() {
+  return useQuery({ queryKey: ['services', 'offers', 'today'], queryFn: () => servicesApi.offersToday() });
+}
+export function useMyOffers(listingId?: string) {
+  return useQuery({
+    queryKey: ['services', 'offers', 'mine', listingId],
+    queryFn: () => servicesApi.myOffers(listingId as string),
+    enabled: !!listingId,
+  });
+}
+export function usePostOffer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { listingId: string; input: { title: string; detail?: string; startsOn?: string; endsOn?: string } }) =>
+      servicesApi.postOffer(v.listingId, v.input),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services', 'offers'] }); },
+  });
+}
+export function useRemoveOffer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (offerId: string) => servicesApi.removeOffer(offerId),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['services', 'offers'] }); },
+  });
+}
+
+/** "Today only", "until 9 Aug" — an offer's dates said the way somebody would. */
+export function offerWhen(o: { startsOn: string; endsOn: string }): string {
+  const today = new Date().toISOString().slice(0, 10);
+  if (o.endsOn === today) return 'Last day';
+  if (o.startsOn === o.endsOn) return o.startsOn === today ? 'Today only' : `On ${o.startsOn}`;
+  const end = new Date(`${o.endsOn}T00:00:00Z`);
+  return `Until ${end.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' })}`;
+}
 
 export function useServiceCategories() {
   // The vocabulary is static on the server, so it is worth caching hard — the
