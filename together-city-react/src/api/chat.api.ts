@@ -30,6 +30,15 @@ export const chatApi = {
     apiPost('/chat/group', { title, memberIds }, ConversationSchema),
   markRead: (conversationId: string): Promise<{ ok: boolean }> =>
     apiPost(`/chat/${conversationId}/read`, {}, z.object({ ok: z.boolean() })),
+  /**
+   * Remove a conversation from MY left panel. Deliberately not called
+   * `deleteConversation`: the server sets clearedAt on my own membership row
+   * and nothing else. The other people in the thread keep it, the messages are
+   * not destroyed, and it returns to my panel the moment somebody writes to it
+   * again. The UI copy has to say that, so the method name may as well too.
+   */
+  clearConversation: (conversationId: string): Promise<{ ok: boolean }> =>
+    apiDelete(`/chat/${conversationId}`, z.object({ ok: z.boolean() })),
   deleteMessage: (messageId: string, scope: 'ME' | 'EVERYONE'): Promise<{ deleted: boolean; scope: string }> =>
     apiDelete(`/messages/${messageId}`, z.object({ deleted: z.boolean(), scope: z.string() }), { data: { scope } }),
   editMessage: (messageId: string, body: string): Promise<Message> =>
@@ -97,6 +106,21 @@ export function useChatRealtime(
   }, [conversationId]);
 
   return { send, setTyping };
+}
+
+/**
+ * Clear a conversation from your own panel.
+ *
+ * The list is invalidated rather than filtered locally: the server decides what
+ * belongs in the panel — a thread that has a message newer than my clear stays
+ * — and a client that guessed would show a row the next poll took away.
+ */
+export function useClearConversation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) => chatApi.clearConversation(conversationId),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['chat', 'conversations'] }); },
+  });
 }
 
 export function useStartDirect() {

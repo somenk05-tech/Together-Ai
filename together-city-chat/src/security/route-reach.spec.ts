@@ -96,6 +96,11 @@ const ALLOW: Array<{ id: string; why: string }> = [
 // a retailer's name again; the paid rows are NOT deleted, and a boot-time alarm
 // in NutritionService counts them and says the refunds are owed by hand. Pinned
 // by nutrition/qc-removed.spec.ts.
+// Came off 6 Aug: DELETE /chat/:id was WIRED, not deleted. It had been complete
+// and correct on the server since the panel was built — per-participant clear,
+// 404 for a non-participant — and had simply never been given a control. The
+// left panel now has one. Its two siblings, archive and unarchive, are still
+// waiting for the same treatment and stay on the list.
 const KNOWN_UNREACHED: string[] = [
   "beauty/beauty.controller.ts  DELETE /beauty/looks/*",
   "beauty/beauty.controller.ts  GET /beauty/looks",
@@ -103,7 +108,6 @@ const KNOWN_UNREACHED: string[] = [
   "beauty/beauty.controller.ts  POST /beauty/looks",
   "connections/connections.controller.ts  GET /connections/module/*",
   "connections/connections.controller.ts  GET /connections/recipients",
-  "conversations/conversations.controller.ts  DELETE /chat/*",
   "conversations/conversations.controller.ts  POST /chat/*/archive",
   "conversations/conversations.controller.ts  POST /chat/*/unarchive",
   "drive/drive.controller.ts  GET /drive/attachments",

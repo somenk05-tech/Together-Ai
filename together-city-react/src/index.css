@@ -583,3 +583,52 @@ table.tc td b { color: var(--ink); }
      it rather than centring against a block it is no longer inside. */
   .mail-time { align-self: flex-start; margin-top: 2px; }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GETTING A CONVERSATION OFF THE LEFT PANEL
+
+   The row is a container, not a button. It has to be: the open action and the
+   remove action are two buttons, and one nested inside the other is invalid
+   markup that browsers resolve by guessing which one you meant.
+
+   The bin hides until the pointer is over the row — a list of twenty threads
+   with twenty bins down the side reads as a list ABOUT deleting. But two
+   things stop that from becoming a mouse-only feature. :focus-within keeps it
+   for the keyboard, and the (hover: none) block below keeps it permanently
+   visible on a touch screen, where there is no hover state to reveal it with
+   and a hidden control is simply a missing one.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.conv-row { display: flex; align-items: stretch; width: 100%;
+  border-bottom: 1px solid var(--line); background: transparent; }
+.conv-row.is-active { background: var(--accent-soft); }
+
+.conv-open { display: flex; flex: 1; min-width: 0; text-align: left; gap: 12px;
+  padding: 14px 4px 14px 16px; border: none; background: transparent; cursor: pointer;
+  font: inherit; color: inherit; }
+
+.conv-remove { flex: 0 0 auto; width: 44px; min-height: 44px; border: none;
+  background: transparent; cursor: pointer; color: var(--muted);
+  font-size: 15px; line-height: 1; opacity: 0; transition: opacity .12s, color .12s; }
+.conv-row:hover .conv-remove, .conv-row:focus-within .conv-remove { opacity: 1; }
+.conv-remove:hover { color: var(--danger-ink); }
+
+@media (hover: none) {
+  /* No pointer to reveal it with. */
+  .conv-remove { opacity: 1; }
+}
+
+/* The confirm takes the row's place rather than floating over it, so the list
+   does not shift and the thread being removed is the one you are reading
+   about. It names the thread, because "are you sure?" over a scrolling list is
+   a question about nothing in particular. */
+.conv-confirm { padding: 12px 16px; border-bottom: 1px solid var(--line);
+  background: var(--danger-soft); }
+.conv-confirm-text { margin: 0 0 8px; font-size: 12.5px; line-height: 1.45;
+  color: var(--ink-soft); }
+.conv-confirm-actions { display: flex; gap: 8px; }
+.conv-act { min-height: 44px; padding: 0 12px; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--card); cursor: pointer;
+  font: inherit; font-size: 13px; color: var(--ink); }
+.conv-act.is-danger { border-color: var(--danger-line); color: var(--danger-ink); }
+.conv-act[disabled] { opacity: .6; cursor: default; }

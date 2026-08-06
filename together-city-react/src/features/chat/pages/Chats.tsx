@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { useConversations, useMessages, useChatRealtime, chatApi, socketClient, WS } from '@/api';
+import { useConversations, useMessages, useChatRealtime, useClearConversation, chatApi, socketClient, WS } from '@/api';
 import { ConversationList } from '../components/ConversationList';
 import { MessageThread } from '../components/MessageThread';
 import { Composer } from '../components/Composer';
@@ -22,12 +22,20 @@ export function Chats() {
   const [searchParams] = useSearchParams();
   const requestedId = searchParams.get('c') ?? undefined;
   const [activeId, setActiveId] = useState<string | undefined>(requestedId);
+  const clear = useClearConversation();
+  // Whether the "open the first thread" fallback has already fired.
+  const autoPicked = useRef(false);
 
   // activeId already initialises to the ?c=<id> deep link. Otherwise, once the
-  // list loads, fall back to the first conversation.
+  // list loads, fall back to the first conversation — ONCE. Without the latch
+  // this effect re-fires every time activeId goes empty, which now happens when
+  // a citizen removes the thread they were reading: they would be dropped
+  // straight into somebody else's conversation with the composer still focused.
   useEffect(() => {
     const list = conversations.data;
-    if (!activeId && list && list.length > 0) setActiveId(list[0].id);
+    if (autoPicked.current || activeId || !list || list.length === 0) return;
+    autoPicked.current = true;
+    setActiveId(list[0].id);
   }, [activeId, conversations.data]);
 
   const history = useMessages(activeId);
@@ -128,6 +136,21 @@ export function Chats() {
   const list = conversations.data ?? [];
   const onOpened = (id: string) => { setActiveId(id); void conversations.refetch(); };
 
+  /**
+   * Remove a conversation from this citizen's panel.
+   *
+   * If it was the open one, the right-hand side has to move somewhere, and it
+   * moves to nothing rather than to the next thread down. Landing you in
+   * somebody else's conversation immediately after you removed one is how a
+   * message gets sent to the wrong person — the pane you were typing into is
+   * now a different thread and it did not announce itself.
+   */
+  const onRemove = (id: string) => {
+    clear.mutate(id, {
+      onSuccess: () => { if (activeId === id) setActiveId(undefined); },
+    });
+  };
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', height: 'calc(100vh - var(--header-h) - var(--safe-top))', overflow: 'hidden' }}>
       <div style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--line)', minHeight: 0, overflowY: 'auto' }}>
@@ -136,7 +159,8 @@ export function Chats() {
           ? <p className="muted" style={{ fontSize: 13, padding: '16px 16px' }}>
               No conversations yet. Start one above, or open a member’s profile and tap Message.
             </p>
-          : <ConversationList items={list} activeId={activeId} onSelect={setActiveId} />}
+          : <ConversationList items={list} activeId={activeId} onSelect={setActiveId}
+              onRemove={onRemove} removingId={clear.isPending ? clear.variables : undefined} />}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
         {activeId ? (
