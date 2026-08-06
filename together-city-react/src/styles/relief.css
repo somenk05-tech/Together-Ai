@@ -1388,3 +1388,182 @@ textarea.g-field { resize: none; line-height: 1.55; }
 /* Just-posted. The wall is the first thing a citizen sees after sharing, so the
    new poster has to be findable without a toast pointing at it. */
 .poster.fresh { box-shadow: var(--e2); outline: 2px solid var(--accent); outline-offset: 1px; }
+
+
+/* ══ THE RECIPE, SET AS A CARD ═══════════════════════════════════════════
+   The third wearer of the press, and the argument is the one that granted it
+   in the first place. The meal plan was allowed two extra faces because a day
+   of food is read the way a menu is read. A recipe is read the way a RECIPE
+   CARD is read — the oldest printed form in any kitchen, and one nobody has
+   ever wanted set in a UI sans: a display serif for the dish, hairline rules,
+   letterspaced small caps for the labels, figures in a monospace so quantities
+   align down a column, and the two things you actually cook from — what to buy
+   and what to do — side by side rather than stacked in cards.
+
+   It is the same paper as the plan, deliberately. The references this was
+   drawn from are printed on cream, and a warm ground for this one page was the
+   obvious move and the wrong one: OwnDayView was granted the press precisely so
+   that a day you compose is read on the same paper as the day the engine
+   composed, and a third surface with its own paper would spend that.
+
+   NO ITALIC, ANYWHERE ABOVE BODY SIZE. The references set their accent word in
+   a script. Instrument Serif ships one cut here — the upright — so a script
+   accent would be a browser-synthesised oblique at 50px, which shears a high-
+   contrast serif into something that reads as a rendering fault. The accent is
+   carried by case and scale instead: the dish in capitals, its last word set
+   apart below in mixed case. Nothing on this page is italic except the
+   colophon, at 17px, which is what the existing .press-note already does.
+
+   NOTHING HERE CARRIES A VALUE, same as the plan. Every quantity, step, badge
+   and figure comes from the recipe row and the nutrient computation. The CSS
+   has to survive a two-ingredient dish and a twenty-ingredient thali, a name of
+   one word and a name of nine, and a nutrient nobody has data for. */
+
+.press-r-bar { display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; padding-bottom: clamp(18px, 2.4vw, 30px); }
+.press-r-act { display: inline-flex; align-items: center; gap: 8px; min-height: 44px;
+  background: none; border: 0; padding: 0; cursor: pointer; font-family: var(--sans);
+  font-size: 10.5px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--press-ink-3); border-bottom: 1px solid transparent; }
+.press-r-act:hover { color: var(--press-green); }
+.press-r-act.is-on { color: var(--press-green); }
+.press-r-acts { display: flex; align-items: center; gap: clamp(16px, 2.4vw, 28px); }
+
+/* ── the head ──────────────────────────────────────────────────────────── */
+.press-r-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .92fr);
+  gap: clamp(26px, 4vw, 56px); align-items: center; }
+.press-r-eyebrow { margin: 0 0 clamp(14px, 1.8vw, 22px); font-size: 9.5px; font-weight: 500;
+  letter-spacing: .24em; text-transform: uppercase; color: var(--press-green); }
+
+/* line-height under 1 is the whole look and it is safe here: the tail sits in
+   its own block, so two capital lines can close up without a descender from
+   one line touching a capital on the next. */
+.press-r-title { margin: 0; font-family: var(--press-serif); font-weight: 400;
+  font-size: clamp(34px, 5vw, 58px); line-height: .96; letter-spacing: -.015em;
+  text-transform: uppercase; }
+.press-r-title .press-r-tail { display: block; margin-top: .05em; text-transform: none;
+  font-size: .8em; letter-spacing: -.008em; color: var(--press-green); }
+
+.press-r-lede { margin: clamp(18px, 2.4vw, 26px) 0 0; padding-top: 15px;
+  border-top: 1px solid var(--press-ink); font-size: 9.5px; font-weight: 500;
+  letter-spacing: .2em; text-transform: uppercase; color: var(--press-ink-3); line-height: 1.9; }
+
+/* Square, and object-fit: cover, because the dataset's photographs are not one
+   shape. It was 4:5 first — a portrait plate is what the printed cards use —
+   and beside a title of three lines that left 300px of empty paper above the
+   dish name, because the row is as tall as its tallest child and the type was
+   centring in the gap. A square photograph is still a plate and the columns
+   come out within a hundred pixels of each other. */
+.press-r-photo, .press-r-plate { aspect-ratio: 1 / 1; overflow: hidden;
+  background: var(--press-rule-2); display: grid; place-items: center;
+  color: var(--press-ink-3); position: relative; }
+.press-r-photo img, .press-r-plate img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* A photograph on paper is SET INTO it, not raised off it. Relief cases a
+   picture in a shell with a 7px surround and two shadows; the press traded
+   shadow away for rules, and a photograph is not the exception that buys it
+   back. The hairline rim from the global image rule is exactly right and
+   stays — it is the only part of the casing that survives being printed. */
+[data-press] .press-r-photo img,
+[data-press] .press-r-plate img { box-shadow: none; border-radius: 0; }
+
+/* ── the spec strip ────────────────────────────────────────────────────── */
+.press-r-spec { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  margin: clamp(26px, 3.4vw, 44px) 0 0; padding: 20px 0; gap: 16px 0;
+  border-top: 1px solid var(--press-ink); border-bottom: 1px solid var(--press-rule); }
+.press-r-spec > div { padding: 0 18px; border-left: 1px solid var(--press-rule-2); text-align: center; }
+.press-r-spec > div:first-child { border-left: 0; }
+.press-r-spec b { display: block; font-family: var(--press-mono); font-weight: 400;
+  font-size: clamp(17px, 1.9vw, 21px); letter-spacing: -.02em; }
+.press-r-spec b small { font-family: var(--sans); font-size: 11px; font-weight: 500;
+  color: var(--press-ink-3); margin-left: 4px; }
+.press-r-spec span { display: block; margin-top: 9px; font-size: 9px; font-weight: 500;
+  letter-spacing: .19em; text-transform: uppercase; color: var(--press-ink-3); }
+
+/* ── an ornament, and it earns its place ──────────────────────────────────
+   The references break their sections with a botanical. This one is a rule
+   with a stop in it — drawn in CSS rather than set as a dingbat, because a
+   glyph like ❧ is not in every fallback face and a missing one prints as a
+   box in the middle of the page. */
+.press-r-orn { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  gap: 16px; margin: clamp(30px, 4vw, 48px) 0; }
+.press-r-orn::before, .press-r-orn::after { content: ''; height: 1px; background: var(--press-rule-2); }
+.press-r-orn i { width: 5px; height: 5px; transform: rotate(45deg); background: var(--press-green); }
+
+/* ── what to buy | what to do ─────────────────────────────────────────── */
+.press-r-cols { display: grid; grid-template-columns: minmax(0, .84fr) minmax(0, 1.16fr); }
+.press-r-cols > * { min-width: 0; padding: 0 clamp(20px, 3vw, 44px); }
+.press-r-cols > *:first-child { padding-left: 0; }
+.press-r-cols > *:last-child { padding-right: 0; border-left: 1px solid var(--press-rule-2); }
+
+.press-r-sechead { display: flex; align-items: baseline; justify-content: space-between;
+  gap: 14px; margin: 0 0 18px; padding-bottom: 11px; border-bottom: 1px solid var(--press-ink); }
+.press-r-sechead h2 { margin: 0; font-family: var(--sans); font-size: 10px; font-weight: 500;
+  letter-spacing: .26em; text-transform: uppercase; color: var(--press-ink); }
+.press-r-sechead .press-r-aside { font-size: 9.5px; font-weight: 500; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--press-ink-3); }
+
+.press-r-ing { display: flex; align-items: center; gap: 14px; padding: 11px 0;
+  border-bottom: 1px solid var(--press-rule-2); }
+.press-r-ing:last-of-type { border-bottom: 0; }
+.press-r-ing-mark { flex: 0 0 auto; display: grid; place-items: center; width: 28px; height: 28px;
+  border-radius: 50%; border: 1px solid var(--press-rule); font-family: var(--press-serif);
+  font-size: 14px; line-height: 1; color: var(--press-green); text-transform: uppercase; }
+.press-r-ing-name { flex: 1 1 auto; min-width: 0; font-size: 13.5px; line-height: 1.45; }
+.press-r-ing-q { flex: 0 0 auto; font-family: var(--press-mono); font-size: 11.5px;
+  color: var(--press-ink-3); white-space: nowrap; }
+
+.press-r-tot { display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+  margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--press-ink);
+  font-size: 9.5px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--press-ink-3); }
+.press-r-tot b { font-family: var(--press-mono); font-weight: 400; font-size: 14px;
+  letter-spacing: 0; color: var(--press-ink); }
+
+/* ── the steps ─────────────────────────────────────────────────────────── */
+.press-r-steps { display: block; }
+.press-r-step { position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr);
+  column-gap: 18px; width: 100%; padding: 0 0 20px; text-align: left; cursor: pointer;
+  background: none; border: 0; font-family: inherit; color: inherit; }
+/* The dotted spine between the discs. It starts below one and stops at the top
+   of the next, so a step that wraps to four lines keeps the thread unbroken. */
+.press-r-step::before { content: ''; position: absolute; left: 15.5px; top: 36px; bottom: 0;
+  border-left: 1px dotted var(--press-rule); }
+.press-r-step:last-child::before { content: none; }
+/* The rim is permanent and the FILL is what moves, so striking a step out does
+   not resize its disc by a pixel and nudge every numeral below it. */
+.press-r-step-n { position: relative; z-index: 1; display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--press-green);
+  background: var(--press-green); color: var(--press-paper);
+  font-family: var(--press-mono); font-size: 12.5px; }
+.press-r-step.is-done .press-r-step-n { background: var(--press-paper); color: var(--press-green); }
+.press-r-step-t { padding-top: 5px; font-size: 13.5px; line-height: 1.65; color: var(--press-ink-2); }
+.press-r-step.is-done .press-r-step-t { opacity: .5; text-decoration: line-through;
+  text-decoration-thickness: 1px; }
+.press-r-step-time { display: inline-block; margin-left: 9px; font-family: var(--press-mono);
+  font-size: 10.5px; letter-spacing: .04em; color: var(--press-green); white-space: nowrap; }
+
+/* ── the boxed optional panel the references end their column with ────── */
+.press-r-box { margin-top: 26px; padding: 17px 19px; border: 1px solid var(--press-rule); border-radius: 4px; }
+.press-r-box h3 { margin: 0 0 12px; font-size: 9px; font-weight: 500; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--press-ink-3); }
+
+/* ── the colophon ──────────────────────────────────────────────────────── */
+.press-r-colophon { margin: clamp(34px, 4.4vw, 56px) 0 0; padding-top: 22px;
+  border-top: 1px solid var(--press-ink); text-align: center; font-family: var(--press-serif);
+  font-style: italic; font-size: 17px; line-height: 1.6; color: var(--press-ink-3); }
+
+@media (max-width: 900px) {
+  /* One column, and the rule that separated them becomes the rule above the
+     second — otherwise the ingredients list hangs off a border on its left
+     with nothing on the other side of it. */
+  .press-r-head { grid-template-columns: minmax(0, 1fr); }
+  /* 4:3, not 16:10 and not the square. A square plate on a 390px screen is
+     358px of photograph before the dish is even named; 16:10 crops the top off
+     a portrait shot. This is the shape that fits both. */
+  .press-r-photo { aspect-ratio: 4 / 3; order: -1; }
+  .press-r-cols { grid-template-columns: minmax(0, 1fr); }
+  .press-r-cols > * { padding: 0; }
+  .press-r-cols > *:last-child { border-left: 0; border-top: 1px solid var(--press-rule-2);
+    margin-top: 32px; padding-top: 32px; }
+}

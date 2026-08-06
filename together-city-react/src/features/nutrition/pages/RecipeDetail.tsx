@@ -8,15 +8,47 @@ import { DIET_META } from '../dietMeta';
 import { AddToPlan } from '../components/AddToPlan';
 import { recipeImageUrl } from '../recipeImages';
 import { VegMark, dietKind } from '../components/VegMark';
+import { setTitle } from '../recipeTitle';
 import type { DietKey } from '../types';
 import type { RecipeDetail as RecipeDetailT } from '../api';
+
+/**
+ * THE RECIPE, SET AS A CARD.
+ *
+ * This page used to be nine rounded cards stacked down a column — the shape
+ * every other hub uses, applied to the one document in the application that
+ * has a five-hundred-year-old printed form of its own. A recipe card puts what
+ * to buy and what to do SIDE BY SIDE, because you cook with your eyes moving
+ * between two columns, not scrolling between two cards.
+ *
+ * So it wears the press: the display serif and the monospace figures that the
+ * meal plan was granted, on the same paper, for the same reason. relief.spec
+ * names this file as the third wearer with that argument written out — the
+ * exception is scoped or it is not an exception.
+ *
+ * WHAT DID NOT CHANGE. Every number, every step, every badge and every warning
+ * comes from exactly where it came from before: the recipe row, the computed
+ * nutrients, and whyForYou. This is a redesign of the paper, not of the
+ * findings, and a redesign that quietly relaxed one of them would be the worst
+ * possible version of it. The caution line still says the dish is heavy when it
+ * is heavy, the nutrient table still prints "—" for what nobody has data for,
+ * and the badges are still derived rather than decorative.
+ */
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const fmtINR = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 const gLabel = (g: number) => (g <= 0 ? 'To taste' : g < 1 ? '<1 g' : `${g % 1 === 0 ? g : g.toFixed(1)} g`);
-const mmss = (s: number) => { const m = Math.round(s / 60); return m >= 1 ? `${m} min` : `${s} sec`; };
+/**
+ * A step's timer, in words.
+ *
+ * Rounding FIRST and testing the result was wrong and the card render is what
+ * showed it: `Math.round(30/60)` is 1, so a thirty-second fry — "until the raw
+ * smell goes" — printed as "1 min", which is twice as long as the recipe says
+ * and long enough to burn garlic. Anything under a minute is said in seconds.
+ */
+const mmss = (s: number) => (s < 60 ? `${s} sec` : `${Math.round(s / 60)} min`);
 
 /** FDA-style Daily Values for %DV (adult reference). */
 const DV = { protein: 50, carbs: 275, fat: 78, fiber: 28, sugar: 50, satFat: 20, sodium: 2300, potassium: 4700, phosphorus: 1250, iron: 18, calcium: 1300, vitC: 90, vitD: 20 };
@@ -45,33 +77,18 @@ function aisleFor(name: string): string {
 
 /* ─────────────────────────── inline line-icons ─────────────────────────── */
 const PATHS: Record<string, string> = {
-  flame: 'M13 3c0 3 3 4 3 8a4 4 0 1 1-8 0c0-2 2-3 2-5 0 0 3 1 3-3z',
-  leaf: 'M5 20c7 1 14-4 15-16C11 3 4 9 5 20zM9 16c2-4 5-6 8-7',
-  wheat: 'M12 21V8M12 10c-2-1-4-1-5 1 2 1 4 1 5-1zM12 10c2-1 4-1 5 1-2 1-4 1-5-1zM12 15c-2-1-4-1-5 1 2 1 4 1 5-1zM12 15c2-1 4-1 5 1-2 1-4 1-5-1z',
-  drop: 'M12 3s6 6 6 10a6 6 0 1 1-12 0c0-4 6-10 6-10z',
-  sprout: 'M12 21v-7M12 14c0-3-2-5-5-5 0 3 2 5 5 5zM12 14c0-3 2-5 5-5 0 3-2 5-5 5z',
-  cube: 'M4 8l8-4 8 4-8 4-8-4zM4 8v8l8 4 8-4V8',
-  shaker: 'M8 21h8l-1-8H9l-1 8zM9 13V8a3 3 0 0 1 6 0v5M10 5h4',
-  heart: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z',
-  shield: 'M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-3z',
-  clock: 'M12 7v5l3 2M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z',
-  users: 'M16 20v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1M10 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM16 11a3 3 0 0 0 0-6',
-  star: 'M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.2l5.9-.9L12 3z',
+  arrowLeft: 'M15 6l-6 6 6 6',
+  bookmark: 'M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z',
+  share: 'M12 15V3m0 0L8 7m4-4l4 4M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7',
+  chef: 'M7 21h10M8 21v-4h8v4M6 13a4 4 0 0 1 1-8 4 4 0 0 1 10 0 4 4 0 0 1 1 8H6z',
   plus: 'M12 5v14M5 12h14',
   check: 'M20 6L9 17l-5-5',
-  share: 'M12 15V3m0 0L8 7m4-4l4 4M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7',
-  bookmark: 'M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z',
-  chef: 'M7 21h10M8 21v-4h8v4M6 13a4 4 0 0 1 1-8 4 4 0 0 1 10 0 4 4 0 0 1 1 8H6z',
-  scale: 'M12 3v3M7 6h10M6 6l-3 7a3 3 0 0 0 6 0L6 6zM18 6l-3 7a3 3 0 0 0 6 0l-3-7zM9 21h6',
-  sparkle: 'M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z',
-  pulse: 'M3 12h4l2 5 4-12 2 7h6',
   utensils: 'M6 3v8a2 2 0 0 0 4 0V3M8 11v10M18 3c-2 0-3 2-3 5s1 4 3 4v9',
-  calendar: 'M4 8h16M7 3v3M17 3v3M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z',
-  arrowLeft: 'M15 6l-6 6 6 6',
-  chevronDown: 'M6 9l6 6 6-6',
+  pulse: 'M3 12h4l2 5 4-12 2 7h6',
+  sparkle: 'M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z',
   dot: 'M12 12h.01',
 };
-function Ic({ name, size = 18, stroke = 1.7, style }: { name: string; size?: number; stroke?: number; style?: React.CSSProperties }) {
+function Ic({ name, size = 16, stroke = 1.6, style }: { name: string; size?: number; stroke?: number; style?: React.CSSProperties }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', ...style }} aria-hidden>
       <path d={PATHS[name] ?? PATHS.dot} />
@@ -82,80 +99,77 @@ function Ic({ name, size = 18, stroke = 1.7, style }: { name: string; size?: num
 /* ─────────────────────────── derived health signals ─────────────────────────── */
 interface Nutr { sodiumMg: number; potassiumMg: number; phosphorusMg: number; sugarG: number; addedSugarG: number; satFatG: number; complete: boolean }
 
-function deriveBadges(m: { kcal: number; protein: number; carbs: number; fiber: number }, n?: Nutr): { key: string; label: string; icon: string }[] {
-  const out: { key: string; label: string; icon: string }[] = [];
+function deriveBadges(m: { kcal: number; protein: number; carbs: number; fiber: number }, n?: Nutr): { key: string; label: string }[] {
+  const out: { key: string; label: string }[] = [];
   const pEnergy = m.kcal > 0 ? (m.protein * 4) / m.kcal : 0;
-  if (m.protein >= 12 && pEnergy >= 0.2) out.push({ key: 'protein', label: 'High Protein', icon: 'leaf' });
+  if (m.protein >= 12 && pEnergy >= 0.2) out.push({ key: 'protein', label: 'High Protein' });
   if (!n) return out;
-  if (n.addedSugarG <= 5 && (m.fiber >= 3 || m.carbs <= 30)) out.push({ key: 'diab', label: 'Diabetes Friendly', icon: 'drop' });
-  if (n.satFatG <= 5 && n.sodiumMg <= 600) out.push({ key: 'heart', label: 'Heart Healthy', icon: 'heart' });
-  if (n.potassiumMg > 0 && n.potassiumMg <= 400 && n.phosphorusMg <= 250 && n.sodiumMg <= 500) out.push({ key: 'kidney', label: 'Kidney Friendly', icon: 'shield' });
-  if (n.satFatG <= 6 && n.addedSugarG <= 8) out.push({ key: 'liver', label: 'Liver Friendly', icon: 'sprout' });
+  if (n.addedSugarG <= 5 && (m.fiber >= 3 || m.carbs <= 30)) out.push({ key: 'diab', label: 'Diabetes Friendly' });
+  if (n.satFatG <= 5 && n.sodiumMg <= 600) out.push({ key: 'heart', label: 'Heart Healthy' });
+  if (n.potassiumMg > 0 && n.potassiumMg <= 400 && n.phosphorusMg <= 250 && n.sodiumMg <= 500) out.push({ key: 'kidney', label: 'Kidney Friendly' });
+  if (n.satFatG <= 6 && n.addedSugarG <= 8) out.push({ key: 'liver', label: 'Liver Friendly' });
   return out;
 }
 
-function deriveBenefits(m: { kcal: number; protein: number; fiber: number }, micros: { vitCMg: number } | undefined, badges: { key: string }[]): { label: string; icon: string }[] {
+function deriveBenefits(m: { kcal: number; protein: number; fiber: number }, micros: { vitCMg: number } | undefined, badges: { key: string }[]): string[] {
   const has = (k: string) => badges.some((b) => b.key === k);
-  const out: { label: string; icon: string }[] = [];
-  if (m.kcal <= 400 && m.fiber >= 3) out.push({ label: 'Supports Weight Loss', icon: 'scale' });
-  if (has('diab')) out.push({ label: 'Helps Control Blood Sugar', icon: 'drop' });
-  if (has('heart')) out.push({ label: 'Heart Healthy', icon: 'heart' });
-  if (has('protein')) out.push({ label: 'High Protein', icon: 'leaf' });
-  if (m.protein >= 20) out.push({ label: 'Supports Muscle Growth', icon: 'users' });
-  if (m.fiber >= 5) out.push({ label: 'Gut Health', icon: 'sprout' });
-  if (has('liver')) out.push({ label: 'Good for the Liver', icon: 'sprout' });
-  if (has('kidney')) out.push({ label: 'Kidney Friendly', icon: 'shield' });
-  if ((micros?.vitCMg ?? 0) >= 20) out.push({ label: 'Healthy Skin (Vitamin C)', icon: 'star' });
+  const out: string[] = [];
+  if (m.kcal <= 400 && m.fiber >= 3) out.push('Supports weight loss');
+  if (has('diab')) out.push('Helps control blood sugar');
+  if (has('heart')) out.push('Heart healthy');
+  if (has('protein')) out.push('High protein');
+  if (m.protein >= 20) out.push('Supports muscle growth');
+  if (m.fiber >= 5) out.push('Gut health');
+  if (has('liver')) out.push('Good for the liver');
+  if (has('kidney')) out.push('Kidney friendly');
+  if ((micros?.vitCMg ?? 0) >= 20) out.push('Healthy skin (vitamin C)');
   return out;
 }
 
-/* ─────────────────────────── small UI atoms ─────────────────────────── */
-const TINT: Record<string, string> = { flame: '#c9772e', leaf: 'var(--green)', wheat: '#b08d3e', drop: '#6b7280', sprout: 'var(--green)', cube: '#b76e79', shaker: '#3a6ea5', shield: 'var(--green)', heart: '#b76e79' };
-
-function StatCard({ icon, value, unit, label }: { icon: string; value: string; unit?: string; label: string }) {
-  const tint = TINT[icon] ?? 'var(--green)';
-  return (
-    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 16, padding: '14px 10px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-      <span style={{ display: 'grid', placeItems: 'center', width: 30, height: 30, borderRadius: 9, color: tint, background: 'color-mix(in srgb, currentColor 10%, transparent)' }}><Ic name={icon} size={17} /></span>
-      <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-.01em', lineHeight: 1 }}>{value}{unit && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)' }}> {unit}</span>}</div>
-      <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{label}</div>
-    </div>
-  );
-}
+/* ─────────────────────────── small press atoms ─────────────────────────── */
 
 function NutriBar({ label, value, unit, dv }: { label: string; value: number | null; unit: string; dv: number }) {
   const known = value != null && value > 0;
   const pct = known ? Math.min(100, Math.round((value / dv) * 100)) : 0;
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '108px 1fr 64px', alignItems: 'center', gap: 12, padding: '7px 0' }}>
-      <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{label}</span>
-      <span style={{ height: 6, borderRadius: 4, background: 'var(--paper)', overflow: 'hidden', display: 'block' }}>
-        <span style={{ display: 'block', height: '100%', width: `${pct}%`, background: 'var(--green)', borderRadius: 4 }} />
-      </span>
-      <span style={{ fontSize: 12.5, textAlign: 'right', color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
-        {known ? <>{value % 1 === 0 ? value : value.toFixed(1)}{unit} <span style={{ color: 'var(--muted)' }}>· {pct}%</span></> : <span style={{ color: 'var(--muted)' }}>—</span>}
+    <div className="press-bar">
+      <span className="press-lab">{label}</span>
+      <span className="press-track"><i style={{ width: `${pct}%` }} /></span>
+      <span className="press-val">
+        {known ? <>{value % 1 === 0 ? value : value.toFixed(1)}{unit}<em>{pct}%</em></> : <em>—</em>}
       </span>
     </div>
   );
 }
 
-/** Calorie donut with macro segments. */
-function Donut({ kcal, p, c, f }: { kcal: number; p: number; c: number; f: number }) {
+/** Calorie ring with macro segments, drawn in the press's own three greens. */
+function Ring({ kcal, p, c, f }: { kcal: number; p: number; c: number; f: number }) {
   const pk = p * 4, ck = c * 4, fk = f * 9; const tot = pk + ck + fk || 1;
   const R = 46, C = 2 * Math.PI * R; let off = 0;
-  const segs = [{ v: ck, col: '#c79a3a' }, { v: pk, col: 'var(--green)' }, { v: fk, col: '#6b7280' }];
+  const segs = [
+    { v: pk, col: 'var(--press-macro-1)' },
+    { v: ck, col: 'var(--press-macro-2)' },
+    { v: fk, col: 'var(--press-macro-3)' },
+  ];
   return (
-    <svg width="132" height="132" viewBox="0 0 120 120" role="img" aria-label={`${kcal} calories`}>
-      <circle cx="60" cy="60" r={R} fill="none" stroke="var(--line)" strokeWidth="12" />
-      {segs.map((s, i) => { const dash = (s.v / tot) * C; const el = <circle key={i} cx="60" cy="60" r={R} fill="none" stroke={s.col} strokeWidth="12" strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-off} transform="rotate(-90 60 60)" />; off += dash; return el; })}
-      <text x="60" y="56" textAnchor="middle" fontSize="24" fontWeight="700" fill="var(--ink)">{kcal}</text>
-      <text x="60" y="74" textAnchor="middle" fontSize="11" fill="var(--muted)">Calories</text>
+    <svg width="128" height="128" viewBox="0 0 120 120" role="img" aria-label={`${kcal} calories`}>
+      <circle cx="60" cy="60" r={R} fill="none" stroke="var(--press-macro-0)" strokeWidth="9" />
+      {segs.map((s, i) => {
+        const dash = (s.v / tot) * C;
+        const el = <circle key={i} cx="60" cy="60" r={R} fill="none" stroke={s.col} strokeWidth="9" strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-off} transform="rotate(-90 60 60)" />;
+        off += dash; return el;
+      })}
+      <text x="60" y="57" textAnchor="middle" fontSize="23" fill="var(--press-ink)" fontFamily="var(--press-mono)">{kcal}</text>
+      <text x="60" y="74" textAnchor="middle" fontSize="9" fill="var(--press-ink-3)" letterSpacing="1.6">KCAL</text>
     </svg>
   );
 }
 
+/** A rule with a stop in it — the references' botanical, drawn rather than set. */
+const Ornament = () => <div className="press-r-orn" aria-hidden><i /></div>;
+
 /* ─────────────────────────── active-section tabs ─────────────────────────── */
-const TABS = [['overview', 'Overview'], ['ingredients', 'Ingredients'], ['directions', 'Directions'], ['nutrition', 'Nutrition'], ['benefits', 'Health Benefits'], ['variants', 'Make it Yours'], ['foryou', 'For You']] as const;
+const TABS = [['card', 'The card'], ['nutrition', 'Nutrition'], ['benefits', 'Health benefits'], ['variants', 'Make it yours'], ['foryou', 'For you'], ['grocery', 'Grocery']] as const;
 function useActiveSection(ids: string[]) {
   const [active, setActive] = useState(ids[0]);
   useEffect(() => {
@@ -198,6 +212,7 @@ export function RecipeDetail() {
   const r: RecipeDetailT = recipe.data;
   const meta = DIET_META[r.diet as Exclude<DietKey, 'everything'>] ?? DIET_META.veg;
   const heroSrc = r.imageUrl ?? recipeImageUrl(r.recipeNo);
+  const title = setTitle(r.name);
 
   const scaledIngredients = r.ingredients.map((i) => ({ name: i.name, grams: round1(i.grams * plates), priceInr: Math.round(i.priceInr * plates) }));
   const costPerPlate = r.ingredients.reduce((s, i) => s + i.priceInr, 0);
@@ -210,6 +225,21 @@ export function RecipeDetail() {
   const benefits = deriveBenefits(m, mic, badges);
   const healthScore = r.healthPercent && r.healthPercent > 0 ? Math.round(r.healthPercent) : null;
   const perPlate = plates === 1 ? 'per serving' : `for ${plates} servings`;
+  const vegWord = dietKind(r.diet) === 'nonveg' ? 'Non-veg' : dietKind(r.diet) === 'egg' ? 'Egg' : 'Veg';
+
+  /**
+   * The line under the rule, where the printed card puts its tagline.
+   *
+   * The references say things like "RICH. CREAMY. COMFORTING." — a copywriter's
+   * line about a dish somebody chose to photograph. There is no copywriter
+   * here and 4,000 dishes, so this prints what is actually known: the badges
+   * this recipe's own nutrients earned, and failing that, what it is and where
+   * it is from. An invented adjective in this slot would be the exact failure
+   * the beauty hub had, dressed as typography.
+   */
+  const lede = badges.length > 0
+    ? badges.map((b) => b.label).join(' · ')
+    : [meta.label, r.country, difficultyFor(r.minutes)].filter(Boolean).join(' · ');
 
   // Honest, recipe-intrinsic caution (not user-specific): flag genuinely heavy nutrients.
   const caution = n?.complete && (n.sodiumMg > 700 || n.addedSugarG > 12 || n.satFatG > 10)
@@ -224,10 +254,10 @@ export function RecipeDetail() {
     try { if (navigator.share) { await navigator.share({ title: r.name, url }); return; } } catch { /* cancelled */ }
     try { await navigator.clipboard.writeText(url); setToast('Link copied'); } catch { setToast('Copy failed'); }
   };
+  const cook = () => startCooking({ name: r.name, ingredients: scaledIngredients, method: r.method!, cookSteps: r.cookSteps });
 
   const sectionStyle: React.CSSProperties = { scrollMarginTop: 84 };
-  const cardStyle: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 22, padding: 24, boxShadow: 'var(--shadow)' };
-  const h2: React.CSSProperties = { fontSize: 19, margin: 0, letterSpacing: '-.01em', fontWeight: 700 };
+  const blockStyle: React.CSSProperties = { marginTop: 'clamp(30px, 4vw, 50px)' };
 
   const aislesMap = new Map<string, typeof scaledIngredients>();
   for (const ing of scaledIngredients) { if (ing.grams <= 0) continue; const k = aisleFor(ing.name); (aislesMap.get(k) ?? aislesMap.set(k, []).get(k)!).push(ing); }
@@ -235,401 +265,366 @@ export function RecipeDetail() {
   const aisles = [...aislesMap.entries()].sort((a, b) => aisleOrder.indexOf(a[0]) - aisleOrder.indexOf(b[0]));
 
   return (
-    <div style={{ maxWidth: 1120, margin: '0 auto', padding: '18px 16px 72px' }}>
-      {/* top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-        <button type="button" onClick={() => (cameFrom ? navigate(-1) : navigate('/nutrition/recipes'))}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, color: 'var(--ink-soft)', fontWeight: 600 }}>
-          <Ic name="arrowLeft" size={18} /> Back to Recipes
+    <div data-press style={{ maxWidth: 1080, margin: '0 auto', padding: '26px 16px 80px' }}>
+
+      {/* ── masthead ─────────────────────────────────────────────────── */}
+      <div className="press-r-bar">
+        <button type="button" className="press-r-act" onClick={() => (cameFrom ? navigate(-1) : navigate('/nutrition/recipes'))}>
+          <Ic name="arrowLeft" size={15} /> Back to recipes
         </button>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" onClick={toggleSave} aria-pressed={saved}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, padding: '8px 14px', borderRadius: 999, border: '1px solid var(--line)', background: saved ? 'var(--green-soft)' : 'var(--card)', color: saved ? 'var(--green)' : 'var(--ink-soft)' }}>
-            <Ic name="bookmark" size={16} style={saved ? { fill: 'var(--green)' } : undefined} /> {saved ? 'Saved' : 'Save Recipe'}
+        <div className="press-r-acts">
+          <button type="button" className={`press-r-act${saved ? ' is-on' : ''}`} onClick={toggleSave} aria-pressed={saved}>
+            <Ic name="bookmark" size={14} /> {saved ? 'Saved' : 'Save'}
           </button>
-          <button type="button" onClick={() => void share()} aria-label="Share recipe"
-            style={{ minWidth: 44, minHeight: 44, display: 'grid', placeItems: 'center', width: 38, height: 38, cursor: 'pointer', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)' }}>
-            <Ic name="share" size={16} />
+          <button type="button" className="press-r-act" onClick={() => void share()} aria-label="Share this recipe">
+            <Ic name="share" size={14} /> Share
           </button>
         </div>
       </div>
 
-      {/* HERO */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 1fr)', gap: 28, alignItems: 'start' }} className="tc-recipe-hero">
-        <div style={{ position: 'relative', aspectRatio: '16 / 9', borderRadius: 24, overflow: 'hidden', background: `linear-gradient(140deg, ${meta.color}14, ${meta.color}30)`, boxShadow: 'var(--shadow)' }}>
-          {heroSrc && heroOk
-            ? <img src={heroSrc} alt={r.name} loading="lazy" onError={() => setHeroOk(false)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: meta.color }}><Ic name="utensils" size={44} stroke={1.4} /></div>}
-        </div>
-        <div>
-          <h1 style={{ fontSize: 34, lineHeight: 1.1, letterSpacing: '-.02em', margin: '2px 0 8px', fontWeight: 700 }}>{r.name}</h1>
-          <AddToPlan recipeId={r.id} recipeName={r.name} />
-          <p style={{ fontSize: 15, color: 'var(--muted)', lineHeight: 1.5, margin: '0 0 16px' }}>
-            {r.whyForYou?.summary ?? `A ${meta.label.toLowerCase()} ${r.country} recipe, ready in about ${r.minutes} minutes.`}
-          </p>
-          <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', color: 'var(--ink-soft)', fontSize: 14 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}><VegMark diet={r.diet} size={16} /> {dietKind(r.diet) === 'nonveg' ? 'Non-veg' : dietKind(r.diet) === 'egg' ? 'Egg' : 'Veg'}</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}><Ic name="users" size={17} /> {plates} serving{plates > 1 ? 's' : ''}</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}><Ic name="clock" size={17} /> {r.minutes} min</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}><Ic name="flame" size={17} /> {m.kcal} kcal</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}><Ic name="scale" size={17} /> {difficultyFor(r.minutes)}</span>
+      {/* ── the card ─────────────────────────────────────────────────── */}
+      <section id="card" style={sectionStyle}>
+        <div className="press-r-head">
+          <div>
+            <p className="press-r-eyebrow">{r.country} · {vegWord}</p>
+            {/* One h1. The two pieces are spans so the accessible name is the
+                whole dish name, exactly as it is stored — the split is a way
+                of setting it, not a way of renaming it. */}
+            <h1 className="press-r-title">
+              {title.lead && <>{title.lead} </>}
+              <span className="press-r-tail">{title.tail}</span>
+            </h1>
+            <p className="press-r-lede">{lede}</p>
           </div>
-
-          {badges.length > 0 && (
-            <div style={{ marginTop: 18, background: 'var(--green-soft)', borderRadius: 18, padding: '16px 18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: 'var(--green)', fontWeight: 700, fontSize: 14 }}><Ic name="leaf" size={17} /> Great choice for you</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px' }}>
-                {badges.map((b) => (
-                  <span key={b.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--ink-soft)' }}>
-                    <span style={{ display: 'grid', placeItems: 'center', width: 18, height: 18, borderRadius: 999, background: 'var(--green)', color: '#fff' }}><Ic name="check" size={12} stroke={2.4} /></span>
-                    {b.label}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {caution && (
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 14, padding: '12px 16px' }}>
-              <span style={{ fontSize: 13, color: 'var(--gold-ink)', lineHeight: 1.45 }}>Matches your taste, but higher in {caution}. Your Optimal Health plan picks a lighter option.</span>
-              <Link to="/nutrition?mode=optimal" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'var(--green)', textDecoration: 'none', whiteSpace: 'nowrap' }}><Ic name="sparkle" size={15} /> View optimal version</Link>
-            </div>
-          )}
+          <figure className="press-r-photo" style={{ margin: 0 }}>
+            {heroSrc && heroOk
+              ? <img src={heroSrc} alt={r.name} loading="lazy" onError={() => setHeroOk(false)} />
+              : <Ic name="utensils" size={40} stroke={1.2} />}
+          </figure>
         </div>
-      </div>
 
-      {/* STAT CARDS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 12, marginTop: 26 }} className="tc-recipe-stats">
-        <StatCard icon="flame" value={`${m.kcal}`} label="Calories" />
-        <StatCard icon="leaf" value={`${m.protein}`} unit="g" label="Protein" />
-        <StatCard icon="wheat" value={`${m.carbs}`} unit="g" label="Carbs" />
-        <StatCard icon="drop" value={`${m.fat}`} unit="g" label="Fat" />
-        <StatCard icon="sprout" value={`${m.fiber}`} unit="g" label="Fibre" />
-        <StatCard icon="cube" value={n ? `${n.sugarG}` : '—'} unit={n ? 'g' : undefined} label="Sugar" />
-        <StatCard icon="shaker" value={n ? `${n.sodiumMg}` : '—'} unit={n ? 'mg' : undefined} label="Sodium" />
-        <StatCard icon="shield" value={healthScore != null ? `${healthScore}` : '—'} label="Health Score" />
-      </div>
+        {/* the spec strip — the servings cell is the control, because that is
+            the one number on a printed card you always wish you could change */}
+        <div className="press-r-spec">
+          <div>
+            <b>{r.minutes}<small>min</small></b>
+            <span>Total time</span>
+          </div>
+          <div>
+            <b>
+              <select value={plates} onChange={(e) => setPlates(Number(e.target.value))} aria-label="Servings"
+                style={{ font: 'inherit', color: 'inherit', background: 'none', border: 0, padding: 0, cursor: 'pointer', textAlign: 'center', minHeight: 44 }}>
+                {[1, 2, 3, 4, 5, 6].map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </b>
+            <span>Servings</span>
+          </div>
+          <div><b>{m.kcal}<small>kcal</small></b><span>Calories</span></div>
+          <div><b>{m.protein}<small>g</small></b><span>Protein</span></div>
+          <div><b style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 500 }}>{difficultyFor(r.minutes)}</b><span>Difficulty</span></div>
+          <div>
+            <b style={{ display: 'flex', justifyContent: 'center' }}><VegMark diet={r.diet} size={17} /></b>
+            <span>{meta.label}</span>
+          </div>
+        </div>
 
-      {/* STICKY TABS */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 6, background: 'color-mix(in srgb, var(--card) 88%, transparent)', backdropFilter: 'saturate(1.4) blur(10px)', WebkitBackdropFilter: 'saturate(1.4) blur(10px)', borderBottom: '1px solid var(--line)', margin: '26px 0 0' }}>
-        <div style={{ display: 'flex', gap: 4, overflowX: 'auto', scrollbarWidth: 'none' }}>
+        {caution && (
+          <p style={{ margin: '18px 0 0', display: 'flex', gap: 12, alignItems: 'baseline', flexWrap: 'wrap', fontSize: 12.5, lineHeight: 1.6, color: 'var(--press-ink-2)' }}>
+            <span>Matches your taste, but higher in {caution}. Your Optimal Health plan picks a lighter option.</span>
+            <Link to="/nutrition?mode=optimal" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', fontSize: 10, fontWeight: 500, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--press-green)', textDecoration: 'none', borderBottom: '1px solid var(--press-green)' }}>
+              <Ic name="sparkle" size={13} /> View optimal version
+            </Link>
+          </p>
+        )}
+
+        <div style={{ marginTop: 20 }}><AddToPlan recipeId={r.id} recipeName={r.name} /></div>
+
+        <Ornament />
+
+        {/* ── what to buy | what to do ───────────────────────────────── */}
+        <div className="press-r-cols">
+          <section>
+            <div className="press-r-sechead">
+              <h2>Ingredients</h2>
+              <span className="press-r-aside">{perPlate}</span>
+            </div>
+            {scaledIngredients.map((ing) => (
+              <div key={ing.name} className="press-r-ing">
+                <span className="press-r-ing-mark" aria-hidden>{ing.name.trim().charAt(0)}</span>
+                <span className="press-r-ing-name">{ing.name}</span>
+                <span className="press-r-ing-q">{gLabel(ing.grams)}</span>
+              </div>
+            ))}
+            <div className="press-r-tot">
+              <span>Est. grocery cost</span>
+              <b>{fmtINR(costPerPlate * plates)}</b>
+            </div>
+            <button type="button" onClick={toGrocery} disabled={buildCart.isPending}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', minHeight: 44, marginTop: 16, cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 500, letterSpacing: '.16em', textTransform: 'uppercase', border: '1px solid var(--press-ink)', borderRadius: 4, background: added ? 'var(--press-green)' : 'transparent', color: added ? 'var(--press-paper)' : 'var(--press-ink)' }}>
+              <Ic name={added ? 'check' : 'plus'} size={14} /> {added ? 'Added to grocery' : 'Add all to grocery'}
+            </button>
+          </section>
+
+          <section id="directions" style={sectionStyle}>
+            <div className="press-r-sechead">
+              <h2>Instructions</h2>
+              {r.method && r.method.length > 0 && (
+                <button type="button" onClick={cook} className="press-r-act" style={{ color: 'var(--press-green)' }}>
+                  <Ic name="chef" size={14} /> Cook mode
+                </button>
+              )}
+            </div>
+            {r.method && r.method.length > 0 ? (
+              <div className="press-r-steps">
+                {r.method.map((step, i) => {
+                  const secs = r.cookSteps?.[i]?.durationSec ?? stepTimerSeconds(step);
+                  const isDone = done.has(i);
+                  return (
+                    <button key={i} type="button" className={`press-r-step${isDone ? ' is-done' : ''}`} aria-pressed={isDone}
+                      onClick={() => setDone((s) => { const x = new Set(s); if (x.has(i)) x.delete(i); else x.add(i); return x; })}>
+                      <span className="press-r-step-n">{isDone ? <Ic name="check" size={14} stroke={2.2} /> : i + 1}</span>
+                      <span className="press-r-step-t">
+                        {step}
+                        {secs > 0 && <span className="press-r-step-time">{mmss(secs)}</span>}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p style={{ fontSize: 13, color: 'var(--press-ink-3)', margin: 0 }}>
+                No method was published with this recipe. The ingredients and quantities are complete.
+              </p>
+            )}
+
+            {/* the boxed panel the references close their column with — here it
+                is the two things this hub can actually do next, not a list of
+                serving suggestions somebody made up */}
+            <div className="press-r-box">
+              <h3>Make it even better</h3>
+              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.8, color: 'var(--press-ink-2)' }}>
+                <li>Change the servings above — quantities, cost and nutrition all rescale.</li>
+                <li>Cook mode reads each step aloud, keeps the screen awake and times the steps that need it.</li>
+                <li>Tap a step to strike it out as you go.</li>
+              </ul>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      {/* ── sticky index ─────────────────────────────────────────────── */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 6, marginTop: 'clamp(30px, 4vw, 50px)', background: 'var(--press-paper)', borderTop: '1px solid var(--press-ink)', borderBottom: '1px solid var(--press-rule)' }}>
+        <div style={{ display: 'flex', gap: 2, overflowX: 'auto', scrollbarWidth: 'none' }}>
           {TABS.map(([tid, label]) => {
             const on = active === tid;
             return (
               <button key={tid} type="button" onClick={() => document.getElementById(tid)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                style={{ position: 'relative', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: on ? 700 : 500, color: on ? 'var(--green)' : 'var(--muted)', padding: '13px 14px', whiteSpace: 'nowrap' }}>
+                style={{ position: 'relative', minHeight: 44, border: 0, background: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 9.5, fontWeight: 500, letterSpacing: '.17em', textTransform: 'uppercase', color: on ? 'var(--press-green)' : 'var(--press-ink-3)', padding: '0 16px', whiteSpace: 'nowrap' }}>
                 {label}
-                {on && <span style={{ position: 'absolute', left: 12, right: 12, bottom: -1, height: 2, borderRadius: 2, background: 'var(--green)' }} />}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* OVERVIEW + INGREDIENTS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 20, marginTop: 22 }} className="tc-recipe-two">
-        <section id="overview" style={{ ...sectionStyle, ...cardStyle }}>
-          <h2 style={h2}>About this recipe</h2>
-          <p style={{ fontSize: 14.5, lineHeight: 1.6, color: 'var(--ink-soft)', margin: '10px 0 18px' }}>
-            {r.whyForYou?.summary ?? `A ${meta.label.toLowerCase()} recipe from ${r.country}, balanced for everyday eating.`}
-          </p>
-          <div style={{ display: 'grid', gap: 2 }}>
-            {([['clock', 'Time', `${r.minutes} min`], ['utensils', 'Cuisine', r.country], ['leaf', 'Diet', meta.label], ['scale', 'Difficulty', difficultyFor(r.minutes)], ['users', 'Suitable for', badges.length ? badges.map((b) => b.label).join(', ') : 'Everyday meals']] as const).map(([ic, k, v]) => (
-              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: '1px solid var(--line)', fontSize: 14 }}>
-                <span style={{ color: 'var(--muted)' }}><Ic name={ic} size={17} /></span>
-                <span style={{ color: 'var(--muted)', minWidth: 92 }}>{k}</span>
-                <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{v}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 20 }}>
-            {r.method && r.method.length > 0 && (
-              <button type="button" onClick={() => startCooking({ name: r.name, ingredients: scaledIngredients, method: r.method!, cookSteps: r.cookSteps })}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, padding: '11px 18px', borderRadius: 12, border: 'none', background: 'var(--green)', color: '#fff' }}>
-                <Ic name="chef" size={17} /> Cook Mode
-              </button>
-            )}
-            <button type="button" onClick={toGrocery} disabled={buildCart.isPending}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, padding: '11px 18px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink)' }}>
-              <Ic name="plus" size={16} /> {added ? 'Added to grocery' : 'Add to Grocery List'}
-            </button>
-            <button type="button" onClick={toggleSave}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, padding: '11px 18px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink)' }}>
-              <Ic name="bookmark" size={16} /> {saved ? 'Saved' : 'Save'}
-            </button>
-          </div>
-        </section>
-
-        <section id="ingredients" style={{ ...sectionStyle, ...cardStyle }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
-            <h2 style={h2}>Ingredients</h2>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--ink-soft)', border: '1px solid var(--line)', borderRadius: 10, padding: '6px 10px' }}>
-              <select value={plates} onChange={(e) => setPlates(Number(e.target.value))} aria-label="Servings"
-                style={{ border: 'none', background: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', cursor: 'pointer', outline: 'none' }}>
-                {[1, 2, 3, 4, 5, 6].map((c) => <option key={c} value={c}>{c} serving{c > 1 ? 's' : ''}</option>)}
-              </select>
-            </label>
-          </div>
-          <div>
-            {scaledIngredients.map((ing) => (
-              <div key={ing.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: '1px solid var(--line)' }}>
-                <span style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: 10, background: 'var(--paper)', color: 'var(--green)', fontSize: 14, fontWeight: 700, flex: '0 0 auto', textTransform: 'uppercase' }}>{ing.name.trim().charAt(0)}</span>
-                <span style={{ flex: 1, fontSize: 14, color: 'var(--ink)' }}>{ing.name}</span>
-                <span style={{ fontSize: 13, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{gLabel(ing.grams)}{ing.priceInr > 0 ? ` · ${fmtINR(ing.priceInr)}` : ''}</span>
-                <button type="button" onClick={toGrocery} aria-label={`Add ${ing.name} to grocery list`}
-                  style={{ minWidth: 44, minHeight: 44, display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 999, border: `1.5px solid ${added ? 'var(--green)' : 'var(--line)'}`, background: added ? 'var(--green)' : 'var(--card)', color: added ? '#fff' : 'var(--green)', cursor: 'pointer', flex: '0 0 auto' }}>
-                  <Ic name={added ? 'check' : 'plus'} size={15} stroke={2.2} />
-                </button>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
-            <span style={{ fontSize: 13, color: 'var(--muted)' }}>Est. grocery cost <strong style={{ color: 'var(--ink)' }}>{fmtINR(costPerPlate * plates)}</strong> {perPlate}</span>
-            <button type="button" onClick={toGrocery} disabled={buildCart.isPending}
-              style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, padding: '9px 15px', borderRadius: 10, border: 'none', background: 'var(--green)', color: '#fff' }}>
-              <Ic name="plus" size={15} /> Add all
-            </button>
-          </div>
-        </section>
-      </div>
-
-      {/* DIRECTIONS */}
-      {r.method && r.method.length > 0 && (
-        <section id="directions" style={{ ...sectionStyle, ...cardStyle, marginTop: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
-            <h2 style={h2}>Directions</h2>
-            <button type="button" onClick={() => startCooking({ name: r.name, ingredients: scaledIngredients, method: r.method!, cookSteps: r.cookSteps })}
-              style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, padding: '9px 15px', borderRadius: 10, border: '1px solid var(--green)', background: 'var(--card)', color: 'var(--green)' }}>
-              <Ic name="chef" size={16} /> Cook Mode
-            </button>
-          </div>
-          <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 16px' }}>Cook Mode reads each step aloud, keeps the screen awake, and times the steps that need it.</p>
-          <div style={{ display: 'grid', gap: 10 }}>
-            {r.method.map((step, i) => {
-              const secs = r.cookSteps?.[i]?.durationSec ?? stepTimerSeconds(step);
-              const isDone = done.has(i);
-              return (
-                <button key={i} type="button" onClick={() => setDone((s) => { const x = new Set(s); x.has(i) ? x.delete(i) : x.add(i); return x; })}
-                  style={{ display: 'flex', gap: 14, alignItems: 'flex-start', textAlign: 'left', width: '100%', cursor: 'pointer', fontFamily: 'inherit', background: isDone ? 'var(--green-soft)' : 'var(--paper)', border: '1px solid var(--line)', borderRadius: 16, padding: '14px 16px' }}>
-                  <span style={{ display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 999, flex: '0 0 auto', fontSize: 13, fontWeight: 700, background: isDone ? 'var(--green)' : 'var(--card)', color: isDone ? '#fff' : 'var(--ink-soft)', border: isDone ? 'none' : '1px solid var(--line)' }}>
-                    {isDone ? <Ic name="check" size={15} stroke={2.4} /> : i + 1}
-                  </span>
-                  <span style={{ flex: 1 }}>
-                    <span style={{ fontSize: 14.5, lineHeight: 1.55, color: 'var(--ink)', textDecoration: isDone ? 'line-through' : 'none', opacity: isDone ? 0.6 : 1 }}>{step}</span>
-                    {secs > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginLeft: 10, fontSize: 12, fontWeight: 700, color: 'var(--green)', background: 'var(--green-soft)', borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap' }}><Ic name="clock" size={12} /> {mmss(secs)}</span>}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* NUTRITION */}
-      <section id="nutrition" style={{ ...sectionStyle, ...cardStyle, marginTop: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-          <h2 style={h2}>Nutrition</h2>
-          <span style={{ fontSize: 13, color: 'var(--muted)' }}>{perPlate}</span>
+      {/* ── nutrition ────────────────────────────────────────────────── */}
+      <section id="nutrition" style={{ ...sectionStyle, ...blockStyle }}>
+        <div className="press-r-sechead">
+          <h2>Nutrition</h2>
+          <span className="press-r-aside">{perPlate}</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 26, alignItems: 'center', marginTop: 16 }} className="tc-recipe-nutri">
-          <div style={{ display: 'grid', placeItems: 'center' }}><Donut kcal={m.kcal} p={m.protein} c={m.carbs} f={m.fat} /></div>
-          <div>
+        <div className="press-ring" style={{ alignItems: 'flex-start', gap: 'clamp(24px, 4vw, 48px)' }}>
+          <div style={{ flex: '0 0 auto' }}>
+            <Ring kcal={m.kcal} p={m.protein} c={m.carbs} f={m.fat} />
+            <div className="press-key" style={{ marginTop: 16 }}>
+              <div><i style={{ background: 'var(--press-macro-1)' }} /><span className="press-l">Protein</span><span className="press-n">{m.protein}g</span></div>
+              <div><i style={{ background: 'var(--press-macro-2)' }} /><span className="press-l">Carbs</span><span className="press-n">{m.carbs}g</span></div>
+              <div><i style={{ background: 'var(--press-macro-3)' }} /><span className="press-l">Fat</span><span className="press-n">{m.fat}g</span></div>
+            </div>
+          </div>
+          <div style={{ flex: '1 1 340px', minWidth: 0 }}>
             <NutriBar label="Protein" value={m.protein} unit="g" dv={DV.protein} />
-            <NutriBar label="Carbohydrates" value={m.carbs} unit="g" dv={DV.carbs} />
+            <NutriBar label="Carbs" value={m.carbs} unit="g" dv={DV.carbs} />
             <NutriBar label="Fat" value={m.fat} unit="g" dv={DV.fat} />
             <NutriBar label="Fibre" value={m.fiber} unit="g" dv={DV.fiber} />
             {n && <NutriBar label="Sugar" value={n.sugarG} unit="g" dv={DV.sugar} />}
-            {n && <NutriBar label="Saturated fat" value={n.satFatG} unit="g" dv={DV.satFat} />}
+            {n && <NutriBar label="Sat fat" value={n.satFatG} unit="g" dv={DV.satFat} />}
             {n && <NutriBar label="Sodium" value={n.sodiumMg} unit="mg" dv={DV.sodium} />}
             {n && n.potassiumMg > 0 && <NutriBar label="Potassium" value={n.potassiumMg} unit="mg" dv={DV.potassium} />}
             {mic && <NutriBar label="Iron" value={mic.ironMg > 0 ? mic.ironMg : null} unit="mg" dv={DV.iron} />}
             {mic && <NutriBar label="Calcium" value={mic.calciumMg > 0 ? mic.calciumMg : null} unit="mg" dv={DV.calcium} />}
             {mic && <NutriBar label="Vitamin C" value={mic.vitCMg > 0 ? mic.vitCMg : null} unit="mg" dv={DV.vitC} />}
             {mic && <NutriBar label="Vitamin D" value={mic.vitDUg > 0 ? mic.vitDUg : null} unit="µg" dv={DV.vitD} />}
+            {healthScore != null && (
+              <div className="press-r-tot" style={{ marginTop: 14 }}>
+                <span>Health score</span><b>{healthScore}</b>
+              </div>
+            )}
           </div>
         </div>
-        <p style={{ fontSize: 11.5, color: 'var(--muted)', margin: '14px 0 0', lineHeight: 1.5 }}>
-          % Daily Value based on a 2,000 kcal reference. {n && !n.complete ? 'Some values are estimated from recognised ingredients. ' : ''}“—” means we don’t yet have reliable data for that nutrient.
+        <p style={{ fontSize: 11, color: 'var(--press-ink-3)', margin: '16px 0 0', lineHeight: 1.6 }}>
+          % Daily Value against a 2,000 kcal reference. {n && !n.complete ? 'Some values are estimated from recognised ingredients. ' : ''}“—” means we don’t yet have reliable data for that nutrient.
         </p>
       </section>
 
-      {/* HEALTH BENEFITS */}
+      {/* ── health benefits ──────────────────────────────────────────── */}
       {benefits.length > 0 && (
-        <section id="benefits" style={{ ...sectionStyle, ...cardStyle, marginTop: 20 }}>
-          <h2 style={h2}>Health Benefits</h2>
-          <p style={{ fontSize: 13, color: 'var(--muted)', margin: '6px 0 16px' }}>Derived from this recipe’s calories, protein, fibre and computed nutrients.</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+        <section id="benefits" style={{ ...sectionStyle, ...blockStyle }}>
+          <div className="press-r-sechead">
+            <h2>Health benefits</h2>
+            <span className="press-r-aside">Derived from this recipe</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', columnGap: 28 }}>
             {benefits.map((b) => (
-              <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 14, padding: '14px 16px' }}>
-                <span style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: 10, border: '1.5px solid var(--green)', color: 'var(--green)', flex: '0 0 auto' }}><Ic name={b.icon} size={18} /></span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{b.label}</span>
+              <div key={b} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 0', borderBottom: '1px solid var(--press-rule-2)', fontSize: 13.5, color: 'var(--press-ink-2)' }}>
+                <span style={{ color: 'var(--press-green)' }}><Ic name="check" size={14} stroke={2} /></span>{b}
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* MAKE IT YOURS — one-tap variants (real matching recipes) */}
-      <section id="variants" style={{ ...sectionStyle, ...cardStyle, marginTop: 20 }}>
-        {/* p12: the "Make it yours" heading was removed by the review. The
-            chips below do the explaining on their own. */}
+      {/* ── make it yours ────────────────────────────────────────────── */}
+      <section id="variants" style={{ ...sectionStyle, ...blockStyle }}>
+        <div className="press-r-sechead">
+          <h2>Make it yours</h2>
+          <span className="press-r-aside">Real recipes, not substitutions</span>
+        </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {VARIANTS.map(([key, label]) => {
             const on = variant === key;
             return (
               <button key={key} type="button" onClick={() => setVariant(on ? null : key)}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 999, border: `1.5px solid ${on ? 'var(--green)' : 'var(--line)'}`, background: on ? 'var(--green)' : 'var(--card)', color: on ? '#fff' : 'var(--ink-soft)' }}>
-                {on && <Ic name="check" size={14} stroke={2.4} />}{label}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 14px', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 500, letterSpacing: '.12em', textTransform: 'uppercase', borderRadius: 4, border: `1px solid ${on ? 'var(--press-green)' : 'var(--press-rule)'}`, background: on ? 'var(--press-green)' : 'transparent', color: on ? 'var(--press-paper)' : 'var(--press-ink-2)' }}>
+                {on && <Ic name="check" size={13} stroke={2.2} />}{label}
               </button>
             );
           })}
         </div>
         {variant && (
-          <div style={{ marginTop: 18 }}>
-            {variantsQ.isLoading && <div style={{ fontSize: 13.5, color: 'var(--muted)', padding: '8px 0' }}>Finding {VARIANTS.find((v) => v[0] === variant)?.[1].toLowerCase()} options…</div>}
-            {variantsQ.data && variantsQ.data.items.length === 0 && <div style={{ fontSize: 13.5, color: 'var(--muted)', padding: '8px 0' }}>No close {variantsQ.data.label.toLowerCase()} match found for this dish.</div>}
+          <div style={{ marginTop: 20 }}>
+            {variantsQ.isLoading && <p style={{ fontSize: 13, color: 'var(--press-ink-3)' }}>Finding {VARIANTS.find((v) => v[0] === variant)?.[1].toLowerCase()} options…</p>}
+            {variantsQ.data && variantsQ.data.items.length === 0 && <p style={{ fontSize: 13, color: 'var(--press-ink-3)' }}>No close {variantsQ.data.label.toLowerCase()} match found for this dish.</p>}
             {variantsQ.data && variantsQ.data.items.length > 0 && (
               <>
-                <div style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 12px' }}>{variantsQ.data.note}</div>
-                <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 6, scrollSnapType: 'x proximity' }}>
-                  {variantsQ.data.items.map((x) => {
-                    const mm = DIET_META[x.diet as Exclude<DietKey, 'everything'>] ?? DIET_META.veg;
-                    const src = x.imageUrl ?? recipeImageUrl(x.recipeNo);
-                    return (
-                      <Link key={x.id} to={`/nutrition/recipes/${x.id}`} state={{ from: location.pathname + location.search }} style={{ textDecoration: 'none', color: 'inherit', flex: '0 0 230px', scrollSnapAlign: 'start' }}>
-                        <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
-                          <div style={{ aspectRatio: '16 / 9', background: `linear-gradient(140deg, ${mm.color}14, ${mm.color}30)`, position: 'relative' }}>
-                            {src && <img src={src} alt={x.name} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-                            <span style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,.92)', borderRadius: 5, padding: 2, lineHeight: 0, boxShadow: '0 1px 3px rgba(0,0,0,.2)' }}><VegMark diet={x.diet} size={14} /></span>
-                          </div>
-                          <div style={{ padding: 14 }}>
-                            <div style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.3, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{x.name}</div>
-                            <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--muted)' }}>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Ic name="flame" size={13} /> {x.kcal}</span>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Ic name="leaf" size={13} /> {x.protein}g</span>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Ic name="clock" size={13} /> {x.minutes}m</span>
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
+                <p style={{ fontSize: 12.5, color: 'var(--press-ink-2)', margin: '0 0 14px' }}>{variantsQ.data.note}</p>
+                <RecipeRail items={variantsQ.data.items} from={location.pathname + location.search} />
               </>
             )}
           </div>
         )}
       </section>
 
-      {/* FOR YOU — blood-marker intelligence (from whyForYou) */}
-      <section id="foryou" style={{ ...sectionStyle, marginTop: 20 }}>
+      {/* ── for you ──────────────────────────────────────────────────── */}
+      <section id="foryou" style={{ ...sectionStyle, ...blockStyle }}>
+        <div className="press-r-sechead">
+          <h2>For you</h2>
+          <span className="press-r-aside">{r.whyForYou?.personalised ? 'From your blood report' : 'Not personalised yet'}</span>
+        </div>
         {r.whyForYou ? (
-          <div style={{ ...cardStyle, background: r.whyForYou.personalised ? 'linear-gradient(180deg, var(--green-soft), var(--card))' : 'var(--card)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, borderRadius: 10, background: 'var(--green)', color: '#fff', flex: '0 0 auto' }}><Ic name="pulse" size={18} /></span>
-              <div>
-                <h2 style={h2}>{r.whyForYou.headline}</h2>
-                <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>{r.whyForYou.personalised ? 'Personalised from your blood report' : 'Connect a blood report to personalise this'}</div>
-              </div>
-            </div>
-            <p style={{ fontSize: 14.5, lineHeight: 1.6, color: 'var(--ink-soft)', margin: '14px 0 0' }}>{r.whyForYou.summary}</p>
+          <>
+            <h3 style={{ margin: '0 0 10px', fontFamily: 'var(--press-serif)', fontWeight: 400, fontSize: 26, lineHeight: 1.2, letterSpacing: '-.01em' }}>{r.whyForYou.headline}</h3>
+            <p className="press-note" style={{ maxWidth: '62ch' }}>{r.whyForYou.summary}</p>
             {r.whyForYou.points.length > 0 && (
-              <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+              <div style={{ marginTop: 18, display: 'grid', gap: 0, maxWidth: '72ch' }}>
                 {r.whyForYou.points.map((p, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <span style={{ display: 'grid', placeItems: 'center', width: 20, height: 20, borderRadius: 999, background: 'var(--green)', color: '#fff', flex: '0 0 auto', marginTop: 1 }}><Ic name="check" size={13} stroke={2.4} /></span>
-                    <span style={{ fontSize: 14, lineHeight: 1.55 }}><strong style={{ color: 'var(--green)' }}>{p.label}.</strong> <span style={{ color: 'var(--ink-soft)' }}>{p.text}</span></span>
+                  <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'baseline', padding: '11px 0', borderBottom: '1px solid var(--press-rule-2)', fontSize: 13.5, lineHeight: 1.6 }}>
+                    <span style={{ flex: '0 0 auto', fontSize: 9.5, fontWeight: 500, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--press-green)', minWidth: 106 }}>{p.label}</span>
+                    <span style={{ color: 'var(--press-ink-2)' }}>{p.text}</span>
                   </div>
                 ))}
               </div>
             )}
-            {r.whyForYou.cites.length > 0 && <p style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 14 }}>Evidence: {r.whyForYou.cites.map((c) => c.label).join(' · ')}</p>}
+            {r.whyForYou.cites.length > 0 && <p style={{ fontSize: 11, color: 'var(--press-ink-3)', marginTop: 14 }}>Evidence: {r.whyForYou.cites.map((c) => c.label).join(' · ')}</p>}
             {!r.whyForYou.personalised && (
-              <Link to="/nutrition/blood" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 14, fontSize: 13.5, fontWeight: 700, color: 'var(--green)', textDecoration: 'none' }}>Connect blood report →</Link>
+              <Link to="/nutrition/blood" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 16, minHeight: 44, fontSize: 10.5, fontWeight: 500, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--press-green)', textDecoration: 'none' }}>
+                <Ic name="pulse" size={15} /> Connect a blood report
+              </Link>
             )}
-          </div>
+          </>
         ) : (
-          <div style={{ ...cardStyle, textAlign: 'center' }}>
-            {/* p12: heading removed by the review — the sentence below already
-                says what connecting a report gets you. */}
-            <span style={{ display: 'inline-grid', placeItems: 'center', width: 44, height: 44, borderRadius: 12, background: 'var(--green-soft)', color: 'var(--green)', marginBottom: 10 }}><Ic name="pulse" size={22} /></span>
-            <p style={{ fontSize: 14, color: 'var(--muted)', margin: '8px 0 14px', maxWidth: 460, marginInline: 'auto', lineHeight: 1.55 }}>Connect a blood report and Together City shows how this recipe supports markers like blood sugar, cholesterol and kidney function.</p>
-            <Link to="/nutrition/blood" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: 'var(--green)', textDecoration: 'none' }}>Connect blood report →</Link>
-          </div>
+          <>
+            <p className="press-note" style={{ maxWidth: '58ch' }}>
+              Connect a blood report and Together City shows how this recipe reads against your own markers — blood sugar, cholesterol, kidney function.
+            </p>
+            <Link to="/nutrition/blood" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 16, minHeight: 44, fontSize: 10.5, fontWeight: 500, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--press-green)', textDecoration: 'none' }}>
+              <Ic name="pulse" size={15} /> Connect a blood report
+            </Link>
+          </>
         )}
       </section>
 
-      {/* GROCERY — grouped */}
-      <section style={{ ...cardStyle, marginTop: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
-          <h2 style={h2}>Grocery list</h2>
-          <span style={{ fontSize: 13, color: 'var(--muted)' }}>Est. <strong style={{ color: 'var(--ink)' }}>{fmtINR(costPerPlate * plates)}</strong></span>
+      {/* ── grocery, by aisle ────────────────────────────────────────── */}
+      <section id="grocery" style={{ ...sectionStyle, ...blockStyle }}>
+        <div className="press-r-sechead">
+          <h2>Grocery list</h2>
+          <span className="press-r-aside">Est. {fmtINR(costPerPlate * plates)}</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginTop: 8 }}>
+        <div className="press-shop">
           {aisles.map(([aisle, items]) => (
-            <div key={aisle}>
-              <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>{aisle}</div>
-              {items.map((it) => <div key={it.name} style={{ fontSize: 13.5, color: 'var(--ink-soft)', padding: '3px 0' }}>{it.name} <span style={{ color: 'var(--muted)' }}>· {gLabel(it.grams)}</span></div>)}
+            <div className="press-grp" key={aisle}>
+              <h4>{aisle}</h4>
+              <p>{items.map((it) => <span key={it.name} style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--press-ink-2)' }}>{it.name} <span>{gLabel(it.grams)}</span></span>)}</p>
             </div>
           ))}
         </div>
         <button type="button" onClick={toGrocery} disabled={buildCart.isPending}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, padding: '12px 20px', borderRadius: 12, border: 'none', background: 'var(--green)', color: '#fff', marginTop: 18 }}>
-          <Ic name="plus" size={16} /> {added ? 'Added — view grocery list' : 'Add all ingredients to grocery'}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, marginTop: 20, padding: '0 20px', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 500, letterSpacing: '.16em', textTransform: 'uppercase', borderRadius: 4, border: '1px solid var(--press-ink)', background: added ? 'var(--press-green)' : 'transparent', color: added ? 'var(--press-paper)' : 'var(--press-ink)' }}>
+          <Ic name={added ? 'check' : 'plus'} size={14} /> {added ? 'Added — view grocery list' : 'Add all ingredients to grocery'}
         </button>
       </section>
 
-      {/* RELATED */}
+      {/* ── related ──────────────────────────────────────────────────── */}
       {(() => {
         const recs = (others.data ?? []).filter((x) => x.id !== r.id).slice(0, 8);
         if (!recs.length) return null;
         return (
-          <section style={{ marginTop: 30 }}>
-            <h2 style={{ ...h2, marginBottom: 14 }}>Related recipes</h2>
-            <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 6, scrollSnapType: 'x proximity' }}>
-              {recs.map((x) => {
-                const mm = DIET_META[x.diet as Exclude<DietKey, 'everything'>] ?? DIET_META.veg;
-                const src = x.imageUrl ?? recipeImageUrl(x.recipeNo);
-                return (
-                  <Link key={x.id} to={`/nutrition/recipes/${x.id}`} style={{ textDecoration: 'none', color: 'inherit', flex: '0 0 230px', scrollSnapAlign: 'start' }}>
-                    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
-                      <div style={{ aspectRatio: '16 / 9', background: `linear-gradient(140deg, ${mm.color}14, ${mm.color}30)`, position: 'relative' }}>
-                        {src && <img src={src} alt={x.name} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-                        <span style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,.92)', borderRadius: 5, padding: 2, lineHeight: 0, boxShadow: '0 1px 3px rgba(0,0,0,.2)' }}><VegMark diet={x.diet} size={14} /></span>
-                      </div>
-                      <div style={{ padding: 14 }}>
-                        <div style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.3, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{x.name}</div>
-                        <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--muted)' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Ic name="flame" size={13} /> {x.kcal}</span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Ic name="leaf" size={13} /> {x.protein}g</span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Ic name="clock" size={13} /> {x.minutes}m</span>
-                          {x.healthPercent ? <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Ic name="shield" size={13} /> {Math.round(x.healthPercent)}</span> : null}
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+          <section style={blockStyle}>
+            <div className="press-r-sechead"><h2>More from the kitchen</h2></div>
+            <RecipeRail items={recs} />
           </section>
         );
       })()}
 
-      {toast && (
-        <div role="status" style={{ position: 'fixed', left: '50%', bottom: 28, transform: 'translateX(-50%)', background: 'var(--ink)', color: '#fff', fontSize: 13.5, fontWeight: 600, padding: '11px 20px', borderRadius: 999, boxShadow: 'var(--shadow-deep)', zIndex: 40 }}>{toast}</div>
-      )}
+      <p className="press-r-colophon">
+        Quantities, cost and nutrition are computed for {plates === 1 ? 'one serving' : `${plates} servings`} from the ingredients above.
+      </p>
 
-      <style>{`
-        @media (max-width: 900px) {
-          .tc-recipe-hero { grid-template-columns: 1fr !important; gap: 18px !important; }
-          .tc-recipe-two { grid-template-columns: 1fr !important; }
-          .tc-recipe-stats { grid-template-columns: repeat(4, 1fr) !important; }
-          .tc-recipe-nutri { grid-template-columns: 1fr !important; }
-        }
-        @media (max-width: 520px) {
-          .tc-recipe-stats { grid-template-columns: repeat(2, 1fr) !important; }
-        }
-      `}</style>
+      {toast && (
+        <div role="status" style={{ position: 'fixed', left: '50%', bottom: 28, transform: 'translateX(-50%)', background: 'var(--press-ink)', color: 'var(--press-paper)', fontSize: 12, fontWeight: 500, letterSpacing: '.08em', textTransform: 'uppercase', padding: '12px 22px', borderRadius: 4, zIndex: 40 }}>{toast}</div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────── the rail ─────────────────────────── */
+interface RailItem { id: string; name: string; diet: string; recipeNo?: number | null; imageUrl?: string | null; kcal: number; protein: number; minutes: number }
+
+/**
+ * Related dishes, set as a row of plates rather than a row of cards. On paper
+ * a cross-reference is a picture and a name — the calorie and time figures
+ * stay because they are the two anybody scans for, and they sit in the mono so
+ * they line up across the row.
+ */
+function RecipeRail({ items, from }: { items: RailItem[]; from?: string }) {
+  return (
+    <div style={{ display: 'flex', gap: 22, overflowX: 'auto', paddingBottom: 6, scrollSnapType: 'x proximity' }}>
+      {items.map((x) => {
+        const src = x.imageUrl ?? (x.recipeNo != null ? recipeImageUrl(x.recipeNo) : null);
+        return (
+          <Link key={x.id} to={`/nutrition/recipes/${x.id}`} state={from ? { from } : undefined}
+            style={{ textDecoration: 'none', color: 'inherit', flex: '0 0 190px', scrollSnapAlign: 'start' }}>
+            <div className="press-r-plate">
+              {src && <img src={src} alt={x.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+              <span style={{ position: 'absolute', top: 7, left: 7, background: 'var(--press-paper)', padding: 2, lineHeight: 0 }}><VegMark diet={x.diet} size={13} /></span>
+            </div>
+            <div style={{ marginTop: 11, fontSize: 14, lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{x.name}</div>
+            <div style={{ marginTop: 6, fontFamily: 'var(--press-mono)', fontSize: 10.5, letterSpacing: '.04em', color: 'var(--press-ink-3)' }}>
+              {x.kcal} KCAL · {x.protein}G · {x.minutes} MIN
+            </div>
+          </Link>
+        );
+      })}
     </div>
   );
 }

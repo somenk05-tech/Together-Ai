@@ -75,10 +75,22 @@ describe('the city feed is a wall of the citizens\' own posters', () => {
   it('stays on the city\'s white ground, at the named depths', () => {
     // The reference this came from is a gallery on black. The ground here is
     // white on every screen, and the wall did not get to be the exception.
-    const wall = css.slice(css.indexOf('.wall {'));
-    expect(wall).not.toMatch(/background:\s*#/);
-    for (const m of wall.matchAll(/box-shadow:\s*([^;]+);/g)) {
-      expect(m[1]).toMatch(/var\(--(e1|e2|focus-ring)\)/);
+    //
+    // THE SLICE USED TO BE `css.slice(indexOf('.wall {'))` — everything from
+    // the wall to the end of the file. That is not "the wall", it is "the wall
+    // and whatever gets appended next", and the next thing appended was the
+    // recipe card, whose photographs are deliberately flat on press paper. A
+    // guard that fails on a rule three hundred lines below the feature it
+    // names teaches people to widen it. So it reads the wall's own rules: every
+    // block whose selector mentions .wall or .poster, wherever they sit.
+    const blocks = [...css.matchAll(/(?:^|\})\s*([^{}@]+)\{([^}]*)\}/g)]
+      .filter((m) => /(^|[\s,>])\.(wall|poster)/.test(m[1]));
+    expect(blocks.length).toBeGreaterThan(10);
+    for (const b of blocks) {
+      expect(b[2]).not.toMatch(/background:\s*#/);
+      for (const m of b[2].matchAll(/box-shadow:\s*([^;]+)/g)) {
+        expect(m[1]).toMatch(/var\(--(e1|e2|focus-ring)\)/);
+      }
     }
   });
 

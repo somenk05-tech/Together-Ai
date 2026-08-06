@@ -57,8 +57,6 @@ const COLOUR_IS_DATA: Record<string, string> = {
     'sleep band scale — its "good" is purple, not a status green',
   'src/features/social/ReelsView.tsx':
     'platform-convention affordance colours',
-  'src/features/nutrition/pages/RecipeDetail.tsx':
-    'mimetic icon tints — flame is orange because fire is orange',
 };
 
 /** #abc, #abcdef, #abcdef12 — never an HTML entity, never a hashtag. */
@@ -233,6 +231,21 @@ describe('Relief stays a system', () => {
    * one meal plan, two authors. That is the argument, and it is the only one
    * accepted so far: a third entry needs its own line here and its own reason,
    * not a nod to this one.
+   *
+   * THE THIRD WEARER IS THE RECIPE ITSELF, AND ITS REASON IS NOT THE PLAN'S.
+   * The plan argued that a day of food is read the way a menu is read. A single
+   * recipe is read the way a RECIPE CARD is read, which is a different printed
+   * form and an older one: the dish set as a display line, the quantities in a
+   * column that aligns, and — the part no card in this application could do —
+   * what to buy and what to do standing SIDE BY SIDE, because that is how you
+   * cook from a page. It was a stack of nine rounded cards before, and the two
+   * columns you actually use were the third and the fourth of them.
+   *
+   * It takes the press's paper unchanged, deliberately. The printed cards this
+   * was drawn from are cream, and giving this one page a warm ground was the
+   * obvious move and the wrong one — OwnDayView was granted the press exactly
+   * so that two authors of the same day print on the same paper, and a third
+   * surface with its own would have spent that on a tint.
    */
   it('keeps the press inside the one page it was granted to', () => {
     const code = strip(relief);
@@ -263,6 +276,7 @@ describe('Relief stays a system', () => {
     expect(wearers).toEqual([
       'src/features/nutrition/components/OwnDayView.tsx',
       'src/features/nutrition/pages/MealPlan.tsx',
+      'src/features/nutrition/pages/RecipeDetail.tsx',
     ]);
   });
 
