@@ -12,6 +12,7 @@ import { ListBusiness } from '@/features/services/pages/ListBusiness';
 import { EditBusiness } from '@/features/services/pages/EditBusiness';
 import { BusinessPage } from '@/features/services/pages/BusinessPage';
 import { AdminConsole } from '@/features/admin/pages/Console';
+import { DevPage } from '@/features/dev/pages/Dev';
 import { MyBusiness } from '@/features/services/pages/MyBusiness';
 import { ServiceMessages, ServiceThreadView } from '@/features/services/pages/Messages';
 import { Regulars } from '@/features/services/pages/Regulars';
@@ -197,6 +198,11 @@ export const router = createBrowserRouter([
       // would be an invitation to a door that will not open for them. The
       // server checks the permission on every request.
       { path: '/console', element: <RequireAuth>{wrap(<AdminConsole />)}</RequireAuth> },
+      // THE DEVELOPER PAGE. Same rule as the console and one more lock: signed
+      // in, and then a password the server checks. Not in any menu — the route
+      // existing is not access, and the API refuses every request that does not
+      // carry the password regardless of what this app renders.
+      { path: '/dev', element: <RequireAuth>{wrap(<DevPage />)}</RequireAuth> },
       { path: '/profile', element: <RequireAuth>{wrap(<Profile />)}</RequireAuth> },
       { path: '/profile/master', element: <RequireAuth>{wrap(<MasterProfile />)}</RequireAuth> },
       { path: '/profile/avatar', element: <RequireAuth>{wrap(<Avatars />)}</RequireAuth> },

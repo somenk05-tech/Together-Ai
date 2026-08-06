@@ -1719,6 +1719,26 @@ model MailAccount {
 ///
 /// Revoking sets revokedAt rather than deleting. The history of who could do
 /// what, when, is the only way to read an old audit entry correctly.
+/// A kill switch for one hub, flipped from the developer page.
+///
+/// A row exists only once somebody has touched the flag: MISSING MEANS ON. The
+/// alternative — seeding every key as enabled — means a failed seed is an
+/// outage, and it makes "has anybody ever turned this off" unanswerable.
+///
+/// `key` is constrained by code, not by the database: FLAGS in
+/// src/dev/feature-flags.ts is the fixed list, and nothing else can be written.
+/// A CHECK constraint here would have to be migrated every time a hub is added,
+/// and would drift from the list the guard actually reads.
+model FeatureFlag {
+  key       String   @id
+  enabled   Boolean  @default(true)
+  /// Why it was last flipped, in the flipper's words. Shown on the page beside
+  /// the switch — "Dating has been off since Tuesday" should never be a mystery.
+  note      String   @default("")
+  updatedAt DateTime @updatedAt
+  updatedBy String   @default("")
+}
+
 model AdminGrant {
   id        String    @id @default(uuid())
   userId    String
