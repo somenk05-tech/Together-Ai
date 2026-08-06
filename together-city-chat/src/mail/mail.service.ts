@@ -432,7 +432,86 @@ export class MailService {
   }
 
   /** Send a message to another citizen — writes a Sent copy for the sender and an Inbox copy for the recipient. */
+  /**
+   * CC AND BCC, AND THE ONE RULE THAT MAKES THEM DIFFERENT.
+   *
+   * Cc travels on every copy. Being openly copied is a fact all the recipients
+   * share, and withholding it would quietly turn Cc into Bcc.
+   *
+   * Bcc travels on the SENDER'S copy alone. A recipient's row carrying it would
+   * name everybody who was blind-copied, to every reader, which is the single
+   * thing Bcc exists to prevent — and it would do so silently, because nothing
+   * on the screen would look wrong. So the rule is enforced where the rows are
+   * written, not where they are read: a reader that forgot to hide it would be
+   * a leak, and there will be more readers than writers.
+   *
+   * The copies are fanned out one recipient at a time through the same path a
+   * single send already takes, so every recipient gets the same connection
+   * check, the same quota accounting and the same both-copies-or-neither
+   * transaction. A send to five people that half-works reports which halves.
+   */
+  private async fanOut(userId: string, dto: SendMailDto): Promise<{ sent: string[]; failed: Array<{ to: string; reason: string }> }> {
+    const seen = new Set<string>();
+    const norm = (a: string) => a.trim().toLowerCase();
+    const queue: Array<{ addr: string; blind: boolean }> = [];
+    const push = (addr: string, blind: boolean) => {
+      const a = addr.trim();
+      // A person on both To and Cc gets ONE copy, not two. Deduplicating on
+      // the way in is the only place it can be done once for every path below.
+      if (!a || seen.has(norm(a))) return;
+      seen.add(norm(a));
+      queue.push({ addr: a, blind });
+    };
+    push(dto.to, false);
+    for (const a of dto.cc ?? []) push(a, false);
+    for (const a of dto.bcc ?? []) push(a, true);
+
+    const cc = (dto.cc ?? []).map((a) => a.trim()).filter(Boolean);
+    const bcc = (dto.bcc ?? []).map((a) => a.trim()).filter(Boolean);
+    const sent: string[] = [];
+    const failed: Array<{ to: string; reason: string }> = [];
+
+    for (const [i, r] of queue.entries()) {
+      try {
+        await this.sendOne(userId, {
+          ...dto, to: r.addr,
+          // The sender keeps ONE Sent copy, written with the first recipient,
+          // and it is the only row that ever carries the blind list. Later
+          // recipients write an inbox row and nothing else.
+          keepSentCopy: i === 0,
+          ccAddrs: cc.length ? cc.join(', ') : null,
+          bccAddrs: i === 0 && bcc.length ? bcc.join(', ') : null,
+        });
+        sent.push(r.addr);
+      } catch (e) {
+        failed.push({ to: r.addr, reason: (e as Error).message });
+      }
+    }
+    return { sent, failed };
+  }
+
+  /**
+   * The public door. One message, any number of recipients.
+   *
+   * It reports which addresses were accepted and which were not, per address,
+   * because "could not send" on a message going to five people is an error the
+   * citizen cannot act on — they do not know whether to retype one address or
+   * all five.
+   */
   async send(userId: string, dto: SendMailDto) {
+    const { sent, failed } = await this.fanOut(userId, dto);
+    if (sent.length === 0) {
+      throw new BadRequestException(
+        failed[0]?.reason ?? 'That message could not be sent.',
+      );
+    }
+    await this.clearDraft(userId, dto.draftId);
+    return { ...(await this.list(userId, { folder: 'sent' })), delivered: sent, failed };
+  }
+
+  private async sendOne(userId: string, dto: SendMailDto & {
+    keepSentCopy: boolean; ccAddrs: string | null; bccAddrs: string | null;
+  }) {
     const sender = await this.ensureAccount(userId);
     const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { handle: true, name: true } });
     if (!me) throw new NotFoundException('user not found');
@@ -469,6 +548,8 @@ export class MailService {
     const toAddr = addressFor(recipient.handle);
     const base = {
       fromAddr: sender.address, fromName: me.name, toAddr, toName: recipient.name,
+      // Cc on every copy; Bcc is added to the sender's row alone, below.
+      ccAddrs: dto.ccAddrs,
       subject, body: dto.body, snippet: snippetOf(dto.body), sizeBytes: size, system: false, threadId,
     };
     // BOTH COPIES OR NEITHER.
@@ -492,21 +573,28 @@ export class MailService {
       await this.prisma.mailAccount.findUnique({ where: { userId: recipient.id } }).then((a) => a ?? this.ensureAccount(recipient.id));
     }
     await this.prisma.$transaction([
-      // sender's Sent copy
-      this.prisma.mailMessage.create({ data: { ...base, ownerId: userId, boxUserId: userId, folder: 'sent', read: true } }),
-      // recipient's Inbox copy (only if it's a different mailbox)
+      // The sender's Sent copy, written once for the whole message rather than
+      // once per recipient — five rows in Sent for one message is five things
+      // to delete and four lies about how many messages were written. It is
+      // also THE ONLY ROW that ever carries the blind list.
+      ...(dto.keepSentCopy
+        ? [this.prisma.mailMessage.create({ data: { ...base, bccAddrs: dto.bccAddrs, ownerId: userId, boxUserId: userId, folder: 'sent', read: true } })]
+        : []),
+      // The recipient's Inbox copy. bccAddrs is absent, not blanked — a column
+      // that is present and empty is one somebody later fills in "for
+      // completeness".
       ...(recipient.id !== userId
         ? [this.prisma.mailMessage.create({ data: { ...base, ownerId: recipient.id, boxUserId: recipient.id, folder: 'inbox', read: false } })]
         : []),
     ]);
     await this.linkAttachments(userId, threadId, dto.attachmentFileIds);
-    await this.clearDraft(userId, dto.draftId);
     return this.list(userId, { folder: 'sent' });
   }
 
   /** Send to a GLOBAL (external) email address via the email provider (Resend).
    *  Keeps a Sent copy in the city; logs the dispatch to the outbox. */
-  private async sendExternal(userId: string, fromAddr: string, fromName: string, toEmail: string, dto: SendMailDto) {
+  private async sendExternal(userId: string, fromAddr: string, fromName: string, toEmail: string,
+    dto: SendMailDto & { keepSentCopy?: boolean; ccAddrs?: string | null; bccAddrs?: string | null }) {
     const subject = dto.subject?.trim() || '(no subject)';
     const size = sizeOf(subject, dto.body);
     const used = await this.usedBytes(userId);
@@ -561,6 +649,10 @@ export class MailService {
         folder: failed ? 'failed' : 'sent',
         read: true,
         fromAddr, fromName, toAddr: toEmail, toName: toEmail,
+        // Same rule as the internal path: Cc is shared, Bcc is the sender's
+        // alone, and this row belongs to the sender.
+        ccAddrs: dto.ccAddrs ?? null,
+        bccAddrs: dto.bccAddrs ?? null,
         subject, body: dto.body, snippet: snippetOf(dto.body), sizeBytes: size, system: false, threadId,
         // The message is kept either way. A failed send that vanishes takes the
         // citizen's writing with it, which is worse than a wrong folder.
@@ -575,7 +667,6 @@ export class MailService {
 
     // Keep the attachments visible on whichever copy was written.
     await this.linkAttachments(userId, threadId, dto.attachmentFileIds);
-    await this.clearDraft(userId, dto.draftId);
 
     if (failed) {
       throw new BadRequestException(

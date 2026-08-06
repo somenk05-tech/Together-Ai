@@ -29,6 +29,10 @@ export type SaveDraftDto = z.infer<typeof SaveDraftSchema>;
 
 export const SendMailSchema = z.object({
   to: z.string().min(1, 'Recipient required').max(120),
+  /** Openly copied. Every recipient sees this list — that is what Cc means. */
+  cc: z.array(z.string().trim().min(1).max(120)).max(25).optional(),
+  /** Blind-copied. Kept on the sender's Sent row and nowhere else. */
+  bcc: z.array(z.string().trim().min(1).max(120)).max(25).optional(),
   subject: z.string().max(200).default('(no subject)'),
   body: z.string().max(50000).default(''),
   threadId: z.string().max(64).optional(), // reply → append to this trail

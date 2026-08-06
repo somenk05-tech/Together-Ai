@@ -1684,6 +1684,13 @@ model MailMessage {
   fromName   String
   toAddr     String
   toName     String
+  /// Carbon copy — everyone who was openly copied, comma-separated addresses.
+  /// Present on every copy, because being on Cc is a fact all recipients share.
+  ccAddrs    String?
+  /// Blind carbon copy. Written ONLY on the sender's own Sent row. A recipient
+  /// copy carrying this column is the leak that makes Bcc pointless, so it is
+  /// never written to one — see mail-cc-bcc.spec.ts.
+  bccAddrs   String?
   subject    String
   body       String
   snippet    String   @default("")

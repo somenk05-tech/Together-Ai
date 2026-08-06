@@ -5,7 +5,6 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { mailApi } from '../api';
 import { fmtBytes, fileIcon } from '@/features/drive/api';
 import { splitQuoted, stripCityFooter } from '../quoted';
-import { expandedByDefault, previewOf } from '../collapse';
 import {
   useMailMessage, useMailThread, useMailAccount, useFlagMail, useRemoveMail,
   humanBytes, initials, avatarHue, type MailMessage,
@@ -99,79 +98,33 @@ function MailBody({ body }: { body: string }) {
   );
 }
 
-/** The round sender mark. Same colours open or folded, so a face stays a face. */
-function Mark({ m, size }: { m: MailMessage; size: number }) {
+/** One message inside a trail. */
+function TrailMessage({ m, mine }: { m: MailMessage; mine: boolean }) {
   const hue = avatarHue(m.fromAddr);
-  return (
-    <div aria-hidden style={{
-      width: size, height: size, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center',
-      fontSize: size < 32 ? 11 : 13, fontWeight: 800, color: 'var(--on-accent)',
-      background: m.system ? 'var(--accent)' : `hsl(${hue},52%,45%)`,
-    }}>
-      {m.system ? '🏙' : initials(m.fromName)}
-    </div>
-  );
-}
-
-/**
- * One message inside a trail — open, or folded to a line.
- *
- * Folded is a real button rather than a div with a click handler: it carries
- * aria-expanded, it is 44px tall, and a keyboard reaches it. The date sits at
- * the same right edge in both states so the eye can run down the column
- * without the folded rows jumping.
- */
-function TrailMessage({ m, mine, expanded, onToggle }: {
-  m: MailMessage; mine: boolean; expanded: boolean; onToggle: () => void;
-}) {
   const when = new Date(m.createdAt).toLocaleString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
   });
-  const shortWhen = new Date(m.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-  const who = mine ? 'You' : m.fromName;
-
-  if (!expanded) {
-    const preview = previewOf(splitQuoted(stripCityFooter(m.body)).latest);
-    return (
-      <button type="button" onClick={onToggle} aria-expanded={false}
-        aria-label={`Open message from ${who}, ${when}`}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 44,
-          padding: '10px 0', borderTop: '1px solid var(--line)', borderLeft: 0, borderRight: 0, borderBottom: 0,
-          background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', color: 'inherit',
-        }}>
-        <Mark m={m} size={28} />
-        <span style={{ fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{who}</span>
-        {/* The preview is what THIS message says, quoted history already
-            removed — the same text the open state renders. */}
-        <span className="muted" style={{ fontSize: 12.5, minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {preview}
-        </span>
-        {!m.read && <span aria-hidden title="Unread" style={{ flexShrink: 0, width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)' }} />}
-        <span className="muted" style={{ fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}>{shortWhen}</span>
-      </button>
-    );
-  }
-
   return (
     <div style={{ padding: '14px 0', borderTop: '1px solid var(--line)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Mark m={m} size={38} />
+        <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 800, color: 'var(--on-accent)', background: m.system ? 'var(--accent)' : `hsl(${hue},52%,45%)` }}>
+          {m.system ? '🏙' : initials(m.fromName)}
+        </div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontWeight: 700, fontSize: 13.5 }}>
-            {who} <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>&lt;{m.fromAddr}&gt;</span>
+            {mine ? 'You' : m.fromName} <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>&lt;{m.fromAddr}&gt;</span>
           </div>
-          <div className="muted" style={{ fontSize: 12 }}>to {m.toAddr}</div>
+          <div className="muted" style={{ fontSize: 12 }}>
+            to {m.toAddr}
+            {/* Cc is shown to everyone, because that is what Cc means. Bcc is
+                only ever present on your own Sent copy — the server never
+                writes it to a recipient row, so there is nothing here to hide.
+                It is labelled as yours so you can see what you sent. */}
+            {m.ccAddrs && <> · cc {m.ccAddrs}</>}
+            {m.bccAddrs && <> · <span title="Only you can see this">bcc {m.bccAddrs}</span></>}
+          </div>
         </div>
         <div className="muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{when}</div>
-        {/* Fold this one away again. Hidden on a single-message trail, where
-            there is nothing to fold it against — see expandedByDefault. */}
-        <button type="button" onClick={onToggle} aria-expanded
-          aria-label={`Collapse message from ${who}, ${when}`}
-          style={{
-            display: 'grid', placeItems: 'center', minWidth: 44, minHeight: 44,
-            border: 'none', background: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 15,
-          }}>⌃</button>
       </div>
       <MailBody body={m.body} />
     </div>
@@ -187,15 +140,6 @@ export function MessageView() {
   const thread = useMailThread(q.data?.threadId);
   const flag = useFlagMail();
   const remove = useRemoveMail();
-  /**
-   * What the citizen has opened or folded by hand, over the top of the default.
-   *
-   * An override map rather than a set of open ids, because the trail arrives
-   * asynchronously: seeding state from data that is not there yet needs an
-   * effect, and an effect that re-seeds would fight every tap. `undefined`
-   * here means "no opinion — use the rule".
-   */
-  const [override, setOverride] = useState<Record<string, boolean>>({});
 
   if (q.isLoading) return <Spinner label="Opening message…" />;
   if (q.isError || !q.data) return <div style={{ padding: 28 }}><EmptyState title="Couldn't open message" hint="It may have been deleted." /></div>;
@@ -209,16 +153,6 @@ export function MessageView() {
   const replyTo = latest.fromAddr === myAddr ? latest.toAddr : latest.fromAddr;
   const replySubject = /^re:/i.test(m.subject) ? m.subject : `Re: ${m.subject}`;
   const totalBytes = trail.reduce((s, x) => s + x.sizeBytes, 0);
-
-  // The rule (collapse.ts), with the citizen's own taps on top of it.
-  const byDefault = expandedByDefault(trail, id);
-  const isOpen = (mid: string) => override[mid] ?? byDefault.has(mid);
-  const foldedCount = trail.filter((x) => !isOpen(x.id)).length;
-  const expandAll = () => setOverride(Object.fromEntries(trail.map((x) => [x.id, true])));
-  // Back to the rule rather than to "all closed": the newest message and
-  // anything unread stay open, because a trail with nothing open is a page
-  // showing none of its own content.
-  const collapseOlder = () => setOverride({});
 
   const openReply = () => {
     const p = new URLSearchParams({ to: replyTo, subject: replySubject });
@@ -243,29 +177,7 @@ export function MessageView() {
           {trail.length > 1 && <span className="muted" style={{ fontSize: 12.5 }}>{trail.length} messages</span>}
           <span className="muted" style={{ marginLeft: 'auto', fontSize: 11 }}>{humanBytes(totalBytes)}</span>
         </div>
-
-        {/* One control for the whole trail, next to the count it changes. */}
-        {trail.length > 1 && (
-          <div style={{ marginTop: 6 }}>
-            <button type="button"
-              onClick={foldedCount > 0 ? expandAll : collapseOlder}
-              style={{
-                display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: 0,
-                border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                fontSize: 12.5, fontWeight: 700, color: 'var(--accent-ink)',
-              }}>
-              {foldedCount > 0
-                ? `Show ${foldedCount} earlier message${foldedCount === 1 ? '' : 's'}`
-                : 'Collapse older messages'}
-            </button>
-          </div>
-        )}
-
-        {trail.map((x) => (
-          <TrailMessage key={x.id} m={x} mine={x.fromAddr === myAddr}
-            expanded={trail.length === 1 || isOpen(x.id)}
-            onToggle={() => setOverride((o) => ({ ...o, [x.id]: !isOpen(x.id) }))} />
-        ))}
+        {trail.map((x) => <TrailMessage key={x.id} m={x} mine={x.fromAddr === myAddr} />)}
         <ThreadAttachments threadId={m.threadId} />
       </div>
 

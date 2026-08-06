@@ -24,6 +24,10 @@ export interface OutboxEntry {
 }
 export interface MailItem {
   id: string; fromAddr: string; fromName: string; toAddr: string; toName: string;
+  /** Openly copied — shown to every reader. */
+  ccAddrs?: string | null;
+  /** Blind-copied. Only ever present on your own Sent copy. */
+  bccAddrs?: string | null;
   subject: string; snippet: string; sizeBytes: number; read: boolean; starred: boolean;
   system: boolean; folder: string; threadId?: string | null; createdAt: string;
   /** Why the provider refused it, in its own words. Null on anything in Sent. */
@@ -38,7 +42,8 @@ export const mailApi = {
   list: (folder: Folder) => api.get<MailItem[]>('/mail', { params: { folder } }).then((r) => r.data),
   get: (id: string) => api.get<MailMessage>(`/mail/${id}`).then((r) => r.data),
   thread: (threadId: string) => api.get<MailMessage[]>(`/mail/thread/${threadId}`).then((r) => r.data),
-  send: (input: { to: string; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string }) => api.post<MailItem[]>('/mail/send', input).then((r) => r.data),
+  send: (input: { to: string; cc?: string[]; bcc?: string[]; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string }) =>
+    api.post<MailItem[]>('/mail/send', input).then((r) => r.data),
   saveDraft: (input: { id?: string; to: string; subject: string; body: string; threadId?: string }) =>
     api.post<MailMessage>('/mail/draft', input).then((r) => r.data),
   discardDraft: (id: string) => api.delete<MailItem[]>(`/mail/draft/${id}`).then((r) => r.data),
@@ -85,7 +90,7 @@ export function useMailThread(threadId?: string | null) {
 export function useSendMail() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { to: string; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string }) => mailApi.send(v),
+    mutationFn: (v: { to: string; cc?: string[]; bcc?: string[]; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string }) => mailApi.send(v),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['mail'] }); },
   });
 }

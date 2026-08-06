@@ -28,6 +28,20 @@ export function Compose() {
 
   const [to, setTo] = useState(params.get('to') ?? '');
   const [subject, setSubject] = useState(params.get('subject') ?? '');
+  /**
+   * CC AND BCC, HIDDEN UNTIL ASKED FOR.
+   *
+   * Most messages go to one person. Two more always-visible fields make the
+   * common case look like the uncommon one, so they arrive on a press — and
+   * stay open once anything is in them, or a citizen who typed an address and
+   * collapsed the row would send a message to somebody they could no longer
+   * see.
+   */
+  const [cc, setCc] = useState('');
+  const [bcc, setBcc] = useState('');
+  const [showCopies, setShowCopies] = useState(false);
+  /** Commas or spaces, because both are what people type. */
+  const addrs = (v: string) => v.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
   const [body, setBody] = useState('');
   const [showSug, setShowSug] = useState(false);
   const [attachments, setAttachments] = useState<DriveFile[]>([]);
@@ -119,6 +133,33 @@ export function Compose() {
             </div>
           )}
         </div>
+        {(showCopies || cc || bcc) ? (
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 12 }} className="muted">Cc</label>
+              <input value={cc} onChange={(e) => setCc(e.target.value)}
+                placeholder="Everyone here can see each other" style={inp} autoComplete="off" />
+            </div>
+            <div>
+              <label style={{ fontSize: 12 }} className="muted">Bcc</label>
+              <input value={bcc} onChange={(e) => setBcc(e.target.value)}
+                placeholder="Nobody else sees these addresses" style={inp} autoComplete="off" />
+              {/* Said at the field rather than in a help page, because the
+                  difference between Cc and Bcc is the only thing about them
+                  worth knowing and it is the thing people get wrong. */}
+              <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>
+                People on Bcc get the message. Nobody else is told they did — including each other.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setShowCopies(true)}
+            style={{ justifySelf: 'start', minHeight: 44, padding: '0 2px', background: 'none', border: 0,
+              cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)' }}>
+            Add Cc or Bcc
+          </button>
+        )}
+
         <div>
           <label style={{ fontSize: 12 }} className="muted">Subject</label>
           <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" style={inp} />
@@ -159,7 +200,7 @@ export function Compose() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Button variant="accent" disabled={!canSend}
             onClick={() => send.mutate(
-              { to, subject: subject || '(no subject)', body, threadId, attachmentFileIds: attachments.map((f) => f.id), draftId: draftId.current },
+              { to, cc: addrs(cc), bcc: addrs(bcc), subject: subject || '(no subject)', body, threadId, attachmentFileIds: attachments.map((f) => f.id), draftId: draftId.current },
               { onSuccess: () => { if (threadId) nav(-1); else nav('/mail/sent'); } },
             )}>
             {send.isPending ? 'Sending…' : threadId ? 'Send reply' : 'Send'}
