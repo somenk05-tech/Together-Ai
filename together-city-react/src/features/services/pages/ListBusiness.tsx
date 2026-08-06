@@ -34,6 +34,7 @@ export function ListBusiness() {
           create.mutate({
             businessName: v.businessName,
             ...(v.slug ? { slug: v.slug } : {}),
+            ...(v.businessType ? { businessType: v.businessType, details: v.details } : {}),
             categoryKey: v.categoryKey,
             about: v.about || undefined,
             city: v.city,

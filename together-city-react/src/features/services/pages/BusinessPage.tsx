@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button, Card, Spinner, EmptyState } from '@/components/ui';
 import { MenuView } from '../MenuView';
 import { Gallery, Reviews } from '../ListingPanel';
+import { ReviewBox } from '../ReviewBox';
 import {
   useService, useEnquire, useToggleRegular, useRegulars, useOffersToday, useReviews,
   rupees, humanDistance, stars,
@@ -75,7 +76,10 @@ export function BusinessPage() {
   const chat = () => {
     setErr(null);
     enquire.mutate({ id: s.id }, {
-      onSuccess: () => nav('/services/messages'),
+      // Into the room, not the corridor. `enquire` is idempotent — it returns
+      // the thread that already exists rather than opening a second one — so
+      // this is "carry on where we left off" as often as it is "start".
+      onSuccess: (t) => nav(`/services/messages/${t.id}`),
       onError: () => setErr('That conversation could not be opened just now. Try again in a moment.'),
     });
   };
@@ -112,22 +116,13 @@ export function BusinessPage() {
           : <div className="biz-hero-img" aria-hidden />}
         <div className="biz-hero-scrim" aria-hidden />
         <div className="biz-hero-inner">
+          {/* ONE CALL TO ACTION, AND IT IS NOT UP HERE.
+              A pill in the corner of the photograph and a button under it said
+              the same thing twice, and a citizen who reads both wonders whether
+              they do different things. The hero carries the name; the row below
+              carries the decision. */}
           <div className="biz-hero-top">
             <span className="biz-mark">{s.businessName}</span>
-            {/* The BOOK NOW of a page that cannot take a booking — so it says
-                what it does instead, in the same place the eye looks for it. */}
-            <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {/* Only when the owner published it. A tel: link on a number the
-                  business asked to keep private is the breach, not the button. */}
-              {s.phone && (
-                <a className="biz-pill" href={`tel:${s.phone.replace(/[^\d+]/g, '')}`}>
-                  <span aria-hidden>📞</span> Call
-                </a>
-              )}
-              <button type="button" className="biz-pill" onClick={chat} disabled={enquire.isPending}>
-                {enquire.isPending ? 'Opening…' : 'Message them'} <span aria-hidden>→</span>
-              </button>
-            </span>
           </div>
           <div>
             <p className="biz-hero-eyebrow">{s.categoryLabel}</p>
@@ -172,6 +167,28 @@ export function BusinessPage() {
       </p>
       {err && <p style={{ color: 'var(--danger-ink)', fontSize: 13, marginTop: 8 }} role="alert">{err}</p>}
 
+      {/*
+        AT A GLANCE.
+
+        The schema's own answers, in the schema's own words. A restaurant shows
+        cuisines and cost for two; a plumber shows emergency call-outs and a
+        visiting charge; neither screen knows what the other's fields are
+        called, because the labels travel with the values.
+      */}
+      {s.details.length > 0 && (
+        <div style={section}>
+          <Head lite="At a" bold="glance" />
+          <dl style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, margin: 0 }}>
+            {s.details.map((d) => (
+              <div key={d.label}>
+                <dt className="muted" style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase' }}>{d.label}</dt>
+                <dd style={{ fontSize: 14, margin: '3px 0 0' }}>{d.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+
       {s.about && (
         <div style={section} className="biz-split">
           <Head lite="About" bold={s.businessName} />
@@ -199,11 +216,15 @@ export function BusinessPage() {
       {/* Menu for a restaurant, price list for everyone else — MenuView takes
           its words from the category group, and renders nothing at all when the
           business has not published one. */}
-      <MenuView listingId={s.id} group={s.categoryGroup} onSent={() => nav('/services/messages')} />
+      {/* Menu or price list — the schema says which, and a type that declares
+          neither renders nothing here at all. */}
+      {(s.sections.includes('menu') || s.sections.includes('priceList')) && (
+        <MenuView listingId={s.id} group={s.categoryGroup} onSent={(threadId) => nav(`/services/messages/${threadId}`)} />
+      )}
 
       {/* Photographs on a dark ground, which is where photographs look their
           best and the only reason this band exists. */}
-      {s.photos.length > 1 && (
+      {s.sections.includes('gallery') && s.photos.length > 1 && (
         <div style={section} className="biz-dark">
           <Head lite="Their" bold="place" />
           <Gallery photos={s.photos} name={s.businessName} />
@@ -211,14 +232,11 @@ export function BusinessPage() {
       )}
 
       <Reviews listingId={s.id} />
-      {reviews.data?.canReview && (
-        <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
-          You have spoken to this business, so you can review them —{' '}
-          <Link to="/services/messages" style={{ fontWeight: 600, color: 'var(--accent-ink)' }}>
-            from your conversation
-          </Link>, where it is signed with the name they already know you by.
-        </p>
-      )}
+      {/* Writing one lives here now, beside the ones already written, which is
+          where a citizen is actually deciding. It appears only for somebody who
+          has spoken to this business — the server decides that, not this
+          screen. */}
+      <ReviewBox listingId={s.id} />
 
       {s.slug && (
         <div style={section}>

@@ -59,7 +59,7 @@ export function EditBusiness() {
         onCancel={() => nav('/services/mine')}
         onSubmit={(v) => {
           setErr(null);
-          update.mutate(v, {
+          update.mutate({ ...v, businessType: v.businessType || undefined }, {
             onSuccess: () => nav('/services/mine'),
             onError: (e: unknown) => {
               const m = e as { response?: { data?: { message?: string | string[] } } };

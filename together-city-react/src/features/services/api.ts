@@ -9,6 +9,28 @@ export interface CategoryGroup { group: string; items: ServiceCategory[] }
  * type — the server does not send either, and a type that admits them is an
  * invitation to render them the moment somebody adds them back.
  */
+export type FieldKind = 'text' | 'longtext' | 'number' | 'money' | 'minutes' | 'toggle' | 'chips' | 'select';
+export type SectionKind =
+  | 'about' | 'menu' | 'priceList' | 'offers' | 'gallery'
+  | 'reviews' | 'credentials' | 'availability' | 'location';
+
+export interface FieldDef {
+  key: string;
+  label: string;
+  kind: FieldKind;
+  hint?: string;
+  options?: string[];
+  max?: number;
+}
+export interface BusinessTypeDef {
+  key: string;
+  label: string;
+  group: string;
+  blurb: string;
+  fields: FieldDef[];
+  sections: SectionKind[];
+}
+
 export interface ServiceCard {
   id: string;
   /** Their own address: /services/anna-idli. Null on listings older than
@@ -19,6 +41,13 @@ export interface ServiceCard {
   categoryLabel: string;
   about: string | null;
   categoryGroup: string;
+  /** The schema key this page is generated from. Null on older listings. */
+  businessType: string | null;
+  /** Which sections this page renders, in order — from the schema, not here. */
+  sections: SectionKind[];
+  /** Already labelled by the schema. The screen never holds a second copy of
+   *  a field's wording. */
+  details: Array<{ label: string; value: string }>;
   city: string;
   areas: string[];
   priceFrom: number | null;
@@ -41,6 +70,8 @@ export interface MyServiceCard extends Omit<ServiceCard, 'phone'> {
   /** Yours, whether or not it is published. Null means you never gave one. */
   phone: string | null;
   phonePublic: boolean;
+  /** The raw answers, for the edit form. The page uses `details` instead. */
+  detailValues: Record<string, unknown>;
   moderation: string;
   updatedAt: string;
 }
@@ -66,6 +97,8 @@ export interface ListingInput {
   city: string;
   areas?: string;
   slug?: string;
+  businessType?: string;
+  details?: Record<string, unknown>;
   phone?: string;
   phonePublic?: boolean;
   priceFrom?: number;
@@ -101,6 +134,10 @@ export interface ReviewPage {
   count: number;
   items: ServiceReview[];
   canReview: boolean;
+  /** Your own alias for this business — what a review of yours is signed with.
+   *  Null when you have never spoken to them, which is also when you cannot
+   *  review them. */
+  alias: string | null;
   mine: ServiceReview | null;
 }
 
@@ -137,6 +174,8 @@ export const servicesApi = {
   facets: (city?: string) => api.get<Record<string, number>>('/services/facets', { params: { city } }).then((r) => r.data),
   browse: (q: { category?: string; city?: string; area?: string; q?: string; page?: number; near?: string; withinKm?: number }) =>
     api.get<{ items: ServiceCard[]; total: number; page: number; pages: number; saved: string[] }>('/services', { params: q }).then((r) => r.data),
+  businessTypes: () =>
+    api.get<{ types: BusinessTypeDef[] }>('/services/business-types').then((r) => r.data),
   detail: (idOrSlug: string) => api.get<ServiceCard>(`/services/${idOrSlug}`).then((r) => r.data),
   slugAvailable: (slug: string) =>
     api.get<{ slug: string; available: boolean; reason: string | null }>(
@@ -330,6 +369,19 @@ export function useToggleRegular() {
  */
 export const serviceHref = (s: { slug?: string | null; id: string }): string =>
   `/services/${s.slug ?? s.id}`;
+
+/**
+ * The schema, fetched rather than bundled, so the questions an owner answers
+ * can never be a release behind the rules the server checks them against.
+ * Static for the life of a deploy, so it is cached hard.
+ */
+export function useBusinessTypes() {
+  return useQuery({
+    queryKey: ['services', 'business-types'],
+    queryFn: () => servicesApi.businessTypes(),
+    staleTime: 60 * 60 * 1000,
+  });
+}
 
 /** One business, its own page. */
 export function useService(id?: string) {

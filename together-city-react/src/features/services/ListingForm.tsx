@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
-import { servicesApi, useServiceCategories, currentPosition } from './api';
+import { servicesApi, useServiceCategories, useBusinessTypes, currentPosition } from './api';
+import { DynamicFields } from './DynamicFields';
 
 /**
  * THE ONE FORM A LISTING HAS.
@@ -36,6 +37,8 @@ const MAX_PHOTOS = 5;
 export interface ListingValues {
   businessName: string;
   slug: string;
+  businessType: string;
+  details: Record<string, unknown>;
   categoryKey: string;
   about: string;
   city: string;
@@ -53,6 +56,9 @@ export interface ListingValues {
 export interface ListingDraft {
   businessName?: string;
   slug?: string | null;
+  businessType?: string | null;
+  /** The raw answers, keyed as the schema declared them. */
+  detailValues?: Record<string, unknown>;
   categoryKey?: string;
   about?: string | null;
   city?: string;
@@ -78,11 +84,14 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
   onCancel: () => void;
 }) {
   const cats = useServiceCategories();
+  const types = useBusinessTypes();
 
   const [businessName, setName] = useState(str(initial?.businessName));
   const [slug, setSlug] = useState(str(initial?.slug));
   const [slugCheck, setSlugCheck] = useState<{ available: boolean; reason: string | null } | null>(null);
   const [group, setGroup] = useState('');
+  const [businessType, setBusinessType] = useState(str(initial?.businessType));
+  const [details, setDetails] = useState<Record<string, unknown>>(initial?.detailValues ?? {});
   const [categoryKey, setCategory] = useState(str(initial?.categoryKey));
   const [about, setAbout] = useState(str(initial?.about));
   const [city, setCity] = useState(str(initial?.city));
@@ -170,6 +179,15 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
   const pinned = lat !== '' && lng !== '' && Number.isFinite(latN) && Number.isFinite(lngN)
     && latN >= -90 && latN <= 90 && lngN >= -180 && lngN <= 180;
 
+  /**
+   * The types offered for the group they picked, and the one they chose.
+   *
+   * Derived, never stored on this screen: the schema is the server's, and a
+   * copy of it here is a copy that goes stale the day a trade is added.
+   */
+  const offeredTypes = (types.data?.types ?? []).filter((t) => t.group === group || t.key === 'general');
+  const chosenType = (types.data?.types ?? []).find((t) => t.key === businessType) ?? null;
+
   /** A live preview of what the address will be if they leave it blank. */
   const normalisedName = businessName.trim().toLowerCase()
     .normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '');
@@ -188,6 +206,8 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
     onSubmit({
       businessName: businessName.trim(),
       slug: slug.trim(),
+      businessType,
+      details,
       categoryKey,
       about: about.trim(),
       city: city.trim(),
@@ -286,6 +306,37 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
           Nothing here fits? Choose <strong>Other → Something else</strong> and say what you do
           in About — people search that text too, so you are still findable.
         </p>
+
+        {/*
+          THE QUESTION THAT CHANGES THE REST OF THE FORM.
+
+          A category says where a business is filed. A TYPE says what it
+          actually does, and that is what decides which questions are worth
+          asking — a restaurant is asked about cuisines and covers, a plumber
+          about emergencies and call-out charges, and neither ever sees the
+          other's fields. Everything below this select is generated.
+        */}
+        {group && (
+          <div>
+            <label htmlFor="svc-type" style={label}>What sort of business is it</label>
+            <select id="svc-type" style={field} value={businessType}
+              onChange={(e) => {
+                setBusinessType(e.target.value);
+                // The answers do not survive a change of type. Keeping them
+                // would leave a salon quietly holding a restaurant's cuisines,
+                // invisible until somebody switched back.
+                setDetails({});
+              }}>
+              <option value="">Choose…</option>
+              {offeredTypes.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+            </select>
+            {chosenType && (
+              <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>{chosenType.blurb}</p>
+            )}
+          </div>
+        )}
+
+        <DynamicFields type={chosenType} values={details} onChange={setDetails} />
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
           <div>

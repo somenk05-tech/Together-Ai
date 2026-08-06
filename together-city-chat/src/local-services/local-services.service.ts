@@ -7,6 +7,7 @@ import { categoryGroup, categoryLabel, isCategory } from './categories';
 import { mintAlias } from './alias';
 import { boundingBox, haversineKm, parsePoint } from './geo';
 import { looksLikeId, normaliseSlug, slugProblem, SLUG_MESSAGES, suggestSlug } from './slug';
+import { cleanDetails, isBusinessType, readDetails, sectionsFor } from './business-types';
 import type { BrowseDto, CreateListingDto, UpdateListingDto, PostOfferDto, SaveMenuDto } from './dto/local-services.dto';
 
 type ListingRow = {
@@ -14,6 +15,8 @@ type ListingRow = {
   city: string; areas: string; phone: string | null; priceFrom: number | null; photosJson: string;
   lat: number | null; lng: number | null; radiusKm: number | null;
   slug: string | null;
+  businessType: string | null;
+  detailsJson: string | null;
   phonePublic: boolean;
   moderation: string; createdAt: Date; updatedAt: Date;
 };
@@ -88,6 +91,18 @@ export class LocalServicesService {
       // The address a citizen sees. Null on listings older than slugs, and the
       // screens fall back to the id rather than inventing one.
       slug: l.slug,
+      /**
+       * WHAT KIND OF BUSINESS, AND THEREFORE WHAT THIS PAGE IS.
+       *
+       * The type decides which sections the page renders and which questions
+       * the form asked. It travels on every card so the screen never has to
+       * guess from a category label — and `details` arrives already turned
+       * into labelled lines, because the labels live in the schema and the
+       * screen should not hold a second copy of them.
+       */
+      businessType: l.businessType,
+      sections: sectionsFor(l.businessType),
+      details: readDetails(l.businessType, parse<Record<string, unknown>>(l.detailsJson, {})),
       businessName: l.businessName,
       categoryKey: l.categoryKey,
       categoryLabel: categoryLabel(l.categoryKey),
@@ -120,7 +135,14 @@ export class LocalServicesService {
   }
 
   private ownerCard(l: ListingRow) {
-    return { ...this.card(l), phone: l.phone, phonePublic: l.phonePublic, moderation: l.moderation, updatedAt: l.updatedAt.toISOString() };
+    return {
+      ...this.card(l),
+      phone: l.phone, phonePublic: l.phonePublic,
+      // The RAW answers, keyed as the schema declared them — the edit form
+      // needs the values back, not the sentences the page prints.
+      detailValues: parse<Record<string, unknown>>(l.detailsJson, {}),
+      moderation: l.moderation, updatedAt: l.updatedAt.toISOString(),
+    };
   }
 
   /**
@@ -339,6 +361,8 @@ export class LocalServicesService {
         city: dto.city,
         areas: (dto.areas ?? '').trim(),
         slug: await this.slugForNew(dto.slug, dto.businessName),
+        businessType: dto.businessType && isBusinessType(dto.businessType) ? dto.businessType : null,
+        detailsJson: JSON.stringify(cleanDetails(dto.businessType ?? null, dto.details ?? {})),
         phone: dto.phone ?? null,
         phonePublic: dto.phonePublic ?? false,
         priceFrom: dto.priceFrom ?? null,
@@ -373,6 +397,22 @@ export class LocalServicesService {
     }
     if (dto.phone !== undefined) data.phone = dto.phone;
     if (dto.phonePublic !== undefined) data.phonePublic = dto.phonePublic;
+    /**
+     * The type and its answers move together, always.
+     *
+     * A listing that changed type while keeping the old type's answers is a
+     * salon holding a restaurant's cuisines: invisible, because nothing renders
+     * them, and waiting to reappear the day somebody switches back. So the
+     * details are re-cleaned against whichever type is in force after this
+     * edit, not whichever one was in force before it.
+     */
+    if (dto.businessType !== undefined || dto.details !== undefined) {
+      const nextType = dto.businessType !== undefined
+        ? (dto.businessType && isBusinessType(dto.businessType) ? dto.businessType : null)
+        : ((await this.prisma.serviceListing.findUnique({ where: { id } }) as { businessType: string | null } | null)?.businessType ?? null);
+      if (dto.businessType !== undefined) data.businessType = nextType;
+      data.detailsJson = JSON.stringify(cleanDetails(nextType, dto.details ?? {}));
+    }
     if (dto.priceFrom !== undefined) data.priceFrom = dto.priceFrom;
     if (dto.photoUrls !== undefined) data.photosJson = JSON.stringify(dto.photoUrls.map((url) => ({ url })));
     if (dto.lat !== undefined) data.lat = dto.lat;
@@ -807,6 +847,16 @@ export class LocalServicesService {
       ...ratingOf(rows),
       items: rows.map((r) => this.reviewCard(r, viewerId && r.reviewerId === viewerId ? 'reviewer' : 'public')),
       canReview: Boolean(thread),
+      /**
+       * The caller's OWN alias for this listing, so the review form can say
+       * what a review will be signed with before it is written.
+       *
+       * Their own, and nobody else's — this is the name this one business
+       * already calls them, which they have been reading at the top of the
+       * thread since they opened it. It travels so the form can live on the
+       * business page instead of squatting under a conversation.
+       */
+      alias: (thread as { alias?: string } | null)?.alias ?? null,
       mine: mineRow ? this.reviewCard(mineRow, 'reviewer') : null,
     };
   }

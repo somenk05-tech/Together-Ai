@@ -2453,6 +2453,12 @@ model ServiceListing {
   /// otherwise — a number republished by a migration is a broken promise.
   /// The business's own address: /services/anna-idli. Nullable because every
   /// listing made before slugs existed has none and is still reachable by id.
+  /// The schema key that generates this listing's form, page and card.
+  /// See business-types.ts — the answers live in detailsJson under the field
+  /// keys that file declares, so a new trade is a new entry there and never a
+  /// migration here.
+  businessType String?
+  detailsJson  String?
   slug         String?  @unique
   phone        String?
   phonePublic  Boolean  @default(false)

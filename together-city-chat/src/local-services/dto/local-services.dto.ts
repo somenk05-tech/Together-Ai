@@ -18,6 +18,11 @@ export const CreateListingSchema = z.object({
   // Validated properly in claimSlug — the shape rules live in slug.ts so the
   // web app and the server cannot disagree about what a valid address is.
   slug: z.string().trim().max(60).optional(),
+  // The schema key, and the answers it asked for. Both are re-checked against
+  // business-types.ts on the way in — the form is not trusted to have sent
+  // only what it was told to ask.
+  businessType: z.string().trim().max(40).optional(),
+  details: z.record(z.unknown()).optional(),
   phone: z.string().trim().max(20).optional(),
   // Off unless the owner says so. See the migration note: this number was
   // given under a promise that it stays private.

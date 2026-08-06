@@ -5,6 +5,7 @@ import { JwtUser } from '../shared/types';
 import { ZodValidationPipe } from '../shared/zod/zod-validation.pipe';
 import { LocalServicesService } from './local-services.service';
 import { categoriesByGroup } from './categories';
+import { BUSINESS_TYPES } from './business-types';
 import {
   BrowseSchema, type BrowseDto,
   CreateListingSchema, type CreateListingDto,
@@ -28,6 +29,17 @@ export class LocalServicesController {
   /** The vocabulary. Static, so the picker never waits on a query. */
   @Get('categories')
   categories() { return { groups: categoriesByGroup() }; }
+
+  /**
+   * The schema the whole hub is generated from.
+   *
+   * Served rather than bundled into the web app so that adding a trade is a
+   * deploy of one file and not a coordinated release of two — and so the form
+   * an owner fills in can never be a version behind the rules the server will
+   * check it against.
+   */
+  @Get('business-types')
+  businessTypes() { return { types: BUSINESS_TYPES }; }
 
   @Get('facets')
   facets(@Query('city') city?: string) { return this.services.facets(city); }
