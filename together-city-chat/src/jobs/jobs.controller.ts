@@ -28,6 +28,13 @@ export class JobsController {
     return this.jobs.uploadResume(user.sub, dto);
   }
 
+  /** Their document, gone — file, extracted text and name. The rest of the
+   *  profile survives; they may still want to be matched on what they typed. */
+  @Delete('resume')
+  deleteResume(@CurrentUser() user: JwtUser) {
+    return this.jobs.deleteResume(user.sub);
+  }
+
   @Put('profile')
   @UsePipes(new ZodValidationPipe(SaveJobProfileSchema))
   saveProfile(@CurrentUser() user: JwtUser, @Body() dto: SaveJobProfileDto) {

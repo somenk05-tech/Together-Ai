@@ -1,0 +1,12 @@
+-- A name is its own field.
+--
+-- The parser put the CV's first line into the headline, so a profile could
+-- read "APPLICATION LETTER Applicant: Migbaru Tedla Address: Addis Ababa
+-- E-mail:" where a person's name and job title should have been. A name and a
+-- title are two different facts and neither stands in for the other.
+--
+-- Empty by default and NOT backfilled from the headline: an existing headline
+-- is exactly the mangled string this column exists to replace, and splitting a
+-- name out of it by guesswork would put a wrong name on somebody's profile,
+-- which is worse than an empty one they can fill in themselves.
+ALTER TABLE "JobProfile" ADD COLUMN "fullName" TEXT NOT NULL DEFAULT '';

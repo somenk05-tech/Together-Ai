@@ -6,6 +6,7 @@ import { ClockService } from '../shared/clock/clock.service';
 import { FEED_CAP, ORDER_HISTORY_CAP } from '../shared/paging';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { parseResume, matchJobs, labelFor, JOB_SEEDS, type ParsedResume, type JobLike } from './jobs-engine';
+import { AiService } from '../ai/ai.service';
 import type { UploadResumeDto, SaveJobProfileDto, ApplyDto, PostJobDto } from './dto/jobs.dto';
 
 @Injectable()
@@ -16,6 +17,9 @@ export class JobsService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly masterProfile: MasterProfileService,
     private readonly clock: ClockService,
+    // Reads a CV into a profile. Optional at runtime — when the model is not
+    // configured readCv returns null and the heuristic parser carries on.
+    private readonly ai: AiService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -23,14 +27,62 @@ export class JobsService implements OnModuleInit {
   }
 
   // ─────────────── candidate profile (upload once) ───────────────
-  private shapeProfile(row: { headline: string; skills: string; experienceYears: number; location: string | null; seniority: string; resumeName: string | null } | null) {
-    if (!row) return { saved: false, headline: '', skills: [] as { key: string; label: string }[], experienceYears: 0, seniority: 'junior', location: null, resumeName: null };
+  private shapeProfile(row: {
+    headline: string; skills: string; experienceYears: number; location: string | null;
+    seniority: string; resumeName: string | null;
+    resumeUrl?: string | null; resumeBytes?: number; resumeAt?: Date | null;
+    photoUrl?: string | null; fullName?: string; summary?: string; currentTitle?: string; currentCompany?: string;
+    education?: string; openToRoles?: string; noticeDays?: number | null; expectedLpa?: number | null; links?: string;
+  } | null) {
+    if (!row) {
+      return {
+        saved: false, headline: '', skills: [] as { key: string; label: string }[],
+        experienceYears: 0, seniority: 'junior', location: null, resumeName: null,
+        resumeUrl: null, resumeBytes: 0, resumeAt: null, photoUrl: null, fullName: '',
+        summary: '', currentTitle: '', currentCompany: '', education: '',
+        openToRoles: [] as string[], noticeDays: null, expectedLpa: null, links: '',
+      };
+    }
     const keys = row.skills ? row.skills.split(',').filter(Boolean) : [];
     return {
       saved: true, headline: row.headline,
       skills: keys.map((k) => ({ key: k, label: labelFor(k) })),
-      experienceYears: row.experienceYears, seniority: row.seniority, location: row.location, resumeName: row.resumeName,
+      experienceYears: row.experienceYears, seniority: row.seniority, location: row.location,
+      // THE FILE, not only what we read out of it. A citizen who uploaded a CV
+      // and could never see it again had handed a document to something that
+      // gave nothing back.
+      resumeName: row.resumeName,
+      resumeUrl: row.resumeUrl ?? null,
+      resumeBytes: row.resumeBytes ?? 0,
+      resumeAt: row.resumeAt ? row.resumeAt.toISOString() : null,
+      photoUrl: row.photoUrl ?? null,
+      // The person, kept apart from the job title. Two facts, two fields.
+      fullName: row.fullName ?? '',
+      summary: row.summary ?? '',
+      currentTitle: row.currentTitle ?? '',
+      currentCompany: row.currentCompany ?? '',
+      education: row.education ?? '',
+      openToRoles: (row.openToRoles ?? '').split(',').map((x) => x.trim()).filter(Boolean),
+      noticeDays: row.noticeDays ?? null,
+      expectedLpa: row.expectedLpa ?? null,
+      links: row.links ?? '',
     };
+  }
+
+  /**
+   * DELETE THE CV. The file, the text pulled out of it, and its name.
+   *
+   * A citizen who uploaded the wrong document, or who simply wants it gone,
+   * had no way to remove it — the app kept a copy of their career history with
+   * no door out. The rest of the profile survives: they may still want to be
+   * matched on what they typed themselves.
+   */
+  async deleteResume(userId: string) {
+    await this.prisma.jobProfile.updateMany({
+      where: { userId },
+      data: { resumeText: '', resumeName: null, resumeUrl: null, resumeBytes: 0, resumeAt: null },
+    });
+    return this.getProfile(userId);
   }
 
   async getProfile(userId: string) {
@@ -45,8 +97,47 @@ export class JobsService implements OnModuleInit {
   }
 
   async uploadResume(userId: string, dto: UploadResumeDto) {
-    const parsed = parseResume(dto.resumeText);
-    await this.persistProfile(userId, parsed, dto.resumeText, dto.fileName ?? null);
+    /**
+     * THE READER FIRST, THE HEURISTIC AS A FLOOR.
+     *
+     * parseResume takes the first non-empty line of the extracted text as the
+     * headline. On a real CV that line is the person's NAME, or a phone
+     * number, or "CURRICULUM VITAE", or — on a two-column PDF — whichever
+     * fragment pdf.js emitted first. Every citizen who uploaded a document got
+     * a synopsis that was not about their career, and the matcher then scored
+     * them on it.
+     *
+     * The reader is asked first and the heuristic keeps whatever the reader
+     * left empty. Falling back rather than refusing matters: a worse headline
+     * beats no profile, and the citizen edits either one before it matters.
+     */
+    const heuristic = parseResume(dto.resumeText);
+    const read = await this.ai.readCv(dto.resumeText).catch(swallowed('jobs.readCv', null));
+    const parsed: ParsedResume = read
+      ? {
+        ...heuristic,
+        headline: read.headline || heuristic.headline,
+        // The reader's year count only wins when it HAS one. Null means it
+        // could not tell, and a heuristic guess is better than a zero that
+        // reads as "no experience".
+        experienceYears: read.experienceYears ?? heuristic.experienceYears,
+        location: read.location ?? heuristic.location,
+        skills: read.skills.length ? [...new Set([...heuristic.skills, ...read.skills])].slice(0, 40) : heuristic.skills,
+      }
+      : heuristic;
+    await this.persistProfile(userId, parsed, dto.resumeText, dto.fileName ?? null, {
+      resumeUrl: dto.fileUrl ?? null,
+      resumeBytes: dto.fileBytes ?? 0,
+      resumeAt: this.clock.now(),
+      // The reader's name first, the heuristic's second, and neither
+      // overwrites a name the citizen has already corrected by hand.
+      fullName: read?.fullName || parsed.name || undefined,
+      summary: read?.summary ?? undefined,
+      currentTitle: read?.currentTitle ?? undefined,
+      currentCompany: read?.currentCompany ?? undefined,
+      education: read?.education.length ? read.education.join('\n') : undefined,
+      openToRoles: read?.openToRoles.length ? read.openToRoles.join(',') : undefined,
+    });
     const jobs = await this.allJobs(userId);
     return { parsed: this.shapeProfile({ headline: parsed.headline, skills: parsed.skills.join(','), experienceYears: parsed.experienceYears, location: parsed.location, seniority: parsed.seniority, resumeName: dto.fileName ?? null }), matchCount: matchJobs(parsed, jobs).length };
   }
@@ -58,12 +149,22 @@ export class JobsService implements OnModuleInit {
       seniority: dto.experienceYears >= 10 ? 'lead' : dto.experienceYears >= 6 ? 'senior' : dto.experienceYears >= 2 ? 'mid' : 'junior',
       location: dto.location ?? null,
     };
-    await this.persistProfile(userId, parsed, existing?.resumeText ?? '', existing?.resumeName ?? null);
+    await this.persistProfile(userId, parsed, existing?.resumeText ?? '', existing?.resumeName ?? null, {
+      fullName: dto.fullName, summary: dto.summary, currentTitle: dto.currentTitle, currentCompany: dto.currentCompany,
+      education: dto.education, links: dto.links,
+      openToRoles: dto.openToRoles ? dto.openToRoles.join(',') : undefined,
+      noticeDays: dto.noticeDays, expectedLpa: dto.expectedLpa, photoUrl: dto.photoUrl,
+    });
     return this.getProfile(userId);
   }
 
-  private async persistProfile(userId: string, p: ParsedResume, resumeText: string, resumeName: string | null) {
-    const data = { headline: p.headline, skills: p.skills.join(','), experienceYears: p.experienceYears, seniority: p.seniority, location: p.location, resumeText, resumeName };
+  private async persistProfile(userId: string, p: ParsedResume, resumeText: string, resumeName: string | null,
+    extra: Record<string, unknown> = {}) {
+    // `undefined` in `extra` means "leave whatever is there" — a citizen who
+    // has edited their own summary must not have it overwritten by a re-upload
+    // that the reader could not summarise.
+    const clean = Object.fromEntries(Object.entries(extra).filter(([, v]) => v !== undefined));
+    const data = { headline: p.headline, skills: p.skills.join(','), experienceYears: p.experienceYears, seniority: p.seniority, location: p.location, resumeText, resumeName, ...clean };
     await this.prisma.jobProfile.upsert({ where: { userId }, update: data, create: { userId, ...data } });
     // Write shared fields back to the Master Profile (job title → occupation,
     // CV location → city) so every other hub stays in sync.

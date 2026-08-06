@@ -3,6 +3,10 @@ import { z } from 'zod';
 export const UploadResumeSchema = z.object({
   resumeText: z.string().min(1).max(20_000),
   fileName: z.string().max(200).optional(),
+  /** The stored file. Kept so the citizen can see, download and replace the
+   *  document they gave us rather than only our extraction of it. */
+  fileUrl: z.string().max(500).optional(),
+  fileBytes: z.number().int().min(0).max(20_000_000).optional(),
 });
 export type UploadResumeDto = z.infer<typeof UploadResumeSchema>;
 
@@ -16,6 +20,19 @@ export const SaveJobProfileSchema = z.object({
   skills: z.array(z.string().max(40)).max(40),
   experienceYears: z.number().int().min(0).max(50),
   location: z.string().max(60).optional(),
+  // Everything below is the profile a person would actually show somebody.
+  // All optional: a citizen who only wants to be matched should not have to
+  // write a biography first.
+  fullName: z.string().max(90).optional(),
+  summary: z.string().max(900).optional(),
+  currentTitle: z.string().max(90).optional(),
+  currentCompany: z.string().max(90).optional(),
+  education: z.string().max(1200).optional(),
+  openToRoles: z.array(z.string().max(90)).max(5).optional(),
+  noticeDays: z.number().int().min(0).max(365).nullable().optional(),
+  expectedLpa: z.number().int().min(0).max(1000).nullable().optional(),
+  links: z.string().max(600).optional(),
+  photoUrl: z.string().max(500).nullable().optional(),
 });
 export type SaveJobProfileDto = z.infer<typeof SaveJobProfileSchema>;
 

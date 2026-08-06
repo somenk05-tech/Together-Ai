@@ -195,6 +195,80 @@ export class AiService {
    * menu with the desserts missing. That is roughly a cent a scan, paid once
    * per business rather than once per visitor.
    */
+  /**
+   * READ A CV THE WAY A RECRUITER READS ONE.
+   *
+   * The heuristic parser this replaces took the FIRST NON-EMPTY LINE of the
+   * extracted text as the headline. On a real CV that line is the person's
+   * name, or a phone number, or "CURRICULUM VITAE", or — on a two-column PDF —
+   * the first fragment pdf.js happened to emit. Every citizen who uploaded a
+   * document got a synopsis that was not about their career, and the matcher
+   * scored them on it.
+   *
+   * This reads the document instead. It PROPOSES: the citizen sees every field
+   * before anything is published, the same split the menu reader uses, because
+   * a summary of somebody's career is a claim they have to stand behind and a
+   * model that misreads "led a team of 4" as "4 years' experience" would put
+   * them in front of the wrong jobs.
+   *
+   * Returns null when there is no client, and the caller falls back to the
+   * heuristic rather than refusing the upload. A worse headline beats no
+   * profile.
+   */
+  async readCv(text: string): Promise<{
+    fullName: string;
+    headline: string; summary: string; currentTitle: string; currentCompany: string;
+    experienceYears: number | null; location: string | null;
+    skills: string[]; education: string[]; openToRoles: string[];
+  } | null> {
+    if (!this.client) return null;
+    const system =
+      'You read a CV and return structured facts about the candidate. ' +
+      'Return ONLY JSON: {"fullName":string,"headline":string,"summary":string,"currentTitle":string,"currentCompany":string,' +
+      '"experienceYears":number|null,"location":string|null,"skills":string[],"education":string[],"openToRoles":string[]}. ' +
+      'fullName: the candidate\'s own name, and nothing else — not a document title, not "Applicant:", not an address. "" if the CV never states it. ' +
+      'headline: the role this person IS, in under 70 characters — "Senior backend engineer", not their name and not "Curriculum Vitae". ' +
+      'summary: 2-3 sentences a recruiter would read first, in the third person, drawn ONLY from the CV. ' +
+      'experienceYears: whole years of professional work, counted from the earliest job. null if the CV does not say enough to count. ' +
+      'Never infer a number from a phrase like "led a team of 4". ' +
+      'skills: technologies, tools and named competencies, lowercase, at most 30. ' +
+      'openToRoles: role titles this person could credibly be hired for, at most 5. ' +
+      'INVENT NOTHING. A field the CV does not support is "" or null or []. ' +
+      'Do not flatter, do not editorialise, do not add adjectives the CV has not earned.';
+    try {
+      const out = await this.json<{
+        fullName?: unknown;
+        headline?: unknown; summary?: unknown; currentTitle?: unknown; currentCompany?: unknown;
+        experienceYears?: unknown; location?: unknown;
+        skills?: unknown; education?: unknown; openToRoles?: unknown;
+      }>(system, text.slice(0, 24_000), null as unknown as Record<string, unknown>, 1400);
+      if (!out) return null;
+      const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+      const list = (v: unknown, max: number, each: number) =>
+        (Array.isArray(v) ? v : []).filter((x): x is string => typeof x === 'string')
+          .map((x) => x.trim()).filter(Boolean).map((x) => x.slice(0, each)).slice(0, max);
+      const yrs = typeof out.experienceYears === 'number' && Number.isFinite(out.experienceYears)
+        // Fifty years is a whole working life; anything past it is a
+        // misread date, not a candidate.
+        ? Math.max(0, Math.min(50, Math.round(out.experienceYears)))
+        : null;
+      return {
+        fullName: str(out.fullName, 90),
+        headline: str(out.headline, 90),
+        summary: str(out.summary, 900),
+        currentTitle: str(out.currentTitle, 90),
+        currentCompany: str(out.currentCompany, 90),
+        experienceYears: yrs,
+        location: str(out.location, 60) || null,
+        skills: list(out.skills, 30, 40),
+        education: list(out.education, 12, 160),
+        openToRoles: list(out.openToRoles, 5, 90),
+      };
+    } catch {
+      return null;
+    }
+  }
+
   async extractMenu(
     image: { base64: string; mediaType: string },
   ): Promise<{ items: Array<{ section?: string; name: string; description?: string; priceInr: number | null }>; note: string } | null> {

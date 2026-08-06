@@ -1418,6 +1418,33 @@ model JobProfile {
   location        String?
   resumeText      String   @default("")
   resumeName      String?
+  /// The FILE, kept as well as the text pulled out of it. Storing only the
+  /// extracted text meant a citizen could upload a CV and then never see it
+  /// again — the app had read their document and given them nothing back.
+  resumeUrl       String?
+  resumeBytes     Int      @default(0)
+  resumeAt        DateTime?
+  /// A face on a job profile. Optional, and never inferred from anywhere else.
+  photoUrl        String?
+  /// THE PERSON'S NAME, kept as its own field rather than left inside the
+  /// headline. The parser used to put whatever the CV's first line said into
+  /// the headline — often the name, often "APPLICATION LETTER Applicant: ..."
+  /// — so a profile showed a document header where a person should be. A name
+  /// and a job title are two different facts and neither is a substitute.
+  fullName        String   @default("")
+  /// The paragraph a recruiter actually reads. Written by the reader from the
+  /// CV and then EDITED BY THE CITIZEN — never published unread, because a
+  /// summary of somebody's career is a claim they have to stand behind.
+  summary         String   @default("")
+  currentTitle    String   @default("")
+  currentCompany  String   @default("")
+  /// One per line, as typed. A degree list is not worth a table.
+  education       String   @default("")
+  /// csv of role titles they want to be found for.
+  openToRoles     String   @default("")
+  noticeDays      Int?
+  expectedLpa     Int?
+  links           String   @default("")
   updatedAt       DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -4,7 +4,21 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 export interface Skill { key: string; label: string }
 export interface JobProfile {
   saved: boolean; headline: string; skills: Skill[]; experienceYears: number;
-  seniority: string; location: string | null; resumeName: string | null;
+  seniority: string; location: string | null;
+  /** The document, not only what was read out of it. */
+  resumeName: string | null; resumeUrl: string | null; resumeBytes: number; resumeAt: string | null;
+  photoUrl: string | null;
+  /** The person. Kept apart from the headline, which is the job title. */
+  fullName: string;
+  summary: string; currentTitle: string; currentCompany: string;
+  education: string; openToRoles: string[];
+  noticeDays: number | null; expectedLpa: number | null; links: string;
+}
+export interface SaveJobProfileInput {
+  headline: string; skills: string[]; experienceYears: number; location?: string;
+  fullName?: string; summary?: string; currentTitle?: string; currentCompany?: string;
+  education?: string; openToRoles?: string[];
+  noticeDays?: number | null; expectedLpa?: number | null; links?: string; photoUrl?: string | null;
 }
 export interface JobMatch {
   id: string; title: string; company: string; location: string; remote: boolean;
@@ -21,9 +35,10 @@ export interface ApplicantsResponse { job: { id: string; title: string; company:
 
 export const jobsApi = {
   profile: () => api.get<JobProfile>('/jobs/profile').then((r) => r.data),
-  uploadResume: (resumeText: string, fileName?: string) =>
-    api.post<{ parsed: JobProfile; matchCount: number }>('/jobs/resume', { resumeText, fileName }).then((r) => r.data),
-  saveProfile: (input: { headline: string; skills: string[]; experienceYears: number; location?: string }) =>
+  uploadResume: (input: { resumeText: string; fileName?: string; fileUrl?: string; fileBytes?: number }) =>
+    api.post<{ parsed: JobProfile; matchCount: number }>('/jobs/resume', input).then((r) => r.data),
+  deleteResume: () => api.delete<JobProfile>('/jobs/resume').then((r) => r.data),
+  saveProfile: (input: SaveJobProfileInput) =>
     api.put<JobProfile>('/jobs/profile', input).then((r) => r.data),
   matches: () => api.get<MatchesResponse>('/jobs/matches').then((r) => r.data),
   applications: () => api.get<Application[]>('/jobs/applications').then((r) => r.data),
@@ -47,8 +62,26 @@ export function useJobProfile() {
 export function useUploadResume() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { resumeText: string; fileName?: string }) => jobsApi.uploadResume(v.resumeText, v.fileName),
+    mutationFn: (v: { resumeText: string; fileName?: string; fileUrl?: string; fileBytes?: number }) => jobsApi.uploadResume(v),
     onSuccess: (res) => { qc.setQueryData(['jobs', 'profile'], res.parsed); void qc.invalidateQueries({ queryKey: ['jobs', 'matches'] }); void qc.invalidateQueries({ queryKey: ['profile'] }); },
+  });
+}
+/** The typed profile — everything the reader proposed, after the citizen has
+ *  seen it. Nothing here is published unread. */
+export function useSaveJobProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: SaveJobProfileInput) => jobsApi.saveProfile(v),
+    onSuccess: (p) => { qc.setQueryData(['jobs', 'profile'], p); void qc.invalidateQueries({ queryKey: ['jobs', 'matches'] }); void qc.invalidateQueries({ queryKey: ['profile'] }); },
+  });
+}
+
+/** Removes the CV — the file, the text and the name. The typed profile stays. */
+export function useDeleteResume() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => jobsApi.deleteResume(),
+    onSuccess: (p) => { qc.setQueryData(['jobs', 'profile'], p); void qc.invalidateQueries({ queryKey: ['jobs', 'matches'] }); },
   });
 }
 export function useJobMatches() {
