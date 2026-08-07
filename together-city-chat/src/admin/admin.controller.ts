@@ -63,9 +63,31 @@ export class AdminController {
     return this.admin.citizens(user.sub, { query: q, status });
   }
 
+  // Declared before ':id', or "export" is read as a citizen id.
+  @Get('citizens/export')
+  exportCitizens(@CurrentUser() user: JwtUser, @Query('reason') reason?: string) {
+    return this.admin.citizensCsv(user.sub, reason ?? '');
+  }
+
+  /**
+   * `unmask=1` asks for the real email and phone. It is granted only to a
+   * caller holding users.contact, it writes an audit row when it is, and a
+   * caller without the permission gets the masked record rather than a 403 —
+   * refusing would turn the option into a probe for who holds what.
+   */
   @Get('citizens/:id')
-  citizen(@CurrentUser() user: JwtUser, @Param('id') id: string) {
-    return this.admin.citizen(user.sub, id);
+  citizen(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+    @Query('unmask') unmask?: string,
+    @Query('reason') reason?: string,
+  ) {
+    return this.admin.citizen(user.sub, id, { unmask: unmask === '1', reason });
+  }
+
+  @Get('citizens/:id/activity')
+  activity(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.admin.activity(user.sub, id);
   }
 
   @Post('citizens/:id/suspension')

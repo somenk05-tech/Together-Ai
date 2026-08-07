@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { CITIZEN_FIELDS, NEVER_IN_CONSOLE, maskEmail, maskPhone, toCitizenView, type CitizenRow } from './citizen-view';
+import { CITIZEN_FIELDS, NEVER_IN_CONSOLE, maskEmail, maskPhone, toCitizenView, type CitizenRow, type CitizenView } from './citizen-view';
+import { ALL_PERMISSIONS, MUST_AUDIT, can } from './permissions';
 
 const src = (p: string) => readFileSync(join(__dirname, '..', p), 'utf8');
 const stripComments = (s: string) =>
@@ -8,6 +9,16 @@ const stripComments = (s: string) =>
 
 const service = stripComments(src('admin/admin.service.ts'));
 const view = stripComments(src('admin/citizen-view.ts'));
+
+/** One row, shared by every unit check below. */
+const BASE: CitizenRow = {
+  id: 'u1', handle: 'asha', name: 'Asha', city: 'Mumbai', profileImage: null,
+  createdAt: new Date('2026-01-01'), lastSeen: new Date('2026-08-01'),
+  email: 'asha@gmail.com', emailVerified: true,
+  phoneE164: '+919812345678', phoneVerifiedAt: new Date('2026-01-02'),
+  deletedAt: null, purgedAt: null, suspendedAt: null, suspendedReason: null,
+  role: 'citizen',
+};
 
 /**
  * THE 360° VIEW IS WHERE A CONSOLE TURNS INTO SURVEILLANCE.
@@ -81,11 +92,135 @@ describe('what the console may know about a person', () => {
   it('masks contact details in the one place that produces them', () => {
     // If any screen could build its own, "masked" would be a property of that
     // screen rather than of the console.
-    expect(view).toMatch(/email: maskEmail\(r\.email\)/);
-    expect(view).toMatch(/phone: maskPhone\(r\.phoneE164\)/);
-    // and the raw columns never leave the service unmasked
+    expect(view).toMatch(/email: unmask \? \(r\.email \?\? null\) : maskEmail\(r\.email\)/);
+    expect(view).toMatch(/phone: unmask \? \(r\.phoneE164 \?\? null\) : maskPhone\(r\.phoneE164\)/);
+    // and the raw columns never leave the service by any other route
     expect(service).not.toMatch(/\br\.email\b/);
     expect(service).not.toMatch(/phoneE164/);
+  });
+
+  it('masks when nobody asked, including when a caller forgets the option', () => {
+    // `rows.map(toCitizenView)` passes the INDEX as the options object. It is
+    // harmless because the default is false — and that is exactly why the
+    // default has to be false rather than merely documented.
+    const base = { ...BASE };
+    expect(toCitizenView(base).email).toBe('a•••@gmail.com');
+    expect(toCitizenView(base, {}).email).toBe('a•••@gmail.com');
+    expect((toCitizenView as unknown as (r: CitizenRow, i: number) => CitizenView)(base, 3).email)
+      .toBe('a•••@gmail.com');
+    expect(toCitizenView(base).contactRevealed).toBe(false);
+  });
+
+  it('reveals only when asked AND permitted, and says so in the payload', () => {
+    const revealed = toCitizenView({ ...BASE }, { unmask: true });
+    expect(revealed.email).toBe('asha@gmail.com');
+    expect(revealed.phone).toBe('+919812345678');
+    // The screen has to be able to LOOK different when it is showing a real
+    // address. One that renders a mask and a real address identically is one
+    // that gets screenshotted.
+    expect(revealed.contactRevealed).toBe(true);
+  });
+});
+
+/**
+ * UNMASKING IS A CAPABILITY, NOT A VIEW.
+ *
+ * The first version of citizen-view.ts said that if unmasking were ever needed
+ * it would get its own permission and its own audit entry rather than being
+ * folded into users.read. It was needed. These are the checks that make that
+ * sentence true rather than a thing somebody wrote once.
+ */
+describe('revealing a real email and phone number', () => {
+  it('has its own permission, held by nobody from admin downwards', () => {
+    expect(ALL_PERMISSIONS).toContain('users.contact');
+    for (const role of ['admin', 'operations', 'support', 'finance', 'moderator',
+      'marketing', 'engineering', 'business_success'] as const) {
+      expect(can([role], 'users.contact')).toBe(false);
+      // …while the everyday permission stays where it was, so this did not
+      // quietly take anything away from a support agent.
+      // marketing, engineering and business_success never held users.read —
+      // this change did not take it from them, and the list says which.
+      if (!['marketing', 'engineering', 'business_success'].includes(role)) {
+        expect(can([role], 'users.read')).toBe(true);
+      }
+    }
+    expect(can(['founder'], 'users.contact')).toBe(true);
+    expect(can(['superadmin'], 'users.contact')).toBe(true);
+  });
+
+  it('is the one READ that must be audited', () => {
+    // Every other entry on MUST_AUDIT changes something. This one does not,
+    // and it is on the list because a contact detail leaving the system in a
+    // usable form is not a page view.
+    expect(MUST_AUDIT).toContain('users.contact');
+  });
+
+  it('checks the permission and records BEFORE it unmasks', () => {
+    expect(service).toMatch(/const allowed = await this\.access\.holds\(userId, 'users\.contact'\)/);
+    expect(service).toMatch(/action: 'user\.contact\.reveal'/);
+    // Order matters: record, then set the flag. A reveal that happened without
+    // a row is the thing the row exists to prevent.
+    const at = (re: RegExp) => service.search(re);
+    expect(at(/user\.contact\.reveal/)).toBeLessThan(at(/unmask = true/));
+  });
+
+  it('does not 403 a caller who asks without holding it', () => {
+    // Refusing would turn the option into a probe for who holds what. They
+    // get the masked record, which is what they were entitled to anyway.
+    expect(service).toMatch(/if \(allowed\) \{/);
+    expect(service).not.toMatch(/assert\(userId, 'users\.contact'\)/);
+  });
+});
+
+/**
+ * THE EXPORT. A CSV is the one artefact that reliably outlives the decision to
+ * make it — Downloads folder, email attachment, still there in two years.
+ */
+describe('the whole-list export', () => {
+  it('never unmasks, whatever the caller holds', () => {
+    // Unmasking one record on screen is a considered act. Unmasking the whole
+    // table into a spreadsheet is a different thing, and it is not offered.
+    expect(service).toMatch(/const v = toCitizenView\(r\);/);
+    expect(service).toMatch(/contactMasked: true/);
+  });
+
+  it('is audited, like the reveal and unlike every other read', () => {
+    expect(service).toMatch(/action: 'users\.export'/);
+  });
+
+  it('defuses spreadsheet formulas in citizen-chosen text', () => {
+    // A handle of "=cmd|..." is a real attack on whoever opens the file, and
+    // the citizen chose the handle.
+    expect(service).toMatch(/\/\^\[=\+\\-@\\t\\r\]\//);
+  });
+});
+
+/**
+ * ACTIVITY. The distance between "has a medical record" and "has hypertension"
+ * is the whole distance between an admin tool and a health data breach.
+ */
+describe('which hubs an account uses', () => {
+  it('counts, and never reads a row', () => {
+    const activity = service.slice(service.indexOf('async activity('), service.indexOf('async citizensCsv('));
+    expect(activity.length).toBeGreaterThan(200);
+    expect(activity).not.toMatch(/findMany|findFirst/);
+    // findUnique appears once, to check the account exists, and selects only id.
+    expect(activity).toMatch(/findUnique\(\{ where: \{ id: targetId \}, select: \{ id: true \} \}\)/);
+  });
+
+  it('reports the health hubs as presence, not contents', () => {
+    const activity = service.slice(service.indexOf('async activity('), service.indexOf('async citizensCsv('));
+    for (const hub of ['dating', 'beauty', 'fitness', 'medical', 'astrology']) {
+      expect(activity).toMatch(new RegExp(`${hub}: \\w+ > 0`));
+    }
+  });
+
+  it('does not put IP addresses on a screen', () => {
+    // They are recorded on RefreshToken so a compromised account can be traced
+    // by somebody with database access. A console list of them is a map of
+    // where colleagues live.
+    const activity = service.slice(service.indexOf('async activity('), service.indexOf('async citizensCsv('));
+    expect(activity).not.toMatch(/\bip\b/i);
   });
 
   it('masks enough to recognise and not enough to contact', () => {
@@ -103,14 +238,7 @@ describe('what the console may know about a person', () => {
 });
 
 describe('an account’s status is one word, decided in one place', () => {
-  const base: CitizenRow = {
-    id: 'u1', handle: 'asha', name: 'Asha', city: 'Mumbai', profileImage: null,
-    createdAt: new Date('2026-01-01'), lastSeen: new Date('2026-08-01'),
-    email: 'asha@gmail.com', emailVerified: true,
-    phoneE164: '+919812345678', phoneVerifiedAt: new Date('2026-01-02'),
-    deletedAt: null, purgedAt: null, suspendedAt: null, suspendedReason: null,
-    role: 'citizen',
-  };
+  const base = BASE;
 
   it('shows the LAST thing that happened, not the first one that matched', () => {
     // An account suspended and then closed is both; a purged account is also

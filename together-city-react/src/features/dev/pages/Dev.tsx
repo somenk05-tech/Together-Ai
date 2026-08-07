@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button, Card, EmptyState, Spinner } from '@/components/ui';
 import { useDiagnostics, useFlags, useSetFlag, type EnvRow, type FlagRow } from '../api';
 import { routeIndex } from '../routeIndex';
+import { DevCitizens } from '../Citizens';
 
 /**
  * THE DEVELOPER PAGE.
@@ -178,7 +179,7 @@ function FlagRowView({ flag, password }: { flag: FlagRow; password: string }) {
 
 /* ─────────────────────────── the page ─────────────────────────── */
 
-type Tab = 'config' | 'flags' | 'routes';
+type Tab = 'config' | 'users' | 'flags' | 'routes';
 
 export function DevPage() {
   const [password, setPassword] = useState<string | null>(null);
@@ -234,6 +235,7 @@ export function DevPage() {
 
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--line)', margin: '16px 0 18px' }}>
         {([['config', `Configuration${notSet.length ? ` (${notSet.length} unset)` : ''}`],
+           ['users', 'Users'],
            ['flags', 'Kill switches'],
            ['routes', `Pages (${routes.length})`]] as Array<[Tab, string]>).map(([k, label]) => (
           <button key={k} type="button" onClick={() => setTab(k)} aria-current={tab === k ? 'page' : undefined}
@@ -294,6 +296,8 @@ export function DevPage() {
           )}
         </>
       )}
+
+      {tab === 'users' && <DevCitizens />}
 
       {tab === 'flags' && (
         <>

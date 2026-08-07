@@ -82,8 +82,32 @@ describe('the developer page shows counts, not people', () => {
   const service = stripComments(read('dev/dev.service.ts'));
 
   it('reads no citizen rows at all', () => {
+    // THE PAGE NOW SHOWS USER RECORDS, AND THIS RULE DID NOT MOVE.
+    //
+    // The Users tab was asked for and built, and every request it makes goes
+    // to the ADMIN console's endpoints, which check users.read from the grants
+    // table. Nothing about a person is served from this module.
+    //
+    // That is the difference the whole design turns on. The password opens the
+    // PAGE; a per-person grant opens the PEOPLE. A leaked password shows
+    // nobody, and "who looked at this citizen" has an answer, which "whoever
+    // knew the password" never can. The moment this file grows its own user
+    // query, both of those stop being true and nothing else would notice.
     expect(service).not.toMatch(/user\.findMany|user\.findUnique|user\.findFirst/);
     expect(service).toMatch(/user\.count/);
+  });
+
+  it('declares no route that serves a person', () => {
+    // Route PATHS, not the whole file: the handlers take @CurrentUser to know
+    // WHO IS ASKING, which is the opposite of serving somebody's record. The
+    // first version of this matched the word "user" anywhere and flagged
+    // exactly the parameter that makes the routes safe.
+    const controller = stripComments(read('dev/dev.controller.ts'));
+    const paths = [...controller.matchAll(/@(?:Get|Post|Patch|Put|Delete)\('([^']*)'\)/g)].map((m) => m[1]);
+    expect(paths.length).toBeGreaterThan(0);
+    for (const path of paths) {
+      expect(path).not.toMatch(/citizen|user|people|account/i);
+    }
   });
 
   it('reads no listing, message or health rows', () => {

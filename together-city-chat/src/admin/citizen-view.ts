@@ -31,13 +31,24 @@
  *
  * ── AND THE ONE THAT IS A JUDGEMENT CALL, MADE OUT LOUD ──
  *
- * The email address and the phone number are MASKED, not withheld and not
- * shown. The real support case is "somebody wrote to us from s…@gmail.com,
- * is that this account" — which a mask answers completely. Handing the actual
- * address to every one of ten roles answers it too, and also hands over a
- * contact detail the citizen gave us for receipts. If unmasking is ever
- * genuinely needed it gets its own permission key and its own audit entry; it
- * does not get quietly folded into `users.read`.
+ * The email address and the phone number are MASKED BY DEFAULT. The everyday
+ * support case is "somebody wrote to us from s…@gmail.com, is that this
+ * account" — which a mask answers completely. Handing the actual address to
+ * every one of ten roles answers it too, and also hands over a contact detail
+ * the citizen gave us for receipts.
+ *
+ * UNMASKING EXISTS, AND IT COST WHAT IT SAID IT WOULD. The first version of
+ * this comment said: "if unmasking is ever genuinely needed it gets its own
+ * permission key and its own audit entry; it does not get quietly folded into
+ * users.read." It was needed, and that is exactly what it got. `users.contact`
+ * is held by two roles by construction and by no role from `admin` downwards,
+ * and it is the only READ in this system that writes an audit row. A support
+ * agent can still find an account and see its history; they cannot collect
+ * anybody's phone number.
+ *
+ * The default stays masked. `unmask` is a parameter somebody has to pass, on a
+ * request that has to say why, which is the difference between a capability
+ * and a view.
  */
 
 /** The columns the console's User query is allowed to select. */
@@ -98,11 +109,15 @@ export interface CitizenView {
   profileImage: string | null;
   joinedAt: Date;
   lastSeen: Date;
-  /** Masked. See the note above — this is deliberate, not an oversight. */
+  /** Masked unless the caller holds users.contact AND asked. */
   email: string | null;
   emailVerified: boolean;
   phone: string | null;
   phoneVerified: boolean;
+  /** True when the two fields above are the real values. Rendered by the page
+   *  as a visible state, because a screen that shows a real address and looks
+   *  identical to one showing a mask is a screen that gets screenshotted. */
+  contactRevealed: boolean;
   /** live | suspended | deleted | purged — one word, computed in one place. */
   status: 'live' | 'suspended' | 'deleted' | 'purged';
   suspendedAt: Date | null;
@@ -128,11 +143,14 @@ export interface CitizenRow {
  * account somebody suspended before closing is both — showing the LAST thing
  * that happened to it is the only reading that is never wrong.
  */
-export function toCitizenView(r: CitizenRow): CitizenView {
+export function toCitizenView(r: CitizenRow, opts: { unmask?: boolean } = {}): CitizenView {
   const status: CitizenView['status'] = r.purgedAt ? 'purged'
     : r.deletedAt ? 'deleted'
     : r.suspendedAt ? 'suspended'
     : 'live';
+  // Default false, so a call site that forgets the option masks rather than
+  // reveals. The safe direction has to be the one you get by accident.
+  const unmask = opts.unmask === true;
   return {
     id: r.id,
     handle: r.handle,
@@ -141,10 +159,11 @@ export function toCitizenView(r: CitizenRow): CitizenView {
     profileImage: r.profileImage,
     joinedAt: r.createdAt,
     lastSeen: r.lastSeen,
-    email: maskEmail(r.email),
+    email: unmask ? (r.email ?? null) : maskEmail(r.email),
     emailVerified: r.emailVerified,
-    phone: maskPhone(r.phoneE164),
+    phone: unmask ? (r.phoneE164 ?? null) : maskPhone(r.phoneE164),
     phoneVerified: r.phoneVerifiedAt != null,
+    contactRevealed: unmask,
     status,
     suspendedAt: r.suspendedAt,
     suspendedReason: r.suspendedReason,

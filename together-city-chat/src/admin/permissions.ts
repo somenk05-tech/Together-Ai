@@ -28,6 +28,7 @@
  *  silently un-grants itself from every role that held it. */
 export const PERMISSIONS = {
   'users.read': 'See citizen accounts and their status',
+  'users.contact': 'Reveal a citizen\'s real email address and phone number',
   'users.suspend': 'Suspend or restore an account',
   'users.delete': 'Delete an account and its data',
 
@@ -70,6 +71,12 @@ export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[];
 export const ROLES = {
   founder: ALL_PERMISSIONS,
   superadmin: ALL_PERMISSIONS.filter((p) => p !== 'users.delete'),
+  // NOTE ON users.contact, because its absence below is the whole point of it.
+  // Everything from `admin` down holds users.read and NOT users.contact: a
+  // support agent can find an account, see its status and its history, and
+  // cannot collect the address a citizen gave us for receipts. Two roles hold
+  // it, both by construction rather than by being listed, and using it writes
+  // an audit row — the only READ in this system that does.
   admin: [
     'users.read', 'users.suspend',
     'business.read', 'business.approve', 'business.suspend', 'business.feature',
@@ -118,6 +125,15 @@ export const can = (roles: readonly string[], need: Permission): boolean =>
  * of which staff member looked at which citizen, which is its own hazard.
  */
 export const MUST_AUDIT: readonly Permission[] = [
+  // THE ONE READ ON THIS LIST, AND WHY IT IS THE EXCEPTION.
+  //
+  // The rule above is that reads are not audited: a log of every page view is
+  // a log nobody reads, and it builds a record of which colleague looked at
+  // which citizen. Revealing somebody's real email and phone number is not a
+  // page view. It is the moment a contact detail they gave us for receipts
+  // leaves the system in a form somebody can use, and the question "who pulled
+  // this person's number" has to have an answer.
+  'users.contact',
   'users.suspend', 'users.delete',
   'business.approve', 'business.suspend', 'business.feature',
   'moderation.act',

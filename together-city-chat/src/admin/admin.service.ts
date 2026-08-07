@@ -197,7 +197,11 @@ export class AdminService {
       // silently stops at fifty reads as "there are fifty".
       take: 50,
     }) as unknown as CitizenRow[];
-    return { items: rows.map(toCitizenView), limit: 50, truncated: rows.length === 50 };
+    // Not `rows.map(toCitizenView)`: map passes the INDEX as the second
+    // argument, which lands in the options object. It happens to be harmless
+    // — `(3).unmask` is undefined, so it masks — but the version of this that
+    // is safe by accident is one refactor away from the version that is not.
+    return { items: rows.map((r) => toCitizenView(r)), limit: 50, truncated: rows.length === 50 };
   }
 
   /**
@@ -212,13 +216,43 @@ export class AdminService {
    * citizen-view.ts, where that is a decision with reasons rather than an
    * omission somebody can fill in.
    */
-  async citizen(userId: string, targetId: string) {
+  async citizen(userId: string, targetId: string, opts: { unmask?: boolean; reason?: string } = {}) {
     await this.access.assert(userId, 'users.read');
     const row = await this.prisma.user.findUnique({
       where: { id: targetId },
       select: this.citizenSelect,
     }) as unknown as CitizenRow | null;
     if (!row) throw new NotFoundException('no such account');
+
+    /**
+     * The one read in this system that is audited.
+     *
+     * Everywhere else, reads are not logged: a record of every page view is a
+     * record nobody reads and a record of which colleague looked at which
+     * citizen. Revealing somebody's actual email and phone number is not a page
+     * view — it is a contact detail leaving the system in a form somebody can
+     * use — so "who pulled this person's number" has an answer.
+     *
+     * The permission is checked BEFORE the reason, and the reason is required,
+     * because act() enforces both and there is no cheaper version of this that
+     * is still honest. A caller without users.contact gets the mask and no
+     * error: asking for something you may not have is not a failure, and a 403
+     * here would turn the checkbox into a probe for who holds what.
+     */
+    let unmask = false;
+    if (opts.unmask) {
+      const allowed = await this.access.holds(userId, 'users.contact');
+      if (allowed) {
+        await this.access.record({
+          actorId: userId,
+          action: 'user.contact.reveal',
+          entity: 'user', entityId: targetId,
+          after: { revealed: ['email', 'phone'] },
+          reason: (opts.reason ?? '').trim() || 'No reason given.',
+        });
+        unmask = true;
+      }
+    }
 
     const [listings, reportsMade, reportsAbout, grants, actions] = await Promise.all([
       this.prisma.serviceListing.findMany({
@@ -251,7 +285,7 @@ export class AdminService {
     const byId = new Map(actors.map((a) => [a.id, a]));
 
     return {
-      citizen: toCitizenView(row),
+      citizen: toCitizenView(row, { unmask }),
       listings: listings.map((l) => ({
         id: l.id, slug: l.slug, businessName: l.businessName, categoryKey: l.categoryKey,
         city: l.city, moderation: l.moderation, createdAt: l.createdAt.toISOString(),
@@ -318,6 +352,146 @@ export class AdminService {
       });
       return { id: targetId, suspended };
     });
+  }
+
+
+  /**
+   * WHICH HUBS THIS ACCOUNT ACTUALLY USES — AND NOT ONE WORD OF WHAT IS IN THEM.
+   *
+   * The question this answers is "is this a real, active account, and where
+   * does it live in the app" — which is what you need before deciding whether
+   * a report is worth acting on, or whether a support case is about somebody
+   * who has used the thing they are complaining about.
+   *
+   * EVERY ENTRY IS A COUNT OR A BOOLEAN. `has a dating profile` is an
+   * operational fact. What is IN the dating profile is not this console's
+   * business, and neither is a blood marker, a food diary or a message. The
+   * distance between "has a medical record" and "has hypertension" is the
+   * entire distance between an admin tool and a health data breach, and the
+   * only thing that keeps it is that nothing here selects a content column.
+   *
+   * The counts are deliberately shallow — `count`, never `findMany`. A findMany
+   * would return rows, and rows are contents.
+   */
+  async activity(userId: string, targetId: string) {
+    await this.access.assert(userId, 'users.read');
+    const exists = await this.prisma.user.findUnique({ where: { id: targetId }, select: { id: true } });
+    if (!exists) throw new NotFoundException('no such account');
+
+    const c = this.prisma;
+    const [
+      posts, comments, connections, conversations, messages,
+      recipes, journal, listings, enquiries, jobApplications, jobPostings,
+      driveFiles, mailMessages, notifications,
+      foodPref, dating, beauty, fitness, medical, astro, jobProfile, master,
+      refreshTokens, devices,
+    ] = await Promise.all([
+      c.post.count({ where: { authorId: targetId } }),
+      c.comment.count({ where: { authorId: targetId } }),
+      c.connection.count({ where: { OR: [{ userOneId: targetId }, { userTwoId: targetId }] } }),
+      c.conversationMember.count({ where: { userId: targetId } }),
+      c.message.count({ where: { senderId: targetId } }),
+      c.recipe.count({ where: { authorId: targetId } }),
+      c.foodJournalEntry.count({ where: { userId: targetId } }),
+      c.serviceListing.count({ where: { ownerId: targetId } }),
+      c.serviceEnquiry.count({ where: { seekerId: targetId } }),
+      c.jobApplication.count({ where: { userId: targetId } }),
+      c.job.count({ where: { postedById: targetId } }),
+      c.driveFile.count({ where: { ownerId: targetId } }),
+      c.mailMessage.count({ where: { ownerId: targetId } }),
+      c.notification.count({ where: { userId: targetId } }),
+      c.foodPref.count({ where: { userId: targetId } }),
+      c.datingProfile.count({ where: { userId: targetId } }),
+      c.beautyProfile.count({ where: { userId: targetId } }),
+      c.fitnessProfile.count({ where: { userId: targetId } }),
+      c.medicalRecord.count({ where: { userId: targetId } }),
+      c.astroProfile.count({ where: { userId: targetId } }),
+      c.jobProfile.count({ where: { userId: targetId } }),
+      c.masterProfile.count({ where: { userId: targetId } }),
+      // Sessions. An active refresh token IS a signed-in device.
+      c.refreshToken.count({ where: { userId: targetId, revoked: false, expiresAt: { gt: new Date() } } }),
+      c.deviceToken.count({ where: { userId: targetId } }),
+    ]);
+
+    return {
+      counts: {
+        posts, comments, connections, conversations, messages,
+        recipes, foodJournalEntries: journal,
+        listings, serviceEnquiries: enquiries,
+        jobApplications, jobPostings,
+        driveFiles, mailMessages, notifications,
+      },
+      // Presence only. The name of each is the entire payload.
+      profiles: {
+        nutrition: foodPref > 0,
+        dating: dating > 0,
+        beauty: beauty > 0,
+        fitness: fitness > 0,
+        medical: medical > 0,
+        astrology: astro > 0,
+        jobs: jobProfile > 0,
+        masterProfile: master > 0,
+      },
+      sessions: {
+        // No IP addresses. They are recorded on RefreshToken so a compromised
+        // account can be traced by somebody with database access; a console
+        // screen that lists them builds a map of where colleagues live.
+        activeSessions: refreshTokens,
+        pushDevices: devices,
+      },
+    };
+  }
+
+  /**
+   * THE WHOLE LIST, AS A FILE.
+   *
+   * Through the same projection as every other citizen read, so the export can
+   * never contain a column the screen would not show — including the contact
+   * details, which stay masked here whatever the caller holds. A CSV is the one
+   * artefact that reliably outlives the decision to make it: it lands in a
+   * Downloads folder, gets attached to an email, and is still there in two
+   * years. Unmasking one record on screen is a considered act; unmasking
+   * fourteen thousand into a spreadsheet is a different thing that has not been
+   * asked for and is not offered.
+   *
+   * AUDITED, unlike other reads, and for the same reason as the reveal: this is
+   * the entire user table leaving the system in one movement.
+   */
+  async citizensCsv(userId: string, reason: string) {
+    await this.access.assert(userId, 'users.read');
+    await this.access.record({
+      actorId: userId,
+      action: 'users.export',
+      entity: 'user', entityId: 'all',
+      reason: reason.trim() || 'No reason given.',
+    });
+
+    // unbounded: an export that stopped at a page would be a file somebody
+    // believes is the whole list. If it gets slow it needs streaming, not a cap.
+    const rows = await this.prisma.user.findMany({
+      select: this.citizenSelect,
+      orderBy: { createdAt: 'desc' },
+    }) as unknown as CitizenRow[];
+
+    const HEAD = ['id', 'handle', 'name', 'city', 'joined', 'lastSeen', 'email', 'emailVerified', 'phone', 'phoneVerified', 'status', 'suspendedAt', 'suspendedReason', 'moderator'];
+    // A leading apostrophe, =, + or - makes a spreadsheet treat the cell as a
+    // formula. A handle of "=cmd|..." is a real attack on whoever opens the
+    // file, and it is the citizen who chose the handle.
+    const cell = (v: unknown): string => {
+      const raw = v === null || v === undefined ? '' : String(v);
+      const safe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+      return `"${safe.replace(/"/g, '""')}"`;
+    };
+    const lines = [HEAD.join(',')];
+    for (const r of rows) {
+      const v = toCitizenView(r);
+      lines.push([
+        v.id, v.handle, v.name, v.city, v.joinedAt.toISOString(), v.lastSeen.toISOString(),
+        v.email, v.emailVerified, v.phone, v.phoneVerified,
+        v.status, v.suspendedAt?.toISOString() ?? '', v.suspendedReason, v.moderator,
+      ].map(cell).join(','));
+    }
+    return { csv: lines.join('\n'), rows: rows.length, contactMasked: true };
   }
 
   /**

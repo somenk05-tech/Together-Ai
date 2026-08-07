@@ -32,6 +32,19 @@ export class AdminAccessService {
   }
 
   /**
+   * Does this person hold it — a question, not a demand.
+   *
+   * assert() throws, which is right for a route somebody is not allowed to
+   * call. It is wrong for an OPTION on a route they are allowed to call: a
+   * caller who asks to unmask a phone number and does not hold users.contact
+   * should get the masked record, not a 403 telling them the permission
+   * exists. A refusal there is a probe for who holds what.
+   */
+  async holds(userId: string, need: Permission): Promise<boolean> {
+    return can(await this.rolesOf(userId), need);
+  }
+
+  /**
    * Refuses by naming the permission, not the role.
    *
    * "You need finance.act" tells the person what to ask for. "You are not an
