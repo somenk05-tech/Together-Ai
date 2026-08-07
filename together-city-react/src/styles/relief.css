@@ -1638,6 +1638,28 @@ textarea.g-field { resize: none; line-height: 1.55; }
 
    The values live in tokens.css. See --pane there for why the glass is
    smoked rather than clear. */
+/* ── AND THE SAME GROUND, MOVING ─────────────────────────────────────────
+   The film sits in the still's layer and covers it. Both are z-index -2, and
+   the film is a real element while the still is a pseudo-element on .tc-shell
+   later in the tree — so without an explicit step the STILL paints on top and
+   the video plays, invisibly, underneath. That is not a hypothetical: it is
+   what the first build of this did, and it looked exactly like a working
+   still sky.
+
+   The still is not removed. It is the poster for the seconds before the video
+   decodes, and it is the whole screen for anybody the film does not mount
+   for — see SkyFilm.tsx for why that is a real fallback rather than a frame. */
+.sky-film {
+  position: fixed; inset: 0; z-index: -1; overflow: hidden;
+  pointer-events: none; background: var(--ground);
+}
+.sky-film video { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Both preferences flatten the room to its still, so the film goes with the
+   picture rather than being left running behind a solid pane. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .sky-film { display: none; }
+}
+
 /* THE BODY HAS TO STOP PAINTING. index.css gives <body> an opaque
    `background: var(--ground)`, and an opaque parent covers a z-index:-2 child
    completely — the picture loads, decodes and is never seen. Found by

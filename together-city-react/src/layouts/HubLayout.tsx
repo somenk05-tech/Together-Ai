@@ -8,12 +8,17 @@ import { CookRoot } from '@/features/nutrition/components/CookMode';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { HubConsentGate } from '@/features/privacy/HubConsentGate';
 import { VerifyEmailBanner } from '@/features/auth/VerifyEmailBanner';
+import { SkyFilm } from '@/components/SkyFilm';
 
 /** Two-column layout (sidebar + content) used by every hub's inner pages. */
 export function HubLayout({ hub }: { hub: HubConfig }) {
   useHubTheme(hub.key);
   return (
     <>
+      {/* The moving sky, for the one hub whose ground is a picture. Mounted
+          here rather than inside a page so it survives navigation between the
+          hub's five screens without restarting. */}
+      {hub.film && <SkyFilm />}
       <Header />
       <VerifyEmailBanner />
       <div className="tc-shell">
