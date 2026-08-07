@@ -163,17 +163,63 @@ describe('Relief stays a system', () => {
   });
 
   /**
-   * THE GROUND IS WHITE.
+   * THE GROUND IS WHITE — EVERYWHERE THE ROOT DECIDES IT.
    *
-   * --paper and --card are the ground. If either stops being white the page
-   * splits into two tones again and every relief in the application loses the
-   * thing it is measured against.
+   * --paper and --card are the ground. If either stops being white AT THE ROOT
+   * the page splits into two tones again and every relief in the application
+   * loses the thing it is measured against.
+   *
+   * The `:root` slice is taken deliberately. Asserting against the whole file
+   * would have kept passing the moment a hub re-pointed the ground in its own
+   * block — `toMatch` only needs the string to survive SOMEWHERE — and a guard
+   * that cannot fail is worse than no guard, because it is read as proof.
    */
-  it('keeps the ground white', () => {
+  it('keeps the ground white at the root', () => {
+    const root = strip(tokens).split(/\[data-hub=/)[0];
     for (const t of ['--ground', '--paper', '--card']) {
-      expect(strip(tokens)).toMatch(new RegExp(`${t}:\\s*#ffffff`));
+      expect(root).toMatch(new RegExp(`${t}:\\s*#ffffff`));
     }
     expect(strip(tokens)).not.toContain('[data-theme="dark"]');
+  });
+
+  /**
+   * ONE HUB HAS ITS OWN PAPER, AND IT IS SCOPED OR IT IS NOT AN EXCEPTION.
+   *
+   * Nutrition is the one hub read rather than operated, and it already held the
+   * only other surface exception ([data-press]). It now sets a warm ground for
+   * the whole hub. The argument is written out in tokens.css; this is the part
+   * that keeps it from spreading.
+   *
+   * THE ACCENT HUE IS NOT THE GROUND. The tint that was removed years-of-commits
+   * ago washed the page in the hub's GREEN. This one is warm paper with the
+   * green left in the fill and the hairline — which is why it is allowed and
+   * why a second hub asking for "a tint like nutrition's" is asking for the
+   * removed thing, not this one.
+   *
+   * So: exactly one hub may re-point a ground token, and the depth tokens it
+   * re-points must keep their names. A hub inventing --e6 is a sixth depth
+   * wearing a scope.
+   */
+  it('keeps the warm ground inside the one hub it was granted to', () => {
+    const css = strip(tokens);
+    // 1. every [data-hub] block that re-points a ground token is nutrition's
+    const blocks = [...css.matchAll(/\[data-hub="([a-z]+)"\][^{]*\{([^}]*)\}/g)];
+    const grounded = blocks
+      .filter(([, , body]) => /--(ground|paper|card|wash|rail-well)\s*:/.test(body))
+      .map(([, hub]) => hub);
+    expect([...new Set(grounded)]).toEqual(['nutrition']);
+
+    // 2. it re-points depths, and invents none. Five depths, no sixth — a
+    //    scope may change what a depth is made of, never how many there are.
+    const nutrition = blocks.filter(([, hub]) => hub === 'nutrition').map(([, , b]) => b).join(' ');
+    const declared = [...nutrition.matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]);
+    const rootNames = new Set([...css.split(/\[data-hub=/)[0].matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+    expect(declared.filter((n) => !rootNames.has(n))).toEqual([]);
+
+    // 3. and the warm ground is only ever reached through the hub attribute —
+    //    never pinned to a page, which is how a scope becomes a default.
+    const wearers = PAGES.filter((f) => /data-hub="nutrition"|data-hub='nutrition'/.test(stripTs(read(f))));
+    expect(wearers).toEqual([]);
   });
 
   /**
