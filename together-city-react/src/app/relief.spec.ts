@@ -183,11 +183,12 @@ describe('Relief stays a system', () => {
   });
 
   /**
-   * THREE HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
+   * FOUR HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
    * EXCEPTION.
    *
-   * All three are hubs you READ rather than operate, which is the whole of the
-   * argument and the reason a fourth is not automatic:
+   * Three of the four are hubs you READ rather than operate; the fourth
+   * (social) earns it on material instead, and says so. Either way a fifth is
+   * not automatic:
    *
    *   nutrition — warm paper. It already held the only other surface exception
    *     ([data-press], granted because a day of food is read the way a menu is),
@@ -203,19 +204,28 @@ describe('Relief stays a system', () => {
    *     posters on white is a catalogue rather than a screen. Its accent hue is
    *     NOT the ground either: the ground is near-black, the green stays in the
    *     fill and in the readable ink.
+   *   social — a lavender sweep, and the ONLY one whose argument is not "a hub
+   *     you read". Social Life is one you post to as much as you read. Its
+   *     case is about MATERIAL: relief.css has shipped .g-slab, .g-key and
+   *     --glass-face for this hub since the ground-glass work, opaque, with a
+   *     comment saying why — "clear glass on white has nothing behind it to
+   *     bend" — and another saying what should happen if it earned its place.
+   *     A tinted ground is the surface those classes were written for. The
+   *     hub's content is also a wall of other people's photographs, which on
+   *     white is a contact sheet.
    *
    * THE ACCENT HUE IS NEVER THE GROUND. The tint that was removed washed the
    * page in the hub's GREEN. Neither of these does that: one is paper with the
    * green left in the fill, one is charcoal with the gold left in the fill. A
-   * fourth hub asking for "a tint like nutrition's" is asking for the removed
+   * fifth hub asking for "a tint like nutrition's" is asking for the removed
    * thing, not for any of these, and gets its own line here or nothing.
    *
    * The list is written out rather than counted, exactly like the press's
    * wearers, so a third entry costs an argument instead of a nod.
    */
-  it('keeps a re-pointed ground inside the three hubs it was granted to', () => {
+  it('keeps a re-pointed ground inside the four hubs it was granted to', () => {
     const css = strip(tokens);
-    const GRANTED = ['astrology', 'entertainment', 'nutrition'];
+    const GRANTED = ['astrology', 'entertainment', 'nutrition', 'social'];
 
     // 1. only the granted hubs re-point a ground token. Sorted: the file's
     //    order is editorial and a re-order must not read as a breach.
@@ -267,7 +277,7 @@ describe('Relief stays a system', () => {
       return (hi + 0.05) / (lo + 0.05);
     };
     const failures: string[] = [];
-    for (const hub of ['astrology', 'entertainment', 'nutrition']) {
+    for (const hub of ['astrology', 'entertainment', 'nutrition', 'social']) {
       // The block that owns the ground, found by the thing that makes it that
       // block rather than by position: nutrition and entertainment each once
       // had a plain accent one-liner elsewhere in the file, and matching the

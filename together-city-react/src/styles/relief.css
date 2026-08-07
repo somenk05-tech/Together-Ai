@@ -1626,6 +1626,66 @@ textarea.g-field { resize: none; line-height: 1.55; }
     margin-top: 32px; padding-top: 32px; }
 }
 
+/* ══ SOCIAL LIFE, IN GLASS ═══════════════════════════════════════════════
+   The classes were already here. This is the ground they were written for —
+   see the block in tokens.css for the argument, and for why the ground is a
+   step lighter than the plate it came from.
+
+   NOTHING HERE SETS A SIZE OR A COLOUR. The slab, the keys and the rail keep
+   every radius, height and gap they had on white; they gain a backdrop-filter
+   and lose their opacity, which is the whole difference between a pale panel
+   and glass. Every value comes from a token — including the wash, which rides
+   --sky-image: a gradient is an image, so the hub that hangs a picture and the
+   hub that hangs a wash use one mechanism rather than two.                    */
+[data-hub="social"] body { background: transparent; }
+.tc-shell:has(.tc-side[data-side="social"])::before {
+  content: ''; position: fixed; inset: 0; z-index: -2;
+  background: var(--sky-image);
+  background-color: var(--ground);
+}
+[data-hub="social"] .tc-shell,
+[data-hub="social"] .tc-main,
+[data-hub="social"] .page { background: transparent; }
+
+/* THREE WEIGHTS, NEVER TWO OF THE SAME STACKED. Chrome is the lightest
+   material, the slab is next, a photograph tile is the heaviest — §12's rule
+   that a light translucent surface must never sit on another one. */
+[data-hub="social"] .tc-header,
+[data-hub="social"] .tc-side {
+  background: var(--chrome);
+  -webkit-backdrop-filter: var(--chrome-blur); backdrop-filter: var(--chrome-blur);
+}
+[data-hub="social"] .g-slab {
+  -webkit-backdrop-filter: var(--pane-blur); backdrop-filter: var(--pane-blur);
+}
+[data-hub="social"] .g-key,
+[data-hub="social"] .side-menu a {
+  -webkit-backdrop-filter: var(--chrome-blur); backdrop-filter: var(--chrome-blur);
+}
+
+/* ── AND THE THREE PREFERENCES, SAME AS THE SKY ──────────────────────────
+   Four blurred layers on a tinted ground is the case these exist for. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-hub="social"] .tc-header,
+  [data-hub="social"] .tc-side,
+  [data-hub="social"] .g-slab,
+  [data-hub="social"] .g-key,
+  [data-hub="social"] .side-menu a {
+    background: var(--card);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  .tc-shell:has(.tc-side[data-side="social"])::before { background-image: none; }
+}
+@media (prefers-contrast: more) {
+  [data-hub="social"] .g-slab,
+  [data-hub="social"] .g-key {
+    background: var(--card);
+    box-shadow: inset 0 0 0 1.5px var(--line-2);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  .tc-shell:has(.tc-side[data-side="social"])::before { background-image: none; }
+}
+
 /* ══ THE ASTROLOGY SKY ═══════════════════════════════════════════════════
    ONE BLOCK, THE WHOLE HUB. Every surface in Astrology Zone becomes a pane
    over a photograph: the letter, the profile frame, the consultation room,

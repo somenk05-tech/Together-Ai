@@ -353,6 +353,8 @@
      Inert here: no image, and a pane that is simply the card. A hub that wants
      a sky re-points these, and the grant test stays true — nothing is invented
      inside a hub block, only replaced. */
+  /* A gradient is an image, so a hub that hangs a WASH uses the same name as a
+     hub that hangs a photograph. One mechanism, not two. */
   --sky-image: none;
   --sky-pos: 50% 50%;
   --sky-size: cover;
@@ -529,7 +531,9 @@
 [data-hub="medicines"]     { --accent:#1f5f78; --accent-ink:#194f64; --accent-soft:#eef5f8; --accent-line:#cfe1e9; }
 [data-hub="fitness"]       { --accent:#2d6357; --accent-ink:#245349; --accent-soft:#eef5f3; --accent-line:#d0e2dd; }
 [data-hub="family"]        { --accent:#3d6b2f; --accent-ink:#325826; --accent-soft:#f1f6ef; --accent-line:#d8e6d3; }
-[data-hub="social"]        { --accent:#5b4b8a; --accent-ink:#4b3d74; --accent-soft:#f3f1f9; --accent-line:#dcd6ec; }
+/* Social Life's line is not here either — it is the glass block at the foot
+   of this file. Same reason as the other four: a hub that owns its ground
+   cannot also have a one-line accent somewhere above silently overriding it. */
 /* Entertainment's line is not here. It is the dark block at the foot of this
    file, with astrology's and nutrition's — the three hubs that own a ground.
    It used to have a line here TOO, a purple the block below silently overrode:
@@ -841,6 +845,140 @@
    found them computes the ratio rather than reading a comment, so this cannot
    drift back. Neither hue moved; both moved along their own hue until they
    cleared. */
+
+/* ── SOCIAL LIFE IS GLASS, AND THAT NEEDS A GROUND TO BEND ─────────────────
+   THE ARGUMENT IS NOT THE OTHER THREE'S. Nutrition, Astrology and
+   Entertainment earned a ground because they are hubs you READ. Social Life is
+   one you post to as much as you read. Its argument is different and it is
+   about MATERIAL:
+
+   relief.css has shipped .g-slab, .g-key, --glass-face and --key-lit for this
+   hub since the ground-glass work, and it has carried its own explanation for
+   why every one of them is opaque — "the ground here is white, and clear glass
+   on white has nothing behind it to bend." The classes were built for a
+   surface that did not exist yet. This is that surface. The same comment says
+   what should happen next: "If this earns its place, it gets promoted then,
+   deliberately, rather than leaking hub by hub."
+
+   And the hub's content is a wall of other people's photographs. On white that
+   is a contact sheet; on a tinted ground each picture has something to sit IN.
+
+   THE ACCENT HUE IS NOT THE GROUND, same as the other three: the ground is a
+   lavender-to-pale-blue sweep and the accent is a slate violet that sits ON
+   it. A fifth hub asking for "a wash like Social Life's" is asking for the
+   thing that was removed, and gets its own line here or nothing.             */
+[data-hub="social"] {
+  /* THE GROUND IS LIGHTER THAN THE PLATE IT CAME FROM, AND THAT IS THE WHOLE
+     COMPROMISE. At the reference's #b3b6d0 the ink scale collapses: --muted
+     and --faint both have to darken so far to clear 4.5:1 that they land two
+     values apart and stop being a scale at all. A mid-light ground simply has
+     no room for four steps. At #c2c4db there is room, and the sweep still
+     reads as the same picture. */
+  --ground: #c2c4db;
+  --paper:  #c2c4db;
+  --card:   #eceef5;
+  --wash:   #e0e4ef;
+  --media-bg: #1a1c26;
+
+  --ink:      #14161f;   /* 10.5:1 on the ground */
+  --ink-soft: #232838;   /* 12.7:1 on a card */
+  --muted:    #3f4457;   /*  5.6:1 */
+  --faint:    #4a5165;   /*  4.6:1 — labels and metadata ONLY */
+  --line:   #cdd2e0;
+  --line-2: #bbc2d4;
+
+  /* Slate violet, from the plate's own pill. --accent carries --on-accent at
+     8.2:1; --accent-ink is the readable one at 6.2:1 on the ground. */
+  --accent:      #4a4a7a;
+  --accent-ink:  #3a3a63;
+  --accent-soft: #e3e2f0;
+  --accent-line: #c9c7e0;
+  --on-accent:   #f8f8fc;
+
+  /* The stem green survives as the one second hue, and only as a status. */
+  --ok-ink: #2b5a28;     --ok-soft: #e6eee5;    --ok-line: #c8dcc6;
+  --warn-ink: #6d4708;   --warn-soft: #f2ece0;  --warn-line: #ddd0b6;
+  --danger-ink: #932132; --danger-soft: #f4e5e8; --danger-line: #e0c4cc;
+  --info-ink: #24506a;   --info-soft: #e4edf2;  --info-line: #c6d8e2;
+
+  --face:      linear-gradient(180deg, #f9fafd 0%, #f4f5fa 44%, #e7eaf3 100%);
+  --face-2:    linear-gradient(180deg, #fafbfe 0%, #f2f3f9 48%, #e4e8f2 100%);
+  --face-tall: linear-gradient(180deg, #f7f8fc 0%, #f2f3f8 calc(100% - min(96px, 40%)), #e4e7f0 100%);
+  --face-key:  linear-gradient(180deg, #f9fafd 0%, #f1f2f8 52%, #e0e4ee 100%);
+  --well:      linear-gradient(180deg, #d8dceb 0%, #e9ecf4 58%, #f7f8fc 100%);
+
+  --rim:        inset 0 0 0 1px rgba(20,22,31,.09), inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(20,22,31,.06);
+  --rim-strong: inset 0 0 0 1px rgba(20,22,31,.13), inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(20,22,31,.08);
+
+  /* The five depths keep their geometry; the shadow ink goes cool, because a
+     neutral shadow on a lavender ground reads as a grey smear. */
+  --e1: var(--rim),        0 1px 1px rgba(30,32,54,.09), 0 2px 4px rgba(30,32,54,.09), 0 6px 14px rgba(30,32,54,.11);
+  --e2: var(--rim-strong), 0 1px 1px rgba(30,32,54,.09), 0 3px 6px rgba(30,32,54,.11), 0 12px 26px rgba(30,32,54,.15), 0 24px 52px rgba(30,32,54,.11);
+  --e3: var(--rim-strong), 0 2px 2px rgba(30,32,54,.10), 0 8px 16px rgba(30,32,54,.13), 0 22px 46px rgba(30,32,54,.17);
+  --e1-key: var(--rim),        0 1px 1px rgba(30,32,54,.11), 0 2px 4px rgba(30,32,54,.11), 0 5px 10px rgba(30,32,54,.09);
+  --e2-key: var(--rim-strong), 0 2px 3px rgba(30,32,54,.11), 0 5px 10px rgba(30,32,54,.13);
+  --carve:      inset 0 0 0 1px rgba(20,22,31,.11), inset 0 3px 6px rgba(20,22,31,.15), inset 0 -1px 0 rgba(255,255,255,.9);
+  --carve-deep: inset 0 0 0 1px rgba(20,22,31,.13), inset 0 4px 10px rgba(20,22,31,.20), inset 0 -1px 0 rgba(255,255,255,.9);
+  --press: inset 0 0 0 1px rgba(20,22,31,.13), inset 0 3px 6px rgba(20,22,31,.17), 0 1px 0 rgba(255,255,255,.85);
+  --edge-up: 0 1px 0 rgba(255,255,255,.9);
+  --edge-in: inset 0 -1px 0 rgba(20,22,31,.07);
+  --case-rim: inset 0 0 0 1px rgba(20,22,31,.16), inset 0 4px 12px rgba(20,22,31,.22), inset 0 -2px 8px rgba(20,22,31,.10);
+  --case-rim-soft: inset 0 0 0 1px rgba(20,22,31,.12), inset 0 3px 7px rgba(20,22,31,.20), inset 0 -1px 0 rgba(255,255,255,.4);
+
+  /* THE RAIL AND ITS KEYS ARE GLASS TOO — the well has to follow the ground or
+     the sidebar's ink sits on a white slab inside a lavender page. */
+  --rail-well: rgba(255,255,255,.16);
+  --rail-well-shadow: inset -1px 0 0 rgba(255,255,255,.26);
+  --lens-face: linear-gradient(180deg, rgba(255,255,255,.58) 0%, rgba(255,255,255,.32) 55%, rgba(255,255,255,.18) 100%);
+  --lens:     inset 0 0 0 1.5px rgba(255,255,255,.88), inset 0 1px 0 rgba(255,255,255,1), 0 4px 14px rgba(30,32,54,.15);
+  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.74), inset 0 1px 0 rgba(255,255,255,.92), 0 2px 7px rgba(30,32,54,.11);
+
+  /* THE GLASS, ACTUALLY TRANSLUCENT. These four are the promotion the
+     ground-glass comment asked for, and they are scoped to the hub that has
+     been carrying the classes all along. */
+  --glass-face: linear-gradient(158deg, rgba(255,255,255,.62), rgba(255,255,255,.38) 52%, rgba(255,255,255,.26));
+  --glass:      inset 0 0 0 1.4px rgba(255,255,255,.84), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(20,22,31,.05), 0 18px 44px rgba(30,32,54,.18);
+  --glass-key:  inset 0 0 0 1.1px rgba(255,255,255,.80), inset 0 1px 0 rgba(255,255,255,.96), 0 3px 10px rgba(30,32,54,.14);
+  --glass-in:   inset 0 0 0 1.1px rgba(255,255,255,.70), inset 0 2px 5px rgba(30,32,54,.14);
+  --glass-well: linear-gradient(180deg, #d8dceb 0%, #e9ecf4 58%, #f7f8fc 100%);
+  --glass-bubble: linear-gradient(150deg, rgba(255,255,255,.92), rgba(255,255,255,.52) 52%, rgba(255,255,255,.72));
+  --glass-bubble-shadow: inset 0 0 0 1px rgba(255,255,255,.92), 0 2px 6px rgba(30,32,54,.14);
+  --glass-tray: linear-gradient(180deg, rgba(255,255,255,.42), rgba(255,255,255,.62));
+  --glass-tray-shadow: inset 0 2px 8px rgba(30,32,54,.14), inset 0 -1px 0 rgba(255,255,255,.9);
+  --glass-line: rgba(255, 255, 255, .5);
+
+  /* The lit key: the hub's violet, not the city's orange. On a lavender ground
+     the orange lamp was the only warm thing on the screen and the eye went to
+     the rail instead of to the photographs. */
+  --key-lit-face: linear-gradient(180deg, #5d5d92 0%, #4a4a7a 46%, #3a3a61 100%);
+  --key-lit:      inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 1px 0 rgba(255,255,255,.36), 0 3px 12px rgba(30,32,54,.24);
+  --key-lit-pip:  0 0 0 2px rgba(74,74,122,.16), 0 0 8px rgba(74,74,122,.5);
+  --lamp-face: linear-gradient(180deg, #5d5d92 0%, #4a4a7a 46%, #3a3a61 100%);
+  --lamp:      inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 2px 5px rgba(0,0,0,.2), inset 0 -1px 0 rgba(255,255,255,.36), 0 3px 12px rgba(30,32,54,.24);
+  --lamp-badge: inset 0 0 0 1px rgba(255,255,255,.38), inset 0 1px 0 rgba(255,255,255,.32);
+
+  --loud-face:        linear-gradient(180deg, #5a5a8c 0%, #4a4a7a 55%, #3a3a61 100%);
+  --loud-face-hover:  linear-gradient(180deg, #66669c 0%, #545488 55%, #43436d 100%);
+  --loud-face-active: linear-gradient(180deg, #3a3a61 0%, #45456f 60%, #4a4a7a 100%);
+  --on-loud: #f8f8fc;
+  --frost: rgba(236,238,245,.74);
+  --btn-line-edge: rgba(255,255,255,.95);
+  --btn-line-ring: rgba(20,22,31,.17);
+  --btn-line-ring-hover: rgba(20,22,31,.32);
+  --focus-ring: 0 0 0 3px rgba(74,74,122,.34);
+  --scrim-top: rgba(16,18,28,.28);
+  --scrim-deep: rgba(16,18,28,.76);
+
+  /* The wash, corner to corner from the plate: lavender top-left, a cooler
+     violet top-right, pale blue at the foot. */
+  --sky-image:
+    radial-gradient(110% 70% at 8% -6%, #cfc4d4 0%, rgba(207,196,212,0) 62%),
+    radial-gradient(90% 60% at 96% 2%, #b6b5d6 0%, rgba(182,181,214,0) 58%),
+    linear-gradient(166deg, #cbc7de 0%, #c2c4db 38%, #b6c6da 72%, #adc2d5 100%);
+  --chrome: rgba(255,255,255,.26);
+  --chrome-blur: blur(20px) saturate(165%);
+  --pane-blur: blur(22px) saturate(175%);
+}
 
 /* ── ENTERTAINMENT IS A DARK ROOM ──────────────────────────────────────────
    THE ONE HUB THAT IS NOT WHITE, AND THE ONLY ONE THAT WILL BE.
