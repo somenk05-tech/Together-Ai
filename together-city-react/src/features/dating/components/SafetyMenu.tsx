@@ -56,7 +56,7 @@ export function SafetyMenu({ userId, kind, compact = false }: {
       {open && (
         <div role="dialog" aria-modal="true" aria-label="Report or block"
           onClick={close}
-          style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(12,10,9,.62)', display: 'grid', placeItems: 'center', padding: 16 }}>
+          style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'var(--scrim-deep)', display: 'grid', placeItems: 'center', padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()}
             style={{ width: '100%', maxWidth: 400, background: 'var(--card)', borderRadius: 18, padding: 20, boxShadow: 'var(--shadow)' }}>
 

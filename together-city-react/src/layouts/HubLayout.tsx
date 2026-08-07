@@ -8,6 +8,7 @@ import { CookRoot } from '@/features/nutrition/components/CookMode';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { HubConsentGate } from '@/features/privacy/HubConsentGate';
 import { VerifyEmailBanner } from '@/features/auth/VerifyEmailBanner';
+import { FilmGrade } from '@/components/FilmGrade';
 
 /** Two-column layout (sidebar + content) used by every hub's inner pages. */
 export function HubLayout({ hub }: { hub: HubConfig }) {
@@ -57,6 +58,11 @@ export function HubLayout({ hub }: { hub: HubConfig }) {
       </div>
       <Footer />
       <CookRoot /> {/* guided cook overlay + background timer — recipe pages live under this layout */}
+      {/* The filter `--film` names. Mounted for every hub rather than for the
+          one that uses it: the token is inert (`none`) everywhere else, so the
+          cost is an empty <svg> and the alternative is a layout that has to
+          know which hubs grade their photographs. */}
+      <FilmGrade />
     </>
   );
 }

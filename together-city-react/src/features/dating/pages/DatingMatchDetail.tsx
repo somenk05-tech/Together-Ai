@@ -64,7 +64,7 @@ function Collage({ d }: { d: MatchDetail }) {
           </div>
         )}
 
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12,10,9,.86) 0%, rgba(12,10,9,.22) 46%, transparent 72%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, var(--scrim-deep) 0%, var(--scrim-top) 46%, var(--scrim-clear) 72%)', pointerEvents: 'none' }} />
         <span style={{ position: 'absolute', top: 22, left: 12, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--on-accent)', fontSize: 11.5, fontWeight: 700, borderRadius: 999, padding: '6px 12px', boxShadow: '0 2px 8px rgba(0,0,0,.3)' }}>
           <span aria-hidden>✦</span> Intentional Dating
         </span>
@@ -182,7 +182,7 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
         )}
 
         {/* Compatibility panel */}
-        <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16, background: 'linear-gradient(135deg,var(--accent-soft),rgba(212,175,94,.12))', border: '1px solid var(--line)', borderRadius: 16, padding: '16px 18px' }}>
+        <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16, background: 'linear-gradient(135deg,var(--accent-soft),var(--wash))', border: '1px solid var(--line)', borderRadius: 16, padding: '16px 18px' }}>
           <div style={{ width: 58, height: 58, borderRadius: '50%', flex: 'none', display: 'grid', placeItems: 'center', background: 'var(--card)', border: '2px solid var(--accent)', color: 'var(--accent-ink)', fontSize: 24 }}>♥</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>

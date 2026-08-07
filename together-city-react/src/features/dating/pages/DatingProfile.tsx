@@ -219,7 +219,7 @@ function SelfieVerify({ verified, onCapture, onClear }: {
 
   const close = () => { stop(); setOpen(false); };
 
-  const overlay: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(12,10,9,.62)', display: 'grid', placeItems: 'center', padding: 16 };
+  const overlay: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 60, background: 'var(--scrim-deep)', display: 'grid', placeItems: 'center', padding: 16 };
   const sheet: React.CSSProperties = { width: '100%', maxWidth: 380, background: 'var(--card)', borderRadius: 18, padding: 18, boxShadow: 'var(--shadow)' };
 
   return (
@@ -550,7 +550,7 @@ export function DatingProfilePage() {
               {hero
                 ? <img src={hero} alt={displayName} style={cover} />
                 : <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 64, color: 'var(--accent-ink)', background: 'var(--accent-soft)', fontFamily: 'var(--serif)' }}>{displayName.slice(0, 1)}</div>}
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12,10,9,.86) 0%, rgba(12,10,9,.22) 46%, transparent 72%)' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, var(--scrim-deep) 0%, var(--scrim-top) 46%, var(--scrim-clear) 72%)' }} />
               <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: 'var(--on-accent)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--serif)', fontSize: 30, fontWeight: 700, lineHeight: 1.05, textShadow: '0 2px 14px rgba(0,0,0,.5)' }}>
                   <span>{displayName}{age ? `, ${age}` : ''}</span>

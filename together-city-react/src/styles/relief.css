@@ -1686,6 +1686,60 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .tc-shell:has(.tc-side[data-side="social"])::before { background-image: none; }
 }
 
+/* ══ DATING, IN CANDY ════════════════════════════════════════════════════
+   Same mechanism as Social Life's, one hub over: the wash rides --sky-image,
+   the chrome rides --chrome, and NOTHING HERE SETS A SIZE OR A COLOUR. See
+   the block in tokens.css for the palette and for why the ground is two steps
+   lighter than the plate it was quantised from.
+
+   What is new in this hub is the LAST rule — the film. Every photograph in
+   Dating is graded, and it is one selector rather than a prop threaded through
+   six components, because the pages hold eleven separate <img> call sites and
+   every one of them is written as an inline style object.                    */
+[data-hub="dating"] body { background: transparent; }
+.tc-shell:has(.tc-side[data-side="dating"])::before {
+  content: ''; position: fixed; inset: 0; z-index: -2;
+  background: var(--sky-image);
+  background-color: var(--ground);
+}
+[data-hub="dating"] .tc-shell,
+[data-hub="dating"] .tc-main,
+[data-hub="dating"] .page { background: transparent; }
+
+[data-hub="dating"] .tc-header,
+[data-hub="dating"] .tc-side {
+  background: var(--chrome);
+  -webkit-backdrop-filter: var(--chrome-blur); backdrop-filter: var(--chrome-blur);
+}
+
+/* ── THE GRADE ───────────────────────────────────────────────────────────
+   Scoped to the hub's own photographs and NOT to the shell: the mark in the
+   header is artwork with its own colours, and a warm curve on a logo is how a
+   brand quietly drifts. The `.no-case` opt-out is honoured for the same reason
+   the global image case honours it — a picture already framed by the hub
+   plate is a plate, not a photograph. */
+[data-hub="dating"] .tc-main img:not(:where(.no-case, .bg)),
+[data-hub="dating"] .tc-main video { filter: var(--film); }
+
+/* ── AND THE THREE PREFERENCES ───────────────────────────────────────────
+   A tinted ground under two blurred layers, plus a grade on every photograph.
+   Reduced transparency takes the blur; reduced motion is not involved; and
+   MORE CONTRAST TAKES THE GRADE OFF, because the grade's whole job is to lower
+   contrast and a citizen who has asked for more of it is owed the file. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-hub="dating"] .tc-header,
+  [data-hub="dating"] .tc-side {
+    background: var(--card);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  .tc-shell:has(.tc-side[data-side="dating"])::before { background-image: none; }
+}
+@media (prefers-contrast: more) {
+  [data-hub="dating"] .tc-main img:not(:where(.no-case, .bg)),
+  [data-hub="dating"] .tc-main video { filter: none; }
+  .tc-shell:has(.tc-side[data-side="dating"])::before { background-image: none; }
+}
+
 /* ══ THE ASTROLOGY SKY ═══════════════════════════════════════════════════
    ONE BLOCK, THE WHOLE HUB. Every surface in Astrology Zone becomes a pane
    over a photograph: the letter, the profile frame, the consultation room,
