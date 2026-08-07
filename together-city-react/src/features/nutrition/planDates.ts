@@ -39,3 +39,24 @@ export function planDayOffset(iso?: string): number {
 export const weekdayFull = (d: Date): string => WEEKDAY_FULL[d.getDay()];
 export const shortDate = (d: Date): string =>
   d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase();
+
+/** "Fri 8 Aug" — the shape somebody reads a date in when they are picking one. */
+export const longDate = (d: Date): string =>
+  d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+
+/**
+ * The label a date picker shows.
+ *
+ * `Today` and `Tomorrow` earn their place: they are what somebody says to
+ * themselves while deciding, and a list that makes them count forward from a
+ * date to work out whether it is tonight has made them do arithmetic. The date
+ * stays alongside rather than being replaced by the word — "Today" alone is
+ * ambiguous once the tab has been open past midnight, which for a page about
+ * dinner is not a rare case.
+ *
+ * `offset` is days from TODAY, not from the start of the plan.
+ */
+export function dayLabel(d: Date, offset: number): string {
+  const rel = offset === 0 ? 'Today' : offset === 1 ? 'Tomorrow' : null;
+  return rel ? `${rel} · ${longDate(d)}` : longDate(d);
+}

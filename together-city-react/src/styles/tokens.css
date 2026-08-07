@@ -396,6 +396,10 @@
      hairline; the same line on white is the only warm thing left on the page,
      and it reads as a stain rather than a rule. These are the old values with
      the same lightness and none of the yellow. */
+  /* The tinted band the printed card sets its facts and its column labels on.
+     Warm rather than grey, because the reference's is warm and because a grey
+     band on white paper reads as a disabled control. */
+  --press-band:   #f4f1ec;
   --press-rule:   #d9d9d9;
   --press-rule-2: #e8e8e8;
   --press-green:  #1f5d43;   /*  7.8:1 — deep emerald */

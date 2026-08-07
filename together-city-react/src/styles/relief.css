@@ -1430,23 +1430,39 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .press-r-acts { display: flex; align-items: center; gap: clamp(16px, 2.4vw, 28px); }
 
 /* ── the head ──────────────────────────────────────────────────────────── */
-.press-r-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .92fr);
-  gap: clamp(26px, 4vw, 56px); align-items: center; }
-.press-r-eyebrow { margin: 0 0 clamp(14px, 1.8vw, 22px); font-size: 9.5px; font-weight: 500;
+/* ── THE HEAD, CENTRED AND STACKED ────────────────────────────────────────
+   Two printed layouts were on the table and this is the second one: the dish
+   named down the middle of the page, then a single rule of facts, then the
+   photograph running the full width beneath it.
+   
+   It was the title beside the photograph before, which is the other card in
+   the same family and reads well at desk width — but it spends the page's
+   whole measure on a two-column split before the reader has been told what
+   the dish is, and it leaves a column of empty paper next to a short name.
+   Centred, the name is the first thing and the photograph is as wide as the
+   page, which is what a recipe card is actually for.
+   
+   The ACCENT MOVED WITH THE LAYOUT. Set beside a photograph the last word
+   read best underneath as a coda; centred and stacked it reads best the way
+   the reference sets it — the qualifying words small and above, the dish
+   itself enormous below. Same split, opposite order. */
+.press-r-head { display: block; text-align: center; }
+.press-r-eyebrow { margin: 0 0 clamp(12px, 1.6vw, 18px); font-size: 9.5px; font-weight: 500;
   letter-spacing: .24em; text-transform: uppercase; color: var(--press-green); }
 
-/* line-height under 1 is the whole look and it is safe here: the tail sits in
-   its own block, so two capital lines can close up without a descender from
-   one line touching a capital on the next. */
-.press-r-title { margin: 0; font-family: var(--press-serif); font-weight: 400;
-  font-size: clamp(34px, 5vw, 58px); line-height: .96; letter-spacing: -.015em;
+.press-r-title { margin: 0 auto; max-width: 18ch; font-family: var(--press-serif); font-weight: 400;
+  font-size: clamp(40px, 7vw, 82px); line-height: .92; letter-spacing: -.02em;
   text-transform: uppercase; }
-.press-r-title .press-r-tail { display: block; margin-top: .05em; text-transform: none;
-  font-size: .8em; letter-spacing: -.008em; color: var(--press-green); }
+/* The lead is the small line ABOVE. Ordered visually rather than in the
+   markup, so the h1's accessible name stays the dish name in reading order. */
+.press-r-title .press-r-lead { display: block; margin-bottom: .12em;
+  font-size: clamp(17px, 1.9vw, 25px); line-height: 1.2; letter-spacing: .01em;
+  text-transform: none; color: var(--press-green); }
+.press-r-title .press-r-tail { display: block; }
 
-.press-r-lede { margin: clamp(18px, 2.4vw, 26px) 0 0; padding-top: 15px;
-  border-top: 1px solid var(--press-ink); font-size: 9.5px; font-weight: 500;
-  letter-spacing: .2em; text-transform: uppercase; color: var(--press-ink-3); line-height: 1.9; }
+.press-r-lede { margin: clamp(14px, 1.8vw, 20px) auto 0; max-width: 42ch;
+  font-size: 10px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--press-ink-2); line-height: 1.8; }
 
 /* Square, and object-fit: cover, because the dataset's photographs are not one
    shape. It was 4:5 first — a portrait plate is what the printed cards use —
@@ -1454,9 +1470,28 @@ textarea.g-field { resize: none; line-height: 1.55; }
    dish name, because the row is as tall as its tallest child and the type was
    centring in the gap. A square photograph is still a plate and the columns
    come out within a hundred pixels of each other. */
-.press-r-photo, .press-r-plate { aspect-ratio: 1 / 1; overflow: hidden;
+/* The photograph runs the full measure now, under the head rather than beside
+   it. 3:2 because that is the shape a plate is photographed in and the shape
+   the reference uses; a square at full width would push the ingredients two
+   screens down. */
+/* A HEIGHT, NOT A RATIO, AND THE RENDER IS WHY.
+   
+   It was `aspect-ratio: 3/2; max-height: 420px`, which is a trap: a capped
+   aspect-ratio constrains the WIDTH to match, so the photograph stopped short
+   of the measure and sat two-thirds across a page it was supposed to run the
+   full width of. It looked like a layout bug and it was arithmetic.
+   
+   A clamped height with width: 100% always fills the measure and crops through
+   object-fit instead. The cap earns its place: at 1080px a true 3:2 is 720px of
+   photograph, more than a laptop's fold, and the ingredients would start below
+   the screen on a page whose whole argument is that you cook from two columns
+   at once. At 390px the clamp floors at 260, which is about 3:2 again. */
+.press-r-photo { width: 100%; height: clamp(260px, 32vw, 420px);
+  margin-top: clamp(20px, 2.6vw, 30px); }
+.press-r-photo, .press-r-plate { overflow: hidden;
   background: var(--press-rule-2); display: grid; place-items: center;
   color: var(--press-ink-3); position: relative; }
+.press-r-plate { aspect-ratio: 1 / 1; }
 .press-r-photo img, .press-r-plate img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* A photograph on paper is SET INTO it, not raised off it. Relief cases a
@@ -1468,17 +1503,32 @@ textarea.g-field { resize: none; line-height: 1.55; }
 [data-press] .press-r-plate img { box-shadow: none; border-radius: 0; }
 
 /* ── the spec strip ────────────────────────────────────────────────────── */
-.press-r-spec { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
-  margin: clamp(26px, 3.4vw, 44px) 0 0; padding: 20px 0; gap: 16px 0;
-  border-top: 1px solid var(--press-ink); border-bottom: 1px solid var(--press-rule); }
-.press-r-spec > div { padding: 0 18px; border-left: 1px solid var(--press-rule-2); text-align: center; }
+/* ── THE FACTS, AS ONE RULE ───────────────────────────────────────────────
+   The reference sets them on a tinted band in a single line separated by
+   hairlines — SERVES 4 | PREP 15 MIN | COOK 30 MIN | NOT VEGETARIAN. Flex
+   with wrap rather than a grid: six cells on a phone should stack into two
+   tidy rows of three, and auto-fit columns leave a ragged last row instead. */
+.press-r-spec { display: flex; flex-wrap: wrap; justify-content: center;
+  margin: clamp(20px, 2.6vw, 30px) auto 0; padding: 13px 8px;
+  background: var(--press-band); border-radius: 3px; }
+.press-r-spec > div { display: flex; align-items: baseline; gap: 7px;
+  padding: 5px clamp(12px, 2vw, 22px); border-left: 1px solid var(--press-rule); }
 .press-r-spec > div:first-child { border-left: 0; }
-.press-r-spec b { display: block; font-family: var(--press-mono); font-weight: 400;
-  font-size: clamp(17px, 1.9vw, 21px); letter-spacing: -.02em; }
-.press-r-spec b small { font-family: var(--sans); font-size: 11px; font-weight: 500;
-  color: var(--press-ink-3); margin-left: 4px; }
-.press-r-spec span { display: block; margin-top: 9px; font-size: 9px; font-weight: 500;
-  letter-spacing: .19em; text-transform: uppercase; color: var(--press-ink-3); }
+.press-r-spec span { font-size: 9px; font-weight: 500; letter-spacing: .17em;
+  text-transform: uppercase; color: var(--press-ink-3); }
+.press-r-spec b { font-family: var(--press-mono); font-weight: 400; font-size: 13px;
+  letter-spacing: -.01em; color: var(--press-ink); }
+.press-r-spec b small { font-family: var(--sans); font-size: 10px; font-weight: 500;
+  color: var(--press-ink-3); margin-left: 3px; }
+@media (max-width: 600px) {
+  /* TWO per row, not three. Three was the plan and the render disagreed:
+     "TOTAL TIME 10 min" is wider than a third of 390px, so the cells wrapped
+     two-up anyway while the divider reset still assumed three — which put a
+     hairline at the start of every other row. The rule follows the layout
+     that actually happens. */
+  .press-r-spec > div { flex: 0 0 50%; justify-content: center; box-sizing: border-box; }
+  .press-r-spec > div:nth-child(odd) { border-left: 0; }
+}
 
 /* ── an ornament, and it earns its place ──────────────────────────────────
    The references break their sections with a botanical. This one is a rule
@@ -1496,10 +1546,14 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .press-r-cols > *:first-child { padding-left: 0; }
 .press-r-cols > *:last-child { padding-right: 0; border-left: 1px solid var(--press-rule-2); }
 
-.press-r-sechead { display: flex; align-items: baseline; justify-content: space-between;
-  gap: 14px; margin: 0 0 18px; padding-bottom: 11px; border-bottom: 1px solid var(--press-ink); }
-.press-r-sechead h2 { margin: 0; font-family: var(--sans); font-size: 10px; font-weight: 500;
-  letter-spacing: .26em; text-transform: uppercase; color: var(--press-ink); }
+/* A tinted tab rather than a ruled line, which is how the reference labels its
+   two columns. The aside keeps its place on the same baseline — the servings
+   and the cost are the two things somebody looks for next to the heading. */
+.press-r-sechead { display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; margin: 0 0 16px; }
+.press-r-sechead h2 { margin: 0; padding: 6px 14px; background: var(--press-band);
+  border-radius: 3px; font-family: var(--sans); font-size: 9.5px; font-weight: 500;
+  letter-spacing: .24em; text-transform: uppercase; color: var(--press-ink); }
 .press-r-sechead .press-r-aside { font-size: 9.5px; font-weight: 500; letter-spacing: .14em;
   text-transform: uppercase; color: var(--press-ink-3); }
 
@@ -1557,11 +1611,8 @@ textarea.g-field { resize: none; line-height: 1.55; }
   /* One column, and the rule that separated them becomes the rule above the
      second — otherwise the ingredients list hangs off a border on its left
      with nothing on the other side of it. */
-  .press-r-head { grid-template-columns: minmax(0, 1fr); }
-  /* 4:3, not 16:10 and not the square. A square plate on a 390px screen is
-     358px of photograph before the dish is even named; 16:10 crops the top off
-     a portrait shot. This is the shape that fits both. */
-  .press-r-photo { aspect-ratio: 4 / 3; order: -1; }
+  /* Nothing to override: the clamped height above already lands at 260px on a
+     phone, and the head is one centred column at every size. */
   .press-r-cols { grid-template-columns: minmax(0, 1fr); }
   .press-r-cols > * { padding: 0; }
   .press-r-cols > *:last-child { border-left: 0; border-top: 1px solid var(--press-rule-2);

@@ -285,47 +285,46 @@ export function RecipeDetail() {
       {/* ── the card ─────────────────────────────────────────────────── */}
       <section id="card" style={sectionStyle}>
         <div className="press-r-head">
-          <div>
-            <p className="press-r-eyebrow">{r.country} · {vegWord}</p>
-            {/* One h1. The two pieces are spans so the accessible name is the
-                whole dish name, exactly as it is stored — the split is a way
-                of setting it, not a way of renaming it. */}
-            <h1 className="press-r-title">
-              {title.lead && <>{title.lead} </>}
-              <span className="press-r-tail">{title.tail}</span>
-            </h1>
-            <p className="press-r-lede">{lede}</p>
+          <p className="press-r-eyebrow">{r.country} · {vegWord}</p>
+          {/* One h1. The two pieces are spans so the accessible name is the
+              whole dish name, exactly as it is stored, in reading order — the
+              split is a way of setting it, not a way of renaming it. The lead
+              is the small line above and the tail is the large one below,
+              which is the order the reference sets them in. */}
+          <h1 className="press-r-title">
+            {title.lead && <span className="press-r-lead">{title.lead}</span>}
+            <span className="press-r-tail">{title.tail}</span>
+          </h1>
+          <p className="press-r-lede">{lede}</p>
+
+          {/* One rule of facts, on a band, the way a printed card carries them.
+              The servings cell is the CONTROL — it is the one number on a
+              printed card you always wish you could change. */}
+          <div className="press-r-spec">
+            <div><span>Total time</span><b>{r.minutes}<small>min</small></b></div>
+            <div>
+              <span>Serves</span>
+              <b>
+                <select value={plates} onChange={(e) => setPlates(Number(e.target.value))} aria-label="Servings"
+                  style={{ font: 'inherit', color: 'inherit', background: 'none', border: 0, padding: 0, cursor: 'pointer', minHeight: 44 }}>
+                  {[1, 2, 3, 4, 5, 6].map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </b>
+            </div>
+            <div><span>Calories</span><b>{m.kcal}<small>kcal</small></b></div>
+            <div><span>Protein</span><b>{m.protein}<small>g</small></b></div>
+            <div><span>Difficulty</span><b style={{ fontFamily: 'var(--sans)', fontSize: 12 }}>{difficultyFor(r.minutes)}</b></div>
+            <div>
+              <span>{meta.label}</span>
+              <b style={{ display: 'flex', alignItems: 'center' }}><VegMark diet={r.diet} size={15} /></b>
+            </div>
           </div>
+
           <figure className="press-r-photo" style={{ margin: 0 }}>
             {heroSrc && heroOk
               ? <img src={heroSrc} alt={r.name} loading="lazy" onError={() => setHeroOk(false)} />
               : <Ic name="utensils" size={40} stroke={1.2} />}
           </figure>
-        </div>
-
-        {/* the spec strip — the servings cell is the control, because that is
-            the one number on a printed card you always wish you could change */}
-        <div className="press-r-spec">
-          <div>
-            <b>{r.minutes}<small>min</small></b>
-            <span>Total time</span>
-          </div>
-          <div>
-            <b>
-              <select value={plates} onChange={(e) => setPlates(Number(e.target.value))} aria-label="Servings"
-                style={{ font: 'inherit', color: 'inherit', background: 'none', border: 0, padding: 0, cursor: 'pointer', textAlign: 'center', minHeight: 44 }}>
-                {[1, 2, 3, 4, 5, 6].map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </b>
-            <span>Servings</span>
-          </div>
-          <div><b>{m.kcal}<small>kcal</small></b><span>Calories</span></div>
-          <div><b>{m.protein}<small>g</small></b><span>Protein</span></div>
-          <div><b style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 500 }}>{difficultyFor(r.minutes)}</b><span>Difficulty</span></div>
-          <div>
-            <b style={{ display: 'flex', justifyContent: 'center' }}><VegMark diet={r.diet} size={17} /></b>
-            <span>{meta.label}</span>
-          </div>
         </div>
 
         {caution && (

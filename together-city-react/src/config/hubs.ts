@@ -96,6 +96,11 @@ export const HUBS: Record<HubKey, HubConfig> = {
       { path: '/nutrition/grocery', index: '04', label: LABELS.groceryLists, sub: 'Built from your plan' },
       { path: '/nutrition/recipes', index: '05', label: LABELS.createYourOwnMealPlan, sub: 'Browse, add your own, build a list' },
       { path: '/nutrition/journal', index: '06', label: 'AI Food Journal', sub: 'Photo in — logged & counted' },
+      // 07. The Save button on every recipe page has worked since the page was
+      // built and wrote to a list nothing rendered — GET /nutrition/saved has
+      // always returned the recipes, and only the ids were ever read. This is
+      // the door to what was already being kept.
+      { path: '/nutrition/saved', index: '07', label: 'Saved Recipes', sub: 'The ones you kept' },
       // NEITHER HUB LISTS A CART ANY MORE. A key for a basket sat between the
       // grocery list and the plan on two menus; checkout moved onto the grocery
       // list itself, which is where somebody holding a list actually looks for
