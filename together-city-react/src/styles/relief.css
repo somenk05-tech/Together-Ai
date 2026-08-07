@@ -308,9 +308,14 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
   box-shadow: inset 0 1px 0 rgba(255,255,255,.24), 0 4px 10px rgba(0,0,0,.24), 0 0 0 3px rgba(0,0,0,.28);
 }
 
-/* Outline — raised, but only just. The rim does the work. */
+/* Outline — raised, but only just. The rim does the work.
+   THE FACE IS --card, NOT #fff. Its label is var(--ink), so a hardcoded white
+   here is a button whose background follows nothing and whose text follows the
+   room — which on any ground but white is ivory on white, an invisible control.
+   --card IS #ffffff at the root, so this changes nothing for twenty-four hubs
+   and is the whole of what the twenty-fifth needed. */
 .btn-line, .btn-outline, .btn-secondary {
-  background: #fff; color: var(--ink);
+  background: var(--card); color: var(--ink);
   box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.16), inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05), 0 3px 6px rgba(0,0,0,.04);
 }
 .btn-line:not(:disabled):hover, .btn-outline:not(:disabled):hover, .btn-secondary:not(:disabled):hover {

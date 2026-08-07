@@ -183,43 +183,136 @@ describe('Relief stays a system', () => {
   });
 
   /**
-   * ONE HUB HAS ITS OWN PAPER, AND IT IS SCOPED OR IT IS NOT AN EXCEPTION.
+   * TWO HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
+   * EXCEPTION.
    *
-   * Nutrition is the one hub read rather than operated, and it already held the
-   * only other surface exception ([data-press]). It now sets a warm ground for
-   * the whole hub. The argument is written out in tokens.css; this is the part
-   * that keeps it from spreading.
+   * Both are hubs you READ rather than operate, which is the whole of the
+   * argument and the reason a third is not automatic:
    *
-   * THE ACCENT HUE IS NOT THE GROUND. The tint that was removed years-of-commits
-   * ago washed the page in the hub's GREEN. This one is warm paper with the
-   * green left in the fill and the hairline — which is why it is allowed and
-   * why a second hub asking for "a tint like nutrition's" is asking for the
-   * removed thing, not this one.
+   *   nutrition — warm paper. It already held the only other surface exception
+   *     ([data-press], granted because a day of food is read the way a menu is),
+   *     and the press pages had become an ivory island inside a white hub.
+   *   astrology — charcoal. This one ANSWERS a question the rollout left open
+   *     ("whether the tarot page and the letter should keep a night surface …
+   *     a decision to make before this lands, not after") rather than reopening
+   *     a settled one. The artwork it was drawn for is still in the tree.
    *
-   * So: exactly one hub may re-point a ground token, and the depth tokens it
-   * re-points must keep their names. A hub inventing --e6 is a sixth depth
-   * wearing a scope.
+   * THE ACCENT HUE IS NEVER THE GROUND. The tint that was removed washed the
+   * page in the hub's GREEN. Neither of these does that: one is paper with the
+   * green left in the fill, one is charcoal with the gold left in the fill. A
+   * third hub asking for "a tint like nutrition's" is asking for the removed
+   * thing, not for either of these, and gets its own line here or nothing.
+   *
+   * The list is written out rather than counted, exactly like the press's
+   * wearers, so a third entry costs an argument instead of a nod.
    */
-  it('keeps the warm ground inside the one hub it was granted to', () => {
+  it('keeps a re-pointed ground inside the two hubs it was granted to', () => {
     const css = strip(tokens);
-    // 1. every [data-hub] block that re-points a ground token is nutrition's
+    const GRANTED = ['astrology', 'nutrition'];
+
+    // 1. only the granted hubs re-point a ground token. Sorted: the file's
+    //    order is editorial and a re-order must not read as a breach.
     const blocks = [...css.matchAll(/\[data-hub="([a-z]+)"\][^{]*\{([^}]*)\}/g)];
     const grounded = blocks
       .filter(([, , body]) => /--(ground|paper|card|wash|rail-well)\s*:/.test(body))
       .map(([, hub]) => hub);
-    expect([...new Set(grounded)]).toEqual(['nutrition']);
+    expect([...new Set(grounded)].sort()).toEqual(GRANTED);
 
-    // 2. it re-points depths, and invents none. Five depths, no sixth — a
-    //    scope may change what a depth is made of, never how many there are.
-    const nutrition = blocks.filter(([, hub]) => hub === 'nutrition').map(([, , b]) => b).join(' ');
-    const declared = [...nutrition.matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]);
+    // 2. they re-point depths and invent none. Five depths, no sixth — a scope
+    //    may change what a depth is MADE OF, never how many there are.
     const rootNames = new Set([...css.split(/\[data-hub=/)[0].matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]));
-    expect(declared.filter((n) => !rootNames.has(n))).toEqual([]);
+    for (const hub of GRANTED) {
+      const body = blocks.filter(([, h]) => h === hub).map(([, , b]) => b).join(' ');
+      const declared = [...body.matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]);
+      expect({ hub, invented: declared.filter((n) => !rootNames.has(n)) })
+        .toEqual({ hub, invented: [] });
+    }
 
-    // 3. and the warm ground is only ever reached through the hub attribute —
-    //    never pinned to a page, which is how a scope becomes a default.
-    const wearers = PAGES.filter((f) => /data-hub="nutrition"|data-hub='nutrition'/.test(stripTs(read(f))));
+    // 3. and a ground is only ever reached through the hub attribute — never
+    //    pinned to a page, which is how a scope quietly becomes a default.
+    const wearers = PAGES.filter((f) =>
+      /data-hub=["'](nutrition|astrology)["']/.test(stripTs(read(f))));
     expect(wearers).toEqual([]);
+  });
+
+  /**
+   * A NIGHT GROUND IS NOT A DARK MODE.
+   *
+   * The difference is not the colour, it is who chooses. A dark mode is a
+   * second copy of every screen behind a switch, and half-converted it reads as
+   * a bug — which is why it was removed. A room with its own light is a
+   * property of the room: nothing toggles, and a citizen who never opens
+   * Astrology never sees a dark pixel.
+   *
+   * So the night surface must never acquire a switch, it must carry its own
+   * readable ink rather than inheriting ink chosen for white, and it must leave
+   * the city's furniture alone.
+   */
+  it('gives the night hub its own ink, and leaves the city furniture alone', () => {
+    const css = strip(tokens);
+    const night = /\[data-hub="astrology"\]\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(night).not.toEqual('');
+
+    // 1. Ink, ground and the readable accent are re-pointed together. Any one
+    //    left behind is the "Birth Details" failure: a colour and its background
+    //    becoming the same colour, which nothing else here can see.
+    for (const t of ['--ground', '--paper', '--card', '--ink', '--muted', '--accent-ink']) {
+      expect({ token: t, present: new RegExp(`${t}\\s*:`).test(night) })
+        .toEqual({ token: t, present: true });
+    }
+
+    /**
+     * 2. THE RAIL, THE LAMP AND THE BUTTON ARE THE CITY'S, NOT THE ROOM'S.
+     *
+     * --on-accent is read by SEVEN surfaces and every one of them is dark: the
+     * black primary button, .tag.dark, the mini-calendar's today, the media
+     * bar, the lit glass key, and the rail lamp's label and badge. Re-pointing
+     * it to a dark ink for one hub — which a gold FILL would require — turns
+     * the black button's own label black. That is not a contrast regression,
+     * it is an invisible button, and no test outside this one would see it.
+     *
+     * So the fill stays dark enough for white (--accent), the metal lives in
+     * --accent-ink where it is text, and the rail keeps its material and its
+     * orange in all twenty-five rooms.
+     */
+    for (const t of ['--on-accent', '--lamp', '--lamp-face', '--lamp-badge']) {
+      expect({ token: t, rePointed: new RegExp(`${t}\\s*:`).test(night) })
+        .toEqual({ token: t, rePointed: false });
+    }
+    // and nothing scopes a rail rule to this hub by the back door — the lamp
+    // keeps its white label because --on-accent is untouched, not because some
+    // selector patched it back afterwards.
+    expect(css).not.toMatch(/\[data-hub="astrology"\][^{]*\.side-menu/);
+
+    /**
+     * 3. BUT THE WELL IS WALL, NOT FURNITURE, AND MUST FOLLOW.
+     *
+     * The rail's own labels read --ink / --ink-soft / --faint, which the room
+     * re-points to ivory. A white well under ivory text is the hub name gone.
+     * So a hub that re-points the ground MUST re-point the well with it — the
+     * two cannot disagree, and this is the pairing that says so.
+     */
+    expect({ ground: /--paper\s*:/.test(night), well: /--rail-well\s*:/.test(night) })
+      .toEqual({ ground: true, well: true });
+
+    /**
+     * 4. AND NO SURFACE MAY HARDCODE ITS OWN LIGHT GROUND.
+     *
+     * `.btn-secondary` was `background: #fff` with `color: var(--ink)` — a face
+     * that follows nothing under a label that follows the room. On white that
+     * is invisible-by-luck-only; on the night ground it is ivory on white, a
+     * control you cannot read and cannot see is a control.
+     *
+     * It is achromatic, so the colour guard allowed it, and it was the ONLY one
+     * in the material — which is why the fix was one word and why this line
+     * exists to keep it that way.
+     */
+    const litBg = [...strip(relief).matchAll(/background(?:-color)?:\s*(#f[0-9a-fA-F]{2,5}\b|#ffffff\b|white\b)/g)]
+      .map((m) => m[1]);
+    expect(litBg).toEqual([]);
+
+    // 3. no theme switch comes back with it
+    expect(css).not.toContain('[data-theme');
   });
 
   /**
