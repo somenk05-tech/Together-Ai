@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
+import { LocationPicker, type LocationValue } from '@/components/LocationPicker';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
-import { servicesApi, useServiceCategories, useBusinessTypes, currentPosition } from './api';
+import { servicesApi, useServiceCategories, useBusinessTypes } from './api';
 import { DynamicFields } from './DynamicFields';
 
 /**
@@ -102,8 +103,6 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
   const [lat, setLat] = useState(str(initial?.lat));
   const [lng, setLng] = useState(str(initial?.lng));
   const [accuracy, setAccuracy] = useState<number | null>(null);
-  const [locBusy, setLocBusy] = useState(false);
-  const [locErr, setLocErr] = useState<string | null>(null);
   const [radiusKm, setRadius] = useState(str(initial?.radiusKm));
   const [photos, setPhotos] = useState<string[]>((initial?.photos ?? []).map((p) => p.url));
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -167,14 +166,9 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
     finally { setPhotoBusy(false); }
   };
 
-  const locateMe = async () => {
-    setLocBusy(true); setLocErr(null);
-    try {
-      const p = await currentPosition();
-      setLat(p.lat.toFixed(6)); setLng(p.lng.toFixed(6)); setAccuracy(p.accuracyM);
-    } catch (e) { setLocErr((e as Error).message); }
-    finally { setLocBusy(false); }
-  };
+  // locateMe and its two pieces of state moved into LocationPicker. The
+  // permission prompt, the accuracy and the refusal message belong with the
+  // control that asks for them, not with the form around it.
   const latN = Number(lat), lngN = Number(lng);
   const pinned = lat !== '' && lng !== '' && Number.isFinite(latN) && Number.isFinite(lngN)
     && latN >= -90 && latN <= 90 && lngN >= -180 && lngN <= 180;
@@ -367,45 +361,18 @@ export function ListingForm({ initial, submitLabel, busyLabel, pending, error, o
         */}
         <div>
           <span style={label}>Where you are <span className="muted" style={{ fontWeight: 400 }}>(optional, but it puts you on the map)</span></span>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Button variant="line" size="sm" disabled={locBusy} onClick={() => void locateMe()}>
-              {locBusy ? 'Finding you…' : '📍 Use my current location'}
-            </Button>
-            {pinned && (
-              <>
-                <span className="muted" style={{ fontSize: 12.5 }}>
-                  Pinned at {latN.toFixed(5)}, {lngN.toFixed(5)}
-                  {accuracy != null && ` · accurate to about ${accuracy} m`}
-                </span>
-                <button type="button" onClick={() => { setLat(''); setLng(''); setAccuracy(null); }}
-                  style={{ background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)' }}>Clear</button>
-              </>
-            )}
+          <div style={{ marginTop: 8 }}>
+            <LocationPicker
+              value={{ lat, lng, accuracy }}
+              onChange={(v: LocationValue) => { setLat(v.lat); setLng(v.lng); setAccuracy(v.accuracy); }}
+              hint="Drag the pin to your door, search the address, or use your location. Optional — a listing with no pin is still found by area."
+            />
           </div>
-          {locErr && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: '8px 0 0' }} role="alert">{locErr}</p>}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10, marginTop: 10 }}>
-            <div>
-              <label htmlFor="svc-lat" style={{ ...label, fontWeight: 500, fontSize: 12 }}>Latitude</label>
-              <input id="svc-lat" style={field} value={lat} onChange={(e) => { setLat(e.target.value); setAccuracy(null); }}
-                inputMode="decimal" placeholder="19.076090" maxLength={12} />
-            </div>
-            <div>
-              <label htmlFor="svc-lng" style={{ ...label, fontWeight: 500, fontSize: 12 }}>Longitude</label>
-              <input id="svc-lng" style={field} value={lng} onChange={(e) => { setLng(e.target.value); setAccuracy(null); }}
-                inputMode="decimal" placeholder="72.877426" maxLength={12} />
-            </div>
-            <div>
-              <label htmlFor="svc-radius" style={{ ...label, fontWeight: 500, fontSize: 12 }}>How far you travel (km)</label>
-              <input id="svc-radius" style={field} value={radiusKm} onChange={(e) => setRadius(e.target.value)}
-                inputMode="numeric" placeholder="5" maxLength={3} />
-            </div>
+          <div style={{ marginTop: 10, maxWidth: 220 }}>
+            <label htmlFor="svc-radius" style={{ ...label, fontWeight: 500, fontSize: 12 }}>How far you travel (km)</label>
+            <input id="svc-radius" style={field} value={radiusKm} onChange={(e) => setRadius(e.target.value)}
+              inputMode="numeric" placeholder="5" maxLength={3} />
           </div>
-          {lat !== '' && lng !== '' && !pinned && (
-            <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: '8px 0 0' }} role="alert">
-              Those do not look like coordinates. Latitude runs −90 to 90, longitude −180 to 180 —
-              and they are easy to swap round.
-            </p>
-          )}
         </div>
 
         {/* A listing with no picture is a line of text competing with a

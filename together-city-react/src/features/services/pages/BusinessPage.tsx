@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { SlippyMap } from '@/components/SlippyMap';
 import { Button, Card, Spinner, EmptyState } from '@/components/ui';
 import { MenuView } from '../MenuView';
 import { Gallery, Reviews } from '../ListingPanel';
@@ -282,7 +283,13 @@ export function BusinessPage() {
       {(s.lat != null && s.lng != null) && (
         <div style={section}>
           <Head lite="Where" bold="they are" />
-          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+          {/* A map, because two decimal numbers are not an answer to "where".
+              Read-only: no drag handler, so the pin cannot be moved by
+              somebody who is not the owner — the picker on the listing form is
+              the same component with onMove passed in. */}
+          <SlippyMap lat={s.lat} lng={s.lng} zoom={16} height={240} pin
+            label={`Map showing where ${s.businessName} is`} />
+          <p className="muted" style={{ fontSize: 13, margin: '8px 0 0' }}>
             Pinned at {s.lat.toFixed(5)}, {s.lng.toFixed(5)}
             {s.radiusKm != null && ` · travels about ${s.radiusKm} km`}
           </p>
