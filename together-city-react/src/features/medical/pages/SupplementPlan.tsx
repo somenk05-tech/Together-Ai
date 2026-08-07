@@ -29,7 +29,7 @@ export function SupplementPlan() {
   const goalLabel = basis.goal === 'lose' ? 'weight loss' : basis.goal === 'gain' ? 'muscle gain' : 'maintenance';
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Medical Hub · Supplement Plan</div>
       <h1 style={{ fontSize: 26 }}>Your personal supplement plan</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0' }}>

@@ -205,7 +205,7 @@ export function FoodJournal() {
   };
 
   return (
-    <div style={{ maxWidth: 1040, margin: '0 auto', padding: '20px 16px 40px' }}>
+    <div>
       {/*
         THE HEADER PICTURE IS GONE, AND IT WAS WORSE THAN DECORATION.
 

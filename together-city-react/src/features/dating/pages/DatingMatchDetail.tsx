@@ -139,7 +139,7 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
   );
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '20px 16px 48px' }}>
+    <div>
       <div className="eyebrow" style={{ marginBottom: 10 }}>
         <Link to="/dating/matches" style={{ color: 'var(--muted)' }}>← Curated Matches</Link>
       </div>
@@ -252,7 +252,7 @@ export function DatingMatchDetail() {
   const detail = useMatchDetail(targetUserId, kind);
 
   if (!targetUserId) {
-    return <div style={{ maxWidth: 560, margin: '40px auto', padding: '0 16px' }}>
+    return <div className="page-note">
       <EmptyState icon="✨" title="No profile selected" hint="Open a profile from your Curated Matches." />
       <div style={{ textAlign: 'center', marginTop: 14 }}><Link to="/dating/matches"><Button variant="accent">Back to matches</Button></Link></div>
     </div>;
@@ -269,7 +269,7 @@ export function DatingMatchDetail() {
     // which is what made this a dead end rather than an answer. Narrowing your
     // own preferences does exactly this, and saying so leaks nothing about
     // anybody: it is a fact about your settings, and the link goes to them.
-    return <div style={{ maxWidth: 560, margin: '40px auto', padding: '0 16px' }}>
+    return <div className="page-note">
       <EmptyState
         icon="🌙"
         title="This profile isn’t available"

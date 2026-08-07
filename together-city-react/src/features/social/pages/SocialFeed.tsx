@@ -121,7 +121,7 @@ export function SocialFeed() {
   }
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       {toast && (
         <div role="status" style={{ position: 'fixed', top: 18, left: '50%', transform: 'translateX(-50%)', zIndex: 80,
           background: 'var(--ok-ink)', color: 'var(--on-accent)', borderRadius: 999, padding: '11px 20px', fontSize: 13.5, fontWeight: 600,

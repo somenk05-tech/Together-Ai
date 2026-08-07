@@ -319,7 +319,7 @@ export function Profile() {
   ];
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '36px 24px 80px' }}>
+    <div className="page">
       <div className="eyebrow">Together City</div>
       <h1 style={{ marginBottom: 18 }}>Your profile</h1>
 

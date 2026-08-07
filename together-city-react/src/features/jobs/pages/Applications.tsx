@@ -16,7 +16,7 @@ export function Applications() {
   if (q.isError || !q.data) return <EmptyState title="Couldn't load your applications" hint="Please check your connection and try again." />;
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Jobs · Applications</div>
       <h1 style={{ fontSize: 26 }}>Your applications</h1>
 

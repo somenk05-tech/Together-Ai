@@ -101,7 +101,7 @@ export function Compose() {
   const inp = { padding: '11px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const, background: 'var(--card)' };
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
+    <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div>
           <div className="eyebrow">Mail · Compose</div>

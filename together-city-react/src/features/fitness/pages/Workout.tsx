@@ -320,7 +320,7 @@ export function Workout() {
   const blkHead = (txt: string) => <div style={{ fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 700, margin: '14px 0 2px' }}>{txt}</div>;
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto', padding: '20px 16px 40px' }}>
+    <div>
       <div style={{ marginBottom: 28 }}>
         <div className="eyebrow">Together City · Hub 012</div>
         <h1 style={{ fontSize: 'clamp(26px,3vw,42px)' }}>Your Workout</h1>

@@ -34,7 +34,7 @@ export function Wallet() {
   const w = wallet.data;
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Financial · Wallet</div>
       <h1 style={{ fontSize: 26 }}>Your city wallet</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px' }}>

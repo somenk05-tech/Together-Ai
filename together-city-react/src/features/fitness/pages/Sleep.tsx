@@ -107,7 +107,7 @@ export function Sleep() {
   const C = 2 * Math.PI * 54;
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto', padding: '20px 16px 40px' }}>
+    <div>
       <div className="hero" style={{ minHeight: 260, marginBottom: 26, background: 'linear-gradient(120deg,#10141f 0%,#1b2540 45%,#2a2340 100%)', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, opacity: 0.8, backgroundImage: 'radial-gradient(1.4px 1.4px at 20% 30%,rgba(255,255,255,.7),transparent),radial-gradient(1.2px 1.2px at 65% 20%,rgba(255,255,255,.6),transparent),radial-gradient(1.6px 1.6px at 80% 55%,rgba(255,255,255,.55),transparent),radial-gradient(1.2px 1.2px at 40% 70%,rgba(255,255,255,.5),transparent),radial-gradient(1.3px 1.3px at 88% 80%,rgba(255,255,255,.5),transparent)' }} />
         <div className="inner" style={{ position: 'relative', zIndex: 2 }}>

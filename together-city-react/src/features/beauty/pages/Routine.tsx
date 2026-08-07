@@ -84,7 +84,7 @@ export function Routine() {
   // us; failing to read it is not the same as never having been told.
   if (routine.isError) {
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '28px 16px' }}>
+      <div>
         <div className="eyebrow">Beauty Hub · Routine</div>
         <h1 style={{ fontSize: 26 }}>Your routine</h1>
         <EmptyState
@@ -100,7 +100,7 @@ export function Routine() {
   const empty = !data || data.routines.every((r) => r.steps.length === 0);
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Beauty Hub · Routine</div>
       <h1 style={{ fontSize: 26 }}>Your routine</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>

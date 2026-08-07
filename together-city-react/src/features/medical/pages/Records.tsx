@@ -130,7 +130,7 @@ export function Records() {
    */
   if (records.isError) {
     return (
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 16px 48px' }}>
+      <div>
         <div className="eyebrow">Medical</div>
         <h1 style={{ fontSize: 26, margin: '2px 0 0' }}>We couldn’t open your records</h1>
         <p className="muted" style={{ fontSize: 14, lineHeight: 1.65, margin: '10px 0 0', maxWidth: '56ch' }}>
@@ -215,7 +215,7 @@ export function Records() {
   ].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 25);
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Medical Hub · Records</div>
       <h1 style={{ fontSize: 26 }}>Your health record</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0' }}>

@@ -153,7 +153,7 @@ export function ModerationQueue() {
   const queue = useReportQueue();
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: '20px 16px 56px' }}>
+    <div className="page">
       <Breadcrumbs />
       <div className="eyebrow" style={{ marginTop: 10 }}>Moderation</div>
       <h1 style={{ fontSize: 26 }}>Reported</h1>

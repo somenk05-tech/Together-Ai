@@ -35,7 +35,7 @@ export function BodyGoal() {
   const p = q.data;
 
   return (
-    <div style={{ maxWidth: 740, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Fitness · Body Goal</div>
       <h1 style={{ fontSize: 26 }}>{p.goalLabel}</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px' }}>

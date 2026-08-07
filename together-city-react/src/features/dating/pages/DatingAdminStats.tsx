@@ -20,7 +20,7 @@ export function DatingAdminStats() {
 
   if (q.isError || !q.data) {
     return (
-      <div style={{ maxWidth: 560, margin: '40px auto', padding: '0 16px' }}>
+      <div className="page-note">
         <EmptyState icon="🔒" title="Admin access required" hint="This page is limited to Dating Hub admins. Add your handle to the MODERATION_ADMINS environment variable on the API, then reload." />
         <div style={{ textAlign: 'center', marginTop: 14 }}><Link to="/dating"><Button variant="line">Back to Dating Hub</Button></Link></div>
       </div>
@@ -29,7 +29,7 @@ export function DatingAdminStats() {
 
   const s = q.data;
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 16px 48px' }}>
+    <div>
       <div className="eyebrow">Dating Hub · Admin</div>
       <h1 style={{ fontSize: 26 }}>Dating Hub stats</h1>
       <p className="muted" style={{ fontSize: 13, margin: '6px 0 20px' }}>

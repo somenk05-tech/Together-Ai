@@ -56,7 +56,7 @@ export function Plan() {
   const p = q.data;
 
   return (
-    <div style={{ maxWidth: 740, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Fitness · My Plan</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: 26, margin: 0 }}>Your week</h1>

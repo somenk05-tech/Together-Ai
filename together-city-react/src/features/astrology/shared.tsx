@@ -4,7 +4,7 @@ import { Button, Card } from '@/components/ui';
 /** Prompt shown wherever a reading needs birth details that aren't stored yet. */
 export function NeedsProfileCard() {
   return (
-    <Card style={{ maxWidth: 560, margin: '40px auto', textAlign: 'center', padding: '36px 28px' }}>
+    <Card className="page-note centred" style={{ padding: '36px 28px' }}>
       <div style={{ fontSize: 34, marginBottom: 10 }}>🔭</div>
       <h2 style={{ fontFamily: 'var(--serif)', marginBottom: 10 }}>Complete Your Birth Details</h2>
       <p className="muted" style={{ fontSize: 14, lineHeight: 1.65, marginBottom: 18 }}>

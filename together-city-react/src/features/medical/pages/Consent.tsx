@@ -22,7 +22,7 @@ export function Consent() {
   if (consents.isError || !consents.data) return <EmptyState title="Couldn't load consent settings" hint="Nothing has been granted or revoked. We couldn’t read your settings, so we’re not showing you switches that might be wrong." />;
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Medical Hub · Privacy & Consent</div>
       <h1 style={{ fontSize: 26 }}>Who can read your health data</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>

@@ -52,7 +52,7 @@ export function PostJob() {
   const input = { width: '100%', padding: '10px 12px', border: '1.5px solid var(--line)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none' } as const;
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Jobs · {editId ? 'Edit a Job' : 'Post a Job'}</div>
       <h1 style={{ fontSize: 26 }}>{editId ? 'Edit role' : 'Post a role'}</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>

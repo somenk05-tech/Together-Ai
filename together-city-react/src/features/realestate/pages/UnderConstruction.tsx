@@ -50,7 +50,7 @@ function ProjectCard({ p }: { p: PropertyDetail }) {
 export function UnderConstruction() {
   const q = useUnderConstruction();
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div>
           <div className="eyebrow">Real Estate · Under Construction</div>

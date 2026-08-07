@@ -19,25 +19,33 @@ export function HubLayout({ hub }: { hub: HubConfig }) {
       <div className="tc-shell">
         <Sidebar hub={hub} />
         <main className="tc-main">
-          <div style={{ maxWidth: 1180, margin: '0 auto', width: '100%', padding: '0 16px' }}>
+          {/* ONE `.page` AROUND THE BREADCRUMB *AND* THE ROUTED PAGE.
+              
+              The breadcrumb used to sit in its own 1180px container with a
+              16px gutter, above a page that chose its own width and its own
+              gutter — so it lined up with the title beneath it on none of the
+              hub's screens, and lined up differently on each one. Sharing the
+              grid is the whole fix: they are two children of the same column
+              now and cannot disagree. */}
+          <div className="page">
             <Breadcrumbs />
-          </div>
           {/* One-thumb hub navigation. On a phone the sidebar lives behind the
               burger — real, but two taps from anywhere. These are the same
               hub.items as chips in a horizontal rail: the mobile-native shape
               for "sections of the place you are in". CSS hides it ≥900px,
               where the sidebar is simply present. */}
-          {hub.items.length > 0 && (
-            <nav className="hub-chips" aria-label={`${hub.name} sections`}>
-              {hub.items.map((it) => (
-                <NavLink key={it.path} to={it.path} className={({ isActive }) => `chip${isActive ? ' on' : ''}`}
-                  style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>
-                  {it.label}
-                </NavLink>
-              ))}
-            </nav>
-          )}
-          <HubConsentGate hub={hub.key}><Outlet /></HubConsentGate>
+            {hub.items.length > 0 && (
+              <nav className="hub-chips" aria-label={`${hub.name} sections`}>
+                {hub.items.map((it) => (
+                  <NavLink key={it.path} to={it.path} className={({ isActive }) => `chip${isActive ? ' on' : ''}`}
+                    style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>
+                    {it.label}
+                  </NavLink>
+                ))}
+              </nav>
+            )}
+            <HubConsentGate hub={hub.key}><Outlet /></HubConsentGate>
+          </div>
         </main>
       </div>
       <Footer />

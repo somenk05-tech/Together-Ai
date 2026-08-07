@@ -55,7 +55,7 @@ export function Postings() {
   if (q.isError || !q.data) return <EmptyState title="Couldn't load your postings" hint="Please check your connection and try again." />;
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Jobs · My Postings</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <h1 style={{ fontSize: 26, margin: 0 }}>Your postings</h1>

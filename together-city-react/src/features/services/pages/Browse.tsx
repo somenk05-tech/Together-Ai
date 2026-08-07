@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Chip, EmptyState, Spinner, Button } from '@/components/ui';
-import { serviceHref, useBrowseServices, useServiceCategories, useServiceFacets, useEnquire, useToggleRegular, rupees, humanDistance, currentPosition, stars, type ServiceCard } from '../api';
+import { serviceHref, useBrowseServices, useServiceCategories, useServiceFacets, humanDistance, currentPosition, type ServiceCard } from '../api';
 
 /**
  * FIND A SERVICE.
@@ -15,70 +15,42 @@ import { serviceHref, useBrowseServices, useServiceCategories, useServiceFacets,
  * empty category reads as "nobody here yet" rather than as a filter that
  * returned nothing.
  */
-function Tile({ s, onChat, busy, saved, onKeep, keeping }: {
-  s: ServiceCard; onChat: (id: string) => void; busy: boolean;
-  saved: boolean; onKeep: (id: string, saved: boolean) => void; keeping: boolean;
-}) {
+/**
+ * A NAME, AND WHAT THEY DO.
+ *
+ * The directory answers one question — WHO IS THERE — and it should look like
+ * an answer to that question and nothing else. A card carrying Chat, Keep and
+ * See their page asks a citizen to make three decisions about a business they
+ * have not looked at yet, and two of those decisions are already waiting, in
+ * better shape, on the page itself.
+ *
+ * So the whole tile is one link. The picture, the name, the trade, and on a
+ * near-me search how far away they are, because that is the entire point of
+ * having pressed that button.
+ */
+function Tile({ s }: { s: ServiceCard }) {
   return (
-    <Card style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 0, overflow: 'hidden' }}>
-      {s.photos.length > 0 && (
-        <Link to={serviceHref(s)} aria-label={`Open ${s.businessName}`} style={{ display: 'block' }}>
+    <Link to={serviceHref(s)} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+      <Card style={{ display: 'flex', flexDirection: 'column', gap: 0, padding: 0, overflow: 'hidden', height: '100%' }}>
+        {s.photos.length > 0 ? (
           <img src={s.photos[0].url} alt="" loading="lazy"
-            style={{ display: 'block', width: '100%', aspectRatio: '16 / 10', objectFit: 'cover' }} />
-        </Link>
-      )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '14px 18px 16px' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        {/* The name is the way in, and it goes to a real page — one that can
-            be linked, bookmarked and sent to somebody. A card that looks like a
-            way in and is not one is the commonest small betrayal in a
-            directory. */}
-        <Link to={serviceHref(s)}
-          style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', textDecoration: 'none' }}>
-          {s.businessName}
-        </Link>
-        <span className="muted" style={{ fontSize: 12.5 }}>{s.categoryLabel}</span>
-      </div>
-      {/* An average below three reviews is withheld and the count shown instead:
-          ★5.0 on a sample of one is a claim the data cannot carry. */}
-      {(s.count ?? 0) > 0 && (
-        <div style={{ fontSize: 12.5 }}>
-          {s.rating != null ? (
-            <>
-              <span style={{ color: 'var(--warn-ink)', letterSpacing: 1 }}>{stars(Math.round(s.rating))}</span>
-              <span style={{ fontWeight: 700, marginLeft: 6 }}>{s.rating}</span>
-              <span className="muted"> · {s.count} reviews</span>
-            </>
-          ) : (
-            <span className="muted">{s.count} {s.count === 1 ? 'review' : 'reviews'} — too few for an average</span>
+            style={{ display: 'block', width: '100%', aspectRatio: '4 / 3', objectFit: 'cover' }} />
+        ) : (
+          /* A shop with no photograph still needs a shape, or the grid falls
+             into steps. The hub's own wash, not a grey apology. */
+          <div aria-hidden style={{ width: '100%', aspectRatio: '4 / 3', background: 'var(--accent-soft)' }} />
+        )}
+        <div style={{ padding: '13px 16px 15px' }}>
+          <strong style={{ fontSize: 15.5, display: 'block' }}>{s.businessName}</strong>
+          <span className="muted" style={{ fontSize: 12.5 }}>{s.categoryLabel}</span>
+          {s.distanceKm != null && (
+            <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)', marginTop: 3 }}>
+              {humanDistance(s.distanceKm)} away
+            </span>
           )}
         </div>
-      )}
-      <div className="muted" style={{ fontSize: 12.5 }}>
-        {s.distanceKm != null && <strong style={{ color: 'var(--accent-ink)' }}>{humanDistance(s.distanceKm)} away · </strong>}
-        {s.areas.length ? s.areas.join(' · ') : s.city}
-        {s.priceFrom != null && <> · from {rupees(s.priceFrom)}</>}
-      </div>
-      {s.about && (
-        <p style={{ fontSize: 13.5, margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-          {s.about}
-        </p>
-      )}
-      <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-        <Button variant="accent" size="sm" disabled={busy} onClick={() => onChat(s.id)}>Chat</Button>
-        {/* "Keep" rather than a heart. A heart means liked; this means "I will
-            want this person again", which is a different and more useful thing
-            for the list it builds. */}
-        <Button variant="line" size="sm" disabled={keeping} onClick={() => onKeep(s.id, saved)}>
-          {saved ? '✓ Kept' : 'Keep'}
-        </Button>
-        <Link to={serviceHref(s)}><Button variant="line" size="sm">See their page</Button></Link>
-      </div>
-      <p className="muted" style={{ fontSize: 11.5, margin: 0 }}>
-        They will see you as a neighbour, not by name.
-      </p>
-      </div>
-    </Card>
+      </Card>
+    </Link>
   );
 }
 
@@ -107,33 +79,18 @@ export function ServicesBrowse() {
     catch (e) { setLocErr((e as Error).message); }
     finally { setLocBusy(false); }
   };
-  const enquire = useEnquire();
-  const keep = useToggleRegular();
-  const [openedThread, setOpenedThread] = useState<string | null>(null);
-
-  const onChat = (id: string) => {
-    enquire.mutate({ id }, { onSuccess: (t) => setOpenedThread(t.id) });
-  };
-
   const groups = cats.data?.groups ?? [];
   const counts = facets.data ?? {};
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto', width: '100%' }}>
+    <div>
       <div className="eyebrow">Local Services</div>
       <h1 style={{ fontSize: 26 }}>Find a service</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', maxWidth: '64ch' }}>
         Everyone here listed themselves. Message any of them without giving your name —
         the conversation stays in this hub and never reaches your Chats.
       </p>
-
-      {openedThread && (
-        <Card style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13.5 }}>Your message room is open.</span>
-          <Link to={`/services/messages/${openedThread}`}><Button variant="accent" size="sm">Go to it</Button></Link>
-        </Card>
-      )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Search by name or what they do"
@@ -208,12 +165,9 @@ export function ServicesBrowse() {
               : 'Try another category, or widen the area.'}
           />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))', gap: 16 }}>
             {list.data?.items.map((s) => (
-              <Tile key={s.id} s={s} onChat={onChat} busy={enquire.isPending}
-                saved={(list.data?.saved ?? []).includes(s.id)}
-                onKeep={(id, isSaved) => keep.mutate({ id, saved: isSaved })}
-                keeping={keep.isPending} />
+              <Tile key={s.id} s={s} />
             ))}
           </div>
         )}

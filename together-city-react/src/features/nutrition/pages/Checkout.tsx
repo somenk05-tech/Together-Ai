@@ -60,7 +60,7 @@ export function Checkout() {
   // on the request at all.
   if (cart.isError && !state?.items?.length) {
     return (
-      <div style={{ maxWidth: 620, margin: '0 auto', padding: '48px 16px' }}>
+      <div>
         <div className="eyebrow">Shopping list</div>
         <h1 style={{ marginBottom: 10 }}>We could not load your list</h1>
         <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6 }}>
@@ -77,7 +77,7 @@ export function Checkout() {
 
   if (!lines.length) {
     return (
-      <div style={{ maxWidth: 620, margin: '0 auto', padding: '48px 16px' }}>
+      <div>
         <div className="eyebrow">Shopping list</div>
         <h1 style={{ marginBottom: 10 }}>Your list is empty</h1>
         <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6 }}>
@@ -104,7 +104,7 @@ export function Checkout() {
   };
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Shopping list</div>
       <h1 style={{ marginBottom: 6 }}>What your plan needs</h1>
       <p className="muted" style={{ fontSize: 13, lineHeight: 1.6, margin: '0 0 22px' }}>

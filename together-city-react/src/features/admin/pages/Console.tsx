@@ -479,7 +479,7 @@ export function AdminConsole() {
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', width: '100%' }}>
+    <div className="page">
       <div className="eyebrow">Together City · Console</div>
       {/* The heading belongs to the TAB, not to the console. It said "Waiting
           on a decision" over the citizen search for one render and read as a

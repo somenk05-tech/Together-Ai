@@ -198,7 +198,7 @@ export function DatingChats() {
   const back = () => setParams((p) => { p.delete('c'); return p; }, { replace: true });
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Dating Hub · Chats</div>
       <h1 style={{ fontSize: 26 }}>Your dating chats</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>

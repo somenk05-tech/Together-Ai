@@ -106,7 +106,7 @@ export function BusinessPage() {
   if (s.priceFrom != null) facts.push({ k: 'Starting from', v: rupees(s.priceFrom) });
 
   return (
-    <div style={{ maxWidth: 880, margin: '0 auto', width: '100%' }}>
+    <div>
       <div style={{ marginBottom: 12 }}>
         <Link to="/services/browse" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent-ink)' }}>
           ← All local services

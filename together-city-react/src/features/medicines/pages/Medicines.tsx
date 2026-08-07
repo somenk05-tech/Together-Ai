@@ -277,7 +277,7 @@ export function Medicines() {
   const pending = list.filter((p) => p.status !== 'confirmed');
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Medical Hub · Medicines</div>
       <h1 style={{ fontSize: 26 }}>Medicines & reminders</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>

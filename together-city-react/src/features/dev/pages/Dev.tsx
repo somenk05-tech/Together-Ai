@@ -41,7 +41,7 @@ function uptime(sec: number): string {
 function Prompt({ onUnlock, error, busy }: { onUnlock: (p: string) => void; error: string | null; busy: boolean }) {
   const [value, setValue] = useState('');
   return (
-    <div style={{ maxWidth: 380, margin: '12vh auto 0' }}>
+    <div className="page-note">
       <Card style={{ display: 'grid', gap: 14 }}>
         <div>
           <div className="eyebrow">Together City</div>
@@ -210,7 +210,7 @@ export function DevPage() {
   const hidden = routes.filter((r) => !r.inNavigation && !r.parameterised);
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', width: '100%' }}>
+    <div className="page">
       <div className="eyebrow">Together City · Developer</div>
       <h1 style={{ fontSize: 26 }}>What this deployment actually is</h1>
 

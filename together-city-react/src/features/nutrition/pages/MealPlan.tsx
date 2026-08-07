@@ -20,7 +20,7 @@ import { balanceNote, dayBalance } from '../dayBalance';
 /** Master-source-of-truth gate: no plan until the Food Preference Profile is saved. */
 function ProfileGate() {
   return (
-    <div style={{ maxWidth: 560, margin: '48px auto', textAlign: 'center', padding: '0 16px' }}>
+    <div className="page-note centred">
       <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>Complete your Food Preference Profile</div>
       <p className="muted" style={{ fontSize: 13.5, marginBottom: 18, lineHeight: 1.5 }}>
         Your weekly plan is built from your Food Preference Profile — diet, cuisines, foods you avoid,
@@ -663,7 +663,7 @@ export function MealPlan() {
   const readiness = plan.data.prescription?.readiness;
   if (readiness && !readiness.ok) {
     return (
-      <div style={{ maxWidth: 560, margin: '48px auto', padding: '0 16px' }}>
+      <div className="page-note">
         <h1 style={{ fontSize: 22, margin: '0 0 6px' }}>We can’t size a plan for you yet</h1>
         <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, margin: '0 0 4px' }}>
           A meal plan is portions, and portions come from a body. We’d rather ask
@@ -691,7 +691,7 @@ export function MealPlan() {
   const d = wk.days[day];
 
   return (
-    <div data-press className="press-page" style={{ maxWidth: 1240, margin: '0 auto', padding: '20px 16px 60px' }}>
+    <div data-press className="press-page">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div className="eyebrow">Nutrition · Meal Plan</div>

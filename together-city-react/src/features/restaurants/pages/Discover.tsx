@@ -50,7 +50,7 @@ export function Discover() {
   const chip = (active: boolean) => ({ cursor: 'pointer', borderRadius: 999, padding: '7px 15px', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', border: `1.5px solid ${active ? 'var(--accent)' : 'var(--line)'}`, background: active ? 'var(--accent)' : 'transparent', color: active ? 'var(--on-accent)' : 'var(--ink-soft)' } as const);
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
+    <div className="page">
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div><div className="eyebrow">Restaurants · Discover</div><h1 style={{ fontSize: 26, margin: 0 }}>Where are we eating?</h1></div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>

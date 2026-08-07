@@ -93,7 +93,7 @@ export function Matches() {
 
   if (!q.data.hasProfile) {
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '28px 16px' }}>
+      <div>
         <div className="eyebrow">Jobs · Jobs for you</div>
         <h1 style={{ fontSize: 26 }}>Upload your resume first</h1>
         <div className="card" style={{ marginTop: 14 }}>
@@ -111,7 +111,7 @@ export function Matches() {
   const weak = visible.filter(isWeak);
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Jobs · Jobs for you</div>
       <h1 style={{ fontSize: 26 }}>Jobs for you</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>

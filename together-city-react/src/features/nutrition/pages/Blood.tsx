@@ -39,7 +39,7 @@ export function Blood() {
   const toggle = () => setConsent.mutate({ hub: 'nutrition', granted: !on });
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Nutrition Hub · 01</div>
       <h1 style={{ fontSize: 26 }}>Connect with Blood Test</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0' }}>

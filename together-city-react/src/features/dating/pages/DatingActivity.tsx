@@ -140,7 +140,7 @@ export function DatingActivity() {
   if (profile.isLoading) return <Spinner label="Loading…" />;
   if (!profile.data) {
     return (
-      <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
+      <div>
         <EmptyState icon="🌙" title="Create your dating profile first" hint="Activity dating uses your birth details and interests to invite compatible people." />
         <div style={{ textAlign: 'center', marginTop: 14 }}><Link to="/dating/profile"><Button variant="accent">Set up your profile →</Button></Link></div>
       </div>
@@ -151,7 +151,7 @@ export function DatingActivity() {
   const TABS: [Tab, string, number | undefined][] = [['create', '+ Create', undefined], ['invites', 'Invitations', pendingCount], ['mine', 'My plans', mine.data?.length]];
 
   return (
-    <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Dating Hub · Activity Dating</div>
       <h1 style={{ fontSize: 26 }}>Meet by doing, not swiping</h1>
       <p className="muted" style={{ fontSize: 13.5, marginTop: 6 }}>Post a plan; the AI invites your most compatible people. Connections stay anonymous until you both choose to reveal.</p>

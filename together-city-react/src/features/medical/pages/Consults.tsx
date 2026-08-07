@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 /** Talk to a Doctor — coming soon. */
 export function Consults() {
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Medical Hub · Talk to a Doctor</div>
       <h1 style={{ fontSize: 26 }}>Talk to a Doctor</h1>
 

@@ -35,7 +35,7 @@ export function SocialNotifications() {
   };
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
+    <div className="page">
       <div className="rise" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16, marginBottom: 22 }}>
         <div>
           <div className="eyebrow">Social Life · Notifications</div>

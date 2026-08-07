@@ -548,10 +548,10 @@ export function PublicProfilePage() {
   // If you land on your own handle, send you to your editable profile.
   useEffect(() => { if (p?.isMe) navigate('/social/profile', { replace: true }); }, [p?.isMe, navigate]);
 
-  if (q.isLoading) return <div style={{ maxWidth: 980, margin: '0 auto', padding: 40 }}><Spinner label="Loading profile…" /></div>;
+  if (q.isLoading) return <div><Spinner label="Loading profile…" /></div>;
   if (q.isError || !p) {
     return (
-      <div style={{ maxWidth: 980, margin: '0 auto', padding: 40 }}>
+      <div>
         <button type="button" className="btn btn-line btn-sm" onClick={() => navigate(-1)}><Icon name="back" size={15} /> Back</button>
         <p className="muted" style={{ marginTop: 16 }}>Couldn't load that profile.</p>
       </div>
@@ -560,7 +560,7 @@ export function PublicProfilePage() {
   const joined = new Date(p.memberSince).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <button type="button" className="btn btn-line btn-sm" style={{ marginBottom: 18 }} onClick={() => navigate(-1)}><Icon name="back" size={15} /> Back</button>
 
       <div className="rise g-slab" style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
@@ -873,13 +873,13 @@ export function SocialProfile() {
 
   if (me.isLoading) return <div style={{ padding: 40 }}><Spinner label="Loading your profile…" /></div>;
   if (me.isError || !me.data) {
-    return <div style={{ maxWidth: 980, margin: '0 auto', padding: 40 }}><p className="muted">Couldn't load your profile. Reload to try again.</p></div>;
+    return <div><p className="muted">Couldn't load your profile. Reload to try again.</p></div>;
   }
   const p = me.data;
   const joined = new Date(p.memberSince).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="rise g-slab" style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
         <Avatar src={p.profileImage} name={p.name} size={96} />
         <div style={{ flex: 1, minWidth: 220 }}>

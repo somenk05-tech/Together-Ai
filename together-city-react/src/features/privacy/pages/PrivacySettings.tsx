@@ -36,7 +36,7 @@ export function PrivacySettings() {
   };
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '20px 16px 56px' }}>
+    <div className="page">
       <Breadcrumbs />
       <div className="eyebrow" style={{ marginTop: 10 }}>Settings</div>
       <h1 style={{ fontSize: 26 }}>Privacy &amp; Permissions</h1>

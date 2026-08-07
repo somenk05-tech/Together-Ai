@@ -316,7 +316,7 @@ export function BloodAnalysis() {
   const showForm = !hasPanel || expanded; // collapse the upload + form once a panel is saved
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Medical Hub · Blood Test Analysis</div>
       <h1 style={{ fontSize: 26 }}>Your blood work, decoded</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0' }}>

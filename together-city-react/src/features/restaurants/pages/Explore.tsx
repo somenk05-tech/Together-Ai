@@ -172,7 +172,7 @@ export function Explore() {
   const topList = top.data?.restaurants ?? [];
 
   return (
-    <div style={{ maxWidth: 1120, margin: '0 auto', padding: '24px 16px 60px' }}>
+    <div className="page">
       <div className="hero rise" style={{ minHeight: 210 }}>
         <img className="bg" src="/assets/img/resturant--images--explore.webp" alt="Elegant restaurant dining room" />
         <div className="inner">

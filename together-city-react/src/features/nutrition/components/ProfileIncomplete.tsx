@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 export function ProfileIncomplete({ missing, to = '/nutrition/preferences' }: { missing?: { key: string; label: string }[]; to?: string }) {
   const items = missing ?? [];
   return (
-    <div style={{ maxWidth: 560, margin: '40px auto', padding: '0 20px', textAlign: 'center' }}>
+    <div className="page-note centred">
       <div style={{ fontSize: 34 }}>📝</div>
       <h2 style={{ margin: '10px 0 6px' }}>Complete your food profile</h2>
       <p className="muted" style={{ fontSize: 14, lineHeight: 1.6 }}>

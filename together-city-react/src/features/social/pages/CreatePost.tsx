@@ -525,7 +525,7 @@ export function CreatePost() {
     .filter((c) => !tagInput.trim() || c.user.name.toLowerCase().includes(tagInput.toLowerCase()) || c.user.handle.includes(tagInput.toLowerCase()));
 
   return (
-    <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow rise">Social Life · Create Post</div>
       <h1 className="rise" style={{ fontSize: 'clamp(24px,3vw,34px)', marginBottom: 14 }}>Share with your city</h1>
 

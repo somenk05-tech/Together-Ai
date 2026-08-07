@@ -81,7 +81,7 @@ export function Flights() {
   const swap = () => { setFrom(to); setTo(from); };
 
   return (
-    <div style={{ maxWidth: 940, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div><div className="eyebrow">Travel · Flights</div><h1 style={{ fontSize: 26, margin: 0 }}>Compare & book flights</h1></div>
         <Link to="/travel/explore" style={{ marginLeft: 'auto' }}><Button variant="line" size="sm">← Explore trips</Button></Link>

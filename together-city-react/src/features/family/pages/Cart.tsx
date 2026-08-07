@@ -77,7 +77,7 @@ export function FamilyCart() {
   };
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Family Nutrition · 04</div>
       <h1 style={{ marginBottom: 6 }}>Your Cart 🛍️</h1>
       <p className="lede" style={{ marginBottom: 18 }}>

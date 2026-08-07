@@ -206,7 +206,7 @@ export function Trainer() {
   // ── render ──
   if (status === 'idle' || status === 'starting') {
     return (
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
+      <div>
         <div className="eyebrow">Fitness · Trainer Mode</div>
         <h1 style={{ fontSize: 26 }}>Live AI form coach</h1>
         <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
@@ -239,7 +239,7 @@ export function Trainer() {
 
   if (status === 'denied') {
     return (
-      <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
+      <div>
         <div className="eyebrow">Fitness · Trainer Mode</div>
         <h1 style={{ fontSize: 26 }}>Camera needed</h1>
         <div className="card" style={{ marginTop: 14, borderLeft: '4px solid var(--warn-ink)' }}>
@@ -255,7 +255,7 @@ export function Trainer() {
 
   if (status === 'ended') {
     return (
-      <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px', textAlign: 'center' }}>
+      <div className="page-note centred">
         <div style={{ fontSize: 40 }}>🎉</div>
         <h1 style={{ fontSize: 26 }}>Session complete</h1>
         <p className="muted" style={{ fontSize: 14 }}>{exercise.label} · {mm}:{ss} · <strong>{reps} reps</strong> — logged to your activity.</p>
@@ -268,7 +268,7 @@ export function Trainer() {
 
   // live
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '18px 16px' }}>
+    <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
         <span style={{ fontWeight: 800, fontSize: 18 }}>{phaseLabel}</span>
         <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: 18 }}>{mm}:{ss}</span>

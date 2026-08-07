@@ -11,7 +11,7 @@ export function Spending() {
   const max = Math.max(1, ...s.byCategory.map((c) => c.amountInr));
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Financial · Spending</div>
       <h1 style={{ fontSize: 26 }}>This month across the city</h1>
 

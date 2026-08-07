@@ -115,7 +115,7 @@ export function Drive() {
   };
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
+    <div className="page">
       <div className="eyebrow">Together City</div>
       <h1 style={{ fontSize: 26, marginBottom: 4 }}>Your drive</h1>
       <p className="lede" style={{ marginBottom: 18 }}>

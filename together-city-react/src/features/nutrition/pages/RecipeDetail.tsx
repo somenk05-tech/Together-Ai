@@ -265,7 +265,7 @@ export function RecipeDetail() {
   const aisles = [...aislesMap.entries()].sort((a, b) => aisleOrder.indexOf(a[0]) - aisleOrder.indexOf(b[0]));
 
   return (
-    <div data-press style={{ maxWidth: 1080, margin: '0 auto', padding: '26px 16px 80px' }}>
+    <div data-press>
 
       {/* ── masthead ─────────────────────────────────────────────────── */}
       <div className="press-r-bar">

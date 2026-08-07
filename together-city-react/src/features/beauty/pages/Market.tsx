@@ -110,7 +110,7 @@ export function Market() {
   const shown = products.data.products.filter((p) => segOf(p.category) === seg);
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Beauty Market · Shop</div>
       <h1 style={{ fontSize: 26 }}>Curated for you</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 12px' }}>

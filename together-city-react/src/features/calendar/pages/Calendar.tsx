@@ -71,7 +71,7 @@ export function Calendar() {
   const catColor = (k: CategoryKey) => CATEGORIES.find((c) => c.key === k)?.color ?? 'var(--accent)';
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: '32px 18px 90px' }}>
+    <div className="page">
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <div className="eyebrow">Together City</div>

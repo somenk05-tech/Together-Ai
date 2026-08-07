@@ -50,7 +50,7 @@ function ListingWithStatus({ p }: { p: PropertyCard }) {
 export function MyListings() {
   const q = useMyListings();
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div>
           <div className="eyebrow">Real Estate · My Listings</div>

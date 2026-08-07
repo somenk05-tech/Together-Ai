@@ -70,7 +70,7 @@ export function AstroRemedies() {
     (remedies.data && 'needsProfile' in remedies.data && remedies.data.needsProfile);
 
   return (
-    <div style={{ maxWidth: 780, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <AstroHeader
         title="Gems & Remedies"
         lede="Stones and practices for the season you're in — offered as reflection and cultural practice, never as treatment."

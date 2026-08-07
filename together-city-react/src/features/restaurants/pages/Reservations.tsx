@@ -34,7 +34,7 @@ function ResCard({ v }: { v: Reservation }) {
 export function Reservations() {
   const q = useMyReservations();
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
+    <div className="page">
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div><div className="eyebrow">Restaurants · Reservations</div><h1 style={{ fontSize: 26, margin: 0 }}>Your table bookings</h1></div>
         <Link to="/restaurants" style={{ marginLeft: 'auto' }}><Button variant="line" size="sm">← Discover</Button></Link>

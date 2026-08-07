@@ -377,7 +377,7 @@ export function AstroProfilePage() {
   const chart = view.data?.profile?.chart;
 
   return (
-    <div className="astro-frame" style={{ maxWidth: 780, margin: '0 auto' }}>
+    <div className="astro-frame">
       {/* THESE TWO LINES WERE CREAM, and the comment that used to sit here said
           why: the frame was a dark celestial mat, and only the lines resting
           directly ON it were re-coloured. The mat is white now, and cream on

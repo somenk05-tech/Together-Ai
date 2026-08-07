@@ -218,7 +218,7 @@ export function Sell() {
   ]), [cityOk, titleOk, bhkOk, kind, areaOk, photoOk, priceOk, photos.length, schema.min]);
 
   return (
-    <div style={{ maxWidth: 1040, margin: '0 auto', padding: '20px 16px 40px' }}>
+    <div>
       <Hero image="/assets/img/realestate-2.webp" eyebrow="Real Estate · 02" title="List Your Property"
         sub="Houses, offices and shops — capture live photos, add accurate details, and list as many properties as you like." />
 

@@ -158,7 +158,7 @@ export function PropertyDetail() {
   const uc = p.status === 'under_construction';
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '20px 16px' }}>
+    <div>
       <Link to={uc ? '/realestate/under-construction' : '/realestate/explore'} style={{ fontSize: 12.5, color: 'var(--accent-ink)', fontWeight: 600 }}>← Back</Link>
 
       {/* Gallery */}

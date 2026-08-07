@@ -47,7 +47,7 @@ export function FamilyDaily() {
   const days = week.days ?? [];
   if (!days.length) {
     return (
-      <div style={{ maxWidth: 520, margin: '40px auto', textAlign: 'center', padding: '0 16px' }}>
+      <div className="page-note centred">
         <div style={{ fontSize: 40 }}>🗓️</div>
         <h2 style={{ fontSize: 22, margin: '10px 0 6px' }}>No household plan yet</h2>
         <p className="muted" style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>

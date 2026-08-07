@@ -73,7 +73,7 @@ export function SocialSaved() {
   };
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="rise" style={{ marginBottom: 28 }}>
         <div className="eyebrow">Social Life · Saved</div>
         <h1 style={{ fontSize: 'clamp(26px,3vw,38px)' }}>Kept for later</h1>

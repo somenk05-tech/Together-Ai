@@ -23,7 +23,7 @@ export function Log() {
   if (log.isError || !log.data) return <EmptyState title="Couldn't load your log" hint="Every workout you’ve recorded is still there — only the reading of it failed." />;
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Fitness · Activity Log</div>
       <h1 style={{ fontSize: 26 }}>This week</h1>
 

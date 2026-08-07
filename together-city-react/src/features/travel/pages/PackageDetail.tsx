@@ -22,7 +22,7 @@ export function PackageDetail() {
   const total = (chosen?.priceInr ?? 0) * pax;
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '20px 16px' }}>
+    <div>
       <Link to="/travel/explore" style={{ fontSize: 12.5, color: 'var(--accent-ink)', fontWeight: 600 }}>← Explore</Link>
 
       <div style={{ marginTop: 12, borderRadius: 16, overflow: 'hidden', aspectRatio: '16 / 8', position: 'relative' }}>

@@ -217,7 +217,7 @@ export function Thoughts() {
   const items = (thoughts.data?.pages ?? []).flatMap((p) => p.items);
 
   return (
-    <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Together City</div>
       <h1 style={{ fontSize: 26 }}>Thoughts</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>

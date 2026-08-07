@@ -93,7 +93,7 @@ export function Profile() {
   const collapsed = p.saved && !editing;
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Jobs · Resume & Profile</div>
       <h1 style={{ fontSize: 26 }}>{collapsed ? 'Your resume & profile' : 'Upload your CV'}</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>

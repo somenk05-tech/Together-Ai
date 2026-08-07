@@ -147,7 +147,7 @@ export function Makeup() {
   const visible = ITEMS.filter((i) => tab === 'complete' || i.section === tab);
 
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <Hero
         image="/assets/img/makeup-studio-hero.webp"
         eyebrow="Beauty Market · 04"

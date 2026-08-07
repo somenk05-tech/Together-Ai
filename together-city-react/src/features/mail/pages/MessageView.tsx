@@ -161,7 +161,7 @@ export function MessageView() {
   };
 
   return (
-    <div style={{ maxWidth: 780, margin: '0 auto', padding: '24px 16px' }}>
+    <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <Button variant="line" size="sm" onClick={() => nav(-1)}>← Back</Button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>

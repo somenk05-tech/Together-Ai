@@ -617,7 +617,7 @@ export function Profile() {
   };
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Beauty Market · Skin &amp; Hair</div>
       <h1 style={{ fontSize: 26, display: 'flex', alignItems: 'center', gap: 10 }}>
         <span aria-hidden style={{ fontSize: 24 }}>{beautyAvatar(f.gender)}</span>

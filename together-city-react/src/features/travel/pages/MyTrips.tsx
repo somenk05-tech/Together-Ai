@@ -35,7 +35,7 @@ function TripPass({ t }: { t: Trip }) {
 export function MyTrips() {
   const q = useMyTrips();
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div><div className="eyebrow">Travel · My Trips</div><h1 style={{ fontSize: 26, margin: 0 }}>Your trips</h1></div>
         <Link to="/travel/explore" style={{ marginLeft: 'auto' }}><Button variant="line" size="sm">← Explore</Button></Link>

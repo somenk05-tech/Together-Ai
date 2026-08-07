@@ -19,7 +19,7 @@ import { Icon } from '@/components/ui/Icon';
  */
 export function Hubs() {
   return (
-    <div style={{ maxWidth: 1040, margin: '0 auto', padding: '24px 16px 48px' }}>
+    <div className="page">
       <div className="eyebrow">Together City</div>
       <h1 style={{ fontSize: 26, margin: '0 0 4px' }}>The city</h1>
       <p className="muted" style={{ fontSize: 13.5, marginBottom: 18 }}>Every hub, one screen. Tap a door.</p>

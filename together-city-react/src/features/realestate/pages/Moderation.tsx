@@ -17,7 +17,7 @@ export function Moderation() {
 
   const items = queue.data ?? [];
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Real Estate · Moderation</div>
       <h1 style={{ fontSize: 26, marginBottom: 4 }}>Review queue</h1>
       <p className="muted" style={{ fontSize: 13.5, marginBottom: 18 }}>Listings awaiting a decision — automated checks below each. Approve to publish, or reject with a reason.</p>

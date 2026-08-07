@@ -72,7 +72,7 @@ export function Dashboard() {
    */
   if (completion.isError || !c) {
     return (
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 16px 48px' }}>
+      <div className="page">
         <div className="eyebrow">Your city</div>
         <h1 style={{ fontSize: 28, margin: '2px 0 0' }}>We couldn’t open your city just now</h1>
         <p className="muted" style={{ fontSize: 14, lineHeight: 1.65, margin: '10px 0 0', maxWidth: '54ch' }}>
@@ -98,7 +98,7 @@ export function Dashboard() {
   const countsUnknown = datingChats.isError || notifications.isError;
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 16px 48px' }}>
+    <div className="page">
       <div className="eyebrow">Your city</div>
       {/* From the server's salutation(), the same one that opens a blood report.
           This used to fall back to a bare “Welcome,” whenever `c` was undefined,

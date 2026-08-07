@@ -90,7 +90,7 @@ const DOCS: Record<Slug, Doc> = {
 export function Info({ slug }: { slug: Slug }) {
   const doc = DOCS[slug];
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: '20px 16px 56px' }}>
+    <div>
       <Breadcrumbs />
       <div className="eyebrow" style={{ marginTop: 10 }}>Together City</div>
       <h1 style={{ fontSize: 30, marginBottom: 8 }}>{doc.title}</h1>

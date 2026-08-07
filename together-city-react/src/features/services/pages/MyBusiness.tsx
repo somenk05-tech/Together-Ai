@@ -178,7 +178,7 @@ export function MyBusiness() {
   const rows = mine.data ?? [];
   if (rows.length === 0) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto', width: '100%' }}>
+      <div>
         <div className="eyebrow">Local Services</div>
         <h1 style={{ fontSize: 26 }}>My business</h1>
         <EmptyState
@@ -191,7 +191,7 @@ export function MyBusiness() {
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', width: '100%' }}>
+    <div>
       <div className="eyebrow">Local Services</div>
       <h1 style={{ fontSize: 26 }}>My business</h1>
       <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>

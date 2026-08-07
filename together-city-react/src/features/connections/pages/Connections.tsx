@@ -144,7 +144,7 @@ export function Connections() {
   const accepted = (all.data ?? []).filter((c) => c.status === 'accepted');
 
   return (
-    <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
+    <div className="page">
       <div className="eyebrow">Together City · People</div>
       <h1 style={{ fontSize: 26 }}>People</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>

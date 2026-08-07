@@ -49,7 +49,13 @@
    the page overflows sideways instead of wrapping. That is the single most
    common cause of a horizontal scrollbar on a phone. */
 .tc-shell .tc-main { padding-top: 0; flex: 1 1 auto; min-width: 0; }
-.tc-shell .tc-main > * { padding: 28px 36px 52px; display: block; }
+/* Was `padding: 28px 36px 52px; display: block`. That padding was the invisible
+   half of the two-system problem — every page then set its own width and
+   padding INSIDE it — and `display: block` outranked `.page`'s `display: grid`
+   by specificity, which is a thing you discover by measuring a rendered page
+   and finding a 36px gutter that is 0. The shell contributes neither now;
+   `.page` is the only thing that decides either. */
+.tc-shell .tc-main > * { padding: 0; }
 
 .tc-side { width: 280px; flex-shrink: 0; padding: 28px 0 40px; position: sticky; top: calc(var(--header-h) + var(--safe-top)); height: calc(100vh - var(--header-h)); overflow-y: auto; }
 .tc-side .back { display: block; font-size: 10.5px; letter-spacing: .16em; font-weight: 700; text-transform: uppercase; padding: 0 26px 18px; background: none; border: none; cursor: pointer; }
@@ -79,7 +85,7 @@
   .tc-actionbar .lab, .tc-actions .lab { display: none; }
   .tc-side { position: fixed; top: 0; left: 0; bottom: 0; z-index: 200; transform: translateX(-100%); transition: transform .28s ease; padding-top: calc(28px + var(--safe-top)); border-radius: 0 var(--r-5) var(--r-5) 0; }
   .tc-side.open { transform: translateX(0); }
-  .tc-shell .tc-main > * { padding: 20px 16px 40px; }
+  /* The phone gutter comes from --page-gutter's own clamp now. */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -392,3 +398,120 @@
 .tarot-night { background: var(--ground); color: var(--ink); }
 .tc-shell .tc-main > .tarot-night { padding: 28px 36px 52px; }
 @media (max-width: 560px) { .tc-shell .tc-main > .tarot-night { padding: 20px 16px 40px; } }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE PAGE SHELL
+
+   One class, worn by every page in the application, and the only thing that
+   decides where content starts and stops. See tokens.css for the audit that
+   produced it — 102 shells, 21 widths, and a breadcrumb that lined up with
+   none of them.
+
+   IT IS A GRID, NOT A BLOCK, AND THAT IS WHAT MAKES `.bleed` POSSIBLE. The
+   middle column is the measure; the two outer ones are the gutters. A child
+   that wants the full window sets `grid-column: 1 / -1` and gets it without
+   negative margins, which is the trick every full-bleed hero has otherwise
+   been pulled off with — and negative margins are what put a hero 16px past
+   the scrollbar on a phone.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.page {
+  display: grid;
+  grid-template-columns:
+    minmax(var(--page-gutter), 1fr)
+    minmax(0, var(--page-max))
+    minmax(var(--page-gutter), 1fr);
+  padding-block: var(--page-top) var(--page-bottom);
+  width: 100%;
+}
+.page > * { grid-column: 2; min-width: 0; }
+/* Anything that should touch both edges of the window: a hero, a full-width
+   photograph, a coloured band. */
+.page > .bleed { grid-column: 1 / -1; }
+
+/* A page inside the hub shell already sits beside a sidebar, so its own top
+   padding is the only vertical it needs — the shell contributes none. */
+.tc-shell .page { padding-top: var(--s-3); }
+
+/* ── THE HEADER BLOCK ──────────────────────────────────────────────────────
+   Breadcrumb → title → description → tabs, at one rhythm, so the first card
+   of every page in the application begins at the same distance from the top.
+   The numbers are the scale and nothing else. */
+.page-head { margin-bottom: var(--s-4); }
+.page-head > .eyebrow { margin: 0 0 var(--s-1); }
+.page-head > h1 { margin: 0 0 var(--s-1); }
+.page-head > p { margin: 0; max-width: 68ch; }
+.page-head > .page-tabs { margin-top: var(--s-3); }
+
+/* ── TABS ──────────────────────────────────────────────────────────────────
+   Every hub has them and every hub had its own. One height, one padding, one
+   distance from the heading, one active state. */
+.page-tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none;
+  border-bottom: 1px solid var(--line); }
+.page-tabs::-webkit-scrollbar { display: none; }
+.page-tabs > button, .page-tabs > a {
+  position: relative; flex: 0 0 auto; min-height: 44px; padding: 0 var(--s-2);
+  border: 0; background: none; cursor: pointer; font-family: var(--sans);
+  font-size: 13.5px; font-weight: 500; color: var(--muted);
+  text-decoration: none; display: inline-flex; align-items: center;
+  transition: color var(--dur-base) var(--ease);
+}
+.page-tabs > button:hover, .page-tabs > a:hover { color: var(--ink); }
+.page-tabs > [aria-current], .page-tabs > .on {
+  font-weight: 700; color: var(--accent-ink);
+}
+.page-tabs > [aria-current]::after, .page-tabs > .on::after {
+  content: ''; position: absolute; left: var(--s-2); right: var(--s-2); bottom: -1px;
+  height: 2px; background: var(--accent-ink);
+}
+
+/* ── SECTIONS ──────────────────────────────────────────────────────────────
+   The gap between one block of a page and the next, decided once. */
+.page-section + .page-section { margin-top: var(--s-5); }
+.page-section > h2 { margin: 0 0 var(--s-2); font-size: 18px; letter-spacing: -.01em; }
+
+/* ── THE GRID ──────────────────────────────────────────────────────────────
+   12 columns on a desktop, 8 on a tablet, 4 on a phone — and the SPANS fold
+   with it rather than needing a second set of classes. A `.col-6` is half the
+   grid at every size because it is written as a fraction of the column count,
+   which is why the breakpoints below restate the spans instead of the columns
+   restating themselves. */
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--s-3); }
+.grid > * { min-width: 0; }
+.col-2 { grid-column: span 2; } .col-3 { grid-column: span 3; }
+.col-4 { grid-column: span 4; } .col-6 { grid-column: span 6; }
+.col-8 { grid-column: span 8; } .col-9 { grid-column: span 9; }
+.col-12 { grid-column: 1 / -1; }
+
+@media (max-width: 1024px) {
+  .grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .col-3 { grid-column: span 4; }   /* a quarter becomes a half */
+  .col-9 { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-2); }
+  .col-2, .col-3, .col-4, .col-6, .col-8, .col-9 { grid-column: 1 / -1; }
+}
+
+
+/* A page that can be rendered under BOTH layouts wears `.page` itself. Inside
+   the hub shell that would be a second grid inside the first — two gutters,
+   half the measure. `display: contents` dissolves the inner one so its children
+   join the outer grid directly, which is exactly what "already inside a page"
+   should mean. */
+.page .page { display: contents; }
+
+/* ── THE NARROW BLOCK ──────────────────────────────────────────────────────
+   Not every centred thing is a page. An empty state, a consent gate, a "your
+   profile is incomplete" prompt and a password card are all one short column
+   of text in the middle of a page, and stretching them to the full measure
+   would be a worse design, not a more consistent one.
+   
+   So they are standardised rather than abolished. The audit found them at 380,
+   520, 560, 620 and 640 — five widths for the same idea, chosen by five
+   authors. One width now, and `.page-note` is what a screen reaches for
+   instead of inventing a sixth. */
+.page-note { max-width: 560px; margin-inline: auto; }
+.page-note.centred { text-align: center; }
+/* Vertical air, so a lone message is not welded to the breadcrumb above it. */
+.page-note { margin-block: var(--s-5); }

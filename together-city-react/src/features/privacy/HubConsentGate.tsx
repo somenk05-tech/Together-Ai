@@ -44,7 +44,7 @@ export function HubConsentGate({ hub, children }: { hub?: string; children: Reac
   const accept = () => { if (hub) { ackHub(hub); pushAck(hub); } };
 
   return (
-    <div style={{ maxWidth: 560, margin: '0 auto', padding: '40px 18px 56px' }}>
+    <div className="page-note">
       <div className="card rise" style={{ padding: '30px 28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <span style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--accent-soft)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>

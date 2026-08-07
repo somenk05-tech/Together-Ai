@@ -99,7 +99,7 @@ export function Decide() {
   const cheat = useCollections({ ...(loc ?? {}), radiusKm: 8 }, mode === 'cheat');
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '28px 16px 60px' }}>
+    <div className="page">
       <div className="eyebrow">Restaurants · Decide</div>
       <h1 style={{ fontSize: 'clamp(26px,3vw,38px)', margin: '2px 0 6px' }}>How do you want to eat today?</h1>
       <p className="muted" style={{ fontSize: 14, marginTop: 0 }}>Decide first — then we find the meal, not just a restaurant.</p>

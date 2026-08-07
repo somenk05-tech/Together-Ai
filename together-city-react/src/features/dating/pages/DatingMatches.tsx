@@ -378,7 +378,7 @@ export function DatingMatches() {
   // brightly.
   if (profile.isError) {
     return (
-      <div style={{ maxWidth: 560, margin: '0 auto', padding: '40px 16px' }}>
+      <div>
         <EmptyState
           icon="⚠️"
           title="We couldn’t open your dating profile"
@@ -390,7 +390,7 @@ export function DatingMatches() {
 
   if (!profile.data) {
     return (
-      <div style={{ maxWidth: 560, margin: '0 auto', padding: '40px 16px' }}>
+      <div>
         <EmptyState
           icon="✨"
           title="First, tell the stars about you"
@@ -418,7 +418,7 @@ export function DatingMatches() {
   const rest = (stack.data?.candidates ?? []).filter((c) => c.user.id !== top?.user.id);
 
   return (
-    <div style={{ maxWidth: 620, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Dating Hub</div>
       <h1 style={{ fontSize: 26 }}>Curated Matches</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px' }}>

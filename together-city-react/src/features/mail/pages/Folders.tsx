@@ -206,7 +206,7 @@ function FolderView({ folder }: { folder: Folder }) {
   const meta = FOLDER_META[folder];
   const q = useMailList(folder);
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '24px 16px' }}>
+    <div>
       <AccountBar />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '18px 0 10px' }}>
         <div><div className="eyebrow">{meta.eyebrow}</div><h1 style={{ fontSize: 24, margin: 0 }}>{meta.icon} {meta.title}</h1></div>

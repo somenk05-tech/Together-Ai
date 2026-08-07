@@ -200,7 +200,7 @@ export function MasterProfile() {
   const pct = completion.data?.percent ?? null;
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
+    <div className="page">
       <div className="eyebrow">Your profile</div>
       <h1 style={{ fontSize: 26 }}>Master Profile</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0', lineHeight: 1.6 }}>

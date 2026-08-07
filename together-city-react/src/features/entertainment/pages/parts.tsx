@@ -20,11 +20,15 @@ export function TrustBar({ items }: { items: string[] }) {
   );
 }
 
-/** Standard entertainment page frame: centered column, matching the static `.main` width. */
+/**
+ * The entertainment page frame.
+ *
+ * It used to set its own 1080px measure and its own 28/20/48 padding, which is
+ * how six pages in one hub came to be 100px narrower than the rest of the
+ * application and to start 4px further in. It is a plain wrapper now — `.page`
+ * in the hub layout decides the measure, once, for every screen in the city.
+ * The className passes through because the hub's own theme classes hang off it.
+ */
 export function EntPage({ className, children }: { className?: string; children: ReactNode }) {
-  return (
-    <div className={className} style={{ maxWidth: 1080, margin: '0 auto', padding: '28px 20px 48px' }}>
-      {children}
-    </div>
-  );
+  return <div className={className}>{children}</div>;
 }

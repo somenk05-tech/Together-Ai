@@ -29,7 +29,7 @@ export function Explore() {
   const pkgs = usePackages(cat || undefined);
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div className="eyebrow">Travel · Explore</div>

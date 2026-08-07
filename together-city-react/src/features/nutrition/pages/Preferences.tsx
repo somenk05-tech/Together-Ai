@@ -288,7 +288,7 @@ export function Preferences() {
 
   if (existing.isError) {
     return (
-      <div className="card" style={{ maxWidth: 640, margin: '28px auto', padding: '20px 24px' }}>
+      <div className="card page-note">
         <p style={{ fontSize: 13.5, margin: 0, lineHeight: 1.6 }}>
           We couldn’t load your food preference profile just now. Everything you
           saved is untouched — and we won’t show a blank form over it, because
@@ -422,7 +422,7 @@ export function Preferences() {
   };
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Nutrition Hub · 02</div>
       <h1 style={{ fontSize: 26 }}>Food Preference Profile 🌿</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 0' }}>

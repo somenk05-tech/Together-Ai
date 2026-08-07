@@ -123,7 +123,7 @@ export function Settings() {
   const pushOn = push.permission === 'granted';
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '36px 20px 90px' }}>
+    <div className="page">
       <div className="eyebrow">Together City</div>
       <h1 style={{ marginBottom: 4 }}>Settings</h1>
       <p className="lede" style={{ marginTop: 0 }}>One neutral chassis for everything that governs how the city behaves for you.</p>

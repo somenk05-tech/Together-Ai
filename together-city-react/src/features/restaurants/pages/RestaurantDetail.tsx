@@ -88,7 +88,7 @@ export function RestaurantDetail() {
   const r = q.data;
 
   return (
-    <div style={{ maxWidth: 820, margin: '0 auto', padding: '24px 16px 120px' }}>
+    <div className="page">
       <Link to="/restaurants/explore" style={{ textDecoration: 'none' }}><span className="eyebrow" style={{ cursor: 'pointer' }}>← Explore</span></Link>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden', marginTop: 8 }}>

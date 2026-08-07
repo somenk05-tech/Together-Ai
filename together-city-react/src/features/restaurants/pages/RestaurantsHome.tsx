@@ -13,7 +13,7 @@ const ENTRIES: Entry[] = [
 /** Restaurants Hub home — the landing page for the curated food-discovery hub. */
 export function RestaurantsHome() {
   return (
-    <div style={{ maxWidth: 1120, margin: '0 auto', padding: '24px 16px 64px' }}>
+    <div className="page">
       {/* Hero */}
       <div className="hero rise" style={{ position: 'relative', minHeight: 300, borderRadius: 'var(--radius-lg)', overflow: 'hidden', display: 'flex', alignItems: 'flex-end', color: 'var(--on-accent)' }}>
         <img className="bg" src="/assets/img/resturants.webp" alt="Together City restaurants" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />

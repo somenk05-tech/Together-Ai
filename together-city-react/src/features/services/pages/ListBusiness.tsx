@@ -16,7 +16,7 @@ export function ListBusiness() {
   const [err, setErr] = useState<string | null>(null);
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', width: '100%' }}>
+    <div>
       <div className="eyebrow">Local Services</div>
       <h1 style={{ fontSize: 26 }}>List your business</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', maxWidth: '60ch' }}>

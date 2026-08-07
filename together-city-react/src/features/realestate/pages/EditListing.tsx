@@ -153,7 +153,7 @@ export function EditListing() {
   );
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px 40px' }}>
+    <div>
       <Link to="/realestate/mine" style={{ fontSize: 12.5, color: 'var(--accent-ink)', fontWeight: 600 }}>← My Listings</Link>
       <div className="eyebrow" style={{ marginTop: 12 }}>Real Estate · Edit listing</div>
       <h1 style={{ fontSize: 26, margin: '0 0 6px' }}>{p.title}</h1>

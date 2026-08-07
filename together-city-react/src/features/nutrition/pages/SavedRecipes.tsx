@@ -85,7 +85,7 @@ export function SavedRecipes() {
 
   if (recipes.length === 0) {
     return (
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '18px 16px 60px' }}>
+      <div>
         <div className="eyebrow">Nutrition</div>
         <h1 style={{ fontSize: 26, margin: '2px 0 6px' }}>Saved recipes</h1>
         <EmptyState icon="🔖" title="Nothing saved yet"
@@ -98,7 +98,7 @@ export function SavedRecipes() {
   }
 
   return (
-    <div style={{ maxWidth: 1120, margin: '0 auto', padding: '18px 16px 60px' }}>
+    <div>
       <div className="eyebrow">Nutrition</div>
       <h1 style={{ fontSize: 26, margin: '2px 0 4px' }}>Saved recipes</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '0 0 16px' }}>

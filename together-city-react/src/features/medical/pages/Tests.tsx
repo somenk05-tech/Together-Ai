@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 /** Order Blood Tests — coming soon. Uploading & analysing reports you already have works today. */
 export function Tests() {
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Medical Hub · Order Blood Tests</div>
       <h1 style={{ fontSize: 26 }}>Order Blood Tests</h1>
 

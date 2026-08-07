@@ -27,7 +27,7 @@ export function DailyOffers() {
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto', width: '100%' }}>
+    <div>
       <div className="eyebrow">Local Services</div>
       <h1 style={{ fontSize: 26 }}>Daily offers</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px', maxWidth: '62ch' }}>

@@ -30,7 +30,7 @@ export function SharedMeal() {
 
   if (!meal) {
     return (
-      <div style={{ maxWidth: 560, margin: '64px auto', textAlign: 'center', padding: '0 16px' }}>
+      <div className="page-note centred">
         <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>This shared meal couldn’t be opened</div>
         <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.5 }}>The link may be incomplete or out of date. Ask your friend to send it again.</p>
         <Link to="/nutrition/weekly" style={{ display: 'inline-block', marginTop: 14 }}><button className="btn btn-accent" type="button">Go to your meal plan</button></Link>
@@ -40,7 +40,7 @@ export function SharedMeal() {
 
   const dishes = meal.d ?? [];
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '20px 16px 64px' }}>
+    <div>
       <button type="button" onClick={() => navigate(-1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: 0, marginBottom: 12 }}>← Back</button>
 
       <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 20, overflow: 'hidden', boxShadow: 'var(--shadow)' }}>

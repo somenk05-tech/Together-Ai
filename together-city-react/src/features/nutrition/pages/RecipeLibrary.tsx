@@ -274,7 +274,7 @@ export function RecipeLibrary() {
   // cuisine first.
   if (cuisine === null && ingredients.length === 0) {
     return (
-      <div style={{ maxWidth: 1040, margin: '0 auto', padding: '20px 16px 60px' }}>
+      <div>
         <div className="eyebrow">Nutrition</div>
         <h1 style={{ fontSize: 26 }}>{LABELS.createYourOwnMealPlan}</h1>
         <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 18px' }}>
@@ -304,7 +304,7 @@ export function RecipeLibrary() {
 
   // Cuisine library view.
   return (
-    <div style={{ maxWidth: 1120, margin: '0 auto', padding: '20px 16px 60px' }}>
+    <div>
       <button type="button" onClick={() => { setCuisine(null); setSearch(''); setMealType(''); setDiet(''); setIngredients([]); setPage(1); }}
         style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 999, padding: '4px 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', marginBottom: 12 }}>← All cuisines</button>
       <h1 style={{ fontSize: 24 }}>{cuisine || (ingredients.length ? 'Matching' : 'Search')} Recipes {lib.data && <span className="muted" style={{ fontSize: 14, fontWeight: 400 }}>· {lib.data.total.toLocaleString()}</span>}

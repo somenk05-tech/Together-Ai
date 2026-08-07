@@ -41,7 +41,7 @@ function OrderCard({ o }: { o: DiningOrder }) {
 export function Orders() {
   const q = useMyOrders();
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 16px' }}>
+    <div className="page">
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div><div className="eyebrow">Restaurants · My Orders</div><h1 style={{ fontSize: 26, margin: 0 }}>Your orders</h1></div>
         <Link to="/restaurants" style={{ marginLeft: 'auto' }}><Button variant="line" size="sm">← Discover</Button></Link>

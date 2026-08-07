@@ -416,7 +416,7 @@ export function DatingProfilePage() {
    */
   if (existing.isError) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 16px' }}>
+      <div>
         <EmptyState
           icon="⚠️"
           title="We couldn’t load your dating profile"
@@ -521,7 +521,7 @@ export function DatingProfilePage() {
     const pill: React.CSSProperties = { border: '1px solid var(--line)', borderRadius: 999, padding: '5px 13px', fontSize: 12.5, background: 'var(--accent-soft)' };
 
     return (
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px 40px' }}>
+      <div>
         <div className="eyebrow" style={{ marginBottom: 10 }}>Dating Hub · Your profile</div>
         <StatusBanner />
         {completion && !completion.complete && <CompletionCard completion={completion} />}
@@ -630,7 +630,7 @@ export function DatingProfilePage() {
   }
 
   return (
-    <div style={{ maxWidth: 560, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Dating Hub · Your profile</div>
       <h1 style={{ fontSize: 26 }}>Tell the stars about you</h1>
       <p className="muted" style={{ fontSize: 13.5, marginTop: 6 }}>

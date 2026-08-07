@@ -10,7 +10,7 @@ export function Orders() {
   if (orders.isError) return <EmptyState title="Couldn't load your orders" hint="Anything you’ve ordered is unaffected — we just couldn’t read the list. Try again in a moment." />;
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 16px' }}>
+    <div>
       <div className="eyebrow">Beauty Market · Orders</div>
       <h1 style={{ fontSize: 26 }}>Your orders</h1>
 

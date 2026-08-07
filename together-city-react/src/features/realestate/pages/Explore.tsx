@@ -26,7 +26,7 @@ export function Explore() {
   }, [listings.data, kind, q]);
 
   return (
-    <div style={{ maxWidth: 1040, margin: '0 auto', padding: '20px 16px 40px' }}>
+    <div>
       <Hero image="/assets/img/realestate-explore-hero.webp" objectPosition="center 55%"
         eyebrow="Real Estate · 01" title="Explore Properties That Fit Your Life"
         sub="Real listings from real owners — photo-verified and moderated before they go live." />
