@@ -349,6 +349,21 @@
      is a colour decision and this is the file those live in. */
   --logo-filter: none;
 
+  /* ── A HUB MAY HANG A PICTURE ────────────────────────────────────────────
+     Inert here: no image, and a pane that is simply the card. A hub that wants
+     a sky re-points these, and the grant test stays true — nothing is invented
+     inside a hub block, only replaced. */
+  --sky-image: none;
+  --sky-pos: 50% 50%;
+  --sky-size: cover;
+  --pane: var(--face-tall);
+  --pane-blur: none;
+  --pane-rim: var(--e3);
+  --chrome: var(--card);
+  --chrome-blur: none;
+  --on-pane: var(--ink-soft);
+  --on-pane-soft: var(--faint);
+
   /* ── SHAPE, RHYTHM, MOTION ──────────────────────────────────────────── */
   --r-1: 10px; --r-2: 14px; --r-3: 20px; --r-4: 28px; --r-5: 36px; --r-full: 999px;
   --radius: var(--r-2); --radius-lg: var(--r-3);
@@ -676,6 +691,40 @@
    NO NEW TOKEN NAMES. Every name below already exists in :root; removing this
    block removes the entire treatment.                                       */
 [data-hub="astrology"] {
+  /* ── THE SKY IS THE ROOM ─────────────────────────────────────────────────
+     The hub already had its own charcoal ground. This puts a photograph
+     behind it and turns the surfaces into panes, so the ground is a place
+     rather than a colour.
+
+     THE PICTURE IS A TOKEN, so swapping it is one line here rather than a
+     hunt through the stylesheet. It ships pointing at the plate already in
+     the tree; a different sky changes this value and nothing else.
+
+     THE PANE IS SMOKED, NOT CLEAR, and that is the load-bearing decision.
+     Clear glass only works over a picture that is mostly dark with small
+     bright objects — measured on the solar plate, the worst patch behind a
+     paragraph came out at 1.46:1 against pale ink. A dark tint gives the
+     type a floor no matter what the picture does, which means the hub
+     survives having its sky changed by somebody who is not measuring. */
+  --sky-image: url('/assets/img/guidance-sky-wide.webp');
+  --sky-pos: 50% 42%;
+  --sky-size: cover;
+  /* The pane: a dark tint over a real blur. Both are needed — the blur alone
+     spreads a bright object rather than removing it. */
+  --pane: linear-gradient(158deg, rgba(24,22,28,.66), rgba(19,17,23,.76) 52%, rgba(13,12,17,.82));
+  --pane-blur: blur(30px) saturate(135%);
+  --pane-rim:
+    inset 0 0 0 1.3px rgba(255,255,255,.14),
+    inset 0 1px 0 rgba(255,255,255,.26),
+    inset 0 -1px 0 rgba(0,0,0,.35),
+    0 24px 70px rgba(0,0,0,.5);
+  /* Chrome is a lighter material than the panes it floats over — §12's rule
+     that a light translucent surface never stacks on another one. */
+  --chrome: rgba(38,36,42,.72);
+  --chrome-blur: blur(14px) saturate(140%);
+  /* Type on glass wants to be a step brighter than type on paper. */
+  --on-pane: #f2eef4;
+  --on-pane-soft: rgba(255,255,255,.72);
   /* ── Grounds. Soft charcoal, never pure black. ── */
   --ground: #26242a;
   --paper:  #26242a;

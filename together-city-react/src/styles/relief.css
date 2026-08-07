@@ -909,6 +909,8 @@ img[src$=".svg"], .no-case {
 
 @media (prefers-reduced-motion: reduce) {
   .district-plate:hover .hub-plate-cta { transform: none; }
+  /* A FIXED background is a MOVING background to anybody scrolling past it. */
+  .tc-shell:has(.tc-side[data-side="astrology"])::before { position: absolute; }
 }
 
 /* ══ A WALL OF PICTURES, IN THE HUB'S LANGUAGE ═══════════════════════════
@@ -1622,4 +1624,94 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .press-r-cols > * { padding: 0; }
   .press-r-cols > *:last-child { border-left: 0; border-top: 1px solid var(--press-rule-2);
     margin-top: 32px; padding-top: 32px; }
+}
+
+/* ══ THE ASTROLOGY SKY ═══════════════════════════════════════════════════
+   ONE BLOCK, THE WHOLE HUB. Every surface in Astrology Zone becomes a pane
+   over a photograph: the letter, the profile frame, the consultation room,
+   the tarot table. It is written once, against the classes those screens
+   already use, rather than six times inside six components — the same reason
+   the ground itself is a token and not a background on each page.
+
+   NOTHING HERE SETS A SIZE. Radii, padding and shadows geometry come from the
+   rules above; this changes what the surfaces are MADE OF and nothing else.
+
+   The values live in tokens.css. See --pane there for why the glass is
+   smoked rather than clear. */
+/* THE BODY HAS TO STOP PAINTING. index.css gives <body> an opaque
+   `background: var(--ground)`, and an opaque parent covers a z-index:-2 child
+   completely — the picture loads, decodes and is never seen. Found by
+   screenshotting the built rule, not by reading it. */
+[data-hub="astrology"] body { background: transparent; }
+.tc-shell:has(.tc-side[data-side="astrology"]) { position: relative; }
+.tc-shell:has(.tc-side[data-side="astrology"])::before {
+  content: ''; position: fixed; inset: 0; z-index: -2;
+  background: var(--sky-image) var(--sky-pos) / var(--sky-size) no-repeat;
+  background-color: var(--ground);
+}
+/* The shells stop painting their own ground, or the picture is behind an
+   opaque page and nobody ever sees it. */
+[data-hub="astrology"] .tc-shell,
+[data-hub="astrology"] .tc-main,
+[data-hub="astrology"] .page,
+[data-hub="astrology"] .ask-stage,
+[data-hub="astrology"] .tarot-night { background: transparent; }
+
+[data-hub="astrology"] .tc-header,
+[data-hub="astrology"] .tc-side {
+  background: var(--chrome);
+  -webkit-backdrop-filter: var(--chrome-blur); backdrop-filter: var(--chrome-blur);
+}
+
+/* THE PANES. Listed by name rather than caught by a wildcard: a wildcard
+   would take the tarot cards' own artwork and the profile's inputs with it. */
+[data-hub="astrology"] .letter-sky,
+[data-hub="astrology"] .astro-frame,
+[data-hub="astrology"] .ask-card,
+[data-hub="astrology"] .tarot-frame,
+[data-hub="astrology"] .card {
+  background: var(--pane);
+  box-shadow: var(--pane-rim);
+  -webkit-backdrop-filter: var(--pane-blur); backdrop-filter: var(--pane-blur);
+}
+/* The inner carve is a paper detail — on glass it reads as a scratch. */
+[data-hub="astrology"] .astro-frame::before { box-shadow: none; }
+
+/* THE LETTERHEAD GOES. It is the same photograph the room is now made of, so
+   the letter opened with a picture of space floating in space. The sky does
+   more work behind the reading than it did above it. */
+[data-hub="astrology"] .letter-sky-frame { display: none; }
+
+[data-hub="astrology"] .letter-p { color: var(--on-pane); }
+[data-hub="astrology"] .letter-open,
+[data-hub="astrology"] .letter-sign { color: var(--on-pane-soft); }
+
+/* ── AND THE THREE PREFERENCES THIS OWES ─────────────────────────────────
+   A full-viewport photograph under three blurred surfaces is the exact case
+   these exist for, and the codebase handled none of them before this hub had
+   a sky. They ship WITH it, not after it. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-hub="astrology"] .tc-header,
+  [data-hub="astrology"] .tc-side,
+  [data-hub="astrology"] .letter-sky,
+  [data-hub="astrology"] .astro-frame,
+  [data-hub="astrology"] .ask-card,
+  [data-hub="astrology"] .tarot-frame,
+  [data-hub="astrology"] .card {
+    background: var(--card);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  .tc-shell:has(.tc-side[data-side="astrology"])::before { background-image: none; }
+}
+@media (prefers-contrast: more) {
+  [data-hub="astrology"] .letter-sky,
+  [data-hub="astrology"] .astro-frame,
+  [data-hub="astrology"] .ask-card,
+  [data-hub="astrology"] .tarot-frame,
+  [data-hub="astrology"] .card {
+    background: var(--ground);
+    box-shadow: inset 0 0 0 1.5px var(--line-2);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  .tc-shell:has(.tc-side[data-side="astrology"])::before { background-image: none; }
 }
