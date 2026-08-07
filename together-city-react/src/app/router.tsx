@@ -126,7 +126,6 @@ const FitSleep = lazy(() => import('@/features/fitness/pages/Sleep').then((m) =>
 const FamHome = lazy(() => import('@/features/family/pages/Family').then((m) => ({ default: m.Family })));
 const FamConnect = lazy(() => import('@/features/family/pages/Connect').then((m) => ({ default: m.FamilyConnect })));
 const FamWeekly = lazy(() => import('@/features/family/pages/Weekly').then((m) => ({ default: m.FamilyWeekly })));
-const FamDaily = lazy(() => import('@/features/family/pages/Daily').then((m) => ({ default: m.FamilyDaily })));
 const FamGrocery = lazy(() => import('@/features/family/pages/Grocery').then((m) => ({ default: m.FamilyGrocery })));
 const FamCart = lazy(() => import('@/features/family/pages/Cart').then((m) => ({ default: m.FamilyCart })));
 const FamOrders = lazy(() => import('@/features/family/pages/Orders').then((m) => ({ default: m.FamilyOrders })));
@@ -341,7 +340,6 @@ export const router = createBrowserRouter([
       { path: '/family', element: <RequireAuth>{wrap(<FamHome />)}</RequireAuth> },
       { path: '/family/connect', element: <RequireAuth>{wrap(<FamConnect />)}</RequireAuth> },
       { path: '/family/weekly', element: <RequireAuth>{wrap(<FamWeekly />)}</RequireAuth> },
-      { path: '/family/daily', element: <RequireAuth>{wrap(<FamDaily />)}</RequireAuth> },
       { path: '/family/grocery', element: <RequireAuth>{wrap(<FamGrocery />)}</RequireAuth> },
       { path: '/family/cart', element: <RequireAuth>{wrap(<FamCart />)}</RequireAuth> },
       { path: '/family/orders', element: <RequireAuth>{wrap(<FamOrders />)}</RequireAuth> },

@@ -111,13 +111,19 @@ export const HUBS: Record<HubKey, HubConfig> = {
   family: {
     key: 'family', name: 'Family Nutrition', tag: 'One table, every plate personal', backPath: '/family',
     items: [
+      // The Daily Planner is gone (7 Aug). It showed today's slice of the same
+      // household plan the Weekly Planner shows seven days of — one plan, two
+      // doors, and the daily one had no answer to "what about tomorrow". Old
+      // links land on the weekly view; see REMOVED_ROUTES.
+      //
+      // The numbering closes up with it. It ran 01-02-03-04-06-07-08 — a gap
+      // at 05 from an earlier removal that nobody shut.
       { path: '/family/connect', index: '01', label: 'Connect Members', sub: 'Roles & permissions' },
       { path: '/family/weekly', index: '02', label: 'Weekly Planner', sub: 'Portioned per member' },
-      { path: '/family/daily', index: '03', label: 'Daily Planner', sub: "Today's plate for all" },
-      { path: '/family/grocery', index: '04', label: LABELS.groceryLists, sub: 'One combined list' },
-      { path: '/family/orders', index: '06', label: 'My Orders', sub: 'Empty until ordering goes live' },
-      { path: '/family/pantry', index: '07', label: 'Shared Pantry', sub: 'One household pantry' },
-      { path: '/family/search', index: '08', label: 'Search by Ingredients', sub: "Cook from what's in" },
+      { path: '/family/grocery', index: '03', label: LABELS.groceryLists, sub: 'One combined list' },
+      { path: '/family/orders', index: '04', label: 'My Orders', sub: 'Empty until ordering goes live' },
+      { path: '/family/pantry', index: '05', label: 'Shared Pantry', sub: 'One household pantry' },
+      { path: '/family/search', index: '06', label: 'Search by Ingredients', sub: "Cook from what's in" },
     ],
   },
   social: {

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Button, Spinner } from '@/components/ui';
 import { VegMark } from './VegMark';
 import type { OwnDay, OwnPlan } from '../composed.api';
@@ -127,9 +128,18 @@ function DaySheet({ day, targets, busy, onRemove, onLock, onUnlock }: {
                 {m.components.map((c) => (
                   <div className="press-dish" key={c.recipeId + c.role}>
                     <div className="press-name-cell">
+                      {/* THE DISH NAME IS THE WAY TO COOK IT.
+                          
+                          It was a plain span, so a plan you had built by hand
+                          told you what you were eating and not how to make any
+                          of it — the method, the timings and Cook Mode were one
+                          page away and nothing said so. The recipe page is the
+                          only place the method exists; a name that does not
+                          reach it is a dead end at the exact moment somebody
+                          walks into the kitchen. */}
                       <div className="press-name">
                         <VegMark diet={c.diet} size={14} />
-                        <span>{c.name}</span>
+                        <Link to={`/nutrition/recipes/${c.recipeId}`}>{c.name}</Link>
                       </div>
                       {c.role && <div className="press-desc">{c.role}</div>}
                     </div>
@@ -247,6 +257,25 @@ export function OwnDayView({ plan, loading, failed, onRetry, onRemove, onLock, o
     .filter((d) => d.locked && d.dayIndex !== plan.targetDay)
     .sort((a, b) => a.dayIndex - b.dayIndex);
 
+  /**
+   * THE DAYS THIS VIEW USED TO THROW AWAY.
+   *
+   * The open day is whichever one `targetDay` points at, and targetDay is
+   * derived from TODAY'S DATE. So a citizen who added three dishes on Thursday
+   * and did not lock the day came back on Friday to a blank page: Friday is
+   * the open day and it is empty, and Thursday is neither the open day nor a
+   * locked one — so it matched neither list and rendered nowhere.
+   *
+   * Nothing was lost. The API returns every day that has dishes on it; this
+   * component filtered two lists out of that and dropped the rest on the floor.
+   * A page that says "nothing on it yet" about food somebody definitely chose
+   * is the worst version of the golden rule being broken — it is not an
+   * invented presence, it is an invented ABSENCE.
+   */
+  const stranded = plan.days
+    .filter((d) => !d.locked && d.dayIndex !== plan.targetDay && d.meals.length > 0)
+    .sort((a, b) => a.dayIndex - b.dayIndex);
+
   const sheet = (day: OwnDay) => (
     <DaySheet key={day.dayIndex} day={day} targets={plan.targets} busy={busy}
       onRemove={onRemove} onLock={onLock} onUnlock={onUnlock} />
@@ -272,6 +301,20 @@ export function OwnDayView({ plan, loading, failed, onRetry, onRemove, onLock, o
             </p>
           </header>
         </div>
+      )}
+
+      {stranded.length > 0 && (
+        <section style={{ marginTop: 30 }}>
+          <div className="wall-rule" style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+            <span>Days you built and did not lock</span>
+          </div>
+          <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0', lineHeight: 1.6, maxWidth: '68ch' }}>
+            The date has moved on, so these are not on your grocery list and never will be —
+            locking is what puts a day's ingredients there. They are still yours: open a dish to
+            cook it, or take it off and add it again to the day you are building now.
+          </p>
+          {stranded.map(sheet)}
+        </section>
       )}
 
       {settled.length > 0 && (

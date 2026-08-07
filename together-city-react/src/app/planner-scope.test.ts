@@ -130,19 +130,22 @@ describe('the planner asks for the plan the citizen chose', () => {
  * stays, and the notice that explains it stays with it.
  */
 describe('the family planners', () => {
+  // Daily.tsx is gone (7 Aug): one household plan had two doors and the daily
+  // one could not answer "what about tomorrow". The checks below applied to
+  // both and now apply to the one that is left — the RULE did not change, only
+  // the number of pages that have to keep it.
   const weekly = read('features/family/pages/Weekly.tsx');
-  const daily = read('features/family/pages/Daily.tsx');
   const notice = read('features/family/components/HouseholdPlanNotice.tsx');
 
   it('ask for the household composition, both of them', () => {
-    for (const page of [weekly, daily]) expect(page).toMatch(/useComposedPlan\(mode, 'household'\)/);
+    for (const page of [weekly]) expect(page).toMatch(/useComposedPlan\(mode, 'household'\)/);
   });
 
   it('never leave the scope unexplained', () => {
     // The scope without the sentence is the actual §12 risk: a citizen with
     // shared planning off, looking at a plan nobody else is following, told
     // nothing about it.
-    for (const page of [weekly, daily]) expect(page).toMatch(/<HouseholdPlanNotice/);
+    for (const page of [weekly]) expect(page).toMatch(/<HouseholdPlanNotice/);
   });
 
   it('tell the truth in all three states', () => {
