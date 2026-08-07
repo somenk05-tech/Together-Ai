@@ -380,8 +380,18 @@
   --sp-1: 6px; --sp-2: 10px; --sp-3: 16px; --sp-4: 24px; --sp-5: 36px; --sp-6: 52px; --sp-7: 76px;
 
   --dur-fast: 130ms; --dur-base: 220ms; --dur-slow: 420ms;
+  /* The entrance. 280ms, not the 600ms .rise shipped with: it is the
+     most-used motion in the application and the UI budget is 300ms. */
+  --dur-rise: 280ms;
+  /* One spinner period. Three shipped: .6s, .7s and .72s. */
+  --dur-spin: 700ms;
   --ease: cubic-bezier(.22,.61,.36,1);
-  --spring: cubic-bezier(.34,1.42,.5,1);
+  /* THE COMPONENT LIBRARY DOES NOT BOUNCE. This was --spring,
+     cubic-bezier(.34,1.42,.5,1) — a 42% overshoot, applied to the hover lift on
+     every card, row, pill, chip and rail key in a dense daily-use product.
+     Visible bounce is reserved for drag-to-dismiss and deliberate delight, and
+     neither exists here. Nothing in three stylesheets ever argued for it. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 
   --header-h: 78px;
 

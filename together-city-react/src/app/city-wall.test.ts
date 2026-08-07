@@ -83,8 +83,23 @@ describe('the city feed is a wall of the citizens\' own posters', () => {
     // guard that fails on a rule three hundred lines below the feature it
     // names teaches people to widen it. So it reads the wall's own rules: every
     // block whose selector mentions .wall or .poster, wherever they sit.
-    const blocks = [...css.matchAll(/(?:^|\})\s*([^{}@]+)\{([^}]*)\}/g)]
-      .filter((m) => /(^|[\s,>])\.(wall|poster)/.test(m[1]));
+    // THE PARSER USED TO READ EVERY OTHER RULE. `(?:^|\})` consumed the
+    // PREVIOUS rule's closing brace, and `matchAll` resumes after the whole
+    // match — which already included the current rule's `}` — so consecutive
+    // rules could only match alternately. Which half of the file it checked
+    // depended on brace parity, and adding an `@media` block anywhere above
+    // silently swapped it. That is a guard whose coverage moves when you are
+    // not looking. Anchoring on the selector instead walks every rule, nested
+    // ones included, which is what this was always supposed to do.
+    //
+    // AND `.poster` NO LONGER CATCHES `.poster-hero`. They are different
+    // components — the wall's tile and the entertainment hero — and the hero
+    // legitimately wears --case-rim, which is a rim rather than one of the
+    // five depths. A prefix match made the hero fail a rule written about the
+    // wall, which is the same "guard names one feature and fails on another"
+    // mistake the comment above records.
+    const blocks = [...css.matchAll(/([^{}@;]+)\{([^{}]*)\}/g)]
+      .filter((m) => /(^|[\s,>])\.(wall|poster)(?![\w-])/.test(m[1]));
     expect(blocks.length).toBeGreaterThan(10);
     for (const b of blocks) {
       expect(b[2]).not.toMatch(/background:\s*#/);

@@ -212,7 +212,16 @@ function Overlay() {
           <>
             <div style={{ fontSize: 'clamp(48px,15vw,110px)', fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.02em', color: s.rung ? ACCENT : 'var(--on-accent)' }}>{mmss(s.remain)}</div>
             <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,.15)', overflow: 'hidden', width: 260 }}>
-              <div style={{ height: '100%', background: ACCENT, width: `${step.durationSec ? Math.round((1 - s.remain / step.durationSec) * 100) : 0}%`, transition: 'width .4s linear' }} />
+              {/* Was `width: N%` with `transition: width .4s linear`, re-triggered every
+                  second: layout+paint+composite on every frame for the whole cooking step.
+                  scaleX is composited and costs nothing per frame, and `1s linear` matches
+                  the tick interval so the bar advances continuously instead of catching up
+                  in 400ms bursts behind the number above it. */}
+              <div style={{
+                height: '100%', background: ACCENT, width: '100%', transformOrigin: 'left',
+                transform: `scaleX(${step.durationSec ? (1 - s.remain / step.durationSec) : 0})`,
+                transition: 'transform 1s linear',
+              }} />
             </div>
             {!s.ticking && !s.rung && (
               <button type="button" style={{ ...ctrl, background: ACCENT, color: 'var(--ink)', borderColor: ACCENT }} onClick={() => { if (!step.active) void requestNotify(); s.startTimer(); }}>▶ Start {mmss(step.durationSec)} timer</button>
@@ -229,7 +238,11 @@ function Overlay() {
       </div>
 
       <div style={{ height: 4, borderRadius: 999, background: 'rgba(255,255,255,.12)', overflow: 'hidden', margin: '6px 0 14px' }}>
-        <div style={{ height: '100%', background: 'var(--accent-ink)', width: `${progress}%`, transition: 'width .3s' }} />
+        {/* Composited step-progress bar: scaleX instead of width, same .3s feel. */}
+        <div style={{
+          height: '100%', background: 'var(--accent-ink)', width: '100%', transformOrigin: 'left',
+          transform: `scaleX(${progress / 100})`, transition: 'transform .3s',
+        }} />
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>

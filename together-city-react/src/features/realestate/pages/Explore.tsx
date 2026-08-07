@@ -52,14 +52,23 @@ export function Explore() {
           <h2>{KINDS.find((k) => k.k === kind)?.l}{q.trim() ? ` matching “${q.trim()}”` : ''}</h2>
           <span className="muted" style={{ fontSize: 12 }}>{grid.length} listing{grid.length === 1 ? '' : 's'}</span>
         </div>
-        {listings.isLoading ? <Spinner label="Finding properties…" />
-          : listings.isError ? <EmptyState title="Couldn't load properties" hint="Please check your connection and try again." />
-          : grid.length === 0 ? <EmptyState icon="🏠" title={q.trim() ? 'Nothing matches that search' : 'No listings yet'} hint={q.trim() ? 'Try another locality or city.' : 'Be the first — post your property from “List a Property”.'} />
-          : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
-              {grid.map((p) => <PropertyCardView key={p.id} p={p} />)}
-            </div>
-          )}
+        {/* `key={kind}` is what makes the crossfade work with no state machine:
+            changing the tab remounts this region, so the new content mounts with
+            `tabSwap` and the old one is simply gone. Keyed on the TAB and not on
+            `grid`, so typing in the search box filters without flashing.
+            `id="re-grid"` stays on the <section> above — the tabs link to it, and
+            moving the anchor down here would scroll past the heading that names
+            which tab you are on. */}
+        <div key={kind} className="tab-swap">
+          {listings.isLoading ? <Spinner label="Finding properties…" />
+            : listings.isError ? <EmptyState title="Couldn't load properties" hint="Please check your connection and try again." />
+            : grid.length === 0 ? <EmptyState icon="🏠" title={q.trim() ? 'Nothing matches that search' : 'No listings yet'} hint={q.trim() ? 'Try another locality or city.' : 'Be the first — post your property from “List a Property”.'} />
+            : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                {grid.map((p) => <PropertyCardView key={p.id} p={p} />)}
+              </div>
+            )}
+        </div>
       </section>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '16px 0' }}>

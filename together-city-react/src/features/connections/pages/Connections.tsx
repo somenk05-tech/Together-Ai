@@ -33,6 +33,8 @@ function Row({ c, actions, subtitle, children, collapsible, expanded, onToggle, 
   // The hub list comes from the server's registry, not from a copy kept here.
   const { data: hubs } = useHubs();
   const hubCount = optionalOf(hubs, c.modules ?? DEFAULT_MODULES).length;
+  // Reduced motion keeps the fade and drops the height leg.
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   return (
     <div style={{ padding: '12px 0', borderTop: '1px solid var(--line)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -45,10 +47,24 @@ function Row({ c, actions, subtitle, children, collapsible, expanded, onToggle, 
             <>
               <button type="button" onClick={onToggle} aria-expanded={expanded}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--accent-ink)' }}>
-                <span aria-hidden style={{ display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>▸</span>
+                <span aria-hidden style={{ display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform var(--dur-fast) var(--ease-out)' }}>▸</span>
                 {expanded ? 'Hide' : `${hubCount} connected hub${hubCount > 1 ? 's' : ''}`}
               </button>
-              {expanded && <ModuleChips modules={c.modules ?? DEFAULT_MODULES} caption={chipCaption} />}
+              {/* The caret was already rotating; the chips it reveals were not
+                  moving at all. Same 1fr -> 0fr row as .tc-msg-collapse, with
+                  the chips' own spacing inside the overflow:hidden row. */}
+              <div style={{
+                display: 'grid',
+                gridTemplateRows: expanded ? '1fr' : '0fr',
+                opacity: expanded ? 1 : 0,
+                transition: reduce
+                  ? 'opacity var(--dur-fast) linear'
+                  : 'grid-template-rows var(--dur-base) var(--ease-out), opacity var(--dur-fast) var(--ease-out)',
+              }}>
+                <div style={{ overflow: 'hidden', minHeight: 0 }}>
+                  <ModuleChips modules={c.modules ?? DEFAULT_MODULES} caption={chipCaption} />
+                </div>
+              </div>
             </>
           ) : (
             <ModuleChips modules={c.modules ?? DEFAULT_MODULES} caption={chipCaption} />

@@ -30,7 +30,7 @@ function ItemRow({ item, checked, onToggle }: { item: GroceryPlanItem; checked: 
             border: checked ? 'none' : '1.8px solid var(--line)',
             background: checked ? 'var(--accent)' : 'transparent',
             color: 'var(--on-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 13, fontWeight: 900, transition: 'all .12s', padding: 0,
+            fontSize: 13, fontWeight: 900, transition: 'color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease)', padding: 0,
           }}
         >
           {checked ? '✓' : ''}
@@ -354,7 +354,7 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
                 border: 'none', cursor: 'pointer', borderRadius: 999, padding: '6px 16px', fontSize: 12.5, fontWeight: 700,
                 background: view === v ? 'var(--card)' : 'transparent',
                 color: view === v ? 'var(--ink)' : 'var(--muted)',
-                boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none', transition: 'all .12s',
+                boxShadow: view === v ? '0 1px 3px rgba(0,0,0,.08)' : 'none', transition: 'box-shadow var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease)',
               }}
             >
               {v === 'grocery' ? '🛒 Grocery' : '🍳 Recipe'}

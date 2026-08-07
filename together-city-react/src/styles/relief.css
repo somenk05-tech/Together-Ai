@@ -152,7 +152,7 @@ h1, .hero-num, .stat .val, .blk-head h2 {
   background: var(--face);
   box-shadow: var(--e1);
   padding: 7px;
-  transition: transform var(--dur-base) var(--spring), box-shadow var(--dur-base) var(--ease);
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease);
 }
 .case > .case-in,
 .case > img, .case > picture, .case > video, .case > canvas, .case > iframe {
@@ -174,7 +174,17 @@ h1, .hero-num, .stat .val, .blk-head h2 {
   pointer-events: none; z-index: 2;
   box-shadow: var(--case-rim-soft);
 }
-.case:hover { transform: translateY(-3px); box-shadow: var(--e2); }
+.case:hover { box-shadow: var(--e2); }
+@media (hover: hover) and (pointer: fine) {
+  .case:hover { transform: translateY(-3px); }
+}
+/* A large surface shrinks by .985, not .97: three per cent of a 400px case is a
+   twelve-pixel move and reads as a glitch rather than as a press. */
+.case:active { transform: scale(.985); }
+/* .case-flat opted out of the lift because it is a case already sitting inside
+   a raised card. It opts out of the press for exactly the same reason — the
+   card around it is the thing being pressed. */
+.case-flat:active { transform: none; }
 
 /* Sizes. --case-pad is the only thing that changes; the radii follow it. */
 .case-sm { padding: 4px; border-radius: var(--r-2); }
@@ -238,11 +248,19 @@ h1, .hero-num, .stat .val, .blk-head h2 {
   border: 0;
   border-radius: var(--r-4);
   box-shadow: var(--e1);
-  transition: transform var(--dur-base) var(--spring), box-shadow var(--dur-base) var(--ease);
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease);
 }
 .card { padding: 20px 22px; }
+/* THE SHADOW IS FOR EVERYBODY, THE MOVEMENT IS FOR A POINTER. A tap on a touch
+   screen leaves a :hover behind it that nothing clears until the next tap, so an
+   ungated lift here is a card that rises under a finger and stays risen. */
 .card.lift:hover, .row:hover, .pcard:hover, .stat.lift:hover {
-  transform: translateY(-3px); box-shadow: var(--e2);
+  box-shadow: var(--e2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .card.lift:hover, .row:hover, .pcard:hover, .stat.lift:hover {
+    transform: translateY(-3px);
+  }
 }
 .card-lg { border-radius: var(--r-5); }
 .console { box-shadow: var(--e2); overflow: hidden; }
@@ -274,9 +292,12 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
   background: var(--face);
   box-shadow: var(--e1);
   border: 0; cursor: pointer; user-select: none;
-  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease), background var(--dur-base) linear, color var(--dur-fast) linear;
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease), background var(--dur-base) var(--ease), color var(--dur-fast) var(--ease);
 }
-.btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: var(--e2); }
+.btn:not(:disabled):hover { box-shadow: var(--e2); }
+@media (hover: hover) and (pointer: fine) {
+  .btn:not(:disabled):hover { transform: translateY(-2px); }
+}
 .btn:not(:disabled):active { transform: translateY(1px); background: var(--well); box-shadow: var(--press); filter: none; }
 .btn:focus-visible { outline: none; box-shadow: var(--e1), 0 0 0 3px rgba(0,0,0,.14); }
 .btn:disabled, .btn[aria-disabled="true"] {
@@ -331,7 +352,10 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
   background: transparent; box-shadow: none; border: 0;
   color: var(--muted); font-weight: 600;
 }
-.btn-ghost:not(:disabled):hover { background: var(--face); box-shadow: var(--e1); color: var(--ink); transform: translateY(-1px); }
+.btn-ghost:not(:disabled):hover { background: var(--face); box-shadow: var(--e1); color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .btn-ghost:not(:disabled):hover { transform: translateY(-1px); }
+}
 
 .btn-sm { height: 35px; padding: 0 16px; font-size: 13px; }
 .btn-lg { height: 54px; padding: 0 30px; font-size: 15.5px; }
@@ -343,7 +367,7 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
 .btn-spin, .tc-spin {
   display: inline-block; width: 15px; height: 15px; border-radius: 50%;
   border: 2px solid rgba(0,0,0,.12); border-right-color: transparent; border-top-color: rgba(0,0,0,.62);
-  animation: tc-spin .72s linear infinite; vertical-align: middle;
+  animation: tc-spin var(--dur-spin) linear infinite; vertical-align: middle;
 }
 .btn-accent .btn-spin, .btn-gold .btn-spin, .btn-primary .btn-spin,
 .btn-accent .tc-spin, .btn-gold .tc-spin, .btn-primary .tc-spin {
@@ -355,7 +379,10 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
   border: 0; background: var(--face); box-shadow: var(--e1);
   color: var(--ink-soft); height: 35px; padding: 0 16px; border-radius: var(--r-full);
 }
-.btn-discuss:hover { background: var(--face); box-shadow: var(--e2); transform: translateY(-1px); }
+.btn-discuss:hover { background: var(--face); box-shadow: var(--e2); }
+@media (hover: hover) and (pointer: fine) {
+  .btn-discuss:hover { transform: translateY(-1px); }
+}
 
 /* ══ PILLS, TAGS, CHIPS ══════════════════════════════════════════════════
    Raised when they are a control, pressed when they are on. A tag that is
@@ -370,8 +397,14 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
 }
 .tag { font-size: 11.5px; padding: 5px 13px; }
 .pill, .chip { font-size: 12.5px; height: 33px; padding: 0 14px; cursor: pointer;
-  transition: transform var(--dur-base) var(--spring), box-shadow var(--dur-base) var(--ease); }
-.pill:hover, .chip:hover { transform: translateY(-1.5px); box-shadow: var(--e2); border-color: transparent; color: var(--ink); }
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease); }
+.pill:hover, .chip:hover { box-shadow: var(--e2); border-color: transparent; color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .pill:hover, .chip:hover { transform: translateY(-1.5px); }
+}
+/* A small control gets the full .97. Not gated: on touch this is the only
+   feedback a chip gives before the route changes. */
+.pill:active, .chip:active { transform: scale(.97); }
 .pill.on, .chip.on, .pill[aria-pressed="true"], .chip[aria-pressed="true"] {
   background: var(--well); box-shadow: var(--press); transform: none; color: var(--ink); font-weight: 700;
 }
@@ -476,7 +509,7 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
   padding: 0 17px; height: 34px; display: inline-flex; align-items: center;
   font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none;
   color: var(--muted);
-  transition: box-shadow var(--dur-base) var(--ease), color var(--dur-fast) linear, background var(--dur-base) linear;
+  transition: box-shadow var(--dur-base) var(--ease), color var(--dur-fast) var(--ease), background var(--dur-base) var(--ease);
 }
 .tabrow a:hover, .console .tabs a:hover { color: var(--ink); background: transparent; }
 .tabrow a.on, .console .tabs a.on {
@@ -526,9 +559,12 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 }
 .modal .opt {
   border: 0; background: var(--face); box-shadow: var(--e1); border-radius: var(--r-2);
-  transition: transform var(--dur-base) var(--spring), box-shadow var(--dur-base) var(--ease);
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease);
 }
-.modal .opt:hover { transform: translateY(-2px); box-shadow: var(--e2); border-color: transparent; }
+.modal .opt:hover { box-shadow: var(--e2); border-color: transparent; }
+@media (hover: hover) and (pointer: fine) {
+  .modal .opt:hover { transform: translateY(-2px); }
+}
 
 /* ══ THE SHELL ═══════════════════════════════════════════════════════════
    The header and the sidebar were a dark slab, which made the navigation a
@@ -571,7 +607,7 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
   padding: 0; height: auto;
   text-transform: uppercase; letter-spacing: .13em; font-weight: 600;
   color: var(--muted);
-  transition: color var(--dur-fast) linear;
+  transition: color var(--dur-fast) var(--ease);
 }
 .tc-nav a:hover { background: none; box-shadow: none; color: var(--ink); transform: none; }
 .tc-nav a.on { background: none; box-shadow: none; color: var(--ink); font-weight: 700; }
@@ -612,9 +648,12 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
   color: var(--ink-soft); font-weight: 500;
   -webkit-backdrop-filter: blur(10px) saturate(180%);
   backdrop-filter: blur(10px) saturate(180%);
-  transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--spring), background var(--dur-base) linear;
+  transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease);
 }
-.side-menu a:hover { transform: translateY(-1.5px); box-shadow: var(--lens); color: var(--ink); }
+.side-menu a:hover { box-shadow: var(--lens); color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .side-menu a:hover { transform: translateY(-1.5px); }
+}
 .side-menu a.active {
   background: var(--lamp-face); box-shadow: var(--lamp); transform: none;
 }
@@ -647,7 +686,12 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
   background: var(--face); box-shadow: var(--e1); border: 0; border-radius: var(--r-full); color: var(--ink-soft);
 }
 .tc-actionbar a:hover, .tc-actionbar button:hover, .tc-actions a:hover, .tc-actions button:hover {
-  box-shadow: var(--e2-key); transform: translateY(-1px); color: var(--ink);
+  box-shadow: var(--e2-key); color: var(--ink);
+}
+@media (hover: hover) and (pointer: fine) {
+  .tc-actionbar a:hover, .tc-actionbar button:hover, .tc-actions a:hover, .tc-actions button:hover {
+    transform: translateY(-1px);
+  }
 }
 .tc-actionbar a:active, .tc-actionbar button:active, .tc-actions a:active, .tc-actions button:active { background: var(--well); box-shadow: var(--press); transform: translateY(1px); }
 
@@ -658,7 +702,7 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .tc-bottomnav a, .tc-bottomnav button {
   border-radius: var(--r-2); background: var(--face-2); box-shadow: var(--e1);
   color: var(--muted); font-size: 10.5px; font-weight: 600; letter-spacing: 0; border: 0;
-  transition: box-shadow var(--dur-base) var(--ease), color var(--dur-fast) linear;
+  transition: box-shadow var(--dur-base) var(--ease), color var(--dur-fast) var(--ease);
 }
 .tc-bottomnav a:active, .tc-bottomnav button:active { background: var(--well); box-shadow: var(--press); }
 .tc-bottomnav .on { background: var(--well); box-shadow: var(--carve); color: var(--ink); font-weight: 700; }
@@ -669,9 +713,17 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .mode-tab {
   border-radius: var(--r-2); background: var(--face); box-shadow: var(--e1);
   color: var(--ink); font-weight: 600; border: 0;
-  transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--spring);
+  transition: box-shadow var(--dur-base) var(--ease), transform var(--dur-base) var(--ease-out);
 }
-.mode-tab:hover { transform: translateY(-1.5px); box-shadow: var(--e2); }
+.mode-tab:hover { box-shadow: var(--e2); }
+@media (hover: hover) and (pointer: fine) {
+  .mode-tab:hover { transform: translateY(-1.5px); }
+}
+.mode-tab:active { transform: scale(.97); }
+/* The tab you are already on does not press: it is already pressed in, and the
+   carve below is what says so. Same sentence `.g-key.on:hover` and
+   `.side-menu a.active:hover` speak two sections over. */
+.mode-tab[aria-pressed="true"]:active { transform: none; }
 .mode-tab[aria-pressed="true"] {
   background: var(--well); box-shadow: var(--carve); transform: none; font-weight: 700;
 }
@@ -851,9 +903,12 @@ img[src$=".svg"], .no-case {
   -webkit-backdrop-filter: blur(10px) saturate(140%);
   backdrop-filter: blur(10px) saturate(140%);
   box-shadow: var(--e1);
-  transition: transform var(--dur-base) var(--spring), box-shadow var(--dur-base) var(--ease);
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease);
 }
-.hub-plate-cta:hover { transform: translateY(-2px); box-shadow: var(--e2); color: var(--ink); }
+.hub-plate-cta:hover { box-shadow: var(--e2); color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .hub-plate-cta:hover { transform: translateY(-2px); }
+}
 .hub-plate-cta:active { transform: translateY(1px); background: var(--well); box-shadow: var(--press); }
 .hub-plate-cta:focus-visible { outline: none; box-shadow: var(--e1), 0 0 0 3px rgba(0,0,0,.14); }
 
@@ -894,7 +949,10 @@ img[src$=".svg"], .no-case {
   text-shadow: 0 1px 0 #fff, 0 2px 1px rgba(0,0,0,.055), 0 4px 10px rgba(0,0,0,.05);
 }
 .district-plate:hover { box-shadow: var(--e3), 0 30px 70px rgba(0,0,0,.06); }
-.district-plate:hover .hub-plate-cta { box-shadow: var(--e2); transform: translateY(-2px); }
+.district-plate:hover .hub-plate-cta { box-shadow: var(--e2); }
+@media (hover: hover) and (pointer: fine) {
+  .district-plate:hover .hub-plate-cta { transform: translateY(-2px); }
+}
 .district-plate:focus-visible { outline: none; box-shadow: var(--e3), 0 0 0 3px rgba(0,0,0,.16); }
 
 /* Not a door. A plate you cannot open must not offer a button that looks
@@ -929,9 +987,13 @@ img[src$=".svg"], .no-case {
   position: relative; aspect-ratio: 1 / 1; overflow: hidden;
   border-radius: var(--r-3); background: var(--well);
   box-shadow: var(--e1);
-  transition: transform var(--dur-base) var(--spring), box-shadow var(--dur-base) var(--ease);
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease);
 }
-.social-tile:hover { transform: translateY(-3px); box-shadow: var(--e2); }
+.social-tile:hover { box-shadow: var(--e2); }
+@media (hover: hover) and (pointer: fine) {
+  .social-tile:hover { transform: translateY(-3px); }
+}
+.social-tile:active { transform: scale(.985); }
 .social-tile > img, .social-tile > video { width: 100%; height: 100%; object-fit: cover; }
 .social-tile::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
@@ -966,10 +1028,16 @@ img[src$=".svg"], .no-case {
    zeroes durations. Without this a hover still jumps 3px instantly, which is
    worse for somebody who asked for less motion than the movement they asked
    to be rid of. */
+/* `.btn:not(:disabled):hover`, NOT `.btn:hover`. :not() contributes its
+   argument's weight, so the rule this is neutralising scores one step higher
+   than a bare `.btn:hover` and the allowlist lost the cascade silently — the
+   one entry in this block that was never doing its job. */
 @media (prefers-reduced-motion: reduce) {
-  .btn:hover, .card.lift:hover, .row:hover, .pcard:hover, .case:hover,
+  .btn:not(:disabled):hover, .card.lift:hover, .row:hover, .pcard:hover, .case:hover,
   .pill:hover, .chip:hover, .tc-nav a:hover, .side-menu a:hover,
-  .modal .opt:hover, .tc-actionbar a:hover, .tc-actionbar button:hover, .tc-actions a:hover, .tc-actions button:hover {
+  .modal .opt:hover, .tc-actionbar a:hover, .tc-actionbar button:hover, .tc-actions a:hover, .tc-actions button:hover,
+  .pcard:hover .ph img, .social-tile:hover, .mode-tab:hover,
+  .btn-discuss:hover, .hub-plate-cta:hover {
     transform: none;
   }
 }
@@ -1010,11 +1078,13 @@ img[src$=".svg"], .no-case {
   gap: 9px; border: 0; cursor: pointer; font-family: var(--sans); font-weight: 600;
   font-size: 14px; height: 46px; padding: 0 22px; border-radius: var(--r-full);
   color: var(--ink-soft); background: var(--glass-face); box-shadow: var(--glass-key);
-  transition: transform var(--dur-base) var(--spring), box-shadow var(--dur-base) var(--ease);
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease);
 }
 .g-key.sm { height: 38px; padding: 0 16px; font-size: 12.5px; }
 .g-key.lg { height: 54px; padding: 0 30px; font-size: 15.5px; }
-.g-key:not(:disabled):hover { transform: translateY(-1.5px); }
+@media (hover: hover) and (pointer: fine) {
+  .g-key:not(:disabled):hover { transform: translateY(-1.5px); }
+}
 .g-key.on { background: var(--key-lit-face); box-shadow: var(--key-lit); color: var(--on-accent); font-weight: 700; }
 .g-key.on:hover { transform: none; }
 /* Chosen, not primary. A form with two lit keys has no primary — the tray says
@@ -1341,7 +1411,17 @@ textarea.g-field { resize: none; line-height: 1.55; }
   aspect-ratio: 3 / 4; overflow: hidden; border-radius: var(--r-2); cursor: pointer;
   background: var(--media-bg); color: var(--on-accent); text-align: left;
   box-shadow: var(--e1); transition: box-shadow .18s ease, transform .18s ease; }
-.poster:hover { box-shadow: var(--e2); transform: translateY(-2px); }
+.poster:hover { box-shadow: var(--e2); }
+@media (hover: hover) and (pointer: fine) {
+  .poster:hover { transform: translateY(-2px); }
+}
+.poster:active { transform: scale(.985); }
+/* Not in the allowlist block above — the wall is declared 400 lines BELOW it,
+   so an entry up there would be overruled by source order and read as covered
+   while doing nothing. Same argument, stated next to the rule it neutralises. */
+@media (prefers-reduced-motion: reduce) {
+  .poster:hover { transform: none; }
+}
 .poster:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .poster > img { position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; display: block; }

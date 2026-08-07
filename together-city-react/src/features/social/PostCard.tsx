@@ -230,7 +230,7 @@ export function PostCard({ post, isNew = false, manage = false, onOpenAuthor, on
   const openAuthor = () => onOpenAuthor?.(post.author.handle);
 
   return (
-    <article className="card" style={{ marginBottom: 16, ...(isNew ? { boxShadow: '0 0 0 2px var(--accent)', animation: 'tc-pop .3s ease-out' } : {}) }}>
+    <article className="card" style={{ marginBottom: 16, ...(isNew ? { boxShadow: '0 0 0 2px var(--accent)', animation: 'tc-pop var(--dur-base) var(--ease-out)' } : {}) }}>
       {post.repostedBy && (
         <div className="muted" style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
           🔁 Shared by {post.repostedBy.name} <span style={{ fontWeight: 400 }}>@{post.repostedBy.handle}</span>

@@ -22,6 +22,9 @@ import type { Prescription } from '../composed.api';
 export function TargetsDisclosure({ p }: { p: Prescription }) {
   const [open, setOpen] = useState(false);
   const r = p.readiness;
+  // Somebody who has asked the OS for less motion still needs to see the panel
+  // arrive and leave — they just should not watch it grow. Opacity only.
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
   // The refusal comes first and replaces the working, because there is no
   // working to show — the number on screen was built from a reference body.
@@ -35,46 +38,66 @@ export function TargetsDisclosure({ p }: { p: Prescription }) {
       <button type="button" onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         style={{ minWidth: 44, minHeight: 44, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)' }}>
-        {open ? '▾' : '▸'} How we calculated this
+        <span aria-hidden style={{
+          display: 'inline-block',
+          transform: open ? 'rotate(90deg)' : 'none',
+          transition: 'transform var(--dur-fast) var(--ease-out)',
+        }}>▸</span>
+        {' '}How we calculated this
       </button>
 
-      {open && (
-        <div style={{ marginTop: 8, padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--paper)' }}>
-          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)' }}>
-            {equation}
-          </div>
-
-          <div style={{ marginTop: 10 }}>
-            {steps.map((s, i) => (
-              <div key={s.label} style={{
-                display: 'flex', gap: 12, alignItems: 'baseline', padding: '5px 0',
-                borderTop: i ? '1px solid var(--line)' : 'none',
-                fontWeight: i === steps.length - 1 ? 700 : 400,
-              }}>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 12.5 }}>{s.label}</span>
-                <span style={{ fontSize: 12.5, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{s.value}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Where a limit was applied, it says so here rather than the number
-              just being lower than the arithmetic implies. */}
-          {notes.map((n) => (
-            <p key={n} className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, margin: '9px 0 0' }}>{n}</p>
-          ))}
-
-          <div style={{ marginTop: 11, paddingTop: 9, borderTop: '1px solid var(--line)' }}>
-            <div className="muted" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em' }}>
-              What we used
+      {/* The wrapper stays mounted so the height has something to animate from.
+          grid-template-rows 1fr -> 0fr collapses to the table's *actual* height
+          with no magic number and no measurement — the same idiom as
+          .tc-msg-collapse in chat/components/MessageThread.tsx. Everything the
+          panel draws (padding, border, background) sits INSIDE the overflow:
+          hidden row; on the wrapper, the border would still be visible at 0fr. */}
+      <div style={{
+        display: 'grid',
+        gridTemplateRows: open ? '1fr' : '0fr',
+        opacity: open ? 1 : 0,
+        transition: reduce
+          ? 'opacity var(--dur-fast) linear'
+          : 'grid-template-rows var(--dur-base) var(--ease-out), opacity var(--dur-fast) var(--ease-out)',
+      }}>
+        <div style={{ overflow: 'hidden', minHeight: 0 }}>
+          <div style={{ marginTop: 8, padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--paper)' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+              {equation}
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', marginTop: 5 }}>
-              {Object.entries(inputs).map(([k, v]) => (
-                <span key={k} className="muted" style={{ fontSize: 11.5 }}>{humanKey(k)}: <b style={{ color: 'var(--ink)' }}>{String(v)}</b></span>
+
+            <div style={{ marginTop: 10 }}>
+              {steps.map((s, i) => (
+                <div key={s.label} style={{
+                  display: 'flex', gap: 12, alignItems: 'baseline', padding: '5px 0',
+                  borderTop: i ? '1px solid var(--line)' : 'none',
+                  fontWeight: i === steps.length - 1 ? 700 : 400,
+                }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12.5 }}>{s.label}</span>
+                  <span style={{ fontSize: 12.5, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{s.value}</span>
+                </div>
               ))}
+            </div>
+
+            {/* Where a limit was applied, it says so here rather than the number
+                just being lower than the arithmetic implies. */}
+            {notes.map((n) => (
+              <p key={n} className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, margin: '9px 0 0' }}>{n}</p>
+            ))}
+
+            <div style={{ marginTop: 11, paddingTop: 9, borderTop: '1px solid var(--line)' }}>
+              <div className="muted" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em' }}>
+                What we used
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', marginTop: 5 }}>
+                {Object.entries(inputs).map(([k, v]) => (
+                  <span key={k} className="muted" style={{ fontSize: 11.5 }}>{humanKey(k)}: <b style={{ color: 'var(--ink)' }}>{String(v)}</b></span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

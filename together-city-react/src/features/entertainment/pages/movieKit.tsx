@@ -33,7 +33,8 @@ const TINTS = ['mvk1', 'mvk2', 'mvk3', 'mvk4'];
 
 export const KIT_CSS = `
 .mvk-card{display:block;text-decoration:none;color:inherit;background:var(--card,#fff);border:1px solid var(--line,#eee);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s;cursor:pointer;text-align:left;font-family:inherit;padding:0;width:100%}
-.mvk-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-deep)}
+.mvk-card:hover{box-shadow:var(--shadow-deep)}
+@media (hover: hover) and (pointer: fine){.mvk-card:hover{transform:translateY(-4px)}}
 .mvk-poster{aspect-ratio:2/3;display:flex;align-items:flex-end;padding:14px;color:#fff;position:relative;overflow:hidden}
 .mvk-poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .mvk-poster .scrim{position:absolute;inset:auto 0 0 0;height:55%;background:linear-gradient(180deg,transparent,rgba(0,0,0,.72));z-index:1}
@@ -64,9 +65,13 @@ export const KIT_CSS = `
 .mvk-seasons{display:flex;flex-direction:column;gap:6px}
 .mvk-seasons .s{display:flex;justify-content:space-between;gap:10px;font-size:13px;border:1px solid var(--line,#eee);border-radius:10px;padding:9px 12px}
 .mvk-bm{position:absolute;top:10px;right:10px;z-index:3;width:34px;height:34px;border-radius:999px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);transition:transform .18s ease,background .18s ease}
-.mvk-bm:hover{transform:scale(1.12);background:rgba(0,0,0,.65)}
-.mvk-bm:active{transform:scale(1.28)}
-.mvk-bm svg{width:16px;height:16px;transition:all .18s ease}
+.mvk-bm:hover{background:rgba(0,0,0,.65)}
+@media (hover: hover) and (pointer: fine){.mvk-bm:hover{transform:scale(1.12)}}
+/* Reduced motion takes the MOVEMENT, not the feedback: the background change stays,
+   and this sits above :active so a press is still acknowledged. */
+@media (prefers-reduced-motion: reduce){.mvk-card:hover,.mvk-bm:hover{transform:none}}
+.mvk-bm:active{transform:scale(.97)}
+.mvk-bm svg{width:16px;height:16px;transition:transform var(--dur-fast) var(--ease-out)}
 .tc-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(16px);z-index:10000;background:#241a3d;color:#fff;font-size:13.5px;font-weight:600;padding:11px 22px;border-radius:999px;box-shadow:0 10px 32px rgba(0,0,0,.35);opacity:0;transition:opacity .25s ease,transform .25s ease;pointer-events:none;font-family:inherit}
 .tc-toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 .mvk-pager{display:flex;align-items:center;justify-content:center;gap:14px;margin:22px 0 8px;flex-wrap:wrap}

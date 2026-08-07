@@ -776,13 +776,16 @@ export function CreatePost() {
         <button type="button" onClick={() => void share()} disabled={busy || !canShare}
           className="btn"
           style={{
-            flex: busy ? 'none' : 2, width: busy ? 150 : undefined, justifyContent: 'center',
+            // `width: undefined` is `auto`, and auto → 150px is not interpolable, so the
+            // width leg snapped while the flex leg tweened and re-ran flex layout for the
+            // whole row every frame. Stable value pair + no layout transition.
+            flex: busy ? 'none' : 2, width: busy ? 150 : 'auto', minWidth: 150, justifyContent: 'center',
             display: 'flex', alignItems: 'center', gap: 8, borderRadius: 999, padding: '11px 18px',
             fontFamily: 'inherit', fontWeight: 700, fontSize: 14, cursor: busy || !canShare ? 'default' : 'pointer',
             border: 'none', color: 'var(--on-accent)',
             background: phase === 'success' ? 'var(--ok-ink)' : 'var(--accent)',
             opacity: !busy && !canShare ? 0.5 : 1,
-            transition: 'flex .35s ease, width .35s ease, background .25s ease',
+            transition: 'background var(--dur-base) var(--ease-out)',
           }}>
           {phase === 'sharing' && (<><span className="tc-spin" /> Sharing…</>)}
           {phase === 'success' && (<><Icon name="accepted" size={16} /> Shared</>)}

@@ -86,6 +86,9 @@ export function AstroAsk() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const remove = useDeleteQuestion();
+  // Reduced motion still gets the fade — it just does not watch a long answer
+  // push the consultations below it down the page.
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
   const submit = () => {
     setError(null);
@@ -247,10 +250,29 @@ export function AstroAsk() {
                           still says ₹75, because that is what happened. */}
                       {q.priceInr > 0 ? ` · ₹${q.priceInr}` : ' · Free'}
                     </span>
-                    <span className="ask-past-mark" aria-hidden>{openId === q.id ? '−' : '+'}</span>
+                    {/* One glyph that turns, not two that swap: the + rotates
+                        45° into an ×, so the mark reads as the same object in a
+                        new state rather than as a different character. */}
+                    <span className="ask-past-mark" aria-hidden style={{
+                      display: 'inline-block',
+                      transform: openId === q.id ? 'rotate(45deg)' : 'none',
+                      transition: 'transform var(--dur-fast) var(--ease-out)',
+                    }}>+</span>
                   </button>
-                  {openId === q.id && (
-                    <div className="ask-past-body">
+                  {/* Stays mounted so the answer has a height to grow from —
+                      grid-template-rows 1fr -> 0fr, the .tc-msg-collapse idiom.
+                      The body keeps its own class inside the overflow:hidden
+                      row; anything drawn on the grid wrapper would still show
+                      at 0fr. */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateRows: openId === q.id ? '1fr' : '0fr',
+                    opacity: openId === q.id ? 1 : 0,
+                    transition: reduce
+                      ? 'opacity var(--dur-fast) linear'
+                      : 'grid-template-rows var(--dur-base) var(--ease-out), opacity var(--dur-fast) var(--ease-out)',
+                  }}>
+                    <div className="ask-past-body" style={{ overflow: 'hidden', minHeight: 0 }}>
                       {q.answer.split('\n\n').map((p, i) => <p key={i}>{p}</p>)}
 
                       {/* Deleting is a two-step, in place. A browser confirm()
@@ -290,7 +312,7 @@ export function AstroAsk() {
                         </p>
                       )}
                     </div>
-                  )}
+                  </div>
                 </article>
               ))}
             </>

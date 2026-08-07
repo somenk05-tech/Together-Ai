@@ -1,0 +1,7 @@
+{
+  "comment": "Motion-token drift in together-city-react. Lower these whenever you consolidate — see scripts/motion-ceiling.mjs and together-city-react/plans/011-a-motion-token-ceiling.md. Never raise them.",
+  "durations": 17,
+  "easings": 7,
+  "noEasing": 29,
+  "transitionAll": 0
+}

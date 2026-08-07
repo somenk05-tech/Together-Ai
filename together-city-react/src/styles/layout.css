@@ -171,7 +171,7 @@
 .letter-past .letter-link {
   display: flex; align-items: center; gap: 16px; padding: 15px 18px; border-radius: var(--r-3);
   background: var(--face); box-shadow: var(--e1); color: var(--ink); text-align: left; width: 100%; border: 0; cursor: pointer;
-  transition: transform var(--dur-base) var(--spring), box-shadow var(--dur-base) var(--ease);
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease);
 }
 .letter-past .letter-link:hover, .letter-past .letter-link:focus-visible {
   transform: translateY(-2px); box-shadow: var(--e2); outline: none;
@@ -211,9 +211,12 @@
   display: inline-flex; align-items: center; height: 33px; padding: 0 14px; border-radius: var(--r-full);
   font-size: 12.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; border: 0;
   background: var(--face); box-shadow: var(--e1);
-  transition: transform var(--dur-base) var(--spring), box-shadow var(--dur-base) var(--ease), color var(--dur-fast) linear;
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease), color var(--dur-fast) var(--ease);
 }
-.ask-chip:hover { transform: translateY(-1.5px); box-shadow: var(--e2); color: var(--ink); }
+.ask-chip:hover { box-shadow: var(--e2); color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .ask-chip:hover { transform: translateY(-1.5px); }
+}
 .ask-chip.is-on { background: var(--well); box-shadow: var(--press); color: var(--ink); font-weight: 700; transform: none; }
 
 .ask-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
@@ -237,9 +240,12 @@
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.24), inset 0 -1px 0 rgba(0,0,0,.6), inset 0 0 0 1px rgba(0,0,0,.9),
     0 1px 2px rgba(0,0,0,.22), 0 4px 10px rgba(0,0,0,.24), 0 10px 24px rgba(0,0,0,.18);
-  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease), background var(--dur-base) linear;
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease), background var(--dur-base) var(--ease);
 }
-.ask-cta:hover:not(:disabled) { transform: translateY(-2px); box-shadow: inset 0 1px 0 rgba(255,255,255,.3), inset 0 0 0 1px rgba(0,0,0,.9), 0 8px 18px rgba(0,0,0,.28), 0 18px 40px rgba(0,0,0,.2); }
+.ask-cta:hover:not(:disabled) { box-shadow: inset 0 1px 0 rgba(255,255,255,.3), inset 0 0 0 1px rgba(0,0,0,.9), 0 8px 18px rgba(0,0,0,.28), 0 18px 40px rgba(0,0,0,.2); }
+@media (hover: hover) and (pointer: fine) {
+  .ask-cta:hover:not(:disabled) { transform: translateY(-2px); }
+}
 .ask-cta:active:not(:disabled) { transform: translateY(1px); background: linear-gradient(180deg, #000 0%, #0d0d0d 60%, #1d1d1d 100%); box-shadow: inset 0 2px 5px rgba(0,0,0,.85), 0 1px 0 rgba(255,255,255,.7); }
 .ask-cta:disabled { opacity: .42; cursor: not-allowed; transform: none; }
 
@@ -252,8 +258,11 @@
 
 .ask-history-title { max-width: var(--measure-card); font-size: clamp(22px, 2.4vw, 30px); font-weight: 700; letter-spacing: -.035em; margin: clamp(28px, 3vw, 40px) 0 14px; color: var(--ink); }
 .ask-past { max-width: var(--measure-card); border-radius: var(--r-4); background: var(--face-tall); box-shadow: var(--e1); padding: 20px 22px; margin-bottom: 12px;
-  transition: transform var(--dur-base) var(--spring), box-shadow var(--dur-base) var(--ease); }
-.ask-past:hover { transform: translateY(-2px); box-shadow: var(--e2); }
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease); }
+.ask-past:hover { box-shadow: var(--e2); }
+@media (hover: hover) and (pointer: fine) {
+  .ask-past:hover { transform: translateY(-2px); }
+}
 .ask-past-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .ask-past-topic { font-size: 15.5px; font-weight: 600; letter-spacing: -.02em; color: var(--ink); }
 .ask-past-actions { display: flex; gap: 12px; align-items: center; margin-top: 14px; }
@@ -273,9 +282,12 @@
 .tarot-back-face {
   width: 100%; height: 100%; border-radius: 12px; background: var(--face);
   box-shadow: var(--e2); display: grid; place-items: center;
-  transition: transform var(--dur-slow) var(--spring), box-shadow var(--dur-slow) var(--ease);
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease);
 }
-.tarot-back:hover .tarot-back-face { transform: translateY(-6px) rotate(-1.2deg); box-shadow: var(--e3); }
+.tarot-back:hover .tarot-back-face { box-shadow: var(--e3); }
+@media (hover: hover) and (pointer: fine) {
+  .tarot-back:hover .tarot-back-face { transform: translateY(-6px) rotate(-1.2deg); }
+}
 /* The emblem is carved into the back rather than printed on it. */
 .tarot-back-mark { width: 46px; height: 46px; border-radius: 50%; background: var(--well); box-shadow: var(--carve); display: grid; place-items: center; }
 .tarot-back-mark::after { content: '✦'; font-size: 17px; color: var(--muted); }
@@ -491,3 +503,24 @@
 .page-note.centred { text-align: center; }
 /* Vertical air, so a lone message is not welded to the breadcrumb above it. */
 .page-note { margin-block: var(--s-5); }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE TRANSFORM-SPECIFIC REDUCED-MOTION PATCH
+
+   Same argument as relief.css's own block: the global rule at index.css only
+   zeroes DURATIONS, and a duration of .01ms does not remove a movement — it
+   makes it instant. An ungated hover transform therefore jumps for somebody who
+   asked for less motion, which is worse than the movement they asked to be rid
+   of. Only `transform` is neutralised; the shadow and colour legs stay, so the
+   element still acknowledges the pointer.
+
+   These four live here rather than in relief.css's list because a selector
+   should be neutralised in the file that declares it — `.tarot-back` and the
+   three `.ask-*` controls are declared above and nowhere else.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .tarot-back:hover .tarot-back-face, .ask-chip:hover, .ask-cta:hover:not(:disabled), .ask-past:hover {
+    transform: none;
+  }
+}

@@ -251,18 +251,18 @@ const SHEET_CSS = `
 .uss-overlay{position:fixed;inset:0;z-index:9600;display:flex;align-items:center;justify-content:center;padding:24px;
   background:rgba(10,8,20,.5);-webkit-backdrop-filter:blur(10px) saturate(120%);backdrop-filter:blur(10px) saturate(120%);
   animation:uss-ov-in .24s ease both}
-.uss-overlay.uss-closing{animation:uss-ov-out .2s ease both;pointer-events:none}
+.uss-overlay.uss-closing{animation:uss-ov-out .2s var(--ease-out) both;pointer-events:none}
 /* Centered card on desktop. Height is capped with dvh (real mobile viewport,
    avoids the 100vh URL-bar bug) and a hard px ceiling so it never gets huge. */
 .uss-sheet{position:relative;display:flex;flex-direction:column;width:min(480px,100%);
   max-height:min(86vh,760px);max-height:min(86dvh,760px);
   background:var(--card);background:color-mix(in srgb,var(--card) 92%,transparent);
-  -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+  -webkit-backdrop-filter:blur(18px) saturate(160%);backdrop-filter:blur(18px) saturate(160%);
   border:1px solid var(--line);border-radius:22px;
   box-shadow:0 24px 80px rgba(0,0,0,.45),0 2px 8px rgba(0,0,0,.12);
   overflow:hidden;font-family:inherit;color:var(--ink);
-  animation:uss-sheet-in .26s cubic-bezier(.16,1,.3,1) both}
-.uss-overlay.uss-closing .uss-sheet{animation:uss-sheet-out .2s ease both}
+  animation:uss-sheet-in .26s var(--ease-out) both}
+.uss-overlay.uss-closing .uss-sheet{animation:uss-sheet-out .2s var(--ease-out) both}
 /* Sticky header (search never scrolls away) — it's a non-shrinking flex child. */
 .uss-head{position:relative;flex:0 0 auto;padding:16px 18px 12px;border-bottom:1px solid var(--line)}
 /* The ONLY scroll container. min-height:0 lets it actually shrink inside the
@@ -293,8 +293,8 @@ const SHEET_CSS = `
 @media (max-width:560px){
   .uss-overlay{align-items:flex-end;padding:0}
   .uss-sheet{width:100%;max-width:none;max-height:92vh;max-height:92dvh;border-radius:22px 22px 0 0;
-    animation:uss-sheet-up .3s cubic-bezier(.16,1,.3,1) both}
-  .uss-overlay.uss-closing .uss-sheet{animation:uss-sheet-down .24s ease both}
+    animation:uss-sheet-up .3s var(--ease-out) both}
+  .uss-overlay.uss-closing .uss-sheet{animation:uss-sheet-down .24s var(--ease-out) both}
   .uss-head{padding-top:22px}
   .uss-head::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:38px;height:4px;border-radius:999px;background:var(--line)}
 }
@@ -332,7 +332,7 @@ export function UniversalShareSheet({
   // and double-send. This ref flips synchronously and blocks the second click.
   const sendingRef = useRef(false);
   const closingRef = useRef(false);
-  const closeTimer = useRef<number | undefined>(undefined);
+  const closeTimer = useRef<number | null>(null);
 
   // Animated close: play the exit transition, THEN tell the parent to unmount.
   const CLOSE_MS = 230;
@@ -341,8 +341,26 @@ export function UniversalShareSheet({
     closingRef.current = true;
     setClosing(true);
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    closeTimer.current = window.setTimeout(() => onClose(), reduce ? 0 : CLOSE_MS);
+    // Reset the flags as the close completes so the component is reusable: a
+    // caller that keeps it mounted across a close/open cycle gets a clean sheet
+    // instead of one stuck in `uss-closing` forever.
+    closeTimer.current = window.setTimeout(() => {
+      closingRef.current = false;
+      setClosing(false);
+      closeTimer.current = null;
+      onClose();
+    }, reduce ? 0 : CLOSE_MS);
   }, [onClose]);
+
+  // Re-opening during the exit cancels the pending close and returns the sheet
+  // to its open state, instead of the tap being swallowed by the 230ms window.
+  useEffect(() => {
+    if (open && closingRef.current) {
+      if (closeTimer.current) { window.clearTimeout(closeTimer.current); closeTimer.current = null; }
+      closingRef.current = false;
+      setClosing(false);
+    }
+  }, [open]);
 
   // Clear the pending close timer if we unmount mid-animation (no leaked timer).
   useEffect(() => () => { if (closeTimer.current) window.clearTimeout(closeTimer.current); }, []);
@@ -586,7 +604,7 @@ export function UniversalShareSheet({
             <div className="uss-body">
               {groupsData.isLoading ? (
                 <div role="status" aria-live="polite" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 32, color: 'var(--muted)', justifyContent: 'center' }}>
-                  <span aria-hidden style={{ width: 18, height: 18, border: '2px solid var(--line)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'uss-spin .7s linear infinite' }} />
+                  <span aria-hidden style={{ width: 18, height: 18, border: '2px solid var(--line)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'uss-spin var(--dur-spin) linear infinite' }} />
                   Loading recipients…
                 </div>
               ) : (
@@ -624,7 +642,7 @@ export function UniversalShareSheet({
               >
                 {phase === 'sending'
                   ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                      <span aria-hidden style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,.5)', borderTopColor: 'var(--card)', borderRadius: '50%', animation: 'uss-spin .7s linear infinite' }} />
+                      <span aria-hidden style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,.5)', borderTopColor: 'var(--card)', borderRadius: '50%', animation: 'uss-spin var(--dur-spin) linear infinite' }} />
                       Sending…
                     </span>
                   : `Send${count ? ` (${count})` : ''}`}

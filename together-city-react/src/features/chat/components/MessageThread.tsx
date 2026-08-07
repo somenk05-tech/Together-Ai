@@ -22,8 +22,14 @@ const CSS = `
 .tc-msg-actions button{border:none;background:none;cursor:pointer;font-size:12px;padding:4px 7px;border-radius:999px;font-family:inherit;color:var(--ink-soft);line-height:1}
 .tc-msg-actions button:hover{background:var(--paper)}
 .tc-msg-actions button.danger{color:var(--danger-ink)}
-.tc-msg-collapse{overflow:visible;max-height:2000px;transition:max-height .25s ease,opacity .25s ease,margin .25s ease}
-.tc-msg-collapsing{max-height:0!important;opacity:0;margin:0!important;overflow:hidden}
+/* Was max-height: 2000px -> 0 over 250ms. A message is ~60px, so 97% of the
+   duration passed with nothing visible and the collapse happened in the last
+   7ms. grid-template-rows: 1fr -> 0fr collapses to the row's *actual* height
+   with no magic number and no measurement. The opacity leg is --dur-fast so the
+   message is gone before the gap finishes closing at --dur-base. */
+.tc-msg-collapse{display:grid;grid-template-rows:1fr;transition:grid-template-rows var(--dur-base) var(--ease-out),opacity var(--dur-fast) var(--ease-out)}
+.tc-msg-collapse > *{overflow:hidden;min-height:0}
+.tc-msg-collapsing{grid-template-rows:0fr;opacity:0}
 `;
 
 /** 15-minute edit / delete-for-everyone window (matches the server policy). */
@@ -77,7 +83,7 @@ export function MessageThread({ messages, currentUserId, typing, onDelete, onEdi
     if (scope === 'ME') {
       // Collapse smoothly, then let the parent drop it from the list.
       setCollapsing((s) => new Set(s).add(m.id));
-      window.setTimeout(() => { void onDelete?.(m.id, scope); }, 260);
+      window.setTimeout(() => { void onDelete?.(m.id, scope); }, 220); // --dur-base
     } else {
       await onDelete?.(m.id, scope); // tombstones in place — no collapse
     }
@@ -115,38 +121,41 @@ export function MessageThread({ messages, currentUserId, typing, onDelete, onEdi
               </div>
             )}
 
-            {deleted ? (
-              <div style={{
-                border: '1px dashed var(--line)', color: 'var(--muted)', fontStyle: 'italic',
-                borderRadius: 16, padding: '8px 14px', fontSize: 13, background: 'transparent',
-              }}>
-                🚫 This message was deleted
-              </div>
-            ) : editingId === m.id ? (
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input autoFocus aria-label="Edit your message" value={editText} onChange={(e) => setEditText(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') void saveEdit(m); if (e.key === 'Escape') setEditingId(null); }}
-                  style={{ border: '1.5px solid var(--accent)', borderRadius: 12, padding: '8px 12px', fontSize: 14, fontFamily: 'inherit', minWidth: 220 }} />
-                <button type="button" className="btn btn-accent btn-sm" onClick={() => void saveEdit(m)}>Save</button>
-                <button type="button" className="btn btn-line btn-sm" aria-label="Cancel editing" onClick={() => setEditingId(null)}>✕</button>
-              </div>
-            ) : (
-              <>
-                {m.body && (
-                  <div style={{
-                    background: mine ? 'var(--accent)' : 'var(--card)', color: mine ? 'var(--on-accent)' : 'var(--ink)',
-                    border: mine ? 'none' : '1px solid var(--line)', borderRadius: 16, padding: '9px 14px', fontSize: 14,
-                    marginBottom: m.share ? 6 : 0,
-                  }}>{m.body}</div>
-                )}
-                {m.share && <ShareCardView card={m.share} compact clickable />}
-              </>
-            )}
+            {/* single in-flow child: the grid row that collapses 1fr -> 0fr */}
+            <div>
+              {deleted ? (
+                <div style={{
+                  border: '1px dashed var(--line)', color: 'var(--muted)', fontStyle: 'italic',
+                  borderRadius: 16, padding: '8px 14px', fontSize: 13, background: 'transparent',
+                }}>
+                  🚫 This message was deleted
+                </div>
+              ) : editingId === m.id ? (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input autoFocus aria-label="Edit your message" value={editText} onChange={(e) => setEditText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') void saveEdit(m); if (e.key === 'Escape') setEditingId(null); }}
+                    style={{ border: '1.5px solid var(--accent)', borderRadius: 12, padding: '8px 12px', fontSize: 14, fontFamily: 'inherit', minWidth: 220 }} />
+                  <button type="button" className="btn btn-accent btn-sm" onClick={() => void saveEdit(m)}>Save</button>
+                  <button type="button" className="btn btn-line btn-sm" aria-label="Cancel editing" onClick={() => setEditingId(null)}>✕</button>
+                </div>
+              ) : (
+                <>
+                  {m.body && (
+                    <div style={{
+                      background: mine ? 'var(--accent)' : 'var(--card)', color: mine ? 'var(--on-accent)' : 'var(--ink)',
+                      border: mine ? 'none' : '1px solid var(--line)', borderRadius: 16, padding: '9px 14px', fontSize: 14,
+                      marginBottom: m.share ? 6 : 0,
+                    }}>{m.body}</div>
+                  )}
+                  {m.share && <ShareCardView card={m.share} compact clickable />}
+                </>
+              )}
 
-            <div className="muted" style={{ fontSize: 10.5, marginTop: 2, textAlign: mine ? 'right' : 'left' }}>
-              {m.edited && !deleted && <span style={{ marginRight: 4 }}>edited ·</span>}
-              {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              {mine && !deleted && <Ticks status={m.status} />}
+              <div className="muted" style={{ fontSize: 10.5, marginTop: 2, textAlign: mine ? 'right' : 'left' }}>
+                {m.edited && !deleted && <span style={{ marginRight: 4 }}>edited ·</span>}
+                {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {mine && !deleted && <Ticks status={m.status} />}
+              </div>
             </div>
           </div>
         );

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -197,6 +197,64 @@ function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'phot
   const dragFrom = useRef<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
 
+  // FLIP for the reorder. A tile that changes grid cell must TRAVEL to its new
+  // cell — a full cell width in one frame, mid-drag, is the jump this prevents.
+  const gridRef = useRef<HTMLDivElement>(null);
+  const firstRects = useRef<Map<string, DOMRect>>(new Map());
+
+  /** Read positions BEFORE the state change. Called first inside `move`. */
+  const captureFirst = () => {
+    firstRects.current.clear();
+    gridRef.current?.querySelectorAll<HTMLElement>('[data-tile]').forEach((el) => {
+      firstRects.current.set(el.dataset.tile!, el.getBoundingClientRect());
+    });
+  };
+
+  // After React commits the new order, invert and play. useLayoutEffect, not
+  // useEffect: useEffect runs after paint and the user sees the jump.
+  useLayoutEffect(() => {
+    if (!firstRects.current.size) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const moved: HTMLElement[] = [];
+    gridRef.current?.querySelectorAll<HTMLElement>('[data-tile]').forEach((el) => {
+      const first = firstRects.current.get(el.dataset.tile!);
+      if (!first) return;
+      const last = el.getBoundingClientRect();
+      const dx = first.left - last.left;
+      const dy = first.top - last.top;
+      if (!dx && !dy) return;
+      if (reduce) return;               // no movement under reduced motion
+      // A second reorder mid-flight retargets: `first` was measured from where
+      // the tile visually IS (getBoundingClientRect sees the live transform),
+      // so this inversion is relative to the current position, not the original.
+      el.ontransitionend = null;
+      el.style.transition = 'none';
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      moved.push(el);
+    });
+    firstRects.current.clear();
+    if (!moved.length) return;
+    // One forced flush for the whole grid, so the browser records the inverted
+    // position as the transition's start value. Without it the invert and the
+    // play can land in the same style recalc and nothing animates at all.
+    gridRef.current?.getBoundingClientRect();
+    requestAnimationFrame(() => {
+      moved.forEach((el) => {
+        // Hand the element back when it arrives: an inline transform left on the
+        // tile would shadow `.social-tile:hover { transform: translateY(-3px) }`,
+        // and an inline transition would outlive the reorder.
+        el.ontransitionend = (e) => {
+          if (e.propertyName !== 'transform') return;
+          el.ontransitionend = null;
+          el.style.transition = '';
+          el.style.transform = '';
+        };
+        el.style.transition = 'transform var(--dur-base) var(--ease-out)';
+        el.style.transform = '';
+      });
+    });
+  }, [arranged]);
+
   // Infinite scroll — fetch the next page when the sentinel scrolls into view.
   // (Paused while arranging so the working list doesn't shift underfoot.)
   useEffect(() => {
@@ -237,6 +295,7 @@ function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'phot
 
   const move = (from: number, to: number) => {
     if (from === to) return;
+    captureFirst();   // must be first: reading after the state change measures the wrong frame
     setArranged((cur) => {
       const next = [...cur];
       const [moved] = next.splice(from, 1);
@@ -284,11 +343,12 @@ function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'phot
         </div>
       )}
 
-      <div className="rise d1 social-grid">
+      <div className="rise d1 social-grid" ref={gridRef}>
         {grid.map((p, i) => (
           arranging ? (
             <div
               key={p.id}
+              data-tile={p.id}
               draggable
               onDragStart={() => { dragFrom.current = i; }}
               onDragOver={(e) => { e.preventDefault(); if (dragOver !== i) setDragOver(i); }}
@@ -304,7 +364,7 @@ function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'phot
               <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 14, color: 'var(--on-accent)', background: 'rgba(0,0,0,.5)', borderRadius: 6, padding: '0 6px', lineHeight: 1.6 }}>⠿</span>
             </div>
           ) : (
-            <button key={p.id} type="button" onClick={() => setOpenId(p.id)}
+            <button key={p.id} data-tile={p.id} type="button" onClick={() => setOpenId(p.id)}
               style={{ position: 'relative', display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', font: 'inherit' }}>
               <PostTile p={p} />
             </button>

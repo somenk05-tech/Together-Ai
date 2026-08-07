@@ -116,7 +116,7 @@ export function Profile() {
           border: `2px dashed ${drag ? 'var(--accent)' : 'var(--line)'}`,
           background: drag ? 'var(--accent-soft)' : 'var(--card)',
           borderRadius: 18, padding: '40px 20px', textAlign: 'center', cursor: 'pointer',
-          transition: 'all .15s', marginBottom: 12,
+          transition: 'box-shadow var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease)', marginBottom: 12,
         }}
       >
         <div style={{ fontSize: 40, lineHeight: 1 }}>{(reading || upload.isPending) ? '⏳' : '📄'}</div>

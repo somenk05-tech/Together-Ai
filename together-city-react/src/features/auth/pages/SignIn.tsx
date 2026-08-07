@@ -104,7 +104,15 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
         .signin-glass .link { color: var(--gold-bright); font-weight: 700; text-decoration: none; }
         .signin-glass .lnkbtn { background: none; border: none; color: var(--gold-bright); font-weight: 700; cursor: pointer; font-family: inherit; font-size: inherit; }
         .signin-gold { background: linear-gradient(180deg,var(--warn-line),var(--accent-ink)); }
-        .signin-gold:hover:not(:disabled) { filter: brightness(1.05); box-shadow: 0 10px 34px rgba(201,162,78,.55); transform: translateY(-1px); }
+        .signin-gold:hover:not(:disabled) { filter: brightness(1.05); box-shadow: 0 10px 34px rgba(201,162,78,.55); }
+        @media (hover: hover) and (pointer: fine) {
+          .signin-gold:hover:not(:disabled) { transform: translateY(-1px); }
+        }
+        /* Reduced motion removes the lift, not the brightness or the shadow.
+           Above :active, so a press is still acknowledged. */
+        @media (prefers-reduced-motion: reduce) {
+          .signin-gold:hover:not(:disabled) { transform: none; }
+        }
         .signin-gold:active:not(:disabled) { transform: translateY(0) scale(.99); }
       `}</style>
 

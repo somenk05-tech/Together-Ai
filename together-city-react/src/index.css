@@ -44,7 +44,13 @@ img { max-width: 100%; }
   .muted { color: var(--muted); }
 
   .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; border-radius: 999px; font-size: 12px; letter-spacing: .12em; font-weight: 600; text-transform: uppercase; padding: 15px 32px; transition: transform .12s ease-out, box-shadow .2s, background .2s, color .2s, opacity .2s, filter .2s; cursor: pointer; border: none; user-select: none; }
-  .btn:not(:disabled):hover { transform: translateY(-2px); }
+  /* The lift is a POINTER affordance. On touch there is no hover to leave, so
+     an ungated :hover transform fires on tap and stays fired until the next tap
+     lands somewhere else — a sticky false hover. Gated, tapping does nothing
+     and :active below is what a finger gets. */
+  @media (hover: hover) and (pointer: fine) {
+    .btn:not(:disabled):hover { transform: translateY(-2px); }
+  }
   /* Pressed state — settles back down and eases the lift for tactile feedback. */
   .btn:not(:disabled):active { transform: translateY(0) scale(.98); box-shadow: none; filter: brightness(.97); }
   /* Keyboard focus ring (accessibility) — visible only for keyboard users. */
@@ -63,7 +69,10 @@ img { max-width: 100%; }
   .btn-sm { padding: 9px 20px; font-size: 11px; }
 
   .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 26px; box-shadow: var(--shadow); transition: transform .2s, box-shadow .2s; }
-  .card.lift:hover { transform: translateY(-3px); box-shadow: var(--shadow-deep); }
+  .card.lift:hover { box-shadow: var(--shadow-deep); }
+  @media (hover: hover) and (pointer: fine) {
+    .card.lift:hover { transform: translateY(-3px); }
+  }
 
   .stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); }
   .stat .lab { font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
@@ -74,7 +83,11 @@ img { max-width: 100%; }
   .tag.green { color: var(--ok-ink); }
   .tag.red { color: var(--danger-ink); }
 
-  .pill { font-size: 12px; font-weight: 500; padding: 7px 16px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-soft); cursor: pointer; transition: all .2s; background: var(--card); }
+  .pill { font-size: 12px; font-weight: 500; padding: 7px 16px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-soft); cursor: pointer;
+    /* Was `transition: all`, which animates every property a hover happens to
+       touch, off the GPU. These three are the ones that change. */
+    transition: box-shadow var(--dur-base) var(--ease), color var(--dur-fast) var(--ease), background var(--dur-base) var(--ease);
+    background: var(--card); }
   .pill:hover, .pill.on { border-color: var(--accent); color: var(--accent-ink); }
   .pill.on { background: var(--accent); color: var(--on-accent); }
 
@@ -96,10 +109,17 @@ img { max-width: 100%; }
 
 /* photo card — the signature hub tile */
 .pcard { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow); transition: transform .25s ease-out, box-shadow .25s; position: relative; display: block; color: inherit; }
-.pcard:hover { transform: translateY(-4px); box-shadow: var(--shadow-deep); }
+.pcard:hover { box-shadow: var(--shadow-deep); }
+/* The press is the tap feedback, and it is NOT gated behind a hover query —
+   touch is exactly who it is for. A 400px tile shrinking 3% would travel 12px
+   and read as a glitch, so a large surface presses at .985. */
+.pcard:active { transform: scale(.985); box-shadow: var(--press); }
 .pcard .ph { position: relative; aspect-ratio: 16/10; overflow: hidden; background: var(--line); }
 .pcard .ph img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s ease-out; }
-.pcard:hover .ph img { transform: scale(1.045); }
+@media (hover: hover) and (pointer: fine) {
+  .pcard:hover { transform: translateY(-4px); }
+  .pcard:hover .ph img { transform: scale(1.045); }
+}
 .pcard .pb { padding: 16px 18px 18px; }
 .pcard .pb h4 { font-size: 16px; }
 .pcard .meta { font-size: 12px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; margin: 5px 0 8px; }
@@ -133,7 +153,24 @@ section.blk { margin: 0 0 40px; }
 
 /* motion */
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-.rise { animation: rise .6s ease-out both; }
+/* 280ms, not 600. This is the most-used motion in the application (95 sites)
+   and it lands on pages a citizen opens daily; the UI budget is 300ms. */
+.rise { animation: rise var(--dur-rise) var(--ease-out) both; }
+
+/* d1-d4 were used in 49 places and defined in none. They are offsets now.
+   30-80ms is the stagger band; 60ms reads as a cascade without delaying the
+   last element past the point where the page feels ready. Scoped to `.rise.dN`
+   so the bare class name cannot leak onto an element that does not animate. */
+.rise.d1 { animation-delay:  60ms; }
+.rise.d2 { animation-delay: 120ms; }
+.rise.d3 { animation-delay: 180ms; }
+.rise.d4 { animation-delay: 240ms; }
+
+/* The same gate .hub-plate carries: the global rule only zeroes durations, and
+   a delayed-then-instant slide is still a page that lurches. */
+@media (prefers-reduced-motion: reduce) {
+  .rise, .rise.d1, .rise.d2, .rise.d3, .rise.d4 { animation: none; }
+}
 
 /* ============ tc.css component library — full port (for hub sub-pages) ============ */
 .center { text-align: center; }
@@ -174,7 +211,12 @@ table.tc td b { color: var(--ink); }
 
 /* list rows */
 .row { display: flex; align-items: center; gap: 16px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; box-shadow: var(--shadow); transition: transform .2s, box-shadow .2s; }
-.row:hover { transform: translateY(-2px); box-shadow: var(--shadow-deep); }
+.row:hover { box-shadow: var(--shadow-deep); }
+@media (hover: hover) and (pointer: fine) {
+  .row:hover { transform: translateY(-2px); }
+}
+/* A row is the full width of the column — .995 is the right magnitude here. */
+.row:active { transform: scale(.995); }
 .row .thumb { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; flex-shrink: 0; }
 .row .grow { flex: 1; min-width: 0; }
 .row .t { font-weight: 600; font-size: 14.5px; }
@@ -240,6 +282,18 @@ table.tc td b { color: var(--ink); }
 /* modal */
 .modal-ov { position: fixed; inset: 0; background: rgba(255,255,255,.72); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .modal { background: var(--card); border-radius: 16px; max-width: 460px; width: 100%; padding: 22px 24px; max-height: 84vh; overflow: auto; }
+/* A MODAL ARRIVES THE WAY A SHEET DOES. They sit at the same layer doing the
+   same job, and only one of them animated — the modal (and its 6px backdrop
+   blur) snapped on in a single frame. `sheetIn` is reused rather than copied:
+   keyframe resolution is document-wide, and relief.css is loaded on every page.
+   The scrim leads at 130ms so the page dims BEFORE the panel lands. No
+   transform-origin: a modal is centred, not anchored to what opened it. */
+@keyframes modalOvIn { from { opacity: 0 } to { opacity: 1 } }
+.modal-ov { animation: modalOvIn var(--dur-fast) var(--ease-out) both; }
+.modal { animation: sheetIn var(--dur-base) var(--ease-out) both; }
+@media (prefers-reduced-motion: reduce) {
+  .modal-ov, .modal { animation: none; }
+}
 .modal .opt { display: block; width: 100%; text-align: left; border: 1px solid var(--line); border-radius: 11px; padding: 13px 15px; margin: 9px 0; cursor: pointer; background: var(--ground); font-family: inherit; color: var(--ink); }
 .modal .opt:hover { border-color: var(--accent); }
 .modal .opt b { display: block; font-size: 13.5px; }
@@ -253,11 +307,24 @@ table.tc td b { color: var(--ink); }
 /* ── Auth / sign-up micro-animations ── */
 @keyframes tc-shake { 10%,90%{transform:translateX(-1px)} 20%,80%{transform:translateX(2px)} 30%,50%,70%{transform:translateX(-4px)} 40%,60%{transform:translateX(4px)} }
 @keyframes tc-spin { to { transform: rotate(360deg) } }
-@keyframes tc-pop { 0%{transform:scale(.4);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+/* 0.4 was below the physicality floor and 1.15 pushed a full-width feed card
+   past its own container, over the posts above and below it. 0.96 -> 1 with no
+   overshoot: the card arrives, it does not inflate. */
+@keyframes tc-pop { from { transform: scale(.96); opacity: 0 } to { transform: scale(1); opacity: 1 } }
 @keyframes tc-rise { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+/* WHEN A TAB CHANGES, THE CONTENT SHOULD SAY SO. The tab pill transitions and
+   the region it governs used to replace itself in a single frame, so a citizen
+   had no confirmation the grid beneath was a DIFFERENT grid rather than the same
+   one re-sorted. Opacity only — this is a state-change signal, not a spatial
+   transition, and the content has no origin to move from. 130ms because the
+   control is frequent, and motion on a frequent surface is brief or absent. */
+@keyframes tabSwap { from { opacity: 0 } to { opacity: 1 } }
+.tab-swap { animation: tabSwap var(--dur-fast) var(--ease-out) both; }
+@media (prefers-reduced-motion: reduce) { .tab-swap { animation: none; } }
 .tc-shake { animation: tc-shake .4s both; }
-.tc-spin { display:inline-block; width:15px; height:15px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation: tc-spin .6s linear infinite; vertical-align:middle; }
-.tc-pop { animation: tc-pop .28s ease-out both; }
+.tc-spin { display:inline-block; width:15px; height:15px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation: tc-spin var(--dur-spin) linear infinite; vertical-align:middle; }
+.tc-pop { animation: tc-pop var(--dur-base) var(--ease-out) both; }
+@media (prefers-reduced-motion: reduce) { .tc-pop { animation: none; } }
 .tc-field { transition: border-color .16s ease, box-shadow .16s ease, background .16s ease; }
 .tc-field:focus-within, .tc-field:focus { border-color: var(--accent); box-shadow: var(--carve-deep), 0 0 0 3px rgba(0,0,0,.08); }
 .tc-riser > * { animation: tc-rise .28s ease-out both; }

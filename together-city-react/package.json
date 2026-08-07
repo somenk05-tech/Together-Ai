@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Together City \u2014 React frontend (web + Capacitor Android/iOS).",
+  "description": "Together City — React frontend (web + Capacitor Android/iOS).",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "cap:sync": "cap sync"
+    "cap:sync": "cap sync",
+    "motion-ceiling": "node scripts/motion-ceiling.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.51.0",
