@@ -706,9 +706,18 @@
      paragraph came out at 1.46:1 against pale ink. A dark tint gives the
      type a floor no matter what the picture does, which means the hub
      survives having its sky changed by somebody who is not measuring. */
-  --sky-image: url('/assets/img/guidance-sky-wide.webp');
-  --sky-pos: 50% 42%;
-  --sky-size: cover;
+  /* A PLANET PER ROOM. Five screens, five pictures. Set per screen in
+     relief.css; this is the one the hub falls back to. */
+  --sky-image: url('/assets/img/sky/ember.webp');
+  /* NATURAL SIZE, PINNED LEFT, AND THE NUMBER IS MEASURED RATHER THAN LIKED.
+     `cover` scales a portrait plate ~2.4x to fill a landscape window, and at
+     that magnification there is nothing in frame but subject — every crop of
+     every one of these failed. At its own size the picture is a body in the
+     room with black around it, and -14% puts its dark limb under the letter.
+     Swept six positions across all four plates: this one passes on all four
+     (10.5 / 9.1 / 12.2 / 16.4 : 1) and shows the most of each. */
+  --sky-pos: -14% 50%;
+  --sky-size: auto;
   /* The pane: a dark tint over a real blur. Both are needed — the blur alone
      spreads a bright object rather than removing it. */
   --pane: linear-gradient(158deg, rgba(24,22,28,.66), rgba(19,17,23,.76) 52%, rgba(13,12,17,.82));
@@ -720,17 +729,17 @@
     0 24px 70px rgba(0,0,0,.5);
   /* Chrome is a lighter material than the panes it floats over — §12's rule
      that a light translucent surface never stacks on another one. */
-  --chrome: rgba(38,36,42,.72);
+  --chrome: rgba(0,0,0,.62);
   --chrome-blur: blur(14px) saturate(140%);
   /* Type on glass wants to be a step brighter than type on paper. */
   --on-pane: #f2eef4;
   --on-pane-soft: rgba(255,255,255,.72);
   /* ── Grounds. Soft charcoal, never pure black. ── */
-  --ground: #26242a;
-  --paper:  #26242a;
+  --ground: #000000;
+  --paper:  #000000;
   --card:   #333039;
   --wash:   #302d35;
-  --media-bg: #1c1a1f;
+  --media-bg: #000000;
 
   /* ── THE RAIL FOLLOWS THE ROOM. THE ORANGE DOES NOT. ──────────────────────
      The lamp is the CITY's — the key you are on, orange, in all twenty-five
@@ -748,7 +757,7 @@
 
      White on the orange lamp is 4.7:1 and the lamp is unchanged, so its label
      and its subtitle both keep working with no override anywhere. */
-  --rail-well: #242228;
+  --rail-well: #000000;
   --rail-well-shadow: inset -1px 0 0 #3a3640;
   --lens-face: linear-gradient(180deg, #3a3640 0%, #333039 52%, #2c2a32 100%);
   --lens: inset 0 0 0 1.5px rgba(255,255,255,.07),

@@ -153,29 +153,9 @@
   content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px;
   background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: .34;
 }
-/* A 3:1 letterhead, not a 9:1 strip. At clamp(...,210px) on a 1100px letter the
-   sky was a 5:1 ribbon — too short to read as a picture and too tall to read as
-   a rule. Aspect-ratio lets it scale with the letter instead of holding one
-   height at every width. */
-/* THE HEIGHT LIVES ON THE FRAME, NOT THE PICTURE. `aspect-ratio: 3/1` plus
-   `max-height` on the <img> does not crop it — the browser shrinks the WIDTH to
-   keep the ratio, so the letterhead came out 900px wide inside a 1300px letter
-   and sat there looking mis-set. The frame takes a plain height, the picture
-   fills it, and object-fit does the cropping. */
-.letter-sky-frame {
-  display: block; position: relative; border-radius: var(--r-3);
-  height: clamp(170px, 21vw, 300px);
-  background: var(--well); box-shadow: var(--carve-deep);
-  overflow: hidden; margin-bottom: clamp(20px, 2.4vw, 30px);
-}
-.letter-sky-frame::after {
-  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  box-shadow: var(--case-rim);
-}
-.letter-sky-art {
-  display: block; width: 100%; height: 100%; object-fit: cover;
-  border-radius: inherit;
-}
+/* The letterhead's geometry left with the letterhead. See Letter.tsx: the sky
+   is the room now, so a strip of it at the top of the letter was the same
+   picture twice. */
 .letter-sky-body { position: relative; z-index: 1; }
 .letter-sky .letter-open { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-bottom: 18px; }
 .letter-sky .letter-p { font-size: 17.5px; line-height: 1.7; color: var(--ink-soft); margin: 0 0 19px; }
@@ -280,10 +260,6 @@
 
 /* The sky art beside the consultation room. It is a picture in a case now —
    see .case in relief.css — not a photographic ground with text over it. */
-.ask-art { margin-top: clamp(26px, 3vw, 40px); }
-.ask-art-img { display: block; width: 100%; height: clamp(160px, 22vw, 300px); object-fit: cover; border-radius: var(--r-3); }
-.ask-art-fade { display: none; }
-@media (max-width: 900px) { .ask-art-img { height: 150px; } }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════

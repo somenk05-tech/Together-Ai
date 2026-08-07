@@ -9,9 +9,9 @@ export interface HubConfig {
   tag: string;
   backPath: string;          // hub landing route
   dark?: boolean;            // dark-themed hubs (dating/entertainment landings)
-  /** The hub's ground is a moving picture. The still sky is the stylesheet's
-   *  and is always there; this says there is a film over it too. One hub. */
-  film?: boolean;
+  /** Each of the hub's screens has its own sky. The shell carries the page's
+   *  name as `data-sky` and the stylesheet picks the picture. One hub. */
+  skies?: boolean;
   items: SideItem[];         // sidebar menu
 }
 
@@ -71,7 +71,7 @@ export const HUBS: Record<HubKey, HubConfig> = {
     ],
   },
   astrology: {
-    key: 'astrology', name: 'Astrology Zone', tag: 'Read the stars, together', backPath: '/astrology', dark: true, film: true,
+    key: 'astrology', name: 'Astrology Zone', tag: 'Read the stars, together', backPath: '/astrology', dark: true, skies: true,
     items: [
       // These two lead to letters, and a letter may not name what produced it.
       // A menu entry sitting four inches away that says "from your chart" gives

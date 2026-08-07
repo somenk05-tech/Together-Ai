@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { Sidebar } from './Sidebar';
@@ -8,20 +8,22 @@ import { CookRoot } from '@/features/nutrition/components/CookMode';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { HubConsentGate } from '@/features/privacy/HubConsentGate';
 import { VerifyEmailBanner } from '@/features/auth/VerifyEmailBanner';
-import { SkyFilm } from '@/components/SkyFilm';
 
 /** Two-column layout (sidebar + content) used by every hub's inner pages. */
 export function HubLayout({ hub }: { hub: HubConfig }) {
   useHubTheme(hub.key);
+  /* A ROOM PER SCREEN, FOR THE ONE HUB THAT HAS ROOMS.
+     Astrology's ground is a photograph, and it is a different photograph on
+     each of its five screens — so the shell carries the page's own name and
+     the stylesheet decides which sky that is. Every other hub gets nothing:
+     `data-sky` is absent and the CSS that reads it never matches. */
+  const { pathname } = useLocation();
+  const sky = hub.skies ? pathname.split('/').filter(Boolean).pop() : undefined;
   return (
     <>
-      {/* The moving sky, for the one hub whose ground is a picture. Mounted
-          here rather than inside a page so it survives navigation between the
-          hub's five screens without restarting. */}
-      {hub.film && <SkyFilm />}
       <Header />
       <VerifyEmailBanner />
-      <div className="tc-shell">
+      <div className="tc-shell" data-sky={sky}>
         <Sidebar hub={hub} />
         <main className="tc-main">
           {/* ONE `.page` AROUND THE BREADCRUMB *AND* THE ROUTED PAGE.

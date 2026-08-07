@@ -1638,28 +1638,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
 
    The values live in tokens.css. See --pane there for why the glass is
    smoked rather than clear. */
-/* ── AND THE SAME GROUND, MOVING ─────────────────────────────────────────
-   The film sits in the still's layer and covers it. Both are z-index -2, and
-   the film is a real element while the still is a pseudo-element on .tc-shell
-   later in the tree — so without an explicit step the STILL paints on top and
-   the video plays, invisibly, underneath. That is not a hypothetical: it is
-   what the first build of this did, and it looked exactly like a working
-   still sky.
-
-   The still is not removed. It is the poster for the seconds before the video
-   decodes, and it is the whole screen for anybody the film does not mount
-   for — see SkyFilm.tsx for why that is a real fallback rather than a frame. */
-.sky-film {
-  position: fixed; inset: 0; z-index: -1; overflow: hidden;
-  pointer-events: none; background: var(--ground);
-}
-.sky-film video { width: 100%; height: 100%; object-fit: cover; display: block; }
-/* Both preferences flatten the room to its still, so the film goes with the
-   picture rather than being left running behind a solid pane. */
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .sky-film { display: none; }
-}
-
 /* THE BODY HAS TO STOP PAINTING. index.css gives <body> an opaque
    `background: var(--ground)`, and an opaque parent covers a z-index:-2 child
    completely — the picture loads, decodes and is never seen. Found by
@@ -1670,7 +1648,26 @@ textarea.g-field { resize: none; line-height: 1.55; }
   content: ''; position: fixed; inset: 0; z-index: -2;
   background: var(--sky-image) var(--sky-pos) / var(--sky-size) no-repeat;
   background-color: var(--ground);
+  /* THE PICTURE HAS TO STOP WITHOUT AN EDGE. At its own size it simply ends,
+     and a hard vertical line down the page is the join a room must not have.
+     The mask fades it into the ground — and because the ground is true black
+     and the plate's own margins are black, there is nothing for the fade to
+     disagree with. That is why this hub is #000 and not the charcoal: at
+     #26242a the plate reads as a darker rectangle ON a lighter page. */
+  -webkit-mask-image: linear-gradient(270deg, transparent 0%, rgba(0,0,0,.35) 22%, #000 56%);
+  mask-image: linear-gradient(270deg, transparent 0%, rgba(0,0,0,.35) 22%, #000 56%);
 }
+/* A room per screen. Profile shares Today's. */
+[data-sky="month"]   { --sky-image: url('/assets/img/sky/veil.webp'); }
+[data-sky="ask"]     { --sky-image: url('/assets/img/sky/giant.webp'); }
+[data-sky="tarot"]   { --sky-image: url('/assets/img/sky/rose.webp'); }
+/* Profile carries its own position as well as its own picture. At the shared
+   -14% this plate's subject lands behind the 280px rail and the page shows a
+   starfield with no planet in it — the picture was there and invisible, which
+   is the same failure the video had for a different reason. 38% clears the
+   rail and still measures 9.3:1 behind the form; 55% shows no more of it and
+   drops to 4.5:1. */
+[data-sky="profile"] { --sky-image: url('/assets/img/sky/orb.webp'); --sky-pos: 38% 50%; }
 /* The shells stop painting their own ground, or the picture is behind an
    opaque page and nobody ever sees it. */
 [data-hub="astrology"] .tc-shell,
@@ -1698,11 +1695,6 @@ textarea.g-field { resize: none; line-height: 1.55; }
 }
 /* The inner carve is a paper detail — on glass it reads as a scratch. */
 [data-hub="astrology"] .astro-frame::before { box-shadow: none; }
-
-/* THE LETTERHEAD GOES. It is the same photograph the room is now made of, so
-   the letter opened with a picture of space floating in space. The sky does
-   more work behind the reading than it did above it. */
-[data-hub="astrology"] .letter-sky-frame { display: none; }
 
 [data-hub="astrology"] .letter-p { color: var(--on-pane); }
 [data-hub="astrology"] .letter-open,

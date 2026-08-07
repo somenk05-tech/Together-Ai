@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Spinner } from '@/components/ui';
 import { useAskAstrologer, useAskQuota, useAstroProfile, useAstroQuestions, useDeleteQuestion } from '../hooks';
@@ -23,31 +23,6 @@ const MAX_CHARS = 600;
  * It does nothing at all for someone who has asked for less motion, and nothing
  * on a device with no pointer to move.
  */
-function useSlowParallax() {
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      || !window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-    if (still) return;
-    let frame = 0;
-    const onMove = (e: MouseEvent) => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        const x = (e.clientX / window.innerWidth - 0.5) * 2;
-        const y = (e.clientY / window.innerHeight - 0.5) * 2;
-        el.style.setProperty('--px', `${(-x * 6).toFixed(2)}px`);
-        el.style.setProperty('--py', `${(-y * 6).toFixed(2)}px`);
-      });
-    };
-    window.addEventListener('mousemove', onMove, { passive: true });
-    return () => { window.removeEventListener('mousemove', onMove); if (frame) cancelAnimationFrame(frame); };
-  }, []);
-  return ref;
-}
-
 /**
  * How this citizen's allowance reads, in one sentence.
  *
@@ -111,7 +86,6 @@ export function AstroAsk() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const remove = useDeleteQuestion();
-  const artRef = useSlowParallax();
 
   const submit = () => {
     setError(null);
@@ -324,17 +298,10 @@ export function AstroAsk() {
         </div>
       </div>
 
-      {/* Atmosphere only. Nothing is ever laid over it, and it carries no
-          information — hence the empty alt: a screen reader has nothing to gain
-          from it and a list of planet names to lose. */}
-      <div className="ask-art" ref={artRef} aria-hidden>
-        <picture>
-          <source media="(max-width: 900px)" srcSet="/assets/img/ask-sky-wide.webp" />
-          <img className="ask-art-img" src="/assets/img/ask-sky-tall.webp" alt=""
-            loading="lazy" decoding="async" />
-        </picture>
-        <span className="ask-art-fade" />
-      </div>
+      {/* THE ART STRIP IS GONE, AND SO IS ITS PARALLAX. It was atmosphere at
+          the foot of the page — correct when the page was white and the room
+          had no sky of its own. The room IS the sky now, and a 300px band of
+          space below a consultation card is the same picture twice. */}
     </div>
   );
 }
