@@ -247,7 +247,7 @@ h1, .hero-num, .stat .val, .blk-head h2 {
 .card-lg { border-radius: var(--r-5); }
 .console { box-shadow: var(--e2); overflow: hidden; }
 .modal { box-shadow: var(--e3); border-radius: var(--r-5); }
-.modal-ov { background: rgba(255,255,255,.72); backdrop-filter: blur(6px) saturate(120%); }
+.modal-ov { background: var(--frost); backdrop-filter: blur(6px) saturate(120%); }
 
 .rule, .trust, .tabrow, .console .tabs, .console .below, table.tc td, table.tc th {
   border-color: var(--line);
@@ -288,20 +288,20 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
    all the same button — renaming three hundred call sites does not belong in
    a commit about materials. */
 .btn-accent, .btn-gold, .btn-primary {
-  background: linear-gradient(180deg, #2a2a2a 0%, #101010 55%, #000 100%);
-  color: var(--on-accent);
+  background: var(--loud-face);
+  color: var(--on-loud);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.24), inset 0 -1px 0 rgba(0,0,0,.6), inset 0 0 0 1px rgba(0,0,0,.9),
     0 1px 2px rgba(0,0,0,.22), 0 4px 10px rgba(0,0,0,.24), 0 10px 24px rgba(0,0,0,.18);
 }
 .btn-accent:not(:disabled):hover, .btn-gold:not(:disabled):hover, .btn-primary:not(:disabled):hover {
-  filter: none; background: linear-gradient(180deg, #333 0%, #141414 55%, #000 100%);
+  filter: none; background: var(--loud-face-hover);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.3), inset 0 -1px 0 rgba(0,0,0,.6), inset 0 0 0 1px rgba(0,0,0,.9),
     0 2px 4px rgba(0,0,0,.24), 0 8px 18px rgba(0,0,0,.28), 0 18px 40px rgba(0,0,0,.2);
 }
 .btn-accent:not(:disabled):active, .btn-gold:not(:disabled):active, .btn-primary:not(:disabled):active {
-  background: linear-gradient(180deg, #000 0%, #0d0d0d 60%, #1d1d1d 100%);
+  background: var(--loud-face-active);
   box-shadow: inset 0 2px 5px rgba(0,0,0,.85), inset 0 0 0 1px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,255,.7);
 }
 .btn-accent:focus-visible, .btn-gold:focus-visible, .btn-primary:focus-visible {
@@ -316,11 +316,11 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
    and is the whole of what the twenty-fifth needed. */
 .btn-line, .btn-outline, .btn-secondary {
   background: var(--card); color: var(--ink);
-  box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.16), inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05), 0 3px 6px rgba(0,0,0,.04);
+  box-shadow: inset 0 0 0 1.5px var(--btn-line-ring), inset 0 1px 0 var(--btn-line-edge), 0 1px 2px rgba(0,0,0,.05), 0 3px 6px rgba(0,0,0,.04);
 }
 .btn-line:not(:disabled):hover, .btn-outline:not(:disabled):hover, .btn-secondary:not(:disabled):hover {
   border-color: transparent; color: var(--ink);
-  box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.32), inset 0 1px 0 #fff, 0 3px 8px rgba(0,0,0,.09), 0 8px 18px rgba(0,0,0,.06);
+  box-shadow: inset 0 0 0 1.5px var(--btn-line-ring-hover), inset 0 1px 0 var(--btn-line-edge), 0 3px 8px rgba(0,0,0,.09), 0 8px 18px rgba(0,0,0,.06);
 }
 
 /* Ghost — flat until touched, for the third and fourth action in a row.
@@ -431,7 +431,7 @@ table.tc th { background: var(--well); box-shadow: var(--edge-in); color: var(--
 .tag.amber, .tag-warn    { color: var(--warn-ink);   box-shadow: var(--e1), inset 0 0 0 1px var(--warn-line); }
 .tag.blue, .tag-info     { color: var(--info-ink);   box-shadow: var(--e1), inset 0 0 0 1px var(--info-line); }
 .tag.gold, .tag-accent   { color: var(--accent-ink); box-shadow: var(--e1), inset 0 0 0 1px var(--accent-line); }
-.tag.dark { background: linear-gradient(180deg,#232323,#000); color: var(--on-accent); box-shadow: var(--e1); }
+.tag.dark { background: var(--loud-face); color: var(--on-loud); box-shadow: var(--e1); }
 .tag.soon { background: var(--well); box-shadow: var(--carve); color: var(--muted); border: 0; }
 
 /* A hub's identity, wherever it is shown as a dot. */
@@ -490,7 +490,7 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
   border: 0; background: var(--face); color: var(--muted); box-shadow: var(--e1);
 }
 .step.done .dot, .step.on .dot {
-  background: linear-gradient(180deg,#232323,#000); color: var(--on-accent);
+  background: var(--loud-face); color: var(--on-loud);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 2px 5px rgba(0,0,0,.35);
 }
 .step.done::before, .step.on::before { background: var(--ink-soft); }
@@ -508,7 +508,7 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .ring .cent { z-index: 1; }
 
 .mincal .g span { color: var(--ink-soft); }
-.mincal .g .on { background: linear-gradient(180deg,#232323,#000); color: var(--on-accent); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 2px 4px rgba(0,0,0,.3); }
+.mincal .g .on { background: var(--loud-face); color: var(--on-loud); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 2px 4px rgba(0,0,0,.3); }
 .mincal .g .av2 { background: var(--well); box-shadow: var(--press); color: var(--ink); }
 
 /* ══ NOTES, EMPTIES, MODALS ══════════════════════════════════════════════ */
@@ -618,15 +618,15 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 .side-menu a.active {
   background: var(--lamp-face); box-shadow: var(--lamp); transform: none;
 }
-.side-menu a.active .l { color: var(--on-accent); font-weight: 700; }
-.side-menu a.active .s { color: rgba(255,255,255,.88); }
+.side-menu a.active .l { color: var(--on-lamp); font-weight: 700; }
+.side-menu a.active .s { color: var(--on-lamp-soft); }
 .side-menu a.active:hover { transform: none; box-shadow: var(--lamp); }
 
 .side-menu a .n {
   background: var(--lens-face); box-shadow: var(--lens-key); border-radius: 10px; color: var(--ink-soft);
 }
 .side-menu a.active .n {
-  background: rgba(255,255,255,.22); color: var(--on-accent); box-shadow: var(--lamp-badge);
+  background: var(--lamp-badge-bg); color: var(--on-lamp); box-shadow: var(--lamp-badge);
 }
 
 .tc-nav a.on { color: var(--ink); }
@@ -847,7 +847,7 @@ img[src$=".svg"], .no-case {
   height: clamp(48px, 4vw, 64px); padding: 0 clamp(22px, 2.2vw, 38px);
   border-radius: var(--r-full);
   font-size: clamp(14px, 1.1vw, 16px); font-weight: 600; color: var(--ink);
-  background: rgba(255,255,255,.72);
+  background: var(--frost);
   -webkit-backdrop-filter: blur(10px) saturate(140%);
   backdrop-filter: blur(10px) saturate(140%);
   box-shadow: var(--e1);
@@ -945,7 +945,7 @@ img[src$=".svg"], .no-case {
    frosted back, and the sheet floats three steps above it. */
 .sheet-ov {
   position: fixed; inset: 0; z-index: 70; display: grid; padding: 16px; overflow: auto;
-  background: rgba(255,255,255,.72);
+  background: var(--frost);
   -webkit-backdrop-filter: blur(8px) saturate(120%);
   backdrop-filter: blur(8px) saturate(120%);
 }

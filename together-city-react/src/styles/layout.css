@@ -13,7 +13,7 @@
 .tc-burger { display: none; width: 34px; height: 34px; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; }
 .tc-logo { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
 .tc-logo .mark { width: 34px; height: 34px; }
-.tc-logo .mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.tc-logo .mark img { display: block; width: 100%; height: 100%; object-fit: contain; filter: var(--logo-filter); }
 .tc-logo .word { font-size: 15px; letter-spacing: -.02em; white-space: nowrap; }
 /* Row 2 — hub tabs pushed left (with a small left indent), action group pushed right, all on one line. */
 .tc-navrow { display: flex; align-items: center; gap: 18px; width: 100%; min-width: 0; }

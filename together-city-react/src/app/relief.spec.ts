@@ -183,11 +183,11 @@ describe('Relief stays a system', () => {
   });
 
   /**
-   * TWO HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
+   * THREE HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
    * EXCEPTION.
    *
-   * Both are hubs you READ rather than operate, which is the whole of the
-   * argument and the reason a third is not automatic:
+   * All three are hubs you READ rather than operate, which is the whole of the
+   * argument and the reason a fourth is not automatic:
    *
    *   nutrition — warm paper. It already held the only other surface exception
    *     ([data-press], granted because a day of food is read the way a menu is),
@@ -196,19 +196,26 @@ describe('Relief stays a system', () => {
    *     ("whether the tarot page and the letter should keep a night surface …
    *     a decision to make before this lands, not after") rather than reopening
    *     a settled one. The artwork it was drawn for is still in the tree.
+   *   entertainment — dark. Owner's call, and the argument is the same shape as
+   *     the other two: it is a hub you READ. Every surface the job of deciding
+   *     what to watch exists on — a cinema, a television, a phone at midnight —
+   *     is dark with the picture as the only lit thing, and a grid of film
+   *     posters on white is a catalogue rather than a screen. Its accent hue is
+   *     NOT the ground either: the ground is near-black, the green stays in the
+   *     fill and in the readable ink.
    *
    * THE ACCENT HUE IS NEVER THE GROUND. The tint that was removed washed the
    * page in the hub's GREEN. Neither of these does that: one is paper with the
    * green left in the fill, one is charcoal with the gold left in the fill. A
-   * third hub asking for "a tint like nutrition's" is asking for the removed
-   * thing, not for either of these, and gets its own line here or nothing.
+   * fourth hub asking for "a tint like nutrition's" is asking for the removed
+   * thing, not for any of these, and gets its own line here or nothing.
    *
    * The list is written out rather than counted, exactly like the press's
    * wearers, so a third entry costs an argument instead of a nod.
    */
-  it('keeps a re-pointed ground inside the two hubs it was granted to', () => {
+  it('keeps a re-pointed ground inside the three hubs it was granted to', () => {
     const css = strip(tokens);
-    const GRANTED = ['astrology', 'nutrition'];
+    const GRANTED = ['astrology', 'entertainment', 'nutrition'];
 
     // 1. only the granted hubs re-point a ground token. Sorted: the file's
     //    order is editorial and a re-order must not read as a breach.
@@ -233,6 +240,85 @@ describe('Relief stays a system', () => {
     const wearers = PAGES.filter((f) =>
       /data-hub=["'](nutrition|astrology)["']/.test(stripTs(read(f))));
     expect(wearers).toEqual([]);
+  });
+
+  /**
+   * AND EVERY INK A RE-POINTED GROUND DECLARES IS READABLE ON IT — COMPUTED.
+   *
+   * The three grants above check that a hub re-points the right SET of tokens.
+   * Nothing checked what it re-points them TO. Entertainment's palette was
+   * lifted off a screenshot, and a screenshot has not been checked by anybody;
+   * "it looks fine on my monitor" is how a hub ships with 3:1 metadata that
+   * nobody outside the room can read.
+   *
+   * So the ratio is arithmetic here rather than judgement. --faint is the one
+   * worth watching: it is the floor of the scale (labels, placeholders,
+   * timestamps) and it is where a hand-picked dark palette usually fails.
+   */
+  it('clears AA for every ink each grounded hub declares', () => {
+    const css = strip(tokens);
+    const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
+    const lum = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    };
+    const ratio = (a: string, b: string) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    const failures: string[] = [];
+    for (const hub of ['astrology', 'entertainment', 'nutrition']) {
+      // The block that owns the ground, found by the thing that makes it that
+      // block rather than by position: nutrition and entertainment each once
+      // had a plain accent one-liner elsewhere in the file, and matching the
+      // first occurrence reads a palette out of the wrong one.
+      const body = [...css.matchAll(new RegExp(`\\[data-hub="${hub}"\\]\\s*\\{([\\s\\S]*?)\\n\\}`, 'g'))]
+        .map((m) => m[1]).find((b) => /--paper:/.test(b));
+      expect({ hub, found: Boolean(body) }).toEqual({ hub, found: true });
+      const val = (n: string) => body!.match(new RegExp(`${n}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1];
+      const page = val('--paper')!, card = val('--card') ?? page;
+      for (const [name, ground] of [
+        ['--ink', page], ['--ink-soft', card], ['--muted', page], ['--faint', page],
+        ['--accent-ink', page], ['--ok-ink', page], ['--warn-ink', page],
+        ['--danger-ink', page], ['--info-ink', page],
+      ] as const) {
+        const ink = val(name);
+        if (!ink) continue;                       // not re-pointed is not a failure
+        const r = ratio(ink, ground);
+        if (r < 4.5) failures.push(`${hub} ${name} at ${r.toFixed(2)}:1`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+
+  /**
+   * AND NO SURFACE LITERAL RETURNS TO THE MATERIAL FILE.
+   *
+   * `keeps every colour decision in the token file` only fails on CHROMATIC
+   * hexes, so four achromatic ones lived in relief.css unseen: the loud
+   * button's black gradient, the outline button's white top edge, and two
+   * frosted white overlays. On white all four are correct and unremarkable.
+   * On a ground that is not white the loud button becomes the quietest thing
+   * on the page and every modal drops a white sheet over a dark room — bugs
+   * you find by screenshotting, not by reading.
+   */
+  it('leaves no surface literal in the material file, achromatic or not', () => {
+    const offenders: string[] = [];
+    for (const block of strip(relief).split('}')) {
+      const [selector, body] = [block.split('{')[0]?.trim(), block.split('{')[1]];
+      if (!body) continue;
+      // A photograph's own scrim, ::selection and a hero's glass sit ON an
+      // image rather than on the ground, so they do not follow it. Named,
+      // because a wider rule is how the four literals happened.
+      if (/::selection|\.hero|\.scrim|\.mvk|no-case|\.av-strip/.test(selector)) continue;
+      for (const decl of body.split(';')) {
+        if (!/^\s*background(-color)?\s*:/.test(decl)) continue;
+        if (/#(fff|ffffff|000|000000)\b|rgba\(255,\s*255,\s*255/.test(decl)) {
+          offenders.push(`${selector} {${decl.trim()}}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 
   /**

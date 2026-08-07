@@ -315,6 +315,40 @@
   --purple: var(--accent-ink); --purple-soft: var(--accent-soft);
   --navy: var(--ink); --emerald: var(--ok-ink);
 
+  /* ── FOUR MATERIALS THAT USED TO BE SPELLED OUT IN relief.css ───────────
+     On a white ground "loud" is black, "frosted" is white, and an outline
+     button's lit top edge is the same #fff as its fill. All four were written
+     as literals in the material file, and because every one of them is
+     ACHROMATIC the guard that keeps colour decisions in this file could not
+     see them — it only fails on chromatic hexes.
+
+     That was harmless while every ground was white. It stopped being harmless
+     the moment a hub had its own: on the astrology night surface the loud
+     button is a black gradient on charcoal (the quietest thing on the screen)
+     and every modal drops a 72%-WHITE sheet over the room.
+
+     THE VALUES HERE ARE EXACTLY WHAT WAS THERE. Nothing about a white screen
+     changes by naming them; the point is that there is now one place to say
+     what they become somewhere else. */
+  --loud-face:        linear-gradient(180deg, #2a2a2a 0%, #101010 55%, #000 100%);
+  --loud-face-hover:  linear-gradient(180deg, #333 0%, #141414 55%, #000 100%);
+  --loud-face-active: linear-gradient(180deg, #000 0%, #0d0d0d 60%, #1d1d1d 100%);
+  --on-loud: var(--on-accent);
+  --frost: rgba(255,255,255,.72);
+  --btn-line-edge:       #ffffff;
+  --btn-line-ring:       rgba(0,0,0,.16);
+  --btn-line-ring-hover: rgba(0,0,0,.32);
+
+  /* The lit key in the hub rail — its type and the wash behind its number. */
+  --on-lamp: var(--on-accent);
+  --on-lamp-soft: rgba(255,255,255,.88);
+  --lamp-badge-bg: rgba(255,255,255,.22);
+
+  /* THE MARK IS A BLACK PNG ON TRANSPARENT, correct on every white screen and
+     invisible on one that is not. A token, because which way up the logo goes
+     is a colour decision and this is the file those live in. */
+  --logo-filter: none;
+
   /* ── SHAPE, RHYTHM, MOTION ──────────────────────────────────────────── */
   --r-1: 10px; --r-2: 14px; --r-3: 20px; --r-4: 28px; --r-5: 36px; --r-full: 999px;
   --radius: var(--r-2); --radius-lg: var(--r-3);
@@ -481,7 +515,10 @@
 [data-hub="fitness"]       { --accent:#2d6357; --accent-ink:#245349; --accent-soft:#eef5f3; --accent-line:#d0e2dd; }
 [data-hub="family"]        { --accent:#3d6b2f; --accent-ink:#325826; --accent-soft:#f1f6ef; --accent-line:#d8e6d3; }
 [data-hub="social"]        { --accent:#5b4b8a; --accent-ink:#4b3d74; --accent-soft:#f3f1f9; --accent-line:#dcd6ec; }
-[data-hub="entertainment"] { --accent:#5a3f7a; --accent-ink:#4a3366; --accent-soft:#f4f0f8; --accent-line:#ded3ea; }
+/* Entertainment's line is not here. It is the dark block at the foot of this
+   file, with astrology's and nutrition's — the three hubs that own a ground.
+   It used to have a line here TOO, a purple the block below silently overrode:
+   two rival palettes for one hub, the exact failure main.tsx warns about. */
 [data-hub="travel"]        { --accent:#1d5b74; --accent-ink:#174b60; --accent-soft:#eef5f8; --accent-line:#cee0e8; }
 [data-hub="realestate"]    { --accent:#4a5a72; --accent-ink:#3d4b60; --accent-soft:#f1f3f7; --accent-line:#d9dee7; }
 [data-hub="jobs"]          { --accent:#5c4a2a; --accent-ink:#4c3d22; --accent-soft:#f6f3ec; --accent-line:#e4dcc9; }
@@ -545,7 +582,7 @@
   --ink:      #243126;        /* 12.9:1 */
   --ink-soft: #2f3a30;        /* 10.4:1 */
   --muted:    #5f665a;        /*  5.9:1 — descriptions */
-  --faint:    #82877b;        /*  3.6:1 — labels and metadata ONLY */
+  --faint:    #6b7064;        /*  4.6:1 — labels and metadata ONLY */
   --line:     #e6e0d3;
   --line-2:   #ddd6c9;
 
@@ -680,7 +717,7 @@
   --ink:      #f3efe7;   /* 12.4:1 */
   --ink-soft: #e6e1d8;   /* 10.7:1 */
   --muted:    #b9b2a8;   /*  6.7:1 — descriptions */
-  --faint:    #8e8984;   /*  3.9:1 — labels and metadata ONLY */
+  --faint:    #918c87;   /*  3.9:1 — labels and metadata ONLY */
   --line:     #4e4952;
   --line-2:   #5b555e;
 
@@ -738,3 +775,164 @@
 
 }
 
+/* NOTE ON THE TWO --faint VALUES ABOVE, CHANGED 7 Aug.
+   Astrology's was 4.43:1 and Nutrition's 3.32:1 against their own grounds —
+   both under AA, and Nutrition's comment had them recorded as 3.6:1, so the
+   number was known and the threshold was not applied to it. --faint is labels,
+   placeholders and timestamps: small text, which needs 4.5:1. The guard that
+   found them computes the ratio rather than reading a comment, so this cannot
+   drift back. Neither hue moved; both moved along their own hue until they
+   cleared. */
+
+/* ── ENTERTAINMENT IS A DARK ROOM ──────────────────────────────────────────
+   THE ONE HUB THAT IS NOT WHITE, AND THE ONLY ONE THAT WILL BE.
+
+   Everything above this line says a hub does not change the colour of the
+   page. This hub does, and the exception is narrow and named rather than a
+   door left open: Entertainment is where you decide what to watch, and every
+   surface that job exists on — a cinema, a television, a phone at midnight —
+   is dark, with the picture as the only lit thing in the room. A grid of film
+   posters on white is a catalogue. On black it is a screen.
+
+   NOTHING BUT COLOUR CHANGES. Not one radius, height, gap, font size, weight
+   or shadow GEOMETRY is touched here. Every value below re-points a colour
+   token the rest of the application already reads, so the buttons, cards,
+   pills, rails and rhythm are the same components rendered in a different
+   light. If a rule in here ever sets a size, it is in the wrong file.
+
+   RELIEF STILL WORKS, INVERTED. The material language is "lit from above":
+   a face graduated light-to-dark, a white rim on top, a shadow beneath. On a
+   dark ground the shadow stops doing any work — black on near-black is
+   nothing — so the RIM carries the relief instead: a face graduated from a
+   lighter charcoal down, a low-alpha white edge on top, a black edge below.
+   Same three layers, same direction of light, different ratio between them.  */
+[data-hub="entertainment"] {
+  /* Grounds. Four steps, and they are four because the shell, the page, a
+     card and a field have to be told apart without a single border. */
+  --ground: #0a1010;
+  --paper:  #0a1010;
+  --card:   #0c1312;
+  --wash:   #101616;
+  --media-bg: #05090a;
+
+  --ink:      #ffffff;   /* 19.2:1 on the page */
+  --ink-soft: #e6ebe8;   /* 15.6:1 on a card */
+  --muted:    #a5a8a8;   /*  8.0:1 — the sub-line under a title */
+  --faint:    #8a938f;   /*  6.1:1 — labels, placeholders, metadata */
+  --line:   #1b2321;
+  --line-2: #232c29;
+
+  /* THE GREEN, AND WHICH WAY ROUND IT GOES.
+     On white, --accent is the dark fill and --accent-ink is the same hue
+     darkened until it can be read. On black that inverts: the READABLE one is
+     the pale sage, and the fill is the deep green it sits on. Both names keep
+     their jobs, which is why nothing that reads them has to change. */
+  --accent:      #2c4030;   /* fill — --on-accent sits on it at 10.2:1 */
+  --accent-ink:  #cbe7a1;   /* 14.2:1 on the page, 13.9:1 on a card */
+  --accent-soft: #16201a;   /* the pill wash */
+  --accent-line: #24332a;
+  --on-accent:   #f0f7e4;
+
+  /* Status. The white-ground inks are all dark, which on this ground is a
+     warning nobody can read. Same four meanings, lifted. */
+  --ok-ink: #7fd396;     --ok-soft: #101a13;    --ok-line: #23392a;
+  --warn-ink: #e5c169;   --warn-soft: #1a1710;  --warn-line: #3a3018;
+  --danger-ink: #f2938c; --danger-soft: #1c1211; --danger-line: #3d2320;
+  --info-ink: #84c1ee;   --info-soft: #0f171d;  --info-line: #1f3444;
+
+  /* FACES. A gradient from the lit top edge down, exactly as on white — the
+     numbers are dark and the direction of the light is identical. */
+  --face:      linear-gradient(180deg, #141b1a 0%, #101716 44%, #0a1010 100%);
+  --face-2:    linear-gradient(180deg, #161d1c 0%, #111817 48%, #0a1110 100%);
+  --face-tall: linear-gradient(180deg, #121918 0%, #111817 calc(100% - min(96px, 40%)), #0b1211 100%);
+  --face-key:  linear-gradient(180deg, #161e1c 0%, #121917 52%, #0c1312 100%);
+  --well:      linear-gradient(180deg, #070c0c 0%, #0b1110 58%, #0e1514 100%);
+
+  /* RIMS. The white-ground rim is `rgba(255,255,255,1)` on top and a black
+     hairline around. Here the top edge is a sixteenth of that and the ring is
+     black — which is the same edge, seen in a dark room. */
+  --rim:        inset 0 0 0 1px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.07), inset 0 -1px 0 rgba(0,0,0,.5);
+  --rim-strong: inset 0 0 0 1px rgba(0,0,0,.65), inset 0 1.5px 0 rgba(255,255,255,.09), inset 0 -1.5px 0 rgba(0,0,0,.55);
+
+  /* The five depths keep their shape and their spreads. Only the opacity
+     rises, because a shadow has to be darker than a ground that is already
+     nearly black before it separates anything from it. */
+  --e1: var(--rim),        0 1px 1px rgba(0,0,0,.5), 0 2px 4px rgba(0,0,0,.45), 0 6px 13px rgba(0,0,0,.5);
+  --e2: var(--rim-strong), 0 1px 1px rgba(0,0,0,.5), 0 3px 6px rgba(0,0,0,.5),  0 11px 24px rgba(0,0,0,.55), 0 22px 48px rgba(0,0,0,.45);
+  --e3: var(--rim-strong), 0 2px 2px rgba(0,0,0,.55), 0 7px 14px rgba(0,0,0,.5), 0 20px 42px rgba(0,0,0,.6), 0 40px 88px rgba(0,0,0,.5);
+  --e1-key: var(--rim),        0 1px 1px rgba(0,0,0,.5), 0 2px 4px rgba(0,0,0,.5), 0 5px 10px rgba(0,0,0,.42);
+  --e2-key: var(--rim-strong), 0 2px 3px rgba(0,0,0,.5), 0 5px 10px rgba(0,0,0,.55), 0 10px 20px rgba(0,0,0,.45);
+
+  --carve:      inset 0 0 0 1px rgba(0,0,0,.6), inset 0 3px 6px rgba(0,0,0,.6), inset 0 -1px 0 rgba(255,255,255,.06), inset 3px 0 5px -3px rgba(0,0,0,.45), inset -3px 0 5px -3px rgba(0,0,0,.45);
+  --carve-deep: inset 0 0 0 1px rgba(0,0,0,.7), inset 0 4px 10px rgba(0,0,0,.7), inset 0 -1px 0 rgba(255,255,255,.06);
+  --press: inset 0 0 0 1px rgba(0,0,0,.6), inset 0 3px 6px rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.05);
+  --edge-up: 0 1px 0 rgba(255,255,255,.05);
+  --edge-in: inset 0 -1px 0 rgba(0,0,0,.5);
+  --pip-ok: 0 0 0 2px var(--card), 0 1px 2px rgba(0,0,0,.6);
+  --case-rim: inset 0 0 0 1px rgba(0,0,0,.7), inset 0 4px 12px rgba(0,0,0,.6), inset 0 -2px 8px rgba(0,0,0,.4);
+  --case-rim-soft: inset 0 0 0 1px rgba(0,0,0,.6), inset 0 3px 7px rgba(0,0,0,.55), inset 0 -1px 0 rgba(255,255,255,.07);
+
+  /* THE RAIL. The well behind the glass keys, and the keys themselves. The
+     lit key is green here rather than the city's orange — in a room this dark
+     the orange lamp was the brightest thing on the screen and the eye went to
+     the navigation instead of to the posters. */
+  --rail-well: #090f0f;
+  --rail-well-shadow: inset -1px 0 0 #141c1a;
+  --lens-face: linear-gradient(180deg, rgba(255,255,255,.055) 0%, rgba(255,255,255,.02) 55%, rgba(0,0,0,.18) 100%);
+  --lens: inset 0 0 0 1.5px rgba(255,255,255,.10), inset 0 1px 0 rgba(255,255,255,.14), 0 4px 12px rgba(0,0,0,.5);
+  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.10), 0 2px 6px rgba(0,0,0,.45);
+  --lamp-face: linear-gradient(180deg, #1d2a1f 0%, #24331f 46%, #1a2618 100%);
+  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.10), inset 0 2px 5px rgba(0,0,0,.5), inset 0 -1px 0 rgba(255,255,255,.14), 0 2px 8px rgba(0,0,0,.45);
+  --lamp-badge: inset 0 0 0 1px rgba(255,255,255,.14), inset 0 1px 0 rgba(255,255,255,.12);
+
+  --glass: inset 0 0 0 1.3px rgba(255,255,255,.10), inset 0 1px 0 rgba(255,255,255,.14), 0 6px 16px rgba(0,0,0,.5);
+  --glass-key: inset 0 0 0 1.1px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.11), 0 3px 8px rgba(0,0,0,.45);
+  --glass-in: inset 0 0 0 1.1px rgba(255,255,255,.07), inset 0 2px 5px rgba(0,0,0,.5);
+  --glass-face: linear-gradient(158deg, rgba(255,255,255,.07), rgba(255,255,255,.02) 52%, rgba(0,0,0,.16));
+  --glass-well: linear-gradient(180deg, #080d0d 0%, #0b1110 58%, #0e1413 100%);
+  --glass-bubble: linear-gradient(150deg, #141c1a, #0f1615 52%, #0c1211);
+  --glass-tray: linear-gradient(180deg, #0a100f, #0e1514);
+  --glass-tray-shadow: inset 0 2px 8px rgba(0,0,0,.5), inset 0 -1px 0 rgba(255,255,255,.06);
+
+  --scrim-top: rgba(0, 0, 0, .45);
+  --scrim-deep: rgba(0, 0, 0, .82);
+  --glass-line: rgba(255, 255, 255, .16);
+  --focus-ring: 0 0 0 3px rgba(203,231,161,.34);
+
+  --logo-filter: invert(1);
+
+  /* THE LOUD ONE INVERTS, AND IT HAS TO.
+     On white, the single emphasised button is black. Kept black here it would
+     be the QUIETEST thing on the screen — a near-black pill on a near-black
+     page — which is the precise opposite of the one job it has. Loud is not a
+     colour, it is a distance from the ground, so on this ground it is the
+     green: the same button, the same relief, the same white type on it. */
+  --loud-face:        linear-gradient(180deg, #3a5240 0%, #2c4030 55%, #22321f 100%);
+  --loud-face-hover:  linear-gradient(180deg, #44603f 0%, #34492f 55%, #253620 100%);
+  --loud-face-active: linear-gradient(180deg, #22321f 0%, #2a3c26 60%, #35492e 100%);
+  --on-loud: #f4faec;
+
+  /* A frosted panel over a dark room is smoke, not milk. */
+  --frost: rgba(6,10,10,.74);
+
+  /* The outline button. Its fill is the card it would sit on and its top edge
+     is the sliver of light along that card's rim — two values on this ground,
+     where on white they were both #fff and read as one. */
+  --btn-line-edge:       rgba(255,255,255,.08);
+  --btn-line-ring:       rgba(255,255,255,.20);
+  --btn-line-ring-hover: rgba(255,255,255,.38);
+
+  /* THE LEGACY NAMES, AND THE ONE THAT IS NOT DECORATIVE.
+     --gold-bright is the star beside a rating. On white it resolves to
+     --accent, which is dark and reads; on this ground the same rule renders a
+     rating in near-black on near-black. It is the only one of the nine legacy
+     aliases used as TEXT, so it is the only one that has to move. --gold stays
+     a fill (the "New" badge on a poster) and white still sits on it. */
+  --gold-bright: var(--accent-ink);
+  --rose: var(--accent-ink);
+  --purple: var(--accent-ink);
+  --navy: var(--ink);
+
+  /* The press surface — the recipe-card typography — is not worn by anything
+     in this hub. Left alone rather than guessed at. */
+}
