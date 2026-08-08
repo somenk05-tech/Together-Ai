@@ -31,10 +31,10 @@ export function CitizenCard({ name, handle, email, photo, since }: {
          name is laid out in the fallback and then repainted in the real face
          at a different width. */
       await document.fonts.ready;
-      const [portrait, logo] = await Promise.all([loadImage(photo), loadImage('/assets/img/tc-logo.png')]);
+      const [portrait, art] = await Promise.all([loadImage(photo), loadImage('/assets/img/citizen-card.webp')]);
       if (cancelled) return;
 
-      drawCitizenCard(ctx, { name, handle, email, photo: portrait, logo, url, since });
+      drawCitizenCard(ctx, { name, handle, email, photo: portrait, art, url, since });
 
       /* A portrait from another origin taints the canvas, and a tainted canvas
          cannot be exported at all — the download would throw at the moment
@@ -44,7 +44,7 @@ export function CitizenCard({ name, handle, email, photo, since }: {
       try {
         ctx.getImageData(0, 0, 1, 1);
       } catch {
-        drawCitizenCard(ctx, { name, handle, email, photo: null, logo, url, since });
+        drawCitizenCard(ctx, { name, handle, email, photo: null, art, url, since });
         setNoPhoto(true);
       }
       setReady(true);

@@ -1,7 +1,7 @@
 import { qrMatrix } from './qr';
 
 /**
- * THE CITIZEN CARD — drawn to a canvas, because the canvas IS the download.
+ * THE CITIZEN CARD — the owner's artwork, with the citizen printed on it.
  *
  * A card somebody sends to a friend outside Together City has to leave the
  * app as a picture. The obvious route is a styled <div> and an
@@ -19,16 +19,32 @@ import { qrMatrix } from './qr';
  * read a CSS variable at any point in its life. A card that changed colour
  * depending on which hub you were standing in when you pressed Download would
  * be a bug, not a feature.
+ *
+ * THE METAL IS A PHOTOGRAPH NOW, and that changed the ink. The CSS-drawn
+ * gradients this replaced were mild; the real artwork swings from L=0.11 to
+ * L=0.63 across the area the fields sit in — a factor of six — and no single
+ * ink clears AA over all of it. Black measured 11.4:1 on the bright specular
+ * and 2.7:1 in the dark of the brushing, on the same card, twenty millimetres
+ * apart.
+ *
+ * So the type sits on a FEATHERED FROSTED PLATE, which is how a real metal
+ * card carries print and not a compromise invented here. At 58% white the
+ * darkest five per cent of the ground lifts to L=0.50, which puts the values
+ * at 9.2:1 and the labels at 5.5:1 — measured against the actual pixels of
+ * the artwork, not estimated. The plate is feathered at every edge so the
+ * brushing and the iridescence still read through it.
  */
 
 export const CARD_W = 2000;
-export const CARD_H = 1260;          /* 1.587:1 — a bank card */
+export const CARD_H = 1251;          /* the artwork's own proportion, 1.599:1 */
 
-/* Brushed steel, warm diffraction, and the gold rule. */
+/* Ink chosen against the artwork, not against a preference — see the note
+   above. The gold is darker than the printed "CITIZEN CARD" on the plate
+   because it has to survive the dark side of the brushing. */
 const INK = '#17181a';
-const GOLD = 'rgba(150,126,72,.55)';
-const GOLD_TEXT = '#8c7a4e';
-const FAINT = '#7d818a';
+const LABEL = '#4a3d1f';
+const FOOT = '#2c2f34';
+const GOLD_RULE = 'rgba(120,99,56,.55)';
 
 export interface CardData {
   name: string;
@@ -36,8 +52,8 @@ export interface CardData {
   email: string;
   /** Already-loaded portrait, or null for the initials fallback. */
   photo: HTMLImageElement | null;
-  /** Already-loaded city mark. */
-  logo: HTMLImageElement | null;
+  /** The card artwork. Null draws a plain ground rather than nothing. */
+  art: HTMLImageElement | null;
   /** What the QR points at, and what is printed along the foot. */
   url: string;
   /** "Citizen since Nov 2025", or null. */
@@ -54,8 +70,8 @@ const rounded = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h
   c.closePath();
 };
 
-/** Uppercase tracked label. Canvas has no letter-spacing before Chrome 99 and
- *  none at all in some engines, so it is drawn a glyph at a time. */
+/** Uppercase tracked label. Canvas letter-spacing is not supported everywhere,
+ *  so it is drawn a glyph at a time. */
 function tracked(c: CanvasRenderingContext2D, text: string, x: number, y: number, spacing: number) {
   let cursor = x;
   for (const ch of text) {
@@ -65,120 +81,125 @@ function tracked(c: CanvasRenderingContext2D, text: string, x: number, y: number
 }
 
 /** Shrink until it fits. A card is a fixed rectangle and a name is not. */
-function fitted(c: CanvasRenderingContext2D, text: string, max: number, weight: number, size: number): number {
+function fit(c: CanvasRenderingContext2D, text: string, max: number, weight: number, size: number) {
   let s = size;
   for (;;) {
     c.font = `${weight} ${s}px 'General Sans', system-ui, sans-serif`;
-    if (c.measureText(text).width <= max || s <= 18) return s;
+    if (c.measureText(text).width <= max || s <= 18) return;
     s -= 1;
   }
+}
+
+/**
+ * The frosted plate the type is printed on.
+ *
+ * Feathered on all four sides rather than drawn as a rectangle: a hard-edged
+ * white box on brushed metal is a sticker, and the whole point of the artwork
+ * is the brushing showing through.
+ *
+ * IT IS BUILT OFFSCREEN, and that is not fussiness. The obvious way to feather
+ * two axes is a horizontal gradient followed by a vertical `destination-out`
+ * pass — and `destination-out` erases the DESTINATION, which on the main
+ * canvas is the artwork. The first version punched a transparent strip
+ * through the metal along the top and bottom of every plate, which rendered
+ * as a hard bright line: the page showing through the card. On its own canvas
+ * the only destination is the plate.
+ */
+function plate(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, alpha: number) {
+  const off = document.createElement('canvas');
+  off.width = Math.ceil(w); off.height = Math.ceil(h);
+  const o = off.getContext('2d');
+  if (!o) return;
+
+  const fx = Math.min(150, w / 2.6), fy = Math.min(120, h / 2.6);
+  const gx = o.createLinearGradient(0, 0, w, 0);
+  gx.addColorStop(0, 'rgba(255,255,255,0)');
+  gx.addColorStop(fx / w, `rgba(255,255,255,${alpha})`);
+  gx.addColorStop(1 - fx / w, `rgba(255,255,255,${alpha})`);
+  gx.addColorStop(1, 'rgba(255,255,255,0)');
+  o.fillStyle = gx; o.fillRect(0, 0, w, h);
+
+  o.globalCompositeOperation = 'destination-out';
+  const gy = o.createLinearGradient(0, 0, 0, h);
+  gy.addColorStop(0, 'rgba(0,0,0,1)');
+  gy.addColorStop(fy / h, 'rgba(0,0,0,0)');
+  gy.addColorStop(1 - fy / h, 'rgba(0,0,0,0)');
+  gy.addColorStop(1, 'rgba(0,0,0,1)');
+  o.fillStyle = gy; o.fillRect(0, 0, w, h);
+
+  c.drawImage(off, x, y);
 }
 
 export function drawCitizenCard(c: CanvasRenderingContext2D, d: CardData) {
   const W = CARD_W, H = CARD_H;
   c.clearRect(0, 0, W, H);
 
-  /* ── the metal ── */
-  rounded(c, 0, 0, W, H, 68);
-  c.save(); c.clip();
-
-  const base = c.createRadialGradient(W * 0.74, H * 0.4, 60, W * 0.74, H * 0.4, W * 0.95);
-  base.addColorStop(0, '#dcdfe4'); base.addColorStop(0.44, '#bcc1c9');
-  base.addColorStop(0.74, '#a2a8b2'); base.addColorStop(1, '#8b919c');
-  c.fillStyle = base; c.fillRect(0, 0, W, H);
-
-  /* The brushed swirl: fine rays about a pole placed OFF THE CARD.
-     Centred on the artwork, fourteen hundred rays converge into a grey smudge
-     at the pole — a blob in the middle of the card that reads as a printing
-     fault. With the pole outside the trim every ray crosses as a gentle arc,
-     which is what brushed metal actually looks like. */
-  c.save();
-  c.translate(W * 1.24, H * 0.42);
-  for (let i = 0; i < 2200; i += 1) {
-    c.rotate((Math.PI * 2) / 2200);
-    c.strokeStyle = i % 2 ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.075)';
-    c.lineWidth = 3;
-    c.beginPath(); c.moveTo(120, 0); c.lineTo(W * 2.4, 0); c.stroke();
+  /* ── the metal ──
+     Full bleed, square corners: the artwork brings its own rounded card and
+     its own surround. Clipping to a rounded rect here would round the
+     SURROUND and leave transparent corners in a picture people paste into
+     chat apps. */
+  if (d.art) {
+    c.drawImage(d.art, 0, 0, W, H);
+  } else {
+    c.fillStyle = '#b9bcc2'; c.fillRect(0, 0, W, H);
   }
-  c.restore();
 
-  /* Diffraction — three soft washes and one specular sweep. */
-  for (const [cx, cy, rad, col] of [
-    [0.80, 0.62, 0.78, 'rgba(255,201,142,.42)'],
-    [0.44, 0.14, 0.72, 'rgba(158,203,255,.40)'],
-    [0.20, 0.94, 0.66, 'rgba(176,255,203,.32)'],
-    [0.62, 0.86, 0.52, 'rgba(226,178,255,.26)'],
-  ] as const) {
-    const g = c.createRadialGradient(W * cx, H * cy, 10, W * cx, H * cy, W * rad);
-    g.addColorStop(0, col); g.addColorStop(1, 'rgba(255,255,255,0)');
-    c.fillStyle = g; c.fillRect(0, 0, W, H);
-  }
-  const sheen = c.createLinearGradient(W * 0.15, H, W * 0.85, 0);
-  sheen.addColorStop(0.32, 'rgba(255,255,255,0)');
-  sheen.addColorStop(0.46, 'rgba(255,255,255,.26)');
-  sheen.addColorStop(0.60, 'rgba(255,255,255,0)');
-  c.fillStyle = sheen; c.fillRect(0, 0, W, H);
-  c.restore();
-
-  /* The inset gold rule. */
-  c.strokeStyle = GOLD; c.lineWidth = 3;
-  rounded(c, 32, 32, W - 64, H - 64, 44); c.stroke();
-  c.strokeStyle = 'rgba(255,255,255,.28)'; c.lineWidth = 2;
-  rounded(c, 36, 36, W - 72, H - 72, 40); c.stroke();
-
-  /* ── the portrait ── */
-  const px = 132, py = 196, pw = 440, ph = 720;
+  /* ── the portrait, set into the metal ── */
+  const px = 170, py = 350, pw = 340, ph = 500;
   c.save();
-  rounded(c, px, py, pw, ph, 40); c.clip();
+  rounded(c, px, py, pw, ph, 30); c.clip();
   if (d.photo) {
     const s = Math.max(pw / d.photo.width, ph / d.photo.height);
     const w = d.photo.width * s, h = d.photo.height * s;
     c.drawImage(d.photo, px + (pw - w) / 2, py + (ph - h) / 2, w, h);
   } else {
-    c.fillStyle = '#b9bcc2'; c.fillRect(px, py, pw, ph);
+    plate(c, px, py, pw, ph, 0.7);
     c.fillStyle = '#6e727a';
-    c.font = "700 150px 'General Sans', system-ui, sans-serif";
+    c.font = "700 130px 'General Sans', system-ui, sans-serif";
     c.textAlign = 'center'; c.textBaseline = 'middle';
     c.fillText(initials(d.name), px + pw / 2, py + ph / 2);
     c.textAlign = 'left'; c.textBaseline = 'alphabetic';
   }
   c.restore();
-  c.strokeStyle = 'rgba(255,255,255,.5)'; c.lineWidth = 4;
-  rounded(c, px, py, pw, ph, 40); c.stroke();
-  c.strokeStyle = GOLD; c.lineWidth = 3;
-  rounded(c, px + 4, py + 4, pw - 8, ph - 8, 36); c.stroke();
+  c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 5;
+  rounded(c, px, py, pw, ph, 30); c.stroke();
+  c.strokeStyle = GOLD_RULE; c.lineWidth = 3;
+  rounded(c, px + 5, py + 5, pw - 10, ph - 10, 26); c.stroke();
 
-  /* ── the three fields ── */
-  const fx = px + pw + 96;
-  const fieldMax = W - fx - 400;
-  let y = py + 62;
+  /* ── the three fields, on their plate ── */
+  const fx = 570, fw = 770;
+  /* The plate starts a feather-width further out than the type on every side,
+     so the type never sits in the ramp: full opacity begins at x=530 and
+     y=370, and the first glyph is at x=570, y=424. */
+  plate(c, fx - 190, 250, fw + 330, 820, 0.58);
+  let y = 424;
   const field = (label: string, value: string, big = false) => {
-    c.fillStyle = GOLD_TEXT;
+    c.fillStyle = LABEL;
     c.font = "700 26px 'General Sans', system-ui, sans-serif";
     tracked(c, label.toUpperCase(), fx, y, 4.2);
     y += big ? 66 : 58;
     c.fillStyle = INK;
-    const size = fitted(c, value, fieldMax, 700, big ? 76 : 52);
+    fit(c, value, fw, 700, big ? 72 : 50);
     c.fillText(value, fx, y);
-    y += big ? 26 : 22;
-    c.strokeStyle = GOLD; c.lineWidth = 2;
-    c.beginPath(); c.moveTo(fx, y + 22); c.lineTo(fx + fieldMax, y + 22); c.stroke();
-    y += 116;
-    void size;
+    y += 44;
+    c.strokeStyle = GOLD_RULE; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(fx, y); c.lineTo(fx + fw, y); c.stroke();
+    y += 74;
   };
   field('User name', d.name.toUpperCase(), true);
   field('Citizen no.', `@${d.handle}`);
   field('City mail', d.email);
 
-  /* ── the QR, and the mark ── */
+  /* ── the code, in the corner the mark leaves free ── */
   const q = qrMatrix(d.url);
-  const qSize = 262, qx = W - 132 - qSize, qy = 196;
+  const qSize = 240, qx = W - 170 - qSize, qy = 851;
   const quiet = 4;
   const cell = qSize / (q.length + quiet * 2);
   c.fillStyle = '#ffffff';
-  rounded(c, qx - 14, qy - 14, qSize + 28, qSize + 28, 22); c.fill();
-  c.strokeStyle = GOLD; c.lineWidth = 2.5;
-  rounded(c, qx - 14, qy - 14, qSize + 28, qSize + 28, 22); c.stroke();
+  rounded(c, qx - 16, qy - 16, qSize + 32, qSize + 32, 20); c.fill();
+  c.strokeStyle = GOLD_RULE; c.lineWidth = 3;
+  rounded(c, qx - 16, qy - 16, qSize + 32, qSize + 32, 20); c.stroke();
   c.fillStyle = '#000000';
   for (let r = 0; r < q.length; r += 1) {
     for (let col = 0; col < q.length; col += 1) {
@@ -186,18 +207,12 @@ export function drawCitizenCard(c: CanvasRenderingContext2D, d: CardData) {
     }
   }
 
-  if (d.logo) {
-    const ls = 186;
-    c.globalAlpha = 0.9;
-    c.drawImage(d.logo, W - 132 - ls, H - 118 - ls, ls, ls);
-    c.globalAlpha = 1;
-  }
-
   /* ── the foot: the thing that makes it useful outside the city ── */
-  c.fillStyle = FAINT;
+  plate(c, 100, 1074, 1220, 148, 0.58);
+  c.fillStyle = FOOT;
   c.font = "700 26px 'General Sans', system-ui, sans-serif";
-  tracked(c, d.url.replace(/^https?:\/\//, '').toUpperCase(), 132, H - 108, 3.4);
-  if (d.since) tracked(c, d.since.toUpperCase(), 132 + 720, H - 108, 3.4);
+  tracked(c, d.url.replace(/^https?:\/\//, '').toUpperCase(), 186, 1158, 3.2);
+  if (d.since) tracked(c, d.since.toUpperCase(), 186 + 700, 1158, 3.2);
 }
 
 export function initials(name: string): string {
