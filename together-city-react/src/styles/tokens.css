@@ -886,116 +886,135 @@
    it. A fifth hub asking for "a wash like Social Life's" is asking for the
    thing that was removed, and gets its own line here or nothing.             */
 [data-hub="social"] {
-  /* THE GROUND IS LIGHTER THAN THE PLATE IT CAME FROM, AND THAT IS THE WHOLE
-     COMPROMISE. At the reference's #b3b6d0 the ink scale collapses: --muted
-     and --faint both have to darken so far to clear 4.5:1 that they land two
-     values apart and stop being a scale at all. A mid-light ground simply has
-     no room for four steps. At #c2c4db there is room, and the sweep still
-     reads as the same picture. */
-  --ground: #c2c4db;
-  --paper:  #c2c4db;
-  --card:   #eceef5;
-  --wash:   #e0e4ef;
-  --media-bg: #1a1c26;
+  /* ── LIQUID GLASS ────────────────────────────────────────────────────────
+     Owner's reference: thick, physical, translucent controls on a neutral
+     ground, with one restrained accent. That is what .g-slab and .g-key were
+     drawn for; the lavender ground was a first approximation of it.
 
-  --ink:      #14161f;   /* 10.5:1 on the ground */
-  --ink-soft: #232838;   /* 12.7:1 on a card */
-  --muted:    #3f4457;   /*  5.6:1 */
-  --faint:    #4a5165;   /*  4.6:1 — labels and metadata ONLY */
-  --line:   #cdd2e0;
-  --line-2: #bbc2d4;
+     THE GROUND GOES NEUTRAL, and that is the whole reason this reads as glass
+     rather than as tinted plastic. Glass takes its colour from what is behind
+     it. On a lavender ground every pane was lavender, so nothing looked
+     transmitted — it looked painted. On a neutral grey the panes pick up the
+     photographs and the accent behind them, which is the effect.
 
-  /* Slate violet, from the plate's own pill. --accent carries --on-accent at
-     8.2:1; --accent-ink is the readable one at 6.2:1 on the ground. */
-  --accent:      #4a4a7a;
-  --accent-ink:  #3a3a63;
-  --accent-soft: #e3e2f0;
-  --accent-line: #c9c7e0;
-  --on-accent:   #f8f8fc;
+     Quantised off the plates: the controls plate gave the accent (#7498d2) and
+     the thickness; the icon-set plate gave the GROUND — #e8e8e8 at 98.4% of
+     its frame, with the whole design carried by the shadow under a near-white
+     pill rather than by any tone difference at all. So the ground came up
+     from #cfd0d3 to #e7e7e8: the reference is one value, lit.
+     THE ACCENT IS DARKENED FROM THE PLATE, because the reference puts BLACK
+     type on its light blue pill and this application's contract is white on
+     --accent — read by the rail lamp, the primary button and .tag.dark. A
+     hub does not get to invert a city-wide contract, so the blue goes deep
+     enough for white (5.6:1) and the plate's own light blue survives as the
+     lit key's face and as --accent-soft. */
+  --ground: #e7e7e8;
+  --paper:  #e7e7e8;
+  --card:   #fbfbfc;
+  --wash:   #f1f1f3;
+  --media-bg: #1b1c20;
 
-  /* The stem green survives as the one second hue, and only as a status. */
-  --ok-ink: #2b5a28;     --ok-soft: #e6eee5;    --ok-line: #c8dcc6;
-  --warn-ink: #6d4708;   --warn-soft: #f2ece0;  --warn-line: #ddd0b6;
-  --danger-ink: #932132; --danger-soft: #f4e5e8; --danger-line: #e0c4cc;
-  --info-ink: #24506a;   --info-soft: #e4edf2;  --info-line: #c6d8e2;
+  --ink:      #14161a;   /* 14.7:1 on the ground, 17.5:1 on a card */
+  --ink-soft: #23262c;   /* 12.3:1 */
+  --muted:    #43474f;   /*  7.5:1 */
+  --faint:    #5c616b;   /*  5.0:1 — labels and metadata ONLY */
+  --line:   #dcdcde;
+  --line-2: #cacacd;
 
-  --face:      linear-gradient(180deg, #f9fafd 0%, #f4f5fa 44%, #e7eaf3 100%);
-  --face-2:    linear-gradient(180deg, #fafbfe 0%, #f2f3f9 48%, #e4e8f2 100%);
-  --face-tall: linear-gradient(180deg, #f7f8fc 0%, #f2f3f8 calc(100% - min(96px, 40%)), #e4e7f0 100%);
-  --face-key:  linear-gradient(180deg, #f9fafd 0%, #f1f2f8 52%, #e0e4ee 100%);
-  --well:      linear-gradient(180deg, #d8dceb 0%, #e9ecf4 58%, #f7f8fc 100%);
+  --accent:      #3f68ab;   /* white on it 5.6:1 */
+  --accent-ink:  #2f558c;   /* 4.9:1 on the ground, 6.1:1 on a card */
+  --accent-soft: #e4ebf6;
+  --accent-line: #c8d6ea;
+  --on-accent:   #ffffff;
 
-  --rim:        inset 0 0 0 1px rgba(20,22,31,.09), inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(20,22,31,.06);
-  --rim-strong: inset 0 0 0 1px rgba(20,22,31,.13), inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(20,22,31,.08);
+  --ok-ink: #1f5b32;     --ok-soft: #e9f1eb;    --ok-line: #ccdfd2;
+  --warn-ink: #6d4508;   --warn-soft: #f5efe5;  --warn-line: #e4d8bf;
+  --danger-ink: #96223a; --danger-soft: #f9ebee; --danger-line: #eacbd2;
+  --info-ink: #2b5f7a;   --info-soft: #e8f0f4;  --info-line: #cbdde5;
 
-  /* The five depths keep their geometry; the shadow ink goes cool, because a
-     neutral shadow on a lavender ground reads as a grey smear. */
-  --e1: var(--rim),        0 1px 1px rgba(30,32,54,.09), 0 2px 4px rgba(30,32,54,.09), 0 6px 14px rgba(30,32,54,.11);
-  --e2: var(--rim-strong), 0 1px 1px rgba(30,32,54,.09), 0 3px 6px rgba(30,32,54,.11), 0 12px 26px rgba(30,32,54,.15), 0 24px 52px rgba(30,32,54,.11);
-  --e3: var(--rim-strong), 0 2px 2px rgba(30,32,54,.10), 0 8px 16px rgba(30,32,54,.13), 0 22px 46px rgba(30,32,54,.17);
-  --e1-key: var(--rim),        0 1px 1px rgba(30,32,54,.11), 0 2px 4px rgba(30,32,54,.11), 0 5px 10px rgba(30,32,54,.09);
-  --e2-key: var(--rim-strong), 0 2px 3px rgba(30,32,54,.11), 0 5px 10px rgba(30,32,54,.13);
-  --carve:      inset 0 0 0 1px rgba(20,22,31,.11), inset 0 3px 6px rgba(20,22,31,.15), inset 0 -1px 0 rgba(255,255,255,.9);
-  --carve-deep: inset 0 0 0 1px rgba(20,22,31,.13), inset 0 4px 10px rgba(20,22,31,.20), inset 0 -1px 0 rgba(255,255,255,.9);
-  --press: inset 0 0 0 1px rgba(20,22,31,.13), inset 0 3px 6px rgba(20,22,31,.17), 0 1px 0 rgba(255,255,255,.85);
-  --edge-up: 0 1px 0 rgba(255,255,255,.9);
-  --edge-in: inset 0 -1px 0 rgba(20,22,31,.07);
-  --case-rim: inset 0 0 0 1px rgba(20,22,31,.16), inset 0 4px 12px rgba(20,22,31,.22), inset 0 -2px 8px rgba(20,22,31,.10);
-  --case-rim-soft: inset 0 0 0 1px rgba(20,22,31,.12), inset 0 3px 7px rgba(20,22,31,.20), inset 0 -1px 0 rgba(255,255,255,.4);
+  --face:      linear-gradient(180deg, #ffffff 0%, #fbfbfc 44%, #f2f2f4 100%);
+  --face-2:    linear-gradient(180deg, #ffffff 0%, #fcfcfd 48%, #f4f4f6 100%);
+  --face-tall: linear-gradient(180deg, #ffffff 0%, #fbfbfc calc(100% - min(96px, 40%)), #f1f1f3 100%);
+  --face-key:  linear-gradient(180deg, #ffffff 0%, #fafafc 52%, #eeeef1 100%);
+  --well:      linear-gradient(180deg, #e0e0e3 0%, #f0f0f2 58%, #fdfdfe 100%);
 
-  /* THE RAIL AND ITS KEYS ARE GLASS TOO — the well has to follow the ground or
-     the sidebar's ink sits on a white slab inside a lavender page. */
-  --rail-well: rgba(255,255,255,.16);
-  --rail-well-shadow: inset -1px 0 0 rgba(255,255,255,.26);
-  --lens-face: linear-gradient(180deg, rgba(255,255,255,.58) 0%, rgba(255,255,255,.32) 55%, rgba(255,255,255,.18) 100%);
-  --lens:     inset 0 0 0 1.5px rgba(255,255,255,.88), inset 0 1px 0 rgba(255,255,255,1), 0 4px 14px rgba(30,32,54,.15);
-  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.74), inset 0 1px 0 rgba(255,255,255,.92), 0 2px 7px rgba(30,32,54,.11);
+  /* THE RIM IS THE THICKNESS. A pane of glass reads as thick because its
+     edge catches light on top and goes dark underneath — the reference's
+     controls are all edge. So the rim goes up from 1px to 1.5px and the top
+     highlight to full white, while the geometry underneath does not move. */
+  --rim:        inset 0 0 0 1.2px rgba(20,22,26,.10), inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(20,22,26,.07);
+  --rim-strong: inset 0 0 0 1.6px rgba(20,22,26,.14), inset 0 2px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(20,22,26,.09);
 
-  /* THE GLASS, ACTUALLY TRANSLUCENT. These four are the promotion the
-     ground-glass comment asked for, and they are scoped to the hub that has
-     been carrying the classes all along. */
-  --glass-face: linear-gradient(158deg, rgba(255,255,255,.62), rgba(255,255,255,.38) 52%, rgba(255,255,255,.26));
-  --glass:      inset 0 0 0 1.4px rgba(255,255,255,.84), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(20,22,31,.05), 0 18px 44px rgba(30,32,54,.18);
-  --glass-key:  inset 0 0 0 1.1px rgba(255,255,255,.80), inset 0 1px 0 rgba(255,255,255,.96), 0 3px 10px rgba(30,32,54,.14);
-  --glass-in:   inset 0 0 0 1.1px rgba(255,255,255,.70), inset 0 2px 5px rgba(30,32,54,.14);
-  --glass-well: linear-gradient(180deg, #d8dceb 0%, #e9ecf4 58%, #f7f8fc 100%);
-  --glass-bubble: linear-gradient(150deg, rgba(255,255,255,.92), rgba(255,255,255,.52) 52%, rgba(255,255,255,.72));
-  --glass-bubble-shadow: inset 0 0 0 1px rgba(255,255,255,.92), 0 2px 6px rgba(30,32,54,.14);
-  --glass-tray: linear-gradient(180deg, rgba(255,255,255,.42), rgba(255,255,255,.62));
-  --glass-tray-shadow: inset 0 2px 8px rgba(30,32,54,.14), inset 0 -1px 0 rgba(255,255,255,.9);
-  --glass-line: rgba(255, 255, 255, .5);
+  /* Shadow ink is NEUTRAL now, and softer and wider than on a tinted ground:
+     glass sitting a few millimetres off a surface throws a diffuse shadow,
+     not a crisp one. Same five depths, same geometry. */
+  --e1: var(--rim),        0 1px 2px rgba(18,20,24,.08), 0 3px 8px rgba(18,20,24,.09), 0 8px 20px rgba(18,20,24,.10);
+  --e2: var(--rim-strong), 0 1px 2px rgba(18,20,24,.08), 0 4px 10px rgba(18,20,24,.11), 0 14px 32px rgba(18,20,24,.14), 0 28px 64px rgba(18,20,24,.10);
+  --e3: var(--rim-strong), 0 2px 4px rgba(18,20,24,.10), 0 10px 22px rgba(18,20,24,.13), 0 26px 56px rgba(18,20,24,.17);
+  --e1-key: var(--rim),        0 1px 2px rgba(18,20,24,.10), 0 3px 7px rgba(18,20,24,.11), 0 7px 16px rgba(18,20,24,.09);
+  --e2-key: var(--rim-strong), 0 2px 4px rgba(18,20,24,.11), 0 7px 16px rgba(18,20,24,.13);
+  --carve:      inset 0 0 0 1.2px rgba(20,22,26,.12), inset 0 3px 7px rgba(20,22,26,.14), inset 0 -1px 0 rgba(255,255,255,.95);
+  --carve-deep: inset 0 0 0 1.4px rgba(20,22,26,.14), inset 0 5px 12px rgba(20,22,26,.20), inset 0 -1px 0 rgba(255,255,255,.95);
+  --press: inset 0 0 0 1.2px rgba(20,22,26,.14), inset 0 3px 7px rgba(20,22,26,.18), 0 1px 0 rgba(255,255,255,.9);
+  --edge-up: 0 1px 0 rgba(255,255,255,.95);
+  --edge-in: inset 0 -1px 0 rgba(20,22,26,.08);
+  --case-rim: inset 0 0 0 1.2px rgba(20,22,26,.16), inset 0 4px 12px rgba(20,22,26,.20), inset 0 -2px 8px rgba(20,22,26,.10);
+  --case-rim-soft: inset 0 0 0 1.2px rgba(20,22,26,.12), inset 0 3px 7px rgba(20,22,26,.18), inset 0 -1px 0 rgba(255,255,255,.5);
 
-  /* The lit key: the hub's violet, not the city's orange. On a lavender ground
-     the orange lamp was the only warm thing on the screen and the eye went to
-     the rail instead of to the photographs. */
-  --key-lit-face: linear-gradient(180deg, #5d5d92 0%, #4a4a7a 46%, #3a3a61 100%);
-  --key-lit:      inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 1px 0 rgba(255,255,255,.36), 0 3px 12px rgba(30,32,54,.24);
-  --key-lit-pip:  0 0 0 2px rgba(74,74,122,.16), 0 0 8px rgba(74,74,122,.5);
-  --lamp-face: linear-gradient(180deg, #5d5d92 0%, #4a4a7a 46%, #3a3a61 100%);
-  --lamp:      inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 2px 5px rgba(0,0,0,.2), inset 0 -1px 0 rgba(255,255,255,.36), 0 3px 12px rgba(30,32,54,.24);
-  --lamp-badge: inset 0 0 0 1px rgba(255,255,255,.38), inset 0 1px 0 rgba(255,255,255,.32);
+  --rail-well: rgba(255,255,255,.20);
+  --rail-well-shadow: inset -1px 0 0 rgba(255,255,255,.42);
+  --lens-face: linear-gradient(180deg, rgba(255,255,255,.72) 0%, rgba(255,255,255,.44) 55%, rgba(255,255,255,.26) 100%);
+  --lens:     inset 0 0 0 1.5px rgba(255,255,255,.95), inset 0 1.5px 0 rgba(255,255,255,1), 0 5px 16px rgba(18,20,24,.13);
+  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.85), inset 0 1px 0 rgba(255,255,255,1), 0 3px 9px rgba(18,20,24,.10);
 
-  --loud-face:        linear-gradient(180deg, #5a5a8c 0%, #4a4a7a 55%, #3a3a61 100%);
-  --loud-face-hover:  linear-gradient(180deg, #66669c 0%, #545488 55%, #43436d 100%);
-  --loud-face-active: linear-gradient(180deg, #3a3a61 0%, #45456f 60%, #4a4a7a 100%);
-  --on-loud: #f8f8fc;
-  --frost: rgba(236,238,245,.74);
-  --btn-line-edge: rgba(255,255,255,.95);
-  --btn-line-ring: rgba(20,22,31,.17);
-  --btn-line-ring-hover: rgba(20,22,31,.32);
-  --focus-ring: 0 0 0 3px rgba(74,74,122,.34);
-  --scrim-top: rgba(16,18,28,.28);
-  --scrim-deep: rgba(16,18,28,.76);
+  /* THE GLASS, THICKENED. Less opaque than before and with a brighter edge:
+     the reference's panels are barely tinted and read entirely by their rim
+     and their shadow. The blur does the rest, in --pane-blur below. */
+  --glass-face: linear-gradient(158deg, rgba(255,255,255,.58), rgba(255,255,255,.34) 52%, rgba(255,255,255,.22));
+  --glass:      inset 0 0 0 1.6px rgba(255,255,255,.96), inset 0 2px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(20,22,26,.07), 0 20px 50px rgba(18,20,24,.16);
+  --glass-key:  inset 0 0 0 1.3px rgba(255,255,255,.92), inset 0 1.5px 0 rgba(255,255,255,1), 0 4px 12px rgba(18,20,24,.12);
+  --glass-in:   inset 0 0 0 1.2px rgba(255,255,255,.80), inset 0 2px 6px rgba(18,20,24,.14);
+  --glass-well: linear-gradient(180deg, #e0e0e3 0%, #f0f0f2 58%, #fdfdfe 100%);
+  --glass-bubble: linear-gradient(150deg, rgba(255,255,255,.94), rgba(255,255,255,.56) 52%, rgba(255,255,255,.76));
+  --glass-bubble-shadow: inset 0 0 0 1.2px rgba(255,255,255,.94), 0 3px 8px rgba(18,20,24,.13);
+  --glass-tray: linear-gradient(180deg, rgba(255,255,255,.46), rgba(255,255,255,.68));
+  --glass-tray-shadow: inset 0 2px 9px rgba(18,20,24,.13), inset 0 -1px 0 rgba(255,255,255,.95);
+  --glass-line: rgba(255, 255, 255, .62);
 
-  /* The wash, corner to corner from the plate: lavender top-left, a cooler
-     violet top-right, pale blue at the foot. */
+  /* The lit key wears the PLATE'S light blue, with the deep one underneath it
+     so white still reads: the reference's active control is a pale blue lens
+     and this is the one place that colour survives at full strength. */
+  --key-lit-face: linear-gradient(180deg, #7498d2 0%, #5a80c1 46%, #3f68ab 100%);
+  --key-lit:      inset 0 0 0 1.5px rgba(255,255,255,.52), inset 0 1.5px 0 rgba(255,255,255,.46), 0 4px 14px rgba(63,104,171,.30);
+  --key-lit-pip:  0 0 0 2px rgba(63,104,171,.18), 0 0 8px rgba(63,104,171,.5);
+  --lamp-face: linear-gradient(180deg, #7498d2 0%, #5a80c1 46%, #3f68ab 100%);
+  --lamp:      inset 0 0 0 1.5px rgba(255,255,255,.52), inset 0 2px 5px rgba(0,0,0,.16), inset 0 -1px 0 rgba(255,255,255,.44), 0 4px 14px rgba(63,104,171,.30);
+  --lamp-badge: inset 0 0 0 1px rgba(255,255,255,.46), inset 0 1px 0 rgba(255,255,255,.40);
+
+  --loud-face:        linear-gradient(180deg, #4d76b7 0%, #3f68ab 55%, #33578f 100%);
+  --loud-face-hover:  linear-gradient(180deg, #5883c4 0%, #4772b8 55%, #3a6099 100%);
+  --loud-face-active: linear-gradient(180deg, #33578f 0%, #3a5f9c 60%, #3f68ab 100%);
+  --on-loud: #ffffff;
+  --frost: rgba(251,251,252,.78);
+  --btn-line-edge: rgba(255,255,255,1);
+  --btn-line-ring: rgba(20,22,26,.18);
+  --btn-line-ring-hover: rgba(20,22,26,.34);
+  --focus-ring: 0 0 0 3px rgba(63,104,171,.34);
+  --scrim-top: rgba(14,16,20,.26);
+  --scrim-deep: rgba(14,16,20,.76);
+
+  /* The ground is a room, not a colour field: a soft light from above-left
+     and the corner falloff the reference has, both in neutral. Nothing here
+     is tinted, because the panes are what carry colour in this hub. */
   --sky-image:
-    radial-gradient(110% 70% at 8% -6%, #cfc4d4 0%, rgba(207,196,212,0) 62%),
-    radial-gradient(90% 60% at 96% 2%, #b6b5d6 0%, rgba(182,181,214,0) 58%),
-    linear-gradient(166deg, #cbc7de 0%, #c2c4db 38%, #b6c6da 72%, #adc2d5 100%);
-  --chrome: rgba(255,255,255,.26);
-  --chrome-blur: blur(20px) saturate(165%);
-  --pane-blur: blur(22px) saturate(175%);
+    radial-gradient(86% 64% at 26% -10%, #f3f3f4 0%, rgba(243,243,244,0) 70%),
+    radial-gradient(64% 52% at 96% 104%, #dedee0 0%, rgba(222,222,224,0) 64%),
+    linear-gradient(168deg, #ececed 0%, #e7e7e8 52%, #e2e2e4 100%);
+  --chrome: rgba(255,255,255,.46);
+  --chrome-blur: blur(22px) saturate(150%);
+  /* Thicker glass means more blur. 30px is where the panel stops looking like
+     a tinted rectangle and starts looking like something with a depth. */
+  --pane-blur: blur(30px) saturate(160%);
 }
 
 /* ── DATING IS THE SKY, AND THE CANDY IS THE INTERRUPTION ──────────────────
