@@ -2,13 +2,22 @@ import { useMemo, useState } from 'react';
 import { Button, Spinner } from '@/components/ui';
 import { chatApi, useChatContacts, useCreateGroup, type Contact } from '@/api';
 
-/** Toolbar above the conversation list: start a direct chat or create a group. */
+/**
+ * Toolbar above the conversation list: start a direct chat or create a group.
+ *
+ * The two buttons wear the stage's own pills rather than `.btn`, because on a
+ * dark panel `.btn-line` is a white-edged ghost and `.btn-accent` is the city
+ * accent, neither of which belongs in a black-and-white room. The MODAL below
+ * is deliberately left on the city's white — a dialog is not part of the
+ * stage, it is the app interrupting it, and a dark sheet over a dark panel
+ * loses the boundary between the two.
+ */
 export function ChatStarter({ onOpened }: { onOpened: (conversationId: string) => void }) {
   const [mode, setMode] = useState<null | 'direct' | 'group'>(null);
   return (
-    <div style={{ display: 'flex', gap: 8, padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
-      <Button variant="line" size="sm" onClick={() => setMode('direct')}>✉️ New chat</Button>
-      <Button variant="accent" size="sm" onClick={() => setMode('group')}>👥 New group</Button>
+    <div className="cstabs">
+      <button type="button" className="cstab" onClick={() => setMode('direct')}>✉ New chat</button>
+      <button type="button" className="cstab on" onClick={() => setMode('group')}>👥 New group</button>
       {mode && <StarterModal mode={mode} onClose={() => setMode(null)} onOpened={onOpened} />}
     </div>
   );

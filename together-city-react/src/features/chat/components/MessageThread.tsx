@@ -7,7 +7,9 @@ function Ticks({ status }: { status?: Message['status'] }) {
   if (!status) return null;
   const read = status === 'READ';
   const double = status === 'DELIVERED' || status === 'READ';
-  const color = read ? 'var(--info-ink)' : 'var(--muted)';
+  /* On the stage there is no info-blue to read against black. Read is the
+     bright ink, delivered is the soft one. */
+  const color = read ? 'var(--on-stage)' : 'var(--on-stage-faint)';
   return (
     <span aria-label={status.toLowerCase()} style={{ color, marginLeft: 4, letterSpacing: -2, fontSize: 12, fontWeight: 700 }}>
       {double ? '✓✓' : '✓'}
@@ -17,11 +19,11 @@ function Ticks({ status }: { status?: Message['status'] }) {
 
 const CSS = `
 .tc-msg-row{position:relative}
-.tc-msg-actions{opacity:0;pointer-events:none;transition:opacity .15s ease;position:absolute;top:-14px;display:flex;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:2px 4px;box-shadow:0 4px 14px rgba(0,0,0,.1);z-index:5}
+.tc-msg-actions{opacity:0;pointer-events:none;transition:opacity var(--dur-fast) var(--ease);position:absolute;top:-16px;display:flex;gap:2px;background:var(--stage-solid);border:1px solid var(--stage-line);border-radius:999px;padding:3px 5px;box-shadow:var(--soft-out);z-index:5}
 .tc-msg-row:hover .tc-msg-actions,.tc-msg-row.touch-open .tc-msg-actions{opacity:1;pointer-events:auto}
-.tc-msg-actions button{border:none;background:none;cursor:pointer;font-size:12px;padding:4px 7px;border-radius:999px;font-family:inherit;color:var(--ink-soft);line-height:1}
-.tc-msg-actions button:hover{background:var(--paper)}
-.tc-msg-actions button.danger{color:var(--danger-ink)}
+.tc-msg-actions button{border:none;background:none;cursor:pointer;font-size:12px;padding:4px 7px;border-radius:999px;font-family:inherit;color:var(--on-stage-soft);line-height:1}
+.tc-msg-actions button:hover{background:var(--stage-tile)}
+.tc-msg-actions button.danger{color:var(--on-stage)}
 /* Was max-height: 2000px -> 0 over 250ms. A message is ~60px, so 97% of the
    duration passed with nothing visible and the collapse happened in the last
    7ms. grid-template-rows: 1fr -> 0fr collapses to the row's *actual* height
@@ -63,8 +65,10 @@ function ConfirmDelete({ mine, canEveryone, onCancel, onDelete }: {
   );
 }
 
-export function MessageThread({ messages, currentUserId, typing, onDelete, onEdit }: {
+export function MessageThread({ messages, currentUserId, typing, peerName, onDelete, onEdit }: {
   messages: Message[]; currentUserId?: string; typing?: boolean;
+  /** Whose thread this is, for the attribution line above each run. */
+  peerName?: string;
   onDelete?: (messageId: string, scope: 'ME' | 'EVERYONE') => Promise<void> | void;
   onEdit?: (messageId: string, body: string) => Promise<void> | void;
 }) {
@@ -96,71 +100,79 @@ export function MessageThread({ messages, currentUserId, typing, onDelete, onEdi
     if (next && next !== m.body) await onEdit?.(m.id, next);
   };
 
+  const at = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="csmsgs">
       <style>{CSS}</style>
-      {messages.map((m) => {
+      {messages.map((m, i) => {
         const mine = m.senderId === currentUserId;
         const deleted = Boolean(m.deleted);
         const isCollapsing = collapsing.has(m.id);
         const canEdit = mine && !deleted && Boolean(m.body) && withinWindow(m) && Boolean(onEdit);
+        /* THE ATTRIBUTION LINE PRINTS ONCE PER RUN. Four messages from one
+           person do not need the name and the clock four times — that is the
+           thing that makes a long thread look like a form. */
+        const prev = messages[i - 1];
+        const opens = !prev || prev.senderId !== m.senderId;
         return (
-          <div key={m.id}
-            className={`tc-msg-row tc-msg-collapse${isCollapsing ? ' tc-msg-collapsing' : ''}${touchOpen === m.id ? ' touch-open' : ''}`}
-            style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: m.share ? 300 : '72%' }}
-            onTouchStart={() => { longPress.current = setTimeout(() => setTouchOpen((t) => (t === m.id ? null : m.id)), 450); }}
-            onTouchEnd={() => { if (longPress.current) clearTimeout(longPress.current); }}
-            onTouchMove={() => { if (longPress.current) clearTimeout(longPress.current); }}>
-
-            {/* hover / long-press actions — never on deleted messages */}
-            {!deleted && onDelete && (
-              <div className="tc-msg-actions" style={mine ? { right: 0 } : { left: 0 }}>
-                {m.body && <button type="button" title="Copy" onClick={() => { void navigator.clipboard?.writeText(m.body); setTouchOpen(null); }}>⧉ Copy</button>}
-                {canEdit && <button type="button" title="Edit" onClick={() => startEdit(m)}>✎ Edit</button>}
-                <button type="button" className="danger" title="Delete" onClick={() => { setConfirmFor(m); setTouchOpen(null); }}>🗑 Delete</button>
+          <div key={m.id} style={{ display: 'contents' }}>
+            {opens && (
+              <div className={mine ? 'csatt me' : 'csatt'}>
+                {mine
+                  ? <><i>{at(m.createdAt)}</i><b>You</b></>
+                  : <><b>{peerName ?? 'Them'}</b><i>{at(m.createdAt)}</i></>}
               </div>
             )}
+            <div
+              className={`tc-msg-row tc-msg-collapse${isCollapsing ? ' tc-msg-collapsing' : ''}${touchOpen === m.id ? ' touch-open' : ''}`}
+              style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: m.share ? 320 : '100%' }}
+              onTouchStart={() => { longPress.current = setTimeout(() => setTouchOpen((t) => (t === m.id ? null : m.id)), 450); }}
+              onTouchEnd={() => { if (longPress.current) clearTimeout(longPress.current); }}
+              onTouchMove={() => { if (longPress.current) clearTimeout(longPress.current); }}>
 
-            {/* single in-flow child: the grid row that collapses 1fr -> 0fr */}
-            <div>
-              {deleted ? (
-                <div style={{
-                  border: '1px dashed var(--line)', color: 'var(--muted)', fontStyle: 'italic',
-                  borderRadius: 16, padding: '8px 14px', fontSize: 13, background: 'transparent',
-                }}>
-                  🚫 This message was deleted
+              {/* hover / long-press actions — never on deleted messages */}
+              {!deleted && onDelete && (
+                <div className="tc-msg-actions" style={mine ? { right: 0 } : { left: 0 }}>
+                  {m.body && <button type="button" title="Copy" onClick={() => { void navigator.clipboard?.writeText(m.body); setTouchOpen(null); }}>⧉ Copy</button>}
+                  {canEdit && <button type="button" title="Edit" onClick={() => startEdit(m)}>✎ Edit</button>}
+                  <button type="button" className="danger" title="Delete" onClick={() => { setConfirmFor(m); setTouchOpen(null); }}>🗑 Delete</button>
                 </div>
-              ) : editingId === m.id ? (
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input autoFocus aria-label="Edit your message" value={editText} onChange={(e) => setEditText(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') void saveEdit(m); if (e.key === 'Escape') setEditingId(null); }}
-                    style={{ border: '1.5px solid var(--accent)', borderRadius: 12, padding: '8px 12px', fontSize: 14, fontFamily: 'inherit', minWidth: 220 }} />
-                  <button type="button" className="btn btn-accent btn-sm" onClick={() => void saveEdit(m)}>Save</button>
-                  <button type="button" className="btn btn-line btn-sm" aria-label="Cancel editing" onClick={() => setEditingId(null)}>✕</button>
-                </div>
-              ) : (
-                <>
-                  {m.body && (
-                    <div style={{
-                      background: mine ? 'var(--accent)' : 'var(--card)', color: mine ? 'var(--on-accent)' : 'var(--ink)',
-                      border: mine ? 'none' : '1px solid var(--line)', borderRadius: 16, padding: '9px 14px', fontSize: 14,
-                      marginBottom: m.share ? 6 : 0,
-                    }}>{m.body}</div>
-                  )}
-                  {m.share && <ShareCardView card={m.share} compact clickable />}
-                </>
               )}
 
-              <div className="muted" style={{ fontSize: 10.5, marginTop: 2, textAlign: mine ? 'right' : 'left' }}>
-                {m.edited && !deleted && <span style={{ marginRight: 4 }}>edited ·</span>}
-                {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                {mine && !deleted && <Ticks status={m.status} />}
+              {/* single in-flow child: the grid row that collapses 1fr -> 0fr */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
+                {deleted ? (
+                  <div className="csb gone">🚫 This message was deleted</div>
+                ) : editingId === m.id ? (
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <input autoFocus aria-label="Edit your message" value={editText} onChange={(e) => setEditText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') void saveEdit(m); if (e.key === 'Escape') setEditingId(null); }}
+                      className="csb" style={{ minWidth: 240, boxShadow: 'var(--soft-in)' }} />
+                    <button type="button" className="cstab on" onClick={() => void saveEdit(m)}>Save</button>
+                    <button type="button" className="cstab" aria-label="Cancel editing" onClick={() => setEditingId(null)}>✕</button>
+                  </div>
+                ) : (
+                  <>
+                    {m.body && <div className={mine ? 'csb me' : 'csb'}>{m.body}</div>}
+                    {m.share && <div style={{ marginTop: m.body ? 6 : 0 }}><ShareCardView card={m.share} compact clickable /></div>}
+                  </>
+                )}
+
+                {/* Only the facts the attribution line does not already carry:
+                    an edit, and how far a message of yours has got. */}
+                {(m.edited || (mine && !deleted && m.status)) && !deleted && (
+                  <div style={{ fontSize: 10.5, marginTop: 3, color: 'var(--on-stage-faint)' }}>
+                    {m.edited && <span style={{ marginRight: 4 }}>edited</span>}
+                    {mine && <Ticks status={m.status} />}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         );
       })}
-      {typing && <div className="muted" style={{ fontSize: 12, fontStyle: 'italic' }}>typing…</div>}
+      {typing && <div className="csatt"><i>{peerName ?? 'They'} is typing…</i></div>}
       <div ref={end} />
 
       {confirmFor && (

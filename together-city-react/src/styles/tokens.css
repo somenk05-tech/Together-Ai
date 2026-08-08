@@ -379,6 +379,46 @@
 
   --sp-1: 6px; --sp-2: 10px; --sp-3: 16px; --sp-4: 24px; --sp-5: 36px; --sp-6: 52px; --sp-7: 76px;
 
+  /* ── THE CHAT STAGE ──────────────────────────────────────────────────────
+     Chat is drawn on a dark stage, black and white: an incoming message is a
+     WHITE tile pressed into the surface, an outgoing one is a BLACK tile
+     raised off it in white type.
+
+     IT IS A STAGE, NOT A GROUND, and the distinction is the whole reason this
+     costs nothing. The page keeps the city's white; the chat surface is a
+     material laid on top of it, exactly as CookMode's near-black theatre
+     already is — relief.spec names that file as the one legitimate dark
+     stage. Chat is the second. A hub-wide dark ground would need the sixth
+     grant and the argument that goes with it; a panel does not.
+
+     WHY BLACK AND WHITE AT ALL. Pure neumorphism makes both bubbles out of
+     the surface and leaves the light to say who spoke — beautiful held still,
+     and unreadable scrolling fast or in sunlight. Black and white does the
+     speaking (17.3:1 and 17.7:1) and frees the shadows to be craft.
+
+     --on-stage-faint is #a8adb3 and not the #8b9095 it started as: the stage
+     is a GRADIENT, so one ink meets three grounds, and the paler original
+     measured 4.59:1 in the middle of it and 3.39:1 at the lit end where the
+     list header and the first timestamps sit. */
+  --stage: linear-gradient(158deg, #3a3d41 0%, #26282b 42%, #131416 100%);
+  --stage-panel: rgba(255,255,255,.045);
+  --stage-tile:  rgba(255,255,255,.12);
+  --stage-hover: rgba(255,255,255,.085);
+  --stage-well:  rgba(0,0,0,.22);
+  --stage-line: rgba(255,255,255,.10);
+  --stage-solid: #0d0e10;
+  --on-stage: #f4f5f6;
+  --on-stage-soft: #b9bdc2;
+  --on-stage-faint: #a8adb3;
+  --on-stage-ink: #101113;
+
+  /* THE TWO SHADOWS, as MATERIALS rather than elevations — the company they
+     keep in relief.spec's named list is --glass, --lens, --lamp and --prism,
+     not --e1..--e3. Pressed in, raised out, and a shallow inset for chrome. */
+  --soft-in:  inset 5px 5px 11px rgba(9,10,12,.30), inset -5px -5px 11px rgba(255,255,255,.85);
+  --soft-out: 8px 10px 22px rgba(0,0,0,.55), -2px -2px 8px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.14);
+  --soft-tile: inset 3px 3px 8px rgba(9,10,12,.40), inset -3px -3px 8px rgba(255,255,255,.06);
+
   /* ── THE PASSPORT ────────────────────────────────────────────────────────
      The owner's own artwork: crackle-grain security paper with an iridescent
      sweep, the city's mark and tagline printed top-left, the document series

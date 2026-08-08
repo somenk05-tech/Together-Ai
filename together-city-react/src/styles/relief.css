@@ -2374,3 +2374,142 @@ textarea.g-field { resize: none; line-height: 1.55; }
 @media (prefers-reduced-motion: reduce) {
   .pvisa, .pvisa:hover, .pvisa:active { transition: none; transform: none; }
 }
+
+/* ══ THE CHAT STAGE ═══════════════════════════════════════════════════════
+   Every chat surface in the city, drawn on one dark stage. An incoming
+   message is a WHITE tile pressed into it; an outgoing one is a BLACK tile
+   raised off it. See the rationale beside the tokens.
+
+   These rules are all scoped under `.cstage`, so the panel carries its own
+   world and nothing outside it changes colour. The page around it — the
+   header, the rail, the hub it sits in — keeps the city's white. */
+
+.cstage {
+  display: grid; grid-template-columns: 330px 1fr;
+  min-height: 0; overflow: hidden; border-radius: var(--r-4);
+  background: var(--stage); box-shadow: var(--e3);
+  color: var(--on-stage);
+}
+@media (max-width: 860px) { .cstage { grid-template-columns: 1fr; } }
+
+/* Inside the stage, the app's own text tones would be near-black on near-
+   black. These four are the stage's whole palette. */
+.cstage .muted, .cstage .eyebrow { color: var(--on-stage-faint); }
+.cstage a { color: var(--on-stage); }
+
+/* ── the list ─────────────────────────────────────────────────────────── */
+.cslist { display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  background: var(--stage-well); border-right: 1px solid var(--stage-line); }
+.cslist > .cshead { padding: 20px 18px 12px; }
+.cslist > .cshead h2 { margin: 0; font-size: 19px; letter-spacing: -.01em; color: var(--on-stage); }
+.cslist > .cshead p { margin: 3px 0 0; font-size: 10.5px; font-weight: 700; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--on-stage-faint); }
+.cstabs { display: flex; gap: 6px; padding: 0 14px 12px; flex-wrap: wrap; }
+.cstab { padding: 7px 14px; border: 0; border-radius: var(--r-full); cursor: pointer; font-family: inherit;
+  font-size: 12.5px; font-weight: 700; color: var(--on-stage-soft); background: var(--stage-panel); }
+.cstab.on { color: var(--on-stage-ink); background: var(--on-stage); }
+
+.csrows { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 12px 16px;
+  display: flex; flex-direction: column; gap: 8px; }
+.csrow { display: flex; align-items: stretch; border-radius: var(--r-2); background: var(--stage-panel); }
+/* THE SELECTED THREAD WEARS THE INCOMING BUBBLE'S MATERIAL — white, pressed
+   in. "The one you are reading" and "the one talking to you" being the same
+   tile is what makes the two shadows read as a language and not two effects. */
+.csrow.on { background: var(--on-stage); color: var(--on-stage-ink); box-shadow: var(--soft-in); }
+.csopen { display: flex; flex: 1; min-width: 0; gap: 12px; align-items: center; text-align: left;
+  padding: 11px 13px; border: 0; background: none; cursor: pointer; font-family: inherit; color: inherit; }
+.csav { width: 42px; height: 42px; flex: none; border-radius: var(--r-full); display: grid; place-items: center;
+  font-size: 13.5px; font-weight: 700; color: var(--on-stage); background: var(--stage-tile); }
+.csrow.on .csav { color: var(--on-stage); background: var(--on-stage-ink); }
+.cswho { flex: 1; min-width: 0; }
+.cswho b { display: block; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cswho span { display: block; margin-top: 1px; font-size: 12px; color: var(--on-stage-faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.csrow.on .cswho span { color: var(--muted); }
+.csmeta { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; padding-right: 4px; }
+.csmeta i { font-style: normal; font-size: 10.5px; color: var(--on-stage-faint); }
+.csrow.on .csmeta i { color: var(--muted); }
+.cspip { min-width: 21px; height: 21px; padding: 0 7px; border-radius: var(--r-full); display: grid; place-items: center;
+  font-size: 11px; font-weight: 700; color: var(--on-stage-ink); background: var(--on-stage); }
+.csrow.on .cspip { color: var(--on-stage); background: var(--on-stage-ink); }
+.csdrop { flex: 0 0 auto; width: 40px; border: 0; background: none; cursor: pointer; opacity: 0;
+  color: var(--on-stage-faint); font-size: 14px; transition: opacity var(--dur-fast) var(--ease); }
+.csrow:hover .csdrop, .csrow:focus-within .csdrop { opacity: 1; }
+.csrow.on .csdrop { color: var(--muted); }
+@media (hover: none) { .csdrop { opacity: 1; } }
+
+/* ── the thread ───────────────────────────────────────────────────────── */
+.csthread { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.cshead-t { display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+  border-bottom: 1px solid var(--stage-line); }
+.cshead-t b { font-size: 15px; }
+.cshead-t em { display: block; margin-top: 2px; font-style: normal; font-size: 11px; color: var(--on-stage-faint); }
+.cstool { width: 38px; height: 38px; border-radius: var(--r-full); display: grid; place-items: center; border: 0;
+  cursor: pointer; font-family: inherit; font-size: 14px;
+  color: var(--on-stage-soft); background: var(--stage-panel); box-shadow: var(--soft-tile); }
+
+.csmsgs { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; }
+.csday { align-self: center; margin: 4px 0 14px; padding: 6px 15px; border-radius: var(--r-full);
+  font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--on-stage-faint); background: var(--stage-panel); box-shadow: var(--soft-tile); }
+/* The attribution line: who and when ABOVE the bubble, so a run of messages
+   from one person needs it once instead of four times. */
+.csatt { display: flex; gap: 8px; align-items: baseline; margin: 14px 0 6px; font-size: 11.5px; }
+.csatt b { font-size: 12px; font-weight: 700; color: var(--on-stage-soft); }
+.csatt i { font-style: normal; color: var(--on-stage-faint); }
+.csatt.me { justify-content: flex-end; }
+
+/* THE MEASURE LIVES ON THE ROW, NOT THE BUBBLE. A percentage inside a
+   shrink-to-fit row resolves against the ROW, so `max-width: 66%` on the
+   bubble made every message two-thirds of its own width — three words a line.
+   The row is the child of the column, so that is where a percentage means
+   what it says. */
+.csmsgs > div > .tc-msg-row { max-width: min(66%, 560px); }
+.csb { align-self: flex-start; max-width: 100%; padding: 11px 16px; border-radius: var(--r-3);
+  font-size: 14.5px; line-height: 1.5;
+  color: var(--on-stage-ink); background: var(--on-stage); box-shadow: var(--soft-in); }
+.csb + .csb { margin-top: 6px; }
+.csb.me { align-self: flex-end; color: var(--on-stage); background: var(--stage-solid); box-shadow: var(--soft-out); }
+.csb.gone { color: var(--on-stage-faint); background: none; box-shadow: none;
+  font-style: italic; font-size: 13px; outline: 1px dashed var(--stage-line); outline-offset: -1px; }
+
+.cscomposer { display: flex; align-items: center; gap: 10px; margin: 0 20px 20px;
+  padding: 8px 8px 8px 18px; border-radius: var(--r-full);
+  background: var(--stage-panel); box-shadow: var(--soft-tile);
+  margin-bottom: calc(20px + var(--safe-bottom)); }
+/* The global field rule is `input:not([type=checkbox]):not([type=radio])
+   :not([type=range])` at 0,3,1, so a plain `.cscomposer input` loses and the
+   composer renders a white pill inside its own capsule. Matching the shape is
+   the honest way to outrank it — the same fight the passport's find line had,
+   and worth losing twice before it is written down. */
+.cscomposer input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+  flex: 1; min-width: 0; border: 0; outline: none; background: none; box-shadow: none;
+  border-radius: 0; padding: 8px 0; font-family: inherit; font-size: 14.5px; color: var(--on-stage); }
+.cscomposer input::placeholder { color: var(--on-stage-faint); }
+.cscomposer .cssend { width: 42px; height: 42px; flex: none; border-radius: var(--r-full); display: grid; place-items: center;
+  border: 0; cursor: pointer; font-family: inherit; font-size: 15px; font-weight: 700;
+  color: var(--on-stage-ink); background: var(--on-stage); box-shadow: var(--soft-out); }
+/* DISABLED IS A HOLLOW KEY, NOT A FADED ONE. A white disc at 45% opacity on
+   a near-black stage lands at mid-grey, which reads as a dark filled button
+   rather than an unavailable one — the opposite of what it means. */
+.cscomposer .cssend[disabled] { cursor: default; color: var(--on-stage-faint);
+  background: none; box-shadow: none; outline: 1.5px solid var(--stage-line); outline-offset: -1.5px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .cstab:hover { color: var(--on-stage); }
+  .csrow:not(.on):hover { background: var(--stage-hover); }
+}
+@media (prefers-reduced-motion: reduce) { .csdrop { transition: none; transform: none; } }
+/* The stage is a photograph of light. Asked for more contrast, it stops
+   pretending: flat surfaces, hard edges, no modelling. */
+@media (prefers-contrast: more) {
+  .cstage { background: var(--stage-solid); }
+  /* OUTLINES, NOT INSET SHADOWS. An outline is an edge and contributes no
+     depth, which is what this block is for — and it is the one thing
+     relief.spec's depth rule names as the exception, precisely so that
+     "draw a hard border instead of modelling the light" stays available. */
+  .csb, .csrow.on { box-shadow: none; outline: 2px solid var(--on-stage-ink); outline-offset: -2px; }
+  .csb.me { box-shadow: none; outline: 2px solid var(--on-stage); outline-offset: -2px; }
+  .csrow:not(.on), .cscomposer, .cstool, .csday {
+    box-shadow: none; outline: 1.5px solid var(--stage-line); outline-offset: -1.5px; }
+}

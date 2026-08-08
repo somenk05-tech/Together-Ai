@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
 import { useMe } from '@/api';
@@ -57,7 +57,8 @@ function ChatRow({ c, active, onClick }: { c: DatingChatSummary; active: boolean
   );
 }
 
-const bubbleBase: CSSProperties = { maxWidth: '76%', padding: '9px 13px', borderRadius: 14, fontSize: 13.5, lineHeight: 1.4, wordBreak: 'break-word' };
+/* bubbleBase is gone: the bubble is `.csb` now, the same tile the city chat
+   uses, so the two cannot drift into two slightly different chats. */
 
 /** A new match, waiting for its first message — the Bumble-style queue tile.
  *  Same name and photo the match card showed; tapping opens the connect step. */
@@ -116,32 +117,36 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'min(72vh, 640px)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden', background: 'var(--card)' }}>
+    /* THE SAME STAGE AS THE CITY CHAT. A conversation is one thing wherever
+       you have it, so it is made of one material — the dark panel, the white
+       tile pressed in, the black tile raised. The candy ground the Dating hub
+       won stays exactly where it is: on the page AROUND this panel. */
+    <div className="cstage csthread" style={{ display: 'flex', height: 'min(72vh, 640px)' }}>
       {/* header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
-        <button type="button" onClick={onBack} aria-label="Back" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-soft)', display: 'none' }} className="tc-chat-back">←</button>
+      <div className="cshead-t" style={{ gap: 10 }}>
+        <button type="button" onClick={onBack} aria-label="Back" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--on-stage-soft)', display: 'none' }} className="tc-chat-back">←</button>
         <Avatar name={chat.name} photo={chat.photo} size={40} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14.5 }}>{chat.name}{chat.sign ? ` · ${chat.sign}` : ''}</div>
+          <b>{chat.name}{chat.sign ? ` · ${chat.sign}` : ''}</b>
           {/* One identity: the name above is the profile's, the same one the
               match card showed. Nothing here changes anybody's name. */}
         </div>
-        {chat.score != null && <span className="tag" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)', fontWeight: 700 }}>{chat.score}%</span>}
+        {chat.score != null && <span className="cspip" style={{ minWidth: 44 }}>{chat.score}%</span>}
         {/* A call here carries no more identity than the chat does: the avatar
             and name above are already whatever each person chose to show. */}
         <CallButtons conversationId={chat.conversationId} compact />
       </div>
 
       {/* unmatch / safety bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--paper)', borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
-        <span className="muted" style={{ fontSize: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 16px', background: 'var(--stage-well)', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12, color: 'var(--on-stage-faint)' }}>
           You appear as yourself — the same name and photos as your profile.
         </span>
-        <Button size="sm" variant="line" style={{ marginLeft: 'auto', color: 'var(--danger-ink)', borderColor: 'var(--danger-line)' }}
+        <button type="button" className="cstab" style={{ marginLeft: 'auto' }}
           disabled={unmatch.isPending}
           onClick={() => { if (window.confirm('Unmatch and end this chat? This frees you to connect with someone new.')) unmatch.mutate(chat.otherUserId, { onSuccess: onBack }); }}>
           Unmatch
-        </Button>
+        </button>
         {/* Unmatch and block are not the same thing, and the open chat is where
             that difference matters most. Unmatch frees you to connect with
             somebody else; block ends it and hides you from each other. */}
@@ -149,30 +154,36 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
       </div>
 
       {/* messages */}
-      <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--card)' }}>
+      <div ref={scrollRef} className="csmsgs">
         {msgs.isLoading ? <Spinner /> : messages.length === 0 ? (
           <div style={{ margin: 'auto', textAlign: 'center', maxWidth: 260 }}>
             <div style={{ fontSize: 30 }}>💬</div>
-            <p className="muted" style={{ fontSize: 13 }}>You matched — start the conversation. Keep it kind.</p>
+            <p style={{ fontSize: 13, color: 'var(--on-stage-faint)', lineHeight: 1.55 }}>You matched — start the conversation. Keep it kind.</p>
           </div>
-        ) : messages.map((m) => {
+        ) : messages.map((m, i) => {
           const mine = m.senderId === meId;
+          const prev = messages[i - 1];
+          const opens = !prev || prev.senderId !== m.senderId;
           return (
-            <div key={m.id} style={{ ...bubbleBase, alignSelf: mine ? 'flex-end' : 'flex-start',
-              background: mine ? 'var(--accent)' : 'var(--paper)', color: mine ? 'var(--on-accent)' : 'var(--ink)',
-              borderBottomRightRadius: mine ? 5 : 14, borderBottomLeftRadius: mine ? 14 : 5 }}>
-              {m.body}
+            <div key={m.id} style={{ display: 'contents' }}>
+              {opens && (
+                <div className={mine ? 'csatt me' : 'csatt'}>
+                  {mine ? <b>You</b> : <b>{chat.name}</b>}
+                </div>
+              )}
+              <div className={mine ? 'csb me' : 'csb'} style={{ maxWidth: 'min(70%, 460px)' }}>{m.body}</div>
             </div>
           );
         })}
       </div>
 
       {/* composer */}
-      <div style={{ display: 'flex', gap: 8, padding: '12px 14px', borderTop: '1px solid var(--line)' }}>
-        <input value={draft} placeholder="Message…" onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void send(); } }}
-          style={{ flex: 1, border: '1px solid var(--line)', borderRadius: 12, padding: '10px 13px', fontSize: 14, fontFamily: 'inherit', outline: 'none', background: 'var(--card)', color: 'var(--ink)' }} />
-        <Button variant="accent" disabled={sending || !draft.trim()} onClick={() => void send()}>Send</Button>
+      <div className="cscomposer">
+        <input value={draft} placeholder="Write a message…" aria-label="Write a message"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void send(); } }} />
+        <button type="button" className="cssend" aria-label="Send"
+          disabled={sending || !draft.trim()} onClick={() => void send()}>➤</button>
       </div>
     </div>
   );

@@ -32,10 +32,12 @@ const strip = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, ' ');
  *
  * The rule this asserts is narrow on purpose. It does not ban reuse across
  * the whole application — `.card` and `.btn` are meant to be worn everywhere.
- * It bans it inside the two namespaced component families that were written
- * to be self-contained: the passport (`p`-prefixed) and the editorial plate
- * (`e`-prefixed). Those two say "this block owns its own names"; a bare
- * global name inside them is a promise being broken.
+ * It bans it inside the three namespaced component families that were written
+ * to be self-contained: the passport (`p`-prefixed), the editorial plate
+ * (`e`-prefixed) and the chat stage (`cs`-prefixed). Those say "this block
+ * owns its own names"; a bare global name inside them is a promise being
+ * broken — and the chat stage is the one where it would hurt most, because
+ * every global class it could borrow is drawn for a WHITE ground.
  */
 describe('The namespaced blocks do not borrow a global class name', () => {
   /** Every class defined by a TOP-LEVEL rule in index.css — the global
@@ -52,13 +54,13 @@ describe('The namespaced blocks do not borrow a global class name', () => {
     return out;
   };
 
-  /** Every descendant class used inside a `.p…` or `.e…` scoped selector in
-   *  relief.css — the names those blocks claim as their own. */
+  /** Every descendant class used inside a `.p…`, `.e…` or `.cs…` scoped
+   *  selector in relief.css — the names those blocks claim as their own. */
   const scopedDescendants = () => {
     const found: { block: string; child: string }[] = [];
     for (const m of strip(read('src/styles/relief.css')).matchAll(/(^|\})\s*([^{}@]+)\{/g)) {
       for (const sel of m[2].split(',')) {
-        const parts = sel.trim().match(/^\.((?:p|e)[a-z0-9-]{2,})\b(.*)$/i);
+        const parts = sel.trim().match(/^\.((?:cs|p|e)[a-z0-9-]{2,})\b(.*)$/i);
         if (!parts) continue;
         for (const c of parts[2].matchAll(/\s[>+~]?\s*\.([a-z][a-z0-9-]*)/gi)) {
           found.push({ block: parts[1], child: c[1] });
@@ -68,11 +70,12 @@ describe('The namespaced blocks do not borrow a global class name', () => {
     return found;
   };
 
-  it('finds the two namespaces it is guarding', () => {
+  it('finds the three namespaces it is guarding', () => {
     const blocks = new Set(scopedDescendants().map((d) => d.block));
     expect(blocks.size).toBeGreaterThan(3);
     expect([...blocks].some((b) => b.startsWith('p'))).toBe(true);
     expect([...blocks].some((b) => b.startsWith('e'))).toBe(true);
+    expect([...blocks].some((b) => b.startsWith('cs'))).toBe(true);
   });
 
   it('never scopes a rule onto a name index.css already owns', () => {
@@ -118,6 +121,9 @@ describe('The namespaced blocks do not borrow a global class name', () => {
       ['src/features/profile/components/Passport.tsx'],
       ['src/features/realestate/pages/Explore.tsx'],
       ['src/features/realestate/components/Masthead.tsx'],
+      ['src/features/chat/components/ConversationList.tsx'],
+      ['src/features/chat/components/Composer.tsx'],
+      ['src/features/chat/components/ChatStarter.tsx'],
     ];
     const offenders: string[] = [];
     for (const [f, bounds] of FILES) {

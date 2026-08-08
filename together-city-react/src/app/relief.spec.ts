@@ -114,7 +114,19 @@ describe('Relief stays a system', () => {
     // shadow beginning `var(--rim), 0 2px 4px …` passed unread — which is
     // exactly how three bespoke header shadows got in. It is no longer enough
     // on its own.
-    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft|pane-rim|lens|lens-key|lamp|lamp-badge|key-lit|key-lit-pip|rail-well-shadow|glass|glass-key|glass-in|glass-tray-shadow|glass-bubble-shadow|prism|focus-ring)\)/;
+    // THREE MATERIAL SHADOWS FOR THE CHAT STAGE, and the company they keep
+    // here is the argument. --glass, --lens, --lamp and --prism are already on
+    // this list and none of them is an elevation either: they are what a
+    // SURFACE is made of, added when a hub earned a material. The chat stage
+    // is the same kind of thing — an incoming message is a white tile pressed
+    // INTO the surface and an outgoing one is a black tile raised off it, and
+    // "pressed in" is not a sixth height, it is a way of being made.
+    //
+    // They are named rather than hand-written for the reason the whole rule
+    // exists: written inline, `inset 5px 5px 11px …` in one component and
+    // `inset 6px 6px 12px …` in the next is two materials that look like one
+    // mistake, and nothing would ever say so.
+    const NAMED = /var\(--(e1|e2|e3|e1-key|e2-key|carve|carve-deep|press|shadow|shadow-deep|edge-up|edge-in|pip|pip-ok|case-rim|case-rim-soft|pane-rim|lens|lens-key|lamp|lamp-badge|key-lit|key-lit-pip|rail-well-shadow|glass|glass-key|glass-in|glass-tray-shadow|glass-bubble-shadow|prism|focus-ring|soft-in|soft-out|soft-tile)\)/;
     // A photograph, a filled black button and a text emboss are not surfaces —
     // they are ink and images, and they carry their own light.
     const ALLOWED = /(text-shadow|drop-shadow|\.hero|\.btn-accent|\.btn-gold|\.btn-primary|\.ask-cta|\.step\.|\.mincal|\.tag\.dark|\.knob|outline|inset 0 1px 0|no-case|img:not|video:not|\.case)/;

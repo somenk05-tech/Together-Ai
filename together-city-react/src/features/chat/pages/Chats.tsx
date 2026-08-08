@@ -151,38 +151,58 @@ export function Chats() {
     });
   };
 
+  const activeTitle = list.find((c) => c.id === activeId)?.title || 'Conversation';
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', height: 'calc(100vh - var(--header-h) - var(--safe-top))', overflow: 'hidden' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--line)', minHeight: 0, overflowY: 'auto' }}>
-        <ChatStarter onOpened={onOpened} />
-        {list.length === 0
-          ? <p className="muted" style={{ fontSize: 13, padding: '16px 16px' }}>
-              No conversations yet. Start one above, or open a member’s profile and tap Message.
-            </p>
-          : <ConversationList items={list} activeId={activeId} onSelect={setActiveId}
-              onRemove={onRemove} removingId={clear.isPending ? clear.variables : undefined} />}
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
-        {activeId ? (
-          <>
-            {/* A slim thread header. It exists mainly to give calling a home —
-                the thread itself had no bar to hang anything on. */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
-              <div style={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: 14.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {list.find((c) => c.id === activeId)?.title || 'Conversation'}
-              </div>
-              <CallButtons conversationId={activeId} compact />
-            </div>
-            {history.isLoading
-              ? <Spinner />
-              : <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping} onDelete={deleteMessage} onEdit={editMessage} />}
-            <Composer onSend={send} onTyping={emitTyping} />
-          </>
-        ) : (
-          <div style={{ display: 'grid', placeItems: 'center', height: '100%' }}>
-            <EmptyState icon="💬" title="No conversation selected" hint="Start a chat, or message someone from their profile." />
+    /* THE STAGE. A dark panel laid on the city's white page, not a re-pointed
+       ground — see the rationale beside the tokens. `data-hub="chat"` gives
+       the hub its own accent for anything that still reads one; it touches no
+       ground token, so it costs no grant. */
+    <div className="page" data-hub="chat" style={{ paddingBottom: 18 }}>
+      <div className="cstage" style={{ height: 'calc(100dvh - var(--header-h) - var(--safe-top) - 42px)' }}>
+        <aside className="cslist">
+          <div className="cshead">
+            <h2>Chats</h2>
+            <p>Together City</p>
           </div>
-        )}
+          <ChatStarter onOpened={onOpened} />
+          {list.length === 0
+            ? <p style={{ fontSize: 13, padding: '4px 18px 18px', color: 'var(--on-stage-faint)', lineHeight: 1.55 }}>
+                No conversations yet. Start one above, or open a member’s profile and tap Message.
+              </p>
+            : <ConversationList items={list} activeId={activeId} onSelect={setActiveId}
+                onRemove={onRemove} removingId={clear.isPending ? clear.variables : undefined} />}
+        </aside>
+
+        <section className="csthread">
+          {activeId ? (
+            <>
+              <div className="cshead-t">
+                <span className="csav">{activeTitle.split(/[\s·]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeTitle}</b>
+                  <em>{peerTyping ? 'typing…' : 'Together City'}</em>
+                </div>
+                <CallButtons conversationId={activeId} compact />
+              </div>
+              {history.isLoading
+                ? <Spinner />
+                : <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping}
+                    peerName={activeTitle} onDelete={deleteMessage} onEdit={editMessage} />}
+              <Composer onSend={send} onTyping={emitTyping} />
+            </>
+          ) : (
+            <div style={{ display: 'grid', placeItems: 'center', height: '100%', padding: 30, textAlign: 'center' }}>
+              <div>
+                <div style={{ fontSize: 34 }}>💬</div>
+                <p style={{ fontSize: 14, fontWeight: 700, margin: '10px 0 4px' }}>No conversation open</p>
+                <p style={{ fontSize: 13, color: 'var(--on-stage-faint)', margin: 0, lineHeight: 1.55, maxWidth: '34ch' }}>
+                  Pick one on the left, start a chat, or message somebody from their profile.
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

@@ -56,9 +56,16 @@ describe('the left panel’s remove control', () => {
   it('does not nest a button inside a button', () => {
     // The row was a single <button>. A second button inside it is invalid
     // markup that browsers resolve by guessing which one the click meant.
+    //
+    // ASSERTED ON THE SHAPE, NOT THE CLASS NAME. This line used to match the
+    // literal `className={`conv-row` — so renaming the row for the chat
+    // stage broke a test about button nesting, which had nothing to do with
+    // the rename. What matters is that the element carrying the key is a DIV
+    // and the two controls are its siblings.
     const opens = list.match(/<button/g) ?? [];
     expect(opens.length).toBeGreaterThanOrEqual(3);   // open, remove, and the two confirm actions
-    expect(list).toMatch(/<div key=\{c\.id\} className=\{`conv-row/);
+    expect(list).toMatch(/<div key=\{c\.id\} className=/);
+    expect(list).not.toMatch(/<button[^>]*key=\{c\.id\}/);
   });
 });
 
