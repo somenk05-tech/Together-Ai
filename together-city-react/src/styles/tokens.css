@@ -850,54 +850,47 @@
    NO NEW TOKEN NAMES. Every name below already exists in :root; removing this
    block removes the entire treatment.                                       */
 [data-hub="astrology"] {
-  /* ── THE SKY IS THE ROOM ─────────────────────────────────────────────────
-     The hub already had its own charcoal ground. This puts a photograph
-     behind it and turns the surfaces into panes, so the ground is a place
-     rather than a colour.
+  /* ── THE VELVET OBSERVATORY ──────────────────────────────────────────────
+     The photographs are retired. For a year the sky was a plate per room —
+     ember, veil, giant, rose, orb — each positioned by measurement so its
+     dark limb sat under the text. The owner's velvet reference replaces
+     atmosphere-by-photograph with atmosphere-by-absence: one soft olive
+     bloom in the dark, as if the observatory's lamp is lit somewhere behind
+     you. It cannot collide with a paragraph, because there is nothing in it
+     to collide; the plates stay in the tree (assets/img/sky/) for the day a
+     room wants a window again.
 
-     THE PICTURE IS A TOKEN, so swapping it is one line here rather than a
-     hunt through the stylesheet. It ships pointing at the plate already in
-     the tree; a different sky changes this value and nothing else.
-
-     THE PANE IS SMOKED, NOT CLEAR, and that is the load-bearing decision.
-     Clear glass only works over a picture that is mostly dark with small
-     bright objects — measured on the solar plate, the worst patch behind a
-     paragraph came out at 1.46:1 against pale ink. A dark tint gives the
-     type a floor no matter what the picture does, which means the hub
-     survives having its sky changed by somebody who is not measuring. */
-  /* A PLANET PER ROOM. Five screens, five pictures. Set per screen in
-     relief.css; this is the one the hub falls back to. */
-  --sky-image: url('/assets/img/sky/ember.webp');
-  /* NATURAL SIZE, PINNED LEFT, AND THE NUMBER IS MEASURED RATHER THAN LIKED.
-     `cover` scales a portrait plate ~2.4x to fill a landscape window, and at
-     that magnification there is nothing in frame but subject — every crop of
-     every one of these failed. At its own size the picture is a body in the
-     room with black around it, and -14% puts its dark limb under the letter.
-     Swept six positions across all four plates: this one passes on all four
-     (10.5 / 9.1 / 12.2 / 16.4 : 1) and shows the most of each. */
-  --sky-pos: -14% 50%;
-  --sky-size: auto;
-  /* The pane: a dark tint over a real blur. Both are needed — the blur alone
-     spreads a bright object rather than removing it. */
-  --pane: linear-gradient(158deg, rgba(24,22,28,.66), rgba(19,17,23,.76) 52%, rgba(13,12,17,.82));
-  --pane-blur: blur(30px) saturate(135%);
+     THE SKY IS STILL A TOKEN — a gradient is a background-image like any
+     url(), so the whole mechanism (the shell ::before, the fixed layer, the
+     reduced-motion swap) survives unchanged. Only the picture changed. */
+  --sky-image: radial-gradient(52% 38% at 50% 30%, #3b3a2c 0%, #23241c 45%, rgba(10,11,8,0) 78%);
+  --sky-pos: 50% 0;
+  --sky-size: 100% 100%;
+  /* The pane: velvet glass — graphite lit from above. Over a bloom there is
+     nothing for a heavy blur to remove, so the tint and the top-light do the
+     whole job and the blur relaxes. */
+  --pane: linear-gradient(168deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 38%, rgba(255,255,255,0) 100%), rgba(24,25,21,.80);
+  --pane-blur: blur(18px) saturate(120%);
   --pane-rim:
-    inset 0 0 0 1.3px rgba(255,255,255,.14),
-    inset 0 1px 0 rgba(255,255,255,.26),
+    inset 0 0 0 1px rgba(255,255,255,.13),
+    inset 0 1px 0 rgba(255,255,255,.18),
     inset 0 -1px 0 rgba(0,0,0,.35),
-    0 24px 70px rgba(0,0,0,.5);
+    0 30px 60px rgba(0,0,0,.45);
   /* Chrome is a lighter material than the panes it floats over — §12's rule
      that a light translucent surface never stacks on another one. */
-  --chrome: rgba(0,0,0,.62);
+  --chrome: rgba(10,11,8,.66);
   --chrome-blur: blur(14px) saturate(140%);
   /* Type on glass wants to be a step brighter than type on paper. */
-  --on-pane: #f2eef4;
-  --on-pane-soft: rgba(255,255,255,.72);
+  --on-pane: #f3efe7;                       /* one ivory, pane and paper alike */
+  --on-pane-soft: rgba(243,239,231,.76);
   /* ── Grounds. Soft charcoal, never pure black. ── */
-  --ground: #000000;
-  --paper:  #000000;
-  --card:   #333039;
-  --wash:   #302d35;
+  /* Soft near-black with green in it — the velvet, not the void of space.
+     The card literal is the glass composited over the ground, kept solid
+     here because opaque surfaces still read it. */
+  --ground: #0a0b08;
+  --paper:  #0a0b08;
+  --card:   #23241f;
+  --wash:   #24251f;
   --media-bg: #000000;
 
   /* ── THE RAIL FOLLOWS THE ROOM. THE ORANGE DOES NOT. ──────────────────────
@@ -916,9 +909,9 @@
 
      White on the orange lamp is 4.7:1 and the lamp is unchanged, so its label
      and its subtitle both keep working with no override anywhere. */
-  --rail-well: #000000;
-  --rail-well-shadow: inset -1px 0 0 #3a3640;
-  --lens-face: linear-gradient(180deg, #3a3640 0%, #333039 52%, #2c2a32 100%);
+  --rail-well: #0a0b08;
+  --rail-well-shadow: inset -1px 0 0 #33342c;
+  --lens-face: linear-gradient(168deg, rgba(255,255,255,.11) 0%, rgba(255,255,255,.04) 45%, rgba(255,255,255,.02) 100%), rgba(30,31,27,.85);
   --lens: inset 0 0 0 1.5px rgba(255,255,255,.07),
           inset 0 0 0 4px rgba(184,147,85,.10),
           inset 0 8px 12px -8px rgba(0,0,0,.45),
@@ -934,20 +927,22 @@
   --ink:      #f3efe7;   /* 12.4:1 */
   --ink-soft: #e6e1d8;   /* 10.7:1 */
   --muted:    #b9b2a8;   /*  6.7:1 — descriptions */
-  --faint:    #918c87;   /*  3.9:1 — labels and metadata ONLY */
-  --line:     #4e4952;
-  --line-2:   #5b555e;
+  --faint:    #9d9892;   /* 4.6:1 on the velvet faces — the night hub's floor finally clears AA; labels and metadata ONLY all the same */
+  --line:     #3f4038;
+  --line-2:   #4b4c43;
 
   /* ── Faces. Same construction, lit from above, in charcoal. ── */
-  --face:      linear-gradient(180deg, #39353f 0%, #343039 52%, #2e2b34 100%);
-  --face-2:    linear-gradient(180deg, #3b3742 0%, #35313b 48%, #2f2c35 100%);
-  --face-tall: linear-gradient(180deg, #39353f 0%, #39353f calc(100% - min(96px, 40%)), #2e2b34 100%);
-  --face-key:  linear-gradient(180deg, #3a3640 0%, #343039 52%, #2d2a33 100%);
-  --well:      linear-gradient(180deg, #232128 0%, #292731 58%, #302d37 100%);
+  --face:      linear-gradient(168deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.045) 40%, rgba(255,255,255,.02) 100%), rgba(30,31,27,.72);
+  --face-2:    linear-gradient(168deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.04) 42%, rgba(255,255,255,.02) 100%), rgba(32,33,28,.74);
+  --face-tall: linear-gradient(168deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.05) 45%, rgba(255,255,255,.02) 100%), rgba(29,30,26,.74);
+  --face-key:  linear-gradient(168deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.05) 45%, rgba(255,255,255,.02) 100%), rgba(33,34,29,.78);
+  --well:      linear-gradient(180deg, #14150f 0%, #191a14 58%, #1e1f18 100%);
 
   /* ── The rim, inverted: the bright edge is the one doing the work now. ── */
-  --rim:        inset 0 0 0 1px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.055), inset 0 -1px 0 rgba(0,0,0,.30);
-  --rim-strong: inset 0 0 0 1px rgba(0,0,0,.42), inset 0 1.5px 0 rgba(255,255,255,.07), inset 0 -1.5px 0 rgba(0,0,0,.36);
+  /* the velvet rim: a hairline of light and a lit top edge — the reference's
+     cards are edged by light, not by darkness. */
+  --rim:        inset 0 0 0 1px rgba(255,255,255,.10), inset 0 1px 0 rgba(255,255,255,.15), inset 0 -1px 0 rgba(0,0,0,.32);
+  --rim-strong: inset 0 0 0 1px rgba(255,255,255,.13), inset 0 1.5px 0 rgba(255,255,255,.19), inset 0 -1.5px 0 rgba(0,0,0,.36);
 
   /* ── The five depths. Same geometry, deeper shadow. ── */
   --e1: var(--rim),        0 1px 1px rgba(0,0,0,.22), 0 2px 4px rgba(0,0,0,.24), 0 6px 13px rgba(0,0,0,.30);
@@ -976,7 +971,7 @@
        media bar — so it stays white for all of them. ── */
   --accent:      #8b6a42;
   --accent-ink:  #c9a468;   /* 6.4:1 on the ground above */
-  --accent-soft: #35302c;   /* a wash on a night ground is dark, not near-white */
+  --accent-soft: #322f26;   /* a wash on a night ground is dark, not near-white */
   --accent-line: #6b5730;
   --focus-ring: 0 0 0 3px rgba(184,147,85,.34);
 

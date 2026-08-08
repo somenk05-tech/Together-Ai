@@ -1919,26 +1919,13 @@ textarea.g-field { resize: none; line-height: 1.55; }
   content: ''; position: fixed; inset: 0; z-index: -2;
   background: var(--sky-image) var(--sky-pos) / var(--sky-size) no-repeat;
   background-color: var(--ground);
-  /* THE PICTURE HAS TO STOP WITHOUT AN EDGE. At its own size it simply ends,
-     and a hard vertical line down the page is the join a room must not have.
-     The mask fades it into the ground — and because the ground is true black
-     and the plate's own margins are black, there is nothing for the fade to
-     disagree with. That is why this hub is #000 and not the charcoal: at
-     #26242a the plate reads as a darker rectangle ON a lighter page. */
-  -webkit-mask-image: linear-gradient(270deg, transparent 0%, rgba(0,0,0,.35) 22%, #000 56%);
-  mask-image: linear-gradient(270deg, transparent 0%, rgba(0,0,0,.35) 22%, #000 56%);
+  /* No mask any more. The mask existed to fade a PHOTOGRAPH's hard right
+     edge into the ground; the velvet bloom is a gradient that ends by
+     itself, and half-erasing a centred glow just moves its centre. */
 }
-/* A room per screen. Profile shares Today's. */
-[data-sky="month"]   { --sky-image: url('/assets/img/sky/veil.webp'); }
-[data-sky="ask"]     { --sky-image: url('/assets/img/sky/giant.webp'); }
-[data-sky="tarot"]   { --sky-image: url('/assets/img/sky/rose.webp'); }
-/* Profile carries its own position as well as its own picture. At the shared
-   -14% this plate's subject lands behind the 280px rail and the page shows a
-   starfield with no planet in it — the picture was there and invisible, which
-   is the same failure the video had for a different reason. 38% clears the
-   rail and still measures 9.3:1 behind the form; 55% shows no more of it and
-   drops to 4.5:1. */
-[data-sky="profile"] { --sky-image: url('/assets/img/sky/orb.webp'); --sky-pos: 38% 50%; }
+/* ONE BLOOM FOR EVERY ROOM. The room-per-screen plates retired with the
+   photographs (see the token block) — the lamp is the same lamp wherever
+   you stand, which is true of observatories. */
 /* The shells stop painting their own ground, or the picture is behind an
    opaque page and nobody ever sees it. */
 [data-hub="astrology"] .tc-shell,
