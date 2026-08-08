@@ -396,7 +396,7 @@ export function Profile() {
                 <h3>Official observations</h3>
                 <div style={{ marginTop: 8 }}>
                   {data.sections.map((sec) => (
-                    <div key={sec.key} className="row">
+                    <div key={sec.key} className="oline">
                       <span>{sec.label}</span>
                       <span style={{ color: sec.value ? 'var(--ink)' : 'var(--muted)' }}>
                         <ValueOrEmpty value={sec.value} label={sec.label} />

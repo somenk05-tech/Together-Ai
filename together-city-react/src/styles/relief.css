@@ -2358,9 +2358,18 @@ textarea.g-field { resize: none; line-height: 1.55; }
 /* ── THE OBSERVATIONS PAGE ──────────────────────────────────────────────── */
 .pobs { border-radius: var(--r-2); background: var(--card); box-shadow: var(--e1); padding: 4px 18px 14px; }
 .pobs h3 { margin: 14px 0 0; font-size: 9.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--faint); }
-.pobs .row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 13px; }
-.pobs .row:first-of-type { border-top: 0; }
-.pobs .row > span:first-child { color: var(--muted); font-size: 12.5px; }
+/* `.oline`, NOT `.row`. This is the second time a component here has reached
+   for a name index.css already owns — `.tag` was the first, and it drew a
+   white capsule around every listing name on the Real Estate arc. `.row` is
+   a global LIST ROW: a lit face, a rim, a radius, a shadow and a hover lift.
+   Scoping `.pobs .row` overrode the layout and inherited all the material, so
+   twelve read-only observations rendered as twelve pressable pills.
+
+   `src/app/no-borrowed-class-names.test.ts` is the guard. */
+.pobs .oline { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 11px 2px; border-top: 1px solid var(--line); font-size: 13px; }
+.pobs .oline:first-of-type { border-top: 0; }
+.pobs .oline > span:first-child { color: var(--muted); font-size: 12.5px; flex: none; }
+.pobs .oline > span:last-child { text-align: right; }
 
 @media (prefers-reduced-motion: reduce) {
   .pvisa, .pvisa:hover, .pvisa:active { transition: none; transform: none; }
