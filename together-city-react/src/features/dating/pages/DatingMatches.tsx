@@ -70,6 +70,87 @@ function MatchGallery({ photos, name, age, theirSign, yourSign, score, href }: {
   );
 }
 
+/**
+ * THE MATCH STACK.
+ *
+ * Owner's reference: one card face-up with the photograph, the rest showing
+ * only their foot. The foot is what makes it a list rather than a pile — name,
+ * one line, one action — so the deck can be read without opening anything.
+ *
+ * TAPPING A BURIED FOOT BRINGS THAT PERSON FORWARD; tapping the PHOTOGRAPH
+ * opens the whole profile. Two different targets on one card, which is the
+ * only part of this that needs saying out loud: the picture is a link, the
+ * foot is a control.
+ *
+ * BELOW THREE IT DOES NOT FAN. A stack of two is a pile of two things
+ * pretending to be a deck, and this hub's promise is that the page is not
+ * busy. Under the threshold they render as ordinary cards side by side.
+ */
+const STACK_MAX = 6;
+const STACK_FANS_AT = 3;
+
+function MatchStack({ people, kind }: { people: CuratedMatch[]; kind: MatchKind }) {
+  const [front, setFront] = useState(0);
+  const shown = people.slice(0, STACK_MAX);
+  const fans = shown.length >= STACK_FANS_AT;
+  // The order the deck is drawn in: whoever is at the front comes first, and
+  // everybody else keeps their ranking behind them. Re-ordering the array
+  // rather than juggling z-index means the DOM order and the visual order are
+  // the same thing, which is what keyboard and screen-reader users get.
+  const order = fans
+    ? [shown[front], ...shown.filter((_, i) => i !== front)]
+    : shown;
+
+  return (
+    <div className={`mstack${fans ? '' : ' mflat'}`}
+      style={fans ? { height: `calc(${(380 * 4) / 3}px + ${(shown.length - 1) * 62}px)` } : undefined}>
+      {order.map((m, row) => {
+        const isTop = row === 0;
+        const photo = m.photos?.[0];
+        const href = `/dating/match?u=${m.user.id}&kind=${kind}`;
+        const label = `${m.user.name}${m.age ? `, ${m.age}` : ''}`;
+        return (
+          <article key={m.user.id} className="mcard"
+            style={{ ['--mrow' as string]: row, transform: fans ? `translateY(${row * 62}px)` : undefined }}>
+            {isTop && (
+              <>
+                <span className="mpct">◈ {m.score}%</span>
+                <div className="mtop">
+                  <span className="mbadge">★ {bandFor(m.score).name}</span>
+                  <p className="mwho">{label}</p>
+                </div>
+              </>
+            )}
+            {/* THE PICTURE IS THE LINK. A whole card that navigates would make
+                the foot's own button a button inside a link. */}
+            <Link to={href} aria-label={`Open ${m.user.name}'s profile`} style={{ display: 'block' }}>
+              {photo
+                ? <img className="mshot" src={photo} alt="" loading="lazy" />
+                : <span className="mshot" style={{ display: 'grid', placeItems: 'center', background: 'var(--accent-soft)',
+                    color: 'var(--accent-ink)', fontSize: 54, fontFamily: 'var(--serif)' }}>{m.user.name.slice(0, 1)}</span>}
+            </Link>
+            <div className="mfoot">
+              {photo
+                ? <img className="mav" src={photo} alt="" loading="lazy" />
+                : <span className="tc-avatar mav" aria-hidden>{m.user.name.slice(0, 1)}</span>}
+              <span className="mname">
+                <b>{label}</b>
+                <i>{m.theirSign} · {m.score}% match</i>
+              </span>
+              {isTop
+                ? <Link to={href} className="mgo on">Say hello</Link>
+                : <button type="button" className="mgo"
+                    onClick={() => setFront(shown.findIndex((x) => x.user.id === m.user.id))}>
+                    Connect
+                  </button>}
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
 function MatchCard({ match, kind }: { match: CuratedMatch; kind: MatchKind }) {
   const like = useLikeMatch(kind);
   const pass = usePassMatch(kind);
@@ -422,7 +503,7 @@ export function DatingMatches() {
       <div className="eyebrow">Dating Hub</div>
       <h1 style={{ fontSize: 26 }}>Curated Matches</h1>
       <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 14px' }}>
-        Curated, not endless — you meet your single strongest match, not an endless list. Below is how your whole match pool breaks down by compatibility.
+        Curated, not endless — a handful of people who actually fit, strongest first, instead of a deck to swipe through. Below is how your whole match pool breaks down by compatibility.
       </p>
 
       <UndoAndAllowance kind={kind} />
@@ -470,14 +551,19 @@ export function DatingMatches() {
         <EngagedPanel chat={activeChat} openChats={openChats} cap={chatCap} />
       ) : top ? (
         <>
-          {/* Top match first */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 12px', flexWrap: 'wrap' }}>
-            <h2 style={{ fontSize: 18, margin: 0 }}>Your top match</h2>
+          {/* THE STACK, NOT ONE CARD. The page used to render `top` and throw
+              the rest of a server-ranked list away; then it rendered top plus a
+              long column. This is the owner's reference: this week's six as a
+              deck, strongest face-up, everybody else readable at their foot. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 14px', flexWrap: 'wrap' }}>
+            <h2 style={{ fontSize: 18, margin: 0 }}>
+              {[top, ...rest].slice(0, STACK_MAX).length === 1 ? 'Your match' : "This week's people"}
+            </h2>
             <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--accent-soft)', color: 'var(--accent-ink)', borderRadius: 999, padding: '3px 11px' }}>
               {bandFor(top.score).name} · {top.score}%
             </span>
           </div>
-          <MatchCard match={top} kind={kind} />
+          <MatchStack people={[top, ...rest]} kind={kind} />
 
           {/* HOW THIS LIST WAS ORDERED (H2).
               Recommendations follow what you pick now, so the percentage is
@@ -501,12 +587,15 @@ export function DatingMatches() {
 
           {/* Everyone else, grouped by the same categories the pool is counted
               in, each group best-first, each card carrying its own percentage. */}
-          {rest.length > 0 && (
+          {/* MINUS THE ONES ALREADY IN THE DECK. The stack shows the top six;
+              listing them again below under "Everyone else" would be the same
+              faces twice on one page. */}
+          {rest.slice(STACK_MAX - 1).length > 0 && (
             <section style={{ marginTop: 26 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '0 0 6px', flexWrap: 'wrap' }}>
                 <h2 style={{ fontSize: 18, margin: 0 }}>Everyone else</h2>
                 <span className="muted" style={{ fontSize: 12 }}>
-                  {rest.length} more {rest.length === 1 ? 'person' : 'people'}
+                  {rest.slice(STACK_MAX - 1).length} more {rest.slice(STACK_MAX - 1).length === 1 ? 'person' : 'people'}
                 </span>
               </div>
               <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '0 0 18px' }}>
@@ -514,7 +603,7 @@ export function DatingMatches() {
                 compatibility. The percentage is our reading of the two of you — a starting
                 point, not a verdict — and who you reach out to is your call.
               </p>
-              {byCategory(rest).map((group) => (
+              {byCategory(rest.slice(STACK_MAX - 1)).map((group) => (
                 <section key={group.label} style={{ marginBottom: 22 }}>
                   <div style={{
                     display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
