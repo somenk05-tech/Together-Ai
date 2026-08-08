@@ -1,71 +1,91 @@
 import { Link } from 'react-router-dom';
-import { Button, EmptyState, Spinner } from '@/components/ui';
+import { EmptyState, Spinner } from '@/components/ui';
 import { useUnderConstruction, priceLabel, bhkLabel, type PropertyDetail } from '../api';
+import { Masthead } from '../components/Masthead';
 
-function ProjectCard({ p }: { p: PropertyDetail }) {
+/**
+ * NOT THE ARC, AND ON PURPOSE.
+ *
+ * Explore is browsing: you are looking at photographs and one of them stops
+ * you. This page is not that. A person on it is COMPARING — this project is
+ * 40% built and hands over in 2027, that one is 80% and hands over next
+ * spring — and comparison is reading, which wants rows that line up, not
+ * cards on a curve at four different heights.
+ *
+ * So it takes the other half of the reference: the masthead, the small tracked
+ * label scale, and everything set as a ruled index. What it does NOT take is
+ * the arc, because copying the gesture onto a page that needs a table would be
+ * mistaking the reference's look for its argument.
+ *
+ * PROGRESS IS A HAIRLINE. It was a 8px amber bar on every row, and on an index
+ * of twelve projects twelve fat amber bars are the loudest thing on the page —
+ * while the thing you actually compare is the number beside them.
+ */
+function Project({ p, n }: { p: PropertyDetail; n: number }) {
+  const to = `/realestate/property/${p.id}`;
   return (
-    <article className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
-      <div style={{ display: 'flex', gap: 0, flexWrap: 'wrap' }}>
-        <Link to={`/realestate/property/${p.id}`} style={{ width: 220, flexShrink: 0, position: 'relative' }}>
-          <div style={{ aspectRatio: '4 / 3', background: 'var(--line)' }}>
-            {p.coverPhoto && <img src={p.coverPhoto} alt={p.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-          </div>
-          <span style={{ position: 'absolute', top: 10, left: 10, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--on-accent)', background: 'var(--warn-ink)', borderRadius: 999, padding: '3px 9px' }}>Under construction</span>
-        </Link>
-        <div style={{ flex: 1, minWidth: 240, padding: '14px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <strong style={{ fontSize: 16 }}>{p.projectName ?? p.title}</strong>
-            {p.postedByYou && <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent-ink)', border: '1px solid var(--accent)', borderRadius: 999, padding: '1px 6px' }}>Yours</span>}
-          </div>
-          <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
-            {p.developer ? `${p.developer} · ` : ''}{bhkLabel(p)} · {p.areaSqft.toLocaleString('en-IN')} sqft · {p.locality}, {p.city}
-          </div>
-          <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap', fontSize: 12.5 }}>
-            <div><span className="muted">Price </span><strong>{priceLabel(p.priceInr, p.listingType)}</strong></div>
-            <div><span className="muted">Possession </span><strong>{p.possessionDate}</strong></div>
-            {p.reraId && <div><span className="muted">RERA </span><strong style={{ fontSize: 11.5 }}>{p.reraId}</strong></div>}
-          </div>
-
-          <div style={{ marginTop: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 3 }}>
-              <span className="muted">Construction progress</span><strong>{p.progressPct}%</strong>
-            </div>
-            <div style={{ height: 8, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${p.progressPct}%`, background: 'var(--warn-ink)' }} />
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-            <span className="muted" style={{ fontSize: 11.5 }}>📐 {p.floorPlans.length} floor plan{p.floorPlans.length === 1 ? '' : 's'}</span>
-            <span className="muted" style={{ fontSize: 11.5 }}>· 🧱 {p.milestones.length} milestones</span>
-          </div>
-          <div style={{ marginTop: 10 }}><Link to={`/realestate/property/${p.id}`}><Button variant="accent" size="sm">View plans & milestones →</Button></Link></div>
-        </div>
+    <li className="erow">
+      <span className="eno">{String(n).padStart(2, '0')}</span>
+      <Link to={to} aria-label={p.projectName ?? p.title}>
+        {p.coverPhoto
+          ? <img className="ethumb" src={p.coverPhoto} alt="" />
+          : <span className="ethumb" style={{ display: 'block' }} />}
+      </Link>
+      <div>
+        <h3 className="etitle">
+          <Link to={to} style={{ color: 'inherit', textDecoration: 'none' }}>{p.projectName ?? p.title}</Link>
+          {p.postedByYou && <span className="muted" style={{ fontSize: 11, fontWeight: 400 }}> · yours</span>}
+        </h3>
+        <p className="esub">
+          {p.developer ? `${p.developer} · ` : ''}{bhkLabel(p)} · {p.areaSqft.toLocaleString('en-IN')} sqft · {p.locality}, {p.city}
+          {p.reraId ? ` · RERA ${p.reraId}` : ''}
+        </p>
+        <p className="esub">
+          {p.floorPlans.length} floor plan{p.floorPlans.length === 1 ? '' : 's'} ·{' '}
+          {p.milestones.length} milestone{p.milestones.length === 1 ? '' : 's'} ·{' '}
+          <Link to={to} style={{ fontWeight: 700 }}>Plans &amp; milestones →</Link>
+        </p>
       </div>
-    </article>
+      <div className="eside">
+        <strong>{priceLabel(p.priceInr, p.listingType)}</strong>
+        <span className="muted">Possession {p.possessionDate ?? '—'}</span>
+        <div className="ehair"><i style={{ width: `${p.progressPct ?? 0}%` }} /></div>
+        <span className="muted" style={{ fontSize: 11 }}>{p.progressPct ?? 0}% built</span>
+      </div>
+    </li>
   );
 }
 
-/** Under Construction — its own tab: projects with progress, RERA, plans and milestones. */
+/** Under Construction — projects with progress, RERA, plans and milestones. */
 export function UnderConstruction() {
   const q = useUnderConstruction();
+  const items = q.data ?? [];
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div>
-          <div className="eyebrow">Real Estate · Under Construction</div>
-          <h1 style={{ fontSize: 26, margin: 0 }}>New & under-construction projects</h1>
-        </div>
-        <Link to="/realestate" style={{ marginLeft: 'auto' }}><Button variant="line" size="sm">← Ready homes</Button></Link>
-      </div>
-      <p className="muted" style={{ fontSize: 13.5, margin: '8px 0 16px' }}>
-        Pre-launch and in-progress homes — each with RERA registration, a live build-progress tracker, floor plans and a payment/construction milestone schedule.
-      </p>
+      <Masthead mark={['Under', 'Construction']} title="Homes that do not exist yet"
+        nav={[
+          { label: 'Ready homes', to: '/realestate/explore' },
+          { label: 'List a property', to: '/realestate/sell' },
+          { label: 'My listings', to: '/realestate/mine' },
+        ]}>
+        Pre-launch and in-progress projects, each with its RERA registration, a
+        live build-progress tracker, floor plans, and the payment and
+        construction milestones you are agreeing to.
+      </Masthead>
 
-      {q.isLoading ? <Spinner label="Loading projects…" />
-        : q.isError ? <EmptyState title="Couldn't load projects" hint="Please check your connection and try again." />
-        : (q.data ?? []).length === 0 ? <EmptyState icon="🏗" title="No under-construction projects yet" hint="Post one from “Post a property”." />
-        : q.data?.map((p) => <ProjectCard key={p.id} p={p} />)}
+      <div style={{ marginTop: 28 }}>
+        {q.isLoading ? <Spinner label="Loading projects…" />
+          : q.isError ? <EmptyState title="Couldn’t load projects" hint="Please check your connection and try again." />
+          : items.length === 0 ? <p className="eempty">No under-construction projects yet. Post one from List a property.</p>
+          : <ol className="eindex">{items.map((p, i) => <Project key={p.id} p={p} n={i + 1} />)}</ol>}
+      </div>
+
+      {items.length > 0 && (
+        <div className="efoot">
+          <span>{items.length} project{items.length === 1 ? '' : 's'} tracking</span>
+          <span>RERA-registered</span>
+        </div>
+      )}
     </div>
   );
 }

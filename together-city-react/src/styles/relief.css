@@ -2000,3 +2000,179 @@ textarea.g-field { resize: none; line-height: 1.55; }
   }
   .tc-shell:has(.tc-side[data-side="astrology"])::before { background-image: none; }
 }
+
+/* ══ THE EDITORIAL PLATE ══════════════════════════════════════════════════
+   Real Estate's whole hub, drawn on one argument taken from the reference:
+   the page opens with a WORDMARK and sixty words, keeps its middle empty,
+   and puts everything you can click in one band along the foot.
+
+   NO GROUND IS RE-POINTED HERE, and that is deliberate rather than an
+   omission. Real Estate is not one of the five hubs relief.spec grants a
+   ground to, and it does not need to be: the reference's effect is
+   composition and type size. A hub that wants an editorial LAYOUT is not
+   asking for the thing a granted ground gives you, and spending the sixth
+   grant on a layout would be spending it on nothing.
+
+   Every one of these classes is prefixed `e`. The first pass used `.tag`
+   for a listing name and inherited the global pill from two stylesheets at
+   once — a white capsule around every name, on a page whose entire point is
+   that nothing is decorated. */
+
+/* THE EMPTINESS IS MEASURED FROM THE VIEWPORT, NOT FROM THE PLATE.
+   The first version pinned the plate to `100dvh - header`, which is wrong by
+   however tall the breadcrumb row happens to be — and it was, so the foot line
+   fell below the fold on the page whose whole point is that you can see the
+   whole page. A gap of 30vh needs to know nothing about the chrome above it. */
+.eplate { display: flex; flex-direction: column; }
+.egap { flex: 1 1 auto; min-height: 30vh; }
+
+/* The masthead. Three columns: the mark, what the page is, where else to go.
+   It collapses to one column early — at tablet width the standfirst is
+   already down to four words a line, which is not a paragraph any more. */
+.emast { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(230px, 330px) auto; gap: 40px; align-items: start; padding-top: 10px; }
+.ewordmark { margin: 0; line-height: 1; font-weight: 700; letter-spacing: -.035em; font-size: clamp(24px, 3vw, 36px); }
+.ewordmark sup { font-size: .36em; font-weight: 600; letter-spacing: 0; vertical-align: super; color: var(--muted); }
+.estand { margin: 6px 0 0; font-size: 11.5px; line-height: 1.65; color: var(--muted); }
+.estand b { display: block; margin-bottom: 3px; font-size: 12px; font-weight: 700; color: var(--ink); }
+.enav { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.enav a, .enav button {
+  border: 0; padding: 0; background: none; cursor: pointer; font-family: inherit;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--faint); text-decoration: none;
+  transition: color var(--dur-fast) var(--ease);
+}
+.enav a.on, .enav button.on { color: var(--ink); }
+@media (max-width: 900px) {
+  .emast { grid-template-columns: 1fr; gap: 14px; }
+  .enav { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 14px; }
+  .eplate { min-height: 0; }
+  .egap { min-height: 24px; }
+}
+
+/* The foot line: what you are looking at, and what to do with it. */
+.efoot { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; padding-top: 28px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+
+/* ── THE ARC ──────────────────────────────────────────────────────────────
+   A horizontal SCROLL, not a carousel: no arrows, no dots, no autoplay.
+   Cards on a shallow curve, tallest at the middle, receding at both ends.
+
+   overflow-x: auto computes the OTHER axis to auto as well — a scroll
+   container cannot honour overflow-y: visible — and it clips at the padding
+   box. So the name above each card and the price below it live inside the
+   arc's own padding. They are not overflow; there is no such thing here. */
+/* THE SCROLLER BLEEDS INTO THE GUTTER, AND THE FADE LIVES THERE.
+   A mask that starts at the scroller's own left edge fades the FIRST card
+   permanently — it can never scroll out of the ramp, so its price is
+   unreadable at rest and there is no gesture that fixes it. Widening the
+   scroller by exactly one gutter on each side and fading exactly that much
+   puts the ramp OUTSIDE the text column: the first and last cards sit flush
+   with the masthead above them at full strength, and only cards genuinely
+   travelling off the edge are faded. */
+.earc { display: flex; align-items: flex-end; gap: 14px; overflow-x: auto;
+  padding: 30px var(--page-gutter); margin-inline: calc(var(--page-gutter) * -1);
+  scrollbar-width: none; scroll-snap-type: x proximity; }
+.earc::-webkit-scrollbar { display: none; }
+.elot { flex: none; position: relative; scroll-snap-align: center; text-align: left;
+  border: 0; padding: 0; background: none; cursor: pointer; font-family: inherit; color: inherit;
+  transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease); }
+.elot .eshot { display: block; object-fit: cover; border-radius: var(--r-1); box-shadow: var(--e2); background: var(--well); }
+/* A name may lean a little past its own card — the labels in the reference do
+   — but not far enough to reach the next one, so it is capped at the card plus
+   one gap and clipped. */
+.elot .ename { position: absolute; top: -22px; left: 0; display: flex; align-items: center; gap: 6px;
+  max-width: calc(100% + 14px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 10.5px; color: var(--muted); }
+.elot .ename::before { content: ''; width: 7px; height: 7px; border-radius: var(--r-full); border: 1px solid var(--line-2); }
+.elot .eprice { position: absolute; left: 0; bottom: -20px; font-size: 11px; font-weight: 700; color: var(--ink); }
+.elot .ewhere { position: absolute; right: 0; bottom: -20px; font-size: 11px; color: var(--faint); }
+/* THE FADE IS A PROPERTY OF THE EDGE, NOT OF THE LISTING.
+   It was four opacity classes assigned by position in the list, which meant
+   the first listing rendered at 34% while sitting fully on screen — and its
+   Connect control with it, an action you cannot read on an item you can see.
+   A mask on the scroller fades whatever is actually AT the edge and leaves
+   everything in the middle at full strength, which is what the reference
+   does. It also costs no JavaScript and nothing per frame. */
+.earc { -webkit-mask-image: var(--earc-fade); mask-image: var(--earc-fade); }
+.elot.eoff { opacity: .55; }
+@media (hover: hover) and (pointer: fine) { .elot:hover { transform: translateY(-6px); } }
+.elot:active { transform: translateY(1px); }
+/* UNDER THREE, THERE IS NO ARC. An arc is a shape made of number: one card on
+   a curve is a card sitting off-centre for no reason, and the edge-fade would
+   render the only listing you have at 34% opacity — the page hiding the thing
+   it exists to show. So below the threshold everything stands at full height
+   and full opacity, and the scroll hint goes away with the scroll. */
+/* Nothing to fade INTO when the row does not reach the edge. */
+.earc.efew { gap: 22px; -webkit-mask-image: none; mask-image: none; }
+.eempty { margin: 0; font-size: 12px; color: var(--muted); }
+
+/* ── THE INDEX ────────────────────────────────────────────────────────────
+   Under Construction and My Listings are not browsed on a curve — you
+   compare them, on progress and on status, which is reading and not looking.
+   So they get the other half of the reference: the same small tracked scale,
+   set as a ruled index with a number down the left. */
+.eindex { margin: 0; padding: 0; list-style: none; }
+.erow { display: grid; grid-template-columns: 34px 92px 1fr auto; gap: 18px; align-items: start;
+  padding: 18px 0; border-top: 1px solid var(--line); }
+.erow:last-child { border-bottom: 1px solid var(--line); }
+.erow .eno { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; color: var(--faint); padding-top: 2px; }
+.erow .ethumb { width: 92px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--r-1); background: var(--well); }
+.erow .etitle { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.3; }
+.erow .esub { margin: 3px 0 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.erow .eside { text-align: right; font-size: 12px; }
+.erow .eside strong { display: block; font-size: 15px; }
+.erow .eside > span { display: block; margin-top: 2px; }
+.erow .eside .ehair { margin-top: 8px; }
+@media (max-width: 760px) {
+  .erow { grid-template-columns: 26px 68px 1fr; gap: 12px; }
+  .erow .ethumb { width: 68px; }
+  .erow .eside { grid-column: 2 / -1; text-align: left; }
+}
+
+/* Progress as a hairline, not a coloured bar. On an index of twelve projects
+   twelve fat amber bars are the loudest thing on the page, and the thing you
+   came to compare is the NUMBER beside them. */
+.ehair { position: relative; height: 2px; margin-top: 8px; border-radius: var(--r-full); background: var(--line); overflow: hidden; }
+.ehair > i { display: block; height: 100%; background: var(--ink-soft); }
+
+/* ── THE RULED SECTION ────────────────────────────────────────────────────
+   A property is a document. Eight stacked cards is a stack of eight things
+   that all look equally important; a rule and a tracked label is the same
+   information with a reading order. */
+.esec { padding: 20px 0 0; margin-top: 20px; border-top: 1px solid var(--line); }
+.esec > h2 { margin: 0 0 10px; font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+.esec.equiet > h2 { color: var(--muted); }
+.efigure { display: flex; align-items: baseline; gap: 8px; }
+.efigure b { font-size: 28px; font-weight: 800; letter-spacing: -.02em; }
+
+@media (prefers-reduced-motion: reduce) {
+  .elot, .elot:hover, .elot:active { transition: none; transform: none; }
+}
+
+/* The find line. Not a pill with a magnifier in it — a rule you type on, the
+   way a masthead carries a search slot. It sits in the masthead's middle
+   column, under the standfirst, so the page's empty middle stays empty. */
+.efind { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; border-bottom: 1px solid var(--line); }
+/* The global field rule is `input:not([type=checkbox]):not([type=radio])
+   :not([type=range])`, which scores 0,3,1 — so a plain `.efind input` at
+   0,1,1 LOSES and the field kept its lit face, its rim and its radius. It
+   rendered as a pill sitting on a line. The three :not()s are repeated here
+   deliberately: matching the shape is the only honest way to outrank it, and
+   an !important would have hidden which rule was actually being fought. */
+.efind input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+  flex: 1; min-width: 0; border: 0; outline: none; padding: 5px 0;
+  background: none; box-shadow: none; border-radius: 0;
+  font-family: inherit; font-size: 12px; color: var(--ink); }
+.efind input::placeholder { color: var(--faint); }
+.efind button { border: 0; background: none; padding: 0; cursor: pointer; font-family: inherit;
+  font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+.efind:focus-within { border-bottom-color: var(--ink); }
+
+/* The listing's own line: a price, and the one thing you can do about it. A
+   classified ad has had this shape for two hundred years. */
+.elot .ego { position: absolute; right: 0; bottom: -20px; border: 0; background: none; padding: 0;
+  cursor: pointer; font-family: inherit; font-size: 11px; font-weight: 700; color: var(--accent-ink);
+  transition: opacity var(--dur-fast) var(--ease); }
+.elot .ego[disabled] { opacity: .5; cursor: default; }
+.elot .eerr { position: absolute; left: 0; bottom: -36px; font-size: 10.5px; font-weight: 600;
+  color: var(--danger-ink); white-space: nowrap; }

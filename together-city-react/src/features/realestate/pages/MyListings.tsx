@@ -1,72 +1,114 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useMyListings, useCloseProperty, type PropertyCard } from '../api';
-import { PropertyCardView } from '../components/PropertyCardView';
+import { EmptyState, Spinner } from '@/components/ui';
+import { useMyListings, useCloseProperty, priceLabel, bhkLabel, type PropertyCard } from '../api';
+import { Masthead } from '../components/Masthead';
 
-const MOD: Record<string, { label: string; bg: string; c: string }> = {
-  approved: { label: '● Live in Explore', bg: 'var(--ok-soft)', c: 'var(--ok-ink)' },
-  pending: { label: '◌ Pending review', bg: 'var(--warn-soft)', c: 'var(--warn-ink)' },
-  review: { label: '⏳ In manual review', bg: 'var(--warn-soft)', c: 'var(--warn-ink)' },
-  rejected: { label: '✕ Not published', bg: 'var(--danger-soft)', c: 'var(--danger-ink)' },
-  removed: { label: '◎ Closed by you', bg: 'var(--line)', c: 'var(--ink-soft)' },
+/**
+ * STATUS IS THE COLUMN YOU CAME FOR.
+ *
+ * This page answers one question — is my listing live? — and it used to answer
+ * it in a coloured slab UNDER each card, so the answer was the last thing you
+ * reached and there was no way to see four of them at once. As an index the
+ * status is a column, which is what a column is for.
+ *
+ * The tone stays in the ink and not in a filled block. A red panel and a green
+ * panel side by side is a page shouting two things; the same two words set in
+ * the status inks say it once.
+ */
+const MOD: Record<string, { label: string; ink: string }> = {
+  approved: { label: 'Live in Explore', ink: 'var(--ok-ink)' },
+  pending: { label: 'Pending review', ink: 'var(--warn-ink)' },
+  review: { label: 'In manual review', ink: 'var(--warn-ink)' },
+  rejected: { label: 'Not published', ink: 'var(--danger-ink)' },
+  removed: { label: 'Closed by you', ink: 'var(--muted)' },
 };
 
-/** A listing card with its moderation status, reasons, and owner actions. */
-function ListingWithStatus({ p }: { p: PropertyCard }) {
+function Row({ p, n }: { p: PropertyCard; n: number }) {
   const m = MOD[p.moderation] ?? MOD.approved;
   const close = useCloseProperty();
   const [confirm, setConfirm] = useState(false);
+  const to = `/realestate/property/${p.id}`;
+
   return (
-    <div>
-      <PropertyCardView p={p} />
-      <div style={{ marginTop: 6, background: m.bg, color: m.c, borderRadius: 10, padding: '8px 12px', fontSize: 12 }}>
-        <strong style={{ fontSize: 12 }}>{m.label}</strong>
+    <li className="erow">
+      <span className="eno">{String(n).padStart(2, '0')}</span>
+      <Link to={to} aria-label={p.title}>
+        {p.coverPhoto
+          ? <img className="ethumb" src={p.coverPhoto} alt="" />
+          : <span className="ethumb" style={{ display: 'block' }} />}
+      </Link>
+      <div>
+        <h3 className="etitle">
+          <Link to={to} style={{ color: 'inherit', textDecoration: 'none' }}>{p.title}</Link>
+        </h3>
+        <p className="esub">
+          {bhkLabel(p)} · {p.areaSqft.toLocaleString('en-IN')} sqft · {p.locality}, {p.city} · {p.photoCount} photo{p.photoCount === 1 ? '' : 's'}
+        </p>
+        {/* The reasons are the whole value of a rejection. They were four
+            bullets in a red box; they are the sentence that tells you what to
+            change, so they read as one. */}
         {p.moderation !== 'approved' && p.moderationReasons.length > 0 && (
-          <ul style={{ margin: '6px 0 0', paddingLeft: 16 }}>
-            {p.moderationReasons.slice(0, 4).map((r, i) => <li key={i} style={{ marginBottom: 2 }}>{r}</li>)}
-          </ul>
+          <p className="esub">{p.moderationReasons.slice(0, 4).join(' · ')}</p>
         )}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
-          {/* Edit & resubmit used to open a BLANK Sell form. It now opens the
-              listing itself, prefilled — including a closed one, to relist. */}
-          <Link to={`/realestate/edit/${p.id}`} style={{ color: m.c, fontWeight: 700 }}>
+        <p className="esub">
+          {/* Edit & resubmit opens the listing itself, prefilled — including a
+              closed one, to relist. It used to open a blank form. */}
+          <Link to={`/realestate/edit/${p.id}`} style={{ fontWeight: 700 }}>
             {p.moderation === 'rejected' ? 'Edit & resubmit →' : p.moderation === 'removed' ? 'Edit & relist →' : 'Edit →'}
           </Link>
           {p.moderation !== 'removed' && (
-            <button type="button" disabled={close.isPending}
-              onClick={() => (confirm ? close.mutate(p.id, { onError: () => setConfirm(false) }) : setConfirm(true))}
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: m.c, fontWeight: 700, fontSize: 12, fontFamily: 'inherit', textDecoration: 'underline' }}>
-              {close.isPending ? 'Closing…' : confirm ? 'Yes — close it' : 'Close (sold / withdrawn)'}
-            </button>
+            <>
+              {'  ·  '}
+              <button type="button" disabled={close.isPending}
+                onClick={() => (confirm ? close.mutate(p.id, { onError: () => setConfirm(false) }) : setConfirm(true))}
+                style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: confirm ? 'var(--danger-ink)' : 'var(--muted)' }}>
+                {close.isPending ? 'Closing…' : confirm ? 'Yes — close it' : 'Close (sold / withdrawn)'}
+              </button>
+            </>
           )}
-        </div>
+        </p>
       </div>
-    </div>
+      <div className="eside">
+        <strong>{priceLabel(p.priceInr, p.listingType)}</strong>
+        <span style={{ color: m.ink, fontWeight: 700 }}>{m.label}</span>
+      </div>
+    </li>
   );
 }
 
-/** My Listings — properties you've posted (ready + under-construction). */
+/** My Listings — the properties you have posted, and where each one stands. */
 export function MyListings() {
   const q = useMyListings();
+  const items = q.data ?? [];
+  const live = items.filter((p) => p.moderation === 'approved').length;
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div>
-          <div className="eyebrow">Real Estate · My Listings</div>
-          <h1 style={{ fontSize: 26, margin: 0 }}>Your properties</h1>
-        </div>
-        <Link to="/realestate/sell" style={{ marginLeft: 'auto' }}><Button variant="accent" size="sm">＋ List a property</Button></Link>
+      <Masthead mark={['Your', 'Listings']} title="Everything you have posted"
+        nav={[
+          { label: 'List a property', to: '/realestate/sell' },
+          { label: 'Explore', to: '/realestate/explore' },
+          { label: 'Under construction', to: '/realestate/under-construction' },
+        ]}>
+        Each one appears here the moment you submit it, with the review it is
+        waiting on and the reasons behind any decision. Edit a rejected listing
+        and it goes back through review; close one and it leaves Explore.
+      </Masthead>
+
+      <div style={{ marginTop: 28 }}>
+        {q.isLoading ? <Spinner label="Loading your listings…" />
+          : q.isError ? <EmptyState title="Couldn’t load your listings" hint="Please check your connection and try again." />
+          : items.length === 0 ? <p className="eempty">You haven’t posted anything yet. Start from List a property — it shows up here the moment you submit.</p>
+          : <ol className="eindex">{items.map((p, i) => <Row key={p.id} p={p} n={i + 1} />)}</ol>}
       </div>
 
-      {q.isLoading ? <Spinner label="Loading your listings…" />
-        : q.isError ? <EmptyState title="Couldn't load your listings" hint="Please check your connection and try again." />
-        : (q.data ?? []).length === 0 ? <EmptyState icon="🏡" title="You haven't posted anything yet" hint="Post a property from List a Property — it appears here the moment you submit, with its review status." />
-        : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16, marginTop: 16 }}>
-            {q.data?.map((p) => <ListingWithStatus key={p.id} p={p} />)}
-          </div>
-        )}
+      {items.length > 0 && (
+        <div className="efoot">
+          <span>{items.length} posted</span>
+          <span>{live} live in Explore</span>
+        </div>
+      )}
     </div>
   );
 }

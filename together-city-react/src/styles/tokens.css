@@ -379,6 +379,12 @@
 
   --sp-1: 6px; --sp-2: 10px; --sp-3: 16px; --sp-4: 24px; --sp-5: 36px; --sp-6: 52px; --sp-7: 76px;
 
+  /* The editorial arc's edge fade — a mask, so it fades whatever is at the
+     edge rather than whichever listing happens to be first in the list. */
+  --earc-fade: linear-gradient(90deg,
+    transparent 0, #000 var(--page-gutter),
+    #000 calc(100% - var(--page-gutter)), transparent 100%);
+
   --dur-fast: 130ms; --dur-base: 220ms; --dur-slow: 420ms;
   /* The entrance. 280ms, not the 600ms .rise shipped with: it is the
      most-used motion in the application and the UI budget is 300ms. */

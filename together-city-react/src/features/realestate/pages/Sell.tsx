@@ -1,6 +1,7 @@
 import { useMemo, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Hero, Tag } from '@/components/ui';
+import { Button, Tag } from '@/components/ui';
+import { Masthead } from '../components/Masthead';
 import { usePostProperty, type Photo, type PostPropertyInput } from '../api';
 import { PhotoCapture } from '../PhotoCapture';
 
@@ -219,15 +220,25 @@ export function Sell() {
 
   return (
     <div>
-      <Hero image="/assets/img/realestate-2.webp" eyebrow="Real Estate · 02" title="List Your Property"
-        sub="Houses, offices and shops — capture live photos, add accurate details, and list as many properties as you like." />
+      {/* THE MASTHEAD, AND NOTHING ELSE FROM THE REFERENCE.
+          Emptiness is the reference's argument and it is the wrong argument
+          for a form: the whole job here is to fill in eleven fields, and a
+          page that leaves its middle blank to make a point is a page that
+          makes you scroll to work. So this takes the masthead and the small
+          tracked scale, and the stepper below is untouched.
 
-      <div className="tabrow" style={{ marginBottom: 8 }}>
-        {(Object.keys(KIND_LABEL) as Kind[]).map((k) => (
-          <a key={k} href="#sell" className={kind === k ? 'on' : undefined}
-            onClick={(e) => { e.preventDefault(); switchKind(k); }}>{KIND_LABEL[k]}</a>
-        ))}
-      </div>
+          The property-type tabs move into the masthead's nav column, which is
+          where every other page in this hub now keeps its switches. */}
+      <Masthead mark={['List a Property']} title="Houses, offices and shops"
+        nav={(Object.keys(KIND_LABEL) as Kind[]).map((k) => ({
+          label: KIND_LABEL[k], onSelect: () => switchKind(k), on: kind === k,
+        }))}>
+        Capture live photos, add accurate details, and list as many properties
+        as you like. Everything you post is checked before it appears in
+        Explore, and you can see exactly why in My Listings.
+      </Masthead>
+
+      <div id="sell" />
 
       <div className="stepper" id="sell">
         {STEPS.map((s, i) => (

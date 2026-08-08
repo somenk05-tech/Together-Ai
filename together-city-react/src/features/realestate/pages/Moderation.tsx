@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { realestateApi, priceLabel } from '../api';
+import { Masthead } from '../components/Masthead';
 
 /** Moderator dashboard — the pending/review queue with AI reasons + confidence.
  *  Gated server-side by the MODERATION_ADMINS handle list (403 otherwise). */
@@ -18,9 +19,22 @@ export function Moderation() {
   const items = queue.data ?? [];
   return (
     <div>
-      <div className="eyebrow">Real Estate · Moderation</div>
-      <h1 style={{ fontSize: 26, marginBottom: 4 }}>Review queue</h1>
-      <p className="muted" style={{ fontSize: 13.5, marginBottom: 18 }}>Listings awaiting a decision — automated checks below each. Approve to publish, or reject with a reason.</p>
+      {/* MASTHEAD ONLY, AND DELIBERATELY NOTHING ELSE.
+          A moderator works this page dozens of times a day and every row is a
+          decision. Density is the feature here — thinning it out into ruled
+          sections with air between them would mean fewer listings per screen
+          for somebody paid in listings per screen. The reference's argument
+          does not apply to a tool. */}
+      <Masthead mark={['Review', 'Queue']} title={`${items.length} awaiting a decision`}
+        nav={[
+          { label: 'Explore', to: '/realestate/explore' },
+          { label: 'Under construction', to: '/realestate/under-construction' },
+        ]}>
+        Every listing here failed an automated check or was held for a human.
+        The checks are printed under each one. Approve to publish it into
+        Explore, or reject it with a reason the owner will see.
+      </Masthead>
+      <div style={{ height: 24 }} />
 
       {items.length === 0 ? (
         <EmptyState icon="✅" title="Queue is clear" hint="No listings are pending or in manual review." />

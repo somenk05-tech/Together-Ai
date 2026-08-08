@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useProperty, useUpdateProperty, useCloseProperty, type Photo, type PostPropertyInput } from '../api';
 import { PhotoCapture } from '../PhotoCapture';
+import { Masthead } from '../components/Masthead';
 
 /**
  * Edit Listing (audit C-4). The "Edit & resubmit" link used to open a BLANK
@@ -154,12 +155,18 @@ export function EditListing() {
 
   return (
     <div>
-      <Link to="/realestate/mine" style={{ fontSize: 12.5, color: 'var(--accent-ink)', fontWeight: 600 }}>← My Listings</Link>
-      <div className="eyebrow" style={{ marginTop: 12 }}>Real Estate · Edit listing</div>
-      <h1 style={{ fontSize: 26, margin: '0 0 6px' }}>{p.title}</h1>
-      <p className="muted" style={{ fontSize: 13, marginBottom: 8 }}>
-        Change anything below and save — the listing goes through the same automated check as a new one, and a clean edit is live again immediately.
-      </p>
+      {/* Masthead only — see the note in Sell.tsx. A form is not a page with
+          an empty middle. */}
+      <Masthead mark={['Edit', 'Listing']} title={p.title}
+        nav={[
+          { label: '← My listings', to: '/realestate/mine' },
+          { label: 'View it live', to: `/realestate/property/${p.id}` },
+        ]}>
+        Change anything below and save — the listing goes through the same
+        automated check as a new one, and a clean edit is live again
+        immediately.
+      </Masthead>
+      <div style={{ height: 20 }} />
       {p.moderation === 'removed' && (
         <div className="note" style={{ marginBottom: 12 }}>This listing is closed. Saving it relists it.</div>
       )}
