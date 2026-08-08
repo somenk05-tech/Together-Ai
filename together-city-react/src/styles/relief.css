@@ -2393,9 +2393,30 @@ textarea.g-field { resize: none; line-height: 1.55; }
 @media (max-width: 860px) { .cstage { grid-template-columns: 1fr; } }
 
 /* Inside the stage, the app's own text tones would be near-black on near-
-   black. These four are the stage's whole palette. */
+   black. These are the stage's whole palette. */
 .cstage .muted, .cstage .eyebrow { color: var(--on-stage-faint); }
 .cstage a { color: var(--on-stage); }
+
+/* ── A STAGE DOES NOT EXPORT ITS INK ──────────────────────────────────────
+   This shipped, reached production, and the owner found it in his own chat:
+   the "New chat" dialog listed four people whose names were invisible, and
+   every shared card in the thread had an unreadable title. Both paint their
+   own WHITE ground and both INHERIT colour — and the nearest ancestor setting
+   colour is `.cstage`, which sets it to near-white. Near-white on white is
+   1.05:1.
+
+   Nothing caught it. The typecheck passed, 417 tests passed, and the contrast
+   work done for this feature measured the stage's own text against the
+   stage's own grounds — it never looked at a surface sitting ON the stage
+   that brought a different one.
+
+   The rule is about grounds rather than about those two components: anything
+   in here that paints `--card` is bringing its own surface, and a surface
+   that brings its own ground has to bring its own ink. `.card` is the one
+   class in this application that always means "a white sheet", which is what
+   makes it safe to say once instead of component by component. */
+.cstage .card { color: var(--ink); }
+.cstage .card .muted, .cstage .card .eyebrow { color: var(--muted); }
 
 /* ── the list ─────────────────────────────────────────────────────────── */
 .cslist { display: flex; flex-direction: column; min-height: 0; overflow: hidden;

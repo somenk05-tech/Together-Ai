@@ -28,7 +28,13 @@ export function ShareCardView({ card, compact, clickable }: { card: ShareCard; c
   const shell: React.CSSProperties = {
     display: 'block', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden',
     background: 'var(--card)', width: compact ? '100%' : 280, maxWidth: '100%',
-    color: 'inherit', textDecoration: 'none', ...(asLink ? { cursor: 'pointer' } : null),
+    /* --ink, NOT inherit. The card paints its own white ground, so inheriting
+       meant it rendered in whatever ink surrounded it — which on the chat
+       stage is near-white, and the title of every shared film disappeared
+       into the card it was printed on. A surface that brings its own ground
+       brings its own ink; `inherit` was only ever correct here by luck,
+       because everywhere it had landed before was white too. */
+    color: 'var(--ink)', textDecoration: 'none', ...(asLink ? { cursor: 'pointer' } : null),
   };
   const body = (
     <>

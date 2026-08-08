@@ -87,8 +87,16 @@ describe('The namespaced blocks do not borrow a global class name', () => {
      *   muted  — the app-wide text tone, read by everything, not a material.
      *   blank  — defined nowhere globally; listed so a future index.css rule
      *            called .blank fails HERE rather than in a screenshot.
+     *   card   — the ONE case where scoping onto a global name is the point.
+     *            `.cstage .card` exists BECAUSE `.card` is the global white
+     *            sheet: the rule restores the city's ink on any card sitting
+     *            on the dark stage, which is a fix for inheritance rather
+     *            than a borrowed material. See
+     *            `a-stage-does-not-export-its-ink.test.ts`, which fails if
+     *            that rule disappears — so the two guards hold each other up
+     *            and neither can be quietly deleted.
      */
-    const ALLOWED = new Set(['muted', 'blank']);
+    const ALLOWED = new Set(['muted', 'blank', 'card']);
     const borrowed = scopedDescendants()
       .filter((d) => globals.has(d.child) && !ALLOWED.has(d.child))
       .map((d) => `.${d.block} .${d.child}`);
