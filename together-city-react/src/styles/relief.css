@@ -2702,3 +2702,141 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .cvside .cvctl { box-shadow: none; outline: 1.5px solid var(--stage-line); outline-offset: -1.5px; }
   .cvskills span { box-shadow: none; outline: 1.5px solid var(--stage-line); outline-offset: -1.5px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE MEDICAL ATMOSPHERE (`ma` prefix, and the [data-hub="medical"] shell)
+
+   Amber air, white steam, smoked glass — the owner's reference. The material
+   argument lives with the tokens in tokens.css; what this block adds is the
+   RULE OF THE TWO SURFACES:
+
+     glass is for what you GLANCE at   — the hero, a chip, a section link;
+     paper is for what you READ        — and a biomarker is a number somebody
+                                         may act on, so every .card in this
+                                         hub stays white and keeps its own
+                                         ink, floating ON the atmosphere
+                                         rather than dissolved into it.
+
+   The landing gets the theatrical plume (the hub's own SVG); the work pages
+   get --atmos-air, whose wisps are capped at .30 alpha so the regular pane
+   holds AA under them — measured, then written down as a computed test.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.mafield {
+  position: relative; overflow: hidden;
+  background: var(--atmos); background-color: var(--atmos-floor);
+  color: var(--on-atmos);
+  /* the landing owns its whole viewport — an atmosphere that ends in a white
+     void half-way down the screen is a poster, not weather */
+  min-height: calc(100vh - var(--header-h, 64px) - var(--safe-top, 0px));
+  display: grid; place-items: center;
+}
+.mafield .masteam { position: absolute; inset: 0; pointer-events: none; color: #fff; }
+.masteam svg { position: absolute; width: 100%; height: 100%; }
+.mashell { position: relative; max-width: 1100px; margin: 0 auto; padding: 84px var(--page-gutter) 96px; text-align: center; }
+
+.mapane {
+  background: var(--atmos-sheen), var(--atmos-pane);
+  border: 1.5px solid var(--atmos-line);
+  border-radius: var(--r-5);
+  box-shadow: var(--atmos-lip);
+  backdrop-filter: blur(28px) saturate(1.15);
+  -webkit-backdrop-filter: blur(28px) saturate(1.15);
+}
+
+.mahero { display: inline-block; max-width: 560px; padding: 50px 44px 44px; }
+.maeyebrow { margin: 0 0 18px; font-size: 10.5px; font-weight: 700; letter-spacing: .32em; text-transform: uppercase; color: var(--on-atmos-accent); }
+.mahero h1 { margin: 0; font-size: clamp(38px, 6vw, 56px); line-height: .98; font-weight: 800; letter-spacing: -.015em; text-transform: uppercase; color: var(--on-atmos); }
+.malede { margin: 18px auto 0; max-width: 34ch; font-size: 14.5px; line-height: 1.55; color: var(--on-atmos-soft); }
+.macta {
+  display: inline-block; margin-top: 26px; padding: 13px 34px;
+  border: 1.5px solid var(--atmos-line); border-radius: var(--r-full);
+  font-size: 11.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--on-atmos); text-decoration: none;
+  background: var(--atmos-pane-thin); box-shadow: var(--atmos-lip);
+  transition: background var(--dur-base) var(--ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .macta:hover { background: var(--atmos-pane); }
+}
+.macta:focus-visible { outline: 2px solid var(--on-atmos); outline-offset: 3px; }
+
+/* The hub's sections, as glass chips under the hero — a glance each, which is
+   what earns them the light pane. */
+.masections { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 34px; }
+.masections a {
+  display: inline-block; padding: 9px 18px;
+  border: 1.5px solid var(--atmos-line-soft); border-radius: var(--r-full);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--on-atmos); text-decoration: none;
+  background: var(--atmos-sheen), var(--atmos-pane); box-shadow: var(--atmos-lip);
+  backdrop-filter: blur(18px);
+  transition: background var(--dur-base) var(--ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .masections a:hover { background: var(--atmos-sheen), var(--atmos-pane-dense); }
+}
+.masections a:focus-visible { outline: 2px solid var(--on-atmos); outline-offset: 3px; }
+
+/* ── THE WORK PAGES: the same air behind every medical screen ──────────────
+   Scoped by the hub attribute the theme hook already sets, so ten pages get
+   the atmosphere without one of them changing. The MECHANISM is astrology's
+   shell layer, copied deliberately: .tc-main paints its own white ground over
+   the shell (line ~736), so a background on .tc-shell alone is invisible —
+   the sky hubs learned this first, and their answer (a fixed ::before at
+   z-index -2, shells gone transparent) is the one that works. What medical
+   does NOT copy is the ground grant: no token is re-pointed, the amber is a
+   painted layer, and the city is white again one route away. */
+/* isolation, because medical cannot do what the sky hubs do. Astrology's
+   layer rides z-index -2 in the ROOT stacking context and survives because
+   that hub re-points --ground itself — everything behind the layer is
+   already its colour. Medical's ground stays the city's white, so a
+   negative-z layer escaping to the root paints BEHIND that white and
+   vanishes (it did; there is a screenshot). `isolation: isolate` makes the
+   shell its own stacking context: the layer sits above every ancestor's
+   ground and below every child of the shell, which is the whole request. */
+[data-hub="medical"] .tc-shell { position: relative; isolation: isolate; background: transparent; }
+[data-hub="medical"] .tc-main { background: transparent; color: var(--on-atmos); }
+[data-hub="medical"] .tc-shell::before {
+  content: ''; position: fixed; inset: 0; z-index: -1;
+  background: var(--atmos-air);
+  background-color: var(--atmos-floor);
+}
+
+/* A STAGE DOES NOT EXPORT ITS INK — enforced at the VARIABLE this time,
+   because this hub's chrome carries inline `var(--ink)` styles no rule can
+   reach: tokens.css re-points the ink family at .tc-main and hands the
+   city's values back at every white face. What remains here is the one rule
+   variables cannot do — .card must RE-DECLARE color, or it inherits the
+   stage's computed white instead of re-resolving the reset variable. */
+[data-hub="medical"] .tc-main .card { color: var(--ink); }
+
+/* THE RAIL IS THE CITY'S, NOT THE ROOM'S — relief.spec's own doctrine, held
+   to voluntarily here: the white well, the lens links and their dark ink all
+   keep their material, a paper column standing in the weather. The first cut
+   of this block re-inked the rail white and produced white-on-white ghosts;
+   the rule exists because somebody tries this in every room. */
+
+/* the mobile section chips DO ride the stage — they have no well under them */
+[data-hub="medical"] .hub-chips .chip {
+  background: var(--atmos-sheen), var(--atmos-pane);
+  border-color: var(--atmos-line-soft);
+  color: var(--on-atmos);
+  box-shadow: var(--atmos-lip);
+}
+[data-hub="medical"] .hub-chips .chip.on { background: var(--atmos-sheen), var(--atmos-pane-dense); color: var(--on-atmos); }
+
+/* Asked for more contrast, the atmosphere stops being weather: the panes go
+   solid and draw edges — .cstage's trade, with this room's tokens. */
+@media (prefers-contrast: more) {
+  .mapane, .masections a { background: var(--atmos-floor); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  [data-hub="medical"] .tc-shell::before { background: var(--atmos-floor); }
+}
+/* A FIXED background is a MOVING background to anybody scrolling past it —
+   the astrology sky's rule, inherited with its mechanism. And relief.spec
+   reads the FILE'S LAST reduced-motion block for the no-hover-movement
+   guarantee, so this one, now last, restates it: nothing in the atmosphere
+   moves on hover for somebody who asked for stillness. */
+@media (prefers-reduced-motion: reduce) {
+  [data-hub="medical"] .tc-shell::before { position: absolute; }
+  .macta:hover, .masections a:hover { transform: none; }
+}

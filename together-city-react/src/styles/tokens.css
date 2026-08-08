@@ -419,6 +419,66 @@
   --soft-out: 8px 10px 22px rgba(0,0,0,.55), -2px -2px 8px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.14);
   --soft-tile: inset 3px 3px 8px rgba(9,10,12,.40), inset -3px -3px 8px rgba(255,255,255,.06);
 
+  /* ── THE MEDICAL ATMOSPHERE ──────────────────────────────────────────────
+     Amber air with white steam drifting through it, from the owner's
+     reference. A STAGE, not a ground: Medical is not one of the five granted
+     hubs, so --ground/--paper/--card are untouched — the atmosphere is a
+     surface laid over the shell, exactly the trade the chat stage and
+     CookMode's theatre made. Navigate away and the city is still white.
+
+     THE GLASS IS SMOKED, AND THE TINT IS A MEASUREMENT, NOT A TASTE. The
+     reference's clear glass over a white plume measured 1.23:1 — white type
+     on white steam, which is the reference's own defect. Where the plume
+     missed a panel the identical glass measured 6.1:1: the glass was never
+     the problem, the plume passing BEHIND TEXT was. Smoking the pane with
+     dark amber compresses whatever drifts past into a narrow band — the
+     steam still visibly moves through the panel, but as a glow, never as a
+     white field behind a word.
+
+     TWO DENSITIES, and the difference is whether the pane carries prose.
+     Under the brightest steam the ground behind the regular pane composites
+     to ~rgb(134,121,111), on which even pure white is 4.4:1 — so a light
+     pane can carry a CHIP (a glance) but not a paragraph. Prose gets the
+     dense pane. A test computes both floors from these very values.
+
+     THE STEAM ITSELF is drawn (feTurbulence in the hub's own SVG), not
+     photographed: the reference photograph is one crop that is correct at
+     exactly one viewport, and the drawn plume has fractal edges at every
+     size for zero bytes. */
+  --atmos:
+    radial-gradient(120% 90% at 88% 0%, #dfa348 0%, transparent 46%),
+    radial-gradient(90% 70% at 72% 12%, #c8802a 0%, transparent 60%),
+    linear-gradient(158deg, #9d5512 0%, #592e09 58%, #422306 100%);
+  /* The work pages' air — a QUIETER sky than the landing's, and the reason
+     is arithmetic, not restraint for its own sake. These ten screens set
+     bare ink straight onto the field: breadcrumbs, page titles, the lines
+     between cards. Bare faint ink (.80 white) needs the ground at or below
+     rgb(122,66,14) to clear 4.5:1 with a wisp overhead — computed, then
+     held by the-atmosphere-holds-its-ink.test.ts against these very stops.
+     The landing keeps the bright sunrise because nothing stands on it bare:
+     every word there is in a pane, and the panes were measured separately. */
+  --atmos-air:
+    radial-gradient(46% 30% at 18% 26%, rgba(255,255,255,.10) 0%, transparent 70%),
+    radial-gradient(38% 26% at 86% 60%, rgba(255,255,255,.08) 0%, transparent 70%),
+    radial-gradient(110% 80% at 88% 0%, #7a420e 0%, transparent 50%),
+    linear-gradient(158deg, #5a2f08 0%, #472506 58%, #3f2205 100%);
+  --atmos-floor: #422306;
+  --atmos-pane: rgba(46,24,7,.58);
+  --atmos-pane-dense: rgba(46,24,7,.76);
+  --atmos-pane-thin: rgba(46,24,7,.44);
+  --atmos-line: rgba(255,255,255,.38);
+  --atmos-line-soft: rgba(255,255,255,.20);
+  --atmos-sheen: linear-gradient(177deg, rgba(255,255,255,.11) 0%, rgba(255,255,255,.02) 34%, transparent 62%);
+  /* the lit top edge is what separates GLASS from a brown box: a pane catches
+     the light at its upper rim and nowhere else. A material, not a depth —
+     named in relief.spec beside --soft-in and --glass for the same reason. */
+  --atmos-lip: inset 0 1px 0 rgba(255,255,255,.30);
+  --on-atmos: #ffffff;
+  --on-atmos-soft: rgba(255,255,255,.84);
+  /* Medical's accent is #1f5f78, mixed for white paper; on amber it is mud.
+     The same hue carried up to where it reads — one colour, two grounds. */
+  --on-atmos-accent: #bdeef4;
+
   /* ── THE PASSPORT ────────────────────────────────────────────────────────
      The owner's own artwork: crackle-grain security paper with an iridescent
      sweep, the city's mark and tagline printed top-left, the document series
@@ -1396,4 +1456,43 @@
 
   /* The press surface — the recipe-card typography — is not worn by anything
      in this hub. Left alone rather than guessed at. */
+}
+
+/* ── THE ATMOSPHERE'S INK HANDOFF ──────────────────────────────────────────
+   Medical's chrome — breadcrumbs, empty states, the lines between cards — is
+   written with INLINE `var(--ink)` / `var(--muted)`, which no stylesheet rule
+   can override. What CAN change is what the variable RESOLVES TO: the stage
+   re-points the ink family at .tc-main, and every surface that paints its own
+   white face takes the city's values back. This is "a stage does not export
+   its ink" enforced at the variable, which is the only level inline styles
+   respect.
+
+   THE RESET LITERALS MUST EQUAL THE ROOT'S. They are duplicated here because
+   a var() reset cannot reach back past its own scope — and duplication rots,
+   so the-atmosphere-holds-its-ink.test.ts parses both and fails the moment
+   the root ink moves without this block moving with it.
+
+   NOT a ground grant: no --ground/--paper/--card/--wash/--rail-well anywhere
+   in these blocks, and the same test asserts that too. */
+[data-hub="medical"] .tc-main {
+  --ink: #ffffff;
+  --ink-soft: rgba(255,255,255,.94);
+  --muted: rgba(255,255,255,.88);
+  /* .80, not the chat stage's lower floor: this faint stands on a LIT amber
+     field, not near-black — a dark ground buys headroom this one hasn't got */
+  --faint: rgba(255,255,255,.80);
+  --accent-ink: #bdeef4;
+}
+[data-hub="medical"] .tc-main .card,
+[data-hub="medical"] .tc-main .privacy-note,
+[data-hub="medical"] .tc-main .chip,
+[data-hub="medical"] .tc-main .btn,
+[data-hub="medical"] .tc-main input,
+[data-hub="medical"] .tc-main textarea,
+[data-hub="medical"] .tc-main select {
+  --ink: #000000;
+  --ink-soft: #1c1c1c;
+  --muted: #6b6b6b;
+  --faint: #9b9b9b;
+  --accent-ink: #194f64;
 }
