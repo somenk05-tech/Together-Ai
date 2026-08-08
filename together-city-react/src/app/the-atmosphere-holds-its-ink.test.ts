@@ -113,24 +113,46 @@ describe('the medical atmosphere holds its ink', () => {
     expect(handoff).toMatch(/--ink:\s*#ffffff/);
   });
 
-  it('hands the city ink back with the city\'s own values', () => {
-    // The reset literals are duplicated from :root because a var() reset
-    // cannot reach back past its own scope — and duplication rots. So: parse
-    // both, compare. The day --muted moves at the root and this block does
-    // not move with it, the failure names the token.
+  it('keeps every card ink readable ON THE FROSTED PANE, computed', () => {
+    // The reset table stopped being a copy of the root when the cards turned
+    // to glass. A .78 white pane over amber composites to tan, not white,
+    // and inks tuned for paper (the city's #6b6b6b muted) drop below AA on
+    // it — so medical's card inks are deliberately darker, and the promise
+    // to hold is not "equal to the root" any more. It is this: every ink in
+    // the table clears 4.5:1 on the frosted card at its WORST — the pane
+    // over the strongest wisp over the sky's brightest stop.
     const reset = tokens.match(/\[data-hub="medical"\] \.tc-main \.card,[^{]*\{([^}]*)\}/)?.[1] ?? '';
     expect(reset).not.toBe('');
-    const root = tokens.split(/\[data-hub=/)[0];
-    for (const name of ['--ink', '--ink-soft', '--muted', '--faint']) {
-      const rootVal = root.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1].trim();
-      const resetVal = reset.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1].trim();
-      expect({ name, resetVal }).toEqual({ name, resetVal: rootVal });
+    const card = rgba('--atmos-card')!;
+    expect(card).not.toBeNull();
+
+    const air = tokens.match(/--atmos-air:([\s\S]*?);/)?.[1] ?? '';
+    const cap = Math.max(...[...air.matchAll(/rgba\(255,\s*255,\s*255,\s*(\.?[\d.]+)\)/g)].map((m) => +m[1]));
+    const stops = [...air.matchAll(/#([0-9a-f]{6})/gi)]
+      .map((m) => [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)));
+    const lightest = stops.reduce((a, b) => (lum(a) > lum(b) ? a : b));
+    const darkest = stops.reduce((a, b) => (lum(a) < lum(b) ? a : b));
+    // BOTH ENDS OF THE SKY, because "worst" depends on the ink. A dark ink
+    // loses contrast where the pane is DARKEST (the deep floor, no wisp);
+    // a light one where it is lightest. The first version of this test only
+    // modelled the light end and the pixel harness caught the eyebrows at
+    // 4.15:1 over the floor — the model was measured wrong, not the page.
+    const grounds = [
+      over(card.rgb, card.a, over(WHITE, cap, lightest)),
+      over(card.rgb, card.a, darkest),
+    ];
+
+    for (const name of ['--ink', '--ink-soft', '--muted', '--faint', '--accent-ink']) {
+      const hex = reset.match(new RegExp(`${name}:\\s*#([0-9a-f]{6})`, 'i'))?.[1];
+      expect({ name, declared: Boolean(hex) }).toEqual({ name, declared: true });
+      const ink = [0, 2, 4].map((i) => parseInt(hex!.slice(i, i + 2), 16));
+      const r = Math.min(...grounds.map((g) => contrast(ink, g)));
+      expect({ name, aa: r >= 4.5, ratio: +r.toFixed(2) })
+        .toEqual({ name, aa: true, ratio: +r.toFixed(2) });
     }
-    // and the accent handed back is the hub\'s own, from its accent block
-    const hub = tokens.match(/\[data-hub="medical"\]\s+\{([^}]*)\}/)?.[1] ?? '';
-    const hubAccent = hub.match(/--accent-ink:\s*([^;]+);/)?.[1].trim();
-    const resetAccent = reset.match(/--accent-ink:\s*([^;]+);/)?.[1].trim();
-    expect(resetAccent).toBe(hubAccent);
+    // ...and the frosting is actually applied to the card class, or the
+    // arithmetic above is about a material nothing wears.
+    expect(relief).toMatch(/\[data-hub="medical"\] \.tc-main \.card \{[^}]*background:\s*var\(--atmos-card\)/);
   });
 
   it('leaves the ground tokens alone — this is a stage, not a sixth grant', () => {

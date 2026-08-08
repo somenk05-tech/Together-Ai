@@ -478,6 +478,14 @@
   /* Medical's accent is #1f5f78, mixed for white paper; on amber it is mud.
      The same hue carried up to where it reads — one colour, two grounds. */
   --on-atmos-accent: #bdeef4;
+  /* THE CARD IS FROSTED WHITE GLASS, .78 — the owner looked at the shipped
+     paper cards and named what was missing: "the glass transparent feel".
+     The alpha is arithmetic again: at .78 over the sky's brightest spot the
+     ground composites to ~rgb(229,218,207), on which a darkened muted
+     (#565656) reads 5.3:1 and full ink 15:1 — while at the city's own
+     #6b6b6b muted would fall to 3.9:1, which is why the medical card ink
+     table below is darker than the city's, not equal to it. */
+  --atmos-card: rgba(255,255,255,.78);
 
   /* ── THE PASSPORT ────────────────────────────────────────────────────────
      The owner's own artwork: crackle-grain security paper with an iridescent
@@ -1483,6 +1491,12 @@
   --faint: rgba(255,255,255,.80);
   --accent-ink: #bdeef4;
 }
+/* The ink handed back is DARKER than the city's where the surface is
+   frosted: a .78 pane over amber is tan, not white, and #6b6b6b that clears
+   5.3:1 on paper manages 3.9:1 on the tint. The test computes both floors
+   from these very literals. (A side effect worth naming: medical's card
+   eyebrows now clear AA while the city's own --faint on white does not —
+   that debt is citywide and older than this room.) */
 [data-hub="medical"] .tc-main .card,
 [data-hub="medical"] .tc-main .privacy-note,
 [data-hub="medical"] .tc-main .chip,
@@ -1492,7 +1506,10 @@
 [data-hub="medical"] .tc-main select {
   --ink: #000000;
   --ink-soft: #1c1c1c;
-  --muted: #6b6b6b;
-  --faint: #9b9b9b;
+  /* darker again than the first frosted cut: dark ink's worst ground is the
+     pane over the sky's DARKEST stop (a tan of ~rgb(213,206,200)), not its
+     lightest — the model in the test now checks both ends. */
+  --muted: #4f4f4f;
+  --faint: #545454;
   --accent-ink: #194f64;
 }

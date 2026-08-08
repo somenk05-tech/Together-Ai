@@ -2810,6 +2810,29 @@ textarea.g-field { resize: none; line-height: 1.55; }
    stage's computed white instead of re-resolving the reset variable. */
 [data-hub="medical"] .tc-main .card { color: var(--ink); }
 
+/* THE CARDS ARE THE GLASS. The first shipped cut kept them opaque paper and
+   the owner named what died: the transparent feel IS the reference. So the
+   card face frosts to white glass — the amber and the wisps glow through it,
+   the ink stays dark, and the alpha (.78) was chosen by the contrast
+   arithmetic in tokens.css, not by eye. The lip is the same lit top rim
+   every pane in this room wears; the depth stays the card's own --e1. */
+[data-hub="medical"] .tc-main .card {
+  background: var(--atmos-card);
+  -webkit-backdrop-filter: blur(22px) saturate(1.12);
+  backdrop-filter: blur(22px) saturate(1.12);
+  box-shadow: var(--atmos-lip), var(--e1);
+}
+[data-hub="medical"] .tc-main .card.lift:hover { box-shadow: var(--atmos-lip), var(--e2); }
+@media (prefers-contrast: more) {
+  /* solid again — a frosted pane is modelling, and more-contrast means stop
+     modelling. Same trade as .cstage and the .mapane block below. */
+  [data-hub="medical"] .tc-main .card {
+    background: var(--card);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 /* THE RAIL IS THE CITY'S, NOT THE ROOM'S — relief.spec's own doctrine, held
    to voluntarily here: the white well, the lens links and their dark ink all
    keep their material, a paper column standing in the weather. The first cut
