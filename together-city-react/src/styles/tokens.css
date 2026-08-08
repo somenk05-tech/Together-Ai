@@ -449,19 +449,21 @@
     radial-gradient(120% 90% at 88% 0%, #dfa348 0%, transparent 46%),
     radial-gradient(90% 70% at 72% 12%, #c8802a 0%, transparent 60%),
     linear-gradient(158deg, #9d5512 0%, #592e09 58%, #422306 100%);
-  /* The work pages' air — a QUIETER sky than the landing's, and the reason
-     is arithmetic, not restraint for its own sake. These ten screens set
-     bare ink straight onto the field: breadcrumbs, page titles, the lines
-     between cards. Bare faint ink (.80 white) needs the ground at or below
-     rgb(122,66,14) to clear 4.5:1 with a wisp overhead — computed, then
-     held by the-atmosphere-holds-its-ink.test.ts against these very stops.
-     The landing keeps the bright sunrise because nothing stands on it bare:
-     every word there is in a pane, and the panes were measured separately. */
+  /* The work pages' air — the SAME sunrise as the landing now, with wisps.
+     The first shipped cut quieted this sky to near-mud because bare ink
+     stood directly on it, and the owner compared it to the reference and
+     said so. The right fix was never a darker sky; it was the reference's
+     own architecture, finished: every work page's content stands on ONE
+     dense smoked band (relief.css), so nothing bare touches the field and
+     the field is free to be the sunrise. The bare-ink test now models ink
+     on the BAND over this sky's brightest spot — which is the case that
+     actually exists. */
   --atmos-air:
-    radial-gradient(46% 30% at 18% 26%, rgba(255,255,255,.10) 0%, transparent 70%),
-    radial-gradient(38% 26% at 86% 60%, rgba(255,255,255,.08) 0%, transparent 70%),
-    radial-gradient(110% 80% at 88% 0%, #7a420e 0%, transparent 50%),
-    linear-gradient(158deg, #5a2f08 0%, #472506 58%, #3f2205 100%);
+    radial-gradient(46% 30% at 18% 26%, rgba(255,255,255,.28) 0%, transparent 70%),
+    radial-gradient(40% 26% at 84% 58%, rgba(255,255,255,.20) 0%, transparent 70%),
+    radial-gradient(120% 90% at 88% 0%, #dfa348 0%, transparent 46%),
+    radial-gradient(90% 70% at 72% 12%, #c8802a 0%, transparent 60%),
+    linear-gradient(158deg, #9d5512 0%, #592e09 58%, #422306 100%);
   --atmos-floor: #422306;
   --atmos-pane: rgba(46,24,7,.58);
   --atmos-pane-dense: rgba(46,24,7,.76);
@@ -478,14 +480,6 @@
   /* Medical's accent is #1f5f78, mixed for white paper; on amber it is mud.
      The same hue carried up to where it reads — one colour, two grounds. */
   --on-atmos-accent: #bdeef4;
-  /* THE CARD IS FROSTED WHITE GLASS, .78 — the owner looked at the shipped
-     paper cards and named what was missing: "the glass transparent feel".
-     The alpha is arithmetic again: at .78 over the sky's brightest spot the
-     ground composites to ~rgb(229,218,207), on which a darkened muted
-     (#565656) reads 5.3:1 and full ink 15:1 — while at the city's own
-     #6b6b6b muted would fall to 3.9:1, which is why the medical card ink
-     table below is darker than the city's, not equal to it. */
-  --atmos-card: rgba(255,255,255,.78);
 
   /* ── THE PASSPORT ────────────────────────────────────────────────────────
      The owner's own artwork: crackle-grain security paper with an iridescent
@@ -1491,12 +1485,6 @@
   --faint: rgba(255,255,255,.80);
   --accent-ink: #bdeef4;
 }
-/* The ink handed back is DARKER than the city's where the surface is
-   frosted: a .78 pane over amber is tan, not white, and #6b6b6b that clears
-   5.3:1 on paper manages 3.9:1 on the tint. The test computes both floors
-   from these very literals. (A side effect worth naming: medical's card
-   eyebrows now clear AA while the city's own --faint on white does not —
-   that debt is citywide and older than this room.) */
 [data-hub="medical"] .tc-main .card,
 [data-hub="medical"] .tc-main .privacy-note,
 [data-hub="medical"] .tc-main .chip,
@@ -1506,10 +1494,7 @@
 [data-hub="medical"] .tc-main select {
   --ink: #000000;
   --ink-soft: #1c1c1c;
-  /* darker again than the first frosted cut: dark ink's worst ground is the
-     pane over the sky's DARKEST stop (a tan of ~rgb(213,206,200)), not its
-     lightest — the model in the test now checks both ends. */
-  --muted: #4f4f4f;
-  --faint: #545454;
+  --muted: #6b6b6b;
+  --faint: #9b9b9b;
   --accent-ink: #194f64;
 }

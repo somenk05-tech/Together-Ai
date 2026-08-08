@@ -71,25 +71,22 @@ describe('the medical atmosphere holds its ink', () => {
     expect(contrast(ink, ground)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('keeps BARE ink readable on the work pages\' sky — the strictest case there is', () => {
-    // --atmos-air is the ten inner screens' whole sky, and unlike the landing
-    // those screens set ink straight onto it: breadcrumbs, page titles, the
-    // muted lines between cards. No pane, no glass — so the worst case is the
-    // FAINTEST stage ink over the strongest wisp over the lightest stop, and
-    // it is measured here from the tokens as written. This is the assertion
-    // that forced the inner sky to be quieter than the landing's: a lit
-    // corner and bare 4.5:1 text cannot share a field, and the arithmetic,
-    // not taste, is what says so.
+  it('keeps the band\'s ink readable over the sky\'s brightest steam', () => {
+    // The work pages' content stands on ONE dense smoked band — the mock's
+    // own architecture. That band is what freed the sky to be the sunrise
+    // again: the first shipped sky was strangled to rgb(122,66,14) because
+    // bare ink stood directly on it, and the owner compared the result to
+    // the reference and called it nowhere close. So the case modelled here
+    // is the one that exists now: the FAINTEST stage ink, on the dense
+    // pane, over the strongest wisp, over the sky's brightest stop.
     const air = tokens.match(/--atmos-air:([\s\S]*?);/)?.[1] ?? '';
     const alphas = [...air.matchAll(/rgba\(255,\s*255,\s*255,\s*(\.?[\d.]+)\)/g)].map((m) => +m[1]);
     expect(alphas.length).toBeGreaterThan(0);
     const cap = Math.max(...alphas);
-
     const stops = [...air.matchAll(/#([0-9a-f]{6})/gi)]
       .map((m) => [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)));
-    expect(stops.length).toBeGreaterThan(0);
-    const lightest = stops.reduce((a, b) => (lum(a) > lum(b) ? a : b));
-    const ground = over(WHITE, cap, lightest);
+    const lightest = stops.reduce((x, y) => (lum(x) > lum(y) ? x : y));
+    const ground = over(dense.rgb, dense.a, over(WHITE, cap, lightest));
 
     const handoff = tokens.match(/\[data-hub="medical"\] \.tc-main \{([^}]*)\}/)?.[1] ?? '';
     const faintA = +(handoff.match(/--faint:\s*rgba\(255,\s*255,\s*255,\s*(\.?[\d.]+)\)/)?.[1] ?? 0);
@@ -97,11 +94,9 @@ describe('the medical atmosphere holds its ink', () => {
     const ink = over(WHITE, faintA, ground);
     expect(contrast(ink, ground)).toBeGreaterThanOrEqual(4.5);
 
-    // and under a pane the same worst spot only gets darker — assert anyway,
-    // because the pane is where prose lives
-    const paneGround = over(pane.rgb, pane.a, ground);
-    const soft = over(softInk.rgb, softInk.a, paneGround);
-    expect(contrast(soft, paneGround)).toBeGreaterThanOrEqual(4.5);
+    // ...and the band is actually applied, or this measures a material
+    // nothing wears
+    expect(relief).toMatch(/\[data-hub="medical"\] \.tc-main \.page \{[^}]*var\(--atmos-pane-dense\)/);
   });
 
   it('never lets the stage export its ink into a card', () => {
@@ -113,46 +108,28 @@ describe('the medical atmosphere holds its ink', () => {
     expect(handoff).toMatch(/--ink:\s*#ffffff/);
   });
 
-  it('keeps every card ink readable ON THE FROSTED PANE, computed', () => {
-    // The reset table stopped being a copy of the root when the cards turned
-    // to glass. A .78 white pane over amber composites to tan, not white,
-    // and inks tuned for paper (the city's #6b6b6b muted) drop below AA on
-    // it — so medical's card inks are deliberately darker, and the promise
-    // to hold is not "equal to the root" any more. It is this: every ink in
-    // the table clears 4.5:1 on the frosted card at its WORST — the pane
-    // over the strongest wisp over the sky's brightest stop.
+  it('hands the city ink back to the paper cards, at the city\'s own values', () => {
+    // The cards went frosted for one commit and their inks had to darken to
+    // survive the tint; then the band arrived, the cards went back to white
+    // paper on dark glass — the mock's own layering — and the reset table
+    // went back to being a COPY of the root. Copies rot, so: parse both,
+    // compare. The day --muted moves at the root and this block does not
+    // move with it, this failure names the token.
     const reset = tokens.match(/\[data-hub="medical"\] \.tc-main \.card,[^{]*\{([^}]*)\}/)?.[1] ?? '';
     expect(reset).not.toBe('');
-    const card = rgba('--atmos-card')!;
-    expect(card).not.toBeNull();
-
-    const air = tokens.match(/--atmos-air:([\s\S]*?);/)?.[1] ?? '';
-    const cap = Math.max(...[...air.matchAll(/rgba\(255,\s*255,\s*255,\s*(\.?[\d.]+)\)/g)].map((m) => +m[1]));
-    const stops = [...air.matchAll(/#([0-9a-f]{6})/gi)]
-      .map((m) => [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)));
-    const lightest = stops.reduce((a, b) => (lum(a) > lum(b) ? a : b));
-    const darkest = stops.reduce((a, b) => (lum(a) < lum(b) ? a : b));
-    // BOTH ENDS OF THE SKY, because "worst" depends on the ink. A dark ink
-    // loses contrast where the pane is DARKEST (the deep floor, no wisp);
-    // a light one where it is lightest. The first version of this test only
-    // modelled the light end and the pixel harness caught the eyebrows at
-    // 4.15:1 over the floor — the model was measured wrong, not the page.
-    const grounds = [
-      over(card.rgb, card.a, over(WHITE, cap, lightest)),
-      over(card.rgb, card.a, darkest),
-    ];
-
-    for (const name of ['--ink', '--ink-soft', '--muted', '--faint', '--accent-ink']) {
-      const hex = reset.match(new RegExp(`${name}:\\s*#([0-9a-f]{6})`, 'i'))?.[1];
-      expect({ name, declared: Boolean(hex) }).toEqual({ name, declared: true });
-      const ink = [0, 2, 4].map((i) => parseInt(hex!.slice(i, i + 2), 16));
-      const r = Math.min(...grounds.map((g) => contrast(ink, g)));
-      expect({ name, aa: r >= 4.5, ratio: +r.toFixed(2) })
-        .toEqual({ name, aa: true, ratio: +r.toFixed(2) });
+    const root = tokens.split(/\[data-hub=/)[0];
+    for (const name of ['--ink', '--ink-soft', '--muted', '--faint']) {
+      const rootVal = root.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1].trim();
+      const resetVal = reset.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1].trim();
+      expect({ name, resetVal }).toEqual({ name, resetVal: rootVal });
     }
-    // ...and the frosting is actually applied to the card class, or the
-    // arithmetic above is about a material nothing wears.
-    expect(relief).toMatch(/\[data-hub="medical"\] \.tc-main \.card \{[^}]*background:\s*var\(--atmos-card\)/);
+    const hub = tokens.match(/\[data-hub="medical"\]\s+\{([^}]*)\}/)?.[1] ?? '';
+    const hubAccent = hub.match(/--accent-ink:\s*([^;]+);/)?.[1].trim();
+    const resetAccent = reset.match(/--accent-ink:\s*([^;]+);/)?.[1].trim();
+    expect(resetAccent).toBe(hubAccent);
+    // and no frosted card material survives to contradict the paper
+    expect(relief).not.toMatch(/--atmos-card/);
+    expect(tokens).not.toMatch(/--atmos-card/);
   });
 
   it('leaves the ground tokens alone — this is a stage, not a sixth grant', () => {

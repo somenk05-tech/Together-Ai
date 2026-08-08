@@ -2810,34 +2810,95 @@ textarea.g-field { resize: none; line-height: 1.55; }
    stage's computed white instead of re-resolving the reset variable. */
 [data-hub="medical"] .tc-main .card { color: var(--ink); }
 
-/* THE CARDS ARE THE GLASS. The first shipped cut kept them opaque paper and
-   the owner named what died: the transparent feel IS the reference. So the
-   card face frosts to white glass — the amber and the wisps glow through it,
-   the ink stays dark, and the alpha (.78) was chosen by the contrast
-   arithmetic in tokens.css, not by eye. The lip is the same lit top rim
-   every pane in this room wears; the depth stays the card's own --e1. */
-[data-hub="medical"] .tc-main .card {
-  background: var(--atmos-card);
-  -webkit-backdrop-filter: blur(22px) saturate(1.12);
-  backdrop-filter: blur(22px) saturate(1.12);
-  box-shadow: var(--atmos-lip), var(--e1);
-}
-[data-hub="medical"] .tc-main .card.lift:hover { box-shadow: var(--atmos-lip), var(--e2); }
-@media (prefers-contrast: more) {
-  /* solid again — a frosted pane is modelling, and more-contrast means stop
-     modelling. Same trade as .cstage and the .mapane block below. */
-  [data-hub="medical"] .tc-main .card {
-    background: var(--card);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
+
+/* ── THE BAND: one dense smoked pane under each work page's content ────────
+   This is the mock's actual architecture, finished. The first cut set bare
+   ink on the sky and had to strangle the sky to keep it readable — the owner
+   compared that to the reference and called it nowhere close. On the band,
+   breadcrumbs, titles and empty states are white ink on dark glass at 6:1+
+   even under the brightest steam, the cards float on it as white paper
+   exactly like the mock's "on paper" panel, and the sunrise comes back. */
+[data-hub="medical"] .tc-main .page {
+  background: var(--atmos-sheen), var(--atmos-pane-dense);
+  -webkit-backdrop-filter: blur(26px) saturate(1.1);
+  backdrop-filter: blur(26px) saturate(1.1);
+  border-radius: var(--r-5);
+  box-shadow: var(--atmos-lip);
+  margin: 14px clamp(10px, 1.6vw, 26px) 46px;
+  padding-bottom: 28px;
+  width: auto;
 }
 
-/* THE RAIL IS THE CITY'S, NOT THE ROOM'S — relief.spec's own doctrine, held
-   to voluntarily here: the white well, the lens links and their dark ink all
-   keep their material, a paper column standing in the weather. The first cut
-   of this block re-inked the rail white and produced white-on-white ghosts;
-   the rule exists because somebody tries this in every room. */
+/* THE HEADER RIDES THE WEATHER. It is fixed, so the page scrolls beneath it
+   and the blur earns its keep; the amber layer covers the viewport behind
+   it, so the pane has something to bend even at rest. Ink goes white; the
+   action pills trade their paper for glass. The logo mark stays black — it
+   measures 7:1 on the lit field and a second logo file is a second truth. */
+[data-hub="medical"] .tc-header {
+  background: var(--atmos-sheen), var(--atmos-pane);
+  -webkit-backdrop-filter: blur(24px) saturate(1.15);
+  backdrop-filter: blur(24px) saturate(1.15);
+  border-bottom: 1px solid var(--atmos-line-soft);
+  color: var(--on-atmos);
+}
+[data-hub="medical"] .tc-header .word { color: var(--on-atmos); }
+[data-hub="medical"] .tc-nav a { color: var(--on-atmos-soft); }
+[data-hub="medical"] .tc-nav a:hover,
+[data-hub="medical"] .tc-nav a.on { color: var(--on-atmos); }
+[data-hub="medical"] .tc-actionbar a,
+[data-hub="medical"] .tc-actionbar button {
+  background: var(--atmos-pane-thin); box-shadow: var(--atmos-lip);
+  color: var(--on-atmos);
+}
+[data-hub="medical"] .tc-actionbar a:hover,
+[data-hub="medical"] .tc-actionbar button:hover {
+  background: var(--atmos-pane); box-shadow: var(--atmos-lip); color: var(--on-atmos);
+}
+
+/* THE RAIL WEARS THE GLASS TOO — the owner asked for it by name, and social
+   already set the precedent that a hub may dress the rail in relief.css.
+   What still never moves is the token layer: --on-accent, the lamp and the
+   well are untouched, so every other room's rail is exactly as it was. */
+[data-hub="medical"] .tc-side {
+  background: var(--atmos-sheen), var(--atmos-pane);
+  -webkit-backdrop-filter: blur(24px) saturate(1.1);
+  backdrop-filter: blur(24px) saturate(1.1);
+  box-shadow: var(--atmos-lip);
+  color: var(--on-atmos);
+}
+[data-hub="medical"] .tc-side .hubname { color: var(--on-atmos); }
+[data-hub="medical"] .tc-side .hubtag { color: var(--on-atmos-soft); }
+[data-hub="medical"] .tc-side .back { color: var(--on-atmos-soft); }
+[data-hub="medical"] .tc-side .back:hover { color: var(--on-atmos); }
+[data-hub="medical"] .side-menu a {
+  background: var(--atmos-pane-thin); box-shadow: var(--atmos-lip);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  color: var(--on-atmos);
+}
+[data-hub="medical"] .side-menu a:hover { box-shadow: var(--atmos-lip); color: var(--on-atmos); }
+[data-hub="medical"] .side-menu a .l { color: var(--on-atmos); }
+[data-hub="medical"] .side-menu a .s { color: var(--on-atmos-soft); }
+[data-hub="medical"] .side-menu a .n {
+  background: var(--atmos-pane-thin); box-shadow: var(--atmos-lip); color: var(--on-atmos);
+}
+/* the ACTIVE item keeps the city lamp — the one lit thing on the glass, the
+   same orange in every room, which is exactly what makes it read as "you
+   are here" rather than as another pane. Stated EXPLICITLY because the glass
+   rules above carry an attribute selector and out-specify `.side-menu
+   a.active` — without these lines the lamp is silently clobbered, which is
+   precisely what the first screenshot showed. */
+[data-hub="medical"] .side-menu a.active { background: var(--lamp-face); box-shadow: var(--lamp); }
+[data-hub="medical"] .side-menu a.active .l { color: var(--on-lamp); }
+[data-hub="medical"] .side-menu a.active .s { color: var(--on-lamp-soft); }
+[data-hub="medical"] .side-menu a.active .n { background: var(--lamp-badge-bg); color: var(--on-lamp); box-shadow: var(--lamp-badge); }
+
+/* the landing slides under the glass header, so the steam runs behind it */
+html[data-hub="medical"] body { background: var(--atmos-floor); }
+.mafield {
+  margin-top: calc(-1 * (var(--header-h, 64px) + var(--safe-top, 0px)));
+  padding-top: calc(var(--header-h, 64px) + var(--safe-top, 0px));
+}
+
 
 /* the mobile section chips DO ride the stage — they have no well under them */
 [data-hub="medical"] .hub-chips .chip {
