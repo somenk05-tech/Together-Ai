@@ -2176,3 +2176,167 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .elot .ego[disabled] { opacity: .5; cursor: default; }
 .elot .eerr { position: absolute; left: 0; bottom: -36px; font-size: 10.5px; font-weight: 600;
   color: var(--danger-ink); white-space: nowrap; }
+
+/* ══ THE PASSPORT ═════════════════════════════════════════════════════════
+   /profile is a travel document. One data page carrying the identity every
+   hub reads from, then a visa page per hub saying what that hub knows and
+   whether it has been issued yet.
+
+   WHY THE METAPHOR EARNS ITS KEEP, rather than being a costume: the thing
+   this page has always struggled to say is that there is ONE identity and
+   fourteen hubs reading it. A stack of equal cards says the opposite —
+   fourteen peers. A passport says it in one glance: one bearer, many
+   endorsements, and a page that is blank until somewhere stamps it.
+
+   IT IS DELIBERATELY NOT A REPLICA OF ANY REAL DOCUMENT. No country code, no
+   ICAO check digits, no crest belonging to anybody. The code band at the foot
+   is built from a handle and a join date and says TC, because a convincing
+   copy of a state's passport is not a thing to leave lying in a codebase.
+
+   Everything is achromatic but the stamps, which take the root accent. Real
+   visa pages differ by STAMP and by wording, not by repainting the paper. */
+
+.pbook { max-width: 860px; }
+
+/* ── THE DATA PAGE ──────────────────────────────────────────────────────── */
+.pdata {
+  position: relative; overflow: hidden; isolation: isolate;
+  border-radius: var(--r-3); background: var(--card); box-shadow: var(--e2);
+  padding: 0;
+}
+/* Two layers: the engine-turned field, and the laminate sheen over it. Both
+   sit BEHIND the content via z-index, not opacity, so nothing readable is
+   ever drawn at less than full strength. */
+.pdata::before, .pdata::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.pdata::before { background-image: var(--guilloche); }
+.pdata::after  { background-image: var(--laminate); }
+.pdata > * { position: relative; z-index: 1; }
+
+.pcrest {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding: 16px 22px 12px; border-bottom: 1.5px solid var(--line-2);
+}
+.pcrest b { font-size: 13px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
+.pcrest span { font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--faint); }
+.pcrest .pval { margin-left: auto; }
+
+.pgrid { display: grid; grid-template-columns: 148px 1fr; gap: 22px; padding: 20px 22px 16px; }
+@media (max-width: 640px) { .pgrid { grid-template-columns: 1fr; } }
+
+/* The photograph is the file picker. A passport photo is not decoration and
+   neither is this one — it is the same portrait every hub shows. */
+.pphoto {
+  position: relative; width: 148px; aspect-ratio: 3 / 4; padding: 0; border: 0; cursor: pointer;
+  border-radius: var(--r-1); overflow: hidden; background: var(--well); box-shadow: var(--carve);
+  display: grid; place-items: center;
+}
+.pphoto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pphoto i {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 5px 0; font-style: normal;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--on-loud); background: var(--loud-face);
+}
+/* The rosette sits under an empty photo well, so a citizen with no picture
+   still has a document rather than a grey hole. */
+.pphoto[data-empty="true"] { background-image: var(--rosette); }
+.pphoto[data-empty="true"] em { font-style: normal; font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
+.pfields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 18px; align-content: start; }
+.pfields .wide { grid-column: 1 / -1; }
+.pfields .half { grid-column: span 2; }
+@media (max-width: 640px) { .pfields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pfields .half { grid-column: 1 / -1; } }
+
+.pfield > span {
+  display: block; font-size: 8.5px; font-weight: 700; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--faint); line-height: 1.4;
+}
+.pfield > b { display: block; font-size: 14px; font-weight: 700; line-height: 1.35; word-break: break-word; }
+.pfield > b.big { font-size: 19px; letter-spacing: -.01em; }
+/* AN UNFILLED FIELD IS A RULE, NOT THE WORD "NONE". This is the one place the
+   metaphor does real work: a blank line in a document reads as something to
+   go and fill in, where a grey "not set" reads as a fact about you. */
+.pfield > a.blank, .pfield > i.blank {
+  display: block; font-style: normal; text-decoration: none; margin-top: 7px;
+  border-bottom: 1.5px dotted var(--line-2); height: 12px;
+}
+.pfield > a.blank:hover { border-bottom-color: var(--accent); }
+
+/* The code band. Wide tracking in the one family the design has — this is a
+   texture that says "machine reads this", not a font we went and licensed. */
+.pmrz {
+  padding: 12px 22px 15px; border-top: 1.5px solid var(--line-2); background: var(--wash);
+  font-size: 12.5px; font-weight: 700; letter-spacing: .16em; line-height: 1.85;
+  color: var(--ink-soft); overflow-x: auto; white-space: nowrap; scrollbar-width: none;
+}
+.pmrz::-webkit-scrollbar { display: none; }
+
+/* ── THE VISA PAGES ─────────────────────────────────────────────────────── */
+.pvisas { display: grid; grid-template-columns: repeat(auto-fill, minmax(272px, 1fr)); gap: 16px; }
+/* A COLUMN, NOT A BOX WITH THINGS PINNED INSIDE IT.
+   The first version had the foot line absolutely positioned at the bottom and
+   the stamp absolutely positioned over the middle, and both collided with the
+   text at the first summary longer than two lines — which is most of them.
+   Flex column with the foot pushed down by `margin-top: auto` cannot collide
+   with anything, at any length, ever. */
+.pvisa {
+  position: relative; overflow: hidden; isolation: isolate;
+  display: flex; flex-direction: column;
+  min-height: 164px; padding: 14px 16px; text-decoration: none; color: inherit;
+  border-radius: var(--r-2); background: var(--card); box-shadow: var(--e1);
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+}
+.pvisa::before { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; background-image: var(--guilloche); }
+.pvisa > * { position: relative; z-index: 1; }
+@media (hover: hover) and (pointer: fine) { .pvisa:hover { transform: translateY(-3px); box-shadow: var(--e2); } }
+.pvisa:active { transform: translateY(1px); }
+
+.pvisa .phead { display: flex; align-items: baseline; gap: 8px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.pvisa .pcode { font-size: 9.5px; font-weight: 700; letter-spacing: .16em; color: var(--faint); }
+.pvisa .phead b { font-size: 15px; font-weight: 700; }
+/* The right inset is the stamp's room. A stamp that lands ON the words is a
+   stamp; a stamp that lands on the FIRST words is a bug. */
+.pvisa .psum, .pvisa .pnone { font-size: 12.5px; line-height: 1.55; margin: 10px 76px 0 0; }
+.pvisa .psum { color: var(--ink-soft); }
+.pvisa .pnone { color: var(--muted); }
+.pvisa .pfoot {
+  margin-top: auto; padding-top: 14px;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--faint);
+}
+
+/* THE STAMP. Rotated by an angle the hub's own name decides, so the page
+   looks hand-stamped and looks the SAME hand-stamped on every reload — a
+   random angle would jitter on every render, which is a page that cannot
+   sit still. */
+/* THE DOUBLE RING IS TWO BORDERS, NOT A STACK OF INSET SHADOWS.
+   The first version drew it as `inset 0 0 0 2px, inset 0 0 0 3.5px,
+   inset 0 0 0 4.5px` and relief.spec rejected it on sight — correctly. That
+   is a sixth depth wearing a stamp's clothes, and the guard's own reasoning
+   says why the fix is a border instead: nothing STANDS on an edge, so an edge
+   is not a depth. A ring around a rubber stamp is an edge. */
+.pstamp {
+  position: absolute; right: 13px; bottom: 32px; z-index: 1;
+  display: grid; place-items: center; width: 66px; height: 66px; padding: 4px;
+  border: 2px solid var(--accent-line); border-radius: var(--r-full);
+  transform: rotate(var(--tilt, -8deg));
+  font-size: 7.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; text-align: center;
+  line-height: 1.3; color: var(--accent-ink);
+}
+.pstamp::before {
+  content: ''; position: absolute; inset: 2.5px;
+  border: 1px solid var(--accent-line); border-radius: var(--r-full);
+}
+.pstamp b { display: block; font-size: 12px; letter-spacing: .03em; }
+.pstamp.waiting { color: var(--faint); border-color: var(--line-2); border-style: dashed; }
+.pstamp.waiting::before { border-color: var(--line-2); }
+
+/* ── THE OBSERVATIONS PAGE ──────────────────────────────────────────────── */
+.pobs { border-radius: var(--r-2); background: var(--card); box-shadow: var(--e1); padding: 4px 18px 14px; }
+.pobs h3 { margin: 14px 0 0; font-size: 9.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--faint); }
+.pobs .row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.pobs .row:first-of-type { border-top: 0; }
+.pobs .row > span:first-child { color: var(--muted); font-size: 12.5px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pvisa, .pvisa:hover, .pvisa:active { transition: none; transform: none; }
+}

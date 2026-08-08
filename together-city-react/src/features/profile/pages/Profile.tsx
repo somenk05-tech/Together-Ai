@@ -13,8 +13,17 @@ import { useMailAccount } from '@/features/mail/api';
 import { VerificationCard } from '@/features/auth/components/VerificationCard';
 import { SexAndGenderCard } from '../components/SexAndGenderCard';
 import { DeleteAccountCard } from '@/features/settings/components/DeleteAccountCard';
+import { useMasterProfile } from '../hooks';
+import { Field, Visa } from '../components/Passport';
+import { codeBand, visaPages } from '../passport';
 
-type Tab = 'overview' | 'photo' | 'notifications' | 'account';
+/* The Photo tab is gone: the passport's portrait IS the picker, and a second
+   door to the same file input is a second thing to keep in step.
+
+   The account tab is gone too, for the opposite reason — see the surrender
+   section at the foot of the page. It was never a tab's worth of content and
+   a tab is a place things go to not be found. */
+type Tab = 'overview' | 'notifications';
 
 /** Round avatar — the uploaded photo (data URL) or the user's initials. */
 function Avatar({ src, name, size = 56 }: { src?: string | null; name: string; size?: number }) {
@@ -81,113 +90,10 @@ function HealthScoreCard() {
   );
 }
 
-/** ONE profile-completion score across all hubs, with per-hub progress bars and
- *  quick links to finish whatever's incomplete. Enter info once; every hub
- *  reuses it, and this stays current after any save. */
-function ProfileCompletionCard() {
-  const q = useProfileCompletion();
-  const d = q.data;
-  if (!d) return null;
-  const pct = Math.max(0, Math.min(100, d.percent));
-  const ring = `conic-gradient(var(--accent) ${pct * 3.6}deg, var(--line) 0deg)`;
-  return (
-    <Card style={{ marginBottom: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', width: 68, height: 68, flex: 'none', borderRadius: '50%', background: ring, display: 'grid', placeItems: 'center' }}>
-          <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', fontSize: 16, fontWeight: 800 }}>{pct}%</div>
-        </div>
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <h3 style={{ margin: 0, fontSize: 16 }}>Profile completion</h3>
-          <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>
-            {d.complete ? 'Your profile is complete across every hub.' : 'One profile, reused across every hub — finish the rest to unlock better results.'}
-          </p>
-          {d.nextUp.length > 0 && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-              {d.nextUp.map((n) => (
-                <Link key={n.key} to={n.href} className="tag" style={{ textDecoration: 'none' }}>Complete {n.label} →</Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: '10px 16px', marginTop: 16 }}>
-        {d.sections.map((s) => (
-          <Link key={s.key} to={s.href} style={{ textDecoration: 'none', color: 'inherit' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 4 }}>
-              <span style={{ fontWeight: 600 }}>{s.label}</span>
-              <span className="muted">{s.complete ? '✓' : `${s.percent}%`}</span>
-            </div>
-            <div style={{ height: 5, borderRadius: 3, background: 'var(--line)', overflow: 'hidden' }}>
-              <div style={{ width: `${s.percent}%`, height: '100%', background: s.complete ? 'var(--ok-ink)' : 'var(--accent)' }} />
-            </div>
-          </Link>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-/** Resize a chosen image to a small square JPEG data URL (no external storage needed). */
-function resizeToDataUrl(file: File, size = 200): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = size; canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) { reject(new Error('no canvas')); return; }
-      const scale = Math.max(size / img.width, size / img.height);
-      const w = img.width * scale, h = img.height * scale;
-      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
-      URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL('image/jpeg', 0.85));
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
-    img.src = url;
-  });
-}
-
-function PhotoTab({ current, name }: { current: string | null; name: string }) {
-  const qc = useQueryClient();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | null>(current);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  const onFile = async (file?: File) => {
-    if (!file) return;
-    setBusy(true); setMsg(null);
-    try {
-      const dataUrl = await resizeToDataUrl(file);
-      await profileApi.setAvatar(dataUrl);
-      setPreview(dataUrl);
-      // Reflect immediately in the app-wide avatar.
-      useAuthStore.setState((s) => ({ user: s.user ? { ...s.user, profileImage: dataUrl } : s.user }));
-      void qc.invalidateQueries({ queryKey: ['profile', 'summary'] });
-      setMsg('Photo updated ✓');
-    } catch {
-      setMsg('Couldn’t set that photo — try a smaller image.');
-    } finally { setBusy(false); }
-  };
-
-  return (
-    <Card>
-      <h4 style={{ margin: '0 0 4px' }}>Profile photo</h4>
-      <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>This appears across Together City — in chat, connections and your profile.</p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-        <Avatar src={preview} name={name} size={96} />
-        <div>
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => void onFile(e.target.files?.[0])} />
-          <Button variant="accent" size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>
-            {busy ? 'Uploading…' : preview ? 'Change photo' : 'Upload a photo'}
-          </Button>
-          {msg && <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>{msg}</p>}
-        </div>
-      </div>
-    </Card>
-  );
-}
+/* ProfileCompletionCard is gone. Its ring is now the "Validity" line in the
+   passport's crest, and its per-hub bars are the "Complete N%" on each visa
+   page — where the number is beside the thing it describes rather than in a
+   second grid of the same fourteen hubs. */
 
 function NotificationsTab() {
   const push = useWebPush();
@@ -282,10 +188,20 @@ function resizeAvatar(file: File, size = 240): Promise<string> {
   });
 }
 
-/** Unified profile — identity, all cross-hub data, photo and notifications. */
+/**
+ * THE PASSPORT — one identity, and a visa page per hub.
+ *
+ * This is a rewrite of the page's SHAPE and nothing else. Every value it draws
+ * was already coming from /profile/summary, /profile/master and
+ * /profile/completion; no endpoint changed, nothing new is requested, and the
+ * photo picker, the sign-out, the verification and sex/gender cards, the
+ * connection requests and the delete-account door are all still here.
+ */
 export function Profile() {
   const { user, signOut } = useAuth();
   const { data, isLoading, isError } = useProfileSummary();
+  const master = useMasterProfile();
+  const completion = useProfileCompletion();
   const [tab, setTab] = useState<Tab>('overview');
   const reqCount = useIncomingRequestCount();
   const qc = useQueryClient();
@@ -312,164 +228,206 @@ export function Profile() {
     } catch { /* ignore — keep old photo */ } finally { setPhotoBusy(false); }
   };
   const TABS: { key: Tab; label: string; badge?: number }[] = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'photo', label: 'Photo' },
+    { key: 'overview', label: 'The document' },
     { key: 'notifications', label: 'Notifications', badge: reqCount },
-    { key: 'account', label: 'Delete account' },
   ];
+
+  /* ── The data page's own values. All of it already fetched. ───────────── */
+  const m = master.data;
+  const parts = name.trim().split(/\s+/);
+  const surname = parts.length > 1 ? parts[parts.length - 1] : name;
+  const given = parts.length > 1 ? parts.slice(0, -1).join(' ') : '';
+  /* M / F / X, the way a document writes it — and a rule when nobody has been
+     asked, which is a different thing from somebody declining to say. */
+  const sexMark = m?.resolvedGender === 'male' ? 'M' : m?.resolvedGender === 'female' ? 'F' : m?.resolvedGender ? 'X' : '';
+  const issued = data?.memberSince ?? null;
+  const asDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() : null);
+  const place = [m?.birthCity, m?.birthCountry].filter(Boolean).join(', ') || null;
+  const residence = [m?.city, m?.country].filter(Boolean).join(', ') || null;
+  const mrz = codeBand({ surname, given, handle: user?.handle ?? 'citizen', dob: m?.dateOfBirth, sex: sexMark || '<', issued });
+  const pages = visaPages(data?.hubs ?? [], completion.data?.sections ?? []);
+  const validity = completion.data?.percent;
 
   return (
     <div className="page">
-      <div className="eyebrow">Together City</div>
-      <h1 style={{ marginBottom: 18 }}>Your profile</h1>
+      <div className="pbook">
+        <div className="eyebrow">Together City</div>
+        <h1 style={{ margin: '0 0 16px' }}>Your passport</h1>
 
-      {/* Identity */}
-      <Card style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => void changePhoto(e.target.files?.[0])} />
-          <button type="button" onClick={() => photoRef.current?.click()} disabled={photoBusy}
-            aria-label="Change profile picture" title="Change profile picture"
-            style={{ position: 'relative', border: 'none', background: 'none', padding: 0, cursor: photoBusy ? 'wait' : 'pointer', borderRadius: '50%', flexShrink: 0 }}>
-            <Avatar src={photo} name={name} size={56} />
-            <span style={{ position: 'absolute', right: -2, bottom: -2, width: 22, height: 22, borderRadius: '50%', background: 'var(--accent)', color: 'var(--on-accent)', display: 'grid', placeItems: 'center', fontSize: 11, border: '2px solid var(--card)' }}>
-              {photoBusy ? '…' : '📷'}
-            </span>
-          </button>
-          <div style={{ flex: 1, minWidth: 180 }}>
-            <h3 style={{ margin: 0 }}>{name}</h3>
-            <p className="muted" style={{ fontSize: 13 }}>
-              @{user?.handle ?? '—'}{user?.handle ? ` · ${user.handle}@togethercity.app` : ''}
-            </p>
-            <p className="muted" style={{ fontSize: 12 }}>
-              {data ? `Member since ${new Date(data.memberSince).toLocaleDateString()}` : 'Your Together City identity'}
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Button variant="line" size="sm" onClick={signOut}>Sign out</Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* One completion score across every hub profile */}
-      <ProfileCompletionCard />
-      <HealthScoreCard />
-
-      {/* OTHER CITIZENS — moved off the top bar on 5 Aug, the same journey
-          Calendar made. It is called what it is now: "People" in a header next
-          to Mail and Chat read as a fourth inbox, when it is actually the
-          directory of everybody else in the city. The pending count comes with
-          it, because a request nobody can see is a request nobody answers. */}
-      <Link to="/connections" className="card lift" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12, textDecoration: 'none', color: 'inherit' }}>
-        <span style={{ fontSize: 22 }}>👥</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 15 }}>
-            Other citizens
-            {reqCount > 0 && (
-              <span style={{ marginLeft: 8, background: 'var(--danger-ink)', color: 'var(--on-accent)', borderRadius: 999, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>
-                {reqCount > 9 ? '9+' : reqCount} waiting
+        {/* ── THE DATA PAGE ─────────────────────────────────────────────── */}
+        <div className="pdata">
+          <div className="pcrest">
+            <b>Together City</b>
+            <span>Passport · Citizen identity</span>
+            {validity != null && (
+              <span className="pval">
+                {validity === 100 ? 'Fully endorsed' : `Validity ${validity}%`}
               </span>
             )}
           </div>
-          <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>Find people, follow them, and answer the requests waiting on you.</p>
-        </div>
-        <span style={{ color: 'var(--accent-ink)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
-      </Link>
 
-      {/* Quick access — Calendar lives here now (moved out of the top bar) */}
-      <Link to="/calendar" className="card lift" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12, textDecoration: 'none', color: 'inherit' }}>
-        <span style={{ fontSize: 22 }}>🗓</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 15 }}>Calendar</div>
-          <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>Your appointments, bookings and reminders across the city.</p>
-        </div>
-        <span style={{ color: 'var(--accent-ink)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
-      </Link>
+          <div className="pgrid">
+            {/* The portrait IS the picker. One door, not two. */}
+            <input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => void changePhoto(e.target.files?.[0])} />
+            <button type="button" className="pphoto" data-empty={photo ? 'false' : 'true'}
+              onClick={() => photoRef.current?.click()} disabled={photoBusy}
+              aria-label="Change your passport photograph" title="Change your passport photograph">
+              {photo ? <img src={photo} alt="" /> : <em>No photograph</em>}
+              <i>{photoBusy ? 'Uploading…' : photo ? 'Change' : 'Add photo'}</i>
+            </button>
 
-      {/* Astrology Profile — the shared birth-details profile (Astrology Zone,
-          dating matchmaking, compatibility reports all read from it) */}
-      <Link to="/profile/astrology" className="card lift" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, textDecoration: 'none', color: 'inherit' }}>
-        <span style={{ fontSize: 22 }}>🔭</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 15 }}>Astrology Profile</div>
-          <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>Birth date, time and place — entered once, used by horoscopes, matchmaking and compatibility.</p>
-        </div>
-        <span style={{ color: 'var(--accent-ink)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
-      </Link>
+            <div className="pfields">
+              <Field label="Type" value="P" />
+              <Field label="City code" value="TC" />
+              <Field label="Citizen no." value={user?.handle ? `@${user.handle}` : null} />
 
-      {/* Avatar picker — a drawn face for people who would rather not use a photo. */}
-      <Link to="/profile/avatar" className="card lift" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, textDecoration: 'none', color: 'inherit' }}>
-        <span style={{ fontSize: 22 }}>🙂</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 15 }}>Avatar</div>
-          <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>A drawn face to use beside your name and in calls, if you would rather not use a photo.</p>
-        </div>
-        <span style={{ color: 'var(--accent-ink)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>Open →</span>
-      </Link>
+              <Field span="half" label="Surname / Nom (1)" value={surname} big />
+              <Field label="Sex (5)" value={sexMark || null} fill="/profile/master" />
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--line)' }}>
-        {TABS.map((t) => (
-          <button key={t.key} type="button" onClick={() => setTab(t.key)}
-            style={{ position: 'relative', cursor: 'pointer', background: 'none', border: 'none', padding: '10px 14px', fontFamily: 'inherit',
-              fontSize: 14, fontWeight: 600, color: tab === t.key ? 'var(--accent)' : 'var(--muted)',
-              borderBottom: `2px solid ${tab === t.key ? 'var(--accent)' : 'transparent'}`, marginBottom: -1 }}>
-            {t.label}
-            {t.badge ? <span className="tag" style={{ marginLeft: 6, background: 'var(--danger-ink)', color: 'var(--on-accent)' }}>{t.badge}</span> : null}
-          </button>
-        ))}
-      </div>
+              <Field span="half" label="Given names (2)" value={given || '—'} big />
+              <Field label="Date of birth (4)" value={asDate(m?.dateOfBirth)} fill="/profile/master" />
 
-      {tab === 'overview' && (
-        <>
-          <h4 style={{ margin: '4px 0 12px' }}>Your data across Together City</h4>
-          {isLoading && <Spinner />}
-          {isError && <EmptyState title="Couldn't load your data" hint="Reload in a moment." />}
-          {data && data.hubs.length === 0 && (
-            <EmptyState icon="✨" title="A fresh identity" hint="As you use each hub, what it knows about you appears here." />
-          )}
-          {data && data.hubs.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 14, marginBottom: 24 }}>
-              {data.hubs.map((h) => (
-                <Link key={h.hub} to={h.href} className="card lift" style={{ display: 'block' }}>
-                  <div className="eyebrow" style={{ marginBottom: 4 }}>{h.label}</div>
-                  <p style={{ fontSize: 13 }}>{h.summary}</p>
-                </Link>
-              ))}
+              <Field label="Nationality (3)" value="Together City" />
+              <Field span="half" label="Place of birth (6)" value={place} fill="/profile/master" />
+
+              <Field label="Date of issue (7)" value={asDate(issued)} />
+              <Field label="Authority (8)" value="Together City" />
+              <Field label="Residence (9)" value={residence} fill="/profile/master" />
+
+              <Field span="half" label="Correspondence (10)" value={user?.handle ? `${user.handle}@togethercity.app` : null} />
+              <Field label="Languages (11)" value={m?.languages ?? null} fill="/profile/master" />
             </div>
-          )}
-          {/* Above the read-only rows, because it is the only part of this tab
-              that has something to DO. The rows below restate the same two
-              values; here is where they get fixed. */}
-          <VerificationCard />
-          <SexAndGenderCard />
-          {data && data.sections.length > 0 && (
-            <Card>
-              {data.sections.map((s) => (
-                <div key={s.key} style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 0', borderTop: '1px solid var(--line)' }}>
-                  <span className="muted" style={{ fontSize: 13 }}>{s.label}</span>
-                  <span style={{ fontSize: 13.5, color: s.value ? 'var(--ink)' : 'var(--muted)' }}>
-                    <ValueOrEmpty value={s.value} label={s.label} />
-                  </span>
-                </div>
-              ))}
-            </Card>
-          )}
-        </>
-      )}
+          </div>
 
-      {tab === 'photo' && <PhotoTab current={photo} name={name} />}
-      {tab === 'notifications' && <NotificationsTab />}
-      {tab === 'account' && (
-        <>
-          {/* The same protections as Settings — one shared component, so the
-              danger zone cannot drift between its two doors. */}
-          <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
-            Leaving Together City deletes your one identity across every hub. If you only want a
-            quieter city, you can sign out instead — nothing is lost.
+          {/* Not a real machine-readable zone and not pretending to be one —
+              see the note in Passport.tsx. It is a texture that says the city
+              knows who you are. */}
+          <div className="pmrz" aria-hidden="true">{mrz[0]}<br />{mrz[1]}</div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '14px 0 30px' }}>
+          <Link to="/profile/master"><Button variant="accent" size="sm">Edit the data page</Button></Link>
+          <Link to="/profile/avatar"><Button variant="line" size="sm">Use a drawn face</Button></Link>
+          <Button variant="line" size="sm" onClick={signOut}>Sign out</Button>
+        </div>
+
+        {/* ── THE VISA PAGES ────────────────────────────────────────────── */}
+        <div className="eyebrow">Visas &amp; permits</div>
+        <p className="muted" style={{ fontSize: 13, margin: '4px 0 14px', maxWidth: '62ch' }}>
+          One page per hub. Each is stamped by what that hub knows about you —
+          and stays blank until you have been there, which is the honest way to
+          show a hub you have never opened.
+        </p>
+        {isLoading && <Spinner />}
+        {isError && <EmptyState title="Couldn't load your pages" hint="Reload in a moment." />}
+        {pages.length > 0 && (
+          <div className="pvisas" style={{ marginBottom: 30 }}>
+            {pages.map((pg) => <Visa key={pg.href} page={pg} />)}
+          </div>
+        )}
+
+        {/* ── ENDORSEMENTS ─────────────────────────────────────────────
+            Four doors that are not hubs. They were four identical cards in a
+            column reading "Open →" four times; as a strip of endorsements
+            they stop competing with the visa pages above them. */}
+        <div className="eyebrow">Endorsements</div>
+        <div className="pvisas" style={{ margin: '10px 0 30px' }}>
+          {[
+            { to: '/connections', code: 'CIT', label: 'Other citizens', body: 'Find people, follow them, and answer the requests waiting on you.', badge: reqCount },
+            { to: '/calendar', code: 'CAL', label: 'Calendar', body: 'Your appointments, bookings and reminders across the city.' },
+            { to: '/profile/astrology', code: 'SKY', label: 'Astrology profile', body: 'Birth date, time and place — entered once, read by horoscopes, matchmaking and compatibility.' },
+            { to: '/profile/avatar', code: 'FCE', label: 'Avatar', body: 'A drawn face for beside your name and in calls, if you would rather not use a photograph.' },
+          ].map((e) => (
+            <Link key={e.to} to={e.to} className="pvisa" style={{ minHeight: 0 }}>
+              <div className="phead">
+                <span className="pcode">{e.code}</span>
+                <b>{e.label}</b>
+              </div>
+              <p className="psum" style={{ marginRight: 0 }}>{e.body}</p>
+              <div className="pfoot">
+                <span>{e.badge ? `${e.badge > 9 ? '9+' : e.badge} waiting` : 'Endorsement'}</span>
+                <span>Open →</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {/* ── THE BACK PAGES ───────────────────────────────────────────── */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--line)' }}>
+          {TABS.map((t) => (
+            <button key={t.key} type="button" onClick={() => setTab(t.key)}
+              style={{ position: 'relative', cursor: 'pointer', background: 'none', border: 'none', padding: '10px 14px', fontFamily: 'inherit',
+                fontSize: 14, fontWeight: 600, color: tab === t.key ? 'var(--accent)' : 'var(--muted)',
+                borderBottom: `2px solid ${tab === t.key ? 'var(--accent)' : 'transparent'}`, marginBottom: -1 }}>
+              {t.label}
+              {t.badge ? <span className="tag" style={{ marginLeft: 6, background: 'var(--danger-ink)', color: 'var(--on-accent)' }}>{t.badge}</span> : null}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'overview' && (
+          <>
+            {/* The two cards that can CHANGE something come first. The rows
+                below restate the same values read-only; here is where they
+                get fixed. */}
+            <VerificationCard />
+            <SexAndGenderCard />
+
+            {/* OFFICIAL OBSERVATIONS — the reference passport's page 3, and
+                the honest name for a list of read-only rows. */}
+            {data && data.sections.length > 0 && (
+              <div className="pobs" style={{ marginTop: 16 }}>
+                <h3>Official observations</h3>
+                <div style={{ marginTop: 8 }}>
+                  {data.sections.map((sec) => (
+                    <div key={sec.key} className="row">
+                      <span>{sec.label}</span>
+                      <span style={{ color: sec.value ? 'var(--ink)' : 'var(--muted)' }}>
+                        <ValueOrEmpty value={sec.value} label={sec.label} />
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginTop: 16 }}><HealthScoreCard /></div>
+          </>
+        )}
+
+        {tab === 'notifications' && <NotificationsTab />}
+
+        {/* ── SURRENDER THE DOCUMENT ────────────────────────────────────────
+            A permanent section at the foot, not a tab.
+
+            Deleting your account was the third tab on this page, which meant
+            it was invisible until you went looking for the word "delete" —
+            and a page whose whole subject is "here is everything the city
+            holds about you" owes the way out the same visibility as the way
+            in. It reads plainly rather than in red: this is a decision
+            somebody arrives at, not one they need frightening away from. The
+            protections are DeleteAccountCard's own, shared with Settings, so
+            the danger zone cannot drift between its two doors. */}
+        <section className="esec" style={{ marginTop: 34 }}>
+          <h2>Surrender the document</h2>
+          <p className="muted" style={{ fontSize: 13, margin: '0 0 4px', maxWidth: '62ch', lineHeight: 1.6 }}>
+            Deleting your account deletes your one identity across every hub —
+            the data page above, every visa in it, and everything each hub has
+            recorded. It cannot be undone and nobody at Together City can
+            restore it for you.
+          </p>
+          <p className="muted" style={{ fontSize: 13, margin: '0 0 4px', maxWidth: '62ch', lineHeight: 1.6 }}>
+            If you only want a quieter city, you can{' '}
+            <button type="button" onClick={signOut}
+              style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, color: 'var(--accent-ink)', textDecoration: 'underline' }}>
+              sign out
+            </button>{' '}
+            instead, or turn things off one at a time in{' '}
+            <Link to="/settings" style={{ fontWeight: 700 }}>Settings</Link>. Nothing is lost either way.
           </p>
           <DeleteAccountCard />
-        </>
-      )}
+        </section>
+      </div>
     </div>
   );
 }

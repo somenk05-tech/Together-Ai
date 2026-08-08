@@ -379,6 +379,24 @@
 
   --sp-1: 6px; --sp-2: 10px; --sp-3: 16px; --sp-4: 24px; --sp-5: 36px; --sp-6: 52px; --sp-7: 76px;
 
+  /* ── THE PASSPORT ────────────────────────────────────────────────────────
+     Engine-turned line work, the way a real document gets its texture: two
+     fine interference patterns crossed at an angle, plus one rosette. It is
+     achromatic on purpose — the security printing on a passport is a
+     GEOMETRY, and colouring it would turn a texture into a tint. The alphas
+     are low enough that ink over it still clears AA by a mile. */
+  --guilloche:
+    repeating-radial-gradient(circle at 18% 120%, rgba(20,22,26,.055) 0 1px, transparent 1px 7px),
+    repeating-radial-gradient(circle at 84% -14%, rgba(20,22,26,.045) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(64deg, rgba(20,22,26,.035) 0 1px, transparent 1px 6px);
+  --rosette:
+    repeating-conic-gradient(from 0deg at 50% 50%, rgba(20,22,26,.075) 0deg 1.6deg, transparent 1.6deg 5deg);
+  /* The laminate's shifting sheen, and the one place this document is allowed
+     a hue: it is a reflection, not an ink. */
+  --laminate: linear-gradient(118deg,
+    rgba(255,255,255,0) 34%, rgba(148,196,222,.22) 44%,
+    rgba(226,196,222,.20) 52%, rgba(255,255,255,0) 62%);
+
   /* The editorial arc's edge fade — a mask, so it fades whatever is at the
      edge rather than whichever listing happens to be first in the list. */
   --earc-fade: linear-gradient(90deg,
