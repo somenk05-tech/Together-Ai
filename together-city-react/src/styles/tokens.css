@@ -1017,8 +1017,8 @@
   /* The sky, at a value four inks can live on. #a9cfe4 straight off the plate
      takes --faint to 4.05:1; #c3dfee is the same hue three steps up and clears
      4.5:1 on all four. */
-  --ground: #c3dfee;
-  --paper:  #c3dfee;
+  --ground: #e2d9ec;
+  --paper:  #e2d9ec;
   --card:   #fbfdfe;
   --wash:   #eef6fb;
   /* The shadow the bowl's rim casts — a photograph's letterbox and the selfie
@@ -1030,10 +1030,10 @@
      on the darkest pixel of the plate below — and a label that fails in the
      bottom-left corner of one page fails there on every page. Both quiet
      steps moved down until they clear the picture's worst patch. */
-  --ink:      #0f2230;   /* 11.7 flat · 9.3 on the plate's worst pixel */
-  --ink-soft: #1c3446;   /*  9.3 flat · 7.4 */
-  --muted:    #274255;   /*  7.6 flat · 6.0 */
-  --faint:    #355466;   /*  5.8 flat · 4.6 — labels and metadata ONLY */
+  --ink:      #0f2230;   /* 11.7 flat · 9.0 on the wash's darkest patch */
+  --ink-soft: #1c3446;   /*  9.3 flat · 7.2 */
+  --muted:    #274255;   /*  7.6 flat · 5.9 */
+  --faint:    #31505f;   /*  6.1 flat · 4.8 on the wash's darkest patch — labels ONLY */
   --line:   #bcd6e5;
   --line-2: #a6c7db;
 
@@ -1123,26 +1123,29 @@
   --scrim-clear: rgba(11,26,36,0);
   --scrim-deep:  rgba(11,26,36,.78);
 
-  /* ── THE PLATE, UNDER A VEIL ─────────────────────────────────────────────
-     The owner's photograph is the ground now, not a gradient mixed from it.
-     It is the LANDSCAPE plate — mostly sky, candy banked below the horizon,
-     nobody's face in it — which is the shape a room needs. The portrait plate
-     we tried first put a stranger's face at 900px behind six real people's
-     photographs and took the type on the page down to 1.02:1.
+  /* ── THE WASH: LOVELY SPRING ─────────────────────────────────────────────
+     A mesh of three named colours, from the owner's swatch card:
 
-     THE VEIL IS LOAD-BEARING AND ITS ALPHA IS MEASURED. At full strength the
-     picture's darkest pixel is L=0.11; against --ink that is 2.5:1, and no
-     ink scale can rescue it — dark type on a saturated photograph is
-     unreadable wherever the photograph is saturated. --card at .68 lifts the
-     worst pixel to L=0.55, where all four inks clear 4.5:1 with the scale
-     above. Below .62 the labels fail; above .80 the picture stops being
-     visible at all and this is just an expensive gradient.
+       #80ebf3  cyan   — the cool corner, lower-left and up the left edge
+       #eeaed7  pink   — the body of it, centre through upper-right
+       #f1d3ed  lilac  — where the two meet, and the pale top-right corner
 
-     The veil is the CARD colour rather than white, so the page and the panes
-     that float on it are made of the same material. */
+     A GRADIENT, NOT A PHOTOGRAPH, AND THAT IS THE POINT OF IT. The cloud plate
+     that stood here needed a .68 veil to keep type off its saturated patches,
+     which meant paying 96KB to then hide two thirds of it. Three colours mixed
+     directly cost nothing, never need a veil, and cannot get darker than the
+     darkest swatch — which is what makes the ink below provable rather than
+     measured-and-hoped.
+
+     The floor is #eeaed7 at L=0.53. Every ink above clears 4.5:1 against it,
+     so every ink clears everywhere on the page, at every viewport, forever. */
   --sky-image:
-    linear-gradient(rgba(251,253,254,.68), rgba(251,253,254,.68)),
-    url('/assets/img/sky/candy-clouds.webp') 50% 34% / cover no-repeat;
+    radial-gradient(58% 52% at 100% 0%,  #f7e7f4 0%, rgba(247,231,244,0) 62%),
+    radial-gradient(66% 58% at 74% 26%,  #eeaed7 0%, rgba(238,174,215,0) 66%),
+    radial-gradient(52% 46% at 34% 62%,  #f1d3ed 0%, rgba(241,211,237,0) 64%),
+    radial-gradient(60% 62% at -6% 104%, #80ebf3 0%, rgba(128,235,243,0) 62%),
+    radial-gradient(44% 50% at -4% 14%,  #a8e6f0 0%, rgba(168,230,240,0) 60%),
+    linear-gradient(146deg, #cfeaf3 0%, #e6cfe9 46%, #f1d3ed 100%);
   --chrome: rgba(255,255,255,.62);
   --chrome-blur: blur(20px) saturate(150%);
 
