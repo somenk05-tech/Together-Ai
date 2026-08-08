@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Spinner } from '@/components/ui';
 import { profileApi, type DeclaredHealthDraft, type MasterProfileView } from '../api';
@@ -9,6 +9,9 @@ import { HEALTH_CONDITION_OPTIONS, KIDNEY_STAGE_OPTIONS, TRIMESTER_OPTIONS, decl
 import { useFoodPref, useUpdateFoodPref } from '@/features/nutrition/hooks';
 import { CUISINES, balanced, capPct, cuisineSummary, mixTotal, readMix, withMix } from '@/features/nutrition/cuisineMix';
 import { useMasterProfile, useProfileCompletion } from '../hooks';
+import { geoApi } from '@/api/geo.api';
+import { Button } from '@/components/ui';
+import { splitPlace } from '../placeParts';
 
 /**
  * The Master Profile screen (FE-3.1).
@@ -44,7 +47,8 @@ const SECTIONS = [
   { id: 'body', label: 'Body' },
   { id: 'diet', label: 'Diet' },
   { id: 'medical', label: 'Medical' },
-  { id: 'contact', label: 'Contact' },
+  { id: 'birth', label: 'Place of birth' },
+  { id: 'contact', label: 'Where you live' },
 ] as const;
 
 const WHY_WE_ASK = {
@@ -57,6 +61,7 @@ const WHY_WE_ASK = {
 };
 
 export function MasterProfile() {
+  const navigate = useNavigate();
   const master = useMasterProfile();
   const completion = useProfileCompletion();
   const qc = useQueryClient();
@@ -132,6 +137,60 @@ export function MasterProfile() {
   });
 
   useEffect(() => () => { if (savedTimer.current) clearTimeout(savedTimer.current); }, []);
+
+  /**
+   * WHERE YOU LIVE, FROM THE DEVICE — ASKED FOR, NEVER TAKEN.
+   *
+   * The browser prompt only appears when this button is pressed. Nothing reads
+   * a location on page load: a profile form that silently asks for your
+   * coordinates the moment it renders is a profile form nobody should trust,
+   * and the answer is only ever used to FILL THREE TEXT BOXES that stay
+   * editable afterwards. No latitude or longitude is stored.
+   */
+  const [locBusy, setLocBusy] = useState(false);
+  const [locFound, setLocFound] = useState<string | null>(null);
+  const [locErr, setLocErr] = useState<string | null>(null);
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) { setLocErr('This browser cannot share a location. Type it in below.'); return; }
+    setLocErr(null); setLocFound(null); setLocBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        geoApi.reverse(pos.coords.latitude, pos.coords.longitude)
+          .then((place) => {
+            if (!place) { setLocErr('We could not name that spot. Type it in below.'); return; }
+            const parts = splitPlace(place.label, place.short);
+            setLocFound(place.label);
+            /* One PATCH, not three: three requests can half-land and leave a
+               city in one country and a state in another. */
+            setDraft((d) => ({ ...d, ...parts }));
+            save.mutate(parts);
+          })
+          .catch(() => setLocErr('The lookup did not answer. Type it in below.'))
+          .finally(() => setLocBusy(false));
+      },
+      () => { setLocBusy(false); setLocErr('That did not come through — you may have declined, which is fine. Type it in below.'); },
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+    );
+  };
+
+  /**
+   * SAVE AND CLOSE.
+   *
+   * Every field already autosaves on blur, which is right for a long form and
+   * wrong as the ONLY way out: a citizen who edits the last box and presses
+   * the browser's back button loses it, because blur never fired. This flushes
+   * whatever is still in the draft in one PATCH and returns to the passport.
+   */
+  const [closing, setClosing] = useState(false);
+  const saveAndClose = () => {
+    setClosing(true);
+    if (Object.keys(draft).length === 0) { navigate('/profile'); return; }
+    save.mutate(draft, {
+      onSuccess: () => navigate('/profile'),
+      onError: () => setClosing(false),
+    });
+  };
 
   const v = useMemo(() => ({ ...(master.data ?? {}), ...draft }) as MasterProfileView, [master.data, draft]);
   const dirty = Object.keys(draft).length > 0;
@@ -470,13 +529,69 @@ export function MasterProfile() {
         />
       </Section>
 
-      {/* ── Contact ──────────────────────────────────────────────── */}
-      <Section id="contact" title="Contact">
+      {/* ── Place of birth ───────────────────────────────────────────
+          TYPED, NEVER INFERRED. The passport's PLACE OF BIRTH used to be
+          composed out of the Astrology profile's birth details, because those
+          were the only birth-place fields any screen wrote — so a citizen who
+          had never opened Astrology had a blank line on their document and no
+          box anywhere to fill it, and one who had was shown a birth place they
+          entered to get a horoscope. It is three boxes of its own now, owned
+          by this screen like every other identity field.
+
+          It is NOT prefilled from where you live. Those are different facts
+          about a person and the overlap is a coincidence. */}
+      <Section id="birth" title="Place of birth">
+        <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.55, margin: '0 0 14px' }}>
+          Where you were born — typed by you, never guessed from anything else.
+          It prints on your passport and it is what Astrology reads for a birth
+          chart. Leave it blank and the line stays blank.
+        </p>
+        {textField('birthCity', 'City of birth')}
+        {textField('birthState', 'State / region of birth')}
+        {textField('birthCountry', 'Country of birth')}
+      </Section>
+
+      {/* ── Where you live ───────────────────────────────────────── */}
+      <Section id="contact" title="Where you live">
+        <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.55, margin: '0 0 12px' }}>
+          Your current address, which is what the city uses to show you what is
+          near you. You can let the device fill it in, and you can correct
+          whatever it puts there.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+          <Button variant="line" size="sm" disabled={locBusy} onClick={useMyLocation}>
+            {locBusy ? 'Locating…' : 'Use my current location'}
+          </Button>
+          <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, flex: 1, minWidth: 200 }}>
+            Asks your browser once, fills the three boxes below, and stores only
+            those three words — no coordinates.
+          </span>
+        </div>
+        {locFound && (
+          <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: '0 0 12px' }}>
+            Found <strong>{locFound}</strong> — correct anything below that is wrong.
+          </p>
+        )}
+        {locErr && (
+          <p style={{ fontSize: 12, color: 'var(--danger-ink)', margin: '0 0 12px', lineHeight: 1.5 }}>{locErr}</p>
+        )}
         {textField('phone', 'Phone', undefined, 'tel')}
         {textField('city', 'City')}
         {textField('state', 'State')}
         {textField('country', 'Country')}
       </Section>
+
+      {/* Every field autosaves on blur; this is the way OUT, and it flushes
+          anything blur has not seen yet. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '26px 0 8px' }}>
+        <Button variant="accent" disabled={closing || save.isPending} onClick={saveAndClose}>
+          {closing || save.isPending ? 'Saving…' : 'Save and close'}
+        </Button>
+        <Link to="/profile" style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-ink)' }}>Back to your passport</Link>
+        <span className="muted" style={{ fontSize: 11.5, flex: 1, minWidth: 200, lineHeight: 1.5 }}>
+          {dirty ? 'You have changes that have not been saved yet.' : 'Everything here is saved.'}
+        </span>
+      </div>
     </div>
   );
 }
