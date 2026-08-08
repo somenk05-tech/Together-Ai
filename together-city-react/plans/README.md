@@ -62,6 +62,27 @@ Then, in this order:
   should read the first and match it).
 - 002 → 011 (002 removes `--spring`, one of the eight easing values).
 
+## Correction — plan 012 shipped onto classes nobody wears
+
+**Plan 012 ("Modals teleport while sheets animate") is landed and does nothing.**
+It added `modalOvIn` + `sheetIn` to `.modal-ov` and `.modal` at
+`src/index.css:283-296`. Verified after the fact:
+
+    grep -rn "modal-ov" src/ --include=*.tsx   ->   0 hits
+
+Every dialog in this application is a hand-rolled `position:'fixed'; inset:0`
+**inline style object** — 16 files, including `components/ui/Modal.tsx`, the
+payment sheet, the call centre and the chat starter. None of them carries the
+class the plan animated. The finding was right (modals do snap in); the fix
+targeted a selector with no wearers, and every gate passed because a rule for
+an unused class is perfectly valid CSS. The lesson is narrow and worth keeping:
+**a plan that changes a stylesheet must name the component that wears the
+class, and the verification must grep for it.**
+
+The repair is not "re-do 012" — it is giving those 16 overlays real class names
+so the rules that already exist apply. One pair of names, twelve real dialogs,
+no new keyframes.
+
 ## Standing constraints for every executor
 
 - **Never invent a colour.** `relief.spec.ts` fails on any hex, `rgb()` or `hsl()` outside

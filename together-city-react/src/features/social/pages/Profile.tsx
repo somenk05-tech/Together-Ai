@@ -133,42 +133,91 @@ function profilePostToPost(p: ProfilePost, me?: { id: string; handle: string; na
   };
 }
 
-/** Opens a post in place ON the profile page as the full feed card (video plays
- *  with controls, plus like/comment/share/save and Edit/Delete), so viewing or
- *  managing a post never bounces the user to the city feed. */
-function PostLightbox({ post, category, onClose }: { post: Post; category?: string | null; onClose: () => void }) {
+/**
+ * THE READER — a scroll, not a single card in a box.
+ *
+ * Tapping a tile used to open exactly one post in an overlay with a Close
+ * button under it, so seeing the next one meant closing, finding the next
+ * tile, and opening again. Instagram opens the same grid as a COLUMN, scrolled
+ * to the one you touched, and you keep going from there. That is the whole
+ * change: the overlay holds the list now, and the tapped post is where it
+ * starts rather than all it contains.
+ *
+ * VIDEOS PLAY ONE AT A TIME, and that is not decoration — it is the reason a
+ * column of them is usable at all. `autoplayVideo` is machinery PostCard
+ * already has for the Videos feed: muted autoplay above 60% visibility, pause
+ * on the way out, and `src` withheld until the card is nearly on screen so
+ * opening the reader does not open a connection per video. Without it, five
+ * videos in a column is five sound tracks and five sockets.
+ *
+ * The scroll is INSTANT, not smooth. You touched a specific tile; arriving
+ * anywhere else first and gliding to it is a journey nobody asked for.
+ */
+function PostReader({
+  posts, startId, onClose, manage, onOpenAuthor,
+}: {
+  posts: { post: Post; category?: string | null }[];
+  startId: string;
+  onClose: () => void;
+  manage?: boolean;
+  onOpenAuthor?: (handle: string) => void;
+}) {
   const setCover = useSetCover();
   const setCategory = useSetPostCategory();
-  const cur = category ?? '';
-  const choose = (c: 'work' | 'personal' | null) => setCategory.mutate({ postId: post.id, category: c });
-  const chip = (key: '' | 'personal' | 'work', label: string) => (
+  const scroller = useRef<HTMLDivElement>(null);
+  const startRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    startRef.current?.scrollIntoView({ block: 'start' });
+  }, [startId]);
+
+  // Escape closes, because a full-height scroller with a button at the bottom
+  // has no reachable Close once you are three posts down.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const chip = (postId: string, cur: string, key: '' | 'personal' | 'work', label: string) => (
     <button key={key || 'none'} type="button" disabled={setCategory.isPending}
-      onClick={() => choose(key === '' ? null : key)}
+      onClick={() => setCategory.mutate({ postId, category: key === '' ? null : key })}
       style={{ cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
         border: `1.5px solid ${cur === key ? 'var(--accent)' : 'var(--line)'}`,
         background: cur === key ? 'var(--accent)' : 'var(--card)', color: cur === key ? 'var(--on-accent)' : 'var(--ink)' }}>
       {label}
     </button>
   );
+
   return (
-    <div onClick={onClose} className="sheet-ov is-top">
-      <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(600px,96vw)', margin: 'auto 0' }}>
-        <PostCard post={post} manage
-          onSetCover={(t) => setCover.mutate({ postId: post.id, time: t })}
-          coverBusy={setCover.isPending} />
-        <div className="card" style={{ margin: '8px 0', padding: '12px 14px', border: '1.5px solid var(--accent)' }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>
-            <Icon name="sort" size={14} /> Sort this post {setCategory.isPending && <span className="muted" style={{ fontWeight: 500 }}>· Saving…</span>}
+    <div className="sheet-ov is-top" onClick={onClose}>
+      {/* Close is FIXED to the overlay, not placed after the list. Three posts
+          down, a button at the end of the column is not a way out. */}
+      <button type="button" onClick={onClose} className="btn btn-line btn-sm"
+        style={{ position: 'fixed', top: 14, right: 16, zIndex: 2 }}>Close</button>
+      <div ref={scroller} onClick={(e) => e.stopPropagation()}
+        style={{ width: 'min(600px,96vw)', maxHeight: '100dvh', overflowY: 'auto', padding: '14px 0 40px', scrollbarWidth: 'thin' }}>
+        {posts.map(({ post, category }) => (
+          <div key={post.id} ref={post.id === startId ? startRef : undefined} style={{ scrollMarginTop: 14, marginBottom: 18 }}>
+            <PostCard post={post} autoplayVideo
+              manage={manage}
+              onOpenAuthor={onOpenAuthor}
+              onSetCover={manage ? (t) => setCover.mutate({ postId: post.id, time: t }) : undefined}
+              coverBusy={manage ? setCover.isPending : undefined} />
+            {manage && (
+              <div className="card" style={{ margin: '8px 0 0', padding: '12px 14px', border: '1.5px solid var(--accent)' }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>
+                  <Icon name="sort" size={14} /> Sort this post {setCategory.isPending && <span className="muted" style={{ fontWeight: 500 }}>· Saving…</span>}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {chip(post.id, category ?? '', '', 'None')}
+                  {chip(post.id, category ?? '', 'personal', 'Personal')}
+                  {chip(post.id, category ?? '', 'work', 'Work')}
+                </div>
+              </div>
+            )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {chip('', 'None')}
-            {chip('personal', 'Personal')}
-            {chip('work', 'Work')}
-          </div>
-        </div>
-        <div style={{ textAlign: 'center' }}>
-          <button type="button" onClick={onClose} className="btn btn-line btn-sm">Close</button>
-        </div>
+        ))}
       </div>
     </div>
   );
@@ -374,10 +423,20 @@ function PostsTab({ filter = 'all', category = 'all' }: { filter?: 'all' | 'phot
       {!arranging && <div ref={sentinel} style={{ height: 1 }} />}
       {!arranging && posts.isFetchingNextPage && <div style={{ padding: 16 }}><Spinner /></div>}
       {(() => {
-        const op = openId ? items.find((x) => x.id === openId) : null;
-        // Driven by live items: if the post is edited/deleted, the lightbox
-        // reflects it (and closes when the post is gone).
-        return op ? <PostLightbox post={profilePostToPost(op, me.data)} category={op.category} onClose={() => setOpenId(null)} /> : null;
+        // Driven by live items: if a post is edited or deleted the reader
+        // reflects it, and it closes when the post you opened is gone.
+        // THE SAME SET THE GRID IS SHOWING, not every post. On the Videos tab
+        // you tapped a video; scrolling on from it into photos would be the
+        // reader disagreeing with the grid you opened it from.
+        if (!openId || !view.some((x) => x.id === openId)) return null;
+        return (
+          <PostReader
+            posts={view.map((x) => ({ post: profilePostToPost(x, me.data), category: x.category }))}
+            startId={openId}
+            manage
+            onClose={() => setOpenId(null)}
+          />
+        );
       })()}
     </>
   );
@@ -528,18 +587,7 @@ function FollowButton({ userId, handle, iFollow }: { userId: string; handle: str
 }
 
 /** Read-only post viewer for a public profile (no edit/delete/sort). */
-function ReadOnlyLightbox({ post, onClose, onOpenAuthor }: { post: Post; onClose: () => void; onOpenAuthor: (handle: string) => void }) {
-  return (
-    <div onClick={onClose} className="sheet-ov is-top">
-      <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(600px,96vw)', margin: 'auto 0' }}>
-        <PostCard post={post} onOpenAuthor={onOpenAuthor} />
-        <div style={{ textAlign: 'center' }}>
-          <button type="button" onClick={onClose} className="btn btn-line btn-sm">Close</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+/* ReadOnlyLightbox is gone — the reader below serves both profiles. */
 
 /** Read-only grid of another citizen's posts (Posts / Photos / Videos). */
 function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filter: 'all' | 'photo' | 'video'; onOpenAuthor: (handle: string) => void }) {
@@ -588,8 +636,16 @@ function PublicPostsTab({ handle, filter, onOpenAuthor }: { handle: string; filt
       <div ref={sentinel} style={{ height: 1 }} />
       {posts.isFetchingNextPage && <div style={{ padding: 16 }}><Spinner /></div>}
       {(() => {
-        const op = openId ? items.find((x) => x.id === openId) : null;
-        return op ? <ReadOnlyLightbox post={profilePostToPost(op)} onOpenAuthor={onOpenAuthor} onClose={() => setOpenId(null)} /> : null;
+        const op = openId ? view.find((x) => x.id === openId) : null;
+        if (!op) return null;
+        return (
+          <PostReader
+            posts={view.map((x) => ({ post: profilePostToPost(x) }))}
+            startId={op.id}
+            onOpenAuthor={onOpenAuthor}
+            onClose={() => setOpenId(null)}
+          />
+        );
       })()}
     </>
   );
