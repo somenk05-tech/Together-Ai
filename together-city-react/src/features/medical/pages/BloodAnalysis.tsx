@@ -11,7 +11,7 @@ function ScoreRing({ score, band }: { score: number; band: string }) {
   const hue = score >= 85 ? 145 : score >= 70 ? 90 : score >= 55 ? 45 : 8;
   return (
     <div style={{ width: 82, height: 82, borderRadius: '50%', flex: '0 0 auto', background: `conic-gradient(hsl(${hue} 60% 45%) ${score * 3.6}deg, var(--line) 0)`, display: 'grid', placeItems: 'center' }}>
-      <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', textAlign: 'center' }}>
+      <div className="onpaper" style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--card)', display: 'grid', placeItems: 'center', textAlign: 'center' }}>
         <div>
           <b style={{ fontSize: 21, lineHeight: 1 }}>{score}</b>
           <div className="muted" style={{ fontSize: 9, letterSpacing: '.02em' }}>{band}</div>

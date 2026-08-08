@@ -48,7 +48,7 @@ export function SupplementPlan() {
           {basis.flags.length > 0 && (
             <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
               {basis.flags.map((f) => (
-                <span key={f.key} style={{ fontSize: 11, fontWeight: 600, color: f.status === 'low' ? 'var(--danger-ink)' : 'var(--warn-ink)', background: 'var(--card)', borderRadius: 999, padding: '2px 10px' }}>
+                <span key={f.key} className="onpaper" style={{ fontSize: 11, fontWeight: 600, color: f.status === 'low' ? 'var(--danger-ink)' : 'var(--warn-ink)', background: 'var(--card)', borderRadius: 999, padding: '2px 10px' }}>
                   {f.label} {f.status} ({f.value})
                 </span>
               ))}

@@ -99,23 +99,52 @@ describe('the medical atmosphere holds its ink', () => {
     expect(relief).toMatch(/\[data-hub="medical"\] \.tc-main \.page \{[^}]*var\(--atmos-pane-dense\)/);
   });
 
-  it('never lets the stage export its ink into a card', () => {
-    // The New-chat-dialog bug, guarded at the VARIABLE this time: the stage
-    // re-points the ink family, every white face takes the city's values
-    // back, and .card re-declares color so inheritance re-resolves.
-    expect(relief).toMatch(/\[data-hub="medical"\] \.tc-main \.card \{[^}]*color:\s*var\(--ink\)/);
+  it('gives the card the stage ink and the glass well — not the paper list', () => {
+    // The owner kept the glass: a card is a well sunk into the band, white
+    // ink on dark tint, and it must NOT appear on the paper handoff list —
+    // being there would hand it black ink on a dark ground.
+    expect(relief).toMatch(/\[data-hub="medical"\] \.tc-main \.card \{[^}]*background:\s*var\(--atmos-tile\)/);
+    const paper = tokens.match(/\[data-hub="medical"\] \.tc-main \.chip,[^{]*\{/)?.[0] ?? '';
+    expect(paper).not.toBe('');
+    expect(paper).not.toMatch(/\.tc-main \.card\b/);
     const handoff = tokens.match(/\[data-hub="medical"\] \.tc-main \{([^}]*)\}/)?.[1] ?? '';
     expect(handoff).toMatch(/--ink:\s*#ffffff/);
   });
 
-  it('hands the city ink back to the paper cards, at the city\'s own values', () => {
-    // The cards went frosted for one commit and their inks had to darken to
-    // survive the tint; then the band arrived, the cards went back to white
-    // paper on dark glass — the mock's own layering — and the reset table
-    // went back to being a COPY of the root. Copies rot, so: parse both,
-    // compare. The day --muted moves at the root and this block does not
-    // move with it, this failure names the token.
-    const reset = tokens.match(/\[data-hub="medical"\] \.tc-main \.card,[^{]*\{([^}]*)\}/)?.[1] ?? '';
+  it('keeps every ghost flag readable on the card glass, computed', () => {
+    // The mock's LOW/HIGH/NORMAL flags: tinted glass, light ink, same hue.
+    // Worst ground: the tint over the card well over the band over the
+    // sky's brightest steam — every layer parsed from the tokens as written.
+    const air = tokens.match(/--atmos-air:([\s\S]*?);/)?.[1] ?? '';
+    const cap = Math.max(...[...air.matchAll(/rgba\(255,\s*255,\s*255,\s*(\.?[\d.]+)\)/g)].map((m) => +m[1]));
+    const stops = [...air.matchAll(/#([0-9a-f]{6})/gi)]
+      .map((m) => [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)));
+    const lightest = stops.reduce((x, y) => (lum(x) > lum(y) ? x : y));
+    const tile = rgba('--atmos-tile')!;
+    const band = over(dense.rgb, dense.a, over(WHITE, cap, lightest));
+    const well = over(tile.rgb, tile.a, band);
+
+    const handoff = tokens.match(/\[data-hub="medical"\] \.tc-main \{([^}]*)\}/)?.[1] ?? '';
+    for (const pair of [['--ok-soft', '--ok-ink'], ['--warn-soft', '--warn-ink'],
+      ['--danger-soft', '--danger-ink'], ['--accent-soft', '--accent-ink']]) {
+      const soft = rgba(pair[0], handoff);
+      expect({ pair: pair[0], declared: Boolean(soft) }).toEqual({ pair: pair[0], declared: true });
+      const inkHex = handoff.match(new RegExp(`${pair[1]}:\\s*#([0-9a-f]{6})`, 'i'))?.[1];
+      expect({ pair: pair[1], declared: Boolean(inkHex) }).toEqual({ pair: pair[1], declared: true });
+      const flag = over(soft!.rgb, soft!.a, well);
+      const ink = [0, 2, 4].map((i) => parseInt(inkHex!.slice(i, i + 2), 16));
+      const r = contrast(ink, flag);
+      expect({ pair: pair[1], aa: r >= 4.5, ratio: +r.toFixed(2) })
+        .toEqual({ pair: pair[1], aa: true, ratio: +r.toFixed(2) });
+    }
+  });
+
+  it('hands the city ink back to every surface that stays paper', () => {
+    // Wells, chips, buttons, modals, stat tiles, rows, and .onpaper — the
+    // name a hand-rolled inline var(--card) face wears so the handoff can
+    // reach it. Their values must EQUAL the city's; copies rot, so parse
+    // both and compare, statuses included.
+    const reset = tokens.match(/\[data-hub="medical"\] \.tc-main \.chip,[^{]*\{([^}]*)\}/)?.[1] ?? '';
     expect(reset).not.toBe('');
     const root = tokens.split(/\[data-hub=/)[0];
     for (const name of ['--ink', '--ink-soft', '--muted', '--faint']) {
@@ -124,12 +153,14 @@ describe('the medical atmosphere holds its ink', () => {
       expect({ name, resetVal }).toEqual({ name, resetVal: rootVal });
     }
     const hub = tokens.match(/\[data-hub="medical"\]\s+\{([^}]*)\}/)?.[1] ?? '';
-    const hubAccent = hub.match(/--accent-ink:\s*([^;]+);/)?.[1].trim();
-    const resetAccent = reset.match(/--accent-ink:\s*([^;]+);/)?.[1].trim();
-    expect(resetAccent).toBe(hubAccent);
-    // and no frosted card material survives to contradict the paper
-    expect(relief).not.toMatch(/--atmos-card/);
-    expect(tokens).not.toMatch(/--atmos-card/);
+    expect(reset.match(/--accent-ink:\s*([^;]+);/)?.[1].trim())
+      .toBe(hub.match(/--accent-ink:\s*([^;]+);/)?.[1].trim());
+    // and the pages' own hand-rolled paper actually wears the name
+    for (const page of ['features/medical/pages/BloodAnalysis.tsx',
+      'features/medical/pages/Connections.tsx', 'features/medical/pages/SupplementPlan.tsx']) {
+      expect({ page, named: read(`src/${page}`).includes('className="onpaper"') })
+        .toEqual({ page, named: true });
+    }
   });
 
   it('leaves the ground tokens alone — this is a stage, not a sixth grant', () => {

@@ -2802,13 +2802,19 @@ textarea.g-field { resize: none; line-height: 1.55; }
   background-color: var(--atmos-floor);
 }
 
-/* A STAGE DOES NOT EXPORT ITS INK — enforced at the VARIABLE this time,
-   because this hub's chrome carries inline `var(--ink)` styles no rule can
-   reach: tokens.css re-points the ink family at .tc-main and hands the
-   city's values back at every white face. What remains here is the one rule
-   variables cannot do — .card must RE-DECLARE color, or it inherits the
-   stage's computed white instead of re-resolving the reset variable. */
-[data-hub="medical"] .tc-main .card { color: var(--ink); }
+/* A STAGE DOES NOT EXPORT ITS INK — enforced at the VARIABLE, because this
+   hub's chrome carries inline `var(--ink)` styles no rule can reach:
+   tokens.css re-points the ink family at .tc-main, and hands the city's
+   values back at every surface that stays paper. The CARD is not one of
+   them any more — the owner kept the glass, so the card is a well sunk into
+   the band, wearing the stage's own white ink and the mock's ghost flags. */
+[data-hub="medical"] .tc-main .card {
+  color: var(--ink);
+  background: var(--atmos-tile);
+  border: 1px solid var(--atmos-line-soft);
+  box-shadow: var(--atmos-lip);
+}
+[data-hub="medical"] .tc-main .card.lift:hover { box-shadow: var(--atmos-lip); }
 
 
 /* ── THE BAND: one dense smoked pane under each work page's content ────────

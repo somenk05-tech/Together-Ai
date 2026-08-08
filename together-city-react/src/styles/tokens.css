@@ -475,6 +475,10 @@
      the light at its upper rim and nowhere else. A material, not a depth —
      named in relief.spec beside --soft-in and --glass for the same reason. */
   --atmos-lip: inset 0 1px 0 rgba(255,255,255,.30);
+  /* the card's glass: a well sunk INTO the band, darker than its ground the
+     way the mock's ghost panel is darker than the field. Depth by darkness,
+     not by another white. */
+  --atmos-tile: rgba(0,0,0,.22);
   --on-atmos: #ffffff;
   --on-atmos-soft: rgba(255,255,255,.84);
   /* Medical's accent is #1f5f78, mixed for white paper; on amber it is mud.
@@ -1484,11 +1488,30 @@
      field, not near-black — a dark ground buys headroom this one hasn't got */
   --faint: rgba(255,255,255,.80);
   --accent-ink: #bdeef4;
+  /* THE WASHES GO GLASS TOO. A status flag inside a glass card cannot wear
+     the city's pale wash — light on light. These are the mock's own ghost
+     flags: a tinted glass and a light ink of the same hue, and the test
+     computes every pair against the card glass at the sky's brightest. */
+  --accent-soft: rgba(189,238,244,.16);
+  --ok-soft: rgba(80,220,140,.18);      --ok-ink: #b4ebca;
+  --warn-soft: rgba(255,180,60,.20);    --warn-ink: #ffdca8;
+  --danger-soft: rgba(255,90,90,.20);   --danger-ink: #ffc0c0;
 }
-[data-hub="medical"] .tc-main .card,
-[data-hub="medical"] .tc-main .privacy-note,
+/* THE PAPER LIST. Cards are NOT on it any more — a card is glass now and
+   keeps the stage's white ink. What remains paper is what must stay paper:
+   form wells, chips, buttons, modals, stat tiles, list rows, and `.onpaper`
+   — the name a hand-rolled inline `var(--card)` face wears so this handoff
+   can reach it (the score ring's dial, a connection row, a supplement
+   pill). Every pair the stage re-points is handed back here, statuses
+   included: a LOW flag on a white pill is the city's dark red, not the
+   glass tint. */
 [data-hub="medical"] .tc-main .chip,
 [data-hub="medical"] .tc-main .btn,
+[data-hub="medical"] .tc-main .row,
+[data-hub="medical"] .tc-main .stat,
+[data-hub="medical"] .tc-main .modal,
+[data-hub="medical"] .tc-main table.tc,
+[data-hub="medical"] .tc-main .onpaper,
 [data-hub="medical"] .tc-main input,
 [data-hub="medical"] .tc-main textarea,
 [data-hub="medical"] .tc-main select {
@@ -1497,4 +1520,8 @@
   --muted: #6b6b6b;
   --faint: #9b9b9b;
   --accent-ink: #194f64;
+  --accent-soft: #eef5f8;
+  --ok-soft: #e6f4ec;    --ok-ink: #14562f;
+  --warn-soft: #fdf1dd;  --warn-ink: #7a4a05;
+  --danger-soft: #fdeaea; --danger-ink: #8f1d1d;
 }

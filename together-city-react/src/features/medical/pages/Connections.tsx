@@ -35,7 +35,7 @@ export function Connections() {
       <section className="blk rise d1">
         <div className="blk-head"><h2>Who can see your medical data</h2></div>
         {consents.data.map((c) => (
-          <div key={c.hub} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', padding: '16px 20px', boxShadow: 'var(--shadow)', marginBottom: 10 }}>
+          <div key={c.hub} className="onpaper" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', padding: '16px 20px', boxShadow: 'var(--shadow)', marginBottom: 10 }}>
             <div><div style={{ fontWeight: 600 }}>{c.label} Hub</div><div className="muted" style={{ fontSize: 12.5 }}>{BLURB[c.hub] ?? c.reads}</div></div>
             <ShareTag on={c.granted} onClick={() => set.mutate({ hub: c.hub, granted: !c.granted })} />
           </div>
