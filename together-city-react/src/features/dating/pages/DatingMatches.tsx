@@ -532,7 +532,14 @@ export function DatingMatches() {
               💫 You both liked each other
             </span>
           </div>
-          {matched.map((m) => <MatchCard key={m.user.id} match={m} kind={kind} />)}
+          {/* MUTUAL MATCHES ARE A DECK TOO, and this was the bug the owner saw.
+              The deck went in below, but this section stayed a full-bleed
+              MatchCard — so any account WITH a mutual match got a 900px
+              photograph at the top of the page and the deck ended up below the
+              fold. From the citizen's side the change had simply not shipped.
+              One person here is the flat single card, which is the right
+              amount of furniture for "you both liked each other". */}
+          <MatchStack people={matched} kind={kind} />
         </section>
       )}
 
