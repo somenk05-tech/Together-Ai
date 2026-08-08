@@ -2534,3 +2534,171 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .csrow:not(.on), .cscomposer, .cstool, .csday {
     box-shadow: none; outline: 1.5px solid var(--stage-line); outline-offset: -1.5px; }
 }
+
+/* ══ THE PROFESSIONAL RECORD ══════════════════════════════════════════════
+   One citizen's CV, set as the printed page it is: a dark column with the
+   person on it, and a white column with the work.
+
+   IT IS A PANEL, NOT A GROUND, and that distinction is the whole reason this
+   costs nothing. The argument is `.cstage`'s, above, word for word: the ground
+   is white at :root and exactly five hubs may re-point it — Jobs is not one of
+   them, and asking for the sixth grant to print a CV would be spending the
+   application's scarcest permission on a left-hand column. So the dark half is
+   a MATERIAL laid on the page. The hub around it, the breadcrumb, the rail and
+   every other Jobs screen keep the city's white.
+
+   IT WEARS THE STAGE'S OWN TOKENS rather than a second dark palette. There is
+   one dark material in this application and it already has ten names; a
+   `--cv-dark` beside `--stage` would be two answers to "what colour is a dark
+   surface here", and the second one is always the one that stops being
+   maintained. The stage is a gradient with three grounds and an ink measured
+   against all three (see the note beside the tokens) — a CV column is a
+   smaller instance of exactly that problem.
+
+   Everything is scoped under `.cv…`. `src/app/no-borrowed-class-names.test.ts`
+   guards the namespace: a bare global class inside here would arrive wearing
+   material drawn for a WHITE ground, which on the dark half is invisible. */
+
+.cvdoc {
+  display: grid; grid-template-columns: 300px minmax(0, 1fr);
+  border-radius: var(--r-4); overflow: hidden;
+  background: var(--card); box-shadow: var(--e2);
+}
+
+/* ── the dark column ─────────────────────────────────────────────────────
+   Its own ground, so its own ink. A component that paints a background and
+   inherits `color` is the defect a-stage-does-not-export-its-ink.test.ts was
+   written for; nothing in here inherits the city's near-black. */
+.cvside {
+  display: flex; flex-direction: column; gap: var(--sp-4);
+  padding: 30px 26px 34px; min-width: 0;
+  background: var(--stage); color: var(--on-stage);
+}
+.cvside .muted { color: var(--on-stage-faint); }
+.cvside a { color: var(--on-stage); }
+
+.cvid { display: flex; flex-direction: column; gap: var(--sp-3); }
+/* THE OUTLINE, NOT AN INSET SHADOW. On a replaced element an inset shadow
+   paints behind the bitmap, which is why the global image case uses an
+   outline; this one only re-points its colour, because a near-black rim on a
+   near-black column is a rim nobody can see. */
+.cvportrait, .cvnoface {
+  width: 116px; height: 116px; flex: none; border-radius: var(--r-3);
+  object-fit: cover; background: var(--stage-panel);
+  box-shadow: none; outline: 1px solid var(--stage-line); outline-offset: -1px;
+}
+.cvnoface {
+  display: grid; place-items: center;
+  font-size: 30px; font-weight: 800; letter-spacing: -.02em; color: var(--on-stage-soft);
+}
+/* Large and tight. A name is the one thing on a CV that is allowed to be big,
+   and tracking it in is what stops it reading as a banner. */
+.cvname { margin: 0; font-size: 33px; line-height: 1.04; letter-spacing: -.035em; font-weight: 800; color: var(--on-stage); }
+.cvrole { margin: 8px 0 0; font-size: 11px; font-weight: 700; letter-spacing: .19em; text-transform: uppercase; color: var(--on-stage-soft); }
+.cvmeta { display: flex; flex-direction: column; gap: var(--sp-4); }
+.cvruled { border-top: 1px solid var(--stage-line); padding-top: var(--sp-3); }
+.cvruled h3 { margin: 0 0 10px; font-size: 9.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--on-stage-faint); }
+.cvlines { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 7px; font-size: 12.5px; line-height: 1.45; }
+.cvlines b { display: block; font-size: 9.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--on-stage-faint); }
+.cvlines span { color: var(--on-stage); overflow-wrap: anywhere; }
+
+/* ── the white column ────────────────────────────────────────────────────
+   Its own ground too, stated rather than inherited: `.cvmain` is a sibling of
+   the dark half, not a child, but saying so once is cheaper than finding out
+   the day somebody nests them. */
+.cvmain { padding: 34px 34px 40px; min-width: 0; background: var(--card); color: var(--ink); }
+.cvsec + .cvsec { margin-top: var(--sp-5); }
+/* A RULED HEAD: a heavy label with a short rule under it. The rule is short on
+   purpose — a full-width one draws a line across the page and turns a heading
+   into a divider, which is the opposite of what a section head does. */
+.cvsec > h2 { margin: 0; font-size: 11.5px; font-weight: 800; letter-spacing: .21em; text-transform: uppercase; color: var(--ink); }
+.cvsec > h2::after { content: ''; display: block; width: 44px; height: 3px; margin-top: 8px; background: var(--ink); }
+
+/* Two columns: the left holds the title, the dates and the organisation, the
+   right holds the prose. It is how a printed CV is set and it is why the eye
+   can find a date without reading a paragraph. */
+.cventry {
+  display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 4px 28px;
+  padding: 18px 0; border-top: 1px solid var(--line);
+}
+.cvsec > h2 + .cventry { border-top: 0; padding-top: 16px; }
+.cvaside, .cvbody { min-width: 0; }
+.cventry h3 { margin: 0; font-size: 14.5px; font-weight: 800; letter-spacing: -.012em; color: var(--ink); }
+.cvwhen { margin: 4px 0 0; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; color: var(--muted); }
+.cvorg { margin: 3px 0 0; font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+.cvat { margin: 2px 0 0; font-size: 12px; color: var(--faint); }
+.cvprose { margin: 0; font-size: 13.5px; line-height: 1.62; color: var(--ink-soft); }
+/* `list-style: disc` is stated, not inherited. Tailwind's preflight strips the
+   marker off every ul in the application, so a bulleted list here without it is
+   an indent with no bullets — which reads as a broken paragraph. */
+.cvpoints { margin: 8px 0 0; padding-left: 17px; list-style: disc; font-size: 13.5px; line-height: 1.58; color: var(--ink-soft); }
+.cvpoints li + li { margin-top: 5px; }
+/* Skills on the dark column. A tile rather than the white column's accent
+   capsule: --accent-soft is a pale wash mixed for white paper and it goes to
+   mud on the stage, and the stage already owns a raised face of its own. */
+.cvskills { display: flex; flex-wrap: wrap; gap: 6px; }
+.cvskills span {
+  font-size: 11.5px; font-weight: 700; padding: 3px 10px;
+  border-radius: var(--r-full); color: var(--on-stage);
+  background: var(--stage-tile); box-shadow: var(--soft-tile);
+}
+.cvmarks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.cvmark { font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: var(--r-full); color: var(--accent-ink); background: var(--accent-soft); }
+.cvlink { font-size: 12.5px; font-weight: 600; overflow-wrap: anywhere; }
+
+/* HIDDEN IS DRAWN, NOT FADED. An entry at half opacity reads as a rendering
+   fault; a dashed edge reads as "kept, not printed", which is what it is. */
+.cventry[data-hidden="true"] { outline: 1px dashed var(--line-2); outline-offset: 6px; }
+.cvoff { display: inline-block; margin: 0 0 6px; font-size: 9.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--faint); }
+
+/* ── the controls ────────────────────────────────────────────────────────
+   Full 44px targets rather than a 33px key with a hit area hung off it: these
+   sit in a document, not in a dense tray, and there is room. */
+.cvtools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.cvctl {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 44px; padding: 0 15px; border: 0; border-radius: var(--r-full);
+  cursor: pointer; font-family: inherit; font-size: 12.5px; font-weight: 700;
+  color: var(--ink); background: var(--face-key); box-shadow: var(--e1-key);
+}
+.cvctl[disabled] { cursor: default; color: var(--faint); box-shadow: var(--press); }
+/* On the dark column the key is made of the stage instead. Same control, same
+   size, the material of whichever half it is standing on. */
+.cvside .cvctl { color: var(--on-stage); background: var(--stage-panel); box-shadow: var(--soft-tile); }
+.cvside .cvctl:focus-visible { outline-color: var(--on-stage); }
+.cvside .cvctl[disabled] { color: var(--on-stage-faint); box-shadow: none; }
+
+@media (hover: hover) and (pointer: fine) {
+  .cvctl:hover { box-shadow: var(--e2-key); }
+  .cvside .cvctl:hover { background: var(--stage-hover); box-shadow: var(--soft-tile); }
+}
+
+/* ── folded ──────────────────────────────────────────────────────────────
+   The two columns stack and the dark half becomes a header: the portrait beside
+   the name rather than above it, and the blocks under them in as many columns
+   as the phone has room for. A 300px sidebar on a 360px screen is not a
+   sidebar. */
+@media (max-width: 860px) {
+  .cvdoc { grid-template-columns: minmax(0, 1fr); border-radius: var(--r-3); }
+  .cvside { padding: 22px 20px 24px; gap: var(--sp-3); }
+  .cvid { flex-direction: row; align-items: center; gap: var(--sp-3); }
+  .cvportrait, .cvnoface { width: 78px; height: 78px; }
+  .cvnoface { font-size: 22px; }
+  .cvname { font-size: 26px; }
+  .cvmeta { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-3) var(--sp-4); }
+  .cvmain { padding: 24px 20px 30px; }
+}
+@media (max-width: 720px) {
+  .cventry { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+}
+
+/* The document is a photograph of light too. Asked for more contrast it stops
+   modelling and draws edges — the same trade `.cstage` makes, for the same
+   reason and with the same tokens. */
+@media (prefers-contrast: more) {
+  .cvside { background: var(--stage-solid); }
+  .cvdoc { box-shadow: none; outline: 2px solid var(--ink); outline-offset: -2px; }
+  .cvctl { box-shadow: none; outline: 1.5px solid var(--line-2); outline-offset: -1.5px; }
+  .cvside .cvctl { box-shadow: none; outline: 1.5px solid var(--stage-line); outline-offset: -1.5px; }
+  .cvskills span { box-shadow: none; outline: 1.5px solid var(--stage-line); outline-offset: -1.5px; }
+}

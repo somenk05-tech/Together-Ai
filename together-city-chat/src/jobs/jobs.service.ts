@@ -7,7 +7,49 @@ import { FEED_CAP, ORDER_HISTORY_CAP } from '../shared/paging';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { parseResume, matchJobs, labelFor, JOB_SEEDS, type ParsedResume, type JobLike } from './jobs-engine';
 import { AiService } from '../ai/ai.service';
-import type { UploadResumeDto, SaveJobProfileDto, ApplyDto, PostJobDto } from './dto/jobs.dto';
+import { defaultSectionOrder, entryKey, toStartSort } from './cv-entries';
+import type { Prisma } from '@prisma/client';
+import type {
+  UploadResumeDto, SaveJobProfileDto, ApplyDto, PostJobDto,
+  CvEntryDto, ReorderEntriesDto, CareerPreferencesDto, VisibilityDto,
+} from './dto/jobs.dto';
+
+/**
+ * THE GENERATED CLIENT IS ONE MIGRATION BEHIND THIS FILE.
+ *
+ * `prisma generate` cannot run where this was written (the engine download is
+ * blocked), so `prisma.cvEntry` and the columns 20260808120000 adds to
+ * JobProfile are absent from the generated types even though the schema and the
+ * migration both declare them. This block is the ONE place that says so: a
+ * hand-written view of exactly the surface this service uses, applied where it
+ * crosses into Prisma and nowhere else.
+ *
+ * A cast rather than `@ts-expect-error`, deliberately. The directive would
+ * itself become a compile error the moment somebody regenerates the client,
+ * turning a fixed problem into a broken build; these declarations simply become
+ * redundant and can be deleted in one edit.
+ */
+type CvEntryRow = {
+  id: string; profileId: string; kind: string; order: number; hidden: boolean;
+  title: string; organisation: string; qualifier: string; location: string;
+  startText: string; endText: string; startSort: number; current: boolean;
+  description: string; bullets: string; tags: string; url: string;
+  confidence: string; source: string; evidence: string;
+  createdAt: Date; updatedAt: Date;
+};
+type CvEntryDelegate = {
+  findMany(args?: unknown): Promise<CvEntryRow[]>;
+  create(args: unknown): Promise<CvEntryRow>;
+  updateMany(args: unknown): Promise<{ count: number }>;
+  deleteMany(args: unknown): Promise<{ count: number }>;
+};
+/** The write half of the same gap: new JobProfile columns, typed as the object
+ *  they are and cast once on the way in. */
+type ProfileWrite = Record<string, unknown>;
+
+/** One entry as the reader hands it over — lists still lists, before they
+ *  become the newline- and comma-separated columns the table stores. */
+type ReadEntry = NonNullable<Awaited<ReturnType<AiService['readCvEntries']>>>['entries'][number];
 
 @Injectable()
 export class JobsService implements OnModuleInit {
@@ -33,7 +75,15 @@ export class JobsService implements OnModuleInit {
     resumeUrl?: string | null; resumeBytes?: number; resumeAt?: Date | null;
     photoUrl?: string | null; fullName?: string; summary?: string; currentTitle?: string; currentCompany?: string;
     education?: string; openToRoles?: string; noticeDays?: number | null; expectedLpa?: number | null; links?: string;
+    // Added by 20260808120000. Optional on the way in because the generated
+    // client does not know them yet — see the note at the top of this file.
+    employmentStatus?: string; openToOffers?: string; employmentTypes?: string; workModes?: string;
+    relocate?: string; preferredPlaces?: string;
+    currentFixed?: number | null; currentVariable?: number | null; expectedMin?: number | null;
+    currency?: string; salaryPeriod?: string;
+    profileVisibility?: string; contactVisibility?: string; salaryVisibility?: string;
   } | null) {
+    const csv = (v: string | undefined) => (v ?? '').split(',').map((x) => x.trim()).filter(Boolean);
     if (!row) {
       return {
         saved: false, headline: '', skills: [] as { key: string; label: string }[],
@@ -41,6 +91,13 @@ export class JobsService implements OnModuleInit {
         resumeUrl: null, resumeBytes: 0, resumeAt: null, photoUrl: null, fullName: '',
         summary: '', currentTitle: '', currentCompany: '', education: '',
         openToRoles: [] as string[], noticeDays: null, expectedLpa: null, links: '',
+        employmentStatus: '', openToOffers: '', employmentTypes: [] as string[], workModes: [] as string[],
+        relocate: '', preferredPlaces: [] as string[],
+        currentFixed: null, currentVariable: null, expectedMin: null,
+        currency: 'INR', salaryPeriod: 'annual',
+        // The promise /jobs/profile already prints — "companies can't browse or
+        // search you" — is the default for somebody who has nothing saved too.
+        profileVisibility: 'private', contactVisibility: 'private', salaryVisibility: 'private',
       };
     }
     const keys = row.skills ? row.skills.split(',').filter(Boolean) : [];
@@ -62,11 +119,87 @@ export class JobsService implements OnModuleInit {
       currentTitle: row.currentTitle ?? '',
       currentCompany: row.currentCompany ?? '',
       education: row.education ?? '',
-      openToRoles: (row.openToRoles ?? '').split(',').map((x) => x.trim()).filter(Boolean),
+      openToRoles: csv(row.openToRoles),
       noticeDays: row.noticeDays ?? null,
       expectedLpa: row.expectedLpa ?? null,
       links: row.links ?? '',
+      employmentStatus: row.employmentStatus ?? '',
+      openToOffers: row.openToOffers ?? '',
+      employmentTypes: csv(row.employmentTypes),
+      workModes: csv(row.workModes),
+      relocate: row.relocate ?? '',
+      preferredPlaces: csv(row.preferredPlaces),
+      currentFixed: row.currentFixed ?? null,
+      currentVariable: row.currentVariable ?? null,
+      expectedMin: row.expectedMin ?? null,
+      currency: row.currency || 'INR',
+      salaryPeriod: row.salaryPeriod || 'annual',
+      profileVisibility: row.profileVisibility || 'private',
+      contactVisibility: row.contactVisibility || 'private',
+      salaryVisibility: row.salaryVisibility || 'private',
     };
+  }
+
+  /** One entry, as a screen wants it: bullets and tags back as lists, and the
+   *  provenance kept, because a row the reader was unsure about renders as a
+   *  question and must be able to say so. */
+  private shapeEntry(row: CvEntryRow) {
+    return {
+      id: row.id, kind: row.kind, order: row.order, hidden: row.hidden,
+      title: row.title, organisation: row.organisation, qualifier: row.qualifier, location: row.location,
+      startText: row.startText, endText: row.endText, startSort: row.startSort, current: row.current,
+      description: row.description,
+      bullets: row.bullets ? row.bullets.split('\n').map((b) => b.trim()).filter(Boolean) : [],
+      tags: row.tags ? row.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
+      url: row.url,
+      confidence: row.confidence, source: row.source, evidence: row.evidence,
+      // The one derived field worth sending: a screen should not have to know
+      // that 'high' is the only value that means "this is a claim they are
+      // making" in order to decide whether to ask.
+      needsConfirming: row.confidence !== 'high',
+    };
+  }
+
+  /** The CvEntry delegate, through the hand-written view declared at the top of
+   *  this file. */
+  private get cvEntry(): CvEntryDelegate {
+    return (this.prisma as unknown as { cvEntry: CvEntryDelegate }).cvEntry;
+  }
+
+  /**
+   * The citizen's own profile id, creating the row if they have never saved
+   * anything.
+   *
+   * An entry cannot exist without a profile to hang off, and somebody adding
+   * their first job by hand has not uploaded a CV. The upsert is scoped by
+   * userId, which is what makes every CvEntry query below scoped too: the
+   * profileId is never taken from the request.
+   */
+  private async ownProfileId(userId: string): Promise<string> {
+    const row = await this.prisma.jobProfile.upsert({ where: { userId }, update: {}, create: { userId } });
+    return row.id;
+  }
+
+  /** The profile id, or null when there is none — for reads, which must not
+   *  create a profile as a side effect of somebody looking at an empty page. */
+  private async findProfileId(userId: string): Promise<string | null> {
+    const row = await this.prisma.jobProfile.findUnique({ where: { userId }, select: { id: true } });
+    return row?.id ?? null;
+  }
+
+  /**
+   * Bump `revision` after an accepted change.
+   *
+   * The column exists so a later upload can be diffed against what is already
+   * here rather than assuming it is unchanged. A write that forgot to bump it
+   * would make a stale profile look current, which is the one failure the diff
+   * cannot detect for itself.
+   */
+  private async touchProfile(userId: string): Promise<void> {
+    await this.prisma.jobProfile.updateMany({
+      where: { userId },
+      data: { revision: { increment: 1 } } as unknown as Prisma.JobProfileUpdateManyMutationInput,
+    });
   }
 
   /**
@@ -86,14 +219,54 @@ export class JobsService implements OnModuleInit {
   }
 
   async getProfile(userId: string) {
-    const shaped = this.shapeProfile(await this.prisma.jobProfile.findUnique({ where: { userId } }));
+    const row = await this.prisma.jobProfile.findUnique({ where: { userId } });
+    const shaped = this.shapeProfile(row);
     // Auto-fill the shared location from the Master Profile when the CV had none
     // (spec: read shared fields; never re-ask).
     if (!shaped.location) {
       const m = await this.masterProfile.get(userId).catch(swallowed('jobs.getProfile', null));
       if (m?.city) shaped.location = m.city;
     }
-    return shaped;
+    const rows = row ? await this.ownEntries(row.id) : [];
+    const entries: Record<string, ReturnType<JobsService['shapeEntry']>[]> = {};
+    for (const e of rows) (entries[e.kind] ??= []).push(this.shapeEntry(e));
+    return {
+      ...shaped,
+      entries,
+      sectionOrder: this.sectionOrderFor((row as { sectionOrder?: string } | null)?.sectionOrder ?? '', rows),
+    };
+  }
+
+  /** Every entry on one profile, in the order it is meant to be read: the
+   *  citizen's own arrangement first, most recent first within a tie, because a
+   *  row nobody has dragged yet should still come out of an upload sensibly. */
+  private async ownEntries(profileId: string): Promise<CvEntryRow[]> {
+    // unbounded: one citizen's own entries, and a CV is not a feed
+    return this.cvEntry.findMany({
+      where: { profileId },
+      orderBy: [{ order: 'asc' }, { startSort: 'desc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  /**
+   * The running order of the sections, reconciled with what the profile holds.
+   *
+   * The stored order is a list the citizen dragged into place, and it goes
+   * stale the moment they add a kind they did not have then. Filtering it to
+   * what exists and appending the rest means a new Awards section appears at
+   * the bottom rather than not at all — and a section they deleted every entry
+   * from stops being printed as an empty heading.
+   */
+  private sectionOrderFor(stored: string, rows: CvEntryRow[]): string[] {
+    const present = new Set(rows.map((r) => r.kind));
+    // Hidden rows still belong to the citizen and their section has to survive
+    // long enough for them to unhide one, so the default is computed from what
+    // is visible and any kind that is only hidden is appended rather than lost.
+    const visible = rows.filter((r) => !r.hidden).map((r) => r.kind);
+    const kept = stored.split(',').map((k) => k.trim()).filter((k) => k && present.has(k));
+    const order = kept.length ? [...new Set(kept)] : defaultSectionOrder(visible);
+    for (const kind of present) if (!order.includes(kind)) order.push(kind);
+    return order;
   }
 
   async uploadResume(userId: string, dto: UploadResumeDto) {
@@ -138,8 +311,301 @@ export class JobsService implements OnModuleInit {
       education: read?.education.length ? read.education.join('\n') : undefined,
       openToRoles: read?.openToRoles.length ? read.openToRoles.join(',') : undefined,
     });
+    /**
+     * THE RECORD, not only the synopsis.
+     *
+     * readCv gives a headline and a summary; this gives the jobs, the degrees
+     * and the things they built, as rows a citizen can edit one at a time. It
+     * is a second call rather than a bigger one so that a model which runs out
+     * of tokens on a long filmography still leaves them with a profile.
+     *
+     * Best-effort on purpose: an upload whose entries could not be read is
+     * still an upload, and the citizen adds them by hand.
+     */
+    const readEntries = await this.ai.readCvEntries(dto.resumeText).catch(swallowed('jobs.readCvEntries', null));
+    const entries = await this.mergeReadEntries(userId, readEntries?.entries ?? []);
     const jobs = await this.allJobs(userId);
-    return { parsed: this.shapeProfile({ headline: parsed.headline, skills: parsed.skills.join(','), experienceYears: parsed.experienceYears, location: parsed.location, seniority: parsed.seniority, resumeName: dto.fileName ?? null }), matchCount: matchJobs(parsed, jobs).length };
+    return {
+      parsed: this.shapeProfile({ headline: parsed.headline, skills: parsed.skills.join(','), experienceYears: parsed.experienceYears, location: parsed.location, seniority: parsed.seniority, resumeName: dto.fileName ?? null }),
+      matchCount: matchJobs(parsed, jobs).length,
+      entries,
+    };
+  }
+
+  /**
+   * FOLD A READ CV INTO THE ENTRIES ALREADY THERE.
+   *
+   * The rule that governs this method: a row the citizen wrote or corrected
+   * themselves is never touched. A second upload is usually a slightly updated
+   * CV, not a replacement person — one new job and thirty rows somebody may
+   * have spent an evening fixing — and an upload that overwrites those has
+   * punished them for using the editor.
+   *
+   * So the merge is three-way. A row that matches something the citizen owns is
+   * dropped on the floor and counted; a row that matches an earlier reading is
+   * refreshed, field by field, and only where the new reading has something to
+   * say; everything left is new and gets appended to the end of its section.
+   *
+   * Nothing here reorders anything. Appending is the honest place for a row
+   * nobody has looked at yet.
+   */
+  private async mergeReadEntries(
+    userId: string,
+    incoming: ReadEntry[],
+  ): Promise<{ added: number; updated: number; keptYours: number }> {
+    // Lists become the strings the column holds — bullets one per line, tags
+    // csv — right here, so nothing downstream has to know which is which.
+    const rows = incoming.map((e) => ({
+      kind: e.kind,
+      title: e.title,
+      organisation: e.organisation,
+      qualifier: e.qualifier,
+      location: e.location,
+      startText: e.startText,
+      endText: e.endText,
+      current: e.current,
+      description: e.description,
+      bullets: e.bullets.join('\n'),
+      tags: e.tags.join(','),
+      url: e.url,
+      confidence: e.confidence as string,
+    })).filter((e) => e.kind && (e.title || e.organisation));
+    if (!rows.length) return { added: 0, updated: 0, keptYours: 0 };
+
+    const profileId = await this.ownProfileId(userId);
+    const existing = await this.ownEntries(profileId);
+    const byKey = new Map<string, CvEntryRow>();
+    for (const row of existing) if (!byKey.has(entryKey(row))) byKey.set(entryKey(row), row);
+    const nextOrder = new Map<string, number>();
+    for (const row of existing) nextOrder.set(row.kind, Math.max(nextOrder.get(row.kind) ?? 0, row.order + 1));
+
+    let added = 0, updated = 0, keptYours = 0;
+    for (const row of rows) {
+      const match = byKey.get(entryKey(row));
+      if (match?.source === 'citizen') { keptYours++; continue; }
+      const startSort = toStartSort(row.startText);
+      if (match) {
+        // Only what the new reading actually has. An empty field is a page the
+        // model could not read this time, not news that the citizen no longer
+        // has a location.
+        const data: Record<string, unknown> = { confidence: row.confidence, source: 'cv' };
+        for (const [field, value] of Object.entries(row)) {
+          if (field === 'kind' || field === 'confidence') continue;
+          if (typeof value === 'string' && value.trim()) data[field] = value;
+        }
+        if (row.current !== match.current) data.current = row.current;
+        if (startSort) data.startSort = startSort;
+        await this.cvEntry.updateMany({ where: { id: match.id, profileId }, data });
+        updated++;
+        continue;
+      }
+      const order = nextOrder.get(row.kind) ?? 0;
+      nextOrder.set(row.kind, order + 1);
+      const created = await this.cvEntry.create({ data: { ...row, profileId, startSort, order, source: 'cv' } });
+      // A two-column PDF can emit the same job twice. Remembering what was just
+      // written turns the second copy into a no-op update rather than a
+      // duplicate row the citizen has to delete.
+      byKey.set(entryKey(row), created);
+      added++;
+    }
+    if (added || updated) await this.touchProfile(userId);
+    return { added, updated, keptYours };
+  }
+
+  // ─────────────── the professional record ───────────────
+  /**
+   * Create or edit one entry. The citizen is writing it, so it is theirs:
+   * `source` becomes 'citizen' and `confidence` becomes 'high', which is what
+   * stops a later upload overwriting it and what stops the screen asking them
+   * to confirm something they just typed.
+   */
+  async upsertEntry(userId: string, dto: CvEntryDto, id?: string) {
+    const profileId = await this.ownProfileId(userId);
+    const data: Record<string, unknown> = {
+      kind: dto.kind,
+      title: dto.title ?? '',
+      organisation: dto.organisation ?? '',
+      qualifier: dto.qualifier ?? '',
+      location: dto.location ?? '',
+      startText: dto.startText ?? '',
+      endText: dto.endText ?? '',
+      startSort: toStartSort(dto.startText ?? ''),
+      current: dto.current ?? false,
+      description: dto.description ?? '',
+      bullets: (dto.bullets ?? []).map((b) => b.trim()).filter(Boolean).join('\n'),
+      tags: (dto.tags ?? []).map((t) => t.trim()).filter(Boolean).join(','),
+      url: dto.url ?? '',
+      hidden: dto.hidden ?? false,
+      confidence: 'high',
+      source: 'citizen',
+    };
+    if (id) {
+      // Scoped by profileId as well as id: the id arrives from the request and
+      // is not evidence of anything on its own.
+      const { count } = await this.cvEntry.updateMany({ where: { id, profileId }, data });
+      if (!count) throw new NotFoundException('entry not found');
+    } else {
+      const existing = await this.ownEntries(profileId);
+      const order = existing.filter((e) => e.kind === dto.kind).reduce((n, e) => Math.max(n, e.order + 1), 0);
+      await this.cvEntry.create({ data: { ...data, profileId, order } });
+    }
+    await this.touchProfile(userId);
+    return this.getProfile(userId);
+  }
+
+  async deleteEntry(userId: string, id: string) {
+    const profileId = await this.findProfileId(userId);
+    if (!profileId) throw new NotFoundException('entry not found');
+    const { count } = await this.cvEntry.deleteMany({ where: { id, profileId } });
+    if (!count) throw new NotFoundException('entry not found');
+    await this.touchProfile(userId);
+    return this.getProfile(userId);
+  }
+
+  /** Hidden, not deleted — "I do not want this on my profile" is not the same
+   *  statement as "this never happened", and only one of them is destructive. */
+  async setEntryHidden(userId: string, id: string, hidden: boolean) {
+    const profileId = await this.findProfileId(userId);
+    if (!profileId) throw new NotFoundException('entry not found');
+    const { count } = await this.cvEntry.updateMany({ where: { id, profileId }, data: { hidden } });
+    if (!count) throw new NotFoundException('entry not found');
+    await this.touchProfile(userId);
+    return this.getProfile(userId);
+  }
+
+  /**
+   * One section, in the order the citizen dragged it into.
+   *
+   * Ids not in that section are ignored rather than rejected: a stale tab
+   * sending an id that has since been deleted should reorder the rest, not fail
+   * the whole gesture. Every write names both the profile and the kind, so an
+   * id belonging to somebody else matches nothing and changes nothing.
+   */
+  async reorderEntries(userId: string, dto: ReorderEntriesDto) {
+    const profileId = await this.findProfileId(userId);
+    if (!profileId) throw new NotFoundException('nothing to reorder');
+    for (const [index, id] of dto.ids.entries()) {
+      await this.cvEntry.updateMany({ where: { id, profileId, kind: dto.kind }, data: { order: index } });
+    }
+    await this.touchProfile(userId);
+    return this.getProfile(userId);
+  }
+
+  /**
+   * Employment, availability and money.
+   *
+   * `undefined` leaves a column alone and `null` clears it, and the difference
+   * is the whole point: a citizen updating their notice period must not
+   * republish a salary they removed last week. Nothing here is ever inferred
+   * from a CV — a document that mentions a figure is not a person telling us
+   * what they earn.
+   */
+  async saveCareerPreferences(userId: string, dto: CareerPreferencesDto) {
+    const data: ProfileWrite = {};
+    const text = (v: string | null | undefined) => (v === undefined ? undefined : v ?? '');
+    const csv = (v: string[] | null | undefined) => (v === undefined ? undefined : (v ?? []).join(','));
+    const set = (key: string, value: unknown) => { if (value !== undefined) data[key] = value; };
+    set('employmentStatus', text(dto.employmentStatus));
+    set('openToOffers', text(dto.openToOffers));
+    set('employmentTypes', csv(dto.employmentTypes));
+    set('workModes', csv(dto.workModes));
+    set('relocate', text(dto.relocate));
+    set('preferredPlaces', csv(dto.preferredPlaces));
+    set('currentFixed', dto.currentFixed);
+    set('currentVariable', dto.currentVariable);
+    set('expectedMin', dto.expectedMin);
+    set('currency', dto.currency === undefined ? undefined : (dto.currency ?? 'INR').toUpperCase());
+    set('salaryPeriod', dto.salaryPeriod === undefined ? undefined : dto.salaryPeriod ?? 'annual');
+    set('noticeDays', dto.noticeDays);
+    await this.writeProfile(userId, data);
+    return this.getProfile(userId);
+  }
+
+  /** Who can see the profile, the contact details and the money. Three
+   *  separate answers because they are three separate risks. */
+  async saveVisibility(userId: string, dto: VisibilityDto) {
+    await this.writeProfile(userId, {
+      profileVisibility: dto.profileVisibility,
+      contactVisibility: dto.contactVisibility,
+      salaryVisibility: dto.salaryVisibility,
+    });
+    return this.getProfile(userId);
+  }
+
+  /** The one place the new columns are written, cast once — see the note at the
+   *  top of this file. */
+  private async writeProfile(userId: string, data: ProfileWrite): Promise<void> {
+    await this.prisma.jobProfile.upsert({
+      where: { userId },
+      update: { ...data, revision: { increment: 1 } } as unknown as Prisma.JobProfileUpdateInput,
+      create: { userId, ...data } as unknown as Prisma.JobProfileUncheckedCreateInput,
+    });
+  }
+
+  /**
+   * HOW FINISHED IS THIS PROFILE, section by section.
+   *
+   * One number would be useless. "You are 62% complete" tells somebody nothing
+   * about what to do next, and the thing they need to do next is usually one
+   * specific missing sentence. So every section reports its own percentage and
+   * names what is missing, in the citizen's words rather than the column's.
+   *
+   * Sections with nothing in them still count. An empty Experience section is
+   * the largest single thing wrong with a profile and hiding it from the score
+   * would flatter the profile into looking finished.
+   */
+  async profileCompletion(userId: string) {
+    const row = await this.prisma.jobProfile.findUnique({ where: { userId } });
+    const p = this.shapeProfile(row);
+    const rows = row ? await this.ownEntries(row.id) : [];
+    const visible = rows.filter((r) => !r.hidden);
+    const of = (kind: string) => visible.filter((r) => r.kind === kind);
+    const experience = of('experience');
+
+    const sections: Array<{ key: string; label: string; checks: Array<[string, boolean]> }> = [
+      { key: 'basics', label: 'About you', checks: [
+        ['your name', !!p.fullName],
+        ['a headline', !!p.headline],
+        ['a short summary', !!p.summary],
+        ['where you are', !!p.location],
+        ['a photo', !!p.photoUrl],
+      ] },
+      { key: 'experience', label: 'Experience', checks: [
+        ['at least one role', experience.length > 0],
+        ['when each role started', experience.length > 0 && experience.every((e) => !!e.startText)],
+        ['what you did in at least one of them', experience.some((e) => !!e.description || !!e.bullets)],
+      ] },
+      { key: 'education', label: 'Education', checks: [['a qualification', of('education').length > 0]] },
+      { key: 'skills', label: 'Skills', checks: [
+        ['three skills', p.skills.length >= 3],
+        ['eight skills', p.skills.length >= 8],
+      ] },
+      { key: 'preferences', label: 'What you are looking for', checks: [
+        ['your employment status', !!p.employmentStatus],
+        ['whether you are open to offers', !!p.openToOffers],
+        ['the kind of work you want', p.employmentTypes.length > 0],
+        ['where you would work', p.workModes.length > 0],
+      ] },
+    ];
+
+    const shaped = sections.map((s) => {
+      const done = s.checks.filter(([, ok]) => ok).length;
+      return {
+        key: s.key, label: s.label, done, total: s.checks.length,
+        percent: Math.round((done / s.checks.length) * 100),
+        missing: s.checks.filter(([, ok]) => !ok).map(([what]) => what),
+      };
+    });
+    const done = shaped.reduce((n, s) => n + s.done, 0);
+    const total = shaped.reduce((n, s) => n + s.total, 0);
+    return {
+      overall: Math.round((done / total) * 100),
+      sections: shaped,
+      // Rows the reader was not sure about. Confirming one is the cheapest
+      // improvement available to most people, so it is surfaced beside the
+      // score rather than buried in the sections.
+      needsConfirming: rows.filter((r) => r.confidence !== 'high').length,
+    };
   }
 
   async saveProfile(userId: string, dto: SaveJobProfileDto) {

@@ -1,15 +1,42 @@
-import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { mediaApi, uploadErrorMessage } from '@/api/media.api';
-import { useJobProfile, useUploadResume, useDeleteResume } from '../api';
+import { useJobProfile, useUploadResume, useDeleteResume, type CvEntry, type ResumeEntryCounts } from '../api';
 import { JobProfileForm } from '../JobProfileForm';
+import { ProfessionalProfile } from '../components/ProfessionalProfile';
+import { CvReview } from '../components/CvReview';
+import { CareerAndPrivacy } from '../components/CareerAndPrivacy';
+import { allPrivate, whoCanSee, type VisibilityAnswers } from '../cv-labels';
+import { Completion } from '../components/Completion';
 
 const MAX_CV_MB = 5;
 const MAX_CV_BYTES = MAX_CV_MB * 1024 * 1024;
 
-/** Resume & Profile — a simple "upload your CV" page: drop a file (or paste) and
- *  we parse it into skills, seniority and experience, then match you to roles. */
+/**
+ * CV → PROFESSIONAL PROFILE.
+ *
+ * A document goes in and a page comes out — not a synopsis, a PAGE: the person
+ * on a dark column and their work on a white one, in the order their own record
+ * says it should be read.
+ *
+ * FOUR STATES BETWEEN THE FILE AND THE PAGE, and each is a different wait:
+ *
+ *   reading   — pdf.js or mammoth pulling text out, in this browser. The file
+ *               never leaves the device to be read.
+ *   building  — the server reading that text into a profile and a record. This
+ *               is the long one, and it says what it is doing rather than
+ *               spinning.
+ *   found     — "we found N pieces of information". A count, before a wall of
+ *               entries, so nobody is asked to review something they have not
+ *               been told the size of.
+ *   review    — only what the reader was unsure about. If it was sure about
+ *               everything this state is SKIPPED, because a review screen with
+ *               nothing on it teaches people to click through the next one.
+ */
+type Phase = 'idle' | 'building' | 'found' | 'review';
+type Tab = 'profile' | 'looking' | 'document';
+
 export function Profile() {
   const profile = useJobProfile();
   const upload = useUploadResume();
@@ -20,18 +47,46 @@ export function Profile() {
   const [text, setText] = useState('');
   const [readError, setReadError] = useState<string | null>(null);
   const [reading, setReading] = useState<false | 'reader' | 'reading'>(false);
+  const [phase, setPhase] = useState<Phase>('idle');
+  const [found, setFound] = useState<ResumeEntryCounts | null>(null);
+  const [tab, setTab] = useState<Tab>('profile');
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [reuploading, setReuploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // The CV readers (pdf.js + mammoth) are a meaty chunk. Warm them the moment
   // this page opens, so by the time a citizen picks a file the reader is
   // already here — the review's "downloads something large and just shows a
   // spinner" was this chunk arriving mid-upload, unexplained.
   useEffect(() => { void import('../cv-extract').catch(() => undefined); }, []);
-  const [editing, setEditing] = useState(false);
-  const [editingProfile, setEditingProfile] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+
+  const entries: CvEntry[] = useMemo(
+    () => (profile.data ? Object.values(profile.data.entries).flat() : []),
+    [profile.data],
+  );
+  /** The reader's questions. A hidden row is not being asked about — the
+   *  citizen has already said they do not want it printed. */
+  const unchecked = useMemo(() => entries.filter((e) => e.needsConfirming && !e.hidden), [entries]);
+
+  // The review closes itself when the last question has been answered, rather
+  // than leaving somebody looking at an empty screen with a heading on it.
+  useEffect(() => {
+    if (phase === 'review' && unchecked.length === 0) setPhase('idle');
+  }, [phase, unchecked.length]);
 
   const parse = (resumeText: string, name?: string, fileUrl?: string, fileBytes?: number) => {
-    if (resumeText.trim()) upload.mutate({ resumeText, fileName: name, fileUrl, fileBytes }, { onSuccess: () => setEditing(false) });
+    if (!resumeText.trim()) return;
+    setPhase('building');
+    upload.mutate({ resumeText, fileName: name, fileUrl, fileBytes }, {
+      onSuccess: (res) => {
+        setFound(res.entries);
+        setPhase('found');
+        setReuploading(false);
+        setPasteOpen(false);
+        setText('');
+      },
+      onError: () => setPhase('idle'),
+    });
   };
 
   const handleFile = async (f: File) => {
@@ -49,9 +104,9 @@ export function Profile() {
       // honestly which wait this is.
       const { extractCvText } = await import('../cv-extract');
       setReading('reading');
-      const { text, kind } = await extractCvText(f);
-      const printable = text.replace(/[^\x20-\x7E\s]/g, '').length;
-      const looksLikeText = text.trim().length >= 30 && printable / Math.max(1, text.length) >= 0.7;
+      const { text: read, kind } = await extractCvText(f);
+      const printable = read.replace(/[^\x20-\x7E\s]/g, '').length;
+      const looksLikeText = read.trim().length >= 30 && printable / Math.max(1, read.length) >= 0.7;
       if (!looksLikeText) {
         setReadError(
           kind === 'text'
@@ -73,7 +128,7 @@ export function Profile() {
       let fileUrl: string | undefined;
       try { fileUrl = await mediaApi.upload(f); }
       catch (e) { setReadError(`Your CV was read, but the copy could not be stored (${uploadErrorMessage(e)}).`); }
-      parse(text, f.name, fileUrl, f.size);
+      parse(read, f.name, fileUrl, f.size);
     } catch {
       setReadError('Could not read that file — try a PDF, Word (.docx) or .txt file, or paste the text below.');
       setPasteOpen(true);
@@ -86,24 +141,15 @@ export function Profile() {
   const onDrop = (e: DragEvent) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files?.[0]; if (f) void handleFile(f); };
 
   if (profile.isLoading) return <Spinner label="Opening your profile…" />;
-  if (profile.isError || !profile.data) return <EmptyState title="Couldn't load your profile" hint="Please check your connection and try again." />;
+  if (profile.isError || !profile.data) {
+    return <EmptyState title="Couldn't load your profile" hint="Please check your connection and try again." />;
+  }
   const p = profile.data;
-  // Once a CV is parsed, collapse the uploader and lead with the parsed summary
-  // (Edit / re-upload reopens it). Matches the collapse pattern in other hubs.
-  const collapsed = p.saved && !editing;
+  const hasRecord = p.saved || entries.length > 0;
 
-  return (
-    <div>
-      <div className="eyebrow">Jobs · Resume & Profile</div>
-      <h1 style={{ fontSize: 26 }}>{collapsed ? 'Your resume & profile' : 'Upload your CV'}</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px' }}>
-        {collapsed
-          ? 'Parsed from your CV and matched to roles. Re-upload anytime to refresh it.'
-          : "Drop your CV in and we'll parse your skills, seniority and experience — then match you to open roles automatically."}
-      </p>
-
-      {!collapsed && (<>
-      {/* Upload dropzone */}
+  // ── the uploader ────────────────────────────────────────────────────────
+  const uploader = (
+    <>
       <div
         onClick={() => fileRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
@@ -119,14 +165,17 @@ export function Profile() {
           transition: 'box-shadow var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease)', marginBottom: 12,
         }}
       >
-        <div style={{ fontSize: 40, lineHeight: 1 }}>{(reading || upload.isPending) ? '⏳' : '📄'}</div>
+        <div style={{ fontSize: 40, lineHeight: 1 }}>{reading ? '⏳' : '📄'}</div>
         <div style={{ fontWeight: 700, fontSize: 16, marginTop: 10 }}>
-          {reading === 'reader' ? 'Fetching the CV reader (first time only)…' : reading === 'reading' ? 'Reading your CV…' : upload.isPending ? 'Parsing your CV…' : fileName ? fileName : 'Drag & drop your CV here'}
+          {reading === 'reader' ? 'Fetching the CV reader (first time only)…'
+            : reading === 'reading' ? 'Reading your CV…'
+              : fileName ? fileName : 'Drag & drop your CV here'}
         </div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>
-          {(reading || upload.isPending) ? 'One moment' : `or click to choose a file · PDF, Word (.docx) or .txt · max ${MAX_CV_MB} MB`}
+          {reading ? 'This happens in your browser — the file has not gone anywhere yet.'
+            : `or click to choose a file · PDF, Word (.docx) or .txt · max ${MAX_CV_MB} MB`}
         </div>
-        {!(reading || upload.isPending) && (
+        {!reading && (
           <span className="btn btn-accent" style={{ display: 'inline-block', marginTop: 16 }}>Choose file</span>
         )}
         <input ref={fileRef} type="file" accept=".txt,.md,.text,.pdf,.doc,.docx,.rtf" onChange={onFile} style={{ display: 'none' }} />
@@ -134,10 +183,9 @@ export function Profile() {
 
       {readError && <p style={{ color: 'var(--danger-ink)', fontSize: 12.5, margin: '0 0 12px' }}>{readError}</p>}
 
-      {/* Secondary options */}
       <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
         <button type="button" onClick={() => setPasteOpen((o) => !o)}
-          style={{ background: 'none', border: 'none', color: 'var(--accent-ink)', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+          style={{ background: 'none', border: 'none', color: 'var(--accent-ink)', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0, minHeight: 44 }}>
           {pasteOpen ? '− Hide paste box' : '✎ Paste text instead'}
         </button>
         {/* "Use a sample" used to sit here and fill this box with an invented
@@ -151,130 +199,236 @@ export function Profile() {
 
       {pasteOpen && (
         <div className="card" style={{ marginBottom: 16 }}>
-          <div className="eyebrow">Paste your CV text</div>
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={7} placeholder="Paste your CV text here…"
+          <label htmlFor="cv-paste" className="eyebrow" style={{ display: 'block' }}>Paste your CV text</label>
+          <textarea id="cv-paste" value={text} onChange={(e) => setText(e.target.value)} rows={7} placeholder="Paste your CV text here…"
             style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', border: '1.5px solid var(--line)', borderRadius: 12, fontSize: 13.5, fontFamily: 'inherit', outline: 'none', resize: 'vertical', marginTop: 8 }} />
-          <Button variant="accent" disabled={upload.isPending || !text.trim()} onClick={() => parse(text, fileName)} style={{ marginTop: 10 }}>
-            {upload.isPending ? 'Parsing…' : 'Parse my CV'}
+          <Button variant="accent" disabled={!text.trim()} onClick={() => parse(text, fileName)} style={{ marginTop: 10 }}>
+            Read my CV
           </Button>
         </div>
       )}
-      </>)}
+    </>
+  );
 
-      {/* Privacy note */}
-      <div className="card" style={{ marginBottom: 16, borderLeft: '4px solid var(--accent)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <span style={{ fontSize: 18, lineHeight: 1 }}>🔒</span>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 13.5 }}>Your profile is private</div>
-          <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
-            There's no candidate directory — companies can't browse or search you. Your CV stays private until <strong>you</strong> apply to a role; only then does that one employer see your headline and the skills relevant to their job, never your raw CV.
+  // ── building ────────────────────────────────────────────────────────────
+  if (phase === 'building') {
+    return (
+      <div>
+        <div className="eyebrow">Jobs · Your professional profile</div>
+        <div className="card" style={{ marginTop: 12, textAlign: 'center', padding: '44px 20px' }}>
+          <Spinner label="Building your professional profile…" />
+          <p className="muted" style={{ fontSize: 12.5, margin: '4px auto 0', maxWidth: 420 }}>
+            Reading your roles, your qualifications and the things you have built into entries you
+            can edit one at a time. This takes a few seconds on a long CV.
           </p>
         </div>
       </div>
+    );
+  }
 
-      {/*
-        THE DOCUMENT THEY GAVE US, AND THE DOOR OUT.
-
-        Only the extracted text used to be kept, so a CV went in and nothing
-        came back — no way to check what had been uploaded, no way to replace
-        the wrong file, no way to remove it. A copy of somebody's career
-        history with no door out is not a feature, it is a filing cabinet with
-        no key.
-      */}
-      {p.saved && p.resumeName && (
-        <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 22, lineHeight: 1 }}>📄</span>
-          <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.resumeName}</div>
-            <div className="muted" style={{ fontSize: 12 }}>
-              {p.resumeBytes > 0 && `${(p.resumeBytes / 1024 / 1024).toFixed(1)} MB · `}
-              {p.resumeAt ? `uploaded ${new Date(p.resumeAt).toLocaleDateString()}` : 'on file'}
+  // ── found ───────────────────────────────────────────────────────────────
+  if (phase === 'found' && found) {
+    const n = found.added + found.updated;
+    return (
+      <div>
+        <div className="eyebrow">Jobs · Your professional profile</div>
+        <h1 style={{ fontSize: 26 }}>
+          {n === 0 ? 'Nothing new to add' : n === 1 ? 'We found 1 piece of information' : `We found ${n} pieces of information`}
+        </h1>
+        <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px', maxWidth: 620 }}>
+          {found.added > 0 && `${found.added} new. `}
+          {found.updated > 0 && `${found.updated} updated from what was already here. `}
+          {found.keptYours > 0 && `${found.keptYours} left exactly as you wrote ${found.keptYours === 1 ? 'it' : 'them'}. `}
+          {n === 0 && 'Your record already said everything this document does.'}
+        </p>
+        {/* THE RECORD IS STILL COMING BACK. The upload's answer is a count; the
+            entries themselves arrive on the refetch it triggered, and offering
+            "See my profile" against a record that has not landed would send
+            somebody past a review that is about to exist. */}
+        {profile.isFetching ? (
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>Putting them on your page…</p>
+        ) : unchecked.length > 0 ? (
+          <>
+            <p style={{ fontSize: 13.5, margin: '0 0 14px', maxWidth: 620 }}>
+              {unchecked.length === 1
+                ? 'One of them we are not certain we read correctly.'
+                : `${unchecked.length} of them we are not certain we read correctly.`}
+              {' '}Nothing goes on your profile as a fact until you have said it is one.
+            </p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Button variant="accent" onClick={() => setPhase('review')}>
+                Check {unchecked.length === 1 ? 'it' : 'them'}
+              </Button>
+              <Button variant="line" onClick={() => setPhase('idle')}>Take me to my profile</Button>
             </div>
+          </>
+        ) : (
+          <Button variant="accent" onClick={() => setPhase('idle')}>See my profile</Button>
+        )}
+      </div>
+    );
+  }
+
+  // ── review ──────────────────────────────────────────────────────────────
+  if (phase === 'review' && unchecked.length > 0) {
+    return <CvReview entries={unchecked} onDone={() => setPhase('idle')} />;
+  }
+
+  // ── nothing yet: the uploader IS the page ───────────────────────────────
+  if (!hasRecord) {
+    return (
+      <div>
+        <div className="eyebrow">Jobs · Your professional profile</div>
+        <h1 style={{ fontSize: 26 }}>Upload your CV</h1>
+        <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 16px', maxWidth: 620 }}>
+          Drop your CV in and we will read it into a professional profile — your roles, your
+          qualifications and the things you have built, each one an entry you can edit.
+        </p>
+        {uploader}
+        <PrivacyNote p={p} />
+      </div>
+    );
+  }
+
+  // ── the profile ─────────────────────────────────────────────────────────
+  return (
+    <div>
+      <div className="page-head">
+        <div className="eyebrow">Jobs · Your professional profile</div>
+        <h1 style={{ fontSize: 26 }}>{p.fullName || 'Your professional profile'}</h1>
+        <div className="page-tabs" role="tablist" aria-label="Your professional profile">
+          <button type="button" role="tab" aria-selected={tab === 'profile'}
+            aria-current={tab === 'profile' ? 'page' : undefined} onClick={() => setTab('profile')}>
+            The profile
+          </button>
+          <button type="button" role="tab" aria-selected={tab === 'looking'}
+            aria-current={tab === 'looking' ? 'page' : undefined} onClick={() => setTab('looking')}>
+            What you are looking for
+          </button>
+          <button type="button" role="tab" aria-selected={tab === 'document'}
+            aria-current={tab === 'document' ? 'page' : undefined} onClick={() => setTab('document')}>
+            Your CV
+          </button>
+        </div>
+      </div>
+
+      {unchecked.length > 0 && tab === 'profile' && (
+        <div className="card" style={{ marginBottom: 14, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', borderLeft: '4px solid var(--warn-ink)' }}>
+          <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5 }}>
+              {unchecked.length === 1 ? 'One entry has not been checked' : `${unchecked.length} entries have not been checked`}
+            </div>
+            <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
+              These were read off your document and we were not certain about them. Until you confirm one,
+              it is a reading rather than something you have said.
+            </p>
           </div>
-          {p.resumeUrl
-            ? <a href={p.resumeUrl} target="_blank" rel="noreferrer"><Button variant="line" size="sm">View</Button></a>
-            /* An older upload predates the file being kept. Saying so beats a
-               button that opens nothing. */
-            : <span className="muted" style={{ fontSize: 12 }}>Uploaded before files were kept — re-upload to keep a copy</span>}
-          <Button variant="line" size="sm" disabled={removeCv.isPending}
-            onClick={() => removeCv.mutate(undefined, { onSuccess: () => { setEditing(true); setFileName(undefined); } })}>
-            {removeCv.isPending ? 'Removing…' : 'Delete'}
-          </Button>
+          <Button variant="accent" size="sm" onClick={() => setPhase('review')}>Check them</Button>
         </div>
       )}
 
-      {p.saved && editingProfile && (
-        <div style={{ marginBottom: 16 }}>
-          <JobProfileForm p={p} onDone={() => setEditingProfile(false)} />
-        </div>
+      {tab === 'profile' && (
+        <>
+          {editingProfile ? (
+            <div style={{ marginBottom: 16 }}>
+              <JobProfileForm p={p} onDone={() => setEditingProfile(false)} />
+            </div>
+          ) : (
+            <ProfessionalProfile p={p} toolbar={
+              <>
+                <button type="button" className="cvctl" onClick={() => setEditingProfile(true)}>
+                  Edit name, photo & summary
+                </button>
+                <Link to="/jobs/matches"><Button variant="accent" size="sm">See matched roles →</Button></Link>
+              </>
+            } />
+          )}
+          <div style={{ marginTop: 18 }}>
+            <Completion onReview={unchecked.length > 0 ? () => setPhase('review') : undefined} />
+          </div>
+        </>
       )}
 
-      {p.saved && !editingProfile && (
-        <div className="card" style={{ borderLeft: '4px solid var(--accent)' }}>
-          <div className="eyebrow">Your profile</div>
+      {tab === 'looking' && <CareerAndPrivacy p={p} />}
+
+      {tab === 'document' && (
+        <div style={{ display: 'grid', gap: 16 }}>
           {/*
-            THE NAME IS THE HEADING. THE ROLE IS THE LINE UNDER IT.
-            
-            This card used to lead with the headline, and the headline was
-            whatever the CV's first line said — so a citizen's profile
-            announced itself as "APPLICATION LETTER Applicant: … Address: …
-            E-mail:". A name and a job title are two different facts, and
-            showing one in place of the other is how a profile stops looking
-            like a person.
+            THE DOCUMENT THEY GAVE US, AND THE DOOR OUT.
+
+            Only the extracted text used to be kept, so a CV went in and nothing
+            came back — no way to check what had been uploaded, no way to replace
+            the wrong file, no way to remove it. A copy of somebody's career
+            history with no door out is not a feature, it is a filing cabinet with
+            no key.
           */}
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
-            {p.photoUrl && (
-              <img src={p.photoUrl} alt="" width={64} height={64}
-                style={{ borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--line)', flexShrink: 0 }} />
-            )}
-            <div style={{ minWidth: 0 }}>
-              {p.fullName
-                ? <div style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-.01em' }}>{p.fullName}</div>
-                /* Not silence. An empty name is a question the citizen can
-                   answer in one tap, and saying so beats a card that quietly
-                   leads with a job title where a person should be. */
-                : <button type="button" onClick={() => setEditingProfile(true)}
-                    style={{ background: 'none', border: 0, padding: 0, minHeight: 44, cursor: 'pointer',
-                      fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, color: 'var(--accent-ink)' }}>
-                    + Add your name
-                  </button>}
-              <div style={{ fontWeight: 600, fontSize: 15, marginTop: 2 }}>{p.headline}</div>
+          {p.resumeName ? (
+            <div className="card" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 22, lineHeight: 1 }}>📄</span>
+              <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.resumeName}</div>
+                <div className="muted" style={{ fontSize: 12 }}>
+                  {p.resumeBytes > 0 && `${(p.resumeBytes / 1024 / 1024).toFixed(1)} MB · `}
+                  {p.resumeAt ? `uploaded ${new Date(p.resumeAt).toLocaleDateString()}` : 'on file'}
+                </div>
+              </div>
+              {p.resumeUrl
+                ? <a href={p.resumeUrl} target="_blank" rel="noreferrer"><Button variant="line" size="sm">View</Button></a>
+                /* An older upload predates the file being kept. Saying so beats a
+                   button that opens nothing. */
+                : <span className="muted" style={{ fontSize: 12 }}>Uploaded before files were kept — re-upload to keep a copy</span>}
+              <Button variant="line" size="sm" disabled={removeCv.isPending}
+                onClick={() => removeCv.mutate(undefined, { onSuccess: () => { setReuploading(true); setFileName(undefined); } })}>
+                {removeCv.isPending ? 'Removing…' : 'Delete'}
+              </Button>
             </div>
-          </div>
-          <div className="muted" style={{ fontSize: 12.5, marginTop: 2, textTransform: 'capitalize' }}>
-            {p.seniority} · {p.experienceYears} yrs{p.location ? ` · ${p.location}` : ''}
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
-            {p.skills.length === 0 ? <span className="muted" style={{ fontSize: 12.5 }}>No skills detected — add detail to your CV and re-upload.</span>
-              : p.skills.map((s) => (
-                <span key={s.key} style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 11px' }}>{s.label}</span>
-              ))}
-          </div>
-          {p.summary && <p style={{ fontSize: 13.5, marginTop: 10, lineHeight: 1.6 }}>{p.summary}</p>}
-          {(p.currentTitle || p.currentCompany) && (
-            <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>
-              {[p.currentTitle, p.currentCompany].filter(Boolean).join(' · ')}
-            </div>
+          ) : (
+            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+              There is no document on file. Your profile is whatever has been written into it.
+            </p>
           )}
-          {p.openToRoles.length > 0 && (
-            <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>Open to: {p.openToRoles.join(' · ')}</div>
-          )}
-          {(p.noticeDays != null || p.expectedLpa != null) && (
-            <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>
-              {[p.noticeDays != null && `${p.noticeDays} days' notice`, p.expectedLpa != null && `expects ₹${p.expectedLpa} LPA`]
-                .filter(Boolean).join(' · ')}
+
+          {reuploading || !p.resumeName ? uploader : (
+            <div>
+              <Button variant="line" onClick={() => setReuploading(true)}>Upload a different CV</Button>
+              <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0', maxWidth: 620 }}>
+                A new document adds what is new and refreshes what has changed. Anything you have edited
+                yourself is left exactly as you wrote it.
+              </p>
             </div>
           )}
-          {p.education && (
-            <p className="muted" style={{ fontSize: 12.5, marginTop: 8, whiteSpace: 'pre-wrap' }}>{p.education}</p>
-          )}
-          <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <Link to="/jobs/matches"><Button variant="accent" size="sm">See matched roles →</Button></Link>
-            <Button variant="line" size="sm" onClick={() => setEditingProfile(true)}>Edit profile</Button>
-            {collapsed && <Button variant="line" size="sm" onClick={() => setEditing(true)}>Re-upload CV</Button>}
-          </div>
+
+          <PrivacyNote p={p} />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * THE PRIVACY NOTE SAYS WHAT THE SETTINGS SAY.
+ *
+ * This card used to print one sentence unconditionally — "There's no candidate
+ * directory, companies can't browse or search you". True of somebody who has
+ * left everything private, which is the default and most people; false the
+ * moment they open their profile to recruiters, and worse than silence,
+ * because it is the app telling somebody their details are safe while it
+ * publishes them.
+ */
+function PrivacyNote({ p }: { p: VisibilityAnswers }) {
+  const lines = whoCanSee(p);
+  const everythingPrivate = allPrivate(p);
+  return (
+    <div className="card" style={{ borderLeft: '4px solid var(--accent)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+      <span style={{ fontSize: 18, lineHeight: 1 }}>🔒</span>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 13.5 }}>
+          {everythingPrivate ? 'Your profile is private' : 'What you have opened up'}
+        </div>
+        {lines.map((line, i) => (
+          <p key={`p${i}`} className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>{line}</p>
+        ))}
+      </div>
     </div>
   );
 }

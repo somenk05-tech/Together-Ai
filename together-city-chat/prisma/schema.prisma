@@ -1460,9 +1460,133 @@ model JobProfile {
   noticeDays      Int?
   expectedLpa     Int?
   links           String   @default("")
+
+  /// ── EMPLOYMENT AND AVAILABILITY ──
+  /// employed | selfEmployed | freelancer | entrepreneur | student |
+  /// betweenRoles | firstJob | retired | other. "" means nobody has asked —
+  /// which is different from "other", and the difference matters because the
+  /// AI is forbidden from assuming either.
+  employmentStatus String @default("")
+  /// actively | open | notLooking | unsure. "" = not asked.
+  openToOffers     String @default("")
+  /// csv: fullTime | partTime | contract | freelance | consulting | internship
+  employmentTypes  String @default("")
+  /// csv: remote | hybrid | onSite
+  workModes        String @default("")
+  /// yes | no | maybe | "" (not asked)
+  relocate         String @default("")
+  /// csv of place names they would work in.
+  preferredPlaces  String @default("")
+
+  /// ── COMPENSATION. Private by default, and never inferred from a CV. ──
+  /// Minor units are pointless here and a float is worse; these are whole
+  /// currency units per year.
+  currentFixed    Int?
+  currentVariable Int?
+  expectedMin     Int?
+  currency        String @default("INR")
+  /// annual | monthly
+  salaryPeriod    String @default("annual")
+
+  /// ── VISIBILITY. Each is: private | recruiters | everyone. ──
+  /// The defaults are the promise the app currently prints on /jobs/profile —
+  /// "companies can't browse or search you" — so an existing citizen's
+  /// exposure does not change when this ships.
+  profileVisibility String @default("private")
+  contactVisibility String @default("private")
+  salaryVisibility  String @default("private")
+
+  /// The order the sections appear in, csv of `kind`. A filmmaker leads with
+  /// credits and a doctor with certifications; the visual language does not
+  /// change, the running order does. Empty = the default order for whatever
+  /// the profile actually contains.
+  sectionOrder String @default("")
+
+  /// Bumped on every accepted change, so an upload can be diffed against what
+  /// is already here rather than overwriting it.
+  revision Int @default(1)
+
   updatedAt       DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries CvEntry[]
+}
+
+/// ─── THE PROFESSIONAL RECORD ───────────────────────────────────────────────
+/// One table, not eight.
+///
+/// A job, a degree, a certificate, a project, an award, a language and a link
+/// are the same SHAPE: a thing with a name, somewhere it happened, a span of
+/// time, some prose and some tags. Eight tables would be eight migrations,
+/// eight DTOs, eight CRUD surfaces and eight editors that drift apart — and it
+/// would still not answer the part of the brief that matters most, which is
+/// that a filmmaker's profile leads with credits and a doctor's with
+/// specialisations. Sections that differ per profession cannot be a fixed set
+/// of tables; they have to be data.
+///
+/// So: one row per entry, `kind` says what it is, `order` says where it sits,
+/// and `JobProfile.sectionOrder` says which sections lead. A new section type
+/// — filmography, publications, patents, clients — is a new `kind`, not a
+/// migration.
+///
+/// CONFIDENCE IS A COLUMN, not a heuristic re-run at read time. The reader
+/// records how sure it was WHEN IT READ, because that is the only moment the
+/// evidence exists; a low-confidence row renders as "please confirm" and never
+/// as a fact. `source` says who wrote it, so a citizen's own edit is never
+/// overwritten by a later upload.
+model CvEntry {
+  id        String   @id @default(uuid())
+  profileId String
+  /// experience | education | project | certification | award | language |
+  /// link | custom. Open on purpose — see the note above.
+  kind      String
+  /// Position within its section. Citizens reorder; nothing here is
+  /// chronological by accident.
+  order     Int      @default(0)
+  /// Hidden, not deleted. "I do not want this on my profile" and "this never
+  /// happened" are different statements and only one of them is destructive.
+  hidden    Boolean  @default(false)
+
+  /// The line a reader sees first: a job title, a degree, a project name.
+  title        String  @default("")
+  /// The employer, the institution, the issuing body, the client.
+  organisation String  @default("")
+  /// Employment type, field of study, credential ID, proficiency — the one
+  /// qualifier whose meaning depends on `kind`.
+  qualifier    String  @default("")
+  location     String  @default("")
+  /// Kept as WRITTEN, not as a Date. A CV says "2019", "Mar 2019", "Spring
+  /// 2019" and "2019–present", and parsing that into a timestamp invents a
+  /// day the document never claimed. Sorting uses `startSort`.
+  startText    String  @default("")
+  endText      String  @default("")
+  /// yyyymm as an integer, 0 when unknown. Sortable without pretending to a
+  /// precision the source did not have.
+  startSort    Int     @default(0)
+  current      Boolean @default(false)
+
+  description String @default("")
+  /// Responsibilities and achievements, one per line. Not JSON: a list of
+  /// sentences is a list of sentences.
+  bullets     String @default("")
+  /// csv. Skills used, technologies, subjects.
+  tags        String @default("")
+  url         String @default("")
+
+  /// high | medium | low. Anything below high is shown for confirmation
+  /// before it counts as a claim the citizen is making.
+  confidence String @default("high")
+  /// cv | ai | citizen. A citizen edit is never overwritten by a re-upload.
+  source     String @default("citizen")
+  /// Where in the document this came from, so "please confirm" can show it.
+  evidence   String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile JobProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, kind, order])
 }
 
 model Job {

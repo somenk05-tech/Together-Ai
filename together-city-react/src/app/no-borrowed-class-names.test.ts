@@ -32,12 +32,17 @@ const strip = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, ' ');
  *
  * The rule this asserts is narrow on purpose. It does not ban reuse across
  * the whole application — `.card` and `.btn` are meant to be worn everywhere.
- * It bans it inside the three namespaced component families that were written
+ * It bans it inside the four namespaced component families that were written
  * to be self-contained: the passport (`p`-prefixed), the editorial plate
- * (`e`-prefixed) and the chat stage (`cs`-prefixed). Those say "this block
- * owns its own names"; a bare global name inside them is a promise being
- * broken — and the chat stage is the one where it would hurt most, because
- * every global class it could borrow is drawn for a WHITE ground.
+ * (`e`-prefixed), the chat stage (`cs`-prefixed) and the professional record
+ * (`cv`-prefixed). Those say "this block owns its own names"; a bare global
+ * name inside them is a promise being broken — and the two DARK ones are where
+ * it would hurt most, because every global class they could borrow is drawn
+ * for a WHITE ground.
+ *
+ * `cv` joined the list with the CV document, which has the chat stage's exact
+ * shape: a dark panel on a white page, sharing the stage's own material tokens.
+ * A borrowed `.card` or `.pill` on its left-hand column is invisible ink.
  */
 describe('The namespaced blocks do not borrow a global class name', () => {
   /** Every class defined by a TOP-LEVEL rule in index.css — the global
@@ -54,13 +59,17 @@ describe('The namespaced blocks do not borrow a global class name', () => {
     return out;
   };
 
-  /** Every descendant class used inside a `.p…`, `.e…` or `.cs…` scoped
-   *  selector in relief.css — the names those blocks claim as their own. */
+  /** Every descendant class used inside a `.p…`, `.e…`, `.cs…` or `.cv…`
+   *  scoped selector in relief.css — the names those blocks claim as their own.
+   *
+   *  `cs` and `cv` are listed before `p` and `e` only for readability; the
+   *  alternation is over distinct two-letter prefixes, so no ordering here can
+   *  make one swallow another. */
   const scopedDescendants = () => {
     const found: { block: string; child: string }[] = [];
     for (const m of strip(read('src/styles/relief.css')).matchAll(/(^|\})\s*([^{}@]+)\{/g)) {
       for (const sel of m[2].split(',')) {
-        const parts = sel.trim().match(/^\.((?:cs|p|e)[a-z0-9-]{2,})\b(.*)$/i);
+        const parts = sel.trim().match(/^\.((?:cs|cv|p|e)[a-z0-9-]{2,})\b(.*)$/i);
         if (!parts) continue;
         for (const c of parts[2].matchAll(/\s[>+~]?\s*\.([a-z][a-z0-9-]*)/gi)) {
           found.push({ block: parts[1], child: c[1] });
@@ -70,12 +79,16 @@ describe('The namespaced blocks do not borrow a global class name', () => {
     return found;
   };
 
-  it('finds the three namespaces it is guarding', () => {
+  /** A guard that finds nothing passes. Every prefix is asserted by name, so
+   *  deleting a namespace's rules — or renaming one out from under this file —
+   *  fails here rather than quietly leaving the block unguarded. */
+  it('finds the four namespaces it is guarding', () => {
     const blocks = new Set(scopedDescendants().map((d) => d.block));
-    expect(blocks.size).toBeGreaterThan(3);
+    expect(blocks.size).toBeGreaterThan(4);
     expect([...blocks].some((b) => b.startsWith('p'))).toBe(true);
     expect([...blocks].some((b) => b.startsWith('e'))).toBe(true);
     expect([...blocks].some((b) => b.startsWith('cs'))).toBe(true);
+    expect([...blocks].some((b) => b.startsWith('cv'))).toBe(true);
   });
 
   it('never scopes a rule onto a name index.css already owns', () => {
@@ -132,6 +145,10 @@ describe('The namespaced blocks do not borrow a global class name', () => {
       ['src/features/chat/components/ConversationList.tsx'],
       ['src/features/chat/components/Composer.tsx'],
       ['src/features/chat/components/ChatStarter.tsx'],
+      // The CV document. Every element in it belongs to the `cv` block, and
+      // half of them stand on a dark column where a global pill would be a
+      // white capsule with white type in it.
+      ['src/features/jobs/components/ProfessionalProfile.tsx'],
     ];
     const offenders: string[] = [];
     for (const [f, bounds] of FILES) {

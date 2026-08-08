@@ -269,6 +269,115 @@ export class AiService {
     }
   }
 
+  /**
+   * READ A CV INTO ITS ENTRIES — the jobs, the degrees, the things they built.
+   *
+   * readCv above answers "who is this person"; this answers "what have they
+   * done", one row at a time, because a career is a list and the summary of it
+   * is not. The two are separate calls rather than one larger one so that a
+   * model that runs out of tokens halfway through a filmography still returns a
+   * headline and a summary.
+   *
+   * The rules that matter, and every one of them exists because the opposite
+   * behaviour would be a lie told in somebody's name:
+   *
+   *   · An employer is never invented and never tidied. "Infosys BPM" does not
+   *     become "Infosys". A profile that names the wrong company is a claim the
+   *     citizen has to answer for in an interview.
+   *   · A date that is not on the page comes back "" with confidence 'low', not
+   *     a plausible year. "2019–2021" is a fact; "about three years ago" is not.
+   *   · A title MAY be expanded, because "Sr. Creative Dir." is an abbreviation
+   *     of a real title rather than a different one, and no recruiter searches
+   *     for the abbreviation.
+   *
+   * Sixty entries is a long career with a publication list. Past that the
+   * document is being misread — a table of contents, or a page of references —
+   * and the cap costs a real person nothing.
+   *
+   * Returns null when there is no client. The caller keeps whatever it already
+   * had; an upload that adds no entries is worse than one that adds none
+   * wrongly.
+   */
+  async readCvEntries(text: string): Promise<{
+    entries: Array<{
+      kind: string; title: string; organisation: string; qualifier: string; location: string;
+      startText: string; endText: string; current: boolean;
+      description: string; bullets: string[]; tags: string[]; url: string;
+      confidence: 'high' | 'medium' | 'low';
+    }>;
+  } | null> {
+    if (!this.client) return null;
+    const kinds = ['experience', 'education', 'project', 'certification', 'award', 'language', 'link'];
+    const system =
+      'You read a CV and return its entries — every job, degree, project, certificate, award, language and link it lists. ' +
+      'Return ONLY JSON: {"entries":[{"kind":string,"title":string,"organisation":string,"qualifier":string,"location":string,' +
+      '"startText":string,"endText":string,"current":boolean,"description":string,"bullets":string[],"tags":string[],"url":string,' +
+      '"confidence":"high"|"medium"|"low"}]}. ' +
+      `kind is exactly one of: ${kinds.join(', ')}. ` +
+      'title: the job title, degree, project name, certificate, award or language. ' +
+      'organisation: the employer, institution, issuing body or client — EXACTLY as the CV writes it. ' +
+      'qualifier: the one extra label that kind needs — employment type for a job, field of study for a degree, ' +
+      'credential id for a certificate, proficiency for a language. "" when the CV does not give one. ' +
+      'startText and endText: the dates AS WRITTEN — "Mar 2019", "2019", "Spring 2019". Do not reformat them, ' +
+      'do not convert them, and do not fill in a month the CV did not print. ' +
+      'current: true only where the CV says the role is ongoing ("present", "current", "till date"). ' +
+      'description: the entry\'s own prose, at most 3 sentences, in the CV\'s words. ' +
+      'bullets: the responsibilities and achievements listed under the entry, one string each, at most 10. ' +
+      'tags: skills, technologies or subjects named in that entry, lowercase, at most 12. ' +
+      'INVENT NOTHING. Never invent an employer, a date, a degree, a title or an achievement, and never repair one. ' +
+      'Never change an organisation name — not its spelling, not its capitalisation, not its legal suffix. ' +
+      'You MAY expand an obviously abbreviated job title ("Sr. Creative Dir." to "Senior Creative Director"); ' +
+      'you may not promote one, and "Dir." never becomes "Director of Engineering". ' +
+      'confidence: "high" when the entry is printed plainly and completely. "medium" when you had to read across a ' +
+      'broken layout or a column split to assemble it. "low" when a date is absent or ambiguous, or when you are ' +
+      'unsure the entry is one entry — a low row is shown to the citizen as a question, never as a fact. ' +
+      'A date you cannot read is "" AND confidence "low". Never guess a year to avoid an empty field. ' +
+      'Order the entries as the CV orders them. Omit nothing the CV lists; add nothing it does not.';
+    try {
+      const out = await this.json<{ entries?: unknown }>(
+        system,
+        text.slice(0, 24_000),
+        null as unknown as { entries?: unknown },
+        8000,
+      );
+      if (!out || !Array.isArray(out.entries)) return null;
+      const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+      const list = (v: unknown, max: number, each: number) =>
+        (Array.isArray(v) ? v : []).filter((x): x is string => typeof x === 'string')
+          .map((x) => x.trim()).filter(Boolean).map((x) => x.slice(0, each)).slice(0, max);
+      const entries = out.entries.slice(0, 60).flatMap((raw) => {
+        const it = raw as Record<string, unknown>;
+        const kind = str(it.kind, 30).toLowerCase();
+        // A row whose kind we do not recognise cannot be rendered in any
+        // section, and a row with neither a name nor an employer is not an
+        // entry — it is whatever the layout left behind between two of them.
+        if (!kinds.includes(kind)) return [];
+        const title = str(it.title, 160);
+        const organisation = str(it.organisation, 160);
+        if (!title && !organisation) return [];
+        const confidence = it.confidence === 'high' || it.confidence === 'medium' ? it.confidence : 'low';
+        return [{
+          kind,
+          title,
+          organisation,
+          qualifier: str(it.qualifier, 90),
+          location: str(it.location, 90),
+          startText: str(it.startText, 40),
+          endText: str(it.endText, 40),
+          current: it.current === true,
+          description: str(it.description, 2000),
+          bullets: list(it.bullets, 10, 300),
+          tags: list(it.tags, 12, 40),
+          url: str(it.url, 500),
+          confidence: confidence as 'high' | 'medium' | 'low',
+        }];
+      });
+      return { entries };
+    } catch {
+      return null;
+    }
+  }
+
   async extractMenu(
     image: { base64: string; mediaType: string },
   ): Promise<{ items: Array<{ section?: string; name: string; description?: string; priceInr: number | null }>; note: string } | null> {

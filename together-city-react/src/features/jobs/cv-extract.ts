@@ -6,8 +6,11 @@ import mammoth from 'mammoth';
 // offline and doesn't depend on a CDN.
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-export type CvKind = 'text' | 'pdf' | 'docx';
-export interface CvExtractResult { text: string; kind: CvKind }
+/** `CvFileKind`, not `CvKind`: api.ts owns that name for the kind of ENTRY a
+ *  row of the professional record is — a job, a degree, an award. Two exports
+ *  called CvKind in one feature folder is a wrong import waiting to happen. */
+export type CvFileKind = 'text' | 'pdf' | 'docx';
+export interface CvExtractResult { text: string; kind: CvFileKind }
 
 /**
  * Pull plain text out of an uploaded CV file in the browser, so the existing
