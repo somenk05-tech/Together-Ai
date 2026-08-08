@@ -998,155 +998,142 @@
   --pane-blur: blur(22px) saturate(175%);
 }
 
-/* ── DATING IS CANDY AND ONE BLUE STRAW ────────────────────────────────────
-   THE FIFTH ROOM. Quantised straight off the plate the brief supplied — ten
-   colours, by area:
+/* ── DATING IS THE SKY, AND THE CANDY IS THE INTERRUPTION ──────────────────
+   THE PLATE, INVERTED. The brief's photograph is cotton candy with one window
+   of blue sky and one blue straw cut through it. The first pass made the candy
+   the room and the sky the accent. This is the same picture read the other way
+   round — the sky is the room, the candy is the interruption — because the
+   owner asked for more blue and less pink, and because inverting is the only
+   move that keeps the argument intact.
 
-     #e89da4  43%   the cotton candy — the room
-     #d95e66  15%   its deeper folds
-     #f1dad9  13%   the glass and the highlights — the panes
-     #186d9f   5%   the straw and the circle of sky — the ONLY accent
-     #221217   3%   the shadow inside the bowl — the ink
+   IT IS STILL ONE HUE WITH ONE INTERRUPTION, which was always the point. What
+   changed is which one is which. The room is the sky at 201°; the rose that
+   the hub carried for years and that the candy pass deleted comes BACK as the
+   accent, where it is now the only warm thing on the screen instead of a third
+   hue competing with two others.
 
-   The picture is ONE HUE WITH ONE INTERRUPTION. A blue straw and a window of
-   sky in a world of pink, and nothing else in the frame has a hue at all.
-   That is the whole scheme, and the discipline is refusing a third: the lamp,
-   the primary button, the links, the chips and the score ring are all the one
-   blue, and everything that is not them is pink or ink.
-
-   WHAT THE HUB WAS: an accent-only rose (#a83553) on the city's white. The
-   rose is gone entirely — it was a third hue the moment the straw arrived.
-
-   NOTHING BUT COLOUR CHANGES. No radius, height, gap, size, weight or shadow
-   GEOMETRY is touched below; every value re-points a token the application
-   already reads. The blue-on-pink combination with white type on photographs
-   is the one to look at first, and it is measured rather than liked. */
+   Every number is measured on this hub's own ground. */
 [data-hub="dating"] {
-  /* THE GROUND IS TWO STEPS LIGHTER THAN THE PLATE, and that is the whole
-     compromise — the same one Social Life made. At the plate's own #e89da4,
-     --faint has to reach 3.6:1 and the metadata row stops being readable. At
-     #f0b9bf there is room for four ink steps and it is still the same candy. */
-  --ground: #f0b9bf;
-  --paper:  #f0b9bf;
-  --card:   #fdf6f6;
-  --wash:   #fbeced;
-  /* The shadow inside the bowl. This is what a photograph's letterbox and the
-     selfie viewfinder are, so they read as the picture's own dark, not black. */
-  --media-bg: #221217;
+  /* The sky, at a value four inks can live on. #a9cfe4 straight off the plate
+     takes --faint to 4.05:1; #c3dfee is the same hue three steps up and clears
+     4.5:1 on all four. */
+  --ground: #c3dfee;
+  --paper:  #c3dfee;
+  --card:   #fbfdfe;
+  --wash:   #eef6fb;
+  /* The shadow the bowl's rim casts — a photograph's letterbox and the selfie
+     viewfinder read this, so they are the picture's own dark, not black. */
+  --media-bg: #0b1a24;
 
-  --ink:      #2a1418;   /* 10.2:1 on the ground, 16.3:1 on a card */
-  --ink-soft: #3f2229;   /*  8.4:1 */
-  --muted:    #52323a;   /*  6.6:1 */
-  --faint:    #6b4a51;   /*  4.6:1 — labels and metadata ONLY */
-  --line:   #e7c4c8;
-  --line-2: #dcb1b6;
+  --ink:      #0f2230;   /* 11.7:1 on the ground, 15.9:1 on a card */
+  --ink-soft: #1c3446;   /*  9.3:1 */
+  --muted:    #2c4a5e;   /*  6.7:1 */
+  --faint:    #3f6076;   /*  4.8:1 — labels and metadata ONLY */
+  --line:   #bcd6e5;
+  --line-2: #a6c7db;
 
-  /* THE STRAW, in the two jobs the design separates. --accent is a FILL and
-     white sits on it at 5.6:1 — the score ring, the histogram, the outgoing
-     chat bubble, the active thumbnail ring. --accent-ink is the same blue as
-     TEXT: 7.5:1 on a card, 4.7:1 on the candy. */
-  --accent:      #186d9f;
-  --accent-ink:  #12557d;
-  --accent-soft: #dceaf3;
-  --accent-line: #b6d4e6;
+  /* THE CANDY, in the two jobs the design separates. --accent is a FILL and
+     white sits on it at 6.0:1 — the score ring, the histogram, the outgoing
+     chat bubble, the active thumbnail ring. --accent-ink is the same rose as
+     TEXT: 8.2:1 on a card, 6.0:1 on the sky. */
+  --accent:      #b03652;
+  --accent-ink:  #8e2743;
+  --accent-soft: #fae1e6;
+  --accent-line: #eec3cd;
   --on-accent:   #ffffff;
 
-  /* Status, each measured on the CANDY as well as on its own wash, because
-     several of these sit on the page rather than inside a card. --warn-ink
-     came in at 4.41:1 on the ground and was darkened until it cleared: a
-     caution nobody can read is the one that matters most. */
-  --ok-ink: #1f5a2a;     --ok-soft: #dff0e2;    --ok-line: #bcdcc3;
-  --warn-ink: #734405;   --warn-soft: #f7e9d5;  --warn-line: #e3cda8;
-  --danger-ink: #9b1c34; --danger-soft: #fbe0e5; --danger-line: #eebac6;
-  --info-ink: #12557d;   --info-soft: #dceaf3;  --info-line: #b6d4e6;
+  /* Status, each measured on the SKY as well as on its own wash — several of
+     these sit on the page rather than inside a card. */
+  --ok-ink: #1c5730;     --ok-soft: #dfeee4;    --ok-line: #bcdcc6;
+  --warn-ink: #6b4004;   --warn-soft: #f4ead9;  --warn-line: #ddceac;
+  --danger-ink: #93213c; --danger-soft: #fae1e6; --danger-line: #eec3cd;
+  --info-ink: #154c66;   --info-soft: #dbeaf2;  --info-line: #b4d3e4;
 
-  /* The panes are the plate's GLASS: gloss, not frost. A frosted card in this
-     room would be the one matte object in a picture made of wet surfaces. */
-  --face:      linear-gradient(180deg, #fffdfd 0%, #fdf6f6 52%, #f8eaeb 100%);
-  --face-2:    linear-gradient(180deg, #fffefe 0%, #fdf8f8 48%, #f9edee 100%);
-  --face-tall: linear-gradient(180deg, #ffffff 0%, #fdf6f6 calc(100% - min(96px, 40%)), #f6e6e7 100%);
-  --face-key:  linear-gradient(180deg, #ffffff 0%, #fdf7f7 52%, #f7e8e9 100%);
-  --well:      linear-gradient(180deg, #e9c9cc 0%, #f6e2e4 58%, #fdf6f6 100%);
+  /* The panes are the plate's glass: gloss, not frost. A frosted card here
+     would be the one matte object in a picture made of wet surfaces. */
+  --face:      linear-gradient(180deg, #ffffff 0%, #fbfdfe 52%, #f0f7fb 100%);
+  --face-2:    linear-gradient(180deg, #ffffff 0%, #fcfeff 48%, #f2f8fc 100%);
+  --face-tall: linear-gradient(180deg, #ffffff 0%, #fbfdfe calc(100% - min(96px, 40%)), #edf5fa 100%);
+  --face-key:  linear-gradient(180deg, #ffffff 0%, #fbfdff 52%, #eef6fb 100%);
+  --well:      linear-gradient(180deg, #cfe3ef 0%, #e9f3f9 58%, #fbfdfe 100%);
 
-  --rim:        inset 0 0 0 1px rgba(42,20,24,.09), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(42,20,24,.06);
-  --rim-strong: inset 0 0 0 1px rgba(42,20,24,.13), inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(42,20,24,.08);
+  --rim:        inset 0 0 0 1px rgba(15,34,48,.09), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(15,34,48,.06);
+  --rim-strong: inset 0 0 0 1px rgba(15,34,48,.13), inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(15,34,48,.08);
 
-  /* The shadow ink goes warm-rose. A neutral grey shadow on candy reads as
-     dirt — the same reason Social Life's went cool. */
-  --e1: var(--rim),        0 1px 1px rgba(120,52,62,.14), 0 2px 4px rgba(120,52,62,.13), 0 6px 14px rgba(120,52,62,.16);
-  --e2: var(--rim-strong), 0 1px 1px rgba(120,52,62,.14), 0 3px 6px rgba(120,52,62,.16), 0 12px 26px rgba(120,52,62,.20), 0 24px 52px rgba(120,52,62,.15);
-  --e3: var(--rim-strong), 0 2px 2px rgba(120,52,62,.15), 0 8px 16px rgba(120,52,62,.18), 0 22px 46px rgba(120,52,62,.22);
-  --e1-key: var(--rim),        0 1px 1px rgba(120,52,62,.16), 0 2px 4px rgba(120,52,62,.16), 0 5px 10px rgba(120,52,62,.13);
-  --e2-key: var(--rim-strong), 0 2px 3px rgba(120,52,62,.16), 0 5px 10px rgba(120,52,62,.18);
-  --carve:      inset 0 0 0 1px rgba(42,20,24,.11), inset 0 3px 6px rgba(42,20,24,.13), inset 0 -1px 0 rgba(255,255,255,.95);
-  --carve-deep: inset 0 0 0 1px rgba(42,20,24,.13), inset 0 4px 10px rgba(42,20,24,.18), inset 0 -1px 0 rgba(255,255,255,.95);
-  --press: inset 0 0 0 1px rgba(42,20,24,.13), inset 0 3px 6px rgba(42,20,24,.16), 0 1px 0 rgba(255,255,255,.9);
+  /* The shadow ink goes cool-slate. A neutral grey shadow on a blue ground
+     reads as a smear — the same reason Social Life's went cool and the candy
+     pass's went rose. */
+  --e1: var(--rim),        0 1px 1px rgba(20,52,74,.10), 0 2px 4px rgba(20,52,74,.10), 0 6px 14px rgba(20,52,74,.12);
+  --e2: var(--rim-strong), 0 1px 1px rgba(20,52,74,.10), 0 3px 6px rgba(20,52,74,.12), 0 12px 26px rgba(20,52,74,.16), 0 24px 52px rgba(20,52,74,.12);
+  --e3: var(--rim-strong), 0 2px 2px rgba(20,52,74,.11), 0 8px 16px rgba(20,52,74,.14), 0 22px 46px rgba(20,52,74,.18);
+  --e1-key: var(--rim),        0 1px 1px rgba(20,52,74,.12), 0 2px 4px rgba(20,52,74,.12), 0 5px 10px rgba(20,52,74,.10);
+  --e2-key: var(--rim-strong), 0 2px 3px rgba(20,52,74,.12), 0 5px 10px rgba(20,52,74,.14);
+  --carve:      inset 0 0 0 1px rgba(15,34,48,.11), inset 0 3px 6px rgba(15,34,48,.14), inset 0 -1px 0 rgba(255,255,255,.95);
+  --carve-deep: inset 0 0 0 1px rgba(15,34,48,.13), inset 0 4px 10px rgba(15,34,48,.19), inset 0 -1px 0 rgba(255,255,255,.95);
+  --press: inset 0 0 0 1px rgba(15,34,48,.13), inset 0 3px 6px rgba(15,34,48,.17), 0 1px 0 rgba(255,255,255,.9);
   --edge-up: 0 1px 0 rgba(255,255,255,.95);
-  --edge-in: inset 0 -1px 0 rgba(42,20,24,.07);
-  --case-rim: inset 0 0 0 1px rgba(42,20,24,.16), inset 0 4px 12px rgba(42,20,24,.20), inset 0 -2px 8px rgba(42,20,24,.10);
-  --case-rim-soft: inset 0 0 0 1px rgba(42,20,24,.12), inset 0 3px 7px rgba(42,20,24,.18), inset 0 -1px 0 rgba(255,255,255,.5);
+  --edge-in: inset 0 -1px 0 rgba(15,34,48,.07);
+  --case-rim: inset 0 0 0 1px rgba(15,34,48,.16), inset 0 4px 12px rgba(15,34,48,.20), inset 0 -2px 8px rgba(15,34,48,.10);
+  --case-rim-soft: inset 0 0 0 1px rgba(15,34,48,.12), inset 0 3px 7px rgba(15,34,48,.18), inset 0 -1px 0 rgba(255,255,255,.5);
 
-  /* THE RAIL IS A WELL CUT INTO THE CANDY, so it is the candy darkened and
-     not a grey — or the room stops at the panel edge and starts again. */
-  --rail-well: #e7a8b0;
-  --rail-well-shadow: inset -1px 0 0 rgba(42,20,24,.10);
-  --lens-face: linear-gradient(180deg, #fffdfd 0%, #fdf6f6 55%, #f7e7e8 100%);
-  --lens:     inset 0 0 0 1.5px rgba(255,255,255,.95), inset 0 1px 0 rgba(255,255,255,1), 0 4px 14px rgba(120,52,62,.18);
-  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.9), inset 0 1px 0 rgba(255,255,255,1), 0 2px 7px rgba(120,52,62,.14);
+  /* THE RAIL IS A WELL CUT INTO THE SKY, so it is the sky darkened and not a
+     grey — or the room stops at the panel edge and starts again. */
+  --rail-well: #b0d2e6;
+  --rail-well-shadow: inset -1px 0 0 rgba(15,34,48,.10);
+  --lens-face: linear-gradient(180deg, #ffffff 0%, #fbfdfe 55%, #eef6fb 100%);
+  --lens:     inset 0 0 0 1.5px rgba(255,255,255,.95), inset 0 1px 0 rgba(255,255,255,1), 0 4px 14px rgba(20,52,74,.16);
+  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.9), inset 0 1px 0 rgba(255,255,255,1), 0 2px 7px rgba(20,52,74,.12);
 
-  /* The glass, opaque here. Social Life's is translucent because its ground is
-     a pale wash with nothing behind it worth bending; this ground is a
-     saturated pink, and a see-through card over it takes a pink cast that no
-     ink value can be measured against. */
-  --glass-face: linear-gradient(158deg, rgba(255,255,255,.94), rgba(255,255,255,.84) 52%, rgba(255,255,255,.78));
-  --glass:      inset 0 0 0 1.4px rgba(255,255,255,1), inset 0 1px 0 rgba(255,255,255,1), 0 18px 44px rgba(120,52,62,.22);
-  --glass-key:  inset 0 0 0 1.1px rgba(255,255,255,.95), inset 0 1px 0 rgba(255,255,255,1), 0 3px 10px rgba(120,52,62,.18);
+  /* Opaque glass. Social Life's is translucent because its ground is a pale
+     wash with nothing behind it worth bending; this ground is a saturated sky,
+     and a see-through card over it takes a blue cast no ink can be measured
+     against. */
+  --glass-face: linear-gradient(158deg, rgba(255,255,255,.95), rgba(255,255,255,.86) 52%, rgba(255,255,255,.80));
+  --glass:      inset 0 0 0 1.4px rgba(255,255,255,1), inset 0 1px 0 rgba(255,255,255,1), 0 18px 44px rgba(20,52,74,.20);
+  --glass-key:  inset 0 0 0 1.1px rgba(255,255,255,.95), inset 0 1px 0 rgba(255,255,255,1), 0 3px 10px rgba(20,52,74,.16);
 
-  /* The lit key is the STRAW — the one thing in the plate that is not pink.
-     The city's orange lamp on candy is two warm hues arguing, and the eye goes
-     to the rail instead of to the photographs. */
-  --key-lit-face: linear-gradient(180deg, #2286bd 0%, #186d9f 46%, #125b85 100%);
-  --key-lit:      inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 1px 0 rgba(255,255,255,.36), 0 3px 12px rgba(24,109,159,.36);
-  --key-lit-pip:  0 0 0 2px rgba(24,109,159,.16), 0 0 8px rgba(24,109,159,.5);
-  --lamp-face: linear-gradient(180deg, #2286bd 0%, #186d9f 46%, #125b85 100%);
-  --lamp:      inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 2px 5px rgba(0,0,0,.18), inset 0 -1px 0 rgba(255,255,255,.36), 0 3px 12px rgba(24,109,159,.36);
+  /* The lit key is the CANDY — the one thing in the room that is not the sky.
+     The city's orange lamp on a blue ground is a hue nobody chose. */
+  --key-lit-face: linear-gradient(180deg, #c34461 0%, #b03652 46%, #8e2743 100%);
+  --key-lit:      inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 1px 0 rgba(255,255,255,.36), 0 3px 12px rgba(176,54,82,.34);
+  --key-lit-pip:  0 0 0 2px rgba(176,54,82,.16), 0 0 8px rgba(176,54,82,.5);
+  --lamp-face: linear-gradient(180deg, #c34461 0%, #b03652 46%, #8e2743 100%);
+  --lamp:      inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 2px 5px rgba(0,0,0,.18), inset 0 -1px 0 rgba(255,255,255,.36), 0 3px 12px rgba(176,54,82,.34);
   --lamp-badge: inset 0 0 0 1px rgba(255,255,255,.38), inset 0 1px 0 rgba(255,255,255,.32);
 
-  --loud-face:        linear-gradient(180deg, #2286bd 0%, #186d9f 55%, #125b85 100%);
-  --loud-face-hover:  linear-gradient(180deg, #2b93cc 0%, #1c78ad 55%, #146490 100%);
-  --loud-face-active: linear-gradient(180deg, #125b85 0%, #16679a 60%, #186d9f 100%);
+  --loud-face:        linear-gradient(180deg, #c34461 0%, #b03652 55%, #8e2743 100%);
+  --loud-face-hover:  linear-gradient(180deg, #cd4f6c 0%, #ba3e5b 55%, #992d4b 100%);
+  --loud-face-active: linear-gradient(180deg, #8e2743 0%, #9e2f4c 60%, #b03652 100%);
   --on-loud: #ffffff;
-  --frost: rgba(253,246,246,.76);
+  --frost: rgba(251,253,254,.78);
   --btn-line-edge: rgba(255,255,255,.95);
-  --btn-line-ring: rgba(42,20,24,.17);
-  --btn-line-ring-hover: rgba(42,20,24,.32);
-  --focus-ring: 0 0 0 3px rgba(24,109,159,.38);
+  --btn-line-ring: rgba(15,34,48,.17);
+  --btn-line-ring-hover: rgba(15,34,48,.32);
+  --focus-ring: 0 0 0 3px rgba(21,76,102,.38);
 
-  /* THE SCRIMS GO WITH THE ROOM. The hub was carrying three hand-written
-     brown-blacks left over from the removed gold theme; on candy a warm-brown
-     scrim over a photograph reads olive. These are the plate's own bowl
-     shadow, and the pages read the tokens now instead of literals. */
-  --scrim-top:   rgba(34,18,23,.24);
-  --scrim-clear: rgba(34,18,23,0);
-  --scrim-deep:  rgba(34,18,23,.78);
+  /* The scrims are the bowl's own shadow — the hub used to carry three
+     hand-written brown-blacks from the removed gold theme; on a blue ground a
+     warm scrim over a photograph reads brown. */
+  --scrim-top:   rgba(11,26,36,.24);
+  --scrim-clear: rgba(11,26,36,0);
+  --scrim-deep:  rgba(11,26,36,.78);
 
-  /* The wash, corner to corner from the plate: the circle of sky at the top
-     where the bowl's opening was, the candy's deeper folds at both feet. */
+  /* The wash: the bowl's opening overhead, the candy's last warmth at the two
+     bottom corners — a TRACE of it, not the room. The first attempt put the
+     pink in at full strength and it read as a smudge across the bottom third
+     of every page, which is the opposite of what was asked for. At .42 and
+     .34 alpha it is a warmth you notice only if you look for it. */
   --sky-image:
-    radial-gradient(58% 42% at 50% -14%, #8ec4e2 0%, rgba(142,196,226,0) 62%),
-    radial-gradient(70% 44% at 8% 96%, #e2848f 0%, rgba(226,132,143,0) 60%),
-    radial-gradient(70% 44% at 96% 88%, #e58f99 0%, rgba(229,143,153,0) 58%),
-    linear-gradient(172deg, #f5c8cd 0%, #f0b9bf 46%, #eaa9b1 100%);
-  --chrome: rgba(255,255,255,.58);
+    radial-gradient(62% 46% at 50% -16%, #eaf6fc 0%, rgba(234,246,252,0) 64%),
+    radial-gradient(46% 26% at 2% 104%, rgba(226,180,192,.42) 0%, rgba(226,180,192,0) 62%),
+    radial-gradient(46% 26% at 100% 100%, rgba(222,176,189,.34) 0%, rgba(222,176,189,0) 60%),
+    linear-gradient(172deg, #d3e8f4 0%, #c3dfee 44%, #b2d5e8 100%);
+  --chrome: rgba(255,255,255,.62);
   --chrome-blur: blur(20px) saturate(150%);
 
   /* ── THE FILM ────────────────────────────────────────────────────────────
-     The grade every photograph in this hub reads, measured off the two plates
-     the brief supplied. One name, like --sky-image, so changing stock is a
-     line here rather than a hunt through the stylesheet. The curve itself is
-     an SVG <filter> mounted once by the shell: a per-channel transfer is the
-     only thing that can put a WHITE POINT on a photograph, and nothing in the
-     CSS filter shorthand can say "white lands at 238,231,220, never 255". */
+     Unchanged. The grade is measured off the two plates and does not depend on
+     which of the picture's two hues is the room. */
   --film: url(#tc-film);
 }
 
