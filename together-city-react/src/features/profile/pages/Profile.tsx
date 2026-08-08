@@ -15,7 +15,7 @@ import { SexAndGenderCard } from '../components/SexAndGenderCard';
 import { DeleteAccountCard } from '@/features/settings/components/DeleteAccountCard';
 import { useMasterProfile } from '../hooks';
 import { Field, Visa } from '../components/Passport';
-import { codeBand, visaPages } from '../passport';
+import { codeBand, sexMark, splitName, visaPages } from '../passport';
 
 /* The Photo tab is gone: the passport's portrait IS the picker, and a second
    door to the same file input is a second thing to keep in step.
@@ -234,17 +234,16 @@ export function Profile() {
 
   /* ── The data page's own values. All of it already fetched. ───────────── */
   const m = master.data;
-  const parts = name.trim().split(/\s+/);
-  const surname = parts.length > 1 ? parts[parts.length - 1] : name;
-  const given = parts.length > 1 ? parts.slice(0, -1).join(' ') : '';
-  /* M / F / X, the way a document writes it — and a rule when nobody has been
-     asked, which is a different thing from somebody declining to say. */
-  const sexMark = m?.resolvedGender === 'male' ? 'M' : m?.resolvedGender === 'female' ? 'F' : m?.resolvedGender ? 'X' : '';
+  const { surname, given } = splitName(name);
+  /* Read from the two answers SexAndGenderCard actually writes — see the note
+     on sexMark(). `declined` is a real answer and gets an inert rule; null
+     means nobody asked yet and gets a rule that links to the form. */
+  const mark = sexMark(m);
   const issued = data?.memberSince ?? null;
   const asDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() : null);
   const place = [m?.birthCity, m?.birthCountry].filter(Boolean).join(', ') || null;
   const residence = [m?.city, m?.country].filter(Boolean).join(', ') || null;
-  const mrz = codeBand({ surname, given, handle: user?.handle ?? 'citizen', dob: m?.dateOfBirth, sex: sexMark || '<', issued });
+  const mrz = codeBand({ surname, given, handle: user?.handle ?? 'citizen', dob: m?.dateOfBirth, sex: mark === 'M' || mark === 'F' || mark === 'X' ? mark : '<', issued });
   const pages = visaPages(data?.hubs ?? [], completion.data?.sections ?? []);
   const validity = completion.data?.percent;
 
@@ -255,17 +254,12 @@ export function Profile() {
         <h1 style={{ margin: '0 0 16px' }}>Your passport</h1>
 
         {/* ── THE DATA PAGE ─────────────────────────────────────────────── */}
+        {/* No hand-typed crest: the artwork prints the mark, the tagline, the
+            series number and the seal itself, and re-typing them in HTML on
+            top of a texture is two documents fighting. The padding that
+            clears the printed header lives in .pdata. */}
+        <div className="pdoc">
         <div className="pdata">
-          <div className="pcrest">
-            <b>Together City</b>
-            <span>Passport · Citizen identity</span>
-            {validity != null && (
-              <span className="pval">
-                {validity === 100 ? 'Fully endorsed' : `Validity ${validity}%`}
-              </span>
-            )}
-          </div>
-
           <div className="pgrid">
             {/* The portrait IS the picker. One door, not two. */}
             <input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => void changePhoto(e.target.files?.[0])} />
@@ -279,23 +273,31 @@ export function Profile() {
             <div className="pfields">
               <Field label="Type" value="P" />
               <Field label="City code" value="TC" />
-              <Field label="Citizen no." value={user?.handle ? `@${user.handle}` : null} />
 
-              <Field span="half" label="Surname / Nom (1)" value={surname} big />
-              <Field label="Sex (5)" value={sexMark || null} fill="/profile/master" />
-
-              <Field span="half" label="Given names (2)" value={given || '—'} big />
-              <Field label="Date of birth (4)" value={asDate(m?.dateOfBirth)} fill="/profile/master" />
+              <Field span="half" label="Citizen no." value={user?.handle ? `@${user.handle}` : null} />
+              <Field span="half" label="Surname / Nom (1)" value={surname} fill="/profile/master" big />
+              <Field span="half" label="Given names (2)" value={given} fill="/profile/master" big />
 
               <Field label="Nationality (3)" value="Together City" />
-              <Field span="half" label="Place of birth (6)" value={place} fill="/profile/master" />
+              <Field label="Sex (5)" value={mark === 'declined' ? null : mark}
+                fill={mark === null ? '/profile/master' : undefined} />
+
+              <Field label="Date of birth (4)" value={asDate(m?.dateOfBirth)} fill="/profile/master" />
+              <Field label="Place of birth (6)" value={place} fill="/profile/master" />
 
               <Field label="Date of issue (7)" value={asDate(issued)} />
               <Field label="Authority (8)" value="Together City" />
+
               <Field label="Residence (9)" value={residence} fill="/profile/master" />
+              <Field label="Languages (11)" value={m?.languages ?? null} fill="/profile/master" />
 
               <Field span="half" label="Correspondence (10)" value={user?.handle ? `${user.handle}@togethercity.app` : null} />
-              <Field label="Languages (11)" value={m?.languages ?? null} fill="/profile/master" />
+
+              {/* Validity used to sit in a hand-typed crest. The artwork
+                  prints its own header, so it is a field — which is where a
+                  document would have put it anyway. */}
+              <Field span="half" label="Validity (12)"
+                value={validity == null ? null : validity === 100 ? 'Fully endorsed' : `${validity}% endorsed`} />
             </div>
           </div>
 
@@ -305,27 +307,41 @@ export function Profile() {
           <div className="pmrz" aria-hidden="true">{mrz[0]}<br />{mrz[1]}</div>
         </div>
 
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '14px 0 30px' }}>
-          <Link to="/profile/master"><Button variant="accent" size="sm">Edit the data page</Button></Link>
-          <Link to="/profile/avatar"><Button variant="line" size="sm">Use a drawn face</Button></Link>
-          <Button variant="line" size="sm" onClick={signOut}>Sign out</Button>
+        {/* THE OPEN BOOKLET. The sheet is portrait, so the width it does not
+            use goes to the visa pages rather than to margin — a document on
+            the left and its endorsements on the right, which is what an open
+            passport actually looks like. */}
+        <div>
+          <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.65, margin: '2px 0 14px', maxWidth: '46ch' }}>
+            One identity, and a page for every hub that reads from it. The data
+            page is entered once — every hub in the city works from it, and
+            nothing is asked for twice.
+          </p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 26 }}>
+            <Link to="/profile/master"><Button variant="accent" size="sm">Edit the data page</Button></Link>
+            <Link to="/profile/avatar"><Button variant="line" size="sm">Use a drawn face</Button></Link>
+            <Button variant="line" size="sm" onClick={signOut}>Sign out</Button>
+          </div>
+
+          <div className="eyebrow">Visas &amp; permits</div>
+          <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 14px', maxWidth: '48ch', lineHeight: 1.55 }}>
+            One page per hub, stamped by what that hub knows about you — and
+            blank until you have been there, which is the honest way to show a
+            hub you have never opened.
+          </p>
+          {isLoading && <Spinner />}
+          {isError && <EmptyState title="Couldn't load your pages" hint="Reload in a moment." />}
+          {pages.length > 0 && (
+            <div className="pvisas">
+              {pages.map((pg) => <Visa key={pg.href} page={pg} />)}
+            </div>
+          )}
+        </div>
         </div>
 
-        {/* ── THE VISA PAGES ────────────────────────────────────────────── */}
-        <div className="eyebrow">Visas &amp; permits</div>
-        <p className="muted" style={{ fontSize: 13, margin: '4px 0 14px', maxWidth: '62ch' }}>
-          One page per hub. Each is stamped by what that hub knows about you —
-          and stays blank until you have been there, which is the honest way to
-          show a hub you have never opened.
-        </p>
-        {isLoading && <Spinner />}
-        {isError && <EmptyState title="Couldn't load your pages" hint="Reload in a moment." />}
-        {pages.length > 0 && (
-          <div className="pvisas" style={{ marginBottom: 30 }}>
-            {pages.map((pg) => <Visa key={pg.href} page={pg} />)}
-          </div>
-        )}
+        <div style={{ height: 30 }} />
 
+        {/* ── THE VISA PAGES ────────────────────────────────────────────── */}
         {/* ── ENDORSEMENTS ─────────────────────────────────────────────
             Four doors that are not hubs. They were four identical cards in a
             column reading "Open →" four times; as a strip of endorsements

@@ -2196,7 +2196,7 @@ textarea.g-field { resize: none; line-height: 1.55; }
    Everything is achromatic but the stamps, which take the root accent. Real
    visa pages differ by STAMP and by wording, not by repainting the paper. */
 
-.pbook { max-width: 860px; }
+.pbook { max-width: 1120px; }
 
 /* ── THE DATA PAGE ──────────────────────────────────────────────────────── */
 .pdata {
@@ -2204,29 +2204,36 @@ textarea.g-field { resize: none; line-height: 1.55; }
   border-radius: var(--r-3); background: var(--card); box-shadow: var(--e2);
   padding: 0;
 }
-/* Two layers: the engine-turned field, and the laminate sheen over it. Both
-   sit BEHIND the content via z-index, not opacity, so nothing readable is
-   ever drawn at less than full strength. */
-.pdata::before, .pdata::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0; }
-.pdata::before { background-image: var(--guilloche); }
-.pdata::after  { background-image: var(--laminate); }
+/* THE DOCUMENT IS PORTRAIT, BECAUSE THE ARTWORK IS.
+   The sheet is 3500 x 8000 with its printed header — mark, tagline, series
+   number, holographic seal — occupying the top 42% OF ITS WIDTH. Laid behind
+   a landscape card that header renders enormous and the fields print on top
+   of the wordmark; measured rather than guessed, the first attempt cleared
+   14.3% and needed 42%. A passport page is portrait, so the page is portrait,
+   and the artwork lands exactly as it was drawn.
+
+   The header clearance is a PERCENTAGE because it is a fraction of the
+   sheet's width, not a number of pixels. A pixel value is correct at one
+   breakpoint and wrong at every other. */
+.pdoc { display: grid; grid-template-columns: minmax(0, 460px) 1fr; gap: 30px; align-items: start; }
+@media (max-width: 860px) { .pdoc { grid-template-columns: 1fr; } }
+
+.pdata {
+  padding-top: 42%;
+  background-image: var(--passport-paper);
+  background-size: 100% auto; background-position: top center; background-repeat: no-repeat;
+  background-color: var(--passport-ground);
+}
 .pdata > * { position: relative; z-index: 1; }
 
-.pcrest {
-  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
-  padding: 16px 22px 12px; border-bottom: 1.5px solid var(--line-2);
-}
-.pcrest b { font-size: 13px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
-.pcrest span { font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--faint); }
-.pcrest .pval { margin-left: auto; }
-
-.pgrid { display: grid; grid-template-columns: 148px 1fr; gap: 22px; padding: 20px 22px 16px; }
-@media (max-width: 640px) { .pgrid { grid-template-columns: 1fr; } }
+.pgrid { padding: 6px 26px 14px; }
+.pgrid .pphoto { margin: 0 0 20px; }
+@media (max-width: 380px) { .pgrid { padding: 6px 16px 12px; } }
 
 /* The photograph is the file picker. A passport photo is not decoration and
    neither is this one — it is the same portrait every hub shows. */
 .pphoto {
-  position: relative; width: 148px; aspect-ratio: 3 / 4; padding: 0; border: 0; cursor: pointer;
+  position: relative; width: 132px; aspect-ratio: 3 / 4; padding: 0; border: 0; cursor: pointer;
   border-radius: var(--r-1); overflow: hidden; background: var(--well); box-shadow: var(--carve);
   display: grid; place-items: center;
 }
@@ -2241,37 +2248,49 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .pphoto[data-empty="true"] { background-image: var(--rosette); }
 .pphoto[data-empty="true"] em { font-style: normal; font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 
-.pfields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 18px; align-content: start; }
-.pfields .wide { grid-column: 1 / -1; }
-.pfields .half { grid-column: span 2; }
-@media (max-width: 640px) { .pfields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pfields .half { grid-column: 1 / -1; } }
+/* Two columns on a narrow sheet. `half` means "the wide one" here — on three
+   columns it spanned two; on two it spans both, which is what a name line
+   wants either way. */
+.pfields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px 18px; align-content: start; }
+.pfields .wide, .pfields .half { grid-column: 1 / -1; }
 
+/* TWO INKS ON PAPER, AND NO GREYS — the rule the measurement forced.
+   --faint reads 1.98:1 against the darkest one per cent of this sheet and
+   --muted 3.79:1; both fail. --ink-soft is 12.1:1. A printed form's field
+   labels are ink anyway: they are small and tracked, not pale. */
 .pfield > span {
   display: block; font-size: 8.5px; font-weight: 700; letter-spacing: .13em;
-  text-transform: uppercase; color: var(--faint); line-height: 1.4;
+  text-transform: uppercase; color: var(--ink-soft); line-height: 1.4;
 }
 .pfield > b { display: block; font-size: 14px; font-weight: 700; line-height: 1.35; word-break: break-word; }
-.pfield > b.big { font-size: 19px; letter-spacing: -.01em; }
+/* The name lines are set as a document sets them. `somen` is how somebody
+   types their handle; SOMEN is how a passport prints it, and the difference
+   is the whole reason this page reads as a document. Only the two name
+   fields — uppercasing a place or an address would just be shouting. */
+.pfield > b.big { font-size: 19px; letter-spacing: .01em; text-transform: uppercase; }
 /* AN UNFILLED FIELD IS A RULE, NOT THE WORD "NONE". This is the one place the
    metaphor does real work: a blank line in a document reads as something to
    go and fill in, where a grey "not set" reads as a fact about you. */
 .pfield > a.blank, .pfield > i.blank {
   display: block; font-style: normal; text-decoration: none; margin-top: 7px;
-  border-bottom: 1.5px dotted var(--line-2); height: 12px;
+  border-bottom: 1.5px dotted var(--ink-soft); height: 12px; opacity: .45;
 }
 .pfield > a.blank:hover { border-bottom-color: var(--accent); }
 
 /* The code band. Wide tracking in the one family the design has — this is a
    texture that says "machine reads this", not a font we went and licensed. */
+/* No fill behind the band — it is printed on the same sheet as everything
+   above it, and a grey slab there is a UI element pretending to be part of
+   the document. */
 .pmrz {
-  padding: 12px 22px 15px; border-top: 1.5px solid var(--line-2); background: var(--wash);
-  font-size: 12.5px; font-weight: 700; letter-spacing: .16em; line-height: 1.85;
-  color: var(--ink-soft); overflow-x: auto; white-space: nowrap; scrollbar-width: none;
+  padding: 12px 26px 20px; border-top: 1.5px solid var(--line-2);
+  font-size: 10px; font-weight: 700; letter-spacing: .14em; line-height: 1.9;
+  color: var(--ink); overflow-x: auto; white-space: nowrap; scrollbar-width: none;
 }
 .pmrz::-webkit-scrollbar { display: none; }
 
 /* ── THE VISA PAGES ─────────────────────────────────────────────────────── */
-.pvisas { display: grid; grid-template-columns: repeat(auto-fill, minmax(272px, 1fr)); gap: 16px; }
+.pvisas { display: grid; grid-template-columns: repeat(auto-fill, minmax(246px, 1fr)); gap: 14px; }
 /* A COLUMN, NOT A BOX WITH THINGS PINNED INSIDE IT.
    The first version had the foot line absolutely positioned at the bottom and
    the stamp absolutely positioned over the middle, and both collided with the
@@ -2285,19 +2304,25 @@ textarea.g-field { resize: none; line-height: 1.55; }
   border-radius: var(--r-2); background: var(--card); box-shadow: var(--e1);
   transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
-.pvisa::before { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; background-image: var(--guilloche); }
+/* A visa page is cut from the middle of the same sheet — 260% and off-centre
+   so no crop can catch the mark, the seal or the spine strip, which belong to
+   the data page and would read as fourteen copies of them here. */
+.pvisa {
+  background-image: var(--passport-paper);
+  background-size: 260% auto; background-position: 34% 38%;
+}
 .pvisa > * { position: relative; z-index: 1; }
 @media (hover: hover) and (pointer: fine) { .pvisa:hover { transform: translateY(-3px); box-shadow: var(--e2); } }
 .pvisa:active { transform: translateY(1px); }
 
 .pvisa .phead { display: flex; align-items: baseline; gap: 8px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
-.pvisa .pcode { font-size: 9.5px; font-weight: 700; letter-spacing: .16em; color: var(--faint); }
+.pvisa .pcode { font-size: 9.5px; font-weight: 700; letter-spacing: .16em; color: var(--ink-soft); }
 .pvisa .phead b { font-size: 15px; font-weight: 700; }
 /* The right inset is the stamp's room. A stamp that lands ON the words is a
    stamp; a stamp that lands on the FIRST words is a bug. */
 .pvisa .psum, .pvisa .pnone { font-size: 12.5px; line-height: 1.55; margin: 10px 76px 0 0; }
-.pvisa .psum { color: var(--ink-soft); }
-.pvisa .pnone { color: var(--muted); }
+.pvisa .psum { color: var(--ink); }
+.pvisa .pnone { color: var(--ink-soft); }
 .pvisa .pfoot {
   margin-top: auto; padding-top: 14px;
   display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
@@ -2327,7 +2352,7 @@ textarea.g-field { resize: none; line-height: 1.55; }
   border: 1px solid var(--accent-line); border-radius: var(--r-full);
 }
 .pstamp b { display: block; font-size: 12px; letter-spacing: .03em; }
-.pstamp.waiting { color: var(--faint); border-color: var(--line-2); border-style: dashed; }
+.pstamp.waiting { color: var(--ink-soft); opacity: .55; border-color: var(--ink-soft); border-style: dashed; }
 .pstamp.waiting::before { border-color: var(--line-2); }
 
 /* ── THE OBSERVATIONS PAGE ──────────────────────────────────────────────── */

@@ -41,6 +41,53 @@ export function tiltOf(hub: string): string {
   return `${(n % 17) - 9}deg`;   /* −9° … +7° */
 }
 
+/**
+ * THE NAME, SPLIT THE WAY A DOCUMENT SPLITS IT.
+ *
+ * One word is a GIVEN name, not a surname. The first version took the last
+ * word as the surname always, so a citizen called "somen" got SURNAME: somen
+ * and GIVEN NAMES: — , which is the page telling somebody their name is their
+ * family name. A single word goes in given names and the surname line stays a
+ * blank rule you can fill.
+ */
+export function splitName(full: string): { surname: string | null; given: string | null } {
+  const parts = full.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { surname: null, given: null };
+  if (parts.length === 1) return { surname: null, given: parts[0] };
+  return { surname: parts[parts.length - 1], given: parts.slice(0, -1).join(' ') };
+}
+
+/**
+ * THE SEX MARK, READ FROM WHAT THE CITIZEN ACTUALLY ANSWERED.
+ *
+ * This was wrong on the first pass and wrong in the way that matters: it read
+ * `resolvedGender`, a server-derived display value, and compared it to the
+ * lowercase option keys. Nothing matched, so every citizen who had answered
+ * "Male" on the card immediately below was stamped X on their own passport.
+ *
+ * It reads the two stored answers now — the same two fields SexAndGenderCard
+ * writes — and prefers the SOCIAL one. A passport's sex line is how a document
+ * refers to you, which is exactly what `genderIdentity` is for; `sexAtBirth`
+ * carries a promise that it is only ever used for health calculations, so it
+ * is the fallback rather than the source.
+ *
+ * Returns:
+ *   'M' | 'F' | 'X' — an answer
+ *   'declined'      — they were asked and said prefer-not-to-say. An inert
+ *                     rule, not a prompt: declining IS an answer and a page
+ *                     that keeps asking has not listened.
+ *   null            — nobody has asked yet. A rule that links to the form.
+ */
+export function sexMark(m?: { genderIdentity?: string | null; sexAtBirth?: string | null } | null):
+  'M' | 'F' | 'X' | 'declined' | null {
+  const answer = m?.genderIdentity ?? m?.sexAtBirth ?? null;
+  if (!answer) return null;
+  if (answer === 'male') return 'M';
+  if (answer === 'female') return 'F';
+  if (answer === 'preferNotToSay') return 'declined';
+  return 'X';   /* nonBinary, other, intersex */
+}
+
 const pad = (s: string, n: number) => (s + '<'.repeat(n)).slice(0, n);
 const yymmdd = (iso?: string | null) => {
   if (!iso) return '<<<<<<';
@@ -56,10 +103,10 @@ const digitsOf = (s: string) => {
 };
 
 export function codeBand({ surname, given, handle, dob, sex, issued }: {
-  surname: string; given: string; handle: string;
+  surname?: string | null; given?: string | null; handle: string;
   dob?: string | null; sex: string; issued?: string | null;
 }) {
-  const up = (s: string) => s.toUpperCase().replace(/[^A-Z]/g, '<');
+  const up = (s?: string | null) => (s ?? '').toUpperCase().replace(/[^A-Z]/g, '<');
   return [
     pad(`P<TC${up(surname)}<<${up(given)}`, 44),
     pad(`${digitsOf(handle)}TC${yymmdd(dob)}${sex}${yymmdd(issued)}`, 44),
