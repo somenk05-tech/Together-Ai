@@ -45,6 +45,34 @@ it, and they break it by working exactly as advertised.
 | `image-to-code`, `imagegen-frontend-*`, `brandkit` | Generate images as a new "source of truth". Relief already is one. |
 | `full-output-enforcement` | Suppresses summarising. On ~5,700 inline style objects that produces floods, not completeness. |
 
+## Motion: framer-motion is installed now
+
+`framer-motion@^13` was added deliberately, which changes one standing rule.
+The fifteen motion plans in `together-city-react/plans/` all say "no new
+dependencies" — that was true of *those* plans, every one of which is a CSS
+change, and it stays true: **do not rewrite working CSS transitions into
+`motion.div`.**
+
+Where it earns its place, and nowhere else:
+
+- **Gestures and drag.** Springs carry velocity through an interruption; a
+  fixed-duration CSS transition cannot.
+- **Layout animation.** `layout` / `layoutId` does in one prop what plan 013
+  needed thirty hand-written lines of FLIP for.
+- **Enter/exit of unmounting content.** `AnimatePresence` removes the
+  two-phase `leaving` flag that plans 007, 008 and 014 each had to invent.
+
+Where CSS stays correct: anything predetermined — hovers, presses, entrances,
+the `.rise` cascade, the deck's fan. CSS beats rAF-driven JS under load, and
+Framer's `x`/`y`/`scale` shorthands are **not** hardware-accelerated; they run
+on the main thread and drop frames on a busy page. If you use them, use the
+full transform string.
+
+`scripts/motion-ceiling.mjs` counts CSS declarations only. A `motion.div`
+carrying a hand-typed duration is invisible to it, so the drift it exists to
+stop can walk straight back in through the library. Keep durations and curves
+in the tokens either way.
+
 **Safe to use here:** `improve-animations` and `find-animation-opportunities`
 (both read-only on source by their own hard rules), `prototype` (sandboxed to
 `/prototypes/`, never touches `src/styles/`), `review-animations` (a diff gate in
