@@ -15,6 +15,7 @@ import { SexAndGenderCard } from '../components/SexAndGenderCard';
 import { DeleteAccountCard } from '@/features/settings/components/DeleteAccountCard';
 import { useMasterProfile } from '../hooks';
 import { Field, Visa } from '../components/Passport';
+import { CitizenCard } from '../components/CitizenCard';
 import { codeBand, sexMark, splitName, visaPages } from '../passport';
 
 /* The Photo tab is gone: the passport's portrait IS the picker, and a second
@@ -412,6 +413,15 @@ export function Profile() {
         )}
 
         {tab === 'notifications' && <NotificationsTab />}
+
+        {/* The one part of the passport that is meant to leave the city. */}
+        <CitizenCard
+          name={name}
+          handle={user?.handle ?? 'citizen'}
+          email={user?.handle ? `${user.handle}@togethercity.app` : ''}
+          photo={photo}
+          since={issued ? `Citizen since ${new Date(issued).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}` : null}
+        />
 
         {/* ── SURRENDER THE DOCUMENT ────────────────────────────────────────
             A permanent section at the foot, not a tab.
