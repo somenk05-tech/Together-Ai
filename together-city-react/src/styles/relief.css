@@ -1114,6 +1114,10 @@ img[src$=".svg"], .no-case {
   box-shadow: var(--case-rim-soft);
 }
 @media (max-width: 560px) { .social-grid { gap: 6px; } .social-tile { border-radius: var(--r-2); } }
+@media (max-width: 560px) {
+  /* The label keeps all five columns; they just wear phone sizes. */
+  .press-grid { grid-template-columns: minmax(0,1fr) 48px 36px 36px 36px; column-gap: 8px; }
+}
 
 /* ── THE SHEET ────────────────────────────────────────────────────────────
    Every overlay on this page dimmed the city with a brown-black scrim, which

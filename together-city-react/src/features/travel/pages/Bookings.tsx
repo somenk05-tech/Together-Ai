@@ -58,7 +58,7 @@ export function TravelBookings() {
           : q.isError ? <EmptyState title="Couldn't load bookings" hint="Anything you’ve booked is still booked — this is only the list failing to load." />
           : rows.length === 0 ? <EmptyState icon="🧳" title="No bookings here yet" hint="Book a flight or a package to see it here." />
           : (
-            <table className="tc">
+            <div className="tablewrap"><table className="tc">
               <tbody>
                 <tr><th>Booking details</th><th>Date</th><th>Travellers</th><th>Amount</th><th>Status</th></tr>
                 {rows.map((t) => {
@@ -75,7 +75,7 @@ export function TravelBookings() {
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
           )}
       </section>
 

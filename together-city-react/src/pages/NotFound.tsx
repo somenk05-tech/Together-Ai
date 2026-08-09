@@ -4,7 +4,7 @@ export function NotFound() {
     <div style={{ textAlign: 'center', padding: '80px 20px' }}>
       <h1>Page not found</h1>
       <p className="muted" style={{ marginTop: 8 }}>That corner of the city doesn't exist yet — everything you saved is exactly where you left it.</p>
-      <div style={{ marginTop: 20, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+      <div className="nf-actions" style={{ marginTop: 20, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
         <Link to="/" className="btn btn-accent">Back to the city</Link>
         <Link to="/dashboard" className="btn">Your dashboard</Link>
         <Link to="/help" className="btn">Help</Link>

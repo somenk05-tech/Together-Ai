@@ -460,6 +460,7 @@ export const router = createBrowserRouter([
   },
   { path: '/sign-in', element: wrap(<SignIn />) },
   { path: '/signin', element: <Navigate to="/sign-in" replace /> },
+  { path: '/login', element: <Navigate to="/sign-in" replace /> },
   // A real front door for new citizens (consumer review #2) — and the landing
   // page an ad, invite or referral link needs. Same component, register-first.
   { path: '/sign-up', element: wrap(<SignIn initialMode="register" />) },

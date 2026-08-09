@@ -85,24 +85,33 @@ export function SignIn({ initialMode = 'login' }: { initialMode?: Mode } = {}) {
 
   // Shared field shells (dark glass, gold-tinted icons).
   const wrap: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, border: '1.5px solid rgba(255,255,255,.16)', borderRadius: 14, padding: '2px 14px', marginBottom: 12, background: 'rgba(255,255,255,.05)' };
-  const inp: React.CSSProperties = { flex: 1, border: 'none', outline: 'none', padding: '14px 0', fontSize: 15, fontFamily: 'inherit', background: 'transparent', color: 'var(--on-accent)' };
+  const inp: React.CSSProperties = { flex: 1, border: 'none', outline: 'none', padding: '14px 0', fontSize: 16, fontFamily: 'inherit', background: 'transparent', color: 'var(--on-accent)' };
   const iconWrap: React.CSSProperties = { color: 'var(--gold-bright)', display: 'grid', placeItems: 'center', flexShrink: 0 };
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, overflow: 'hidden' }}>
-      {/* Moving Together City backdrop behind the glass sign-in card. */}
-      <video autoPlay muted loop playsInline preload="auto" poster="/assets/img/final-homepage.webp"
-        aria-hidden="true"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}>
-        <source src="/assets/video/together-city-loop.webm" type="video/webm" />
-        <source src="/assets/video/together-city-loop.mp4" type="video/mp4" />
-      </video>
+      {/* Moving Together City backdrop behind the glass sign-in card. A phone
+          gets the still poster instead: mounting the <video> would download the
+          loop over mobile data and burn battery for a backdrop nobody asked for.
+          Decided at mount -- rotating a phone never crosses 900px. */}
+      {window.matchMedia('(min-width: 900px)').matches ? (
+        <video autoPlay muted loop playsInline preload="auto" poster="/assets/img/final-homepage.webp"
+          aria-hidden="true"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}>
+          <source src="/assets/video/together-city-loop.webm" type="video/webm" />
+          <source src="/assets/video/together-city-loop.mp4" type="video/mp4" />
+        </video>
+      ) : (
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: "url('/assets/img/final-homepage.webp') center / cover no-repeat", zIndex: 0 }} />
+      )}
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(10,10,12,.55), rgba(10,10,12,.72))', zIndex: 0 }} />
 
       <style>{`
         .signin-glass ::placeholder { color: rgba(255,255,255,.5); }
+        .signin-glass p { text-wrap: balance; }
         .signin-glass .link { color: var(--gold-bright); font-weight: 700; text-decoration: none; }
-        .signin-glass .lnkbtn { background: none; border: none; color: var(--gold-bright); font-weight: 700; cursor: pointer; font-family: inherit; font-size: inherit; }
+        .signin-glass .lnkbtn { background: none; border: none; color: var(--gold-bright); font-weight: 700; cursor: pointer; font-family: inherit; font-size: inherit; min-height: 44px; }
+        .signin-glass button[aria-label='Show password'], .signin-glass button[aria-label='Hide password'] { min-width: 44px; min-height: 44px; }
         .signin-gold { background: linear-gradient(180deg,var(--warn-line),var(--accent-ink)); }
         .signin-gold:hover:not(:disabled) { filter: brightness(1.05); box-shadow: 0 10px 34px rgba(201,162,78,.55); }
         @media (hover: hover) and (pointer: fine) {

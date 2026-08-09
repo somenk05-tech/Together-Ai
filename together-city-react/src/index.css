@@ -699,3 +699,15 @@ table.tc td b { color: var(--ink); }
   font: inherit; font-size: 13px; color: var(--ink); }
 .conv-act.is-danger { border-color: var(--danger-line); color: var(--danger-ink); }
 .conv-act[disabled] { opacity: .6; cursor: default; }
+
+/* ---- Mobile audit P1 (9 Aug): thumb targets and phone stacking ---- */
+.tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tablewrap > table.tc { min-width: 560px; }
+@media (max-width: 899px) {
+  .tc-actionbar a, .tc-actions a { min-height: 44px; display: inline-flex; align-items: center; }
+  .blk-head .more { display: inline-flex; align-items: center; min-height: 44px; }
+}
+@media (max-width: 560px) {
+  .nf-actions { flex-direction: column; align-items: stretch; }
+  .nf-actions .btn { width: 100%; }
+}
