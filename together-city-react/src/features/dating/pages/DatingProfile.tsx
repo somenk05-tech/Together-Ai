@@ -342,8 +342,9 @@ export function DatingProfilePage() {
   const [dx, setDx] = useState<DX>({});
   const [collapsed, setCollapsed] = useState(false);
 
+  const existingData = existing.data;
   useEffect(() => {
-    const d = existing.data as (typeof existing.data & { saved?: boolean; name?: string; country?: string | null; state?: string | null; city?: string | null; heightCm?: number | null; photo?: string | null; diet?: string | null }) | null;
+    const d = existingData as (typeof existing.data & { saved?: boolean; name?: string; country?: string | null; state?: string | null; city?: string | null; heightCm?: number | null; photo?: string | null; diet?: string | null }) | null;
     if (!d) return;
     const isSaved = (d as { saved?: boolean }).saved !== false; // prefill objects carry saved:false
     setForm({
@@ -379,7 +380,11 @@ export function DatingProfilePage() {
         photos: prev.photos && prev.photos.length ? prev.photos : (d.photo ? [d.photo] : prev.photos),
       }));
     }
-  }, [existing.data]);
+    /* The dependency is the DATUM, not the query object that carries it.
+       `existing` changes identity on every fetch state transition; its `.data`
+       changes when the answer does, which is the only thing this prefill
+       cares about. Named here so the rule can see what the effect reads. */
+  }, [existingData]);
 
   // Date of birth is owned by the Master Profile — keep the locked field in sync.
   useEffect(() => {

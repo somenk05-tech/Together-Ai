@@ -2638,151 +2638,29 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .cvskills span { box-shadow: none; outline: 1.5px solid var(--stage-line); outline-offset: -1.5px; }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   MEDICAL: GRADIENT AS ENVIRONMENT (`ma` prefix, and the [data-hub="medical"]
-   shell)
+/* ══ MEDICAL HAS NO ENTRY HERE EITHER ════════════════════════════════════
+   The gradient environment — a cool out-of-focus field with a warm ember at
+   the corner, a frosted sheet over it, an `ma`-prefixed landing built as a
+   stage, a fixed shell layer with its own isolation context, chrome and rail
+   in milk glass, and three preference fallbacks for the blur — shipped this
+   morning and is gone by evening. It was good and it is not what the city is
+   any more: every room is black and white, and each owns one colour, its
+   lamp.
 
-   The third and, by its own arithmetic, the simplest medical look. The amber
-   atmosphere was smoked glass carrying WHITE ink, which cost a whole ink
-   handoff — re-point the family at the stage, hand the city's values back at
-   every paper face, ghost-tint every wash. The owner's gradient reference
-   inverts the material: a cool out-of-focus field (blue into silver, one
-   warm ember kept at the corner) and a LIGHT frosted sheet with DARK ink —
-   and dark ink is what the whole city is already written in. So the handoff
-   collapses to two darkened greys, the paper list is deleted, the cards are
-   simply the city's cards again, and the flags are the city's flags. The
-   look got richer and the system got smaller; that is the trade to protect.
+   The deletion is total rather than partial, which is the point. A hub that
+   keeps half an atmosphere is a hub with a second design system in it. What
+   replaces all of it: var(--card), var(--rail-well), var(--face-tall) — the
+   lines that were always in this file — and a teal key in the rail.
 
-   THE SHEET LEANS ON WHAT IS BEHIND IT. One rule survives from every
-   previous look, restated for this one: the ember is kept at the field's
-   corner because a light pane over a warm bright patch still reads, but a
-   light pane over a DARK patch is where the darkened greys are owed — the
-   test models every stop of the field under the sheet and holds both.
-   ═══════════════════════════════════════════════════════════════════════════ */
-.mafield {
-  position: relative; overflow: hidden;
-  background: var(--atmos); background-color: var(--atmos-floor);
-  color: var(--ink);
-  min-height: calc(100vh - var(--header-h, 64px) - var(--safe-top, 0px));
-  display: grid; place-items: center;
-  /* the landing slides under the glass header, so the field runs behind it */
-  margin-top: calc(-1 * (var(--header-h, 64px) + var(--safe-top, 0px)));
-  padding-top: calc(var(--header-h, 64px) + var(--safe-top, 0px));
-}
-.mafield .mashell { position: relative; max-width: 1100px; margin: 0 auto; padding: 64px var(--page-gutter) 84px; text-align: center; }
+   THE ONE THING WORTH KEEPING WAS NEVER CSS. The measured-contrast harness
+   this look forced into existence (glyph-removed ground pass, alpha
+   compositing, both luminance ends) outlived the look by a week and has
+   checked every room since. The atmosphere paid for the instrument.       */
 
-.mapane {
-  background: var(--sheet);
-  border: 1px solid var(--sheet-line);
-  border-radius: var(--r-5);
-  box-shadow: var(--atmos-lip), var(--e2);
-  backdrop-filter: blur(30px) saturate(1.25);
-  -webkit-backdrop-filter: blur(30px) saturate(1.25);
-}
-
-.mahero { display: inline-block; max-width: 560px; padding: 48px 44px 42px; }
-.maeyebrow { margin: 0 0 18px; font-size: 10.5px; font-weight: 700; letter-spacing: .32em; text-transform: uppercase; color: var(--accent-ink); }
-.mahero h1 { margin: 0; font-size: clamp(38px, 6vw, 56px); line-height: .98; font-weight: 800; letter-spacing: -.015em; text-transform: uppercase; color: var(--ink); }
-.malede { margin: 18px auto 0; max-width: 34ch; font-size: 14.5px; line-height: 1.55; color: var(--muted); }
-.macta {
-  display: inline-block; margin-top: 26px; padding: 13px 34px;
-  border: 1.5px solid var(--ink); border-radius: var(--r-full);
-  font-size: 11.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
-  color: var(--ink); text-decoration: none;
-  background: none;
-  transition: background var(--dur-base) var(--ease);
-}
-@media (hover: hover) and (pointer: fine) {
-  .macta:hover { background: var(--sheet); }
-}
-.macta:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-
-/* The hub's sections as light glass chips under the hero. */
-.masections { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 34px; }
-.masections a {
-  display: inline-block; padding: 9px 18px;
-  border: 1px solid var(--sheet-line); border-radius: var(--r-full);
-  font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
-  color: var(--ink); text-decoration: none;
-  background: var(--sheet); box-shadow: var(--atmos-lip);
-  backdrop-filter: blur(18px);
-  transition: background var(--dur-base) var(--ease);
-}
-.masections a:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-
-/* ── THE WORK PAGES ────────────────────────────────────────────────────────
-   Same shell mechanism as before (isolation, because medical has no ground
-   grant — the layer must be pinned inside the shell or the city's white
-   paints over it; there is a screenshot). The page content stands on ONE
-   light frosted sheet, and because the sheet carries the city's own dark
-   ink, everything inside it — cards, chips, buttons, flags, forms — is
-   simply the city again. */
-[data-hub="medical"] .tc-shell { position: relative; isolation: isolate; background: transparent; }
-[data-hub="medical"] .tc-main { background: transparent; }
-[data-hub="medical"] .tc-shell::before {
-  content: ''; position: fixed; inset: 0; z-index: -1;
-  background: var(--atmos-air);
-  background-color: var(--atmos-floor);
-}
-
-[data-hub="medical"] .tc-main .page {
-  background: var(--sheet);
-  border: 1px solid var(--sheet-line);
-  -webkit-backdrop-filter: blur(30px) saturate(1.25);
-  backdrop-filter: blur(30px) saturate(1.25);
-  border-radius: var(--r-5);
-  box-shadow: var(--atmos-lip);
-  margin: 14px clamp(10px, 1.6vw, 26px) 46px;
-  padding-bottom: 28px;
-  width: auto;
-}
-
-/* THE HEADER RIDES THE ENVIRONMENT — the same light glass, and because the
-   ink stays the city's, only the material changes. The action pills keep
-   their paper faces: paper on glass is this look's whole grammar. */
-[data-hub="medical"] .tc-header {
-  background: var(--sheet);
-  -webkit-backdrop-filter: blur(24px) saturate(1.2);
-  backdrop-filter: blur(24px) saturate(1.2);
-  border-bottom: 1px solid var(--sheet-line);
-}
-
-/* THE RAIL: the same sheet, standing at the field's edge. Ink, lens tiles
-   and the lamp are the city's own — no override outranks them this time,
-   which is the lamp lesson learned rather than re-learned. */
-[data-hub="medical"] .tc-side {
-  background: var(--sheet);
-  -webkit-backdrop-filter: blur(24px) saturate(1.2);
-  backdrop-filter: blur(24px) saturate(1.2);
-  box-shadow: var(--atmos-lip);
-}
-
-/* the mobile section chips ride the field directly */
-[data-hub="medical"] .hub-chips .chip {
-  background: var(--sheet);
-  border-color: var(--sheet-line);
-  color: var(--ink);
-  box-shadow: var(--atmos-lip);
-}
-
-/* Asked for more contrast, the environment stops being weather: the sheet
-   goes solid paper and the field goes flat. */
-@media (prefers-contrast: more) {
-  .mapane, .masections a,
-  [data-hub="medical"] .tc-main .page,
-  [data-hub="medical"] .tc-header,
-  [data-hub="medical"] .tc-side {
-    background: var(--card); backdrop-filter: none; -webkit-backdrop-filter: none;
-  }
-  [data-hub="medical"] .tc-shell::before { background: var(--atmos-floor); }
-}
-/* A FIXED background is a MOVING background to anybody scrolling past it.
-   The rule was astrology's first and outlived the sky it was written for —
-   medical is the only hub with a fixed layer now, and it inherits both the
-   mechanism and the obligation. And relief.spec reads the FILE'S LAST
-   reduced-motion block for the no-hover-movement guarantee, so this one,
-   now last, restates it. */
+/* A FIXED background is a MOVING background to anybody scrolling past it —
+   the rule outlived every fixed layer in the city, and relief.spec reads the
+   FILE'S LAST reduced-motion block for the no-hover-movement guarantee, so
+   this one, now last, carries it alone. */
 @media (prefers-reduced-motion: reduce) {
-  [data-hub="medical"] .tc-shell::before { position: absolute; }
-  .macta:hover, .masections a:hover { transform: none; }
+  .district-plate:hover .hub-plate-cta { transform: none; }
 }

@@ -7,6 +7,13 @@ import { nutritionApi } from '../api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { GroceryAisle, GroceryPlanItem } from '../api';
 
+/** THE EMPTY LIST IS A CONSTANT, NOT A LITERAL.
+ *  `x ?? []` builds a NEW array on every render, so any useMemo that depends
+ *  on it recomputes every render and the memo is decoration. One frozen empty
+ *  array, shared, makes the dependency stable and the memo real. Behaviour is
+ *  identical — this is the same nothing, just the same nothing each time. */
+const NONE: never[] = [];
+
 type View = 'grocery' | 'recipe';
 
 /** A week. The longest range offered, and the one most people shop to. */
@@ -172,7 +179,7 @@ export function GroceryPlanner({ mode }: { mode: 'individual' | 'family' }) {
       });
   };
 
-  const aisles = plan.data?.aisles ?? [];
+  const aisles = plan.data?.aisles ?? NONE;
   const failedNote = saveFailed
     ? 'That tick didn’t save — check your connection and tap it again.'
     : '';

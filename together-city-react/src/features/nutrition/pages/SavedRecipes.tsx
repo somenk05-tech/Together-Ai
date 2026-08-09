@@ -6,6 +6,13 @@ import { VegMark } from '../components/VegMark';
 import { recipeImageUrl } from '../recipeImages';
 import type { Recipe } from '../types';
 
+/** THE EMPTY LIST IS A CONSTANT, NOT A LITERAL.
+ *  `x ?? []` builds a NEW array on every render, so any useMemo that depends
+ *  on it recomputes every render and the memo is decoration. One frozen empty
+ *  array, shared, makes the dependency stable and the memo real. Behaviour is
+ *  identical — this is the same nothing, just the same nothing each time. */
+const NONE: never[] = [];
+
 /**
  * THE OTHER HALF OF A BUTTON THAT ALREADY WORKED.
  *
@@ -69,7 +76,7 @@ export function SavedRecipes() {
   const [q, setQ] = useState('');
   const [pending, setPending] = useState<string | null>(null);
 
-  const recipes = saved.data?.recipes ?? [];
+  const recipes = saved.data?.recipes ?? NONE;
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
     if (!term) return recipes;

@@ -172,14 +172,22 @@ const Ornament = () => <div className="press-r-orn" aria-hidden><i /></div>;
 const TABS = [['card', 'The card'], ['nutrition', 'Nutrition'], ['benefits', 'Health benefits'], ['variants', 'Make it yours'], ['foryou', 'For you'], ['grocery', 'Grocery']] as const;
 function useActiveSection(ids: string[]) {
   const [active, setActive] = useState(ids[0]);
+  /* THE KEY IS THE DEPENDENCY, AND THE EFFECT READS THE KEY.
+     This used to depend on `ids.join(',')` — a computed expression, which the
+     linter cannot check statically and which left the array itself as an
+     unlisted dependency. Joining once OUTSIDE and splitting it back INSIDE
+     means the effect closes over nothing but a string: the dependency is
+     exactly what the effect uses, and re-observing happens when the list of
+     sections changes and not when a new array of the same sections arrives. */
+  const key = ids.join(',');
   useEffect(() => {
     const obs = new IntersectionObserver((entries) => {
       const vis = entries.filter((e) => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio);
       if (vis[0]) setActive(vis[0].target.id);
     }, { rootMargin: '-45% 0px -45% 0px', threshold: [0, 0.5, 1] });
-    ids.forEach((id) => { const el = document.getElementById(id); if (el) obs.observe(el); });
+    key.split(',').forEach((id) => { const el = document.getElementById(id); if (el) obs.observe(el); });
     return () => obs.disconnect();
-  }, [ids.join(',')]);
+  }, [key]);
   return active;
 }
 

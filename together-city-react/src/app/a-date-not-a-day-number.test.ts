@@ -118,7 +118,12 @@ describe('saved recipes have somewhere to be', () => {
 
   it('reads the recipes the endpoint was already returning', () => {
     const page = strip(readFileSync(join(web, 'features', 'nutrition', 'pages', 'SavedRecipes.tsx'), 'utf8'));
-    expect(page).toMatch(/saved\.data\?\.recipes \?\? \[\]/);
+    // The fallback is a shared frozen constant rather than a fresh `[]`: a new
+    // array per render made the useMemo below it recompute every time. What this
+    // line is here to pin is the SOURCE — the page reads the endpoint's own
+    // recipes and does not keep a second list — so it matches either spelling
+    // of "and nothing when there are none".
+    expect(page).toMatch(/saved\.data\?\.recipes \?\? (\[\]|NONE)/);
     // Removing lives on the tile: a list you can only prune by opening each
     // item is a list that grows until somebody stops using it.
     expect(page).toMatch(/toggle\.mutate\(\{ id: r\.id, saved: false \}/);

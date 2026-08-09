@@ -7,7 +7,6 @@ import { HUB_ICON } from '@/nav/registry';
 import { useHubTheme } from '@/hooks/useHubTheme';
 import { Icon } from '@/components/ui/Icon';
 import { HubConsentGate } from '@/features/privacy/HubConsentGate';
-import { AtmosphereLanding } from '@/features/medical/AtmosphereLanding';
 
 /**
  * Hub → hero image, matching the vanilla website's hub landings 1:1
@@ -82,17 +81,10 @@ export function HubLanding({ hub }: { hub: HubKey }) {
       </HubConsentGate>
     );
   }
-  /* Medical arrives through weather, not through a photograph in a case —
-     the owner's amber-steam reference, built as a stage (see the atmosphere
-     block in relief.css and its tokens). Same seen-once rule as every other
-     landing: the returning citizen above never reaches this line. */
-  if (hub === 'medical') {
-    return (
-      <HubConsentGate hub={hub}>
-        <AtmosphereLanding cfg={cfg} to={firstInner} />
-      </HubConsentGate>
-    );
-  }
+  /* Medical used to arrive through weather rather than through a photograph
+     in a case — a stage, built for the amber reference and then the gradient
+     one. It went with the atmosphere when the city turned black and white,
+     and the hub takes the same plate as the other twenty-four. */
   return (
     <HubConsentGate hub={hub}>
       <div className="hub-stage">

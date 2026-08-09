@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLookups, type LookupOption } from '@/api/lookups.api';
 
+/** THE EMPTY LIST IS A CONSTANT, NOT A LITERAL.
+ *  `x ?? []` builds a NEW array on every render, so any useMemo that depends
+ *  on it recomputes every render and the memo is decoration. One frozen empty
+ *  array, shared, makes the dependency stable and the memo real. Behaviour is
+ *  identical — this is the same nothing, just the same nothing each time. */
+const NONE: never[] = [];
+
 interface Props {
   /** Currently selected label (what's stored/displayed). */
   value?: string | null;
@@ -36,7 +43,7 @@ export function SearchSelect({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const backend = useLookups(category ?? '', { parent, enabled: Boolean(category) && !staticOptions });
-  const options = staticOptions ?? backend.data ?? [];
+  const options = staticOptions ?? backend.data ?? NONE;
   const loading = !staticOptions && Boolean(category) && backend.isLoading;
   // A failed lookup used to render an empty dropdown — "no countries exist"
   // instead of "the list didn't load". Surfaced as a row the user can read.

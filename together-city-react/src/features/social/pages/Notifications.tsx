@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/api';
 import { Spinner } from '@/components/ui';
 
+/** THE EMPTY LIST IS A CONSTANT, NOT A LITERAL.
+ *  `x ?? []` builds a NEW array on every render, so any useMemo that depends
+ *  on it recomputes every render and the memo is decoration. One frozen empty
+ *  array, shared, makes the dependency stable and the memo real. Behaviour is
+ *  identical — this is the same nothing, just the same nothing each time. */
+const NONE: never[] = [];
+
 const FILTERS = ['All', 'Unread'] as const;
 
 const ICON_FOR: Record<string, string> = {
@@ -25,7 +32,7 @@ export function SocialNotifications() {
   const markAll = useMarkAllNotificationsRead();
   const [filter, setFilter] = useState(0);
 
-  const items = q.data ?? [];
+  const items = q.data ?? NONE;
   const shown = useMemo(() => (filter === 1 ? items.filter((n) => !n.read) : items), [items, filter]);
   const hasUnread = items.some((n) => !n.read);
 

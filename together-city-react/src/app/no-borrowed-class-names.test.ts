@@ -59,10 +59,11 @@ describe('The namespaced blocks do not borrow a global class name', () => {
     return out;
   };
 
-  /** Every descendant class used inside a `.p…`, `.e…`, `.cs…`, `.cv…` or
-   *  `.ma…` scoped selector in relief.css — the names those blocks claim as
-   *  their own. `ma` joined with the medical atmosphere, a stage like `cs`:
-   *  dark panes whose borrowable global classes are all drawn for white.
+  /** Every descendant class used inside a `.p…`, `.e…`, `.cs…` or `.cv…`
+   *  scoped selector in relief.css — the names those blocks claim as their
+   *  own. `ma` was here too, with the medical atmosphere; it left when that
+   *  hub went black and white, and the prefix left the alternation with it —
+   *  a guard that names a namespace nobody wears is a guard that cannot fail.
    *
    *  The multi-letter prefixes are listed before `p` and `e` only for
    *  readability; the alternation is over distinct prefixes, so no ordering
@@ -71,7 +72,7 @@ describe('The namespaced blocks do not borrow a global class name', () => {
     const found: { block: string; child: string }[] = [];
     for (const m of strip(read('src/styles/relief.css')).matchAll(/(^|\})\s*([^{}@]+)\{/g)) {
       for (const sel of m[2].split(',')) {
-        const parts = sel.trim().match(/^\.((?:cs|cv|ma|p|e)[a-z0-9-]{2,})\b(.*)$/i);
+        const parts = sel.trim().match(/^\.((?:cs|cv|p|e)[a-z0-9-]{2,})\b(.*)$/i);
         if (!parts) continue;
         for (const c of parts[2].matchAll(/\s[>+~]?\s*\.([a-z][a-z0-9-]*)/gi)) {
           found.push({ block: parts[1], child: c[1] });
@@ -91,7 +92,6 @@ describe('The namespaced blocks do not borrow a global class name', () => {
     expect([...blocks].some((b) => b.startsWith('e'))).toBe(true);
     expect([...blocks].some((b) => b.startsWith('cs'))).toBe(true);
     expect([...blocks].some((b) => b.startsWith('cv'))).toBe(true);
-    expect([...blocks].some((b) => b.startsWith('ma'))).toBe(true);
   });
 
   it('never scopes a rule onto a name index.css already owns', () => {

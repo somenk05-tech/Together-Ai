@@ -4,6 +4,13 @@ import { Spinner, EmptyState } from '@/components/ui';
 import { useWatchlist, useRecommended, type WatchItem } from '../api';
 import { KIT_CSS, TitleCard, TitleSheet, type TitleSel } from './movieKit';
 
+/** THE EMPTY LIST IS A CONSTANT, NOT A LITERAL.
+ *  `x ?? []` builds a NEW array on every render, so any useMemo that depends
+ *  on it recomputes every render and the memo is decoration. One frozen empty
+ *  array, shared, makes the dependency stable and the memo real. Behaviour is
+ *  identical — this is the same nothing, just the same nothing each time. */
+const NONE: never[] = [];
+
 const CSS = KIT_CSS + `
 .ent-watch .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .ent-watch .sorts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:26px}
@@ -41,7 +48,7 @@ export function Watchlist() {
   const [autoplay, setAutoplay] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>('recent');
-  const items = wl.data?.items ?? [];
+  const items = wl.data?.items ?? NONE;
   const rec = useRecommended(items.length > 0);
 
   const shown = useMemo(() => {

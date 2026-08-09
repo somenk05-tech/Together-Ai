@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLookups, type LookupOption } from '@/api/lookups.api';
 
+/** THE EMPTY LIST IS A CONSTANT, NOT A LITERAL.
+ *  `x ?? []` builds a NEW array on every render, so any useMemo that depends
+ *  on it recomputes every render and the memo is decoration. One frozen empty
+ *  array, shared, makes the dependency stable and the memo real. Behaviour is
+ *  identical — this is the same nothing, just the same nothing each time. */
+const NONE: never[] = [];
+
 interface Props {
   /** Selected labels, shown as removable chips. */
   values: string[];
@@ -24,7 +31,7 @@ export function MultiSelect({ values, onChange, category, options: staticOptions
   const rootRef = useRef<HTMLDivElement>(null);
 
   const backend = useLookups(category ?? '', { enabled: Boolean(category) && !staticOptions });
-  const options = staticOptions ?? backend.data ?? [];
+  const options = staticOptions ?? backend.data ?? NONE;
   const full = max != null && values.length >= max;
 
   const filtered = useMemo(() => {
