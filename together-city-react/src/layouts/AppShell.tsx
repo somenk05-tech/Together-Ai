@@ -7,6 +7,7 @@ import { useWebPush } from '@/hooks/useWebPush';
 import { useConnectionSync } from '@/api/connections.api';
 import { CookRoot } from '@/features/nutrition/components/CookMode';
 import { NotificationToaster } from './NotificationToaster';
+import { CityDrawer } from './CityDrawer';
 import { VerifyEmailBanner } from '@/features/auth/VerifyEmailBanner';
 
 /** Root layout for full-width hub landings & the city home. */
@@ -27,6 +28,7 @@ export function AppShell() {
     <>
       <Header />
       <VerifyEmailBanner />
+      <CityDrawer /> {/* the burger's door on pages without a hub rail */}
       <main className="tc-main" style={isChat ? { minHeight: 0, overflow: 'hidden' } : undefined}><Outlet /></main>
       {!isChat && <Footer />}
       <CookRoot /> {/* guided cook overlay + background timer — only renders while cooking */}

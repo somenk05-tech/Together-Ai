@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import type { HubConfig } from '@/config/hubs';
+import { Icon } from '@/components/ui/Icon';
 import { useUiStore } from '@/store/ui.store';
 
 const PersonIcon = () => (
@@ -63,6 +64,20 @@ export function Sidebar({ hub }: { hub: HubConfig }) {
             <span><span className="l">{it.label}</span><span className="s">{it.sub}</span></span>
           </NavLink>
         ))}
+      </nav>
+      {/* The way out is on the same door the way in was: Home, and the whole
+          city, from any hub's drawer. */}
+      <nav className="side-menu" aria-label="The city" style={{ borderTop: '1px solid var(--line)', marginTop: 14, paddingTop: 10 }}>
+        <NavLink to="/" end onClick={() => toggle(false)}
+          className={({ isActive }) => (isActive ? 'active' : undefined)}>
+          <span className="n" aria-hidden><Icon name="sparkles" size={15} /></span>
+          <span><span className="l">Home</span><span className="s">Your Together City</span></span>
+        </NavLink>
+        <NavLink to="/hubs" onClick={() => toggle(false)}
+          className={({ isActive }) => (isActive ? 'active' : undefined)}>
+          <span className="n" aria-hidden><Icon name="place" size={15} /></span>
+          <span><span className="l">All hubs</span><span className="s">The whole city, one screen</span></span>
+        </NavLink>
       </nav>
     </aside>
   );
