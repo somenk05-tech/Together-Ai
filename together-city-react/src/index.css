@@ -711,3 +711,48 @@ table.tc td b { color: var(--ink); }
   .nf-actions { flex-direction: column; align-items: stretch; }
   .nf-actions .btn { width: 100%; }
 }
+
+/* ---- Liquid-glass dock (phones): the lower buttons wear frosted capsule
+   glass — blur-backed, floating clear of the edge, active tab a recessed
+   inner pill, one whisper of prismatic rim light. Painted entirely with
+   rgba light, no pigment: the colour guard bans chromatic hexes and it is
+   right to — glass has no colour of its own. ---- */
+@media (max-width: 899px) {
+  nav.tc-bottomnav {
+    left: 10px; right: 10px; bottom: calc(var(--safe-bottom) + 10px);
+    border-radius: 999px; padding: 8px; gap: 4px; border-top: 0;
+    background: rgba(255,255,255,.58);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    backdrop-filter: blur(18px) saturate(1.5);
+    border: 1px solid rgba(255,255,255,.78);
+    box-shadow: var(--glass-dock);
+  }
+  /* the prismatic thread around the rim */
+  nav.tc-bottomnav::before {
+    content: ""; position: absolute; inset: -1px; border-radius: inherit;
+    padding: 1.5px; pointer-events: none;
+    background: linear-gradient(115deg,
+      rgba(140,190,255,.5), rgba(255,255,255,0) 28%,
+      rgba(255,170,225,.38) 52%, rgba(255,255,255,0) 74%,
+      rgba(160,225,255,.45));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+  }
+  nav.tc-bottomnav a, nav.tc-bottomnav button {
+    border-radius: 999px; background: transparent; box-shadow: none;
+    color: rgba(0,0,0,.52); min-height: 52px;
+  }
+  nav.tc-bottomnav a:active, nav.tc-bottomnav button:active {
+    background: rgba(255,255,255,.55); box-shadow: none;
+  }
+  nav.tc-bottomnav a.on, nav.tc-bottomnav .on {
+    background: rgba(255,255,255,.94); color: rgba(0,0,0,.92); font-weight: 700;
+    box-shadow: var(--carve);
+  }
+  body:has(.tc-bottomnav) { padding-bottom: calc(var(--safe-bottom) + 84px); }
+  /* the poster walk breathes with the floating dock (element+class so this
+     wins whichever script lands first) */
+  div.hubs-feed { height: calc(100dvh - var(--header-h) - var(--safe-top) - var(--safe-bottom) - 88px); }
+}

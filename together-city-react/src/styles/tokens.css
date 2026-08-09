@@ -22,6 +22,11 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
+  /* The phone dock's glass — a frosted capsule floating clear of the edge.
+     A MATERIAL like --glass, not a sixth elevation: outer fall, contact
+     shadow, lit top hairline, frosted inner glow. */
+  --glass-dock: 0 14px 34px rgba(0,0,0,.16), 0 2px 6px rgba(0,0,0,.08),
+    inset 0 1px 0 rgba(255,255,255,.92), inset 0 -10px 22px rgba(255,255,255,.35);
   /* ── GROUND AND INK ─────────────────────────────────────────────────────
      --paper and --card are the same white. They used to differ (#faf9f6 vs
      #ffffff) because the page was warm and the card was not; with one ground
