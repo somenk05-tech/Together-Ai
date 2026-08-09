@@ -55,7 +55,17 @@ describe('the two vocabularies', () => {
 
 describe('cuisineAliases — what a card has to query for', () => {
   it('returns every spelling that folds into the name', () => {
-    expect([...cuisineAliases('Indian')].sort()).toEqual(['India', 'Indian']);
+    // 'Indian' grew the legacy preference slugs (north-indian, Punjabi…) when
+    // the composer learned to read profiles the vanilla site saved. They are
+    // inert in this card's corpus query — no recipe row carries 'Punjabi' in
+    // its country column — and belong in the list anyway, because this test's
+    // own sentence is the contract: every spelling that folds into the name.
+    expect([...cuisineAliases('Indian')].sort()).toEqual([
+      'Awadhi', 'Bengali', 'Chettinad', 'Goan', 'Gujarati', 'Hyderabadi',
+      'India', 'Indian', 'Kashmiri', 'Kerala', 'Maharashtrian', 'Mughlai',
+      'North Indian', 'Punjabi', 'Rajasthani', 'South Indian', 'Tamil', 'Udupi',
+      'desi', 'east-indian', 'north-indian', 'south-indian', 'west-indian',
+    ]);
     expect([...cuisineAliases('American')].sort()).toEqual(['America', 'American', 'USA']);
     expect([...cuisineAliases('Mediterranean')].sort()).toEqual(['Greece', 'Greek', 'Mediterranean']);
   });

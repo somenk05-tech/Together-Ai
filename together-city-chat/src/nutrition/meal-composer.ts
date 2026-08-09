@@ -234,8 +234,43 @@ const CUISINE_NORMALISE: Record<string, string> = {
   USA: 'American', America: 'American', American: 'American',
   Continental: 'Continental', 'Middle Eastern': 'Middle Eastern', 'Middle East': 'Middle Eastern',
   Global: 'Global',
+  /**
+   * THE LEGACY REGIONAL LABELS, AND WHY THEY ARE LOAD-BEARING.
+   *
+   * The vanilla site's preference form (and early builds of this one) stored
+   * cuisines as regional slugs — 'north-indian', 'south-indian' and friends.
+   * Those strings are still sitting in production foodPref.extras rows, and
+   * P0-A made the cuisine mix AUTHORITATIVE: a label the normaliser does not
+   * recognise matches zero recipes, so a citizen whose profile says
+   * north-indian 100% — the single most common choice this product's market
+   * makes — got a 21-day plan built entirely from 'Global' fillers: a banana
+   * smoothie for dinner, a whey shake standing in as the evening soup, and a
+   * plan-note quietly admitting "missing a main/protein" on every day.
+   *
+   * Found by saving that exact profile and reading the plate, 9 Aug. Every
+   * regional Indian slug folds to the kitchen the corpus actually has.
+   */
+  'north-indian': 'Indian', 'south-indian': 'Indian',
+  'North Indian': 'Indian', 'South Indian': 'Indian',
+  'east-indian': 'Indian', 'west-indian': 'Indian',
+  Punjabi: 'Indian', Gujarati: 'Indian', Bengali: 'Indian', Mughlai: 'Indian',
+  Rajasthani: 'Indian', Kerala: 'Indian', Tamil: 'Indian', Hyderabadi: 'Indian',
+  Goan: 'Indian', Maharashtrian: 'Indian', Kashmiri: 'Indian', Awadhi: 'Indian',
+  Chettinad: 'Indian', Udupi: 'Indian', desi: 'Indian',
 };
-export function normCuisine(c: string): string { return CUISINE_NORMALISE[(c ?? '').trim()] ?? c; }
+/** Case-insensitive view of the same table: 'indian', 'INDIAN' and 'Indian'
+ *  are one opinion, not three. Built once — this sits on the composer's hot
+ *  path via candidates(). */
+const CUISINE_NORMALISE_CI: Record<string, string> = Object.fromEntries(
+  Object.entries(CUISINE_NORMALISE).map(([k, v]) => [k.toLowerCase(), v]),
+);
+export function normCuisine(c: string): string {
+  const raw = (c ?? '').trim();
+  return CUISINE_NORMALISE[raw]
+    ?? CUISINE_NORMALISE_CI[raw.toLowerCase().replace(/[_\s]+/g, '-')]
+    ?? CUISINE_NORMALISE_CI[raw.toLowerCase()]
+    ?? raw;
+}
 
 /**
  * Every spelling stored in the corpus that means this cuisine.
@@ -835,7 +870,18 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
     // ceilings. If nothing safe qualifies, leave the protein role empty and let
     // the cap gate block/flag the plan rather than serving an unsafe/allergen dish.
     if (!sel.some((s) => s.role === 'main' || s.role === 'dal')) {
-      const relaxed: SelectCtx = { ...ctx, banMain: undefined, prefs: { ...ctx.prefs, cuisineLocks: undefined } };
+      /**
+       * ...AND THE MIX RELAXES WITH IT. This net was written when only
+       * cuisineLocks could exclude, and P0-A later made the MIX authoritative
+       * without widening it — so a mix that matches nothing (a legacy label,
+       * a future vocabulary drift) sailed straight through: locks were
+       * cleared, the mix kept rejecting every main in the corpus, and the
+       * plate shipped without a protein while the P0-A comment promised this
+       * could not happen. The promise is now true: a stranded protein role
+       * relaxes BOTH cuisine controls — and still never diet, allergens,
+       * clinical completeness or the renal ceilings.
+       */
+      const relaxed: SelectCtx = { ...ctx, banMain: undefined, prefs: { ...ctx.prefs, cuisineLocks: undefined, cuisineBySlot: undefined } };
       const prot = pick('main', relaxed) ?? pick('dal', relaxed);
       take(prot, prot?.role === 'dal' ? 'dal' : 'main');
     }
@@ -846,7 +892,8 @@ function composeMeal(slot: SlotCode, targetKcal: number, proteinTarget: number, 
   // cuisine lock is relaxed. An empty meal is left for the cap gate to handle
   // rather than injecting an unfiltered dish.
   if (!sel.length) {
-    const relaxed: SelectCtx = { ...ctx, banMain: undefined, prefs: { ...ctx.prefs, cuisineLocks: undefined } };
+    // Same widening as the protein net above, for the same reason.
+    const relaxed: SelectCtx = { ...ctx, banMain: undefined, prefs: { ...ctx.prefs, cuisineLocks: undefined, cuisineBySlot: undefined } };
     for (const role of ['breakfast', 'main', 'dal', 'snack', 'vegetable', 'carb', 'soup', 'drink', 'salad']) {
       const r = pick(role, relaxed);
       if (r) { take(r, r.role === 'dal' ? 'dal' : role); break; }
