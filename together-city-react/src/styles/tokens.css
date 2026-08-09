@@ -236,14 +236,40 @@
      gradient stays bright, because that is above the words and is what sells
      the glass. Wanting the exact reference hue means a dark label, not a white
      one; it cannot be both. */
-  --lamp-face: linear-gradient(180deg, #ef7a3a 0%, #c94c18 46%, #a83a10 100%);
+  /* ── THE LAMP, DEEPENED UNTIL ITS OWN LABEL READS ────────────────────────
+     The lit key carries white type at 13.5px bold and a white number at
+     10.5px — small text, which needs 4.5:1 — and it has never cleared it in
+     any of the twenty-five rooms. Measured on the built page: the label at
+     3.5:1, the badge number at 3.1:1, the sub-line at 4.1:1.
+
+     THE GRADIENT WAS ONLY HALF THE CAUSE, WHICH IS WHY READING THE TOKEN
+     NEVER FOUND IT. #c94c18 carries white at 4.64:1 on its own — it passes.
+     What fails is the lamp's own lighting: a 14px warm highlight inset along
+     the BOTTOM edge, which is exactly where the label sits, lifting the
+     ground it stands on by about twenty points to #de652a. The key looked
+     correct in the file and failed on the screen, and only a screenshot with
+     the glyphs removed could tell the two apart.
+
+     So three things move and the identity does not. The top stop stays
+     bright — it sits above the words and is what sells a lit key. The two
+     lower stops deepen. The bottom highlight comes down to .34, enough to
+     round the key's foot and not enough to wash its label. And the badge
+     stops being a WHITE wash (which lightened whatever it lay on, the exact
+     same mistake in miniature) and becomes a dark recess, which also agrees
+     with the pressed-in shape the lamp already has.
+
+     The hue is unchanged and deliberately so: the lit key is this city's
+     wayfinding — twenty-five rooms, and the one thing that tells you which
+     you are standing in without being read. Keeping it was the owner's call
+     over mine; making it legible is the price of keeping it. */
+  --lamp-face: linear-gradient(180deg, #e2692c 0%, #a83a10 44%, #872e0c 100%);
   --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50),
-          inset 0 0 0 4px rgba(255,190,140,.26),
-          inset 0 8px 12px -8px rgba(105,35,8,.45),
-          inset 0 -10px 14px -7px rgba(255,215,175,.60),
-          0 1px 1px rgba(150,55,20,.20), 0 8px 20px rgba(201,76,24,.34), 0 20px 46px rgba(201,76,24,.22);
-  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.45),
-                inset 0 -3px 6px rgba(120,40,10,.30);
+          inset 0 0 0 4px rgba(255,190,140,.20),
+          inset 0 8px 12px -8px rgba(85,28,6,.50),
+          inset 0 -10px 14px -7px rgba(255,215,175,.34),
+          0 1px 1px rgba(150,55,20,.20), 0 8px 20px rgba(168,58,16,.34), 0 20px 46px rgba(168,58,16,.22);
+  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30),
+                inset 0 -3px 6px rgba(90,28,6,.34);
 
   /* ══ THE LIT KEY — SOCIAL LIFE'S GROUND GLASS ════════════════════════════
      A SECOND lit colour, and the reason there are two rather than one.
@@ -342,7 +368,9 @@
   /* The lit key in the hub rail — its type and the wash behind its number. */
   --on-lamp: var(--on-accent);
   --on-lamp-soft: rgba(255,255,255,.88);
-  --lamp-badge-bg: rgba(255,255,255,.22);
+  /* a RECESS, not a highlight: a white wash lightens the very key whose
+     white number has to be read off it. Inverted, the number reads 9.3:1. */
+  --lamp-badge-bg: rgba(0,0,0,.16);
 
   /* THE MARK IS A BLACK PNG ON TRANSPARENT, correct on every white screen and
      invisible on one that is not. A token, because which way up the logo goes
@@ -918,12 +946,14 @@
   --lens-face: linear-gradient(180deg, rgba(255,255,255,.055) 0%, rgba(255,255,255,.02) 55%, rgba(0,0,0,.18) 100%);
   --lens: inset 0 0 0 1.5px rgba(255,255,255,.10), inset 0 1px 0 rgba(255,255,255,.14), 0 4px 12px rgba(0,0,0,.5);
   --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.10), 0 2px 6px rgba(0,0,0,.45);
-  --lamp-face: linear-gradient(180deg, #ffffff 0%, #f1f2f3 52%, #dcdee0 100%);
-  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.5), inset 0 -1px 0 rgba(0,0,0,.18), 0 2px 10px rgba(0,0,0,.55);
-  --lamp-badge: inset 0 0 0 1px rgba(14,15,16,.18), inset 0 1px 0 rgba(14,15,16,.10);
-  --lamp-badge-bg: rgba(14,15,16,.10);
-  --on-lamp: #0e0f10;
-  --on-lamp-soft: rgba(14,15,16,.74);
+  /* THE LAMP KEEPS ITS ORANGE, AND THAT IS THE OWNER'S CALL OVER MINE.
+     I argued the opposite here — that in a room with no other hue the orange
+     key is the most saturated object on the screen and the eye lands on the
+     navigation instead of the sky. The answer was that the orange IS the
+     wayfinding: twenty-five rooms, and the lit key is the one thing that
+     says which one you are standing in without being read. That is a
+     product argument and it outranks a compositional one. So the lamp is
+     inherited, unre-pointed, in this hub as in every other. */
 
   --glass: inset 0 0 0 1.3px rgba(255,255,255,.10), inset 0 1px 0 rgba(255,255,255,.14), 0 6px 16px rgba(0,0,0,.5);
   --glass-key: inset 0 0 0 1.1px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.11), 0 3px 8px rgba(0,0,0,.45);
@@ -1218,17 +1248,12 @@
   --accent-soft: #f2f2f2;
   --accent-line: #e0e0e0;
 
-  /* THE LAMP IS THE ONE SOLID BLACK THING IN THE RAIL — same rule as the
-     button, and the same departure astrology's monochrome argued: the lamp's
-     face and the lamp's ink move together, and here they move to the pair
-     the whole room is built from. White on near-black is 19:1, which also
-     retires the citywide 3.5:1 lamp label inside this hub. */
-  --lamp-face:     linear-gradient(180deg, #232323 0%, #131313 48%, #050505 100%);
-  --lamp:          inset 0 0 0 1.5px rgba(255,255,255,.16), inset 0 2px 5px rgba(0,0,0,.5), inset 0 -1px 0 rgba(255,255,255,.18), 0 3px 12px rgba(13,13,13,.30);
-  --lamp-badge:    inset 0 0 0 1px rgba(255,255,255,.22), inset 0 1px 0 rgba(255,255,255,.18);
-  --key-lit-face:  linear-gradient(180deg, #232323 0%, #131313 48%, #050505 100%);
-  --key-lit:       inset 0 0 0 1.5px rgba(255,255,255,.16), inset 0 1px 0 rgba(255,255,255,.18), 0 3px 12px rgba(13,13,13,.30);
-  --key-lit-pip:   0 0 0 2px rgba(13,13,13,.14), 0 0 8px rgba(13,13,13,.40);
+  /* AND THE LAMP KEEPS ITS ORANGE. See the note in the astrology block: the
+     lit key is the city's wayfinding and it is the same key in all
+     twenty-five rooms. It is therefore the ONE hue in this otherwise
+     hueless room, and it is there on purpose rather than by omission —
+     which is a different sentence from the one I wrote first, and the
+     right one. */
 
   /* ── THE THIRD STOP ──────────────────────────────────────────────────────
      Same measured curve as the other two, taken all the way down. Greyscale
