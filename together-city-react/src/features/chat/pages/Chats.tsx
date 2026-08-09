@@ -23,6 +23,14 @@ export function Chats() {
   const requestedId = searchParams.get('c') ?? undefined;
   const [activeId, setActiveId] = useState<string | undefined>(requestedId);
   const clear = useClearConversation();
+  /* A PHONE SHOWS ONE ROOM AT A TIME (WhatsApp's rule, and the owner's).
+     The stage is a two-column desk: a list beside a thread. Below 860px it
+     already collapsed to one column — but one column holding BOTH, so a
+     phone got a squeezed list stacked on a squeezed thread and neither was
+     usable. Here the list IS the screen until a conversation is opened, and
+     then the thread is, with a back arrow that returns. Decided at mount,
+     like every other phone branch in this app. */
+  const phone = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
   // Whether the "open the first thread" fallback has already fired.
   const autoPicked = useRef(false);
 
@@ -33,10 +41,14 @@ export function Chats() {
   // straight into somebody else's conversation with the composer still focused.
   useEffect(() => {
     const list = conversations.data;
-    if (autoPicked.current || activeId || !list || list.length === 0) return;
+    // On a phone the list is the screen; opening the newest thread on arrival
+    // would hide it. The ?c= deep link still opens straight into a thread.
+    // The latch stays FIRST in this condition: remove-chat-not-delete.test.ts
+    // asserts that opening literally, and it is asserting the right thing.
+    if (autoPicked.current || activeId || phone || !list || list.length === 0) return;
     autoPicked.current = true;
     setActiveId(list[0].id);
-  }, [activeId, conversations.data]);
+  }, [activeId, conversations.data, phone]);
 
   const history = useMessages(activeId);
   const [live, setLive] = useState<Message[]>([]);
@@ -159,7 +171,11 @@ export function Chats() {
        the hub its own accent for anything that still reads one; it touches no
        ground token, so it costs no grant. */
     <div className="page" data-hub="chat" style={{ paddingBottom: 18 }}>
-      <div className="cstage" style={{ height: 'calc(100dvh - var(--header-h) - var(--safe-top) - 42px)' }}>
+      <div className={`cstage${phone ? (activeId ? ' is-thread' : ' is-list') : ''}`}
+        style={{ height: phone
+          ? 'calc(100dvh - var(--header-h) - var(--safe-top) - var(--safe-bottom) - 88px)'
+          : 'calc(100dvh - var(--header-h) - var(--safe-top) - 42px)' }}>
+        {!(phone && activeId) && (
         <aside className="cslist">
           <div className="cshead">
             <h2>Chats</h2>
@@ -173,11 +189,20 @@ export function Chats() {
             : <ConversationList items={list} activeId={activeId} onSelect={setActiveId}
                 onRemove={onRemove} removingId={clear.isPending ? clear.variables : undefined} />}
         </aside>
+        )}
 
+        {!(phone && !activeId) && (
         <section className="csthread">
           {activeId ? (
             <>
               <div className="cshead-t">
+                {phone && (
+                  <button type="button" className="csback" aria-label="Back to chats"
+                    onClick={() => setActiveId(undefined)}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+                  </button>
+                )}
                 <span className="csav">{activeTitle.split(/[\s·]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeTitle}</b>
@@ -203,6 +228,7 @@ export function Chats() {
             </div>
           )}
         </section>
+        )}
       </div>
     </div>
   );

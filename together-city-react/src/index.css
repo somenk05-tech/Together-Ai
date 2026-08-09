@@ -849,3 +849,25 @@ table.tc td b { color: var(--ink); }
   .district-run .district-plate .hub-plate-foot { padding: 0 12px 12px; gap: 8px; }
   .district-run .district-plate .hub-plate-cta { padding: 0 12px; font-size: 11.5px; height: 38px; min-height: 38px; }
 }
+
+/* ---- Chats: a phone shows one room at a time (9 Aug, WhatsApp's rule) ----
+   The stage's own 860px rule collapses two columns into one; the page still
+   held both children, so a list and a thread shared a screen and neither
+   fitted. Chats.tsx now renders ONE of them on a phone; this is the trim:
+   the stage runs edge to edge, the thread's header carries a back arrow, and
+   the composer clears the floating dock. */
+@media (max-width: 899px) {
+  .cstage.is-list, .cstage.is-thread { grid-template-columns: 1fr; }
+  /* a chat is the whole screen, so it gives up the page's gutters and its
+     corner radius — same as every messaging app on a phone */
+  .cstage { border-radius: var(--r-3); }
+  .cstage .cslist, .cstage .csthread { min-width: 0; overflow: hidden; }
+  .cshead-t { display: flex; align-items: center; gap: 10px; }
+  .csback {
+    flex: 0 0 auto; display: grid; place-items: center;
+    width: 40px; height: 40px; margin-left: -6px;
+    border: 0; border-radius: 50%; background: none; cursor: pointer;
+    color: var(--on-stage);
+  }
+  .csback:active { background: rgba(255,255,255,.12); }
+}
