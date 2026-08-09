@@ -198,17 +198,28 @@ describe('Relief stays a system', () => {
   });
 
   /**
-   * FOUR HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
+   * TWO HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
    * EXCEPTION.
    *
-   * Three of the four are hubs you READ rather than operate; the fourth earns
-   * it on material instead, and says so. Either way a fifth is not automatic
-   * — and two hubs have now handed one BACK, which is the same rule running
-   * the other way:
+   * THE CITY IS BLACK AND WHITE, AND EACH HUB OWNS ONE COLOUR: the lit key
+   * in its rail. Hue is spent where hue is the only thing that works —
+   * twenty-five rooms, and one object that says which you are standing in
+   * before a word is read. Everything else is inherited.
    *
-   *   nutrition — warm paper. It already held the only other surface exception
-   *     ([data-press], granted because a day of food is read the way a menu is),
-   *     and the press pages had become an ivory island inside a white hub.
+   * Which makes a GROUND grant the rarest thing in the system. TWO hubs hold
+   * one and both are dark; four have handed one back in a day. The returns
+   * are the same rule running the other way — a hub holds a ground when
+   * words are read off something that is not the city's white, and gives it
+   * back the moment that stops being true. What is left is the only case
+   * that rule cannot cover: a room that is dark on purpose.
+   *
+   *   nutrition — RETURNED, and the return is the cleanest of the three. Its
+   *     grant was warm paper, argued on the press: a day of food is read the
+   *     way a menu is, and the recipe pages had become an ivory island inside
+   *     a white hub. Still true, still handled — the press keeps its own
+   *     granted surface, and at :root that surface is white, so the island
+   *     and the sea now match by inheritance rather than by two palettes
+   *     agreeing. A hub does not have to be ivory for a press to be a press.
    *   astrology — near-black, and this entry has been rewritten three times in
    *     one day, which is worth recording rather than tidying away. It held a
    *     grant for the gold-on-charcoal photographs, held it again for the
@@ -228,15 +239,16 @@ describe('Relief stays a system', () => {
    *     posters on white is a catalogue rather than a screen. Its accent hue is
    *     NOT the ground either: the ground is near-black, the green stays in the
    *     fill and in the readable ink.
-   *   social — a lavender sweep, and the ONLY one whose argument is not "a hub
-   *     you read". Social Life is one you post to as much as you read. Its
-   *     case is about MATERIAL: relief.css has shipped .g-slab, .g-key and
-   *     --glass-face for this hub since the ground-glass work, opaque, with a
-   *     comment saying why — "clear glass on white has nothing behind it to
-   *     bend" — and another saying what should happen if it earned its place.
-   *     A tinted ground is the surface those classes were written for. The
-   *     hub's content is also a wall of other people's photographs, which on
-   *     white is a contact sheet.
+   *   social — RETURNED. Its grant was the hardest of the three to give back
+   *     and it still went. The argument was MATERIAL, twice: clear glass on
+   *     white "has nothing behind it to bend", and a wall of other people's
+   *     photographs on white is a contact sheet. Both were true and neither
+   *     needed a tint. The glass had already been built OPAQUE — ground
+   *     glass, not the transparent kind — precisely because white gave it
+   *     nothing to bend, so it was never waiting on the ground that arrived.
+   *     And the contact sheet is answered by casing the pictures and
+   *     spending space around them, which is composition. A tinted ground
+   *     was the expensive answer to two problems that had cheaper ones.
    *   dating — HELD one three times (candy, then the studio's greige) and
    *     RETURNED it, for the same reason astrology's daylight did. Its
    *     argument had always been material: photographs on white read as a
@@ -261,9 +273,9 @@ describe('Relief stays a system', () => {
    * The list is written out rather than counted, exactly like the press's
    * wearers, so a third entry costs an argument instead of a nod.
    */
-  it('keeps a re-pointed ground inside the four hubs it was granted to', () => {
+  it('keeps a re-pointed ground inside the two hubs it was granted to', () => {
     const css = strip(tokens);
-    const GRANTED = ['astrology', 'entertainment', 'nutrition', 'social'];
+    const GRANTED = ['astrology', 'entertainment'];
 
     // 1. only the granted hubs re-point a ground token. Sorted: the file's
     //    order is editorial and a re-order must not read as a breach.
@@ -315,7 +327,7 @@ describe('Relief stays a system', () => {
       return (hi + 0.05) / (lo + 0.05);
     };
     const failures: string[] = [];
-    for (const hub of ['astrology', 'entertainment', 'nutrition', 'social']) {
+    for (const hub of ['astrology', 'entertainment']) {
       // The block that owns the ground, found by the thing that makes it that
       // block rather than by position: nutrition and entertainment each once
       // had a plain accent one-liner elsewhere in the file, and matching the

@@ -31,10 +31,27 @@
   --paper: #ffffff;
   --card: #ffffff;
 
+  /* ── THE INK SCALE, AND THE TWO STEPS THAT NEVER READ ────────────────────
+     --faint was #9b9b9b: 2.78:1 on the ground directly above it. It is
+     labels, placeholders, timestamps and every hub's tagline — small text,
+     which needs 4.5 — and it has been under it in every room that has no
+     ground of its own since the scale was written. Three hubs paid it
+     locally this week because their own grant hid it; the moment they handed
+     those grants back it surfaced in all three at once, which is the clearest
+     possible sign it was never theirs to pay.
+
+     --muted was three hundredths under on ONE surface rather than on the
+     ground: #6b6b6b reads 6.6:1 on white and 4.48:1 on the rail's lens tile,
+     which is a shade darker than paper. A number that passes on the page and
+     fails on the furniture is still a fail; it moves too, by one step.
+
+     Both are the same greys taken down until they clear, hue unchanged —
+     there was no hue. Every grounded hub declares its own pair and is
+     unaffected. */
   --ink: #000000;
   --ink-soft: #1c1c1c;
-  --muted: #6b6b6b;
-  --faint: #9b9b9b;
+  --muted: #666666;   /* 6.9 on the ground · 4.7 on a lens tile */
+  --faint: #6f6f6f;   /* 5.0 on the ground — was 2.78 */
   --line: #ededed;
   --line-2: #e2e2e2;
 
@@ -160,19 +177,25 @@
   --rail-well: #ffffff;
   --rail-well-shadow: inset -1px 0 0 #ececec;
 
+  /* THE GLASS STOPS REFRACTING BLUE. The lens was mixed to bend a cool
+     blue-grey, which is invisible in a room with a hue of its own and is the
+     ONLY hue in a room without one — five stacked keys were quietly the most
+     coloured object on a black-and-white screen. Same five layers, same
+     geometry, achromatic refraction: the city keeps one colour per hub and
+     it is the lamp, not the glass around it. */
   --lens-face: linear-gradient(180deg,
-    rgba(255,255,255,.94) 0%, rgba(228,237,248,.52) 34%,
-    rgba(216,229,245,.40) 56%, rgba(246,250,255,.80) 82%, rgba(255,255,255,.94) 100%);
+    rgba(255,255,255,.94) 0%, rgba(240,240,240,.52) 34%,
+    rgba(232,232,232,.40) 56%, rgba(250,250,250,.80) 82%, rgba(255,255,255,.94) 100%);
   --lens: inset 0 0 0 1.5px rgba(255,255,255,.98),
-          inset 0 0 0 4px rgba(158,184,216,.28),
-          inset 0 8px 12px -8px rgba(112,144,186,.50),
+          inset 0 0 0 4px rgba(190,190,190,.28),
+          inset 0 8px 12px -8px rgba(140,140,140,.50),
           inset 0 -10px 14px -7px rgba(255,255,255,.98),
-          0 1px 1px rgba(70,95,130,.10), 0 6px 16px rgba(70,95,130,.14), 0 18px 40px rgba(70,95,130,.12);
+          0 1px 1px rgba(90,90,90,.10), 0 6px 16px rgba(90,90,90,.14), 0 18px 40px rgba(90,90,90,.12);
   --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.98),
-              inset 0 0 0 3px rgba(158,184,216,.26),
-              inset 0 6px 9px -7px rgba(112,144,186,.45),
+              inset 0 0 0 3px rgba(190,190,190,.26),
+              inset 0 6px 9px -7px rgba(140,140,140,.45),
               inset 0 -8px 11px -6px rgba(255,255,255,.98),
-              0 1px 1px rgba(70,95,130,.08), 0 3px 8px rgba(70,95,130,.10);
+              0 1px 1px rgba(90,90,90,.08), 0 3px 8px rgba(90,90,90,.10);
 
   /* ══ GROUND GLASS ════════════════════════════════════════════════════════
      The lens above, thickened — and OPAQUE, because this application's ground
@@ -742,75 +765,45 @@
    layout and no spacing changes, and why removing this block removes the
    entire treatment. relief.spec.ts pins the scope.                          */
 [data-hub="nutrition"] {
-  /* ── Ground, card, rail ── */
-  --ground: #f6f3ea;
-  --paper:  #f6f3ea;
-  --card:   #fcfbf7;
-  --wash:   #f2eedc;          /* the alternate section band */
-  --rail-well: #efe9db;       /* the sidebar, one step darker than the page */
-  --rail-well-shadow: inset -1px 0 0 #e6e0d3;
-  --media-bg: #ebe6d9;
+  /* ── ONE LAMP, AND NOTHING ELSE ──────────────────────────────────────────
+     The whole hub, and it is four declarations. Everything that used to be
+     here — the warm paper ground, the card, the wash, the rail well, the
+     media backdrop, five inks, two hairlines, five faces, two rims, the five
+     depths in warm shadow, the carves, the edges, four status washes and the
+     entire press palette — is DELETED, because the city at :root already
+     says every one of those things. Warm paper was the only line that did
+     not, and it is the line that went.
 
-  /* ── Ink. Never pure black; every value AA on the paper above. ── */
-  --ink:      #243126;        /* 12.9:1 */
-  --ink-soft: #2f3a30;        /* 10.4:1 */
-  --muted:    #5f665a;        /*  5.9:1 — descriptions */
-  --faint:    #6b7064;        /*  4.6:1 — labels and metadata ONLY */
-  --line:     #e6e0d3;
-  --line-2:   #ddd6c9;
+     THE SYSTEM THIS BELONGS TO. The city is black and white; each hub owns
+     exactly one colour, and it is the lit key in the rail. That is hue spent
+     where hue is the only thing that works: twenty-five rooms, and the one
+     object that tells you which you are standing in before you have read a
+     word. Everywhere else — chrome, cards, accents, buttons, type — is the
+     city's near-black on the city's white, which is to say it is inherited
+     rather than declared. A hub block in this system is a NAME AND A COLOUR.
 
-  /* ── The faces. Same three-stop construction, warmed. ── */
-  --face:      linear-gradient(180deg, #fefdf9 0%, #fbf9f2 44%, #efeadc 100%);
-  --face-2:    linear-gradient(180deg, #fefdf9 0%, #f9f7ee 48%, #eae4d4 100%);
-  --face-tall: linear-gradient(180deg, #fefdf9 0%, #fefdf9 calc(100% - min(96px, 40%)), #f1ecde 100%);
-  --face-key:  linear-gradient(180deg, #fefdf9 0%, #f7f4e9 52%, #e8e2d1 100%);
-  --well:      linear-gradient(180deg, #eae5d8 0%, #f3f0e6 58%, #fcfbf6 100%);
+     WHY NUTRITION LOSES ITS GROUND. Its grant was warm paper, argued on the
+     press: a day of food is read the way a menu is, and the recipe pages had
+     become an ivory island inside a white hub. That is still true and it is
+     still handled — the press keeps its own granted surface, and at :root it
+     is white, so the island and the sea now match by inheritance instead of
+     by two palettes agreeing. The hub does not need to be ivory for the
+     press to be a press.
 
-  /* ── The rim: warm white above, warm taupe below. ── */
-  --rim:        inset 0 0 0 1px rgba(107,92,62,.09), inset 0 1px 0 rgba(255,254,248,1), inset 0 -1px 0 rgba(107,92,62,.075);
-  --rim-strong: inset 0 0 0 1px rgba(107,92,62,.12), inset 0 1.5px 0 rgba(255,254,248,1), inset 0 -1.5px 0 rgba(107,92,62,.10);
-
-  /* ── The five depths. Identical geometry; warm shadow ink. ── */
-  --e1: var(--rim),        0 1px 1px rgba(107,92,62,.09), 0 2px 4px rgba(107,92,62,.10), 0 6px 13px rgba(107,92,62,.12);
-  --e2: var(--rim-strong), 0 1px 1px rgba(107,92,62,.10), 0 3px 6px rgba(107,92,62,.13), 0 11px 24px rgba(107,92,62,.17), 0 22px 48px rgba(107,92,62,.13);
-  --e3: var(--rim-strong), 0 2px 2px rgba(107,92,62,.11), 0 7px 14px rgba(107,92,62,.14), 0 20px 42px rgba(107,92,62,.18), 0 40px 88px rgba(107,92,62,.16);
-
-  --e1-key: var(--rim),        0 1px 1px rgba(107,92,62,.13), 0 2px 4px rgba(107,92,62,.15), 0 5px 10px rgba(107,92,62,.10);
-  --e2-key: var(--rim-strong), 0 2px 3px rgba(107,92,62,.17), 0 5px 10px rgba(107,92,62,.20), 0 10px 20px rgba(107,92,62,.13);
-
-  --carve:      inset 0 0 0 1px rgba(107,92,62,.12), inset 0 3px 6px rgba(107,92,62,.22), inset 0 -1px 0 rgba(255,254,248,.95), inset 3px 0 5px -3px rgba(107,92,62,.12), inset -3px 0 5px -3px rgba(107,92,62,.12);
-  --carve-deep: inset 0 0 0 1px rgba(107,92,62,.15), inset 0 4px 10px rgba(107,92,62,.30), inset 0 -1px 0 rgba(255,254,248,.95);
-  --press:      inset 0 0 0 1px rgba(107,92,62,.17), inset 0 3px 6px rgba(107,92,62,.27), 0 1px 0 rgba(255,254,248,.9);
-
-  --edge-up: 0 1px 0 #fefdf9;
-  --edge-in: inset 0 -1px 0 rgba(107,92,62,.10);
-
-  /* ── Status. The INKS are not the brief's indicator greens: those are chart
-       values and none of them clears AA as text. A status that cannot be read
-       is worse than one that is not coloured, so the inks stay dark and only
-       warm; the brief's lighter scale lives on the macro tokens below, where
-       it is a fill behind no words. ── */
-  --ok-soft: #edf3e6;     --ok-line: #cfe0c4;
-  --warn-soft: #f7f1e0;   --warn-line: #e5d9b8;
-  --danger-soft: #f8ede8; --danger-line: #e8cbbf;
-  --info-soft: #edf2f3;   --info-line: #cfdde0;
-
-  /* ── The press pages inherit the hub's paper instead of holding their own.
-       They were left white when the hub was white, deliberately, so that two
-       authors of the same day printed on the same stock. That rule is kept —
-       the stock simply changed underneath both of them. ── */
-  --press-paper:  #f6f3ea;
-  --press-band:   #f2eedc;
-  --press-rule:   #ddd6c9;
-  --press-rule-2: #e6e0d3;
-  --press-ink:    #243126;
-  --press-ink-2:  #5f665a;
-  --press-ink-3:  #82877b;
-  --press-green:  #214e34;
-  --press-macro-1:#214e34;
-  --press-macro-2:#4d6f47;
-  --press-macro-3:#a4b56a;
-  --press-macro-0:#eae5d8;
+     THE GREEN IS UNCHANGED IN HUE AND DEEPENED FOR ITS OWN LABEL. #1f5d43 is
+     the emerald the hub has always carried, and the lamp's bottom highlight
+     lifts whatever it stands on by about twenty points, so the stops are set
+     from the LIFTED value rather than the token: white reads 5.8:1 on the
+     mid stop as it actually renders, not as it is written. Same lesson the
+     citywide orange just taught, applied on the first try this time.       */
+  --lamp-face: linear-gradient(180deg, #2f7a56 0%, #1f5d43 44%, #17462f 100%);
+  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50),
+          inset 0 0 0 4px rgba(190,230,210,.20),
+          inset 0 8px 12px -8px rgba(10,45,30,.50),
+          inset 0 -10px 14px -7px rgba(200,240,220,.30),
+          0 1px 1px rgba(20,70,48,.20), 0 8px 20px rgba(31,93,67,.34), 0 20px 46px rgba(31,93,67,.22);
+  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30),
+                inset 0 -3px 6px rgba(10,45,30,.34);
 }
 
 /* ══ ASTROLOGY'S NIGHT — THE SECOND SURFACE EXCEPTION ══════════════════════
@@ -1016,135 +1009,38 @@
    it. A fifth hub asking for "a wash like Social Life's" is asking for the
    thing that was removed, and gets its own line here or nothing.             */
 [data-hub="social"] {
-  /* ── LIQUID GLASS ────────────────────────────────────────────────────────
-     Owner's reference: thick, physical, translucent controls on a neutral
-     ground, with one restrained accent. That is what .g-slab and .g-key were
-     drawn for; the lavender ground was a first approximation of it.
+  /* ── ONE LAMP, AND NOTHING ELSE ──────────────────────────────────────────
+     The lavender sweep, the pale-blue card, the cool inks, the four faces,
+     the rims, the depths in cool shadow, the ground glass and its whole
+     .g-* palette: gone. The city says all of it at :root, in black and
+     white, and this hub now says only which room you are in.
 
-     THE GROUND GOES NEUTRAL, and that is the whole reason this reads as glass
-     rather than as tinted plastic. Glass takes its colour from what is behind
-     it. On a lavender ground every pane was lavender, so nothing looked
-     transmitted — it looked painted. On a neutral grey the panes pick up the
-     photographs and the accent behind them, which is the effect.
+     ITS GRANT WAS THE HARDEST TO GIVE BACK AND IT STILL GOES. The argument
+     was MATERIAL, twice over: clear glass on white "has nothing behind it to
+     bend", and a wall of other people's photographs on white is a contact
+     sheet. Both were true and both were answered somewhere else. The glass
+     was already opaque — ground glass, not the transparent kind, because
+     white gave it nothing to bend — so it never needed the tint it was
+     waiting for. And the contact sheet is solved the way dating solved it:
+     by CASING the pictures and spending space around them, which is
+     composition rather than colour. A tint was the expensive answer to both.
 
-     Quantised off the plates: the controls plate gave the accent (#7498d2) and
-     the thickness; the icon-set plate gave the GROUND — #e8e8e8 at 98.4% of
-     its frame, with the whole design carried by the shadow under a near-white
-     pill rather than by any tone difference at all. So the ground came up
-     from #cfd0d3 to #e7e7e8: the reference is one value, lit.
-     THE ACCENT IS DARKENED FROM THE PLATE, because the reference puts BLACK
-     type on its light blue pill and this application's contract is white on
-     --accent — read by the rail lamp, the primary button and .tag.dark. A
-     hub does not get to invert a city-wide contract, so the blue goes deep
-     enough for white (5.6:1) and the plate's own light blue survives as the
-     lit key's face and as --accent-soft. */
-  --ground: #e7e7e8;
-  --paper:  #e7e7e8;
-  --card:   #fbfbfc;
-  --wash:   #f1f1f3;
-  --media-bg: #1b1c20;
-
-  --ink:      #14161a;   /* 14.7:1 on the ground, 17.5:1 on a card */
-  --ink-soft: #23262c;   /* 12.3:1 */
-  --muted:    #43474f;   /*  7.5:1 */
-  --faint:    #5c616b;   /*  5.0:1 — labels and metadata ONLY */
-  --line:   #dcdcde;
-  --line-2: #cacacd;
-
-  --accent:      #3f68ab;   /* white on it 5.6:1 */
-  --accent-ink:  #2f558c;   /* 4.9:1 on the ground, 6.1:1 on a card */
-  --accent-soft: #e4ebf6;
-  --accent-line: #c8d6ea;
-  --on-accent:   #ffffff;
-
-  --ok-ink: #1f5b32;     --ok-soft: #e9f1eb;    --ok-line: #ccdfd2;
-  --warn-ink: #6d4508;   --warn-soft: #f5efe5;  --warn-line: #e4d8bf;
-  --danger-ink: #96223a; --danger-soft: #f9ebee; --danger-line: #eacbd2;
-  --info-ink: #2b5f7a;   --info-soft: #e8f0f4;  --info-line: #cbdde5;
-
-  --face:      linear-gradient(180deg, #ffffff 0%, #fbfbfc 44%, #f2f2f4 100%);
-  --face-2:    linear-gradient(180deg, #ffffff 0%, #fcfcfd 48%, #f4f4f6 100%);
-  --face-tall: linear-gradient(180deg, #ffffff 0%, #fbfbfc calc(100% - min(96px, 40%)), #f1f1f3 100%);
-  --face-key:  linear-gradient(180deg, #ffffff 0%, #fafafc 52%, #eeeef1 100%);
-  --well:      linear-gradient(180deg, #e0e0e3 0%, #f0f0f2 58%, #fdfdfe 100%);
-
-  /* THE RIM IS THE THICKNESS. A pane of glass reads as thick because its
-     edge catches light on top and goes dark underneath — the reference's
-     controls are all edge. So the rim goes up from 1px to 1.5px and the top
-     highlight to full white, while the geometry underneath does not move. */
-  --rim:        inset 0 0 0 1.2px rgba(20,22,26,.10), inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(20,22,26,.07);
-  --rim-strong: inset 0 0 0 1.6px rgba(20,22,26,.14), inset 0 2px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(20,22,26,.09);
-
-  /* Shadow ink is NEUTRAL now, and softer and wider than on a tinted ground:
-     glass sitting a few millimetres off a surface throws a diffuse shadow,
-     not a crisp one. Same five depths, same geometry. */
-  --e1: var(--rim),        0 1px 2px rgba(18,20,24,.08), 0 3px 8px rgba(18,20,24,.09), 0 8px 20px rgba(18,20,24,.10);
-  --e2: var(--rim-strong), 0 1px 2px rgba(18,20,24,.08), 0 4px 10px rgba(18,20,24,.11), 0 14px 32px rgba(18,20,24,.14), 0 28px 64px rgba(18,20,24,.10);
-  --e3: var(--rim-strong), 0 2px 4px rgba(18,20,24,.10), 0 10px 22px rgba(18,20,24,.13), 0 26px 56px rgba(18,20,24,.17);
-  --e1-key: var(--rim),        0 1px 2px rgba(18,20,24,.10), 0 3px 7px rgba(18,20,24,.11), 0 7px 16px rgba(18,20,24,.09);
-  --e2-key: var(--rim-strong), 0 2px 4px rgba(18,20,24,.11), 0 7px 16px rgba(18,20,24,.13);
-  --carve:      inset 0 0 0 1.2px rgba(20,22,26,.12), inset 0 3px 7px rgba(20,22,26,.14), inset 0 -1px 0 rgba(255,255,255,.95);
-  --carve-deep: inset 0 0 0 1.4px rgba(20,22,26,.14), inset 0 5px 12px rgba(20,22,26,.20), inset 0 -1px 0 rgba(255,255,255,.95);
-  --press: inset 0 0 0 1.2px rgba(20,22,26,.14), inset 0 3px 7px rgba(20,22,26,.18), 0 1px 0 rgba(255,255,255,.9);
-  --edge-up: 0 1px 0 rgba(255,255,255,.95);
-  --edge-in: inset 0 -1px 0 rgba(20,22,26,.08);
-  --case-rim: inset 0 0 0 1.2px rgba(20,22,26,.16), inset 0 4px 12px rgba(20,22,26,.20), inset 0 -2px 8px rgba(20,22,26,.10);
-  --case-rim-soft: inset 0 0 0 1.2px rgba(20,22,26,.12), inset 0 3px 7px rgba(20,22,26,.18), inset 0 -1px 0 rgba(255,255,255,.5);
-
-  --rail-well: rgba(255,255,255,.20);
-  --rail-well-shadow: inset -1px 0 0 rgba(255,255,255,.42);
-  --lens-face: linear-gradient(180deg, rgba(255,255,255,.72) 0%, rgba(255,255,255,.44) 55%, rgba(255,255,255,.26) 100%);
-  --lens:     inset 0 0 0 1.5px rgba(255,255,255,.95), inset 0 1.5px 0 rgba(255,255,255,1), 0 5px 16px rgba(18,20,24,.13);
-  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.85), inset 0 1px 0 rgba(255,255,255,1), 0 3px 9px rgba(18,20,24,.10);
-
-  /* THE GLASS, THICKENED. Less opaque than before and with a brighter edge:
-     the reference's panels are barely tinted and read entirely by their rim
-     and their shadow. The blur does the rest, in --pane-blur below. */
-  --glass-face: linear-gradient(158deg, rgba(255,255,255,.58), rgba(255,255,255,.34) 52%, rgba(255,255,255,.22));
-  --glass:      inset 0 0 0 1.6px rgba(255,255,255,.96), inset 0 2px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(20,22,26,.07), 0 20px 50px rgba(18,20,24,.16);
-  --glass-key:  inset 0 0 0 1.3px rgba(255,255,255,.92), inset 0 1.5px 0 rgba(255,255,255,1), 0 4px 12px rgba(18,20,24,.12);
-  --glass-in:   inset 0 0 0 1.2px rgba(255,255,255,.80), inset 0 2px 6px rgba(18,20,24,.14);
-  --glass-well: linear-gradient(180deg, #e0e0e3 0%, #f0f0f2 58%, #fdfdfe 100%);
-  --glass-bubble: linear-gradient(150deg, rgba(255,255,255,.94), rgba(255,255,255,.56) 52%, rgba(255,255,255,.76));
-  --glass-bubble-shadow: inset 0 0 0 1.2px rgba(255,255,255,.94), 0 3px 8px rgba(18,20,24,.13);
-  --glass-tray: linear-gradient(180deg, rgba(255,255,255,.46), rgba(255,255,255,.68));
-  --glass-tray-shadow: inset 0 2px 9px rgba(18,20,24,.13), inset 0 -1px 0 rgba(255,255,255,.95);
-  --glass-line: rgba(255, 255, 255, .62);
-
-  /* The lit key wears the PLATE'S light blue, with the deep one underneath it
-     so white still reads: the reference's active control is a pale blue lens
-     and this is the one place that colour survives at full strength. */
-  --key-lit-face: linear-gradient(180deg, #7498d2 0%, #5a80c1 46%, #3f68ab 100%);
-  --key-lit:      inset 0 0 0 1.5px rgba(255,255,255,.52), inset 0 1.5px 0 rgba(255,255,255,.46), 0 4px 14px rgba(63,104,171,.30);
-  --key-lit-pip:  0 0 0 2px rgba(63,104,171,.18), 0 0 8px rgba(63,104,171,.5);
-  --lamp-face: linear-gradient(180deg, #7498d2 0%, #5a80c1 46%, #3f68ab 100%);
-  --lamp:      inset 0 0 0 1.5px rgba(255,255,255,.52), inset 0 2px 5px rgba(0,0,0,.16), inset 0 -1px 0 rgba(255,255,255,.44), 0 4px 14px rgba(63,104,171,.30);
-  --lamp-badge: inset 0 0 0 1px rgba(255,255,255,.46), inset 0 1px 0 rgba(255,255,255,.40);
-
-  --loud-face:        linear-gradient(180deg, #4d76b7 0%, #3f68ab 55%, #33578f 100%);
-  --loud-face-hover:  linear-gradient(180deg, #5883c4 0%, #4772b8 55%, #3a6099 100%);
-  --loud-face-active: linear-gradient(180deg, #33578f 0%, #3a5f9c 60%, #3f68ab 100%);
-  --on-loud: #ffffff;
-  --frost: rgba(251,251,252,.78);
-  --btn-line-edge: rgba(255,255,255,1);
-  --btn-line-ring: rgba(20,22,26,.18);
-  --btn-line-ring-hover: rgba(20,22,26,.34);
-  --focus-ring: 0 0 0 3px rgba(63,104,171,.34);
-  --scrim-top: rgba(14,16,20,.26);
-  --scrim-deep: rgba(14,16,20,.76);
-
-  /* The ground is a room, not a colour field: a soft light from above-left
-     and the corner falloff the reference has, both in neutral. Nothing here
-     is tinted, because the panes are what carry colour in this hub. */
-  --sky-image:
-    radial-gradient(86% 64% at 26% -10%, #f3f3f4 0%, rgba(243,243,244,0) 70%),
-    radial-gradient(64% 52% at 96% 104%, #dedee0 0%, rgba(222,222,224,0) 64%),
-    linear-gradient(168deg, #ececed 0%, #e7e7e8 52%, #e2e2e4 100%);
-  --chrome: rgba(255,255,255,.46);
-  --chrome-blur: blur(22px) saturate(150%);
-  /* Thicker glass means more blur. 30px is where the panel stops looking like
-     a tinted rectangle and starts looking like something with a depth. */
-  --pane-blur: blur(30px) saturate(160%);
+     THE BLUE DEEPENS AND STAYS. #5a80c1 was mixed as a fill on a lavender
+     ground and carries white at 3.97:1 — under AA before the lamp's own
+     bottom highlight lifts it another twenty points to 3.06:1. Set from the
+     lifted value instead: white reads 5.6:1 on the mid stop as it renders.
+     Same hue, same key, legible for the first time.                       */
+  --lamp-face: linear-gradient(180deg, #4470b4 0%, #2f5391 44%, #23406f 100%);
+  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.50),
+          inset 0 0 0 4px rgba(190,210,240,.20),
+          inset 0 8px 12px -8px rgba(12,30,60,.50),
+          inset 0 -10px 14px -7px rgba(200,220,250,.30),
+          0 1px 1px rgba(25,50,95,.20), 0 8px 20px rgba(47,83,145,.34), 0 20px 46px rgba(47,83,145,.22);
+  --lamp-badge: inset 0 0 0 1.5px rgba(255,255,255,.30),
+                inset 0 -3px 6px rgba(12,30,60,.34);
+  --key-lit-face: linear-gradient(180deg, #4470b4 0%, #2f5391 44%, #23406f 100%);
+  --key-lit:      inset 0 0 0 1.5px rgba(255,255,255,.50), inset 0 1.5px 0 rgba(255,255,255,.44), 0 4px 14px rgba(47,83,145,.30);
+  --key-lit-pip:  0 0 0 2px rgba(47,83,145,.18), 0 0 8px rgba(47,83,145,.5);
 }
 
 /* ── DATING IS THE SKY, AND THE CANDY IS THE INTERRUPTION ──────────────────
@@ -1204,43 +1100,6 @@
      exist at all; a raised one needs nothing but its own light. Which is why
      the depths are inherited rather than re-pointed — they were already
      right, and this look leans on them harder than the candy ever did.    */
-
-  /* ── THE ONE INK THIS ROOM HAS TO DECLARE, AND WHY IT IS EMBARRASSING ────
-     Handing the ground back means inheriting the city's own greys, and the
-     city's --faint is #9b9b9b, which is 2.78:1 on white. That is a real
-     failure and it is not this hub's: it is every room that has never been
-     restyled, and it has been on the open-debt list for weeks. Three hubs in
-     a row have now paid it locally because their own grant hid it — this one
-     could not hide it for a single screen, since "Curated, not endless" is
-     set in it directly under the hub name.
-
-     #6f6f6f is the same grey moved until it clears (5.0:1), and it is
-     declared HERE rather than at :root only because a one-line change to
-     every label in twenty-five rooms deserves its own commit and its own
-     look, not a ride inside a hub restyle. When that lands, this line should
-     be the first thing deleted. */
-  --faint: #6f6f6f;
-
-  /* ── AND THE RAIL'S GLASS STOPS REFRACTING BLUE ──────────────────────────
-     The city's lens is deliberately cool: it bends a blue-grey, which is
-     invisible in a room that has a hue of its own and is the ONLY hue left in
-     a room that does not. Five stacked keys were the one coloured object on
-     a white-and-black screen. Same five layers, same geometry, achromatic
-     refraction — the identical move the bone room made for the opposite
-     reason. */
-  --lens-face: linear-gradient(180deg,
-    rgba(255,255,255,.94) 0%, rgba(240,240,240,.52) 34%,
-    rgba(232,232,232,.40) 56%, rgba(250,250,250,.80) 82%, rgba(255,255,255,.94) 100%);
-  --lens: inset 0 0 0 1.5px rgba(255,255,255,.98),
-          inset 0 0 0 4px rgba(190,190,190,.28),
-          inset 0 8px 12px -8px rgba(140,140,140,.50),
-          inset 0 -10px 14px -7px rgba(255,255,255,.98),
-          0 1px 1px rgba(90,90,90,.10), 0 6px 16px rgba(90,90,90,.14), 0 18px 40px rgba(90,90,90,.12);
-  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.98),
-              inset 0 0 0 3px rgba(190,190,190,.26),
-              inset 0 6px 9px -7px rgba(140,140,140,.45),
-              inset 0 -8px 11px -6px rgba(255,255,255,.98),
-              0 1px 1px rgba(90,90,90,.08), 0 3px 8px rgba(90,90,90,.10);
 
   /* the metal, which is no longer a metal */
   --accent:      #0d0d0d;
