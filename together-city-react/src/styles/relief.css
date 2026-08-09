@@ -614,7 +614,54 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 
 .tc-actionbar, .tc-actions { gap: 8px; }
 
-.tc-logo .word { color: var(--ink); font-weight: 700; letter-spacing: -.03em; }
+/* ── THE WORDMARK IS PRESSED, NOT PRINTED ────────────────────────────────
+   The owner's reference: "together city" as white plastic, lowercase and
+   rounded, lit from above and casting into the page. It is drawn here rather
+   than shipped as an image, for three reasons that all matter at 34px:
+
+     A PNG OF WHITE-ON-WHITE IS A RECTANGLE. The reference's whole effect is
+     its shading, and a flat asset carries that shading baked at one size, one
+     light angle and one ground. Two hubs in this city are near-black; the
+     same file cannot be embossed into paper on twenty-four screens and lit
+     from behind on two. Text can.
+
+     AND IT IS STILL TEXT. It stays selectable, it scales with the user's font
+     size, it needs no 2x and no 3x, and a screen reader gets a word rather
+     than an alt attribute standing in for one.
+
+   THE LETTERFORMS ARE THE CITY'S OWN. The reference is set in a rounded
+   geometric; adding it would be a second typeface and fails the one-family
+   rule on sight. What carries the character is the LOWERCASE, the weight and
+   the tight tracking — which is most of it — plus the light.
+
+   A LOGOTYPE IS EXEMPT FROM CONTRAST, and this one uses the exemption
+   knowingly: white on white reads by its shadow alone. That is acceptable
+   for a mark sitting beside its own black glyph and nowhere else in the
+   application; it would not be acceptable for a word anybody has to read. */
+.tc-logo .word {
+  color: rgba(255,255,255,1);
+  /* AT 17px THE REFERENCE'S SHADING HAS TO SHRINK WITH IT. The first pass
+     carried the poster's full stack — four blurs out to 14px — and at header
+     size that is not depth, it is a smudge: the letters merged and "city"
+     read as "olty". A pressed edge and one short drop is all that survives
+     the scale, and tracking opens back up because heavy shading needs air
+     between letterforms that a flat wordmark does not. */
+  font-weight: 750;
+  font-size: 17px;
+  letter-spacing: -.008em;
+  text-transform: lowercase;
+  text-shadow:
+    0 -0.5px 0 rgba(255,255,255,1),
+    0 1px 0.5px rgba(20,22,25,.42),
+    0 2px 4px rgba(20,22,25,.18);
+}
+/* In a dark room there is no paper to press into, so the sign stops being
+   embossed and becomes what it would actually be: white plastic, lit, with
+   its shadow falling away from it. */
+[data-hub="astrology"] .tc-logo .word,
+[data-hub="entertainment"] .tc-logo .word {
+  text-shadow: 0 1px 0 rgba(0,0,0,.55), 0 3px 10px rgba(0,0,0,.60);
+}
 /* THE MARK IS ARTWORK, NOT A KEY. It sits on the one flat surface in the
    application, so a raised tile behind it was a button nobody can press —
    and it boxed a logo that already has its own shape. Flat, like the bar. */
