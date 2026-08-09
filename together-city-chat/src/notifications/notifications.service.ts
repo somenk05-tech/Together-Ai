@@ -83,14 +83,17 @@ export class NotificationsService {
     }
   }
 
-  /** Recent notifications for a user, newest first. */
+  /** Recent notifications for a user, newest first. Chats are NOT here —
+   *  a message row exists only to drive the toast and per-conversation
+   *  clearing; the Chats tab is the one surface that counts correspondence
+   *  (owner decision, 9 Aug 2026 — see not-in-the-bell.spec.ts). */
   async listFor(userId: string, limit = 50) {
-    const rows = await this.notif.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: limit }).catch(swallowed('notifications.listFor', [] as NotificationRow[]));
+    const rows = await this.notif.findMany({ where: { userId, kind: { not: 'message' } }, orderBy: { createdAt: 'desc' }, take: limit }).catch(swallowed('notifications.listFor', [] as NotificationRow[]));
     return rows.map((r) => this.shape(r));
   }
 
   async unreadCount(userId: string): Promise<number> {
-    return this.notif.count({ where: { userId, read: false } }).catch(() => 0);
+    return this.notif.count({ where: { userId, read: false, kind: { not: 'message' } } }).catch(() => 0);
   }
 
   async markRead(userId: string, id: string): Promise<void> {
@@ -99,7 +102,7 @@ export class NotificationsService {
   }
 
   async markAllRead(userId: string): Promise<void> {
-    await this.notif.updateMany({ where: { userId, read: false }, data: { read: true } }).catch(swallowed('notifications.markAllRead', undefined));
+    await this.notif.updateMany({ where: { userId, read: false, kind: { not: 'message' } }, data: { read: true } }).catch(swallowed('notifications.markAllRead', undefined));
     this.gateway.emitCount(userId, 0);
   }
 
