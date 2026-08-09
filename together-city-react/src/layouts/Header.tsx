@@ -134,9 +134,15 @@ export function Header() {
       {/* Row 1 — centred logo (burger pinned left for mobile). */}
       <div className="tc-header-top">
         <button className="tc-burger" aria-label="Open menu" onClick={() => toggleSidebar()}><Icon name="menu" size={20} /></button>
+        {/* THE LOCKUP IS ONE OBJECT, SO IT IS ONE IMAGE.
+            The glyph and the word used to be an <img> beside a CSS wordmark —
+            two things pretending to be one, kept in step by hand at every size.
+            The owner supplied the artwork drawn as a single piece, with the
+            chrome shading continuous from the monogram through the last Y, and
+            that is not something type plus a text-shadow can be talked into.
+            `alt` carries the name; the image carries the brand. */}
         <Link to="/" className="tc-logo">
-          <span className="mark"><img src="/assets/img/tc-logo.png" alt="Together City" width={24} height={24} /></span>
-          <span className="word">Together City</span>
+          <img className="lockup" src="/assets/img/tc-lockup.webp" alt="Together City" width={145} height={24} />
         </Link>
       </div>
       {/* Row 2 — hub tabs (left) + People · Mail · Chat · Alerts · Profile (right), one line. */}
