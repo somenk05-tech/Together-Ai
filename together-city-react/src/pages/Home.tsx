@@ -54,6 +54,36 @@ const FALLBACK = PAVILIONS.slice(0, 12);
  * panel links straight INTO the hub (its first inner page), not the hub
  * landing, so the landing isn't shown twice. Copy comes from the hub config.
  */
+/**
+ * THE DISTRICTS' OWN VOICE (owner's master list, 9 Aug 2026).
+ *
+ * One noun and one sentence per district — "TRAVEL / Your world, planned your
+ * way." The hub configs keep their own tags for the rooms inside; this is the
+ * street-level copy the billboards wear, and it lives here rather than in
+ * hubs.ts so a hub's interior label and its billboard line can differ without
+ * either pretending to be the other.
+ *
+ * Local Services is absent DELIBERATELY: the master list names CARS, and this
+ * city has no cars hub — /cars redirects into Local Services. A plate that
+ * announced a room the app does not have would be the one thing the golden
+ * rule forbids, so Services keeps its config copy until it is given a line.
+ */
+const DISTRICT_COPY: Partial<Record<HubKey | 'ecommerce', { name: string; line: string }>> = {
+  travel: { name: 'Travel', line: 'Your world, planned your way.' },
+  nutrition: { name: 'Nutrition', line: 'Your food, personalized to you.' },
+  dating: { name: 'Matchmaking', line: 'Your connection, intelligently matched.' },
+  entertainment: { name: 'Entertainment', line: 'Your world of things you love.' },
+  jobs: { name: 'Jobs', line: 'Your career, your next move.' },
+  medical: { name: 'Medical', line: 'Your health, all in one place.' },
+  financial: { name: 'Financial', line: 'Your money, working toward your goals.' },
+  realestate: { name: 'Real Estate', line: 'Your perfect space, found for you.' },
+  fitness: { name: 'Fitness', line: 'Your body. Your goals. Your journey.' },
+  beauty: { name: 'Beauty', line: 'Your look, your way.' },
+  social: { name: 'Social Life', line: 'Your people. Your communities. Your world.' },
+  astrology: { name: 'Astrology', line: 'Your stars. Your journey. Your timing.' },
+  ecommerce: { name: 'E-Commerce', line: 'Everything you need, curated for you.' },
+};
+
 interface Panel { key: HubKey | 'ecommerce'; img: string; }
 const PANELS: Panel[] = [
   { key: 'travel', img: 'travel-hub.webp' },
@@ -160,8 +190,9 @@ export function Home() {
           {PANELS.map((p, panelIndex) => {
             const cfg = p.key === 'ecommerce' ? null : HUBS[p.key];
             const soon = !cfg || cfg.items.length === 0;   // a hub with no inner pages is not yet a room
-            const name = cfg ? cfg.name : 'E-Commerce';
-            const tag = cfg ? cfg.tag : 'Vetted products. Only the best.';
+            const copy = DISTRICT_COPY[p.key];
+            const name = copy?.name ?? (cfg ? cfg.name : 'E-Commerce');
+            const tag = copy?.line ?? (cfg ? cfg.name : 'Vetted products. Only the best.');
             const to = cfg ? (cfg.items[0]?.path ?? cfg.backPath) : null;
             const inner = (
               <>
@@ -182,7 +213,7 @@ export function Home() {
                     <h2>{name}</h2>
                     <p>{tag}</p>
                   </div>
-                  <span className="hub-plate-cta">{soon ? 'Coming soon' : <>Explore now<span aria-hidden> →</span></>}</span>
+                  <span className="hub-plate-cta">{soon ? 'Coming soon' : 'Explore'}</span>
                 </div>
               </>
             );
