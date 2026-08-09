@@ -42,6 +42,67 @@ export const HUB_HERO: Partial<Record<HubKey, string>> = {
 };
 
 /**
+ * THE CITY'S STREET-LEVEL LINES (owner's master list).
+ *
+ * One sentence per hub, the one its billboard says. It lives beside the art
+ * maps because the landing and the home districts must speak the SAME line —
+ * two copies of a sentence is how a hub ends up promising two things.
+ */
+export const HUB_LINE: Partial<Record<HubKey, string>> = {
+  travel: 'Your world, planned your way.',
+  nutrition: 'Your food, personalized to you.',
+  dating: 'Your connection, intelligently matched.',
+  entertainment: 'Your world of things you love.',
+  jobs: 'Your career, your next move.',
+  medical: 'Your health, all in one place.',
+  financial: 'Your money, working toward your goals.',
+  realestate: 'Your perfect space, found for you.',
+  fitness: 'Your body. Your goals. Your journey.',
+  beauty: 'Your look, your way.',
+  social: 'Your people. Your communities. Your world.',
+  astrology: 'Your stars. Your journey. Your timing.',
+};
+
+/**
+ * SET ONE SENTENCE THE WAY A POSTER WOULD (owner's reference, 9 Aug).
+ *
+ * The reference is an editorial poster: a few small words, one enormous light
+ * word carrying the meaning, a quieter tail. The rule here is deterministic
+ * rather than hand-written per hub — the LONGEST word of the hub's line is the
+ * one the eye should land on, which for these lines is always the word that
+ * means something ('career', 'personalized', 'communities'). No copy is
+ * invented and no hub needs its own layout.
+ *
+ * The reference tints its hero word. This city cannot: every accent it owns is
+ * near-black, because the ground is white everywhere else. So the emphasis is
+ * carried by weight and size instead — which is the same sentence Relief
+ * speaks on every other screen.
+ */
+export function setLine(line: string): { before: string[]; hero: string; after: string[] } {
+  const words = line.trim().split(/\s+/).filter(Boolean);
+  if (words.length < 3) return { before: [], hero: words.join(' '), after: [] };
+  const bare = (w: string) => w.replace(/[^A-Za-z]/g, '');
+  let heroAt = 0;
+  words.forEach((w, i) => { if (bare(w).length > bare(words[heroAt]).length) heroAt = i; });
+  return { before: words.slice(0, heroAt), hero: words[heroAt], after: words.slice(heroAt + 1) };
+}
+
+/**
+ * PORTRAIT ART — one poster per hub, shaped like a phone (9:19.5), with the
+ * hub's own name and line painted into the picture by the sign-painter.
+ *
+ * A hub landing on a phone is a threshold you arrive at, and these are built
+ * to BE that screen rather than to sit inside it. Only hubs whose poster
+ * exists are listed; anything unlisted falls back to the landscape hero, so a
+ * missing file is a plainer landing, never an empty frame.
+ */
+export const HUB_PORTRAIT: Partial<Record<HubKey, string>> = {
+  // Empty until the 9:19.5 posters are on disk. A hub is added here the day
+  // its file arrives — the relief guard checks every entry against
+  // public/assets/img, so this map cannot promise a picture that isn't there.
+};
+
+/**
  * One component that renders every hub's landing page from config — the vanilla
  * site had 12 near-identical hub homepages; here it's a single data-driven page.
  *
@@ -85,6 +146,55 @@ export function HubLanding({ hub }: { hub: HubKey }) {
      in a case — a stage, built for the amber reference and then the gradient
      one. It went with the atmosphere when the city turned black and white,
      and the hub takes the same plate as the other twenty-four. */
+  /* ON A PHONE THE LANDING IS THE POSTER.
+     The desktop plate plays a photograph inside a cased card with a foot
+     beneath it — right for a desk, and on a phone it left a 9:19.5 poster
+     boxed in the middle of the screen with furniture around it. These images
+     are the shape of the screen and carry the hub's name and line themselves,
+     so here they ARE the screen: full bleed, and the only thing we add is the
+     line and the door. Decided at mount, like every other phone branch. */
+  const phone = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
+  if (phone) {
+    const poster = HUB_PORTRAIT[hub];
+    return (
+      <HubConsentGate hub={hub}>
+        <div className={`hposter${poster ? '' : ' is-wide'}`}>
+          <img className="no-case" src={poster ? `/assets/img/${poster}` : heroSrc} alt="" />
+          <div className="hposter-foot">
+            <span className="hp-mark">Together<br />City</span>
+            {(() => {
+              const { before, hero, after } = setLine(HUB_LINE[hub] ?? cfg.tag);
+              // The longest word of the small opening run is set in the serif
+              // italic — the reference's one flourish, and this app's only
+              // second typeface.
+              let flourishAt = -1;
+              before.forEach((w, i) => {
+                if (flourishAt < 0 || w.length > before[flourishAt].length) flourishAt = i;
+              });
+              return (
+                <p className="hp-line">
+                  {before.length > 0 && (
+                    <span className="hp-before">
+                      {before.map((w, i) => (
+                        <span key={i} className={i === flourishAt ? 'hp-flourish' : undefined}>{w} </span>
+                      ))}
+                    </span>
+                  )}
+                  <span className="hp-hero">{hero}</span>
+                  {after.length > 0 && (
+                    <span className="hp-after">
+                      <b>{after[0]}</b>{after.length > 1 ? ` ${after.slice(1).join(' ')}` : ''}
+                    </span>
+                  )}
+                </p>
+              );
+            })()}
+            <Link to={firstInner} className="hposter-cta">Explore<span aria-hidden> →</span></Link>
+          </div>
+        </div>
+      </HubConsentGate>
+    );
+  }
   return (
     <HubConsentGate hub={hub}>
       <div className="hub-stage">

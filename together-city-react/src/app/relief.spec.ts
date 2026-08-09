@@ -679,13 +679,32 @@ describe('Relief stays a system', () => {
     const routed = [...new Set([...read('src/app/router.tsx')
       .matchAll(/HubLanding hub="([a-z]+)"/g)].map((m) => m[1]))];
     expect(routed.length).toBeGreaterThan(10);
-    const map = Object.fromEntries(
-      [...page.matchAll(/^\s*([a-z]+):\s*'([^']+\.webp)'/gm)].map((m) => [m[1], m[2]]),
-    );
-    const missing = routed
-      .map((h) => [h, map[h] ?? `${h}.webp`] as const)
-      .filter(([, file]) => !existsSync(join(APP, 'public/assets/img', file)))
-      .map(([h, file]) => `${h} → ${file}`);
+    // TWO MAPS LIVE IN THIS FILE NOW — the landscape hero every landing falls
+    // back to, and the phone poster a hub may also have. Read as one blob they
+    // merge, the later entry silently winning, so this guard would check the
+    // wrong file for every hub that has both. Each map is read on its own, and
+    // BOTH are checked: a hero for every routed hub, and a poster for every hub
+    // that claims one.
+    const mapNamed = (name: string): Record<string, string> => {
+      const at = page.indexOf(`export const ${name}`);
+      if (at < 0) return {};
+      const body = page.slice(at, page.indexOf('};', at));
+      return Object.fromEntries(
+        [...body.matchAll(/^\s*([a-z]+):\s*'([^']+\.webp)'/gm)].map((m) => [m[1], m[2]]),
+      );
+    };
+    const heroes = mapNamed('HUB_HERO');
+    const posters = mapNamed('HUB_PORTRAIT');
+    const onDisk = (file: string) => existsSync(join(APP, 'public/assets/img', file));
+    const missing = [
+      ...routed
+        .map((h) => [h, heroes[h] ?? `${h}.webp`] as const)
+        .filter(([, file]) => !onDisk(file))
+        .map(([h, file]) => `hero ${h} → ${file}`),
+      ...Object.entries(posters)
+        .filter(([, file]) => !onDisk(file))
+        .map(([h, file]) => `poster ${h} → ${file}`),
+    ];
     expect(missing).toEqual([]);
   });
 

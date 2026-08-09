@@ -871,3 +871,76 @@ table.tc td b { color: var(--ink); }
   }
   .csback:active { background: rgba(255,255,255,.12); }
 }
+
+/* ---- On a phone the hub landing is the poster (9 Aug) ----
+   The art is the shape of the screen (9:19.5) and already carries the hub's
+   name and line, painted into the picture. So the picture IS the screen: full
+   bleed between the header and the floating dock, nothing boxed, nothing
+   cropped worth speaking of. All we add is the hub's line and the door, on a
+   blur that rises from the foot and fades to nothing — the same weather the
+   districts wear, so the city speaks one language. */
+@media (max-width: 899px) {
+  .hposter {
+    position: relative; overflow: hidden; background: rgba(0,0,0,1);
+    border-radius: 0;
+    /* The poster runs to the bottom EDGE and the floating dock rides over it —
+       the way a phone shows a poster. Stopping above the dock cost 92px of a
+       9:19.5 picture, which is a sixth of it, cropped for furniture. */
+    height: calc(100dvh - var(--header-h) - var(--safe-top));
+  }
+  .hposter img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* A hub still waiting on its portrait poster: its landscape building is
+     shown full-bleed and centred rather than letterboxed into a strip. These
+     are centred elevations, so a tall crop still reads as the building. */
+  .hposter.is-wide img { object-fit: cover; object-position: center; }
+  .hposter::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 46%;
+    pointer-events: none;
+    -webkit-backdrop-filter: blur(18px) saturate(1.1);
+    backdrop-filter: blur(18px) saturate(1.1);
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.34) 50%, rgba(0,0,0,.68) 100%);
+    -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 55%);
+    mask-image: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 55%);
+  }
+  .hposter-foot {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 14px;
+    /* clear of the floating dock, which is 58px + its own 10px inset */
+    padding: 0 20px calc(var(--safe-bottom) + 96px);
+  }
+  /* THE POSTER SETS ONE SENTENCE (owner's editorial reference).
+     Small opening run, one enormous light word, a quieter tail — the emphasis
+     carried by weight and scale, because this city's accents are near-black
+     and a photograph is the only dark ground it has. */
+  .hp-mark {
+    font-size: 10px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase;
+    line-height: 1.35; color: rgba(255,255,255,.66); margin-bottom: 4px;
+  }
+  .hp-line { margin: 0; text-shadow: 0 1px 14px rgba(0,0,0,.5); }
+  .hp-before {
+    display: block; font-size: 19px; font-weight: 500; letter-spacing: -.01em;
+    color: rgba(255,255,255,.94);
+  }
+  .hp-flourish { font-family: var(--serif); font-style: italic; font-weight: 400; }
+  .hp-hero {
+    display: block; margin: -2px 0 -4px -3px;
+    font-size: clamp(52px, 15vw, 68px); line-height: .94;
+    font-weight: 300; letter-spacing: -.035em;
+    color: rgba(255,255,255,.99);
+  }
+  .hp-after {
+    display: block; font-size: 19px; font-weight: 400; letter-spacing: -.01em;
+    color: rgba(255,255,255,.62);
+  }
+  .hp-after b { font-weight: 700; color: rgba(255,255,255,.96); }
+  .hposter-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 48px; padding: 0 24px; border-radius: 14px;
+    font-size: 14px; font-weight: 600; text-decoration: none;
+    color: rgba(255,255,255,.98); background: rgba(18,18,20,.9);
+    border: 1px solid rgba(255,255,255,.12);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+  }
+  .hposter-cta:active { transform: scale(.985); }
+}
