@@ -876,11 +876,21 @@ img[src$=".svg"], .no-case {
   /* 1800 is the art's own width. Past that the picture is being upscaled and
      the line length of the tag stops being readable, so the plate stops. */
   width: 100%; max-width: 1800px;
-  background: var(--face-tall);
   border-radius: clamp(28px, 3vw, 44px);
   box-shadow: var(--e3);
-  padding: clamp(16px, 1.8vw, 30px);
   animation: hubPlateIn .5s var(--ease) both;
+  /* ── EDITORIAL, EVERYWHERE THE PLATE APPEARS ─────────────────────────────
+     The billboard treatment shipped on the homepage districts first, scoped,
+     with the landing kept as a cased picture "because a threshold you arrive
+     at on purpose is a different shape". The owner looked at both and chose
+     one shape for both — and the argument holds: the landing IS a billboard,
+     it is simply one you are already standing under. So the case collapses
+     here too: no padding, the photograph runs to the plate's own rim, and
+     the words stand on the scrim. Everything below is shared by the
+     homepage's thirteen plates and every hub's landing; .district-plate
+     keeps only its own aspect ratio and link behaviour. */
+  position: relative; overflow: hidden; background: var(--well);
+  padding: 0;
 }
 @media (prefers-reduced-motion: reduce) { .hub-plate { animation: none; } }
 @keyframes hubPlateIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
@@ -889,11 +899,8 @@ img[src$=".svg"], .no-case {
    global image case, so it lands at the plate's radius instead of 1px inside
    somebody else's. */
 .hub-plate-art {
-  position: relative; border-radius: clamp(18px, 2vw, 26px);
-  background: var(--well); box-shadow: var(--carve-deep);
-  /* The picture is clipped by the well, and the well is what casts. Padding of
-     zero with overflow hidden would put the image ON the recess; this puts it
-     IN it. */
+  position: relative; border-radius: 0;
+  background: none; box-shadow: none;
   overflow: hidden;
 }
 /* 1800 × 800 — the shape the artwork is delivered in, so nothing is cropped
@@ -905,18 +912,11 @@ img[src$=".svg"], .no-case {
 .hub-plate-art img {
   display: block; width: 100%; aspect-ratio: 9 / 4; object-fit: cover;
   max-height: min(800px, 58vh);
-  border-radius: inherit;
+  border-radius: 0;
 }
 .hub-plate-art::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  /* Over the picture, because an inset shadow paints behind a replaced element
-     and would be invisible here. Deeper at the top than the bottom: light in
-     this system comes from above, so the top of a recess is the shaded edge and
-     the bottom is the lit lip. That asymmetry is the whole 3D read. */
-  box-shadow:
-    var(--case-rim),
-    inset 0 -1px 0 rgba(255,255,255,.30),
-    inset 0 -10px 18px -12px rgba(255,255,255,.22);
+  box-shadow: var(--case-rim-soft);
 }
 
 .hub-plate-foot {
@@ -1020,65 +1020,51 @@ img[src$=".svg"], .no-case {
 
    Scoped to .district-plate: the per-hub landing keeps its cased picture,
    which is the right shape for a threshold you arrive at on purpose. */
-.district-plate {
-  display: block; color: inherit; text-decoration: none; animation: none;
-  position: relative;
-  /* the case collapses: the photograph fills the plate to its own rim */
-  padding: 0; overflow: hidden; background: var(--well);
-}
-.district-plate .hub-plate-art {
-  border-radius: 0; box-shadow: none; background: none;
-}
-.district-plate .hub-plate-art img {
-  aspect-ratio: 21 / 9; max-height: min(620px, 52vh); border-radius: 0;
-}
-.district-plate .hub-plate-art::after { box-shadow: var(--case-rim-soft); }
-/* the scrim: strongest at the left edge, gone before the picture's centre-right */
-.district-plate::before {
+/* the scrim: strongest at the left edge, gone before the picture's centre-right.
+   Stops set from the measured pass, not by eye — see the billboard commit. */
+.hub-plate::before {
   content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   border-radius: inherit;
-  /* stops set from the measured pass, not by eye: the first cut left four
-     eyebrows at 4.1–4.5:1 where their letterspaced caps ran into the fade
-     over a bright patch. The mid-stops deepen and the fade starts later;
-     the right third of every photograph stays untouched. */
   background: linear-gradient(90deg,
     var(--scrim-deep) 0%, rgba(0,0,0,.60) 36%, rgba(0,0,0,.38) 58%, var(--scrim-clear) 82%);
 }
-.district-plate .hub-plate-foot {
+.hub-plate-foot, .hub-plate .hub-plate-foot {
   position: absolute; inset: 0; z-index: 2;
   display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
   gap: 0; padding: 0 clamp(22px, 4.5vw, 84px);
   max-width: 62ch;
 }
-/* the badge was furniture for a foot bar; a billboard needs no icon */
-.district-plate .hub-plate-icon { display: none; }
-.district-plate .hub-plate-said { display: flex; flex-direction: column-reverse; }
+.hub-plate .hub-plate-icon { display: none; }
+.hub-plate .hub-plate-said { display: flex; flex-direction: column-reverse; }
 /* the tag becomes the eyebrow — above the name, in the city's caps */
-.district-plate .hub-plate-said p {
+.hub-plate .hub-plate-said p {
   margin: 0 0 clamp(10px, 1.2vw, 16px);
   max-width: 34ch; /* letterspaced caps run wide; keep them inside the scrim's deep zone */
   font-size: clamp(10.5px, 1vw, 13px); font-weight: 700;
   letter-spacing: .3em; text-transform: uppercase;
   color: rgba(255,255,255,.92);
 }
-.district-plate .hub-plate-said h2 {
+.hub-plate .hub-plate-said h1,
+.hub-plate .hub-plate-said h2 {
   margin: 0;
   font-size: clamp(34px, 5.4vw, 88px); line-height: .98;
   font-weight: 750; letter-spacing: -.025em;
   color: #ffffff;
-  /* the reference's letters sit IN the light; one soft fall keeps them
-     readable across the scrim's fade without a second box being drawn */
   text-shadow: 0 2px 18px rgba(0,0,0,.35);
 }
 /* the one lit object on the photograph is the thing you press — var(--card),
-   not a literal: the surface guard exists precisely because a hardcoded white
-   follows nothing, and this file has been burned by that before */
-.district-plate .hub-plate-cta {
+   not a literal: a hardcoded white follows nothing, and two dark hubs pass
+   through this same rule on their landings */
+.hub-plate .hub-plate-cta {
   margin-top: clamp(18px, 2.2vw, 30px);
   background: var(--card); color: var(--ink);
   box-shadow: var(--e1);
   -webkit-backdrop-filter: none; backdrop-filter: none;
 }
+
+/* ── what stays the DISTRICT'S own: its shape and its link behaviour ── */
+.district-plate { display: block; color: inherit; text-decoration: none; animation: none; }
+.district-plate .hub-plate-art img { aspect-ratio: 21 / 9; max-height: min(620px, 52vh); }
 .district-plate:hover { box-shadow: var(--e3), 0 30px 70px rgba(0,0,0,.06); }
 .district-plate:hover .hub-plate-cta { box-shadow: var(--e2); }
 @media (hover: hover) and (pointer: fine) {
