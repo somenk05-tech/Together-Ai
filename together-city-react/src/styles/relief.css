@@ -1020,8 +1020,43 @@ img[src$=".svg"], .no-case {
 
    Scoped to .district-plate: the per-hub landing keeps its cased picture,
    which is the right shape for a threshold you arrive at on purpose. */
-/* the scrim: strongest at the left edge, gone before the picture's centre-right.
-   Stops set from the measured pass, not by eye — see the billboard commit. */
+/* ── AND THEN THE WORDS STEPPED BACK OFF THE PICTURE ─────────────────────
+   Everything above is the argument for writing on the photograph, and the
+   owner watched it run live on the real commissioned art before ruling
+   against it. Three instructions, 10 Aug: drop the hub's name, drop the dark
+   gradient, and take the sensibility from a fashion banner — clean image,
+   small type, one rectangular button, a lot of air.
+
+   THE NAME WENT BECAUSE THE BUILDING ALREADY WEARS IT. Every hero in the new
+   batch has the hub painted across its facade in a sign-painter's own type.
+   Setting TRAVEL in ours beside a building that says TRAVEL HUB is not a
+   headline, it is a stutter.
+
+   THE GRADIENT WENT WITH IT, and this is the part worth writing down: a scrim
+   is not decoration, it is RENT — you dim somebody's whole photograph so a
+   few words can survive on top of it. Once the words are gone the rent has
+   nothing to buy. And it cannot simply be softened: the reference works
+   because its photograph was shot with a plain wall to write on, and these
+   were shot dense to all four edges. Both versions were mocked on the real
+   Travel and Astrology plates; with the scrim gone the white line dissolved
+   into Astrology's lit marble. There is no version where the type stays on
+   these pictures and the gradient goes.
+
+   So the picture is left completely alone — no name, no scrim, no overlay of
+   any kind — and the line and the button move under it onto the plate's own
+   paper. Which is, in the end, the reference's actual sensibility: not "text
+   on an image" but restraint.
+
+   SCOPED ≥900px. Below that the phone keeps the frosted band from `The
+   districts wear glass` (index.css), which solves the same brief a different
+   way for a screen where a foot bar would cost a third of the plate. Two
+   answers, each one right for its own width. */
+/* The billboard's own rules stay HERE, outside the query, because the phone
+   still builds on them: `The districts wear glass` positions its band by
+   setting `inset: auto 0 0 0` on this foot and takes `position: absolute`
+   from this rule. Moving it inside the desktop query silently unpinned the
+   phone foot — the blur band stayed put and the white line landed underneath
+   it on grey. Caught in the harness, not in review. */
 .hub-plate::before {
   content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   border-radius: inherit;
@@ -1034,12 +1069,12 @@ img[src$=".svg"], .no-case {
   gap: 0; padding: 0 clamp(22px, 4.5vw, 84px);
   max-width: 62ch;
 }
+/* The badge went when the plate became a picture, at every width — the phone
+   card has no room for it and the desktop foot has no use for it. Global, not
+   desktop-only: the phone rules never hid it themselves, they inherited this. */
 .hub-plate .hub-plate-icon { display: none; }
-.hub-plate .hub-plate-said { display: flex; flex-direction: column-reverse; }
-/* the tag becomes the eyebrow — above the name, in the city's caps */
 .hub-plate .hub-plate-said p {
-  margin: 0 0 clamp(10px, 1.2vw, 16px);
-  max-width: 34ch; /* letterspaced caps run wide; keep them inside the scrim's deep zone */
+  margin: 0 0 clamp(10px, 1.2vw, 16px); max-width: 34ch;
   font-size: clamp(10.5px, 1vw, 13px); font-weight: 700;
   letter-spacing: .3em; text-transform: uppercase;
   color: rgba(255,255,255,.92);
@@ -1049,22 +1084,63 @@ img[src$=".svg"], .no-case {
   margin: 0;
   font-size: clamp(34px, 5.4vw, 88px); line-height: .98;
   font-weight: 750; letter-spacing: -.025em;
-  color: #ffffff;
+  color: rgba(255,255,255,1);
   text-shadow: 0 2px 18px rgba(0,0,0,.35);
 }
-/* the one lit object on the photograph is the thing you press — var(--card),
-   not a literal: a hardcoded white follows nothing, and two dark hubs pass
-   through this same rule on their landings */
-.hub-plate .hub-plate-cta {
-  margin-top: clamp(18px, 2.2vw, 30px);
-  background: var(--card); color: var(--ink);
-  box-shadow: var(--e1);
-  -webkit-backdrop-filter: none; backdrop-filter: none;
+
+@media (min-width: 900px) {
+  .hub-plate::before { content: none; }
+  .hub-plate-foot, .hub-plate .hub-plate-foot {
+    position: static; inset: auto; z-index: auto;
+    display: flex; flex-direction: row; align-items: center; justify-content: space-between;
+    gap: clamp(24px, 3vw, 56px); max-width: none;
+    padding: clamp(22px, 2.2vw, 34px) clamp(24px, 2.6vw, 44px);
+    background: var(--card);
+  }
+  /* The name stays in the document for the citizen who cannot see the
+     building — a screen reader gets the heading, and on the homepage it is
+     also the accessible name of the link. Hiding it with `display: none`
+     would take it from them too. */
+  .hub-plate .hub-plate-said { display: block; min-width: 0; }
+  .hub-plate .hub-plate-said h1,
+  .hub-plate .hub-plate-said h2 {
+    position: absolute; width: 1px; height: 1px; margin: -1px;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .hub-plate .hub-plate-said p {
+    margin: 0; max-width: 62ch;
+    font-size: clamp(16px, 1.3vw, 20px); font-weight: 400; line-height: 1.5;
+    letter-spacing: 0; text-transform: none;
+    color: var(--ink-soft);
+  }
+  /* Rectangular, not a pill, and filled rather than frosted — the reference's
+     one solid object. It sits on paper now, so the glass it used to need to
+     separate itself from a photograph is doing nothing here. */
+  .hub-plate .hub-plate-cta {
+    flex: 0 0 auto; margin-top: 0;
+    border-radius: var(--r-1);
+    background: var(--ink); color: var(--card);
+    box-shadow: var(--e1);
+    font-size: 12px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  .hub-plate .hub-plate-cta span[aria-hidden] { display: none; }
+  .hub-plate .hub-plate-cta:hover { background: var(--ink-soft); color: var(--card); }
+  .hub-plate .hub-plate-cta:active { background: var(--ink); }
 }
 
 /* ── what stays the DISTRICT'S own: its shape and its link behaviour ── */
 .district-plate { display: block; color: inherit; text-decoration: none; animation: none; }
-.district-plate .hub-plate-art img { aspect-ratio: 21 / 9; max-height: min(620px, 52vh); }
+.district-plate .hub-plate-art img {
+  aspect-ratio: 21 / 9; max-height: min(620px, 52vh);
+  /* THE CROP COMES OFF THE PAVEMENT, NOT OFF THE SIGN. The new heroes are
+     ~1.9:1 and every one of them is built the same way — the hub's name and
+     its list of services across the upper half, pavement and passers-by along
+     the bottom. A centred crop to 21:9 takes an equal bite off both, and the
+     bite off the top eats the name on Medical, Beauty, Financial and Jobs.
+     Anchoring high spends the whole crop on the pavement instead. */
+  object-position: 50% 26%;
+}
 .district-plate:hover { box-shadow: var(--e3), 0 30px 70px rgba(0,0,0,.06); }
 .district-plate:hover .hub-plate-cta { box-shadow: var(--e2); }
 @media (hover: hover) and (pointer: fine) {
