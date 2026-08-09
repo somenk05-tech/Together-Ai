@@ -103,6 +103,11 @@ export function ReelsView({ items, onOpenAuthor, hasNextPage, fetchNextPage, isF
 }
 
 function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenAuthor?: (handle: string) => void; muted: boolean; onToggleMute: () => void }) {
+  // Phone: the reel IS the screen — 9:16 full-bleed like every reels player.
+  // The action rail and caption move ONTO the video in white; desktop keeps
+  // the white-page card with the rail beside it. Mount-time matchMedia, the
+  // same pattern the sign-in backdrop and the poster walk use.
+  const phone = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
   const video = post.media.find((m) => m.kind === 'video');
   /**
    * Scroll mode is no longer only for videos, so it has to render what a post
@@ -184,7 +189,7 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
 
   const railBtn = (icon: ReactNode, label: string | undefined, onClick: () => void, key: string) => (
     <button key={key} type="button" onClick={onClick}
-      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+      style={{ background: 'none', border: 'none', cursor: 'pointer', color: phone ? '#fff' : 'var(--ink)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
       <span style={{ display: 'grid', placeItems: 'center', width: 28, height: 28 }}>{icon}</span>
       {label !== undefined && <span style={{ fontSize: 12, fontWeight: 600 }}>{label}</span>}
     </button>
@@ -195,7 +200,9 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
       {/* video card — sizes to the video's OWN aspect ratio (no letterboxing);
           capped by max height/width so it always fits the screen with room for
           the side rail and nav arrows. */}
-      <div style={{ position: 'relative', width: 'fit-content', height: 'fit-content', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)', background: '#000', borderRadius: 14, overflow: 'hidden', lineHeight: 0 }}>
+      <div style={phone
+        ? { position: 'relative', width: '100%', height: '100%', background: '#000', overflow: 'hidden', lineHeight: 0, display: 'grid', placeItems: 'center' }
+        : { position: 'relative', width: 'fit-content', height: 'fit-content', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)', background: '#000', borderRadius: 14, overflow: 'hidden', lineHeight: 0 }}>
         {video && (
           /*
             THE SRC IS NOT SET UNTIL THE REEL IS NEAR.
@@ -210,11 +217,15 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
           <video ref={vref} src={near ? video.url : undefined} poster={video.thumbUrl ?? undefined}
             muted={hasMusic ? true : muted} loop playsInline preload={near ? 'auto' : 'none'}
             onClick={togglePlay}
-            style={{ display: 'block', width: 'auto', height: 'auto', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)', minWidth: 260, minHeight: 200, background: 'var(--media-bg)' }} />
+            style={phone
+              ? { display: 'block', width: '100%', height: '100%', objectFit: 'contain', background: '#000' }
+              : { display: 'block', width: 'auto', height: 'auto', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)', minWidth: 260, minHeight: 200, background: 'var(--media-bg)' }} />
         )}
         {photo && (
           <img src={photo.url} alt="" loading="lazy"
-            style={{ display: 'block', width: 'auto', height: 'auto', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)' }} />
+            style={phone
+              ? { display: 'block', width: '100%', height: '100%', objectFit: 'contain', background: '#000' }
+              : { display: 'block', width: 'auto', height: 'auto', maxHeight: '82dvh', maxWidth: 'min(760px, 58vw)' }} />
         )}
         {!video && !photo && (
           /* A text post still deserves a screen of its own rather than being
@@ -237,7 +248,9 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
         </button>
 
         {/* action rail — OUTSIDE the video, to its right (Instagram web) */}
-        <div style={{ position: 'absolute', left: '100%', bottom: 4, marginLeft: 16, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
+        <div style={phone
+          ? { position: 'absolute', right: 10, bottom: 96, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }
+          : { position: 'absolute', left: '100%', bottom: 4, marginLeft: 16, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
           {railBtn(<HeartIcon filled={post.likedByMe} />, String(post.likes), () => like.mutate(post.id), 'like')}
           {railBtn(<CommentIcon />, String(post.comments), () => setCommentsOpen(true), 'comment')}
           {railBtn(<RepostIcon on={reposted} />, reposted ? 'Shared' : 'Repost', () => { if (!reposted) repost.mutate(post.id, { onSuccess: () => setReposted(true) }); }, 'repost')}
@@ -246,9 +259,11 @@ function Reel({ post, onOpenAuthor, muted, onToggleMute }: { post: Post; onOpenA
         </div>
 
         {/* author + caption — BELOW the video, left aligned (Instagram web) */}
-        <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 12, width: '100%', color: 'var(--ink)' }}>
+        <div style={phone
+          ? { position: 'absolute', left: 12, right: 64, bottom: 14, color: '#fff' }
+          : { position: 'absolute', top: '100%', left: 0, marginTop: 12, width: '100%', color: 'var(--ink)' }}>
           <button type="button" onClick={() => onOpenAuthor?.(post.author.handle)}
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: phone ? '#fff' : 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Avatar name={post.author.name} src={post.author.profileImage} />
             <span style={{ fontWeight: 700, fontSize: 14 }}>{post.author.handle}</span>
           </button>
