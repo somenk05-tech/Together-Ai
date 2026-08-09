@@ -821,151 +821,48 @@
    NO NEW TOKEN NAMES. Every name below already exists in :root; removing this
    block removes the entire treatment.                                       */
 [data-hub="astrology"] {
-  /* ── THE VELVET OBSERVATORY ──────────────────────────────────────────────
-     The photographs are retired. For a year the sky was a plate per room —
-     ember, veil, giant, rose, orb — each positioned by measurement so its
-     dark limb sat under the text. The owner's velvet reference replaces
-     atmosphere-by-photograph with atmosphere-by-absence: one soft olive
-     bloom in the dark, as if the observatory's lamp is lit somewhere behind
-     you. It cannot collide with a paragraph, because there is nothing in it
-     to collide; the plates stay in the tree (assets/img/sky/) for the day a
-     room wants a window again.
+  /* ── THE DAYLIGHT OBSERVATORY ────────────────────────────────────────────
+     The third sky this hub has worn, and the first that is nobody's
+     exception. The photographs needed a granted black ground; the velvet
+     needed the same grant for its void. Daylight is the city itself: white
+     paper, five depths, dark ink — so the ENTIRE night machinery left this
+     block (faces, lens tiles, ivory inks, wells, rims: all of it), the hub
+     returned its ground grant, and relief.spec's granted list is four for
+     the first time since the night shipped. A hub that can be beautiful in
+     the city's own light should not hold a permit it no longer uses.
 
-     THE SKY IS STILL A TOKEN — a gradient is a background-image like any
-     url(), so the whole mechanism (the shell ::before, the fixed layer, the
-     reduced-motion swap) survives unchanged. Only the picture changed. */
-  --sky-image: radial-gradient(52% 38% at 50% 30%, #3b3a2c 0%, #23241c 45%, rgba(10,11,8,0) 78%);
+     What remains is what any hub owns — its metal, and its weather:
+
+     THE GOLD DEEPENS for paper. #c9a468 was mixed for charcoal and washes
+     out on white; #7a5c38 reads 6.4:1 as ink and carries white at 5.5:1 as
+     a fill. One metal, two grounds — the same rule as medical's teal.
+
+     THE SKY IS A WHISPER. The same --sky-image mechanism that hung the
+     photographs and then the bloom now carries two breaths of warmth at the
+     top of the page — barely off-white, and load-bearing anyway: the
+     frosted tab glass needs SOMETHING behind it to bend, and pure white
+     gives a backdrop-filter nothing (the lesson social's ground-glass
+     taught). Bare dark ink stands on it everywhere at 17:1+. */
+  --accent:      #7a5c38;
+  --accent-ink:  #7a5c38;
+  --accent-soft: #f3ede2;
+  --accent-line: #e2d5bf;
+  --sky-image:
+    radial-gradient(60% 22% at 30% 0%, #f3ede2 0%, rgba(243,237,226,0) 70%),
+    radial-gradient(50% 18% at 78% 2%, #eef0f4 0%, rgba(238,240,244,0) 70%);
   --sky-pos: 50% 0;
   --sky-size: 100% 100%;
-  /* The pane: velvet glass — graphite lit from above. Over a bloom there is
-     nothing for a heavy blur to remove, so the tint and the top-light do the
-     whole job and the blur relaxes. */
-  --pane: linear-gradient(168deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 38%, rgba(255,255,255,0) 100%), rgba(24,25,21,.80);
-  --pane-blur: blur(18px) saturate(120%);
-  --pane-rim:
-    inset 0 0 0 1px rgba(255,255,255,.13),
-    inset 0 1px 0 rgba(255,255,255,.18),
-    inset 0 -1px 0 rgba(0,0,0,.35),
-    0 30px 60px rgba(0,0,0,.45);
-  /* Chrome is a lighter material than the panes it floats over — §12's rule
-     that a light translucent surface never stacks on another one. */
-  --chrome: rgba(10,11,8,.66);
-  --chrome-blur: blur(14px) saturate(140%);
-  /* Type on glass wants to be a step brighter than type on paper. */
-  --on-pane: #f3efe7;                       /* one ivory, pane and paper alike */
-  --on-pane-soft: rgba(243,239,231,.76);
-  /* ── Grounds. Soft charcoal, never pure black. ── */
-  /* Soft near-black with green in it — the velvet, not the void of space.
-     The card literal is the glass composited over the ground, kept solid
-     here because opaque surfaces still read it. */
-  --ground: #0a0b08;
-  --paper:  #0a0b08;
-  --card:   #23241f;
-  --wash:   #24251f;
-  --media-bg: #000000;
-
-  /* ── THE RAIL FOLLOWS THE ROOM. THE ORANGE DOES NOT. ──────────────────────
-     The lamp is the CITY's — the key you are on, orange, in all twenty-five
-     hubs — and it stays orange here. So does --on-accent, and so does the
-     black primary button. Those are the furniture, and re-lettering a signpost
-     per room is how a citizen has to learn the building twice.
-
-     The WELL the rail sits in is not furniture, it is wall, and it has to
-     follow: every label on the rail reads --ink, --ink-soft and --faint, the
-     same tokens the room re-points. Left white, the rail keeps a white
-     background under ivory text and the hub name disappears — the "Birth
-     Details" failure again, one panel to the left. The keys darken with it for
-     the reason the token above gives: white glass has nothing to bend on a
-     dark well and collapses to a pale rectangle.
-
-     White on the orange lamp is 4.7:1 and the lamp is unchanged, so its label
-     and its subtitle both keep working with no override anywhere. */
-  --rail-well: #0a0b08;
-  --rail-well-shadow: inset -1px 0 0 #33342c;
-  --lens-face: linear-gradient(168deg, rgba(255,255,255,.11) 0%, rgba(255,255,255,.04) 45%, rgba(255,255,255,.02) 100%), rgba(30,31,27,.85);
-  --lens: inset 0 0 0 1.5px rgba(255,255,255,.07),
-          inset 0 0 0 4px rgba(184,147,85,.10),
-          inset 0 8px 12px -8px rgba(0,0,0,.45),
-          inset 0 -10px 14px -7px rgba(255,255,255,.05),
-          0 1px 1px rgba(0,0,0,.30), 0 6px 16px rgba(0,0,0,.34), 0 18px 40px rgba(0,0,0,.30);
-  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.06),
-              inset 0 0 0 3px rgba(184,147,85,.08),
-              inset 0 6px 9px -7px rgba(0,0,0,.40),
-              inset 0 -8px 11px -6px rgba(255,255,255,.045),
-              0 1px 1px rgba(0,0,0,.28), 0 3px 8px rgba(0,0,0,.30);
-
-  /* ── Ink. Warm ivory, never pure white. Contrast on the ground above. ── */
-  --ink:      #f3efe7;   /* 12.4:1 */
-  --ink-soft: #e6e1d8;   /* 10.7:1 */
-  --muted:    #b9b2a8;   /*  6.7:1 — descriptions */
-  --faint:    #9d9892;   /* 4.6:1 on the velvet faces — the night hub's floor finally clears AA; labels and metadata ONLY all the same */
-  --line:     #3f4038;
-  --line-2:   #4b4c43;
-
-  /* ── Faces. Same construction, lit from above, in charcoal. ── */
-  --face:      linear-gradient(168deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.045) 40%, rgba(255,255,255,.02) 100%), rgba(30,31,27,.72);
-  --face-2:    linear-gradient(168deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.04) 42%, rgba(255,255,255,.02) 100%), rgba(32,33,28,.74);
-  --face-tall: linear-gradient(168deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.05) 45%, rgba(255,255,255,.02) 100%), rgba(29,30,26,.74);
-  --face-key:  linear-gradient(168deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.05) 45%, rgba(255,255,255,.02) 100%), rgba(33,34,29,.78);
-  --well:      linear-gradient(180deg, #14150f 0%, #191a14 58%, #1e1f18 100%);
-
-  /* ── The rim, inverted: the bright edge is the one doing the work now. ── */
-  /* the velvet rim: a hairline of light and a lit top edge — the reference's
-     cards are edged by light, not by darkness. */
-  --rim:        inset 0 0 0 1px rgba(255,255,255,.10), inset 0 1px 0 rgba(255,255,255,.15), inset 0 -1px 0 rgba(0,0,0,.32);
-  --rim-strong: inset 0 0 0 1px rgba(255,255,255,.13), inset 0 1.5px 0 rgba(255,255,255,.19), inset 0 -1.5px 0 rgba(0,0,0,.36);
-
-  /* ── The five depths. Same geometry, deeper shadow. ── */
-  --e1: var(--rim),        0 1px 1px rgba(0,0,0,.22), 0 2px 4px rgba(0,0,0,.24), 0 6px 13px rgba(0,0,0,.30);
-  --e2: var(--rim-strong), 0 1px 1px rgba(0,0,0,.24), 0 3px 6px rgba(0,0,0,.28), 0 11px 24px rgba(0,0,0,.38), 0 22px 48px rgba(0,0,0,.30);
-  --e3: var(--rim-strong), 0 2px 2px rgba(0,0,0,.26), 0 7px 14px rgba(0,0,0,.32), 0 20px 42px rgba(0,0,0,.42), 0 40px 88px rgba(0,0,0,.36);
-
-  --e1-key: var(--rim),        0 1px 1px rgba(0,0,0,.30), 0 2px 4px rgba(0,0,0,.32), 0 5px 10px rgba(0,0,0,.26);
-  --e2-key: var(--rim-strong), 0 2px 3px rgba(0,0,0,.34), 0 5px 10px rgba(0,0,0,.38), 0 10px 20px rgba(0,0,0,.30);
-
-  --carve:      inset 0 0 0 1px rgba(0,0,0,.40), inset 0 3px 6px rgba(0,0,0,.46), inset 0 -1px 0 rgba(255,255,255,.05), inset 3px 0 5px -3px rgba(0,0,0,.30), inset -3px 0 5px -3px rgba(0,0,0,.30);
-  --carve-deep: inset 0 0 0 1px rgba(0,0,0,.46), inset 0 4px 10px rgba(0,0,0,.55), inset 0 -1px 0 rgba(255,255,255,.05);
-  --press:      inset 0 0 0 1px rgba(0,0,0,.44), inset 0 3px 6px rgba(0,0,0,.50), 0 1px 0 rgba(255,255,255,.05);
-
-  --edge-up: 0 1px 0 rgba(255,255,255,.05);
-  --edge-in: inset 0 -1px 0 rgba(0,0,0,.30);
-
-  /* ── Brass, in the two jobs the design already separates.
-       --accent is a FILL and the contract on it is fixed city-wide: WHITE sits
-       on it (the pill, the step dot, the calendar's today). So it is the deep
-       bronze, which white reads on at 4.7:1 — bright gold as a fill would be
-       2.1:1 and the contract has no way to say otherwise.
-       --accent-ink is the same metal as TEXT on the charcoal, and THAT is the
-       antique gold the brief asks for: links, section labels, small accents.
-       --on-accent is deliberately NOT re-pointed. Every surface that reads it
-       is dark — the black primary button, the orange rail lamp, .tag.dark, the
-       media bar — so it stays white for all of them. ── */
-  --accent:      #8b6a42;
-  --accent-ink:  #c9a468;   /* 6.4:1 on the ground above */
-  --accent-soft: #322f26;   /* a wash on a night ground is dark, not near-white */
-  --accent-line: #6b5730;
-  --focus-ring: 0 0 0 3px rgba(184,147,85,.34);
-
-  /* ── Status. Inverted for a dark ground: the ink lightens so it can be read,
-       and the brief's own values become the hairline, where they are a fill
-       behind no words. A status that cannot be read is worse than one that is
-       not coloured — the rule does not change, only which end is light. ── */
-  --ok-ink: #8db395;     --ok-soft: #2c3a30;     --ok-line: #54765b;
-  --warn-ink: #d6ac72;   --warn-soft: #383026;   --warn-line: #a07a46;
-  --danger-ink: #d9908c; --danger-soft: #382a29; --danger-line: #8a4a48;
-  --info-ink: #9dbbcc;   --info-soft: #29323a;   --info-line: #4a6272;
-
-
 }
 
-/* NOTE ON THE TWO --faint VALUES ABOVE, CHANGED 7 Aug.
-   Astrology's was 4.43:1 and Nutrition's 3.32:1 against their own grounds —
-   both under AA, and Nutrition's comment had them recorded as 3.6:1, so the
-   number was known and the threshold was not applied to it. --faint is labels,
-   placeholders and timestamps: small text, which needs 4.5:1. The guard that
-   found them computes the ratio rather than reading a comment, so this cannot
-   drift back. Neither hue moved; both moved along their own hue until they
-   cleared. */
+/* NOTE ON THE TWO --faint VALUES, CHANGED 7 Aug (astrology's has since left
+   with the velvet — the daylight hub inherits the city's ink, with one scoped
+   handoff at the end of this file). Astrology's was 4.43:1 and Nutrition's
+   3.32:1 against their own grounds — both under AA, and Nutrition's comment
+   had them recorded as 3.6:1, so the number was known and the threshold was
+   not applied to it. --faint is labels, placeholders and timestamps: small
+   text, which needs 4.5:1. The guard that found them computes the ratio
+   rather than reading a comment, so this cannot drift back. Neither hue
+   moved; both moved along their own hue until they cleared. */
 
 /* ── SOCIAL LIFE IS GLASS, AND THAT NEEDS A GROUND TO BEND ─────────────────
    THE ARGUMENT IS NOT THE OTHER THREE'S. Nutrition, Astrology and
@@ -1443,4 +1340,21 @@
      shade cooler than paper, and the city grey measured 4.2:1 on them */
   --muted: #454545;
   --faint: #4d4d4d;
+}
+
+/* ── AND THE DAYLIGHT OBSERVATORY'S, FOR THE SAME REASON AT A LIGHTER
+   STOP. Astrology's whisper is nearly white, but "nearly" is exactly where
+   the two soft greys live: the city --muted measured 4.47:1 where the two
+   breaths overlap — three hundredths under AA, which is still under — and
+   the velvet used to re-point --faint, so returning the ground grant
+   uncovered the rail tagline standing on white at 2.78:1, the citywide
+   number this hub simply no longer got to skip. Both move along their own
+   greys until they clear the whisper's DENSEST blend (the harness samples
+   the worst pixel, not the average): #5f6368 at 5.07:1 and #63686d at
+   4.72:1 over it, both from the daylight sample that was measured before
+   it was liked. */
+[data-hub="astrology"] .tc-main,
+[data-hub="astrology"] .tc-side {
+  --muted: #5f6368;
+  --faint: #63686d;
 }

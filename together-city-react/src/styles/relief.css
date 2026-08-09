@@ -1897,92 +1897,79 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .tc-shell:has(.tc-side[data-side="dating"])::before { background-image: none; }
 }
 
-/* ══ THE ASTROLOGY SKY ═══════════════════════════════════════════════════
-   ONE BLOCK, THE WHOLE HUB. Every surface in Astrology Zone becomes a pane
-   over a photograph: the letter, the profile frame, the consultation room,
-   the tarot table. It is written once, against the classes those screens
-   already use, rather than six times inside six components — the same reason
-   the ground itself is a token and not a background on each page.
+/* ══ THE DAYLIGHT OBSERVATORY ════════════════════════════════════════════
+   THE THIRD SKY, AND THE SMALLEST. The photographs needed every surface
+   rebuilt as a pane over the picture; the velvet needed the night's whole
+   ink system. Daylight needs almost nothing, and that is the measure of it:
+   the hub's base rules in layout.css — the face-tall letter, the carve in
+   the profile frame, the drop cap, the city's own dark ink — ARE the
+   daylight look. So the pane rules, the on-pane inks and the chrome
+   re-points that stood here are DELETED rather than restyled, the base
+   rules take over unopposed, and the astro-frame's carve (suppressed on
+   glass, where it read as a scratch) simply comes back.
 
-   NOTHING HERE SETS A SIZE. Radii, padding and shadows geometry come from the
-   rules above; this changes what the surfaces are MADE OF and nothing else.
-
-   The values live in tokens.css. See --pane there for why the glass is
-   smoked rather than clear. */
-/* THE BODY HAS TO STOP PAINTING. index.css gives <body> an opaque
-   `background: var(--ground)`, and an opaque parent covers a z-index:-2 child
-   completely — the picture loads, decodes and is never seen. Found by
-   screenshotting the built rule, not by reading it. */
+   THE WHISPER IS LOAD-BEARING. What survives is the sky mechanism — the
+   same ::before, now hanging two pale breaths of warmth instead of a
+   photograph (tokens.css has the values) — and one new material: the
+   header, the rail and the mobile chips wear the milk glass medical's
+   chrome wears (--sheet + blur + --atmos-lip, all root tokens). Frosted
+   glass on PURE white has nothing to bend — social's ground-glass lesson —
+   and the whisper at the top of the page is what the blur catches. */
 [data-hub="astrology"] body { background: transparent; }
 .tc-shell:has(.tc-side[data-side="astrology"]) { position: relative; }
 .tc-shell:has(.tc-side[data-side="astrology"])::before {
   content: ''; position: fixed; inset: 0; z-index: -2;
   background: var(--sky-image) var(--sky-pos) / var(--sky-size) no-repeat;
   background-color: var(--ground);
-  /* No mask any more. The mask existed to fade a PHOTOGRAPH's hard right
-     edge into the ground; the velvet bloom is a gradient that ends by
-     itself, and half-erasing a centred glow just moves its centre. */
 }
-/* ONE BLOOM FOR EVERY ROOM. The room-per-screen plates retired with the
-   photographs (see the token block) — the lamp is the same lamp wherever
-   you stand, which is true of observatories. */
-/* The shells stop painting their own ground, or the picture is behind an
-   opaque page and nobody ever sees it. */
+/* The shells stop painting so the whisper reaches the page — the rule the
+   photographs needed, kept because it is the whole mechanism. */
 [data-hub="astrology"] .tc-shell,
 [data-hub="astrology"] .tc-main,
 [data-hub="astrology"] .page,
 [data-hub="astrology"] .ask-stage,
 [data-hub="astrology"] .tarot-night { background: transparent; }
 
-[data-hub="astrology"] .tc-header,
+/* THE FROSTED RAIL — the one thing the owner pointed at in the daylight
+   sample: "the tabs, can that be glass frosted." Same sheet, same blur
+   numbers as medical's chrome — two hubs, one material, zero new tokens.
+   Ink, lens tiles and the lamp stay the city's own; no override outranks
+   them (the lamp lesson, learned once). */
+[data-hub="astrology"] .tc-header {
+  background: var(--sheet);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  backdrop-filter: blur(24px) saturate(1.2);
+  border-bottom: 1px solid var(--sheet-line);
+}
 [data-hub="astrology"] .tc-side {
-  background: var(--chrome);
-  -webkit-backdrop-filter: var(--chrome-blur); backdrop-filter: var(--chrome-blur);
+  background: var(--sheet);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow: var(--atmos-lip);
+}
+[data-hub="astrology"] .hub-chips .chip {
+  background: var(--sheet);
+  border-color: var(--sheet-line);
+  color: var(--ink);
+  box-shadow: var(--atmos-lip);
 }
 
-/* THE PANES. Listed by name rather than caught by a wildcard: a wildcard
-   would take the tarot cards' own artwork and the profile's inputs with it. */
-[data-hub="astrology"] .letter-sky,
-[data-hub="astrology"] .astro-frame,
-[data-hub="astrology"] .ask-card,
-[data-hub="astrology"] .tarot-frame,
-[data-hub="astrology"] .card {
-  background: var(--pane);
-  box-shadow: var(--pane-rim);
-  -webkit-backdrop-filter: var(--pane-blur); backdrop-filter: var(--pane-blur);
-}
-/* The inner carve is a paper detail — on glass it reads as a scratch. */
-[data-hub="astrology"] .astro-frame::before { box-shadow: none; }
-
-[data-hub="astrology"] .letter-p { color: var(--on-pane); }
-[data-hub="astrology"] .letter-open,
-[data-hub="astrology"] .letter-sign { color: var(--on-pane-soft); }
-
-/* ── AND THE THREE PREFERENCES THIS OWES ─────────────────────────────────
-   A full-viewport photograph under three blurred surfaces is the exact case
-   these exist for, and the codebase handled none of them before this hub had
-   a sky. They ship WITH it, not after it. */
+/* Glass, asked to stop being glass. The cards no longer need an entry here:
+   they are paper again, and paper already answers both preferences. */
 @media (prefers-reduced-transparency: reduce) {
   [data-hub="astrology"] .tc-header,
   [data-hub="astrology"] .tc-side,
-  [data-hub="astrology"] .letter-sky,
-  [data-hub="astrology"] .astro-frame,
-  [data-hub="astrology"] .ask-card,
-  [data-hub="astrology"] .tarot-frame,
-  [data-hub="astrology"] .card {
+  [data-hub="astrology"] .hub-chips .chip {
     background: var(--card);
     -webkit-backdrop-filter: none; backdrop-filter: none;
   }
   .tc-shell:has(.tc-side[data-side="astrology"])::before { background-image: none; }
 }
 @media (prefers-contrast: more) {
-  [data-hub="astrology"] .letter-sky,
-  [data-hub="astrology"] .astro-frame,
-  [data-hub="astrology"] .ask-card,
-  [data-hub="astrology"] .tarot-frame,
-  [data-hub="astrology"] .card {
-    background: var(--ground);
-    box-shadow: inset 0 0 0 1.5px var(--line-2);
+  [data-hub="astrology"] .tc-header,
+  [data-hub="astrology"] .tc-side,
+  [data-hub="astrology"] .hub-chips .chip {
+    background: var(--card);
     -webkit-backdrop-filter: none; backdrop-filter: none;
   }
   .tc-shell:has(.tc-side[data-side="astrology"])::before { background-image: none; }
