@@ -889,10 +889,14 @@ table.tc td b { color: var(--ink); }
     height: calc(100dvh - var(--header-h) - var(--safe-top));
   }
   .hposter img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  /* A hub still waiting on its portrait poster: its landscape building is
-     shown full-bleed and centred rather than letterboxed into a strip. These
-     are centred elevations, so a tall crop still reads as the building. */
-  .hposter.is-wide img { object-fit: cover; object-position: center; }
+  /* A hub still waiting on its 9:19.5 poster shows its landscape building
+     WHOLE, at the top of the screen, with the type in the dark below it. A
+     tall crop of a wide picture cut the hub's own sign in half ("ASTRO ZO"),
+     and this city does not cut its buildings. The day a poster lands, that
+     hub joins HUB_PORTRAIT and fills the screen instead. */
+  .hposter.is-wide { background: rgba(10,10,11,1); }
+  .hposter.is-wide img { object-fit: contain; object-position: center top; }
+  .hposter.is-wide::after { height: 34%; }
   .hposter::after {
     content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 46%;
     pointer-events: none;
