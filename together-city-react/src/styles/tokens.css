@@ -419,71 +419,42 @@
   --soft-out: 8px 10px 22px rgba(0,0,0,.55), -2px -2px 8px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.14);
   --soft-tile: inset 3px 3px 8px rgba(9,10,12,.40), inset -3px -3px 8px rgba(255,255,255,.06);
 
-  /* ── THE MEDICAL ATMOSPHERE ──────────────────────────────────────────────
-     Amber air with white steam drifting through it, from the owner's
-     reference. A STAGE, not a ground: Medical is not one of the five granted
-     hubs, so --ground/--paper/--card are untouched — the atmosphere is a
-     surface laid over the shell, exactly the trade the chat stage and
-     CookMode's theatre made. Navigate away and the city is still white.
+  /* ── MEDICAL: GRADIENT AS ENVIRONMENT ────────────────────────────────────
+     The owner's third medical reference, and the one that made the system
+     SMALLER. A cool out-of-focus field — blue into silver, one warm ember
+     held at the corner — with a LIGHT frosted sheet carrying the city's own
+     dark ink. The amber looks needed a white-ink handoff, a paper reset
+     list and ghost-tinted washes; a light sheet needs none of that. Two
+     darkened greys (the .tc-main handoff below) are the entire ink system
+     this look asks for.
 
-     THE GLASS IS SMOKED, AND THE TINT IS A MEASUREMENT, NOT A TASTE. The
-     reference's clear glass over a white plume measured 1.23:1 — white type
-     on white steam, which is the reference's own defect. Where the plume
-     missed a panel the identical glass measured 6.1:1: the glass was never
-     the problem, the plume passing BEHIND TEXT was. Smoking the pane with
-     dark amber compresses whatever drifts past into a narrow band — the
-     steam still visibly moves through the panel, but as a glow, never as a
-     white field behind a word.
-
-     TWO DENSITIES, and the difference is whether the pane carries prose.
-     Under the brightest steam the ground behind the regular pane composites
-     to ~rgb(134,121,111), on which even pure white is 4.4:1 — so a light
-     pane can carry a CHIP (a glance) but not a paragraph. Prose gets the
-     dense pane. A test computes both floors from these very values.
-
-     THE STEAM ITSELF is drawn (feTurbulence in the hub's own SVG), not
-     photographed: the reference photograph is one crop that is correct at
-     exactly one viewport, and the drawn plume has fractal edges at every
-     size for zero bytes. */
+     THE EMBER STAYS AT THE CORNER. A light sheet leans on what is behind
+     it: over silver it is nearly paper, over the purple shoulder it is the
+     darkest ground text here ever stands on, and that worst case — every
+     stop of this field, under the sheet — is computed by
+     the-atmosphere-holds-its-ink.test.ts from these very literals. */
   --atmos:
-    radial-gradient(120% 90% at 88% 0%, #dfa348 0%, transparent 46%),
-    radial-gradient(90% 70% at 72% 12%, #c8802a 0%, transparent 60%),
-    linear-gradient(158deg, #9d5512 0%, #592e09 58%, #422306 100%);
-  /* The work pages' air — the SAME sunrise as the landing now, with wisps.
-     The first shipped cut quieted this sky to near-mud because bare ink
-     stood directly on it, and the owner compared it to the reference and
-     said so. The right fix was never a darker sky; it was the reference's
-     own architecture, finished: every work page's content stands on ONE
-     dense smoked band (relief.css), so nothing bare touches the field and
-     the field is free to be the sunrise. The bare-ink test now models ink
-     on the BAND over this sky's brightest spot — which is the case that
-     actually exists. */
+    radial-gradient(58% 52% at 90% 94%, #e8672f 0%, rgba(232,103,47,0) 62%),
+    radial-gradient(46% 44% at 103% 56%, #77609e 0%, rgba(119,96,158,0) 56%),
+    radial-gradient(66% 58% at 36% 28%, #eef1f2 0%, rgba(238,241,242,0) 62%),
+    radial-gradient(72% 64% at 8% 88%, #686c73 0%, rgba(104,108,115,0) 58%),
+    linear-gradient(135deg, #7d9cc4 0%, #a9bccf 32%, #ccd6dd 56%, #8e9aa8 100%);
+  /* one field for landing and work pages alike — the sheet carries the ink,
+     so there is no bare-text case left to quiet a second sky for */
   --atmos-air:
-    radial-gradient(46% 30% at 18% 26%, rgba(255,255,255,.28) 0%, transparent 70%),
-    radial-gradient(40% 26% at 84% 58%, rgba(255,255,255,.20) 0%, transparent 70%),
-    radial-gradient(120% 90% at 88% 0%, #dfa348 0%, transparent 46%),
-    radial-gradient(90% 70% at 72% 12%, #c8802a 0%, transparent 60%),
-    linear-gradient(158deg, #9d5512 0%, #592e09 58%, #422306 100%);
-  --atmos-floor: #422306;
-  --atmos-pane: rgba(46,24,7,.58);
-  --atmos-pane-dense: rgba(46,24,7,.76);
-  --atmos-pane-thin: rgba(46,24,7,.44);
-  --atmos-line: rgba(255,255,255,.38);
-  --atmos-line-soft: rgba(255,255,255,.20);
-  --atmos-sheen: linear-gradient(177deg, rgba(255,255,255,.11) 0%, rgba(255,255,255,.02) 34%, transparent 62%);
-  /* the lit top edge is what separates GLASS from a brown box: a pane catches
-     the light at its upper rim and nowhere else. A material, not a depth —
-     named in relief.spec beside --soft-in and --glass for the same reason. */
-  --atmos-lip: inset 0 1px 0 rgba(255,255,255,.30);
-  /* the card's glass: a well sunk INTO the band, darker than its ground the
-     way the mock's ghost panel is darker than the field. Depth by darkness,
-     not by another white. */
-  --atmos-tile: rgba(0,0,0,.22);
-  --on-atmos: #ffffff;
-  --on-atmos-soft: rgba(255,255,255,.84);
-  /* Medical's accent is #1f5f78, mixed for white paper; on amber it is mud.
-     The same hue carried up to where it reads — one colour, two grounds. */
-  --on-atmos-accent: #bdeef4;
+    radial-gradient(58% 52% at 90% 94%, #e8672f 0%, rgba(232,103,47,0) 62%),
+    radial-gradient(46% 44% at 103% 56%, #77609e 0%, rgba(119,96,158,0) 56%),
+    radial-gradient(66% 58% at 36% 28%, #eef1f2 0%, rgba(238,241,242,0) 62%),
+    radial-gradient(72% 64% at 8% 88%, #686c73 0%, rgba(104,108,115,0) 58%),
+    linear-gradient(135deg, #7d9cc4 0%, #a9bccf 32%, #ccd6dd 56%, #8e9aa8 100%);
+  --atmos-floor: #8e9aa8;
+  /* the sheet: white glass at .60 — the exact alpha where the darkened greys
+     of the handoff still clear 4.5:1 over the field's darkest stop */
+  --sheet: rgba(255,255,255,.60);
+  --sheet-line: rgba(255,255,255,.75);
+  /* the lit top rim, now on a light pane — still a material, still named in
+     relief.spec beside --soft-in for the same reason */
+  --atmos-lip: inset 0 1px 0 rgba(255,255,255,.85);
 
   /* ── THE PASSPORT ────────────────────────────────────────────────────────
      The owner's own artwork: crackle-grain security paper with an iridescent
@@ -1459,64 +1430,17 @@
      in this hub. Left alone rather than guessed at. */
 }
 
-/* ── THE ATMOSPHERE'S INK HANDOFF ──────────────────────────────────────────
-   Medical's chrome — breadcrumbs, empty states, the lines between cards — is
-   written with INLINE `var(--ink)` / `var(--muted)`, which no stylesheet rule
-   can override. What CAN change is what the variable RESOLVES TO: the stage
-   re-points the ink family at .tc-main, and every surface that paints its own
-   white face takes the city's values back. This is "a stage does not export
-   its ink" enforced at the variable, which is the only level inline styles
-   respect.
-
-   THE RESET LITERALS MUST EQUAL THE ROOT'S. They are duplicated here because
-   a var() reset cannot reach back past its own scope — and duplication rots,
-   so the-atmosphere-holds-its-ink.test.ts parses both and fails the moment
-   the root ink moves without this block moving with it.
-
-   NOT a ground grant: no --ground/--paper/--card/--wash/--rail-well anywhere
-   in these blocks, and the same test asserts that too. */
-[data-hub="medical"] .tc-main {
-  --ink: #ffffff;
-  --ink-soft: rgba(255,255,255,.94);
-  --muted: rgba(255,255,255,.88);
-  /* .80, not the chat stage's lower floor: this faint stands on a LIT amber
-     field, not near-black — a dark ground buys headroom this one hasn't got */
-  --faint: rgba(255,255,255,.80);
-  --accent-ink: #bdeef4;
-  /* THE WASHES GO GLASS TOO. A status flag inside a glass card cannot wear
-     the city's pale wash — light on light. These are the mock's own ghost
-     flags: a tinted glass and a light ink of the same hue, and the test
-     computes every pair against the card glass at the sky's brightest. */
-  --accent-soft: rgba(189,238,244,.16);
-  --ok-soft: rgba(80,220,140,.18);      --ok-ink: #b4ebca;
-  --warn-soft: rgba(255,180,60,.20);    --warn-ink: #ffdca8;
-  --danger-soft: rgba(255,90,90,.20);   --danger-ink: #ffc0c0;
-}
-/* THE PAPER LIST. Cards are NOT on it any more — a card is glass now and
-   keeps the stage's white ink. What remains paper is what must stay paper:
-   form wells, chips, buttons, modals, stat tiles, list rows, and `.onpaper`
-   — the name a hand-rolled inline `var(--card)` face wears so this handoff
-   can reach it (the score ring's dial, a connection row, a supplement
-   pill). Every pair the stage re-points is handed back here, statuses
-   included: a LOW flag on a white pill is the city's dark red, not the
-   glass tint. */
-[data-hub="medical"] .tc-main .chip,
-[data-hub="medical"] .tc-main .btn,
-[data-hub="medical"] .tc-main .row,
-[data-hub="medical"] .tc-main .stat,
-[data-hub="medical"] .tc-main .modal,
-[data-hub="medical"] .tc-main table.tc,
-[data-hub="medical"] .tc-main .onpaper,
-[data-hub="medical"] .tc-main input,
-[data-hub="medical"] .tc-main textarea,
-[data-hub="medical"] .tc-main select {
-  --ink: #000000;
-  --ink-soft: #1c1c1c;
-  --muted: #6b6b6b;
-  --faint: #9b9b9b;
-  --accent-ink: #194f64;
-  --accent-soft: #eef5f8;
-  --ok-soft: #e6f4ec;    --ok-ink: #14562f;
-  --warn-soft: #fdf1dd;  --warn-ink: #7a4a05;
-  --danger-soft: #fdeaea; --danger-ink: #8f1d1d;
+/* ── THE SHEET'S INK HANDOFF ───────────────────────────────────────────────
+   All that remains of the amber era's ink machinery. The sheet is light and
+   the ink is the city's dark, so no family re-points and no paper list
+   hands anything back — the only casualties are the two soft greys, which
+   were mixed for pure white and thin out on glass over the field's darker
+   stops. Both darkened here, both held to ≥4.5:1 over EVERY stop of the
+   field under the sheet by the test, computed from these literals. */
+[data-hub="medical"] .tc-main,
+[data-hub="medical"] .tc-side {
+  /* the rail too: its lens tiles paint translucent faces over the field, a
+     shade cooler than paper, and the city grey measured 4.2:1 on them */
+  --muted: #454545;
+  --faint: #4d4d4d;
 }
