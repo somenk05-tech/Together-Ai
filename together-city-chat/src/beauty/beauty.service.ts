@@ -192,6 +192,7 @@ export class BeautyService {
       const profile = await this.withMasterDemographics(userId, {});
       return { ...DEFAULT_PROFILE, saved: false, profile, analysis: null, photos: [], analyzedAt: null, aiEnabled: this.ai.enabled };
     }
+    const photosOnFile = safeJson<unknown[]>(row.photosJson, []);
     return {
       skinType: row.skinType, hairType: row.hairType,
       concerns: row.concerns ? row.concerns.split(',').filter(Boolean) : [],
@@ -208,16 +209,22 @@ export class BeautyService {
        * thing this codebase does not do: no screen asserts an absence it never
        * established.
        *
-       * `analyzedAt` is the record that an analysis actually happened. Without
-       * it a stored analysisJson is a leftover — from an older code path, a
-       * deleted photo set, or a profile save that used to generate one — and a
-       * leftover is not evidence. The screen already handles null by inviting
-       * the citizen to upload; that is the honest state.
+       * `analyzedAt` is the record that an analysis actually happened — AND
+       * the photographs it analysed must still be on file. The first fix
+       * gated on the timestamp alone, and the owner's own account showed why
+       * that is not enough: a row stamped 22 Jul by the RETIRED code path
+       * (which used to stamp on profile save) carried analyzedAt with zero
+       * photos, and seven GOOD readings kept printing for a face nobody had
+       * seen. Deleting photos clears the stamp going forward; rows minted
+       * before that rule carry the stamp without the evidence, and the only
+       * gate that survives old data is the one that demands both. The screen
+       * handles null by inviting the citizen to upload; that is the honest
+       * state.
        */
-      analysis: row.analyzedAt ? safeJson<unknown>(row.analysisJson, null) : null,
-      photos: safeJson<unknown[]>(row.photosJson, []),
+      analysis: row.analyzedAt && photosOnFile.length > 0 ? safeJson<unknown>(row.analysisJson, null) : null,
+      photos: photosOnFile,
       progress: safeJson<ProgressEntry[]>(row.progressJson, []),
-      analyzedAt: row.analyzedAt ? row.analyzedAt.toISOString() : null,
+      analyzedAt: row.analyzedAt && photosOnFile.length > 0 ? row.analyzedAt.toISOString() : null,
       aiEnabled: this.ai.enabled,
       uploads: { limit: 5, used: this.analysisLog(row).length, remaining: Math.max(0, 5 - this.analysisLog(row).length) },
       concernOptions: Object.entries(CONCERN_TAGS).map(([key, v]) => ({ key, label: v.label })),
@@ -241,7 +248,12 @@ export class BeautyService {
     // assessment already exists, refresh it with the updated profile answers so
     // it stays consistent; if none exists, stay neutral until photos arrive.
     void photoFindings;
-    const hasExisting = Boolean(existing?.analysisJson);
+    // The same both-or-nothing rule as the read gate: a refresh is only owed
+    // to an assessment that is still EVIDENCED — an analysis event and the
+    // photos it read, together. Refreshing a stale pre-evidence row kept the
+    // fabrication alive on every profile save; this is the door it came
+    // through.
+    const hasExisting = Boolean(existing?.analysisJson) && Boolean(existing?.analyzedAt) && photos.length > 0;
     const refreshed = hasExisting
       ? assessBeauty(
           { ...p, allergies: await this.declaredSensitivities(userId, (p as { allergies?: unknown }).allergies) },
