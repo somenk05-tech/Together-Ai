@@ -1133,145 +1133,154 @@
 
    Every number is measured on this hub's own ground. */
 [data-hub="dating"] {
-  /* The sky, at a value four inks can live on. #a9cfe4 straight off the plate
-     takes --faint to 4.05:1; #c3dfee is the same hue three steps up and clears
-     4.5:1 on all four. */
-  --ground: #e2d9ec;
-  --paper:  #e2d9ec;
-  --card:   #fbfdfe;
-  --wash:   #eef6fb;
-  /* The shadow the bowl's rim casts — a photograph's letterbox and the selfie
-     viewfinder read this, so they are the picture's own dark, not black. */
-  --media-bg: #0b1a24;
+  /* ── THE STUDIO ──────────────────────────────────────────────────────────
+     The owner's fourth reference for this hub, and the first one that is
+     mostly about the PHOTOGRAPHS rather than about the room. It is an
+     interior-design feed: warm greige paper, mushroom and clay, and — the
+     actual instruction written on it — "harmonise the colours of your top
+     nine photos."
 
-  /* THE SCALE IS MEASURED AGAINST THE PHOTOGRAPH, NOT AGAINST THE FLAT
-     GROUND. --faint at #3f6076 cleared 4.8:1 on the flat sky and only 3.8:1
-     on the darkest pixel of the plate below — and a label that fails in the
-     bottom-left corner of one page fails there on every page. Both quiet
-     steps moved down until they clear the picture's worst patch. */
-  --ink:      #0f2230;   /* 11.7 flat · 9.0 on the wash's darkest patch */
-  --ink-soft: #1c3446;   /*  9.3 flat · 7.2 */
-  --muted:    #274255;   /*  7.6 flat · 5.9 */
-  --faint:    #31505f;   /*  6.1 flat · 4.8 on the wash's darkest patch — labels ONLY */
-  --line:   #bcd6e5;
-  --line-2: #a6c7db;
+     THAT SENTENCE IS THE FILM GRADE, AND THIS HUB ALREADY HAS ONE. Dating is
+     the only room in the city that grades its pictures (--film, mounted by
+     FilmGrade.tsx and measured off two real plates), which is why this
+     reference lands here almost for free: what an Instagram account achieves
+     by editing nine photographs one at a time, the room does to every
+     photograph automatically, forever, including the ones uploaded tomorrow.
+     The grade is pulled further down in saturation below — the reference's
+     harmony is a LOW-CHROMA harmony, and the curve's white point (238,231,220)
+     was already this exact greige, which is why the two agree.
 
-  /* THE CANDY, in the two jobs the design separates. --accent is a FILL and
-     white sits on it at 6.0:1 — the score ring, the histogram, the outgoing
-     chat bubble, the active thumbnail ring. --accent-ink is the same rose as
-     TEXT: 8.2:1 on a card, 6.0:1 on the sky. */
-  --accent:      #b03652;
-  --accent-ink:  #8e2743;
-  --accent-soft: #fae1e6;
-  --accent-line: #eec3cd;
+     THE ROOM STOPS COMPETING WITH THE FACES. The candy sky was a saturated
+     mesh; this ground is one flat warm neutral and nothing else. That is the
+     stronger version of the argument the hub was granted a ground FOR: it
+     exists because six photographs a week at the size of a face need
+     something to sit in, and the quieter that something is, the more the
+     faces are the only colour in the room. Every hue left in here is either
+     a photograph or a status.
+
+     ONE METAL, TWO JOBS, as everywhere: #6b5b4a carries white at 6.5:1 as a
+     fill and #5c4d3e reads 6.9:1 as text. The lamp goes with them, for the
+     reason it went candy before — the city's orange on greige is a hue
+     nobody chose.                                                          */
+
+  --ground: #efece6;
+  --paper:  #efece6;
+  --card:   #faf8f4;
+  --wash:   #e9e5dd;
+  /* the photograph's own dark, warm rather than black — read by the
+     letterbox behind a portrait and by the selfie viewfinder */
+  --media-bg: #241f1a;
+
+  /* Ink. Warm greys, measured on the flat ground above — and the ground IS
+     flat now, so unlike the candy pass there is no "darkest patch of the
+     mesh" to defend against. The numbers are the numbers. */
+  --ink:      #241f1a;   /* 13.9 */
+  --ink-soft: #322b24;   /* 11.8 */
+  --muted:    #574e44;   /*  6.9 */
+  --faint:    #5c5349;   /*  6.4 — labels and metadata ONLY */
+  --line:   #ddd7cd;
+  --line-2: #cec7ba;
+
+  --accent:      #6b5b4a;
+  --accent-ink:  #5c4d3e;
+  --accent-soft: #ece5da;
+  --accent-line: #dcd2c3;
   --on-accent:   #ffffff;
 
-  /* Status, each measured on the SKY as well as on its own wash — several of
-     these sit on the page rather than inside a card. */
-  --ok-ink: #1c5730;     --ok-soft: #dfeee4;    --ok-line: #bcdcc6;
-  --warn-ink: #6b4004;   --warn-soft: #f4ead9;  --warn-line: #ddceac;
-  --danger-ink: #93213c; --danger-soft: #fae1e6; --danger-line: #eec3cd;
-  --info-ink: #154c66;   --info-soft: #dbeaf2;  --info-line: #b4d3e4;
+  /* Status keeps four meanings and loses its brightness: on a greige page a
+     saturated red is the loudest thing in a room built to be quiet. Each is
+     the same meaning taken to the lowest chroma that still clears AA here. */
+  --ok-ink: #3d5c3f;     --ok-soft: #e6eae0;    --ok-line: #cdd6c2;
+  --warn-ink: #6b4f16;   --warn-soft: #f2ebda;  --warn-line: #ded0ae;
+  --danger-ink: #8a3a34; --danger-soft: #f4e5e1; --danger-line: #e3c6bf;
+  --info-ink: #3c5566;   --info-soft: #e4e9ec;  --info-line: #c8d3d9;
 
-  /* The panes are the plate's glass: gloss, not frost. A frosted card here
-     would be the one matte object in a picture made of wet surfaces. */
-  --face:      linear-gradient(180deg, #ffffff 0%, #fbfdfe 52%, #f0f7fb 100%);
-  --face-2:    linear-gradient(180deg, #ffffff 0%, #fcfeff 48%, #f2f8fc 100%);
-  --face-tall: linear-gradient(180deg, #ffffff 0%, #fbfdfe calc(100% - min(96px, 40%)), #edf5fa 100%);
-  --face-key:  linear-gradient(180deg, #ffffff 0%, #fbfdff 52%, #eef6fb 100%);
-  --well:      linear-gradient(180deg, #cfe3ef 0%, #e9f3f9 58%, #fbfdfe 100%);
+  /* The faces are paper, not the plate's glass. The gloss went with the
+     saturated sky it was reflecting. */
+  --face:      linear-gradient(180deg, #fdfcfa 0%, #faf8f4 52%, #f0ece4 100%);
+  --face-2:    linear-gradient(180deg, #fdfcfa 0%, #f8f6f1 48%, #ece7dd 100%);
+  --face-tall: linear-gradient(180deg, #fdfcfa 0%, #faf8f4 calc(100% - min(96px, 40%)), #f0ece4 100%);
+  --face-key:  linear-gradient(180deg, #fdfcfa 0%, #f9f7f2 52%, #eae5da 100%);
+  --well:      linear-gradient(180deg, #e5e0d6 0%, #f1eee7 58%, #faf8f4 100%);
 
-  --rim:        inset 0 0 0 1px rgba(15,34,48,.09), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(15,34,48,.06);
-  --rim-strong: inset 0 0 0 1px rgba(15,34,48,.13), inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(15,34,48,.08);
+  --rim:        inset 0 0 0 1px rgba(36,31,26,.09), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(36,31,26,.06);
+  --rim-strong: inset 0 0 0 1px rgba(36,31,26,.13), inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(36,31,26,.08);
 
-  /* The shadow ink goes cool-slate. A neutral grey shadow on a blue ground
-     reads as a smear — the same reason Social Life's went cool and the candy
-     pass's went rose. */
-  --e1: var(--rim),        0 1px 1px rgba(20,52,74,.10), 0 2px 4px rgba(20,52,74,.10), 0 6px 14px rgba(20,52,74,.12);
-  --e2: var(--rim-strong), 0 1px 1px rgba(20,52,74,.10), 0 3px 6px rgba(20,52,74,.12), 0 12px 26px rgba(20,52,74,.16), 0 24px 52px rgba(20,52,74,.12);
-  --e3: var(--rim-strong), 0 2px 2px rgba(20,52,74,.11), 0 8px 16px rgba(20,52,74,.14), 0 22px 46px rgba(20,52,74,.18);
-  --e1-key: var(--rim),        0 1px 1px rgba(20,52,74,.12), 0 2px 4px rgba(20,52,74,.12), 0 5px 10px rgba(20,52,74,.10);
-  --e2-key: var(--rim-strong), 0 2px 3px rgba(20,52,74,.12), 0 5px 10px rgba(20,52,74,.14);
-  --carve:      inset 0 0 0 1px rgba(15,34,48,.11), inset 0 3px 6px rgba(15,34,48,.14), inset 0 -1px 0 rgba(255,255,255,.95);
-  --carve-deep: inset 0 0 0 1px rgba(15,34,48,.13), inset 0 4px 10px rgba(15,34,48,.19), inset 0 -1px 0 rgba(255,255,255,.95);
-  --press: inset 0 0 0 1px rgba(15,34,48,.13), inset 0 3px 6px rgba(15,34,48,.17), 0 1px 0 rgba(255,255,255,.9);
+  /* The shadow ink goes warm umber for the same reason it went slate on the
+     sky: a neutral grey shadow on a warm ground reads as a smudge. */
+  --e1: var(--rim),        0 1px 1px rgba(74,62,48,.10), 0 2px 4px rgba(74,62,48,.10), 0 6px 14px rgba(74,62,48,.12);
+  --e2: var(--rim-strong), 0 1px 1px rgba(74,62,48,.10), 0 3px 6px rgba(74,62,48,.12), 0 12px 26px rgba(74,62,48,.16), 0 24px 52px rgba(74,62,48,.12);
+  --e3: var(--rim-strong), 0 2px 2px rgba(74,62,48,.11), 0 8px 16px rgba(74,62,48,.14), 0 22px 46px rgba(74,62,48,.18);
+  --e1-key: var(--rim),        0 1px 1px rgba(74,62,48,.12), 0 2px 4px rgba(74,62,48,.12), 0 5px 10px rgba(74,62,48,.10);
+  --e2-key: var(--rim-strong), 0 2px 3px rgba(74,62,48,.12), 0 5px 10px rgba(74,62,48,.14);
+  --carve:      inset 0 0 0 1px rgba(36,31,26,.11), inset 0 3px 6px rgba(36,31,26,.14), inset 0 -1px 0 rgba(255,255,255,.95);
+  --carve-deep: inset 0 0 0 1px rgba(36,31,26,.13), inset 0 4px 10px rgba(36,31,26,.19), inset 0 -1px 0 rgba(255,255,255,.95);
+  --press: inset 0 0 0 1px rgba(36,31,26,.13), inset 0 3px 6px rgba(36,31,26,.17), 0 1px 0 rgba(255,255,255,.9);
   --edge-up: 0 1px 0 rgba(255,255,255,.95);
-  --edge-in: inset 0 -1px 0 rgba(15,34,48,.07);
-  --case-rim: inset 0 0 0 1px rgba(15,34,48,.16), inset 0 4px 12px rgba(15,34,48,.20), inset 0 -2px 8px rgba(15,34,48,.10);
-  --case-rim-soft: inset 0 0 0 1px rgba(15,34,48,.12), inset 0 3px 7px rgba(15,34,48,.18), inset 0 -1px 0 rgba(255,255,255,.5);
+  --edge-in: inset 0 -1px 0 rgba(36,31,26,.07);
+  --case-rim: inset 0 0 0 1px rgba(36,31,26,.16), inset 0 4px 12px rgba(36,31,26,.20), inset 0 -2px 8px rgba(36,31,26,.10);
+  --case-rim-soft: inset 0 0 0 1px rgba(36,31,26,.12), inset 0 3px 7px rgba(36,31,26,.18), inset 0 -1px 0 rgba(255,255,255,.5);
 
-  /* THE RAIL IS A WELL CUT INTO THE SKY, so it is the sky darkened and not a
-     grey — or the room stops at the panel edge and starts again. */
-  --rail-well: #b0d2e6;
-  --rail-well-shadow: inset -1px 0 0 rgba(15,34,48,.10);
-  --lens-face: linear-gradient(180deg, #ffffff 0%, #fbfdfe 55%, #eef6fb 100%);
-  --lens:     inset 0 0 0 1.5px rgba(255,255,255,.95), inset 0 1px 0 rgba(255,255,255,1), 0 4px 14px rgba(20,52,74,.16);
-  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.9), inset 0 1px 0 rgba(255,255,255,1), 0 2px 7px rgba(20,52,74,.12);
+  /* The rail is the ground darkened, not a grey — same rule as the sky. */
+  --rail-well: #e6e1d8;
+  --rail-well-shadow: inset -1px 0 0 rgba(36,31,26,.10);
+  --lens-face: linear-gradient(180deg, #fdfcfa 0%, #faf8f4 55%, #eee9e0 100%);
+  --lens:     inset 0 0 0 1.5px rgba(255,255,255,.95), inset 0 1px 0 rgba(255,255,255,1), 0 4px 14px rgba(74,62,48,.16);
+  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.9), inset 0 1px 0 rgba(255,255,255,1), 0 2px 7px rgba(74,62,48,.12);
 
-  /* Opaque glass. Social Life's is translucent because its ground is a pale
-     wash with nothing behind it worth bending; this ground is a saturated sky,
-     and a see-through card over it takes a blue cast no ink can be measured
-     against. */
-  --glass-face: linear-gradient(158deg, rgba(255,255,255,.95), rgba(255,255,255,.86) 52%, rgba(255,255,255,.80));
-  --glass:      inset 0 0 0 1.4px rgba(255,255,255,1), inset 0 1px 0 rgba(255,255,255,1), 0 18px 44px rgba(20,52,74,.20);
-  --glass-key:  inset 0 0 0 1.1px rgba(255,255,255,.95), inset 0 1px 0 rgba(255,255,255,1), 0 3px 10px rgba(20,52,74,.16);
+  --glass-face: linear-gradient(158deg, rgba(253,252,250,.95), rgba(250,248,244,.86) 52%, rgba(247,244,238,.80));
+  --glass:      inset 0 0 0 1.4px rgba(255,255,255,1), inset 0 1px 0 rgba(255,255,255,1), 0 18px 44px rgba(74,62,48,.20);
+  --glass-key:  inset 0 0 0 1.1px rgba(255,255,255,.95), inset 0 1px 0 rgba(255,255,255,1), 0 3px 10px rgba(74,62,48,.16);
 
-  /* The lit key is the CANDY — the one thing in the room that is not the sky.
-     The city's orange lamp on a blue ground is a hue nobody chose. */
-  --key-lit-face: linear-gradient(180deg, #c34461 0%, #b03652 46%, #8e2743 100%);
-  --key-lit:      inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 1px 0 rgba(255,255,255,.36), 0 3px 12px rgba(176,54,82,.34);
-  --key-lit-pip:  0 0 0 2px rgba(176,54,82,.16), 0 0 8px rgba(176,54,82,.5);
-  --lamp-face: linear-gradient(180deg, #c34461 0%, #b03652 46%, #8e2743 100%);
-  --lamp:      inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 2px 5px rgba(0,0,0,.18), inset 0 -1px 0 rgba(255,255,255,.36), 0 3px 12px rgba(176,54,82,.34);
+  --key-lit-face: linear-gradient(180deg, #7c6b58 0%, #6b5b4a 46%, #5c4d3e 100%);
+  --key-lit:      inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 1px 0 rgba(255,255,255,.36), 0 3px 12px rgba(74,62,48,.34);
+  --key-lit-pip:  0 0 0 2px rgba(107,91,74,.16), 0 0 8px rgba(107,91,74,.5);
+  --lamp-face: linear-gradient(180deg, #7c6b58 0%, #6b5b4a 46%, #5c4d3e 100%);
+  --lamp:      inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 2px 5px rgba(0,0,0,.18), inset 0 -1px 0 rgba(255,255,255,.36), 0 3px 12px rgba(74,62,48,.34);
   --lamp-badge: inset 0 0 0 1px rgba(255,255,255,.38), inset 0 1px 0 rgba(255,255,255,.32);
+  /* THE BADGE IS A RECESS, NOT A HIGHLIGHT — and this is a citywide debt paid
+     locally. The city's badge is a white wash at .22, which lightens whatever
+     lamp it sits on; on the candy lamp its white number measured 3.11:1 and on
+     this quieter taupe it measured 3.84:1. Inverting it to a dark recess puts
+     the number at 7.9:1 and, being a hole rather than a highlight, agrees with
+     the lamp's own pressed-in shape. Twenty-four rooms still carry the light
+     version; this hub stops carrying it. */
+  --lamp-badge-bg: rgba(36,31,26,.20);
 
-  --loud-face:        linear-gradient(180deg, #c34461 0%, #b03652 55%, #8e2743 100%);
-  --loud-face-hover:  linear-gradient(180deg, #cd4f6c 0%, #ba3e5b 55%, #992d4b 100%);
-  --loud-face-active: linear-gradient(180deg, #8e2743 0%, #9e2f4c 60%, #b03652 100%);
+  --loud-face:        linear-gradient(180deg, #7c6b58 0%, #6b5b4a 55%, #5c4d3e 100%);
+  --loud-face-hover:  linear-gradient(180deg, #8a7864 0%, #786752 55%, #695845 100%);
+  --loud-face-active: linear-gradient(180deg, #5c4d3e 0%, #67573f 60%, #6b5b4a 100%);
   --on-loud: #ffffff;
-  --frost: rgba(251,253,254,.78);
+  --frost: rgba(250,248,244,.78);
   --btn-line-edge: rgba(255,255,255,.95);
-  --btn-line-ring: rgba(15,34,48,.17);
-  --btn-line-ring-hover: rgba(15,34,48,.32);
-  --focus-ring: 0 0 0 3px rgba(21,76,102,.38);
+  --btn-line-ring: rgba(36,31,26,.17);
+  --btn-line-ring-hover: rgba(36,31,26,.32);
+  --focus-ring: 0 0 0 3px rgba(92,77,62,.38);
 
-  /* The scrims are the bowl's own shadow — the hub used to carry three
-     hand-written brown-blacks from the removed gold theme; on a blue ground a
-     warm scrim over a photograph reads brown. */
-  --scrim-top:   rgba(11,26,36,.24);
-  --scrim-clear: rgba(11,26,36,0);
-  --scrim-deep:  rgba(11,26,36,.78);
+  --scrim-top:   rgba(36,31,26,.24);
+  --scrim-clear: rgba(36,31,26,0);
+  --scrim-deep:  rgba(36,31,26,.78);
 
-  /* ── THE WASH: LOVELY SPRING ─────────────────────────────────────────────
-     A mesh of three named colours, from the owner's swatch card:
+  /* ── NO SKY ──────────────────────────────────────────────────────────────
+     The Lovely Spring mesh is gone, and its removal is the design rather
+     than a casualty of it. That wash was three saturated hues behind a wall
+     of faces; the reference's whole proposition is a room so quiet that the
+     photographs are the only colour in it. --sky-image stays declared as the
+     flat ground so the hub's ::before layer keeps painting SOMETHING (the
+     mechanism is unchanged, only what it hangs), and the chrome goes opaque
+     paper — a backdrop-filter over a flat colour is thirty blurred controls
+     per screen buying a difference nobody can see. */
+  --sky-image: linear-gradient(180deg, #efece6 0%, #efece6 100%);
+  --chrome: #faf8f4;
+  --chrome-blur: none;
 
-       #80ebf3  cyan   — the cool corner, lower-left and up the left edge
-       #eeaed7  pink   — the body of it, centre through upper-right
-       #f1d3ed  lilac  — where the two meet, and the pale top-right corner
-
-     A GRADIENT, NOT A PHOTOGRAPH, AND THAT IS THE POINT OF IT. The cloud plate
-     that stood here needed a .68 veil to keep type off its saturated patches,
-     which meant paying 96KB to then hide two thirds of it. Three colours mixed
-     directly cost nothing, never need a veil, and cannot get darker than the
-     darkest swatch — which is what makes the ink below provable rather than
-     measured-and-hoped.
-
-     The floor is #eeaed7 at L=0.53. Every ink above clears 4.5:1 against it,
-     so every ink clears everywhere on the page, at every viewport, forever. */
-  --sky-image:
-    radial-gradient(58% 52% at 100% 0%,  #f7e7f4 0%, rgba(247,231,244,0) 62%),
-    radial-gradient(66% 58% at 74% 26%,  #eeaed7 0%, rgba(238,174,215,0) 66%),
-    radial-gradient(52% 46% at 34% 62%,  #f1d3ed 0%, rgba(241,211,237,0) 64%),
-    radial-gradient(60% 62% at -6% 104%, #80ebf3 0%, rgba(128,235,243,0) 62%),
-    radial-gradient(44% 50% at -4% 14%,  #a8e6f0 0%, rgba(168,230,240,0) 60%),
-    linear-gradient(146deg, #cfeaf3 0%, #e6cfe9 46%, #f1d3ed 100%);
-  --chrome: rgba(255,255,255,.62);
-  --chrome-blur: blur(20px) saturate(150%);
-
-  /* ── THE FILM ────────────────────────────────────────────────────────────
-     Unchanged. The grade is measured off the two plates and does not depend on
-     which of the picture's two hues is the room. */
-  --film: url(#tc-film);
+  /* ── THE FILM, TAKEN DOWN ────────────────────────────────────────────────
+     Same measured curve — its white point was already 238,231,220, which is
+     this room's paper, which is why the reference and the grade agree
+     without either being bent. Saturation drops 0.90 → 0.74: the harmony in
+     the reference is a LOW-CHROMA one, and this is the line that gives every
+     photograph in the hub that harmony without anybody editing anything. */
+  --film: url(#tc-film-studio);
 }
 
 /* ── ENTERTAINMENT IS A DARK ROOM ──────────────────────────────────────────
