@@ -15,22 +15,41 @@ export interface HubConfig {
   items: SideItem[];         // sidebar menu
 }
 
-/** Header tabs — ported 1:1 from tc.js NAV (order preserved). */
+/** ── HEADER TABS, IN ALPHABETICAL ORDER ────────────────────────────────────
+ *
+ *  This list was "ported 1:1 from tc.js NAV (order preserved)" — which is to
+ *  say its order was an accident of a file nobody has opened in a year. It
+ *  opened Travel, Astrology, Nutrition, Entertainment, and there is no reading
+ *  of this product in which those are the four most important rooms; they were
+ *  simply the four somebody typed first.
+ *
+ *  Thirteen tabs on one line is a list you SCAN rather than one you recognise,
+ *  and the only scan order a stranger can predict is the alphabet. It also has
+ *  the property an invented order never has: it survives a fourteenth hub.
+ *
+ *  (The honest alternative is frequency — put the rooms people actually open
+ *  first. That beats alphabetical when you know the frequencies. Nothing in
+ *  this app measures them yet, so choosing that order today would mean
+ *  guessing and calling it data.)
+ *
+ *  Sorted in the literal so the file reads the way the header renders, AND
+ *  sorted again where it is used, so an append lands in its place instead of
+ *  at the end.                                                              */
 export const NAV: NavItem[] = [
-  { key: 'travel', label: 'Travel', path: '/travel' },
   { key: 'astrology', label: 'Astrology', path: '/astrology' },
-  { key: 'nutrition', label: 'Nutrition', path: '/nutrition' },
-  { key: 'entertainment', label: 'Entertainment', path: '/entertainment' },
-  { key: 'social', label: 'Social life', path: '/social' },
-  { key: 'dating', label: 'Dating', path: '/dating' },
-  { key: 'realestate', label: 'Real estate', path: '/realestate' },
-  { key: 'jobs', label: 'Jobs', path: '/jobs' },
-  { key: 'medical', label: 'Medical', path: '/medical' },
-  { key: 'financial', label: 'Financial', path: '/financial' },
   { key: 'beauty', label: 'Beauty', path: '/beauty' },
+  { key: 'dating', label: 'Dating', path: '/dating' },
+  { key: 'entertainment', label: 'Entertainment', path: '/entertainment' },
+  { key: 'financial', label: 'Financial', path: '/financial' },
   { key: 'fitness', label: 'Fitness', path: '/fitness' },
+  { key: 'jobs', label: 'Jobs', path: '/jobs' },
   { key: 'services', label: 'Local services', path: '/services' },
   { key: 'mail', label: 'Mail', path: '/mail' },
+  { key: 'medical', label: 'Medical', path: '/medical' },
+  { key: 'nutrition', label: 'Nutrition', path: '/nutrition' },
+  { key: 'realestate', label: 'Real estate', path: '/realestate' },
+  { key: 'social', label: 'Social life', path: '/social' },
+  { key: 'travel', label: 'Travel', path: '/travel' },
 ];
 
 /** Hub metadata — names/taglines ported 1:1 from tc.js SIDE. */

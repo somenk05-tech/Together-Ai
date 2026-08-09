@@ -119,7 +119,12 @@ export function Header() {
   const { user } = useAuth();
   const authed = Boolean(user);
   const firstName = fromName(user?.name) ?? 'Profile';
-  const tabs = NAV.filter((n) => n.key !== 'mail'); // Mail lives in the actions, not the tab row
+  // Mail lives in the actions, not the tab row. The sort is belt-and-braces:
+  // the list in config is already alphabetical, and sorting here means a hub
+  // appended to it lands in its place rather than on the end.
+  const tabs = NAV.filter((n) => n.key !== 'mail')
+    .slice()
+    .sort((a, b) => a.label.localeCompare(b.label));
   useTrackRecent(); // remember where we've been — powers Recently Viewed + breadcrumbs
   return (
     <header className="tc-header">
@@ -130,7 +135,7 @@ export function Header() {
       <div className="tc-header-top">
         <button className="tc-burger" aria-label="Open menu" onClick={() => toggleSidebar()}><Icon name="menu" size={20} /></button>
         <Link to="/" className="tc-logo">
-          <span className="mark"><img src="/assets/img/tc-logo.png" alt="Together City" width={34} height={34} /></span>
+          <span className="mark"><img src="/assets/img/tc-logo.png" alt="Together City" width={24} height={24} /></span>
           <span className="word">Together City</span>
         </Link>
       </div>

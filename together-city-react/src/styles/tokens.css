@@ -398,7 +398,16 @@
   /* THE MARK IS A BLACK PNG ON TRANSPARENT, correct on every white screen and
      invisible on one that is not. A token, because which way up the logo goes
      is a colour decision and this is the file those live in. */
-  --logo-filter: none;
+  /* THE MARK IS LIT, NOT PRINTED. It ships as a black glyph on transparent,
+     and the brand lockup is now white plastic pressed into the page, so the
+     token stopped meaning "invert me on a dark ground" and started meaning
+     "this is the light the glyph is under". Inverting it makes it white; the
+     two drop-shadows are the same pressed edge and short fall the wordmark
+     beside it carries, so the mark and the word are one object lit once. */
+  --logo-filter:
+    invert(1)
+    drop-shadow(0 1px 0.5px rgba(20,22,25,.42))
+    drop-shadow(0 2px 4px rgba(20,22,25,.18));
 
   /* ── A HUB MAY HANG A PICTURE ────────────────────────────────────────────
      Inert here: no image, and a pane that is simply the card. A hub that wants
@@ -1043,7 +1052,7 @@
   --scrim-top: rgba(0,0,0,.45);
   --scrim-deep: rgba(0,0,0,.82);
   --focus-ring: 0 0 0 3px rgba(255,255,255,.34);
-  --logo-filter: invert(1);
+  --logo-filter: invert(1) drop-shadow(0 1px 0 rgba(0,0,0,.55)) drop-shadow(0 3px 10px rgba(0,0,0,.6));
 
   /* LOUD INVERTS, AND IT HAS TO — see the block comment. */
   --loud-face:        linear-gradient(180deg, #ffffff 0%, #f2f3f4 55%, #e2e4e6 100%);
@@ -1324,7 +1333,7 @@
   --glass-line: rgba(255, 255, 255, .16);
   --focus-ring: 0 0 0 3px rgba(203,231,161,.34);
 
-  --logo-filter: invert(1);
+  --logo-filter: invert(1) drop-shadow(0 1px 0 rgba(0,0,0,.55)) drop-shadow(0 3px 10px rgba(0,0,0,.6));
 
   /* THE LOUD ONE INVERTS, AND IT HAS TO.
      On white, the single emphasised button is black. Kept black here it would

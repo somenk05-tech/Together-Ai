@@ -11,8 +11,12 @@
 .tc-header-top { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 34px; }
 .tc-header-top .tc-burger { position: absolute; left: 0; top: 50%; transform: translateY(-50%); }
 .tc-burger { display: none; width: 34px; height: 34px; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; }
-.tc-logo { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
-.tc-logo .mark { width: 34px; height: 34px; }
+.tc-logo { display: flex; align-items: center; gap: 11px; flex-shrink: 0; }
+/* THE MARK SITS AT THE WORD'S HEIGHT, not above it. At 34px beside 15px
+   caps the glyph read as an icon with a label; the lockup reference has them
+   within a few pixels of each other, which is what makes the two read as one
+   object rather than as a badge and its caption. */
+.tc-logo .mark { width: 24px; height: 24px; }
 .tc-logo .mark img { display: block; width: 100%; height: 100%; object-fit: contain; filter: var(--logo-filter); }
 .tc-logo .word { font-size: 15px; letter-spacing: -.02em; white-space: nowrap; }
 /* Row 2 — hub tabs pushed left (with a small left indent), action group pushed right, all on one line. */

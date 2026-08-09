@@ -646,10 +646,13 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
      read as "olty". A pressed edge and one short drop is all that survives
      the scale, and tracking opens back up because heavy shading needs air
      between letterforms that a flat wordmark does not. */
+  /* UPPERCASE AND OPENED OUT, per the lockup reference: the mark and the
+     word are one object, and caps at this size hold their counters against
+     the shading where lowercase bowls start to fill in. */
   font-weight: 750;
-  font-size: 17px;
-  letter-spacing: -.008em;
-  text-transform: lowercase;
+  font-size: 15px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
   text-shadow:
     0 -0.5px 0 rgba(255,255,255,1),
     0 1px 0.5px rgba(20,22,25,.42),
