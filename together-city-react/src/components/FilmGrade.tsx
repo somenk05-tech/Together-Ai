@@ -57,6 +57,15 @@ export function FilmGrade() {
         {CURVE}
         <feColorMatrix type="saturate" values="0.74" />
       </filter>
+      {/* THE THIRD STOP, AND THE END OF THE SAME DIAL. Greyscale here is not
+          a `grayscale()` bolted on top of a graded picture — it is this
+          grade's own saturation taken to zero, so the photographs keep the
+          curve's rolled-off white and its lifted-but-not-milky blacks and
+          lose only their colour. One measurement, three stops. */}
+      <filter id="tc-film-mono" colorInterpolationFilters="sRGB">
+        {CURVE}
+        <feColorMatrix type="saturate" values="0" />
+      </filter>
     </svg>
   );
 }

@@ -1133,154 +1133,109 @@
 
    Every number is measured on this hub's own ground. */
 [data-hub="dating"] {
-  /* ── THE STUDIO ──────────────────────────────────────────────────────────
-     The owner's fourth reference for this hub, and the first one that is
-     mostly about the PHOTOGRAPHS rather than about the room. It is an
-     interior-design feed: warm greige paper, mushroom and clay, and — the
-     actual instruction written on it — "harmonise the colours of your top
-     nine photos."
+  /* ── WHITE, BLACK AND AIR ────────────────────────────────────────────────
+     The owner's Swiss-portfolio reference, taken for exactly two things: its
+     COLOUR and its SPACE. Not its typography — that reference is flat, ruled
+     and depthless, which is a second design system, and adopting it would
+     cost relief a named exception the size of the press one. Its colour and
+     its spacing cost nothing.
 
-     THAT SENTENCE IS THE FILM GRADE, AND THIS HUB ALREADY HAS ONE. Dating is
-     the only room in the city that grades its pictures (--film, mounted by
-     FilmGrade.tsx and measured off two real plates), which is why this
-     reference lands here almost for free: what an Instagram account achieves
-     by editing nine photographs one at a time, the room does to every
-     photograph automatically, forever, including the ones uploaded tomorrow.
-     The grade is pulled further down in saturation below — the reference's
-     harmony is a LOW-CHROMA harmony, and the curve's white point (238,231,220)
-     was already this exact greige, which is why the two agree.
+     AND SO THIS HUB GIVES ITS GROUND BACK. White paper with near-black ink
+     and five soft depths is not a look this hub has to be granted — it is
+     the city, exactly as written at :root. The candy sky, the studio greige,
+     the plate's gloss, the cool-slate shadows, the four warm faces, the
+     rims, the depths, the lens, the glass, the scrims: all of it deleted,
+     because every one of those lines now says what the root already says.
+     relief.spec's granted list is four again, and the argument is the one
+     astrology's daylight made this morning — a hub holds a ground when words
+     are read off something that is not the city's white, and returns it the
+     moment that stops being true.
 
-     THE ROOM STOPS COMPETING WITH THE FACES. The candy sky was a saturated
-     mesh; this ground is one flat warm neutral and nothing else. That is the
-     stronger version of the argument the hub was granted a ground FOR: it
-     exists because six photographs a week at the size of a face need
-     something to sit in, and the quieter that something is, the more the
-     faces are the only colour in the room. Every hue left in here is either
-     a photograph or a status.
+     WHAT IS LEFT IS THE ONLY TWO THINGS THAT ARE NOT THE CITY:
 
-     ONE METAL, TWO JOBS, as everywhere: #6b5b4a carries white at 6.5:1 as a
-     fill and #5c4d3e reads 6.9:1 as text. The lamp goes with them, for the
-     reason it went candy before — the city's orange on greige is a hue
-     nobody chose.                                                          */
+     NO HUE, ANYWHERE. The reference's signature is a page whose only tonal
+     variation is a person. So the accent stops being a colour and becomes a
+     POSITION: near-black, which is the one solid object on a screen and is
+     therefore the thing you press. Nothing else is coloured — and the rail
+     lamp goes with it, because an orange key in a room with no other hue is
+     the most saturated thing on the screen and the eye lands on the
+     navigation instead of on a face.
 
-  --ground: #efece6;
-  --paper:  #efece6;
-  --card:   #faf8f4;
-  --wash:   #e9e5dd;
-  /* the photograph's own dark, warm rather than black — read by the
-     letterbox behind a portrait and by the selfie viewfinder */
-  --media-bg: #241f1a;
+     AND THE PHOTOGRAPHS GO GREY. This is the reference applied where it
+     matters most rather than as a wash over the chrome: a wall of colour
+     portraits under a monochrome interface is a monochrome THEME, not a
+     monochrome room. The hub's film grade — the only one in the city — gains
+     a third stop for it, and colour returns in exactly one place: inside a
+     conversation, where it belongs to two people rather than to the design.
 
-  /* Ink. Warm greys, measured on the flat ground above — and the ground IS
-     flat now, so unlike the candy pass there is no "darkest patch of the
-     mesh" to defend against. The numbers are the numbers. */
-  --ink:      #241f1a;   /* 13.9 */
-  --ink-soft: #322b24;   /* 11.8 */
-  --muted:    #574e44;   /*  6.9 */
-  --faint:    #5c5349;   /*  6.4 — labels and metadata ONLY */
-  --line:   #ddd7cd;
-  --line-2: #cec7ba;
+     THE NEUMORPHISM IS UNTOUCHED, AND IT IS DOING MORE HERE THAN ANYWHERE.
+     Take the hue out of a room and depth is the only thing left that can say
+     "this is above that". A flat card on white paper needs a hairline to
+     exist at all; a raised one needs nothing but its own light. Which is why
+     the depths are inherited rather than re-pointed — they were already
+     right, and this look leans on them harder than the candy ever did.    */
 
-  --accent:      #6b5b4a;
-  --accent-ink:  #5c4d3e;
-  --accent-soft: #ece5da;
-  --accent-line: #dcd2c3;
-  --on-accent:   #ffffff;
+  /* ── THE ONE INK THIS ROOM HAS TO DECLARE, AND WHY IT IS EMBARRASSING ────
+     Handing the ground back means inheriting the city's own greys, and the
+     city's --faint is #9b9b9b, which is 2.78:1 on white. That is a real
+     failure and it is not this hub's: it is every room that has never been
+     restyled, and it has been on the open-debt list for weeks. Three hubs in
+     a row have now paid it locally because their own grant hid it — this one
+     could not hide it for a single screen, since "Curated, not endless" is
+     set in it directly under the hub name.
 
-  /* Status keeps four meanings and loses its brightness: on a greige page a
-     saturated red is the loudest thing in a room built to be quiet. Each is
-     the same meaning taken to the lowest chroma that still clears AA here. */
-  --ok-ink: #3d5c3f;     --ok-soft: #e6eae0;    --ok-line: #cdd6c2;
-  --warn-ink: #6b4f16;   --warn-soft: #f2ebda;  --warn-line: #ded0ae;
-  --danger-ink: #8a3a34; --danger-soft: #f4e5e1; --danger-line: #e3c6bf;
-  --info-ink: #3c5566;   --info-soft: #e4e9ec;  --info-line: #c8d3d9;
+     #6f6f6f is the same grey moved until it clears (5.0:1), and it is
+     declared HERE rather than at :root only because a one-line change to
+     every label in twenty-five rooms deserves its own commit and its own
+     look, not a ride inside a hub restyle. When that lands, this line should
+     be the first thing deleted. */
+  --faint: #6f6f6f;
 
-  /* The faces are paper, not the plate's glass. The gloss went with the
-     saturated sky it was reflecting. */
-  --face:      linear-gradient(180deg, #fdfcfa 0%, #faf8f4 52%, #f0ece4 100%);
-  --face-2:    linear-gradient(180deg, #fdfcfa 0%, #f8f6f1 48%, #ece7dd 100%);
-  --face-tall: linear-gradient(180deg, #fdfcfa 0%, #faf8f4 calc(100% - min(96px, 40%)), #f0ece4 100%);
-  --face-key:  linear-gradient(180deg, #fdfcfa 0%, #f9f7f2 52%, #eae5da 100%);
-  --well:      linear-gradient(180deg, #e5e0d6 0%, #f1eee7 58%, #faf8f4 100%);
+  /* ── AND THE RAIL'S GLASS STOPS REFRACTING BLUE ──────────────────────────
+     The city's lens is deliberately cool: it bends a blue-grey, which is
+     invisible in a room that has a hue of its own and is the ONLY hue left in
+     a room that does not. Five stacked keys were the one coloured object on
+     a white-and-black screen. Same five layers, same geometry, achromatic
+     refraction — the identical move the bone room made for the opposite
+     reason. */
+  --lens-face: linear-gradient(180deg,
+    rgba(255,255,255,.94) 0%, rgba(240,240,240,.52) 34%,
+    rgba(232,232,232,.40) 56%, rgba(250,250,250,.80) 82%, rgba(255,255,255,.94) 100%);
+  --lens: inset 0 0 0 1.5px rgba(255,255,255,.98),
+          inset 0 0 0 4px rgba(190,190,190,.28),
+          inset 0 8px 12px -8px rgba(140,140,140,.50),
+          inset 0 -10px 14px -7px rgba(255,255,255,.98),
+          0 1px 1px rgba(90,90,90,.10), 0 6px 16px rgba(90,90,90,.14), 0 18px 40px rgba(90,90,90,.12);
+  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.98),
+              inset 0 0 0 3px rgba(190,190,190,.26),
+              inset 0 6px 9px -7px rgba(140,140,140,.45),
+              inset 0 -8px 11px -6px rgba(255,255,255,.98),
+              0 1px 1px rgba(90,90,90,.08), 0 3px 8px rgba(90,90,90,.10);
 
-  --rim:        inset 0 0 0 1px rgba(36,31,26,.09), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(36,31,26,.06);
-  --rim-strong: inset 0 0 0 1px rgba(36,31,26,.13), inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1.5px 0 rgba(36,31,26,.08);
+  /* the metal, which is no longer a metal */
+  --accent:      #0d0d0d;
+  --accent-ink:  #0d0d0d;
+  --accent-soft: #f2f2f2;
+  --accent-line: #e0e0e0;
 
-  /* The shadow ink goes warm umber for the same reason it went slate on the
-     sky: a neutral grey shadow on a warm ground reads as a smudge. */
-  --e1: var(--rim),        0 1px 1px rgba(74,62,48,.10), 0 2px 4px rgba(74,62,48,.10), 0 6px 14px rgba(74,62,48,.12);
-  --e2: var(--rim-strong), 0 1px 1px rgba(74,62,48,.10), 0 3px 6px rgba(74,62,48,.12), 0 12px 26px rgba(74,62,48,.16), 0 24px 52px rgba(74,62,48,.12);
-  --e3: var(--rim-strong), 0 2px 2px rgba(74,62,48,.11), 0 8px 16px rgba(74,62,48,.14), 0 22px 46px rgba(74,62,48,.18);
-  --e1-key: var(--rim),        0 1px 1px rgba(74,62,48,.12), 0 2px 4px rgba(74,62,48,.12), 0 5px 10px rgba(74,62,48,.10);
-  --e2-key: var(--rim-strong), 0 2px 3px rgba(74,62,48,.12), 0 5px 10px rgba(74,62,48,.14);
-  --carve:      inset 0 0 0 1px rgba(36,31,26,.11), inset 0 3px 6px rgba(36,31,26,.14), inset 0 -1px 0 rgba(255,255,255,.95);
-  --carve-deep: inset 0 0 0 1px rgba(36,31,26,.13), inset 0 4px 10px rgba(36,31,26,.19), inset 0 -1px 0 rgba(255,255,255,.95);
-  --press: inset 0 0 0 1px rgba(36,31,26,.13), inset 0 3px 6px rgba(36,31,26,.17), 0 1px 0 rgba(255,255,255,.9);
-  --edge-up: 0 1px 0 rgba(255,255,255,.95);
-  --edge-in: inset 0 -1px 0 rgba(36,31,26,.07);
-  --case-rim: inset 0 0 0 1px rgba(36,31,26,.16), inset 0 4px 12px rgba(36,31,26,.20), inset 0 -2px 8px rgba(36,31,26,.10);
-  --case-rim-soft: inset 0 0 0 1px rgba(36,31,26,.12), inset 0 3px 7px rgba(36,31,26,.18), inset 0 -1px 0 rgba(255,255,255,.5);
+  /* THE LAMP IS THE ONE SOLID BLACK THING IN THE RAIL — same rule as the
+     button, and the same departure astrology's monochrome argued: the lamp's
+     face and the lamp's ink move together, and here they move to the pair
+     the whole room is built from. White on near-black is 19:1, which also
+     retires the citywide 3.5:1 lamp label inside this hub. */
+  --lamp-face:     linear-gradient(180deg, #232323 0%, #131313 48%, #050505 100%);
+  --lamp:          inset 0 0 0 1.5px rgba(255,255,255,.16), inset 0 2px 5px rgba(0,0,0,.5), inset 0 -1px 0 rgba(255,255,255,.18), 0 3px 12px rgba(13,13,13,.30);
+  --lamp-badge:    inset 0 0 0 1px rgba(255,255,255,.22), inset 0 1px 0 rgba(255,255,255,.18);
+  --key-lit-face:  linear-gradient(180deg, #232323 0%, #131313 48%, #050505 100%);
+  --key-lit:       inset 0 0 0 1.5px rgba(255,255,255,.16), inset 0 1px 0 rgba(255,255,255,.18), 0 3px 12px rgba(13,13,13,.30);
+  --key-lit-pip:   0 0 0 2px rgba(13,13,13,.14), 0 0 8px rgba(13,13,13,.40);
 
-  /* The rail is the ground darkened, not a grey — same rule as the sky. */
-  --rail-well: #e6e1d8;
-  --rail-well-shadow: inset -1px 0 0 rgba(36,31,26,.10);
-  --lens-face: linear-gradient(180deg, #fdfcfa 0%, #faf8f4 55%, #eee9e0 100%);
-  --lens:     inset 0 0 0 1.5px rgba(255,255,255,.95), inset 0 1px 0 rgba(255,255,255,1), 0 4px 14px rgba(74,62,48,.16);
-  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.9), inset 0 1px 0 rgba(255,255,255,1), 0 2px 7px rgba(74,62,48,.12);
-
-  --glass-face: linear-gradient(158deg, rgba(253,252,250,.95), rgba(250,248,244,.86) 52%, rgba(247,244,238,.80));
-  --glass:      inset 0 0 0 1.4px rgba(255,255,255,1), inset 0 1px 0 rgba(255,255,255,1), 0 18px 44px rgba(74,62,48,.20);
-  --glass-key:  inset 0 0 0 1.1px rgba(255,255,255,.95), inset 0 1px 0 rgba(255,255,255,1), 0 3px 10px rgba(74,62,48,.16);
-
-  --key-lit-face: linear-gradient(180deg, #7c6b58 0%, #6b5b4a 46%, #5c4d3e 100%);
-  --key-lit:      inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 1px 0 rgba(255,255,255,.36), 0 3px 12px rgba(74,62,48,.34);
-  --key-lit-pip:  0 0 0 2px rgba(107,91,74,.16), 0 0 8px rgba(107,91,74,.5);
-  --lamp-face: linear-gradient(180deg, #7c6b58 0%, #6b5b4a 46%, #5c4d3e 100%);
-  --lamp:      inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 2px 5px rgba(0,0,0,.18), inset 0 -1px 0 rgba(255,255,255,.36), 0 3px 12px rgba(74,62,48,.34);
-  --lamp-badge: inset 0 0 0 1px rgba(255,255,255,.38), inset 0 1px 0 rgba(255,255,255,.32);
-  /* THE BADGE IS A RECESS, NOT A HIGHLIGHT — and this is a citywide debt paid
-     locally. The city's badge is a white wash at .22, which lightens whatever
-     lamp it sits on; on the candy lamp its white number measured 3.11:1 and on
-     this quieter taupe it measured 3.84:1. Inverting it to a dark recess puts
-     the number at 7.9:1 and, being a hole rather than a highlight, agrees with
-     the lamp's own pressed-in shape. Twenty-four rooms still carry the light
-     version; this hub stops carrying it. */
-  --lamp-badge-bg: rgba(36,31,26,.20);
-
-  --loud-face:        linear-gradient(180deg, #7c6b58 0%, #6b5b4a 55%, #5c4d3e 100%);
-  --loud-face-hover:  linear-gradient(180deg, #8a7864 0%, #786752 55%, #695845 100%);
-  --loud-face-active: linear-gradient(180deg, #5c4d3e 0%, #67573f 60%, #6b5b4a 100%);
-  --on-loud: #ffffff;
-  --frost: rgba(250,248,244,.78);
-  --btn-line-edge: rgba(255,255,255,.95);
-  --btn-line-ring: rgba(36,31,26,.17);
-  --btn-line-ring-hover: rgba(36,31,26,.32);
-  --focus-ring: 0 0 0 3px rgba(92,77,62,.38);
-
-  --scrim-top:   rgba(36,31,26,.24);
-  --scrim-clear: rgba(36,31,26,0);
-  --scrim-deep:  rgba(36,31,26,.78);
-
-  /* ── NO SKY ──────────────────────────────────────────────────────────────
-     The Lovely Spring mesh is gone, and its removal is the design rather
-     than a casualty of it. That wash was three saturated hues behind a wall
-     of faces; the reference's whole proposition is a room so quiet that the
-     photographs are the only colour in it. --sky-image stays declared as the
-     flat ground so the hub's ::before layer keeps painting SOMETHING (the
-     mechanism is unchanged, only what it hangs), and the chrome goes opaque
-     paper — a backdrop-filter over a flat colour is thirty blurred controls
-     per screen buying a difference nobody can see. */
-  --sky-image: linear-gradient(180deg, #efece6 0%, #efece6 100%);
-  --chrome: #faf8f4;
-  --chrome-blur: none;
-
-  /* ── THE FILM, TAKEN DOWN ────────────────────────────────────────────────
-     Same measured curve — its white point was already 238,231,220, which is
-     this room's paper, which is why the reference and the grade agree
-     without either being bent. Saturation drops 0.90 → 0.74: the harmony in
-     the reference is a LOW-CHROMA one, and this is the line that gives every
-     photograph in the hub that harmony without anybody editing anything. */
-  --film: url(#tc-film-studio);
+  /* ── THE THIRD STOP ──────────────────────────────────────────────────────
+     Same measured curve as the other two, taken all the way down. Greyscale
+     is not a filter bolted on top: it is saturation 0, at the end of the
+     grade the hub already applies, so the pictures keep the curve's rolled
+     white and lifted-but-not-milky blacks and simply lose their colour. */
+  --film: url(#tc-film-mono);
 }
 
 /* ── ENTERTAINMENT IS A DARK ROOM ──────────────────────────────────────────

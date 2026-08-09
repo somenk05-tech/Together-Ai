@@ -1774,21 +1774,33 @@ textarea.g-field { resize: none; line-height: 1.55; }
    Dating is graded, and it is one selector rather than a prop threaded through
    six components, because the pages hold eleven separate <img> call sites and
    every one of them is written as an inline style object.                    */
-[data-hub="dating"] body { background: transparent; }
-.tc-shell:has(.tc-side[data-side="dating"])::before {
-  content: ''; position: fixed; inset: 0; z-index: -2;
-  background: var(--sky-image);
-  background-color: var(--ground);
-}
-[data-hub="dating"] .tc-shell,
-[data-hub="dating"] .tc-main,
-[data-hub="dating"] .page { background: transparent; }
+/* ── THE SKY IS GONE, AND SO IS THE GLASS OVER IT ────────────────────────
+   The fixed sky layer, the transparent shells and the blurred chrome all
+   existed to hang a saturated wash behind the hub and then keep type legible
+   on top of it. There is no wash now: the ground is the city's white, so the
+   header is var(--card), the rail is var(--rail-well) and the page paints
+   itself — every one of those a line that already existed in this file. What
+   the hub keeps is the one thing that was never about the sky: the grade.  */
 
-[data-hub="dating"] .tc-header,
-[data-hub="dating"] .tc-side {
-  background: var(--chrome);
-  -webkit-backdrop-filter: var(--chrome-blur); backdrop-filter: var(--chrome-blur);
+/* ── SPACE, WHICH IS HALF OF WHAT WAS BORROWED ───────────────────────────
+   The reference is two thirds empty and the emptiness is the design. Type
+   scale and colour are already the city's; what changes is how much room a
+   page is allowed to take. This is the only geometry in the hub, and it is
+   four numbers: a wider gutter, a taller head, and air above every heading.
+
+   IT IS SPENT HERE RATHER THAN CITYWIDE ON PURPOSE. The whole product
+   argument of this hub is that you are shown one considered thing instead of
+   a wall of options, and a crowded screen contradicts that before a word is
+   read. A hub that is a dense working tool — medical, financial — would be
+   made worse by the same numbers. */
+[data-hub="dating"] .tc-main .page {
+  padding-left: clamp(20px, 3.4vw, 54px);
+  padding-right: clamp(20px, 3.4vw, 54px);
+  padding-bottom: 72px;
 }
+[data-hub="dating"] .tc-main .page > h1,
+[data-hub="dating"] .tc-main .page > h2 { margin-top: 1.6em; }
+[data-hub="dating"] .tc-main .page > h1:first-child { margin-top: .4em; }
 
 /* ── THE GRADE ───────────────────────────────────────────────────────────
    Scoped to the hub's own photographs and NOT to the shell: the mark in the
@@ -1876,23 +1888,17 @@ textarea.g-field { resize: none; line-height: 1.55; }
 .mstack.mflat .mcard { position: relative; width: 320px; max-width: 100%; transform: none; }
 @media (max-width: 720px) { .mstack.mflat .mcard { width: 100%; } }
 
-/* ── AND THE THREE PREFERENCES ───────────────────────────────────────────
-   A tinted ground under two blurred layers, plus a grade on every photograph.
-   Reduced transparency takes the blur; reduced motion is not involved; and
-   MORE CONTRAST TAKES THE GRADE OFF, because the grade's whole job is to lower
-   contrast and a citizen who has asked for more of it is owed the file. */
-@media (prefers-reduced-transparency: reduce) {
-  [data-hub="dating"] .tc-header,
-  [data-hub="dating"] .tc-side {
-    background: var(--card);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
-  .tc-shell:has(.tc-side[data-side="dating"])::before { background-image: none; }
-}
+/* ── AND THE ONE PREFERENCE THIS STILL OWES ──────────────────────────────
+   Two of the three went with the sky: there is no transparency left to
+   reduce and no fixed layer left to stop moving. The third is the one that
+   was never about the sky, and it matters MORE now that the grade is a
+   greyscale one — a citizen who has asked for more contrast is owed the
+   file as it was taken, in its own colour. Removing the grade removes the
+   monochrome with it, which is the correct trade and not a hole in the
+   design: the room is still white, black and quiet around it. */
 @media (prefers-contrast: more) {
   [data-hub="dating"] .tc-main img:not(:where(.no-case, .bg)),
   [data-hub="dating"] .tc-main video { filter: none; }
-  .tc-shell:has(.tc-side[data-side="dating"])::before { background-image: none; }
 }
 
 /* ══ THE MONOCHROME OBSERVATORY: TWO LINES, AND THEY ARE BOTH LETTERPRESS ══

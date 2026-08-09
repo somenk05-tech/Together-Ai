@@ -198,12 +198,13 @@ describe('Relief stays a system', () => {
   });
 
   /**
-   * FIVE HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
+   * FOUR HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
    * EXCEPTION.
    *
-   * Three of the five are hubs you READ rather than operate; the other two
-   * earn it on material instead, and say so. Either way a sixth is not
-   * automatic:
+   * Three of the four are hubs you READ rather than operate; the fourth earns
+   * it on material instead, and says so. Either way a fifth is not automatic
+   * — and two hubs have now handed one BACK, which is the same rule running
+   * the other way:
    *
    *   nutrition — warm paper. It already held the only other surface exception
    *     ([data-press], granted because a day of food is read the way a menu is),
@@ -236,17 +237,19 @@ describe('Relief stays a system', () => {
    *     A tinted ground is the surface those classes were written for. The
    *     hub's content is also a wall of other people's photographs, which on
    *     white is a contact sheet.
-   *   dating — candy, with one blue. The argument is social's, not nutrition's:
-   *     MATERIAL. The hub is other people's photographs and nothing else — six
-   *     of them a week, at the size of a face — and a photograph on white is a
-   *     contact sheet in this hub for exactly the reason it is in that one.
-   *     What makes it a separate line rather than "and also dating" is that it
-   *     is the first ground with a FILM GRADE attached (--film, --grain): the
-   *     room and the pictures in it are graded together, which is why the
-   *     ground can be saturated without the photographs fighting it. Its
-   *     accent hue is not the ground either — the ground is pink, the accent
-   *     is the plate's blue straw, and the rose the hub used to carry is gone
-   *     rather than demoted, because it would have been a third hue.
+   *   dating — HELD one three times (candy, then the studio's greige) and
+   *     RETURNED it, for the same reason astrology's daylight did. Its
+   *     argument had always been material: photographs on white read as a
+   *     contact sheet, so the room was tinted to give six faces a week
+   *     something to sit in. What the owner's Swiss reference showed is that
+   *     the tint was never the load-bearing half of that argument — SPACE and
+   *     a GRADE were. Greyscale the photographs, spend enough air, and white
+   *     paper stops being a contact sheet and becomes a gallery wall. So the
+   *     hue went, and the ground with it: near-black ink on the city's own
+   *     white, five soft depths doing all the separating, and the grade
+   *     (still the only one in the city) taken to its third stop. The film
+   *     that was this grant's original justification is precisely what let it
+   *     be given back.
    *
    * THE ACCENT HUE IS NEVER THE GROUND. The tint that was removed washed the
    * page in the hub's GREEN. None of these does that: paper with the green
@@ -258,9 +261,9 @@ describe('Relief stays a system', () => {
    * The list is written out rather than counted, exactly like the press's
    * wearers, so a third entry costs an argument instead of a nod.
    */
-  it('keeps a re-pointed ground inside the five hubs it was granted to', () => {
+  it('keeps a re-pointed ground inside the four hubs it was granted to', () => {
     const css = strip(tokens);
-    const GRANTED = ['astrology', 'dating', 'entertainment', 'nutrition', 'social'];
+    const GRANTED = ['astrology', 'entertainment', 'nutrition', 'social'];
 
     // 1. only the granted hubs re-point a ground token. Sorted: the file's
     //    order is editorial and a re-order must not read as a breach.
@@ -312,7 +315,7 @@ describe('Relief stays a system', () => {
       return (hi + 0.05) / (lo + 0.05);
     };
     const failures: string[] = [];
-    for (const hub of ['astrology', 'dating', 'entertainment', 'nutrition', 'social']) {
+    for (const hub of ['astrology', 'entertainment', 'nutrition', 'social']) {
       // The block that owns the ground, found by the thing that makes it that
       // block rather than by position: nutrition and entertainment each once
       // had a plain accent one-liner elsewhere in the file, and matching the
