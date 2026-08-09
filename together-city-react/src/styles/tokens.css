@@ -821,37 +821,137 @@
    NO NEW TOKEN NAMES. Every name below already exists in :root; removing this
    block removes the entire treatment.                                       */
 [data-hub="astrology"] {
-  /* ── THE DAYLIGHT OBSERVATORY ────────────────────────────────────────────
-     The third sky this hub has worn, and the first that is nobody's
-     exception. The photographs needed a granted black ground; the velvet
-     needed the same grant for its void. Daylight is the city itself: white
-     paper, five depths, dark ink — so the ENTIRE night machinery left this
-     block (faces, lens tiles, ivory inks, wells, rims: all of it), the hub
-     returned its ground grant, and relief.spec's granted list is four for
-     the first time since the night shipped. A hub that can be beautiful in
-     the city's own light should not hold a permit it no longer uses.
+  /* ── THE OBSERVATORY GOES MONOCHROME ─────────────────────────────────────
+     The room returns to night, and this time it brings no metal with it.
+     Astrology has worn charcoal-with-gold twice; both times the gold was the
+     point. This is the opposite argument: NO HUE ANYWHERE, and emphasis made
+     out of weight, fill and light instead — which is not a new idea in this
+     codebase, it is the chat stage's idea ("black and white does the
+     speaking, and the shadows are freed to be craft") given a whole hub.
 
-     What remains is what any hub owns — its metal, and its weather:
+     THE LIGHT INVERTS, THE RELIEF DOES NOT. Five depths, same geometry, same
+     spreads. On white the highlight is invisible and the shadow separates; on
+     near-black the shadow has nothing left to darken, so the top edge of every
+     tile carries the light and the shadow only deepens. Same rims, read in a
+     dark room.
 
-     THE GOLD DEEPENS for paper. #c9a468 was mixed for charcoal and washes
-     out on white; #7a5c38 reads 6.4:1 as ink and carries white at 5.5:1 as
-     a fill. One metal, two grounds — the same rule as medical's teal.
+     THE ONE SOLID WHITE THING IS THE ONE YOU PRESS. With no hue left, a second
+     emphasis would have to invent one, so exactly two surfaces are allowed to
+     go white: the primary button (--loud-face, which MUST invert — a near-black
+     pill on a near-black page is the quietest thing on the screen, which is the
+     precise opposite of its one job) and the rail lamp.
 
-     THE SKY IS A WHISPER. The same --sky-image mechanism that hung the
-     photographs and then the bloom now carries two breaths of warmth at the
-     top of the page — barely off-white, and load-bearing anyway: the
-     frosted tab glass needs SOMETHING behind it to bend, and pure white
-     gives a backdrop-filter nothing (the lesson social's ground-glass
-     taught). Bare dark ink stands on it everywhere at 17:1+. */
-  --accent:      #7a5c38;
-  --accent-ink:  #7a5c38;
-  --accent-soft: #f3ede2;
-  --accent-line: #e2d5bf;
-  --sky-image:
-    radial-gradient(60% 22% at 30% 0%, #f3ede2 0%, rgba(243,237,226,0) 70%),
-    radial-gradient(50% 18% at 78% 2%, #eef0f4 0%, rgba(238,240,244,0) 70%);
-  --sky-pos: 50% 0;
-  --sky-size: 100% 100%;
+     AND THE LAMP LOSES ITS ORANGE, WHICH IS A REAL DEPARTURE. relief.spec has
+     held since the first night that the rail is the city's furniture and keeps
+     its orange in all twenty-five rooms. In a room with no hue at all, that
+     orange is not furniture — it is the single most saturated object on the
+     screen, and the eye goes to the navigation instead of to the sky.
+     Entertainment made this exact argument for its green and the spec accepted
+     it. So the lamp goes white with near-black type, and the citywide 3.5:1
+     lamp label becomes 18:1 in this one hub — the accessibility debt paid
+     locally by the design rather than in spite of it.
+
+     --on-accent IS STILL NOT TOUCHED. It is read by seven dark surfaces
+     elsewhere; the lamp is re-pointed through --on-lamp, which exists for
+     exactly this.
+
+     THE ONLY HUES IN THE ROOM ARE THE FOUR THAT MEAN SOMETHING. Status is not
+     decoration: a warning that cannot be told from body text is a safety bug,
+     not a purer palette. They are held at the lowest chroma that still reads
+     as itself.                                                              */
+
+  /* ── Grounds. Four steps, told apart without a single border ── */
+  --ground: #0e0f10;
+  --paper:  #0e0f10;
+  --card:   #17181a;
+  --wash:   #131416;
+  --media-bg: #0a0b0c;
+
+  --ink:      #f4f5f6;   /* 17.6:1 on the page */
+  --ink-soft: #e6e8ea;   /* 14.0:1 on a card */
+  --muted:    #b9bdc2;   /*  8.5:1 — the sub-line under a title */
+  --faint:    #a8adb3;   /*  6.9:1 — labels, placeholders, metadata */
+  --line:   #26282b;
+  --line-2: #2f3134;
+
+  /* The accent survives as a POSITION rather than a colour: a mid grey the
+     city's white type sits on at 11:1, and the brightest ink where it is a
+     word. Both names keep their jobs, so nothing that reads them changes. */
+  --accent:      #3a3d41;
+  --accent-ink:  #e9eaec;
+  --accent-soft: #1c1e20;
+  --accent-line: #2a2d30;
+
+  --ok-ink: #a9c9b0;     --ok-soft: #121714;    --ok-line: #26332a;
+  --warn-ink: #d8c9a0;   --warn-soft: #191710;  --warn-line: #33301f;
+  --danger-ink: #e8b0ab; --danger-soft: #1a1211; --danger-line: #372624;
+  --info-ink: #a9c2d8;   --info-soft: #10161a;  --info-line: #253440;
+
+  /* FACES. Same gradient, same direction of light, dark numbers. */
+  --face:      linear-gradient(180deg, #1b1c1f 0%, #17181a 44%, #101113 100%);
+  --face-2:    linear-gradient(180deg, #1d1f21 0%, #18191c 48%, #111214 100%);
+  --face-tall: linear-gradient(180deg, #191a1d 0%, #17181a calc(100% - min(96px, 40%)), #121315 100%);
+  --face-key:  linear-gradient(180deg, #1e2023 0%, #191a1d 52%, #131416 100%);
+  --well:      linear-gradient(180deg, #0a0b0c 0%, #0e0f11 58%, #131416 100%);
+
+  --rim:        inset 0 0 0 1px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.5);
+  --rim-strong: inset 0 0 0 1px rgba(0,0,0,.65), inset 0 1.5px 0 rgba(255,255,255,.11), inset 0 -1.5px 0 rgba(0,0,0,.55);
+
+  --e1: var(--rim),        0 1px 1px rgba(0,0,0,.5), 0 2px 4px rgba(0,0,0,.45), 0 6px 13px rgba(0,0,0,.5);
+  --e2: var(--rim-strong), 0 1px 1px rgba(0,0,0,.5), 0 3px 6px rgba(0,0,0,.5),  0 11px 24px rgba(0,0,0,.55), 0 22px 48px rgba(0,0,0,.45);
+  --e3: var(--rim-strong), 0 2px 2px rgba(0,0,0,.55), 0 7px 14px rgba(0,0,0,.5), 0 20px 42px rgba(0,0,0,.6), 0 40px 88px rgba(0,0,0,.5);
+  --e1-key: var(--rim),        0 1px 1px rgba(0,0,0,.5), 0 2px 4px rgba(0,0,0,.5), 0 5px 10px rgba(0,0,0,.42);
+  --e2-key: var(--rim-strong), 0 2px 3px rgba(0,0,0,.5), 0 5px 10px rgba(0,0,0,.55), 0 10px 20px rgba(0,0,0,.45);
+
+  --carve:      inset 0 0 0 1px rgba(0,0,0,.6), inset 0 3px 6px rgba(0,0,0,.6), inset 0 -1px 0 rgba(255,255,255,.07), inset 3px 0 5px -3px rgba(0,0,0,.45), inset -3px 0 5px -3px rgba(0,0,0,.45);
+  --carve-deep: inset 0 0 0 1px rgba(0,0,0,.7), inset 0 4px 10px rgba(0,0,0,.7), inset 0 -1px 0 rgba(255,255,255,.07);
+  --press: inset 0 0 0 1px rgba(0,0,0,.6), inset 0 3px 6px rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.06);
+  --edge-up: 0 1px 0 rgba(255,255,255,.06);
+  --edge-in: inset 0 -1px 0 rgba(0,0,0,.5);
+  --pip-ok: 0 0 0 2px var(--card), 0 1px 2px rgba(0,0,0,.6);
+  --case-rim: inset 0 0 0 1px rgba(0,0,0,.7), inset 0 4px 12px rgba(0,0,0,.6), inset 0 -2px 8px rgba(0,0,0,.4);
+  --case-rim-soft: inset 0 0 0 1px rgba(0,0,0,.6), inset 0 3px 7px rgba(0,0,0,.55), inset 0 -1px 0 rgba(255,255,255,.08);
+
+  /* THE RAIL: a groove with lit keys, and the lamp is the white one. */
+  --rail-well: #0b0c0d;
+  --rail-well-shadow: inset -1px 0 0 #1c1d20;
+  --lens-face: linear-gradient(180deg, rgba(255,255,255,.055) 0%, rgba(255,255,255,.02) 55%, rgba(0,0,0,.18) 100%);
+  --lens: inset 0 0 0 1.5px rgba(255,255,255,.10), inset 0 1px 0 rgba(255,255,255,.14), 0 4px 12px rgba(0,0,0,.5);
+  --lens-key: inset 0 0 0 1.2px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.10), 0 2px 6px rgba(0,0,0,.45);
+  --lamp-face: linear-gradient(180deg, #ffffff 0%, #f1f2f3 52%, #dcdee0 100%);
+  --lamp: inset 0 0 0 1.5px rgba(255,255,255,.5), inset 0 -1px 0 rgba(0,0,0,.18), 0 2px 10px rgba(0,0,0,.55);
+  --lamp-badge: inset 0 0 0 1px rgba(14,15,16,.18), inset 0 1px 0 rgba(14,15,16,.10);
+  --lamp-badge-bg: rgba(14,15,16,.10);
+  --on-lamp: #0e0f10;
+  --on-lamp-soft: rgba(14,15,16,.74);
+
+  --glass: inset 0 0 0 1.3px rgba(255,255,255,.10), inset 0 1px 0 rgba(255,255,255,.14), 0 6px 16px rgba(0,0,0,.5);
+  --glass-key: inset 0 0 0 1.1px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.11), 0 3px 8px rgba(0,0,0,.45);
+  --glass-in: inset 0 0 0 1.1px rgba(255,255,255,.07), inset 0 2px 5px rgba(0,0,0,.5);
+  --glass-face: linear-gradient(158deg, rgba(255,255,255,.07), rgba(255,255,255,.02) 52%, rgba(0,0,0,.16));
+  --glass-line: rgba(255,255,255,.16);
+  --scrim-top: rgba(0,0,0,.45);
+  --scrim-deep: rgba(0,0,0,.82);
+  --focus-ring: 0 0 0 3px rgba(255,255,255,.34);
+  --logo-filter: invert(1);
+
+  /* LOUD INVERTS, AND IT HAS TO — see the block comment. */
+  --loud-face:        linear-gradient(180deg, #ffffff 0%, #f2f3f4 55%, #e2e4e6 100%);
+  --loud-face-hover:  linear-gradient(180deg, #ffffff 0%, #f8f9fa 55%, #eceeef 100%);
+  --loud-face-active: linear-gradient(180deg, #e2e4e6 0%, #eceeef 60%, #f6f7f8 100%);
+  --on-loud: #0e0f10;
+
+  --frost: rgba(8,9,10,.74);
+  --btn-line-edge:       rgba(255,255,255,.08);
+  --btn-line-ring:       rgba(255,255,255,.20);
+  --btn-line-ring-hover: rgba(255,255,255,.38);
+
+  /* The legacy aliases. --gold-bright is the only one used as TEXT (the star
+     beside a rating), so it is the only one that has to move. */
+  --gold-bright: var(--accent-ink);
+  --rose: var(--accent-ink);
+  --purple: var(--accent-ink);
+  --navy: var(--ink);
 }
 
 /* NOTE ON THE TWO --faint VALUES, CHANGED 7 Aug (astrology's has since left
@@ -1342,19 +1442,11 @@
   --faint: #4d4d4d;
 }
 
-/* ── AND THE DAYLIGHT OBSERVATORY'S, FOR THE SAME REASON AT A LIGHTER
-   STOP. Astrology's whisper is nearly white, but "nearly" is exactly where
-   the two soft greys live: the city --muted measured 4.47:1 where the two
-   breaths overlap — three hundredths under AA, which is still under — and
-   the velvet used to re-point --faint, so returning the ground grant
-   uncovered the rail tagline standing on white at 2.78:1, the citywide
-   number this hub simply no longer got to skip. Both move along their own
-   greys until they clear the whisper's DENSEST blend (the harness samples
-   the worst pixel, not the average): #5f6368 at 5.07:1 and #63686d at
-   4.72:1 over it, both from the daylight sample that was measured before
-   it was liked. */
-[data-hub="astrology"] .tc-main,
-[data-hub="astrology"] .tc-side {
-  --muted: #5f6368;
-  --faint: #63686d;
-}
+/* ASTROLOGY'S HANDOFF IS GONE, AND ITS ABSENCE IS THE POINT. The daylight
+   observatory needed one: it had no ground of its own, so the city's greys
+   arrived mixed for white and had to be darkened, scoped, for the two
+   surfaces the whisper touched. The bone room has a ground, which means its
+   inks are declared IN the grant and computed against bone by relief.spec at
+   build time — one place, checked by arithmetic, instead of two places
+   agreeing by hand. That is what a grant buys, and the reason this hub took
+   one back. */

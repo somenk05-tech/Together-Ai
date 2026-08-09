@@ -967,8 +967,6 @@ img[src$=".svg"], .no-case {
 
 @media (prefers-reduced-motion: reduce) {
   .district-plate:hover .hub-plate-cta { transform: none; }
-  /* A FIXED background is a MOVING background to anybody scrolling past it. */
-  .tc-shell:has(.tc-side[data-side="astrology"])::before { position: absolute; }
 }
 
 /* ══ A WALL OF PICTURES, IN THE HUB'S LANGUAGE ═══════════════════════════
@@ -1897,83 +1895,40 @@ textarea.g-field { resize: none; line-height: 1.55; }
   .tc-shell:has(.tc-side[data-side="dating"])::before { background-image: none; }
 }
 
-/* ══ THE DAYLIGHT OBSERVATORY ════════════════════════════════════════════
-   THE THIRD SKY, AND THE SMALLEST. The photographs needed every surface
-   rebuilt as a pane over the picture; the velvet needed the night's whole
-   ink system. Daylight needs almost nothing, and that is the measure of it:
-   the hub's base rules in layout.css — the face-tall letter, the carve in
-   the profile frame, the drop cap, the city's own dark ink — ARE the
-   daylight look. So the pane rules, the on-pane inks and the chrome
-   re-points that stood here are DELETED rather than restyled, the base
-   rules take over unopposed, and the astro-frame's carve (suppressed on
-   glass, where it read as a scratch) simply comes back.
+/* ══ THE MONOCHROME OBSERVATORY: TWO LINES, AND THEY ARE BOTH LETTERPRESS ══
+   The hub owns exactly one rule in this file now, and it exists because of a
+   detail the token layer cannot reach. layout.css gives the drop cap and the
+   consultation title a LETTERPRESS shadow — a white hairline along the
+   bottom of the glyph, which is how ink sits in paper. That effect needs
+   paper. On a near-black ground it is a white edge under white type, which
+   is not depth, it is a smear.
 
-   THE WHISPER IS LOAD-BEARING. What survives is the sky mechanism — the
-   same ::before, now hanging two pale breaths of warmth instead of a
-   photograph (tokens.css has the values) — and one new material: the
-   header, the rail and the mobile chips wear the milk glass medical's
-   chrome wears (--sheet + blur + --atmos-lip, all root tokens). Frosted
-   glass on PURE white has nothing to bend — social's ground-glass lesson —
-   and the whisper at the top of the page is what the blur catches. */
-[data-hub="astrology"] body { background: transparent; }
-.tc-shell:has(.tc-side[data-side="astrology"]) { position: relative; }
-.tc-shell:has(.tc-side[data-side="astrology"])::before {
-  content: ''; position: fixed; inset: 0; z-index: -2;
-  background: var(--sky-image) var(--sky-pos) / var(--sky-size) no-repeat;
-  background-color: var(--ground);
-}
-/* The shells stop painting so the whisper reaches the page — the rule the
-   photographs needed, kept because it is the whole mechanism. */
-[data-hub="astrology"] .tc-shell,
-[data-hub="astrology"] .tc-main,
-[data-hub="astrology"] .page,
-[data-hub="astrology"] .ask-stage,
-[data-hub="astrology"] .tarot-night { background: transparent; }
-
-/* THE FROSTED RAIL — the one thing the owner pointed at in the daylight
-   sample: "the tabs, can that be glass frosted." Same sheet, same blur
-   numbers as medical's chrome — two hubs, one material, zero new tokens.
-   Ink, lens tiles and the lamp stay the city's own; no override outranks
-   them (the lamp lesson, learned once). */
-[data-hub="astrology"] .tc-header {
-  background: var(--sheet);
-  -webkit-backdrop-filter: blur(24px) saturate(1.2);
-  backdrop-filter: blur(24px) saturate(1.2);
-  border-bottom: 1px solid var(--sheet-line);
-}
-[data-hub="astrology"] .tc-side {
-  background: var(--sheet);
-  -webkit-backdrop-filter: blur(24px) saturate(1.2);
-  backdrop-filter: blur(24px) saturate(1.2);
-  box-shadow: var(--atmos-lip);
-}
-[data-hub="astrology"] .hub-chips .chip {
-  background: var(--sheet);
-  border-color: var(--sheet-line);
-  color: var(--ink);
-  box-shadow: var(--atmos-lip);
+   So the highlight goes and the drop stays: the same rule the whole room
+   follows — on white the shadow does the work, and here the light does,
+   which for TEXT means the type itself is the light and it needs the dark
+   underneath it rather than a second highlight. */
+[data-hub="astrology"] .letter-sky .letter-p:first-of-type::first-letter,
+[data-hub="astrology"] .ask-title {
+  text-shadow: 0 2px 8px rgba(0,0,0,.55);
 }
 
-/* Glass, asked to stop being glass. The cards no longer need an entry here:
-   they are paper again, and paper already answers both preferences. */
-@media (prefers-reduced-transparency: reduce) {
-  [data-hub="astrology"] .tc-header,
-  [data-hub="astrology"] .tc-side,
-  [data-hub="astrology"] .hub-chips .chip {
-    background: var(--card);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
-  .tc-shell:has(.tc-side[data-side="astrology"])::before { background-image: none; }
-}
-@media (prefers-contrast: more) {
-  [data-hub="astrology"] .tc-header,
-  [data-hub="astrology"] .tc-side,
-  [data-hub="astrology"] .hub-chips .chip {
-    background: var(--card);
-    -webkit-backdrop-filter: none; backdrop-filter: none;
-  }
-  .tc-shell:has(.tc-side[data-side="astrology"])::before { background-image: none; }
-}
+/* ══ AND NOTHING ELSE, WHICH IS THE POINT ════════════════════════════════
+   Astrology used to own the longest hub block in this file: a fixed sky
+   layer, six named panes over it, on-pane inks, chrome re-points, and three
+   preference fallbacks for the blur. Then a whisper and a frosted rail. All
+   of it is gone.
+
+   Nothing replaced it, because nothing needs to. The header is var(--card),
+   the rail is var(--rail-well), the cards are var(--face-tall), the keys are
+   var(--lens-face) — every one of them a line that was already in this file,
+   reading a token the hub re-points in tokens.css. A room this different
+   from the city, expressed entirely as colour: that is the strongest
+   evidence the token layer is doing its job, and the reason the night is
+   cheap to keep and cheap to leave.
+
+   The blur going away takes three preference fallbacks with it, because
+   there is no transparency left to reduce and no glass left to solidify.
+   That is not coverage lost; it is a case that stopped existing.          */
 
 /* ══ THE EDITORIAL PLATE ══════════════════════════════════════════════════
    Real Estate's whole hub, drawn on one argument taken from the reference:
@@ -2815,10 +2770,12 @@ textarea.g-field { resize: none; line-height: 1.55; }
   }
   [data-hub="medical"] .tc-shell::before { background: var(--atmos-floor); }
 }
-/* A FIXED background is a MOVING background to anybody scrolling past it —
-   the astrology sky's rule, inherited with its mechanism. And relief.spec
-   reads the FILE'S LAST reduced-motion block for the no-hover-movement
-   guarantee, so this one, now last, restates it. */
+/* A FIXED background is a MOVING background to anybody scrolling past it.
+   The rule was astrology's first and outlived the sky it was written for —
+   medical is the only hub with a fixed layer now, and it inherits both the
+   mechanism and the obligation. And relief.spec reads the FILE'S LAST
+   reduced-motion block for the no-hover-movement guarantee, so this one,
+   now last, restates it. */
 @media (prefers-reduced-motion: reduce) {
   [data-hub="medical"] .tc-shell::before { position: absolute; }
   .macta:hover, .masections a:hover { transform: none; }

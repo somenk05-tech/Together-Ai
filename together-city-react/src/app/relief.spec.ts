@@ -198,24 +198,28 @@ describe('Relief stays a system', () => {
   });
 
   /**
-   * FOUR HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
+   * FIVE HUBS HAVE THEIR OWN GROUND, AND EACH IS SCOPED OR IT IS NOT AN
    * EXCEPTION.
    *
-   * Two of the four are hubs you READ rather than operate; the other two
-   * earn it on material instead, and say so. Either way a fifth is not
+   * Three of the five are hubs you READ rather than operate; the other two
+   * earn it on material instead, and say so. Either way a sixth is not
    * automatic:
    *
    *   nutrition — warm paper. It already held the only other surface exception
    *     ([data-press], granted because a day of food is read the way a menu is),
    *     and the press pages had become an ivory island inside a white hub.
-   *   astrology — HELD a grant twice (charcoal for the photographs, then the
-   *     velvet), and RETURNED it for the daylight observatory: the owner asked
-   *     to see the hub on white, and the white version turned out to be the
-   *     city's own language — face-tall cards, the carve, dark ink — plus a
-   *     whisper of sky and a frosted rail, none of which needs a ground. A hub
-   *     that can be beautiful in the city's light does not keep a permit it no
-   *     longer uses; the night artwork is still in the tree if it is ever
-   *     wanted back, and wanting it back costs this argument again.
+   *   astrology — near-black, and this entry has been rewritten three times in
+   *     one day, which is worth recording rather than tidying away. It held a
+   *     grant for the gold-on-charcoal photographs, held it again for the
+   *     velvet, RETURNED it for the daylight observatory (white is the city's
+   *     own ground, so the permit was for nothing), and takes it back here for
+   *     the monochrome night. The through-line is not indecision, it is the
+   *     one rule this test exists to enforce: a hub holds a ground grant when
+   *     words are read off something that is not the city's white, and gives
+   *     it back the moment that stops being true. Daylight gave it back
+   *     honestly. Near-black earns it the way the first night did — and this
+   *     time with no metal in the room at all, which is the argument BELOW
+   *     about the lamp.
    *   entertainment — dark. Owner's call, and the argument is the same shape as
    *     the other two: it is a hub you READ. Every surface the job of deciding
    *     what to watch exists on — a cinema, a television, a phone at midnight —
@@ -254,9 +258,9 @@ describe('Relief stays a system', () => {
    * The list is written out rather than counted, exactly like the press's
    * wearers, so a third entry costs an argument instead of a nod.
    */
-  it('keeps a re-pointed ground inside the four hubs it was granted to', () => {
+  it('keeps a re-pointed ground inside the five hubs it was granted to', () => {
     const css = strip(tokens);
-    const GRANTED = ['dating', 'entertainment', 'nutrition', 'social'];
+    const GRANTED = ['astrology', 'dating', 'entertainment', 'nutrition', 'social'];
 
     // 1. only the granted hubs re-point a ground token. Sorted: the file's
     //    order is editorial and a re-order must not read as a breach.
@@ -308,7 +312,7 @@ describe('Relief stays a system', () => {
       return (hi + 0.05) / (lo + 0.05);
     };
     const failures: string[] = [];
-    for (const hub of ['dating', 'entertainment', 'nutrition', 'social']) {
+    for (const hub of ['astrology', 'dating', 'entertainment', 'nutrition', 'social']) {
       // The block that owns the ground, found by the thing that makes it that
       // block rather than by position: nutrition and entertainment each once
       // had a plain accent one-liner elsewhere in the file, and matching the
@@ -363,53 +367,83 @@ describe('Relief stays a system', () => {
   });
 
   /**
-   * A RETURNED GRANT STAYS RETURNED — AND ITS GUARDS OUTLIVE IT.
+   * A NIGHT GROUND IS NOT A DARK MODE — AND A ROOM WITH NO HUE STILL OWES ITS
+   * FURNITURE AN INK.
    *
-   * Astrology held a night ground twice (charcoal, then the velvet) and gave
-   * it back for the daylight observatory. This test is what is left of the
-   * night test, and it keeps three promises that were never really about the
-   * night:
+   * The difference between a night ground and a dark mode is not the colour,
+   * it is who chooses. A dark mode is a second copy of every screen behind a
+   * switch, and half-converted it reads as a bug — which is why it was
+   * removed. A room with its own light is a property of the room: nothing
+   * toggles, and a citizen who never opens Astrology never sees a dark pixel.
    *
-   * 1. THE GRANT DOES NOT CREEP BACK. The daylight block owns its metal and
-   *    its whisper of sky, and nothing else. The day a ground token reappears
-   *    here, test 1 above fails on the list and THIS one fails by name —
-   *    two failures, so the fix cannot be "add astrology back to the array
-   *    and move on" without meeting the written argument.
+   * 1. THE ROOM CARRIES ITS OWN INK, AND ITS WELL FOLLOWS ITS GROUND. Ink,
+   *    ground and the readable accent are re-pointed together or the "Birth
+   *    Details" failure comes back: a colour and its background becoming the
+   *    same colour, which nothing else here can see. And the rail's labels
+   *    read --ink / --faint, so a white well under near-white text is the hub
+   *    name gone — a hub that re-points --paper MUST re-point --rail-well.
    *
-   * 2. THE RAIL, THE LAMP AND THE BUTTON ARE THE CITY'S, NOT THE ROOM'S.
-   *    --on-accent is read by SEVEN dark surfaces; re-pointing it for one hub
-   *    turns the black button's own label black — an invisible button no
-   *    other test would see. That was true under the night and it is exactly
-   *    as true under a frosted rail, which is one milk-glass material away
-   *    from being the city's rail and must stay that close.
+   * 2. --on-accent IS STILL THE CITY'S. It is read by SEVEN dark surfaces:
+   *    the black primary button, .tag.dark, the mini-calendar's today, the
+   *    media bar, the lit glass key, and the rail lamp's label and badge.
+   *    Re-pointing it for one hub turns the black button's own label black —
+   *    not a contrast regression, an invisible button, and no test outside
+   *    this one would see it.
    *
-   * 3. NO SURFACE HARDCODES ITS OWN LIGHT GROUND, AND NO THEME SWITCH
+   * 3. BUT THE LAMP MAY LEAVE, AND IF IT LEAVES ITS INK GOES WITH IT.
+   *    This clause replaces a flat ban, and the swap is the interesting part.
+   *    The ban said the rail keeps its orange in all twenty-five rooms
+   *    because the rail is the city's furniture. That held while every room
+   *    had a hue of its own for the eye to land on. Monochrome breaks it: an
+   *    orange lamp in a room with no other colour is the most saturated
+   *    object on the screen, so the eye goes to the navigation instead of to
+   *    the content. Entertainment already made this argument for its green
+   *    and the spec accepted it; writing it down for a second hub turns a
+   *    precedent into a rule.
+   *
+   *    What replaces the ban is the invariant the ban was really protecting:
+   *    A LAMP'S FACE AND A LAMP'S INK MOVE TOGETHER. The failure mode was
+   *    never "the lamp changed colour", it was "the lamp changed and its
+   *    label did not" — which is how you get white type on a white pill and
+   *    a rail whose current room is unreadable. Same shape as the
+   *    ground/well pairing above, and it is a STRONGER guard than the ban
+   *    was, because the ban could be satisfied by a hub that never touched
+   *    the lamp and still broke it through --on-lamp.
+   *
+   * 4. NO SURFACE HARDCODES ITS OWN LIGHT GROUND, AND NO THEME SWITCH
    *    RETURNS. `.btn-secondary` was `background: #fff` under a label that
    *    follows the room — achromatic, so the colour guard allowed it, and
-   *    invisible-by-luck on white. Two hubs still have night grounds; the
-   *    guard stays for them.
+   *    invisible-by-luck on white; on a night ground it is a control you can
+   *    neither read nor see.
    */
-  it('keeps the returned grant returned, and the city furniture the city\'s', () => {
+  it('gives the night hub its own ink, and moves the lamp and its label as one', () => {
     const css = strip(tokens);
-    const day = /\[data-hub="astrology"\]\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
-    expect(day).not.toEqual('');
+    const night = /\[data-hub="astrology"\]\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(night).not.toEqual('');
 
-    // 1. no ground, no ink system — the daylight block re-points accents and
-    //    the sky, and inherits every other token from the city.
-    for (const t of ['--ground', '--paper', '--card', '--wash', '--rail-well', '--ink', '--muted', '--faint']) {
-      expect({ token: t, rePointed: new RegExp(`${t}\\s*:`).test(day) })
-        .toEqual({ token: t, rePointed: false });
+    // 1. ink, ground and the readable accent are re-pointed together...
+    for (const t of ['--ground', '--paper', '--card', '--ink', '--muted', '--accent-ink']) {
+      expect({ token: t, present: new RegExp(`${t}\\s*:`).test(night) })
+        .toEqual({ token: t, present: true });
     }
+    //    ...and the well follows the ground.
+    expect({ ground: /--paper\s*:/.test(night), well: /--rail-well\s*:/.test(night) })
+      .toEqual({ ground: true, well: true });
 
-    // 2. the lamp keeps its white label because --on-accent is untouched,
-    //    not because some selector patched it back afterwards.
-    for (const t of ['--on-accent', '--lamp', '--lamp-face', '--lamp-badge']) {
-      expect({ token: t, rePointed: new RegExp(`${t}\\s*:`).test(day) })
-        .toEqual({ token: t, rePointed: false });
-    }
+    // 2. the city's seven dark surfaces keep their white.
+    expect({ token: '--on-accent', rePointed: /--on-accent\s*:/.test(night) })
+      .toEqual({ token: '--on-accent', rePointed: false });
+
+    // 3. the lamp may go — with its ink. Either both move or neither does.
+    const lampFace = /--lamp-face\s*:/.test(night);
+    const lampInk = /--on-lamp\s*:/.test(night);
+    expect({ lampFace, lampInk }).toEqual({ lampFace, lampInk: lampFace });
+    // and nothing scopes a rail rule to this hub by the back door — whatever
+    // the lamp is made of, it is made of it in the TOKEN layer where this
+    // test can read it, not in a selector that patches it afterwards.
     expect(css).not.toMatch(/\[data-hub="astrology"\][^{]*\.side-menu/);
 
-    // 3. no hardcoded light ground in the material, no theme switch anywhere.
+    // 4. no hardcoded light ground in the material, no theme switch anywhere.
     const litBg = [...strip(relief).matchAll(/background(?:-color)?:\s*(#f[0-9a-fA-F]{2,5}\b|#ffffff\b|white\b)/g)]
       .map((m) => m[1]);
     expect(litBg).toEqual([]);
