@@ -10,9 +10,13 @@ export function isTokenExpired(token?: string | null): boolean {
   if (!token) return true;
   try {
     const payload = token.split('.')[1];
-    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
-    if (typeof json.exp !== 'number') return false; // no exp claim → treat as valid
-    return Date.now() >= json.exp * 1000 - 5000;     // 5s early margin
+    // unknown, then narrowed: a JWT payload is attacker-adjacent input, and
+    // `any` here was the exact hole the lint error pointed at.
+    const json: unknown = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    const exp = typeof json === 'object' && json !== null && 'exp' in json
+      ? (json as { exp: unknown }).exp : undefined;
+    if (typeof exp !== 'number') return false;       // no exp claim → treat as valid
+    return Date.now() >= exp * 1000 - 5000;          // 5s early margin
   } catch {
     return true; // unparseable → treat as expired
   }

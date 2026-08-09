@@ -52,8 +52,8 @@ export const mailApi = {
     api.get<{ items: Array<{ id: string; name: string; mimeType: string | null; sizeBytes: number }> }>(`/mail/thread/${threadId}/attachments`).then((r) => r.data),
   attachmentUrl: (threadId: string, fileId: string) =>
     api.get<{ url: string; name: string }>(`/mail/thread/${threadId}/attachments/${fileId}/url`).then((r) => r.data),
-  flag: (id: string, input: { starred?: boolean; read?: boolean }) => api.post(`/mail/${id}/flag`, input).then((r) => r.data),
-  remove: (id: string) => api.delete(`/mail/${id}`).then((r) => r.data),
+  flag: (id: string, input: { starred?: boolean; read?: boolean }) => api.post<{ ok: boolean }>(`/mail/${id}/flag`, input).then((r) => r.data),
+  remove: (id: string) => api.delete<{ ok: boolean }>(`/mail/${id}`).then((r) => r.data),
   outbox: () => api.get<OutboxEntry[]>('/mail/outbox').then((r) => r.data),
   setPrimary: (input: { email?: string; phone?: string }) => api.post<MailAccount>('/mail/primary', input).then((r) => r.data),
 };

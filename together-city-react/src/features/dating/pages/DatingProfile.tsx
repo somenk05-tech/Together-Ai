@@ -355,7 +355,11 @@ export function DatingProfilePage() {
       birthPlace: d.birthPlace ?? '', interests: d.interests ?? [],
     });
     if (isSaved) {
-      let ex: DX = {}; try { ex = d.extras ? JSON.parse(d.extras) : {}; } catch { ex = {}; }
+      let ex: DX = {};
+      try {
+        const parsed: unknown = d.extras ? JSON.parse(d.extras) : {};
+        ex = typeof parsed === 'object' && parsed !== null ? (parsed as DX) : {};
+      } catch { ex = {}; }
       setDx(ex);
       setCollapsed(d.moderation !== 'rejected');
     } else {

@@ -41,7 +41,7 @@ export interface Guest { id: string; name: string }
 
 function readList<T = string>(key: string): T[] {
   try {
-    const v = JSON.parse(localStorage.getItem(key) ?? '');
+    const v: unknown = JSON.parse(localStorage.getItem(key) ?? '');
     return Array.isArray(v) ? (v as T[]) : [];
   } catch {
     return [];
