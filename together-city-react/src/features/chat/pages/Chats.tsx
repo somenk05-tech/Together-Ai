@@ -50,6 +50,21 @@ export function Chats() {
     setActiveId(list[0].id);
   }, [activeId, conversations.data, phone]);
 
+  /* AN OPEN CHAT IS THE WHOLE SCREEN (owner, 9 Aug).
+     A thread is a room you are inside, not a panel inside a website: the
+     city's header and its dock belong to the city, and while you are reading
+     one conversation they are two rows of chrome charging rent. The flag goes
+     on <html> rather than on this subtree because what it hides — header,
+     dock, the floating search — are all outside it. It is removed the moment
+     the thread closes or the page unmounts, so no other screen can inherit a
+     hidden header. */
+  useEffect(() => {
+    if (!(phone && activeId)) return;
+    const root = document.documentElement;
+    root.classList.add('tc-immersive');
+    return () => root.classList.remove('tc-immersive');
+  }, [phone, activeId]);
+
   const history = useMessages(activeId);
   const [live, setLive] = useState<Message[]>([]);
   const [peerTyping, setPeerTyping] = useState(false);
@@ -171,9 +186,12 @@ export function Chats() {
        the hub its own accent for anything that still reads one; it touches no
        ground token, so it costs no grant. */
     <div className="page" data-hub="chat" style={{ paddingBottom: 18 }}>
-      <div className={`cstage${phone ? (activeId ? ' is-thread' : ' is-list') : ''}`}
+      {/* `bleed` is the page grid's own hatch — .page > .bleed spans all
+          three columns, which is how a room touches both edges of a phone
+          without a negative margin fighting the gutter. */}
+      <div className={`cstage${phone ? (activeId ? ' is-thread bleed' : ' is-list') : ''}`}
         style={{ height: phone
-          ? 'calc(100dvh - var(--header-h) - var(--safe-top) - var(--safe-bottom) - 88px)'
+          ? (activeId ? '100dvh' : 'calc(100dvh - var(--header-h) - var(--safe-top) - var(--safe-bottom) - 88px)')
           : 'calc(100dvh - var(--header-h) - var(--safe-top) - 42px)' }}>
         {!(phone && activeId) && (
         <aside className="cslist">

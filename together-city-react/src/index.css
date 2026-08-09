@@ -944,3 +944,33 @@ table.tc td b { color: var(--ink); }
   }
   .hposter-cta:active { transform: scale(.985); }
 }
+
+/* ---- An open chat is the whole screen (9 Aug) ----
+   The city's header, its dock and its floating search all live OUTSIDE the
+   chat page, so the flag that hides them lives on <html>. Chats.tsx sets it
+   only while a thread is open on a phone, and removes it on close and on
+   unmount — nothing else can inherit a hidden header. */
+html.tc-immersive .tc-header,
+html.tc-immersive .tc-bottomnav,
+html.tc-immersive .tc-footer,
+html.tc-immersive [aria-label^="Search — jump to anything"] { display: none; }
+html.tc-immersive .tc-main { padding-top: 0; }
+html.tc-immersive body { padding-bottom: 0; }
+/* Edge to edge. `.page` is a three-column grid — gutter, content, gutter —
+   so zeroing its padding changes nothing, because the gutters are COLUMNS.
+   The stage takes the grid's own `bleed` hatch (see Chats.tsx); all this has
+   to do is drop the block padding above and below it. */
+html.tc-immersive .tc-main > .page { padding-block: 0; }
+html.tc-immersive .cstage { border-radius: 0; box-shadow: none; }
+/* the notch, and room for the name under it */
+html.tc-immersive .cshead-t { padding-top: calc(var(--safe-top) + 16px); padding-bottom: 12px; }
+html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); }
+
+@media (max-width: 899px) {
+  /* A share card is 280px wide; a row capped at 66% of a 390px screen is
+     257px, so every recipe and property card hung over the right edge. The
+     measure is a phone's, not a desk's. */
+  .csmsgs { padding: 14px 14px 6px; }
+  .csmsgs > div > .tc-msg-row { max-width: 86%; }
+  .cscomposer { margin: 0 12px 14px; }
+}
