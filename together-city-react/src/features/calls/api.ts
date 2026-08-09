@@ -34,6 +34,33 @@ export interface IceConfig {
   note: string | null;
 }
 
+/**
+ * IS THIS ACTUALLY A CALL?
+ *
+ * Calls is the one feature that skips the `apiGet` + zod chokepoint every other
+ * endpoint goes through, so both places a call enters this app took whatever
+ * arrived and cast it. The visible consequence was a full-screen ringing
+ * dialog reading "INCOMING UNDEFINED CALL" from "Someone", whose Answer button
+ * called `join(undefined)` — produced by any truthy non-Call body: an HTML
+ * error page or interstitial returned 200, a service-worker-cached index.html,
+ * or a partial socket frame.
+ *
+ * A guard, not a schema library, because the fix has to be the same shape at
+ * both entry points and one of them is a socket frame that never touches http.
+ * The fields checked are exactly the ones the ringing UI reads and the Answer
+ * button needs; anything failing this is not something to render, it is
+ * something to drop.
+ */
+export function isCall(value: unknown): value is Call {
+  if (!value || typeof value !== 'object') return false;
+  const c = value as Partial<Call>;
+  return typeof c.id === 'string' && c.id.length > 0
+    && typeof c.conversationId === 'string'
+    && typeof c.createdById === 'string'
+    && (c.type === 'audio' || c.type === 'video' || c.type === 'avatar')
+    && (c.status === 'ringing' || c.status === 'active' || c.status === 'ended');
+}
+
 export const callsApi = {
   ice: () => api.get<IceConfig>('/calls/ice').then((r) => r.data),
   /** The call ringing for you right now, or null — ring recovery for tabs

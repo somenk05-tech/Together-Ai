@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { useCallback, useEffect } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo } from 'react';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiDelete, apiGet, apiPost, apiPut } from './http';
 import { socketClient, WS } from './socket';
 import { useAuthed } from '@/store/useAuthed';
@@ -66,12 +66,38 @@ export function useUnreadChatCount(): number {
   const { data } = useConversations();
   return (data ?? []).reduce((sum, c) => sum + (c.unread ?? 0), 0);
 }
+/**
+ * A CONVERSATION IS NOT ITS LAST THIRTY MESSAGES.
+ *
+ * This was a flat `useQuery` that asked for one page and threw the cursor away.
+ * The server has always returned `nextCursor`, the schema has always carried
+ * it, and nothing has ever read it — so a thread with a hundred messages showed
+ * the newest thirty and the rest were simply unreachable from the UI. Not lost,
+ * not deleted: unreachable, which is worse, because nothing says so.
+ *
+ * The shape of the return is kept deliberately: `data.items` and
+ * `data.nextCursor`, so the two existing readers (Chats, DatingChats) do not
+ * change. `fetchNextPage` / `hasNextPage` are the new surface — pages are
+ * flattened oldest-first, which is the order the transcript renders in.
+ */
 export function useMessages(conversationId: string | undefined) {
-  return useQuery({
+  const q = useInfiniteQuery({
     queryKey: ['chat', 'messages', conversationId],
-    queryFn: () => chatApi.messages(conversationId as string),
+    queryFn: ({ pageParam }) => chatApi.messages(conversationId as string, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last: MessagePage) => last.nextCursor ?? undefined,
     enabled: Boolean(conversationId),
   });
+  // Page 0 is the newest window; page N is older still. Reversing the pages and
+  // concatenating gives one oldest→newest transcript.
+  const items = useMemo(
+    () => (q.data?.pages ?? []).slice().reverse().flatMap((p) => p.items),
+    [q.data],
+  );
+  return {
+    ...q,
+    data: q.data ? { items, nextCursor: q.data.pages[q.data.pages.length - 1]?.nextCursor ?? null } : undefined,
+  };
 }
 
 /* ---------------- Realtime (Socket.IO) ---------------- */
@@ -87,6 +113,18 @@ export function useChatRealtime(
   useEffect(() => {
     if (!conversationId) return;
     socketClient.emit(WS.JOIN_CONVERSATION, { conversationId });
+    /* AND AGAIN ON EVERY RECONNECT. Socket.IO rooms belong to a CONNECTION, and
+       this effect is keyed on the conversation id — so a thread opened once and
+       left open asked to join exactly once, and a wifi blip or a backend deploy
+       handed it a fresh connection that had joined nothing. The thread stayed
+       on screen and went quiet. CallCenter has always re-synced on `connect`;
+       chat was the one place that did not.
+       The server now re-joins these rooms itself on handshake, which is the
+       real fix — this is the belt to that pair of braces, and it costs one
+       listener. */
+    const sock = socketClient.raw();
+    const rejoin = () => socketClient.emit(WS.JOIN_CONVERSATION, { conversationId });
+    sock.on('connect', rejoin);
     const offMsg = socketClient.on<Message>(WS.RECEIVE_MESSAGE, (m) => { if (m.conversationId === conversationId) onMessage(m); });
     const offStart = socketClient.on<TypingPayload>(WS.TYPING_START, (e) => { if (e.conversationId === conversationId) onTyping?.(e.userId, true); });
     const offStop = socketClient.on<TypingPayload>(WS.TYPING_STOP, (e) => { if (e.conversationId === conversationId) onTyping?.(e.userId, false); });
@@ -94,6 +132,7 @@ export function useChatRealtime(
     const offEdit = socketClient.on<Message>(WS.MESSAGE_EDITED, (m) => { if (m.conversationId === conversationId) onEdited?.(m); });
     return () => {
       socketClient.emit(WS.LEAVE_CONVERSATION, { conversationId });
+      sock.off('connect', rejoin);
       offMsg(); offStart(); offStop(); offDel(); offEdit();
     };
   }, [conversationId, onMessage, onTyping, onDeleted, onEdited]);

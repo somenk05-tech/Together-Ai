@@ -81,8 +81,32 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       client.typingTimers = new Map();
 
       await client.join(room.user(user.sub));
+
+      /* A ROOM THE CLIENT ASKED FOR ONCE IS NOT A ROOM IT IS IN.
+         Socket.IO rooms belong to a CONNECTION. The web client emitted
+         `join_conversation` from an effect keyed on the conversation id, so it
+         asked exactly once per open thread — and every reconnect (a wifi blip,
+         a backend redeploy, a laptop lid) handed it a new connection that had
+         joined nothing. The thread stayed on screen and quietly stopped
+         receiving messages, because `receive_message` is addressed to
+         `conversation:<id>` and this socket was no longer in it.
+         Re-joining is the server's job: it is the only side that knows the
+         connection is new, and it already knows every room this user belongs
+         in. The client's own join still fires and is now merely an
+         optimisation — the correctness does not depend on it. */
+      await this.joinOwnConversations(client);
+
       const transitioned = await this.presence.markOnline(user.sub, client.id);
       if (transitioned) this.bus.publish({ kind: 'presence.changed', userId: user.sub, online: true });
+
+      /* Everything that arrived while they were away is delivered NOW, and the
+         senders are told. See messages.service.deliverBacklog — this is the
+         line that puts the second tick on a message sent to somebody who was
+         offline. `sync_pending` below is kept for clients that want the rows
+         without a refetch; nothing depends on it. */
+      void this.messages.deliverBacklog(user.sub).catch((e: Error) => {
+        this.logger.error(`deliverBacklog failed for ${user.sub}: ${e.message}`);
+      });
 
       // Sync any messages that arrived while the user was offline.
       const pending = await this.messages.pendingForUser(user.sub);
@@ -99,6 +123,18 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     await this.redis.setOpenConversation(client.userId, null);
     const transitioned = await this.presence.markOffline(client.userId, client.id);
     if (transitioned) this.bus.publish({ kind: 'presence.changed', userId: client.userId, online: false });
+  }
+
+  /** Put a freshly-connected socket into every conversation room it belongs in. */
+  private async joinOwnConversations(client: AuthedSocket): Promise<void> {
+    try {
+      const ids = await this.messages.conversationIdsFor(client.userId);
+      if (ids.length) await client.join(ids.map((id) => room.conversation(id)));
+    } catch (e) {
+      // A socket that cannot join its rooms still gets `chat_notification` on
+      // its user room, so the badge and the refetch survive. Loud, not fatal.
+      this.logger.error(`Could not join conversation rooms for ${client.userId}: ${(e as Error).message}`);
+    }
   }
 
   // ── rooms ──────────────────────────────────────────────
@@ -212,6 +248,15 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   private async handleBusEvent(event: ChatEvent): Promise<void> {
     switch (event.kind) {
       case 'message.created': {
+        /* A conversation that did not exist when you connected is a room you
+           could not have joined — the first message of a brand-new thread (an
+           enquiry, a first DM) would land in a room with one person in it.
+           `socketsJoin` addresses the recipients by their user room, which
+           every connected socket is in, and works across the Redis adapter, so
+           it reaches their sockets on other instances too. Idempotent. */
+        for (const rid of event.recipientIds) {
+          this.server.in(room.user(rid)).socketsJoin(room.conversation(event.conversationId));
+        }
         this.server
           .to(room.conversation(event.conversationId))
           .emit(WS.RECEIVE_MESSAGE, event.message);
@@ -254,11 +299,25 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
           .to(room.conversation(event.conversationId))
           .emit(WS.MESSAGE_READ, { messageId: event.messageId, userId: event.userId });
         break;
-      case 'presence.changed':
+      case 'presence.changed': {
+        /* This told the subject they had come online and told nobody else.
+           `room.user(event.userId)` is their OWN room — the one place the news
+           is useless. Presence is for the people who might be typing to you,
+           so it goes to the conversations you share with them. Their own room
+           stays on the list so a second tab of theirs still agrees. */
+        const rooms = [room.user(event.userId)];
+        try {
+          for (const id of await this.messages.conversationIdsFor(event.userId)) {
+            rooms.push(room.conversation(id));
+          }
+        } catch (e) {
+          this.logger.error(`presence fan-out lookup failed: ${(e as Error).message}`);
+        }
         this.server
-          .to(room.user(event.userId))
+          .to(rooms)
           .emit(event.online ? WS.USER_ONLINE : WS.USER_OFFLINE, { userId: event.userId });
         break;
+      }
       case 'call.ringing':
         for (const rid of event.recipientIds) {
           this.server.to(room.user(rid)).emit(WS.CALL_RINGING, event.call);

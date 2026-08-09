@@ -230,8 +230,24 @@ export function Chats() {
               </div>
               {history.isLoading
                 ? <Spinner />
-                : <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping}
-                    peerName={activeTitle} onDelete={deleteMessage} onEdit={editMessage} />}
+                : <>
+                    {/* The rest of the conversation. It was always there on the
+                        server — the cursor came back on every page and nothing
+                        read it, so a long thread simply stopped thirty messages
+                        ago with no way to say so. */}
+                    {history.hasNextPage && (
+                      <div style={{ display: 'grid', placeItems: 'center', padding: '10px 0 2px' }}>
+                        <button type="button" className="btn"
+                          onClick={() => { void history.fetchNextPage(); }}
+                          disabled={history.isFetchingNextPage}
+                          style={{ minHeight: 44, fontSize: 12.5 }}>
+                          {history.isFetchingNextPage ? 'Loading…' : 'Load earlier messages'}
+                        </button>
+                      </div>
+                    )}
+                    <MessageThread messages={messages} currentUserId={user?.id} typing={peerTyping}
+                      peerName={activeTitle} onDelete={deleteMessage} onEdit={editMessage} />
+                  </>}
               <Composer onSend={send} onTyping={emitTyping} />
             </>
           ) : (

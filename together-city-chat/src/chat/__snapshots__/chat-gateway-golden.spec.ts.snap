@@ -17,7 +17,9 @@ exports[`chat gateway golden master a bad token is told once and disconnected â€
 exports[`chat gateway golden master a good token joins the personal room, flips presence, and syncs offline messages 1`] = `
 {
   "calls": [
+    "rooms-for:["u1"]",
     "bus:{"kind":"presence.changed","userId":"u1","online":true}",
+    "backlog-delivered:["u1"]",
   ],
   "clientOut": [
     {
@@ -31,6 +33,9 @@ exports[`chat gateway golden master a good token joins the personal room, flips 
   ],
   "joined": [
     "user:u1",
+    [
+      "conversation:c1",
+    ],
   ],
 }
 `;
@@ -76,6 +81,16 @@ exports[`chat gateway golden master message.created fans out: the room hears the
     "notify:{"conversationId":"c1","senderId":"u1","recipientIds":["u2","u3"],"preview":"chai at four?"}",
   ],
   "out": [
+    {
+      "event": "sockets_join",
+      "payload": "conversation:c1",
+      "room": "user:u2",
+    },
+    {
+      "event": "sockets_join",
+      "payload": "conversation:c1",
+      "room": "user:u3",
+    },
     {
       "event": "receive_message",
       "payload": {

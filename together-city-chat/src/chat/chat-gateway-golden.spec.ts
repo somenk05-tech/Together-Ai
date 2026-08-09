@@ -12,12 +12,24 @@ function build() {
   const g = Object.create(ChatGateway.prototype) as ChatGateway;
   const out: Emit[] = [];
   const calls: string[] = [];
-  (g as any).server = { to: (room: string) => ({ emit: (event: string, payload: unknown) => out.push({ room, event, payload }) }) };
+  (g as any).server = {
+    to: (room: string) => ({ emit: (event: string, payload: unknown) => out.push({ room, event, payload }) }),
+    // A conversation created after somebody connected is a room they could not
+    // have joined; the gateway pulls their sockets in by user room before it
+    // broadcasts. Recorded here so the golden master shows it happening.
+    in: (from: string) => ({ socketsJoin: (into: string) => out.push({ room: from, event: 'sockets_join', payload: into }) }),
+  };
   (g as any).logger = { log: () => undefined, warn: () => undefined };
   (g as any).tokens = { verifyAccess: async (t: string) => { if (t !== 'good') throw new Error('bad'); return { sub: 'u1', handle: 'asha' }; } };
   (g as any).presence = { markOnline: async () => true, markOffline: async () => true, heartbeat: async () => undefined };
   (g as any).messages = {
     pendingForUser: async () => [{ id: 'm-offline' }],
+    // The two the connection handshake now depends on. A socket that cannot
+    // learn its rooms is a socket that stops receiving after a reconnect, and
+    // a backlog nobody delivers is a message stuck on one tick — see
+    // a-message-gets-delivered.spec.ts, which owns those assertions.
+    conversationIdsFor: async (...a: unknown[]) => { calls.push('rooms-for:' + JSON.stringify(a)); return ['c1']; },
+    deliverBacklog: async (...a: unknown[]) => { calls.push('backlog-delivered:' + JSON.stringify(a)); return 1; },
     send: async () => ({ id: 'm1' }),
     markDelivered: async (...a: unknown[]) => calls.push('delivered:' + JSON.stringify(a)),
     markRead: async (...a: unknown[]) => calls.push('read:' + JSON.stringify(a)),

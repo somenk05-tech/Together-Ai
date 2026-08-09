@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { socketClient, WS, useConversations } from '@/api';
 import { useAuthStore } from '@/store/auth.store';
-import { callsApi, type Call, type CallType, type IceConfig } from './api';
+import { callsApi, isCall, type Call, type CallType, type IceConfig } from './api';
 import { CallPeer, type SignalKind } from './peer';
 import { callRinger } from './ring';
 import { CallCenterContext, type CallCenterValue, type CallPhase } from './context';
@@ -157,7 +157,11 @@ export function CallCenter({ children }: { children: ReactNode }) {
   // ── socket wiring ────────────────────────────────────
 
   useEffect(() => {
-    const offRinging = socketClient.on<Call>(WS.CALL_RINGING, (incoming) => {
+    const offRinging = socketClient.on<unknown>(WS.CALL_RINGING, (frame) => {
+      // A frame that is not a call is not a call. See isCall — this is the
+      // socket half of the "INCOMING UNDEFINED CALL" fix.
+      if (!isCall(frame)) return;
+      const incoming = frame;
       // Our own outgoing call is not an incoming one.
       if (incoming.createdById === meId) return;
       // One call at a time: a second ring while we are talking is ignored here
@@ -210,7 +214,9 @@ export function CallCenter({ children }: { children: ReactNode }) {
     const recover = () => {
       if (peerRef.current || phaseRef.current !== 'idle') return; // already busy
       void callsApi.ringing().then((ringing) => {
-        if (cancelled || !ringing || peerRef.current || phaseRef.current !== 'idle') return;
+        // `ringing()` is the other unvalidated door: a 200 carrying an HTML
+        // error page is truthy, and truthy was the whole guard.
+        if (cancelled || !isCall(ringing) || peerRef.current || phaseRef.current !== 'idle') return;
         setProblem(null);
         setCall(ringing);
         setPhase('incoming');

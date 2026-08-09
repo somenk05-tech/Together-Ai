@@ -86,7 +86,12 @@ export class MessagesService {
         ...(clearedAt ? { createdAt: { gt: clearedAt } } : {}),
       },
       include: messageInclude,
-      orderBy: { createdAt: 'desc' },
+      // `id` is the tiebreak, and it is load-bearing: paginating by a cursor id
+      // while ordering by a non-unique createdAt means two messages written in
+      // the same millisecond have no defined order, so a page boundary landing
+      // between them can repeat one and skip the other. Cheap insurance that
+      // only matters at the exact moment chat gets busy.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: take + 1,
       ...(dto.cursor ? { cursor: { id: dto.cursor }, skip: 1 } : {}),
     });
@@ -193,16 +198,84 @@ export class MessagesService {
       where: { id: { in: messageIds }, conversation: { members: { some: { userId } } } },
       select: { id: true, conversationId: true },
     });
-    const convoIds = Array.from(new Set(rows.map((r) => r.conversationId)));
-    for (const conversationId of convoIds) {
+    // LAST-READ IS A MESSAGE'S TIMESTAMP, NOT A CLOCK READING. Stamping `now`
+    // marks as read everything that arrives between the newest message in this
+    // batch and the moment the write lands — a message that shows up mid-flight
+    // is counted read by somebody who never saw it, and the unread count
+    // (conversations.service: createdAt > lastReadAt) silently loses it. The
+    // high-water mark is the newest message actually acknowledged.
+    // unbounded: `in:` the rows just matched above — the caller's receipt batch bounds it
+    const readRows = await this.prisma.message.findMany({
+      where: { id: { in: rows.map((r) => r.id) } },
+      select: { conversationId: true, createdAt: true },
+    });
+    const highWater = new Map<string, Date>();
+    for (const r of readRows) {
+      const seen = highWater.get(r.conversationId);
+      if (!seen || r.createdAt > seen) highWater.set(r.conversationId, r.createdAt);
+    }
+    for (const [conversationId, at] of highWater) {
       await this.prisma.conversationMember.updateMany({
-        where: { conversationId, userId },
-        data: { lastReadAt: now },
+        // never move the mark backwards — an out-of-order batch from a slow
+        // client must not re-open messages this reader has already cleared
+        where: { conversationId, userId, OR: [{ lastReadAt: null }, { lastReadAt: { lt: at } }] },
+        data: { lastReadAt: at },
       });
     }
     for (const r of rows) {
       this.bus.publish({ kind: 'message.read', conversationId: r.conversationId, messageId: r.id, userId });
     }
+  }
+
+  /**
+   * The conversation ids this user belongs to — the rooms their socket has to
+   * be in for real-time to reach them. Newest first and bounded, because the
+   * point is the chats they are actually in; an older one re-joins the moment
+   * it is opened.
+   */
+  async conversationIdsFor(userId: string, take = 200): Promise<string[]> {
+    const rows = await this.prisma.conversationMember.findMany({
+      where: { userId },
+      select: { conversationId: true },
+      orderBy: { conversation: { updatedAt: 'desc' } },
+      take,
+    });
+    return rows.map((r) => r.conversationId);
+  }
+
+  /**
+   * EVERY MESSAGE THAT ARRIVED WHILE YOU WERE AWAY IS DELIVERED THE MOMENT YOU
+   * COME BACK — and the person who sent it is told so.
+   *
+   * The delivered receipt used to be written by exactly one thing: the
+   * recipient's browser answering a live `chat_notification` frame. That frame
+   * is fire-and-forget, so a message sent to somebody who was offline, asleep,
+   * or mid-redeploy was never acknowledged by anyone, ever. `sync_pending`
+   * existed for this and no client has ever listened to it. The observed
+   * result, 10 Aug: two messages stuck on one tick overnight while the app
+   * itself was working perfectly — the words had arrived, the receipt had not.
+   *
+   * A receipt is the server's job, not the browser's. The device has
+   * reconnected; the messages are on it as soon as it reads history. That IS
+   * delivery, and it is knowable here without asking anyone.
+   *
+   * Bounded at 500 the same way `pendingForUser` is: a backlog longer than that
+   * is a cold-start problem, not a receipt problem.
+   */
+  async deliverBacklog(userId: string): Promise<number> {
+    const pending = await this.prisma.messageStatus.findMany({
+      where: { userId, status: DeliveryStatus.SENT },
+      select: { messageId: true },
+      take: 500,
+    });
+    if (!pending.length) return 0;
+    const ids = pending.map((p) => p.messageId);
+    // markDelivered re-reads membership and publishes one bus event per message,
+    // which is what puts the second tick on the sender's screen. Reusing it
+    // rather than writing a second update path is deliberate: one way to become
+    // delivered means one place to get it wrong.
+    await this.markDelivered(userId, ids);
+    return ids.length;
   }
 
   /** Unread/undelivered messages to sync when a user reconnects. */
