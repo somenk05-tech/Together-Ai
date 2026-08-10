@@ -64,6 +64,37 @@ function optInOk(r: PoolRecipe, terms: readonly string[], deniedKey: string): bo
   OPT_IN_CACHE.set(key, ok);
   return ok;
 }
+
+/**
+ * THE SAME MEMO, FOR THE CHECK THAT ACTUALLY COSTS SOMETHING.
+ *
+ * `optInOk` above has been cached since the day it was written, and the
+ * exclusion screen one screen down — the identical call, on a list almost
+ * every citizen has something in — was not. Measured on this corpus, 21 days
+ * of composition: 319ms with an empty exclusion list, 3,990ms with two terms
+ * in it. Twelve times, for allergies, avoided foods, a Jain diet, or any
+ * clinical profile that writes an exclusion.
+ *
+ * The reason it costs so much is the allocation, not the matching: every
+ * candidate builds a fresh array of its ingredient names to hand to the
+ * matcher, and `candidates()` re-screens the whole pool on every pick — some
+ * hundreds of times per plan. The answer cannot change within a run, so it is
+ * computed once per (dish, exclusion list).
+ *
+ * Keyed on a JOINED exclusion list rather than the terms array, the same way
+ * `deniedKey` is, so two citizens with different allergies never read each
+ * other's answers.
+ */
+const EXCLUDE_CACHE = new Map<string, boolean>();
+function excludeOk(r: PoolRecipe, terms: readonly string[], termsKey: string): boolean {
+  if (!terms.length) return true;
+  const key = `${r.id}|${termsKey}`;
+  const hit = EXCLUDE_CACHE.get(key);
+  if (hit !== undefined) return hit;
+  const ok = isAllergenSafe(r.name, r.ingredients.map((i) => i.name), terms);
+  EXCLUDE_CACHE.set(key, ok);
+  return ok;
+}
 import { computeNutrients, isSalt } from './ingredient-nutrients';
 
 /** Clinically-capped nutrients tracked on every recipe/meal/day (Workstream A). */
@@ -447,6 +478,8 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
   const slotCats = SLOT_BY_CODE[slot].categories;
   const userDiet = prefs.diet ?? 'vegetarian';
   const excluded = prefs.excluded ?? [];
+  // One join per candidates() call, not one per candidate — the memo key.
+  const excludedKey = excluded.join('|');
 
   /**
    * P0-B — TWO PROTEINS ARE NEVER ASSUMED.
@@ -524,8 +557,7 @@ function candidates(role: string, ctx: SelectCtx): PoolRecipe[] {
     // miniature: without it every candidate allocates an array of ingredient
     // names to hand to a matcher that returns true immediately, and almost
     // every citizen has an empty exclusion list.
-    if (excluded.length
-      && !isAllergenSafe(r.name, r.ingredients.map((i) => i.name), excluded)) return false;
+    if (excluded.length && !excludeOk(r, excluded, excludedKey)) return false;
     // Opt-in proteins, screened exactly like an exclusion: name and ingredients.
     if (!optInOk(r, optInTerms, optInKey)) return false;
     return true;

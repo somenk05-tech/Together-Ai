@@ -162,6 +162,16 @@ export function useComposedPlan(
     queryKey: ['nutrition', 'composed', mode, scope],
     queryFn: () => composedApi.plan(mode, scope),
     enabled: opts.enabled ?? true,
+    // THE MOST EXPENSIVE CALL IN THE APPLICATION IS NOT A 30-SECOND CACHE.
+    // The global default is `staleTime: 30_000` (api/queryClient.ts), which is
+    // a sensible number for a list of notifications and a wrong one for a
+    // twenty-one-day plan that costs the server real CPU to compose. Anything
+    // that changes the plan — settings, a skip, a pin, a lock, a renew —
+    // already invalidates this key by hand, so time was never what made it
+    // stale. Every mutation in this file invalidates ['nutrition','composed'];
+    // that list is the actual freshness contract and this makes it the only one.
+    staleTime: Infinity,
+    gcTime: 30 * 60 * 1000,
   });
 }
 export function useMealSettings() {
