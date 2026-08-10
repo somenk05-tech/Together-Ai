@@ -2165,25 +2165,17 @@ textarea.g-field { resize: none; line-height: 1.55; }
   [data-hub="dating"] .tc-main video { filter: none; }
 }
 
-/* ══ THE MONOCHROME OBSERVATORY: ONE LINE, AND IT IS LETTERPRESS ═════════
-   The hub owns exactly one rule in this file, and it exists because of a
-   detail the token layer cannot reach. layout.css gives the consultation
-   title a LETTERPRESS shadow — a white hairline along the bottom of the
-   glyph, which is how ink sits in paper. That effect needs paper. On a
-   near-black ground it is a white edge under white type, which is not depth,
-   it is a smear.
+/* ══ THE OBSERVATORY OWNS NOTHING IN THIS FILE ═══════════════════════════
+   It had one rule: a letterpress correction on the consultation title,
+   because a white hairline under white type on a near-black ground is a
+   smear rather than depth. The content column is paper now, so the type is
+   dark on light and the correction is not merely unnecessary — it would be
+   the original defect, applied the wrong way round.
 
-   So the highlight goes and the drop stays: the same rule the whole room
-   follows — on white the shadow does the work, and here the light does,
-   which for TEXT means the type itself is the light and it needs the dark
-   underneath it rather than a second highlight.
-
-   THE DROP CAP USED TO BE HERE TOO, and it left with the letter. The letter
-   is printed on paper now — its own paper, not the room's — so it needs no
-   correction for a dark ground and takes none. */
-[data-hub="astrology"] .ask-title {
-  text-shadow: 0 2px 8px rgba(0,0,0,.55);
-}
+   The dark room did not go anywhere; it is the header and the rail, and it
+   is expressed entirely in tokens.css. A hub whose whole character is colour
+   and which needs no rule in the material file is the strongest form of the
+   argument this file has been making all along. */
 
 /* ══ AND NOTHING ELSE, WHICH IS THE POINT ════════════════════════════════
    Astrology used to own the longest hub block in this file: a fixed sky

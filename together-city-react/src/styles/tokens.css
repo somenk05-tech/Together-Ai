@@ -953,7 +953,62 @@
 
    NO NEW TOKEN NAMES. Every name below already exists in :root; removing this
    block removes the entire treatment.                                       */
+/* ══ ASTROLOGY READS ON PAPER ═════════════════════════════════════════════
+   The hub's content column is the letter's own paper — the daily and monthly
+   letters, and now Ask, Tarot and the profile with them. Only the values that
+   differ from the city are here; everything else the hub simply inherits,
+   which is why this block is nine lines and the night below it is seventy.
+
+   #ebe8e3 IS --letter-paper, WRITTEN OUT. A hub block cannot read a token to
+   define one — `--paper: var(--letter-paper)` is legal CSS and unreadable to
+   the contrast assertion in relief.spec, which parses hexes out of this file
+   to compute ink against ground at build time. A duplicated literal is a smell,
+   so it is not left as one: the spec asserts the two are the same colour, and
+   a change to either that is not made to both fails the build.
+
+   --faint IS THE ONE INK THAT HAD TO MOVE. The city's #6f6f6f is 4.5:1 on
+   white and 4.11:1 on this paper, and it is labels, placeholders and
+   metadata — small text, which needs 4.5. Warmed and darkened to 5.6:1 rather
+   than nudged to a bare pass, because it is also the least likely thing anyone
+   re-measures. --muted at #666666 clears it at 4.70 and stays.
+
+   CARDS GO WHITE, which they already are at :root. A white card on warm paper
+   is the reference the owner sent: the page is the paper, the card is a leaf
+   set on it, and the difference is a tint rather than a border. */
 [data-hub="astrology"] {
+  --ground: #ebe8e3;
+  --paper:  #ebe8e3;
+  --card:   #ffffff;
+  --wash:   #f4f2ee;
+  --ink:        #000000;   /* 17.2:1 on the paper */
+  --ink-soft:   #1c1c1c;   /* 17.0:1 on a card    */
+  --muted:      #666666;   /*  4.70:1 */
+  --faint:      #5f5a52;   /*  5.60:1 */
+  --accent-ink: #1c1c1c;   /* 13.9:1 */
+}
+
+/* ══ THE OBSERVATORY IS THE RAIL NOW ══════════════════════════════════════
+   Everything below was the whole hub until today. The owner asked for the
+   letter's paper behind every astrology tab, and a page cannot be paper while
+   the palette it inherits is night — every heading on Tarot and half of Ask
+   are drawn straight onto the ground, and they would have vanished.
+
+   SO THE NIGHT MOVED RATHER THAN LEFT. It is scoped to the header and the rail
+   here, verbatim, not one value changed: the dark room survives exactly as it
+   was designed, as the FURNITURE around a lit page. A dark rail beside paper
+   is a desk with a letter on it, which is a better picture than either half.
+
+   WHY A SCOPE AND NOT A SECOND PALETTE. Custom properties inherit and
+   `[data-hub]` sits on <html>, so there is no way to un-inherit night inside
+   the content column — the only alternatives were this, or re-declaring all
+   seventy-two of the city's light values on `.tc-main`, which is a second
+   source of truth for the city's colour and the exact thing relief.spec
+   exists to prevent. Moving the scope keeps one.
+
+   The paper palette the content now reads is the short block directly above.
+   ═══════════════════════════════════════════════════════════════════════════ */
+[data-hub="astrology"] .tc-header,
+[data-hub="astrology"] .tc-side {
   /* ── THE OBSERVATORY GOES MONOCHROME ─────────────────────────────────────
      The room returns to night, and this time it brings no metal with it.
      Astrology has worn charcoal-with-gold twice; both times the gold was the

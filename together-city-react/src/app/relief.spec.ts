@@ -436,15 +436,32 @@ describe('Relief stays a system', () => {
    */
   it('gives the night hub its own ink, and moves the lamp and its label as one', () => {
     const css = strip(tokens);
-    const night = /\[data-hub="astrology"\]\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
-    expect(night).not.toEqual('');
+    // THE HUB IS TWO PALETTES NOW, AND THIS TEST READS BOTH. The content
+    // column is the letter's paper; the night moved, verbatim, onto the header
+    // and the rail. `page` is the block whose selector is the bare attribute;
+    // `night` is the one scoped to the chrome. Matching on `\s*\{` is what
+    // tells them apart, and it is why the chrome selector must stay on its own
+    // lines rather than being folded into the attribute.
+    const page = /\[data-hub="astrology"\]\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    const night = /\[data-hub="astrology"\] \.tc-header,[^{]*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect({ page: page !== '', night: night !== '' }).toEqual({ page: true, night: true });
 
-    // 1. ink, ground and the readable accent are re-pointed together...
+    // 0. THE PAPER IS ONE COLOUR WITH TWO NAMES, AND THEY MUST AGREE.
+    //    `--paper` here cannot read `--letter-paper` — a var() is unreadable to
+    //    the contrast assertion, which parses hexes out of this file. So the
+    //    literal is duplicated on purpose and checked here instead of trusted.
+    const letterPaper = /--letter-paper:\s*(#[0-9a-f]{6})/i.exec(css)?.[1]?.toLowerCase();
+    const hubPaper = /--paper:\s*(#[0-9a-f]{6})/i.exec(page)?.[1]?.toLowerCase();
+    expect({ letterPaper, hubPaper }).toEqual({ letterPaper, hubPaper: letterPaper });
+
+    // 1. ink, ground and the readable accent are re-pointed together — on the
+    //    PAGE, which is the surface a citizen reads.
     for (const t of ['--ground', '--paper', '--card', '--ink', '--muted', '--accent-ink']) {
-      expect({ token: t, present: new RegExp(`${t}\\s*:`).test(night) })
+      expect({ token: t, present: new RegExp(`${t}\\s*:`).test(page) })
         .toEqual({ token: t, present: true });
     }
-    //    ...and the well follows the ground.
+    //    ...and the well follows the ground OF THE SURFACE IT IS ON. The rail
+    //    is night, so its well is in the night block, not the page's.
     expect({ ground: /--paper\s*:/.test(night), well: /--rail-well\s*:/.test(night) })
       .toEqual({ ground: true, well: true });
 
