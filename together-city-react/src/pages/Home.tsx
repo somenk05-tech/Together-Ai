@@ -280,15 +280,29 @@ export function Home() {
           front of a city you have not looked at yet. */}
       {phone && <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '8px 20px 0' }}><RecentPanel /></div>}
 
-      <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '48px 32px 24px' }}>
-        <div className="trust">
-          <span>◈ One identity, every hub</span>
-          <span>◈ Curated, never cluttered</span>
-          <span>◈ Private by default</span>
-          <span>◈ Split &amp; plan with friends</span>
-          <span>◈ Concierge always on</span>
+      {/* THE STRIP IS FOR SOMEBODY DECIDING, NOT SOMEBODY INSIDE.
+          Five claims in grey capitals sat here — one identity, curated,
+          private, split with friends, concierge — and on a phone they stacked
+          into five lines directly above the footer, which made them the last
+          thing a citizen read on their way out of their own home screen. They
+          are sales copy, and a citizen who is signed in has already bought.
+          So: nothing at all once you are in.
+
+          A visitor still gets two, because two is what somebody deciding can
+          hold. The three that go were the three the hero already made:
+          'curated, never cluttered' and 'concierge always on' are the
+          personalisation promise again, and 'split & plan with friends' is a
+          feature, not a reason to trust the place. What is left is the pair
+          nothing else on the page says — one account for all of it, and
+          privacy as the default rather than a setting. */}
+      {!authed && (
+        <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '48px 32px 24px' }}>
+          <div className="trust">
+            <span>◈ One identity, every hub</span>
+            <span>◈ Private by default</span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
