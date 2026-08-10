@@ -655,9 +655,24 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
   height: clamp(26px, 2.4vw, 34px); width: auto;
   filter: none;
 }
+/* THE NAME IS A THIRD LARGER THAN IT WAS, at the owner's eye. 22–30px became
+   30–40px, the same 35% at both ends of the clamp and on the slope between
+   them, so the type does not change shape as the window moves.
+
+   IT IS TALLER THAN THE MARK NOW AND THAT IS CORRECT. 40px against the
+   monogram's 34px looks inverted written down and is right on screen: this box
+   contains the T's swash above the letters and the y's tail and the underline
+   below them, so about half of it is flourish. The letters inside read smaller
+   than the monogram, which is the hierarchy that was wanted.
+
+   MEASURED AT THE CEILING, WHICH IS WHERE IT LANDS. Row 1 is 34px and the word
+   now overhangs it by six — deliberately, because it is in flow and the row is
+   the shorter of the two things in it. At 1440 the swash finishes exactly on
+   the tab row's top edge: touching, not crossing, with the tabs' own glyphs
+   starting lower still. There is no room for a fourth larger. */
 .tc-logo .word {
   display: block;
-  height: clamp(22px, 2.1vw, 30px); width: auto;
+  height: clamp(30px, 2.8vw, 40px); width: auto;
   filter: none;
 }
 /* Below 1100px the burger takes the left corner, so the pair travels
