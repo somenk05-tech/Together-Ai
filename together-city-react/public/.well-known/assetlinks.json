@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.togethercity.mobile",
+      "sha256_cert_fingerprints": [
+        "69:71:19:56:2D:56:0A:62:F9:F2:6B:B1:19:36:A7:17:C8:03:76:38:EA:92:B1:A9:44:C6:FC:37:2E:6E:47:A5"
+      ]
+    }
+  }
+]

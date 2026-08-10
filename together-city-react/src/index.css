@@ -1005,3 +1005,64 @@ html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); 
   .hposter { height: calc(100dvh - var(--header-h) - var(--safe-top)); }
   .hposter-foot { padding-bottom: calc(var(--safe-bottom) + 34px); }
 }
+
+/* ---- Take the city with you: the install block (10 Aug) ----
+   One black key, one line of help, and — on a desk — a code for the device
+   that can actually run it. Built from the same parts as everything else:
+   the button is .btn's shape, the sheet is the drawer's material, the QR is
+   ink on paper. No colour is introduced; nothing here is a new depth. */
+.instl { margin: 26px auto 0; max-width: 44ch; }
+.instl-eyebrow {
+  margin: 0 0 12px; font-size: 10.5px; font-weight: 700; letter-spacing: .22em;
+  text-transform: uppercase; color: var(--muted);
+}
+.instl-cta {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 52px; padding: 0 28px; border: 0; border-radius: var(--r-full);
+  font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+  color: var(--card); background: var(--ink); box-shadow: var(--e2);
+}
+.instl-cta:disabled { cursor: default; opacity: .92; }
+/* Somebody who already took the file gets an outline, not the black key: the
+   loudest thing on a screen should be the thing you have not done yet. */
+.instl-cta.is-quiet { color: var(--ink); background: var(--card); box-shadow: var(--e1); }
+.instl-cta:active:not(:disabled) { transform: translateY(1px); box-shadow: var(--e1); }
+.instl-bar {
+  margin: 12px auto 0; width: min(320px, 100%); height: 6px; border-radius: var(--r-full);
+  background: var(--well); box-shadow: var(--carve); overflow: hidden;
+}
+.instl-bar > span { display: block; height: 100%; background: var(--ink); transition: width .18s ease-out; }
+.instl-note { margin: 12px auto 0; max-width: 40ch; font-size: 13px; line-height: 1.55; color: var(--ink-soft); }
+.instl-note a { text-decoration: underline; }
+
+/* the desk's answer: a picture of the address */
+.instl-qr { display: flex; align-items: center; gap: 20px; text-align: left; }
+.instl-qr img { flex: 0 0 auto; border-radius: var(--r-2); background: var(--card); padding: 10px; box-shadow: var(--e1); }
+.instl-qrtitle { margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
+.instl-qr .instl-note { margin-top: 6px; }
+
+/* iOS: the three taps, drawn */
+.instl-sheet { position: fixed; inset: 0; z-index: 300; display: flex; align-items: flex-end; }
+.instl-scrim { position: absolute; inset: 0; border: 0; padding: 0; background: rgba(0,0,0,.42); cursor: pointer; }
+.instl-card {
+  position: relative; width: 100%; margin: 0 auto; max-width: 520px;
+  padding: 10px 22px calc(22px + var(--safe-bottom));
+  border-radius: var(--r-4) var(--r-4) 0 0; background: var(--card); box-shadow: var(--e3);
+  text-align: left;
+}
+.instl-grab { display: block; width: 40px; height: 4px; margin: 0 auto 16px; border-radius: var(--r-full); background: var(--line); }
+.instl-card h3 { margin: 0 0 16px; font-size: 19px; letter-spacing: -.01em; }
+.instl-card ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 14px; }
+.instl-card li { display: flex; align-items: center; gap: 14px; font-size: 15px; line-height: 1.4; color: var(--ink); }
+.instl-step {
+  flex: 0 0 auto; display: grid; place-items: center; width: 40px; height: 40px;
+  border-radius: var(--r-2); color: var(--ink); background: var(--face-2); box-shadow: var(--e1);
+}
+.instl-done {
+  width: 100%; min-height: 48px; margin-top: 20px; border: 0; border-radius: var(--r-full);
+  font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+  color: var(--card); background: var(--ink); box-shadow: var(--e1);
+}
+@media (max-width: 560px) {
+  .instl-qr { flex-direction: column; text-align: center; }
+}

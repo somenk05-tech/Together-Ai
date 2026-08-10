@@ -8,6 +8,19 @@
   "background_color": "#0f1012",
   "theme_color": "#faf9f6",
   "icons": [
-    { "src": "/assets/img/tc-logo.png", "sizes": "680x680", "type": "image/png", "purpose": "any" }
-  ]
+    {
+      "src": "/assets/img/tc-logo.png",
+      "sizes": "680x680",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "play",
+      "id": "app.togethercity.mobile",
+      "url": "https://togethercity.app/downloads/TogetherCity.apk"
+    }
+  ],
+  "prefer_related_applications": false
 }

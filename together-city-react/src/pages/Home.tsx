@@ -7,6 +7,7 @@ import { HUBS } from '@/config/hubs';
 import type { HubKey } from '@/types';
 import { HUB_ICON } from '@/nav/registry';
 import { Icon } from '@/components/ui/Icon';
+import { InstallCity } from '@/components/InstallCity';
 
 /** A clickable building silhouette on the pavilion-city map. */
 interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: string; cx?: number; cy?: number; rx?: number; ry?: number; }
@@ -172,6 +173,8 @@ export function Home() {
               </>
             )}
           </div>
+          {/* The city is built for a phone; this is where it says so. */}
+          <InstallCity />
         </div>
 
         <div className="rule" />
