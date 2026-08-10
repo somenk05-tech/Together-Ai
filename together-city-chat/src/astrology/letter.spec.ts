@@ -1,4 +1,4 @@
-import { DAILY_WORDS, MONTHLY_WORDS, bannedVocabulary, letterProblems, salutationFor, shingleOverlap, toLetter } from './letter';
+import { DAILY_WORDS, MONTHLY_WORDS, TITLE_WORDS, bannedVocabulary, letterProblems, salutationFor, shingleOverlap, titleProblems, toLetter } from './letter';
 
 /**
  * The letter contract, checked.
@@ -45,7 +45,57 @@ const GOOD_BODY = [
   'attention this week and what deserves a little less. Let the answer be gentle.',
 ].join('\n');
 
-const good = (name = 'Somen') => `${salutationFor(name)}\n\n${GOOD_BODY}`;
+/**
+ * A DAILY AT ITS NEW LENGTH — 103 words.
+ *
+ * GOOD_BODY above is roughly three hundred, which is what a daily used to be
+ * and is now a rejection: the owner cut the daily to 80–150 words and the
+ * monthly to 120–180 because length was doing the work insight is supposed to
+ * do. GOOD_BODY is kept exactly as it was and has changed jobs — it is the
+ * harness for "a daily that has run away with itself", which is a more useful
+ * thing for it to be than a passing example.
+ *
+ * This one is deliberately UNDER 120 as well as inside the daily range, so the
+ * test below can show the same letter passing as a daily and failing as a
+ * month without needing a third fixture to make the point.
+ */
+const DAILY_BODY = [
+  'There is something you have been circling for a few days, and my sense is that you decided what',
+  'you think about it a while ago and have only been waiting for a decent moment. That moment is',
+  'closer than it feels. Say it plainly when you do — the calm version of you is more persuasive',
+  'than the rehearsed one, and people tend to hear the first one properly.',
+  '',
+  'The rest of the day rewards finishing over starting. One small deliberate step counts for more',
+  'than a plan that covers everything, and none of it has to be solved before this evening.',
+].join('\n');
+
+/** And a month at its own length — 306 words, which is also far too long to be a day. */
+const MONTH_BODY = [
+  'August is going to ask you to consolidate rather than begin. That will feel like the wrong',
+  'instruction, because you have spent a long stretch thinking about what you could build and that',
+  'chapter is not finished — but the useful work this month is finding out which of the things you',
+  'already committed to actually hold their shape. That is not retreat. It is the month you find out',
+  'what is real, which is the only thing that makes the next round of building worth doing.',
+  '',
+  'Pay attention to what moves easily and what you keep having to push. The heaviness is rarely a',
+  'sign to try harder; more often it is a sign you are working the wrong angle, and the honest thing',
+  'is to change the angle rather than the effort. Growth here arrives through patience and attention',
+  'rather than force, and it will show up in small ways first — a conversation that goes differently',
+  'because you listened rather than steered it, an old piece of work asking for something you had',
+  'not considered. Those signals are worth more this month than any plan you make at the start of',
+  'it.',
+  '',
+  'The middle of the month is where your judgement is sharpest, and it is worth saving the',
+  'conversation that genuinely matters for then rather than spending it early on something that only',
+  'feels urgent. Money and commitments both reward the slower read. With the people close to you,',
+  'the small attentive thing lands better than the grand one, as it nearly always does with you.',
+  '',
+  'Keep one evening a week genuinely free. It is the first thing you will cut, and by September it',
+  'will have been the thing that made the difference — not because rest is virtuous, but because you',
+  'think better when you are not owed to anybody.',
+].join('\n');
+
+const good = (name = 'Somen') => `${salutationFor(name)}\n\n${DAILY_BODY}`;
 
 /**
  * What the page used to send, verbatim in shape.
@@ -175,10 +225,27 @@ describe('the letter contract', () => {
     });
 
     it('holds the monthly to its own, longer range', () => {
-      // The same letter is a fine daily and far too short for a month.
+      // The same letter is a fine daily and just short of a month.
       expect(letterProblems(good(), 'daily', 'Somen')).toEqual([]);
       expect(letterProblems(good(), 'monthly', 'Somen').map((p) => p.why))
         .toContain(`shorter than ${MONTHLY_WORDS.min}`);
+    });
+
+    it('accepts a month at its own length, and refuses it as a day', () => {
+      const asMonth = `${salutationFor('Somen')}\n\n${MONTH_BODY}`;
+      expect(letterProblems(asMonth, 'monthly', 'Somen')).toEqual([]);
+      expect(letterProblems(asMonth, 'daily', 'Somen').map((p) => p.why))
+        .toContain(`longer than ${DAILY_WORDS.max}`);
+    });
+
+    /**
+     * THE RANGES ARE THE FEATURE, so they are asserted rather than assumed.
+     * A later edit that quietly restores 430-word dailies would otherwise pass
+     * every test in this file — each one is written against the constants.
+     */
+    it('is holding the short letter the owner asked for', () => {
+      expect(DAILY_WORDS).toEqual({ min: 80, max: 150 });
+      expect(MONTHLY_WORDS).toEqual({ min: 240, max: 320 });
     });
   });
 
@@ -209,10 +276,65 @@ describe('the letter contract', () => {
     });
   });
 
+  /**
+   * THE TITLE IS THE ONE LINE EVERYBODY READS.
+   *
+   * It is also the only line that gets screenshotted, which is why the whole
+   * vocabulary ban applies to it and then some: a clean hundred-word letter
+   * under a title reading "Saturn's Lesson" has told the reader exactly what
+   * produced it, and none of the checks on the body would have noticed.
+   */
+  describe('the title', () => {
+    it('accepts a title that names the day', () => {
+      for (const t of ['Move, But Don\'t Rush', 'Let the Quiet Work', 'Say the Thing Plainly', 'Choose What Stays']) {
+        expect({ t, found: titleProblems(t) }).toEqual({ t, found: [] });
+      }
+    });
+
+    it('refuses the three the owner named by hand', () => {
+      for (const t of ['Daily Horoscope', 'Your Horoscope Today', "Today's Astrology"]) {
+        expect(titleProblems(t).length).toBeGreaterThan(0);
+      }
+    });
+
+    it('refuses a title that only says where you already are', () => {
+      // "TODAY" is printed above it as a label. A title repeating it is a
+      // heading, and a heading is what this page stopped having.
+      for (const t of ['Today Is Your Day', 'The Month Ahead For You', 'Your Week In Focus']) {
+        expect(titleProblems(t).map((p) => p.why)).toContain('says where you are, which the label above it already says');
+      }
+    });
+
+    it('holds its length at both ends', () => {
+      expect(titleProblems('Go Slowly').map((p) => p.why)).toContain(`shorter than ${TITLE_WORDS.min}`);
+      expect(titleProblems('A Title That Simply Will Not Stop Going On').map((p) => p.why))
+        .toContain(`longer than ${TITLE_WORDS.max}`);
+    });
+
+    it('refuses the punctuation that turns a title into a label', () => {
+      expect(titleProblems('This Month: Consolidate').map((p) => p.what)).toContain(':');
+      expect(titleProblems('Move, But Do Not Rush.').map((p) => p.why)).toContain('a title does not end in punctuation');
+      expect(titleProblems('"Move, But Do Not Rush"').map((p) => p.what)).toContain('quotation marks');
+      expect(titleProblems('MOVE, BUT DO NOT RUSH').map((p) => p.why)).toContain('set in capitals rather than written');
+    });
+
+    it('applies the whole vocabulary ban to four words', () => {
+      for (const t of ['A Retrograde Kind Of Week', 'What The Stars Are Asking', 'Your Karmic Homework Now']) {
+        expect(titleProblems(t).length).toBeGreaterThan(0);
+      }
+    });
+
+    it('has something to say about nothing', () => {
+      expect(titleProblems('').map((p) => p.why)).toContain('there is no title');
+    });
+  });
+
   it('splits a letter into the parts a screen renders', () => {
-    const l = toLetter(`${salutationFor('Somen')}\n\n${GOOD_BODY}\n\n\n`, 'Somen');
+    const l = toLetter(`${salutationFor('Somen')}\n\n${GOOD_BODY}\n\n\n`, 'Somen', '  Move, But Don\'t Rush  ');
+    expect(l.title).toBe('Move, But Don\'t Rush');
     expect(l.salutation).toBe('Dear Somen,');
-    expect(l.signOff).toBe('— Together City');
+    // The letter closes and does not sign itself with the company's name.
+    expect(l.signOff).toBe('With care,');
     expect(l.body.startsWith('Something has been sitting')).toBe(true);
     expect(l.body).not.toContain('Dear Somen,');
     expect(l.body).not.toMatch(/\n{3,}/);

@@ -28,18 +28,68 @@ import { firstNameOf, violations, type VoiceViolation } from './voice';
  * says so, and nothing is cached.
  */
 
-/** How long a letter of each kind should run. Prose, so these are ranges. */
-export const DAILY_WORDS = { min: 230, max: 430 } as const;
-export const MONTHLY_WORDS = { min: 820, max: 1500 } as const;
+/**
+ * How long a letter of each kind should run. Prose, so these are ranges.
+ *
+ * THESE WERE FAR LONGER UNTIL TODAY, and the owner was right to cut them.
+ * A daily of 230–430 words and a monthly of 820–1500 read, on the page,
+ * as an article about you rather than a letter to you — and the second half of
+ * a long letter is where a writer with nothing left to say starts restating
+ * the first half in new words. Length was doing the work that insight is
+ * supposed to do.
+ *
+ * A tighter range is a harder brief, not an easier one: 110 words cannot carry
+ * five topics, so the writer has to decide which single thing is worth saying.
+ * That decision is the product.
+ */
+export const DAILY_WORDS = { min: 80, max: 150 } as const;
+/**
+ * THE MONTH IS NOT A LONG DAY, and the owner's second look said so. 120–180
+ * was the daily's discipline applied to a longer period, and it undersold what
+ * a month actually contains: a day has one thing worth saying, a month has a
+ * shape — what it is asking, where the judgement is sharpest, what to protect.
+ * Three hundred words is room for that and still nowhere near the 820–1500 it
+ * replaced. The test that it fits one letter composition is the page, not the
+ * count.
+ */
+export const MONTHLY_WORDS = { min: 240, max: 320 } as const;
 
-export const SIGN_OFF = '— Together City';
+/** The letter's own title. Short enough to set as one display line. */
+export const TITLE_WORDS = { min: 3, max: 7 } as const;
+
+/**
+ * How the letter ends.
+ *
+ * It was "— Together City", and the owner cut the name: a letter signed by a
+ * company is a newsletter, and the one thing this surface is not allowed to
+ * feel like is a broadcast. What is left is the closing on its own — the warmth
+ * without the letterhead. Nobody needs telling which application they are
+ * standing in; the header says it twice already.
+ *
+ * Still stored on the letter rather than assumed by the client, for the reason
+ * it always was: a screen renders what it was sent, so an archived letter keeps
+ * the ending it was actually written with.
+ */
+export const SIGN_OFF = 'With care,';
 
 export interface Letter {
+  /**
+   * The letter's title — "Move, But Don't Rush". Three to seven words naming
+   * what the day is actually asking, written by the same pass that writes the
+   * letter and validated as strictly.
+   *
+   * It is a SEPARATE FIELD rather than the first line of the body, which is
+   * the whole reason letterProblems() below did not have to change: the title
+   * is not prose, it is a name for the prose, and folding it into the body
+   * would have made every structural rule in this file ambiguous about its own
+   * first line.
+   */
+  title: string;
   /** "Dear Somen," — always the first line, always its own paragraph. */
   salutation: string;
   /** The letter itself. Paragraphs separated by a blank line, nothing else. */
   body: string;
-  /** Always SIGN_OFF. Stored rather than assumed so a client renders what it was sent. */
+  /** Always SIGN_OFF — see there for why it is stored rather than assumed. */
   signOff: string;
   words: number;
 }
@@ -149,6 +199,60 @@ export function bannedVocabulary(text: string): LetterProblem[] {
 }
 
 /**
+ * Titles the letter may not wear.
+ *
+ * The owner named three by hand — "Daily Horoscope", "Your Horoscope Today",
+ * "Today's Astrology" — and the first two words of each are the tell: a title
+ * that names the PRODUCT is the one thing a personal letter never does. The
+ * banned-vocabulary list already kills "horoscope" and "astrology"; what these
+ * add is the neighbouring family a writer reaches for once those are refused,
+ * and the second kind of failure, which is a title that says where you already
+ * know you are. "Today" is printed above the title as a label. Repeating it as
+ * the title is a heading, not a name.
+ */
+const BANNED_TITLES: Array<{ re: RegExp; why: string }> = [
+  { re: /^\s*(?:your\s+|the\s+|a\s+)?(?:daily|monthly|weekly)?\s*(?:horoscope|forecast|outlook|guidance|prediction|reading|report)\b/i,
+    why: 'names the product rather than the day' },
+  { re: /^\s*(?:today|tomorrow|this\s+month|the\s+month\s+ahead|the\s+day\s+ahead|your\s+day|your\s+month|your\s+week)\b/i,
+    why: 'says where you are, which the label above it already says' },
+  { re: /^\s*dear\b/i, why: 'the salutation, not a title' },
+  { re: /^\s*(?:a\s+)?letter\b/i, why: 'names the form' },
+];
+
+/**
+ * Everything wrong with a candidate title. Empty means it can be printed.
+ *
+ * The whole vocabulary ban applies here and then some, because a title is the
+ * one line everybody reads and the only line that gets screenshotted. A
+ * fifty-word letter that stays clean and a title that says "Saturn's Lesson"
+ * has still told the reader exactly what produced it.
+ */
+export function titleProblems(candidate: string): LetterProblem[] {
+  const out: LetterProblem[] = [];
+  const title = (candidate ?? '').trim();
+  if (!title) return [{ what: 'empty', why: 'there is no title' }];
+
+  const words = wordsIn(title);
+  if (words < TITLE_WORDS.min) out.push({ what: `${words} words`, why: `shorter than ${TITLE_WORDS.min}` });
+  if (words > TITLE_WORDS.max) out.push({ what: `${words} words`, why: `longer than ${TITLE_WORDS.max}` });
+  // Set large, on one line, in a narrow column. This is where it stops fitting.
+  if (title.length > 46) out.push({ what: `${title.length} characters`, why: 'too long to set as one display line' });
+  if (/\n/.test(title)) out.push({ what: 'a line break', why: 'a title is one line' });
+  if (/[.:;]\s*$/.test(title)) out.push({ what: title.slice(-1), why: 'a title does not end in punctuation' });
+  if (/:/.test(title)) out.push({ what: ':', why: 'a colon turns a title into a label' });
+  if (/^["'\u2018\u2019\u201c\u201d]|["'\u2018\u2019\u201c\u201d]$/.test(title)) {
+    out.push({ what: 'quotation marks', why: 'a title is not a quotation' });
+  }
+  if (/\p{L}/u.test(title) && title === title.toUpperCase()) {
+    out.push({ what: title, why: 'set in capitals rather than written' });
+  }
+  for (const { re, why } of BANNED_TITLES) if (re.test(title)) out.push({ what: title, why });
+  out.push(...bannedVocabulary(title));
+  for (const v of violations(title) as VoiceViolation[]) out.push({ what: v.phrase, why: v.why });
+  return out;
+}
+
+/**
  * Everything wrong with a candidate letter. Empty means it can be sent.
  *
  * `previous` is the bodies of the letters this person has most recently been
@@ -241,7 +345,7 @@ export function salutationFor(firstName?: string | null): string {
 }
 
 /** Split a validated candidate into the shape the client renders. */
-export function toLetter(candidate: string, firstName?: string | null): Letter {
+export function toLetter(candidate: string, firstName?: string | null, title = ''): Letter {
   const salutation = salutationFor(firstName);
   const text = candidate.trim();
   const body = (text.startsWith(salutation) ? text.slice(salutation.length) : text)
@@ -250,7 +354,7 @@ export function toLetter(candidate: string, firstName?: string | null): Letter {
     .map((l) => l.trim())
     .join('\n')
     .replace(/\n{2,}/g, '\n\n');
-  return { salutation, body, signOff: SIGN_OFF, words: wordsIn(body) };
+  return { title: title.trim(), salutation, body, signOff: SIGN_OFF, words: wordsIn(body) };
 }
 
 /**
@@ -273,14 +377,24 @@ export function letterRules(kind: 'daily' | 'monthly', firstName?: string | null
     'and says the useful thing about it.',
     '',
     'FORM — every one of these is checked, and a letter that breaks one is discarded unsent:',
-    `1. The first line is exactly: ${salutation}`,
+    `0. A TITLE, returned separately from the letter: ${TITLE_WORDS.min} to ${TITLE_WORDS.max} words naming what this`,
+    '   period is actually asking of them — "Move, But Don\'t Rush", "Let the Quiet Work",',
+    '   "Say the Thing Plainly". It is the title of a personal letter, not the name of a product:',
+    '   never "Daily Horoscope", never "Your Reading", never "Today" or "This Month" (both are',
+    '   already printed above it), no colon, no full stop, no quotation marks, not in capitals.',
+    `1. The first line of the letter is exactly: ${salutation}`,
     '2. After that, continuous prose. No headings. No labels. No bullet points. No numbered lists.',
     '   No bold, no italics, no markdown of any kind. Paragraph breaks only, and only when a',
     '   paragraph has genuinely grown too long to read comfortably.',
     '3. Never signal a change of subject. Career, relationships, health, money and growth may all be',
     '   in here, but they must arrive as one person\'s train of thought, not as topics being covered.',
     '   If a sentence could be preceded by a heading, rewrite it.',
-    `4. Between ${range.min} and ${range.max} words, not counting the opening line.`,
+    `4. Between ${range.min} and ${range.max} words, not counting the opening line. This is short on`,
+    '   purpose and it is the hardest rule here. You cannot cover several areas of a life in that',
+    '   space, so do not try: choose the ONE thing worth saying and say it properly. Every sentence',
+    '   must earn its place — if a sentence restates the one before it in different words, or could',
+    '   be deleted without the reader losing anything, delete it. Do not solve length by writing',
+    '   faster or vaguer; solve it by having less to say and meaning all of it.',
     '5. End by finishing the thought, gently. Never "good luck", never "have a wonderful day",',
     '   never "stay positive", never a sign-off phrase of any kind — the letter is signed for you.',
     '',

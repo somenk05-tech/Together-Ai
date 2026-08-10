@@ -8,7 +8,7 @@ import {
   NatalChart, geocodeApprox, natalChart, scanMonth, tzOffsetMinutes, SIGNS,
 } from './astro-engine';
 import { composeAnswerBrief, composeDailyBrief, composeMonthlyBrief, type GuidanceBrief } from './astro-content';
-import { letterPrompt, letterProblems, letterRules, toLetter, type Letter } from './letter';
+import { letterPrompt, letterProblems, letterRules, titleProblems, toLetter, type Letter } from './letter';
 import { answerProblems, consultationPrompt, consultationRules } from './consultation';
 import { PACK_SIZE, priceForNextQuestion, quotaFor, type QuestionQuota } from './question-quota';
 import { computeNumerology, vimshottariDasha } from './personal-factors';
@@ -114,8 +114,15 @@ export class AstrologyService {
    * reading may name a planet, sign, number or period any more. v5: the letter —
    * sections, lucky elements, themes and chips are gone entirely, so a cached v4
    * reading is not merely off-voice, it is the wrong shape.
+   *
+   * v6: the SHORT titled letter. A daily is now 80–150 words and a monthly
+   * 120–180, and both carry a title. A cached v5 letter is four times too long
+   * and has no title, so it would print into the new composition as the exact
+   * page the redesign exists to remove. The bump is the whole migration: the
+   * next person to open Today gets one fresh letter written to the new brief,
+   * and the archive keeps the old ones as what they were.
    */
-  private static readonly READING_VER = 'v5';
+  private static readonly READING_VER = 'v6';
 
   /**
    * One saved letter per user per period — daily flips at the user's own
@@ -323,7 +330,7 @@ export class AstrologyService {
     const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
     const brief = composeDailyBrief(chart, userId, local, num, dasha);
     const previous = (await this.recentLetters(userId, 'daily', 3)).map((l) => l.body);
-    const letter = await this.writeLetter('daily', brief, await this.firstName(userId), previous, 1600);
+    const letter = await this.writeLetter('daily', brief, await this.firstName(userId), previous, 700);
     return letter ? { date: local.toISOString().slice(0, 10), ...letter } : null;
   }
 
@@ -377,16 +384,21 @@ export class AstrologyService {
     }
     let feedback = '';
     for (let attempt = 1; attempt <= 2; attempt++) {
-      const out = await this.ai.json<{ letter?: string }>(
+      // Title and letter in ONE pass, not two. A title written by a second call
+      // is a title written about a letter rather than out of it, and the two
+      // drift: the reader gets a heading that is nearly what the letter says.
+      const out = await this.ai.json<{ title?: string; letter?: string }>(
         letterRules(kind, firstName),
         letterPrompt(brief.observations, firstName, previous, brief.note + feedback) +
-          '\n\nReturn JSON: {"letter": "the complete letter, opening line included"}.',
+          '\n\nReturn JSON: {"title": "the title, 3-7 words", ' +
+          '"letter": "the complete letter, opening line included"}.',
         {},
         maxTokens,
       );
       const candidate = (out.letter ?? '').trim();
-      const problems = letterProblems(candidate, kind, firstName, previous);
-      if (!problems.length) return toLetter(candidate, firstName);
+      const title = (out.title ?? '').trim();
+      const problems = [...letterProblems(candidate, kind, firstName, previous), ...titleProblems(title)];
+      if (!problems.length) return toLetter(candidate, firstName, title);
       const said = problems.map((p) => `${p.what} — ${p.why}`).join('; ');
       this.logger.warn(`${kind} letter rejected (attempt ${attempt}): ${said}`);
       feedback = `\n\nA previous attempt was rejected for: ${said}. Fix every one of those and keep everything else.`;
@@ -457,7 +469,7 @@ export class AstrologyService {
     const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
     const brief = composeMonthlyBrief(chart, userId, astro, num, dasha);
     const previous = (await this.recentLetters(userId, 'monthly', 2)).map((l) => l.body);
-    const letter = await this.writeLetter('monthly', brief, await this.firstName(userId), previous, 4000);
+    const letter = await this.writeLetter('monthly', brief, await this.firstName(userId), previous, 800);
     return letter ? { date: local.toISOString().slice(0, 7), month: brief.month, ...letter } : null;
   }
 

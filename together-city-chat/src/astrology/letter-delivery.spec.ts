@@ -19,32 +19,26 @@ import { salutationFor } from './letter';
  * produce no prose at all.
  */
 
+/**
+ * A GOOD LETTER IS NOW A HUNDRED WORDS, NOT THREE HUNDRED.
+ *
+ * This fixture was five paragraphs, because a daily used to be 230–430
+ * words. The owner cut it to 80–150 and the same text is now a rejection —
+ * so the fixture had to shrink or every test here would be asserting
+ * against a letter the service would refuse to send.
+ */
 const GOOD = [
-  'Something has been sitting with you for a few days and my guess is you have already decided what',
-  'you think, and are waiting for a decent moment to say it. That moment is closer than it feels.',
-  'Say it plainly when you do — the calm version of you is far more persuasive than the rehearsed',
-  'one, and people tend to hear it properly.',
+  'There is something you have been circling for a few days, and my sense is that you decided what',
+  'you think about it a while ago and have only been waiting for a decent moment. That moment is',
+  'closer than it feels. Say it plainly when you do — the calm version of you is more persuasive',
+  'than the rehearsed one, and people tend to hear the first one properly.',
   '',
-  'Work is going to reward finishing over starting for a while yet. Not the most exciting thing to',
-  'be told, but the effort you are putting in compounds quietly and only compounds if it stays',
-  'consistent. One deliberate step counts for more this week than a plan that covers everything, and',
-  'if your attention keeps drifting toward getting organised rather than getting ahead, let it. That',
-  'instinct is usually right about what the week actually needs from you.',
-  '',
-  'With the people close to you the small attentive gesture will land better than the grand one; it',
-  'nearly always does. If a conversation matters, listen for longer than feels natural first. Keep',
-  'the practical side simple — water, one proper meal, twenty unhurried minutes outside. Your energy',
-  'is running restless rather than low, and restless responds to rhythm rather than to effort.',
-  '',
-  'Money is a good place to be patient. Nothing needs deciding this week that would not be decided',
-  'better next week, and the only test worth applying before a commitment is whether it serves where',
-  'you are actually heading. You already know the answer for most of them, which is usually the',
-  'point at which people stop asking and start moving.',
-  '',
-  'Whatever today turns out to be, you do not have to solve all of it at once. Moving with a clear',
-  'head is worth more than moving quickly, and a fair amount of what is on your mind will look',
-  'smaller by tomorrow evening.',
+  'The rest of the day rewards finishing over starting. One small deliberate step counts for more',
+  'than a plan that covers everything, and none of it has to be solved before this evening.',
 ].join('\n');
+
+/** Every letter now carries one, and a letter without one is not sent. */
+const GOOD_TITLE = "Say It Plainly Today";
 
 const BAD_HEADINGS = `${salutationFor('Somen')}\n\nCareer & Work:\n${GOOD}`;
 
@@ -88,7 +82,14 @@ function fakeDb() {
   };
 }
 
-/** An AI stand-in that answers with whatever the test hands it, in order. */
+/**
+ * An AI stand-in that answers with whatever the test hands it, in order.
+ *
+ * It returns a valid TITLE with every letter, because the title is validated
+ * as strictly as the body and a fake that omitted it would make every test in
+ * this file fail for a reason none of them is about. The one test that cares
+ * about a bad title passes its own.
+ */
 function fakeAi(enabled: boolean, ...answers: string[]) {
   const calls: string[] = [];
   return {
@@ -98,8 +99,20 @@ function fakeAi(enabled: boolean, ...answers: string[]) {
       json: (_system: string, user: string) => {
         calls.push(user);
         const next = answers[Math.min(calls.length - 1, answers.length - 1)];
-        return Promise.resolve(next === undefined ? {} : { letter: next });
+        return Promise.resolve(next === undefined ? {} : { title: GOOD_TITLE, letter: next });
       },
+    },
+  };
+}
+
+/** The same stand-in, with the title broken instead of the letter. */
+function fakeAiTitled(title: string, letter: string) {
+  const calls: string[] = [];
+  return {
+    calls,
+    ai: {
+      enabled: true,
+      json: (_system: string, user: string) => { calls.push(user); return Promise.resolve({ title, letter }); },
     },
   };
 }
@@ -118,8 +131,9 @@ describe('delivering a letter', () => {
     const out = await build(db.prisma, w.ai).daily('u1') as { pending?: boolean; body?: string; salutation?: string };
 
     expect(out.pending).toBe(false);
+    expect((out as { title?: string }).title).toBe(GOOD_TITLE);
     expect(out.salutation).toBe('Dear Somen,');
-    expect(out.body).toContain('Something has been sitting with you');
+    expect(out.body).toContain('There is something you have been circling');
     expect(db.writes).toHaveLength(1);
   });
 
@@ -168,6 +182,19 @@ describe('delivering a letter', () => {
     expect(w.calls).toHaveLength(2);
     expect(out.pending).toBe(false);
     expect(db.writes).toHaveLength(1);
+  });
+
+  it('refuses a perfectly good letter under a title that names the product', async () => {
+    // The body is clean and the title is "Daily Horoscope". Nothing in the
+    // letter's own checks would notice, and the title is the line everybody
+    // reads — so it is validated on the same pass and rejects the whole thing.
+    const db = fakeDb();
+    const w = fakeAiTitled('Daily Horoscope', `${salutationFor('Somen')}\n\n${GOOD}`);
+    const out = await build(db.prisma, w.ai).daily('u1') as Record<string, unknown>;
+
+    expect(out.pending).toBe(true);
+    expect(w.calls[1]).toContain('A previous attempt was rejected for');
+    expect(db.writes).toEqual([]);
   });
 
   it('never hands the writer the vocabulary it is forbidden to use', async () => {
