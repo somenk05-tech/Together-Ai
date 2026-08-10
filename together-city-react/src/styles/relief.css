@@ -1078,15 +1078,29 @@ img[src$=".svg"], .no-case {
     padding: clamp(22px, 2.2vw, 34px) clamp(24px, 2.6vw, 44px);
     background: var(--card);
   }
-  /* The name stays in the document for the citizen who cannot see the
-     building — a screen reader gets the heading, and on the homepage it is
-     also the accessible name of the link. Hiding it with `display: none`
-     would take it from them too. */
   .hub-plate .hub-plate-said { display: block; min-width: 0; }
+  /* THE NAME COMES BACK, AT THE LINE'S OWN SIZE.
+     It was hidden when the words came off the photograph, on the argument that
+     the building already wears its name — and that is still true of the
+     PICTURE. It was not true of the foot, where the line sat alone with
+     nothing saying which room it belongs to; a citizen scrolling fourteen of
+     these reads fourteen promises and no addresses.
+     The owner's instruction was exact: the same size as the line. Which means
+     the separation cannot come from scale, so it comes from the only two other
+     things a monochrome city has — one step of weight and one of ink. Any more
+     than that and the name starts becoming a headline again, which is the
+     thing that was removed.
+     It is also, quietly, the accessibility fix: this heading is the accessible
+     name of the homepage's link, and it is now visible to everybody rather
+     than only to a screen reader. */
   .hub-plate .hub-plate-said h1,
   .hub-plate .hub-plate-said h2 {
-    position: absolute; width: 1px; height: 1px; margin: -1px;
-    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+    position: static; width: auto; height: auto; overflow: visible;
+    clip-path: none; white-space: normal;
+    margin: 0 0 2px;
+    font-size: clamp(16px, 1.3vw, 20px); line-height: 1.35;
+    font-weight: 700; letter-spacing: 0; text-transform: none;
+    color: var(--ink); text-shadow: none;
   }
   .hub-plate .hub-plate-said p {
     margin: 0; max-width: 62ch;
