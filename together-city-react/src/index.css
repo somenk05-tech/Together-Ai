@@ -808,11 +808,23 @@ table.tc td b { color: var(--ink); }
     -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
   }
   /* the name goes: the photograph is already wearing it */
-  .district-run .district-plate .hub-plate-said h2 { display: none; }
+  /* The hub's name reads above its line, plain and bold at the same size —
+     the desktop foot's treatment, brought to the phone. Deliberately NOT a
+     headline: the billboard behind it already carries the name at
+     architectural scale, and a second big one would argue with the first. */
+  .district-run .district-plate .hub-plate-said h2 {
+    display: block; margin: 0 0 3px;
+    font-size: clamp(10.5px, 3vw, 12.5px); line-height: 1.25;
+    font-weight: 700; letter-spacing: -.012em; text-transform: none;
+    color: rgba(255,255,255,.99); text-shadow: 0 1px 8px rgba(0,0,0,.45);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .district-run .district-plate .hub-plate-said {
-    /* basis 0, not auto: an auto basis is the sentence's max-content width,
-       which overflows the row and forces the wrap this layout must not do. */
-    display: block; flex: 1 1 0%; min-width: 0; padding-bottom: 0;
+    /* column, not relief's column-reverse: the name reads above its line.
+       basis 0, not auto — an auto basis is the sentence's max-content width,
+       which overflows the row and forces a wrap this layout must not do. */
+    display: flex; flex-direction: column;
+    flex: 1 1 0%; min-width: 0; padding-bottom: 0;
   }
   .district-run .district-plate .hub-plate-said p {
     margin: 0; max-width: none;
