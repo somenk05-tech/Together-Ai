@@ -984,7 +984,42 @@ html.tc-immersive body { padding-bottom: 0; }
    The stage takes the grid's own `bleed` hatch (see Chats.tsx); all this has
    to do is drop the block padding above and below it. */
 html.tc-immersive .tc-main > .page { padding-block: 0; }
-html.tc-immersive .cstage { border-radius: 0; box-shadow: none; }
+/* Fixed, not flowing: a room does not scroll away when the keyboard opens. */
+html.tc-immersive, html.tc-immersive body {
+  overflow: hidden; height: 100%; width: 100%; overscroll-behavior: none;
+  /* PAN-Y IS THE ENTIRE GESTURE VOCABULARY OF A THREAD: it goes up and it
+     goes down. A browser refuses anything not named here, and what is not
+     named here is pinch-zoom and double-tap-zoom — the two ways this screen
+     was being scaled out from under its own header. `manipulation` would not
+     have done it: it drops the double tap and KEEPS the pinch. */
+  touch-action: pan-y;
+  /* and a phone stops inflating type it has decided is too small, which is
+     its own quiet kind of zoom and moves everything below it */
+  -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+}
+html.tc-immersive .cstage {
+  position: fixed; top: var(--tc-vvt, 0px); left: 0; right: 0;
+  border-radius: 0; box-shadow: none;
+  /* one column, one row, and the row is the room: the thread gets the stage's
+     exact height rather than sizing itself to its own messages, which is what
+     lets the composer sit ON the bottom instead of after the last bubble */
+  grid-template-rows: minmax(0, 1fr);
+}
+/* THE ONLY THING IN THE ROOM THAT SCROLLS. The header and the composer are
+   its two fixed rows; the messages are its floor. `contain` keeps the bounce
+   at the end of the list inside the list rather than handing it up to the
+   page, which is the other way the screen used to shift. */
+html.tc-immersive .csmsgs {
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+}
+/* Neither row gives up a pixel to a long message or a two-line name. */
+html.tc-immersive .cshead-t, html.tc-immersive .cscomposer { flex: 0 0 auto; }
+/* 16px, and not a tenth less: mobile Safari zooms the page into any focused
+   input under 16px, which is the jump felt when tapping the composer. The
+   capsule keeps its size; only the type grows a hair. */
+html.tc-immersive .cscomposer input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+  font-size: 16px;
+}
 /* the notch, and room for the name under it */
 html.tc-immersive .cshead-t { padding-top: calc(var(--safe-top) + 16px); padding-bottom: 12px; }
 html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); }

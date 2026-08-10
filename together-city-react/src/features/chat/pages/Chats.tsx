@@ -62,7 +62,68 @@ export function Chats() {
     if (!(phone && activeId)) return;
     const root = document.documentElement;
     root.classList.add('tc-immersive');
-    return () => root.classList.remove('tc-immersive');
+
+    /* THE KEYBOARD SHORTENS THE ROOM; IT DOES NOT PUSH IT.
+       100dvh is the WINDOW, and iOS leaves the window the same height when the
+       keyboard opens — the page simply scrolls underneath it, which is what
+       threw the header off the top of the screen. visualViewport is the part
+       you can actually see, so the room is sized from that and the composer
+       stays put above the keys.
+       It also knows where the visible part BEGINS. `position: fixed` is fixed
+       to the LAYOUT viewport, and iOS scrolls the layout viewport upwards to
+       reveal a focused input — so "fixed" quietly becomes "fixed somewhere
+       above the screen". offsetTop is exactly how far it went; the room moves
+       down by the same number and therefore does not appear to move at all. */
+    const vv = window.visualViewport;
+    const sync = () => {
+      root.style.setProperty('--tc-vvh', `${vv ? vv.height : window.innerHeight}px`);
+      root.style.setProperty('--tc-vvt', `${vv ? vv.offsetTop : 0}px`);
+    };
+    sync();
+    vv?.addEventListener('resize', sync);
+    vv?.addEventListener('scroll', sync);
+    // wherever the page was scrolled to on the way in, the room starts at the top
+    window.scrollTo(0, 0);
+
+    /* AND IT STAYS AT 1:1.
+       A messaging screen that pinches to 1.4x is a website: the header slides
+       off, the composer parks under the keyboard, and the citizen has to pinch
+       back before they can type a word. Three locks hold it, because no single
+       one holds on both phones —
+         · THE VIEWPORT TAG, rewritten while the thread is open and put back
+           exactly as it was found on the way out. Android and the installed
+           app honour maximum-scale, and because it is restored, the rest of
+           the city keeps the zoom somebody may genuinely need;
+         · TOUCH-ACTION, in the stylesheet, which is what refuses the pinch and
+           the double tap in Chrome;
+         · THE GESTURE EVENTS, which are what refuse them in SAFARI — iOS has
+           ignored user-scalable since iOS 10 and answers to nothing else.
+       None of them touches a one-finger drag, which is the only gesture this
+       screen ever wanted. */
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+    const wasViewport = meta ? meta.getAttribute('content') : null;
+    meta?.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content');
+    const noGesture = (e: Event) => e.preventDefault();
+    document.addEventListener('gesturestart', noGesture, { passive: false });
+    document.addEventListener('gesturechange', noGesture, { passive: false });
+    document.addEventListener('gestureend', noGesture, { passive: false });
+    /* Two fingers on the glass is a pinch, and there is nothing in a thread
+       that two fingers do. One finger is a scroll and is never interrupted. */
+    const noPinch = (e: TouchEvent) => { if (e.touches.length > 1) e.preventDefault(); };
+    document.addEventListener('touchmove', noPinch, { passive: false });
+
+    return () => {
+      root.classList.remove('tc-immersive');
+      root.style.removeProperty('--tc-vvh');
+      root.style.removeProperty('--tc-vvt');
+      vv?.removeEventListener('resize', sync);
+      vv?.removeEventListener('scroll', sync);
+      if (meta && wasViewport !== null) meta.setAttribute('content', wasViewport);
+      document.removeEventListener('gesturestart', noGesture);
+      document.removeEventListener('gesturechange', noGesture);
+      document.removeEventListener('gestureend', noGesture);
+      document.removeEventListener('touchmove', noPinch);
+    };
   }, [phone, activeId]);
 
   const history = useMessages(activeId);
@@ -191,7 +252,7 @@ export function Chats() {
           without a negative margin fighting the gutter. */}
       <div className={`cstage${phone ? (activeId ? ' is-thread bleed' : ' is-list') : ''}`}
         style={{ height: phone
-          ? (activeId ? '100dvh' : 'calc(100dvh - var(--header-h) - var(--safe-top) - var(--safe-bottom) - 24px)')
+          ? (activeId ? 'var(--tc-vvh, 100dvh)' : 'calc(100dvh - var(--header-h) - var(--safe-top) - var(--safe-bottom) - 24px)')
           : 'calc(100dvh - var(--header-h) - var(--safe-top) - 42px)' }}>
         {!(phone && activeId) && (
         <aside className="cslist">

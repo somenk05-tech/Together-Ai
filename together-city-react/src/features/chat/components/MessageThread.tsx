@@ -72,7 +72,7 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
   onDelete?: (messageId: string, scope: 'ME' | 'EVERYONE') => Promise<void> | void;
   onEdit?: (messageId: string, body: string) => Promise<void> | void;
 }) {
-  const end = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null);
   const [confirmFor, setConfirmFor] = useState<Message | null>(null);
   const [collapsing, setCollapsing] = useState<Set<string>>(new Set());
   const [touchOpen, setTouchOpen] = useState<string | null>(null);
@@ -80,7 +80,17 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
   const [editText, setEditText] = useState('');
   const longPress = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length, typing]);
+  /* THE LIST SCROLLS ITSELF.
+     scrollIntoView asks EVERY scrollable ancestor to move, and on a phone the
+     outermost one is the page beneath a fixed room — so a message arriving
+     could slide the whole screen while it was politely bringing the newest
+     bubble into view. This moves one box, and it is this one. */
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    if (typeof el.scrollTo === 'function') el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    else el.scrollTop = el.scrollHeight;
+  }, [messages.length, typing]);
 
   const doDelete = async (m: Message, scope: 'ME' | 'EVERYONE') => {
     setConfirmFor(null);
@@ -103,7 +113,7 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
   const at = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="csmsgs">
+    <div className="csmsgs" ref={box}>
       <style>{CSS}</style>
       {messages.map((m, i) => {
         const mine = m.senderId === currentUserId;
@@ -173,7 +183,6 @@ export function MessageThread({ messages, currentUserId, typing, peerName, onDel
         );
       })}
       {typing && <div className="csatt"><i>{peerName ?? 'They'} is typing…</i></div>}
-      <div ref={end} />
 
       {confirmFor && (
         <ConfirmDelete
