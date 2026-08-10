@@ -85,6 +85,21 @@ const DISTRICT_COPY: Partial<Record<HubKey | 'ecommerce', { name: string; line: 
   ecommerce: { name: 'E-Commerce', line: 'Everything you need, curated for you.' },
 };
 
+/**
+ * THE NAME A DISTRICT WEARS, IN ONE PLACE.
+ *
+ * Three sources, in order: the billboard copy above, the hub config, and one
+ * literal for E-Commerce, which has no hub. It was written inline in the map
+ * before, which was fine while the map was the only thing that needed it —
+ * the run is now SORTED by this name, and a sort keyed on one spelling while
+ * the screen prints another is the kind of bug that looks like a mystery.
+ */
+function districtName(key: Panel['key']): string {
+  const copy = DISTRICT_COPY[key];
+  if (copy) return copy.name;
+  return key === 'ecommerce' ? 'E-Commerce' : HUBS[key].name;
+}
+
 interface Panel { key: HubKey | 'ecommerce'; img: string; }
 const PANELS: Panel[] = [
   { key: 'travel', img: 'travel-hub.webp' },
@@ -104,6 +119,21 @@ const PANELS: Panel[] = [
   { key: 'services', img: 'local-services.webp' },
   { key: 'ecommerce', img: 'e-commerce.webp' },
 ];
+
+/**
+ * THE ORDER YOU WALK THEM IN: A TO Z, BY WHAT THE PLATE SAYS.
+ *
+ * The owner asked for alphabetical. Sorted here rather than retyped into
+ * PANELS because the two can disagree: a district's billboard name is not its
+ * key and not always its hub name — `dating` reads "Matchmaking" and sorts
+ * under M, `services` reads "Local Services" and sorts under L. A hand-typed
+ * order would be correct today and quietly wrong the first time a district is
+ * renamed. This cannot be.
+ *
+ * PANELS keeps its own order because it is a different list: which districts
+ * exist and which photograph each one wears.
+ */
+const DISTRICTS: Panel[] = [...PANELS].sort((a, b) => districtName(a.key).localeCompare(districtName(b.key)));
 
 /** City home — the pavilion city, ported 1:1 from index.html. */
 export function Home() {
@@ -189,11 +219,11 @@ export function Home() {
           <div className="blk-head"><h2>Walk the districts</h2><Link className="more" to="/social/feed">Your city today →</Link></div>
         </div>
         <div className="district-run">
-          {PANELS.map((p, panelIndex) => {
+          {DISTRICTS.map((p, panelIndex) => {
             const cfg = p.key === 'ecommerce' ? null : HUBS[p.key];
             const soon = !cfg || cfg.items.length === 0;   // a hub with no inner pages is not yet a room
             const copy = DISTRICT_COPY[p.key];
-            const name = copy?.name ?? (cfg ? cfg.name : 'E-Commerce');
+            const name = districtName(p.key);
             const tag = copy?.line ?? (cfg ? cfg.name : 'Vetted products. Only the best.');
             const to = cfg ? (cfg.items[0]?.path ?? cfg.backPath) : null;
             const inner = (
