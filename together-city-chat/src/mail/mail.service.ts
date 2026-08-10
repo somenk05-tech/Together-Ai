@@ -328,9 +328,36 @@ export class MailService {
       // One room for everything still waiting on the citizen.
       : q.folder === 'unsent' ? { ownerId: userId, folder: { in: ['draft', 'failed'] } }
       : { ownerId: userId, folder: 'trash' };
+    /**
+     * SEARCH, WHERE A CITIZEN EXPECTS IT: over the folder they are looking at.
+     *
+     * Five columns, because those are the five a person actually remembers a
+     * message by — who it was from, who it went to, what it was about, and what
+     * it said. Insensitive, because nobody recalls the capitalisation of a
+     * subject line.
+     *
+     * ANDed with the folder clause rather than replacing it. A search that
+     * silently escapes the folder you are standing in is how a citizen finds a
+     * message in Trash while believing they are in the Inbox, and then replies
+     * to it.
+     */
+    const needle = q.q;
+    const filtered = needle
+      ? {
+        AND: [where, {
+          OR: [
+            { subject: { contains: needle, mode: 'insensitive' as const } },
+            { fromName: { contains: needle, mode: 'insensitive' as const } },
+            { fromAddr: { contains: needle, mode: 'insensitive' as const } },
+            { toAddr: { contains: needle, mode: 'insensitive' as const } },
+            { body: { contains: needle, mode: 'insensitive' as const } },
+          ],
+        }],
+      }
+      : where;
     // A mailbox only grows. Capped rather than paginated so the response shape
     // is unchanged; the cap is far above any current inbox.
-    const rows = await this.prisma.mailMessage.findMany({ where, orderBy: { createdAt: 'desc' }, take: FEED_CAP });
+    const rows = await this.prisma.mailMessage.findMany({ where: filtered, orderBy: { createdAt: 'desc' }, take: FEED_CAP });
     return rows.map((m) => this.shape(m));
   }
 

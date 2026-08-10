@@ -1101,3 +1101,40 @@ html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); 
 @media (max-width: 560px) {
   .instl-qr { flex-direction: column; text-align: center; }
 }
+
+/* ---- SEARCH IN MAIL (10 Aug). One bar above the list, the shape every mail
+   client uses: a rounded field with the glass on the left and a clear on the
+   right. Full width on a phone because there is nothing to share the line
+   with; capped on a desktop because a search box the width of a monitor looks
+   like a text editor. No new colours and no new depth — it is the same carved
+   well every other input in the city sits in. ---- */
+.mail-search {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 12px;
+  padding: 0 14px;
+  min-height: 44px;
+  max-width: 560px;
+  border-radius: 999px;
+  background: var(--well);
+  box-shadow: var(--carve);
+}
+.mail-search-icon { display: grid; place-items: center; color: var(--faint); flex: 0 0 auto; }
+.mail-search-input {
+  flex: 1 1 auto; min-width: 0;
+  border: 0; outline: none; background: none;
+  font-family: inherit; font-size: 14px; color: var(--ink);
+  padding: 10px 0;
+}
+.mail-search-input::placeholder { color: var(--faint); }
+/* Safari draws its own clear affordance on type=search; ours is the one that
+   matches the city and the one with a 44px target. */
+.mail-search-input::-webkit-search-decoration,
+.mail-search-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.mail-search-clear {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 32px; height: 44px; padding: 0;
+  border: 0; background: none; cursor: pointer;
+  font-size: 20px; line-height: 1; color: var(--faint); font-family: inherit;
+}
+.mail-search-clear:hover { color: var(--ink); }
+@media (max-width: 560px) { .mail-search { max-width: none; } }

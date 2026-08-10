@@ -9,6 +9,17 @@ import { z } from 'zod';
  */
 export const FolderQuerySchema = z.object({
   folder: z.enum(['inbox', 'sent', 'draft', 'failed', 'unsent', 'starred', 'trash']).default('inbox'),
+  /**
+   * SEARCH IS A FILTER ON THE FOLDER YOU ARE STANDING IN, NOT A SEVENTH FOLDER.
+   *
+   * Optional and bounded. Bounded because this becomes a `contains` across five
+   * columns and an unbounded needle is an unbounded scan; 120 characters is
+   * longer than any subject line worth typing. Trimmed and dropped when empty,
+   * so `?q=` from a cleared input is the same request as no `q` at all — the
+   * alternative is a query that matches everything and looks like it matched
+   * nothing.
+   */
+  q: z.string().trim().max(120).optional().transform((v) => (v ? v : undefined)),
 });
 export type FolderQueryDto = z.infer<typeof FolderQuerySchema>;
 

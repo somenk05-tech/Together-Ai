@@ -39,7 +39,8 @@ export interface DirectoryEntry { handle: string; name: string; address: string 
 export const mailApi = {
   account: () => api.get<MailAccount>('/mail/account').then((r) => r.data),
   directory: () => api.get<DirectoryEntry[]>('/mail/directory').then((r) => r.data),
-  list: (folder: Folder) => api.get<MailItem[]>('/mail', { params: { folder } }).then((r) => r.data),
+  list: (folder: Folder, q?: string) =>
+    api.get<MailItem[]>('/mail', { params: q ? { folder, q } : { folder } }).then((r) => r.data),
   get: (id: string) => api.get<MailMessage>(`/mail/${id}`).then((r) => r.data),
   thread: (threadId: string) => api.get<MailMessage[]>(`/mail/thread/${threadId}`).then((r) => r.data),
   send: (input: { to: string; cc?: string[]; bcc?: string[]; subject: string; body: string; threadId?: string; attachmentFileIds?: string[]; draftId?: string }) =>
@@ -74,8 +75,19 @@ export function useSetPrimary() {
 export function useDirectory() {
   return useQuery({ queryKey: ['mail', 'directory'], queryFn: () => mailApi.directory() });
 }
-export function useMailList(folder: Folder) {
-  return useQuery({ queryKey: ['mail', 'list', folder], queryFn: () => mailApi.list(folder) });
+export function useMailList(folder: Folder, q?: string) {
+  const needle = (q ?? '').trim();
+  return useQuery({
+    // The needle is part of the key, so a search is a cache entry rather than a
+    // refetch of the folder — clearing the box shows the folder again instantly
+    // and going back to a search does not re-ask.
+    queryKey: ['mail', 'list', folder, needle],
+    queryFn: () => mailApi.list(folder, needle || undefined),
+    // A folder rendered while somebody is still typing is a list flickering
+    // under their hands. The page debounces before it changes this argument;
+    // holding the previous rows meanwhile keeps the screen still.
+    placeholderData: (prev) => prev,
+  });
 }
 export function useMailMessage(id: string) {
   return useQuery({ queryKey: ['mail', 'msg', id], queryFn: () => mailApi.get(id), enabled: !!id });

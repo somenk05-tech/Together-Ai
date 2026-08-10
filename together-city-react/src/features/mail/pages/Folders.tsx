@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
+import { Icon } from '@/components/ui/Icon';
 import {
   useMailAccount, useMailList, useFlagMail, useRemoveMail, useSetPrimary, useOutbox,
   humanBytes, mailTime, initials, avatarHue, useRetryMail, useDiscardDraft, type Folder,
@@ -202,20 +203,70 @@ function Row({ convo, folder }: { convo: Convo; folder: Folder }) {
   );
 }
 
+/**
+ * SEARCH IN MAIL, WHERE EVERY MAIL CLIENT PUTS IT: a bar above the list.
+ *
+ * Typed here, filtered on the SERVER over subject, both names, both addresses
+ * and the body — a client-side filter over the rows already fetched would only
+ * ever search the newest page of one folder and would quietly fail to find the
+ * message a citizen is sure they have.
+ *
+ * DEBOUNCED, AND THAT IS THE WHOLE COMPONENT. The input holds what is typed and
+ * the query holds what has settled; without the gap between them the list
+ * re-sorts under somebody's hands on every keystroke, which reads as breakage
+ * rather than as speed. 250ms is the standard beat — long enough that a normal
+ * typist issues one request for a word, short enough that nobody waits.
+ */
+function MailSearch({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="mail-search">
+      <span aria-hidden className="mail-search-icon"><Icon name="search" size={17} /></span>
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Search in mail"
+        aria-label="Search in mail"
+        className="mail-search-input"
+      />
+      {value && (
+        <button type="button" className="mail-search-clear" aria-label="Clear search"
+          onClick={() => onChange('')}>×</button>
+      )}
+    </div>
+  );
+}
+
 function FolderView({ folder }: { folder: Folder }) {
   const meta = FOLDER_META[folder];
-  const q = useMailList(folder);
+  const [typed, setTyped] = useState('');
+  const [needle, setNeedle] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setNeedle(typed.trim()), 250);
+    return () => clearTimeout(t);
+  }, [typed]);
+  const q = useMailList(folder, needle);
+  const rows = q.data ?? [];
   return (
     <div>
       <AccountBar />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '18px 0 10px' }}>
         <div><div className="eyebrow">{meta.eyebrow}</div><h1 style={{ fontSize: 24, margin: 0 }}>{meta.icon} {meta.title}</h1></div>
       </div>
+      <MailSearch value={typed} onChange={setTyped} />
       {q.isLoading ? <Spinner label="Loading mail…" />
         : q.isError ? <EmptyState title="Couldn't load mail" hint="Nothing has been deleted — we couldn’t reach your mailbox. Try again in a moment." />
-        : (q.data ?? []).length === 0 ? <EmptyState icon={meta.icon} title={meta.empty} hint={folder === 'inbox' ? 'City mail will appear here.' : undefined} />
+        : rows.length === 0 ? (
+          needle
+            // A search that finds nothing is not an empty mailbox, and saying
+            // "no mail yet" to somebody looking at a full inbox is a lie the
+            // interface tells about itself.
+            ? <EmptyState icon="🔍" title={`Nothing in ${meta.title} matches “${needle}”`}
+                hint="Search looks at the sender, the recipients, the subject and the words in the message — in this folder." />
+            : <EmptyState icon={meta.icon} title={meta.empty} hint={folder === 'inbox' ? 'City mail will appear here.' : undefined} />
+        )
         : <div className="card mail-list" style={{ padding: 0, overflow: 'hidden' }}>
-            {groupByThread(q.data ?? []).map((c) => <Row key={c.head.id} convo={c} folder={folder} />)}
+            {groupByThread(rows).map((c) => <Row key={c.head.id} convo={c} folder={folder} />)}
           </div>}
       {/* The thing you came to do, under your thumb. Phone-only — on a desktop
           Compose is already in the account bar, and a button floating over a
