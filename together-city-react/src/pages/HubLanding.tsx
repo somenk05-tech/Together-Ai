@@ -171,7 +171,6 @@ export function HubLanding({ hub }: { hub: HubKey }) {
         <div className={`hposter${poster ? '' : ' is-wide'}`}>
           <img className="no-case" src={poster ? `/assets/img/${poster}` : heroSrc} alt="" />
           <div className="hposter-foot">
-            <span className="hp-mark">Together<br />City</span>
             {(() => {
               const { before, hero, after } = setLine(HUB_LINE[hub] ?? cfg.tag);
               // The longest word of the small opening run is set in the serif

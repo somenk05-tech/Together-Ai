@@ -916,10 +916,6 @@ table.tc td b { color: var(--ink); }
      Small opening run, one enormous light word, a quieter tail — the emphasis
      carried by weight and scale, because this city's accents are near-black
      and a photograph is the only dark ground it has. */
-  .hp-mark {
-    font-size: 10px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase;
-    line-height: 1.35; color: rgba(255,255,255,.66); margin-bottom: 4px;
-  }
   .hp-line { margin: 0; text-shadow: 0 1px 14px rgba(0,0,0,.5); }
   .hp-before {
     display: block; font-size: 19px; font-weight: 500; letter-spacing: -.01em;
