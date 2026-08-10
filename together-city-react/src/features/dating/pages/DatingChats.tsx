@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { animate, motion, useMotionValue } from 'framer-motion';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button, Spinner, EmptyState } from '@/components/ui';
 import { useMe } from '@/api';
@@ -10,6 +11,10 @@ import { CallButtons } from '@/features/calls/CallButtons';
 import { SafetyMenu } from '../components/SafetyMenu';
 import { useChatRoom } from '@/hooks/useChatRoom';
 import { useScaleLock } from '@/hooks/useScaleLock';
+
+/** The one spring in this file, named so the drawer and the snap-back cannot
+ *  drift into two different feels. Low bounce: this is a drawer, not a toy. */
+const SPRING = { type: 'spring' as const, duration: 0.32, bounce: 0.14 };
 
 /** Initials for the masked/real avatar. */
 function initials(name: string): string {
@@ -37,11 +42,91 @@ function Avatar({ name, photo, size = 46 }: { name: string; photo: string | null
 }
 
 /** One row in the chat list. */
+/**
+ * SWIPE A MATCH ASIDE TO UNMATCH — AND NEVER BY ACCIDENT.
+ *
+ * The owner asked for the gesture every messaging app has. Two decisions in it
+ * are worth more than the animation.
+ *
+ * THE SWIPE REVEALS; IT DOES NOT ACT. Unmatching ends a conversation for two
+ * people and this app cannot undo it — `undoLastPass` is explicitly not an
+ * un-unmatch. A gesture that completes a destructive action on release is a
+ * design that trades somebody's match for a stray thumb on a train. So the
+ * swipe opens a drawer, the drawer holds a button, and the button asks once.
+ * Three deliberate acts, none of them slow.
+ *
+ * AND IT IS NOT ONLY A GESTURE. The row is still a button that opens the chat,
+ * the drawer's control is a real <button> reachable by keyboard, and every
+ * unmatch already available from the thread's safety bar is unchanged. A
+ * gesture that is the ONLY way to do something is a feature a screen-reader
+ * user does not have.
+ *
+ * WHY framer-motion HERE AND NOWHERE ELSE IN THIS FILE. CLAUDE.md grants it
+ * exactly three uses and this is the first of them: a drag carries velocity,
+ * and a flick that has left the thumb should keep going. A CSS transition
+ * cannot read a gesture's speed, so a fast short flick and a slow long drag
+ * would settle identically — which is the difference between a control that
+ * feels alive and one that feels like a toggle.
+ *
+ * `dragDirectionLock` is load-bearing: without it a diagonal thumb steals the
+ * vertical scroll from the list, which is the classic way this pattern ruins a
+ * page it was meant to improve.
+ */
+const DRAWER = 104;
+
 function ChatRow({ c, active, onClick }: { c: DatingChatSummary; active: boolean; onClick: () => void }) {
+  const x = useMotionValue(0);
+  const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const unmatch = useUnmatch('romantic');
+
+  const close = useCallback(() => { setOpen(false); setConfirming(false); void animate(x, 0, SPRING); }, [x]);
+  // A confirmation left on screen is a trap for the next tap. It reverts.
+  useEffect(() => {
+    if (!confirming) return;
+    const t = setTimeout(() => setConfirming(false), 4000);
+    return () => clearTimeout(t);
+  }, [confirming]);
+
   return (
-    <button type="button" onClick={onClick} style={{
+    <div style={{ position: 'relative', marginBottom: 8, borderRadius: 14, overflow: 'hidden' }}>
+      {/* The drawer, behind the row. `aria-hidden` while shut so the control is
+          not a tab stop nobody can see. */}
+      <div aria-hidden={!open} style={{
+        position: 'absolute', inset: 0, display: 'flex', justifyContent: 'flex-end', alignItems: 'stretch',
+        background: 'var(--danger-soft)', borderRadius: 14,
+      }}>
+        <button type="button"
+          onClick={() => { if (confirming) { unmatch.mutate(c.otherUserId); close(); } else setConfirming(true); }}
+          disabled={!open || unmatch.isPending}
+          aria-label={confirming ? `Confirm unmatch with ${c.name}` : `Unmatch ${c.name}`}
+          style={{
+            width: DRAWER, minHeight: 44, border: 0, cursor: 'pointer', fontFamily: 'inherit',
+            background: 'none', color: 'var(--danger-ink)', fontWeight: 700, fontSize: 13,
+            display: 'grid', placeItems: 'center', padding: '0 8px', lineHeight: 1.25,
+          }}>
+          {unmatch.isPending ? 'Unmatching…' : confirming ? 'Sure?' : 'Unmatch'}
+        </button>
+      </div>
+
+      <motion.div
+        drag="x"
+        dragDirectionLock
+        dragConstraints={{ left: -DRAWER, right: 0 }}
+        dragElastic={{ left: 0.06, right: 0 }}
+        style={{ x, position: 'relative', touchAction: 'pan-y' }}
+        onDragEnd={(_, info) => {
+          // Past halfway OR thrown hard enough. Velocity is why this is a drag
+          // and not a transition: a short fast flick should open.
+          const shouldOpen = info.offset.x < -DRAWER / 2 || info.velocity.x < -420;
+          setOpen(shouldOpen);
+          if (!shouldOpen) setConfirming(false);
+          void animate(x, shouldOpen ? -DRAWER : 0, SPRING);
+        }}
+      >
+    <button type="button" onClick={() => { if (open) { close(); return; } onClick(); }} style={{
       display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
-      padding: '12px 12px', borderRadius: 14, border: '1px solid var(--line)', marginBottom: 8,
+      padding: '12px 12px', borderRadius: 14, border: '1px solid var(--line)',
       background: active ? 'var(--accent-soft)' : 'var(--card)',
     }}>
       <Avatar name={c.name} photo={c.photo} />
@@ -56,6 +141,8 @@ function ChatRow({ c, active, onClick }: { c: DatingChatSummary; active: boolean
       </div>
       {c.unread > 0 && <span style={{ flex: 'none', minWidth: 20, height: 20, borderRadius: 999, background: 'var(--accent)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center', padding: '0 6px' }}>{c.unread}</span>}
     </button>
+      </motion.div>
+    </div>
   );
 }
 
