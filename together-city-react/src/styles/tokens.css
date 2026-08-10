@@ -36,6 +36,27 @@
   --paper: #ffffff;
   --card: #ffffff;
 
+  /* ── THE LETTER'S PAPER, WHICH IS NOT --paper ────────────────────────────
+     A false friend, and worth the four lines it costs to say so. `--paper`
+     above is the CITY's ground, and five hubs re-point it — astrology points
+     it at #000000. The astrology letter is printed on paper in a room whose
+     walls are black, so it cannot read the token whose whole job is to change
+     with the room. These four are declared here and re-pointed by nothing:
+     paper is paper wherever it is read.
+
+     The tint is sampled from the owner's own scan (letter-paper.webp, tiled
+     under it) rather than chosen, so the flat colour behind the texture is
+     the texture's own average and the join is invisible where the tile ends.
+
+     THE INK IS MEASURED, NOT PICKED. On this ground: the title 15.2:1, the
+     body 10.5:1, and the label 5.6:1. The label started at #8a857c, which is
+     3.0 — under the bar for 11px uppercase, which is the smallest and most
+     easily missed text on the page. */
+  --letter-paper:    #ebe8e3;
+  --letter-ink:      #14130f;
+  --letter-ink-soft: #35322c;
+  --letter-faint:    #5f5a52;
+
   /* ── THE INK SCALE, AND THE TWO STEPS THAT NEVER READ ────────────────────
      --faint was #9b9b9b: 2.78:1 on the ground directly above it. It is
      labels, placeholders, timestamps and every hub's tagline — small text,

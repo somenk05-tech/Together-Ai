@@ -79,7 +79,7 @@
 /* Phones: the same links, every one an honest 44px thumb target (audit 9 Aug).
    900px (not 899px) so the header guard's first-899px-block regex is untouched;
    placed here with the footer's own rules -- the letter-surface guard forbids
-   anything after .letter-sky from touching site chrome, and it is right to. */
+   anything after .letter-page from touching site chrome, and it is right to. */
 @media (max-width: 900px) {
   .tc-footer nav { gap: 4px 18px; }
   .tc-footer nav a { display: inline-flex; align-items: center; min-height: 44px; }
@@ -153,30 +153,56 @@
    the words are printed on. A photograph you can read text off is a
    photograph nobody looks at.
    ═══════════════════════════════════════════════════════════════════════════ */
-.letter-sky {
-  position: relative; border-radius: var(--r-5); overflow: hidden;
-  background: var(--face-tall); box-shadow: var(--e3);
-  padding: clamp(22px, 2.6vw, 38px) clamp(20px, 2.8vw, 44px);
-  max-width: var(--measure-card);
+/* ═══ THE LETTER IS PRINTED ON PAPER ══════════════════════════════════════
+   It was a raised card on the room's own ground. The owner asked for a page:
+   white paper, black type, and the letter sitting on it rather than in a
+   container. So the surface IS the column now — and the way it reaches the
+   column's edges is the one this file's guard insists on.
+
+   NO NEGATIVE MARGIN. `.tc-shell .tc-main > *` pads every child of the content
+   column, and the obvious way to defeat that is `margin: -36px -44px`. It is
+   also the exact defect letter-surface.test.ts exists to prevent: the padding
+   changes at 1100px and the margin would not, so between two widths the paper
+   sits notched away from its own column. The override below sets the padding
+   instead — correct at every width by construction, and it cannot reach a
+   sibling. The guard was written by somebody who had already made this
+   mistake; it caught the same one again today, before it shipped. */
+.letter-page {
+  background-color: var(--letter-paper);
+  background-image: url('/assets/img/letter-paper.webp');
+  background-size: 512px 512px;
+  color: var(--letter-ink);
+  min-height: calc(100vh - var(--header-h) - var(--safe-top, 0px));
+  /* Loses to the override below inside the shell, which is where this always
+     renders; it is here so the surface is never flush against its own edge if
+     it is ever mounted outside one. */
+  padding: clamp(52px, 6.5vw, 96px) 32px clamp(64px, 8vw, 120px);
 }
-/* The hub's hairline across the top — the only colour on the surface. */
-.letter-sky::after {
-  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: .34;
+.tc-shell .tc-main > .letter-page {
+  padding: clamp(52px, 6.5vw, 96px) 32px clamp(64px, 8vw, 120px);
 }
-/* The letterhead's geometry left with the letterhead. See Letter.tsx: the sky
-   is the room now, so a strip of it at the top of the letter was the same
-   picture twice. */
-.letter-sky-body { position: relative; z-index: 1; }
-.letter-sky .letter-open { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-bottom: 18px; }
-.letter-sky .letter-p { font-size: 17.5px; line-height: 1.7; color: var(--ink-soft); margin: 0 0 19px; }
-/* THE ONLY DROP CAP IN THE APPLICATION. It is what tells you this is a letter
-   and not a panel, now that the colour no longer does. */
-.letter-sky .letter-p:first-of-type::first-letter {
-  float: left; font-size: 63px; line-height: .83; font-weight: 700; margin: 5px 13px 0 0; color: var(--ink);
-  text-shadow: 0 1px 0 #fff, 0 2px 2px rgba(0,0,0,.10), 0 5px 12px rgba(0,0,0,.07);
+.letter-inner { max-width: 640px; margin: 0 auto; }
+.letter-label {
+  font-size: 11.5px; letter-spacing: .3em; text-transform: uppercase;
+  color: var(--letter-faint); font-weight: 500; margin: 0 0 28px;
 }
-.letter-sky .letter-sign { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-top: 26px; }
+/* The one place outside the nutrition press that reads the display serif.
+   relief.spec.ts grants it by name and asserts nothing else may. */
+.letter-title {
+  font-family: var(--press-serif); font-weight: 400;
+  font-size: clamp(36px, 4.4vw, 56px); line-height: 1.06; letter-spacing: -.01em;
+  color: var(--letter-ink); margin: 0 0 46px; text-wrap: balance;
+}
+.letter-page .letter-open { font-size: 16.5px; line-height: 1.78; color: var(--letter-ink); margin: 0 0 24px; }
+.letter-page .letter-p { font-size: 16.5px; line-height: 1.82; color: var(--letter-ink-soft); margin: 0 0 24px; }
+.letter-page .letter-sign { font-size: 16.5px; line-height: 1.78; color: var(--letter-ink-soft); margin: 44px 0 0; }
+.letter-page .letter-link { color: var(--letter-ink); }
+@media (max-width: 640px) {
+  .letter-page { padding: 40px 22px 72px; }
+  .letter-title { font-size: 34px; margin-bottom: 34px; }
+  .letter-label { margin-bottom: 20px; }
+  .letter-page .letter-open, .letter-page .letter-p, .letter-page .letter-sign { font-size: 16px; }
+}
 
 .letter-past { max-width: var(--measure-card); }
 .letter-past .letter-link {
@@ -190,8 +216,7 @@
 .letter-past .letter-link:focus-visible { box-shadow: var(--e2), 0 0 0 3px rgba(0,0,0,.14); }
 .letter-past .letter-date { font-size: 12.5px; color: var(--muted); }
 
-@media (max-width: 1100px) { .letter-sky { padding: 26px 20px; border-radius: var(--r-4); } }
-@media (prefers-reduced-motion: no-preference) { .letter-sky { animation: letterIn .5s var(--ease) both; } }
+@media (prefers-reduced-motion: no-preference) { .letter-page { animation: letterIn .5s var(--ease) both; } }
 @keyframes letterIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 

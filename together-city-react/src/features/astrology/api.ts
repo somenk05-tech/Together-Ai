@@ -35,6 +35,13 @@ export interface SaveAstroProfileInput {
  * says whichever one is true.
  */
 export interface Letter {
+  /**
+   * "Move, But Don't Rush" — three to seven words naming what the period is
+   * asking. OPTIONAL, and that is not laziness: letters written before the
+   * title existed are still in the archive and still render, so a screen that
+   * required one would break the past in order to display the present.
+   */
+  title?: string;
   /** "Dear Somen," — always the opening line, always on its own. */
   salutation: string;
   /** The letter. Paragraphs separated by a blank line, and nothing else in it. */

@@ -17,7 +17,10 @@ export function AstroMonthly() {
   const m = monthly.data;
 
   return (
-    <LetterSky>
+    /* The month is the label — "August 2026" — and the THEME is the title.
+       `month` comes from the server already written out, so the page never
+       formats a date and the two can never disagree about which month it is. */
+    <LetterSky label={m?.month} title={m && !m.needsProfile && !m.pending ? m.title : undefined}>
       {monthly.isLoading && <LetterNote>Opening your letter for the month&hellip;</LetterNote>}
 
       {monthly.isError && (

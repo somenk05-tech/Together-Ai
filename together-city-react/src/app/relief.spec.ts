@@ -538,6 +538,27 @@ describe('Relief stays a system', () => {
    * obvious move and the wrong one — OwnDayView was granted the press exactly
    * so that two authors of the same day print on the same paper, and a third
    * surface with its own would have spent that on a tint.
+   *
+   * ── AND A FOURTH WEARER OF THE FACE ONLY, WHICH IS A DIFFERENT GRANT ──────
+   *
+   * `.letter-title` — the astrology daily and monthly letter — reads
+   * `--press-serif` and NOTHING else of the press. Not the mono, not the
+   * paper, not one press- class. The reason is not the menu argument and not
+   * the recipe-card argument: a letter has a TITLE, one line, set large, and
+   * this application owns exactly one display face capable of setting one. The
+   * alternative was a fourth font file for a single line of text on two pages.
+   *
+   * That makes it a narrower grant than the three above and it is checked more
+   * narrowly too — assertion 4 names the one selector allowed to borrow the
+   * face and fails on a second. The three press wearers are listed by FILE
+   * because they switch a whole surface on; this one is listed by SELECTOR
+   * because it borrows a typeface. If a fifth thing wants the serif it needs
+   * its own line here, its own reason, and its own entry in that list.
+   *
+   * The rule lives in layout.css rather than relief.css, which means
+   * assertions 1 and 2 — both of which read `relief` only — cannot see it.
+   * Assertion 4 reads BOTH files for exactly that reason. A guard that stops
+   * at a file boundary is a guard with a door in it.
    */
   it('keeps the press inside the one page it was granted to', () => {
     const code = strip(relief);
@@ -570,6 +591,18 @@ describe('Relief stays a system', () => {
       'src/features/nutrition/pages/MealPlan.tsx',
       'src/features/nutrition/pages/RecipeDetail.tsx',
     ]);
+
+    // 4. the FACE may be borrowed outside the press exactly once, by name.
+    //    Read across both stylesheets: the borrower is in layout.css, and a
+    //    guard that only reads relief.css would have nothing to say about it.
+    const serifReaders: string[] = [];
+    for (const sheet of [code, strip(layout)]) {
+      for (const m of sheet.matchAll(/(^|\})([^{}@]+)\{([^}]*)\}/g)) {
+        if (/var\(--press-serif\)/.test(m[3])) serifReaders.push(m[2].trim());
+      }
+    }
+    const borrowed = serifReaders.filter((sel) => !/\.press-|\[data-press\]/.test(sel));
+    expect(borrowed, 'only .letter-title may borrow the display serif').toEqual(['.letter-title']);
   });
 
   /**

@@ -1,15 +1,29 @@
 import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
 
-/** The sky, and whatever is written on it. */
-export function LetterSky({ children }: { children: ReactNode }) {
+/**
+ * The page the letter is printed on.
+ *
+ * IT WAS A CARD ON THE ROOM'S GROUND. The astrology hub is near-black, and the
+ * letter sat in it as a raised charcoal panel with a drop cap — which read, the
+ * owner said, as a long article inside a dashboard. It is a PAGE now: its own
+ * paper, its own ink, its own measure, and no container. The room around it is
+ * unchanged; the sidebar is untouched, deliberately and by instruction.
+ *
+ * `label` is where you are — TODAY, AUGUST 2026 — set small and quiet, because
+ * the sidebar has already said it once and a second shout is a heading. `title`
+ * is what the letter is ABOUT, which is the only thing on the page allowed to
+ * be large. It is optional: letters written before titles existed are still in
+ * the archive, and the composition simply closes up around a missing one.
+ */
+export function LetterSky({ label, title, children }: { label?: string; title?: string; children: ReactNode }) {
   return (
-    <section className="letter-sky">
-      {/* THE LETTERHEAD IS GONE. It was this hub's sky printed at the top of
-          the letter, back when the page around it was charcoal. The sky is the
-          room now, so the strip was the same picture twice — once as the wall
-          and once as a stamp on the paper hanging on it. */}
-      <div className="letter-sky-body">{children}</div>
+    <section className="letter-page">
+      <div className="letter-inner">
+        {label && <p className="letter-label">{label}</p>}
+        {title && <h1 className="letter-title">{title}</h1>}
+        {children}
+      </div>
     </section>
   );
 }
@@ -28,6 +42,8 @@ export function LetterBody({ salutation, body, signOff }: { salutation: string; 
     <>
       <p className="letter-open">{salutation}</p>
       {paragraphs.map((p, i) => <p key={i} className="letter-p">{p}</p>)}
+      {/* "With care," and nothing under it. The company does not sign its own
+          letters — see SIGN_OFF in the backend for why. */}
       <p className="letter-sign">{signOff}</p>
     </>
   );
@@ -38,8 +54,8 @@ export function LetterBody({ salutation, body, signOff }: { salutation: string; 
  *
  * These states used to be a spinner, an EmptyState titled "Couldn't reach the
  * stars", and a card telling the citizen to complete their birth details. On
- * this surface they are sentences, because a modal-looking box appearing over
- * the sky is exactly the furniture the page was stripped of.
+ * this surface they are sentences, because a modal-looking box appearing on the
+ * paper is exactly the furniture the page was stripped of.
  */
 export function LetterNote({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (

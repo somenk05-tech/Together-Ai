@@ -44,9 +44,16 @@ const css = readFileSync(CSS, 'utf8');
  * Anchored on the letter's own selector rather than on a comment banner — the
  * first attempt anchored on the heading, which is drawn with box characters
  * that are not the same width in the two blocks that use them.
+ *
+ * `.letter-sky` became `.letter-page` when the letter stopped being a raised
+ * card on the room's ground and became a printed page with its own paper. The
+ * anchor moved with it, and that move is why the expect() below is not
+ * defensive noise: an anchor matching nothing would make every assertion in
+ * this file vacuous, and a file of tests that pass by not running is worse
+ * than no file at all.
  */
 const surfaceCss = (): string => {
-  const start = css.indexOf('.letter-sky {');
+  const start = css.indexOf('.letter-page {');
   expect(start, 'the letter surface block is missing from layout.css').toBeGreaterThan(-1);
   return css.slice(start);
 };

@@ -2165,19 +2165,22 @@ textarea.g-field { resize: none; line-height: 1.55; }
   [data-hub="dating"] .tc-main video { filter: none; }
 }
 
-/* ══ THE MONOCHROME OBSERVATORY: TWO LINES, AND THEY ARE BOTH LETTERPRESS ══
-   The hub owns exactly one rule in this file now, and it exists because of a
-   detail the token layer cannot reach. layout.css gives the drop cap and the
-   consultation title a LETTERPRESS shadow — a white hairline along the
-   bottom of the glyph, which is how ink sits in paper. That effect needs
-   paper. On a near-black ground it is a white edge under white type, which
-   is not depth, it is a smear.
+/* ══ THE MONOCHROME OBSERVATORY: ONE LINE, AND IT IS LETTERPRESS ═════════
+   The hub owns exactly one rule in this file, and it exists because of a
+   detail the token layer cannot reach. layout.css gives the consultation
+   title a LETTERPRESS shadow — a white hairline along the bottom of the
+   glyph, which is how ink sits in paper. That effect needs paper. On a
+   near-black ground it is a white edge under white type, which is not depth,
+   it is a smear.
 
    So the highlight goes and the drop stays: the same rule the whole room
    follows — on white the shadow does the work, and here the light does,
    which for TEXT means the type itself is the light and it needs the dark
-   underneath it rather than a second highlight. */
-[data-hub="astrology"] .letter-sky .letter-p:first-of-type::first-letter,
+   underneath it rather than a second highlight.
+
+   THE DROP CAP USED TO BE HERE TOO, and it left with the letter. The letter
+   is printed on paper now — its own paper, not the room's — so it needs no
+   correction for a dark ground and takes none. */
 [data-hub="astrology"] .ask-title {
   text-shadow: 0 2px 8px rgba(0,0,0,.55);
 }

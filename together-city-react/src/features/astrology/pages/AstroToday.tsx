@@ -31,7 +31,7 @@ export function AstroToday() {
 
   return (
     <>
-      <LetterSky>
+      <LetterSky label="Today" title={d && !d.needsProfile && !d.pending ? d.title : undefined}>
         {daily.isLoading && <LetterNote>Opening today&rsquo;s letter&hellip;</LetterNote>}
 
         {daily.isError && (
