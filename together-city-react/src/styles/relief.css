@@ -1328,6 +1328,59 @@ img[src$=".svg"], .no-case {
 textarea.g-field { resize: none; line-height: 1.55; }
 .g-field:focus-visible { box-shadow: var(--glass-in), var(--focus-ring); }
 
+/* ── the mailbox's search, which is a field and therefore carved ──────── */
+/* THE REFERENCE IS GLASS, AND THIS APPLICATION ALREADY OWNS GLASS. The owner
+   sent a liquid-glass component board and asked for its look. Everything that
+   makes those capsules read as glass — the bright rim, the near wall shading
+   the top, light pooling at the far one — is already in tokens.css as
+   --glass-well and --glass-in, and `.g-field` directly above is the same
+   control drawn in a rectangle. A second glass invented here would be a
+   second source of truth for one material.
+
+   CARVED, NOT RAISED, and that is not a preference: an empty field has to look
+   like somewhere to put something. The reference's own search capsule is
+   recessed for the same reason, while its buttons stand up.
+
+   IT EXISTS AT ALL BECAUSE IT DID NOT. MailSearch shipped with three class
+   names and no rules for any of them, so the control fell through to the
+   generic field rule: a browser search box 19px tall wearing the flat carve,
+   with the UA's own rounded border drawn inside ours. That is the doubled
+   outline in the owner's screenshot — not one bad style, but no style at all.
+
+   THE INPUT SELECTOR IS THAT LONG ON PURPOSE. The generic field rule is
+   `input:not([type=checkbox]):not([type=radio]):not([type=range])`, which
+   scores (0,3,1) — more than any sane class selector. This one matches it
+   exactly and sits below it, which is the same trick, for the same reason, as
+   the image exemption list further down this file. */
+.mail-search {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 46px; padding: 0 16px; margin: 0 0 16px;
+  border-radius: 999px;
+  background: var(--glass-well); box-shadow: var(--glass-in);
+}
+.mail-search:focus-within { box-shadow: var(--glass-in), var(--focus-ring); }
+.mail-search-icon { display: grid; place-items: center; flex: 0 0 auto; color: var(--muted); }
+.mail-search input[type="search"].mail-search-input {
+  flex: 1 1 auto; min-width: 0; border: 0; outline: none; padding: 12px 0;
+  background: none; box-shadow: none; border-radius: 0;
+  font-family: var(--sans); font-size: 15px; color: var(--ink);
+  -webkit-appearance: none; appearance: none;
+}
+.mail-search input[type="search"].mail-search-input:focus { box-shadow: none; }
+.mail-search input[type="search"].mail-search-input::placeholder { color: var(--muted); }
+/* The browser's own search furniture: a second rounded box inside this one,
+   and a cancel cross we already have a real button for. */
+.mail-search-input::-webkit-search-decoration,
+.mail-search-input::-webkit-search-results-button,
+.mail-search-input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+.mail-search-clear {
+  flex: 0 0 auto; display: grid; place-items: center; padding: 0;
+  width: 26px; height: 26px; border: 0; border-radius: 999px; cursor: pointer;
+  background: none; box-shadow: none;
+  font-family: var(--sans); font-size: 19px; line-height: 1; color: var(--muted);
+}
+.mail-search-clear:hover { color: var(--ink); background: none; box-shadow: none; }
+
 /* ── a carved well holding an icon: empty states, notices ────────────── */
 .g-well {
   display: grid; place-items: center; flex: 0 0 auto;
