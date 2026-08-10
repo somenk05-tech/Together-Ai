@@ -158,7 +158,7 @@ export function Home() {
           <div className="eyebrow" style={{ fontSize: 'clamp(14px, 1.5vw, 18px)', letterSpacing: '0.22em' }}>Welcome to Together City</div>
           <h1 style={{ maxWidth: '22ch', margin: '0 auto', fontSize: 'clamp(34px, 5.2vw, 64px)', lineHeight: 1.1 }}>A personalized engine for every aspect of your life.</h1>
           <p className="lede" style={{ margin: '22px auto 0', fontSize: 'clamp(18px, 1.9vw, 23px)', lineHeight: 1.6, maxWidth: '58ch' }}>
-            Every hub belongs to the same city but carries its own atmosphere. Walk the waterfront, step into a pavilion, and everything — travel, dining, health, home, work, love — is personalised around one identity: yours.
+            Set your preferences once, and every service in Together City is personalized just for you. No more random browsing.
           </p>
           <div style={{ marginTop: 30, display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
             {authed ? (
