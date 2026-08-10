@@ -210,8 +210,14 @@ function Detail({ d, targetUserId, kind }: { d: MatchDetail; targetUserId: strin
         {/* Actions */}
         <div style={{ marginTop: 16 }}>
           {matched ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 10, alignItems: 'stretch' }}>
-              <Button variant="line" size="md" onClick={() => pass.mutate(targetUserId, { onSuccess: () => navigate('/dating/matches') })} disabled={pass.isPending}>✕ Skip</Button>
+            /* NO SKIP ONCE YOU ARE MATCHED.
+               Skip is what you do to a stranger the city is offering you: it
+               passes, and the queue moves on. After a match it sat beside
+               Connect and Unmatch as a third thing that also removed the
+               person, in a quieter word — two doors out of one room, one of
+               them ambiguous. Somebody who wants out has Unmatch, which says
+               what it does and asks before it does it. */
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'stretch' }}>
               <Button variant="accent" size="md" disabled={connect.isPending} onClick={doConnect}>
                 {connect.isPending ? 'Connecting…' : '💬 Connect to Chat'}
               </Button>
