@@ -13,7 +13,8 @@ import { InstallCity } from '@/components/InstallCity';
 interface Zone { to: string; label: string; shape: 'poly' | 'ellipse'; points?: string; cx?: number; cy?: number; rx?: number; ry?: number; }
 // Clickable building zones, mapped to the new homepage video (buildings are
 // static; only the billboards animate). Coords are in the SVG viewBox (1903x826).
-// News and E-Commerce buildings have no hub route, so they're not zoned. The
+// The News and E-Commerce buildings are in the photograph and have no hub
+// behind them, so they are not zoned — E-Commerce is no longer a district. The
 // Cars building is still in the render and no longer clickable — the hub it led
 // to is gone, and a zone onto a redirect is a link that lies about where it goes.
 const ZONES: Zone[] = [
@@ -30,7 +31,7 @@ const ZONES: Zone[] = [
   { to: '/fitness', label: 'Fitness Hub', shape: 'poly', points: '1490.6,557.4 1790.7,557.4 1790.7,753.8 1490.6,753.8' },
 ];
 
-interface Pavilion { to: string; img: string; title: string; meta: string; blurb: string; soon?: boolean; }
+interface Pavilion { to: string; img: string; title: string; meta: string; blurb: string; }
 const PAVILIONS: Pavilion[] = [
   { to: '/travel', img: 'travel-hub.webp', title: 'Travel Hub', meta: 'Flights · Trains · Hotels · Packages', blurb: 'Plan your entire journey in one place — chat with friends, split expenses, book together.' },
   { to: '/astrology', img: 'astrology-hub.webp', title: 'Astrology Hub', meta: 'Birth chart · Horoscope · Compatibility', blurb: 'Your natal chart, daily readings and cosmic compatibility — guidance written in the stars, personalised to you.' },
@@ -44,10 +45,13 @@ const PAVILIONS: Pavilion[] = [
   { to: '/beauty', img: 'beautymarket.webp', title: 'Beauty Market', meta: 'Profile · Market · Routine', blurb: 'A routine built from your skin, your goals and verified expertise — not marketing.' },
   { to: '/fitness', img: 'fitness-hero.webp', title: 'Fitness Hub', meta: 'Workouts · Walks · Supplements', blurb: 'Personalised home & gym plans, a live guided timer, and everything tracked.' },
   { to: '/financial', img: 'financial-district.webp', title: 'Financial District', meta: 'Budget · Wallet · Payments', blurb: 'All your city spending in one simple dashboard — understand, plan, decide.' },
-  { to: '#', img: 'e-commerce.webp', title: 'E-Commerce', meta: 'Vetted products only', blurb: 'Every product checked against quality and safety standards. We research, you shop.', soon: true },
 ];
 
-const FALLBACK = PAVILIONS.slice(0, 12);
+/* Twelve tiles, six across and two down. This used to be `slice(0, 12)`,
+   which was not a cap — it was how the thirteenth entry, a coming-soon
+   E-Commerce tile, was kept off the grid while staying in the array. The
+   entry is gone, so the slice would now be a rule with nothing to enforce. */
+const FALLBACK = PAVILIONS;
 
 /**
  * "Walk the districts" — the hub landing heroes laid out inline on the home
@@ -69,7 +73,7 @@ const FALLBACK = PAVILIONS.slice(0, 12);
  * announced a room the app does not have would be the one thing the golden
  * rule forbids, so Services keeps its config copy until it is given a line.
  */
-const DISTRICT_COPY: Partial<Record<HubKey | 'ecommerce', { name: string; line: string }>> = {
+const DISTRICT_COPY: Partial<Record<HubKey, { name: string; line: string }>> = {
   travel: { name: 'Travel', line: 'Your world, planned your way.' },
   nutrition: { name: 'Nutrition', line: 'Your food, personalized to you.' },
   dating: { name: 'Matchmaking', line: 'Your connection, intelligently matched.' },
@@ -82,25 +86,23 @@ const DISTRICT_COPY: Partial<Record<HubKey | 'ecommerce', { name: string; line: 
   beauty: { name: 'Beauty', line: 'Your look, your way.' },
   social: { name: 'Social Life', line: 'Your people. Your communities. Your world.' },
   astrology: { name: 'Astrology', line: 'Your stars. Your journey. Your timing.' },
-  ecommerce: { name: 'E-Commerce', line: 'Everything you need, curated for you.' },
 };
 
 /**
  * THE NAME A DISTRICT WEARS, IN ONE PLACE.
  *
- * Three sources, in order: the billboard copy above, the hub config, and one
- * literal for E-Commerce, which has no hub. It was written inline in the map
- * before, which was fine while the map was the only thing that needed it —
- * the run is now SORTED by this name, and a sort keyed on one spelling while
- * the screen prints another is the kind of bug that looks like a mystery.
+ * Two sources now: the billboard copy above, then the hub config. There used
+ * to be a third — a literal for E-Commerce, the one district with no hub
+ * behind it — and every place this key was handled carried a branch for that
+ * one exception. The run is SORTED by this name, and a sort keyed on one
+ * spelling while the screen prints another is the kind of bug that looks like
+ * a mystery, so it is worth having exactly one answer here.
  */
-function districtName(key: Panel['key']): string {
-  const copy = DISTRICT_COPY[key];
-  if (copy) return copy.name;
-  return key === 'ecommerce' ? 'E-Commerce' : HUBS[key].name;
+function districtName(key: HubKey): string {
+  return DISTRICT_COPY[key]?.name ?? HUBS[key].name;
 }
 
-interface Panel { key: HubKey | 'ecommerce'; img: string; }
+interface Panel { key: HubKey; img: string; }
 const PANELS: Panel[] = [
   { key: 'travel', img: 'travel-hub.webp' },
   { key: 'astrology', img: 'astrology-hub.webp' },
@@ -117,7 +119,6 @@ const PANELS: Panel[] = [
   // Waiting on its photograph. The plate is built for that — the well is lit
   // and the picture fades onto it when local-services.webp lands in assets/img.
   { key: 'services', img: 'local-services.webp' },
-  { key: 'ecommerce', img: 'e-commerce.webp' },
 ];
 
 /**
@@ -220,12 +221,14 @@ export function Home() {
         </div>
         <div className="district-run">
           {DISTRICTS.map((p, panelIndex) => {
-            const cfg = p.key === 'ecommerce' ? null : HUBS[p.key];
-            const soon = !cfg || cfg.items.length === 0;   // a hub with no inner pages is not yet a room
-            const copy = DISTRICT_COPY[p.key];
+            const cfg = HUBS[p.key];
+            const soon = cfg.items.length === 0;   // a hub with no inner pages is not yet a room
             const name = districtName(p.key);
-            const tag = copy?.line ?? (cfg ? cfg.name : 'Vetted products. Only the best.');
-            const to = cfg ? (cfg.items[0]?.path ?? cfg.backPath) : null;
+            const tag = DISTRICT_COPY[p.key]?.line ?? cfg.name;
+            // A room nobody can enter is not linked, only labelled. No district
+            // is in that state today; the branch stays because the next one to
+            // be built will pass through it before its pages exist.
+            const to = soon ? null : (cfg.items[0]?.path ?? cfg.backPath);
             const inner = (
               <>
                 <div className="hub-plate-art">
@@ -239,7 +242,7 @@ export function Home() {
                 </div>
                 <div className="hub-plate-foot">
                   <span className="hub-plate-icon" aria-hidden>
-                    <Icon name={(p.key !== 'ecommerce' && HUB_ICON[p.key]) || 'product'} size={30} strokeWidth={2} />
+                    <Icon name={HUB_ICON[p.key] ?? 'product'} size={30} strokeWidth={2} />
                   </span>
                   <div className="hub-plate-said">
                     <h2>{name}</h2>
