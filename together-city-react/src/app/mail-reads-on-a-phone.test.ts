@@ -70,10 +70,26 @@ describe('the mail list reads on a phone', () => {
       .not.toMatch(/discardDraft|Discard/);
   });
 
-  it('folds the account card instead of deleting it', () => {
+  /**
+   * This case used to assert the opposite — that the card FOLDED rather than
+   * disappearing, on the principle that a control gone on small screens is a
+   * feature that does not exist on small screens. The owner overruled it on
+   * 10 Aug, and the principle survives in the part that matters: the fields
+   * are not deleted, they are not conditional, and the desk still shows them.
+   * That is what is asserted here, so nobody can quietly turn "not offered on
+   * a phone" into "gone".
+   */
+  it('offers the address alone on a phone, and keeps the rest for the desk', () => {
     expect(phone()).toMatch(/\.mail-account-meter[^}]*display: none/);
-    expect(phone()).toMatch(/\.mail-account-rest\.open \{ display: block/);
-    expect(folders).toMatch(/mail-account-toggle/);
+    expect(phone()).toMatch(/\.mail-account-rest \{ display: none/);
+    // No door, anywhere: the disclosure button is gone from markup and sheet.
+    expect(folders).not.toMatch(/mail-account-toggle/);
+    expect(css).not.toMatch(/mail-account-toggle/);
+    // And nothing behind it was thrown away — the card still renders the lot,
+    // which is what a desk gets.
+    expect(folders).toMatch(/mail-account-rest/);
+    expect(folders).toMatch(/primaryEmail/);
+    expect(folders).toMatch(/Add primary email/);
   });
 
   it('puts Compose under the thumb, and only on a phone', () => {

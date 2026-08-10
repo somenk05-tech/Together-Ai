@@ -38,8 +38,6 @@ export function AccountBar() {
   const a = q.data;
   const [editing, setEditing] = useState(false);
   const [showLog, setShowLog] = useState(false);
-  /** Phone-only disclosure — CSS keeps the rest open on a desktop regardless. */
-  const [detail, setDetail] = useState(false);
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const pct = a ? Math.max(a.usedPct, a.usedBytes > 0 ? 0.5 : 0) : 0;
@@ -56,10 +54,19 @@ export function AccountBar() {
    * on a phone puts one thin bar at the top and then the mail, because the
    * mail is what you opened the app for; your own address is not news to you.
    *
-   * Nothing is removed. Below 560 the meter, the primary-email row and the
-   * delivery log fold behind "Details", and Compose becomes the floating
-   * button the folder itself draws. On a desktop the card is exactly as it
-   * was — there the space is free.
+   * It folded behind a "Details" word first. The owner shut that door on
+   * 10 Aug: on a phone the bar is the address, and that is all it is. A
+   * disclosure control is still a control — it is a word to read, a thing to
+   * wonder about, and a tap that costs a screen — and none of what was behind
+   * it is anything a citizen opens their mail to see.
+   *
+   * NOTHING IS DELETED. The storage meter, the primary email, the phone
+   * number and the delivery log are all still stored, still returned by
+   * /mail/account, and still ON THIS CARD at desk width, where the space is
+   * free. Below 560 the meter and Compose hide (Compose becomes the floating
+   * button the folder draws) and the rest of the card does not render its
+   * door. Setting a primary email is a desk job now, which is where somebody
+   * types an address they need to get right.
    */
   return (
     <div className="card mail-account">
@@ -79,11 +86,9 @@ export function AccountBar() {
           </div>
         </div>
         <Link to="/mail/compose" className="mail-account-compose"><Button variant="accent" size="sm">✍️ Compose</Button></Link>
-        <button type="button" className="mail-account-toggle" aria-expanded={detail}
-          onClick={() => setDetail((v) => !v)}>{detail ? 'Hide' : 'Details'}</button>
       </div>
 
-      <div className={`mail-account-rest${detail ? ' open' : ''}`} style={{ borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 12 }}>
+      <div className="mail-account-rest" style={{ borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 12 }}>
         {!editing ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 12.5 }}>
             {a?.primaryEmail ? (

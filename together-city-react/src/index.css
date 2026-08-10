@@ -450,7 +450,6 @@ table.tc td b { color: var(--ink); }
 .mail-account-addr { font-weight: 800; font-size: 16px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   overflow: hidden; text-overflow: ellipsis; }
 .mail-account-meter { margin-left: auto; min-width: 220px; }
-.mail-account-toggle { display: none; }
 .mail-fab { display: none; }
 
 @media (max-width: 560px) {
@@ -479,13 +478,14 @@ table.tc td b { color: var(--ink); }
   .mail-account-mark { width: 32px; height: 32px; border-radius: 9px; font-size: 15px; }
   .mail-account-eyebrow { display: none; }
   .mail-account-addr { font-size: 13.5px; white-space: nowrap; }
+  /* THE ADDRESS, AND NOTHING ELSE (owner, 10 Aug).
+     The meter, the primary-email row and the delivery log used to fold behind
+     a "Details" word here. They are not hidden now so much as not offered:
+     none of them is why anybody opens their mail. Every one of them is still
+     stored, still served, and still on this card at desk width — this hides a
+     door, it does not brick the room. */
   .mail-account-meter, .mail-account-compose { display: none; }
-  .mail-account-toggle { display: inline-flex; align-items: center; margin-left: auto;
-    min-height: 44px; padding: 0 4px; background: none; border: 0; cursor: pointer;
-    font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--accent-ink); flex-shrink: 0; }
   .mail-account-rest { display: none; }
-  .mail-account-rest.open { display: block; }
-  .mail-account-rest.open .mail-account-meter { display: block; margin: 0 0 12px; }
 
   /* Above the bottom bar, clear of the home indicator. */
   .mail-fab { display: inline-flex; align-items: center; gap: 8px;
