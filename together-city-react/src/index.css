@@ -765,7 +765,7 @@ table.tc td b { color: var(--ink); }
   body:has(.tc-bottomnav) { padding-bottom: calc(var(--safe-bottom) + 84px); }
   /* the poster walk breathes with the floating dock (element+class so this
      wins whichever script lands first) */
-  div.hubs-feed { height: calc(100dvh - var(--header-h) - var(--safe-top) - var(--safe-bottom) - 88px); }
+  div.hubs-feed { height: calc(100dvh - var(--header-h) - var(--safe-top) - var(--safe-bottom) - 16px); }
 }
 
 /* ---- The districts wear glass (9 Aug, owner's second reference — the NASA
@@ -996,4 +996,12 @@ html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); 
   .csmsgs { padding: 14px 14px 6px; }
   .csmsgs > div > .tc-msg-row { max-width: 86%; }
   .cscomposer { margin: 0 12px 14px; }
+}
+
+/* ---- The dock is gone; the screens take the room back (10 Aug) ----
+   Three places reserved space for the bottom bar. With no bar to clear, the
+   reservation is just a strip of nothing at the foot of a phone. */
+@media (max-width: 899px) {
+  .hposter { height: calc(100dvh - var(--header-h) - var(--safe-top)); }
+  .hposter-foot { padding-bottom: calc(var(--safe-bottom) + 34px); }
 }

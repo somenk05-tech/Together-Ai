@@ -10,7 +10,6 @@ import {
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { CommandPalette } from '@/components/CommandPalette';
 import { FloatingSearch } from '@/components/FloatingSearch';
-import { BottomNav } from '@/components/BottomNav';
 import { QuickActions } from './QuickActions';
 import { useTrackRecent } from '@/hooks/useTrackRecent';
 
@@ -130,7 +129,6 @@ export function Header() {
     <header className="tc-header">
       <CommandPalette />
       <FloatingSearch />
-      <BottomNav />
       {/* Row 1 — centred logo (burger pinned left for mobile). */}
       <div className="tc-header-top">
         <button className="tc-burger" aria-label="Open menu" onClick={() => toggleSidebar()}><Icon name="menu" size={20} /></button>

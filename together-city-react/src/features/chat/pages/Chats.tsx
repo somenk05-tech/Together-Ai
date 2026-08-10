@@ -191,7 +191,7 @@ export function Chats() {
           without a negative margin fighting the gutter. */}
       <div className={`cstage${phone ? (activeId ? ' is-thread bleed' : ' is-list') : ''}`}
         style={{ height: phone
-          ? (activeId ? '100dvh' : 'calc(100dvh - var(--header-h) - var(--safe-top) - var(--safe-bottom) - 88px)')
+          ? (activeId ? '100dvh' : 'calc(100dvh - var(--header-h) - var(--safe-top) - var(--safe-bottom) - 24px)')
           : 'calc(100dvh - var(--header-h) - var(--safe-top) - 42px)' }}>
         {!(phone && activeId) && (
         <aside className="cslist">
