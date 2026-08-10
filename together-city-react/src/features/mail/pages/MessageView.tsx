@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useScaleLock } from '@/hooks/useScaleLock';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useRecentStore } from '@/store/recent.store';
+import { useAuthStore } from '@/store/auth.store';
 import { useQuery } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { mailApi } from '../api';
@@ -201,13 +202,20 @@ export function MessageView() {
      here, the same entry is filed again under its own subject — the store
      de-dupes by path, so this replaces rather than repeats — and "Continue
      where you left off" offers a line the citizen wrote or read instead of a
-     key from a database. */
+     key from a database.
+
+     AND IT FILES NOTHING FOR A STRANGER. The trail is one citizen's private
+     movements and it renders on a public homepage; recent-privacy.test.ts
+     makes every READER of it consult the auth store, and a writer that runs
+     while nobody is signed in is the same leak arriving one step earlier —
+     a subject line from the last session, waiting on a shared machine. */
   const recordRecent = useRecentStore((s) => s.record);
+  const authedForTrail = useAuthStore((s) => Boolean(s.tokens?.accessToken && s.user));
   const subject = q.data?.subject;
   useEffect(() => {
-    if (!id || !subject) return;
+    if (!authedForTrail || !id || !subject) return;
     recordRecent({ path: `/mail/message/${id}`, label: subject, hub: 'mail' });
-  }, [id, subject, recordRecent]);
+  }, [authedForTrail, id, subject, recordRecent]);
   /**
    * WHICH MESSAGES ARE OPEN, AND WHO DECIDES.
    *
