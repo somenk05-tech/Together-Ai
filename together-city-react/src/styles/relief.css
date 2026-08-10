@@ -614,45 +614,65 @@ input[aria-invalid="true"], textarea[aria-invalid="true"], .tc-field[data-invali
 
 .tc-actionbar, .tc-actions { gap: 8px; }
 
-/* ── THE WORDMARK IS PRESSED, NOT PRINTED ────────────────────────────────
-   The owner's reference: "together city" as white plastic, lowercase and
-   rounded, lit from above and casting into the page. It is drawn here rather
-   than shipped as an image, for three reasons that all matter at 34px:
+/* ── THE MARK STANDS IN THE CORNER; THE NAME STANDS IN THE MIDDLE ────────
+   The owner supplied a hand-lettered TC monogram and a hand-lettered
+   "Together City" in the same hand, and asked for the monogram in the top
+   left corner with the name centred. So they are two files, not one — this
+   is a layout that changes with the viewport, and a composed lockup cannot
+   come apart.
 
-     A PNG OF WHITE-ON-WHITE IS A RECTANGLE. The reference's whole effect is
-     its shading, and a flat asset carries that shading baked at one size, one
-     light angle and one ground. Two hubs in this city are near-black; the
-     same file cannot be embossed into paper on twenty-four screens and lit
-     from behind on two. Text can.
+   THE MARK IS OUT OF FLOW, WHICH IS WHY THE NAME IS ACTUALLY CENTRED.
+   `.tc-header-top` centres its contents; if the monogram sat in flow beside
+   the word, the pair would be centred and the word would sit right of centre
+   by half a monogram. Absolute, pinned to the row's left edge — the same
+   trick `.tc-burger` already uses two rules above — takes it out of the
+   centring calculation entirely, so the name lands on the true middle of the
+   header. `left: 0` is the row's content edge, which is also where the first
+   hub tab begins: the mark and ASTROLOGY share a left margin rather than
+   being two near-misses.
 
-     AND IT IS STILL TEXT. It stays selectable, it scales with the user's font
-     size, it needs no 2x and no 3x, and a screen reader gets a word rather
-     than an alt attribute standing in for one.
+   AND IT COMES BACK INTO FLOW AT 1100px, WHERE THE BURGER APPEARS. Below
+   that width the burger owns the left corner, and a mark pinned there would
+   be drawn on top of it. So the two rejoin as a pair and ride the centre
+   together — measured at 1100, 1000, 880 and 390, no overlap at any of them.
 
-   THE LETTERFORMS ARE THE CITY'S OWN. The reference is set in a rounded
-   geometric; adding it would be a second typeface and fails the one-family
-   rule on sight. What carries the character is the LOWERCASE, the weight and
-   the tight tracking — which is most of it — plus the light.
+   BOTH ARE SVG BECAUSE BOTH ARE PEN STROKES. Traced, they are a few KB of
+   path data each — smaller than a 1x raster of the same drawing and correct
+   at every size, with no 2x, no 3x, and nothing to re-export when these
+   clamps move. They also land inside an exemption that already existed:
+   `img[src$=".svg"]` is excused from the global outline-and-shadow every
+   other image wears, so neither needed a rule of its own to stop being
+   framed like a photograph.
 
-   A LOGOTYPE IS EXEMPT FROM CONTRAST, and this one uses the exemption
-   knowingly: white on white reads by its shadow alone. That is acceptable
-   for a mark sitting beside its own black glyph and nowhere else in the
-   application; it would not be acceptable for a word anybody has to read. */
-.tc-logo .lockup {
+   THIRTY-FOUR PIXELS IS THE CEILING BECAUSE IT IS THE ROW. Row 1 of the
+   header is 34px inside a header fixed at 78px; taller does not make the
+   header taller, it overhangs Row 2 and crowds the tabs. The word is set a
+   little shorter than the mark — 30px against 34px — because the two are no
+   longer touching and the mark should still read as the one that leads. */
+.tc-logo .mark {
   display: block;
-  /* The artwork is 6.06:1, so height is the only dimension worth stating —
-     width follows it and the intrinsic attributes on the tag hold the space
-     before the file lands. */
-  height: clamp(20px, 2.1vw, 26px); width: auto;
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  height: clamp(26px, 2.4vw, 34px); width: auto;
   filter: none;
 }
-/* In a dark room the chrome inverts, and it inverts into exactly what chrome
-   does under a different light: the black lockup becomes a silver one. This is
-   the whole reason the artwork earns an invert where a flat black glyph would
-   not — a silhouette flipped white is a sticker, a modelled object flipped
-   white is still a modelled object. */
-[data-hub="astrology"] .tc-logo .lockup,
-[data-hub="entertainment"] .tc-logo .lockup { filter: invert(1); }
+.tc-logo .word {
+  display: block;
+  height: clamp(22px, 2.1vw, 30px); width: auto;
+  filter: none;
+}
+/* Below 1100px the burger takes the left corner, so the pair travels
+   together and the gap between them becomes a real gap again. */
+@media (max-width: 1100px) {
+  .tc-logo { gap: 7px; }
+  .tc-logo .mark { position: static; transform: none; }
+}
+/* In the two dark hubs both are inverted rather than given a second asset.
+   The chrome artwork this replaces earned that by staying modelled under a
+   flip; a flat line drawing earns it differently — the stroke is uniform, so
+   inverting produces exactly the drawing the same pen would have made on
+   black paper. Two hubs, two files, no variants. */
+[data-hub="astrology"] .tc-logo .mark, [data-hub="astrology"] .tc-logo .word,
+[data-hub="entertainment"] .tc-logo .mark, [data-hub="entertainment"] .tc-logo .word { filter: invert(1); }
 .tc-burger {
   background: var(--face-key); border: 0; border-radius: var(--r-2); color: var(--ink);
   box-shadow: var(--e1-key);

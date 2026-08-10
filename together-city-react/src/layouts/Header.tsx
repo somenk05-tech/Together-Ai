@@ -132,15 +132,20 @@ export function Header() {
       {/* Row 1 — centred logo (burger pinned left for mobile). */}
       <div className="tc-header-top">
         <button className="tc-burger" aria-label="Open menu" onClick={() => toggleSidebar()}><Icon name="menu" size={20} /></button>
-        {/* THE LOCKUP IS ONE OBJECT, SO IT IS ONE IMAGE.
-            The glyph and the word used to be an <img> beside a CSS wordmark —
-            two things pretending to be one, kept in step by hand at every size.
-            The owner supplied the artwork drawn as a single piece, with the
-            chrome shading continuous from the monogram through the last Y, and
-            that is not something type plus a text-shadow can be talked into.
-            `alt` carries the name; the image carries the brand. */}
+        {/* TWO PIECES OF ONE SIGNATURE, IN TWO PLACES.
+            The owner's hand-lettered monogram sits in the top left corner and
+            the name in the same hand sits in the middle — so this is two
+            files rather than the composed lockup it replaces, because the
+            relationship between them is a LAYOUT that changes with the
+            viewport and a composed image cannot come apart. relief.css pins
+            the mark out of flow (which is the only reason the name is on the
+            true centre) and puts the two back together below 1100px, where
+            the burger takes the corner.
+            One alt between them: the mark is `alt=""` because it is the same
+            name said twice, and a screen reader should hear the city once. */}
         <Link to="/" className="tc-logo">
-          <img className="lockup" src="/assets/img/tc-lockup.webp" alt="Together City" width={145} height={24} />
+          <img className="mark" src="/assets/img/tc-mark.svg" alt="" width={42} height={34} />
+          <img className="word" src="/assets/img/tc-word.svg" alt="Together City" width={77} height={30} />
         </Link>
       </div>
       {/* Row 2 — hub tabs (left) + People · Mail · Chat · Alerts · Profile (right), one line. */}
