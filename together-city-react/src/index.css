@@ -984,18 +984,37 @@ html.tc-immersive body { padding-bottom: 0; }
    The stage takes the grid's own `bleed` hatch (see Chats.tsx); all this has
    to do is drop the block padding above and below it. */
 html.tc-immersive .tc-main > .page { padding-block: 0; }
-/* Fixed, not flowing: a room does not scroll away when the keyboard opens. */
-html.tc-immersive, html.tc-immersive body {
-  overflow: hidden; height: 100%; width: 100%; overscroll-behavior: none;
-  /* PAN-Y IS THE ENTIRE GESTURE VOCABULARY OF A THREAD: it goes up and it
-     goes down. A browser refuses anything not named here, and what is not
-     named here is pinch-zoom and double-tap-zoom — the two ways this screen
-     was being scaled out from under its own header. `manipulation` would not
-     have done it: it drops the double tap and KEEPS the pinch. */
-  touch-action: pan-y;
-  /* and a phone stops inflating type it has decided is too small, which is
+/* ---- A screen that does not scale (10 Aug) ----
+   The flag is on <html> because scaling is the document's business rather
+   than any component's; useScaleLock puts it there for as long as one of
+   these screens is open — a thread, a mailbox, a message, the composer — and
+   takes it off on the way out.
+   PAN-X PAN-Y IS EVERY KIND OF DRAGGING, which is the whole gesture
+   vocabulary of reading on a phone. A browser then refuses what is not named
+   here, and what is not named here is pinch-zoom and double-tap-zoom.
+   `manipulation` would not have done it: it drops the double tap and KEEPS
+   the pinch. */
+html.tc-noscale, html.tc-noscale body {
+  touch-action: pan-x pan-y;
+  /* and the phone stops inflating type it has decided is too small, which is
      its own quiet kind of zoom and moves everything below it */
   -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+}
+/* 16px, AND NOT A TENTH LESS. Mobile Safari zooms the whole page into any
+   focused field under 16px and ignores every instruction not to — so on a
+   locked screen, the fields are what have to give. `!important` because
+   several of these carry their size inline and an inline style outranks any
+   stylesheet: this is the one place in the application where losing that
+   fight means the screen scales. Nothing here is a size on a desk, or on any
+   screen that has not asked for the lock. */
+html.tc-noscale input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.tc-noscale textarea,
+html.tc-noscale select { font-size: 16px !important; }
+
+/* Fixed, not flowing: a room does not scroll away when the keyboard opens.
+   (What stops it SCALING is the flag above; the thread asks for it too.) */
+html.tc-immersive, html.tc-immersive body {
+  overflow: hidden; height: 100%; width: 100%; overscroll-behavior: none;
 }
 html.tc-immersive .cstage {
   position: fixed; top: var(--tc-vvt, 0px); left: 0; right: 0;
@@ -1014,12 +1033,29 @@ html.tc-immersive .csmsgs {
 }
 /* Neither row gives up a pixel to a long message or a two-line name. */
 html.tc-immersive .cshead-t, html.tc-immersive .cscomposer { flex: 0 0 auto; }
-/* 16px, and not a tenth less: mobile Safari zooms the page into any focused
-   input under 16px, which is the jump felt when tapping the composer. The
-   capsule keeps its size; only the type grows a hair. */
-html.tc-immersive .cscomposer input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
-  font-size: 16px;
+/* ---- A ROOM THAT IS NOT THE DARK STAGE (10 Aug) ----
+   The services thread is a white card with a black bubble and belongs to a
+   business's world, so it is not repainted; it is only re-seated. Everything
+   here is column mechanics: the head and the composer hold their size, the
+   card takes what is left and is the only thing that scrolls, and the whole
+   column is exactly as tall as the part of the screen you can see — which is
+   what puts the box you type in above the keyboard rather than under it.
+   `!important` on the card's ceiling because 52vh is written inline, and a
+   ceiling measured against the WINDOW is the bug: the window does not shrink
+   when the keyboard opens. */
+html.tc-immersive .csroom {
+  position: fixed; top: var(--tc-vvt, 0px); left: 0; right: 0;
+  height: var(--tc-vvh, 100dvh);
+  display: flex; flex-direction: column; gap: 0;
+  padding: calc(var(--safe-top) + 14px) 16px calc(var(--safe-bottom) + 14px);
+  background: var(--paper); overflow: hidden;
 }
+html.tc-immersive .csroom > * { flex: 0 0 auto; }
+html.tc-immersive .csroom > .card {
+  flex: 1 1 auto; min-height: 0; max-height: none !important;
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+}
+
 /* the notch, and room for the name under it */
 html.tc-immersive .cshead-t { padding-top: calc(var(--safe-top) + 16px); padding-bottom: 12px; }
 html.tc-immersive .cscomposer { margin-bottom: calc(var(--safe-bottom) + 14px); }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useScaleLock } from '@/hooks/useScaleLock';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
@@ -182,6 +183,9 @@ function TrailMessage({ m, mine, open, onToggle }: {
 
 /** Read a mail thread (trail) and reply into it. */
 export function MessageView() {
+  // Before the early returns below — a hook that runs some renders and not
+  // others is not a hook.
+  useScaleLock();
   const { id = '' } = useParams();
   const nav = useNavigate();
   const q = useMailMessage(id);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useScaleLock } from '@/hooks/useScaleLock';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { Icon } from '@/components/ui/Icon';
@@ -238,6 +239,8 @@ function MailSearch({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 function FolderView({ folder }: { folder: Folder }) {
+  // A mailbox is read, not zoomed. Scrolling is untouched.
+  useScaleLock();
   const meta = FOLDER_META[folder];
   const [typed, setTyped] = useState('');
   const [needle, setNeedle] = useState('');

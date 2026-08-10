@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { useChatRoom } from '@/hooks/useChatRoom';
+import { useScaleLock } from '@/hooks/useScaleLock';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Card, Button, Spinner, EmptyState } from '@/components/ui';
 import {
@@ -54,6 +56,7 @@ function ThreadRow({ t, title, sub }: { t: ServiceThread; title: string; sub: st
 }
 
 export function ServiceMessages() {
+  useScaleLock();
   const inbox = useServiceInbox();
   if (inbox.isLoading) return <Spinner label="Loading messages…" />;
   if (inbox.isError) return <EmptyState title="Couldn't load your messages" hint="Nothing is lost — try again in a moment." />;
@@ -102,6 +105,14 @@ export function ServiceMessages() {
 }
 
 export function ServiceThreadView() {
+  /* THE SAME ROOM, NOT THE SAME PAINT.
+     This thread is a white card with a black bubble and stays that way: it
+     belongs to a business's world rather than the city chat's, and nobody
+     asked for it to be repainted. What it takes from the master chat is the
+     part that was never decoration — on a phone the conversation is the whole
+     screen, the card is the only thing that scrolls, and the box you type in
+     sits above the keyboard instead of underneath it. */
+  useChatRoom(true);
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
   const q = useServiceThread(id);
@@ -110,7 +121,14 @@ export function ServiceThreadView() {
   const endRef = useRef<HTMLDivElement>(null);
 
   const count = q.data?.messages.length ?? 0;
-  useEffect(() => { endRef.current?.scrollIntoView({ block: 'end' }); }, [count]);
+  /* The card scrolls itself. scrollIntoView asks every scrollable ancestor to
+     move, and the outermost one here is the page — so a reply arriving pulled
+     the business's name off the top of the screen on its way to the newest
+     line. endRef is a direct child of the card, so its parent IS the box. */
+  useEffect(() => {
+    const box = endRef.current?.parentElement;
+    if (box) box.scrollTop = box.scrollHeight;
+  }, [count]);
 
   if (q.isLoading) return <Spinner label="Opening…" />;
   if (q.isError || !q.data) return <EmptyState title="Couldn't open this conversation" hint="It may have been closed." />;
@@ -125,7 +143,11 @@ export function ServiceThreadView() {
   };
 
   return (
-    <div>
+    /* `csroom` does nothing at all until the flag is on <html>, which is to
+       say: on a phone, with this thread open. Then it becomes the column the
+       stylesheet describes — and the markup below is untouched, because the
+       order was already right. */
+    <div className="csroom">
       <button type="button" onClick={() => nav('/services/messages')}
         style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 999, padding: '4px 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', marginBottom: 12 }}>← Messages</button>
 

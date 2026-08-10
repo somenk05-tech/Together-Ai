@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useScaleLock } from '@/hooks/useScaleLock';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import { useDirectory, useSendMail, useMailAccount, useSaveDraft, useMailMessage, type DirectoryEntry } from '../api';
@@ -10,6 +11,9 @@ import { fmtBytes, fileIcon, type DriveFile } from '@/features/drive/api';
  *  lists your connections) OR any external/global email address (delivered via
  *  the email provider). City mail to a stranger is refused by the API. */
 export function Compose() {
+  /* The composer is where the zoom actually hurt: tapping To on an iPhone
+     scaled the page and left the send key off the right-hand edge. */
+  useScaleLock();
   const [params] = useSearchParams();
   const nav = useNavigate();
   const dir = useDirectory();

@@ -8,6 +8,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useDatingChats, useUnmatch, type DatingChatSummary } from '../api';
 import { CallButtons } from '@/features/calls/CallButtons';
 import { SafetyMenu } from '../components/SafetyMenu';
+import { useChatRoom } from '@/hooks/useChatRoom';
+import { useScaleLock } from '@/hooks/useScaleLock';
 
 /** Initials for the masked/real avatar. */
 function initials(name: string): string {
@@ -94,6 +96,13 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
   const [sending, setSending] = useState(false);
   const [local, setLocal] = useState<Message[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  /* THE SAME ROOM AS THE CITY CHAT, not merely the same paint. This panel
+     already borrowed the stage; on a phone it was still a card sitting in a
+     page, under the city's header, above 'Your other chats', with the whole
+     lot scrolling as one document and the composer wherever the scroll left
+     it. A conversation is one act wherever you have it. */
+  const phone = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
+  useChatRoom(true);
 
   const messages = useMemo(() => {
     const seen = new Set<string>();
@@ -121,10 +130,18 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
        you have it, so it is made of one material — the dark panel, the white
        tile pressed in, the black tile raised. The candy ground the Dating hub
        won stays exactly where it is: on the page AROUND this panel. */
-    <div className="cstage csthread" style={{ display: 'flex', height: 'min(72vh, 640px)' }}>
+    <div className="cstage csthread" style={{ display: 'flex', height: phone ? 'var(--tc-vvh, 100dvh)' : 'min(72vh, 640px)' }}>
       {/* header */}
       <div className="cshead-t" style={{ gap: 10 }}>
-        <button type="button" onClick={onBack} aria-label="Back" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--on-stage-soft)', display: 'none' }} className="tc-chat-back">←</button>
+        {/* The city chat's back arrow, down to the chevron: on a phone this is
+            now the only way out of the room, and two different arrows for the
+            same door is how one app starts feeling like two. */}
+        {phone && (
+          <button type="button" className="csback" aria-label="Back to your dating chats" onClick={onBack}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </button>
+        )}
         <Avatar name={chat.name} photo={chat.photo} size={40} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <b>{chat.name}{chat.sign ? ` · ${chat.sign}` : ''}</b>
@@ -138,7 +155,7 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
       </div>
 
       {/* unmatch / safety bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 16px', background: 'var(--stage-well)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', flex: 'none', alignItems: 'center', gap: 8, padding: '9px 16px', background: 'var(--stage-well)', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, color: 'var(--on-stage-faint)' }}>
           You appear as yourself — the same name and photos as your profile.
         </span>
@@ -191,6 +208,8 @@ function Thread({ chat, meId, onBack }: { chat: OpenChat; meId: string; onBack: 
 
 /** Dating Hub · Chats — the match queue, then the conversations. */
 export function DatingChats() {
+  // The queue and the list, held whether or not a conversation is open.
+  useScaleLock();
   const me = useMe();
   const chats = useDatingChats();
   const [params, setParams] = useSearchParams();
