@@ -217,7 +217,13 @@ export function Home() {
       {/* ============ WALK THE DISTRICTS — full-bleed hub heroes, stacked ============ */}
       <section aria-label="Walk the districts">
         <div className="district-head">
-          <div className="blk-head"><h2>Walk the districts</h2><Link className="more" to="/social/feed">Your city today →</Link></div>
+          {/* ONE DOOR PER RUN. "Your city today →" sat at the right-hand end of
+              this line and went to the social feed, which is not a district —
+              a second call to action, in the accent colour, competing with the
+              thirteen photographs underneath it for the same thumb. The
+              heading stays because it is the one label the run has. The feed
+              keeps every other way in it already had. */}
+          <div className="blk-head"><h2>Walk the districts</h2></div>
         </div>
         <div className="district-run">
           {DISTRICTS.map((p, panelIndex) => {
