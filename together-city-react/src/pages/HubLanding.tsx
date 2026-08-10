@@ -97,9 +97,19 @@ export function setLine(line: string): { before: string[]; hero: string; after: 
  * missing file is a plainer landing, never an empty frame.
  */
 export const HUB_PORTRAIT: Partial<Record<HubKey, string>> = {
-  // Empty until the 9:19.5 posters are on disk. A hub is added here the day
-  // its file arrives — the relief guard checks every entry against
-  // public/assets/img, so this map cannot promise a picture that isn't there.
+  travel: 'hub-poster/travel.webp',
+  astrology: 'hub-poster/astrology.webp',
+  nutrition: 'hub-poster/nutrition.webp',
+  entertainment: 'hub-poster/entertainment.webp',
+  social: 'hub-poster/social.webp',
+  dating: 'hub-poster/dating.webp',
+  realestate: 'hub-poster/realestate.webp',
+  jobs: 'hub-poster/jobs.webp',
+  medical: 'hub-poster/medical.webp',
+  financial: 'hub-poster/financial.webp',
+  beauty: 'hub-poster/beauty.webp',
+  fitness: 'hub-poster/fitness.webp',
+  services: 'hub-poster/services.webp',
 };
 
 /**
