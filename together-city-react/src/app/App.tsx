@@ -1,6 +1,7 @@
 import { RouterProvider } from 'react-router-dom';
 import { Providers } from './providers';
 import { CallCenter } from '@/features/calls/CallCenter';
+import { useZoomLock } from '@/hooks/useZoomLock';
 import { router } from './router';
 
 /**
@@ -25,6 +26,11 @@ import { router } from './router';
  * needs the query client and the auth store.
  */
 export function App() {
+  // ONE PLACE, ABOVE THE ROUTER. The zoom guard is a property of the
+  // application, not of a page — registered here it covers every route
+  // including the ones that are siblings of AppShell rather than children of
+  // it, which is the same trap CallCenter fell into above.
+  useZoomLock();
   return (
     <Providers>
       <CallCenter>

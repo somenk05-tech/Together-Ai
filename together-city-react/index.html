@@ -2,7 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+    <!-- ZOOM IS LOCKED AT THE DESIGNED SCALE (owner's call, 10 Aug).
+         `maximum-scale=1, user-scalable=no` is honoured by Android Chrome and
+         deliberately IGNORED by iOS Safari, which has refused it since iOS 10
+         for accessibility. It fails WCAG 2.1 SC 1.4.4 where it does apply —
+         a decision the owner was asked about directly and made, not an
+         oversight, and it is one attribute to give back. Everything else here
+         is untouched: `width=device-width` and `initial-scale=1` keep the
+         responsive layout exactly as it was, and `interactive-widget` keeps
+         the on-screen keyboard behaviour somebody chose deliberately. See
+         src/hooks/useZoomLock.ts for the desktop half, and for a plain
+         account of what a page genuinely cannot prevent. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#faf9f6" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
