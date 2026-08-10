@@ -100,12 +100,45 @@ const TITLE_OVERRIDE: Record<string, string> = {
   '/connections': 'Other citizens',
 };
 
+/**
+ * A DATABASE KEY IS NOT A PAGE TITLE.
+ *
+ * The fallback below title-cases the last segment of the path, which is right
+ * for /mail/inbox and wrong for /mail/message/4ed6a3ac-860b-4607-a852-…: that
+ * one arrived on the owner's home screen as "4ed6a3ac 860b 4607 A852
+ * 8be01b7eab23", capitalised, as the name of somewhere he had been — and in
+ * the breadcrumb above the message itself. Every detail route in the city ends
+ * in an id, so this was never about mail.
+ *
+ * What counts as an id is deliberately narrow, because the same segment is
+ * where real slugs live and a slug must survive: a uuid, a cuid, a long run of
+ * hex, a long run of digits, or a long unbroken mix of letters AND digits.
+ * `top-10-salons-mumbai` has hyphens and is left alone; so is any ordinary
+ * word, however long.
+ */
+const OPAQUE = [
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,  // uuid
+  /^c[a-z0-9]{20,}$/i,                                                 // cuid
+  /^[0-9a-f]{16,}$/i,                                                  // long hex
+  /^\d{6,}$/,                                                          // long number
+  /^(?=.*\d)(?=.*[a-z])[a-z0-9]{12,}$/i,                               // long alnum, no separators
+];
+const isOpaque = (seg: string) => OPAQUE.some((re) => re.test(seg));
+
 /** Best human title for a pathname (exact page label, else title-cased tail). */
 export function titleFor(pathname: string): string {
   if (TITLE_OVERRIDE[pathname]) return TITLE_OVERRIDE[pathname];
   const page = DESTINATIONS.find((d) => d.path === pathname && d.kind !== 'action');
   if (page) return page.label;
-  const tail = pathname.split('/').filter(Boolean).pop() ?? '';
+  const seg = pathname.split('/').filter(Boolean);
+  /* Drop the keys and name the thing they point at: /mail/message/<uuid>
+     becomes "Message". When nothing is left but the hub itself — /services/<id>
+     — the honest word is "Details", because "Local Services › Local Services"
+     tells the citizen where they are twice and where they went not at all. */
+  let dropped = false;
+  while (seg.length && isOpaque(seg[seg.length - 1])) { seg.pop(); dropped = true; }
+  if (dropped && seg.length <= 1) return 'Details';
+  const tail = seg[seg.length - 1] ?? '';
   return tail ? tail.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : 'Together City';
 }
 

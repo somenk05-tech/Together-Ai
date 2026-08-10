@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useScaleLock } from '@/hooks/useScaleLock';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useRecentStore } from '@/store/recent.store';
 import { useQuery } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@/components/ui';
 import { mailApi } from '../api';
@@ -193,6 +194,20 @@ export function MessageView() {
   const thread = useMailThread(q.data?.threadId);
   const flag = useFlagMail();
   const remove = useRemoveMail();
+
+  /* THE SUBJECT IS THE NAME OF THIS PAGE, and only this page knows it.
+     useTrackRecent files every visit the moment the URL changes, before any
+     mail has arrived, so the best it can say is "Message". Once the message is
+     here, the same entry is filed again under its own subject — the store
+     de-dupes by path, so this replaces rather than repeats — and "Continue
+     where you left off" offers a line the citizen wrote or read instead of a
+     key from a database. */
+  const recordRecent = useRecentStore((s) => s.record);
+  const subject = q.data?.subject;
+  useEffect(() => {
+    if (!id || !subject) return;
+    recordRecent({ path: `/mail/message/${id}`, label: subject, hub: 'mail' });
+  }, [id, subject, recordRecent]);
   /**
    * WHICH MESSAGES ARE OPEN, AND WHO DECIDES.
    *
