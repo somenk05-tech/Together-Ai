@@ -107,6 +107,9 @@ const PANELS: Panel[] = [
 /** City home — the pavilion city, ported 1:1 from index.html. */
 export function Home() {
   const authed = useAuthStore((s) => Boolean(s.tokens?.accessToken && s.user));
+  /* The page reads differently on a phone: no key into a city you are already
+     standing in, the city grid at the foot, and the resume shelf after it. */
+  const phone = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
   useHubTheme(null);
   const navigate = useNavigate();
   const img = (f: string) => `/assets/img/${f}`;
@@ -148,13 +151,6 @@ export function Home() {
         </svg>
       </div>
 
-      {/* mobile fallback grid */}
-      <div className="cityfallback">
-        {FALLBACK.map((p) => (
-          <Link key={p.to} to={p.to}><img loading="lazy" src={img(p.img)} alt="" /><span>{p.title}</span></Link>
-        ))}
-      </div>
-
       <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '88px 32px 24px' }}>
         {/* ============ WELCOME ============ */}
         <div className="center rise" style={{ textAlign: 'center' }}>
@@ -165,7 +161,10 @@ export function Home() {
           </p>
           <div style={{ marginTop: 30, display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
             {authed ? (
-              <Link className="btn btn-gold" to="/dashboard">Enter your city</Link>
+              /* A citizen who is signed in is already inside; the key is for a
+                 desk, where the hero is a poster you look at rather than a
+                 page you have walked into. */
+              phone ? null : <Link className="btn btn-gold" to="/dashboard">Enter your city</Link>
             ) : (
               <>
                 <Link className="btn btn-gold" to="/sign-up">Join the city</Link>
@@ -178,7 +177,7 @@ export function Home() {
         <div className="rule" />
 
         {/* ============ CONTINUE WHERE YOU LEFT OFF ============ */}
-        <RecentPanel />
+        {!phone && <RecentPanel />}
       </div>
 
       {/* ============ WALK THE DISTRICTS — full-bleed hub heroes, stacked ============ */}
@@ -223,6 +222,21 @@ export function Home() {
           })}
         </div>
       </section>
+
+      {/* THE CITY GRID, AT THE FOOT. It used to sit at the top of a phone,
+          above the welcome — twelve doors before a word of introduction. It is
+          the same twelve tiles and the same markup; only the place and the
+          shape changed (six across, two down; see index.css). */}
+      <div className="cityfallback">
+        {FALLBACK.map((p) => (
+          <Link key={p.to} to={p.to}><img loading="lazy" src={img(p.img)} alt="" /><span>{p.title}</span></Link>
+        ))}
+      </div>
+
+      {/* On a phone the resume shelf sits here, at the end: 'continue where you
+          left off' is the last thing you want offered, not the first thing in
+          front of a city you have not looked at yet. */}
+      {phone && <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '8px 20px 0' }}><RecentPanel /></div>}
 
       <div className="wrap" style={{ maxWidth: 1240, margin: '0 auto', padding: '48px 32px 24px' }}>
         <div className="trust">

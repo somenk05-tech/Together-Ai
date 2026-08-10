@@ -145,10 +145,21 @@ section.blk { margin: 0 0 40px; }
 
 .cityfallback { display: none; }
 @media (max-width:900px) {
-  .cityfallback { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 24px 20px 8px; }
-  .cityfallback a { position: relative; border-radius: 14px; overflow: hidden; aspect-ratio: 16/9; display: flex; align-items: flex-end; color: var(--on-accent); font-size: 12px; letter-spacing: .1em; font-weight: 600; text-transform: uppercase; }
+  /* SIX ACROSS, TWO DOWN, at the foot of the page. Twelve doors at a glance
+     for the reader who reached the end — the two-column version of this grid
+     used to OPEN the page instead, which put the whole city in front of
+     somebody before the city had introduced itself.
+     A tile is 56px here, so the name is a small label on a heavier scrim: at
+     this size the picture is the recognition and the word is the confirmation. */
+  .cityfallback { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; padding: 8px 12px 4px; }
+  .cityfallback a { position: relative; border-radius: 10px; overflow: hidden; aspect-ratio: 1/1; display: block; color: var(--on-accent); font-size: 12px; letter-spacing: .1em; font-weight: 600; text-transform: uppercase; }
   .cityfallback a img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .cityfallback a span { position: relative; z-index: 2; padding: 10px 12px; background: linear-gradient(to top, rgba(0,0,0,.7), transparent); width: 100%; }
+  .cityfallback a span {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+    padding: 14px 3px 3px; background: linear-gradient(to top, rgba(0,0,0,.82), transparent);
+    font-size: 6.5px; letter-spacing: .02em; line-height: 1.15; text-align: center;
+    overflow-wrap: anywhere;
+  }
 }
 
 /* motion */
