@@ -7,12 +7,21 @@ import { Icon } from '@/components/ui/Icon';
 /**
  * The City — every hub as a door, sized for a thumb.
  *
- * This is the mobile bottom bar's second tab. On a phone the fourteen hubs
- * cannot live in a header tab row (they didn't fit; they scrolled off the
- * right edge), so this page is where the whole city becomes visible at once:
- * each hub with its own commissioned picture and its own line, in the order
- * the header has always used. Nothing here is new inventory — same NAV list,
- * same HUB_HERO art, same taglines from config — just laid out for touch.
+ * This is the mobile bottom bar's second tab. On a phone the hubs cannot live
+ * in a header tab row (they didn't fit; they scrolled off the right edge), so
+ * this page is where the whole city becomes visible at once: each hub with its
+ * own commissioned picture and its own line, in the order the header has
+ * always used. Nothing here is new inventory — same NAV list, same HUB_HERO
+ * art, same taglines from config — just laid out for touch.
+ *
+ * MAIL IS NOT A HUB, AND THIS WAS THE LAST PLACE STILL SAYING IT WAS.
+ * The header tab row has always filtered it out — Mail is an ACTION, it sits
+ * with Chat and Alerts in the corner because it is a place you check, not a
+ * district you visit. This grid mapped straight over NAV and so it put Mail
+ * back among the doors, where it had no commissioned art of its own and
+ * borrowed a picture that belongs to another room. Same filter as the header,
+ * for the same reason: two surfaces disagreeing about what Mail IS is worse
+ * than either answer.
  *
  * It works on desktop too (it is reachable, not adapted): the grid simply
  * gets more columns.
@@ -25,7 +34,7 @@ export function Hubs() {
       <p className="muted" style={{ fontSize: 13.5, marginBottom: 18 }}>Every hub, one screen. Tap a door.</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-        {NAV.map((n) => {
+        {NAV.filter((n) => n.key !== 'mail').map((n) => {
           const cfg = HUBS[n.key];
           const hero = HUB_HERO[n.key];
           return (
