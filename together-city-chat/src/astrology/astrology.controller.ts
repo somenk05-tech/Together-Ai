@@ -133,6 +133,34 @@ export class AstrologyController {
     return this.astrology.gemstones(user.sub);
   }
 
+  /** GET /api/astrology/gemstones/:id/design — one stone, sized and priced for
+   *  this citizen, with every shape, setting and size judged for its planet. */
+  @Get('gemstones/:id/design')
+  gemDesign(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.astrology.gemDesign(user.sub, id);
+  }
+
+  /**
+   * POST /api/astrology/gemstones/:id/commission — order the stone.
+   *
+   * THE BODY CARRIES CHOICES, NEVER A PRICE. A gemstone is the dearest thing
+   * this city sells and the studio has a grade slider on it; if the amount
+   * travelled with the request, the amount would be whatever the request said.
+   */
+  @Post('gemstones/:id/commission')
+  commissionGem(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
+    const schema = z.object({
+      grade: z.number().min(0).max(100),
+      worn: z.enum(['ring', 'pendant']),
+      shape: z.string().min(1).max(40),
+      setting: z.string().min(1).max(40).optional(),
+      style: z.string().min(1).max(40).optional(),
+      size: z.number().int().min(1).max(40).optional(),
+      method: z.enum(['wallet', 'card']).default('wallet'),
+    });
+    return this.astrology.commissionGem(user.sub, id, schema.parse(body));
+  }
+
   /** GET /api/astrology/remedies — practices for this period, health-filtered. */
   @Get('remedies')
   remedies(@CurrentUser() user: JwtUser) {

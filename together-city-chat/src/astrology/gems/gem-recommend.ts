@@ -1,6 +1,6 @@
 import type { SignName } from '../astro-engine';
 import type { DashaLord } from '../personal-factors';
-import { GEMS, PRIMARY_BY_PLANET } from './gem-catalog';
+import { GEMS, GEM_BY_ID, PRIMARY_BY_PLANET } from './gem-catalog';
 import type { Gem, GemPlanet } from './gem-types';
 import { TRIAL_NOTE, TRIAL_REQUIRED, WEARING, planetOf, type WearingRule } from './wearing';
 import { priceAtWeight, recommendedWeight, type GemWeight } from './gem-weight';
@@ -155,6 +155,17 @@ export interface GemChartInput {
   lifePath: number;
 }
 
+/** Everything the design studio needs for ONE stone, by id. */
+export interface GemDesignBrief {
+  gem: Gem;
+  weight: GemWeight | null;
+  fromInr: number | null;
+  toInr: number | null;
+  wearing: WearingRule;
+  /** The recommended stone this one stands in for, if it is a substitute. */
+  standsInFor: string | null;
+}
+
 export interface GemRecommendations {
   /** What the recommendation was read from, shown as a labelled strip. The
    *  Astrology Zone's voice rule allows this: panels may name the machinery,
@@ -283,3 +294,30 @@ export function recommendGems(input: GemChartInput): GemRecommendations {
 }
 
 const title = (p: GemPlanet) => p.charAt(0).toUpperCase() + p.slice(1);
+
+
+/**
+ * One stone, priced and sized for this person — for the design studio, which
+ * arrives by URL and therefore cannot be handed the recommendation object.
+ *
+ * IT DOES NOT CHECK THAT THE STONE WAS RECOMMENDED, and that is deliberate: the
+ * page it serves is reached from a "design this" button beside a stone the
+ * citizen chose, and one of those buttons sits beside a cheaper SUBSTITUTE.
+ * Refusing anything outside the top five would refuse the alternative it just
+ * offered. What it will not do is invent a weight — no body weight, no figure,
+ * exactly as everywhere else.
+ */
+export function designBrief(gemId: string, bodyKg: number | null | undefined): GemDesignBrief | null {
+  const gem = GEM_BY_ID.get(gemId);
+  if (!gem) return null;
+  const weight = recommendedWeight(bodyKg, gem.planet, gem.kind);
+  const price = weight ? priceAtWeight(weight.carats, gem.perCaratMinInr, gem.perCaratMaxInr) : null;
+  return {
+    gem,
+    weight,
+    fromInr: price?.fromInr ?? null,
+    toInr: price?.toInr ?? null,
+    wearing: WEARING[gem.planet],
+    standsInFor: gem.substituteFor ? GEM_BY_ID.get(gem.substituteFor)?.name ?? null : null,
+  };
+}

@@ -1,5 +1,6 @@
 import { useId, useMemo, useState } from 'react';
-import { Card, Spinner } from '@/components/ui';
+import { Link } from 'react-router-dom';
+import { Button, Card, Spinner } from '@/components/ui';
 import { useAstroGemstones } from '../hooks';
 import { AstroHeader, AstroTabs, NeedsProfileCard } from '../shared';
 import type { GemAtWeight, GemPriority, GemRecommendation, GemRole, GemstonesResponse } from '../api';
@@ -234,6 +235,11 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
                   {s.weight && s.fromInr !== null
                     ? <span style={{ display: 'block', color: 'var(--gem-body)' }}>{s.weight.carats} ct · from {rupees(s.fromInr)}</span>
                     : <span style={{ display: 'block', color: 'var(--gem-body)' }}>from {rupees(s.gem.perCaratMinInr)}/ct</span>}
+                  {/* The cheaper stone gets its own way in. Offering an
+                      alternative and then only letting somebody buy the
+                      expensive one is not offering an alternative. */}
+                  <Link to={`/astrology/gemstones/${s.gem.id}/design`}
+                    style={{ display: 'block', fontSize: 11.5, fontWeight: 700, marginTop: 2 }}>Add to cart →</Link>
                 </span>
               </span>
             ))}
@@ -283,6 +289,16 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
             {rupees(gem.perCaratMinInr)} – {rupees(gem.perCaratMaxInr)} per carat. Where you land inside
             that is the quality of the stone, which you choose next.
           </p>
+          {/* A GEMSTONE IS A COMMISSION, NOT A BASKET ITEM. Nothing about it is
+              decided until somebody has said ring or pendant, which cut, which
+              mount and what size — so the button goes to the studio that asks,
+              rather than dropping "1 × Blue Sapphire" into a bag nobody could
+              make anything from. */}
+          <div style={{ marginTop: 16 }}>
+            <Link to={`/astrology/gemstones/${gem.id}/design`}>
+              <Button variant="accent">Add to cart · design this stone</Button>
+            </Link>
+          </div>
         </>
       ) : (
         <>

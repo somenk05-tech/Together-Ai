@@ -260,6 +260,32 @@ export interface GemstonesResponse {
   disclaimer: string;
 }
 
+/** A shape, a setting or a pendant style — with the line drawing it was drawn
+ *  with. Line art rather than photography: a photograph of somebody else's ring
+ *  is a picture of a thing we are not selling. */
+export interface StudioOption { key: string; name: string; desc: string; svg: string }
+export type DesignVerdict = 'recommended' | 'suitable' | 'avoid';
+export interface SettingOption extends StudioOption { verdict: DesignVerdict; why: string }
+export interface RingSize { indian: number; diameterMm: number; circumferenceMm: number }
+
+export interface GemDesign {
+  needsProfile?: boolean;
+  gem: GemStone;
+  weight: GemWeight | null;
+  fromInr: number | null;
+  toInr: number | null;
+  wearing: GemWearing;
+  /** Set when this stone is a stand-in for a costlier one. */
+  standsInFor: string | null;
+  shapes: StudioOption[];
+  /** Judged against THIS stone's planet — whether a tension mount will crack
+   *  this particular stone is not a presentation detail. */
+  settings: SettingOption[];
+  pendantStyles: StudioOption[];
+  sizes: RingSize[];
+  disclaimer: string;
+}
+
 export const astrologyApi = {
   profile: () => api.get<AstroProfileView>('/astrology/profile').then((r) => r.data),
   saveProfile: (dto: SaveAstroProfileInput) =>
@@ -287,5 +313,15 @@ export const astrologyApi = {
 
   gems: () => api.get<GemResponse>('/astrology/gems').then((r) => r.data),
   gemstones: () => api.get<GemstonesResponse>('/astrology/gemstones').then((r) => r.data),
+  gemDesign: (id: string) => api.get<GemDesign>(`/astrology/gemstones/${id}/design`).then((r) => r.data),
+  /** The choices, never the price — the server prices them from the same
+   *  catalogue and weight rule the studio was rendered from. */
+  commissionGem: (v: {
+    gemId: string; grade: number; worn: 'ring' | 'pendant'; shape: string;
+    setting?: string; style?: string; size?: number; method: 'wallet' | 'card';
+  }) => api.post<{ paid: true; spec: string; amountInr: number }>(
+    `/astrology/gemstones/${v.gemId}/commission`,
+    { grade: v.grade, worn: v.worn, shape: v.shape, setting: v.setting, style: v.style, size: v.size, method: v.method },
+  ).then((r) => r.data),
   remedies: () => api.get<RemedyResponse>('/astrology/remedies').then((r) => r.data),
 };

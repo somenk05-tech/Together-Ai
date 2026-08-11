@@ -815,3 +815,42 @@
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
 }
+
+/* ══ THE GEM STUDIO ═════════════════════════════════════════════════════════
+   Where "add to cart" goes: a stone, and the questions a jeweller would ask.
+   The choices are line drawings from the owner's ring studio, which is the
+   right register for a decision about FORM — a photograph of somebody else's
+   ring is a picture of a thing we are not selling. */
+.gem-studio-head { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+.gem-step { font-size: 15px; margin: 26px 0 4px; text-transform: uppercase; letter-spacing: .1em; }
+.gem-step-note { font-size: 12.5px; line-height: 1.6; margin: 0 0 12px; max-width: 620px; }
+.gem-choices {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px;
+}
+/* The whole tile is the control. A radio dot beside a drawing asks somebody to
+   aim at the smallest thing on the card. */
+.gem-choice {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  padding: 14px 12px 13px; cursor: pointer; font-family: inherit; color: var(--ink);
+  background: var(--card); border: 1.5px solid var(--line); border-radius: 14px;
+}
+.gem-choice.is-on { border-color: var(--accent); background: var(--accent-soft); }
+.gem-choice-wide { align-items: flex-start; text-align: left; }
+.gem-choice-name { font-size: 13.5px; font-weight: 700; }
+.gem-choice-desc { font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+/* The drawings arrive as bare SVG with `stroke` and `fine` classes on their
+   paths — the owner's own two weights. Inking them here rather than in the
+   markup is what lets a selected tile darken its drawing with it. */
+.gem-glyph svg { width: 74px; height: 74px; display: block; }
+.gem-glyph .stroke { fill: none; stroke: currentColor; stroke-width: 2; }
+.gem-glyph .fine { fill: none; stroke: currentColor; stroke-width: .8; opacity: .45; }
+.gem-verdict {
+  font-size: 9.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  margin-top: 2px; color: var(--muted);
+}
+.gem-verdict.is-recommended { color: var(--ok-ink); }
+.gem-verdict.is-avoid { color: var(--warn-ink); }
+@media (max-width: 620px) {
+  .gem-choices { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
+  .gem-glyph svg { width: 58px; height: 58px; }
+}

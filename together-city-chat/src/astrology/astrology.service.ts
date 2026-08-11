@@ -2,7 +2,7 @@ import { swallow } from '../shared/swallow';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import { MasterProfileService } from '../profile/master-profile.service';
-import { FinancialService } from '../financial/financial.service';
+import { FinancialService, type PayMethod } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import {
   NatalChart, geocodeApprox, natalChart, scanMonth, tzOffsetMinutes, SIGNS,
@@ -13,7 +13,8 @@ import { answerProblems, consultationPrompt, consultationRules } from './consult
 import { PACK_SIZE, priceForNextQuestion, quotaFor, type QuestionQuota } from './question-quota';
 import { computeNumerology, vimshottariDasha } from './personal-factors';
 import { GEM_DISCLAIMER, buildGemGuidance, buildRemedies } from './gem-remedy-content';
-import { recommendGems } from './gems/gem-recommend';
+import { designBrief, recommendGems } from './gems/gem-recommend';
+import { PENDANT_STYLES, RING_SETTINGS, RING_SIZES, STONE_SHAPES, adviseSetting } from './gems/ring-studio';
 import { healthFlagsFor } from './health-flags';
 import { firstNameOf } from './voice';
 
@@ -501,6 +502,84 @@ export class AstrologyService {
       }),
       disclaimer: GEM_DISCLAIMER,
     };
+  }
+
+  /**
+   * The design studio for one stone: what it costs at the weight this person is
+   * prescribed, and every shape, setting and size they can choose between —
+   * with the settings judged against THIS stone's planet.
+   *
+   * The judgements travel with the options rather than being re-derived on the
+   * page: whether a tension mount will crack this particular stone is not a
+   * presentation detail.
+   */
+  async gemDesign(userId: string, gemId: string) {
+    const row = await this.requireProfile(userId);
+    if (!row) return { needsProfile: true as const };
+    const master = await swallow(this.masterProfile.get(userId), 'astro: master read for gem design', { userId });
+    const brief = designBrief(gemId, typeof master?.weightKg === 'number' ? master.weightKg : null);
+    if (!brief) throw new NotFoundException('That stone is not in the catalogue.');
+    return {
+      needsProfile: false as const,
+      ...brief,
+      shapes: STONE_SHAPES,
+      settings: RING_SETTINGS.map((s) => ({ ...s, ...adviseSetting(s.key, brief.gem.planet) })),
+      pendantStyles: PENDANT_STYLES,
+      sizes: RING_SIZES,
+      disclaimer: GEM_DISCLAIMER,
+    };
+  }
+
+  /**
+   * Commission the stone: take the money and record what was ordered.
+   *
+   * THE CLIENT DOES NOT SEND A PRICE, AND THAT IS NOT A DETAIL. The studio page
+   * has a grade slider on it; if the amount travelled with the request, the
+   * amount is whatever the request says, and a gemstone is the most expensive
+   * thing this city sells. The client sends the CHOICES — how far along the
+   * grade, which cut, which mount, what size — and the server prices them from
+   * the same catalogue and the same weight rule the page was rendered from.
+   *
+   * The specification is written here too, for the same reason: the sentence
+   * the jeweller works from and the sentence the citizen was shown have to be
+   * the same sentence, and only one of the two machines should be composing it.
+   *
+   * NO ORDER TABLE YET, and this is honest rather than ideal. The charge is
+   * recorded in the Financial hub with the full specification as its label, so
+   * there is a receipt with everything on it. A gem order of its own — with a
+   * status, a jeweller's quote for the metalwork, and a history — needs a table
+   * and a migration, and it is the next thing.
+   */
+  async commissionGem(userId: string, gemId: string, dto: {
+    grade: number; worn: 'ring' | 'pendant'; shape: string;
+    setting?: string; style?: string; size?: number; method: PayMethod;
+  }) {
+    const row = await this.requireProfile(userId);
+    if (!row) throw new BadRequestException('Add your birth details before commissioning a stone.');
+    const master = await swallow(this.masterProfile.get(userId), 'astro: master read for commission', { userId });
+    const brief = designBrief(gemId, typeof master?.weightKg === 'number' ? master.weightKg : null);
+    if (!brief) throw new NotFoundException('That stone is not in the catalogue.');
+    if (!brief.weight || brief.fromInr === null || brief.toInr === null) {
+      throw new BadRequestException('We need your body weight to size the stone before it can be ordered.');
+    }
+
+    const grade = Math.min(100, Math.max(0, Math.round(dto.grade)));
+    const amountInr = Math.round(brief.fromInr + ((brief.toInr - brief.fromInr) * grade) / 100);
+
+    const shape = STONE_SHAPES.find((x) => x.key === dto.shape)?.name ?? 'Oval';
+    const spec = dto.worn === 'ring'
+      ? `${brief.gem.name} · ${brief.weight.carats} ct · ${shape} · `
+        + `${RING_SETTINGS.find((x) => x.key === dto.setting)?.name ?? 'Solitaire'} · `
+        + `${brief.wearing.metal} · size ${dto.size ?? 16}`
+      : `${brief.gem.name} · ${brief.weight.carats} ct · ${shape} · `
+        + `${PENDANT_STYLES.find((x) => x.key === dto.style)?.name ?? 'Classic'} pendant · ${brief.wearing.metal}`;
+
+    await this.financial.paid<void>(
+      userId,
+      { hub: 'Astrology', category: 'astrology', label: `Gemstone · ${spec}`, amountInr, method: dto.method },
+      async () => undefined,
+    );
+    return { paid: true as const, spec, amountInr, caratsX100: Math.round(brief.weight.carats * 100) };
   }
 
   /**

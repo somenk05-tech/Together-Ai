@@ -237,3 +237,68 @@ describe('the gemstone budget', () => {
     expect(gems).toMatch(/useState/);
   });
 });
+
+/**
+ * A GEMSTONE IS A COMMISSION, NOT A BASKET ITEM.
+ *
+ * Nothing about it is decided until somebody has said ring or pendant, which
+ * cut, which mount, which metal and what size — and the chart has an opinion
+ * about every one of those. A basket holding "1 × Blue Sapphire" would be a
+ * basket holding nothing anybody could make.
+ */
+describe('the gem studio', () => {
+  const gems = code('features/astrology/pages/AstroGemstones.tsx');
+  const studio = code('features/astrology/pages/GemStudio.tsx');
+
+  it('puts a way in beside the stone AND beside the cheaper alternative', () => {
+    // Offering an alternative and then only letting somebody buy the expensive
+    // one is not offering an alternative.
+    expect(gems).toMatch(/Add to cart · design this stone/);
+    expect(gems).toMatch(/\$\{s\.gem\.id\}\/design/);
+    expect(gems).toMatch(/\$\{gem\.id\}\/design/);
+  });
+
+  it('asks ring or pendant, the cut, the mount and the size', () => {
+    expect(studio).toMatch(/How will you wear it\?/);
+    expect(studio).toMatch(/The cut/);
+    expect(studio).toMatch(/The setting/);
+    expect(studio).toMatch(/Your size/);
+    expect(studio).toMatch(/pendantStyles/);
+  });
+
+  it('shows the chart\'s opinion without enforcing it', () => {
+    // A tension mount cracks a pearl and an eternity band has no open back.
+    // Both are labelled; both stay choosable. Somebody who wants the eternity
+    // band can have it — they cannot have it without being told.
+    expect(studio).toMatch(/VERDICT_LABEL/);
+    expect(studio).toMatch(/chosenSetting\.why/);
+    expect(studio).not.toMatch(/disabled=\{.*verdict/);
+  });
+
+  it('fixes the weight and lets only the grade move the price', () => {
+    // The carats are the chart's business. Where somebody lands between the
+    // plainest and finest stone of that weight is theirs.
+    expect(studio).toMatch(/grade/);
+    expect(studio).not.toMatch(/setCarats|setWeight/);
+  });
+
+  it('never sends a price to the server', () => {
+    /**
+     * A gemstone is the dearest thing this city sells and the studio has a
+     * slider on it. If the amount travelled in the request body, the amount
+     * would be whatever the request said.
+     */
+    expect(studio).toMatch(/commission\.mutate/);
+    expect(studio).not.toMatch(/amountInr:\s*priceInr/);
+    const api = code('features/astrology/api.ts');
+    expect(api).toMatch(/commissionGem/);
+    expect(api).not.toMatch(/amountInr: v\.amountInr/);
+  });
+
+  it('quotes for the stone and says what it is not quoting for', () => {
+    // We have the owner's stone prices and no metalwork prices at all. A total
+    // with a guessed number inside it is worse than a total that stops where
+    // the data does.
+    expect(studio).toMatch(/won’t put a number on metal we haven’t priced|won't put a number on metal/);
+  });
+});

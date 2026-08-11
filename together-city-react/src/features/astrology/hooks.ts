@@ -143,6 +143,19 @@ export function useAstroGems() {
 export function useAstroGemstones() {
   return useQuery({ queryKey: ['astrology', 'gemstones'], queryFn: () => astrologyApi.gemstones(), retry: false });
 }
+/** One stone's studio. Keyed by id so switching stones refetches rather than
+ *  showing the last one's settings under the new one's name. */
+export function useGemDesign(id: string) {
+  return useQuery({ queryKey: ['astrology', 'gem-design', id], queryFn: () => astrologyApi.gemDesign(id), retry: false, enabled: Boolean(id) });
+}
+/** Commissioning spends from the city wallet, so the financial views go stale. */
+export function useGemCommission() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: astrologyApi.commissionGem,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['financial'] }); },
+  });
+}
 export function useAstroRemedies() {
   return useQuery({ queryKey: ['astrology', 'remedies'], queryFn: () => astrologyApi.remedies() });
 }
