@@ -80,9 +80,52 @@ export interface GemAtWeight {
   toInr: number | null;
 }
 
+/**
+ * HOW STRONGLY, in a word.
+ *
+ * A page that hands somebody four stones and lets them work out the order is a
+ * page that has done the hard part and stopped one step short. The tradition is
+ * not neutral between these: the lagna lord's stone is the one always safe to
+ * wear and the one to wear if you wear only one; everything after it is
+ * addition. So the sheets are RANKED, the rank is on the card, and the first
+ * one says outright that it is the one to buy first.
+ *
+ * The rank comes from the ORDER, not from the role — because the order changes.
+ * Without a birth time there is no life stone, the moon rashi's stone leads
+ * instead, and it is then genuinely the must-have rather than the fourth thing
+ * on a list.
+ */
+export type GemPriority = 'must-have' | 'strong' | 'recommended' | 'optional';
+
+export const PRIORITY_LABEL: Record<GemPriority, string> = {
+  'must-have': 'Must have',
+  strong: 'Strongly recommended',
+  recommended: 'Recommended',
+  optional: 'Optional',
+};
+
+/** What the rank actually means for somebody deciding what to buy. */
+export const PRIORITY_NOTE: Record<GemPriority, string> = {
+  'must-have': 'If you wear only one stone, wear this one. It is the stone traditionally considered safe to wear for a whole life.',
+  strong: 'Worn alongside the first, never instead of it — the two together are the traditional pair.',
+  recommended: 'Worth adding once the stones above it are in place.',
+  optional: 'Only if you want it. Nothing about your chart asks for it before the others.',
+};
+
+const priorityOf = (rank: number): GemPriority =>
+  rank === 1 ? 'must-have' : rank === 2 ? 'strong' : rank === 3 ? 'recommended' : 'optional';
+
 export interface GemRecommendation {
   gem: Gem;
   role: GemRole;
+  /** 1 is the one to buy first. The whole list is ordered by it. */
+  rank: number;
+  priority: GemPriority;
+  /** Other stones on this page whose planets are traditional allies, by name.
+   *  Named only where the wearing table says they are — the enmity list is a
+   *  separate file we do not have, so this asserts the positive and never the
+   *  negative. */
+  wornWith: string[];
   /** What this stone costs AT THE WEIGHT PRESCRIBED — the only price figure
    *  anybody can act on. Null together with the weight. */
   weight: GemWeight | null;
@@ -199,6 +242,8 @@ export function recommendGems(input: GemChartInput): GemRecommendations {
     const priced = at(gem, 1);
     recommendations.push({
       gem, role, reasons,
+      // Both replaced below, once the list is in its final order.
+      rank: 0, priority: 'optional', wornWith: [],
       weight: priced.weight, fromInr: priced.fromInr, toInr: priced.toInr,
       wearing: WEARING[planet],
       trialNote: TRIAL_REQUIRED.has(gem.id) ? TRIAL_NOTE : null,
@@ -206,6 +251,21 @@ export function recommendGems(input: GemChartInput): GemRecommendations {
     });
   }
   recommendations.sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role));
+
+  // THE RANK IS THE POSITION, ASSIGNED LAST. Doing it from the role would put a
+  // moon stone fourth on a page where it is the only stone there is.
+  recommendations.forEach((r, i) => {
+    r.rank = i + 1;
+    r.priority = priorityOf(r.rank);
+  });
+  // Which of these are traditionally worn together. The wearing table lists
+  // each planet's allies; anything not on it is simply not claimed either way.
+  for (const r of recommendations) {
+    const allies = new Set(WEARING[r.gem.planet].allies);
+    r.wornWith = recommendations
+      .filter((o) => o.gem.id !== r.gem.id && allies.has(o.gem.planet))
+      .map((o) => o.gem.name);
+  }
 
   return {
     chart: {

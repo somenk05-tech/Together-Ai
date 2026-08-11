@@ -145,6 +145,20 @@ export interface RemedyTemplate {
 }
 export interface RemedyGuidance {
   needsProfile: false;
+  /**
+   * ONE PRACTICE, THIS WEEK — and the rest are still listed, dated.
+   *
+   * Six worthwhile things at once is a menu, and a menu of self-improvement is
+   * a menu people close. These work by repetition, so what matters is not what
+   * could be done but what is being done this week. The week picks it: the same
+   * practice from Monday to Sunday, turning over on its own overnight, working
+   * through the whole list before it repeats. Nothing is stored.
+   */
+  thisWeek: RemedyTemplate | null;
+  /** Monday and Sunday of the current week, ISO dates. */
+  weekFrom: string;
+  weekTo: string;
+  upcoming: Array<{ startsOn: string; remedy: RemedyTemplate }>;
   remedies: RemedyTemplate[];
   /** Practices held back because of declared health flags. */
   withheld: Array<{ title: string; reason: string }>;
@@ -197,9 +211,18 @@ export interface GemAtWeight {
   toInr: number | null;
 }
 
+export type GemPriority = 'must-have' | 'strong' | 'recommended' | 'optional';
+
 export interface GemRecommendation {
   gem: GemStone;
   role: GemRole;
+  /** 1 is the one to buy first; the list is ordered by it. Derived from the
+   *  POSITION rather than the role, because the order changes — without a birth
+   *  time the moon stone leads and is genuinely the must-have. */
+  rank: number;
+  priority: GemPriority;
+  /** Other stones on this page traditionally worn with this one. */
+  wornWith: string[];
   /** Null when no body weight is on file — no figure is invented. */
   weight: GemWeight | null;
   /** What the stone costs AT that weight — the only price anybody can act on. */

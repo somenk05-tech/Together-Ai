@@ -517,7 +517,9 @@ export class AstrologyService {
     const chart = this.chartOf(row);
     const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
     const flags = await healthFlagsFor(this.prisma, userId);
-    return { needsProfile: false as const, ...buildRemedies({ maha: dasha.maha, antar: dasha.antar }, flags) };
+    // `local` rather than `new Date()` — the practice turns over on Monday
+    // where the citizen is, not on Monday in UTC.
+    return { needsProfile: false as const, ...buildRemedies({ maha: dasha.maha, antar: dasha.antar }, flags, local) };
   }
 
   /**

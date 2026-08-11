@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { Card, Spinner } from '@/components/ui';
 import { useAstroGemstones } from '../hooks';
 import { AstroHeader, AstroTabs, NeedsProfileCard } from '../shared';
-import type { GemAtWeight, GemRecommendation, GemRole } from '../api';
+import type { GemAtWeight, GemPriority, GemRecommendation, GemRole } from '../api';
 
 /**
  * Tab 05 — Gemstones.
@@ -66,6 +66,28 @@ const ROLE_NOTE: Record<GemRole, string> = {
   number: 'From numerology rather than the chart.',
 };
 
+/**
+ * HOW STRONGLY, AND IN WHAT ORDER.
+ *
+ * Four stones with no order is a page that did the hard part and stopped one
+ * step short — the tradition is not neutral between them and neither is this.
+ * The rank restores the reference's own numbered badge, and gives it something
+ * true to say: it is the order to buy in, not the row in a database.
+ */
+const PRIORITY_LABEL: Record<GemPriority, string> = {
+  'must-have': 'Must have',
+  strong: 'Strongly recommended',
+  recommended: 'Recommended',
+  optional: 'Optional',
+};
+
+const PRIORITY_NOTE: Record<GemPriority, string> = {
+  'must-have': 'If you wear only one stone, wear this one. It is the stone traditionally considered safe to wear for a whole life.',
+  strong: 'Worn alongside the first, never instead of it — the two together are the traditional pair.',
+  recommended: 'Worth adding once the stones above it are in place.',
+  optional: 'Only if you want it. Nothing about your chart asks for it before the others.',
+};
+
 const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
 /** A tracked label. Every section on the sheet is introduced by one of these. */
@@ -120,9 +142,16 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
         '--gem-accent': gem.theme.accent,
       } as React.CSSProperties}
     >
-      <span className="gem-cap" style={{ color: 'var(--gem-title)', borderColor: 'var(--gem-accent)' }}>
-        {ROLE_LABEL[rec.role]}
-      </span>
+      {/* THE REFERENCE'S BADGE, EARNING ITS PLACE. It numbered each card in the
+          catalogue, which on a personalised page would be answering a question
+          nobody asked. It carries the buying order instead — 1 is the one to
+          have if you have one — and the capsule beside it says how strongly. */}
+      <div className="gem-rank">
+        <span className="gem-num" style={{ color: 'var(--gem-title)', borderColor: 'var(--gem-title)' }}>{rec.rank}</span>
+        <span className="gem-cap" style={{ color: 'var(--gem-title)', borderColor: 'var(--gem-accent)' }}>
+          {PRIORITY_LABEL[rec.priority]} · {ROLE_LABEL[rec.role]}
+        </span>
+      </div>
 
       <TraitArc words={gem.traits.join(' · ').toUpperCase()} />
 
@@ -148,6 +177,16 @@ function StoneSheet({ rec }: { rec: GemRecommendation }) {
       <p className="gem-body" style={{ color: 'var(--gem-body)', marginTop: 8, fontStyle: 'italic' }}>
         {ROLE_NOTE[rec.role]}
       </p>
+
+      {/* Said plainly, because "which of these do I actually buy" is the
+          question somebody leaves this page with otherwise. */}
+      <Sub>{`Number ${rec.rank} of the stones for you`}</Sub>
+      <p className="gem-body" style={{ color: 'var(--gem-body)' }}>{PRIORITY_NOTE[rec.priority]}</p>
+      {rec.wornWith.length > 0 && (
+        <p className="gem-body" style={{ color: 'var(--gem-body)', marginTop: 8 }}>
+          Traditionally worn together with {rec.wornWith.join(' and ').toLowerCase()}.
+        </p>
+      )}
 
       <Sub>How it is worn</Sub>
       <div className="gem-facts">

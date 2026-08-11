@@ -13,6 +13,22 @@ import type { RemedyTemplate } from '../api';
  * about what it is for, which never explains where it came from.
  */
 
+/** "10 – 16 August" — the week, said the way a person says it. Collapses the
+ *  month when both ends share one, because "10 August – 16 August" is a date
+ *  range written by a form. */
+function weekLabel(from: string, to: string): string {
+  const a = new Date(`${from}T00:00:00Z`);
+  const b = new Date(`${to}T00:00:00Z`);
+  const month = (d: Date) => d.toLocaleDateString('en-IN', { month: 'long', timeZone: 'UTC' });
+  const day = (d: Date) => d.toLocaleDateString('en-IN', { day: 'numeric', timeZone: 'UTC' });
+  return month(a) === month(b)
+    ? `${day(a)} – ${day(b)} ${month(b)}`
+    : `${day(a)} ${month(a)} – ${day(b)} ${month(b)}`;
+}
+
+const dayMonth = (d: string) =>
+  new Date(`${d}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
 const KIND_LABEL: Record<RemedyTemplate['kind'], string> = {
   observance: 'Observance',
   giving: 'Giving',
@@ -67,7 +83,58 @@ export function AstroRemedies() {
 
           {remedies.data && !('needsProfile' in remedies.data && remedies.data.needsProfile) && (
             <>
-              <h2 style={{ fontSize: 17, margin: '0 0 12px' }}>Practices</h2>
+              {/* ── ONE PRACTICE, AND IT IS THIS WEEK'S ──────────────────────
+                  This page used to list all six at once: six cards, equal
+                  weight, each a small worthwhile thing. Nobody does six things.
+                  A list that long is read as a menu, and a menu of
+                  self-improvement is a menu people close. These are practices —
+                  they work by being repeated — so the page names the one that
+                  is yours between Monday and Sunday and lets the rest wait.
+
+                  The week does the choosing, not a shuffle and not the citizen:
+                  it is the same practice every time you open the page for seven
+                  days, it turns over on its own overnight on Monday, and it
+                  works through the whole list before repeating. */}
+              {remedies.data.thisWeek && (
+                <Card style={{ padding: '22px 24px', marginBottom: 18, borderLeft: '4px solid var(--accent)' }}>
+                  <div className="muted" style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.2em', textTransform: 'uppercase' }}>
+                    This week · {weekLabel(remedies.data.weekFrom, remedies.data.weekTo)}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+                    <strong style={{ fontSize: 21, letterSpacing: '-.01em' }}>{remedies.data.thisWeek.title}</strong>
+                    <Tag>{KIND_LABEL[remedies.data.thisWeek.kind]}</Tag>
+                  </div>
+                  <p style={{ fontSize: 15, lineHeight: 1.7, margin: '10px 0 0', maxWidth: 620 }}>
+                    {remedies.data.thisWeek.practice}
+                  </p>
+                  <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '12px 0 0' }}>
+                    One practice at a time, for a week at a time. It changes on Monday on its own —
+                    there is nothing to tick off and nothing to keep up with.
+                  </p>
+                </Card>
+              )}
+
+              {/* The rotation, shown rather than hidden. Seeing next Monday's
+                  practice is what makes this week's read as a turn rather than
+                  a fragment — and it is why the others are still here. */}
+              {remedies.data.upcoming.length > 0 && (
+                <>
+                  <h2 style={{ fontSize: 15, margin: '0 0 10px' }}>After that</h2>
+                  {remedies.data.upcoming.map((u) => (
+                    <Card key={u.remedy.key} style={{ padding: '13px 18px', marginBottom: 8, background: 'var(--paper)' }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                        <span className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+                          From {dayMonth(u.startsOn)}
+                        </span>
+                        <strong style={{ fontSize: 14 }}>{u.remedy.title}</strong>
+                        <Tag>{KIND_LABEL[u.remedy.kind]}</Tag>
+                      </div>
+                    </Card>
+                  ))}
+                </>
+              )}
+
+              <h2 style={{ fontSize: 15, margin: '26px 0 10px' }}>Everything for this season</h2>
               {remedies.data.remedies.map((r) => (
                 <Card key={r.key} style={{ padding: '16px 20px', marginBottom: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>

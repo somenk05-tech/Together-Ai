@@ -183,7 +183,18 @@ function fallbackSupport(lord: DashaLord): DashaLord {
   return SUPPORT_ORDER.find((l) => l !== lord) ?? 'Jupiter';
 }
 
-export interface RemedyGuidance {
+export interface WeeklyRemedy {
+  /** The practice for the week containing the date asked about. */
+  thisWeek: RemedyTemplate | null;
+  /** Monday and Sunday of that week, as ISO dates. */
+  weekFrom: string;
+  weekTo: string;
+  /** What follows, each with the Monday it begins on. Never more than three —
+   *  a rotation you can see the shape of, not the whole list again. */
+  upcoming: Array<{ startsOn: string; remedy: RemedyTemplate }>;
+}
+
+export interface RemedyGuidance extends WeeklyRemedy {
   remedies: RemedyTemplate[];
   /** Practices withheld because of a declared health flag, and why. */
   withheld: Array<{ title: string; reason: string }>;
@@ -201,6 +212,8 @@ export interface RemedyGuidance {
 export function buildRemedies(
   opts: { maha: DashaLord; antar: DashaLord },
   healthFlags: HealthFlag[] = [],
+  /** The citizen's own local time — the week turns where they are, not in UTC. */
+  now: Date = new Date(),
 ): RemedyGuidance {
   const flags = new Set(healthFlags);
   const pool = [
@@ -218,5 +231,58 @@ export function buildRemedies(
     }
     remedies.push(r);
   }
-  return { remedies, withheld, disclaimer: GEM_DISCLAIMER };
+  return { remedies, withheld, disclaimer: GEM_DISCLAIMER, ...weekly(remedies, now) };
+}
+
+/**
+ * ONE PRACTICE, THIS WEEK.
+ *
+ * WHAT WAS WRONG WITH SIX. The page listed every remedy for the running period
+ * at once — six cards, equal weight, each a small worthwhile thing to do. Nobody
+ * does six things. A list that long is read as a menu, and a menu of self-
+ * improvement is a menu people close. The observances this hub offers are
+ * *practices*: they work by being done repeatedly, which means the useful
+ * question is not "what could I do" but "what am I doing this week".
+ *
+ * SO THE WEEK PICKS IT, NOT THE CITIZEN AND NOT A SHUFFLE. The index is the
+ * number of whole weeks since the epoch, modulo the list — so it is the same
+ * practice every time you open the page between Monday and Sunday, it changes
+ * on its own overnight on Monday, and it works through the whole list before it
+ * repeats. Nothing is stored: the same arithmetic gives the same answer on
+ * every device and after every deploy, which a random pick or a saved cursor
+ * would not.
+ *
+ * THE REST ARE STILL SHOWN, dated. Hiding them would make the page feel thinner
+ * than it is and would hide the fact that the rotation is a rotation — seeing
+ * next Monday's practice is what makes this week's read as a turn rather than a
+ * fragment.
+ */
+const DAY_MS = 86_400_000;
+
+/** The Monday that starts the week containing `d`, at midnight. */
+export function weekStart(d: Date): Date {
+  const day = (d.getUTCDay() + 6) % 7;   // Monday = 0
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day));
+}
+
+/** Whole weeks since the epoch. The epoch was a Thursday, hence the shift. */
+export const weekIndex = (d: Date): number => Math.floor((weekStart(d).getTime() + 3 * DAY_MS) / (7 * DAY_MS));
+
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+export function weekly(remedies: RemedyTemplate[], now: Date): WeeklyRemedy {
+  const monday = weekStart(now);
+  const sunday = new Date(monday.getTime() + 6 * DAY_MS);
+  if (remedies.length === 0) {
+    return { thisWeek: null, weekFrom: iso(monday), weekTo: iso(sunday), upcoming: [] };
+  }
+  const at = (n: number) => remedies[((weekIndex(now) + n) % remedies.length + remedies.length) % remedies.length];
+  return {
+    thisWeek: at(0),
+    weekFrom: iso(monday),
+    weekTo: iso(sunday),
+    upcoming: [1, 2, 3]
+      .filter((n) => n < remedies.length)
+      .map((n) => ({ startsOn: iso(new Date(monday.getTime() + n * 7 * DAY_MS)), remedy: at(n) })),
+  };
 }

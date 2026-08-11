@@ -108,6 +108,33 @@ describe('the gemstone marketplace', () => {
     expect(gems).not.toMatch(/gridTemplateColumns/);
   });
 
+  it('tells somebody which stone to buy first', () => {
+    /**
+     * Four stones with no order is a page that did the hard part and stopped
+     * one step short. The rank restores the reference's numbered badge with
+     * something true to say — the buying order, not a row in a database — and
+     * the first sheet says outright that it is the one to have if you have one.
+     */
+    expect(gems).toMatch(/rec\.rank/);
+    expect(gems).toMatch(/rec\.priority/);
+    expect(gems).toMatch(/Must have/);
+    expect(gems).toMatch(/If you wear only one stone, wear this one/);
+    // And the rank is never derived here from the role — the server owns the
+    // order, because without a birth time the moon stone leads.
+    expect(gems).not.toMatch(/rank\s*=\s*/);
+    expect(gems).not.toMatch(/indexOf\(rec\.role\)/);
+  });
+
+  it('claims stones are worn together, and never claims the opposite', () => {
+    // The wearing table lists each planet's allies. The enmity list is a file
+    // we do not have, so a stone missing from `wornWith` is not being called
+    // incompatible — it is simply not claimed either way, and the page must not
+    // imply otherwise.
+    expect(gems).toMatch(/wornWith/);
+    expect(gems).toMatch(/Traditionally worn together with/);
+    expect(gems).not.toMatch(/not worn with|incompatible|avoid wearing/i);
+  });
+
   it('names no colour of its own — the palette is the catalogue\'s', () => {
     /**
      * Each sheet is themed to its stone: a ruby's title in oxblood, an
@@ -119,5 +146,39 @@ describe('the gemstone marketplace', () => {
     expect(gems).toMatch(/gem\.theme\.title/);
     expect(gems).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     expect(gems).not.toMatch(/rgba?\(/);
+  });
+});
+
+/**
+ * ONE PRACTICE AT A TIME.
+ *
+ * The remedies page listed six at once — six cards, equal weight, each a small
+ * worthwhile thing. Nobody does six things. A list that long is read as a menu,
+ * and a menu of self-improvement is a menu people close.
+ */
+describe('the remedies page', () => {
+  const remedies = code('features/astrology/pages/AstroRemedies.tsx');
+
+  it('names one practice for this week, and says which week', () => {
+    expect(remedies).toMatch(/thisWeek/);
+    expect(remedies).toMatch(/This week ·/);
+    expect(remedies).toMatch(/weekLabel\(/);
+  });
+
+  it('lets the week choose it rather than the citizen or a shuffle', () => {
+    // The rotation is arithmetic on the server: same practice Monday to Sunday,
+    // turns over on its own, works through the list before repeating. A pick
+    // made here would differ per device and reset on every reload.
+    expect(remedies).not.toMatch(/Math\.random/);
+    expect(remedies).not.toMatch(/localStorage/);
+    expect(remedies).not.toMatch(/useState.*[Ww]eek/);
+  });
+
+  it('shows the rotation rather than hiding the rest', () => {
+    // Seeing next Monday's practice is what makes this week's read as a turn
+    // rather than a fragment.
+    expect(remedies).toMatch(/upcoming/);
+    expect(remedies).toMatch(/After that/);
+    expect(remedies).toMatch(/Everything for this season/);
   });
 });

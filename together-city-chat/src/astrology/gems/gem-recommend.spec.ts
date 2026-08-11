@@ -129,6 +129,51 @@ describe('which stone this chart calls for', () => {
   });
 });
 
+describe('which stone to buy first', () => {
+  /**
+   * A PAGE THAT HANDS SOMEBODY FOUR STONES AND LETS THEM WORK OUT THE ORDER has
+   * done the hard part and stopped one step short. The tradition is not neutral
+   * between them, so neither is this.
+   */
+  it('ranks them 1, 2, 3 with no gaps and no ties', () => {
+    const r = chart();
+    expect(r.recommendations.map((x) => x.rank)).toEqual(r.recommendations.map((_, i) => i + 1));
+  });
+
+  it('calls the first one the must-have and nothing else', () => {
+    const r = chart();
+    expect(r.recommendations[0].priority).toBe('must-have');
+    expect(r.recommendations.filter((x) => x.priority === 'must-have').length).toBe(1);
+  });
+
+  it('promotes the moon stone to first when there is no birth time', () => {
+    // The rank is the POSITION, not the role. Reading it off the role would put
+    // a moon stone fourth on a page where it is the only stone there is.
+    const r = chart({ ascendant: null });
+    expect(r.recommendations[0].rank).toBe(1);
+    expect(r.recommendations[0].priority).toBe('must-have');
+    expect(['moon', 'period']).toContain(r.recommendations[0].role);
+  });
+
+  it('names the stones traditionally worn together, and never claims the opposite', () => {
+    // The wearing table lists each planet's allies. The ENMITY list is a
+    // separate file we do not have, so a stone missing from `wornWith` is not
+    // being called incompatible — it is simply not claimed either way.
+    const r = chart({ ascendant: 'Leo', moonSign: 'Cancer', mahadasha: 'Jupiter', antardasha: 'Sun', lifePath: 3 });
+    const ruby = r.recommendations.find((x) => x.gem.id === 'ruby');
+    // Sun's allies are moon, mars and jupiter — a yellow sapphire on the same
+    // page is named, and every name is a stone that is actually on it.
+    const onPage = new Set(r.recommendations.map((x) => x.gem.name));
+    for (const rec of r.recommendations) {
+      for (const name of rec.wornWith) {
+        expect({ of: rec.gem.name, with: name, onPage: onPage.has(name) }).toEqual({ of: rec.gem.name, with: name, onPage: true });
+      }
+      expect(rec.wornWith).not.toContain(rec.gem.name);
+    }
+    expect(ruby!.wornWith.length).toBeGreaterThan(0);
+  });
+});
+
 describe('how many carats, for this person', () => {
   /**
    * THE FIGURE THAT TURNS A PRICE PER CARAT INTO A PRICE. "₹8,000 – ₹25,000

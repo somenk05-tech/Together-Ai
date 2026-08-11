@@ -121,3 +121,65 @@ describe('remedies respect what the citizen has told us', () => {
     expect(new Set(r.remedies.map((x) => x.key)).size).toBe(r.remedies.length);
   });
 });
+
+describe('one practice a week', () => {
+  /**
+   * SIX WORTHWHILE THINGS AT ONCE IS A MENU, AND A MENU OF SELF-IMPROVEMENT IS
+   * A MENU PEOPLE CLOSE. These are practices — they work by repetition — so the
+   * useful question is not "what could I do" but "what am I doing this week".
+   *
+   * The three properties that make the rotation trustworthy are all here: it
+   * does not move within a week, it moves on Monday, and it works through the
+   * whole list before repeating. Nothing is stored, so the same arithmetic
+   * gives the same answer on every device and after every deploy.
+   */
+  const pool = buildRemedies({ maha: 'Saturn', antar: 'Venus' }, [], new Date('2026-08-12T09:00:00Z'));
+
+  it('gives exactly one practice for the week, and dates it', () => {
+    expect(pool.thisWeek).not.toBeNull();
+    // 12 August 2026 is a Wednesday; its week runs Monday the 10th to Sunday the 16th.
+    expect(pool.weekFrom).toBe('2026-08-10');
+    expect(pool.weekTo).toBe('2026-08-16');
+  });
+
+  it('does not change between Monday and Sunday', () => {
+    const days = ['10', '11', '13', '16'].map((d) =>
+      buildRemedies({ maha: 'Saturn', antar: 'Venus' }, [], new Date(`2026-08-${d}T22:00:00Z`)));
+    for (const d of days) {
+      expect({ from: d.weekFrom, title: d.thisWeek?.title })
+        .toEqual({ from: '2026-08-10', title: pool.thisWeek?.title });
+    }
+  });
+
+  it('turns over on the Monday, not on some other day', () => {
+    const sunday = buildRemedies({ maha: 'Saturn', antar: 'Venus' }, [], new Date('2026-08-16T23:59:00Z'));
+    const monday = buildRemedies({ maha: 'Saturn', antar: 'Venus' }, [], new Date('2026-08-17T00:01:00Z'));
+    expect(sunday.thisWeek?.title).not.toBe(monday.thisWeek?.title);
+    expect(monday.weekFrom).toBe('2026-08-17');
+  });
+
+  it('works through every practice before repeating one', () => {
+    const seen = new Set<string>();
+    for (let w = 0; w < pool.remedies.length; w++) {
+      const d = new Date(Date.UTC(2026, 7, 10 + w * 7));
+      seen.add(buildRemedies({ maha: 'Saturn', antar: 'Venus' }, [], d).thisWeek!.title);
+    }
+    expect(seen.size).toBe(pool.remedies.length);
+  });
+
+  it('shows what is coming without listing the whole rotation again', () => {
+    expect(pool.upcoming.length).toBeLessThanOrEqual(3);
+    expect(pool.upcoming[0].startsOn).toBe('2026-08-17');
+    // And never repeats this week's practice as next week's.
+    expect(pool.upcoming.map((u) => u.remedy.title)).not.toContain(pool.thisWeek!.title);
+  });
+
+  it('rotates only through practices that survived the health filter', () => {
+    // A withheld practice is not shown, so it must not be scheduled either —
+    // a rotation with a hole in it would show an empty week.
+    const filtered = buildRemedies({ maha: 'Saturn', antar: 'Venus' }, ['pregnancy', 'diabetes'], new Date('2026-08-12T09:00:00Z'));
+    const titles = new Set(filtered.remedies.map((r) => r.title));
+    expect(titles.has(filtered.thisWeek!.title)).toBe(true);
+    for (const u of filtered.upcoming) expect(titles.has(u.remedy.title)).toBe(true);
+  });
+});
