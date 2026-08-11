@@ -630,3 +630,43 @@
 .letter-title,
 .letter-archive-day .t,
 .routine-display { font-family: var(--press-serif); font-weight: 400; }
+
+/* ══ THE BEAUTY MARKET ══════════════════════════════════════════════════════
+   A shop, laid out for comparison: a category row, a filter/title/sort bar,
+   and a wide grid of photographs. Only the three things that need a breakpoint
+   are here; the rest of the page stays inline, like the rest of this hub. */
+.market-tabs {
+  display: flex; gap: 26px; flex-wrap: wrap; justify-content: center;
+  border-bottom: 1px solid var(--line); padding: 4px 0 12px; margin: 6px 0 18px;
+}
+.market-tabs button {
+  border: 0; background: none; cursor: pointer; font-family: inherit;
+  font-size: 14px; font-weight: 500; color: var(--muted); padding: 6px 2px; position: relative;
+}
+.market-tabs button.on { color: var(--ink); font-weight: 700; }
+/* The dot above the live tab, from the reference. A dot rather than an
+   underline because the row already sits on one. */
+.market-tabs button.on::before {
+  content: ''; position: absolute; top: -4px; left: 50%; translate: -50% 0;
+  width: 4px; height: 4px; border-radius: 50%; background: var(--accent);
+}
+
+/* Filter left, title centred, sort right — and the title stays centred on the
+   PAGE rather than in the space left over, which is why this is a three-column
+   grid with equal outer tracks and not a flex row. */
+.market-bar {
+  display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px;
+  align-items: center; margin-bottom: 14px;
+}
+@media (max-width: 720px) {
+  .market-bar { grid-template-columns: 1fr; }
+  .market-bar > :nth-child(2) { text-align: left; }
+  .market-bar > :nth-child(3) { justify-content: flex-start; }
+  .market-tabs { gap: 18px; justify-content: flex-start; }
+}
+
+.market-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px 22px; align-items: start;
+}
+@media (max-width: 1080px) { .market-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 820px)  { .market-grid { grid-template-columns: repeat(2, 1fr); gap: 24px 16px; } }

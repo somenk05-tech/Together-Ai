@@ -4,6 +4,7 @@ import { Button, EmptyState, Spinner } from '@/components/ui';
 import { useBeautyProfile, useBeautyRoutine, usePlaceBeautyOrder, type ProductRoutine, type ProductRoutineStep } from '../api';
 import { payError, type PayMethod } from '@/features/financial/api';
 import { PaymentSheet } from '@/features/financial/PaymentSheet';
+import { ProductShot } from '../components/ProductShot';
 
 /**
  * The routine, as a thing you could print and pin up.
@@ -39,14 +40,6 @@ const BAND: Record<ProductRoutine['timeOfDay'], { icon: string; sub: string }> =
   body: { icon: '◈', sub: 'Everything below the jaw' },
 };
 
-/** What stands in for a photograph when the retailer's CDN will not give us one. */
-const GLYPH: Array<[RegExp, string]> = [
-  [/cleanser|wash/i, '🧼'], [/toner/i, '💧'], [/serum/i, '💧'], [/moisturiser|cream|lotion/i, '🫙'],
-  [/sunscreen/i, '☀️'], [/mask/i, '🧖'], [/shampoo|conditioner/i, '🧴'], [/oil/i, '🌿'],
-  [/scrub/i, '🪨'], [/lip/i, '💋'],
-];
-const glyphFor = (category: string) => GLYPH.find(([m]) => m.test(category))?.[1] ?? '🧴';
-
 /** Grouped the way rupees are grouped here: ₹8,613, not ₹8613. Only the two
  *  display totals use it — a step price is three or four digits and reads
  *  better bare, which is how the Market has always printed them. */
@@ -55,17 +48,11 @@ const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 /**
  * One step: the number, the picture, what it is, and what it costs.
  *
- * THE PICTURE IS HOTLINKED TO A RETAILER'S CDN, which is how the data sheet
- * supplies it, so it is the one thing on this page most likely to break. The
- * sheet gives two — a primary and one from a different retailer — and this
- * walks them: first, then second, then the category mark. A routine full of
- * broken frames reads as a routine that is wrong, which is a much more
- * expensive failure than a missing photograph.
+ * The picture is `ProductShot`, shared with the market — it is hotlinked to a
+ * retailer's CDN and walks primary → alternate → category mark. Two copies of
+ * that fallback would have been two behaviours the day one of them was fixed.
  */
 function Step({ s, qty, onAdd, onRemove }: { s: ProductRoutineStep; qty: number; onAdd: () => void; onRemove: () => void }) {
-  const sources = [s.image, s.imageAlt].filter(Boolean);
-  const [tried, setTried] = useState(0);
-  const shot = sources[tried];
   return (
     <li style={{ display: 'flex', gap: 13, padding: '15px 0', borderTop: '1px solid var(--line)' }}>
       <span aria-hidden
@@ -74,12 +61,7 @@ function Step({ s, qty, onAdd, onRemove }: { s: ProductRoutineStep; qty: number;
         {s.order}
       </span>
 
-      <span style={{ flex: 'none', width: 62, height: 62, borderRadius: 12, background: 'var(--paper)', border: '1px solid var(--line)', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
-        {shot
-          ? <img key={shot} src={shot} alt="" loading="lazy" onError={() => setTried((n) => n + 1)}
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-          : <span aria-hidden style={{ fontSize: 22 }}>{glyphFor(s.category)}</span>}
-      </span>
+      <ProductShot image={s.image} imageAlt={s.imageAlt} category={s.category} size={62} />
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>

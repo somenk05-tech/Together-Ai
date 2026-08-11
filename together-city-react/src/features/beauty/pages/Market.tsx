@@ -1,135 +1,286 @@
 import { useMemo, useState } from 'react';
 import { AllergyNote, Button, EmptyState, Spinner } from '@/components/ui';
-import { useBeautyProducts, usePlaceBeautyOrder, type RecommendedProduct } from '../api';
+import { useBeautyProducts, useBeautyRoutine, usePlaceBeautyOrder, type RecommendedProduct } from '../api';
 import { payError, type PayMethod } from '@/features/financial/api';
 import { PaymentSheet } from '@/features/financial/PaymentSheet';
 import { ShareToChat } from '@/features/chat/share';
+import { ProductShot } from '../components/ProductShot';
 
-function ProductCard({ p, qty, onAdd, onRemove }: { p: RecommendedProduct; qty: number; onAdd: () => void; onRemove: () => void }) {
-  const [why, setWhy] = useState(false);
-  const scoreColor = p.matchScore >= 80 ? 'var(--ok-ink)' : p.matchScore >= 55 ? 'var(--accent)' : 'var(--muted)';
+/**
+ * The whole shelf, laid out as a shop.
+ *
+ * THE SERVER HAS ALWAYS SENT EVERYTHING. `recommendProducts()` scores every
+ * product, drops only what a declared sensitivity makes unsafe, and sorts
+ * matched first — there is no cap anywhere in the path. With thirteen products
+ * that meant a page you took in at a glance. With seventy it means a wall, and
+ * "everything is here" stops being the same thing as "you can find it".
+ *
+ * THE REFERENCE THE OWNER SENT is The Ordinary's shop: a category row across
+ * the top, a filter / title / sort bar, and a wide grid of large photographs on
+ * white with the name and the price centred underneath in small type. What that
+ * layout is FOR is comparison — you are looking across eight bottles at once,
+ * not reading one. So the tile carries the four things you compare on (picture,
+ * brand, name, price) and everything else waits behind a disclosure.
+ *
+ * WHAT THAT COST, AND WHY IT IS WORTH IT. The old card printed the matched-
+ * because chips, the biomarker chips, the actives, the usage and the blurb, all
+ * at once, on every product. That is the right density for thirteen products
+ * and unreadable across seventy. It is all still here, one tap down, on the
+ * tile you are actually interested in.
+ *
+ * "SORTED IN CATEGORIES" IS THE DEFAULT AND NOT A FILTER. With no category
+ * chosen the grid runs as labelled sections — Cleanser, Toner, Serum — in shelf
+ * order, because a flat grid of thirty-eight skincare products sorted by match
+ * score is a heap. Choosing one category collapses to that section alone.
+ *
+ * THE SEGMENTS READ `group`, WHICH IS A BUG FIX AND NOT A REFACTOR. They were
+ * decided by sniffing the display category for "Haircare", "Hair" or "Scalp".
+ * That was true of the old thirteen and is false of the new seventy: "Shampoo"
+ * and "Conditioner" contain none of those words, so the two most obvious hair
+ * products in the shop were filed under Skin — and body care, a group that did
+ * not exist when the rule was written, went there too.
+ */
+
+const SEGMENTS = [
+  { key: 'Skincare', label: 'Skincare' },
+  { key: 'Hair Care', label: 'Hair' },
+  { key: 'Body Care', label: 'Body' },
+] as const;
+type Segment = typeof SEGMENTS[number]['key'];
+
+const SORTS = [
+  { key: 'match', label: 'Best match' },
+  { key: 'low', label: 'Price: low to high' },
+  { key: 'high', label: 'Price: high to low' },
+  { key: 'name', label: 'Name' },
+] as const;
+type Sort = typeof SORTS[number]['key'];
+
+const TIER_TONE: Record<string, string> = { Budget: 'var(--ok-ink)', 'Mid-range': 'var(--info-ink)', Premium: 'var(--accent-ink)' };
+
+/** Where in the routine a product already appears, in the reader's words. */
+const BAND_WORD: Record<string, string> = { morning: 'morning', evening: 'evening', weekly: 'wash day', body: 'body care' };
+
+function Tile(
+  { p, inRoutine, qty, onAdd, onRemove }:
+  { p: RecommendedProduct; inRoutine: string[]; qty: number; onAdd: () => void; onRemove: () => void },
+) {
+  const [open, setOpen] = useState(false);
   return (
-    <article className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8, borderColor: p.matched ? 'var(--accent)' : 'var(--line)' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <strong style={{ fontSize: 15 }}>{p.name}</strong>
-        {p.matched && (
-          <span style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--on-accent)', background: scoreColor, borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap' }}>
-            {p.matchScore}% match
-          </span>
-        )}
-        <span className="muted" style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>₹{p.priceInr}</span>
-      </div>
-      <div className="muted" style={{ fontSize: 11.5 }}>{p.brand} · {p.category}</div>
-      <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: 0 }}>{p.blurb}</p>
+    <article style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ position: 'relative' }}>
+        {/* THE + IS THE WHOLE INTERACTION on the reference's tile, and it is a
+            44px target around a small mark for the same reason the photo grid
+            uses one: the tap area is not the drawing. */}
+        <button type="button" onClick={qty > 0 ? onRemove : onAdd}
+          aria-label={qty > 0 ? `Remove ${p.name} from your bag` : `Add ${p.name} to your bag`}
+          style={{ position: 'absolute', top: 0, right: 0, zIndex: 1, width: 44, height: 44, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, display: 'grid', placeItems: 'center' }}>
+          <span aria-hidden style={{
+            width: 26, height: 26, borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 15, lineHeight: 1,
+            background: qty > 0 ? 'var(--accent)' : 'transparent', color: qty > 0 ? 'var(--on-accent)' : 'var(--ink-soft)',
+          }}>{qty > 0 ? '−' : '+'}</span>
+        </button>
 
-      {/* PRIMARY — matched to the skin & hair assessment */}
-      {p.primaryReasons.length > 0 && (
-        <div>
-          <div className="muted" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Matched because</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {p.primaryReasons.map((r) => (
-              <span key={r} style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 10px' }}>{r}</span>
-            ))}
+        <div style={{ display: 'grid', placeItems: 'center', padding: '18px 10px 6px' }}>
+          <ProductShot image={p.image} imageAlt={p.imageAlt} category={p.category} size={168} bare />
+        </div>
+      </div>
+
+      <div style={{ textAlign: 'center', padding: '0 6px' }}>
+        <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase' }}>{p.brand}</div>
+        <div style={{ marginTop: 3 }}>
+          {p.productUrl
+            ? <a href={p.productUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.35 }}>{p.name}</a>
+            : <span style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.35 }}>{p.name}</span>}
+        </div>
+        <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>₹{p.priceInr.toLocaleString('en-IN')}</div>
+
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'center', marginTop: 7, minHeight: 20 }}>
+          {/* THE ONE FLAG THAT IS NOT ABOUT SELLING. Somebody browsing the shop
+              needs to know they have already been told to use this — otherwise
+              the market and the routine are two lists of products that do not
+              acknowledge each other, and you buy your own cleanser twice. */}
+          {inRoutine.length > 0 && (
+            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--accent-ink)', background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', borderRadius: 999, padding: '3px 9px' }}>
+              ✓ Routine · {inRoutine.map((b) => BAND_WORD[b] ?? b).join(' & ')}
+            </span>
+          )}
+          {p.matched && inRoutine.length === 0 && (
+            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '3px 9px' }}>
+              {p.matchScore}% match
+            </span>
+          )}
+          {p.tier && (
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: TIER_TONE[p.tier] ?? 'var(--muted)' }}>{p.tier}</span>
+          )}
+        </div>
+
+        <button type="button" onClick={() => setOpen(!open)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 700, color: 'var(--accent-ink)', padding: '8px 4px 0' }}>
+          {open ? '▴ Less' : '▾ Details'}
+        </button>
+      </div>
+
+      {open && (
+        <div style={{ textAlign: 'left', marginTop: 6, padding: '10px 12px', background: 'var(--paper)', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <p style={{ fontSize: 12, lineHeight: 1.55, margin: 0, color: 'var(--ink-soft)' }}>{p.blurb}</p>
+          <div className="muted" style={{ fontSize: 11 }}>
+            <strong style={{ color: 'var(--ink-soft)' }}>{p.actives.slice(0, 3).join(' · ')}</strong>
+            {' '}· {p.usage.toLowerCase()}{!p.suitableSkin.includes('all') ? ` · for ${p.suitableSkin.join('/')} skin` : ''}
+          </div>
+          {p.primaryReasons.length > 0 && (
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {p.primaryReasons.map((r) => (
+                <span key={r} style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-ink)', background: 'var(--accent-soft)', borderRadius: 999, padding: '3px 9px' }}>{r}</span>
+              ))}
+            </div>
+          )}
+          {p.biomarkerReasons.length > 0 && (
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {p.biomarkerReasons.map((r) => (
+                <span key={r} style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '2px 8px' }}>🩸 {r}</span>
+              ))}
+            </div>
+          )}
+          <p style={{ fontSize: 11.5, lineHeight: 1.55, margin: 0, color: 'var(--muted)' }}>{p.explanation}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Button variant="line" size="sm" onClick={onAdd}>{qty > 0 ? `In bag · ${qty}` : 'Add to bag'}</Button>
+            <span style={{ marginLeft: 'auto' }}>
+              <ShareToChat label="" item={{
+                kind: 'product', hub: 'Beauty', title: p.name, subtitle: `${p.category} · ${p.keyIngredient}`,
+                priceInr: p.priceInr, deepLink: '/beauty/market', meta: p.matched ? [`${p.matchScore}% match`] : [],
+              }} />
+            </span>
           </div>
         </div>
       )}
-
-      {/* SECONDARY — biomarker optimisation (never the headline) */}
-      {p.biomarkerReasons.length > 0 && (
-        <div>
-          <div className="muted" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>🩸 Optimised using your biomarkers</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {p.biomarkerReasons.map((r) => (
-              <span key={r} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 999, padding: '2px 9px' }}>{r}</span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="muted" style={{ fontSize: 11.5 }}>
-        <strong style={{ color: 'var(--ink-soft)' }}>{p.actives.slice(0, 3).join(' · ')}</strong>
-        {' '}· {p.usage}{!p.suitableSkin.includes('all') ? ` · for ${p.suitableSkin.join('/')} skin` : ''}
-      </div>
-
-      <button type="button" onClick={() => setWhy(!why)}
-        style={{ alignSelf: 'flex-start', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, color: 'var(--accent-ink)', padding: 0 }}>
-        {why ? '▾ Hide explanation' : '✨ Why was this recommended?'}
-      </button>
-      {why && <p style={{ fontSize: 12, lineHeight: 1.55, margin: 0, padding: '8px 10px', background: 'var(--paper)', borderRadius: 10, color: 'var(--ink-soft)' }}>{p.explanation}</p>}
-
-      <div style={{ marginTop: 'auto', paddingTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-        {qty > 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Button variant="line" size="sm" onClick={onRemove}>–</Button>
-            <span style={{ fontWeight: 700, fontSize: 14 }}>{qty}</span>
-            <Button variant="line" size="sm" onClick={onAdd}>+</Button>
-            <span className="muted" style={{ fontSize: 12 }}>in bag</span>
-          </div>
-        ) : (
-          <Button variant="accent" size="sm" onClick={onAdd}>Add to bag</Button>
-        )}
-        <span style={{ marginLeft: 'auto' }}>
-          <ShareToChat label="" item={{
-            kind: 'product', hub: 'Beauty', title: p.name, subtitle: `${p.category} · ${p.keyIngredient}`,
-            priceInr: p.priceInr, deepLink: '/beauty/market', meta: p.matched ? [`${p.matchScore}% match`] : [],
-          }} />
-        </span>
-      </div>
     </article>
   );
 }
 
-/** Beauty Market — the science-led shelf, ranked for you; matched items come first. */
 export function Market() {
   const products = useBeautyProducts();
+  const routine = useBeautyRoutine();
   const place = usePlaceBeautyOrder();
   const [bag, setBag] = useState<Record<string, number>>({});
   const [placed, setPlaced] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
-  const [seg, setSeg] = useState<'skin' | 'hair'>('skin');
+  const [seg, setSeg] = useState<Segment>('Skincare');
+  const [cat, setCat] = useState('');
+  const [sort, setSort] = useState<Sort>('match');
+  const [q, setQ] = useState('');
 
-  const items = useMemo(() => {
-    const list = products.data?.products ?? [];
-    return Object.entries(bag)
-      .filter(([, q]) => q > 0)
-      .map(([id, qty]) => {
-        const p = list.find((x) => x.id === id)!;
-        return { id, name: p.name, priceInr: p.priceInr, qty };
-      });
-  }, [bag, products.data]);
+  const all = useMemo(() => products.data?.products ?? [], [products.data]);
+
+  /** productId → the bands it already appears in. Read from the routine the
+   *  citizen has already been given, not re-derived here; two answers to
+   *  "is this in my routine" is one answer too many. */
+  const routineBands = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const r of routine.data?.routines ?? []) {
+      for (const s of r.steps) m.set(s.productId, [...(m.get(s.productId) ?? []), r.timeOfDay]);
+    }
+    return m;
+  }, [routine.data]);
+
+  const items = useMemo(
+    () => Object.entries(bag).filter(([, n]) => n > 0).map(([id, qty]) => {
+      const p = all.find((x) => x.id === id);
+      return p ? { id, name: p.name, priceInr: p.priceInr, qty } : null;
+    }).filter(Boolean) as { id: string; name: string; priceInr: number; qty: number }[],
+    [bag, all],
+  );
   const total = items.reduce((s, i) => s + i.priceInr * i.qty, 0);
+  const bagCount = items.reduce((s, i) => s + i.qty, 0);
+
+  const inSegment = useMemo(() => all.filter((p) => p.group === seg), [all, seg]);
+
+  /** The categories this segment actually has, in shelf order — so the strip
+   *  never offers a filter that would empty the page. */
+  const categories = useMemo(() => {
+    const seen = new Map<string, number>();
+    for (const p of inSegment) seen.set(p.category, (seen.get(p.category) ?? 0) + 1);
+    return [...seen];
+  }, [inSegment]);
+
+  const sorter = useMemo(() => ({
+    match: (a: RecommendedProduct, b: RecommendedProduct) => b.matchScore - a.matchScore || a.priceInr - b.priceInr,
+    low: (a: RecommendedProduct, b: RecommendedProduct) => a.priceInr - b.priceInr,
+    high: (a: RecommendedProduct, b: RecommendedProduct) => b.priceInr - a.priceInr,
+    name: (a: RecommendedProduct, b: RecommendedProduct) => a.name.localeCompare(b.name),
+  }[sort]), [sort]);
+
+  const shown = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return inSegment
+      .filter((p) => !cat || p.category === cat)
+      .filter((p) => !needle || `${p.name} ${p.brand} ${p.actives.join(' ')} ${p.keyIngredient}`.toLowerCase().includes(needle))
+      .slice()
+      .sort(sorter);
+  }, [inSegment, cat, q, sorter]);
+
+  /** With nothing chosen the grid runs as labelled sections; with a category
+   *  chosen, or a search typed, it is one run — a heading over a search result
+   *  saying "Serum" is furniture. */
+  const sections = useMemo(() => {
+    if (cat || q.trim()) return [{ title: '', rows: shown }];
+    return categories
+      .map(([c]) => ({ title: c, rows: shown.filter((p) => p.category === c) }))
+      .filter((s) => s.rows.length > 0);
+  }, [cat, q, shown, categories]);
 
   if (products.isLoading) return <Spinner label="Curating your shelf…" />;
   if (products.isError || !products.data) return <EmptyState title="Couldn't load the market" hint="Please check your connection and try again." />;
 
   const add = (id: string) => { setBag((b) => ({ ...b, [id]: (b[id] ?? 0) + 1 })); setPlaced(false); };
   const remove = (id: string) => setBag((b) => ({ ...b, [id]: Math.max(0, (b[id] ?? 0) - 1) }));
-
-  const HAIR_CATS = ['Haircare', 'Hair', 'Scalp'];
-  const segOf = (cat: string) => (HAIR_CATS.some((h) => cat.toLowerCase().includes(h.toLowerCase())) ? 'hair' : 'skin');
-  const shown = products.data.products.filter((p) => segOf(p.category) === seg);
+  const countIn = (k: Segment) => all.filter((p) => p.group === k).length;
+  const heading = cat || (q.trim() ? `“${q.trim()}”` : `All ${SEGMENTS.find((s) => s.key === seg)!.label.toLowerCase()}`);
 
   return (
     <div>
       <div className="eyebrow">Beauty Market · Shop</div>
-      <h1 style={{ fontSize: 26 }}>Curated for you</h1>
-      <p className="muted" style={{ fontSize: 13.5, margin: '6px 0 12px' }}>
-        {products.data.matchedCount > 0
-          ? `${products.data.matchedCount} products matched to your skin & hair ${products.data.personalisedBy.assessment ? 'assessment' : 'profile'}${products.data.personalisedBy.labs ? ', fine-tuned by your biomarkers' : ''}.`
-          : 'Complete your Skin & Hair Profile to personalise the shelf.'}
-      </p>
 
-      {/* The shelf explains why it is shorter — Beauty reads the sensitivities
-          declared here AND the food allergens declared in Nutrition, so the
-          link points at the Beauty profile where this hub's half is edited. */}
+      {/* ── the category row, across the top, as in the reference ───────── */}
+      <nav className="market-tabs" aria-label="Shop by">
+        {SEGMENTS.map(({ key, label }) => (
+          <button key={key} type="button" onClick={() => { setSeg(key); setCat(''); }}
+            aria-current={seg === key ? 'true' : undefined}
+            className={seg === key ? 'on' : undefined}>
+            {label} <span style={{ opacity: .55, fontWeight: 500 }}>{countIn(key)}</span>
+          </button>
+        ))}
+      </nav>
+
       <AllergyNote notice={products.data.allergyNotice} manageTo="/beauty/profile" />
 
-      {/* segments */}
-      <div style={{ display: 'inline-flex', background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 999, padding: 3, marginBottom: 16 }}>
-        {([['skin', '🧴 Skin'], ['hair', '💇 Hair']] as const).map(([k, label]) => (
-          <button key={k} onClick={() => setSeg(k)}
-            style={{ border: 'none', cursor: 'pointer', borderRadius: 999, padding: '7px 16px', fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit',
-              background: seg === k ? 'var(--card)' : 'transparent', color: seg === k ? 'var(--ink)' : 'var(--muted)', boxShadow: seg === k ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
+      {/* ── filter · title · sort ───────────────────────────────────────── */}
+      <div className="market-bar">
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+          <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the shelf"
+            placeholder="Search name, brand or ingredient"
+            style={{ width: '100%', maxWidth: 260, border: '1px solid var(--line)', borderRadius: 999, padding: '8px 14px', fontSize: 12.5, fontFamily: 'inherit', background: 'var(--paper)', color: 'var(--ink)', outline: 'none' }} />
+        </div>
+
+        <h1 style={{ fontSize: 19, margin: 0, textAlign: 'center', fontWeight: 600 }}>{heading}</h1>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center' }}>
+          <label className="muted" style={{ fontSize: 11.5 }} htmlFor="market-sort">Sort by</label>
+          <select id="market-sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}
+            style={{ border: '1px solid var(--line)', borderRadius: 999, padding: '7px 12px', fontSize: 12.5, fontFamily: 'inherit', background: 'var(--paper)', color: 'var(--ink)', outline: 'none' }}>
+            {SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '0 0 20px' }}>
+        {[['', `Everything ${inSegment.length}`] as [string, string],
+          ...categories.map(([c, n]) => [c, `${c} ${n}`] as [string, string])].map(([value, label]) => (
+          <button key={value || 'all'} type="button" onClick={() => setCat(value)}
+            style={{ cursor: 'pointer', borderRadius: 999, padding: '6px 13px', fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
+              border: `1.5px solid ${cat === value ? 'var(--accent)' : 'var(--line)'}`,
+              background: cat === value ? 'var(--accent)' : 'transparent',
+              color: cat === value ? 'var(--on-accent)' : 'var(--ink-soft)' }}>
             {label}
           </button>
         ))}
@@ -138,31 +289,42 @@ export function Market() {
       {shown.length === 0 ? (
         <EmptyState
           icon="🧴"
-          title={`No ${seg} products yet`}
-          hint={products.data.allergyNotice
-            ? 'Everything on this shelf has an ingredient you told us to avoid.'
-            : 'Set your profile to personalise this shelf.'}
+          title="Nothing here"
+          hint={q.trim()
+            ? `Nothing on this shelf matches “${q.trim()}”. Try a brand, or an ingredient like niacinamide.`
+            : products.data.allergyNotice
+              ? 'Everything in this part of the shelf has an ingredient you told us to avoid.'
+              : 'Nothing in this part of the shelf yet.'}
         />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-          {shown.map((p) => (
-            <ProductCard key={p.id} p={p} qty={bag[p.id] ?? 0} onAdd={() => add(p.id)} onRemove={() => remove(p.id)} />
-          ))}
-        </div>
+        sections.map((s) => (
+          <section key={s.title || 'all'} style={{ marginBottom: 26 }}>
+            {s.title && (
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, borderBottom: '1px solid var(--line)', paddingBottom: 7, marginBottom: 16 }}>
+                <h2 style={{ fontSize: 12, margin: 0, textTransform: 'uppercase', letterSpacing: '.11em' }}>{s.title}</h2>
+                <span className="muted" style={{ fontSize: 11.5 }}>{s.rows.length}</span>
+              </div>
+            )}
+            <div className="market-grid">
+              {s.rows.map((p) => (
+                <Tile key={p.id} p={p} inRoutine={routineBands.get(p.id) ?? []}
+                  qty={bag[p.id] ?? 0} onAdd={() => add(p.id)} onRemove={() => remove(p.id)} />
+              ))}
+            </div>
+          </section>
+        ))
       )}
 
       {items.length > 0 && (
         <div className="card" style={{ position: 'sticky', bottom: 16, marginTop: 20, display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 8px 30px rgba(0,0,0,.12)' }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>{items.reduce((s, i) => s + i.qty, 0)} items · ₹{total}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{bagCount} item{bagCount === 1 ? '' : 's'} · ₹{total.toLocaleString('en-IN')}</div>
             <div className="muted" style={{ fontSize: 12 }}>{items.map((i) => `${i.name}${i.qty > 1 ? ` ×${i.qty}` : ''}`).join(', ')}</div>
           </div>
           <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-            {placed ? (
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--accent-ink)' }}>✓ Paid</span>
-            ) : (
-              <Button variant="accent" onClick={() => setPayOpen(true)}>Checkout · ₹{total}</Button>
-            )}
+            {placed
+              ? <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--accent-ink)' }}>✓ Paid</span>
+              : <Button variant="accent" onClick={() => setPayOpen(true)}>Checkout · ₹{total.toLocaleString('en-IN')}</Button>}
           </div>
         </div>
       )}
@@ -170,7 +332,7 @@ export function Market() {
       <PaymentSheet
         open={payOpen}
         amountInr={total}
-        label={`Beauty market · ${items.reduce((s, i) => s + i.qty, 0)} items`}
+        label={`Beauty market · ${bagCount} item${bagCount === 1 ? '' : 's'}`}
         pending={place.isPending}
         error={place.isError ? payError(place.error) : null}
         onCancel={() => setPayOpen(false)}
