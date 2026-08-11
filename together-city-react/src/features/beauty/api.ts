@@ -130,8 +130,20 @@ export interface CategoryPlan {
   skipped: boolean;
   monthlyInr: number;
   remainingInr: number;
+  /** How far past the budget the routine went, inside the 5% headroom the
+   *  planner is allowed for a meaningfully better match. Usually zero. */
+  overInr: number;
+  /** B × 0.90. Under this the routine is lean and `leanReason` says why. */
+  targetLowInr: number;
+  /** B × 1.05 — the hard stop. Nothing is ever chosen that crosses it. */
+  ceilingInr: number;
   /** Only when the budget cannot carry the essentials: what it would take. */
   minimumInr: number | null;
+  /** The best compatible routine, when it costs more than the ceiling allows.
+   *  A question to put to the citizen, never a change made for them. */
+  idealInr: number | null;
+  /** Why the routine stopped under its target, when it did. */
+  leanReason: string | null;
   picks: RoutinePick[];
   leftOut: { role: string; tier: RoutineTier; why: string }[];
   upgrades: RoutinePick[];

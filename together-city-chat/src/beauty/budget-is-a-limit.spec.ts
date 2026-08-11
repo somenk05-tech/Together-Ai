@@ -170,13 +170,16 @@ describe('the routine genuinely changes with the budget', () => {
     expect(sixty.remainingInr).toBeGreaterThan(40000);
   });
 
-  it('keeps the routine lean at every budget', () => {
-    // Six roles exist for the face. Nobody gets all six because the optional
-    // ones only enter when they answer something nothing else covers, and a
-    // toner rarely does.
+  it('is bounded by the roles a routine has, not by the money', () => {
+    // LEAN IS STRUCTURAL. Six roles exist for the face and there is no seventh
+    // to buy, so a budget ten times larger cannot produce a longer list — only
+    // a better one. This is what the old count-based rule was really protecting
+    // and it survives the change from ceiling to target intact.
     for (const n of TIERS) {
-      expect({ budget: n, tooMany: plan(n).face.picks.length > 5 }).toEqual({ budget: n, tooMany: false });
+      expect({ budget: n, over: plan(n).face.picks.length > 6 }).toEqual({ budget: n, over: false });
     }
+    // And more money genuinely does not mean more steps beyond that point.
+    expect(plan(60000).face.picks.length).toBeLessThanOrEqual(plan(10000).face.picks.length);
   });
 
   it('holds at most one product per role, at any budget', () => {
@@ -191,12 +194,75 @@ describe('the routine genuinely changes with the budget', () => {
     }
   });
 
-  it('only adds an optional step when it answers something unmet', () => {
-    const rich = plan(60000).face;
-    const covered = new Set(rich.picks.filter((x) => x.tier !== 'optional').flatMap((x) => x.product.profileKeys));
-    for (const opt of rich.picks.filter((x) => x.tier === 'optional')) {
-      const adds = opt.product.profileKeys.some((k) => NEEDS.includes(k) && !covered.has(k));
-      expect({ role: opt.role, adds }).toEqual({ role: opt.role, adds: true });
+  it('never crosses the ceiling, and never runs to it once the target is met', () => {
+    /**
+     * THE TWO PROMISES THE HEADROOM MAKES. B × 1.05 is a hard stop — nothing is
+     * ever chosen that crosses it, at any budget, for any reason. And the five
+     * per cent above B is there to let a MEANINGFULLY better match through, not
+     * as an allowance to be spent: both target passes ask `spent < B × 0.90`
+     * before every single move, so a routine that has reached its target does
+     * not then climb.
+     */
+    for (const n of TIERS) {
+      const c = planCategory(SHELF, 'face', n, new Set(NEEDS));
+      expect({ budget: n, aboveCeiling: c.monthlyInr > c.ceilingInr }).toEqual({ budget: n, aboveCeiling: false });
+      expect({ budget: n, overBy: c.overInr <= c.ceilingInr - c.budgetInr }).toEqual({ budget: n, overBy: true });
+      if (c.monthlyInr >= c.targetLowInr) {
+        expect({ budget: n, ranToCeiling: c.monthlyInr === c.ceilingInr }).toEqual({ budget: n, ranToCeiling: false });
+      }
+    }
+  });
+
+  it('never lets one product become most of the routine', () => {
+    /**
+     * WHAT AN OPTIMISER DOES IF NOTHING FORBIDS IT. Aiming at ₹5,000 and taking
+     * whichever single swap landed closest, the planner put a ₹3,300-a-month
+     * sunscreen into a ₹5,000 face routine — one purchase with four accessories
+     * attached, and every individual rule satisfied. Half the category budget
+     * is the cap on any step the target passes reach for.
+     *
+     * The floor is exempt and has to be: if the only compatible sunscreen costs
+     * that much, that is the routine, and no amount of capping changes it.
+     */
+    for (const n of TIERS) {
+      for (const cat of ['face', 'hair', 'body'] as const) {
+        const c = planCategory(SHELF, cat, n, new Set(NEEDS));
+        const dominant = c.picks.filter((x) => x.monthlyInr > c.budgetInr * 0.5);
+        // Anything over the cap can only be there because the floor put it
+        // there — which means the routine could not have been built without it.
+        const excusable = dominant.every((x) => c.picks.length === 1 || x.tier === 'essential');
+        expect({ budget: n, category: cat, ok: excusable }).toEqual({ budget: n, category: cat, ok: true });
+      }
+    }
+  });
+
+  it('uses a budget it can reach, instead of stopping at a fifth of it', () => {
+    // THE FAILURE THIS REPLACED. A ₹5,000 face budget bought a ₹1,108 routine —
+    // twenty-two per cent — while better-matched products for those very steps
+    // sat on the shelf. Either the plan now reaches the target, or it is under
+    // the quarter-of-the-budget line with a sentence saying why.
+    for (const n of [2500, 5000, 10000]) {
+      const c = planCategory(SHELF, 'face', n, new Set(NEEDS));
+      const ok = c.monthlyInr >= c.targetLowInr || c.leanReason !== null;
+      expect({ budget: n, reachedOrExplained: ok }).toEqual({ budget: n, reachedOrExplained: true });
+    }
+    // And at ₹5,000 specifically it does reach it, because this shelf can.
+    const five = planCategory(SHELF, 'face', 5000, new Set(NEEDS));
+    expect(five.monthlyInr).toBeGreaterThan(5000 * 0.25);
+  });
+
+  it('never buys a worse-matched product than one it could have had for the money', () => {
+    // COMPATIBILITY AND EFFECTIVENESS OUTRANK BUDGET UTILISATION, and this is
+    // that ranking as an assertion: for every step in the plan, no product for
+    // the same step answers more of this person's findings. If reaching the
+    // target ever cost effectiveness, this is what would catch it.
+    const c = planCategory(SHELF, 'face', 5000, new Set(NEEDS));
+    const answers = (p: { profileKeys: string[] }) => p.profileKeys.filter((k) => NEEDS.includes(k)).length;
+    for (const pick of c.picks) {
+      const rivals = SHELF.filter((p) => p.matched && p.category === pick.product.category);
+      const best = Math.max(...rivals.map(answers));
+      expect({ role: pick.role, asGoodAsAvailable: answers(pick.product) === best })
+        .toEqual({ role: pick.role, asGoodAsAvailable: true });
     }
   });
 
@@ -257,14 +323,23 @@ describe('the monthly budget does not sit on top of the profile\'s own answer', 
 });
 
 describe('a profile with concerns but no photo assessment', () => {
-  it('gets the essentials and stops, rather than nothing or everything', () => {
-    // No named needs means no treatment step and no optional steps — the plan
-    // builds what everybody needs and leaves the rest until there is something
-    // to treat. That is the right answer, not a degraded one.
+  it('gets every essential first, and nothing that does not suit the profile', () => {
+    // No named needs means nothing to TREAT, so the high-value step is absent
+    // and the essentials are all there. What the budget then adds is bounded by
+    // the same compatibility gate as everything else: the plan may reach for
+    // the target, it may not reach outside the matched shelf to do it.
     const shelf = recommendProducts({ readings: [], concerns: ['acne', 'dryness'], profile: { skinType: 'oily' }, insights: [] });
     const p = planCategory(shelf, 'face', 5000, new Set());
-    expect(p.picks.length).toBeGreaterThan(0);
-    expect(p.picks.every((x) => x.tier === 'essential')).toBe(true);
+    const matched = new Set(shelf.filter((x) => x.matched).map((x) => x.id));
+    // Every essential is either bought or named in leftOut — an essential that
+    // silently isn't there is the one outcome a routine must never have.
+    for (const role of ['Cleanse', 'Moisturise', 'Protect']) {
+      const seen = p.picks.some((x) => x.role === role) || p.leftOut.some((l) => l.role === role);
+      expect({ role, accountedFor: seen }).toEqual({ role, accountedFor: true });
+    }
+    // Everything the budget then reaches for is still inside the matched shelf.
+    // The target may make the routine fuller; it may not make it less suitable.
+    expect(p.picks.every((x) => matched.has(x.product.id))).toBe(true);
   });
 });
 

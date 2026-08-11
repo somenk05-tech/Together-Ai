@@ -230,12 +230,14 @@ function BudgetCard(
   { c: CategoryPlan; kept: boolean; onKeep: () => void; onRaise: (n: number) => void; raising: boolean },
 ) {
   const meta = CATEGORY[c.category];
-  const pct = c.budgetInr > 0 ? Math.min(100, Math.round((c.monthlyInr / c.budgetInr) * 100)) : 0;
+  // The REAL percentage, which can pass 100 — the fill is capped, the number is
+  // not. A bar that stops at full while the figure says 102% is a bar telling
+  // the truth; a figure clamped to 100 would be the page hiding the headroom it
+  // just used.
+  const pct = c.budgetInr > 0 ? Math.round((c.monthlyInr / c.budgetInr) * 100) : 0;
   const short = c.minimumInr !== null && !kept;
-  // "Room to spare" is a quarter of the budget or ₹400, whichever is more —
-  // below that it is rounding, and saying "you have ₹90 left" about a routine
-  // that is right is noise dressed up as insight.
-  const spare = c.remainingInr >= Math.max(400, c.budgetInr * 0.25);
+  const ideal = c.idealInr !== null && !kept && !short;
+  const ask = short ? (c.minimumInr as number) : ideal ? (c.idealInr as number) : null;
 
   return (
     <section className="card" style={{ margin: 0, minWidth: 0 }}>
@@ -255,12 +257,25 @@ function BudgetCard(
       </dl>
 
       <div aria-hidden style={{ height: 6, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', margin: '12px 0 7px' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 999 }} />
+        <div style={{ width: `${Math.min(100, pct)}%`, height: '100%', background: 'var(--accent)', borderRadius: 999 }} />
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <span className="muted" style={{ fontSize: 11.5 }}>{pct}% of your {meta.label.toLowerCase()} budget</span>
-        <span style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 700 }}>{rupees(c.remainingInr)} remaining</span>
+        <span style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 700 }}>
+          {c.overInr > 0 ? `${rupees(c.overInr)} above budget` : `${rupees(c.remainingInr)} remaining`}
+        </span>
       </div>
+      {/* THE ONLY TIME THIS ROUTINE COSTS MORE THAN THE NUMBER SOMEBODY SET, and
+          it is said out loud rather than absorbed. The planner may go up to five
+          per cent over when that buys a meaningfully better-matched product, and
+          never a rupee further — so the sentence explains the overrun instead of
+          apologising for it. */}
+      {c.overInr > 0 && (
+        <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.55, margin: '7px 0 0' }}>
+          {rupees(c.overInr)} over the {rupees(c.budgetInr)} you set — we allow up to five per cent
+          when it buys a better match for your {meta.label.toLowerCase()}, and never more than that.
+        </p>
+      )}
 
       {/* WHAT IS NOT HERE, AND WHY — before the ask, not after it. These are
           the sentences that turn a short list into a reasoned one: "you don't
@@ -275,27 +290,46 @@ function BudgetCard(
         </ul>
       )}
 
-      {short && c.minimumInr !== null && (
+      {/* TWO ASKS, NEVER BOTH, AND NEITHER EVER ACTS ON ITS OWN.
+          · SHORT — the budget will not carry the essentials, and the figure that
+            would is offered.
+          · IDEAL — the budget carries a routine, but the best compatible one
+            costs more than the five per cent headroom permits. Crossing that is
+            the citizen's decision and they make it by moving the number.
+          Both doors are spelled out with the amount on them. "Keep ₹1,000" is a
+          real answer and it is the one that costs nothing. */}
+      {ask !== null && (
         <div style={{ marginTop: 14, background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', borderRadius: 10, padding: '11px 13px' }}>
           <p style={{ fontSize: 12.5, lineHeight: 1.6, margin: 0 }}>
-            {rupees(c.budgetInr)} a month won&rsquo;t carry the full base for your {meta.label.toLowerCase()} —
-            the essentials come to about <strong>{rupees(c.minimumInr)}/month</strong> together. We&rsquo;ve built
-            what fits and put the most important steps in first. Nothing has been changed on your behalf.
+            {short ? (
+              <>
+                {rupees(c.budgetInr)} a month won&rsquo;t carry the full base for your {meta.label.toLowerCase()} —
+                the essentials come to about <strong>{rupees(ask)}/month</strong> together. We&rsquo;ve built
+                what fits and put the most important steps in first. Nothing has been changed on your behalf.
+              </>
+            ) : (
+              <>
+                The best routine we can build for your {meta.label.toLowerCase()} comes
+                to <strong>{rupees(ask)}/month</strong>, above the {rupees(c.budgetInr)} you set. We&rsquo;ve
+                built the best one that fits instead — we won&rsquo;t go over your budget without asking.
+              </>
+            )}
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-            <Button variant="accent" size="sm" disabled={raising} onClick={() => onRaise(c.minimumInr as number)}>
-              {raising ? 'Saving…' : `Set ${rupees(c.minimumInr)}`}
+            <Button variant="accent" size="sm" disabled={raising} onClick={() => onRaise(ask)}>
+              {raising ? 'Saving…' : `Set ${rupees(ask)}`}
             </Button>
             <Button variant="line" size="sm" onClick={onKeep}>Keep {rupees(c.budgetInr)}</Button>
           </div>
         </div>
       )}
 
-      {!short && spare && (
-        <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '12px 0 0' }}>
-          Your {meta.label.toLowerCase()} routine is {rupees(c.monthlyInr)}/month. You have {rupees(c.remainingInr)} left,
-          and we don&rsquo;t recommend adding products simply to use it — more products is not better skin.
-        </p>
+      {/* WHY IT STOPPED SHORT OF THE BUDGET — the server's sentence, not one
+          written here. It is the plan explaining its own arithmetic: every
+          compatible step is already in, every step already holds the best
+          product for it, and the rest of the money buys nothing worth having. */}
+      {!short && c.leanReason && (
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '12px 0 0' }}>{c.leanReason}</p>
       )}
 
       {/* Offered, never taken. These are the products that would go in if the

@@ -89,8 +89,32 @@ describe('the routine sheet shows what it is spending', () => {
     expect(routine).toMatch(/Set \$\{rupees/);
   });
 
-  it('refuses to spend what is left just because it is there', () => {
-    expect(routine).toMatch(/don&rsquo;t recommend adding products simply to use it/);
+  it('explains a lean routine with the plan\'s own reason, not a written-here one', () => {
+    // The sentence belongs to the planner: it is the only thing that knows
+    // every compatible step is already in and every step already holds the best
+    // product for it. A cheerful line composed on this page would be a second
+    // claim about the same arithmetic, and the wrong one the day the planner
+    // changes.
+    expect(routine).toMatch(/c\.leanReason/);
+    expect(routine).not.toMatch(/don&rsquo;t recommend adding products/);
+  });
+
+  it('says out loud when the routine went over the number somebody set', () => {
+    // Five per cent of headroom exists for a meaningfully better match. Using
+    // it silently would make the budget advisory, which is the one thing it is
+    // not.
+    expect(routine).toMatch(/c\.overInr/);
+    expect(routine).toMatch(/above budget/);
+    // And the bar's fill is capped while the figure is not — a percentage
+    // clamped to 100 would hide the overrun the sentence just admitted.
+    expect(routine).toMatch(/Math\.min\(100, pct\)/);
+  });
+
+  it('asks before crossing the budget for a better routine', () => {
+    // `idealInr` is the best compatible routine when it costs more than the
+    // ceiling allows. Offered as a question with both amounts on the buttons.
+    expect(routine).toMatch(/c\.idealInr/);
+    expect(routine).toMatch(/won&rsquo;t go over your budget without asking/);
   });
 
   it('sends anyone changing a budget back to the one place it is set', () => {
