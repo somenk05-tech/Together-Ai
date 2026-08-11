@@ -190,8 +190,8 @@
    it is one rule rather than two so the letter's title and the same title in
    the archive cannot drift into different faces. relief.spec.ts grants this
    selector by name and asserts nothing else may borrow it. */
-.letter-title,
-.letter-archive-day .t { font-family: var(--press-serif); font-weight: 400; }
+/* The grant moved to the foot of this file when the routine masthead became
+   its third place — one rule, three selectors, so none of them can drift. */
 .letter-title {
   font-size: clamp(36px, 4.4vw, 56px); line-height: 1.06; letter-spacing: -.01em;
   color: var(--letter-ink); margin: 0 0 46px; text-wrap: balance;
@@ -597,3 +597,36 @@
     transform: none;
   }
 }
+
+/* ══ THE ROUTINE SHEET ══════════════════════════════════════════════════════
+   Three rules, and they are here rather than inline for three different
+   reasons. The serif is here because relief.spec grants the press's face BY
+   SELECTOR and cannot see an inline style. The two-column day is here because
+   it needs a breakpoint and a divider drawn between columns rather than around
+   them. The assurance strip is here because it is a four-up that has to become
+   a two-up on a phone. Everything else on that page stays inline, like the rest
+   of the beauty hub. */
+.routine-day {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0 26px;
+}
+/* The divider IS the composition: one hairline between morning and night is
+   what makes them read as two halves of a day rather than two lists that
+   happen to be adjacent. It is drawn on the second column so it never appears
+   above or below anything once they stack. */
+.routine-day > :nth-child(2) { border-left: 1px solid var(--line); padding-left: 26px; }
+@media (max-width: 860px) {
+  .routine-day { grid-template-columns: 1fr; gap: 22px; }
+  .routine-day > :nth-child(2) { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 18px; }
+}
+
+.routine-assure {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 18px;
+}
+@media (max-width: 720px) { .routine-assure { grid-template-columns: repeat(2, 1fr); } }
+
+/* THE THIRD AND LAST BORROWER OF THE DISPLAY SERIF. See relief.spec assertion
+   4 — the face is the nutrition press's, lent to the letter's title and now to
+   this masthead, each by name and each with a reason. */
+.letter-title,
+.letter-archive-day .t,
+.routine-display { font-family: var(--press-serif); font-weight: 400; }

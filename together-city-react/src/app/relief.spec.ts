@@ -566,11 +566,14 @@ describe('Relief stays a system', () => {
    * alternative was a fourth font file for a single line of text on two pages.
    *
    * That makes it a narrower grant than the three above and it is checked more
-   * narrowly too — assertion 4 names the one selector allowed to borrow the
-   * face and fails on a second. It is ONE selector with two places in it,
-   * deliberately: `.letter-title` and the same title listed in the archive are
-   * the same object on two surfaces, and setting the face once is what stops
-   * them drifting into different ones. The three press wearers are listed by FILE
+   * narrowly too — assertion 4 names the selector allowed to borrow the face
+   * and fails on anything else. It is ONE selector with three places in it,
+   * deliberately, and they are not three decisions: `.letter-title` and the
+   * same title listed in the archive are the same object on two surfaces, and
+   * `.routine-display` is the beauty routine's masthead — the one editorial
+   * title in that hub, from the reference the owner supplied, whose whole
+   * character is this face against the sans. Setting it once is what stops the
+   * three drifting apart. The three press wearers are listed by FILE
    * because they switch a whole surface on; this one is listed by SELECTOR
    * because it borrows a typeface. If a fifth thing wants the serif it needs
    * its own line here, its own reason, and its own entry in that list.
@@ -622,8 +625,8 @@ describe('Relief stays a system', () => {
       }
     }
     const borrowed = serifReaders.filter((sel) => !/\.press-|\[data-press\]/.test(sel));
-    expect(borrowed, 'only the letter title may borrow the display serif')
-      .toEqual(['.letter-title,\n.letter-archive-day .t']);
+    expect(borrowed, 'the display serif is lent by name, and this is the list')
+      .toEqual(['.letter-title,\n.letter-archive-day .t,\n.routine-display']);
   });
 
   /**

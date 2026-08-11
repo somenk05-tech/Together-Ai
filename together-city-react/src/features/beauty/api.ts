@@ -55,6 +55,11 @@ export interface InsightsResponse {
 }
 export interface RecommendedProduct {
   id: string; name: string; brand: string; category: string; priceInr: number; tags: string[];
+  /** 'Skincare' | 'Hair Care' | 'Body Care', and the sheet's own price grade. */
+  group: string; tier: string;
+  /** Two retailers' photographs and the page it is sold on. Both images are
+   *  hotlinked, so either may fail. */
+  image: string; imageAlt: string; productUrl: string;
   blurb: string; keyIngredient: string; actives: string[]; usage: string; suitableSkin: string[];
   matched: boolean; matchScore: number;
   primaryReasons: string[]; biomarkerReasons: string[]; explanation: string;
@@ -75,10 +80,14 @@ export interface ProductsResponse {
 export interface ProductRoutineStep {
   order: number; step: string; productId: string; name: string; brand: string;
   category: string; keyIngredient: string; priceInr: number;
+  /** Two hotlinked photographs and the page it is sold on. Either image can be
+   *  empty and either can simply fail — the step falls through to the second
+   *  and then to a category mark rather than showing a broken frame. */
+  image: string; imageAlt: string; productUrl: string;
   instructions: string; frequency: string; warnings: string[];
 }
 export interface ProductRoutine {
-  timeOfDay: 'morning' | 'evening' | 'weekly';
+  timeOfDay: 'morning' | 'evening' | 'weekly' | 'body';
   title: string;
   steps: ProductRoutineStep[];
   notes: string[];
