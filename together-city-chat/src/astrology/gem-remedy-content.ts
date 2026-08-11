@@ -1,4 +1,5 @@
 import type { DashaLord } from './personal-factors';
+import { WEARING } from './gems/wearing';
 
 /**
  * Gemstones and remedies — the Astrology Zone's third and fourth surfaces.
@@ -38,56 +39,56 @@ export interface GemEntry {
 
 export const GEM_CATALOG: Record<DashaLord, GemEntry> = {
   Sun: {
-    lord: 'Sun', stone: 'Ruby', alternatives: ['Red spinel', 'Garnet'], metal: 'Gold or copper', finger: 'Ring finger',
-    beginOn: 'Sunday',
+    lord: 'Sun', stone: 'Ruby', alternatives: ['Red spinel', 'Garnet'], metal: WEARING.sun.metal, finger: WEARING.sun.finger,
+    beginOn: WEARING.sun.day,
     intention: 'You may find it easier to be seen as you actually are — to take a little more room, and to let what you have built be visible rather than quietly assumed.',
     caution: 'Traditionally considered strong. Many people begin with a smaller stone and sit with it for a season.',
   },
   Moon: {
-    lord: 'Moon', stone: 'Natural pearl', alternatives: ['Moonstone'], metal: 'Silver', finger: 'Little finger',
-    beginOn: 'Monday',
+    lord: 'Moon', stone: 'Natural pearl', alternatives: ['Moonstone'], metal: WEARING.moon.metal, finger: WEARING.moon.finger,
+    beginOn: WEARING.moon.day,
     intention: 'A steadier inner weather tends to be the aim here — sleeping properly, feeling less at the mercy of a passing mood, and being easier company for yourself.',
     caution: 'Pearls are soft and dislike perfume, heat and household cleaners. They need gentle handling.',
   },
   Mars: {
-    lord: 'Mars', stone: 'Red coral', alternatives: ['Carnelian'], metal: 'Copper, silver or gold', finger: 'Ring finger',
-    beginOn: 'Tuesday',
+    lord: 'Mars', stone: 'Red coral', alternatives: ['Carnelian'], metal: WEARING.mars.metal, finger: WEARING.mars.finger,
+    beginOn: WEARING.mars.day,
     intention: 'Useful when what you want is not more energy but steadier energy — finishing the thing rather than starting a fourth, and holding your position without heat.',
     caution: 'Traditionally warming. Often avoided by those who already run hot-tempered or restless.',
   },
   Mercury: {
-    lord: 'Mercury', stone: 'Emerald', alternatives: ['Green tourmaline', 'Peridot'], metal: 'Gold or silver', finger: 'Little finger',
-    beginOn: 'Wednesday',
+    lord: 'Mercury', stone: 'Emerald', alternatives: ['Green tourmaline', 'Peridot'], metal: WEARING.mercury.metal, finger: WEARING.mercury.finger,
+    beginOn: WEARING.mercury.day,
     intention: 'Clearer thinking and clearer speaking — being understood the first time, and keeping hold of detail that has been slipping.',
     caution: 'Emeralds are commonly treated and frequently included; buy certified or not at all.',
   },
   Jupiter: {
-    lord: 'Jupiter', stone: 'Yellow sapphire', alternatives: ['Citrine', 'Topaz'], metal: 'Gold', finger: 'Index finger',
-    beginOn: 'Thursday',
+    lord: 'Jupiter', stone: 'Yellow sapphire', alternatives: ['Citrine', 'Topaz'], metal: WEARING.jupiter.metal, finger: WEARING.jupiter.finger,
+    beginOn: WEARING.jupiter.day,
     intention: 'Room to grow into — study, teaching, mentors, and the kind of decisions that only make sense over years rather than weeks.',
     caution: 'Widely worn and generally considered gentle. Certification still matters at this price.',
   },
   Venus: {
-    lord: 'Venus', stone: 'Diamond', alternatives: ['White sapphire', 'Zircon'], metal: 'Silver, platinum or gold', finger: 'Middle finger',
-    beginOn: 'Friday',
+    lord: 'Venus', stone: 'Diamond', alternatives: ['White sapphire', 'Zircon'], metal: WEARING.venus.metal, finger: WEARING.venus.finger,
+    beginOn: WEARING.venus.day,
     intention: 'Comfort, beauty and companionship — allowing ease without guilt, and letting relationships be pleasant rather than only useful.',
     caution: 'The costliest option by far. A white sapphire is the traditional substitute and is not a lesser choice.',
   },
   Saturn: {
-    lord: 'Saturn', stone: 'Blue sapphire', alternatives: ['Amethyst', 'Lapis lazuli'], metal: 'Silver or iron', finger: 'Middle finger',
-    beginOn: 'Saturday',
+    lord: 'Saturn', stone: 'Blue sapphire', alternatives: ['Amethyst', 'Lapis lazuli'], metal: WEARING.saturn.metal, finger: WEARING.saturn.finger,
+    beginOn: WEARING.saturn.day,
     intention: 'Structure that holds — patience with slow things, keeping promises to yourself, and the discipline that makes freedom possible later.',
     caution: 'Traditionally the most cautioned stone of all: wear it on trial for a few days before committing.',
   },
   Rahu: {
-    lord: 'Rahu', stone: 'Hessonite garnet', alternatives: ['Smoky quartz'], metal: 'Silver', finger: 'Middle finger',
-    beginOn: 'Saturday',
+    lord: 'Rahu', stone: 'Hessonite garnet', alternatives: ['Smoky quartz'], metal: WEARING.rahu.metal, finger: WEARING.rahu.finger,
+    beginOn: WEARING.rahu.day,
     intention: 'Steadiness when things feel unusually fast or unusually strange — separating what is genuinely new from what is merely loud.',
     caution: 'Traditionally cautioned. Begin on trial rather than committing outright.',
   },
   Ketu: {
-    lord: 'Ketu', stone: "Cat's eye", alternatives: ['Chrysoberyl'], metal: 'Silver', finger: 'Little finger',
-    beginOn: 'Thursday',
+    lord: 'Ketu', stone: "Cat's eye", alternatives: ['Chrysoberyl'], metal: WEARING.ketu.metal, finger: WEARING.ketu.finger,
+    beginOn: WEARING.ketu.day,
     intention: 'Letting go of what is finished — closing chapters cleanly, and being less troubled by what other people make of you.',
     caution: 'Traditionally cautioned. Begin on trial rather than committing outright.',
   },

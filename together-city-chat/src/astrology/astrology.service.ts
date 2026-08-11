@@ -12,7 +12,8 @@ import { letterPrompt, letterProblems, letterRules, titleProblems, toLetter, typ
 import { answerProblems, consultationPrompt, consultationRules } from './consultation';
 import { PACK_SIZE, priceForNextQuestion, quotaFor, type QuestionQuota } from './question-quota';
 import { computeNumerology, vimshottariDasha } from './personal-factors';
-import { buildGemGuidance, buildRemedies } from './gem-remedy-content';
+import { GEM_DISCLAIMER, buildGemGuidance, buildRemedies } from './gem-remedy-content';
+import { recommendGems } from './gems/gem-recommend';
 import { healthFlagsFor } from './health-flags';
 import { firstNameOf } from './voice';
 
@@ -456,6 +457,43 @@ export class AstrologyService {
     const chart = this.chartOf(row);
     const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
     return { needsProfile: false as const, ...buildGemGuidance({ maha: dasha.maha, antar: dasha.antar }) };
+  }
+
+  /**
+   * The gem marketplace's opening question: which stones does this chart call
+   * for?
+   *
+   * ONE ENGINE ANSWERS "WHICH STONE", AND IT IS THIS ONE. `gems()` above still
+   * exists and still serves the remedies page, but that page no longer shows
+   * stones — it kept the practices and handed the stones to the marketplace.
+   * Two surfaces prescribing from two different readings was the arrangement
+   * before this, and it worked only because one of them had no way in.
+   *
+   * Everything fed in is already computed elsewhere: the ascendant and moon
+   * rashi by the chart engine, the running period by Vimshottari, the life path
+   * by numerology. Nothing new is asked of the citizen — the birth details they
+   * entered once are the whole input.
+   */
+  async gemstones(userId: string) {
+    const row = await this.requireProfile(userId);
+    if (!row) return { needsProfile: true as const };
+    const local = this.userNow(row);
+    const chart = this.chartOf(row);
+    const dasha = vimshottariDasha(chart.moon.lon, row.birthDate, local);
+    const num = computeNumerology(row.birthDate, local);
+    return {
+      needsProfile: false as const,
+      ...recommendGems({
+        // Null without a birth time, and the recommender treats that as a
+        // different answer rather than a degraded one.
+        ascendant: chart.ascendant?.sign ?? null,
+        moonSign: chart.moon.sign,
+        mahadasha: dasha.maha,
+        antardasha: dasha.antar,
+        lifePath: num.lifePath,
+      }),
+      disclaimer: GEM_DISCLAIMER,
+    };
   }
 
   /**

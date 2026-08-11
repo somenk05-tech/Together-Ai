@@ -1,0 +1,1094 @@
+{
+  "version": 1,
+  "purpose": "Presentation-layer card database for the Together City gemstone marketplace. One card per stone, styled after the editorial reference (arched trait words over the stone, serif display name, soft description). Joins to gemstones.json on id/sku.",
+  "imageNote": "Images live at /assets/gems/<id>.webp (real photography, white/near-white backgrounds). Cards render on pure white so the photos merge seamlessly; use mix-blend-mode:multiply on the img for off-white photo edges.",
+  "cardAnatomy": {
+    "badge": "Card number in a thin circle (optional, as in reference 2/3)",
+    "traitArc": "Three keywords arched over the stone image, letter-spaced uppercase",
+    "displayName": "Stone name, wide-tracked serif/display capitals",
+    "description": "2–4 warm sentences, 'believed to' hedging — no medical or financial claims",
+    "theme": "background / title / body / accent hex tokens per card"
+  },
+  "cards": [
+    {
+      "number": 1,
+      "id": "ruby",
+      "sku": "TC-GEM-001",
+      "displayName": "RUBY",
+      "planet": "sun",
+      "numerologyNumber": 1,
+      "traits": [
+        "Vitality",
+        "Courage",
+        "Passion"
+      ],
+      "description": "The king of gems glows with a fire all its own. Ruby is believed to kindle confidence, courage, and the warmth of true leadership — a stone for those ready to step into the light and be seen.",
+      "image": {
+        "src": "/assets/gems/ruby.webp",
+        "alt": "Faceted oval pigeon-blood ruby on a soft blush background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#5C1A1A",
+        "body": "#8A7370",
+        "accent": "#B3202E"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 8000,
+        "max": 25000,
+        "tier": "standard",
+        "display": "₹8,000 – ₹25,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Wearers traditionally describe a slow build of warmth and self-assurance — speaking up comes easier, mornings feel more decisive, and there is a new willingness to be seen and to lead rather than wait.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "Its planet is the Sun — soul, authority, vitality, and the father in the kundali. It is prescribed to strengthen a favourable Sun, never to pacify an afflicted one. In this marketplace it is recommended as Life Stone for Leo lagna, as Fortune Stone for Sagittarius lagna, for a Leo Moon sign, during Sun mahadasha, and for number 1 in numerology."
+    },
+    {
+      "number": 2,
+      "id": "pearl",
+      "sku": "TC-GEM-002",
+      "displayName": "PEARL",
+      "planet": "moon",
+      "numerologyNumber": 2,
+      "traits": [
+        "Serenity",
+        "Purity",
+        "Intuition"
+      ],
+      "description": "Born of moonlit waters, the pearl carries a quiet, luminous calm. It is believed to soothe the mind, steady the emotions, and deepen intuition — a gentle companion for restful nights and clear mornings.",
+      "image": {
+        "src": "/assets/gems/pearl.webp",
+        "alt": "Lustrous white pearl with rose overtone on an ivory silk background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#3E4450",
+        "body": "#8B8F98",
+        "accent": "#C9CDD6"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 1500,
+        "max": 4000,
+        "tier": "standard",
+        "display": "₹1,500 – ₹4,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Most report a cooling of the temper first: sleep deepens, reactions soften, and emotional highs and lows level into a steadier, kinder calm within the first weeks.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "Its planet is the Moon — the mind itself in Jyotish, ruling emotion, memory, and the mother. It is prescribed when the Moon is favourable but weak, to nourish rather than excite. In this marketplace it is recommended as Life Stone for Cancer lagna, as Fortune Stone for Scorpio lagna, for a Cancer Moon sign, during Moon mahadasha, and for number 2 in numerology."
+    },
+    {
+      "number": 3,
+      "id": "red-coral",
+      "sku": "TC-GEM-003",
+      "displayName": "RED CORAL",
+      "planet": "mars",
+      "numerologyNumber": 9,
+      "traits": [
+        "Courage",
+        "Energy",
+        "Protection"
+      ],
+      "description": "Grown slowly in deep Mediterranean waters, red coral carries the earth's own vermilion fire. It is believed to fuel courage and stamina and to stand guard over its wearer — a warrior's stone with an ancient heart.",
+      "image": {
+        "src": "/assets/gems/red-coral.webp",
+        "alt": "Polished ox-blood red coral cabochon on a warm sand background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#6B1F12",
+        "body": "#8F7A72",
+        "accent": "#D14A2E"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 2000,
+        "max": 5000,
+        "tier": "standard",
+        "display": "₹2,000 – ₹5,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "The classic report is raw energy — stamina returns, hesitation drops away, long-pending tasks finally get finished, and there is a feeling of being physically guarded and bold.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "Its planet is Mars — courage, land, brothers, and physical force. It is prescribed to empower a benefic Mars, and is the classic remedy considered in Mangal dosha. In this marketplace it is recommended as Life Stone for Aries/Scorpio lagna, as Fortune Stone for Leo/Pisces lagna, for a Aries/Scorpio Moon sign, during Mars mahadasha, and for number 9 in numerology."
+    },
+    {
+      "number": 4,
+      "id": "emerald",
+      "sku": "TC-GEM-004",
+      "displayName": "EMERALD",
+      "planet": "mercury",
+      "numerologyNumber": 5,
+      "traits": [
+        "Renewal",
+        "Harmony",
+        "Wisdom"
+      ],
+      "description": "The vibrant green of an emerald represents renewal and harmony. Favoured by clear minds and quick wits, it is believed to sharpen intellect and smooth the words we speak — timeless elegance with a bold pop of colour.",
+      "image": {
+        "src": "/assets/gems/emerald.webp",
+        "alt": "Cushion-cut vivid green emerald on a clean white background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#2E2A4F",
+        "body": "#9CA3AF",
+        "accent": "#0E9F6E"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 8000,
+        "max": 30000,
+        "tier": "standard",
+        "display": "₹8,000 – ₹30,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Thought and speech are said to sharpen together: words arrive more easily, negotiations and studies flow, memory feels crisper, and nervous restlessness settles.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "Its planet is Mercury — intellect, speech, trade, and nerves. It is prescribed when Mercury is a benefic for the chart, to sharpen rather than scatter. In this marketplace it is recommended as Life Stone for Gemini/Virgo lagna, as Fortune Stone for Libra/Capricorn lagna, for a Gemini/Virgo Moon sign, during Mercury mahadasha, and for number 5 in numerology."
+    },
+    {
+      "number": 5,
+      "id": "yellow-sapphire",
+      "sku": "TC-GEM-005",
+      "displayName": "YELLOW SAPPHIRE",
+      "planet": "jupiter",
+      "numerologyNumber": 3,
+      "traits": [
+        "Fortune",
+        "Wisdom",
+        "Grace"
+      ],
+      "description": "Golden as a Thursday sunrise, the yellow sapphire is the traditional stone of fortune and blessings. It is believed to open doors to prosperity, marriage, and wise counsel — the gem of a life touched by grace.",
+      "image": {
+        "src": "/assets/gems/yellow-sapphire.webp",
+        "alt": "Oval golden-yellow sapphire on a pale cream background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#6B4E0F",
+        "body": "#94886B",
+        "accent": "#D9A50D"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 10000,
+        "max": 30000,
+        "tier": "standard",
+        "display": "₹10,000 – ₹30,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Wearers speak of a quiet optimism and the sense of being supported — judgement improves, elders and mentors turn favourable, and stuck matters of marriage, wealth, or study begin to move.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "Its planet is Jupiter — the great benefic: wisdom, wealth, marriage, progeny, and one's teachers. It is prescribed to amplify Jupiter's grace where the chart welcomes it. In this marketplace it is recommended as Life Stone for Sagittarius/Pisces lagna, as Fortune Stone for Aries/Cancer lagna, for a Sagittarius/Pisces Moon sign, during Jupiter mahadasha, and for number 3 in numerology."
+    },
+    {
+      "number": 6,
+      "id": "diamond",
+      "sku": "TC-GEM-006",
+      "displayName": "DIAMOND",
+      "planet": "venus",
+      "numerologyNumber": 6,
+      "traits": [
+        "Brilliance",
+        "Love",
+        "Clarity"
+      ],
+      "description": "Nothing holds light like a diamond. The stone of enduring love and refined taste, it is believed to magnify charm, harmony, and the finer joys of life — brilliance you carry with you.",
+      "image": {
+        "src": "/assets/gems/diamond.webp",
+        "alt": "Round brilliant-cut colourless diamond on a white silk background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#374151",
+        "body": "#9CA3AF",
+        "accent": "#A5B4FC"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 150000,
+        "max": 400000,
+        "tier": "standard",
+        "display": "₹1,50,000 – ₹4,00,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "The traditional experience is one of magnetism — charm and grace come forward, relationships warm, the senses open to beauty and comfort, and life's finer pleasures feel closer.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "Its planet is Venus — love, luxury, arts, vehicles, and marital happiness. It is prescribed where Venus is a benefic, and for Taurus and Libra it is the life-giving gem. In this marketplace it is recommended as Life Stone for Taurus/Libra lagna, as Fortune Stone for Virgo/Aquarius lagna, for a Taurus/Libra Moon sign, during Venus mahadasha, and for number 6 in numerology."
+    },
+    {
+      "number": 7,
+      "id": "blue-sapphire",
+      "sku": "TC-GEM-007",
+      "displayName": "BLUE SAPPHIRE",
+      "planet": "saturn",
+      "numerologyNumber": 8,
+      "traits": [
+        "Wisdom",
+        "Faithfulness",
+        "Loyalty"
+      ],
+      "description": "Beloved for its rich depth and royal allure, the blue sapphire symbolises wisdom, loyalty, and faithfulness. The swiftest of the great gems, it is believed to reward discipline with sudden, decisive turns of fortune.",
+      "image": {
+        "src": "/assets/gems/blue-sapphire.webp",
+        "alt": "Oval royal-blue sapphire on a white silk background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#2E2A4F",
+        "body": "#9CA3AF",
+        "accent": "#2563EB"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 15000,
+        "max": 50000,
+        "tier": "standard",
+        "display": "₹15,000 – ₹50,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "The fastest-acting of all gems: within days wearers report either a surge of focus, discipline, and sudden opportunity — or discomfort, which is exactly why the 72-hour trial is mandatory before it is truly worn.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "Its planet is Saturn — karma, discipline, longevity, and the slow reward of labour. It is prescribed only after careful chart checking (hence the strict trial), most famously through sade-sati and Shani dasha. In this marketplace it is recommended as Life Stone for Capricorn/Aquarius lagna, as Fortune Stone for Taurus/Gemini lagna, for a Capricorn/Aquarius Moon sign, during Saturn mahadasha, and for number 8 in numerology."
+    },
+    {
+      "number": 8,
+      "id": "hessonite",
+      "sku": "TC-GEM-008",
+      "displayName": "HESSONITE",
+      "planet": "rahu",
+      "numerologyNumber": 4,
+      "traits": [
+        "Clarity",
+        "Focus",
+        "Breakthrough"
+      ],
+      "description": "Warm as wild honey, hessonite is the stone for minds clouded by too many directions. It is believed to cut through confusion, steady ambition, and turn obstacles into openings.",
+      "image": {
+        "src": "/assets/gems/hessonite.webp",
+        "alt": "Cushion-cut honey-cinnamon hessonite garnet on a warm taupe background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#5F3A12",
+        "body": "#93816F",
+        "accent": "#C97A1F"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 1000,
+        "max": 3000,
+        "tier": "standard",
+        "display": "₹1,000 – ₹3,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "The fog is the first thing to go, wearers say — confusion and anxious over-thinking thin out, obsessive worry loosens, and scattered ambitions line up behind one clear aim.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "Its planet is Rahu — the shadow node of obsession, foreign gains, and sudden turns. It is prescribed to steady Rahu's storms, especially through Rahu mahadasha. In this marketplace it is recommended during Rahu mahadasha, and for number 4 in numerology."
+    },
+    {
+      "number": 9,
+      "id": "cats-eye",
+      "sku": "TC-GEM-009",
+      "displayName": "CAT'S EYE",
+      "planet": "ketu",
+      "numerologyNumber": 7,
+      "traits": [
+        "Insight",
+        "Protection",
+        "Awakening"
+      ],
+      "description": "A single band of light moves across this stone like a watchful gaze. Cat's eye is believed to guard against the unseen, quicken intuition, and turn the mind toward what truly matters.",
+      "image": {
+        "src": "/assets/gems/cats-eye.webp",
+        "alt": "Chatoyant honey-green cat's eye chrysoberyl cabochon on a deep grey background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#3D3A2A",
+        "body": "#8C897B",
+        "accent": "#A3901F"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 4000,
+        "max": 15000,
+        "tier": "standard",
+        "display": "₹4,000 – ₹15,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Reports centre on sharpened instinct — a sense of being warned early, of seeing through people and situations, and a growing detachment from noise in favour of what genuinely matters.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "Its planet is Ketu — the node of detachment, moksha, and hidden matters. It is prescribed to channel Ketu's insight and shield its blind side, especially through Ketu mahadasha. In this marketplace it is recommended during Ketu mahadasha, and for number 7 in numerology."
+    },
+    {
+      "number": 10,
+      "id": "red-garnet",
+      "sku": "TC-GEM-010",
+      "displayName": "RED GARNET",
+      "planet": "sun",
+      "numerologyNumber": 1,
+      "traits": [
+        "Vitality",
+        "Devotion",
+        "Strength"
+      ],
+      "description": "Deep red and quietly steadfast, garnet has travelled with pilgrims and lovers for centuries. It is believed to renew energy, protect on journeys, and keep devotion burning steady.",
+      "image": {
+        "src": "/assets/gems/red-garnet.webp",
+        "alt": "Faceted deep-red garnet on a soft blush background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#5A1E24",
+        "body": "#8E7578",
+        "accent": "#9F2B3F"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 400,
+        "max": 1000,
+        "tier": "standard",
+        "display": "₹400 – ₹1,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "A gentler version of ruby's fire: steady physical energy, warmth in commitments, and a grounded confidence that builds gradually rather than in a rush.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Ruby, carrying the same planetary logic — its planet is the sun — at a fraction of the price. It is recommended to the same charts as Ruby (and for number 1) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 11,
+      "id": "sunstone",
+      "sku": "TC-GEM-011",
+      "displayName": "SUNSTONE",
+      "planet": "sun",
+      "numerologyNumber": 1,
+      "traits": [
+        "Optimism",
+        "Warmth",
+        "Self-Worth"
+      ],
+      "description": "Flecked with glittering light, sunstone carries a captured sunrise. It is believed to lift the spirits, restore self-belief, and warm every room you walk into.",
+      "image": {
+        "src": "/assets/gems/sunstone.webp",
+        "alt": "Glittering orange sunstone cabochon on a peach background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#7A3E14",
+        "body": "#98826F",
+        "accent": "#E8853C"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 300,
+        "max": 800,
+        "tier": "standard",
+        "display": "₹300 – ₹800 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Wearers describe the day simply feeling lighter — moods lift by mid-morning, self-worth steadies, and the tendency to talk oneself down quietly fades.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Ruby, carrying the same planetary logic — its planet is the sun — at a fraction of the price. It is recommended to the same charts as Ruby (and for number 1) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 12,
+      "id": "moonstone",
+      "sku": "TC-GEM-012",
+      "displayName": "MOONSTONE",
+      "planet": "moon",
+      "numerologyNumber": 2,
+      "traits": [
+        "Calm",
+        "Intuition",
+        "New Beginnings"
+      ],
+      "description": "A soft blue light drifts under its surface like moonlight on water. Moonstone is believed to calm restless emotions, invite intuition, and bless every new beginning.",
+      "image": {
+        "src": "/assets/gems/moonstone.webp",
+        "alt": "Blue-sheen moonstone cabochon on a misty grey background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#39415A",
+        "body": "#8B92A6",
+        "accent": "#7C9BD1"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 400,
+        "max": 1200,
+        "tier": "standard",
+        "display": "₹400 – ₹1,200 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Nights come first: sleep settles, dreams soften, and by day reactions to stress lose their edge — a gentler mirror of the pearl's calm.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Natural Pearl, carrying the same planetary logic — its planet is the moon — at a fraction of the price. It is recommended to the same charts as Natural Pearl (and for number 2) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 13,
+      "id": "carnelian",
+      "sku": "TC-GEM-013",
+      "displayName": "CARNELIAN",
+      "planet": "mars",
+      "numerologyNumber": 9,
+      "traits": [
+        "Boldness",
+        "Stamina",
+        "Motivation"
+      ],
+      "description": "The stone ancient builders wore to keep their hands steady and their will strong. Carnelian is believed to stoke motivation and bold action — momentum you can wear.",
+      "image": {
+        "src": "/assets/gems/carnelian.webp",
+        "alt": "Polished orange-red carnelian on a terracotta background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#77300F",
+        "body": "#977E6F",
+        "accent": "#D95B2A"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 150,
+        "max": 400,
+        "tier": "standard",
+        "display": "₹150 – ₹400 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "The signature feeling is ignition — procrastination gives way to starting, workouts and workdays hold their energy longer, and courage feels physical rather than forced.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Red Coral, carrying the same planetary logic — its planet is mars — at a fraction of the price. It is recommended to the same charts as Red Coral (and for number 9) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 14,
+      "id": "peridot",
+      "sku": "TC-GEM-014",
+      "displayName": "PERIDOT",
+      "planet": "mercury",
+      "numerologyNumber": 5,
+      "traits": [
+        "Growth",
+        "Positivity",
+        "Abundance"
+      ],
+      "description": "Born in fire and found in olive-bright green, peridot is the stone of fresh growth. It is believed to dissolve old resentments and make room for abundance and easy laughter.",
+      "image": {
+        "src": "/assets/gems/peridot.webp",
+        "alt": "Faceted olive-green peridot on a pale sage background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#3F5220",
+        "body": "#8A9378",
+        "accent": "#8DB030"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 1200,
+        "max": 3000,
+        "tier": "standard",
+        "display": "₹1,200 – ₹3,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Wearers report an unclenching of the heart — old grudges loosen, envy and irritation fade, and a fresh-start lightness colours decisions and friendships.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Emerald, carrying the same planetary logic — its planet is mercury — at a fraction of the price. It is recommended to the same charts as Emerald (and for number 5) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 15,
+      "id": "green-tourmaline",
+      "sku": "TC-GEM-015",
+      "displayName": "GREEN TOURMALINE",
+      "planet": "mercury",
+      "numerologyNumber": 5,
+      "traits": [
+        "Focus",
+        "Vitality",
+        "Balance"
+      ],
+      "description": "Cool, deep green with an electric heart, green tourmaline is believed to steady the nerves, sharpen focus, and return the body to its natural rhythm — clarity for the modern mind.",
+      "image": {
+        "src": "/assets/gems/green-tourmaline.webp",
+        "alt": "Elongated green tourmaline crystal on a soft grey-green background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#1F4A38",
+        "body": "#849188",
+        "accent": "#1E9E6A"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 1500,
+        "max": 4000,
+        "tier": "standard",
+        "display": "₹1,500 – ₹4,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Nerves settle and concentration deepens, wearers say — long work sessions stop fraying, and the body's rhythm of rest and effort finds its balance again.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Emerald, carrying the same planetary logic — its planet is mercury — at a fraction of the price. It is recommended to the same charts as Emerald (and for number 5) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 16,
+      "id": "jade",
+      "sku": "TC-GEM-016",
+      "displayName": "JADE",
+      "planet": "mercury",
+      "numerologyNumber": 5,
+      "traits": [
+        "Prosperity",
+        "Harmony",
+        "Luck"
+      ],
+      "description": "Treasured across dynasties as the stone of heaven, jade is believed to gather good fortune quietly and steadily — harmony for the home, luck for the hand that wears it.",
+      "image": {
+        "src": "/assets/gems/jade.webp",
+        "alt": "Smooth imperial-green jade cabochon on a celadon background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#26543B",
+        "body": "#84918A",
+        "accent": "#3B9E67"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 500,
+        "max": 2000,
+        "tier": "standard",
+        "display": "₹500 – ₹2,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "The change is quiet and cumulative: dealings smooth out, the home feels more harmonious, and money matters steady — less a jolt than a long, favourable current.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Emerald, carrying the same planetary logic — its planet is mercury — at a fraction of the price. It is recommended to the same charts as Emerald (and for number 5) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 17,
+      "id": "citrine",
+      "sku": "TC-GEM-017",
+      "displayName": "CITRINE",
+      "planet": "jupiter",
+      "numerologyNumber": 3,
+      "traits": [
+        "Radiance",
+        "Happiness",
+        "Awareness"
+      ],
+      "description": "Citrine is a powerful stone for manifesting wealth and success, infusing your life with light and happiness. It is believed to attract prosperity and promote self-confidence, making it the perfect companion for your daily adventures.",
+      "image": {
+        "src": "/assets/gems/citrine.webp",
+        "alt": "Faceted golden citrine on a warm cream background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#6B6259",
+        "body": "#8D8177",
+        "accent": "#C89A4B"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 200,
+        "max": 600,
+        "tier": "standard",
+        "display": "₹200 – ₹600 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "A sunnier outlook is the common report — confidence around money grows, sociability comes easily, and small wins seem to arrive more often once hesitation lifts.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Yellow Sapphire, carrying the same planetary logic — its planet is jupiter — at a fraction of the price. It is recommended to the same charts as Yellow Sapphire (and for number 3) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 18,
+      "id": "yellow-topaz",
+      "sku": "TC-GEM-018",
+      "displayName": "YELLOW TOPAZ",
+      "planet": "jupiter",
+      "numerologyNumber": 3,
+      "traits": [
+        "Abundance",
+        "Joy",
+        "Generosity"
+      ],
+      "description": "Clear golden light in crystal form, yellow topaz is believed to draw abundance toward open hands — a stone of generosity, warm friendships, and well-earned joy.",
+      "image": {
+        "src": "/assets/gems/yellow-topaz.webp",
+        "alt": "Oval golden topaz on a honey-cream background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#7A5A10",
+        "body": "#978A6C",
+        "accent": "#E0B131"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 600,
+        "max": 1800,
+        "tier": "standard",
+        "display": "₹600 – ₹1,800 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Wearers describe feeling more generous and more content at once — social bonds warm, gratitude comes easier, and abundance stops feeling like something to chase.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Yellow Sapphire, carrying the same planetary logic — its planet is jupiter — at a fraction of the price. It is recommended to the same charts as Yellow Sapphire (and for number 3) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 19,
+      "id": "white-sapphire",
+      "sku": "TC-GEM-019",
+      "displayName": "WHITE SAPPHIRE",
+      "planet": "venus",
+      "numerologyNumber": 6,
+      "traits": [
+        "Purity",
+        "Elegance",
+        "Truth"
+      ],
+      "description": "All the fire of sapphire, distilled to pure light. White sapphire is believed to refine taste, attract graceful love, and keep intentions honest — quiet luxury at its clearest.",
+      "image": {
+        "src": "/assets/gems/white-sapphire.webp",
+        "alt": "Round colourless white sapphire on a pearl-white background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#44464F",
+        "body": "#9A9CA3",
+        "accent": "#B9BDD3"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 6000,
+        "max": 15000,
+        "tier": "standard",
+        "display": "₹6,000 – ₹15,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Poise is the word wearers use — a calm, refined confidence in company, more grace in relationships, and a taste for order and beauty in daily life.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Diamond, carrying the same planetary logic — its planet is venus — at a fraction of the price. It is recommended to the same charts as Diamond (and for number 6) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 20,
+      "id": "opal",
+      "sku": "TC-GEM-020",
+      "displayName": "OPAL",
+      "planet": "venus",
+      "numerologyNumber": 6,
+      "traits": [
+        "Wonder",
+        "Creativity",
+        "Charm"
+      ],
+      "description": "Every opal holds a private aurora — no two ever alike. It is believed to awaken creativity, magnify charm, and let the wearer's many colours show.",
+      "image": {
+        "src": "/assets/gems/opal.webp",
+        "alt": "White opal with rainbow play-of-colour on a soft lilac background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#4C3A5E",
+        "body": "#968CA3",
+        "accent": "#C084FC"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 1000,
+        "max": 3000,
+        "tier": "standard",
+        "display": "₹1,000 – ₹3,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "The reported change is playfulness — creative ideas spark, charm turns effortless, and the wearer's many sides feel free to show; artists keep it close for exactly this.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Diamond, carrying the same planetary logic — its planet is venus — at a fraction of the price. It is recommended to the same charts as Diamond (and for number 6) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 21,
+      "id": "amethyst",
+      "sku": "TC-GEM-021",
+      "displayName": "AMETHYST",
+      "planet": "saturn",
+      "numerologyNumber": 8,
+      "traits": [
+        "Peace",
+        "Balance",
+        "Spirit"
+      ],
+      "description": "Twilight held in stone. Amethyst is believed to quiet a busy mind, temper excess, and keep the spirit anchored through change — serenity you can hold.",
+      "image": {
+        "src": "/assets/gems/amethyst.webp",
+        "alt": "Faceted deep-purple amethyst on a lavender background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#44286B",
+        "body": "#918AA3",
+        "accent": "#7C3AED"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 200,
+        "max": 600,
+        "tier": "standard",
+        "display": "₹200 – ₹600 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Stillness settles in first: the mind stops racing at night, cravings and excesses lose their grip, and meditation or prayer drops deeper than before.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Blue Sapphire, carrying the same planetary logic — its planet is saturn — at a fraction of the price. It is recommended to the same charts as Blue Sapphire (and for number 8) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 22,
+      "id": "iolite",
+      "sku": "TC-GEM-022",
+      "displayName": "IOLITE",
+      "planet": "saturn",
+      "numerologyNumber": 8,
+      "traits": [
+        "Vision",
+        "Journey",
+        "Calm"
+      ],
+      "description": "The Viking's compass stone, shifting violet-blue with every turn of the light. Iolite is believed to steady long journeys — outward and inward — and clear the path ahead.",
+      "image": {
+        "src": "/assets/gems/iolite.webp",
+        "alt": "Faceted violet-blue iolite on a slate background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#333A66",
+        "body": "#8A8EA6",
+        "accent": "#5B6BC0"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 500,
+        "max": 1500,
+        "tier": "standard",
+        "display": "₹500 – ₹1,500 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Wearers in transition — new cities, new roles, long journeys — report a compass-like calm: direction feels clearer and change stops feeling like threat.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Blue Sapphire, carrying the same planetary logic — its planet is saturn — at a fraction of the price. It is recommended to the same charts as Blue Sapphire (and for number 8) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 23,
+      "id": "aquamarine",
+      "sku": "TC-GEM-023",
+      "displayName": "AQUAMARINE",
+      "planet": "saturn",
+      "numerologyNumber": 8,
+      "traits": [
+        "Serenity",
+        "Courage",
+        "Clarity"
+      ],
+      "description": "The colour of calm seas and far horizons. Aquamarine is believed to cool tempers, protect travellers, and let every word leave the lips clear and true.",
+      "image": {
+        "src": "/assets/gems/aquamarine.webp",
+        "alt": "Emerald-cut sea-blue aquamarine on a pale aqua background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#1D4E5F",
+        "body": "#7F949B",
+        "accent": "#38BDF8"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 1500,
+        "max": 4000,
+        "tier": "standard",
+        "display": "₹1,500 – ₹4,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "The temper cools and the tongue untangles, wearers say — difficult conversations stay composed, travel (especially over water) feels protected, and fear loses its grip on the voice.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Blue Sapphire, carrying the same planetary logic — its planet is saturn — at a fraction of the price. It is recommended to the same charts as Blue Sapphire (and for number 8) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 24,
+      "id": "orange-zircon",
+      "sku": "TC-GEM-024",
+      "displayName": "ORANGE ZIRCON",
+      "planet": "rahu",
+      "numerologyNumber": 4,
+      "traits": [
+        "Focus",
+        "Radiance",
+        "Resolve"
+      ],
+      "description": "Among the oldest minerals on Earth, zircon carries deep time in a honey-orange fire. It is believed to gather scattered energies into a single, radiant resolve.",
+      "image": {
+        "src": "/assets/gems/orange-zircon.webp",
+        "alt": "Brilliant honey-orange zircon on an amber background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#79430F",
+        "body": "#98836E",
+        "accent": "#EA8C2D"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 800,
+        "max": 2000,
+        "tier": "standard",
+        "display": "₹800 – ₹2,000 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Scattered energy gathers, in the traditional account — attention stops darting, restlessness converts into resolve, and confused situations begin to resolve in the wearer's favour.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Hessonite Garnet, carrying the same planetary logic — its planet is rahu — at a fraction of the price. It is recommended to the same charts as Hessonite Garnet (and for number 4) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 25,
+      "id": "cats-eye-quartz",
+      "sku": "TC-GEM-025",
+      "displayName": "CAT'S EYE QUARTZ",
+      "planet": "ketu",
+      "numerologyNumber": 7,
+      "traits": [
+        "Watchfulness",
+        "Grounding",
+        "Insight"
+      ],
+      "description": "A gentle band of light glides across its grey-green face. Cat's eye quartz is believed to keep watch over its wearer and lend a quiet, grounded insight to daily life.",
+      "image": {
+        "src": "/assets/gems/cats-eye-quartz.webp",
+        "alt": "Grey-green chatoyant quartz cabochon on a stone-grey background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#41473B",
+        "body": "#8D9187",
+        "accent": "#8A9A5B"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 200,
+        "max": 500,
+        "tier": "standard",
+        "display": "₹200 – ₹500 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "A gentle version of the chrysoberyl's gaze: wearers describe quiet watchfulness, grounded intuition, and fewer unpleasant surprises from people and places.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "It is the upratna (substitute) of Cat's Eye Chrysoberyl, carrying the same planetary logic — its planet is ketu — at a fraction of the price. It is recommended to the same charts as Cat's Eye Chrysoberyl (and for number 7) when budget matters, worn at 1.5-2x the primary gem's weight."
+    },
+    {
+      "number": 26,
+      "id": "rose-quartz",
+      "sku": "TC-GEM-026",
+      "displayName": "ROSE QUARTZ",
+      "planet": "venus",
+      "numerologyNumber": 6,
+      "traits": [
+        "Love",
+        "Compassion",
+        "Healing"
+      ],
+      "description": "Soft as first light, rose quartz is the classic stone of the open heart. It is believed to gentle the way we speak to others — and to ourselves.",
+      "image": {
+        "src": "/assets/gems/rose-quartz.webp",
+        "alt": "Polished soft-pink rose quartz on a blush background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#7C3A52",
+        "body": "#9C8289",
+        "accent": "#F472B6"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 80,
+        "max": 200,
+        "tier": "standard",
+        "display": "₹80 – ₹200 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Self-talk softens first, wearers report — then patience with loved ones grows, old hurts stop steering choices, and the heart stays open without feeling unguarded.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "A wellness stone aligned with Venus's energies — no kundali prescription is needed. It is recommended freely, as an intention stone for number 6 temperaments and anyone drawn to its qualities, and it may be worn alongside any prescribed gem."
+    },
+    {
+      "number": 27,
+      "id": "tigers-eye",
+      "sku": "TC-GEM-027",
+      "displayName": "TIGER'S EYE",
+      "planet": "sun",
+      "numerologyNumber": 1,
+      "traits": [
+        "Willpower",
+        "Grounding",
+        "Confidence"
+      ],
+      "description": "Bands of gold and bronze ripple like a watchful gaze. Tiger's eye is believed to steady the nerves before big moments and turn hesitation into confident action.",
+      "image": {
+        "src": "/assets/gems/tigers-eye.webp",
+        "alt": "Banded golden-brown tiger's eye on a bronze background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#5C3A14",
+        "body": "#93826D",
+        "accent": "#B7791F"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 80,
+        "max": 200,
+        "tier": "standard",
+        "display": "₹80 – ₹200 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "The classic report is nerve — steadiness before interviews, negotiations, and confrontations, with fear converting into focused, deliberate action.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "A wellness stone aligned with Sun's energies — no kundali prescription is needed. It is recommended freely, as an intention stone for number 1 temperaments and anyone drawn to its qualities, and it may be worn alongside any prescribed gem."
+    },
+    {
+      "number": 28,
+      "id": "lapis-lazuli",
+      "sku": "TC-GEM-028",
+      "displayName": "LAPIS LAZULI",
+      "planet": "saturn",
+      "numerologyNumber": 8,
+      "traits": [
+        "Truth",
+        "Vision",
+        "Majesty"
+      ],
+      "description": "The blue that pharaohs were buried in and Renaissance skies were painted with. Lapis lazuli is believed to open the inner eye and give the courage to speak one's truth.",
+      "image": {
+        "src": "/assets/gems/lapis-lazuli.webp",
+        "alt": "Royal-blue lapis lazuli with golden pyrite flecks on a midnight background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#1E2A5E",
+        "body": "#848BA3",
+        "accent": "#26489B"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 150,
+        "max": 400,
+        "tier": "standard",
+        "display": "₹150 – ₹400 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Wearers describe finding their voice — truths get spoken without tremor, inner authority firms up, and insight arrives with an almost regal calm.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "A wellness stone aligned with Saturn's energies — no kundali prescription is needed. It is recommended freely, as an intention stone for number 8 temperaments and anyone drawn to its qualities, and it may be worn alongside any prescribed gem."
+    },
+    {
+      "number": 29,
+      "id": "turquoise",
+      "sku": "TC-GEM-029",
+      "displayName": "TURQUOISE",
+      "planet": "jupiter",
+      "numerologyNumber": 3,
+      "traits": [
+        "Protection",
+        "Journey",
+        "Peace"
+      ],
+      "description": "Sky held in stone, worn by riders and travellers for a thousand years. Turquoise is believed to shield its keeper on every road and bring peace wherever it rests.",
+      "image": {
+        "src": "/assets/gems/turquoise.webp",
+        "alt": "Sky-blue turquoise cabochon on a sand background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#1F5D5B",
+        "body": "#7F9694",
+        "accent": "#2DD4BF"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 300,
+        "max": 800,
+        "tier": "standard",
+        "display": "₹300 – ₹800 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "Travellers' reports run oldest here: a felt sense of protection on every road, easy friendliness in new company, and growing recognition in one's own circle.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "A wellness stone aligned with Jupiter's energies — no kundali prescription is needed. It is recommended freely, as an intention stone for number 3 temperaments and anyone drawn to its qualities, and it may be worn alongside any prescribed gem."
+    },
+    {
+      "number": 30,
+      "id": "black-tourmaline",
+      "sku": "TC-GEM-030",
+      "displayName": "BLACK TOURMALINE",
+      "planet": "rahu",
+      "numerologyNumber": 4,
+      "traits": [
+        "Shield",
+        "Grounding",
+        "Calm"
+      ],
+      "description": "Jet-black and unshakeable, black tourmaline is the keeper of thresholds. It is believed to absorb negativity before it reaches you and hold the ground steady beneath your feet.",
+      "image": {
+        "src": "/assets/gems/black-tourmaline.webp",
+        "alt": "Raw jet-black tourmaline crystal on a charcoal background"
+      },
+      "theme": {
+        "background": "#FFFFFF",
+        "title": "#26262B",
+        "body": "#8B8B92",
+        "accent": "#4B5563"
+      },
+      "pricePerCarat": {
+        "currency": "INR",
+        "min": 100,
+        "max": 300,
+        "tier": "standard",
+        "display": "₹100 – ₹300 per carat"
+      },
+      "wearing": {
+        "whatYouFeel": "The room feels lighter, wearers say — draining company and heavy places take less of a toll, sleep improves in new environments, and the ground feels solid underfoot.",
+        "note": "Traditional accounts; experiences vary. Not medical advice."
+      },
+      "whyRecommended": "A wellness stone aligned with Rahu's energies — no kundali prescription is needed. It is recommended freely, as an intention stone for number 4 temperaments and anyone drawn to its qualities, and it may be worn alongside any prescribed gem."
+    }
+  ]
+}

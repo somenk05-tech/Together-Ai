@@ -153,6 +153,62 @@ export interface RemedyGuidance {
 export type GemResponse = GemGuidance | { needsProfile: true };
 export type RemedyResponse = RemedyGuidance | { needsProfile: true };
 
+
+/**
+ * The gem marketplace.
+ *
+ * A CHART NAMES AT MOST FIVE STONES and each arrives with the ROLE it plays,
+ * not a rank in a list — which is the whole difference between this and a
+ * jewellery catalogue with an astrology theme.
+ */
+export type GemRole = 'life' | 'fortune' | 'period' | 'moon' | 'number';
+
+export interface GemStone {
+  number: number; id: string; sku: string; name: string;
+  planet: string; numerologyNumber: number;
+  kind: 'primary' | 'substitute' | 'wellness';
+  substituteFor: string | null;
+  traits: string[];
+  description: string;
+  whyRecommended: string;
+  whatYouFeel: string;
+  wearingNote: string;
+  image: string; imageAlt: string;
+  perCaratMinInr: number; perCaratMaxInr: number;
+  theme: { background: string; title: string; body: string; accent: string };
+}
+
+/** Metal, finger, hand and day — one table, shared with the remedies page. */
+export interface GemWearing {
+  metal: string; finger: string; hand: string; day: string;
+  allies: string[]; soft: boolean;
+}
+
+export interface GemRecommendation {
+  gem: GemStone;
+  role: GemRole;
+  /** Every reason this stone came up — a stone holds one role and may still be
+   *  justified three ways. */
+  reasons: string[];
+  wearing: GemWearing;
+  /** Set on the three stones traditionally worn on trial before commissioning. */
+  trialNote: string | null;
+  /** Cheaper stones for the same planet. */
+  substitutes: GemStone[];
+}
+
+export interface GemstonesResponse {
+  needsProfile?: boolean;
+  chart: {
+    ascendant: string | null; moonSign: string;
+    mahadasha: string; antardasha: string; lifePath: number;
+  };
+  /** No birth time means no ascendant, so no life or fortune stone. */
+  timeUnknown: boolean;
+  recommendations: GemRecommendation[];
+  disclaimer: string;
+}
+
 export const astrologyApi = {
   profile: () => api.get<AstroProfileView>('/astrology/profile').then((r) => r.data),
   saveProfile: (dto: SaveAstroProfileInput) =>
@@ -179,5 +235,6 @@ export const astrologyApi = {
     api.delete<{ deleted: boolean }>(`/astrology/tarot/${id}`).then((r) => r.data),
 
   gems: () => api.get<GemResponse>('/astrology/gems').then((r) => r.data),
+  gemstones: () => api.get<GemstonesResponse>('/astrology/gemstones').then((r) => r.data),
   remedies: () => api.get<RemedyResponse>('/astrology/remedies').then((r) => r.data),
 };

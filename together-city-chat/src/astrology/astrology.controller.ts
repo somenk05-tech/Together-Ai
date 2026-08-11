@@ -126,6 +126,13 @@ export class AstrologyController {
     return this.astrology.gems(user.sub);
   }
 
+  /** GET /api/astrology/gemstones — the stones this chart calls for, and how
+   *  each is traditionally worn: finger, hand, metal and day. */
+  @Get('gemstones')
+  gemstones(@CurrentUser() user: JwtUser) {
+    return this.astrology.gemstones(user.sub);
+  }
+
   /** GET /api/astrology/remedies — practices for this period, health-filtered. */
   @Get('remedies')
   remedies(@CurrentUser() user: JwtUser) {

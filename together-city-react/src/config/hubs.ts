@@ -103,7 +103,14 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // The screen reads the real number from GET /astrology/ask.
       { path: '/astrology/ask', index: '03', label: 'Ask the Astrologer', sub: 'A private consultation' },
       { path: '/astrology/tarot', index: '04', label: 'Tarot', sub: 'A card a day, and full spreads' },
-      { path: '/profile/astrology', index: '05', label: 'Astrology Profile', sub: 'Birth details, entered once' },
+      // The marketplace, and the only place a stone is prescribed. The remedies
+      // page kept the practices and gave up its Stones half — two surfaces
+      // answering "which stone is mine" from two different readings was the
+      // arrangement before this, and it survived only because one of them had
+      // no way in from this menu.
+      { path: '/astrology/gemstones', index: '05', label: 'Gemstones', sub: 'Personalised stones for your chart' },
+      { path: '/astrology/remedies', index: '06', label: 'Remedies', sub: 'Practices for the season you are in' },
+      { path: '/profile/astrology', index: '07', label: 'Astrology Profile', sub: 'Birth details, entered once' },
     ],
   },
   nutrition: {

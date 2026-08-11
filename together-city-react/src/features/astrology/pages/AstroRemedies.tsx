@@ -1,7 +1,8 @@
+import { Link } from 'react-router-dom';
 import { Card, Spinner, Tag } from '@/components/ui';
-import { useAstroGems, useAstroRemedies } from '../hooks';
+import { useAstroRemedies } from '../hooks';
 import { AstroHeader, AstroTabs, NeedsProfileCard } from '../shared';
-import type { GemEntry, RemedyTemplate } from '../api';
+import type { RemedyTemplate } from '../api';
 
 /**
  * Tab 05 — Gems & Remedies.
@@ -18,68 +19,23 @@ const KIND_LABEL: Record<RemedyTemplate['kind'], string> = {
   practice: 'Practice',
 };
 
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="muted" style={{ fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em' }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{value}</div>
-    </div>
-  );
-}
-
-function GemCard({ gem, lead }: { gem: GemEntry; lead: boolean }) {
-  return (
-    <Card style={{ padding: '20px 22px', marginBottom: 14, borderColor: lead ? 'var(--accent)' : 'var(--line)' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <h2 style={{ fontFamily: 'var(--serif)', fontSize: 20, margin: 0 }}>{gem.stone}</h2>
-        {lead && <Tag>For this period</Tag>}
-      </div>
-
-      {/* Labelled data — visually separate from the writing below, by design. */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(104px,1fr))', gap: '12px 16px',
-        background: 'var(--paper)', borderRadius: 12, padding: '14px 16px', margin: '14px 0',
-      }}>
-        <Field label="Linked to" value={gem.lord} />
-        <Field label="Metal" value={gem.metal} />
-        <Field label="Finger" value={gem.finger} />
-        <Field label="Begin on" value={gem.beginOn} />
-      </div>
-
-      <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0 }}>{gem.intention}</p>
-
-      {gem.alternatives.length > 0 && (
-        <p className="muted" style={{ fontSize: 12.5, margin: '10px 0 0' }}>
-          Also worn in its place: {gem.alternatives.join(', ')}.
-        </p>
-      )}
-      <p style={{ fontSize: 12.5, lineHeight: 1.55, margin: '10px 0 0', color: 'var(--warn-ink)', background: 'var(--warn-soft)', border: '1px solid var(--warn-line)', borderRadius: 10, padding: '9px 12px' }}>
-        {gem.caution}
-      </p>
-    </Card>
-  );
-}
-
 export function AstroRemedies() {
-  const gems = useAstroGems();
   const remedies = useAstroRemedies();
 
-  const loading = gems.isLoading || remedies.isLoading;
-  const needsProfile =
-    (gems.data && 'needsProfile' in gems.data && gems.data.needsProfile) ||
-    (remedies.data && 'needsProfile' in remedies.data && remedies.data.needsProfile);
+  const loading = remedies.isLoading;
+  const needsProfile = remedies.data && 'needsProfile' in remedies.data && remedies.data.needsProfile;
 
   return (
     <div>
       <AstroHeader
-        title="Gems & Remedies"
-        lede="Stones and practices for the season you're in — offered as reflection and cultural practice, never as treatment."
+        title="Remedies"
+        lede="Practices for the season you're in — offered as reflection and cultural practice, never as treatment."
       />
       <AstroTabs />
 
       {loading ? (
         <Spinner label="Reading your season…" />
-      ) : gems.isError || remedies.isError ? (
+      ) : remedies.isError ? (
         // Failure used to render NOTHING here — no stones, no practices, no
         // explanation. A blank sky is not an honest answer.
         <Card style={{ padding: '18px 22px' }}>
@@ -93,17 +49,25 @@ export function AstroRemedies() {
         <NeedsProfileCard />
       ) : (
         <>
-          {gems.data && !('needsProfile' in gems.data && gems.data.needsProfile) && (
-            <>
-              <h2 style={{ fontSize: 17, margin: '0 0 12px' }}>Stones</h2>
-              <GemCard gem={gems.data.primary} lead />
-              <GemCard gem={gems.data.supporting} lead={false} />
-            </>
-          )}
+          {/* ── THE STONES LEFT THIS PAGE ────────────────────────────────
+              They were recommended here from the running period alone, while
+              the Gemstones tab reads the ascendant, the ninth house, the period,
+              the moon rashi and the life path. Two surfaces answering "which
+              stone is mine" from two different readings is one answer too many,
+              and this one had no way in from the menu — so it lost the argument
+              and kept the practices, which are its own. */}
+          <Card style={{ padding: '16px 20px', marginBottom: 22, background: 'var(--paper)' }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>Stones are on their own page now</div>
+            <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '0 0 10px' }}>
+              Which stone suits you, which finger it is worn on, and what it costs — read from your
+              whole chart rather than the current period alone.
+            </p>
+            <Link to="/astrology/gemstones" style={{ fontSize: 13, fontWeight: 700 }}>Go to Gemstones →</Link>
+          </Card>
 
           {remedies.data && !('needsProfile' in remedies.data && remedies.data.needsProfile) && (
             <>
-              <h2 style={{ fontSize: 17, margin: '26px 0 12px' }}>Practices</h2>
+              <h2 style={{ fontSize: 17, margin: '0 0 12px' }}>Practices</h2>
               {remedies.data.remedies.map((r) => (
                 <Card key={r.key} style={{ padding: '16px 20px', marginBottom: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>

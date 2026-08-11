@@ -680,3 +680,39 @@
 }
 @media (max-width: 1080px) { .market-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 820px)  { .market-grid { grid-template-columns: repeat(2, 1fr); gap: 24px 16px; } }
+
+/* ══ GEMSTONES ══════════════════════════════════════════════════════════════
+   The marketplace card: the stone's photograph beside the reading, and a strip
+   of labelled facts under it. Only the three things that need a breakpoint are
+   here — the rest of the hub stays inline, like the rest of this app.
+
+   THE PHOTOGRAPH SITS ON WHITE WITH NO FRAME, and that is `no-case` on the img
+   in the page rather than an override here. relief.css frames every photograph
+   by default — outline, shadow, a well behind it — and provides `.no-case` for
+   pictures that are already composed. Thirty cut-out stones on white are the
+   clearest case for it: the frame would be a box around something photographed
+   not to need one. */
+.gem-card {
+  display: grid; grid-template-columns: 240px 1fr; gap: 26px; align-items: start; padding: 22px 24px;
+}
+.gem-shot { display: grid; justify-items: center; gap: 10px; }
+.gem-traits {
+  font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--muted); text-align: center; line-height: 1.6;
+}
+.gem-card > :nth-child(2) { display: flex; flex-direction: column; gap: 14px; }
+/* The display name, wide-tracked, as in the reference. The face is the app's
+   own — the press serif is granted to three places by name and this is not one
+   of them; see relief.spec assertion 4. */
+.gem-name { font-size: 26px; letter-spacing: .16em; margin: 0; font-weight: 500; }
+.gem-wear,
+.gem-chart {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 12px 16px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+}
+.gem-chart { margin-bottom: 18px; }
+@media (max-width: 760px) {
+  .gem-card { grid-template-columns: 1fr; gap: 18px; padding: 18px; }
+  .gem-shot img { max-width: 170px; }
+  .gem-name { font-size: 22px; }
+}

@@ -138,6 +138,11 @@ export function useDrawTarot() {
 export function useAstroGems() {
   return useQuery({ queryKey: ['astrology', 'gems'], queryFn: () => astrologyApi.gems() });
 }
+/** The marketplace's opening read. `retry: false` — "no birth details yet" is
+ *  an answer, not a failure to retry into. */
+export function useAstroGemstones() {
+  return useQuery({ queryKey: ['astrology', 'gemstones'], queryFn: () => astrologyApi.gemstones(), retry: false });
+}
 export function useAstroRemedies() {
   return useQuery({ queryKey: ['astrology', 'remedies'], queryFn: () => astrologyApi.remedies() });
 }

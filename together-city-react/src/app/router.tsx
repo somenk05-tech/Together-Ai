@@ -24,6 +24,7 @@ import { AstroAsk } from '@/features/astrology/pages/AstroAsk';
 import { AstroProfilePage } from '@/features/astrology/pages/AstroProfilePage';
 import { AstroTarot } from '@/features/astrology/pages/AstroTarot';
 import { AstroRemedies } from '@/features/astrology/pages/AstroRemedies';
+import { AstroGemstones } from '@/features/astrology/pages/AstroGemstones';
 import { RequireAuth } from '@/features/auth/AuthGate';
 import { NotFound } from '@/pages/NotFound';
 
@@ -357,6 +358,7 @@ export const router = createBrowserRouter([
       { path: '/astrology/monthly', element: <RequireAuth>{wrap(<AstroMonthly />)}</RequireAuth> },
       { path: '/astrology/ask', element: <RequireAuth>{wrap(<AstroAsk />)}</RequireAuth> },
       { path: '/astrology/tarot', element: <RequireAuth>{wrap(<AstroTarot />)}</RequireAuth> },
+      { path: '/astrology/gemstones', element: <RequireAuth>{wrap(<AstroGemstones />)}</RequireAuth> },
       { path: '/astrology/remedies', element: <RequireAuth>{wrap(<AstroRemedies />)}</RequireAuth> },
       { path: '/profile/astrology', element: <RequireAuth>{wrap(<AstroProfilePage />)}</RequireAuth> },
     ],
