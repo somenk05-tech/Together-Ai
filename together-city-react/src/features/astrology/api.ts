@@ -295,6 +295,23 @@ export interface GemDesign {
   disclaimer: string;
 }
 
+/** One locked commission, priced now. */
+export interface PricedGemLine {
+  gemId: string; name: string; image: string; imageAlt: string;
+  worn: 'ring' | 'pendant' | 'loose';
+  carats: number; spec: string;
+  stoneInr: number; metalInr: number; metalGrams: number; totalInr: number;
+}
+export interface GemCart {
+  needsProfile?: boolean;
+  lines: PricedGemLine[];
+  count: number;
+  stoneInr: number; metalInr: number; totalInr: number;
+  /** Lines that could not be priced — a withdrawn stone, or no body weight. */
+  dropped: number;
+  bodyKnown: boolean;
+}
+
 export const astrologyApi = {
   profile: () => api.get<AstroProfileView>('/astrology/profile').then((r) => r.data),
   saveProfile: (dto: SaveAstroProfileInput) =>
@@ -323,6 +340,14 @@ export const astrologyApi = {
   gems: () => api.get<GemResponse>('/astrology/gems').then((r) => r.data),
   gemstones: () => api.get<GemstonesResponse>('/astrology/gemstones').then((r) => r.data),
   gemDesign: (id: string) => api.get<GemDesign>(`/astrology/gemstones/${id}/design`).then((r) => r.data),
+  gemCart: () => api.get<GemCart>('/astrology/gem-cart').then((r) => r.data),
+  lockGem: (v: {
+    gemId: string; worn: 'ring' | 'pendant' | 'loose'; shape: string;
+    setting?: string; style?: string; size?: number; metal?: MetalKey; grade: number;
+  }) => api.put<GemCart>('/astrology/gem-cart', v).then((r) => r.data),
+  unlockGem: (gemId: string) => api.delete<GemCart>(`/astrology/gem-cart/${gemId}`).then((r) => r.data),
+  checkoutGemCart: (method: 'wallet' | 'card') =>
+    api.post<{ paid: true; totalInr: number; lines: number }>('/astrology/gem-cart/checkout', { method }).then((r) => r.data),
   gemMetals: (id: string, worn: 'ring' | 'pendant', design: string, size: number) =>
     api.get<{ metals: MetalQuote[] }>(`/astrology/gemstones/${id}/metals`, { params: { worn, design, size } })
       .then((r) => r.data),

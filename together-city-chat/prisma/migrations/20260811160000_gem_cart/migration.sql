@@ -1,0 +1,17 @@
+-- THE GEM CART: one column, not a table.
+--
+-- A gemstone commission is a CONFIGURATION — the stone, the carats the chart
+-- prescribes, the cut, the mount, the metal, the size and the grade — and every
+-- one of those is a choice the studio already knows how to make. Columns for
+-- them would be a migration per design decision, and the ring studio has more
+-- decisions in it than this schema wants opinions about.
+--
+-- So it is JSON on the profile that already exists, exactly as the Beauty hub's
+-- bag lives in BeautyProfile.extras. What is stored is choices and never
+-- prices: the stone rate, the gold rate and the making charge all live in one
+-- server file, and a cart holding its own totals is a cart that can check out
+-- at a number the shop no longer offers.
+--
+-- Nullable with no default: a citizen who has never opened the studio has no
+-- cart, which reads differently from an empty one.
+ALTER TABLE "AstroProfile" ADD COLUMN IF NOT EXISTS "gemCartJson" TEXT;

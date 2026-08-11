@@ -109,8 +109,12 @@ export const HUBS: Record<HubKey, HubConfig> = {
       // arrangement before this, and it survived only because one of them had
       // no way in from this menu.
       { path: '/astrology/gemstones', index: '05', label: 'Gemstones', sub: 'Personalised stones for your chart' },
-      { path: '/astrology/remedies', index: '06', label: 'Remedies', sub: 'Practices for the season you are in' },
-      { path: '/profile/astrology', index: '07', label: 'Astrology Profile', sub: 'Birth details, entered once' },
+      // A locked commission is a decision somebody made and walked away from,
+      // and it needs somewhere to be waiting. Without a door in the menu the
+      // cart is a page you can only reach from the page you just left.
+      { path: '/astrology/gem-checkout', index: '06', label: 'Checkout', sub: 'Stones you have locked' },
+      { path: '/astrology/remedies', index: '07', label: 'Remedies', sub: 'Practices for the season you are in' },
+      { path: '/profile/astrology', index: '08', label: 'Astrology Profile', sub: 'Birth details, entered once' },
     ],
   },
   nutrition: {

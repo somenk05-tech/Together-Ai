@@ -26,6 +26,7 @@ import { AstroTarot } from '@/features/astrology/pages/AstroTarot';
 import { AstroRemedies } from '@/features/astrology/pages/AstroRemedies';
 import { AstroGemstones } from '@/features/astrology/pages/AstroGemstones';
 import { GemStudio } from '@/features/astrology/pages/GemStudio';
+import { GemCheckout } from '@/features/astrology/pages/GemCheckout';
 import { RequireAuth } from '@/features/auth/AuthGate';
 import { NotFound } from '@/pages/NotFound';
 
@@ -361,6 +362,7 @@ export const router = createBrowserRouter([
       { path: '/astrology/tarot', element: <RequireAuth>{wrap(<AstroTarot />)}</RequireAuth> },
       { path: '/astrology/gemstones', element: <RequireAuth>{wrap(<AstroGemstones />)}</RequireAuth> },
       { path: '/astrology/gemstones/:gemId/design', element: <RequireAuth>{wrap(<GemStudio />)}</RequireAuth> },
+      { path: '/astrology/gem-checkout', element: <RequireAuth>{wrap(<GemCheckout />)}</RequireAuth> },
       { path: '/astrology/remedies', element: <RequireAuth>{wrap(<AstroRemedies />)}</RequireAuth> },
       { path: '/profile/astrology', element: <RequireAuth>{wrap(<AstroProfilePage />)}</RequireAuth> },
     ],

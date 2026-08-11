@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button, Card, Spinner } from '@/components/ui';
-import { useGemCommission, useGemDesign, useGemMetals } from '../hooks';
+import { useLockGem, useGemDesign, useGemMetals } from '../hooks';
 import { AstroHeader, NeedsProfileCard } from '../shared';
-import { payError, type PayMethod } from '@/features/financial/api';
-import { PaymentSheet } from '@/features/financial/PaymentSheet';
+import { payError } from '@/features/financial/api';
 import type { DesignVerdict, MetalKey, SettingOption, StudioOption } from '../api';
 
 /**
@@ -28,6 +27,12 @@ import type { DesignVerdict, MetalKey, SettingOption, StudioOption } from '../ap
  * works with the planet's allies. Every one of those is labelled and every one
  * is still choosable. Somebody who wants the eternity band can have it; they
  * cannot have it without being told.
+ *
+ * NOTHING IS CHARGED HERE. This page decides WHAT is being made; the checkout
+ * decides what is being paid for. Both buttons lock the design — "Commission"
+ * is the same lock with the checkout on the end of it — so somebody who wants
+ * one stone never meets a cart they did not ask for, and somebody choosing
+ * three does not pay three separate times.
  *
  * THE PRICE MOVES WITH QUALITY, NOT WITH WEIGHT. The carats are the chart's
  * business and are fixed here; where you land between the cheapest and dearest
@@ -67,7 +72,8 @@ function Choice(
 export function GemStudio() {
   const { gemId = '' } = useParams();
   const q = useGemDesign(gemId);
-  const commission = useGemCommission();
+  const lock = useLockGem();
+  const navigate = useNavigate();
   const data = q.data;
 
   const [worn, setWorn] = useState<'ring' | 'pendant' | 'loose'>('ring');
@@ -78,8 +84,7 @@ export function GemStudio() {
   /** 0 is the cheapest grade of this stone, 100 the finest. */
   const [grade, setGrade] = useState(35);
   const [metal, setMetal] = useState<MetalKey>('gold22');
-  const [payOpen, setPayOpen] = useState(false);
-  const [placed, setPlaced] = useState(false);
+
 
   const design = worn === 'ring' ? setting : style;
   const metals = useGemMetals(gemId, worn, design, size);
@@ -107,6 +112,13 @@ export function GemStudio() {
 
   const { gem, weight, wearing } = data;
   const chosenSetting = data.settings.find((s) => s.key === setting);
+  const lockPayload = {
+    gemId: gem.id, grade, worn, shape,
+    metal: worn === 'loose' ? undefined : metal,
+    setting: worn === 'ring' ? setting : undefined,
+    style: worn === 'pendant' ? style : undefined,
+    size: worn === 'ring' ? size : undefined,
+  };
   const stone = `${gem.name} · ${weight?.carats ?? '?'} ct · ${data.shapes.find((s) => s.key === shape)?.name}`;
   const summary = worn === 'loose'
     ? `${stone} · loose, unset — to be set in ${wearing.metal.toLowerCase()}, ${wearing.finger.toLowerCase()} of the ${wearing.hand.toLowerCase()}, open back`
@@ -329,49 +341,31 @@ export function GemStudio() {
             : 'Stone and metal, made up and delivered. Metal is priced at today’s rate; if it has moved by the time the piece is made, the jeweller will say so before starting.'}
         </p>
 
+        {/* TWO WAYS OUT AND BOTH LOCK THE DESIGN. Nothing is charged here —
+            this page decides WHAT is being made, and the checkout decides what
+            is being paid for. "Commission" is the same lock with the checkout
+            on the end of it, so somebody who only wants this one stone never
+            sees a cart they did not ask for, and somebody choosing three does
+            not pay three times. */}
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 16 }}>
-          <Button variant="accent" disabled={priceInr === null || placed} onClick={() => setPayOpen(true)}>
-            {placed
-              ? '✓ Ordered'
-              : `${worn === 'loose' ? 'Buy this stone' : 'Commission this stone'} · ${priceInr === null ? '—' : rupees(priceInr)}`}
+          <Button variant="accent" disabled={priceInr === null || lock.isPending}
+            onClick={() => lock.mutate(lockPayload, { onSuccess: () => navigate('/astrology/gem-checkout') })}>
+            {lock.isPending ? 'Locking…' : `Commission this stone · ${priceInr === null ? '—' : rupees(priceInr)}`}
           </Button>
-          <Link to="/astrology/gemstones"><Button variant="line" size="sm">Look at the others</Button></Link>
-          {commission.isError && (
-            <span style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600 }}>{payError(commission.error)}</span>
+          <Button variant="line" disabled={priceInr === null || lock.isPending}
+            onClick={() => lock.mutate(lockPayload, { onSuccess: () => navigate('/astrology/gemstones') })}>
+            Lock this and see the others
+          </Button>
+          {lock.isError && (
+            <span style={{ fontSize: 12.5, color: 'var(--danger-ink)', fontWeight: 600 }}>{payError(lock.error)}</span>
           )}
         </div>
-        {placed && (
-          <p style={{ fontSize: 13, lineHeight: 1.6, margin: '12px 0 0' }}>
-            {worn === 'loose'
-              ? 'Paid from your city wallet. The stone comes to you unset, with the specification above on the receipt.'
-              : 'Paid from your city wallet. The jeweller has the specification above and will come back with the making charge before starting.'}
-          </p>
-        )}
+        <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 12 }}>
+          Locking costs nothing. It holds this design in your checkout, priced at the day&rsquo;s rate,
+          until you pay or remove it.
+        </p>
         <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 14 }}>{data.disclaimer}</p>
       </Card>
-
-      <PaymentSheet
-        open={payOpen}
-        amountInr={priceInr ?? 0}
-        label={summary}
-        pending={commission.isPending}
-        error={commission.isError ? payError(commission.error) : null}
-        onCancel={() => setPayOpen(false)}
-        // THE CHOICES GO UP, NOT THE PRICE. The server prices them from the
-        // same catalogue and weight rule this page was rendered from — an
-        // amount in the request body is an amount the citizen can edit.
-        onPay={(method: PayMethod) => commission.mutate(
-          {
-            gemId: gem.id, grade, worn, shape,
-            metal: worn === 'loose' ? undefined : metal,
-            setting: worn === 'ring' ? setting : undefined,
-            style: worn === 'pendant' ? style : undefined,
-            size: worn === 'ring' ? size : undefined,
-            method,
-          },
-          { onSuccess: () => { setPlaced(true); setPayOpen(false); } },
-        )}
-      />
     </div>
   );
 }

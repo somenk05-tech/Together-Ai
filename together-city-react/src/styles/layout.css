@@ -854,3 +854,32 @@
   .gem-choices { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
   .gem-glyph svg { width: 58px; height: 58px; }
 }
+
+/* ══ THE GEM CHECKOUT ═══════════════════════════════════════════════════════
+   The two-column arrangement every shop checkout has, because everybody has
+   already learned it: the order on the left, one line per commission, and a
+   summary on the right that stays put while the list scrolls. What is borrowed
+   is the STRUCTURE — the material stays the city's, since the thing being
+   bought is an ₹84,000 commission from an astrology hub and should not suddenly
+   look like a t-shirt store. */
+.gem-checkout { display: grid; grid-template-columns: 1fr 340px; gap: 26px; align-items: start; }
+.gem-order-line {
+  display: flex; gap: 16px; align-items: flex-start;
+  padding: 18px 0; border-top: 1px solid var(--line);
+}
+.gem-summary { position: sticky; top: calc(var(--header-h) + 20px); padding: 20px 22px; }
+/* A text button, not a chip: removing a line is a quiet action and should not
+   compete with the one that takes the money. 44px of target under it all the
+   same — see the a11y ratchet. */
+.gem-unlock {
+  margin-top: 8px; padding: 0; background: none; border: 0; cursor: pointer;
+  font-family: inherit; font-size: 12px; font-weight: 700; color: var(--muted);
+  text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center;
+}
+.gem-unlock:hover { color: var(--ink); }
+@media (max-width: 900px) {
+  .gem-checkout { grid-template-columns: 1fr; gap: 18px; }
+  /* Unstuck on a phone: a sticky summary on a short screen is a summary sitting
+     on top of the list it summarises. */
+  .gem-summary { position: static; }
+}

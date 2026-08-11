@@ -153,26 +153,40 @@ export class AstrologyController {
     return this.astrology.gemMetals(user.sub, id, q.worn, q.design, q.size);
   }
 
-  /**
-   * POST /api/astrology/gemstones/:id/commission — order the stone.
-   *
-   * THE BODY CARRIES CHOICES, NEVER A PRICE. A gemstone is the dearest thing
-   * this city sells and the studio has a grade slider on it; if the amount
-   * travelled with the request, the amount would be whatever the request said.
-   */
-  @Post('gemstones/:id/commission')
-  commissionGem(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: unknown) {
+  /** GET /api/astrology/gem-cart — every locked commission, priced now. */
+  @Get('gem-cart')
+  gemCart(@CurrentUser() user: JwtUser) {
+    return this.astrology.gemCart(user.sub);
+  }
+
+  /** PUT /api/astrology/gem-cart — lock one configuration from the studio. */
+  @Put('gem-cart')
+  lockGem(@CurrentUser() user: JwtUser, @Body() body: unknown) {
     const schema = z.object({
-      grade: z.number().min(0).max(100),
+      gemId: z.string().min(1).max(60),
       worn: z.enum(['ring', 'pendant', 'loose']),
       shape: z.string().min(1).max(40),
       setting: z.string().min(1).max(40).optional(),
       style: z.string().min(1).max(40).optional(),
       size: z.number().int().min(1).max(40).optional(),
       metal: z.enum(['gold22', 'silver', 'panchdhatu']).optional(),
-      method: z.enum(['wallet', 'card']).default('wallet'),
+      grade: z.number().min(0).max(100),
     });
-    return this.astrology.commissionGem(user.sub, id, schema.parse(body));
+    return this.astrology.lockGem(user.sub, { ...schema.parse(body), addedAt: new Date().toISOString() });
+  }
+
+  /** DELETE /api/astrology/gem-cart/:gemId — take one back out. */
+  @Delete('gem-cart/:gemId')
+  unlockGem(@CurrentUser() user: JwtUser, @Param('gemId') gemId: string) {
+    return this.astrology.unlockGem(user.sub, gemId);
+  }
+
+  /** POST /api/astrology/gem-cart/checkout — one charge for everything locked.
+   *  No amount in the body: gold moves daily and the server prices it. */
+  @Post('gem-cart/checkout')
+  checkoutGemCart(@CurrentUser() user: JwtUser, @Body() body: unknown) {
+    const schema = z.object({ method: z.enum(['wallet', 'card']).default('wallet') });
+    return this.astrology.checkoutGemCart(user.sub, schema.parse(body).method);
   }
 
   /** GET /api/astrology/remedies — practices for this period, health-filtered. */

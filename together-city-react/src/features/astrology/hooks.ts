@@ -161,6 +161,31 @@ export function useGemMetals(id: string, worn: 'ring' | 'pendant' | 'loose', des
   });
 }
 
+/** Everything locked, priced now. */
+export function useGemCart() {
+  return useQuery({ queryKey: ['astrology', 'gem-cart'], queryFn: () => astrologyApi.gemCart(), retry: false });
+}
+/** Lock and unlock write the cart straight into the cache — the response IS the
+ *  new cart, and a list that flickers back while a refetch lands reads broken. */
+export function useLockGem() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: astrologyApi.lockGem, onSuccess: (c) => qc.setQueryData(['astrology', 'gem-cart'], c) });
+}
+export function useUnlockGem() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: astrologyApi.unlockGem, onSuccess: (c) => qc.setQueryData(['astrology', 'gem-cart'], c) });
+}
+export function useGemCheckout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: astrologyApi.checkoutGemCart,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['astrology', 'gem-cart'] });
+      void qc.invalidateQueries({ queryKey: ['financial'] });
+    },
+  });
+}
+
 /** Commissioning spends from the city wallet, so the financial views go stale. */
 export function useGemCommission() {
   const qc = useQueryClient();

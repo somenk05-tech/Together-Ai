@@ -305,12 +305,13 @@ describe('the gem studio', () => {
     /**
      * A gemstone is the dearest thing this city sells and the studio has a
      * slider on it. If the amount travelled in the request body, the amount
-     * would be whatever the request said.
+     * would be whatever the request said — so what goes up is the CHOICES, and
+     * the server prices them again from the same files the page quoted from.
      */
-    expect(studio).toMatch(/commission\.mutate/);
-    expect(studio).not.toMatch(/amountInr:\s*priceInr/);
+    expect(studio).toMatch(/lock\.mutate\(lockPayload/);
+    expect(studio).not.toMatch(/amountInr/);
     const api = code('features/astrology/api.ts');
-    expect(api).toMatch(/commissionGem/);
+    expect(api).toMatch(/lockGem/);
     expect(api).not.toMatch(/amountInr: v\.amountInr/);
   });
 
@@ -358,5 +359,64 @@ describe('the metal', () => {
   it('charges nothing for metal on a loose stone', () => {
     expect(studio).toMatch(/worn === 'loose' \? 0 :/);
     expect(studio).toMatch(/metal: worn === 'loose' \? undefined : metal/);
+  });
+});
+
+/**
+ * A LOCKED COMMISSION HAS TO BE WAITING SOMEWHERE.
+ *
+ * The studio priced a stone beautifully and then had nowhere to put it: "Look
+ * at the others" threw the whole configuration away, and there was no cart, no
+ * door in the menu, and no way to buy two stones in one go.
+ */
+describe('the gem checkout', () => {
+  const studio = code('features/astrology/pages/GemStudio.tsx');
+  const checkout = code('features/astrology/pages/GemCheckout.tsx');
+  const hubs = code('config/hubs.ts');
+
+  it('has a door in the sidebar', () => {
+    // Without one, the cart is a page reachable only from the page you left.
+    expect(hubs).toMatch(/\/astrology\/gem-checkout/);
+    expect(hubs).toMatch(/Stones you have locked/);
+    expect(code('features/astrology/shared.tsx')).toMatch(/\/astrology\/gem-checkout/);
+  });
+
+  it('locks the design from both buttons and charges from neither', () => {
+    // "Commission" is the same lock with the checkout on the end of it, so one
+    // stone never meets a cart it did not ask for and three are paid for once.
+    expect(studio).toMatch(/Lock this and see the others/);
+    expect(studio).toMatch(/lock\.mutate\(lockPayload, \{ onSuccess: \(\) => navigate\('\/astrology\/gem-checkout'\) \}\)/);
+    expect(studio).toMatch(/lock\.mutate\(lockPayload, \{ onSuccess: \(\) => navigate\('\/astrology\/gemstones'\) \}\)/);
+    expect(studio).not.toMatch(/PaymentSheet/);
+    expect(studio).toMatch(/Locking costs nothing/);
+  });
+
+  it('is the two-column order-and-summary a checkout is', () => {
+    expect(checkout).toMatch(/gem-checkout/);
+    expect(checkout).toMatch(/Order summary/);
+    expect(checkout).toMatch(/gem-order-line/);
+    expect(checkout).toMatch(/Remove/);
+  });
+
+  it('takes one charge for everything locked', () => {
+    expect(checkout).toMatch(/One charge for everything above/);
+    expect(checkout).toMatch(/useGemCheckout/);
+  });
+
+  it('sends no total to the server', () => {
+    // Gold moves daily and this is the dearest thing the city sells. The server
+    // prices the cart again at the charge, from the files the studio quoted
+    // from. Nothing on this page adds anything the server has not added.
+    const api = code('features/astrology/api.ts');
+    expect(api).toMatch(/checkoutGemCart/);
+    expect(api).not.toMatch(/checkoutGemCart:.*amountInr/);
+    expect(checkout).not.toMatch(/reduce\(/);
+  });
+
+  it('tells somebody why a cart cannot be priced instead of showing zero', () => {
+    // The carats come from body weight. Without one the lines exist and cannot
+    // be costed, which is a different thing from an empty cart.
+    expect(checkout).toMatch(/bodyKnown/);
+    expect(checkout).toMatch(/we need your body weight/);
   });
 });

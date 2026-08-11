@@ -16,6 +16,7 @@ import { GEM_DISCLAIMER, buildGemGuidance, buildRemedies } from './gem-remedy-co
 import { designBrief, recommendGems } from './gems/gem-recommend';
 import { PENDANT_STYLES, RING_SETTINGS, RING_SIZES, STONE_SHAPES, adviseSetting } from './gems/ring-studio';
 import { METAL_NAME, KNOWN_DESIGNS, metalQuotes, type MetalKey } from './gems/metal-pricing';
+import { parseGemCart, priceGemCart, type GemCartLine } from './gems/gem-cart';
 import { healthFlagsFor } from './health-flags';
 import { firstNameOf } from './voice';
 
@@ -559,72 +560,93 @@ export class AstrologyService {
     };
   }
 
-  /**
-   * Commission the stone: take the money and record what was ordered.
-   *
-   * THE CLIENT DOES NOT SEND A PRICE, AND THAT IS NOT A DETAIL. The studio page
-   * has a grade slider on it; if the amount travelled with the request, the
-   * amount is whatever the request says, and a gemstone is the most expensive
-   * thing this city sells. The client sends the CHOICES — how far along the
-   * grade, which cut, which mount, what size — and the server prices them from
-   * the same catalogue and the same weight rule the page was rendered from.
-   *
-   * The specification is written here too, for the same reason: the sentence
-   * the jeweller works from and the sentence the citizen was shown have to be
-   * the same sentence, and only one of the two machines should be composing it.
-   *
-   * NO ORDER TABLE YET, and this is honest rather than ideal. The charge is
-   * recorded in the Financial hub with the full specification as its label, so
-   * there is a receipt with everything on it. A gem order of its own — with a
-   * status, a jeweller's quote for the metalwork, and a history — needs a table
-   * and a migration, and it is the next thing.
-   */
-  async commissionGem(userId: string, gemId: string, dto: {
-    grade: number; worn: 'ring' | 'pendant' | 'loose'; shape: string;
-    setting?: string; style?: string; size?: number; metal?: MetalKey; method: PayMethod;
-  }) {
+
+  // ───────────────────────── the gem cart ─────────────────────────
+  //
+  // READ AND WRITTEN WITH RAW SQL, AND THAT IS A DATED EXCEPTION. `gemCartJson`
+  // is a new column on AstroProfile; the generated Prisma client in this
+  // workspace predates it, and the sandbox this was built in cannot reach
+  // Prisma's engine CDN to regenerate. Raw SQL needs no generated types, so the
+  // two statements below compile and are covered by tests today rather than
+  // waiting for an environment.
+  //
+  // AFTER THE NEXT `prisma generate` (which the deploy runs anyway, before the
+  // build), replace these with `this.db.astroProfile.findUnique/update` on the
+  // typed field. Nothing else has to change: everything above and below this
+  // pair already speaks in `GemCartLine[]`.
+
+  private async readGemCart(userId: string): Promise<GemCartLine[]> {
+    const rows = await swallow(
+      this.prisma.$queryRaw<{ gemCartJson: string | null }[]>`
+        SELECT "gemCartJson" FROM "AstroProfile" WHERE "userId" = ${userId} LIMIT 1`,
+      'astro: gem cart read', { userId },
+    );
+    return parseGemCart(rows?.[0]?.gemCartJson ?? null);
+  }
+
+  private async writeGemCart(userId: string, lines: GemCartLine[]): Promise<void> {
+    await swallow(
+      this.prisma.$executeRaw`
+        UPDATE "AstroProfile" SET "gemCartJson" = ${JSON.stringify(lines)} WHERE "userId" = ${userId}`,
+      'astro: gem cart write', { userId },
+    );
+  }
+
+  /** Everything locked, priced now — never at the price it was locked at. */
+  async gemCart(userId: string) {
     const row = await this.requireProfile(userId);
-    if (!row) throw new BadRequestException('Add your birth details before commissioning a stone.');
-    const master = await swallow(this.masterProfile.get(userId), 'astro: master read for commission', { userId });
-    const brief = designBrief(gemId, typeof master?.weightKg === 'number' ? master.weightKg : null);
-    if (!brief) throw new NotFoundException('That stone is not in the catalogue.');
-    if (!brief.weight || brief.fromInr === null || brief.toInr === null) {
-      throw new BadRequestException('We need your body weight to size the stone before it can be ordered.');
-    }
+    if (!row) return { needsProfile: true as const };
+    const master = await swallow(this.masterProfile.get(userId), 'astro: master read for cart', { userId });
+    const bodyKg = typeof master?.weightKg === 'number' ? master.weightKg : null;
+    return { needsProfile: false as const, ...priceGemCart(await this.readGemCart(userId), bodyKg), bodyKnown: bodyKg !== null };
+  }
 
-    const grade = Math.min(100, Math.max(0, Math.round(dto.grade)));
-    const stoneInr = Math.round(brief.fromInr + ((brief.toInr - brief.fromInr) * grade) / 100);
+  /** Lock one configuration. The studio is the only thing that makes them. */
+  async lockGem(userId: string, line: GemCartLine) {
+    const row = await this.requireProfile(userId);
+    if (!row) throw new BadRequestException('Add your birth details before locking a stone.');
+    const cart = await this.readGemCart(userId);
+    // ONE LINE PER STONE. Somebody who designs a ruby ring, goes back and
+    // designs it again has changed their mind, not ordered two — and two rubies
+    // for one Sun is not a thing the tradition would recognise either.
+    const next = [...cart.filter((l) => l.gemId !== line.gemId), { ...line, addedAt: new Date().toISOString() }];
+    await this.writeGemCart(userId, parseGemCart(next));
+    return this.gemCart(userId);
+  }
 
-    // THE METAL IS PRICED HERE TOO, from the same file the studio quoted from.
-    // A loose stone has none. The quote already contains the making charge —
-    // see metal-pricing.ts — so nothing is added on top of it here or anywhere.
-    const design = dto.worn === 'ring' ? dto.setting ?? 'solitaire' : dto.style ?? 'classic';
-    const metalQuote = dto.worn === 'loose' || !dto.metal
-      ? null
-      : metalQuotes(dto.worn, design, dto.size ?? 16, brief.weight.carats, brief.gem.planet)
-        .find((m) => m.key === dto.metal) ?? null;
-    const amountInr = stoneInr + (metalQuote?.priceInr ?? 0);
+  async unlockGem(userId: string, gemId: string) {
+    const cart = await this.readGemCart(userId);
+    await this.writeGemCart(userId, cart.filter((l) => l.gemId !== gemId));
+    return this.gemCart(userId);
+  }
 
-    const shape = STONE_SHAPES.find((x) => x.key === dto.shape)?.name ?? 'Oval';
-    const stone = `${brief.gem.name} · ${brief.weight.carats} ct · ${shape}`;
-    const inMetal = metalQuote ? `${metalQuote.name} (${metalQuote.grams} g)` : brief.wearing.metal;
-    // LOOSE IS A REAL ORDER, NOT A LESSER ONE. Plenty of people buy the stone
-    // and take it to a jeweller they already trust — so the specification says
-    // what that jeweller needs to know rather than trailing off at "unset".
-    const spec = dto.worn === 'loose'
-      ? `${stone} · loose, unset — to be set in ${brief.wearing.metal.toLowerCase()}, `
-        + `${brief.wearing.finger.toLowerCase()} of the ${brief.wearing.hand.toLowerCase()}, open back`
-      : dto.worn === 'ring'
-        ? `${stone} · ${RING_SETTINGS.find((x) => x.key === dto.setting)?.name ?? 'Solitaire'} · `
-          + `${inMetal} · size ${dto.size ?? 16}`
-        : `${stone} · ${PENDANT_STYLES.find((x) => x.key === dto.style)?.name ?? 'Classic'} pendant · ${inMetal}`;
+  /**
+   * Pay for everything locked, in one charge.
+   *
+   * THE TOTAL IS RECOMPUTED HERE and the request carries no amount, for the
+   * same reason the studio's did not: gold moves daily and this is the dearest
+   * thing the city sells.
+   */
+  async checkoutGemCart(userId: string, method: PayMethod) {
+    const row = await this.requireProfile(userId);
+    if (!row) throw new BadRequestException('Add your birth details first.');
+    const master = await swallow(this.masterProfile.get(userId), 'astro: master read for checkout', { userId });
+    const bodyKg = typeof master?.weightKg === 'number' ? master.weightKg : null;
+    const cart = priceGemCart(await this.readGemCart(userId), bodyKg);
+    if (cart.count === 0) throw new BadRequestException('There is nothing locked to pay for.');
 
+    const label = cart.lines.length === 1
+      ? `Gemstone · ${cart.lines[0].spec}`
+      : `Gemstones (${cart.lines.length}) · ${cart.lines.map((l) => l.spec).join(' | ')}`;
     await this.financial.paid<void>(
       userId,
-      { hub: 'Astrology', category: 'astrology', label: `Gemstone · ${spec}`, amountInr, method: dto.method },
+      { hub: 'Astrology', category: 'astrology', label, amountInr: cart.totalInr, method },
       async () => undefined,
     );
-    return { paid: true as const, spec, amountInr, stoneInr, caratsX100: Math.round(brief.weight.carats * 100) };
+    // Paid for is out of the cart — the other thing that may empty it is the
+    // citizen, and nothing else.
+    await this.writeGemCart(userId, []);
+    return { paid: true as const, totalInr: cart.totalInr, lines: cart.lines.length, spec: label };
   }
 
   /**

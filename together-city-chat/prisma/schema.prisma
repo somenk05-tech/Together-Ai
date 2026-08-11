@@ -2136,6 +2136,16 @@ model AstroProfile {
   // rows could be reset by deleting them. This only ever goes up.
   questionsAsked Int @default(0)
 
+  /// The gem cart — a JSON array of CONFIGURATIONS, never of prices.
+  ///
+  /// A commission is the stone plus the cut, the mount, the metal, the size and
+  /// the grade; columns for those would be a migration per design decision. The
+  /// rate, the weight model and the making charge live in one server file, so a
+  /// cart that carried totals could check out at a number the shop no longer
+  /// offers. Null means never opened the studio, which is not the same as an
+  /// empty cart.
+  gemCartJson String?
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
