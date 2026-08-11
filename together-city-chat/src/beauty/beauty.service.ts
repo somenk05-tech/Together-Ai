@@ -7,7 +7,7 @@ import { FinancialService } from '../financial/financial.service';
 import { AiService } from '../ai/ai.service';
 import { MasterProfileService } from '../profile/master-profile.service';
 import { beautyGender } from '../profile/sex-and-gender';
-import { clampBudget, planWithinBudget, type StoredBudget } from './budget-routine';
+import { clampBudget, planForWire, planWithinBudget, type StoredBudget } from './budget-routine';
 import {
   beautyInsights, recommendProducts, priceBeautyOrder, CONCERN_TAGS, BEAUTY_PRODUCTS,
   type BeautyInsight,
@@ -571,7 +571,10 @@ export class BeautyService {
     const routines = buildRoutines(products.filter((p) => chosen.has(p.id)));
 
     return {
-      needsBudget: false as const, budget, plan, routines, personalisedBy,
+      // The wire shape, not the planner's own — see `planForWire`. The page
+      // joins these picks to the routine steps by productId, which the internal
+      // Pick_ does not have.
+      needsBudget: false as const, budget, plan: planForWire(plan), routines, personalisedBy,
       productCount: chosen.size, disclaimer,
     };
   }

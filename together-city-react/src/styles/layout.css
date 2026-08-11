@@ -619,6 +619,16 @@
   .routine-day > :nth-child(2) { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 18px; }
 }
 
+/* Face, hair and body abreast — one card per budget, and only for the
+   categories that have one. `auto-fit` rather than a fixed three: somebody who
+   set only a face budget gets one card that fills the row, not one card and two
+   holes. It drops to two up at tablet and one on a phone, which is the point at
+   which three columns of prose stop being prose. */
+.routine-budget {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; align-items: start;
+}
+@media (max-width: 620px) { .routine-budget { grid-template-columns: 1fr; } }
+
 .routine-assure {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 18px;
 }

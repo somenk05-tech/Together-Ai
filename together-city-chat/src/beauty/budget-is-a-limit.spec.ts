@@ -1,5 +1,5 @@
 import { recommendProducts } from './beauty-engine';
-import { planCategory, planWithinBudget, categoryOf, clampBudget, BUDGET_MIN, BUDGET_MAX } from './budget-routine';
+import { planCategory, planWithinBudget, planForWire, categoryOf, clampBudget, BUDGET_MIN, BUDGET_MAX } from './budget-routine';
 import { monthlyCostInr, monthsOfUse, packSize, lastsLabel } from './monthly-cost';
 import { BEAUTY_PRODUCTS } from './beauty-catalog';
 
@@ -265,5 +265,56 @@ describe('a profile with concerns but no photo assessment', () => {
     const p = planCategory(shelf, 'face', 5000, new Set());
     expect(p.picks.length).toBeGreaterThan(0);
     expect(p.picks.every((x) => x.tier === 'essential')).toBe(true);
+  });
+});
+
+describe('the plan the browser receives', () => {
+  /**
+   * A TYPE ON ONE SIDE OF A WIRE IS A CLAIM, NOT A FACT.
+   *
+   * `RoutinePick` in the React app declared `{ productId, monthlyInr,
+   * monthsOfUse }`. The server sent `{ product: {...}, monthlyInr,
+   * monthsOfUse }`. Both files compiled, both were confident, and they had
+   * never agreed — the page happened to read only `skipped`, so the
+   * disagreement cost nothing until the routine tried to join a pick to a step
+   * and joined on `undefined`.
+   *
+   * This is the same failure as the budget-key collision one layer up, and it
+   * has the same fix: assert the shape at the boundary rather than trusting the
+   * annotation on either end.
+   */
+  const wire = planForWire(plan(5000));
+  const every = [...wire.face.picks, ...wire.hair.picks, ...wire.body.picks];
+
+  it('sends an id the routine steps can be joined on', () => {
+    expect(every.length).toBeGreaterThan(0);
+    expect(every.every((p) => typeof p.productId === 'string' && p.productId.length > 0)).toBe(true);
+  });
+
+  it('does not send the whole product back inside the plan', () => {
+    // Every chosen product is already in a routine band. Sending it twice is
+    // weight, and — worse — a second copy that can disagree with the first.
+    expect(every.some((p) => 'product' in p)).toBe(false);
+  });
+
+  it('carries the pack size and the how-long phrase, so the page invents neither', () => {
+    const sized = every.filter((p) => p.packLabel !== '');
+    expect(sized.length).toBeGreaterThan(0);
+    expect(sized.every((p) => /^[\d.]+\s?(ml|g|gm|kg|l)$/.test(p.packLabel))).toBe(true);
+    expect(every.every((p) => /^about \d/.test(p.lastsLabel))).toBe(true);
+  });
+
+  it('keeps the same money as the plan it was built from', () => {
+    const p = plan(5000);
+    expect(wire.totalMonthlyInr).toBe(p.totalMonthlyInr);
+    expect(wire.face.remainingInr).toBe(p.face.remainingInr);
+    expect(wire.face.picks.map((x) => x.productId)).toEqual(p.face.picks.map((x) => x.product.id));
+  });
+
+  it('leaves a zero category as zero, all the way out', () => {
+    const none = planForWire(planWithinBudget(SHELF, { face: 5000, hair: 5000, body: 0 }, NEEDS));
+    expect(none.body.skipped).toBe(true);
+    expect(none.body.picks).toEqual([]);
+    expect(none.body.upgrades).toEqual([]);
   });
 });

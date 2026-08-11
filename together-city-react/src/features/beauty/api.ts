@@ -103,9 +103,24 @@ export interface BeautyBudget {
 }
 
 export type RoutineTier = 'essential' | 'high-value' | 'optional';
+/**
+ * One chosen product, as the plan describes it — joined to a routine step by
+ * `productId`.
+ *
+ * `packLabel` and `lastsLabel` ARRIVE FINISHED and are not recomputed here.
+ * "100 ml", "about 2½ months" and the monthly figure are all judgements made in
+ * the server's `monthly-cost.ts` — how much of a thing a person actually gets
+ * through in a month, capped at a year once opened. A second copy of that
+ * arithmetic in the browser would be a second answer the day either was
+ * corrected. This file formats rupees; everything else is quoted.
+ */
 export interface RoutinePick {
-  productId: string; role: string; tier: RoutineTier;
+  productId: string; name: string; role: string; tier: RoutineTier;
   monthlyInr: number; monthsOfUse: number;
+  /** "100 ml" — what is on the pack, or '' when the name never said. */
+  packLabel: string;
+  /** "about 6 weeks" · "about 2½ months". */
+  lastsLabel: string;
 }
 export interface CategoryPlan {
   category: 'face' | 'hair' | 'body';

@@ -1,5 +1,5 @@
 import type { RecommendedProduct } from './beauty-engine';
-import { monthlyCostInr, monthsOfUse } from './monthly-cost';
+import { lastsLabel, monthlyCostInr, monthsOfUse, packLabel } from './monthly-cost';
 
 /**
  * Choosing a routine that fits what somebody can spend.
@@ -305,6 +305,78 @@ export function planCategory(
 export interface BudgetPlan {
   face: CategoryPlan; hair: CategoryPlan; body: CategoryPlan;
   totalBudgetInr: number; totalMonthlyInr: number; totalRemainingInr: number;
+}
+
+/**
+ * ── THE PLAN AS IT GOES OVER THE WIRE ───────────────────────────────────────
+ *
+ * A `Pick_` holds the whole `RecommendedProduct` because the planner needs it —
+ * tags, profileKeys, match score, price. None of that is any use to the page,
+ * and sending it means every chosen product is serialised twice: once inside
+ * the plan and once inside the routine band that shows it.
+ *
+ * Worse than the weight, it was a LIE ABOUT THE SHAPE. The client's type said
+ * `{ productId }` and the server sent `{ product: {...} }`; nothing broke only
+ * because the one field the page read was `skipped`. The moment anything tried
+ * to join the plan to a step it would have joined on `undefined` and quietly
+ * shown nothing — the same failure as the budget-key collision, one layer up.
+ * So the shape the client declares is the shape the server builds, here, in one
+ * function, with a test that fails if a `product` object ever reappears.
+ *
+ * THE TWO PHRASES TRAVEL WITH IT. "≈ 3 months" and "100 ml" are judgements made
+ * in monthly-cost.ts — weeks below two months, halves above, the pack size read
+ * off the product's own name. Recomputing them in the browser would be a second
+ * copy of that judgement, and the two would disagree the first time either was
+ * corrected. The client formats rupees and nothing else.
+ */
+export interface WirePick {
+  productId: string; name: string; role: string; tier: Tier;
+  monthlyInr: number; monthsOfUse: number;
+  /** "100 ml" — what is printed on the pack, or '' if the name never said. */
+  packLabel: string;
+  /** "about 6 weeks" · "about 2½ months" — how long one pack lasts. */
+  lastsLabel: string;
+}
+
+export interface WireCategoryPlan {
+  category: BudgetCategory; budgetInr: number; skipped: boolean;
+  monthlyInr: number; remainingInr: number; minimumInr: number | null;
+  picks: WirePick[]; leftOut: LeftOut[]; upgrades: WirePick[];
+}
+
+export interface WireBudgetPlan {
+  face: WireCategoryPlan; hair: WireCategoryPlan; body: WireCategoryPlan;
+  totalBudgetInr: number; totalMonthlyInr: number; totalRemainingInr: number;
+}
+
+const wirePick = (x: Pick_): WirePick => ({
+  productId: x.product.id,
+  name: x.product.name,
+  role: x.role,
+  tier: x.tier,
+  monthlyInr: x.monthlyInr,
+  monthsOfUse: x.monthsOfUse,
+  packLabel: packLabel(x.product.name),
+  lastsLabel: lastsLabel(x.monthsOfUse),
+});
+
+const wireCategory = (c: CategoryPlan): WireCategoryPlan => ({
+  category: c.category, budgetInr: c.budgetInr, skipped: c.skipped,
+  monthlyInr: c.monthlyInr, remainingInr: c.remainingInr, minimumInr: c.minimumInr,
+  picks: c.picks.map(wirePick),
+  leftOut: c.leftOut,
+  upgrades: c.upgrades.map(wirePick),
+});
+
+export function planForWire(plan: BudgetPlan): WireBudgetPlan {
+  return {
+    face: wireCategory(plan.face),
+    hair: wireCategory(plan.hair),
+    body: wireCategory(plan.body),
+    totalBudgetInr: plan.totalBudgetInr,
+    totalMonthlyInr: plan.totalMonthlyInr,
+    totalRemainingInr: plan.totalRemainingInr,
+  };
 }
 
 export function planWithinBudget(

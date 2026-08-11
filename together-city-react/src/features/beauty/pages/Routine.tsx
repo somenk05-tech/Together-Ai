@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { useBeautyProfile, useBeautyRoutine, usePlaceBeautyOrder, type ProductRoutine, type ProductRoutineStep } from '../api';
+import {
+  useBeautyProfile, useBeautyRoutine, usePlaceBeautyOrder, useSaveBeautyBudget,
+  type CategoryPlan, type ProductRoutine, type ProductRoutineStep, type RoutinePick, type RoutineTier,
+} from '../api';
 import { payError, type PayMethod } from '@/features/financial/api';
 import { PaymentSheet } from '@/features/financial/PaymentSheet';
 import { ProductShot } from '../components/ProductShot';
@@ -46,13 +49,36 @@ const BAND: Record<ProductRoutine['timeOfDay'], { icon: string; sub: string }> =
 const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
 /**
- * One step: the number, the picture, what it is, and what it costs.
+ * ── WHAT A ROUTINE COSTS, AND FOR HOW LONG ─────────────────────────────────
+ *
+ * THE PURCHASE PRICE IS THE MISLEADING NUMBER, and until now it was the only
+ * one on this page. Four products at ₹284, ₹569, ₹408 and ₹474 read as ₹1,735
+ * spent this month against a budget of ₹5,000 — comfortable. It is nothing of
+ * the sort in either direction: the cleanser is a hundred millilitres and lasts
+ * a month and a half, the sunscreen at the honest dose is gone in six weeks,
+ * and the serum will still be there at Christmas. Against a MONTHLY budget the
+ * only honest figure is the monthly one, which is what the plan is built on and
+ * what this page now shows beside every price.
+ *
+ * AND IT SHOWS ITS WORKING. "₹1,099 ≈ ₹366/month" invites the question "says
+ * who?", so every step carries the pack and the answer — "one 88 ml pack —
+ * about 3 months". That sentence is the difference between a number somebody
+ * believes and a number they scroll past. Both phrases come from the server
+ * finished; see `RoutinePick` for why they are not recomputed here.
+ */
+const TIER_LABEL: Record<RoutineTier, string> = {
+  essential: 'Essential', 'high-value': 'High value', optional: 'Optional',
+};
+
+/**
+ * One step: the number, the picture, what it is, what it costs and how long it
+ * lasts.
  *
  * The picture is `ProductShot`, shared with the market — it is hotlinked to a
  * retailer's CDN and walks primary → alternate → category mark. Two copies of
  * that fallback would have been two behaviours the day one of them was fixed.
  */
-function Step({ s, qty, onAdd, onRemove }: { s: ProductRoutineStep; qty: number; onAdd: () => void; onRemove: () => void }) {
+function Step({ s, pick, qty, onAdd, onRemove }: { s: ProductRoutineStep; pick?: RoutinePick; qty: number; onAdd: () => void; onRemove: () => void }) {
   return (
     <li style={{ display: 'flex', gap: 13, padding: '15px 0', borderTop: '1px solid var(--line)' }}>
       <span aria-hidden
@@ -66,7 +92,27 @@ function Step({ s, qty, onAdd, onRemove }: { s: ProductRoutineStep; qty: number;
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <span className="muted" style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em' }}>{s.step}</span>
-          <span className="muted" style={{ marginLeft: 'auto', fontSize: 13.5, color: 'var(--ink)', fontWeight: 700 }}>₹{s.priceInr}</span>
+          {/* WHY THIS STEP IS HERE, in one word. The plan sorts everything into
+              three tiers and acts on them — essentials go in first and are never
+              dropped for a nicer optional — so saying which is which is telling
+              somebody how their own routine was reasoned, not decorating it. */}
+          {pick && (
+            <span className="muted" style={{ fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.09em',
+              borderRadius: 999, padding: '2px 7px',
+              background: pick.tier === 'high-value' ? 'var(--accent-soft)' : 'transparent',
+              color: pick.tier === 'high-value' ? 'var(--accent-ink)' : undefined,
+              border: pick.tier === 'high-value' ? '1px solid var(--accent-line)' : '1px solid var(--line)' }}>
+              {TIER_LABEL[pick.tier]}
+            </span>
+          )}
+          <span style={{ marginLeft: 'auto', textAlign: 'right' }}>
+            <span style={{ fontSize: 13.5, color: 'var(--ink)', fontWeight: 700 }}>₹{s.priceInr}</span>
+            {pick && (
+              <span className="muted" style={{ display: 'block', fontSize: 11, marginTop: 1 }}>
+                ≈ {rupees(pick.monthlyInr)}/month
+              </span>
+            )}
+          </span>
         </div>
         {/* The name links out to where it is actually sold. A routine that names
             a product you then have to go and search for is homework. */}
@@ -76,6 +122,13 @@ function Step({ s, qty, onAdd, onRemove }: { s: ProductRoutineStep; qty: number;
             : <strong style={{ fontSize: 14 }}>{s.name}</strong>}
         </div>
         <div className="muted" style={{ fontSize: 11.5, marginTop: 1 }}>{s.brand}{s.keyIngredient ? ` · ${s.keyIngredient}` : ''}</div>
+        {/* The working behind the monthly figure. Without it "≈ ₹366/month" is
+            an assertion; with it, it is arithmetic anybody can check. */}
+        {pick && (
+          <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>
+            {pick.packLabel ? `One ${pick.packLabel} pack — ${pick.lastsLabel}` : `Lasts ${pick.lastsLabel}`}
+          </div>
+        )}
         <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', margin: '6px 0 0', lineHeight: 1.55 }}>{s.instructions}</p>
         <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>{s.frequency}</div>
 
@@ -104,7 +157,10 @@ function Step({ s, qty, onAdd, onRemove }: { s: ProductRoutineStep; qty: number;
   );
 }
 
-function Band({ r, bag, add, remove }: { r: ProductRoutine; bag: Record<string, number>; add: (id: string) => void; remove: (id: string) => void }) {
+function Band(
+  { r, picks, bag, add, remove }:
+  { r: ProductRoutine; picks: Map<string, RoutinePick>; bag: Record<string, number>; add: (id: string) => void; remove: (id: string) => void },
+) {
   const meta = BAND[r.timeOfDay];
   return (
     <section style={{ minWidth: 0 }}>
@@ -128,10 +184,134 @@ function Band({ r, bag, add, remove }: { r: ProductRoutine; bag: Record<string, 
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0' }}>
           {r.steps.map((s) => (
-            <Step key={s.productId} s={s} qty={bag[s.productId] ?? 0}
+            <Step key={s.productId} s={s} pick={picks.get(s.productId)} qty={bag[s.productId] ?? 0}
               onAdd={() => add(s.productId)} onRemove={() => remove(s.productId)} />
           ))}
         </ul>
+      )}
+    </section>
+  );
+}
+
+/**
+ * ── ONE CATEGORY'S MONEY ────────────────────────────────────────────────────
+ *
+ * THREE NUMBERS AND A BAR, and the bar is the reason the numbers are readable
+ * at a glance: ₹4,250 against ₹5,000 means nothing until you have seen how full
+ * it is. It is drawn in the hub's own accent on a hairline track — NOT in red
+ * approaching the end and NOT in green while there is room. A budget you have
+ * nearly spent is not a warning; it is a budget working. The only alarm in this
+ * hub is reserved for something that could hurt somebody's skin, and spending
+ * ₹4,250 of ₹5,000 is not that.
+ *
+ * IT CANNOT OVERFLOW, and that is by construction rather than by clamping. The
+ * planner never takes a product it cannot afford, so `monthlyInr` is at most
+ * `budgetInr` and the fill is at most full. If this ever renders past the end,
+ * the bug is in the planner and the bar is telling the truth about it.
+ *
+ * THE SHORT BUDGET IS THE INTERESTING CASE. When the essentials do not fit, the
+ * plan reports what they would cost and the card asks — it does not adjust. Two
+ * buttons, both explicit: keep the number you chose, or raise it to the one
+ * that works. Silently moving somebody's budget to make our answer fit is the
+ * single thing this feature was built to refuse.
+ *
+ * AND MONEY LEFT OVER IS NOT A GAP TO FILL. A ₹4,250 routine against ₹5,000 is
+ * finished, not 85% finished. The line under the bar says so in as many words,
+ * because every shop the citizen has ever used says the opposite.
+ */
+const CATEGORY: Record<CategoryPlan['category'], { label: string; sub: string }> = {
+  face: { label: 'Face', sub: 'Cleanse · treat · moisturise · protect' },
+  hair: { label: 'Hair', sub: 'Wash · condition · scalp' },
+  body: { label: 'Body', sub: 'Wash · moisturise · hands & lips' },
+};
+
+function BudgetCard(
+  { c, kept, onKeep, onRaise, raising }:
+  { c: CategoryPlan; kept: boolean; onKeep: () => void; onRaise: (n: number) => void; raising: boolean },
+) {
+  const meta = CATEGORY[c.category];
+  const pct = c.budgetInr > 0 ? Math.min(100, Math.round((c.monthlyInr / c.budgetInr) * 100)) : 0;
+  const short = c.minimumInr !== null && !kept;
+  // "Room to spare" is a quarter of the budget or ₹400, whichever is more —
+  // below that it is rounding, and saying "you have ₹90 left" about a routine
+  // that is right is noise dressed up as insight.
+  const spare = c.remainingInr >= Math.max(400, c.budgetInr * 0.25);
+
+  return (
+    <section className="card" style={{ margin: 0, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <h3 style={{ fontSize: 13, margin: 0, textTransform: 'uppercase', letterSpacing: '.12em' }}>{meta.label}</h3>
+        <span className="muted" style={{ fontSize: 11 }}>{c.picks.length} product{c.picks.length === 1 ? '' : 's'}</span>
+      </div>
+      <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>{meta.sub}</div>
+
+      <dl style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '7px 12px', margin: '14px 0 0' }}>
+        <dt className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Monthly budget</dt>
+        <dd style={{ margin: 0, fontSize: 13.5, fontWeight: 700, textAlign: 'right' }}>{rupees(c.budgetInr)}</dd>
+        <dt className="muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Routine cost</dt>
+        <dd style={{ margin: 0, fontSize: 19, fontWeight: 800, letterSpacing: '-.01em', textAlign: 'right', lineHeight: 1.1 }}>
+          {rupees(c.monthlyInr)}<span className="muted" style={{ fontSize: 11.5, fontWeight: 600 }}>/month</span>
+        </dd>
+      </dl>
+
+      <div aria-hidden style={{ height: 6, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', margin: '12px 0 7px' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 999 }} />
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <span className="muted" style={{ fontSize: 11.5 }}>{pct}% of your {meta.label.toLowerCase()} budget</span>
+        <span style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 700 }}>{rupees(c.remainingInr)} remaining</span>
+      </div>
+
+      {/* WHAT IS NOT HERE, AND WHY — before the ask, not after it. These are
+          the sentences that turn a short list into a reasoned one: "you don't
+          need a separate toner" and "a treatment step would fit your profile
+          but not this budget" are different facts and a lean routine has to say
+          which one it means. */}
+      {c.leftOut.length > 0 && (
+        <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0 0', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {c.leftOut.slice(0, 3).map((l) => (
+            <li key={l.role} className="muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>· {l.why}</li>
+          ))}
+        </ul>
+      )}
+
+      {short && c.minimumInr !== null && (
+        <div style={{ marginTop: 14, background: 'var(--accent-soft)', border: '1px solid var(--accent-line)', borderRadius: 10, padding: '11px 13px' }}>
+          <p style={{ fontSize: 12.5, lineHeight: 1.6, margin: 0 }}>
+            {rupees(c.budgetInr)} a month won&rsquo;t carry the full base for your {meta.label.toLowerCase()} —
+            the essentials come to about <strong>{rupees(c.minimumInr)}/month</strong> together. We&rsquo;ve built
+            what fits and put the most important steps in first. Nothing has been changed on your behalf.
+          </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+            <Button variant="accent" size="sm" disabled={raising} onClick={() => onRaise(c.minimumInr as number)}>
+              {raising ? 'Saving…' : `Set ${rupees(c.minimumInr)}`}
+            </Button>
+            <Button variant="line" size="sm" onClick={onKeep}>Keep {rupees(c.budgetInr)}</Button>
+          </div>
+        </div>
+      )}
+
+      {!short && spare && (
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.6, margin: '12px 0 0' }}>
+          Your {meta.label.toLowerCase()} routine is {rupees(c.monthlyInr)}/month. You have {rupees(c.remainingInr)} left,
+          and we don&rsquo;t recommend adding products simply to use it — more products is not better skin.
+        </p>
+      )}
+
+      {/* Offered, never taken. These are the products that would go in if the
+          budget grew — named, priced by the month, and left alone. */}
+      {!short && c.upgrades.length > 0 && (
+        <div style={{ marginTop: 12, borderTop: '1px solid var(--line)', paddingTop: 10 }}>
+          <div className="muted" style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase' }}>Optional, if you want it</div>
+          <ul style={{ listStyle: 'none', padding: 0, margin: '6px 0 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {c.upgrades.slice(0, 2).map((u) => (
+              <li key={u.productId} style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+                <span style={{ fontWeight: 700 }}>{u.role}</span>
+                <span className="muted"> — {u.name} · ≈ {rupees(u.monthlyInr)}/month</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );
@@ -148,9 +328,15 @@ const ASSURANCES: Array<[string, string]> = [
 export function Routine() {
   const routine = useBeautyRoutine();
   const place = usePlaceBeautyOrder();
+  const saveBudget = useSaveBeautyBudget();
   const [bag, setBag] = useState<Record<string, number>>({});
   const [placed, setPlaced] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
+  // "Keep ₹1,000" is an answer, and it is remembered for the visit rather than
+  // saved: nothing about the budget changes, the question simply stops being
+  // asked. Saving a dismissal would be storing an opinion about a number the
+  // citizen has already given us.
+  const [kept, setKept] = useState<Record<string, boolean>>({});
   // THE SEASONAL LINE CAME WITH THE ROUTINE THAT LEFT THE PROFILE PAGE.
   // "Summer: lightweight gel moisturiser, blot excess oil, reapply SPF" is
   // routine advice, so it belongs on the routine — but the product engine is
@@ -178,6 +364,22 @@ export function Routine() {
     return [...byId.values()];
   }, [data]);
 
+  /**
+   * The plan, joined to the steps by productId.
+   *
+   * This is the ONLY link between what the budget decided and what the sheet
+   * shows, which is why the wire shape is asserted on the server: a join on a
+   * field that isn't there produces a page with no monthly costs on it and no
+   * error anywhere.
+   */
+  const picks = useMemo(() => {
+    const m = new Map<string, RoutinePick>();
+    for (const k of ['face', 'hair', 'body'] as const) {
+      for (const p of data?.plan?.[k].picks ?? []) m.set(p.productId, p);
+    }
+    return m;
+  }, [data]);
+
   const items = useMemo(
     () => everyStep.filter((s) => (bag[s.productId] ?? 0) > 0)
       .map((s) => ({ id: s.productId, name: s.name, priceInr: s.priceInr, qty: bag[s.productId] })),
@@ -186,6 +388,7 @@ export function Routine() {
   const count = items.reduce((n, i) => n + i.qty, 0);
   const total = items.reduce((n, i) => n + i.priceInr * i.qty, 0);
   const routineTotal = everyStep.reduce((n, s) => n + s.priceInr, 0);
+  const monthlyTotal = data?.plan?.totalMonthlyInr ?? 0;
 
   if (routine.isLoading) return <Spinner label="Building your routine…" />;
 
@@ -253,6 +456,10 @@ export function Routine() {
   const skipped = new Set(
     (['face', 'hair', 'body'] as const).filter((k) => data?.plan?.[k].skipped),
   );
+  /** The categories that have a budget. A skipped one gets no card, exactly as
+   *  it gets no band — a zero drawn as "₹0 of ₹0" is the nagging this refuses. */
+  const plans = (['face', 'hair', 'body'] as const)
+    .map((k) => data?.plan?.[k]).filter((c): c is CategoryPlan => Boolean(c) && !c!.skipped);
   const bandCategory: Record<ProductRoutine['timeOfDay'], 'face' | 'hair' | 'body' | null> = {
     // Morning, evening and weekly can hold face AND hair steps, so they are
     // only dropped when nothing survived the plan; body is one category and one
@@ -304,15 +511,24 @@ export function Routine() {
             <div style={{ minWidth: 190, background: 'var(--card)', border: '1px solid var(--accent-line)', borderRadius: 12, padding: '13px 15px' }}>
               <div className="muted" style={{ fontSize: 11 }}>The whole routine</div>
               <div style={{ fontSize: 21, fontWeight: 800, letterSpacing: '-.01em' }}>{rupees(routineTotal)}</div>
+              {/* Both numbers, because they answer two different questions: what
+                  it costs to buy today, and what it costs to keep. */}
+              {monthlyTotal > 0 && (
+                <div className="muted" style={{ fontSize: 11 }}>≈ {rupees(monthlyTotal)}/month to keep going</div>
+              )}
               <div className="muted" style={{ fontSize: 11, marginBottom: 9 }}>{everyStep.length} products</div>
               <Button variant="accent" size="sm" onClick={addEverything}>Add all to bag</Button>
             </div>
           )}
         </div>
 
+        {/* WHAT THIS WAS BUILT FROM, named. Three inputs and the budget is one
+            of them — a routine that quietly cost what it cost would make the
+            budget a filter applied afterwards, which is the thing it isn't. */}
         <p className="muted" style={{ fontSize: 12, margin: '16px 0 0', lineHeight: 1.55 }}>
-          Built from your saved skin and hair profile — what to use, in what order, and when.
-          Anything you’ve told us you react to is left out.
+          Built from your saved skin and hair profile, what you told us you want to work on
+          {data?.budget && data.plan ? `, and your ${rupees(data.plan.totalBudgetInr)}/month budget` : ''} —
+          what to use, in what order, and when. Anything you’ve told us you react to is left out.
         </p>
       </div>
 
@@ -344,16 +560,53 @@ export function Routine() {
         </>
       ) : (
         <>
+          {/* ── the money, before the products ───────────────────────────────
+              ABOVE THE ROUTINE, not beneath it. The budget is the input the
+              whole sheet was built from, and a citizen who scrolls four
+              products deep before learning what they were selected against has
+              been shown a shop with a receipt at the bottom.
+
+              PER CATEGORY, because that is how the budget was set and how it is
+              spent — face money never buys a shampoo. The bands below are per
+              time of day, which is how a routine is USED; these two groupings
+              are different on purpose and the page shows both rather than
+              collapsing one into the other. */}
+          {plans.length > 0 && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '2px 0 9px' }}>
+                <h2 style={{ fontSize: 13, margin: 0, textTransform: 'uppercase', letterSpacing: '.12em' }}>Your budget</h2>
+                <span className="muted" style={{ fontSize: 11.5 }}>
+                  {rupees(monthlyTotal)} of {rupees(data.plan?.totalBudgetInr ?? 0)} a month
+                </span>
+                {/* THE ONE PLACE A BUDGET IS SET IS THE PROFILE, so this is a
+                    way back to it and not a second set of dials. */}
+                <Link to="/beauty/profile" style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700 }}>Adjust budget</Link>
+              </div>
+              <div className="routine-budget" style={{ marginBottom: 16 }}>
+                {plans.map((c) => (
+                  <BudgetCard key={c.category} c={c}
+                    kept={kept[c.category] ?? false}
+                    onKeep={() => setKept((k) => ({ ...k, [c.category]: true }))}
+                    raising={saveBudget.isPending}
+                    onRaise={(n) => {
+                      const b = data.budget;
+                      if (b) saveBudget.mutate({ face: b.face, hair: b.hair, body: b.body, [c.category]: n });
+                    }} />
+                ))}
+              </div>
+            </>
+          )}
+
           {/* AM and PM abreast, as in the reference; the divider between them is
               the only rule on the page and it is what makes them read as two
               halves of one day rather than two lists. */}
           <div className="card routine-day" style={{ marginBottom: 14 }}>
-            {day.map((r) => <Band key={r.timeOfDay} r={r} bag={bag} add={add} remove={remove} />)}
+            {day.map((r) => <Band key={r.timeOfDay} r={r} picks={picks} bag={bag} add={add} remove={remove} />)}
           </div>
 
           {rest.filter((r) => r.steps.length > 0).map((r) => (
             <div key={r.timeOfDay} className="card" style={{ marginBottom: 14 }}>
-              <Band r={r} bag={bag} add={add} remove={remove} />
+              <Band r={r} picks={picks} bag={bag} add={add} remove={remove} />
             </div>
           ))}
 
